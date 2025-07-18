@@ -1,0 +1,20 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block content %}
+<div class="content">
+  <h1>ユーザーBANの確認</h1>
+  <p>本当に <strong>{{ original.username }}</strong> をBANしますか？</p>
+  <form method="post" style="margin-top: 2em;">
+    {% csrf_token %}
+    <div class="form-row">
+      <label for="id_ban_reason">BAN理由:</label>
+      <input type="text" name="ban_reason" id="id_ban_reason" value="{{ ban_reason|default_if_none:'' }}" style="width: 60%;" maxlength="255">
+    </div>
+    <div style="margin-top: 2em;">
+      <input type="submit" value="BANする" class="default">
+      <a href="../change/" class="button cancel-link">キャンセル</a>
+    </div>
+  </form>
+</div>
+{% endblock %} 

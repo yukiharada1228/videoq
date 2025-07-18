@@ -1,0 +1,168 @@
+{% extends 'app/base.html' %}
+
+{% block title %}特定商取引法に基づく表記 - VideoQ{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="card">
+            <div class="card-header">
+                <h1 class="h2 mb-0">
+                    <i class="bi bi-info-circle me-2"></i>
+                    特定商取引法に基づく表記
+                </h1>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-12">
+                        <div class="table-responsive">
+                            <table class="table table-borderless">
+                                <tbody>
+                                    <!-- 販売業社の名称 -->
+                                    <tr class="border-bottom">
+                                        <th class="py-3" style="width: 200px; font-weight: 600; color: #4a5568;">
+                                            <i class="bi bi-building me-2"></i>販売業社の名称
+                                        </th>
+                                        <td class="py-3">
+                                            株式会社coevoAI
+                                        </td>
+                                    </tr>
+
+                                    <!-- 所在地 -->
+                                    <tr class="border-bottom">
+                                        <th class="py-3" style="width: 200px; font-weight: 600; color: #4a5568;">
+                                            <i class="bi bi-geo-alt me-2"></i>所在地
+                                        </th>
+                                        <td class="py-3">
+                                            愛知県高浜市論地町二丁目2番地288
+                                        </td>
+                                    </tr>
+
+
+
+                                    <!-- メールアドレス -->
+                                    <tr class="border-bottom">
+                                        <th class="py-3" style="width: 200px; font-weight: 600; color: #4a5568;">
+                                            <i class="bi bi-envelope me-2"></i>メールアドレス
+                                        </th>
+                                        <td class="py-3">
+                                            <a href="mailto:videoq@coevoai.co.jp" class="text-decoration-none">videoq@coevoai.co.jp</a>
+                                        </td>
+                                    </tr>
+
+                                    <!-- 運営統括責任者 -->
+                                    <tr class="border-bottom">
+                                        <th class="py-3" style="width: 200px; font-weight: 600; color: #4a5568;">
+                                            <i class="bi bi-person-badge me-2"></i>運営統括責任者
+                                        </th>
+                                        <td class="py-3">
+                                            原田優輝
+                                        </td>
+                                    </tr>
+
+                                    <!-- 追加手数料等の追加料金 -->
+                                    <tr class="border-bottom">
+                                        <th class="py-3" style="width: 200px; font-weight: 600; color: #4a5568;">
+                                            <i class="bi bi-plus-circle me-2"></i>追加手数料等の追加料金
+                                        </th>
+                                        <td class="py-3">
+                                            基本料金以外の追加料金はありません
+                                        </td>
+                                    </tr>
+
+                                    <!-- 交換および返品（返金ポリシー） -->
+                                    <tr class="border-bottom">
+                                        <th class="py-3" style="width: 200px; font-weight: 600; color: #4a5568;">
+                                            <i class="bi bi-arrow-return-left me-2"></i>交換および返品（返金ポリシー）
+                                        </th>
+                                        <td class="py-3">
+                                            <div class="mb-3">
+                                                <h6 class="fw-bold text-primary">＜お客様都合の返品・交換の場合＞</h6>
+                                                <p class="mb-0">返金はできません。</p>
+                                            </div>
+                                            <div>
+                                                <h6 class="fw-bold text-danger">＜商品に不備がある場合＞</h6>
+                                                <p class="mb-0">まずはvideoq@coevoai.co.jpへお問い合わせください。</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+
+                                    <!-- 引渡時期 -->
+                                    <tr class="border-bottom">
+                                        <th class="py-3" style="width: 200px; font-weight: 600; color: #4a5568;">
+                                            <i class="bi bi-clock me-2"></i>引渡時期
+                                        </th>
+                                        <td class="py-3">
+                                            決済完了後、即座にサービスをご利用いただけます。
+                                        </td>
+                                    </tr>
+
+                                    <!-- 受け付け可能な決済手段 -->
+                                    <tr class="border-bottom">
+                                        <th class="py-3" style="width: 200px; font-weight: 600; color: #4a5568;">
+                                            <i class="bi bi-credit-card me-2"></i>受け付け可能な決済手段
+                                        </th>
+                                        <td class="py-3">
+                                            <ul class="list-unstyled mb-0">
+                                                <li><i class="bi bi-check-circle text-success me-2"></i>クレジットカード決済</li>
+                                            </ul>
+                                        </td>
+                                    </tr>
+
+                                    <!-- 決済期間 -->
+                                    <tr class="border-bottom">
+                                        <th class="py-3" style="width: 200px; font-weight: 600; color: #4a5568;">
+                                            <i class="bi bi-calendar-check me-2"></i>決済期間
+                                        </th>
+                                        <td class="py-3">
+                                            サービス利用開始時に前払いでお支払いいただきます。継続利用の場合は、契約更新日に自動的に課金されます。
+                                        </td>
+                                    </tr>
+
+                                    <!-- 販売価格 -->
+                                    <tr>
+                                        <th class="py-3" style="width: 200px; font-weight: 600; color: #4a5568;">
+                                            <i class="bi bi-currency-yen me-2"></i>販売価格
+                                        </th>
+                                        <td class="py-3">
+                                            <ul class="list-unstyled mb-0">
+                                                {% for plan_key, plan in PLAN_INFO.items %}
+                                                    <li><i class="bi bi-check-circle text-success me-2"></i>{{ plan.display }}：
+                                                        {% if plan_key == 'light' %}月額3,000円（税込）
+                                                        {% elif plan_key == 'premium' %}月額10,000円（税込）
+                                                        {% else %}無料
+                                                        {% endif %}
+                                                    </li>
+                                                {% endfor %}
+                                            </ul>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- お問い合わせ情報 -->
+                <div class="row mt-5">
+                    <div class="col-12">
+                        <div class="alert alert-info">
+                            <h5 class="alert-heading">
+                                <i class="bi bi-question-circle me-2"></i>
+                                お問い合わせ
+                            </h5>
+                            <p class="mb-2">ご不明な点がございましたら、お気軽にお問い合わせください。</p>
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <strong>メールアドレス：</strong>
+                                    <a href="mailto:videoq@coevoai.co.jp" class="text-decoration-none">videoq@coevoai.co.jp</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

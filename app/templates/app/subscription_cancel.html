@@ -1,0 +1,8 @@
+{% extends 'app/base.html' %}
+{% block content %}
+<div class="alert alert-warning mt-4">
+  <h4>お支払いがキャンセルされました</h4>
+  <p>再度お申し込みいただくか、ホームへお戻りください。</p>
+  <a href="{% url 'app:home' %}" class="btn btn-secondary mt-3">ホームへ戻る</a>
+</div>
+{% endblock %} 

@@ -1,0 +1,8 @@
+{% extends 'app/base.html' %}
+{% block content %}
+<div class="alert alert-success mt-4">
+  <h4>ご契約ありがとうございます！</h4>
+  <p>有料プランが有効になりました。</p>
+  <a href="{% url 'app:home' %}" class="btn btn-primary mt-3">ホームへ戻る</a>
+</div>
+{% endblock %} 

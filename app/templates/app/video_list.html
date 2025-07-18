@@ -1,0 +1,163 @@
+{% extends 'app/base.html' %}
+{% load tz %}
+
+{% block title %}動画一覧 - VideoQ{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1><i class="bi bi-collection-play"></i> 動画一覧</h1>
+            <a href="{% url 'app:upload_video' %}" class="btn btn-primary">
+                <i class="bi bi-plus-circle"></i> 新規アップロード
+            </a>
+        </div>
+
+        <!-- アップロード制限情報 -->
+        <div class="upload-limit-info mb-4">
+            <div class="alert alert-info d-flex align-items-center">
+                <i class="bi bi-info-circle me-2"></i>
+                <div>
+                    <strong>アップロード制限:</strong>
+                    現在 {{ total_videos }} 本の動画が登録されています
+                    <br><small class="text-muted">{{ plan_display_name }}では合計{{ plan_limit }}本までアップロードできます（残り {{ remaining_videos }} 本）</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- 統計情報カード -->
+        <div class="row mb-4">
+            <div class="col-md-2 col-sm-4 col-6 mb-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="card-title text-primary">{{ total_videos }}</h5>
+                        <p class="card-text small">総動画数</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2 col-sm-4 col-6 mb-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="card-title text-success">{{ completed_videos }}</h5>
+                        <p class="card-text small">完了</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2 col-sm-4 col-6 mb-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="card-title text-warning">{{ pending_videos }}</h5>
+                        <p class="card-text small">処理待ち</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2 col-sm-4 col-6 mb-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="card-title text-info">{{ processing_videos }}</h5>
+                        <p class="card-text small">処理中</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2 col-sm-4 col-6 mb-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="card-title text-danger">{{ error_videos }}</h5>
+                        <p class="card-text small">エラー</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {% if videos %}
+            <div class="row">
+                {% for video in videos %}
+                <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h6 class="card-title">{{ video.title|truncatechars:30 }}</h6>
+                            <p class="card-text small text-muted">
+                                {{ video.description|truncatechars:50|default:"説明なし" }}
+                            </p>
+                            
+                            <!-- ステータスバッジ -->
+                            <div class="mb-2">
+                                {% if video.status == 'completed' %}
+                                    <span class="badge bg-success">完了</span>
+                                {% elif video.status == 'processing' %}
+                                    <span class="badge bg-info">処理中</span>
+                                {% elif video.status == 'pending' %}
+                                    <span class="badge bg-warning">処理待ち</span>
+                                {% elif video.status == 'error' %}
+                                    <span class="badge bg-danger">エラー</span>
+                                {% endif %}
+                            </div>
+                            
+                            <p class="card-text small text-muted">
+                                <i class="bi bi-calendar"></i> {% timezone "Asia/Tokyo" %}{{ video.uploaded_at|date:"Y/m/d H:i" }}{% endtimezone %}
+                            </p>
+                        </div>
+                        <div class="card-footer bg-transparent">
+                            <div class="d-flex justify-content-between">
+                                <a href="{% url 'app:video_detail' video.pk %}" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-eye"></i> 詳細
+                                </a>
+                                <div class="btn-group" role="group">
+                                    <a href="{% url 'app:video_edit' video.pk %}" class="btn btn-sm btn-outline-secondary">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    <a href="{% url 'app:delete_video' video.pk %}" class="btn btn-sm btn-outline-danger">
+                                        <i class="bi bi-trash"></i>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- ページネーション -->
+            {% if is_paginated %}
+            <nav aria-label="動画一覧のページネーション">
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page=1">&laquo; 最初</a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}">前へ</a>
+                        </li>
+                    {% endif %}
+
+                    <li class="page-item active">
+                        <span class="page-link">
+                            {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}
+                        </span>
+                    </li>
+
+                    {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}">次へ</a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">最後 &raquo;</a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+
+        {% else %}
+            <div class="text-center py-5">
+                <i class="bi bi-collection-play display-1 text-muted"></i>
+                <h3 class="mt-3">動画がありません</h3>
+                <p class="text-muted">最初の動画をアップロードしてみましょう！</p>
+                <a href="{% url 'app:upload_video' %}" class="btn btn-primary">
+                    <i class="bi bi-upload"></i> 動画をアップロード
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %} 

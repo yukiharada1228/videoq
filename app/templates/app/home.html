@@ -1,0 +1,357 @@
+{% extends 'app/base.html' %}
+{% load tz %}
+
+{% block title %}ホーム - VideoQ{% endblock %}
+
+{% block content %}
+<!-- ヒーローセクション -->
+<div class="hero-section text-center mb-5">
+    <div class="hero-content">
+        <h1 class="page-title mb-3">
+            <i class="bi bi-play-circle-fill me-3"></i>VideoQ β版
+        </h1>
+        <p class="lead mb-4" style="font-size: 1.25rem; color: #4a5568;">
+            AI搭載の動画管理プラットフォーム<br>
+            動画の文字起こし・グループ化・チャットで動画活用をもっと簡単に
+        </p>
+        <div class="action-buttons justify-content-center">
+            <a href="{% url 'app:upload_video' %}" class="btn btn-primary btn-lg">
+                <i class="bi bi-upload me-2"></i>動画をアップロード
+            </a>
+            <a href="{% url 'app:video_group_create' %}" class="btn btn-success btn-lg">
+                <i class="bi bi-plus-circle me-2"></i>グループを作成
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- サブスクリプション状況 -->
+{% if user.is_authenticated %}
+    <div class="row mb-5">
+        <div class="col-12">
+            {# 現在のプラン表示 #}
+            {% for plan_key, plan in PLAN_INFO.items %}
+                {% if user.subscription_plan == plan_key %}
+                    <div class="alert {% if plan_key == 'free' %}alert-warning{% else %}alert-success{% endif %} d-flex align-items-center">
+                        <i class="bi bi-check-circle me-3" style="font-size: 1.5rem;"></i>
+                        <div class="flex-grow-1">
+                            <h5 class="mb-1">🎉 {{ plan.display }}契約中</h5>
+                        </div>
+                        <a href="{% url 'app:subscription_management' %}" class="btn {% if plan_key == 'free' %}btn-warning{% else %}btn-success{% endif %}">
+                            <i class="bi bi-gear me-2"></i>管理
+                        </a>
+                    </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- アップロード制限情報 -->
+    {% if user.is_subscribed %}
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="alert alert-info d-flex align-items-center">
+                    <i class="bi bi-info-circle me-3" style="font-size: 1.5rem;"></i>
+                    <div class="flex-grow-1">
+                        <h5 class="mb-1">📹 アップロード制限</h5>
+                        <p class="mb-0">現在 {{ total_videos }} 本の動画が登録されています
+                            <br><small class="text-muted">{{ plan_display_name }}では合計{{ plan_limit }}本までアップロードできます（残り {{ remaining_videos }} 本）</small>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+{% endif %}
+
+<!-- 統計情報 -->
+<div class="row mb-5">
+    <div class="col-md-4 mb-4">
+        <div class="stats-card">
+            <i class="bi bi-collection-play display-4 text-primary mb-3"></i>
+            <h2 class="display-4 fw-bold mb-2">{{ total_videos }}</h2>
+            <p class="text-muted mb-0">総動画数</p>
+        </div>
+    </div>
+    <div class="col-md-4 mb-4">
+        <div class="stats-card">
+            <i class="bi bi-check-circle display-4 text-success mb-3"></i>
+            <h2 class="display-4 fw-bold mb-2">{{ completed_videos }}</h2>
+            <p class="text-muted mb-0">処理済み動画</p>
+        </div>
+    </div>
+    <div class="col-md-4 mb-4">
+        <div class="stats-card">
+            <i class="bi bi-collection display-4 text-info mb-3"></i>
+            <h2 class="display-4 fw-bold mb-2">{{ total_groups }}</h2>
+            <p class="text-muted mb-0">動画グループ</p>
+        </div>
+    </div>
+</div>
+
+<!-- メインコンテンツ -->
+<div class="row">
+    <!-- 動画グループ一覧 -->
+    <div class="col-lg-8 mb-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-collection me-2"></i>動画グループ
+                </h5>
+                <a href="{% url 'app:video_group_list' %}" class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-arrow-right me-1"></i>すべて表示
+                </a>
+            </div>
+            <div class="card-body">
+                {% if video_groups %}
+                    <div class="row">
+                        {% for group in video_groups|slice:":6" %}
+                            <div class="col-md-6 mb-3">
+                                <div class="card h-100 group-card">
+                                    <div class="card-body">
+                                        <div class="d-flex align-items-start justify-content-between mb-2">
+                                            <h6 class="card-title mb-0">
+                                                <a href="{% url 'app:video_group_detail' group.pk %}#chat" class="text-decoration-none">
+                                                    <i class="bi bi-collection me-2"></i>{{ group.name }}
+                                                </a>
+                                            </h6>
+                                            <span class="badge bg-primary">{{ group.video_count }}本</span>
+                                        </div>
+                                        {% if group.description %}
+                                            <p class="card-text text-muted small mb-3">{{ group.description|truncatewords:15 }}</p>
+                                        {% endif %}
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <small class="text-muted">
+                                                <i class="bi bi-calendar me-1"></i>{{ group.created_at|date:"m/d" }}
+                                            </small>
+                                            <a href="{% url 'app:video_group_detail' group.pk %}#chat" class="btn btn-success btn-sm">
+                                                <i class="bi bi-chat me-1"></i>チャット
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                    {% if video_groups.count > 6 %}
+                        <div class="text-center mt-4">
+                            <a href="{% url 'app:video_group_list' %}" class="btn btn-outline-primary">
+                                <i class="bi bi-arrow-right me-2"></i>すべてのグループを見る
+                            </a>
+                        </div>
+                    {% endif %}
+                {% else %}
+                    <div class="text-center py-5">
+                        <div class="empty-state">
+                            <i class="bi bi-collection display-1 text-muted mb-4"></i>
+                            <h5 class="mb-3">まだ動画グループがありません</h5>
+                            <p class="text-muted mb-4">動画をグループ化して、まとめてチャットできるようにしましょう！</p>
+                            <a href="{% url 'app:video_group_create' %}" class="btn btn-primary btn-lg">
+                                <i class="bi bi-plus-circle me-2"></i>最初のグループを作成
+                            </a>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- 最近の動画 -->
+    <div class="col-lg-4 mb-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-clock-history me-2"></i>最近の動画
+                </h5>
+                <a href="{% url 'app:video_list' %}" class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-arrow-right me-1"></i>すべて表示
+                </a>
+            </div>
+            <div class="card-body">
+                {% if recent_videos %}
+                    <div class="recent-videos">
+                        {% for video in recent_videos %}
+                            <div class="video-item d-flex align-items-center p-3 mb-3 rounded">
+                                <div class="video-icon me-3">
+                                    <i class="bi bi-play-circle-fill text-primary" style="font-size: 1.5rem;"></i>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-1">
+                                        <a href="{% url 'app:video_detail' video.pk %}" class="text-decoration-none">
+                                            {{ video.title|truncatechars:25 }}
+                                        </a>
+                                    </h6>
+                                    <small class="text-muted">
+                                        <i class="bi bi-calendar me-1"></i>{% timezone "Asia/Tokyo" %}{{ video.uploaded_at|date:"m/d H:i" }}{% endtimezone %}
+                                    </small>
+                                </div>
+                                <div class="ms-2">
+                                    {% if video.status == 'pending' %}
+                                        <span class="badge bg-secondary">処理待ち</span>
+                                    {% elif video.status == 'processing' %}
+                                        <span class="badge bg-info">処理中</span>
+                                    {% elif video.status == 'completed' %}
+                                        <span class="badge bg-success">完了</span>
+                                    {% elif video.status == 'error' %}
+                                        <span class="badge bg-danger">エラー</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <div class="empty-state">
+                            <i class="bi bi-play-circle display-1 text-muted mb-3"></i>
+                            <h6 class="mb-2">まだ動画がありません</h6>
+                            <p class="text-muted mb-3">最初の動画をアップロードしましょう！</p>
+                            <a href="{% url 'app:upload_video' %}" class="btn btn-primary">
+                                <i class="bi bi-upload me-2"></i>動画をアップロード
+                            </a>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 機能紹介セクション -->
+<div class="row mt-5">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header text-center">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-stars me-2"></i>VideoQの主な機能
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4 mb-4">
+                        <div class="feature-card text-center p-4">
+                            <div class="feature-icon mb-3">
+                                <i class="bi bi-robot display-4 text-primary"></i>
+                            </div>
+                            <h6 class="mb-2">AI文字起こし</h6>
+                            <p class="text-muted small">動画の音声を自動で文字起こしし、検索可能なテキストに変換</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-4">
+                        <div class="feature-card text-center p-4">
+                            <div class="feature-icon mb-3">
+                                <i class="bi bi-collection display-4 text-success"></i>
+                            </div>
+                            <h6 class="mb-2">動画グループ化</h6>
+                            <p class="text-muted small">関連する動画をグループ化して、まとめて管理</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-4">
+                        <div class="feature-card text-center p-4">
+                            <div class="feature-icon mb-3">
+                                <i class="bi bi-chat-dots display-4 text-info"></i>
+                            </div>
+                            <h6 class="mb-2">AIチャット</h6>
+                            <p class="text-muted small">動画内容について自然言語で質問し、AIが回答</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* ヒーローセクション */
+.hero-section {
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+    border-radius: var(--border-radius-lg);
+    padding: 3rem 2rem;
+    margin-bottom: 3rem;
+}
+
+.hero-content {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+/* グループカード */
+.group-card {
+    border: 1px solid rgba(0,0,0,0.05);
+    transition: var(--transition);
+}
+
+.group-card:hover {
+    border-color: #667eea;
+    transform: translateY(-2px);
+}
+
+/* 動画アイテム */
+.video-item {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(5px);
+    border: 1px solid rgba(0,0,0,0.05);
+    transition: var(--transition);
+}
+
+.video-item:hover {
+    background: rgba(255, 255, 255, 0.9);
+    transform: translateX(4px);
+    box-shadow: var(--shadow-md);
+}
+
+/* 機能カード */
+.feature-card {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(5px);
+    border-radius: var(--border-radius);
+    border: 1px solid rgba(0,0,0,0.05);
+    transition: var(--transition);
+}
+
+.feature-card:hover {
+    background: rgba(255, 255, 255, 0.9);
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+}
+
+.feature-icon {
+    width: 80px;
+    height: 80px;
+    background: var(--light-gradient);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+    box-shadow: var(--shadow-sm);
+}
+
+/* 空の状態 */
+.empty-state {
+    padding: 2rem 1rem;
+}
+
+.empty-state .display-1 {
+    opacity: 0.5;
+}
+
+/* レスポンシブ */
+@media (max-width: 768px) {
+    .hero-section {
+        padding: 2rem 1rem;
+    }
+    
+    .hero-content h1 {
+        font-size: 2rem;
+    }
+    
+    .stats-card {
+        margin-bottom: 1rem;
+    }
+    
+    .feature-card {
+        margin-bottom: 1rem;
+    }
+}
+</style>
+{% endblock %} 

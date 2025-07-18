@@ -1,0 +1,241 @@
+{% extends 'app/base.html' %}
+
+{% block title %}ログイン - VideoQ{% endblock %}
+
+{% block content %}
+<div class="login-container">
+    <div class="row justify-content-center align-items-center min-vh-100">
+        <!-- ログインフォーム（左） -->
+        <div class="col-lg-5 col-md-7 col-sm-10 mb-4 mb-lg-0">
+            <div class="login-card">
+                <div class="login-header text-center mb-4">
+                    <div class="login-logo mb-3">
+                        <i class="bi bi-play-circle-fill"></i>
+                    </div>
+                    <h2 class="login-title">VideoQへようこそ</h2>
+                    <p class="login-subtitle">AI搭載の動画管理・分析プラットフォーム</p>
+                </div>
+
+                {% if form.errors %}
+                    <div class="alert alert-danger d-flex align-items-center">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <div>ユーザー名またはパスワードが正しくありません。</div>
+                    </div>
+                {% endif %}
+
+                <form method="post" novalidate class="login-form">
+                    {% csrf_token %}
+                    <div class="form-group mb-4">
+                        <label for="id_username" class="form-label">
+                            <i class="bi bi-person me-2"></i>ユーザー名
+                        </label>
+                        <input type="text" 
+                               name="username" 
+                               autofocus 
+                               required 
+                               maxlength="150" 
+                               class="form-control form-control-lg" 
+                               id="id_username" 
+                               placeholder="ユーザー名を入力" 
+                               value="{{ form.username.value|default:'' }}">
+                        {% if form.username.errors %}
+                            <div class="text-danger small mt-1">{{ form.username.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-group mb-4">
+                        <label for="id_password" class="form-label">
+                            <i class="bi bi-lock me-2"></i>パスワード
+                        </label>
+                        <input type="password" 
+                               name="password" 
+                               required 
+                               class="form-control form-control-lg" 
+                               id="id_password" 
+                               placeholder="パスワードを入力">
+                        {% if form.password.errors %}
+                            <div class="text-danger small mt-1">{{ form.password.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-lg w-100 mb-4">
+                        <i class="bi bi-box-arrow-in-right me-2"></i>ログイン
+                    </button>
+                </form>
+
+                <div class="login-footer text-center">
+                    <a href="{% url 'app:password_reset' %}" class="text-decoration-none">
+                        <i class="bi bi-question-circle me-1"></i>パスワードを忘れた場合
+                    </a>
+                    <hr class="my-4">
+                    <p class="mb-0">
+                        アカウントをお持ちでない方は
+                        <a href="{% url 'app:signup' %}" class="text-decoration-none fw-bold">
+                            新規登録
+                        </a>
+                    </p>
+                </div>
+            </div>
+        </div>
+        <!-- 商品説明（右） -->
+        <div class="col-lg-5 col-md-7 col-sm-10">
+            <div class="card mb-3">
+                <div class="card-header">
+                    <i class="bi bi-info-circle"></i> サービス概要
+                </div>
+                <div class="card-body">
+                    <p>
+                        <strong>VideoQ</strong>は、AIによる自動文字起こし・検索・グループチャット機能を備えた動画管理プラットフォームです。教育・研修・チーム共有など、さまざまなシーンで動画活用をサポートします。
+                    </p>
+                </div>
+            </div>
+            <div class="card mb-3">
+                <div class="card-header">
+                    <i class="bi bi-currency-yen"></i> 料金プラン
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for plan_key, plan in PLAN_INFO.items %}
+                            <div class="col-12 mb-3">
+                                <h6>{{ plan.display }}</h6>
+                                <ul class="mb-2">
+                                    <li>動画アップロード：{{ plan.limit }}本まで</li>
+                                    <li>字幕生成・グループ作成・チャット：利用可</li>
+                                    <li>動画グループ共有：{% if plan_key == 'free' %}<span class="text-danger">不可</span>{% else %}<span class="text-success">可</span>{% endif %}</li>
+                                    <li>料金：<strong>{{ plan.price }}</strong></li>
+                                </ul>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.login-container {
+    min-height: 100vh;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 2rem 1rem;
+}
+
+.login-card {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(20px);
+    border-radius: var(--border-radius-lg);
+    padding: 3rem 2rem;
+    box-shadow: var(--shadow-xl);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.login-logo {
+    width: 80px;
+    height: 80px;
+    background: var(--primary-gradient);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+    box-shadow: var(--shadow-lg);
+}
+
+.login-logo i {
+    font-size: 2.5rem;
+    color: white;
+}
+
+.login-title {
+    background: var(--primary-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-weight: 700;
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+}
+
+.login-subtitle {
+    color: #6c757d;
+    font-size: 1.1rem;
+    margin-bottom: 0;
+}
+
+.login-form .form-control {
+    border: 2px solid #e9ecef;
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    font-size: 1rem;
+    transition: var(--transition);
+    background: rgba(255, 255, 255, 0.9);
+}
+
+.login-form .form-control:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    background: white;
+}
+
+.login-form .form-label {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 0.75rem;
+}
+
+.login-footer a {
+    color: #667eea;
+    transition: var(--transition);
+}
+
+.login-footer a:hover {
+    color: #5a67d8;
+}
+
+.login-footer hr {
+    border-color: rgba(0,0,0,0.1);
+    margin: 2rem 0;
+}
+
+/* アニメーション */
+.login-card {
+    animation: slideInUp 0.6s ease-out;
+}
+
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* レスポンシブ */
+@media (max-width: 768px) {
+    .login-card {
+        padding: 2rem 1.5rem;
+    }
+    
+    .login-title {
+        font-size: 1.75rem;
+    }
+    
+    .login-subtitle {
+        font-size: 1rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .login-container {
+        padding: 1rem 0.5rem;
+    }
+    
+    .login-card {
+        padding: 1.5rem 1rem;
+    }
+}
+</style>
+{% endblock %} 

@@ -1,0 +1,717 @@
+{% extends 'app/base.html' %}
+{% load tz %}
+
+{% block title %}動画アップロード - VideoQ{% endblock %}
+
+{% block content %}
+<div class="upload-container">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <!-- ヘッダー -->
+            <div class="upload-header text-center mb-5">
+                <div class="upload-icon mb-3">
+                    <i class="bi bi-cloud-upload"></i>
+                </div>
+                <h1 class="page-title mb-3">動画をアップロード</h1>
+                <p class="lead text-muted">AI搭載の動画分析で、あなたの動画コンテンツを最大限活用</p>
+            </div>
+
+            <!-- アップロード制限情報 -->
+            <div class="upload-limit-info mb-4">
+                <div class="alert alert-info d-flex align-items-center">
+                    <i class="bi bi-info-circle me-2"></i>
+                    <div>
+                        <strong>アップロード制限:</strong>
+                        現在 {{ user.videos.count }} 本の動画が登録されています
+                        <br><small class="text-muted">{{ plan_display_name }}では合計{{ plan_limit }}本までアップロードできます（残り {{ remaining_videos }} 本）</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- アップロードフォーム -->
+            <div class="upload-card">
+                <div class="upload-area" id="upload-area">
+                    <div class="upload-content text-center">
+                        <div class="upload-icon-large mb-4">
+                            <i class="bi bi-cloud-upload"></i>
+                        </div>
+                        <h4 class="mb-3">動画ファイルをドラッグ&ドロップ</h4>
+                        <p class="text-muted mb-4">または、下のボタンからファイルを選択してください</p>
+                        <button type="button" class="btn btn-primary btn-lg" onclick="document.getElementById('id_file').click()">
+                            <i class="bi bi-folder2-open me-2"></i>ファイルを選択
+                        </button>
+                        <div class="upload-info mt-4">
+                            <small class="text-muted">
+                                <i class="bi bi-info-circle me-1"></i>
+                                対応形式: MP4, AVI, MOV, MKV (最大100MB)
+                            </small>
+                        </div>
+                    </div>
+                </div>
+
+                <form method="post" enctype="multipart/form-data" id="upload-form" class="upload-form">
+                    {% csrf_token %}
+                    
+                    <div class="form-group mb-4">
+                        <label for="{{ form.title.id_for_label }}" class="form-label">
+                            <i class="bi bi-tag me-2"></i>動画タイトル
+                        </label>
+                        {{ form.title }}
+                        {% if form.title.errors %}
+                            <div class="text-danger small mt-1">
+                                {% for error in form.title.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-group mb-4">
+                        <label for="{{ form.description.id_for_label }}" class="form-label">
+                            <i class="bi bi-text-paragraph me-2"></i>説明（任意）
+                        </label>
+                        {{ form.description }}
+                        {% if form.description.errors %}
+                            <div class="text-danger small mt-1">
+                                {% for error in form.description.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-group mb-4" style="display: none;">
+                        {{ form.file }}
+                        {% if form.file.errors %}
+                            <div class="text-danger small mt-1">
+                                {% for error in form.file.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="d-grid">
+                        {% with plan=current_plan %}
+                            {% if user.is_subscribed and user.videos.count >= plan.limit %}
+                                <button type="button" class="btn btn-secondary btn-lg" disabled title="アップロード上限に達しています">
+                                    <i class="bi bi-exclamation-triangle me-2"></i>{{ plan.display }}の上限（{{ plan.limit }}本）に達しています。
+                                </button>
+                                <div class="text-center mt-2">
+                                    <small class="text-danger fw-bold">
+                                        <i class="bi bi-x-circle me-1"></i>これ以上動画をアップロードできません。
+                                    </small><br>
+                                    <small class="text-muted">
+                                        <a href="{% url 'app:subscription_management' %}" class="text-decoration-none">
+                                            <i class="bi bi-arrow-up-circle me-1"></i>プランを確認・アップグレード
+                                        </a>
+                                    </small>
+                                </div>
+                            {% else %}
+                                <button type="submit" class="btn btn-primary btn-lg" id="upload-btn">
+                                    <i class="bi bi-cloud-upload me-2"></i>アップロード開始
+                                </button>
+                            {% endif %}
+                        {% endwith %}
+                    </div>
+                </form>
+            </div>
+
+            <!-- 処理状況表示エリア -->
+            <div class="processing-card" id="processing-status" style="display: none;">
+                <div class="processing-header text-center mb-4">
+                    <div class="processing-icon mb-3">
+                        <i class="bi bi-cloud-upload"></i>
+                    </div>
+                    <h4 id="processing-title">アップロード中...</h4>
+                    <p class="text-muted" id="processing-description">動画ファイルをサーバーに転送中</p>
+                </div>
+
+                <div class="processing-content">
+                    <!-- アップロード進捗 -->
+                    <div class="progress-container mb-4" id="upload-progress">
+                        <div class="progress mb-3">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                 role="progressbar" style="width: 0%" id="progress-bar"></div>
+                        </div>
+                        <div class="progress-text text-center">
+                            <span id="progress-percentage">0%</span>
+                            <span id="progress-details" class="text-muted ms-2">(0 MB / 0 MB)</span>
+                        </div>
+                    </div>
+
+                    <!-- 完了後の案内 -->
+                    <div class="alert alert-info" id="completion-info" style="display: none;">
+                        <h6><i class="bi bi-info-circle me-2"></i>処理について</h6>
+                        <p class="mb-2">動画の文字起こしとインデックス化は、バックグラウンドで自動的に実行されます。</p>
+                        <p class="mb-0">処理状況は<a href="{% url 'app:video_list' %}" class="alert-link">動画一覧</a>でご確認いただけます。</p>
+                    </div>
+
+                    <div class="processing-steps">
+                        <div class="step" id="step-1">
+                            <div class="step-icon">
+                                <i class="bi bi-upload"></i>
+                            </div>
+                            <div class="step-content">
+                                <h6>ファイルアップロード</h6>
+                                <p class="text-muted" id="step-1-desc">動画ファイルをサーバーに転送中</p>
+                            </div>
+                        </div>
+                        <div class="step pending" id="step-2">
+                            <div class="step-icon">
+                                <i class="bi bi-clock"></i>
+                            </div>
+                            <div class="step-content">
+                                <h6>処理待ち</h6>
+                                <p class="text-muted">バックグラウンドで処理を開始中</p>
+                            </div>
+                        </div>
+                        <div class="step pending" id="step-3">
+                            <div class="step-icon">
+                                <i class="bi bi-mic"></i>
+                            </div>
+                            <div class="step-content">
+                                <h6>音声認識</h6>
+                                <p class="text-muted">音声を文字に変換中（バックグラウンド）</p>
+                            </div>
+                        </div>
+                        <div class="step pending" id="step-4">
+                            <div class="step-icon">
+                                <i class="bi bi-search"></i>
+                            </div>
+                            <div class="step-content">
+                                <h6>検索インデックス</h6>
+                                <p class="text-muted">検索用のインデックスを作成中（バックグラウンド）</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="text-center mt-4" id="action-buttons" style="display: none;">
+                        <a href="{% url 'app:video_list' %}" class="btn btn-primary">
+                            <i class="bi bi-collection-play me-2"></i>動画一覧を確認
+                        </a>
+                        <a href="{% url 'app:upload_video' %}" class="btn btn-outline-secondary ms-2">
+                            <i class="bi bi-plus-circle me-2"></i>別の動画をアップロード
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 最近アップロードした動画 -->
+            <div class="recent-videos-card">
+                <div class="recent-videos-header d-flex justify-content-between align-items-center p-3">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-clock-history me-2"></i>最近アップロードした動画
+                    </h5>
+                    <a href="{% url 'app:video_list' %}" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-arrow-right me-1"></i>すべて表示
+                    </a>
+                </div>
+                <div class="recent-videos-body p-3">
+                    {% if user.videos.all %}
+                        <div class="recent-videos-list">
+                            {% for video in user.videos.all|dictsortreversed:"uploaded_at"|slice:":5" %}
+                                <div class="video-item d-flex align-items-center p-3 mb-3 rounded">
+                                    <div class="video-icon me-3">
+                                        <i class="bi bi-play-circle-fill text-primary"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <h6 class="mb-1">
+                                            <a href="{% url 'app:video_detail' video.pk %}" class="text-decoration-none">
+                                                {{ video.title|truncatechars:30 }}
+                                            </a>
+                                        </h6>
+                                        <small class="text-muted">
+                                            <i class="bi bi-calendar me-1"></i>{% timezone "Asia/Tokyo" %}{{ video.uploaded_at|date:"Y-m-d H:i" }}{% endtimezone %}
+                                        </small>
+                                    </div>
+                                    <div class="ms-2">
+                                        {% if video.status == 'pending' %}
+                                            <span class="badge bg-secondary">処理待ち</span>
+                                        {% elif video.status == 'processing' %}
+                                            <span class="badge bg-info">処理中</span>
+                                        {% elif video.status == 'completed' %}
+                                            <span class="badge bg-success">完了</span>
+                                        {% elif video.status == 'error' %}
+                                            <span class="badge bg-danger">エラー</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <div class="empty-state">
+                                <i class="bi bi-play-circle display-1 text-muted mb-3"></i>
+                                <h6 class="mb-2">まだ動画がありません</h6>
+                                <p class="text-muted">最初の動画をアップロードしましょう！</p>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.upload-container {
+    padding: 2rem 0;
+}
+
+.upload-header {
+    margin-bottom: 3rem;
+}
+
+.upload-icon {
+    width: 80px;
+    height: 80px;
+    background: var(--primary-gradient);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+    box-shadow: var(--shadow-lg);
+}
+
+.upload-icon i {
+    font-size: 2rem;
+    color: white;
+}
+
+.upload-card {
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(10px);
+    border-radius: var(--border-radius-lg);
+    padding: 2rem;
+    box-shadow: var(--shadow-lg);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    margin-bottom: 2rem;
+}
+
+.upload-area {
+    border: 3px dashed #dee2e6;
+    border-radius: var(--border-radius);
+    padding: 3rem 2rem;
+    text-align: center;
+    transition: var(--transition);
+    background: rgba(255, 255, 255, 0.5);
+    margin-bottom: 2rem;
+}
+
+.upload-area.dragover {
+    border-color: #667eea;
+    background: rgba(102, 126, 234, 0.1);
+    transform: scale(1.02);
+}
+
+.upload-icon-large {
+    width: 100px;
+    height: 100px;
+    background: var(--light-gradient);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+    box-shadow: var(--shadow-md);
+}
+
+.upload-icon-large i {
+    font-size: 3rem;
+    color: #6c757d;
+}
+
+.upload-form .form-control {
+    border: 2px solid #e9ecef;
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    font-size: 1rem;
+    transition: var(--transition);
+    background: rgba(255, 255, 255, 0.9);
+}
+
+.upload-form .form-control:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    background: white;
+}
+
+.upload-form .form-label {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 0.75rem;
+}
+
+/* 処理状況 */
+.processing-card {
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(10px);
+    border-radius: var(--border-radius-lg);
+    padding: 2rem;
+    box-shadow: var(--shadow-lg);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    margin-bottom: 2rem;
+}
+
+.processing-icon {
+    width: 80px;
+    height: 80px;
+    background: var(--info-gradient);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+    box-shadow: var(--shadow-lg);
+    animation: spin 2s linear infinite;
+}
+
+.processing-icon i {
+    font-size: 2rem;
+    color: white;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.progress {
+    height: 12px;
+    border-radius: 6px;
+    background: rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+.progress-bar {
+    background: var(--primary-gradient);
+    border-radius: 6px;
+}
+
+.progress-text {
+    font-weight: 600;
+    color: #667eea;
+    font-size: 1.1rem;
+}
+
+/* 処理ステップ */
+.processing-steps {
+    display: grid;
+    gap: 1.5rem;
+}
+
+.step {
+    display: flex;
+    align-items: center;
+    padding: 1rem;
+    border-radius: var(--border-radius);
+    background: rgba(255, 255, 255, 0.7);
+    transition: var(--transition);
+    opacity: 0.5;
+}
+
+.step.active {
+    background: rgba(102, 126, 234, 0.1);
+    border: 2px solid #667eea;
+    opacity: 1;
+}
+
+.step.completed {
+    background: rgba(72, 187, 120, 0.1);
+    border: 2px solid #48bb78;
+    opacity: 1;
+}
+
+.step.pending {
+    background: #f8f9fa;
+    border: 2px solid #dee2e6;
+    opacity: 1;
+}
+
+.step-icon {
+    width: 50px;
+    height: 50px;
+    background: var(--light-gradient);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 1rem;
+    flex-shrink: 0;
+}
+
+.step.active .step-icon {
+    background: var(--primary-gradient);
+}
+
+.step.completed .step-icon {
+    background: var(--success-gradient);
+}
+
+.step.pending .step-icon {
+    background: #f8f9fa;
+    border: 2px solid #dee2e6;
+}
+
+.step-icon i {
+    font-size: 1.25rem;
+    color: #6c757d;
+}
+
+.step.active .step-icon i,
+.step.completed .step-icon i {
+    color: white;
+}
+
+.step.pending .step-icon i {
+    color: #adb5bd;
+}
+
+.step-content h6 {
+    margin-bottom: 0.25rem;
+    font-weight: 600;
+}
+
+.step-content p {
+    margin-bottom: 0;
+    font-size: 0.9rem;
+}
+
+/* 最近の動画 */
+.recent-videos-card {
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(10px);
+    border-radius: var(--border-radius-lg);
+    box-shadow: var(--shadow-lg);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    overflow: hidden;
+    margin-bottom: 2rem;
+}
+
+.recent-videos-header {
+    background: var(--light-gradient);
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+    font-weight: 600;
+}
+
+.recent-videos-body {
+    background: transparent;
+}
+
+.recent-videos-list {
+    margin: 0;
+    padding: 0;
+}
+
+.video-item {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(5px);
+    border: 1px solid rgba(0,0,0,0.05);
+    transition: var(--transition);
+    border-radius: var(--border-radius);
+}
+
+.video-item:hover {
+    background: rgba(255, 255, 255, 0.9);
+    transform: translateX(4px);
+    box-shadow: var(--shadow-md);
+}
+
+.video-icon i {
+    font-size: 1.5rem;
+}
+
+.empty-state {
+    padding: 2rem 1rem;
+}
+
+.empty-state .display-1 {
+    opacity: 0.5;
+}
+
+/* レスポンシブ */
+@media (max-width: 768px) {
+    .upload-card,
+    .processing-card {
+        padding: 1.5rem;
+    }
+    
+    .upload-area {
+        padding: 2rem 1rem;
+    }
+    
+    .upload-icon-large {
+        width: 80px;
+        height: 80px;
+    }
+    
+    .upload-icon-large i {
+        font-size: 2.5rem;
+    }
+}
+</style>
+
+<script>
+  const REMAINING_VIDEOS = {{ remaining_videos|default:0 }};
+  const uploadArea = document.getElementById('upload-area');
+  const fileInput = document.getElementById('id_file');
+  const uploadBtn = document.getElementById('upload-btn');
+
+  document.addEventListener('DOMContentLoaded', function() {
+    if (uploadBtn && typeof REMAINING_VIDEOS !== 'undefined' && REMAINING_VIDEOS === 0) {
+      uploadBtn.disabled = true;
+      uploadBtn.classList.remove('btn-primary');
+      uploadBtn.classList.add('btn-secondary');
+      uploadBtn.innerHTML = '<i class="bi bi-exclamation-triangle me-2"></i>アップロード上限に達しています';
+      uploadBtn.title = 'アップロード上限に達しています';
+    }
+  });
+
+  // ドラッグ&ドロップイベント
+  uploadArea.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      uploadArea.classList.add('dragover');
+  });
+
+  uploadArea.addEventListener('dragleave', (e) => {
+      e.preventDefault();
+      uploadArea.classList.remove('dragover');
+  });
+
+  uploadArea.addEventListener('drop', (e) => {
+      e.preventDefault();
+      uploadArea.classList.remove('dragover');
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+          fileInput.files = files;
+          handleFileSelect();
+      }
+  });
+
+  // ファイル選択時の処理
+  fileInput.addEventListener('change', handleFileSelect);
+
+  function handleFileSelect() {
+      const file = fileInput.files[0];
+      if (file) {
+          uploadArea.innerHTML = `
+              <div class="upload-content text-center">
+                  <div class="upload-icon-large mb-4">
+                      <i class="bi bi-file-earmark-play"></i>
+                  </div>
+                  <h4 class="mb-3">${file.name}</h4>
+                  <p class="text-muted mb-4">ファイルサイズ: ${(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                  <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('id_file').click()">
+                      <i class="bi bi-arrow-clockwise me-2"></i>別のファイルを選択
+                  </button>
+              </div>
+          `;
+          // 本数制限を再チェック
+          if (typeof REMAINING_VIDEOS !== 'undefined' && REMAINING_VIDEOS === 0) {
+              uploadBtn.disabled = true;
+              uploadBtn.classList.remove('btn-primary');
+              uploadBtn.classList.add('btn-secondary');
+              uploadBtn.innerHTML = '<i class="bi bi-exclamation-triangle me-2"></i>アップロード上限に達しています';
+              uploadBtn.title = 'アップロード上限に達しています';
+          } else {
+              uploadBtn.disabled = false;
+              uploadBtn.classList.remove('btn-secondary');
+              uploadBtn.classList.add('btn-primary');
+              uploadBtn.innerHTML = '<i class="bi bi-cloud-upload me-2"></i>アップロード開始';
+              uploadBtn.title = '';
+          }
+      }
+  }
+
+  // アップロードフォームの処理
+  document.getElementById('upload-form').addEventListener('submit', function(e) {
+      e.preventDefault(); // デフォルトの送信を防止
+      const form = this;
+      const processingStatus = document.getElementById('processing-status');
+      const progressBar = document.getElementById('progress-bar');
+      const progressPercentage = document.getElementById('progress-percentage');
+      const progressDetails = document.getElementById('progress-details');
+      const processingTitle = document.getElementById('processing-title');
+      const processingDescription = document.getElementById('processing-description');
+      const step1Desc = document.getElementById('step-1-desc');
+      const completionInfo = document.getElementById('completion-info');
+      const actionButtons = document.getElementById('action-buttons');
+      // ファイルサイズを取得
+      const file = fileInput.files[0];
+      if (!file) {
+          alert('ファイルを選択してください');
+          return;
+      }
+      const fileSize = file.size;
+      const fileSizeMB = (fileSize / 1024 / 1024).toFixed(2);
+      // ボタンを無効化
+      uploadBtn.disabled = true;
+      uploadBtn.innerHTML = '<i class="bi bi-cloud-upload me-2"></i>アップロード中...';
+      // 処理状況を表示
+      processingStatus.style.display = 'block';
+      processingStatus.scrollIntoView({ behavior: 'smooth' });
+      // ステップ1をアクティブに
+      document.getElementById('step-1').classList.add('active');
+      // FormDataを作成
+      const formData = new FormData(form);
+      // XMLHttpRequestでアップロード
+      const xhr = new XMLHttpRequest();
+      // 進捗イベント
+      xhr.upload.addEventListener('progress', function(e) {
+          if (e.lengthComputable) {
+              const percentComplete = (e.loaded / e.total) * 100;
+              const loadedMB = (e.loaded / 1024 / 1024).toFixed(2);
+              progressBar.style.width = percentComplete + '%';
+              progressPercentage.textContent = Math.round(percentComplete) + '%';
+              progressDetails.textContent = `(${loadedMB} MB / ${fileSizeMB} MB)`;
+              // 進捗に応じてステップ1の説明を更新
+              if (percentComplete >= 100) {
+                  step1Desc.textContent = '動画ファイルをサーバーに転送完了';
+                  document.getElementById('step-1').classList.remove('active');
+                  document.getElementById('step-1').classList.add('completed');
+              }
+          }
+      });
+      // 完了イベント
+      xhr.addEventListener('load', function() {
+          if (xhr.status === 200) {
+              // アップロード完了
+              processingTitle.textContent = 'アップロード完了';
+              processingDescription.textContent = '動画ファイルのアップロードが完了しました';
+              // 進捗バーを非表示にして完了案内を表示
+              document.getElementById('upload-progress').style.display = 'none';
+              completionInfo.style.display = 'block';
+              actionButtons.style.display = 'block';
+              // ステップ2をアクティブに
+              document.getElementById('step-2').classList.remove('pending');
+              document.getElementById('step-2').classList.add('active');
+              // 成功メッセージ
+              setTimeout(() => {
+                  alert('動画のアップロードが完了しました！\n文字起こしとインデックス化はバックグラウンドで実行されます。');
+              }, 500);
+          } else {
+              // エラー処理
+              alert('アップロード中にエラーが発生しました。もう一度お試しください。');
+              uploadBtn.disabled = false;
+              uploadBtn.innerHTML = '<i class="bi bi-cloud-upload me-2"></i>アップロード';
+              processingStatus.style.display = 'none';
+          }
+      });
+      // エラーイベント
+      xhr.addEventListener('error', function() {
+          alert('アップロード中にエラーが発生しました。もう一度お試しください。');
+          uploadBtn.disabled = false;
+          uploadBtn.innerHTML = '<i class="bi bi-cloud-upload me-2"></i>アップロード';
+          processingStatus.style.display = 'none';
+      });
+      // リクエストを送信
+      xhr.open('POST', form.action);
+      // CSRFトークンを取得
+      const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]').value;
+      xhr.setRequestHeader('X-CSRFToken', csrfToken);
+      xhr.send(formData);
+  });
+</script>
+{% endblock %} 

@@ -1,0 +1,54 @@
+services:
+  redis:
+    image: "redis:alpine"
+    container_name: videoq-redis
+
+  postgres:
+    image: pgvector/pgvector:pg17
+    container_name: videoq-postgres
+    restart: always
+    env_file:
+      - .env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  web:
+    build: .
+    container_name: videoq-web
+    command: gunicorn videoq.wsgi:application --bind 0.0.0.0:8000 --workers 3
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    depends_on:
+      - redis
+      - postgres
+
+  worker:
+    build: .
+    container_name: videoq-worker
+    command: celery -A videoq worker -l info
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    depends_on:
+      - redis
+      - postgres
+
+  stripe-webhook:
+    image: stripe/stripe-cli
+    container_name: videoq-stripe-webhook
+    command: listen --forward-to localhost:8000/stripe/webhook/ --skip-verify
+    env_file:
+      - .env
+    depends_on:
+      - web
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

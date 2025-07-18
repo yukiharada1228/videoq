@@ -1,0 +1,293 @@
+{% extends 'app/base.html' %}
+{% load tz %}
+
+{% block title %}サブスクリプション管理 - VideoQ{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        <i class="bi bi-credit-card"></i> サブスクリプション管理
+                    </h4>
+                </div>
+                <div class="card-body">
+                    {% if is_subscribed %}
+                        <!-- 有料プラン契約中 -->
+                        <div class="alert alert-success">
+                            <h5 class="alert-heading">
+                                <i class="bi bi-check-circle"></i> 有料プラン契約中
+                            </h5>
+                            {% if subscription_plan == "premium" %}
+                                <p class="mb-0">現在、月額10,000円の有料プラン（プレミアムプラン）にご契約いただいています。</p>
+                            {% elif subscription_plan == "light" %}
+                                <p class="mb-0">現在、月額3,000円の有料プラン（ライトプラン）にご契約いただいています。</p>
+                            {% else %}
+                                <p class="mb-0">現在、有料プランにご契約いただいています。</p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- サブスクリプション詳細情報 -->
+                        {% if subscription_info %}
+                            <div class="card mb-4">
+                                <div class="card-header">
+                                    <h6 class="mb-0">
+                                        <i class="bi bi-info-circle"></i> サブスクリプション詳細
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <p><strong>ステータス:</strong> 
+                                                {% if subscription_info.cancel_at_period_end %}
+                                                    <span class="badge bg-warning">期間終了時にキャンセル予定</span>
+                                                {% else %}
+                                                    <span class="badge bg-success">アクティブ</span>
+                                                {% endif %}
+                                            </p>
+                                            <p><strong>次回更新日:</strong> 
+                                                {% if subscription_info.current_period_end %}
+                                                    {% timezone "Asia/Tokyo" %}{{ subscription_info.current_period_end|date:"Y年n月j日" }}{% endtimezone %}
+                                                {% else %}
+                                                    <span class="text-muted">情報なし</span>
+                                                {% endif %}
+                                            </p>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <p><strong>自動更新:</strong> 
+                                                {% if subscription_info.cancel_at_period_end %}
+                                                    <span class="text-warning">無効（期間終了時に停止）</span>
+                                                {% else %}
+                                                    <span class="text-success">有効</span>
+                                                {% endif %}
+                                            </p>
+                                            <p><strong>契約開始日:</strong> 
+                                                {% if subscription_info.current_period_start %}
+                                                    {% timezone "Asia/Tokyo" %}{{ subscription_info.current_period_start|date:"Y年n月j日" }}{% endtimezone %}
+                                                {% else %}
+                                                    <span class="text-muted">情報なし</span>
+                                                {% endif %}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endif %}
+                        
+                        <div class="row mb-4">
+                            {% for plan_key, plan in PLAN_INFO.items %}
+                                <div class="col-md-4">
+                                    <div class="card border-{{ plan_key }}">
+                                        <div class="card-body text-center">
+                                            <h6>{{ plan.display }}</h6>
+                                            <ul class="list-unstyled">
+                                                <li>動画アップロード：{{ plan.limit }}本まで</li>
+                                                <li>字幕生成・グループ作成・チャット：利用可</li>
+                                                <li>動画グループ共有：{% if plan_key == 'free' %}不可{% else %}可{% endif %}</li>
+                                            </ul>
+                                            {% if subscription_plan == plan_key %}
+                                                <button class="btn btn-secondary w-100" disabled style="cursor: not-allowed;">
+                                                    <i class="bi bi-check-circle me-1"></i> 現在のプラン
+                                                </button>
+                                            {% else %}
+                                                {% if plan_key == 'free' %}
+                                                    <button type="button" class="btn btn-outline-primary w-100" data-bs-toggle="modal" data-bs-target="#cancelToFreeModal">
+                                                        {{ plan.display }}申込
+                                                    </button>
+                                                {% else %}
+                                                    <a href="{% url 'app:create_checkout_session' %}?plan={{ plan_key }}" class="btn btn-outline-primary w-100">
+                                                        {{ plan.display }}申込
+                                                    </a>
+                                                {% endif %}
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+
+                        <hr>
+
+                    {% else %}
+                        <!-- 無料プラン -->
+                        <div class="alert alert-warning">
+                            <h5 class="alert-heading">
+                                <i class="bi bi-info-circle"></i> 無料プラン
+                            </h5>
+                            <ul class="mb-2 text-muted small">
+                                <li>動画のアップロードは合計2本まで</li>
+                                <li>字幕生成・動画グループの作成・管理・グループチャットは利用可能</li>
+                                <li>動画グループの共有（URL発行）は利用できません</li>
+                            </ul>
+                        </div>
+
+                        <div class="row mb-4">
+                            {% for plan_key, plan in PLAN_INFO.items %}
+                                <div class="col-md-4">
+                                    <div class="card border-{{ plan_key }}">
+                                        <div class="card-body text-center">
+                                            <h6>{{ plan.display }}</h6>
+                                            <ul class="list-unstyled">
+                                                <li>動画アップロード：{{ plan.limit }}本まで</li>
+                                                <li>字幕生成・グループ作成・チャット：利用可</li>
+                                                <li>動画グループ共有：{% if plan_key == 'free' %}不可{% else %}可{% endif %}</li>
+                                            </ul>
+                                            {% if subscription_plan == plan_key %}
+                                                <button class="btn btn-outline-{{ plan_key }}" disabled>現在のプラン</button>
+                                            {% else %}
+                                                {% if plan_key == 'free' %}
+                                                    <button type="button" class="btn btn-outline-primary w-100" data-bs-toggle="modal" data-bs-target="#cancelToFreeModal">
+                                                        {{ plan.display }}申込
+                                                    </button>
+                                                {% else %}
+                                                    <a href="{% url 'app:create_checkout_session' %}?plan={{ plan_key }}" class="btn btn-outline-primary w-100">
+                                                        {{ plan.display }}申込
+                                                    </a>
+                                                {% endif %}
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- プラン比較・機能表 -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0">プラン比較</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered text-center align-middle mb-4">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width: 25%">機能</th>
+                                    <th style="width: 25%">{{ PLAN_INFO.free.display }}</th>
+                                    <th style="width: 25%">{{ PLAN_INFO.light.display }}<br><span class="text-muted small">（{{ PLAN_INFO.light.price }}）</span></th>
+                                    <th style="width: 25%">{{ PLAN_INFO.premium.display }}<br><span class="text-muted small">（{{ PLAN_INFO.premium.price }}）</span></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="text-start">動画のアップロード・処理</td>
+                                    <td>{{ PLAN_INFO.free.limit }}本まで</td>
+                                    <td>{{ PLAN_INFO.light.limit }}本まで</td>
+                                    <td>{{ PLAN_INFO.premium.limit }}本まで</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-start">字幕生成</td>
+                                    <td><i class="bi bi-check text-success"></i></td>
+                                    <td><i class="bi bi-check text-success"></i></td>
+                                    <td><i class="bi bi-check text-success"></i></td>
+                                </tr>
+                                <tr>
+                                    <td class="text-start">動画グループの作成・管理</td>
+                                    <td><i class="bi bi-check text-success"></i></td>
+                                    <td><i class="bi bi-check text-success"></i></td>
+                                    <td><i class="bi bi-check text-success"></i></td>
+                                </tr>
+                                <tr>
+                                    <td class="text-start">グループチャット</td>
+                                    <td><i class="bi bi-check text-success"></i></td>
+                                    <td><i class="bi bi-check text-success"></i></td>
+                                    <td><i class="bi bi-check text-success"></i></td>
+                                </tr>
+                                <tr>
+                                    <td class="text-start">動画グループ共有（URL発行）</td>
+                                    <td><i class="bi bi-x text-muted"></i></td>
+                                    <td><i class="bi bi-check text-success"></i></td>
+                                    <td><i class="bi bi-check text-success"></i></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <!-- 注意事項 -->
+                    <div class="alert alert-info mt-3">
+                        <h6><i class="bi bi-info-circle"></i> 注意事項・自動更新について</h6>
+                        <ul class="mb-0">
+                            <li>有料プランは{{ PLAN_INFO.light.price }}（プレミアムは{{ PLAN_INFO.premium.price }}）で自動更新されます。解約はいつでも可能です。</li>
+                            <li>サブスクリプションを解除すると、即座に動画グループの共有機能（URL発行）が利用できなくなります。</li>
+                            <li><strong>プラン変更時は動画制限が適用されます：</strong></li>
+                            <ul>
+                                <li>上位プランから下位プランに変更する場合、制限を超える動画は古い順に自動削除されます</li>
+                                <li>例：プレミアムプラン（{{ PLAN_INFO.premium.limit }}本）からライトプラン（{{ PLAN_INFO.light.limit }}本）に変更時、{{ PLAN_INFO.premium.limit|add:"-"|add:PLAN_INFO.light.limit }}本の動画が削除されます</li>
+                                <li>削除される動画は復元できませんのでご注意ください</li>
+                            </ul>
+                            <li>動画グループ自体は無料プランでも作成・管理・利用可能です。</li>
+                            <li>グループチャットは全プランで利用可能です。</li>
+                            <li>有料プランでは動画グループの「共有URL発行」機能が追加されます。</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- サブスクリプション解除確認モーダル -->
+{% if is_subscribed %}
+<div class="modal fade" id="cancelSubscriptionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">サブスクリプション解除の確認</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>本当にサブスクリプションを解除しますか？</p>
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    <strong>注意:</strong> サブスクリプションを解除すると、以下の機能が即座に利用できなくなります：
+                    <ul class="mb-0 mt-2">
+                        <li>動画グループの共有URL発行</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
+                <form method="post" action="{% url 'app:cancel_subscription' %}" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">解除する</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- 無料プランへの移行確認モーダル -->
+<div class="modal fade" id="cancelToFreeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">無料プランへの移行確認</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>本当に無料プランに移行しますか？</p>
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    <strong>注意:</strong> 無料プランに移行すると、以下の変更が発生します：
+                    <ul class="mb-0 mt-2">
+                        <li>動画グループの共有URL発行が利用できなくなります</li>
+                        <li>制限を超える動画は古い順に自動削除されます（{{ PLAN_INFO.free.limit }}本を超える場合）</li>
+                        <li>削除された動画は復元できません</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
+                <form method="post" action="{% url 'app:create_checkout_session' %}?plan=free" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">無料プランに移行</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 
