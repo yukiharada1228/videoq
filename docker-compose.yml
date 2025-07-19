@@ -2,6 +2,8 @@ services:
   redis:
     image: "redis:alpine"
     container_name: videoq-redis
+    networks:
+      - videoq-network
 
   postgres:
     image: pgvector/pgvector:pg17
@@ -13,6 +15,45 @@ services:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
+    networks:
+      - videoq-network
+
+  opensearch:
+    image: opensearchproject/opensearch:2.11.0
+    container_name: videoq-opensearch
+    environment:
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
+      - "DISABLE_INSTALL_DEMO_CONFIG=true"
+      - "DISABLE_SECURITY_PLUGIN=true"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    volumes:
+      - opensearch_data:/usr/share/opensearch/data
+    ports:
+      - "9200:9200"
+      - "9600:9600"
+    networks:
+      - videoq-network
+
+  opensearch-dashboards:
+    image: opensearchproject/opensearch-dashboards:2.11.0
+    container_name: videoq-opensearch-dashboards
+    environment:
+      - 'OPENSEARCH_HOSTS=["http://opensearch:9200"]'
+      - "DISABLE_SECURITY_DASHBOARDS_PLUGIN=true"
+    ports:
+      - "5601:5601"
+    depends_on:
+      - opensearch
+    networks:
+      - videoq-network
 
   web:
     build: .
@@ -27,6 +68,9 @@ services:
     depends_on:
       - redis
       - postgres
+      - opensearch
+    networks:
+      - videoq-network
 
   worker:
     build: .
@@ -39,6 +83,9 @@ services:
     depends_on:
       - redis
       - postgres
+      - opensearch
+    networks:
+      - videoq-network
 
   stripe-webhook:
     image: stripe/stripe-cli
@@ -52,3 +99,8 @@ services:
 
 volumes:
   postgres_data:
+  opensearch_data:
+
+networks:
+  videoq-network:
+    driver: bridge

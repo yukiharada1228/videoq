@@ -6,7 +6,7 @@ from celery import shared_task
 from openai import OpenAI
 from .models import Video
 from app.crypto_utils import decrypt_api_key
-from app.pinecone_service import PineconeSearchService
+from app.opensearch_service import OpenSearchService
 from django.conf import settings
 import logging
 from django.utils import timezone
@@ -487,31 +487,29 @@ def process_video(video_id):
                 encoding_format="float",
             )
 
-            # Pineconeに保存（タイムスタンプ検索用セグメント）
+            # OpenSearchに保存（タイムスタンプ検索用セグメント）
             try:
-                pinecone_service = PineconeSearchService(api_key, user_id=video.user.id)
+                opensearch_service = OpenSearchService(openai_api_key=api_key, user_id=video.user.id)
 
                 # タイムスタンプ検索用のメタデータを準備
-                feature_metadata = {
+                feature_document = {
+                    "vector": embedding_response.data[0].embedding,
                     "video_id": str(video.id),
                     "video_title": video.title,
                     "timestamp": segment["start"],
                     "text": segment_text,
                     "type": "feature",
+                    "user_id": str(video.user.id),
                 }
 
-                # Pineconeに保存
-                pinecone_service.pc.Index(pinecone_service.features_index_name).upsert(
-                    vectors=[
-                        (
-                            f"feature_{video.id}_{i}",
-                            embedding_response.data[0].embedding,
-                            feature_metadata,
-                        )
-                    ]
+                # OpenSearchに保存
+                opensearch_service.opensearch.index(
+                    index=opensearch_service.features_index_name,
+                    body=feature_document,
+                    id=f"feature_{video.id}_{i}"
                 )
             except Exception as e:
-                print(f"Warning: Failed to save feature to Pinecone: {e}")
+                print(f"Warning: Failed to save feature to OpenSearch: {e}")
 
         # RAG用の大きなチャンクを作成（トークン数ベース）
         print("Creating RAG chunks with token-based splitting...")
@@ -540,12 +538,13 @@ def process_video(video_id):
                 encoding_format="float",
             )
 
-            # Pineconeに直接保存（RAG用チャンク）
+            # OpenSearchに直接保存（RAG用チャンク）
             try:
-                pinecone_service = PineconeSearchService(api_key, user_id=video.user.id)
+                opensearch_service = OpenSearchService(openai_api_key=api_key, user_id=video.user.id)
 
                 # チャンク用のメタデータを準備
-                chunk_metadata = {
+                chunk_document = {
+                    "vector": embedding_response.data[0].embedding,
                     "video_id": str(video.id),
                     "video_title": video.title,
                     "start_time": chunk["start_time"],
@@ -553,20 +552,17 @@ def process_video(video_id):
                     "chunk_index": chunk["chunk_index"],
                     "text": chunk_text,
                     "type": "chunk",
+                    "user_id": str(video.user.id),
                 }
 
-                # Pineconeに保存
-                pinecone_service.pc.Index(pinecone_service.chunks_index_name).upsert(
-                    vectors=[
-                        (
-                            f"chunk_{video.id}_{chunk['chunk_index']}",
-                            embedding_response.data[0].embedding,
-                            chunk_metadata,
-                        )
-                    ]
+                # OpenSearchに保存
+                opensearch_service.opensearch.index(
+                    index=opensearch_service.chunks_index_name,
+                    body=chunk_document,
+                    id=f"chunk_{video.id}_{chunk['chunk_index']}"
                 )
             except Exception as e:
-                print(f"Warning: Failed to save chunk to Pinecone: {e}")
+                print(f"Warning: Failed to save chunk to OpenSearch: {e}")
 
         video.status = "completed"
         video.save()

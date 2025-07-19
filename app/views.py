@@ -30,7 +30,7 @@ from .tasks import (
     sync_specific_user_subscription,
 )
 from .services import VectorSearchService
-from app.pinecone_service import PineconeSearchService
+from app.opensearch_service import OpenSearchService
 import numpy as np
 from openai import OpenAI
 import os
@@ -122,38 +122,6 @@ def create_checkout_session(request):
 
     try:
         customer_id = request.user.stripe_customer_id
-        # 既存のアクティブなサブスクリプションをキャンセル（このロジックを削除）
-        # if customer_id:
-        #     from app.stripe_service import StripeService
-        #
-        #     stripe_service = StripeService()
-        #     subscription = stripe_service.get_subscription(customer_id)
-        #
-        #     if subscription:
-        #         # statusが'active'のサブスクリプションのみ削除対象とする
-        #         sub_status = getattr(subscription, 'status', None)
-        #         if isinstance(subscription, dict):
-        #             if "id" in subscription and subscription.get("status") == "active":
-        #                 sub_id = subscription["id"]
-        #                 print(f"Found existing active subscription: {sub_id}")
-        #                 result = stripe_service.delete_subscription(sub_id, logging)
-        #                 if result["status"] == "success":
-        #                     print(f"Deleted existing subscription: {sub_id}")
-        #                 else:
-        #                     print(f"Failed to delete subscription: {result['message']}")
-        #             else:
-        #                 print("Subscription dictに'id'キーがない、またはstatusがactiveでないため削除しません")
-        #         else:
-        #             if hasattr(subscription, 'id') and getattr(subscription, 'status', None) == "active":
-        #                 sub_id = subscription.id
-        #                 print(f"Found existing active subscription: {sub_id}")
-        #                 result = stripe_service.delete_subscription(sub_id, logging)
-        #                 if result["status"] == "success":
-        #                     print(f"Deleted existing subscription: {sub_id}")
-        #                 else:
-        #                     print(f"Failed to delete subscription: {result['message']}")
-        #             else:
-        #                 print("Subscription objectのstatusがactiveでないため削除しません")
 
         checkout_params = {
             "payment_method_types": ["card"],
@@ -464,7 +432,7 @@ class VideoGroupChatView(LoginRequiredMixin, BaseVideoGroupChatView):
                 return error_response
 
             # 検索の実行
-            search_service = PineconeSearchService(api_key, user_id=request.user.id)
+            search_service = OpenSearchService(openai_api_key=api_key, user_id=request.user.id)
             results, error_response = self.perform_search(
                 search_service, group, query, max_results
             )
@@ -525,8 +493,8 @@ class VideoGroupChatStreamView(LoginRequiredMixin, View):
 
             def generate_stream():
                 try:
-                    # Pinecone検索サービスを使用
-                    search_service = PineconeSearchService(api_key, user_id=user.id)
+                    # OpenSearch検索サービスを使用
+                    search_service = OpenSearchService(openai_api_key=api_key, user_id=user.id)
                     # ストリーミングメソッドを使用
                     for chunk in search_service.generate_group_rag_answer_stream(
                         group, query, max_results
@@ -945,9 +913,9 @@ class ShareVideoGroupChatView(BaseVideoGroupChatView):
                     {"error": "APIキーの復号に失敗しました。"}, status=400
                 )
 
-            # Pinecone検索サービスを使用
+            # OpenSearch検索サービスを使用
             try:
-                search_service = PineconeSearchService(api_key, user_id=user.id)
+                search_service = OpenSearchService(openai_api_key=api_key, user_id=user.id)
                 results = search_service.generate_group_rag_answer(
                     group, query, max_results
                 )
@@ -1004,9 +972,9 @@ class ShareVideoGroupChatStreamView(View):
 
             def generate_stream():
                 try:
-                    # Pinecone検索サービスを使用
-                    search_service = PineconeSearchService(
-                        api_key, user_id=group.user.id
+                    # OpenSearch検索サービスを使用
+                    search_service = OpenSearchService(
+                        openai_api_key=api_key, user_id=group.user.id
                     )
                     # ストリーミングメソッドを使用
                     for chunk in search_service.generate_group_rag_answer_stream(

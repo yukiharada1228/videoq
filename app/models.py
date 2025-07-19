@@ -235,9 +235,9 @@ class Video(models.Model):
         """動画の完全削除（Pinecone + S3 + DB）"""
         import logging
 
-        # Pinecone側のベクトルデータも削除
+        # OpenSearch側のベクトルデータも削除
         try:
-            from app.pinecone_service import PineconeSearchService
+            from app.opensearch_service import OpenSearchService
 
             # APIキーがある場合は復号化して使用、ない場合はNoneを渡す
             if self.user and self.user.encrypted_openai_api_key:
@@ -248,17 +248,17 @@ class Video(models.Model):
                 api_key = None
 
             if self.user:
-                pinecone_service = PineconeSearchService(
-                    api_key, user_id=self.user.id, ensure_indexes=False
+                opensearch_service = OpenSearchService(
+                    openai_api_key=api_key, user_id=self.user.id, ensure_indexes=False
                 )
-                pinecone_service.delete_video_data(self.id)
+                opensearch_service.delete_video_data(self.id)
                 logging.info(
-                    f"User {self.user.id}: Deleted Pinecone data for video {self.id}"
+                    f"User {self.user.id}: Deleted OpenSearch data for video {self.id}"
                 )
         except Exception as e:
-            # Pinecone削除失敗は握りつぶす（ログのみ）
+            # OpenSearch削除失敗は握りつぶす（ログのみ）
             logging.warning(
-                f"User {self.user.id if self.user else 'Unknown'}: Failed to delete Pinecone data for video {self.id}: {e}"
+                f"User {self.user.id if self.user else 'Unknown'}: Failed to delete OpenSearch data for video {self.id}: {e}"
             )
 
         # S3ファイルを削除
