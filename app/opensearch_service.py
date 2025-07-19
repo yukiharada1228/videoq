@@ -117,7 +117,8 @@ class OpenSearchService:
                     "settings": {
                         "index": {
                             "knn": True,
-                            "knn.algo_param.ef_search": 100
+                            "knn.algo_param.ef_search": 100,
+                            "number_of_replicas": 0
                         }
                     },
                     "mappings": {
@@ -156,7 +157,8 @@ class OpenSearchService:
                     "settings": {
                         "index": {
                             "knn": True,
-                            "knn.algo_param.ef_search": 100
+                            "knn.algo_param.ef_search": 100,
+                            "number_of_replicas": 0
                         }
                     },
                     "mappings": {
