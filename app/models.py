@@ -42,6 +42,47 @@ class User(AbstractUser):
         super().save(*args, **kwargs)
 
 
+class SafeLocalFileStorage(FileSystemStorage):
+    """
+    ローカル用の安全なファイルストレージ
+    """
+
+    def get_available_name(self, name, max_length=None):
+        """
+        ファイル名を安全な形式に変換して、重複を避ける
+        """
+        # 絶対パスを相対パスに変換
+        if os.path.isabs(name):
+            name = os.path.basename(name)
+
+        # ディレクトリ部分とファイル名部分に分割
+        dir_name = os.path.dirname(name)
+        base_name = os.path.basename(name)
+        safe_base_name = self._get_safe_filename(base_name)
+        # ディレクトリがあれば結合、なければファイル名のみ
+        safe_name = (
+            os.path.join(dir_name, safe_base_name) if dir_name else safe_base_name
+        )
+
+        # 元のget_available_nameメソッドを呼び出して重複チェック
+        return super().get_available_name(safe_name, max_length)
+
+    def _get_safe_filename(self, filename):
+        """
+        ファイル名をタイムスタンプベースの安全な形式に変換する
+        """
+        # 拡張子を取得
+        _, ext = os.path.splitext(filename)
+
+        # タイムスタンプベースのファイル名を生成
+        timestamp = int(time.time() * 1000)  # ミリ秒単位のタイムスタンプ
+
+        # 安全なファイル名を生成
+        safe_name = f"video_{timestamp}{ext}"
+
+        return safe_name
+
+
 class SafeFileStorage(S3Boto3Storage):
     """
     安全に処理するカスタムS3ストレージ
@@ -218,7 +259,7 @@ class Video(models.Model):
         storage=(
             SafeFileStorage()
             if os.environ.get("USE_S3", "FALSE") == "TRUE"
-            else FileSystemStorage()
+            else SafeLocalFileStorage()
         ),
     )
     title = models.CharField(max_length=255)
