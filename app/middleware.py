@@ -12,6 +12,7 @@ class BasicAuthMiddleware:
         self.exempt_paths = [
             '/stripe/webhook/',  # Stripe Webhookエンドポイント
             '/health/',         # ヘルスチェックエンドポイント
+            '/share/',           # 共有URLエンドポイント
         ]
 
     def __call__(self, request):
