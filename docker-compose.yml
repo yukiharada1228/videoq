@@ -21,12 +21,14 @@ services:
   opensearch:
     image: opensearchproject/opensearch:2.11.0
     container_name: videoq-opensearch
+    env_file:
+      - .env
     environment:
-      - discovery.type=single-node
-      - bootstrap.memory_lock=true
-      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
-      - "DISABLE_INSTALL_DEMO_CONFIG=true"
-      - "DISABLE_SECURITY_PLUGIN=true"
+      - discovery.type=${DISCOVERY_TYPE}
+      - bootstrap.memory_lock=${BOOTSTRAP_MEMORY_LOCK}
+      - OPENSEARCH_JAVA_OPTS=${OPENSEARCH_JAVA_OPTS}
+      - DISABLE_INSTALL_DEMO_CONFIG=${DISABLE_INSTALL_DEMO_CONFIG}
+      - DISABLE_SECURITY_PLUGIN=${DISABLE_SECURITY_PLUGIN}
     ulimits:
       memlock:
         soft: -1
@@ -45,9 +47,8 @@ services:
   opensearch-dashboards:
     image: opensearchproject/opensearch-dashboards:2.11.0
     container_name: videoq-opensearch-dashboards
-    environment:
-      - 'OPENSEARCH_HOSTS=["http://opensearch:9200"]'
-      - "DISABLE_SECURITY_DASHBOARDS_PLUGIN=true"
+    env_file:
+      - .env
     ports:
       - "5601:5601"
     depends_on:
