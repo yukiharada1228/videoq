@@ -708,13 +708,6 @@ class ShareVideoGroupChatStreamView(View):
                     {"error": "動画グループが見つかりません"}, status=404
                 )
 
-            # 共有元ユーザーのサブスクリプション状態をチェック
-            if not group.user.is_subscribed:
-                # 共有元ユーザーが無料プランの場合、共有URLを無効化
-                group.share_token = None
-                group.save()
-                return JsonResponse({"error": "この共有URLは無効です。"}, status=403)
-
             # 共有元ユーザーのAPIキーを取得
             user = group.user
             if not user.encrypted_openai_api_key:
