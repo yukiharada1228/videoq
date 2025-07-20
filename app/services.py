@@ -1,6 +1,5 @@
 from .models import VideoGroup
 from openai import OpenAI
-from pgvector.django import CosineDistance
 import tiktoken
 
 

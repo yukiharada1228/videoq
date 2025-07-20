@@ -7,10 +7,7 @@ from openai import OpenAI
 from .models import Video
 from app.crypto_utils import decrypt_api_key
 from app.opensearch_service import OpenSearchService
-from django.conf import settings
 import logging
-from django.utils import timezone
-from datetime import timedelta
 import tiktoken
 from django.db import transaction
 

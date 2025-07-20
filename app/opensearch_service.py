@@ -1,11 +1,9 @@
 import os
 from typing import List, Dict, Any
 from openai import OpenAI
-from opensearchpy import OpenSearch, helpers
+from opensearchpy import OpenSearch
 from app.models import VideoGroup
 import tiktoken
-import re
-import json
 from pydantic import BaseModel, Field
 
 

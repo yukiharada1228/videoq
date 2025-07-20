@@ -1,13 +1,8 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from django.http import HttpResponseRedirect
 from django.urls import path
-from django.contrib import messages
 from django.shortcuts import redirect
-from django.utils.html import format_html
 from .models import User, Video, VideoGroup, VideoGroupMember
-import logging
-from django.template.response import TemplateResponse
 
 
 @admin.register(User)

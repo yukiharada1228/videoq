@@ -12,7 +12,6 @@ from django.views import View
 from django.http import JsonResponse, HttpResponse, StreamingHttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
-from django.db.models import Prefetch
 from .forms import (
     SignUpForm,
     activate_user,
@@ -27,11 +26,7 @@ from .models import Video, VideoGroup, VideoGroupMember
 from .tasks import (
     process_video,
 )
-from .services import VectorSearchService
 from app.opensearch_service import OpenSearchService
-import numpy as np
-from openai import OpenAI
-import os
 import json
 from django.contrib import messages
 from django.views.generic.edit import FormView
@@ -42,14 +37,6 @@ import base64
 import hashlib
 from app.crypto_utils import encrypt_api_key, decrypt_api_key
 import secrets
-from django.contrib.auth.decorators import login_required
-from datetime import datetime, timezone as dt_timezone
-import logging
-from django.utils import timezone
-
-from django.http import HttpResponseForbidden
-
-# Create your views here.
 
 
 def health_check(request):
