@@ -6,7 +6,7 @@ services:
       - videoq-network
 
   postgres:
-    image: pgvector/pgvector:pg17
+    image: postgres:17
     container_name: videoq-postgres
     restart: always
     env_file:
