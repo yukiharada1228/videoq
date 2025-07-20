@@ -19,7 +19,7 @@ services:
       - videoq-network
 
   opensearch:
-    image: opensearchproject/opensearch:2.11.0
+    image: opensearchproject/opensearch:3
     container_name: videoq-opensearch
     env_file:
       - .env
@@ -45,7 +45,7 @@ services:
       - videoq-network
 
   opensearch-dashboards:
-    image: opensearchproject/opensearch-dashboards:2.11.0
+    image: opensearchproject/opensearch-dashboards:3
     container_name: videoq-opensearch-dashboards
     env_file:
       - .env
