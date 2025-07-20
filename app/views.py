@@ -26,8 +26,6 @@ from django.contrib.auth.views import LoginView as AuthLoginView
 from .models import Video, VideoGroup, VideoGroupMember
 from .tasks import (
     process_video,
-    process_stripe_webhook,
-    sync_specific_user_subscription,
 )
 from .services import VectorSearchService
 from app.opensearch_service import OpenSearchService
@@ -48,7 +46,7 @@ from django.contrib.auth.decorators import login_required
 from datetime import datetime, timezone as dt_timezone
 import logging
 from django.utils import timezone
-from .plan_constants import PLAN_INFO, DEFAULT_PLAN_KEY
+
 from django.http import HttpResponseForbidden
 
 # Create your views here.
@@ -57,176 +55,6 @@ from django.http import HttpResponseForbidden
 def health_check(request):
     """ヘルスチェック用エンドポイント"""
     return HttpResponse("OK", status=200)
-
-
-def disable_user_sharing(user):
-    """ユーザーが所有するすべての動画グループの共有URLを無効化"""
-    from app.models import VideoGroup
-
-    shared_groups = VideoGroup.objects.filter(user=user, share_token__isnull=False)
-    for group in shared_groups:
-        # 共有URLの履歴を保存
-        group.save_share_token_history()
-        group.share_token = None
-        group.save()
-        print(f"Disabled sharing for group: {group.name} (saved history)")
-
-
-def restore_user_sharing(user):
-    """ユーザーが所有する動画グループの共有URLを履歴から復活"""
-    from app.models import VideoGroup
-
-    groups_with_history = VideoGroup.objects.filter(
-        user=user, previous_share_token__isnull=False, share_token__isnull=True
-    )
-    restored_count = 0
-    for group in groups_with_history:
-        if group.restore_share_token():
-            group.save()
-            restored_count += 1
-            print(f"Restored sharing for group: {group.name}")
-
-    if restored_count > 0:
-        print(f"Restored {restored_count} shared groups for user {user.id}")
-
-    return restored_count
-
-
-@login_required
-def create_checkout_session(request):
-    print("=== create_checkout_session called ===")
-    # プラン名をPOST/GETから取得（現状はbasic固定、将来UIで選択可能に）
-    plan = (
-        request.POST.get("plan") or request.GET.get("plan") or list(PLAN_INFO.keys())[0]
-    )
-    if plan == DEFAULT_PLAN_KEY:
-        # サブスク解除処理に統一
-        from app.stripe_service import StripeService
-
-        stripe_service = StripeService()
-        result = stripe_service.cancel_user_subscription(request.user, logging)
-
-        if result["status"] == "success" and result["canceled"]:
-            print(f"Subscription canceled successfully for user: {request.user.id}")
-        elif result["status"] == "success" and not result["canceled"]:
-            print(f"No active subscription found for user: {request.user.id}")
-        else:
-            print(f"Failed to cancel subscription for user: {request.user.id}")
-
-        # 無料プラン変更時は専用完了画面に遷移（そこで同期処理を実行）
-        return redirect("app:subscription_downgrade_success")
-
-    price_id = settings.STRIPE_PRICE_IDS.get(plan)
-    if not price_id:
-        return JsonResponse({"error": f"プランIDが不正です: {plan}"}, status=400)
-
-    try:
-        customer_id = request.user.stripe_customer_id
-
-        checkout_params = {
-            "payment_method_types": ["card"],
-            "line_items": [
-                {
-                    "price": price_id,
-                    "quantity": 1,
-                }
-            ],
-            "mode": "subscription",
-            "success_url": settings.DOMAIN + "/subscription/success/",
-            "cancel_url": settings.DOMAIN + "/subscription/cancel/",
-            "client_reference_id": request.user.id,
-            "metadata": {"plan_name": plan},
-        }
-        if customer_id:
-            checkout_params["customer"] = customer_id
-        else:
-            checkout_params["customer_email"] = request.user.email
-
-        from app.stripe_service import StripeService
-
-        stripe_service = StripeService()
-        result = stripe_service.create_checkout_session(checkout_params, logging)
-        if result["status"] == "success":
-            session = result["session"]
-            print("=== Stripe Session created ===")
-            return redirect(session.url)
-        else:
-            print(f"=== Stripe Session creation failed: {result['message']} ===")
-            return JsonResponse({"error": result["message"]}, status=500)
-    except Exception as e:
-        print(f"=== Stripe Exception: {e} ===")
-        logging.exception("Stripe Checkout Session作成時にエラー発生")
-        return JsonResponse({"error": str(e)}, status=500)
-
-
-@csrf_exempt
-def stripe_webhook_test(request):
-    """Webhookのテスト用エンドポイント"""
-    print("=== Webhook Test Endpoint ===")
-    print(f"Method: {request.method}")
-    print(f"Headers: {dict(request.META)}")
-    print(f"Body: {request.body.decode('utf-8')}")
-
-    # 実際のWebhook処理を呼び出し
-    return stripe_webhook(request)
-
-
-@csrf_exempt
-def stripe_webhook(request):
-    payload = request.body
-    sig_header = request.META.get("HTTP_STRIPE_SIGNATURE")
-
-    # デバッグログ
-    print(f"Webhook received: {request.method}")
-    print(f"Content-Type: {request.META.get('CONTENT_TYPE', 'Not set')}")
-    print(f"Stripe-Signature: {sig_header}")
-    print(f"Payload length: {len(payload)}")
-
-    # StripeServiceを使用してWebhook署名を検証
-    from app.stripe_service import StripeService
-    from django.conf import settings
-
-    stripe_service = StripeService()
-    result = stripe_service.verify_webhook_signature(
-        payload, sig_header, settings.STRIPE_WEBHOOK_SECRET, logging
-    )
-
-    if result["status"] != "success":
-        return JsonResponse({"status": result["message"]}, status=400)
-
-    event = result["event"]
-    print(f"Event type: {event['type']}")
-    print(f"Event ID: {event['id']}")
-
-    # イベントを非同期タスクで処理
-    try:
-        # イベントIDを取得して冪等性チェック
-        event_id = event.get("id")
-        if not event_id:
-            print("No event ID found in webhook payload")
-            return JsonResponse(
-                {"status": "error", "message": "No event ID"}, status=400
-            )
-
-        # タスクをキューイング
-        task_result = process_stripe_webhook.delay(
-            event["type"], event  # event全体を渡す
-        )
-        print(
-            f"Webhook event {event['type']} (ID: {event_id}) queued for processing with task ID: {task_result.id}"
-        )
-
-        # タスクIDをログに記録（後で追跡可能）
-        logging.info(f"Webhook event {event_id} queued with task ID: {task_result.id}")
-
-    except Exception as e:
-        print(f"Error queuing webhook task: {e}")
-        logging.error(f"Failed to queue webhook task for event {event.get('id')}: {e}")
-        # タスクのキューイングに失敗した場合でも、Stripeには成功レスポンスを返す
-        # 後で手動で同期できるようにする
-
-    # 即座に成功レスポンスを返す
-    return JsonResponse({"status": "success", "event_id": event.get("id")})
 
 
 class HomeView(LoginRequiredMixin, TemplateView):
@@ -254,15 +82,6 @@ class HomeView(LoginRequiredMixin, TemplateView):
         ).count()
         context["total_groups"] = video_groups.count()
 
-        # プラン情報
-        plan = getattr(self.request.user, "subscription_plan", DEFAULT_PLAN_KEY)
-        plan_info = PLAN_INFO.get(plan, PLAN_INFO[DEFAULT_PLAN_KEY])
-        plan_display = plan_info["display"]
-        plan_limit = plan_info["limit"]
-        context["plan_display_name"] = plan_display
-        context["plan_limit"] = plan_limit
-        context["remaining_videos"] = max(0, plan_limit - context["total_videos"])
-        context["PLAN_INFO"] = PLAN_INFO
         return context
 
 
@@ -273,39 +92,10 @@ class VideoUploadView(LoginRequiredMixin, CreateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        user = self.request.user
-        video_count = user.videos.count()
-        context["current_plan"] = PLAN_INFO.get(
-            user.subscription_plan, PLAN_INFO[DEFAULT_PLAN_KEY]
-        )
-        # プラン情報
-        plan = getattr(self.request.user, "subscription_plan", DEFAULT_PLAN_KEY)
-        plan_info = PLAN_INFO.get(plan, PLAN_INFO[DEFAULT_PLAN_KEY])
-        plan_display = plan_info["display"]
-        plan_limit = plan_info["limit"]
-        context["plan_display_name"] = plan_display
-        context["plan_limit"] = plan_limit
-        context["remaining_videos"] = max(0, plan_limit - video_count)
-        context["PLAN_INFO"] = PLAN_INFO
         return context
 
     def form_valid(self, form):
-
-        # 動画アップロード数の制限チェック
-        user = self.request.user
-        video_count = user.videos.count()
-
-        # プランごとの動画アップロード上限を取得
-        plan_limit = PLAN_INFO.get(user.subscription_plan, PLAN_INFO[DEFAULT_PLAN_KEY])[
-            "limit"
-        ]
-        if video_count >= plan_limit:
-            return self.form_invalid(
-                form,
-                message=f"アップロード制限に達しました。現在{video_count}本の動画が登録されており、{PLAN_INFO[user.subscription_plan]['display']}では合計{plan_limit}本までしかアップロードできません。",
-            )
-
-        form.instance.user = user
+        form.instance.user = self.request.user
         response = super().form_valid(form)
         # Trigger the background task
         process_video.delay(self.object.id)
@@ -432,7 +222,9 @@ class VideoGroupChatView(LoginRequiredMixin, BaseVideoGroupChatView):
                 return error_response
 
             # 検索の実行
-            search_service = OpenSearchService(openai_api_key=api_key, user_id=request.user.id)
+            search_service = OpenSearchService(
+                openai_api_key=api_key, user_id=request.user.id
+            )
             results, error_response = self.perform_search(
                 search_service, group, query, max_results
             )
@@ -494,7 +286,9 @@ class VideoGroupChatStreamView(LoginRequiredMixin, View):
             def generate_stream():
                 try:
                     # OpenSearch検索サービスを使用
-                    search_service = OpenSearchService(openai_api_key=api_key, user_id=user.id)
+                    search_service = OpenSearchService(
+                        openai_api_key=api_key, user_id=user.id
+                    )
                     # ストリーミングメソッドを使用
                     for chunk in search_service.generate_group_rag_answer_stream(
                         group, query, max_results
@@ -562,9 +356,14 @@ class SignUpView(CreateView):
     def get_context_data(self, **kwargs):
         import markdown
         import os
+
         context = super().get_context_data(**kwargs)
-        terms_md_path = os.path.join(settings.BASE_DIR, "app", "templates", "app", "terms.md")
-        privacy_md_path = os.path.join(settings.BASE_DIR, "app", "templates", "app", "privacy.md")
+        terms_md_path = os.path.join(
+            settings.BASE_DIR, "app", "templates", "app", "terms.md"
+        )
+        privacy_md_path = os.path.join(
+            settings.BASE_DIR, "app", "templates", "app", "privacy.md"
+        )
         with open(terms_md_path, encoding="utf-8") as f:
             terms_md = f.read()
         with open(privacy_md_path, encoding="utf-8") as f:
@@ -634,15 +433,6 @@ class VideoListView(LoginRequiredMixin, ListView):
         context["error_videos"] = Video.objects.filter(
             user=self.request.user, status="error"
         ).count()
-        # プラン情報
-        plan = getattr(self.request.user, "subscription_plan", DEFAULT_PLAN_KEY)
-        plan_info = PLAN_INFO.get(plan, PLAN_INFO[DEFAULT_PLAN_KEY])
-        plan_display = plan_info["display"]
-        plan_limit = plan_info["limit"]
-        context["plan_display_name"] = plan_display
-        context["plan_limit"] = plan_limit
-        context["remaining_videos"] = max(0, plan_limit - context["total_videos"])
-        context["PLAN_INFO"] = PLAN_INFO
         return context
 
 
@@ -828,14 +618,6 @@ class ShareVideoGroupView(BaseVideoGroupDetailView):
         return VideoGroup.objects.exclude(share_token__isnull=True)
 
     def get(self, request, *args, **kwargs):
-        # 共有元ユーザーのサブスクリプション状態をチェック
-        group = self.get_object()
-        if not group.user.is_subscribed:
-            # 共有元ユーザーが無料プランの場合、共有URLを無効化
-            group.share_token = None
-            group.save()
-            return HttpResponseForbidden("この共有URLは無効です。")
-
         return super().get(request, *args, **kwargs)
 
 
@@ -843,13 +625,9 @@ class VideoGroupShareToggleView(LoginRequiredMixin, View):
     """動画グループの共有URL発行・無効化"""
 
     def post(self, request, pk):
-        if not request.user.is_subscribed:
-            return HttpResponseForbidden("有料プラン契約が必要です。")
         group = get_object_or_404(VideoGroup, pk=pk, user=request.user)
         action = request.POST.get("action")
         if action == "enable":
-            # 現在の共有トークンを履歴として保存
-            group.save_share_token_history()
             # トークン生成
             group.share_token = secrets.token_urlsafe(32)
             group.save()
@@ -862,8 +640,6 @@ class VideoGroupShareToggleView(LoginRequiredMixin, View):
                 }
             )
         elif action == "disable":
-            # 現在の共有トークンを履歴として保存
-            group.save_share_token_history()
             group.share_token = None
             group.save()
             return JsonResponse({"success": True})
@@ -893,13 +669,6 @@ class ShareVideoGroupChatView(BaseVideoGroupChatView):
                     {"error": "動画グループが見つかりません"}, status=404
                 )
 
-            # 共有元ユーザーのサブスクリプション状態をチェック
-            if not group.user.is_subscribed:
-                # 共有元ユーザーが無料プランの場合、共有URLを無効化
-                group.share_token = None
-                group.save()
-                return JsonResponse({"error": "この共有URLは無効です。"}, status=403)
-
             # 共有元ユーザーのAPIキーを取得
             user = group.user
             if not user.encrypted_openai_api_key:
@@ -915,7 +684,9 @@ class ShareVideoGroupChatView(BaseVideoGroupChatView):
 
             # OpenSearch検索サービスを使用
             try:
-                search_service = OpenSearchService(openai_api_key=api_key, user_id=user.id)
+                search_service = OpenSearchService(
+                    openai_api_key=api_key, user_id=user.id
+                )
                 results = search_service.generate_group_rag_answer(
                     group, query, max_results
                 )
@@ -1020,581 +791,16 @@ class ShareVideoGroupChatStreamView(View):
             )
 
 
-class SubscriptionSuccessView(TemplateView):
-    template_name = "app/subscription_success.html"
-
-    def get(self, request, *args, **kwargs):
-        if request.user.is_authenticated:
-            # Webhookが来るまで少し待ってから同期処理を実行
-            import time
-            from app.stripe_service import StripeService
-            from app.plan_utils import (
-                get_plan_name_from_product_id,
-                restore_user_sharing,
-                disable_user_sharing,
-                enforce_video_limit_for_plan,
-            )
-
-            # 最大10秒間、Webhookが来るまで待つ
-            max_attempts = 10
-            for attempt in range(max_attempts):
-                try:
-                    # StripeServiceの統一された同期処理を使用
-                    stripe_service = StripeService()
-                    plan_utils = type(
-                        "PlanUtils",
-                        (),
-                        {
-                            "get_plan_name_from_product_id": staticmethod(
-                                get_plan_name_from_product_id
-                            ),
-                            "restore_user_sharing": staticmethod(restore_user_sharing),
-                            "disable_user_sharing": staticmethod(disable_user_sharing),
-                            "enforce_video_limit_for_plan": staticmethod(
-                                enforce_video_limit_for_plan
-                            ),
-                        },
-                    )()
-
-                    result = stripe_service.sync_user_subscription(
-                        request.user, plan_utils, logging
-                    )
-
-                    if result["status"] == "success" and result["synced"]:
-                        messages.success(
-                            request, "サブスクリプションが正常に開始されました。"
-                        )
-                        break
-                    elif result["status"] == "success" and not result["synced"]:
-                        messages.info(request, "サブスクリプション状況を確認しました。")
-                        break
-                    else:
-                        print(f"=== Attempt {attempt + 1}: Sync failed, waiting... ===")
-                        if attempt < max_attempts - 1:
-                            time.sleep(1)  # 1秒待つ
-                        else:
-                            messages.warning(
-                                request,
-                                "サブスクリプション情報の確認に時間がかかっています。しばらくしてから再度確認してください。",
-                            )
-                except Exception as e:
-                    print(f"=== Subscription success sync error: {e} ===")
-                    if attempt < max_attempts - 1:
-                        time.sleep(1)
-                    else:
-                        messages.warning(
-                            request, "サブスクリプション状況の確認に失敗しました。"
-                        )
-
-            request.user.refresh_from_db()
-        return super().get(request, *args, **kwargs)
-
-
-class SubscriptionCancelView(TemplateView):
-    template_name = "app/subscription_cancel.html"
-
-
-class SubscriptionDowngradeSuccessView(LoginRequiredMixin, TemplateView):
-    """無料プラン変更完了画面"""
-
-    template_name = "app/subscription_downgrade_success.html"
-
-    def get(self, request, *args, **kwargs):
-        # 無料プラン変更完了時に同期処理を実行
-        if request.user.stripe_customer_id:
-            try:
-                # StripeServiceの統一された同期処理を使用
-                from app.stripe_service import StripeService
-                from app.plan_utils import (
-                    get_plan_name_from_product_id,
-                    restore_user_sharing,
-                    disable_user_sharing,
-                    enforce_video_limit_for_plan,
-                    log_subscription_change,
-                    handle_plan_change,
-                )
-
-                stripe_service = StripeService()
-                plan_utils = type(
-                    "PlanUtils",
-                    (),
-                    {
-                        "get_plan_name_from_product_id": staticmethod(
-                            get_plan_name_from_product_id
-                        ),
-                        "restore_user_sharing": staticmethod(restore_user_sharing),
-                        "disable_user_sharing": staticmethod(disable_user_sharing),
-                        "enforce_video_limit_for_plan": staticmethod(
-                            enforce_video_limit_for_plan
-                        ),
-                        "log_subscription_change": staticmethod(
-                            log_subscription_change
-                        ),
-                        "handle_plan_change": staticmethod(handle_plan_change),
-                    },
-                )()
-
-                result = stripe_service.sync_user_subscription(
-                    request.user, plan_utils, logging
-                )
-
-                if result["status"] == "success" and result["synced"]:
-                    messages.success(request, "無料プランへの変更が完了しました。")
-                elif result["status"] == "success" and not result["synced"]:
-                    messages.info(request, "プラン変更状況を確認しました。")
-                else:
-                    messages.warning(
-                        request,
-                        f"プラン変更状況の確認に失敗しました: {result['message']}",
-                    )
-
-            except Exception as e:
-                print(f"=== Subscription downgrade sync error: {e} ===")
-                messages.warning(request, "プラン変更状況の確認に失敗しました。")
-
-            request.user.refresh_from_db()
-        return super().get(request, *args, **kwargs)
-
-
-class SubscriptionManagementView(LoginRequiredMixin, TemplateView):
-    """サブスクリプション管理画面"""
-
-    template_name = "app/subscription_management.html"
-
-    def get_context_data(self, **kwargs):
-        # サブスクリプション管理画面アクセス時にStripe同期を実行（特定ユーザーのみ）
-        print(
-            f"[DEBUG] SubscriptionManagementView.get_context_data called for user {self.request.user.id}"
-        )
-        print(
-            f"[DEBUG] User stripe_customer_id: {self.request.user.stripe_customer_id}"
-        )
-
-        try:
-            print(f"[DEBUG] Starting sync for user {self.request.user.id}")
-            # 特定のユーザーのみ同期処理を実行
-            from app.tasks import sync_specific_user_subscription
-
-            task_result = sync_specific_user_subscription.delay(self.request.user.id)
-            print(f"[DEBUG] Sync task queued with ID: {task_result.id}")
-
-            # タスクの結果を待機（最大5秒）
-            import time
-
-            max_wait = 5
-            for i in range(max_wait):
-                if task_result.ready():
-                    result = task_result.get()
-                    print(f"[DEBUG] Sync task completed: {result}")
-                    if result.get("status") == "success" and result.get("synced"):
-                        messages.success(
-                            self.request, "サブスクリプション状況を自動同期しました。"
-                        )
-                        logging.info(
-                            f"Subscription management sync completed for user {self.request.user.id}"
-                        )
-                    elif result.get("status") == "success" and not result.get("synced"):
-                        messages.info(
-                            self.request,
-                            "サブスクリプション状況に変更はありませんでした。",
-                        )
-                        logging.info(
-                            f"No subscription changes for user {self.request.user.id}"
-                        )
-                    else:
-                        messages.warning(
-                            self.request,
-                            f"同期処理で問題が発生しました: {result.get('message', 'Unknown error')}",
-                        )
-                        logging.warning(
-                            f"Sync issue for user {self.request.user.id}: {result}"
-                        )
-                    break
-                time.sleep(1)
-            else:
-                # タイムアウトの場合
-                messages.info(
-                    self.request, "同期処理を開始しました。しばらくお待ちください。"
-                )
-                logging.info(
-                    f"Sync task started for user {self.request.user.id} (timeout)"
-                )
-
-        except Exception as e:
-            print(f"[DEBUG] Sync error: {e}")
-            messages.error(self.request, f"自動同期に失敗しました: {str(e)}")
-            logging.error(
-                f"Failed to sync subscription for user {self.request.user.id}: {e}"
-            )
-
-        context = super().get_context_data(**kwargs)
-        context["is_subscribed"] = self.request.user.is_subscribed
-        context["subscription_plan"] = self.request.user.subscription_plan
-        context["PLAN_INFO"] = PLAN_INFO
-
-        # Stripeからの詳細情報を取得
-        subscription_info = None
-        if self.request.user.stripe_customer_id:
-            try:
-                print(
-                    f"Fetching subscription info for customer: {self.request.user.stripe_customer_id}"
-                )
-
-                # StripeServiceを使用してサブスクリプション情報を取得
-                from app.stripe_service import StripeService
-
-                stripe_service = StripeService()
-                subscription = stripe_service.get_subscription(
-                    self.request.user.stripe_customer_id
-                )
-
-                if subscription:
-                    if isinstance(subscription, dict):
-                        if "id" in subscription:
-                            sub_id = subscription["id"]
-                            print(f"Found subscription: {sub_id}")
-                        else:
-                            print("Subscription dictに'id'キーがありません（サブスクリプションが存在しないかエラー）")
-                            sub_id = None
-                    else:
-                        sub_id = subscription.id
-                        print(f"Found subscription: {sub_id}")
-
-                    # 個別のサブスクリプションを直接取得して詳細情報を取得
-                    try:
-                        result = stripe_service.get_subscription_details(
-                            subscription.id,
-                            expand=["default_payment_method"],
-                            logger=logging,
-                        )
-                        if result["status"] == "success":
-                            detailed_subscription = result["subscription"]
-                            print("Detailed subscription retrieved")
-                            detailed_dict = detailed_subscription.to_dict()
-                            print("Detailed subscription as dict:")
-                            for key, value in detailed_dict.items():
-                                if not key.startswith("_"):
-                                    print(f"  {key}: {value}")
-                        else:
-                            print(
-                                f"Error retrieving detailed subscription: {result['message']}"
-                            )
-                            detailed_dict = subscription.to_dict()
-                    except Exception as retrieve_error:
-                        print(
-                            f"Error retrieving detailed subscription: {retrieve_error}"
-                        )
-                        detailed_dict = subscription.to_dict()
-
-                    # 辞書形式でアクセスしてみる
-                    subscription_dict = subscription.to_dict()
-                    print("Subscription as dict:")
-                    for key, value in subscription_dict.items():
-                        if not key.startswith("_"):
-                            print(f"  {key}: {value}")
-
-                    # 安全にサブスクリプション情報を取得
-                    try:
-                        # Stripe公式ドキュメントに基づいて正確な日付情報を取得
-                        # https://docs.stripe.com/api/subscriptions/object
-                        created = detailed_dict.get("created")
-                        cancel_at = detailed_dict.get("cancel_at")
-                        billing_cycle_anchor = detailed_dict.get("billing_cycle_anchor")
-                        cancel_at_period_end = detailed_dict.get(
-                            "cancel_at_period_end", False
-                        )
-
-                        # Stripeオブジェクトから直接取得（公式ドキュメント準拠）
-                        current_period_start_stripe = None
-                        current_period_end_stripe = None
-
-                        # 1. Subscriptionオブジェクトから直接取得を試行
-                        if hasattr(detailed_subscription, "current_period_start"):
-                            current_period_start_stripe = (
-                                detailed_subscription.current_period_start
-                            )
-                            print(
-                                f"Retrieved current_period_start from detailed_subscription: {current_period_start_stripe}"
-                            )
-
-                        if hasattr(detailed_subscription, "current_period_end"):
-                            current_period_end_stripe = (
-                                detailed_subscription.current_period_end
-                            )
-                            print(
-                                f"Retrieved current_period_end from detailed_subscription: {current_period_end_stripe}"
-                            )
-
-                        # 2. フォールバック: 元のsubscriptionオブジェクトから取得
-                        if not current_period_start_stripe and hasattr(
-                            subscription, "current_period_start"
-                        ):
-                            current_period_start_stripe = (
-                                subscription.current_period_start
-                            )
-                            print(
-                                f"Retrieved current_period_start from subscription: {current_period_start_stripe}"
-                            )
-
-                        if not current_period_end_stripe and hasattr(
-                            subscription, "current_period_end"
-                        ):
-                            current_period_end_stripe = subscription.current_period_end
-                            print(
-                                f"Retrieved current_period_end from subscription: {current_period_end_stripe}"
-                            )
-
-                        # 3. フォールバック: subscription_itemから取得
-                        if (
-                            not current_period_start_stripe
-                            or not current_period_end_stripe
-                        ):
-                            items = detailed_dict.get("items", {}).get("data", [])
-                            if items:
-                                first_item = items[0]
-                                if (
-                                    not current_period_start_stripe
-                                    and "current_period_start" in first_item
-                                ):
-                                    current_period_start_stripe = first_item[
-                                        "current_period_start"
-                                    ]
-                                    print(
-                                        f"Retrieved current_period_start from subscription_item: {current_period_start_stripe}"
-                                    )
-
-                                if (
-                                    not current_period_end_stripe
-                                    and "current_period_end" in first_item
-                                ):
-                                    current_period_end_stripe = first_item[
-                                        "current_period_end"
-                                    ]
-                                    print(
-                                        f"Retrieved current_period_end from subscription_item: {current_period_end_stripe}"
-                                    )
-
-                        # デバッグ情報を出力
-                        print(f"Stripe subscription dates:")
-                        print(f"  created: {created}")
-                        print(f"  billing_cycle_anchor: {billing_cycle_anchor}")
-                        print(
-                            f"  current_period_start_stripe: {current_period_start_stripe}"
-                        )
-                        print(
-                            f"  current_period_end_stripe: {current_period_end_stripe}"
-                        )
-                        print(f"  cancel_at: {cancel_at}")
-                        print(f"  cancel_at_period_end: {cancel_at_period_end}")
-
-                        # Stripeオブジェクトの属性を確認
-                        print(f"Stripe object attributes:")
-                        print(
-                            f"  detailed_subscription.current_period_start: {getattr(detailed_subscription, 'current_period_start', 'Not found')}"
-                        )
-                        print(
-                            f"  detailed_subscription.current_period_end: {getattr(detailed_subscription, 'current_period_end', 'Not found')}"
-                        )
-                        print(
-                            f"  subscription.current_period_start: {getattr(subscription, 'current_period_start', 'Not found')}"
-                        )
-                        print(
-                            f"  subscription.current_period_end: {getattr(subscription, 'current_period_end', 'Not found')}"
-                        )
-
-                        # subscription_itemの情報も確認
-                        items = detailed_dict.get("items", {}).get("data", [])
-                        if items:
-                            first_item = items[0]
-                            print(f"Subscription item attributes:")
-                            print(
-                                f"  subscription_item.current_period_start: {first_item.get('current_period_start', 'Not found')}"
-                            )
-                            print(
-                                f"  subscription_item.current_period_end: {first_item.get('current_period_end', 'Not found')}"
-                            )
-                        else:
-                            print("No subscription items found")
-
-                        # 契約開始日: Stripeの正確な期間開始日を優先
-                        current_period_start = (
-                            current_period_start_stripe
-                            or created
-                            or billing_cycle_anchor
-                        )
-
-                        # 次回更新日: Stripeの正確な期間終了日を使用
-                        if cancel_at_period_end and cancel_at:
-                            current_period_end = cancel_at
-                            print(f"Using cancel_at: {cancel_at}")
-                        elif current_period_end_stripe:
-                            # Stripeの正確な期間終了日を使用
-                            current_period_end = current_period_end_stripe
-                            print(
-                                f"Using current_period_end_stripe: {current_period_end_stripe}"
-                            )
-                        elif current_period_start:
-                            # フォールバック: 開始日から30日後
-                            current_period_end = current_period_start + (
-                                30 * 24 * 60 * 60
-                            )  # 30日後
-                            print(f"Using fallback calculation: {current_period_end}")
-                        else:
-                            current_period_end = None
-                            print("No current_period_end calculated")
-
-                        print(f"Final current_period_end: {current_period_end}")
-
-                        # --- UTC aware datetimeに変換（Stripe公式ドキュメント準拠） ---
-                        def to_utc_datetime(ts):
-                            if ts is None:
-                                return None
-                            from datetime import datetime, timezone
-
-                            dt = datetime.fromtimestamp(ts, tz=timezone.utc)
-                            print(f"Converting timestamp {ts} to datetime: {dt}")
-                            return dt
-
-                        converted_start = to_utc_datetime(current_period_start)
-                        converted_end = to_utc_datetime(current_period_end)
-
-                        subscription_info = {
-                            "id": detailed_dict.get("id"),
-                            "status": detailed_dict.get("status"),
-                            "current_period_start": converted_start,
-                            "current_period_end": converted_end,
-                            "cancel_at_period_end": cancel_at_period_end,
-                        }
-                        print(f"Subscription info created: {subscription_info}")
-                    except Exception as attr_error:
-                        print(f"Error accessing subscription attributes: {attr_error}")
-                        # 基本的な情報のみ取得
-                        subscription_info = {
-                            "id": detailed_dict.get("id", "Unknown"),
-                            "status": detailed_dict.get("status", "Unknown"),
-                            "cancel_at_period_end": detailed_dict.get(
-                                "cancel_at_period_end", False
-                            ),
-                        }
-                else:
-                    print("No active subscription found")
-            except Exception as e:
-                print(f"Error fetching subscription info: {e}")
-                import traceback
-
-                traceback.print_exc()
-                pass
-
-        context["subscription_info"] = subscription_info
-        return context
-
-
-@login_required
-def sync_subscription_status(request):
-    """手動でサブスクリプション状況を同期"""
-    if request.method == "POST":
-        try:
-            # 特定のユーザーのみ同期処理を実行
-            from app.tasks import sync_specific_user_subscription
-
-            task_result = sync_specific_user_subscription.delay(request.user.id)
-
-            # タスクの結果を待機（最大10秒）
-            import time
-
-            max_wait = 10
-            for i in range(max_wait):
-                if task_result.ready():
-                    result = task_result.get()
-                    if result.get("status") == "success" and result.get("synced"):
-                        messages.success(
-                            request, "サブスクリプション状況を同期しました。"
-                        )
-                    elif result.get("status") == "success" and not result.get("synced"):
-                        messages.info(
-                            request, "サブスクリプション状況に変更はありませんでした。"
-                        )
-                    else:
-                        messages.warning(
-                            request,
-                            f"同期処理で問題が発生しました: {result.get('message', 'Unknown error')}",
-                        )
-                    break
-                time.sleep(1)
-            else:
-                # タイムアウトの場合
-                messages.info(
-                    request, "同期処理を開始しました。しばらくお待ちください。"
-                )
-
-        except Exception as e:
-            print(f"Error in sync_subscription_status: {str(e)}")
-            messages.error(request, f"同期に失敗しました: {str(e)}")
-
-        return redirect("app:subscription_management")
-
-    return redirect("app:subscription_management")
-
-
-@login_required
-def cancel_subscription(request):
-    """サブスクリプション解除"""
-    if request.method == "POST":
-        try:
-            # StripeServiceの統一されたキャンセル処理を使用
-            from app.stripe_service import StripeService
-
-            stripe_service = StripeService()
-            result = stripe_service.cancel_user_subscription(request.user, logging)
-
-            if result["status"] == "success" and result["canceled"]:
-                print(f"Subscription canceled successfully for user: {request.user.id}")
-                # サブスクリプション解除完了画面に遷移（そこで同期処理を実行）
-                return redirect("app:subscription_downgrade_success")
-            elif result["status"] == "success" and not result["canceled"]:
-                print(f"No active subscription found for user: {request.user.id}")
-                messages.success(request, result["message"])
-            else:
-                print(f"Failed to cancel subscription for user: {request.user.id}")
-                messages.warning(request, result["message"])
-
-        except Exception as e:
-            print(f"Error in cancel_subscription: {str(e)}")
-            print(f"Error type: {type(e)}")
-            import traceback
-
-            traceback.print_exc()
-            messages.error(request, f"サブスクリプション解除に失敗しました: {str(e)}")
-
-        return redirect("app:subscription_management")
-
-    return redirect("app:subscription_management")
-
-
 class CommercialDisclosureView(TemplateView):
     """特定商取引法に基づく表記ページ"""
 
     template_name = "app/commercial_disclosure.html"
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context["PLAN_INFO"] = PLAN_INFO
-        return context
-
 
 class LoginView(AuthLoginView):
-    """カスタムログインビュー - ログイン成功時にStripe同期を実行"""
+    """カスタムログインビュー"""
 
     template_name = "app/login.html"
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context["PLAN_INFO"] = PLAN_INFO
-        return context
-
-    def form_valid(self, form):
-        response = super().form_valid(form)
-        return response
 
 
 class TermsView(TemplateView):

@@ -12,7 +12,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 import os
-from app.plan_constants import PLAN_INFO
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -25,7 +25,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
 ALLOWED_HOSTS = os.environ.get(
     "DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,0.0.0.0"
@@ -281,18 +281,6 @@ CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 
-# Stripe（テスト用）
-STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY")
-STRIPE_PUBLISHABLE_KEY = os.environ.get("STRIPE_PUBLISHABLE_KEY")
-# プラン名→Stripe Price IDの辞書で管理（拡張性のため）
-STRIPE_PRICE_IDS = {
-    plan: os.environ.get(f"STRIPE_PRICE_ID_{plan.upper()}") for plan in PLAN_INFO.keys()
-}
-STRIPE_PRODUCT_IDS = {
-    plan: os.environ.get(f"STRIPE_PRODUCT_ID_{plan.upper()}") for plan in PLAN_INFO.keys()
-}
-DOMAIN = os.environ.get("DOMAIN")
-STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET")
 
 # Pinecone設定
 PINECONE_API_KEY = os.environ.get("PINECONE_API_KEY")

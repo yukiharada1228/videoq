@@ -13,10 +13,6 @@ from django.utils import timezone
 from datetime import timedelta
 import tiktoken
 from django.db import transaction
-from app.stripe_service import StripeService
-import app.plan_utils as plan_utils
-from app.plan_utils import get_plan_name_from_product_id, restore_user_sharing, disable_user_sharing, enforce_video_limit_for_plan, log_subscription_change, handle_plan_change
-from app.plan_constants import PLAN_INFO, DEFAULT_PLAN_KEY
 
 
 # 重複した関数を削除 - plan_utils.pyに統一済み
@@ -489,7 +485,9 @@ def process_video(video_id):
 
             # OpenSearchに保存（タイムスタンプ検索用セグメント）
             try:
-                opensearch_service = OpenSearchService(openai_api_key=api_key, user_id=video.user.id)
+                opensearch_service = OpenSearchService(
+                    openai_api_key=api_key, user_id=video.user.id
+                )
 
                 # タイムスタンプ検索用のメタデータを準備
                 feature_document = {
@@ -506,7 +504,7 @@ def process_video(video_id):
                 opensearch_service.opensearch.index(
                     index=opensearch_service.features_index_name,
                     body=feature_document,
-                    id=f"feature_{video.id}_{i}"
+                    id=f"feature_{video.id}_{i}",
                 )
             except Exception as e:
                 print(f"Warning: Failed to save feature to OpenSearch: {e}")
@@ -540,7 +538,9 @@ def process_video(video_id):
 
             # OpenSearchに直接保存（RAG用チャンク）
             try:
-                opensearch_service = OpenSearchService(openai_api_key=api_key, user_id=video.user.id)
+                opensearch_service = OpenSearchService(
+                    openai_api_key=api_key, user_id=video.user.id
+                )
 
                 # チャンク用のメタデータを準備
                 chunk_document = {
@@ -559,7 +559,7 @@ def process_video(video_id):
                 opensearch_service.opensearch.index(
                     index=opensearch_service.chunks_index_name,
                     body=chunk_document,
-                    id=f"chunk_{video.id}_{chunk['chunk_index']}"
+                    id=f"chunk_{video.id}_{chunk['chunk_index']}",
                 )
             except Exception as e:
                 print(f"Warning: Failed to save chunk to OpenSearch: {e}")

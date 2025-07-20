@@ -88,16 +88,6 @@ services:
     networks:
       - videoq-network
 
-  stripe-webhook:
-    image: stripe/stripe-cli
-    container_name: videoq-stripe-webhook
-    command: listen --forward-to localhost:8000/stripe/webhook/ --skip-verify
-    env_file:
-      - .env
-    depends_on:
-      - web
-    restart: unless-stopped
-
 volumes:
   postgres_data:
   opensearch_data:

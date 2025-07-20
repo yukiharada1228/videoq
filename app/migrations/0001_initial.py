@@ -15,126 +15,460 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('auth', '0012_alter_user_first_name_max_length'),
+        ("auth", "0012_alter_user_first_name_max_length"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='User',
+            name="User",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('password', models.CharField(max_length=128, verbose_name='password')),
-                ('last_login', models.DateTimeField(blank=True, null=True, verbose_name='last login')),
-                ('is_superuser', models.BooleanField(default=False, help_text='Designates that this user has all permissions without explicitly assigning them.', verbose_name='superuser status')),
-                ('username', models.CharField(error_messages={'unique': 'A user with that username already exists.'}, help_text='Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only.', max_length=150, unique=True, validators=[django.contrib.auth.validators.UnicodeUsernameValidator()], verbose_name='username')),
-                ('first_name', models.CharField(blank=True, max_length=150, verbose_name='first name')),
-                ('last_name', models.CharField(blank=True, max_length=150, verbose_name='last name')),
-                ('email', models.EmailField(blank=True, max_length=254, verbose_name='email address')),
-                ('is_staff', models.BooleanField(default=False, help_text='Designates whether the user can log into this admin site.', verbose_name='staff status')),
-                ('is_active', models.BooleanField(default=True, help_text='Designates whether this user should be treated as active. Unselect this instead of deleting accounts.', verbose_name='active')),
-                ('date_joined', models.DateTimeField(default=django.utils.timezone.now, verbose_name='date joined')),
-                ('encrypted_openai_api_key', models.TextField(blank=True, help_text='暗号化されたOpenAI APIキー', null=True)),
-                ('is_subscribed', models.BooleanField(default=False, help_text='有料プラン契約状態')),
-                ('stripe_customer_id', models.CharField(blank=True, help_text='Stripe顧客ID', max_length=255, null=True)),
-                ('subscription_plan', models.CharField(choices=[('free', '無料プラン'), ('light', 'ライトプラン'), ('premium', 'プレミアムプラン')], default='free', help_text='現在のサブスクリプションプラン', max_length=32)),
-                ('ban_reason', models.CharField(blank=True, help_text='BAN理由', max_length=255)),
-                ('groups', models.ManyToManyField(blank=True, help_text='The groups this user belongs to. A user will get all permissions granted to each of their groups.', related_name='user_set', related_query_name='user', to='auth.group', verbose_name='groups')),
-                ('user_permissions', models.ManyToManyField(blank=True, help_text='Specific permissions for this user.', related_name='user_set', related_query_name='user', to='auth.permission', verbose_name='user permissions')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("password", models.CharField(max_length=128, verbose_name="password")),
+                (
+                    "last_login",
+                    models.DateTimeField(
+                        blank=True, null=True, verbose_name="last login"
+                    ),
+                ),
+                (
+                    "is_superuser",
+                    models.BooleanField(
+                        default=False,
+                        help_text="Designates that this user has all permissions without explicitly assigning them.",
+                        verbose_name="superuser status",
+                    ),
+                ),
+                (
+                    "username",
+                    models.CharField(
+                        error_messages={
+                            "unique": "A user with that username already exists."
+                        },
+                        help_text="Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only.",
+                        max_length=150,
+                        unique=True,
+                        validators=[
+                            django.contrib.auth.validators.UnicodeUsernameValidator()
+                        ],
+                        verbose_name="username",
+                    ),
+                ),
+                (
+                    "first_name",
+                    models.CharField(
+                        blank=True, max_length=150, verbose_name="first name"
+                    ),
+                ),
+                (
+                    "last_name",
+                    models.CharField(
+                        blank=True, max_length=150, verbose_name="last name"
+                    ),
+                ),
+                (
+                    "email",
+                    models.EmailField(
+                        blank=True, max_length=254, verbose_name="email address"
+                    ),
+                ),
+                (
+                    "is_staff",
+                    models.BooleanField(
+                        default=False,
+                        help_text="Designates whether the user can log into this admin site.",
+                        verbose_name="staff status",
+                    ),
+                ),
+                (
+                    "is_active",
+                    models.BooleanField(
+                        default=True,
+                        help_text="Designates whether this user should be treated as active. Unselect this instead of deleting accounts.",
+                        verbose_name="active",
+                    ),
+                ),
+                (
+                    "date_joined",
+                    models.DateTimeField(
+                        default=django.utils.timezone.now, verbose_name="date joined"
+                    ),
+                ),
+                (
+                    "encrypted_openai_api_key",
+                    models.TextField(
+                        blank=True, help_text="暗号化されたOpenAI APIキー", null=True
+                    ),
+                ),
+                (
+                    "is_subscribed",
+                    models.BooleanField(default=False, help_text="有料プラン契約状態"),
+                ),
+                (
+                    "stripe_customer_id",
+                    models.CharField(
+                        blank=True, help_text="Stripe顧客ID", max_length=255, null=True
+                    ),
+                ),
+                (
+                    "subscription_plan",
+                    models.CharField(
+                        choices=[
+                            ("free", "無料プラン"),
+                            ("light", "ライトプラン"),
+                            ("premium", "プレミアムプラン"),
+                        ],
+                        default="free",
+                        help_text="現在のサブスクリプションプラン",
+                        max_length=32,
+                    ),
+                ),
+                (
+                    "ban_reason",
+                    models.CharField(blank=True, help_text="BAN理由", max_length=255),
+                ),
+                (
+                    "groups",
+                    models.ManyToManyField(
+                        blank=True,
+                        help_text="The groups this user belongs to. A user will get all permissions granted to each of their groups.",
+                        related_name="user_set",
+                        related_query_name="user",
+                        to="auth.group",
+                        verbose_name="groups",
+                    ),
+                ),
+                (
+                    "user_permissions",
+                    models.ManyToManyField(
+                        blank=True,
+                        help_text="Specific permissions for this user.",
+                        related_name="user_set",
+                        related_query_name="user",
+                        to="auth.permission",
+                        verbose_name="user permissions",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'user',
-                'verbose_name_plural': 'users',
-                'abstract': False,
+                "verbose_name": "user",
+                "verbose_name_plural": "users",
+                "abstract": False,
             },
             managers=[
-                ('objects', django.contrib.auth.models.UserManager()),
+                ("objects", django.contrib.auth.models.UserManager()),
             ],
         ),
         migrations.CreateModel(
-            name='StripeWebhookEvent',
+            name="StripeWebhookEvent",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('event_id', models.CharField(help_text='StripeイベントID', max_length=255, unique=True)),
-                ('event_type', models.CharField(help_text='イベントタイプ', max_length=100)),
-                ('processed', models.BooleanField(default=False, help_text='処理済みフラグ')),
-                ('processed_at', models.DateTimeField(blank=True, help_text='処理日時', null=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True, help_text='作成日時')),
-                ('error_message', models.TextField(blank=True, help_text='エラーメッセージ', null=True)),
-                ('retry_count', models.IntegerField(default=0, help_text='再試行回数')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "event_id",
+                    models.CharField(
+                        help_text="StripeイベントID", max_length=255, unique=True
+                    ),
+                ),
+                (
+                    "event_type",
+                    models.CharField(help_text="イベントタイプ", max_length=100),
+                ),
+                (
+                    "processed",
+                    models.BooleanField(default=False, help_text="処理済みフラグ"),
+                ),
+                (
+                    "processed_at",
+                    models.DateTimeField(blank=True, help_text="処理日時", null=True),
+                ),
+                (
+                    "created_at",
+                    models.DateTimeField(auto_now_add=True, help_text="作成日時"),
+                ),
+                (
+                    "error_message",
+                    models.TextField(
+                        blank=True, help_text="エラーメッセージ", null=True
+                    ),
+                ),
+                ("retry_count", models.IntegerField(default=0, help_text="再試行回数")),
             ],
             options={
-                'db_table': 'stripe_webhook_events',
-                'indexes': [models.Index(fields=['event_id'], name='stripe_webh_event_i_6b18cc_idx'), models.Index(fields=['event_type'], name='stripe_webh_event_t_2d6957_idx'), models.Index(fields=['processed'], name='stripe_webh_process_f53e30_idx'), models.Index(fields=['created_at'], name='stripe_webh_created_f91f24_idx')],
+                "db_table": "stripe_webhook_events",
+                "indexes": [
+                    models.Index(
+                        fields=["event_id"], name="stripe_webh_event_i_6b18cc_idx"
+                    ),
+                    models.Index(
+                        fields=["event_type"], name="stripe_webh_event_t_2d6957_idx"
+                    ),
+                    models.Index(
+                        fields=["processed"], name="stripe_webh_process_f53e30_idx"
+                    ),
+                    models.Index(
+                        fields=["created_at"], name="stripe_webh_created_f91f24_idx"
+                    ),
+                ],
             },
         ),
         migrations.CreateModel(
-            name='Video',
+            name="Video",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('is_violation', models.BooleanField(default=False, help_text='利用規約違反フラグ')),
-                ('violation_reason', models.CharField(blank=True, help_text='違反理由', max_length=255)),
-                ('file', models.FileField(storage=django.core.files.storage.FileSystemStorage(), upload_to=app.models.user_directory_path)),
-                ('title', models.CharField(max_length=255)),
-                ('description', models.TextField(blank=True)),
-                ('uploaded_at', models.DateTimeField(auto_now_add=True)),
-                ('transcript', models.TextField(blank=True)),
-                ('status', models.CharField(choices=[('pending', '処理待ち'), ('processing', '処理中'), ('completed', '完了'), ('error', 'エラー')], default='pending', max_length=20)),
-                ('error_message', models.TextField(blank=True)),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='videos', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "is_violation",
+                    models.BooleanField(default=False, help_text="利用規約違反フラグ"),
+                ),
+                (
+                    "violation_reason",
+                    models.CharField(blank=True, help_text="違反理由", max_length=255),
+                ),
+                (
+                    "file",
+                    models.FileField(
+                        storage=django.core.files.storage.FileSystemStorage(),
+                        upload_to=app.models.user_directory_path,
+                    ),
+                ),
+                ("title", models.CharField(max_length=255)),
+                ("description", models.TextField(blank=True)),
+                ("uploaded_at", models.DateTimeField(auto_now_add=True)),
+                ("transcript", models.TextField(blank=True)),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("pending", "処理待ち"),
+                            ("processing", "処理中"),
+                            ("completed", "完了"),
+                            ("error", "エラー"),
+                        ],
+                        default="pending",
+                        max_length=20,
+                    ),
+                ),
+                ("error_message", models.TextField(blank=True)),
+                (
+                    "user",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="videos",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='VideoGroup',
+            name="VideoGroup",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(help_text='グループ名', max_length=255)),
-                ('description', models.TextField(blank=True, help_text='グループの説明')),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('share_token', models.CharField(blank=True, help_text='共有用トークン', max_length=64, null=True, unique=True)),
-                ('previous_share_token', models.CharField(blank=True, help_text='以前の共有用トークン（履歴）', max_length=64, null=True, unique=True)),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='video_groups', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(help_text="グループ名", max_length=255)),
+                (
+                    "description",
+                    models.TextField(blank=True, help_text="グループの説明"),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "share_token",
+                    models.CharField(
+                        blank=True,
+                        help_text="共有用トークン",
+                        max_length=64,
+                        null=True,
+                        unique=True,
+                    ),
+                ),
+                (
+                    "previous_share_token",
+                    models.CharField(
+                        blank=True,
+                        help_text="以前の共有用トークン（履歴）",
+                        max_length=64,
+                        null=True,
+                        unique=True,
+                    ),
+                ),
+                (
+                    "user",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="video_groups",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'ordering': ['-created_at'],
+                "ordering": ["-created_at"],
             },
         ),
         migrations.CreateModel(
-            name='VideoGroupMember',
+            name="VideoGroupMember",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('added_at', models.DateTimeField(auto_now_add=True)),
-                ('order', models.IntegerField(default=0, help_text='グループ内での順序')),
-                ('group', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='members', to='app.videogroup')),
-                ('video', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='groups', to='app.video')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("added_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "order",
+                    models.IntegerField(default=0, help_text="グループ内での順序"),
+                ),
+                (
+                    "group",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="members",
+                        to="app.videogroup",
+                    ),
+                ),
+                (
+                    "video",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="groups",
+                        to="app.video",
+                    ),
+                ),
             ],
             options={
-                'ordering': ['order', 'added_at'],
-                'unique_together': {('group', 'video')},
+                "ordering": ["order", "added_at"],
+                "unique_together": {("group", "video")},
             },
         ),
         migrations.AddField(
-            model_name='videogroup',
-            name='videos',
-            field=models.ManyToManyField(related_name='video_groups_through', through='app.VideoGroupMember', to='app.video'),
+            model_name="videogroup",
+            name="videos",
+            field=models.ManyToManyField(
+                related_name="video_groups_through",
+                through="app.VideoGroupMember",
+                to="app.video",
+            ),
         ),
         migrations.CreateModel(
-            name='SubscriptionChangeLog',
+            name="SubscriptionChangeLog",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('old_plan', models.CharField(choices=[('free', '無料プラン'), ('light', 'ライトプラン'), ('premium', 'プレミアムプラン')], help_text='変更前プラン', max_length=32)),
-                ('new_plan', models.CharField(choices=[('free', '無料プラン'), ('light', 'ライトプラン'), ('premium', 'プレミアムプラン')], help_text='変更後プラン', max_length=32)),
-                ('old_subscribed', models.BooleanField(help_text='変更前の購読状態')),
-                ('new_subscribed', models.BooleanField(help_text='変更後の購読状態')),
-                ('stripe_event_id', models.CharField(blank=True, help_text='StripeイベントID', max_length=255, null=True)),
-                ('stripe_subscription_id', models.CharField(blank=True, help_text='StripeサブスクリプションID', max_length=255, null=True)),
-                ('change_reason', models.CharField(help_text='変更理由', max_length=100)),
-                ('created_at', models.DateTimeField(auto_now_add=True, help_text='変更日時')),
-                ('user', models.ForeignKey(help_text='ユーザー', on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "old_plan",
+                    models.CharField(
+                        choices=[
+                            ("free", "無料プラン"),
+                            ("light", "ライトプラン"),
+                            ("premium", "プレミアムプラン"),
+                        ],
+                        help_text="変更前プラン",
+                        max_length=32,
+                    ),
+                ),
+                (
+                    "new_plan",
+                    models.CharField(
+                        choices=[
+                            ("free", "無料プラン"),
+                            ("light", "ライトプラン"),
+                            ("premium", "プレミアムプラン"),
+                        ],
+                        help_text="変更後プラン",
+                        max_length=32,
+                    ),
+                ),
+                ("old_subscribed", models.BooleanField(help_text="変更前の購読状態")),
+                ("new_subscribed", models.BooleanField(help_text="変更後の購読状態")),
+                (
+                    "stripe_event_id",
+                    models.CharField(
+                        blank=True,
+                        help_text="StripeイベントID",
+                        max_length=255,
+                        null=True,
+                    ),
+                ),
+                (
+                    "stripe_subscription_id",
+                    models.CharField(
+                        blank=True,
+                        help_text="StripeサブスクリプションID",
+                        max_length=255,
+                        null=True,
+                    ),
+                ),
+                (
+                    "change_reason",
+                    models.CharField(help_text="変更理由", max_length=100),
+                ),
+                (
+                    "created_at",
+                    models.DateTimeField(auto_now_add=True, help_text="変更日時"),
+                ),
+                (
+                    "user",
+                    models.ForeignKey(
+                        help_text="ユーザー",
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'db_table': 'subscription_change_logs',
-                'indexes': [models.Index(fields=['user', 'created_at'], name='subscriptio_user_id_06a20b_idx'), models.Index(fields=['stripe_event_id'], name='subscriptio_stripe__bbc0b5_idx'), models.Index(fields=['created_at'], name='subscriptio_created_90dfff_idx')],
+                "db_table": "subscription_change_logs",
+                "indexes": [
+                    models.Index(
+                        fields=["user", "created_at"],
+                        name="subscriptio_user_id_06a20b_idx",
+                    ),
+                    models.Index(
+                        fields=["stripe_event_id"],
+                        name="subscriptio_stripe__bbc0b5_idx",
+                    ),
+                    models.Index(
+                        fields=["created_at"], name="subscriptio_created_90dfff_idx"
+                    ),
+                ],
             },
         ),
     ]

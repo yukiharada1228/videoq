@@ -67,13 +67,15 @@ class OpenSearchService:
             self.client = None
 
         # OpenSearchクライアントの初期化
-        self.opensearch_host = opensearch_host or os.getenv('OPENSEARCH_HOST', 'opensearch')
+        self.opensearch_host = opensearch_host or os.getenv(
+            "OPENSEARCH_HOST", "opensearch"
+        )
         self.opensearch_port = opensearch_port
-        
+
         # OpenSearch接続
         try:
             self.opensearch = OpenSearch(
-                hosts=[{'host': self.opensearch_host, 'port': self.opensearch_port}],
+                hosts=[{"host": self.opensearch_host, "port": self.opensearch_port}],
                 use_ssl=False,
                 verify_certs=False,
                 timeout=30,
@@ -81,7 +83,9 @@ class OpenSearchService:
                 retry_on_timeout=True,
             )
             self.opensearch.info()
-            print(f"Successfully connected to OpenSearch at {self.opensearch_host}:{self.opensearch_port}")
+            print(
+                f"Successfully connected to OpenSearch at {self.opensearch_host}:{self.opensearch_port}"
+            )
         except Exception as e:
             print(f"Error creating indexes: {e}")
             self.opensearch = None
@@ -105,11 +109,11 @@ class OpenSearchService:
         if self.opensearch is None:
             print("OpenSearch connection not available")
             return
-            
+
         try:
             # 接続テスト
             self.opensearch.info()
-            
+
             # チャンク用インデックス
             if not self.opensearch.indices.exists(index=self.chunks_index_name):
                 print(f"Creating index: {self.chunks_index_name}")
@@ -129,11 +133,8 @@ class OpenSearchService:
                                     "name": "hnsw",
                                     "space_type": "cosinesimil",
                                     "engine": "nmslib",
-                                    "parameters": {
-                                        "ef_construction": 128,
-                                        "m": 16
-                                    }
-                                }
+                                    "parameters": {"ef_construction": 128, "m": 16},
+                                },
                             },
                             "text": {"type": "text"},
                             "video_id": {"type": "keyword"},
@@ -142,11 +143,13 @@ class OpenSearchService:
                             "end_time": {"type": "float"},
                             "chunk_index": {"type": "integer"},
                             "type": {"type": "keyword"},
-                            "user_id": {"type": "keyword"}
+                            "user_id": {"type": "keyword"},
                         }
-                    }
+                    },
                 }
-                self.opensearch.indices.create(index=self.chunks_index_name, body=index_body)
+                self.opensearch.indices.create(
+                    index=self.chunks_index_name, body=index_body
+                )
                 print(f"Index {self.chunks_index_name} created successfully")
 
             # フィーチャー用インデックス
@@ -168,22 +171,21 @@ class OpenSearchService:
                                     "name": "hnsw",
                                     "space_type": "cosinesimil",
                                     "engine": "nmslib",
-                                    "parameters": {
-                                        "ef_construction": 128,
-                                        "m": 16
-                                    }
-                                }
+                                    "parameters": {"ef_construction": 128, "m": 16},
+                                },
                             },
                             "text": {"type": "text"},
                             "video_id": {"type": "keyword"},
                             "video_title": {"type": "text"},
                             "timestamp": {"type": "float"},
                             "type": {"type": "keyword"},
-                            "user_id": {"type": "keyword"}
+                            "user_id": {"type": "keyword"},
                         }
-                    }
+                    },
                 }
-                self.opensearch.indices.create(index=self.features_index_name, body=index_body)
+                self.opensearch.indices.create(
+                    index=self.features_index_name, body=index_body
+                )
                 print(f"Index {self.features_index_name} created successfully")
 
         except Exception as e:
@@ -214,17 +216,17 @@ class OpenSearchService:
         if self.opensearch is None:
             print("OpenSearch connection not available")
             return []
-            
+
         try:
             # 接続テスト
             self.opensearch.info()
         except Exception as e:
             print(f"OpenSearch connection error: {e}")
             return []
-            
+
         query_embedding = self.embed_query(query)
         video_ids = [str(video.id) for video in group.completed_videos]
-        
+
         search_body = {
             "size": max_results,
             "query": {
@@ -232,37 +234,38 @@ class OpenSearchService:
                     "must": [
                         {
                             "knn": {
-                                "vector": {
-                                    "vector": query_embedding,
-                                    "k": max_results
-                                }
+                                "vector": {"vector": query_embedding, "k": max_results}
                             }
                         }
                     ],
                     "filter": [
                         {"terms": {"video_id": video_ids}},
                         {"term": {"type": "chunk"}},
-                        {"term": {"user_id": str(self.user_id)}}
-                    ]
+                        {"term": {"user_id": str(self.user_id)}},
+                    ],
                 }
-            }
+            },
         }
-        
-        response = self.opensearch.search(index=self.chunks_index_name, body=search_body)
+
+        response = self.opensearch.search(
+            index=self.chunks_index_name, body=search_body
+        )
         results = []
-        
-        for hit in response['hits']['hits']:
-            source = hit['_source']
-            results.append({
-                "text": source.get("text", ""),
-                "video_id": source.get("video_id", ""),
-                "video_title": source.get("video_title", ""),
-                "start_time": source.get("start_time", 0.0),
-                "end_time": source.get("end_time", 0.0),
-                "chunk_index": source.get("chunk_index", 0),
-                "similarity": hit['_score'],
-            })
-        
+
+        for hit in response["hits"]["hits"]:
+            source = hit["_source"]
+            results.append(
+                {
+                    "text": source.get("text", ""),
+                    "video_id": source.get("video_id", ""),
+                    "video_title": source.get("video_title", ""),
+                    "start_time": source.get("start_time", 0.0),
+                    "end_time": source.get("end_time", 0.0),
+                    "chunk_index": source.get("chunk_index", 0),
+                    "similarity": hit["_score"],
+                }
+            )
+
         return results
 
     def search_group_features(
@@ -272,17 +275,17 @@ class OpenSearchService:
         if self.opensearch is None:
             print("OpenSearch connection not available")
             return []
-            
+
         try:
             # 接続テスト
             self.opensearch.info()
         except Exception as e:
             print(f"OpenSearch connection error: {e}")
             return []
-            
+
         query_embedding = self.embed_query(query)
         video_ids = [str(video.id) for video in group.completed_videos]
-        
+
         search_body = {
             "size": max_results,
             "query": {
@@ -290,27 +293,26 @@ class OpenSearchService:
                     "must": [
                         {
                             "knn": {
-                                "vector": {
-                                    "vector": query_embedding,
-                                    "k": max_results
-                                }
+                                "vector": {"vector": query_embedding, "k": max_results}
                             }
                         }
                     ],
                     "filter": [
                         {"terms": {"video_id": video_ids}},
                         {"term": {"type": "feature"}},
-                        {"term": {"user_id": str(self.user_id)}}
-                    ]
+                        {"term": {"user_id": str(self.user_id)}},
+                    ],
                 }
-            }
+            },
         }
-        
-        response = self.opensearch.search(index=self.features_index_name, body=search_body)
+
+        response = self.opensearch.search(
+            index=self.features_index_name, body=search_body
+        )
         results = []
-        
-        for hit in response['hits']['hits']:
-            source = hit['_source']
+
+        for hit in response["hits"]["hits"]:
+            source = hit["_source"]
             timestamp = source.get("timestamp", 0.0)
 
             # 同じvideo_idとtimestampでchunksインデックスからend_timeを取得
@@ -324,27 +326,31 @@ class OpenSearchService:
                                 {"term": {"video_id": source.get("video_id", "")}},
                                 {"term": {"type": "chunk"}},
                                 {"range": {"start_time": {"lte": timestamp}}},
-                                {"range": {"end_time": {"gte": timestamp}}}
+                                {"range": {"end_time": {"gte": timestamp}}},
                             ]
                         }
-                    }
+                    },
                 }
-                chunk_response = self.opensearch.search(index=self.chunks_index_name, body=chunk_search_body)
-                if chunk_response['hits']['hits']:
-                    chunk_source = chunk_response['hits']['hits'][0]['_source']
+                chunk_response = self.opensearch.search(
+                    index=self.chunks_index_name, body=chunk_search_body
+                )
+                if chunk_response["hits"]["hits"]:
+                    chunk_source = chunk_response["hits"]["hits"][0]["_source"]
                     end_time = chunk_source.get("end_time", timestamp)
             except Exception as e:
                 print(f"Warning: Failed to get end_time for timestamp {timestamp}: {e}")
 
-            results.append({
-                "text": source.get("text", ""),
-                "video_id": source.get("video_id", ""),
-                "video_title": source.get("video_title", ""),
-                "timestamp": timestamp,
-                "end_time": end_time,
-                "similarity": hit['_score'],
-            })
-        
+            results.append(
+                {
+                    "text": source.get("text", ""),
+                    "video_id": source.get("video_id", ""),
+                    "video_title": source.get("video_title", ""),
+                    "timestamp": timestamp,
+                    "end_time": end_time,
+                    "similarity": hit["_score"],
+                }
+            )
+
         return results
 
     def search_group_all(
@@ -444,20 +450,24 @@ class OpenSearchService:
 
         # 検索結果を取得
         search_results = self.search_group_all(group, query, max_results)
-        
+
         # コンテキストを構築
         context_parts = []
-        
+
         # チャンク結果を追加
         for result in search_results["group_results"]:
-            context_parts.append(f"動画: {result['video_title']} (時間: {result['start_time']:.1f}s-{result['end_time']:.1f}s)\n内容: {result['text']}")
-        
+            context_parts.append(
+                f"動画: {result['video_title']} (時間: {result['start_time']:.1f}s-{result['end_time']:.1f}s)\n内容: {result['text']}"
+            )
+
         # タイムスタンプ結果を追加
         for result in search_results["group_timestamp_results"]:
-            context_parts.append(f"動画: {result['video_title']} (時間: {result['timestamp']:.1f}s)\n内容: {result['text']}")
-        
+            context_parts.append(
+                f"動画: {result['video_title']} (時間: {result['timestamp']:.1f}s)\n内容: {result['text']}"
+            )
+
         context = "\n\n".join(context_parts)
-        
+
         # RAG回答生成のプロンプト
         prompt = f"""あなたは動画グループ「{group.name}」の内容について質問に答えるアシスタントです。
 
@@ -485,7 +495,7 @@ class OpenSearchService:
             )
 
             answer = response.choices[0].message.content
-            
+
             return {
                 "answer": answer,
                 "context": context,
@@ -502,7 +512,7 @@ class OpenSearchService:
                 "search_results": search_results,
                 "query": query,
                 "group_name": group.name,
-                "error": str(e)
+                "error": str(e),
             }
 
     def generate_group_rag_answer_stream(
@@ -624,17 +634,21 @@ class OpenSearchService:
                     "bool": {
                         "filter": [
                             {"term": {"video_id": str(video_id)}},
-                            {"term": {"user_id": str(self.user_id)}}
+                            {"term": {"user_id": str(self.user_id)}},
                         ]
                     }
                 }
             }
-            
-            self.opensearch.delete_by_query(index=self.chunks_index_name, body=delete_query)
-            self.opensearch.delete_by_query(index=self.features_index_name, body=delete_query)
-            
+
+            self.opensearch.delete_by_query(
+                index=self.chunks_index_name, body=delete_query
+            )
+            self.opensearch.delete_by_query(
+                index=self.features_index_name, body=delete_query
+            )
+
             print(f"Deleted data for video_id: {video_id}")
-            
+
         except Exception as e:
             print(f"Error deleting video data: {e}")
             raise
@@ -644,19 +658,27 @@ class OpenSearchService:
         try:
             chunks_info = self.opensearch.indices.get(index=self.chunks_index_name)
             features_info = self.opensearch.indices.get(index=self.features_index_name)
-            
+
             return {
                 "chunks_index": {
                     "name": self.chunks_index_name,
-                    "doc_count": chunks_info[self.chunks_index_name]['total']['docs']['count'],
-                    "size": chunks_info[self.chunks_index_name]['total']['store']['size_in_bytes']
+                    "doc_count": chunks_info[self.chunks_index_name]["total"]["docs"][
+                        "count"
+                    ],
+                    "size": chunks_info[self.chunks_index_name]["total"]["store"][
+                        "size_in_bytes"
+                    ],
                 },
                 "features_index": {
                     "name": self.features_index_name,
-                    "doc_count": features_info[self.features_index_name]['total']['docs']['count'],
-                    "size": features_info[self.features_index_name]['total']['store']['size_in_bytes']
-                }
+                    "doc_count": features_info[self.features_index_name]["total"][
+                        "docs"
+                    ]["count"],
+                    "size": features_info[self.features_index_name]["total"]["store"][
+                        "size_in_bytes"
+                    ],
+                },
             }
         except Exception as e:
             print(f"Error getting index info: {e}")
-            return {"error": str(e)} 
+            return {"error": str(e)}
