@@ -88,13 +88,11 @@ class OpenSearchService:
             print(f"Error creating indexes: {e}")
             self.opensearch = None
 
-        # ユーザーごとにインデックス名を分割
-        if user_id is None:
-            raise ValueError("user_id must be provided for user-specific index")
+        # インデックス名を単一に変更
+        self.chunks_index_name = "videoq_chunks"
+        self.features_index_name = "videoq_features"
         self.user_id = user_id
-        self.chunks_index_name = f"videoq_user_{user_id}_chunks"
-        self.features_index_name = f"videoq_user_{user_id}_features"
-
+        self._indexes_checked = False
         if ensure_indexes:
             try:
                 self._ensure_indexes_exist()
@@ -103,15 +101,14 @@ class OpenSearchService:
                 # インデックス作成に失敗しても続行
 
     def _ensure_indexes_exist(self):
-        """ユーザーごとのインデックスを作成"""
+        """単一インデックスを作成"""
+        if self._indexes_checked:
+            return
         if self.opensearch is None:
             print("OpenSearch connection not available")
             return
-
         try:
-            # 接続テスト
             self.opensearch.info()
-
             # チャンク用インデックス
             if not self.opensearch.indices.exists(index=self.chunks_index_name):
                 print(f"Creating index: {self.chunks_index_name}")
@@ -130,7 +127,7 @@ class OpenSearchService:
                                 "method": {
                                     "name": "hnsw",
                                     "space_type": "cosinesimil",
-                                    "engine": "nmslib",
+                                    "engine": "faiss",
                                     "parameters": {"ef_construction": 128, "m": 16},
                                 },
                             },
@@ -149,7 +146,6 @@ class OpenSearchService:
                     index=self.chunks_index_name, body=index_body
                 )
                 print(f"Index {self.chunks_index_name} created successfully")
-
             # フィーチャー用インデックス
             if not self.opensearch.indices.exists(index=self.features_index_name):
                 print(f"Creating index: {self.features_index_name}")
@@ -168,7 +164,7 @@ class OpenSearchService:
                                 "method": {
                                     "name": "hnsw",
                                     "space_type": "cosinesimil",
-                                    "engine": "nmslib",
+                                    "engine": "faiss",
                                     "parameters": {"ef_construction": 128, "m": 16},
                                 },
                             },
@@ -185,7 +181,7 @@ class OpenSearchService:
                     index=self.features_index_name, body=index_body
                 )
                 print(f"Index {self.features_index_name} created successfully")
-
+            self._indexes_checked = True
         except Exception as e:
             print(f"Error creating indexes: {e}")
             raise
