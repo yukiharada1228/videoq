@@ -37,6 +37,10 @@ import base64
 import hashlib
 from app.crypto_utils import encrypt_api_key, decrypt_api_key
 import secrets
+from django.contrib.auth.decorators import login_required
+from django.http import HttpResponse, Http404
+import os
+import mimetypes
 
 
 def health_check(request):
@@ -789,3 +793,18 @@ class TermsView(TemplateView):
 
 class PrivacyView(TemplateView):
     template_name = "app/privacy.html"
+
+
+@login_required
+def protected_media(request, path):
+    file_path = os.path.join(settings.MEDIA_ROOT, path)
+    if not os.path.exists(file_path):
+        raise Http404()
+    response = HttpResponse()
+    # Content-Typeを自動判定
+    content_type, _ = mimetypes.guess_type(file_path)
+    if content_type:
+        response["Content-Type"] = content_type
+    # X-Accel-Redirectでnginxに内部転送を指示
+    response["X-Accel-Redirect"] = f"/protected_media/{path}"
+    return response

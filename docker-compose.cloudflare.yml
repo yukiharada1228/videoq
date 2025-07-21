@@ -52,6 +52,8 @@ services:
   nginx:
     image: nginx:alpine
     container_name: videoq-nginx
+    ports:
+      - "8080:80"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
       - ./static:/static

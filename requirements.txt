@@ -7,11 +7,8 @@ redis
 openai
 ffmpeg-python
 numpy 
-dj-static
-static-ranges
 gunicorn
 cryptography
-
 pytz
 django-storages
 boto3

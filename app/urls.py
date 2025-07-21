@@ -8,6 +8,7 @@ from .views import (
     ShareVideoGroupChatStreamView,
     TermsView,
     PrivacyView,
+    protected_media,
 )
 
 app_name = "app"
@@ -132,4 +133,5 @@ urlpatterns = [
     ),
     path("terms/", TermsView.as_view(), name="terms"),
     path("privacy/", PrivacyView.as_view(), name="privacy"),
+    path("media/<path:path>", protected_media),
 ]

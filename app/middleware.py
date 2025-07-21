@@ -14,6 +14,7 @@ class BasicAuthMiddleware:
             "/stripe/webhook/",  # Stripe Webhookエンドポイント
             "/health/",  # ヘルスチェックエンドポイント
             "/share/",  # 共有URLエンドポイント
+            "/media/",  # メディアファイル認証はDjangoで行う
         ]
 
     def __call__(self, request):
