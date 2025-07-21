@@ -41,6 +41,7 @@ from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, Http404
 import os
 import mimetypes
+from django.urls import resolve
 
 
 def health_check(request):
@@ -795,16 +796,43 @@ class PrivacyView(TemplateView):
     template_name = "app/privacy.html"
 
 
-@login_required
 def protected_media(request, path):
+    share_token = request.GET.get("share_token")
+    user_authenticated = request.user.is_authenticated
+
+    # 1. ログインユーザーは許可
+    if user_authenticated:
+        pass
+    # 2. share_tokenが有効な場合は許可
+    elif share_token:
+        from app.models import Video, VideoGroup
+
+        try:
+            filename = os.path.basename(path)
+            video = Video.objects.get(file__endswith=filename)
+            if VideoGroup.objects.filter(
+                share_token=share_token, videos=video
+            ).exists():
+                pass  # 許可
+            else:
+                from django.http import HttpResponseForbidden
+
+                return HttpResponseForbidden("Invalid share token for this video.")
+        except Exception as e:
+            from django.http import HttpResponseForbidden
+
+            return HttpResponseForbidden("Invalid share token or video.")
+    else:
+        from django.contrib.auth.views import redirect_to_login
+
+        return redirect_to_login(request.get_full_path())
+
     file_path = os.path.join(settings.MEDIA_ROOT, path)
     if not os.path.exists(file_path):
         raise Http404()
     response = HttpResponse()
-    # Content-Typeを自動判定
     content_type, _ = mimetypes.guess_type(file_path)
     if content_type:
         response["Content-Type"] = content_type
-    # X-Accel-Redirectでnginxに内部転送を指示
     response["X-Accel-Redirect"] = f"/protected_media/{path}"
     return response

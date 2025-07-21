@@ -28,7 +28,7 @@
                             {% for video in completed_videos %}
                                 <div class="list-group-item list-group-item-action video-item" 
                                      data-video-id="{{ video.id }}" 
-                                     data-video-url="{{ video.file.url }}"
+                                     data-video-url="{{ video.file.url }}?share_token={{ group.share_token }}"
                                      data-video-title="{{ video.title }}">
                                     <div class="d-flex flex-column">
                                         <h6 class="mb-1 video-title">{{ video.title }}</h6>
@@ -60,7 +60,7 @@
                         <div id="video-player-container">
                             <div class="video-container mb-3">
                                 <video id="videoPlayer" controls class="w-100 h-100">
-                                    <source src="{{ completed_videos.first.file.url }}" type="video/mp4">
+                                    <source src="{{ completed_videos.first.file.url }}?share_token={{ group.share_token }}" type="video/mp4">
                                     お使いのブラウザは動画再生に対応していません。
                                 </video>
                             </div>
@@ -136,7 +136,7 @@
                         {% for video in completed_videos %}
                             <div class="list-group-item list-group-item-action video-item" 
                                  data-video-id="{{ video.id }}" 
-                                 data-video-url="{{ video.file.url }}"
+                                 data-video-url="{{ video.file.url }}?share_token={{ group.share_token }}"
                                  data-video-title="{{ video.title }}">
                                 <div class="d-flex flex-column">
                                     <h6 class="mb-1 video-title">{{ video.title }}</h6>
@@ -168,7 +168,7 @@
               <div id="video-player-container-mobile">
                 <div class="video-container mb-3">
                   <video id="videoPlayerMobile" controls class="w-100 h-100">
-                    <source src="{{ completed_videos.first.file.url }}" type="video/mp4">
+                    <source src="{{ completed_videos.first.file.url }}?share_token={{ group.share_token }}" type="video/mp4">
                     お使いのブラウザは動画再生に対応していません。
                   </video>
                 </div>
