@@ -6,7 +6,7 @@ from celery import shared_task
 from openai import OpenAI
 from .models import Video
 from app.crypto_utils import decrypt_api_key
-from app.opensearch_service import OpenSearchService
+from app.vector_search_factory import VectorSearchFactory
 import tiktoken
 
 
@@ -475,9 +475,9 @@ def process_video(video_id):
                 encoding_format="float",
             )
 
-            # OpenSearchに保存（タイムスタンプ検索用セグメント）
+            # ベクトル検索サービスに保存（タイムスタンプ検索用セグメント）
             try:
-                opensearch_service = OpenSearchService(
+                search_service = VectorSearchFactory.create_search_service(
                     openai_api_key=api_key, user_id=video.user.id
                 )
 
@@ -492,14 +492,29 @@ def process_video(video_id):
                     "user_id": str(video.user.id),
                 }
 
-                # OpenSearchに保存
-                opensearch_service.opensearch.index(
-                    index=opensearch_service.features_index_name,
-                    body=feature_document,
-                    id=f"feature_{video.id}_{i}",
-                )
+                # ベクトル検索サービスに保存
+                if VectorSearchFactory.is_opensearch_enabled():
+                    search_service.opensearch.index(
+                        index=search_service.features_index_name,
+                        body=feature_document,
+                        id=f"feature_{video.id}_{i}",
+                    )
+                elif VectorSearchFactory.is_pinecone_enabled():
+                    # Pinecone用のデータ形式に変換
+                    feature_data = [
+                        {
+                            "vector": feature_document["vector"],
+                            "video_id": feature_document["video_id"],
+                            "video_title": feature_document["video_title"],
+                            "timestamp": feature_document["timestamp"],
+                            "text": feature_document["text"],
+                            "type": feature_document["type"],
+                            "user_id": feature_document["user_id"],
+                        }
+                    ]
+                    search_service.upsert_features(feature_data)
             except Exception as e:
-                print(f"Warning: Failed to save feature to OpenSearch: {e}")
+                print(f"Warning: Failed to save feature to vector search service: {e}")
 
         # RAG用の大きなチャンクを作成（トークン数ベース）
         print("Creating RAG chunks with token-based splitting...")
@@ -528,9 +543,9 @@ def process_video(video_id):
                 encoding_format="float",
             )
 
-            # OpenSearchに直接保存（RAG用チャンク）
+            # ベクトル検索サービスに直接保存（RAG用チャンク）
             try:
-                opensearch_service = OpenSearchService(
+                search_service = VectorSearchFactory.create_search_service(
                     openai_api_key=api_key, user_id=video.user.id
                 )
 
@@ -547,14 +562,31 @@ def process_video(video_id):
                     "user_id": str(video.user.id),
                 }
 
-                # OpenSearchに保存
-                opensearch_service.opensearch.index(
-                    index=opensearch_service.chunks_index_name,
-                    body=chunk_document,
-                    id=f"chunk_{video.id}_{chunk['chunk_index']}",
-                )
+                # ベクトル検索サービスに保存
+                if VectorSearchFactory.is_opensearch_enabled():
+                    search_service.opensearch.index(
+                        index=search_service.chunks_index_name,
+                        body=chunk_document,
+                        id=f"chunk_{video.id}_{chunk['chunk_index']}",
+                    )
+                elif VectorSearchFactory.is_pinecone_enabled():
+                    # Pinecone用のデータ形式に変換
+                    chunk_data = [
+                        {
+                            "vector": chunk_document["vector"],
+                            "video_id": chunk_document["video_id"],
+                            "video_title": chunk_document["video_title"],
+                            "start_time": chunk_document["start_time"],
+                            "end_time": chunk_document["end_time"],
+                            "chunk_index": chunk_document["chunk_index"],
+                            "text": chunk_document["text"],
+                            "type": chunk_document["type"],
+                            "user_id": chunk_document["user_id"],
+                        }
+                    ]
+                    search_service.upsert_chunks(chunk_data)
             except Exception as e:
-                print(f"Warning: Failed to save chunk to OpenSearch: {e}")
+                print(f"Warning: Failed to save chunk to vector search service: {e}")
 
         video.status = "completed"
         video.save()
