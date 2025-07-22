@@ -48,10 +48,13 @@ class BaseVectorService(ABC):
 
     def __init__(
         self,
+        user_id: int,
         openai_api_key: str | None = None,
-        user_id: int | None = None,
         ensure_indexes: bool = True,
     ):
+        if user_id is None:
+            raise ValueError("user_id is required for user-specific indexes")
+
         self.openai_api_key = openai_api_key
         self.user_id = user_id
 
@@ -61,7 +64,7 @@ class BaseVectorService(ABC):
         else:
             self.client = None
 
-        # インデックス名
+        # インデックス名（ユーザー固有）
         self.chunks_index_name = self._get_chunks_index_name()
         self.features_index_name = self._get_features_index_name()
         self._indexes_checked = False
@@ -74,12 +77,12 @@ class BaseVectorService(ABC):
 
     @abstractmethod
     def _get_chunks_index_name(self) -> str:
-        """チャンクインデックス名を取得"""
+        """チャンクインデックス名を取得（ユーザー固有）"""
         pass
 
     @abstractmethod
     def _get_features_index_name(self) -> str:
-        """フィーチャーインデックス名を取得"""
+        """フィーチャーインデックス名を取得（ユーザー固有）"""
         pass
 
     @abstractmethod

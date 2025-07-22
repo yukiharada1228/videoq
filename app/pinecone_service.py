@@ -10,11 +10,11 @@ class PineconeService(BaseVectorService):
 
     def __init__(
         self,
+        user_id: int,
         openai_api_key: str | None = None,
         pinecone_api_key: str | None = None,
         pinecone_cloud: str | None = None,
         pinecone_region: str | None = None,
-        user_id: int | None = None,
         ensure_indexes: bool = True,
     ):
         # Pineconeサーバレスクライアントの初期化
@@ -43,18 +43,18 @@ class PineconeService(BaseVectorService):
 
         # ベースクラスの初期化
         super().__init__(
-            openai_api_key=openai_api_key,
             user_id=user_id,
+            openai_api_key=openai_api_key,
             ensure_indexes=ensure_indexes,
         )
 
     def _get_chunks_index_name(self) -> str:
-        """チャンクインデックス名を取得"""
-        return "videoq-chunks"
+        """チャンクインデックス名を取得（ユーザー固有）"""
+        return f"videoq-chunks-{self.user_id}"
 
     def _get_features_index_name(self) -> str:
-        """フィーチャーインデックス名を取得"""
-        return "videoq-features"
+        """フィーチャーインデックス名を取得（ユーザー固有）"""
+        return f"videoq-features-{self.user_id}"
 
     def _ensure_indexes_exist(self):
         """Pineconeサーバレスインデックスを作成"""
@@ -112,7 +112,7 @@ class PineconeService(BaseVectorService):
         query_embedding = self.embed_query(query)
         video_ids = [str(video.id) for video in group.completed_videos]
 
-        # Pinecone検索クエリ
+        # Pinecone検索クエリ（ユーザー固有インデックスのためuser_idフィルター不要）
         search_response = index.query(
             vector=query_embedding,
             top_k=max_results * 2,  # フィルタリング後に十分な結果を得るため
@@ -120,7 +120,6 @@ class PineconeService(BaseVectorService):
             filter={
                 "video_id": {"$in": video_ids},
                 "type": "chunk",
-                "user_id": str(self.user_id),
             },
         )
 
@@ -154,7 +153,7 @@ class PineconeService(BaseVectorService):
         query_embedding = self.embed_query(query)
         video_ids = [str(video.id) for video in group.completed_videos]
 
-        # Pinecone検索クエリ
+        # Pinecone検索クエリ（ユーザー固有インデックスのためuser_idフィルター不要）
         search_response = index.query(
             vector=query_embedding,
             top_k=max_results * 2,  # フィルタリング後に十分な結果を得るため
@@ -162,7 +161,6 @@ class PineconeService(BaseVectorService):
             filter={
                 "video_id": {"$in": video_ids},
                 "type": "feature",
-                "user_id": str(self.user_id),
             },
         )
 
@@ -208,17 +206,13 @@ class PineconeService(BaseVectorService):
     def delete_video_data(self, video_id: int):
         """特定の動画のデータを削除"""
         try:
-            # チャンクインデックスから削除
+            # チャンクインデックスから削除（ユーザー固有インデックスのためuser_idフィルター不要）
             chunks_index = self.pinecone.Index(self.chunks_index_name)
-            chunks_index.delete(
-                filter={"video_id": str(video_id), "user_id": str(self.user_id)}
-            )
+            chunks_index.delete(filter={"video_id": str(video_id)})
 
-            # フィーチャーインデックスから削除
+            # フィーチャーインデックスから削除（ユーザー固有インデックスのためuser_idフィルター不要）
             features_index = self.pinecone.Index(self.features_index_name)
-            features_index.delete(
-                filter={"video_id": str(video_id), "user_id": str(self.user_id)}
-            )
+            features_index.delete(filter={"video_id": str(video_id)})
 
             print(f"Deleted data for video_id: {video_id}")
 
@@ -273,7 +267,6 @@ class PineconeService(BaseVectorService):
                             "end_time": chunk["end_time"],
                             "chunk_index": chunk["chunk_index"],
                             "type": "chunk",
-                            "user_id": str(self.user_id),
                         },
                     }
                 )
@@ -304,7 +297,6 @@ class PineconeService(BaseVectorService):
                             "video_title": feature["video_title"],
                             "timestamp": feature["timestamp"],
                             "type": "feature",
-                            "user_id": str(self.user_id),
                         },
                     }
                 )

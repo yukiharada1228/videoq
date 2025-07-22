@@ -215,7 +215,7 @@ class VideoGroupChatView(LoginRequiredMixin, BaseVideoGroupChatView):
 
             # 検索の実行
             search_service = VectorSearchFactory.create_search_service(
-                openai_api_key=api_key, user_id=request.user.id
+                user_id=request.user.id, openai_api_key=api_key
             )
             results, error_response = self.perform_search(
                 search_service, group, query, max_results
@@ -279,7 +279,7 @@ class VideoGroupChatStreamView(LoginRequiredMixin, View):
                 try:
                     # ベクトル検索サービスを使用
                     search_service = VectorSearchFactory.create_search_service(
-                        openai_api_key=api_key, user_id=user.id
+                        user_id=user.id, openai_api_key=api_key
                     )
                     # ストリーミングメソッドを使用
                     for chunk in search_service.generate_group_rag_answer_stream(
@@ -677,7 +677,7 @@ class ShareVideoGroupChatView(BaseVideoGroupChatView):
             # ベクトル検索サービスを使用
             try:
                 search_service = VectorSearchFactory.create_search_service(
-                    openai_api_key=api_key, user_id=user.id
+                    user_id=user.id, openai_api_key=api_key
                 )
                 results = search_service.generate_group_rag_answer(
                     group, query, max_results
@@ -730,7 +730,7 @@ class ShareVideoGroupChatStreamView(View):
                 try:
                     # ベクトル検索サービスを使用
                     search_service = VectorSearchFactory.create_search_service(
-                        openai_api_key=api_key, user_id=group.user.id
+                        user_id=group.user.id, openai_api_key=api_key
                     )
                     # ストリーミングメソッドを使用
                     for chunk in search_service.generate_group_rag_answer_stream(
