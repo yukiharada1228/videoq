@@ -46,9 +46,6 @@ def truncate_text_to_token_limit(text: str, max_tokens: int = 8000) -> str:
 class OpenSearchService:
     """OpenSearchによる動画グループ検索サービス（ユーザーごとインデックス分割）"""
 
-    class RelatedQuestionsResponse(BaseModel):
-        questions: List[RelatedQuestion]
-
     def __init__(
         self,
         openai_api_key: str | None = None,
@@ -427,8 +424,8 @@ class OpenSearchService:
             tool_calls = response.choices[0].message.tool_calls
             if tool_calls and len(tool_calls) > 0:
                 arguments = tool_calls[0].function.arguments
-                result = self.RelatedQuestionsResponse.parse_raw(arguments)
-                return [q.dict() for q in result.questions]
+                result = RelatedQuestionsResponse.model_validate_json(arguments)
+                return [q.model_dump() for q in result.questions]
             else:
                 return []
         except Exception as e:
