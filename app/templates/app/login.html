@@ -13,7 +13,7 @@
                         <i class="bi bi-play-circle-fill"></i>
                     </div>
                     <h2 class="login-title">VideoQへようこそ</h2>
-                    <p class="login-subtitle">AI搭載の動画管理・分析プラットフォーム</p>
+                    <p class="login-subtitle">動画の文字起こし・グループ化・チャットで活用</p>
                 </div>
 
                 {% if form.errors %}
@@ -74,39 +74,6 @@
                             新規登録
                         </a>
                     </p>
-                </div>
-            </div>
-        </div>
-        <!-- 商品説明（右） -->
-        <div class="col-lg-5 col-md-7 col-sm-10">
-            <div class="card mb-3">
-                <div class="card-header">
-                    <i class="bi bi-info-circle"></i> サービス概要
-                </div>
-                <div class="card-body">
-                    <p>
-                        <strong>VideoQ</strong>は、AIによる自動文字起こし・検索・グループチャット機能を備えた動画管理プラットフォームです。教育・研修・チーム共有など、さまざまなシーンで動画活用をサポートします。
-                    </p>
-                </div>
-            </div>
-            <div class="card mb-3">
-                <div class="card-header">
-                    <i class="bi bi-currency-yen"></i> 料金プラン
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        {% for plan_key, plan in PLAN_INFO.items %}
-                            <div class="col-12 mb-3">
-                                <h6>{{ plan.display }}</h6>
-                                <ul class="mb-2">
-                                    <li>動画アップロード：{{ plan.limit }}本まで</li>
-                                    <li>字幕生成・グループ作成・チャット：利用可</li>
-                                    <li>動画グループ共有：{% if plan_key == 'free' %}<span class="text-danger">不可</span>{% else %}<span class="text-success">可</span>{% endif %}</li>
-                                    <li>料金：<strong>{{ plan.price }}</strong></li>
-                                </ul>
-                            </div>
-                        {% endfor %}
-                    </div>
                 </div>
             </div>
         </div>
