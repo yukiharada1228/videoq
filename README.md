@@ -144,7 +144,6 @@ docker compose exec web python manage.py createsuperuser
 ### 7. アプリケーションアクセス
 - メインアプリ: `http://localhost:8080`
 - OpenSearchダッシュボード: `http://localhost:5601`
-- Flower（Celery監視）: `http://localhost:5555`
 
 ## 主要ディレクトリ構成
 - `app/` : アプリケーション本体
