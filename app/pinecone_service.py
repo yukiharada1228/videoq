@@ -58,9 +58,6 @@ class PineconeService(BaseVectorService):
 
     def _ensure_indexes_exist(self):
         """Pineconeサーバレスインデックスを作成"""
-        if self._indexes_checked:
-            return
-
         try:
             # チャンク用サーバレスインデックス
             if self.chunks_index_name not in self.pinecone.list_indexes():
@@ -93,8 +90,6 @@ class PineconeService(BaseVectorService):
                 )
             else:
                 print(f"Serverless index {self.features_index_name} already exists")
-
-            self._indexes_checked = True
         except Exception as e:
             print(f"Error creating serverless indexes: {e}")
             raise

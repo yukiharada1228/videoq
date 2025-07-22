@@ -57,8 +57,6 @@ class OpenSearchService(BaseVectorService):
 
     def _ensure_indexes_exist(self):
         """単一インデックスを作成"""
-        if self._indexes_checked:
-            return
         if self.opensearch is None:
             print("OpenSearch connection not available")
             return
@@ -134,7 +132,6 @@ class OpenSearchService(BaseVectorService):
                     index=self.features_index_name, body=index_body
                 )
                 print(f"Index {self.features_index_name} created successfully")
-            self._indexes_checked = True
         except Exception as e:
             print(f"Error creating indexes: {e}")
             raise

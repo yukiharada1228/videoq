@@ -67,7 +67,6 @@ class BaseVectorService(ABC):
         # インデックス名（ユーザー固有）
         self.chunks_index_name = self._get_chunks_index_name()
         self.features_index_name = self._get_features_index_name()
-        self._indexes_checked = False
 
         if ensure_indexes:
             try:
