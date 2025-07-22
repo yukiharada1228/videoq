@@ -50,6 +50,82 @@ cd videoq
 - `POSTGRES_PASSWORD` : PostgreSQLパスワード
 - `BASIC_AUTH_PASSWORD` : OpenSearchダッシュボード用パスワード
 
+#### S3設定（動画ファイル保存用）
+- `AWS_ACCESS_KEY_ID` : AWSアクセスキーID
+- `AWS_SECRET_ACCESS_KEY` : AWSシークレットアクセスキー
+- `AWS_STORAGE_BUCKET_NAME` : S3バケット名（例: `videoq-yukiharada`）
+- `AWS_S3_REGION_NAME` : S3リージョン（例: `us-east-1`）
+
+**S3バケットのIAMポリシー設定例:**
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "VisualEditor0",
+            "Effect": "Allow",
+            "Action": [
+                "s3:GetLifecycleConfiguration",
+                "s3:GetBucketTagging",
+                "s3:GetInventoryConfiguration",
+                "s3:GetObjectVersionTagging",
+                "s3:GetBucketLogging",
+                "s3:ListBucket",
+                "s3:GetAccelerateConfiguration",
+                "s3:GetObjectVersionAttributes",
+                "s3:GetBucketPolicy",
+                "s3:GetObjectVersionTorrent",
+                "s3:GetObjectAcl",
+                "s3:GetEncryptionConfiguration",
+                "s3:GetBucketObjectLockConfiguration",
+                "s3:GetIntelligentTieringConfiguration",
+                "s3:GetBucketRequestPayment",
+                "s3:GetObjectVersionAcl",
+                "s3:GetObjectTagging",
+                "s3:GetMetricsConfiguration",
+                "s3:GetBucketOwnershipControls",
+                "s3:DeleteObject",
+                "s3:PutObjectAcl",
+                "s3:GetBucketPublicAccessBlock",
+                "s3:GetBucketPolicyStatus",
+                "s3:GetObjectRetention",
+                "s3:GetBucketWebsite",
+                "s3:GetObjectAttributes",
+                "s3:GetBucketVersioning",
+                "s3:GetBucketAcl",
+                "s3:GetObjectLegalHold",
+                "s3:GetBucketNotification",
+                "s3:GetReplicationConfiguration",
+                "s3:PutObject",
+                "s3:GetObject",
+                "s3:GetBucketMetadataTableConfiguration",
+                "s3:GetObjectTorrent",
+                "s3:GetBucketCORS",
+                "s3:GetAnalyticsConfiguration",
+                "s3:GetObjectVersionForReplication",
+                "s3:GetBucketLocation",
+                "s3:GetObjectVersion"
+            ],
+            "Resource": [
+                "arn:aws:s3:::YOUR_BUCKET_NAME",
+                "arn:aws:s3:::YOUR_BUCKET_NAME/*"
+            ]
+        },
+        {
+            "Sid": "VisualEditor1",
+            "Effect": "Allow",
+            "Action": [
+                "s3:GetAccessPoint",
+                "s3:GetAccountPublicAccessBlock"
+            ],
+            "Resource": "*"
+        }
+    ]
+}
+```
+
+**注意:** `YOUR_BUCKET_NAME` を実際のS3バケット名に置き換えてください。
+
 ### 4. Dockerイメージのビルドとコンテナ起動
 ```bash
 docker compose up --build -d
@@ -87,6 +163,7 @@ docker compose exec web python manage.py createsuperuser
 - ベクトル検索（OpenSearch または Pinecone）
   - OpenSearch: ローカルDocker（デフォルト）
   - Pinecone: クラウドサーバレス（オプション）
+- AWS S3（動画ファイル保存）
 - Stripe（サブスクリプション管理）
 - OpenAI API（動画分析）
 - PostgreSQL（メインデータベース）
