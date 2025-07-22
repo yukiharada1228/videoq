@@ -93,31 +93,16 @@ WSGI_APPLICATION = "videoq.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-# USE_AWS_RDSフラグでDB接続先を切り替え
-USE_AWS_RDS = os.environ.get("USE_AWS_RDS", "FALSE") == "TRUE"
-
-if USE_AWS_RDS:
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.postgresql",
-            "NAME": os.environ.get("AWS_RDS_DB_NAME", "videoq"),
-            "USER": os.environ.get("AWS_RDS_USER", "videoq"),
-            "PASSWORD": os.environ.get("AWS_RDS_PASSWORD"),
-            "HOST": os.environ.get("AWS_RDS_HOST", "localhost"),
-            "PORT": os.environ.get("AWS_RDS_PORT", "5432"),
-        }
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.environ.get("POSTGRES_DB", "videoq"),
+        "USER": os.environ.get("POSTGRES_USER", "videoq"),
+        "PASSWORD": os.environ.get("POSTGRES_PASSWORD"),
+        "HOST": os.environ.get("POSTGRES_HOST", "localhost"),
+        "PORT": os.environ.get("POSTGRES_PORT", "5432"),
     }
-else:
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.postgresql",
-            "NAME": os.environ.get("POSTGRES_DB", "videoq"),
-            "USER": os.environ.get("POSTGRES_USER", "videoq"),
-            "PASSWORD": os.environ.get("POSTGRES_PASSWORD"),
-            "HOST": os.environ.get("POSTGRES_HOST", "localhost"),
-            "PORT": os.environ.get("POSTGRES_PORT", "5432"),
-        }
-    }
+}
 
 
 # Password validation
@@ -205,10 +190,6 @@ if USE_S3:
             },
         },
     }
-
-    # URLs
-    STATIC_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/static/"
-    MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/media/"
 else:
     # ローカル開発用設定
     STATIC_URL = "/static/"
