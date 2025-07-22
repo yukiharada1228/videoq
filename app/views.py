@@ -26,7 +26,7 @@ from .models import Video, VideoGroup, VideoGroupMember
 from .tasks import (
     process_video,
 )
-from app.opensearch_service import OpenSearchService
+from app.vector_search_factory import VectorSearchFactory
 import json
 from django.contrib import messages
 from django.views.generic.edit import FormView
@@ -214,7 +214,7 @@ class VideoGroupChatView(LoginRequiredMixin, BaseVideoGroupChatView):
                 return error_response
 
             # 検索の実行
-            search_service = OpenSearchService(
+            search_service = VectorSearchFactory.create_search_service(
                 openai_api_key=api_key, user_id=request.user.id
             )
             results, error_response = self.perform_search(
@@ -277,8 +277,8 @@ class VideoGroupChatStreamView(LoginRequiredMixin, View):
 
             def generate_stream():
                 try:
-                    # OpenSearch検索サービスを使用
-                    search_service = OpenSearchService(
+                    # ベクトル検索サービスを使用
+                    search_service = VectorSearchFactory.create_search_service(
                         openai_api_key=api_key, user_id=user.id
                     )
                     # ストリーミングメソッドを使用
@@ -674,9 +674,9 @@ class ShareVideoGroupChatView(BaseVideoGroupChatView):
                     {"error": "APIキーの復号に失敗しました。"}, status=400
                 )
 
-            # OpenSearch検索サービスを使用
+            # ベクトル検索サービスを使用
             try:
-                search_service = OpenSearchService(
+                search_service = VectorSearchFactory.create_search_service(
                     openai_api_key=api_key, user_id=user.id
                 )
                 results = search_service.generate_group_rag_answer(
@@ -728,8 +728,8 @@ class ShareVideoGroupChatStreamView(View):
 
             def generate_stream():
                 try:
-                    # OpenSearch検索サービスを使用
-                    search_service = OpenSearchService(
+                    # ベクトル検索サービスを使用
+                    search_service = VectorSearchFactory.create_search_service(
                         openai_api_key=api_key, user_id=group.user.id
                     )
                     # ストリーミングメソッドを使用

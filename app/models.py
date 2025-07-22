@@ -252,14 +252,16 @@ class Video(models.Model):
                 except Exception as e:
                     print(f"Error deleting file: {e}")
 
-            # OpenSearchServiceのベクトルデータを削除
+            # ベクトル検索サービスのベクトルデータを削除
             try:
-                from app.opensearch_service import OpenSearchService
+                from app.vector_search_factory import VectorSearchFactory
 
-                opensearch_service = OpenSearchService(user_id=self.user.id)
-                opensearch_service.delete_video_data(self.id)
+                search_service = VectorSearchFactory.create_search_service(
+                    user_id=self.user.id
+                )
+                search_service.delete_video_data(self.id)
             except Exception as e:
-                print(f"Error deleting OpenSearchService vectors: {e}")
+                print(f"Error deleting vector search service vectors: {e}")
 
             # DBレコードを削除
             super().delete(*args, **kwargs)
