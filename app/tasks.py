@@ -478,7 +478,7 @@ def process_video(video_id):
             # ベクトル検索サービスに保存（タイムスタンプ検索用セグメント）
             try:
                 search_service = VectorSearchFactory.create_search_service(
-                    openai_api_key=api_key, user_id=video.user.id
+                    user_id=video.user.id, openai_api_key=api_key
                 )
 
                 # タイムスタンプ検索用のメタデータを準備
@@ -489,7 +489,6 @@ def process_video(video_id):
                     "timestamp": segment["start"],
                     "text": segment_text,
                     "type": "feature",
-                    "user_id": str(video.user.id),
                 }
 
                 # ベクトル検索サービスに保存
@@ -509,7 +508,6 @@ def process_video(video_id):
                             "timestamp": feature_document["timestamp"],
                             "text": feature_document["text"],
                             "type": feature_document["type"],
-                            "user_id": feature_document["user_id"],
                         }
                     ]
                     search_service.upsert_features(feature_data)
@@ -546,7 +544,7 @@ def process_video(video_id):
             # ベクトル検索サービスに直接保存（RAG用チャンク）
             try:
                 search_service = VectorSearchFactory.create_search_service(
-                    openai_api_key=api_key, user_id=video.user.id
+                    user_id=video.user.id, openai_api_key=api_key
                 )
 
                 # チャンク用のメタデータを準備
@@ -559,7 +557,6 @@ def process_video(video_id):
                     "chunk_index": chunk["chunk_index"],
                     "text": chunk_text,
                     "type": "chunk",
-                    "user_id": str(video.user.id),
                 }
 
                 # ベクトル検索サービスに保存
@@ -581,7 +578,6 @@ def process_video(video_id):
                             "chunk_index": chunk_document["chunk_index"],
                             "text": chunk_document["text"],
                             "type": chunk_document["type"],
-                            "user_id": chunk_document["user_id"],
                         }
                     ]
                     search_service.upsert_chunks(chunk_data)

@@ -9,7 +9,7 @@ class VectorSearchFactory:
 
     @staticmethod
     def create_search_service(
-        openai_api_key: str | None = None, user_id: int | None = None, **kwargs
+        user_id: int, openai_api_key: str | None = None, **kwargs
     ) -> Union[OpenSearchService, PineconeService]:
         """
         環境変数VECTOR_SEARCH_PROVIDERに基づいて適切な検索サービスを返す
@@ -29,11 +29,11 @@ class VectorSearchFactory:
 
         if provider == "opensearch":
             return OpenSearchService(
-                openai_api_key=openai_api_key, user_id=user_id, **kwargs
+                user_id=user_id, openai_api_key=openai_api_key, **kwargs
             )
         elif provider == "pinecone":
             return PineconeService(
-                openai_api_key=openai_api_key, user_id=user_id, **kwargs
+                user_id=user_id, openai_api_key=openai_api_key, **kwargs
             )
         else:
             raise ValueError(

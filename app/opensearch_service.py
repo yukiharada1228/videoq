@@ -10,10 +10,10 @@ class OpenSearchService(BaseVectorService):
 
     def __init__(
         self,
+        user_id: int,
         openai_api_key: str | None = None,
         opensearch_host: str | None = None,
         opensearch_port: int = 9200,
-        user_id: int | None = None,
         ensure_indexes: bool = True,
     ):
         # OpenSearchクライアントの初期化
@@ -42,23 +42,21 @@ class OpenSearchService(BaseVectorService):
 
         # ベースクラスの初期化
         super().__init__(
-            openai_api_key=openai_api_key,
             user_id=user_id,
+            openai_api_key=openai_api_key,
             ensure_indexes=ensure_indexes,
         )
 
     def _get_chunks_index_name(self) -> str:
-        """チャンクインデックス名を取得"""
-        return "videoq_chunks"
+        """チャンクインデックス名を取得（ユーザー固有）"""
+        return f"videoq_chunks_{self.user_id}"
 
     def _get_features_index_name(self) -> str:
-        """フィーチャーインデックス名を取得"""
-        return "videoq_features"
+        """フィーチャーインデックス名を取得（ユーザー固有）"""
+        return f"videoq_features_{self.user_id}"
 
     def _ensure_indexes_exist(self):
         """単一インデックスを作成"""
-        if self._indexes_checked:
-            return
         if self.opensearch is None:
             print("OpenSearch connection not available")
             return
@@ -93,7 +91,6 @@ class OpenSearchService(BaseVectorService):
                             "end_time": {"type": "float"},
                             "chunk_index": {"type": "integer"},
                             "type": {"type": "keyword"},
-                            "user_id": {"type": "keyword"},
                         }
                     },
                 }
@@ -128,7 +125,6 @@ class OpenSearchService(BaseVectorService):
                             "video_title": {"type": "text"},
                             "timestamp": {"type": "float"},
                             "type": {"type": "keyword"},
-                            "user_id": {"type": "keyword"},
                         }
                     },
                 }
@@ -136,7 +132,6 @@ class OpenSearchService(BaseVectorService):
                     index=self.features_index_name, body=index_body
                 )
                 print(f"Index {self.features_index_name} created successfully")
-            self._indexes_checked = True
         except Exception as e:
             print(f"Error creating indexes: {e}")
             raise
@@ -173,7 +168,6 @@ class OpenSearchService(BaseVectorService):
                     "filter": [
                         {"terms": {"video_id": video_ids}},
                         {"term": {"type": "chunk"}},
-                        {"term": {"user_id": str(self.user_id)}},
                     ],
                 }
             },
@@ -232,7 +226,6 @@ class OpenSearchService(BaseVectorService):
                     "filter": [
                         {"terms": {"video_id": video_ids}},
                         {"term": {"type": "feature"}},
-                        {"term": {"user_id": str(self.user_id)}},
                     ],
                 }
             },
@@ -288,13 +281,12 @@ class OpenSearchService(BaseVectorService):
     def delete_video_data(self, video_id: int):
         """特定の動画のデータを削除"""
         try:
-            # チャンクインデックスから削除
+            # チャンクインデックスから削除（ユーザー固有インデックスのためuser_idフィルター不要）
             delete_query = {
                 "query": {
                     "bool": {
                         "filter": [
                             {"term": {"video_id": str(video_id)}},
-                            {"term": {"user_id": str(self.user_id)}},
                         ]
                     }
                 }
