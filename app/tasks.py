@@ -6,20 +6,8 @@ from celery import shared_task
 from openai import OpenAI
 from .models import Video
 from app.crypto_utils import decrypt_api_key
-from app.pinecone_service import PineconeSearchService
-from django.conf import settings
-import logging
-from django.utils import timezone
-from datetime import timedelta
+from app.opensearch_service import OpenSearchService
 import tiktoken
-from django.db import transaction
-from app.stripe_service import StripeService
-import app.plan_utils as plan_utils
-from app.plan_utils import get_plan_name_from_product_id, restore_user_sharing, disable_user_sharing, enforce_video_limit_for_plan, log_subscription_change, handle_plan_change
-from app.plan_constants import PLAN_INFO, DEFAULT_PLAN_KEY
-
-
-# 重複した関数を削除 - plan_utils.pyに統一済み
 
 
 def count_tokens(text: str, model: str = "text-embedding-3-small") -> int:
@@ -487,31 +475,31 @@ def process_video(video_id):
                 encoding_format="float",
             )
 
-            # Pineconeに保存（タイムスタンプ検索用セグメント）
+            # OpenSearchに保存（タイムスタンプ検索用セグメント）
             try:
-                pinecone_service = PineconeSearchService(api_key, user_id=video.user.id)
+                opensearch_service = OpenSearchService(
+                    openai_api_key=api_key, user_id=video.user.id
+                )
 
                 # タイムスタンプ検索用のメタデータを準備
-                feature_metadata = {
+                feature_document = {
+                    "vector": embedding_response.data[0].embedding,
                     "video_id": str(video.id),
                     "video_title": video.title,
                     "timestamp": segment["start"],
                     "text": segment_text,
                     "type": "feature",
+                    "user_id": str(video.user.id),
                 }
 
-                # Pineconeに保存
-                pinecone_service.pc.Index(pinecone_service.features_index_name).upsert(
-                    vectors=[
-                        (
-                            f"feature_{video.id}_{i}",
-                            embedding_response.data[0].embedding,
-                            feature_metadata,
-                        )
-                    ]
+                # OpenSearchに保存
+                opensearch_service.opensearch.index(
+                    index=opensearch_service.features_index_name,
+                    body=feature_document,
+                    id=f"feature_{video.id}_{i}",
                 )
             except Exception as e:
-                print(f"Warning: Failed to save feature to Pinecone: {e}")
+                print(f"Warning: Failed to save feature to OpenSearch: {e}")
 
         # RAG用の大きなチャンクを作成（トークン数ベース）
         print("Creating RAG chunks with token-based splitting...")
@@ -540,12 +528,15 @@ def process_video(video_id):
                 encoding_format="float",
             )
 
-            # Pineconeに直接保存（RAG用チャンク）
+            # OpenSearchに直接保存（RAG用チャンク）
             try:
-                pinecone_service = PineconeSearchService(api_key, user_id=video.user.id)
+                opensearch_service = OpenSearchService(
+                    openai_api_key=api_key, user_id=video.user.id
+                )
 
                 # チャンク用のメタデータを準備
-                chunk_metadata = {
+                chunk_document = {
+                    "vector": embedding_response.data[0].embedding,
                     "video_id": str(video.id),
                     "video_title": video.title,
                     "start_time": chunk["start_time"],
@@ -553,20 +544,17 @@ def process_video(video_id):
                     "chunk_index": chunk["chunk_index"],
                     "text": chunk_text,
                     "type": "chunk",
+                    "user_id": str(video.user.id),
                 }
 
-                # Pineconeに保存
-                pinecone_service.pc.Index(pinecone_service.chunks_index_name).upsert(
-                    vectors=[
-                        (
-                            f"chunk_{video.id}_{chunk['chunk_index']}",
-                            embedding_response.data[0].embedding,
-                            chunk_metadata,
-                        )
-                    ]
+                # OpenSearchに保存
+                opensearch_service.opensearch.index(
+                    index=opensearch_service.chunks_index_name,
+                    body=chunk_document,
+                    id=f"chunk_{video.id}_{chunk['chunk_index']}",
                 )
             except Exception as e:
-                print(f"Warning: Failed to save chunk to Pinecone: {e}")
+                print(f"Warning: Failed to save chunk to OpenSearch: {e}")
 
         video.status = "completed"
         video.save()
@@ -599,244 +587,3 @@ def process_video(video_id):
                 print(f"Cleaned up temporary video file: {video_file_path}")
             except Exception as e:
                 print(f"Error cleaning up temporary video file: {e}")
-
-
-@shared_task(bind=True, max_retries=5, default_retry_delay=60)
-def process_stripe_webhook(self, event_type, event):
-    """
-    StripeのWebhookイベントを非同期で処理するタスク
-    失敗時は自動的に再試行される
-    """
-    from app.models import StripeWebhookEvent
-    import logging
-
-    # イベントIDを取得
-    event_id = event.get("id")
-    if not event_id:
-        logging.error("No event ID in webhook data")
-        raise ValueError("No event ID in webhook data")
-
-    # event_idがevt_...で始まらない場合は処理をスキップ
-    if not str(event_id).startswith("evt_"):
-        logging.warning(
-            f"Skipping event with invalid ID format: {event_id} (type: {event_type})"
-        )
-        return {
-            "status": "skipped",
-            "reason": "invalid_event_id_format",
-            "event_id": event_id,
-        }
-
-    # 重要なイベントタイプのリスト
-    critical_events = [
-        "customer.subscription.deleted",
-        "customer.subscription.updated",
-        "invoice.payment_failed",
-        "checkout.session.completed",
-        "customer.subscription.created",
-    ]
-
-    try:
-        # 冪等性チェック: 既に処理済みのイベントかチェック
-        with transaction.atomic():
-            webhook_event, created = StripeWebhookEvent.objects.get_or_create(
-                event_id=event_id,
-                defaults={
-                    "event_type": event_type,
-                    "processed": False,
-                },
-            )
-
-            # 重要なイベントの場合は、処理済みでも再処理を許可
-            if (
-                not created
-                and webhook_event.processed
-                and event_type in critical_events
-            ):
-                logging.info(
-                    f"Critical event {event_id} ({event_type}) already processed, but allowing reprocessing"
-                )
-                # 処理済みフラグをリセット
-                webhook_event.processed = False
-                webhook_event.processed_at = None
-                webhook_event.save()
-            elif not created and webhook_event.processed:
-                logging.info(f"Event {event_id} already processed, skipping")
-                return {"status": "already_processed", "event_id": event_id}
-
-            if not created and webhook_event.retry_count >= 3:
-                logging.error(
-                    f"Event {event_id} failed too many times, marking as permanently failed"
-                )
-                webhook_event.mark_failed("Max retry count exceeded")
-                return {"status": "permanently_failed", "event_id": event_id}
-
-            # イベント処理
-            event_data = event["data"]["object"]
-
-            if event_type == "checkout.session.completed":
-                # ここをStripeService+plan_utilsで処理
-                stripe_service = StripeService()
-                from app.models import User
-
-                result = stripe_service.handle_checkout_completed(
-                    event_data, user_model=User, plan_utils=plan_utils, logger=logging
-                )
-            elif event_type == "customer.subscription.created":
-                stripe_service = StripeService()
-                from app.models import User
-
-                result = stripe_service.handle_subscription_created(
-                    event_data, user_model=User, plan_utils=plan_utils, logger=logging
-                )
-            elif event_type == "customer.subscription.updated":
-                stripe_service = StripeService()
-                from app.models import User
-
-                result = stripe_service.handle_subscription_updated(
-                    event_data, user_model=User, plan_utils=plan_utils, logger=logging
-                )
-            elif event_type == "invoice.payment_succeeded":
-                stripe_service = StripeService()
-                from app.models import User
-
-                result = stripe_service.handle_invoice_payment_succeeded(
-                    event_data, user_model=User, plan_utils=plan_utils, logger=logging
-                )
-            elif event_type == "invoice.payment_failed":
-                stripe_service = StripeService()
-                from app.models import User
-
-                result = stripe_service.handle_invoice_payment_failed(
-                    event_data, user_model=User, plan_utils=plan_utils, logger=logging
-                )
-            elif event_type == "customer.subscription.deleted":
-                stripe_service = StripeService()
-                from app.models import User
-
-                result = stripe_service.handle_subscription_deleted(
-                    event_data, user_model=User, plan_utils=plan_utils, logger=logging
-                )
-            else:
-                logging.debug(f"Unhandled Stripe event type: {event_type}")
-                result = {"status": "unhandled_event_type"}
-
-            # 処理成功をマーク
-            webhook_event.mark_processed()
-            logging.info(
-                f"Successfully processed webhook event {event_id} ({event_type})"
-            )
-
-            return {"status": "success", "event_id": event_id, "result": result}
-
-    except Exception as exc:
-        logging.error(
-            f"Error processing Stripe webhook {event_type} (ID: {event_id}): {exc}"
-        )
-
-        # イベントの失敗を記録
-        try:
-            with transaction.atomic():
-                webhook_event = StripeWebhookEvent.objects.get(event_id=event_id)
-                webhook_event.mark_failed(str(exc))
-        except StripeWebhookEvent.DoesNotExist:
-            logging.error(f"Webhook event {event_id} not found for error recording")
-
-        # 最大再試行回数に達していない場合は再試行
-        if self.request.retries < self.max_retries:
-            raise self.retry(exc=exc, countdown=60 * (2**self.request.retries))
-        else:
-            # 最大再試行回数に達した場合は管理者に通知
-            _notify_webhook_failure(event_type, event_data, str(exc))
-            raise
-
-
-# 重複した関数を削除 - plan_utils.pyに統一済み
-
-
-# 重複したWebhook処理関数を削除 - stripe_service.pyに統一済み
-
-
-# 重複したWebhook処理関数を削除 - stripe_service.pyに統一済み
-
-
-def _notify_webhook_failure(event_type, event_data, error_message):
-    """Webhook処理の失敗を管理者に通知"""
-    # ここで管理者への通知ロジックを実装
-    # 例: メール送信、Slack通知、ログファイルへの記録など
-    logging.critical(
-        f"Stripe webhook processing failed permanently: {event_type}, Error: {error_message}"
-    )
-    logging.critical(f"Event data: {event_data}")
-
-
-# 重複したユーティリティ関数を削除 - plan_utils.pyに統一済み
-
-
-@shared_task
-def sync_specific_user_subscription(user_id):
-    """
-    特定のユーザーのStripeサブスクリプション状態を同期するタスク
-
-    Args:
-        user_id: 同期対象のユーザーID
-    """
-    from app.models import User
-    from app.stripe_service import StripeService
-    from app.plan_utils import (
-        get_plan_name_from_product_id,
-        restore_user_sharing,
-        disable_user_sharing,
-        enforce_video_limit_for_plan,
-        log_subscription_change,
-        handle_plan_change,
-    )
-
-    try:
-        user = User.objects.get(id=user_id)
-        logging.info(f"Starting specific user subscription sync for user {user_id}")
-
-        # StripeServiceの統一された同期処理を使用
-        stripe_service = StripeService()
-        plan_utils = type(
-            "PlanUtils",
-            (),
-            {
-                "get_plan_name_from_product_id": staticmethod(
-                    get_plan_name_from_product_id
-                ),
-                "restore_user_sharing": staticmethod(restore_user_sharing),
-                "disable_user_sharing": staticmethod(disable_user_sharing),
-                "enforce_video_limit_for_plan": staticmethod(
-                    enforce_video_limit_for_plan
-                ),
-                "log_subscription_change": staticmethod(log_subscription_change),
-                "handle_plan_change": staticmethod(handle_plan_change),
-            },
-        )()
-
-        result = stripe_service.sync_user_subscription(user, plan_utils, logging)
-
-        if result["status"] == "success":
-            if result["synced"]:
-                logging.info(
-                    f"Specific user sync completed successfully for user {user_id}"
-                )
-                return {"status": "success", "user_id": user_id, "synced": True}
-            else:
-                logging.info(f"No changes needed for user {user_id}")
-                return {"status": "success", "user_id": user_id, "synced": False}
-        else:
-            logging.error(f"Sync failed for user {user_id}: {result['message']}")
-            return {"status": "error", "user_id": user_id, "message": result["message"]}
-
-    except User.DoesNotExist:
-        logging.error(f"User {user_id} not found")
-        return {"status": "error", "user_id": user_id, "message": "User not found"}
-    except Exception as e:
-        logging.error(f"Specific user sync error for user {user_id}: {e}")
-        return {"status": "error", "user_id": user_id, "message": str(e)}
-
-
-# 重複した同期処理を削除 - StripeServiceに統一済み
-# def sync_user_subscription(user): を削除

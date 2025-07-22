@@ -7,16 +7,13 @@ redis
 openai
 ffmpeg-python
 numpy 
-dj-static
-static-ranges
 gunicorn
 cryptography
-stripe
 pytz
 django-storages
 boto3
 flower
 django-anymail
 tiktoken
-pinecone
+opensearch-py
 markdown

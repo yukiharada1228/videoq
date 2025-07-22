@@ -4,9 +4,9 @@
 {% block title %}{{ group.name }} - VideoQ{% endblock %}
 
 {% block content %}
-<div class="container-fluid mt-4">
+<div class="container-fluid">
     <!-- ヘッダー -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
         <div>
             <h2><i class="bi bi-collection"></i> {{ group.name }}</h2>
             {% if group.description %}
@@ -24,27 +24,19 @@
                 <i class="bi bi-trash"></i> グループ削除
             </a>
             <!-- 共有URL発行/無効化ボタン -->
-            {% if user.is_authenticated and user.is_subscribed %}
-                {% if group.share_token %}
-                    <button class="btn btn-outline-warning" id="disable-share-btn" onclick="toggleShare('disable')">
-                        <i class="bi bi-link-45deg"></i> 共有を無効化
-                    </button>
-                {% else %}
-                    <button class="btn btn-outline-success" id="enable-share-btn" onclick="toggleShare('enable')">
-                        <i class="bi bi-link-45deg"></i> 共有URL発行
-                    </button>
-                {% endif %}
+            {% if group.share_token %}
+                <button class="btn btn-outline-warning" id="disable-share-btn" onclick="toggleShare('disable')">
+                    <i class="bi bi-link-45deg"></i> 共有を無効化
+                </button>
+            {% else %}
+                <button class="btn btn-outline-success" id="enable-share-btn" onclick="toggleShare('enable')">
+                    <i class="bi bi-link-45deg"></i> 共有URL発行
+                </button>
             {% endif %}
-            {% if user.is_authenticated and not user.is_subscribed %}
-                <a href="{% url 'app:subscription_management' %}" class="btn btn-warning">
-                    <i class="bi bi-currency-yen"></i> 有料プラン申込
-                </a>
-            {% endif %}
-            <!-- 字幕表示エリア・ON/OFFスイッチ・字幕関連JSを全て削除 -->
         </div>
     </div>
     <!-- 共有URL表示エリア -->
-    {% if user.is_authenticated and user.is_subscribed and group.share_token and share_absolute_url %}
+    {% if group.share_token and share_absolute_url %}
     <div class="alert alert-info d-flex align-items-center gap-2 justify-content-center flex-wrap">
         <span class="d-inline d-sm-none fw-bold" style="font-size:1.1rem;">
             <i class="bi bi-link-45deg"></i> 共有URL
@@ -70,8 +62,8 @@
         <button class="nav-link active w-100" id="tab-playerchat" data-bs-toggle="tab" data-bs-target="#tabPlayerChatPane" type="button" role="tab">再生＋チャット</button>
       </li>
     </ul>
-    <div class="row g-4 d-none d-md-flex">
-        <!-- 左側: 動画一覧（コンパクト） -->
+    <div class="row g-2 d-none d-md-flex">
+        <!-- 左側: 動画一覧 -->
         <div class="col-xl-2 col-lg-3 col-md-4">
             <div class="card h-100">
                 <div class="card-header">
@@ -120,7 +112,7 @@
             </div>
         </div>
 
-        <!-- 中央: 動画再生（大きく） -->
+        <!-- 中央: 動画再生 -->
         <div class="col-xl-7 col-lg-6 col-md-8">
             <div class="card h-100">
                 <div class="card-header d-flex justify-content-between align-items-center">

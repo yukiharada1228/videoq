@@ -16,18 +16,6 @@
                 <p class="lead text-muted">AI搭載の動画分析で、あなたの動画コンテンツを最大限活用</p>
             </div>
 
-            <!-- アップロード制限情報 -->
-            <div class="upload-limit-info mb-4">
-                <div class="alert alert-info d-flex align-items-center">
-                    <i class="bi bi-info-circle me-2"></i>
-                    <div>
-                        <strong>アップロード制限:</strong>
-                        現在 {{ user.videos.count }} 本の動画が登録されています
-                        <br><small class="text-muted">{{ plan_display_name }}では合計{{ plan_limit }}本までアップロードできます（残り {{ remaining_videos }} 本）</small>
-                    </div>
-                </div>
-            </div>
-
             <!-- アップロードフォーム -->
             <div class="upload-card">
                 <div class="upload-area" id="upload-area">
@@ -92,27 +80,9 @@
                     </div>
 
                     <div class="d-grid">
-                        {% with plan=current_plan %}
-                            {% if user.is_subscribed and user.videos.count >= plan.limit %}
-                                <button type="button" class="btn btn-secondary btn-lg" disabled title="アップロード上限に達しています">
-                                    <i class="bi bi-exclamation-triangle me-2"></i>{{ plan.display }}の上限（{{ plan.limit }}本）に達しています。
-                                </button>
-                                <div class="text-center mt-2">
-                                    <small class="text-danger fw-bold">
-                                        <i class="bi bi-x-circle me-1"></i>これ以上動画をアップロードできません。
-                                    </small><br>
-                                    <small class="text-muted">
-                                        <a href="{% url 'app:subscription_management' %}" class="text-decoration-none">
-                                            <i class="bi bi-arrow-up-circle me-1"></i>プランを確認・アップグレード
-                                        </a>
-                                    </small>
-                                </div>
-                            {% else %}
-                                <button type="submit" class="btn btn-primary btn-lg" id="upload-btn">
-                                    <i class="bi bi-cloud-upload me-2"></i>アップロード開始
-                                </button>
-                            {% endif %}
-                        {% endwith %}
+                        <button type="submit" class="btn btn-primary btn-lg" id="upload-btn">
+                            <i class="bi bi-upload me-2"></i>動画をアップロード
+                        </button>
                     </div>
                 </form>
             </div>
@@ -554,19 +524,13 @@
 </style>
 
 <script>
-  const REMAINING_VIDEOS = {{ remaining_videos|default:0 }};
   const uploadArea = document.getElementById('upload-area');
   const fileInput = document.getElementById('id_file');
   const uploadBtn = document.getElementById('upload-btn');
 
   document.addEventListener('DOMContentLoaded', function() {
-    if (uploadBtn && typeof REMAINING_VIDEOS !== 'undefined' && REMAINING_VIDEOS === 0) {
-      uploadBtn.disabled = true;
-      uploadBtn.classList.remove('btn-primary');
-      uploadBtn.classList.add('btn-secondary');
-      uploadBtn.innerHTML = '<i class="bi bi-exclamation-triangle me-2"></i>アップロード上限に達しています';
-      uploadBtn.title = 'アップロード上限に達しています';
-    }
+    // ファイル選択時の処理
+    fileInput.addEventListener('change', handleFileSelect);
   });
 
   // ドラッグ&ドロップイベント
@@ -590,9 +554,6 @@
       }
   });
 
-  // ファイル選択時の処理
-  fileInput.addEventListener('change', handleFileSelect);
-
   function handleFileSelect() {
       const file = fileInput.files[0];
       if (file) {
@@ -608,20 +569,6 @@
                   </button>
               </div>
           `;
-          // 本数制限を再チェック
-          if (typeof REMAINING_VIDEOS !== 'undefined' && REMAINING_VIDEOS === 0) {
-              uploadBtn.disabled = true;
-              uploadBtn.classList.remove('btn-primary');
-              uploadBtn.classList.add('btn-secondary');
-              uploadBtn.innerHTML = '<i class="bi bi-exclamation-triangle me-2"></i>アップロード上限に達しています';
-              uploadBtn.title = 'アップロード上限に達しています';
-          } else {
-              uploadBtn.disabled = false;
-              uploadBtn.classList.remove('btn-secondary');
-              uploadBtn.classList.add('btn-primary');
-              uploadBtn.innerHTML = '<i class="bi bi-cloud-upload me-2"></i>アップロード開始';
-              uploadBtn.title = '';
-          }
       }
   }
 

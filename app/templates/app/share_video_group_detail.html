@@ -4,7 +4,7 @@
 {% block title %}{{ group.name }}（共有） - VideoQ{% endblock %}
 
 {% block content %}
-<div class="container-fluid mt-4">
+<div class="container-fluid">
     <!-- スマホ用タブUI -->
     <ul class="nav nav-tabs d-md-none mb-3" id="mobileTab" role="tablist">
       <li class="nav-item flex-fill" role="presentation">
@@ -14,7 +14,7 @@
         <button class="nav-link active w-100" id="tab-playerchat" data-bs-toggle="tab" data-bs-target="#tabPlayerChatPane" type="button" role="tab">再生＋チャット</button>
       </li>
     </ul>
-    <div class="row g-4 d-none d-md-flex">
+    <div class="row g-2 d-none d-md-flex">
         <div class="col-xl-2 col-lg-3 col-md-4">
             <div class="card h-100">
                 <div class="card-header">
@@ -28,7 +28,7 @@
                             {% for video in completed_videos %}
                                 <div class="list-group-item list-group-item-action video-item" 
                                      data-video-id="{{ video.id }}" 
-                                     data-video-url="{{ video.file.url }}"
+                                     data-video-url="{{ video.file.url }}?share_token={{ group.share_token }}"
                                      data-video-title="{{ video.title }}">
                                     <div class="d-flex flex-column">
                                         <h6 class="mb-1 video-title">{{ video.title }}</h6>
@@ -60,7 +60,7 @@
                         <div id="video-player-container">
                             <div class="video-container mb-3">
                                 <video id="videoPlayer" controls class="w-100 h-100">
-                                    <source src="{{ completed_videos.first.file.url }}" type="video/mp4">
+                                    <source src="{{ completed_videos.first.file.url }}?share_token={{ group.share_token }}" type="video/mp4">
                                     お使いのブラウザは動画再生に対応していません。
                                 </video>
                             </div>
@@ -136,7 +136,7 @@
                         {% for video in completed_videos %}
                             <div class="list-group-item list-group-item-action video-item" 
                                  data-video-id="{{ video.id }}" 
-                                 data-video-url="{{ video.file.url }}"
+                                 data-video-url="{{ video.file.url }}?share_token={{ group.share_token }}"
                                  data-video-title="{{ video.title }}">
                                 <div class="d-flex flex-column">
                                     <h6 class="mb-1 video-title">{{ video.title }}</h6>
@@ -168,7 +168,7 @@
               <div id="video-player-container-mobile">
                 <div class="video-container mb-3">
                   <video id="videoPlayerMobile" controls class="w-100 h-100">
-                    <source src="{{ completed_videos.first.file.url }}" type="video/mp4">
+                    <source src="{{ completed_videos.first.file.url }}?share_token={{ group.share_token }}" type="video/mp4">
                     お使いのブラウザは動画再生に対応していません。
                   </video>
                 </div>

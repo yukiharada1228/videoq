@@ -25,45 +25,6 @@
     </div>
 </div>
 
-<!-- サブスクリプション状況 -->
-{% if user.is_authenticated %}
-    <div class="row mb-5">
-        <div class="col-12">
-            {# 現在のプラン表示 #}
-            {% for plan_key, plan in PLAN_INFO.items %}
-                {% if user.subscription_plan == plan_key %}
-                    <div class="alert {% if plan_key == 'free' %}alert-warning{% else %}alert-success{% endif %} d-flex align-items-center">
-                        <i class="bi bi-check-circle me-3" style="font-size: 1.5rem;"></i>
-                        <div class="flex-grow-1">
-                            <h5 class="mb-1">🎉 {{ plan.display }}契約中</h5>
-                        </div>
-                        <a href="{% url 'app:subscription_management' %}" class="btn {% if plan_key == 'free' %}btn-warning{% else %}btn-success{% endif %}">
-                            <i class="bi bi-gear me-2"></i>管理
-                        </a>
-                    </div>
-                {% endif %}
-            {% endfor %}
-        </div>
-    </div>
-
-    <!-- アップロード制限情報 -->
-    {% if user.is_subscribed %}
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="alert alert-info d-flex align-items-center">
-                    <i class="bi bi-info-circle me-3" style="font-size: 1.5rem;"></i>
-                    <div class="flex-grow-1">
-                        <h5 class="mb-1">📹 アップロード制限</h5>
-                        <p class="mb-0">現在 {{ total_videos }} 本の動画が登録されています
-                            <br><small class="text-muted">{{ plan_display_name }}では合計{{ plan_limit }}本までアップロードできます（残り {{ remaining_videos }} 本）</small>
-                        </p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    {% endif %}
-{% endif %}
-
 <!-- 統計情報 -->
 <div class="row mb-5">
     <div class="col-md-4 mb-4">

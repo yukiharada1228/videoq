@@ -8,6 +8,7 @@ from .views import (
     ShareVideoGroupChatStreamView,
     TermsView,
     PrivacyView,
+    protected_media,
 )
 
 app_name = "app"
@@ -126,47 +127,11 @@ urlpatterns = [
         name="share_video_group_chat_stream",
     ),
     path(
-        "create-checkout-session/",
-        views.create_checkout_session,
-        name="create_checkout_session",
-    ),
-    path("stripe/webhook/", views.stripe_webhook, name="stripe_webhook"),
-    path("stripe/webhook-test/", views.stripe_webhook_test, name="stripe_webhook_test"),
-    path(
-        "subscription/success/",
-        views.SubscriptionSuccessView.as_view(),
-        name="subscription_success",
-    ),
-    path(
-        "subscription/cancel/",
-        views.SubscriptionCancelView.as_view(),
-        name="subscription_cancel",
-    ),
-    path(
-        "subscription/downgrade-success/",
-        views.SubscriptionDowngradeSuccessView.as_view(),
-        name="subscription_downgrade_success",
-    ),
-    path(
-        "subscription/",
-        views.SubscriptionManagementView.as_view(),
-        name="subscription_management",
-    ),
-    path(
-        "subscription/cancel-subscription/",
-        views.cancel_subscription,
-        name="cancel_subscription",
-    ),
-    path(
-        "subscription/sync/",
-        views.sync_subscription_status,
-        name="sync_subscription_status",
-    ),
-    path(
         "commercial-disclosure/",
         views.CommercialDisclosureView.as_view(),
         name="commercial_disclosure",
     ),
     path("terms/", TermsView.as_view(), name="terms"),
     path("privacy/", PrivacyView.as_view(), name="privacy"),
+    path("media/<path:path>", protected_media),
 ]
