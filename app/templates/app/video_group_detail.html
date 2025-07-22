@@ -20,7 +20,7 @@
             <button class="btn btn-outline-primary" onclick="showAddVideoModal()">
                 <i class="bi bi-plus-circle"></i> 動画追加
             </button>
-            <a href="{% url 'app:video_group_delete' group.pk %}" class="btn btn-outline-danger" onclick="return confirm('本当にこのグループを削除しますか？\n（グループ内の動画は削除されません）');">
+            <a href="{% url 'app:video_group_delete' group.pk %}" class="btn btn-outline-danger">
                 <i class="bi bi-trash"></i> グループ削除
             </a>
             <!-- 共有URL発行/無効化ボタン -->

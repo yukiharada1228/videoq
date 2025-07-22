@@ -46,7 +46,7 @@
                                 <a href="{% url 'app:video_group_detail' group.pk %}#chat" class="btn btn-success btn-sm w-100">
                                     <i class="bi bi-chat"></i> チャット
                                 </a>
-                                <a href="{% url 'app:video_group_delete' group.pk %}" class="btn btn-outline-danger btn-sm w-100 mt-1" onclick="return confirm('本当にこのグループを削除しますか？\n（グループ内の動画は削除されません）');">
+                                <a href="{% url 'app:video_group_delete' group.pk %}" class="btn btn-outline-danger btn-sm w-100 mt-1">
                                     <i class="bi bi-trash"></i> グループ削除
                                 </a>
                             </div>
