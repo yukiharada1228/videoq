@@ -51,6 +51,20 @@
             <i class="bi bi-clipboard"></i> コピー
         </button>
     </div>
+    
+    <!-- アクセス情報表示 -->
+    {% if current_active_count is not None %}
+    <div class="alert alert-warning d-flex align-items-center gap-2 justify-content-center flex-wrap">
+        <span class="d-inline d-sm-none fw-bold" style="font-size:1.1rem;">
+            <i class="bi bi-people"></i> アクセス状況
+        </span>
+        <span class="d-none d-sm-inline">
+            <i class="bi bi-people"></i> 現在の同時アクセス数: 
+            <strong>{{ current_active_count }}/{{ max_concurrent_users }}</strong>
+            <small class="text-muted">（タイムアウト: {{ session_timeout_minutes }}分）</small>
+        </span>
+    </div>
+    {% endif %}
     {% endif %}
 
     <!-- スマホ用タブUI -->

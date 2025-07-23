@@ -64,6 +64,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "app.share_access_middleware.ShareAccessMiddleware",  # 共有アクセス制限ミドルウェア
 ]
 
 # Basic認証のユーザー名・パスワード（必要なら環境変数で上書き可能）
@@ -255,9 +256,16 @@ X_FRAME_OPTIONS = "DENY"
 # リバースプロキシ経由のHTTPS判定
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
+# Redis設定
+REDIS_URL = os.environ.get("REDIS_URL", "redis://redis:6379/0")
+
 # Celery Configuration Options
-CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", "redis://redis:6379/0")
-CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", "redis://redis:6379/0")
+CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", "redis://redis:6379/1")
+CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", "redis://redis:6379/2")
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
+
+# 共有URL同時アクセス制限設定
+SHARE_GROUP_MAX_CONCURRENT_USERS = int(os.environ.get("SHARE_GROUP_MAX_CONCURRENT_USERS", "30"))
+SHARE_SESSION_TIMEOUT_MINUTES = int(os.environ.get("SHARE_SESSION_TIMEOUT_MINUTES", "10"))
