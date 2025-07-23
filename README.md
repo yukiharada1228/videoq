@@ -56,6 +56,11 @@ cd videoq
 - `AWS_STORAGE_BUCKET_NAME` : S3バケット名（例: `videoq-yukiharada`）
 - `AWS_S3_REGION_NAME` : S3リージョン（例: `us-east-1`）
 
+#### 共有URLアクセス制限設定
+- `SHARE_GROUP_MAX_CONCURRENT_USERS` : 同時アクセス上限人数（デフォルト: `10`）
+- `SHARE_SESSION_TIMEOUT_MINUTES` : セッションタイムアウト時間（分、デフォルト: `10`）
+- `REDIS_URL` : Redis接続URL（デフォルト: `redis://redis:6379/0`）
+
 **S3バケットのIAMポリシー設定例:**
 ```json
 {

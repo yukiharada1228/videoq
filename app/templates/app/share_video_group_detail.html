@@ -5,6 +5,18 @@
 
 {% block content %}
 <div class="container-fluid">
+    <!-- アクセス情報表示 -->
+    <div class="alert alert-info mb-3" role="alert">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <i class="bi bi-people"></i> 
+                現在の同時アクセス数: <strong>{{ current_active_count }}/{{ max_concurrent_users }}</strong>
+            </div>
+            <div class="text-muted">
+                <small>セッションタイムアウト: {{ session_timeout_minutes }}分</small>
+            </div>
+        </div>
+    </div>
     <!-- スマホ用タブUI -->
     <ul class="nav nav-tabs d-md-none mb-3" id="mobileTab" role="tablist">
       <li class="nav-item flex-fill" role="presentation">
@@ -248,14 +260,13 @@ const subtitleAreaMobile = document.getElementById('subtitleAreaMobile');
 const currentSubtitleMobile = document.getElementById('currentSubtitleMobile');
 const subtitleToggle = document.getElementById('subtitleToggle');
 
-
-
-// 字幕表示の切り替え
-// subtitleToggle?.addEventListener('change', function() {
-//     const isVisible = this.checked;
-//     if (subtitleArea) subtitleArea.style.display = isVisible ? 'block' : 'none';
-//     if (subtitleAreaMobile) subtitleAreaMobile.style.display = isVisible ? 'block' : 'none';
-// });
+// クッキー取得関数
+function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(';').shift();
+    return null;
+}
 
 document.querySelectorAll('.video-item').forEach(item => {
     item.addEventListener('click', function() {
@@ -330,12 +341,19 @@ async function sendGroupChatStream(mode = 'desktop') {
     const aiMessageSpan = document.getElementById(uniqueId);
     const aiTimestampsDiv = document.getElementById(`ai-timestamps-${uniqueId}`);
     
+    // セッションIDを取得
+    const sessionId = getCookie('share_session_id');
+    const headers = {
+        'Content-Type': 'application/json'
+    };
+    if (sessionId) {
+        headers['X-Share-Session-ID'] = sessionId;
+    }
+
     try {
         const response = await fetch("{% url 'app:share_video_group_chat_stream' group.share_token %}", {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: headers,
             body: JSON.stringify({
                 query: query,
                 max_results: 5
