@@ -149,7 +149,7 @@ class BaseVectorService(ABC):
         context_chunks: List[Dict[str, Any]],
         max_questions: int = 3,
     ) -> List[Dict[str, str]]:
-        """コンテキストに基づいて関連質問を3つ生成（OpenAI function calling/pydantic schema使用）"""
+        """コンテキストに基づいて関連質問を3つ生成"""
         if not self.client:
             raise ValueError("OpenAI API key is required for question generation")
 
@@ -163,57 +163,23 @@ class BaseVectorService(ABC):
             ]
         )
 
-        prompt = f"""動画グループ「{group.name}」の以下のコンテキストを読んで、ユーザーが興味を持ちそうな関連質問を3つ必ず生成してください。\n\n【重要】必ずコンテキストの内容に直接関連する質問を優先して生成してください。\nコンテキストに含まれる用語や話題を使って質問を作成してください。\n\n例：コンテキストに「量子化」という単語があれば「量子化とは何ですか？」のような質問を生成してください。\n\nコンテキスト:\n{context_text}\n\n以下の点も考慮してください：\n1. ユーザーが深く理解したいと思いそうな内容\n2. 自然で会話的な質問"""
-
-        # JSON Schema: type: object, properties: questions (array)
-        schema = {
-            "type": "object",
-            "properties": {
-                "questions": {
-                    "type": "array",
-                    "items": RelatedQuestion.model_json_schema(),
-                    "minItems": 3,
-                    "maxItems": 3,
-                }
-            },
-            "required": ["questions"],
-        }
+        prompt = f"""動画グループ「{group.name}」の以下のコンテキストを読んで、ユーザーが興味を持ちそうな関連質問を3つ必ず生成してください。\n\n【重要】必ずコンテキストの内容に直接関連する質問を優先して生成してください。\nコンテキストに含まれる用語や話題を使って質問を作成してください。\n\nコンテキスト:\n{context_text}\n\n以下の点も考慮してください：\n1. ユーザーが深く理解したいと思いそうな内容\n2. 自然で会話的な質問"""
 
         try:
-            response = self.client.chat.completions.create(
+            response = self.client.responses.parse(
                 model="gpt-4o-mini-2024-07-18",
-                messages=[
+                input=[
                     {
                         "role": "system",
                         "content": "あなたは動画の内容に基づいて関連質問を生成するアシスタントです。",
                     },
                     {"role": "user", "content": prompt},
                 ],
-                tools=[
-                    {
-                        "type": "function",
-                        "function": {
-                            "name": "generate_related_questions",
-                            "description": "動画の内容に基づいて関連質問を3つ生成する",
-                            "parameters": schema,
-                        },
-                    }
-                ],
-                tool_choice={
-                    "type": "function",
-                    "function": {"name": "generate_related_questions"},
-                },
-                max_tokens=500,
-                temperature=0.7,
+                text_format=RelatedQuestionsResponse,
             )
-
-            tool_calls = response.choices[0].message.tool_calls
-            if tool_calls and len(tool_calls) > 0:
-                arguments = tool_calls[0].function.arguments
-                result = RelatedQuestionsResponse.model_validate_json(arguments)
-                return [q.model_dump() for q in result.questions]
-            else:
-                return []
+            parsed_result = response.output_parsed
+            questions = [q.model_dump() for q in parsed_result.questions]
+            return questions
         except Exception as e:
             print(f"Error generating related questions: {e}")
             return []
