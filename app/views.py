@@ -475,19 +475,24 @@ class VideoGroupDetailView(LoginRequiredMixin, BaseVideoGroupDetailView):
                 "app:share_video_group", args=[self.get_object().share_token]
             )
             context["share_absolute_url"] = self.request.build_absolute_uri(share_url)
-            
+
             # 現在のアクセス数を取得
             from .share_access_service import ShareAccessService
+
             access_service = ShareAccessService()
-            context['current_active_count'] = access_service.get_current_active_count(self.get_object().share_token)
-            context['max_concurrent_users'] = access_service.get_max_concurrent_users()
-            context['session_timeout_minutes'] = access_service.get_session_timeout_minutes()
+            context["current_active_count"] = access_service.get_current_active_count(
+                self.get_object().share_token
+            )
+            context["max_concurrent_users"] = access_service.get_max_concurrent_users()
+            context["session_timeout_minutes"] = (
+                access_service.get_session_timeout_minutes()
+            )
         else:
             context["share_absolute_url"] = ""
-            context['current_active_count'] = 0
-            context['max_concurrent_users'] = 0
-            context['session_timeout_minutes'] = 0
-            
+            context["current_active_count"] = 0
+            context["max_concurrent_users"] = 0
+            context["session_timeout_minutes"] = 0
+
         # 追加可能な動画
         all_user_videos = Video.objects.filter(
             user=self.request.user, status="completed"
@@ -622,19 +627,24 @@ class ShareVideoGroupView(BaseVideoGroupDetailView):
 
     def get(self, request, *args, **kwargs):
         return super().get(request, *args, **kwargs)
-    
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        
+
         # 現在のアクセス数を取得
         from .share_access_service import ShareAccessService
+
         access_service = ShareAccessService()
         group = self.get_object()
-        
-        context['current_active_count'] = access_service.get_current_active_count(group.share_token)
-        context['max_concurrent_users'] = access_service.get_max_concurrent_users()
-        context['session_timeout_minutes'] = access_service.get_session_timeout_minutes()
-        
+
+        context["current_active_count"] = access_service.get_current_active_count(
+            group.share_token
+        )
+        context["max_concurrent_users"] = access_service.get_max_concurrent_users()
+        context["session_timeout_minutes"] = (
+            access_service.get_session_timeout_minutes()
+        )
+
         return context
 
 
@@ -688,15 +698,18 @@ class ShareVideoGroupChatView(BaseVideoGroupChatView):
 
             # セッション管理
             from .share_access_service import ShareAccessService
+
             access_service = ShareAccessService()
-            session_id = request.headers.get('X-Share-Session-ID')
-            
+            session_id = request.headers.get("X-Share-Session-ID")
+
             if session_id:
                 # セッションアクティビティを更新
                 if not access_service.update_session_activity(share_token, session_id):
                     return JsonResponse(
-                        {"error": "セッションが無効になりました。ページを再読み込みしてください。"}, 
-                        status=401
+                        {
+                            "error": "セッションが無効になりました。ページを再読み込みしてください。"
+                        },
+                        status=401,
                     )
 
             # 共有元ユーザーのAPIキーを取得
@@ -753,15 +766,18 @@ class ShareVideoGroupChatStreamView(View):
 
             # セッション管理
             from .share_access_service import ShareAccessService
+
             access_service = ShareAccessService()
-            session_id = request.headers.get('X-Share-Session-ID')
-            
+            session_id = request.headers.get("X-Share-Session-ID")
+
             if session_id:
                 # セッションアクティビティを更新
                 if not access_service.update_session_activity(share_token, session_id):
                     return JsonResponse(
-                        {"error": "セッションが無効になりました。ページを再読み込みしてください。"}, 
-                        status=401
+                        {
+                            "error": "セッションが無効になりました。ページを再読み込みしてください。"
+                        },
+                        status=401,
                     )
 
             # 共有元ユーザーのAPIキーを取得
