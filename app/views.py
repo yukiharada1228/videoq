@@ -480,8 +480,8 @@ class VideoGroupDetailView(LoginRequiredMixin, BaseVideoGroupDetailView):
             from .share_access_service import ShareAccessService
 
             access_service = ShareAccessService()
-            context["current_active_count"] = access_service.get_current_active_count(
-                self.get_object().share_token
+            context["current_active_count"] = access_service.get_account_active_count(
+                self.request.user.id
             )
             context["max_concurrent_users"] = access_service.get_max_concurrent_users()
             context["session_timeout_minutes"] = (
@@ -637,8 +637,8 @@ class ShareVideoGroupView(BaseVideoGroupDetailView):
         access_service = ShareAccessService()
         group = self.get_object()
 
-        context["current_active_count"] = access_service.get_current_active_count(
-            group.share_token
+        context["current_active_count"] = access_service.get_account_active_count(
+            group.user.id
         )
         context["max_concurrent_users"] = access_service.get_max_concurrent_users()
         context["session_timeout_minutes"] = (

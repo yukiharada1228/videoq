@@ -57,7 +57,7 @@ cd videoq
 - `AWS_S3_REGION_NAME` : S3リージョン（例: `us-east-1`）
 
 #### 共有URLアクセス制限設定
-- `SHARE_GROUP_MAX_CONCURRENT_USERS` : 同時アクセス上限人数（デフォルト: `10`）
+- `SHARE_ACCOUNT_MAX_CONCURRENT_USERS` : アカウント単位の同時アクセス上限人数（デフォルト: `30`）
 - `SHARE_SESSION_TIMEOUT_MINUTES` : セッションタイムアウト時間（分、デフォルト: `10`）
 - `REDIS_URL` : Redis接続URL（デフォルト: `redis://redis:6379/0`）
 
