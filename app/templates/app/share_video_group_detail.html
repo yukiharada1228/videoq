@@ -625,44 +625,6 @@ function formatTime(seconds) {
         return `${minutes}:${secs.toString().padStart(2, '0')}`;
     }
 }
-
-// function updateSubtitle() {
-//     if (!videoPlayer || !currentSubtitle || !currentSubtitles.length) {
-//         return;
-//     }
-//     const currentTime = videoPlayer.currentTime;
-//     let subtitleText = '';
-//     for (let i = 0; i < currentSubtitles.length; i++) {
-//         const sub = currentSubtitles[i];
-//         if (currentTime >= sub.start && currentTime <= sub.end) {
-//             subtitleText = sub.text;
-//             currentSubtitleIndex = i;
-//             break;
-//         }
-//     }
-//     if (subtitleText !== currentSubtitle.textContent) {
-//         currentSubtitle.textContent = subtitleText;
-//     }
-// }
-
-// function updateSubtitleMobile() {
-//     if (!videoPlayerMobile || !currentSubtitleMobile || !currentSubtitles.length) {
-//         return;
-//     }
-//     const currentTime = videoPlayerMobile.currentTime;
-//     let subtitleText = '';
-//     for (let i = 0; i < currentSubtitles.length; i++) {
-//         const sub = currentSubtitles[i];
-//         if (currentTime >= sub.start && currentTime <= sub.end) {
-//             subtitleText = sub.text;
-//             currentSubtitleIndex = i;
-//             break;
-//         }
-//     }
-//     if (subtitleText !== currentSubtitleMobile.textContent) {
-//         currentSubtitleMobile.textContent = subtitleText;
-//     }
-// }
 </script>
 
 <style>
