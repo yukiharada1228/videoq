@@ -48,15 +48,15 @@ class OpenSearchService(BaseVectorService):
         )
 
     def _get_chunks_index_name(self) -> str:
-        """チャンクインデックス名を取得（ユーザー固有）"""
-        return f"videoq_chunks_{self.user_id}"
+        """チャンクインデックス名を取得（固定名）"""
+        return "videoq_chunks"
 
     def _get_features_index_name(self) -> str:
-        """フィーチャーインデックス名を取得（ユーザー固有）"""
-        return f"videoq_features_{self.user_id}"
+        """フィーチャーインデックス名を取得（固定名）"""
+        return "videoq_features"
 
     def _ensure_indexes_exist(self):
-        """単一インデックスを作成"""
+        """固定インデックスを作成（_routing必須・シャード数強化）"""
         if self.opensearch is None:
             print("OpenSearch connection not available")
             return
@@ -70,9 +70,12 @@ class OpenSearchService(BaseVectorService):
                         "index": {
                             "knn": True,
                             "knn.algo_param.ef_search": 100,
+                            "number_of_shards": 5,
+                            "number_of_replicas": 0,
                         }
                     },
                     "mappings": {
+                        "_routing": {"required": True},
                         "properties": {
                             "vector": {
                                 "type": "knn_vector",
@@ -91,7 +94,7 @@ class OpenSearchService(BaseVectorService):
                             "end_time": {"type": "float"},
                             "chunk_index": {"type": "integer"},
                             "type": {"type": "keyword"},
-                        }
+                        },
                     },
                 }
                 self.opensearch.indices.create(
@@ -106,9 +109,12 @@ class OpenSearchService(BaseVectorService):
                         "index": {
                             "knn": True,
                             "knn.algo_param.ef_search": 100,
+                            "number_of_shards": 5,
+                            "number_of_replicas": 0,
                         }
                     },
                     "mappings": {
+                        "_routing": {"required": True},
                         "properties": {
                             "vector": {
                                 "type": "knn_vector",
@@ -125,7 +131,7 @@ class OpenSearchService(BaseVectorService):
                             "video_title": {"type": "text"},
                             "timestamp": {"type": "float"},
                             "type": {"type": "keyword"},
-                        }
+                        },
                     },
                 }
                 self.opensearch.indices.create(
@@ -139,13 +145,12 @@ class OpenSearchService(BaseVectorService):
     def search_group_chunks(
         self, group: VideoGroup, query: str, max_results: int = 5
     ) -> List[Dict[str, Any]]:
-        """グループ内のチャンクを検索（ユーザーごとインデックス）"""
+        """グループ内のチャンクを検索（routing必須）"""
         if self.opensearch is None:
             print("OpenSearch connection not available")
             return []
 
         try:
-            # 接続テスト
             self.opensearch.info()
         except Exception as e:
             print(f"OpenSearch connection error: {e}")
@@ -173,9 +178,15 @@ class OpenSearchService(BaseVectorService):
             },
         }
 
-        response = self.opensearch.search(
-            index=self.chunks_index_name, body=search_body
-        )
+        try:
+            response = self.opensearch.search(
+                index=self.chunks_index_name,
+                body=search_body,
+                routing=str(self.user_id),
+            )
+        except Exception as e:
+            print(f"OpenSearch search error (routing): {e}")
+            raise
         results = []
 
         for hit in response["hits"]["hits"]:
@@ -197,13 +208,12 @@ class OpenSearchService(BaseVectorService):
     def search_group_features(
         self, group: VideoGroup, query: str, max_results: int = 5
     ) -> list:
-        """グループ内のタイムスタンプ付きセグメントをユーザーごとインデックスから検索"""
+        """グループ内のタイムスタンプ付きセグメントを固定インデックスから検索（routing必須）"""
         if self.opensearch is None:
             print("OpenSearch connection not available")
             return []
 
         try:
-            # 接続テスト
             self.opensearch.info()
         except Exception as e:
             print(f"OpenSearch connection error: {e}")
@@ -231,9 +241,15 @@ class OpenSearchService(BaseVectorService):
             },
         }
 
-        response = self.opensearch.search(
-            index=self.features_index_name, body=search_body
-        )
+        try:
+            response = self.opensearch.search(
+                index=self.features_index_name,
+                body=search_body,
+                routing=str(self.user_id),
+            )
+        except Exception as e:
+            print(f"OpenSearch search error (routing): {e}")
+            raise
         results = []
 
         for hit in response["hits"]["hits"]:
@@ -257,7 +273,9 @@ class OpenSearchService(BaseVectorService):
                     },
                 }
                 chunk_response = self.opensearch.search(
-                    index=self.chunks_index_name, body=chunk_search_body
+                    index=self.chunks_index_name,
+                    body=chunk_search_body,
+                    routing=str(self.user_id),
                 )
                 if chunk_response["hits"]["hits"]:
                     chunk_source = chunk_response["hits"]["hits"][0]["_source"]
@@ -279,9 +297,8 @@ class OpenSearchService(BaseVectorService):
         return results
 
     def delete_video_data(self, video_id: int):
-        """特定の動画のデータを削除"""
+        """特定の動画のデータを削除（routing必須）"""
         try:
-            # チャンクインデックスから削除（ユーザー固有インデックスのためuser_idフィルター不要）
             delete_query = {
                 "query": {
                     "bool": {
@@ -293,16 +310,34 @@ class OpenSearchService(BaseVectorService):
             }
 
             self.opensearch.delete_by_query(
-                index=self.chunks_index_name, body=delete_query
+                index=self.chunks_index_name,
+                body=delete_query,
+                routing=str(self.user_id),
             )
             self.opensearch.delete_by_query(
-                index=self.features_index_name, body=delete_query
+                index=self.features_index_name,
+                body=delete_query,
+                routing=str(self.user_id),
             )
 
             print(f"Deleted data for video_id: {video_id}")
 
         except Exception as e:
             print(f"Error deleting video data: {e}")
+            raise
+
+    def delete_user_data(self):
+        """このユーザーの全データを固定インデックスから削除（routing必須）"""
+        try:
+            for index in [self.chunks_index_name, self.features_index_name]:
+                self.opensearch.delete_by_query(
+                    index=index,
+                    body={"query": {"match_all": {}}},
+                    routing=str(self.user_id),
+                )
+            print(f"Deleted all OpenSearch data for user_id: {self.user_id}")
+        except Exception as e:
+            print(f"Error deleting all OpenSearch data for user_id {self.user_id}: {e}")
             raise
 
     def get_index_info(self):
