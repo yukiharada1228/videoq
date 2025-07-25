@@ -204,11 +204,15 @@ class PineconeService(BaseVectorService):
         try:
             # チャンクインデックスから削除
             chunks_index = self.pinecone.Index(self.chunks_index_name)
-            chunks_index.delete(filter={"video_id": str(video_id)}, namespace=str(self.user_id))
+            chunks_index.delete(
+                filter={"video_id": str(video_id)}, namespace=str(self.user_id)
+            )
 
             # フィーチャーインデックスから削除
             features_index = self.pinecone.Index(self.features_index_name)
-            features_index.delete(filter={"video_id": str(video_id)}, namespace=str(self.user_id))
+            features_index.delete(
+                filter={"video_id": str(video_id)}, namespace=str(self.user_id)
+            )
 
             print(f"Deleted data for video_id: {video_id}")
 
@@ -222,8 +226,12 @@ class PineconeService(BaseVectorService):
             chunks_index = self.pinecone.Index(self.chunks_index_name)
             features_index = self.pinecone.Index(self.features_index_name)
 
-            chunks_stats = chunks_index.describe_index_stats(namespace=str(self.user_id))
-            features_stats = features_index.describe_index_stats(namespace=str(self.user_id))
+            chunks_stats = chunks_index.describe_index_stats(
+                namespace=str(self.user_id)
+            )
+            features_stats = features_index.describe_index_stats(
+                namespace=str(self.user_id)
+            )
 
             return {
                 "chunks_index": {
@@ -269,7 +277,9 @@ class PineconeService(BaseVectorService):
 
             # サーバレスインデックスにバッチで挿入
             index.upsert(vectors=vectors, namespace=str(self.user_id))
-            print(f"Upserted {len(vectors)} chunks to Pinecone serverless index (namespace={self.user_id})")
+            print(
+                f"Upserted {len(vectors)} chunks to Pinecone serverless index (namespace={self.user_id})"
+            )
 
         except Exception as e:
             print(f"Error upserting chunks to serverless index: {e}")
@@ -299,7 +309,9 @@ class PineconeService(BaseVectorService):
 
             # サーバレスインデックスにバッチで挿入
             index.upsert(vectors=vectors, namespace=str(self.user_id))
-            print(f"Upserted {len(vectors)} features to Pinecone serverless index (namespace={self.user_id})")
+            print(
+                f"Upserted {len(vectors)} features to Pinecone serverless index (namespace={self.user_id})"
+            )
 
         except Exception as e:
             print(f"Error upserting features to serverless index: {e}")

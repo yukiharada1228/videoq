@@ -497,6 +497,7 @@ def process_video(video_id):
                         index=search_service.features_index_name,
                         body=feature_document,
                         id=f"feature_{video.id}_{i}",
+                        routing=str(video.user.id),
                     )
                 elif VectorSearchFactory.is_pinecone_enabled():
                     # Pinecone用のデータ形式に変換
@@ -565,6 +566,7 @@ def process_video(video_id):
                         index=search_service.chunks_index_name,
                         body=chunk_document,
                         id=f"chunk_{video.id}_{chunk['chunk_index']}",
+                        routing=str(video.user.id),
                     )
                 elif VectorSearchFactory.is_pinecone_enabled():
                     # Pinecone用のデータ形式に変換
