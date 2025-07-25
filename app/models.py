@@ -25,6 +25,19 @@ class User(AbstractUser):
                 pass
         super().save(*args, **kwargs)
 
+    def delete(self, *args, **kwargs):
+        """ユーザー削除時にPineconeのnamespaceも削除"""
+        try:
+            from app.vector_search_factory import VectorSearchFactory
+            if VectorSearchFactory.is_pinecone_enabled():
+                from app.pinecone_service import PineconeService
+                # APIキーは不要（namespace削除のみ）
+                pinecone_service = PineconeService(user_id=self.id, openai_api_key=None, ensure_indexes=False)
+                pinecone_service.delete_user_namespace()
+        except Exception as e:
+            print(f"[User.delete] Error deleting Pinecone namespace: {e}")
+        super().delete(*args, **kwargs)
+
 
 class SafeLocalFileStorage(FileSystemStorage):
     """
