@@ -1,5 +1,9 @@
 # VideoQ
 
+[![Django CI](https://github.com/yukiharada1228/videoq/actions/workflows/django.yml/badge.svg)](https://github.com/yukiharada1228/videoq/actions/workflows/django.yml)
+[![Python](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
+[![Django](https://img.shields.io/badge/django-5.2.4-green.svg)](https://www.djangoproject.com/)
+
 VideoQは動画管理・共有・分析のためのWebアプリケーションです。
 
 ## 機能概要
