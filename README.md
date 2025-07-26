@@ -52,7 +52,7 @@ cd videoq
 
 #### データベース設定
 - `POSTGRES_PASSWORD` : PostgreSQLパスワード
-- `BASIC_AUTH_PASSWORD` : OpenSearchダッシュボード用パスワード
+- `BASIC_AUTH_PASSWORD` : Webアプリに対するBASIC認証のパスワード
 
 #### S3設定（動画ファイル保存用）
 - `AWS_ACCESS_KEY_ID` : AWSアクセスキーID
