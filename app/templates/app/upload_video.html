@@ -86,8 +86,25 @@
                         {% endif %}
                     </div>
 
+                    <!-- API設定チェック警告 -->
+                    {% if not api_key_configured %}
+                    <div class="alert alert-warning mb-4" id="api-key-warning">
+                        <div class="d-flex align-items-start">
+                            <i class="bi bi-exclamation-triangle me-3 mt-1"></i>
+                            <div>
+                                <h6 class="alert-heading mb-2">API設定がまだです</h6>
+                                <p class="mb-2">動画のAI分析機能を利用するには、OpenAI APIキーの設定が必要です。</p>
+                                <a href="{% url 'app:openai_key_update' %}" class="btn btn-warning btn-sm">
+                                    <i class="bi bi-key me-2"></i>API設定を行う
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
                     <div class="d-grid">
-                        <button type="submit" class="btn btn-primary btn-lg" id="upload-btn" disabled>
+                        <button type="submit" class="btn btn-primary btn-lg" id="upload-btn" disabled 
+                                {% if not api_key_configured %}title="API設定を完了してください"{% endif %}>
                             <i class="bi bi-upload me-2"></i>動画をアップロード
                         </button>
                     </div>
@@ -586,6 +603,9 @@
       }
   });
 
+  // API設定状態をグローバル変数として定義
+  const apiKeyConfigured = {{ api_key_configured|yesno:"true,false" }};
+
   function handleFileSelect() {
       const file = fileInput.files[0];
       const fileSizeWarning = document.getElementById('file-size-warning');
@@ -617,8 +637,14 @@
           } else {
               // 正常なファイル
               fileSizeWarning.style.display = 'none';
-              uploadBtn.disabled = false;
-              uploadBtn.innerHTML = '<i class="bi bi-upload me-2"></i>動画をアップロード';
+              // API設定チェック
+              if (apiKeyConfigured) {
+                  uploadBtn.disabled = false;
+                  uploadBtn.innerHTML = '<i class="bi bi-upload me-2"></i>動画をアップロード';
+              } else {
+                  uploadBtn.disabled = true;
+                  uploadBtn.innerHTML = '<i class="bi bi-exclamation-triangle me-2"></i>API設定が必要です';
+              }
               
               uploadArea.innerHTML = `
                   <div class="upload-content text-center">
