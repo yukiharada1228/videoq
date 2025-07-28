@@ -29,10 +29,17 @@
                             <i class="bi bi-folder2-open me-2"></i>ファイルを選択
                         </button>
                         <div class="upload-info mt-4">
-                            <small class="text-muted">
-                                <i class="bi bi-info-circle me-1"></i>
-                                対応形式: MP4, AVI, MOV, MKV (最大100MB)
-                            </small>
+                            <div class="alert alert-info mb-3">
+                                <i class="bi bi-info-circle me-2"></i>
+                                <strong>アップロード制限</strong><br>
+                                対応形式: MP4, AVI, MOV, MKV<br>
+                                <span class="text-primary fw-bold">※最大アップロードサイズは {{ video_upload_max_size_mb }}MB です</span>
+                            </div>
+                            <div class="alert alert-warning" id="file-size-warning" style="display: none;">
+                                <i class="bi bi-exclamation-triangle me-2"></i>
+                                <strong>ファイルサイズが上限を超えています</strong><br>
+                                選択されたファイルは{{ video_upload_max_size_mb }}MBを超えています。より小さなファイルを選択してください。
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -80,7 +87,7 @@
                     </div>
 
                     <div class="d-grid">
-                        <button type="submit" class="btn btn-primary btn-lg" id="upload-btn">
+                        <button type="submit" class="btn btn-primary btn-lg" id="upload-btn" disabled>
                             <i class="bi bi-upload me-2"></i>動画をアップロード
                         </button>
                     </div>
@@ -291,6 +298,31 @@
 .upload-icon-large i {
     font-size: 3rem;
     color: #6c757d;
+}
+
+/* ファイルサイズ警告 */
+#file-size-warning {
+    border-left: 4px solid #ffc107;
+    background: rgba(255, 193, 7, 0.1);
+}
+
+#file-size-warning .bi-exclamation-triangle {
+    color: #856404;
+}
+
+/* アップロード制限情報 */
+.upload-info .alert-info {
+    border-left: 4px solid #17a2b8;
+    background: rgba(23, 162, 184, 0.1);
+}
+
+.upload-info .alert-info .bi-info-circle {
+    color: #0c5460;
+}
+
+/* 危険な状態のアップロードエリア */
+.upload-area .upload-icon-large[style*="danger-gradient"] {
+    background: linear-gradient(135deg, #dc3545, #c82333) !important;
 }
 
 .upload-form .form-control {
@@ -556,17 +588,81 @@
 
   function handleFileSelect() {
       const file = fileInput.files[0];
+      const fileSizeWarning = document.getElementById('file-size-warning');
+      const uploadBtn = document.getElementById('upload-btn');
+      
       if (file) {
+          const fileSizeMB = file.size / 1024 / 1024;
+          const maxSizeMB = parseInt('{{ video_upload_max_size_mb }}');
+          
+          // ファイルサイズチェック
+          if (fileSizeMB > maxSizeMB) {
+              // 警告を表示
+              fileSizeWarning.style.display = 'block';
+              uploadBtn.disabled = true;
+              uploadBtn.innerHTML = '<i class="bi bi-exclamation-triangle me-2"></i>ファイルサイズが上限を超えています';
+              
+              uploadArea.innerHTML = `
+                  <div class="upload-content text-center">
+                      <div class="upload-icon-large mb-4" style="background: var(--danger-gradient);">
+                          <i class="bi bi-exclamation-triangle" style="color: white;"></i>
+                      </div>
+                      <h4 class="mb-3 text-danger">${file.name}</h4>
+                      <p class="text-danger mb-4">ファイルサイズ: ${fileSizeMB.toFixed(2)} MB (上限: ${maxSizeMB} MB)</p>
+                      <button type="button" class="btn btn-outline-danger" onclick="document.getElementById('id_file').click()">
+                          <i class="bi bi-arrow-clockwise me-2"></i>別のファイルを選択
+                      </button>
+                  </div>
+              `;
+          } else {
+              // 正常なファイル
+              fileSizeWarning.style.display = 'none';
+              uploadBtn.disabled = false;
+              uploadBtn.innerHTML = '<i class="bi bi-upload me-2"></i>動画をアップロード';
+              
+              uploadArea.innerHTML = `
+                  <div class="upload-content text-center">
+                      <div class="upload-icon-large mb-4">
+                          <i class="bi bi-file-earmark-play"></i>
+                      </div>
+                      <h4 class="mb-3">${file.name}</h4>
+                      <p class="text-muted mb-4">ファイルサイズ: ${fileSizeMB.toFixed(2)} MB</p>
+                      <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('id_file').click()">
+                          <i class="bi bi-arrow-clockwise me-2"></i>別のファイルを選択
+                      </button>
+                  </div>
+              `;
+          }
+      } else {
+          // ファイルが選択されていない場合
+          fileSizeWarning.style.display = 'none';
+          uploadBtn.disabled = true;
+          uploadBtn.innerHTML = '<i class="bi bi-upload me-2"></i>動画をアップロード';
+          
+          // 元のアップロードエリアを復元
           uploadArea.innerHTML = `
               <div class="upload-content text-center">
                   <div class="upload-icon-large mb-4">
-                      <i class="bi bi-file-earmark-play"></i>
+                      <i class="bi bi-cloud-upload"></i>
                   </div>
-                  <h4 class="mb-3">${file.name}</h4>
-                  <p class="text-muted mb-4">ファイルサイズ: ${(file.size / 1024 / 1024).toFixed(2)} MB</p>
-                  <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('id_file').click()">
-                      <i class="bi bi-arrow-clockwise me-2"></i>別のファイルを選択
+                  <h4 class="mb-3">動画ファイルをドラッグ&ドロップ</h4>
+                  <p class="text-muted mb-4">または、下のボタンからファイルを選択してください</p>
+                  <button type="button" class="btn btn-primary btn-lg" onclick="document.getElementById('id_file').click()">
+                      <i class="bi bi-folder2-open me-2"></i>ファイルを選択
                   </button>
+                  <div class="upload-info mt-4">
+                      <div class="alert alert-info mb-3">
+                          <i class="bi bi-info-circle me-2"></i>
+                          <strong>アップロード制限</strong><br>
+                          対応形式: MP4, AVI, MOV, MKV<br>
+                          <span class="text-primary fw-bold">※最大アップロードサイズは {{ video_upload_max_size_mb }}MB です</span>
+                      </div>
+                      <div class="alert alert-warning" id="file-size-warning" style="display: none;">
+                          <i class="bi bi-exclamation-triangle me-2"></i>
+                          <strong>ファイルサイズが上限を超えています</strong><br>
+                          選択されたファイルは{{ video_upload_max_size_mb }}MBを超えています。より小さなファイルを選択してください。
+                      </div>
+                  </div>
               </div>
           `;
       }
@@ -591,8 +687,18 @@
           alert('ファイルを選択してください');
           return;
       }
+      
+      // ファイルサイズの最終チェック
       const fileSize = file.size;
-      const fileSizeMB = (fileSize / 1024 / 1024).toFixed(2);
+      const fileSizeMB = fileSize / 1024 / 1024;
+      const maxSizeMB = parseInt('{{ video_upload_max_size_mb }}');
+      
+      if (fileSizeMB > maxSizeMB) {
+          alert(`ファイルサイズが上限を超えています。\n選択されたファイル: ${fileSizeMB.toFixed(2)} MB\n上限: ${maxSizeMB} MB\n\nより小さなファイルを選択してください。`);
+          uploadBtn.disabled = false;
+          uploadBtn.innerHTML = '<i class="bi bi-upload me-2"></i>動画をアップロード';
+          return;
+      }
       // ボタンを無効化
       uploadBtn.disabled = true;
       uploadBtn.innerHTML = '<i class="bi bi-cloud-upload me-2"></i>アップロード中...';
@@ -612,7 +718,7 @@
               const loadedMB = (e.loaded / 1024 / 1024).toFixed(2);
               progressBar.style.width = percentComplete + '%';
               progressPercentage.textContent = Math.round(percentComplete) + '%';
-              progressDetails.textContent = `(${loadedMB} MB / ${fileSizeMB} MB)`;
+              progressDetails.textContent = `(${loadedMB} MB / ${fileSizeMB.toFixed(2)} MB)`;
               // 進捗に応じてステップ1の説明を更新
               if (percentComplete >= 100) {
                   step1Desc.textContent = '動画ファイルをサーバーに転送完了';
