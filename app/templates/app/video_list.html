@@ -78,6 +78,12 @@
                                     <span class="badge bg-warning">処理待ち</span>
                                 {% elif video.status == 'error' %}
                                     <span class="badge bg-danger">エラー</span>
+                                    <!-- エラー状態の場合は再処理ボタンを表示 -->
+                                    <button class="btn btn-sm btn-outline-warning ms-2" 
+                                            onclick="reprocessVideo({{ video.id }})" 
+                                            title="動画を再処理">
+                                        <i class="bi bi-arrow-clockwise"></i>
+                                    </button>
                                 {% endif %}
                             </div>
                             
@@ -148,4 +154,32 @@
         {% endif %}
     </div>
 </div>
+
+<script>
+function reprocessVideo(videoId) {
+    if (confirm('この動画を再処理しますか？')) {
+        fetch(`/video/${videoId}/reprocess/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json',
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('動画の再処理を開始しました。');
+                location.reload(); // ページを再読み込み
+            } else {
+                alert('再処理の開始に失敗しました: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('再処理の開始に失敗しました。');
+        });
+    }
+}
+</script>
+
 {% endblock %} 

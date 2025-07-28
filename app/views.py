@@ -74,6 +74,14 @@ class HomeView(LoginRequiredMixin, TemplateView):
         ).count()
         context["total_groups"] = video_groups.count()
 
+        # API設定状態とオンボーディング情報
+        context["api_key_configured"] = bool(self.request.user.encrypted_openai_api_key)
+        context["is_new_user"] = (
+            context["total_videos"] == 0
+            and context["total_groups"] == 0
+            and not context["api_key_configured"]
+        )
+
         return context
 
 
@@ -90,6 +98,8 @@ class VideoUploadView(LoginRequiredMixin, CreateView):
         context["video_upload_max_size_mb"] = getattr(
             settings, "VIDEO_UPLOAD_MAX_SIZE_MB", 100
         )
+        # API設定状態をテンプレートに渡す
+        context["api_key_configured"] = bool(self.request.user.encrypted_openai_api_key)
         return context
 
     def form_valid(self, form):
@@ -596,6 +606,28 @@ def decrypt_api_key(encrypted: str) -> str:
     return f.decrypt(encrypted.encode()).decode()
 
 
+@method_decorator(csrf_exempt, name="dispatch")
+class VideoReprocessView(LoginRequiredMixin, View):
+    """動画再処理ビュー"""
+
+    def post(self, request, video_id):
+        try:
+            # ユーザーが所有する動画のみ再処理可能
+            video = get_object_or_404(Video, id=video_id, user=request.user)
+
+            # 動画の再処理を実行
+            process_video.delay(video.id)
+
+            return JsonResponse(
+                {"success": True, "message": "動画の再処理を開始しました。"}
+            )
+        except Exception as e:
+            return JsonResponse(
+                {"success": False, "error": f"再処理の開始に失敗しました: {str(e)}"},
+                status=500,
+            )
+
+
 class OpenAIKeyUpdateView(LoginRequiredMixin, FormView):
     template_name = "app/openai_key_form.html"
     form_class = OpenAIKeyForm
@@ -617,6 +649,15 @@ class OpenAIKeyUpdateView(LoginRequiredMixin, FormView):
         user.encrypted_openai_api_key = encrypt_api_key(api_key)
         user.save()
         messages.success(self.request, "OpenAI APIキーを保存しました。")
+
+        # エラー状態の動画があるかチェック
+        error_videos = Video.objects.filter(user=user, status="error")
+        if error_videos.exists():
+            messages.info(
+                self.request,
+                f"{error_videos.count()}件のエラー状態の動画があります。動画一覧から再処理できます。",
+            )
+
         return redirect(self.get_success_url())
 
 

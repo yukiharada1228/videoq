@@ -21,6 +21,11 @@ urlpatterns = [
     path("video/<int:pk>/", views.VideoDetailView.as_view(), name="video_detail"),
     path("video/<int:pk>/edit/", views.VideoEditView.as_view(), name="video_edit"),
     path("delete/<int:pk>/", views.VideoDeleteView.as_view(), name="delete_video"),
+    path(
+        "video/<int:video_id>/reprocess/",
+        views.VideoReprocessView.as_view(),
+        name="video_reprocess",
+    ),
     # 動画グループ関連のURL
     path("groups/", views.VideoGroupListView.as_view(), name="video_group_list"),
     path(
