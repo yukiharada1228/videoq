@@ -84,6 +84,12 @@ class VideoUploadView(LoginRequiredMixin, CreateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        # 動画アップロード制限サイズをテンプレートに渡す
+        from django.conf import settings
+
+        context["video_upload_max_size_mb"] = getattr(
+            settings, "VIDEO_UPLOAD_MAX_SIZE_MB", 100
+        )
         return context
 
     def form_valid(self, form):

@@ -204,6 +204,11 @@ FILE_UPLOAD_TEMP_DIR = None
 FILE_UPLOAD_PERMISSIONS = 0o644
 FILE_UPLOAD_DIRECTORY_PERMISSIONS = 0o755
 
+# 動画アップロード制限設定
+VIDEO_UPLOAD_MAX_SIZE_MB = int(
+    os.environ.get("VIDEO_UPLOAD_MAX_SIZE_MB", "100")
+)  # デフォルト100MB
+
 # ファイル名エンコーディング設定
 FILE_UPLOAD_HANDLERS = [
     "django.core.files.uploadhandler.MemoryFileUploadHandler",
