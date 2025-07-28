@@ -77,18 +77,19 @@
 .settings-icon {
     width: 80px;
     height: 80px;
-    background: var(--primary-gradient);
+    background: var(--background-color); /* base.htmlの背景色を使用 */
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     margin: 0 auto;
     box-shadow: var(--shadow-lg);
+    border: 2px solid var(--primary-color); /* プライマリカラーのボーダー */
 }
 
 .settings-icon i {
     font-size: 2.5rem;
-    color: white;
+    color: var(--primary-color); /* base.htmlのプライマリカラーを使用 */
 }
 
 .settings-title {
