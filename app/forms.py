@@ -114,11 +114,13 @@ class VideoUploadForm(forms.ModelForm):
         file = self.cleaned_data.get("file")
         if file:
             # ファイルサイズのチェック（設定から取得）
-            max_size_mb = getattr(settings, 'VIDEO_UPLOAD_MAX_SIZE_MB', 100)
+            max_size_mb = getattr(settings, "VIDEO_UPLOAD_MAX_SIZE_MB", 100)
             max_size_bytes = max_size_mb * 1024 * 1024
 
             if file.size > max_size_bytes:
-                raise forms.ValidationError(f"ファイルサイズは{max_size_mb}MB以下にしてください。")
+                raise forms.ValidationError(
+                    f"ファイルサイズは{max_size_mb}MB以下にしてください。"
+                )
 
             # ファイル形式のチェック
             allowed_extensions = [
