@@ -4,6 +4,8 @@
 {% block title %}動画アップロード - VideoQ{% endblock %}
 
 {% block content %}
+
+
 <div class="upload-container">
     <div class="row justify-content-center">
         <div class="col-lg-8">
@@ -17,7 +19,7 @@
             </div>
 
             <!-- アップロードフォーム -->
-            <div class="upload-card">
+            <div class="card upload-card">
                 <div class="upload-area" id="upload-area">
                     <div class="upload-content text-center">
                         <div class="upload-icon-large mb-4">
@@ -112,7 +114,7 @@
             </div>
 
             <!-- 処理状況表示エリア -->
-            <div class="processing-card" id="processing-status" style="display: none;">
+            <div class="card processing-card" id="processing-status" style="display: none;">
                 <div class="processing-header text-center mb-4">
                     <div class="processing-icon mb-3">
                         <i class="bi bi-cloud-upload"></i>
@@ -192,8 +194,8 @@
             </div>
 
             <!-- 最近アップロードした動画 -->
-            <div class="recent-videos-card">
-                <div class="recent-videos-header d-flex justify-content-between align-items-center p-3">
+            <div class="card recent-videos-card">
+                <div class="card-header recent-videos-header d-flex justify-content-between align-items-center">
                     <h5 class="card-title mb-0">
                         <i class="bi bi-clock-history me-2"></i>最近アップロードした動画
                     </h5>
@@ -201,7 +203,7 @@
                         <i class="bi bi-arrow-right me-1"></i>すべて表示
                     </a>
                 </div>
-                <div class="recent-videos-body p-3">
+                <div class="card-body recent-videos-body">
                     {% if user.videos.all %}
                         <div class="recent-videos-list">
                             {% for video in user.videos.all|dictsortreversed:"uploaded_at"|slice:":5" %}
@@ -260,13 +262,13 @@
 .upload-icon {
     width: 80px;
     height: 80px;
-    background: var(--primary-gradient);
+    background: var(--primary-color);
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     margin: 0 auto;
-    box-shadow: var(--shadow-lg);
+    box-shadow: var(--shadow-sm);
 }
 
 .upload-icon i {
@@ -275,46 +277,50 @@
 }
 
 .upload-card {
-    background: rgba(255, 255, 255, 0.9);
-    backdrop-filter: blur(10px);
-    border-radius: var(--border-radius-lg);
     padding: 2rem;
-    box-shadow: var(--shadow-lg);
-    border: 1px solid rgba(255, 255, 255, 0.2);
     margin-bottom: 2rem;
 }
 
 .upload-area {
-    border: 3px dashed #dee2e6;
+    border: 2px dashed var(--border-color);
     border-radius: var(--border-radius);
     padding: 3rem 2rem;
     text-align: center;
     transition: var(--transition);
-    background: rgba(255, 255, 255, 0.5);
+    background: var(--light-color);
     margin-bottom: 2rem;
 }
 
 .upload-area.dragover {
-    border-color: #667eea;
-    background: rgba(102, 126, 234, 0.1);
-    transform: scale(1.02);
+    border-color: var(--primary-color);
+    background: rgba(37, 99, 235, 0.05);
 }
 
 .upload-icon-large {
     width: 100px;
     height: 100px;
-    background: var(--light-gradient);
+    background: var(--light-color);
+    border: 2px solid var(--border-color);
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     margin: 0 auto;
-    box-shadow: var(--shadow-md);
 }
 
 .upload-icon-large i {
     font-size: 3rem;
-    color: #6c757d;
+    color: var(--text-muted);
+}
+
+/* アップロード完了時のアイコン */
+.upload-icon-large.upload-complete {
+    background: var(--success-color);
+    border-color: var(--success-color);
+}
+
+.upload-icon-large.upload-complete i {
+    color: white;
 }
 
 /* ファイルサイズ警告 */
@@ -352,9 +358,9 @@
 }
 
 .upload-form .form-control:focus {
-    border-color: #667eea;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-    background: white;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    background: var(--background-color);
 }
 
 .upload-form .form-label {
@@ -365,25 +371,20 @@
 
 /* 処理状況 */
 .processing-card {
-    background: rgba(255, 255, 255, 0.9);
-    backdrop-filter: blur(10px);
-    border-radius: var(--border-radius-lg);
     padding: 2rem;
-    box-shadow: var(--shadow-lg);
-    border: 1px solid rgba(255, 255, 255, 0.2);
     margin-bottom: 2rem;
 }
 
 .processing-icon {
     width: 80px;
     height: 80px;
-    background: var(--info-gradient);
+    background: var(--info-color);
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     margin: 0 auto;
-    box-shadow: var(--shadow-lg);
+    box-shadow: var(--shadow-sm);
     animation: spin 2s linear infinite;
 }
 
@@ -405,13 +406,13 @@
 }
 
 .progress-bar {
-    background: var(--primary-gradient);
+    background: var(--primary-color);
     border-radius: 6px;
 }
 
 .progress-text {
     font-weight: 600;
-    color: #667eea;
+    color: var(--primary-color);
     font-size: 1.1rem;
 }
 
@@ -426,33 +427,35 @@
     align-items: center;
     padding: 1rem;
     border-radius: var(--border-radius);
-    background: rgba(255, 255, 255, 0.7);
+    background: var(--light-color);
+    border: 1px solid var(--border-color);
     transition: var(--transition);
-    opacity: 0.5;
+    opacity: 0.6;
 }
 
 .step.active {
-    background: rgba(102, 126, 234, 0.1);
-    border: 2px solid #667eea;
+    background: rgba(37, 99, 235, 0.05);
+    border-color: var(--primary-color);
     opacity: 1;
 }
 
 .step.completed {
-    background: rgba(72, 187, 120, 0.1);
-    border: 2px solid #48bb78;
+    background: rgba(5, 150, 105, 0.05);
+    border-color: var(--success-color);
     opacity: 1;
 }
 
 .step.pending {
-    background: #f8f9fa;
-    border: 2px solid #dee2e6;
+    background: var(--light-color);
+    border-color: var(--border-color);
     opacity: 1;
 }
 
 .step-icon {
     width: 50px;
     height: 50px;
-    background: var(--light-gradient);
+    background: var(--light-color);
+    border: 1px solid var(--border-color);
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -462,21 +465,23 @@
 }
 
 .step.active .step-icon {
-    background: var(--primary-gradient);
+    background: var(--primary-color);
+    border-color: var(--primary-color);
 }
 
 .step.completed .step-icon {
-    background: var(--success-gradient);
+    background: var(--success-color);
+    border-color: var(--success-color);
 }
 
 .step.pending .step-icon {
-    background: #f8f9fa;
-    border: 2px solid #dee2e6;
+    background: var(--light-color);
+    border-color: var(--border-color);
 }
 
 .step-icon i {
     font-size: 1.25rem;
-    color: #6c757d;
+    color: var(--text-muted);
 }
 
 .step.active .step-icon i,
@@ -485,7 +490,7 @@
 }
 
 .step.pending .step-icon i {
-    color: #adb5bd;
+    color: var(--text-muted);
 }
 
 .step-content h6 {
@@ -500,23 +505,7 @@
 
 /* 最近の動画 */
 .recent-videos-card {
-    background: rgba(255, 255, 255, 0.9);
-    backdrop-filter: blur(10px);
-    border-radius: var(--border-radius-lg);
-    box-shadow: var(--shadow-lg);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    overflow: hidden;
     margin-bottom: 2rem;
-}
-
-.recent-videos-header {
-    background: var(--light-gradient);
-    border-bottom: 1px solid rgba(0,0,0,0.05);
-    font-weight: 600;
-}
-
-.recent-videos-body {
-    background: transparent;
 }
 
 .recent-videos-list {
@@ -525,17 +514,15 @@
 }
 
 .video-item {
-    background: rgba(255, 255, 255, 0.7);
-    backdrop-filter: blur(5px);
-    border: 1px solid rgba(0,0,0,0.05);
+    background: var(--background-color);
+    border: 1px solid var(--border-color);
     transition: var(--transition);
     border-radius: var(--border-radius);
 }
 
 .video-item:hover {
-    background: rgba(255, 255, 255, 0.9);
-    transform: translateX(4px);
-    box-shadow: var(--shadow-md);
+    background: var(--background-secondary);
+    border-color: var(--primary-color);
 }
 
 .video-icon i {
@@ -648,12 +635,12 @@
               
               uploadArea.innerHTML = `
                   <div class="upload-content text-center">
-                      <div class="upload-icon-large mb-4">
-                          <i class="bi bi-file-earmark-play"></i>
+                      <div class="upload-icon-large mb-4 upload-complete">
+                          <i class="bi bi-check-circle"></i>
                       </div>
-                      <h4 class="mb-3">${file.name}</h4>
-                      <p class="text-muted mb-4">ファイルサイズ: ${fileSizeMB.toFixed(2)} MB</p>
-                      <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('id_file').click()">
+                      <h4 class="mb-3 text-success">${file.name}</h4>
+                      <p class="text-success mb-4">ファイルサイズ: ${fileSizeMB.toFixed(2)} MB</p>
+                      <button type="button" class="btn btn-outline-success" onclick="document.getElementById('id_file').click()">
                           <i class="bi bi-arrow-clockwise me-2"></i>別のファイルを選択
                       </button>
                   </div>
