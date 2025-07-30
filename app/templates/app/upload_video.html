@@ -1,7 +1,7 @@
 {% extends 'app/base.html' %}
 {% load tz %}
 
-{% block title %}動画アップロード - VideoQ{% endblock %}
+{% block title %}Upload Video - VideoQ{% endblock %}
 
 {% block content %}
 
@@ -9,38 +9,38 @@
 <div class="upload-container">
     <div class="row justify-content-center">
         <div class="col-lg-8">
-            <!-- ヘッダー -->
+            <!-- Header -->
             <div class="upload-header text-center mb-5">
                 <div class="upload-icon mb-3">
                     <i class="bi bi-cloud-upload"></i>
                 </div>
-                <h1 class="page-title mb-3">動画をアップロード</h1>
-                <p class="lead text-muted">AI搭載の動画分析で、あなたの動画コンテンツを最大限活用</p>
+                <h1 class="page-title mb-3">Upload Video</h1>
+                <p class="lead text-muted">Maximize your video content with AI-powered video analysis</p>
             </div>
 
-            <!-- アップロードフォーム -->
+            <!-- Upload form -->
             <div class="card upload-card">
                 <div class="upload-area" id="upload-area">
                     <div class="upload-content text-center">
                         <div class="upload-icon-large mb-4">
                             <i class="bi bi-cloud-upload"></i>
                         </div>
-                        <h4 class="mb-3">動画ファイルをドラッグ&ドロップ</h4>
-                        <p class="text-muted mb-4">または、下のボタンからファイルを選択してください</p>
+                        <h4 class="mb-3">Drag & Drop Video File</h4>
+                        <p class="text-muted mb-4">Or select a file using the button below</p>
                         <button type="button" class="btn btn-primary btn-lg" onclick="document.getElementById('id_file').click()">
-                            <i class="bi bi-folder2-open me-2"></i>ファイルを選択
+                            <i class="bi bi-folder2-open me-2"></i>Select File
                         </button>
                         <div class="upload-info mt-4">
                             <div class="alert alert-info mb-3">
                                 <i class="bi bi-info-circle me-2"></i>
-                                <strong>アップロード制限</strong><br>
-                                対応形式: MP4, AVI, MOV, MKV<br>
-                                <span class="text-primary fw-bold">※最大アップロードサイズは {{ video_upload_max_size_mb }}MB です</span>
+                                <strong>Upload Restrictions</strong><br>
+                                Supported formats: MP4, AVI, MOV, MKV<br>
+                                <span class="text-primary fw-bold">※Maximum upload size is {{ video_upload_max_size_mb }}MB</span>
                             </div>
                             <div class="alert alert-warning" id="file-size-warning" style="display: none;">
                                 <i class="bi bi-exclamation-triangle me-2"></i>
-                                <strong>ファイルサイズが上限を超えています</strong><br>
-                                選択されたファイルは{{ video_upload_max_size_mb }}MBを超えています。より小さなファイルを選択してください。
+                                <strong>File size exceeds limit</strong><br>
+                                The selected file exceeds {{ video_upload_max_size_mb }}MB. Please select a smaller file.
                             </div>
                         </div>
                     </div>
@@ -51,7 +51,7 @@
                     
                     <div class="form-group mb-4">
                         <label for="{{ form.title.id_for_label }}" class="form-label">
-                            <i class="bi bi-tag me-2"></i>動画タイトル
+                            <i class="bi bi-tag me-2"></i>Video Title
                         </label>
                         {{ form.title }}
                         {% if form.title.errors %}
@@ -65,7 +65,7 @@
 
                     <div class="form-group mb-4">
                         <label for="{{ form.description.id_for_label }}" class="form-label">
-                            <i class="bi bi-text-paragraph me-2"></i>説明（任意）
+                            <i class="bi bi-text-paragraph me-2"></i>Description (Optional)
                         </label>
                         {{ form.description }}
                         {% if form.description.errors %}
@@ -88,16 +88,16 @@
                         {% endif %}
                     </div>
 
-                    <!-- API設定チェック警告 -->
+                    <!-- API configuration check warning -->
                     {% if not api_key_configured %}
                     <div class="alert alert-warning mb-4" id="api-key-warning">
                         <div class="d-flex align-items-start">
                             <i class="bi bi-exclamation-triangle me-3 mt-1"></i>
                             <div>
-                                <h6 class="alert-heading mb-2">API設定がまだです</h6>
-                                <p class="mb-2">動画のAI分析機能を利用するには、OpenAI APIキーの設定が必要です。</p>
+                                <h6 class="alert-heading mb-2">API not configured yet</h6>
+                                <p class="mb-2">To use the video AI analysis features, you need to set up your OpenAI API key.</p>
                                 <a href="{% url 'app:openai_key_update' %}" class="btn btn-warning btn-sm">
-                                    <i class="bi bi-key me-2"></i>API設定を行う
+                                    <i class="bi bi-key me-2"></i>Configure API Settings
                                 </a>
                             </div>
                         </div>
@@ -106,25 +106,25 @@
 
                     <div class="d-grid">
                         <button type="submit" class="btn btn-primary btn-lg" id="upload-btn" disabled 
-                                {% if not api_key_configured %}title="API設定を完了してください"{% endif %}>
-                            <i class="bi bi-upload me-2"></i>動画をアップロード
+                                {% if not api_key_configured %}title="Please complete API configuration"{% endif %}>
+                            <i class="bi bi-upload me-2"></i>Upload Video
                         </button>
                     </div>
                 </form>
             </div>
 
-            <!-- 処理状況表示エリア -->
+            <!-- Processing status display area -->
             <div class="card processing-card" id="processing-status" style="display: none;">
                 <div class="processing-header text-center mb-4">
                     <div class="processing-icon mb-3">
                         <i class="bi bi-cloud-upload"></i>
                     </div>
-                    <h4 id="processing-title">アップロード中...</h4>
-                    <p class="text-muted" id="processing-description">動画ファイルをサーバーに転送中</p>
+                    <h4 id="processing-title">Uploading...</h4>
+                    <p class="text-muted" id="processing-description">Transferring video file to server</p>
                 </div>
 
                 <div class="processing-content">
-                    <!-- アップロード進捗 -->
+                    <!-- Upload progress -->
                     <div class="progress-container mb-4" id="upload-progress">
                         <div class="progress mb-3">
                             <div class="progress-bar progress-bar-striped progress-bar-animated" 
@@ -136,11 +136,11 @@
                         </div>
                     </div>
 
-                    <!-- 完了後の案内 -->
+                    <!-- Completion guide -->
                     <div class="alert alert-info" id="completion-info" style="display: none;">
-                        <h6><i class="bi bi-info-circle me-2"></i>処理について</h6>
-                        <p class="mb-2">動画の文字起こしとインデックス化は、バックグラウンドで自動的に実行されます。</p>
-                        <p class="mb-0">処理状況は<a href="{% url 'app:video_list' %}" class="alert-link">動画一覧</a>でご確認いただけます。</p>
+                        <h6><i class="bi bi-info-circle me-2"></i>About Processing</h6>
+                        <p class="mb-2">Video transcription and indexing are automatically executed in the background.</p>
+                        <p class="mb-0">You can check the processing status in the <a href="{% url 'app:video_list' %}" class="alert-link">Video List</a>.</p>
                     </div>
 
                     <div class="processing-steps">
@@ -149,8 +149,8 @@
                                 <i class="bi bi-upload"></i>
                             </div>
                             <div class="step-content">
-                                <h6>ファイルアップロード</h6>
-                                <p class="text-muted" id="step-1-desc">動画ファイルをサーバーに転送中</p>
+                                <h6>File Upload</h6>
+                                <p class="text-muted" id="step-1-desc">Transferring video file to server</p>
                             </div>
                         </div>
                         <div class="step pending" id="step-2">
@@ -158,8 +158,8 @@
                                 <i class="bi bi-clock"></i>
                             </div>
                             <div class="step-content">
-                                <h6>処理待ち</h6>
-                                <p class="text-muted">バックグラウンドで処理を開始中</p>
+                                <h6>Pending</h6>
+                                <p class="text-muted">Starting background processing</p>
                             </div>
                         </div>
                         <div class="step pending" id="step-3">
@@ -167,8 +167,8 @@
                                 <i class="bi bi-mic"></i>
                             </div>
                             <div class="step-content">
-                                <h6>音声認識</h6>
-                                <p class="text-muted">音声を文字に変換中（バックグラウンド）</p>
+                                <h6>Speech Recognition</h6>
+                                <p class="text-muted">Converting speech to text (background)</p>
                             </div>
                         </div>
                         <div class="step pending" id="step-4">
@@ -176,31 +176,31 @@
                                 <i class="bi bi-search"></i>
                             </div>
                             <div class="step-content">
-                                <h6>検索インデックス</h6>
-                                <p class="text-muted">検索用のインデックスを作成中（バックグラウンド）</p>
+                                <h6>Search Index</h6>
+                                <p class="text-muted">Creating search index (background)</p>
                             </div>
                         </div>
                     </div>
 
                     <div class="text-center mt-4" id="action-buttons" style="display: none;">
                         <a href="{% url 'app:video_list' %}" class="btn btn-primary">
-                            <i class="bi bi-collection-play me-2"></i>動画一覧を確認
+                            <i class="bi bi-collection-play me-2"></i>Check Video List
                         </a>
                         <a href="{% url 'app:upload_video' %}" class="btn btn-outline-secondary ms-2">
-                            <i class="bi bi-plus-circle me-2"></i>別の動画をアップロード
+                            <i class="bi bi-plus-circle me-2"></i>Upload Another Video
                         </a>
                     </div>
                 </div>
             </div>
 
-            <!-- 最近アップロードした動画 -->
+            <!-- Recently uploaded videos -->
             <div class="card recent-videos-card">
                 <div class="card-header recent-videos-header d-flex justify-content-between align-items-center">
                     <h5 class="card-title mb-0">
-                        <i class="bi bi-clock-history me-2"></i>最近アップロードした動画
+                        <i class="bi bi-clock-history me-2"></i>Recently Uploaded Videos
                     </h5>
                     <a href="{% url 'app:video_list' %}" class="btn btn-outline-primary btn-sm">
-                        <i class="bi bi-arrow-right me-1"></i>すべて表示
+                        <i class="bi bi-arrow-right me-1"></i>View All
                     </a>
                 </div>
                 <div class="card-body recent-videos-body">
@@ -218,18 +218,18 @@
                                             </a>
                                         </h6>
                                         <small class="text-muted">
-                                            <i class="bi bi-calendar me-1"></i>{% timezone "Asia/Tokyo" %}{{ video.uploaded_at|date:"Y-m-d H:i" }}{% endtimezone %}
+                                            <i class="bi bi-calendar me-1"></i>{% timezone "UTC" %}{{ video.uploaded_at|date:"Y-m-d H:i" }}{% endtimezone %}
                                         </small>
                                     </div>
                                     <div class="ms-2">
                                         {% if video.status == 'pending' %}
-                                            <span class="badge bg-secondary">処理待ち</span>
+                                            <span class="badge bg-secondary">Pending</span>
                                         {% elif video.status == 'processing' %}
-                                            <span class="badge bg-info">処理中</span>
+                                            <span class="badge bg-info">Processing</span>
                                         {% elif video.status == 'completed' %}
-                                            <span class="badge bg-success">完了</span>
+                                            <span class="badge bg-success">Completed</span>
                                         {% elif video.status == 'error' %}
-                                            <span class="badge bg-danger">エラー</span>
+                                            <span class="badge bg-danger">Error</span>
                                         {% endif %}
                                     </div>
                                 </div>
@@ -239,8 +239,8 @@
                         <div class="text-center py-4">
                             <div class="empty-state">
                                 <i class="bi bi-play-circle display-1 text-muted mb-3"></i>
-                                <h6 class="mb-2">まだ動画がありません</h6>
-                                <p class="text-muted">最初の動画をアップロードしましょう！</p>
+                                <h6 class="mb-2">No videos yet</h6>
+                                <p class="text-muted">Upload your first video!</p>
                             </div>
                         </div>
                     {% endif %}
@@ -313,7 +313,7 @@
     color: var(--text-muted);
 }
 
-/* アップロード完了時のアイコン */
+/* Upload completion icon */
 .upload-icon-large.upload-complete {
     background: var(--success-color);
     border-color: var(--success-color);
@@ -323,7 +323,7 @@
     color: white;
 }
 
-/* ファイルサイズ警告 */
+/* File size warning */
 #file-size-warning {
     border-left: 4px solid #ffc107;
     background: rgba(255, 193, 7, 0.1);
@@ -333,7 +333,7 @@
     color: #856404;
 }
 
-/* アップロード制限情報 */
+/* Upload restriction info */
 .upload-info .alert-info {
     border-left: 4px solid #17a2b8;
     background: rgba(23, 162, 184, 0.1);
@@ -590,7 +590,7 @@
       }
   });
 
-  // API設定状態をグローバル変数として定義
+  // Define API configuration status as global variable
   const apiKeyConfigured = {{ api_key_configured|yesno:"true,false" }};
 
   function handleFileSelect() {
@@ -602,12 +602,12 @@
           const fileSizeMB = file.size / 1024 / 1024;
           const maxSizeMB = parseInt('{{ video_upload_max_size_mb }}');
           
-          // ファイルサイズチェック
+          // File size check
           if (fileSizeMB > maxSizeMB) {
-              // 警告を表示
+              // Show warning
               fileSizeWarning.style.display = 'block';
               uploadBtn.disabled = true;
-              uploadBtn.innerHTML = '<i class="bi bi-exclamation-triangle me-2"></i>ファイルサイズが上限を超えています';
+              uploadBtn.innerHTML = '<i class="bi bi-exclamation-triangle me-2"></i>File size exceeds limit';
               
               uploadArea.innerHTML = `
                   <div class="upload-content text-center">
@@ -615,22 +615,22 @@
                           <i class="bi bi-exclamation-triangle" style="color: white;"></i>
                       </div>
                       <h4 class="mb-3 text-danger">${file.name}</h4>
-                      <p class="text-danger mb-4">ファイルサイズ: ${fileSizeMB.toFixed(2)} MB (上限: ${maxSizeMB} MB)</p>
+                      <p class="text-danger mb-4">File size: ${fileSizeMB.toFixed(2)} MB (Limit: ${maxSizeMB} MB)</p>
                       <button type="button" class="btn btn-outline-danger" onclick="document.getElementById('id_file').click()">
-                          <i class="bi bi-arrow-clockwise me-2"></i>別のファイルを選択
+                          <i class="bi bi-arrow-clockwise me-2"></i>Select another file
                       </button>
                   </div>
               `;
           } else {
-              // 正常なファイル
+              // Valid file
               fileSizeWarning.style.display = 'none';
-              // API設定チェック
+              // API configuration check
               if (apiKeyConfigured) {
                   uploadBtn.disabled = false;
-                  uploadBtn.innerHTML = '<i class="bi bi-upload me-2"></i>動画をアップロード';
+                  uploadBtn.innerHTML = '<i class="bi bi-upload me-2"></i>Upload Video';
               } else {
                   uploadBtn.disabled = true;
-                  uploadBtn.innerHTML = '<i class="bi bi-exclamation-triangle me-2"></i>API設定が必要です';
+                  uploadBtn.innerHTML = '<i class="bi bi-exclamation-triangle me-2"></i>API not configured';
               }
               
               uploadArea.innerHTML = `
@@ -639,41 +639,41 @@
                           <i class="bi bi-check-circle"></i>
                       </div>
                       <h4 class="mb-3 text-success">${file.name}</h4>
-                      <p class="text-success mb-4">ファイルサイズ: ${fileSizeMB.toFixed(2)} MB</p>
+                      <p class="text-success mb-4">File size: ${fileSizeMB.toFixed(2)} MB</p>
                       <button type="button" class="btn btn-outline-success" onclick="document.getElementById('id_file').click()">
-                          <i class="bi bi-arrow-clockwise me-2"></i>別のファイルを選択
+                          <i class="bi bi-arrow-clockwise me-2"></i>Select another file
                       </button>
                   </div>
               `;
           }
       } else {
-          // ファイルが選択されていない場合
+          // No file selected
           fileSizeWarning.style.display = 'none';
           uploadBtn.disabled = true;
-          uploadBtn.innerHTML = '<i class="bi bi-upload me-2"></i>動画をアップロード';
+          uploadBtn.innerHTML = '<i class="bi bi-upload me-2"></i>Upload Video';
           
-          // 元のアップロードエリアを復元
+          // Restore original upload area
           uploadArea.innerHTML = `
               <div class="upload-content text-center">
                   <div class="upload-icon-large mb-4">
                       <i class="bi bi-cloud-upload"></i>
                   </div>
-                  <h4 class="mb-3">動画ファイルをドラッグ&ドロップ</h4>
-                  <p class="text-muted mb-4">または、下のボタンからファイルを選択してください</p>
+                  <h4 class="mb-3">Drag & Drop Video File</h4>
+                  <p class="text-muted mb-4">Or select a file using the button below</p>
                   <button type="button" class="btn btn-primary btn-lg" onclick="document.getElementById('id_file').click()">
-                      <i class="bi bi-folder2-open me-2"></i>ファイルを選択
+                      <i class="bi bi-folder2-open me-2"></i>Select File
                   </button>
                   <div class="upload-info mt-4">
                       <div class="alert alert-info mb-3">
                           <i class="bi bi-info-circle me-2"></i>
-                          <strong>アップロード制限</strong><br>
-                          対応形式: MP4, AVI, MOV, MKV<br>
-                          <span class="text-primary fw-bold">※最大アップロードサイズは {{ video_upload_max_size_mb }}MB です</span>
+                          <strong>Upload Restrictions</strong><br>
+                          Supported formats: MP4, AVI, MOV, MKV<br>
+                          <span class="text-primary fw-bold">※Maximum upload size is {{ video_upload_max_size_mb }}MB</span>
                       </div>
                       <div class="alert alert-warning" id="file-size-warning" style="display: none;">
                           <i class="bi bi-exclamation-triangle me-2"></i>
-                          <strong>ファイルサイズが上限を超えています</strong><br>
-                          選択されたファイルは{{ video_upload_max_size_mb }}MBを超えています。より小さなファイルを選択してください。
+                          <strong>File size exceeds limit</strong><br>
+                          The selected file exceeds {{ video_upload_max_size_mb }}MB. Please select a smaller file.
                       </div>
                   </div>
               </div>
@@ -681,9 +681,9 @@
       }
   }
 
-  // アップロードフォームの処理
+  // Upload form processing
   document.getElementById('upload-form').addEventListener('submit', function(e) {
-      e.preventDefault(); // デフォルトの送信を防止
+      e.preventDefault(); // Prevent default submission
       const form = this;
       const processingStatus = document.getElementById('processing-status');
       const progressBar = document.getElementById('progress-bar');
@@ -697,7 +697,7 @@
       // ファイルサイズを取得
       const file = fileInput.files[0];
       if (!file) {
-          alert('ファイルを選択してください');
+          alert('Please select a file');
           return;
       }
       
@@ -707,14 +707,14 @@
       const maxSizeMB = parseInt('{{ video_upload_max_size_mb }}');
       
       if (fileSizeMB > maxSizeMB) {
-          alert(`ファイルサイズが上限を超えています。\n選択されたファイル: ${fileSizeMB.toFixed(2)} MB\n上限: ${maxSizeMB} MB\n\nより小さなファイルを選択してください。`);
+          alert(`File size exceeds limit.\nSelected file: ${fileSizeMB.toFixed(2)} MB\nLimit: ${maxSizeMB} MB\n\nPlease select a smaller file.`);
           uploadBtn.disabled = false;
-          uploadBtn.innerHTML = '<i class="bi bi-upload me-2"></i>動画をアップロード';
+          uploadBtn.innerHTML = '<i class="bi bi-upload me-2"></i>Upload Video';
           return;
       }
       // ボタンを無効化
       uploadBtn.disabled = true;
-      uploadBtn.innerHTML = '<i class="bi bi-cloud-upload me-2"></i>アップロード中...';
+      uploadBtn.innerHTML = '<i class="bi bi-cloud-upload me-2"></i>Uploading...';
       // 処理状況を表示
       processingStatus.style.display = 'block';
       processingStatus.scrollIntoView({ behavior: 'smooth' });
@@ -734,7 +734,7 @@
               progressDetails.textContent = `(${loadedMB} MB / ${fileSizeMB.toFixed(2)} MB)`;
               // 進捗に応じてステップ1の説明を更新
               if (percentComplete >= 100) {
-                  step1Desc.textContent = '動画ファイルをサーバーに転送完了';
+                  step1Desc.textContent = 'File transfer complete';
                   document.getElementById('step-1').classList.remove('active');
                   document.getElementById('step-1').classList.add('completed');
               }
@@ -744,8 +744,8 @@
       xhr.addEventListener('load', function() {
           if (xhr.status === 200) {
               // アップロード完了
-              processingTitle.textContent = 'アップロード完了';
-              processingDescription.textContent = '動画ファイルのアップロードが完了しました';
+              processingTitle.textContent = 'Upload Complete';
+              processingDescription.textContent = 'Video file upload complete';
               // 進捗バーを非表示にして完了案内を表示
               document.getElementById('upload-progress').style.display = 'none';
               completionInfo.style.display = 'block';
@@ -755,21 +755,21 @@
               document.getElementById('step-2').classList.add('active');
               // 成功メッセージ
               setTimeout(() => {
-                  alert('動画のアップロードが完了しました！\n文字起こしとインデックス化はバックグラウンドで実行されます。');
+                  alert('Video upload complete!\nTranscription and indexing will be executed in the background.');
               }, 500);
           } else {
               // エラー処理
-              alert('アップロード中にエラーが発生しました。もう一度お試しください。');
+              alert('An error occurred during upload. Please try again.');
               uploadBtn.disabled = false;
-              uploadBtn.innerHTML = '<i class="bi bi-cloud-upload me-2"></i>アップロード';
+              uploadBtn.innerHTML = '<i class="bi bi-cloud-upload me-2"></i>Upload';
               processingStatus.style.display = 'none';
           }
       });
       // エラーイベント
       xhr.addEventListener('error', function() {
-          alert('アップロード中にエラーが発生しました。もう一度お試しください。');
+          alert('An error occurred during upload. Please try again.');
           uploadBtn.disabled = false;
-          uploadBtn.innerHTML = '<i class="bi bi-cloud-upload me-2"></i>アップロード';
+          uploadBtn.innerHTML = '<i class="bi bi-cloud-upload me-2"></i>Upload';
           processingStatus.style.display = 'none';
       });
       // リクエストを送信

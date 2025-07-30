@@ -1,5 +1,6 @@
+{% load i18n %}
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,7 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            /* シンプルなカラーパレット */
+            /* Simple color palette */
             --primary-color: #2563eb;
             --primary-hover: #1d4ed8;
             --secondary-color: #64748b;
@@ -25,16 +26,16 @@
             --background-color: #ffffff;
             --background-secondary: #f8fafc;
             
-            /* 控えめなシャドウ */
+            /* Subtle shadows */
             --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
             --shadow-md: 0 4px 6px rgba(0,0,0,0.07);
             --shadow-lg: 0 10px 15px rgba(0,0,0,0.1);
             
-            /* 自然な角丸 */
+            /* Natural border radius */
             --border-radius: 8px;
             --border-radius-lg: 12px;
             
-            /* 控えめなトランジション */
+            /* Subtle transitions */
             --transition: all 0.2s ease;
         }
 
@@ -52,7 +53,7 @@
             color: var(--text-color);
         }
 
-        /* ナビゲーション */
+        /* Navigation */
         .navbar {
             background: var(--background-color) !important;
             border-bottom: 1px solid var(--border-color);
@@ -99,7 +100,7 @@
             color: var(--primary-color) !important;
         }
 
-        /* カード */
+        /* Cards */
         .card {
             border: 1px solid var(--border-color);
             border-radius: var(--border-radius);
@@ -120,7 +121,7 @@
             color: var(--text-color);
         }
 
-        /* ボタン */
+        /* Buttons */
         .btn {
             border-radius: var(--border-radius);
             font-weight: 500;
@@ -183,7 +184,7 @@
             color: white;
         }
 
-        /* アラート */
+        /* Alerts */
         .alert {
             border: 1px solid var(--border-color);
             border-radius: var(--border-radius);
@@ -202,7 +203,7 @@
             color: #92400e;
         }
 
-        /* 統計カード */
+        /* Stats cards */
         .stats-card {
             background: var(--background-color);
             border: 1px solid var(--border-color);
@@ -222,7 +223,7 @@
             font-weight: 600;
         }
 
-        /* リストグループ */
+        /* List groups */
         .list-group-item {
             border: 1px solid var(--border-color);
             border-radius: var(--border-radius) !important;
@@ -235,14 +236,14 @@
             background: var(--background-secondary);
         }
 
-        /* バッジ */
+        /* Badges */
         .badge {
             border-radius: 20px;
             font-weight: 500;
             padding: 0.5rem 1rem;
         }
 
-        /* フォーム */
+        /* Forms */
         .form-control, .form-select {
             border-radius: var(--border-radius);
             border: 1px solid var(--border-color);
@@ -257,7 +258,7 @@
             background: var(--background-color);
         }
 
-        /* モーダル */
+        /* Modals */
         .modal-content {
             border: 1px solid var(--border-color);
             border-radius: var(--border-radius-lg);
@@ -270,7 +271,7 @@
             border-radius: var(--border-radius-lg) var(--border-radius-lg) 0 0;
         }
 
-        /* レスポンシブ */
+        /* Responsive */
         @media (max-width: 768px) {
             .navbar {
                 padding: 0.5rem 0;
@@ -286,7 +287,7 @@
             }
         }
 
-        /* スクロールバー */
+        /* Scrollbar */
         ::-webkit-scrollbar {
             width: 8px;
         }
@@ -305,19 +306,19 @@
             background: var(--text-color);
         }
 
-        /* ユーザー名表示 */
+        /* Username display */
         .navbar-text {
             color: var(--primary-color);
             font-weight: 500;
         }
 
-        /* メインコンテナ */
+        /* Main container */
         main.container {
             padding-top: 2rem;
             padding-bottom: 2rem;
         }
 
-        /* ページタイトル */
+        /* Page title */
         .page-title {
             color: var(--text-color);
             font-weight: 600;
@@ -325,7 +326,7 @@
             margin-bottom: 1rem;
         }
 
-        /* アクションボタン */
+        /* Action buttons */
         .action-buttons {
             display: flex;
             gap: 1rem;
@@ -347,7 +348,7 @@
     <nav class="navbar navbar-expand-lg navbar-light">
         <div class="container-fluid">
             <a class="navbar-brand" href="{% url 'app:home' %}">
-                <i class="bi bi-play-circle-fill me-2"></i>VideoQ β版
+                <i class="bi bi-play-circle-fill me-2"></i>{% trans "VideoQ Beta" %}
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
@@ -357,22 +358,22 @@
                     {% if user.is_authenticated %}
                         <li class="nav-item">
                             <a class="nav-link" href="{% url 'app:home' %}">
-                                <i class="bi bi-house"></i> ホーム
+                                <i class="bi bi-house"></i> {% trans "Home" %}
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" href="{% url 'app:video_list' %}">
-                                <i class="bi bi-collection-play"></i> 動画一覧
+                                <i class="bi bi-collection-play"></i> {% trans "Videos" %}
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" href="{% url 'app:video_group_list' %}">
-                                <i class="bi bi-collection"></i> 動画グループ
+                                <i class="bi bi-collection"></i> {% trans "Video Groups" %}
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" href="{% url 'app:upload_video' %}">
-                                <i class="bi bi-upload"></i> アップロード
+                                <i class="bi bi-upload"></i> {% trans "Upload" %}
                             </a>
                         </li>
                     {% endif %}
@@ -380,30 +381,30 @@
                 <ul class="navbar-nav ms-auto">
                     {% if user.is_authenticated %}
                         <li class="nav-item">
-                            <span class="navbar-text">こんにちは, {{ user.username }}さん</span>
+                            <span class="navbar-text">{% trans "Hello" %}, {{ user.username }}</span>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" href="{% url 'app:openai_key_update' %}">
-                                <i class="bi bi-key"></i> OpenAI APIキー設定
+                                <i class="bi bi-key"></i> {% trans "OpenAI API Key Settings" %}
                             </a>
                         </li>
                         <li class="nav-item">
                             <form method="post" action="{% url 'app:logout' %}" class="d-inline">
                                 {% csrf_token %}
                                 <button type="submit" class="nav-link btn btn-link p-0">
-                                    <i class="bi bi-box-arrow-right"></i> ログアウト
+                                    <i class="bi bi-box-arrow-right"></i> {% trans "Logout" %}
                                 </button>
                             </form>
                         </li>
                     {% else %}
                         <li class="nav-item">
                             <a class="nav-link" href="{% url 'app:login' %}">
-                                <i class="bi bi-box-arrow-in-right"></i> ログイン
+                                <i class="bi bi-box-arrow-in-right"></i> {% trans "Login" %}
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" href="{% url 'app:signup' %}">
-                                <i class="bi bi-person-plus"></i> サインアップ
+                                <i class="bi bi-person-plus"></i> {% trans "Sign Up" %}
                             </a>
                         </li>
                     {% endif %}
@@ -411,9 +412,9 @@
             </div>
         </div>
     </nav>
-
+    
     <div style="background: #fef3c7; color: #92400e; border: 1px solid #fde68a; border-radius: 8px; padding: 12px; margin: 16px 0; text-align: center; font-weight: 500;">
-        このサービスは現在 <span style="color: #d97706;">β版</span> です。動作や仕様が予告なく変更される場合があります。
+        {% trans "This service is currently in" %} <span style="color: #d97706;">{% trans "Beta" %}</span>. {% trans "Features and specifications may change without notice." %}
     </div>
 
     <main class="container" style="flex:1;">
@@ -421,17 +422,17 @@
         {% endblock %}
     </main>
 
-    <!-- フッター -->
+    <!-- Footer -->
     <footer class="bg-light mt-5 py-4">
         <div class="container">
             <div class="row">
                 <div class="col-12 text-center">
                     <div class="mb-3">
                         <a href="{% url 'app:commercial_disclosure' %}" class="text-decoration-none text-muted">
-                            <i class="bi bi-info-circle me-1"></i>特定商取引法に基づく表記
+                            <i class="bi bi-info-circle me-1"></i>{% trans "Commercial Disclosure" %}
                         </a>
                     </div>
-                    <p class="text-muted mb-0">&copy; 2025 [ダミー] 株式会社サンプル. All rights reserved.</p>
+                    <p class="text-muted mb-0">&copy; 2025 [Dummy] Sample Corporation. {% trans "All rights reserved." %}</p>
                 </div>
             </div>
         </div>
@@ -439,7 +440,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // シンプルなアクティブナビリンクのハイライト
+        // {% trans "Simple active nav link highlighting" %}
         document.addEventListener('DOMContentLoaded', function() {
             const currentPath = window.location.pathname;
             const navLinks = document.querySelectorAll('.nav-link');

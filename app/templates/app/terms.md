@@ -1,12 +1,12 @@
-# 利用規約（ダミー）
+# Terms of Service (Dummy)
 
-このファイルはダミーコンテンツです。
+This file contains dummy content.
 
-実際の利用規約は別途作成してください。
+Please create an actual terms of service separately.
 
-## 注意事項
-- 本ファイルは開発・テスト用のダミーです
-- 本番環境では適切な利用規約に置き換えてください
-- 法的な内容については専門家に相談してください
+## Important Notes
+- This file is a dummy for development and testing purposes
+- Please replace with appropriate terms of service in production
+- Consult with experts regarding legal content
 
 ---

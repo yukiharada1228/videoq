@@ -1,35 +1,35 @@
 {% extends 'app/base.html' %}
 {% load tz %}
 
-{% block title %}{{ group.name }}（共有） - VideoQ{% endblock %}
+{% block title %}{{ group.name }} (Shared) - VideoQ{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
-    <!-- アクセス情報表示 -->
+    <!-- Access information display -->
     <div class="alert alert-info mb-3" role="alert">
         <div class="d-flex justify-content-between align-items-center">
             <div>
                 <i class="bi bi-people"></i> 
-                このアカウントの同時アクセス数: <strong>{{ current_active_count }}/{{ max_concurrent_users }}</strong>
+                Current concurrent access for this account: <strong>{{ current_active_count }}/{{ max_concurrent_users }}</strong>
             </div>
             <div class="text-muted">
-                <small>セッションタイムアウト: {{ session_timeout_minutes }}分</small>
+                <small>Session timeout: {{ session_timeout_minutes }} minutes</small>
             </div>
         </div>
     </div>
-    <!-- スマホ用タブUI -->
+    <!-- Mobile tab UI -->
     <div class="d-md-none mb-4">
       <div class="card">
         <div class="card-body p-0">
           <ul class="nav nav-pills nav-fill" id="mobileTab" role="tablist">
             <li class="nav-item" role="presentation">
               <button class="nav-link rounded-0 w-100" id="tab-list" data-bs-toggle="tab" data-bs-target="#tabListPane" type="button" role="tab" aria-controls="tabListPane" aria-selected="false">
-                <i class="bi bi-collection-play me-2"></i>動画一覧
+                <i class="bi bi-collection-play me-2"></i>Video List
               </button>
             </li>
             <li class="nav-item" role="presentation">
               <button class="nav-link rounded-0 w-100 active" id="tab-playerchat" data-bs-toggle="tab" data-bs-target="#tabPlayerChatPane" type="button" role="tab" aria-controls="tabPlayerChatPane" aria-selected="true">
-                <i class="bi bi-play-circle me-2"></i>再生＋チャット
+                <i class="bi bi-play-circle me-2"></i>Play + Chat
               </button>
             </li>
           </ul>
@@ -41,7 +41,7 @@
             <div class="card h-100">
                 <div class="card-header">
                     <h6 class="card-title mb-0">
-                        <i class="bi bi-collection-play"></i> 動画一覧 ({{ video_count }}本)
+                        <i class="bi bi-collection-play"></i> Video List ({{ video_count }} videos)
                     </h6>
                 </div>
                 <div class="card-body p-0" style="max-height: 70vh; overflow-y: auto;">
@@ -55,7 +55,7 @@
                                     <div class="d-flex flex-column">
                                         <h6 class="mb-1 video-title">{{ video.title }}</h6>
                                         <small class="text-muted">
-                                            {% timezone "Asia/Tokyo" %}{{ video.uploaded_at|date:"m/d H:i" }}{% endtimezone %}
+                                            {% timezone "UTC" %}{{ video.uploaded_at|date:"m/d H:i" }}{% endtimezone %}
                                         </small>
                                     </div>
                                 </div>
@@ -64,7 +64,7 @@
                     {% else %}
                         <div class="text-center py-4">
                             <i class="bi bi-collection display-4 text-muted mb-3"></i>
-                            <p class="text-muted">まだ動画が追加されていません</p>
+                            <p class="text-muted">No videos have been added yet</p>
                         </div>
                     {% endif %}
                 </div>
@@ -74,7 +74,7 @@
             <div class="card h-100">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h6 class="card-title mb-0">
-                        <i class="bi bi-play-circle"></i> 動画再生
+                        <i class="bi bi-play-circle"></i> Video Player
                     </h6>
                 </div>
                 <div class="card-body">
@@ -83,7 +83,7 @@
                             <div class="video-container mb-3">
                                 <video id="videoPlayer" controls class="w-100 h-100">
                                     <source src="{{ completed_videos.first.file.url }}?share_token={{ group.share_token }}" type="video/mp4">
-                                    お使いのブラウザは動画再生に対応していません。
+                                    Your browser does not support video playback.
                                 </video>
                             </div>
                             <h5 class="mb-3" id="current-video-title">{{ completed_videos.first.title }}</h5>
@@ -92,8 +92,8 @@
                     {% else %}
                         <div class="text-center py-5">
                             <i class="bi bi-play-circle display-1 text-muted"></i>
-                            <h5 class="mt-3">動画を選択してください</h5>
-                            <p class="text-muted">左側の動画一覧から再生したい動画を選択してください</p>
+                            <h5 class="mt-3">Please select a video</h5>
+                            <p class="text-muted">Please select a video from the video list on the left to play</p>
                         </div>
                     {% endif %}
                 </div>
@@ -163,7 +163,7 @@
                                 <div class="d-flex flex-column">
                                     <h6 class="mb-1 video-title">{{ video.title }}</h6>
                                     <small class="text-muted">
-                                        {% timezone "Asia/Tokyo" %}{{ video.uploaded_at|date:"m/d H:i" }}{% endtimezone %}
+                                        {% timezone "UTC" %}{{ video.uploaded_at|date:"m/d H:i" }}{% endtimezone %}
                                     </small>
                                 </div>
                             </div>

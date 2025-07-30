@@ -1,25 +1,25 @@
 {% extends 'app/base.html' %}
 {% load tz %}
 
-{% block title %}動画一覧 - VideoQ{% endblock %}
+{% block title %}Video List - VideoQ{% endblock %}
 
 {% block content %}
 <div class="row">
     <div class="col-12">
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1><i class="bi bi-collection-play"></i> 動画一覧</h1>
+            <h1><i class="bi bi-collection-play"></i> Video List</h1>
             <a href="{% url 'app:upload_video' %}" class="btn btn-primary">
-                <i class="bi bi-plus-circle"></i> 新規アップロード
+                <i class="bi bi-plus-circle"></i> Upload New
             </a>
         </div>
 
-        <!-- 統計情報カード -->
+        <!-- Statistics cards -->
         <div class="row mb-4">
             <div class="col-md-2 col-sm-4 col-6 mb-3">
                 <div class="card text-center">
                     <div class="card-body">
                         <h5 class="card-title text-primary">{{ total_videos }}</h5>
-                        <p class="card-text small">総動画数</p>
+                        <p class="card-text small">Total Videos</p>
                     </div>
                 </div>
             </div>
@@ -27,7 +27,7 @@
                 <div class="card text-center">
                     <div class="card-body">
                         <h5 class="card-title text-success">{{ completed_videos }}</h5>
-                        <p class="card-text small">完了</p>
+                        <p class="card-text small">Completed</p>
                     </div>
                 </div>
             </div>
@@ -35,7 +35,7 @@
                 <div class="card text-center">
                     <div class="card-body">
                         <h5 class="card-title text-warning">{{ pending_videos }}</h5>
-                        <p class="card-text small">処理待ち</p>
+                        <p class="card-text small">Pending</p>
                     </div>
                 </div>
             </div>
@@ -43,7 +43,7 @@
                 <div class="card text-center">
                     <div class="card-body">
                         <h5 class="card-title text-info">{{ processing_videos }}</h5>
-                        <p class="card-text small">処理中</p>
+                        <p class="card-text small">Processing</p>
                     </div>
                 </div>
             </div>
@@ -51,7 +51,7 @@
                 <div class="card text-center">
                     <div class="card-body">
                         <h5 class="card-title text-danger">{{ error_videos }}</h5>
-                        <p class="card-text small">エラー</p>
+                        <p class="card-text small">Error</p>
                     </div>
                 </div>
             </div>
@@ -65,36 +65,36 @@
                         <div class="card-body">
                             <h6 class="card-title">{{ video.title|truncatechars:30 }}</h6>
                             <p class="card-text small text-muted">
-                                {{ video.description|truncatechars:50|default:"説明なし" }}
+                                {{ video.description|truncatechars:50|default:"No description" }}
                             </p>
                             
-                            <!-- ステータスバッジ -->
+                            <!-- Status badge -->
                             <div class="mb-2">
                                 {% if video.status == 'completed' %}
-                                    <span class="badge bg-success">完了</span>
+                                    <span class="badge bg-success">Completed</span>
                                 {% elif video.status == 'processing' %}
-                                    <span class="badge bg-info">処理中</span>
+                                    <span class="badge bg-info">Processing</span>
                                 {% elif video.status == 'pending' %}
-                                    <span class="badge bg-warning">処理待ち</span>
+                                    <span class="badge bg-warning">Pending</span>
                                 {% elif video.status == 'error' %}
-                                    <span class="badge bg-danger">エラー</span>
-                                    <!-- エラー状態の場合は再処理ボタンを表示 -->
+                                    <span class="badge bg-danger">Error</span>
+                                    <!-- Show reprocess button for error status -->
                                     <button class="btn btn-sm btn-outline-warning ms-2" 
                                             onclick="reprocessVideo({{ video.id }})" 
-                                            title="動画を再処理">
+                                            title="Reprocess video">
                                         <i class="bi bi-arrow-clockwise"></i>
                                     </button>
                                 {% endif %}
                             </div>
                             
                             <p class="card-text small text-muted">
-                                <i class="bi bi-calendar"></i> {% timezone "Asia/Tokyo" %}{{ video.uploaded_at|date:"Y/m/d H:i" }}{% endtimezone %}
+                                <i class="bi bi-calendar"></i> {% timezone "UTC" %}{{ video.uploaded_at|date:"Y/m/d H:i" }}{% endtimezone %}
                             </p>
                         </div>
                         <div class="card-footer bg-transparent">
                             <div class="d-flex justify-content-between">
                                 <a href="{% url 'app:video_detail' video.pk %}" class="btn btn-sm btn-outline-primary">
-                                    <i class="bi bi-eye"></i> 詳細
+                                    <i class="bi bi-eye"></i> Details
                                 </a>
                                 <div class="btn-group" role="group">
                                     <a href="{% url 'app:video_edit' video.pk %}" class="btn btn-sm btn-outline-secondary">
@@ -111,16 +111,16 @@
                 {% endfor %}
             </div>
 
-            <!-- ページネーション -->
+            <!-- Pagination -->
             {% if is_paginated %}
-            <nav aria-label="動画一覧のページネーション">
+            <nav aria-label="Video list pagination">
                 <ul class="pagination justify-content-center">
                     {% if page_obj.has_previous %}
                         <li class="page-item">
-                            <a class="page-link" href="?page=1">&laquo; 最初</a>
+                            <a class="page-link" href="?page=1">&laquo; First</a>
                         </li>
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}">前へ</a>
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a>
                         </li>
                     {% endif %}
 
@@ -132,10 +132,10 @@
 
                     {% if page_obj.has_next %}
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.next_page_number }}">次へ</a>
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a>
                         </li>
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">最後 &raquo;</a>
+                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">Last &raquo;</a>
                         </li>
                     {% endif %}
                 </ul>
@@ -145,10 +145,10 @@
         {% else %}
             <div class="text-center py-5">
                 <i class="bi bi-collection-play display-1 text-muted"></i>
-                <h3 class="mt-3">動画がありません</h3>
-                <p class="text-muted">最初の動画をアップロードしてみましょう！</p>
+                <h3 class="mt-3">No videos</h3>
+                <p class="text-muted">Upload your first video!</p>
                 <a href="{% url 'app:upload_video' %}" class="btn btn-primary">
-                    <i class="bi bi-upload"></i> 動画をアップロード
+                    <i class="bi bi-upload"></i> Upload Video
                 </a>
             </div>
         {% endif %}
@@ -157,7 +157,7 @@
 
 <script>
 function reprocessVideo(videoId) {
-    if (confirm('この動画を再処理しますか？')) {
+    if (confirm('Do you want to reprocess this video?')) {
         fetch(`/video/${videoId}/reprocess/`, {
             method: 'POST',
             headers: {
@@ -168,15 +168,15 @@ function reprocessVideo(videoId) {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                alert('動画の再処理を開始しました。');
-                location.reload(); // ページを再読み込み
+                alert('Video reprocessing started.');
+                location.reload(); // Reload page
             } else {
-                alert('再処理の開始に失敗しました: ' + data.error);
+                alert('Failed to start reprocessing: ' + data.error);
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('再処理の開始に失敗しました。');
+            alert('Failed to start reprocessing.');
         });
     }
 }

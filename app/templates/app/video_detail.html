@@ -6,20 +6,20 @@
 {% block content %}
 <div class="container-fluid mt-4">
     <div class="row">
-        <!-- 動画プレイヤー -->
+        <!-- Video player -->
         <div class="col-lg-8">
             <div class="card">
                 <div class="card-header">
                     <h4>{{ video.title }}</h4>
                     <small class="text-muted">
-                        アップロード: {% timezone "Asia/Tokyo" %}{{ video.uploaded_at|date:"Y-m-d H:i" }}{% endtimezone %} | 
-                        ステータス: 
+                        Upload: {% timezone "UTC" %}{{ video.uploaded_at|date:"Y-m-d H:i" }}{% endtimezone %} | 
+                        Status: 
                         {% if video.status == 'pending' %}
-                            <span class="badge bg-secondary">処理待ち</span>
+                            <span class="badge bg-secondary">Pending</span>
                         {% elif video.status == 'processing' %}
-                            <span class="badge bg-info">処理中</span>
+                            <span class="badge bg-info">Processing</span>
                         {% elif video.status == 'completed' %}
-                            <span class="badge bg-success">完了</span>
+                            <span class="badge bg-success">Completed</span>
                         {% elif video.status == 'error' %}
                             <span class="badge bg-danger">{{ video.error_message }}</span>
                         {% endif %}
@@ -29,17 +29,17 @@
                     {% if video.status == 'completed' %}
                         <video id="videoPlayer" controls class="w-100" style="max-height: 400px;">
                             <source src="{{ video.file.url }}" type="video/mp4">
-                            お使いのブラウザは動画再生に対応していません。
+                            Your browser does not support video playback.
                         </video>
                         
-                        <!-- コントロール -->
+                        <!-- Controls -->
                         <div class="mt-3">
                             <div class="row">
                                 <div class="col-md-6">
-                                    <label for="jumpTime" class="form-label">時間ジャンプ</label>
+                                    <label for="jumpTime" class="form-label">Time Jump</label>
                                     <div class="input-group">
-                                        <input type="number" class="form-control" id="jumpTime" placeholder="秒" step="0.1" min="0">
-                                        <button class="btn btn-outline-primary" type="button" onclick="jumpToTime()">ジャンプ</button>
+                                        <input type="number" class="form-control" id="jumpTime" placeholder="seconds" step="0.1" min="0">
+                                        <button class="btn btn-outline-primary" type="button" onclick="jumpToTime()">Jump</button>
                                     </div>
                                 </div>
                             </div>
@@ -48,18 +48,18 @@
                         <div class="text-center py-5">
                             {% if video.status == 'pending' %}
                                 <i class="bi bi-clock display-1 text-muted"></i>
-                                <h5 class="mt-3">処理待ち</h5>
-                                <p class="text-muted">動画の処理が開始されるまでお待ちください。</p>
+                                <h5 class="mt-3">Pending</h5>
+                                <p class="text-muted">Please wait for video processing to start.</p>
                             {% elif video.status == 'processing' %}
                                 <i class="bi bi-gear display-1 text-muted"></i>
-                                <h5 class="mt-3">処理中</h5>
-                                <p class="text-muted">動画の文字起こしと埋め込み処理中です。</p>
+                                <h5 class="mt-3">Processing</h5>
+                                <p class="text-muted">Video transcription and embedding processing in progress.</p>
                                 <div class="spinner-border text-primary" role="status">
                                     <span class="visually-hidden">Loading...</span>
                                 </div>
                             {% elif video.status == 'error' %}
                                 <i class="bi bi-exclamation-triangle display-1 text-danger"></i>
-                                <h5 class="mt-3">エラーが発生しました</h5>
+                                <h5 class="mt-3">An error occurred</h5>
                                 <p class="text-danger">{{ video.error_message }}</p>
                             {% endif %}
                         </div>
@@ -68,39 +68,39 @@
             </div>
         </div>
         
-        <!-- 動画情報 -->
+        <!-- Video information -->
         <div class="col-lg-4">
             <div class="card h-100">
                 <div class="card-header">
-                    <h6><i class="bi bi-info-circle"></i> 動画情報</h6>
+                    <h6><i class="bi bi-info-circle"></i> Video Information</h6>
                 </div>
                 <div class="card-body">
                     {% if video.description %}
-                        <p><strong>説明:</strong> {{ video.description }}</p>
+                        <p><strong>Description:</strong> {{ video.description }}</p>
                     {% endif %}
                     
                     {% if video.status == 'completed' %}
-                        <!-- セグメント数・チャンク数の表示を削除 -->
+                        <!-- Removed segment count and chunk count display -->
                     {% endif %}
                     
                     <div class="d-flex gap-2 mt-3">
                         <a href="{% url 'app:video_edit' video.pk %}" class="btn btn-outline-primary btn-sm">
-                            <i class="bi bi-pencil"></i> 編集
+                            <i class="bi bi-pencil"></i> Edit
                         </a>
                         <a href="{% url 'app:delete_video' video.pk %}" class="btn btn-outline-danger btn-sm">
-                            <i class="bi bi-trash"></i> 削除
+                            <i class="bi bi-trash"></i> Delete
                         </a>
                     </div>
                     
                     {% if video.status == 'completed' and video.transcript %}
                         <hr>
                         <h6>
-                            <i class="bi bi-file-text"></i> 文字起こしテキスト
+                            <i class="bi bi-file-text"></i> Transcript Text
                             <button class="btn btn-sm btn-outline-secondary ms-2" type="button" data-bs-toggle="collapse" data-bs-target="#transcriptCollapse" aria-expanded="false" aria-controls="transcriptCollapse">
-                                <i class="bi bi-chevron-down"></i> 展開
+                                <i class="bi bi-chevron-down"></i> Expand
                             </button>
                             <button class="btn btn-sm btn-outline-primary ms-2" onclick="downloadTranscript()">
-                                <i class="bi bi-download"></i> ダウンロード
+                                <i class="bi bi-download"></i> Download
                             </button>
                         </h6>
                         <div class="collapse" id="transcriptCollapse">
@@ -117,33 +117,33 @@
 
 {% if video.status == 'completed' %}
 <script>
-// 動画プレイヤー
+// Video player
 const video = document.getElementById('videoPlayer');
 
-// URLパラメータから時間を取得して自動ジャンプ
+// Get time from URL parameters and auto-jump
 {% if jump_time %}
 document.addEventListener('DOMContentLoaded', function() {
     setTimeout(function() {
         seekToTime({{ jump_time }});
-    }, 1000); // 1秒後に実行（動画の読み込みを待つ）
+    }, 1000); // Execute after 1 second (wait for video to load)
 });
 {% endif %}
 
-// URLハッシュフラグメントから時間を取得して自動ジャンプ
+// Get time from URL hash fragment and auto-jump
 document.addEventListener('DOMContentLoaded', function() {
-    // URLハッシュフラグメントをチェック
+    // Check URL hash fragment
     const hash = window.location.hash;
     if (hash && hash.startsWith('#time=')) {
-        const time = parseFloat(hash.substring(6)); // '#time=' の後ろの部分を取得
+        const time = parseFloat(hash.substring(6)); // Get part after '#time='
         if (!isNaN(time) && time >= 0) {
             setTimeout(function() {
                 seekToTime(time);
-            }, 1000); // 1秒後に実行（動画の読み込みを待つ）
+            }, 1000); // Execute after 1 second (wait for video to load)
         }
     }
 });
 
-// 時間ジャンプ機能
+// Time jump function
 function jumpToTime() {
     const timeInput = document.getElementById('jumpTime');
     const time = parseFloat(timeInput.value);
@@ -154,7 +154,7 @@ function jumpToTime() {
     }
 }
 
-// 外部からの時間ジャンプ（検索結果から呼び出し）
+// External time jump (called from search results)
 function seekToTime(time) {
     if (!isNaN(time) && time >= 0) {
         video.currentTime = time;
@@ -162,9 +162,9 @@ function seekToTime(time) {
     }
 }
 
-// キーボードショートカット
+// Keyboard shortcuts
 document.addEventListener('keydown', function(e) {
-    if (e.target.tagName === 'INPUT') return; // 入力フィールドでは無効
+    if (e.target.tagName === 'INPUT') return; // Disable in input fields
     
     switch(e.code) {
         case 'Space':
@@ -186,7 +186,7 @@ document.addEventListener('keydown', function(e) {
     }
 });
 
-// 文字起こしテキストをダウンロード
+// Download transcript text
 function downloadTranscript() {
     const transcriptText = `{{ video.transcript|escapejs }}`;
     const videoTitle = `{{ video.title|escapejs }}`;
@@ -201,7 +201,7 @@ function downloadTranscript() {
     window.URL.revokeObjectURL(url);
 }
 
-// 展開/折りたたみボタンのアイコンを更新
+// Update expand/collapse button icon
 document.addEventListener('DOMContentLoaded', function() {
     const transcriptCollapse = document.getElementById('transcriptCollapse');
     const toggleButton = document.querySelector('[data-bs-target="#transcriptCollapse"]');
@@ -210,13 +210,13 @@ document.addEventListener('DOMContentLoaded', function() {
         transcriptCollapse.addEventListener('show.bs.collapse', function() {
             const icon = toggleButton.querySelector('i');
             icon.className = 'bi bi-chevron-up';
-            toggleButton.innerHTML = '<i class="bi bi-chevron-up"></i> 折りたたみ';
+            toggleButton.innerHTML = '<i class="bi bi-chevron-up"></i> Collapse';
         });
         
         transcriptCollapse.addEventListener('hide.bs.collapse', function() {
             const icon = toggleButton.querySelector('i');
             icon.className = 'bi bi-chevron-down';
-            toggleButton.innerHTML = '<i class="bi bi-chevron-down"></i> 展開';
+            toggleButton.innerHTML = '<i class="bi bi-chevron-down"></i> Expand';
         });
     }
 });
