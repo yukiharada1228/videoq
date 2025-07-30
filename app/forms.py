@@ -5,6 +5,7 @@ from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
+from django.utils.translation import gettext as _
 from .models import Video, VideoGroup
 import os
 
@@ -16,26 +17,28 @@ class SignUpForm(UserCreationForm):
     FORM_CONTROL_CLASS = "form-control"
 
     email = forms.EmailField(
-        label="メールアドレス",
+        label=_("Email Address"),
         required=True,
         widget=forms.EmailInput(attrs={"class": FORM_CONTROL_CLASS}),
     )
     username = forms.CharField(
-        label="ユーザー名", widget=forms.TextInput(attrs={"class": FORM_CONTROL_CLASS})
+        label=_("Username"), widget=forms.TextInput(attrs={"class": FORM_CONTROL_CLASS})
     )
     password1 = forms.CharField(
-        label="パスワード",
+        label=_("Password"),
         widget=forms.PasswordInput(attrs={"class": FORM_CONTROL_CLASS}),
     )
     password2 = forms.CharField(
-        label="パスワード（確認）",
+        label=_("Password (Confirm)"),
         widget=forms.PasswordInput(attrs={"class": FORM_CONTROL_CLASS}),
     )
     agree_terms = forms.BooleanField(
-        label='<a href="/terms/" target="_blank">利用規約</a>および<a href="/privacy/" target="_blank">プライバシーポリシー</a>に同意する',
+        label=_(
+            '<a href="/terms/" target="_blank">Terms of Service</a> and <a href="/privacy/" target="_blank">Privacy Policy</a> agreement'
+        ),
         required=True,
         error_messages={
-            "required": "利用規約とプライバシーポリシーへの同意が必要です。"
+            "required": _("You must agree to the Terms of Service and Privacy Policy.")
         },
     )
 
@@ -52,14 +55,14 @@ class SignUpForm(UserCreationForm):
         return self._check_field_exists(
             "username",
             self.cleaned_data.get("username"),
-            "このユーザー名は既に使用されています。",
+            _("This username is already taken."),
         )
 
     def clean_email(self):
         return self._check_field_exists(
             "email",
             self.cleaned_data.get("email"),
-            "このメールアドレスは既に登録されています。",
+            _("This email address is already registered."),
         )
 
     def save(self, commit=True):
@@ -72,12 +75,14 @@ class SignUpForm(UserCreationForm):
         return user
 
     def _send_activation_email(self, user):
-        subject = "VideoQ登録確認"
-        message_template = """
-ご登録ありがとうございます。
-以下URLをクリックして登録を完了してください。
+        subject = _("VideoQ Registration Confirmation")
+        message_template = _(
+            """
+Thank you for registering.
+Please click the following URL to complete your registration.
 
 """
+        )
         uid = urlsafe_base64_encode(force_bytes(user.pk))
         token = default_token_generator.make_token(user)
         activate_url = settings.FRONTEND_URL + f"/activate/{uid}/{token}/"

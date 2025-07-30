@@ -15,6 +15,7 @@ app_name = "app"
 
 urlpatterns = [
     path("health/", views.health_check, name="health_check"),
+    path("set-language/", views.set_language, name="set_language"),
     path("", views.HomeView.as_view(), name="home"),
     path("upload/", views.VideoUploadView.as_view(), name="upload_video"),
     path("videos/", views.VideoListView.as_view(), name="video_list"),

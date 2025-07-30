@@ -379,6 +379,32 @@
                     {% endif %}
                 </ul>
                 <ul class="navbar-nav ms-auto">
+                    <!-- Language Selector -->
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="languageDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-globe"></i> {% trans "Language" %}
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="languageDropdown">
+                            <li>
+                                <form method="post" action="{% url 'app:set_language' %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="language" value="en">
+                                    <button type="submit" class="dropdown-item {% if LANGUAGE_CODE == 'en' or LANGUAGE_CODE == 'en-us' %}active{% endif %}">
+                                        English
+                                    </button>
+                                </form>
+                            </li>
+                            <li>
+                                <form method="post" action="{% url 'app:set_language' %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="language" value="ja">
+                                    <button type="submit" class="dropdown-item {% if LANGUAGE_CODE == 'ja' %}active{% endif %}">
+                                        日本語
+                                    </button>
+                                </form>
+                            </li>
+                        </ul>
+                    </li>
                     {% if user.is_authenticated %}
                         <li class="nav-item">
                             <span class="navbar-text">{% trans "Hello" %}, {{ user.username }}</span>

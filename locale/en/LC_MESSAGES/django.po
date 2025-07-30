@@ -1,0 +1,200 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-07-30 02:52+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+#: app/forms.py:20
+msgid "Email Address"
+msgstr ""
+
+#: app/forms.py:25
+msgid "Username"
+msgstr ""
+
+#: app/forms.py:28
+msgid "Password"
+msgstr ""
+
+#: app/forms.py:32
+msgid "Password (Confirm)"
+msgstr ""
+
+#: app/forms.py:36
+msgid ""
+"<a href=\"/terms/\" target=\"_blank\">Terms of Service</a> and <a href=\"/"
+"privacy/\" target=\"_blank\">Privacy Policy</a> agreement"
+msgstr ""
+
+#: app/forms.py:39
+msgid "You must agree to the Terms of Service and Privacy Policy."
+msgstr ""
+
+#: app/forms.py:56
+msgid "This username is already taken."
+msgstr ""
+
+#: app/forms.py:63
+msgid "This email address is already registered."
+msgstr ""
+
+#: app/forms.py:76
+msgid "VideoQ Registration Confirmation"
+msgstr ""
+
+#: app/forms.py:77
+msgid ""
+"\n"
+"Thank you for registering.\n"
+"Please click the following URL to complete your registration.\n"
+"\n"
+msgstr ""
+
+#: app/templates/app/base.html:351 app/templates/app/home.html:49
+msgid "VideoQ Beta"
+msgstr ""
+
+#: app/templates/app/base.html:361
+msgid "Home"
+msgstr ""
+
+#: app/templates/app/base.html:366
+msgid "Videos"
+msgstr ""
+
+#: app/templates/app/base.html:371 app/templates/app/home.html:86
+#: app/templates/app/home.html:98
+msgid "Video Groups"
+msgstr ""
+
+#: app/templates/app/base.html:376
+msgid "Upload"
+msgstr ""
+
+#: app/templates/app/base.html:385
+msgid "Language"
+msgstr ""
+
+#: app/templates/app/base.html:410
+msgid "Hello"
+msgstr ""
+
+#: app/templates/app/base.html:414
+msgid "OpenAI API Key Settings"
+msgstr ""
+
+#: app/templates/app/base.html:421
+msgid "Logout"
+msgstr ""
+
+#: app/templates/app/base.html:428
+msgid "Login"
+msgstr ""
+
+#: app/templates/app/base.html:433
+msgid "Sign Up"
+msgstr ""
+
+#: app/templates/app/base.html:443
+msgid "This service is currently in"
+msgstr ""
+
+#: app/templates/app/base.html:443
+msgid "Beta"
+msgstr ""
+
+#: app/templates/app/base.html:443
+msgid "Features and specifications may change without notice."
+msgstr ""
+
+#: app/templates/app/base.html:458
+msgid "Commercial Disclosure"
+msgstr ""
+
+#: app/templates/app/base.html:461
+msgid "All rights reserved."
+msgstr ""
+
+#: app/templates/app/base.html:469
+msgid "Simple active nav link highlighting"
+msgstr ""
+
+#: app/templates/app/home.html:14
+msgid "Welcome to VideoQ!"
+msgstr ""
+
+#: app/templates/app/home.html:15
+msgid ""
+"To use the video AI analysis features, you need to set up your OpenAI API "
+"key first."
+msgstr ""
+
+#: app/templates/app/home.html:18 app/templates/app/home.html:38
+msgid "Configure API Settings"
+msgstr ""
+
+#: app/templates/app/home.html:21 app/templates/app/home.html:57
+msgid "Upload Video"
+msgstr ""
+
+#: app/templates/app/home.html:35
+msgid "API configuration not completed"
+msgstr ""
+
+#: app/templates/app/home.html:36
+msgid ""
+"To use the video AI analysis features, you need to set up your OpenAI API "
+"key."
+msgstr ""
+
+#: app/templates/app/home.html:52
+msgid "AI-powered video management platform"
+msgstr ""
+
+#: app/templates/app/home.html:53
+msgid "Make video transcription, grouping, and chat easier with AI"
+msgstr ""
+
+#: app/templates/app/home.html:60
+msgid "Create Group"
+msgstr ""
+
+#: app/templates/app/home.html:72
+msgid "Total Videos"
+msgstr ""
+
+#: app/templates/app/home.html:79
+msgid "Processed Videos"
+msgstr ""
+
+#: app/templates/app/home.html:101
+msgid "View All"
+msgstr ""
+
+#: app/views.py:653
+msgid "OpenAI API key saved successfully."
+msgstr ""
+
+#: app/views.py:660
+#, python-brace-format
+msgid ""
+"You have {count} videos in error status. You can reprocess them from the "
+"video list."
+msgstr ""
+
+#: app/views.py:723
+msgid "Invalid action."
+msgstr ""

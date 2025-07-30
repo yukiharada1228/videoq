@@ -32,6 +32,8 @@ from django.contrib import messages
 from django.views.generic.edit import FormView
 from django.shortcuts import redirect
 from django.conf import settings
+from django.utils.translation import gettext as _
+from django.utils import translation
 from cryptography.fernet import Fernet
 import base64
 import hashlib
@@ -648,14 +650,16 @@ class OpenAIKeyUpdateView(LoginRequiredMixin, FormView):
         user = self.request.user
         user.encrypted_openai_api_key = encrypt_api_key(api_key)
         user.save()
-        messages.success(self.request, "OpenAI APIキーを保存しました。")
+        messages.success(self.request, _("OpenAI API key saved successfully."))
 
         # エラー状態の動画があるかチェック
         error_videos = Video.objects.filter(user=user, status="error")
         if error_videos.exists():
             messages.info(
                 self.request,
-                f"{error_videos.count()}件のエラー状態の動画があります。動画一覧から再処理できます。",
+                _(
+                    "You have {count} videos in error status. You can reprocess them from the video list."
+                ).format(count=error_videos.count()),
             )
 
         return redirect(self.get_success_url())
@@ -718,7 +722,7 @@ class VideoGroupShareToggleView(LoginRequiredMixin, View):
             group.save()
             return JsonResponse({"success": True})
         return JsonResponse(
-            {"success": False, "error": "不正なアクションです"}, status=400
+            {"success": False, "error": _("Invalid action.")}, status=400
         )
 
 
@@ -894,6 +898,20 @@ class CommercialDisclosureView(TemplateView):
     """特定商取引法に基づく表記ページ"""
 
     template_name = "app/commercial_disclosure.html"
+
+
+def set_language(request):
+    """言語切り替えビュー"""
+    if request.method == "POST":
+        language = request.POST.get("language")
+        if language in [lang[0] for lang in settings.LANGUAGES]:
+            translation.activate(language)
+            request.session["django_language"] = language
+            # レスポンスに言語設定を反映
+            response = redirect(request.META.get("HTTP_REFERER", "/"))
+            response.set_cookie("django_language", language)
+            return response
+    return redirect(request.META.get("HTTP_REFERER", "/"))
 
 
 class LoginView(AuthLoginView):
