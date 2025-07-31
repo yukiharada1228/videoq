@@ -154,11 +154,8 @@
                                     お使いのブラウザは動画再生に対応していません。
                                 </video>
                             </div>
-                            
                             <!-- 動画タイトル -->
-                            <h5 class="mb-3" id="current-video-title">{{ completed_videos.first.title }}</h5>
-                            
-                            <!-- 字幕表示エリア（削除済み） -->
+                            <h5 class="mb-3" id="current-video-title">{{ completed_videos.first.title }}</h5>    
                         </div>
                     {% else %}
                         <div class="text-center py-5">
@@ -274,7 +271,6 @@
                 </div>
                 <h5 class="mb-3" id="current-video-title-mobile">{{ completed_videos.first.title }}</h5>
                 
-                <!-- 字幕表示エリア（モバイル・削除済み） -->
               </div>
             {% else %}
               <div class="text-center py-5">
