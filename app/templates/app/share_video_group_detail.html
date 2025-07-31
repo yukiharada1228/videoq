@@ -395,8 +395,16 @@ async function sendGroupChatStream(mode = 'desktop') {
                         const parsed = JSON.parse(data);
                         if (parsed.type === 'content') {
                             aiMessageSpan.textContent = parsed.full_answer;
+                            // MathJaxを再レンダリング
+                            if (window.MathJax) {
+                                window.MathJax.typesetPromise([aiMessageSpan]).catch((err) => console.log('MathJax error:', err));
+                            }
                         } else if (parsed.type === 'complete') {
                             aiMessageSpan.textContent = parsed.full_answer;
+                            // MathJaxを再レンダリング
+                            if (window.MathJax) {
+                                window.MathJax.typesetPromise([aiMessageSpan]).catch((err) => console.log('MathJax error:', err));
+                            }
                             // タイムスタンプと関連質問を表示
                             let timestampsHtml = '';
                             if (parsed.timestamp_results && parsed.timestamp_results.length > 0) {
@@ -589,6 +597,11 @@ function addChatMessage(type, message, timestamps = null, relatedQuestions = nul
                 ${relatedQuestionsHtml}
             </div>
         `;
+        
+        // MathJaxを再レンダリング
+        if (window.MathJax) {
+            window.MathJax.typesetPromise([messageDiv]).catch((err) => console.log('MathJax error:', err));
+        }
     }
     
     chatHistory.appendChild(messageDiv);
