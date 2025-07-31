@@ -258,18 +258,6 @@ let currentVideoId = null;
 const videoPlayer = document.getElementById('videoPlayer');
 const videoPlayerMobile = document.getElementById('videoPlayerMobile');
 
-
-
-// 字幕データ
-let currentSubtitles = [];
-let currentSubtitleIndex = -1;
-
-const subtitleArea = document.getElementById('subtitleArea');
-const currentSubtitle = document.getElementById('currentSubtitle');
-const subtitleAreaMobile = document.getElementById('subtitleAreaMobile');
-const currentSubtitleMobile = document.getElementById('currentSubtitleMobile');
-const subtitleToggle = document.getElementById('subtitleToggle');
-
 // クッキー取得関数
 function getCookie(name) {
     const value = `; ${document.cookie}`;
@@ -694,27 +682,6 @@ function formatTime(seconds) {
 
 .video-item.active small {
     color: #495057 !important;
-}
-
-/* 字幕表示のスタイル */
-.subtitle-text {
-    background-color: rgba(0, 0, 0, 0.8);
-    color: white;
-    padding: 0.5rem 1rem;
-    border-radius: 0.5rem;
-    font-size: 1rem;
-    line-height: 1.4;
-    text-align: center;
-    min-height: 2.5rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    word-wrap: break-word;
-    max-width: 100%;
-}
-
-#subtitleArea, #subtitleAreaMobile {
-    display: block;
 }
 
 @media (max-width: 768px) {
