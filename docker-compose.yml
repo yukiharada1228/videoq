@@ -39,23 +39,23 @@ services:
     networks:
       - videoq-network
 
-  # opensearch-dashboards:
-  #   image: opensearchproject/opensearch-dashboards:3
-  #   container_name: videoq-opensearch-dashboards
-  #   ports:
-  #     - "5601:5601"
-  #   env_file:
-  #     - .env
-  #   depends_on:
-  #     - opensearch
-  #   networks:
-  #     - videoq-network
+  opensearch-dashboards:
+    image: opensearchproject/opensearch-dashboards:3
+    container_name: videoq-opensearch-dashboards
+    ports:
+      - "5601:5601"
+    env_file:
+      - .env
+    depends_on:
+      - opensearch
+    networks:
+      - videoq-network
 
   nginx:
     image: nginx:alpine
     container_name: videoq-nginx
-    # ports:
-    #   - "8080:80"
+    ports:
+      - "8080:80"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
       - ./static:/static
