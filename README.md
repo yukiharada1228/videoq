@@ -356,13 +356,3 @@ docker compose logs -f cloudflared
 本プロジェクトのソースコードは、個人利用・学術利用・非営利利用に限り自由にご利用いただけます。
 
 ただし、本プロジェクトを利用したサービスを商用として公開・展開することは禁止します。
-
-## 🆘 サポート
-
-- **Issue**: バグ報告・機能要望
-- **Pull Request**: コード改善・新機能追加
-- **Documentation**: ドキュメント改善
-
----
-
-**VideoQ** - AI-powered video management and analysis platform 

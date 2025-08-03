@@ -22,7 +22,7 @@ class BasicAuthMiddleware:
         # BASIC認証が無効な場合は認証をスキップ
         if not self.enabled:
             return self.get_response(request)
-            
+
         # 除外パスかチェック
         if any(request.path.startswith(path) for path in self.exempt_paths):
             return self.get_response(request)
