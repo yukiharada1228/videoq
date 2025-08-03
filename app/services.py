@@ -54,7 +54,7 @@ def truncate_text_to_token_limit(
 
 
 class VectorSearchService:
-    """Django+pgvectorによる動画グループ検索サービス（OpenAI公式API利用）"""
+    """OpenSearch/Pineconeによる動画グループ検索サービス（OpenAI公式API利用）"""
 
     def __init__(self, api_key):
         self.api_key = api_key

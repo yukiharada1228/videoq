@@ -1,6 +1,5 @@
 django
 psycopg2-binary
-pgvector 
 django-bootstrap5
 celery
 redis
