@@ -52,7 +52,11 @@ cd videoq
 
 #### データベース設定
 - `POSTGRES_PASSWORD` : PostgreSQLパスワード
-- `BASIC_AUTH_PASSWORD` : Webアプリに対するBASIC認証のパスワード
+
+#### BASIC認証設定
+- `BASIC_AUTH_ENABLED` : BASIC認証の有効/無効（デフォルト: `TRUE`）
+- `BASIC_AUTH_USERNAME` : BASIC認証のユーザー名（デフォルト: `admin`）
+- `BASIC_AUTH_PASSWORD` : BASIC認証のパスワード（デフォルト: `password`）
 
 #### S3設定（動画ファイル保存用）
 - `AWS_ACCESS_KEY_ID` : AWSアクセスキーID

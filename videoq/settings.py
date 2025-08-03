@@ -67,7 +67,8 @@ MIDDLEWARE = [
     "app.share_access_middleware.ShareAccessMiddleware",  # 共有アクセス制限ミドルウェア
 ]
 
-# Basic認証のユーザー名・パスワード（必要なら環境変数で上書き可能）
+# Basic認証の設定（環境変数で制御可能）
+BASIC_AUTH_ENABLED = os.environ.get("BASIC_AUTH_ENABLED", "TRUE") == "TRUE"
 BASIC_AUTH_USERNAME = os.environ.get("BASIC_AUTH_USERNAME", "admin")
 BASIC_AUTH_PASSWORD = os.environ.get("BASIC_AUTH_PASSWORD", "password")
 

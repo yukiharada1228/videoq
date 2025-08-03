@@ -6,6 +6,8 @@ from django.conf import settings
 class BasicAuthMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
+        # BASIC認証の有効/無効を環境変数から取得
+        self.enabled = getattr(settings, "BASIC_AUTH_ENABLED", True)
         # ユーザー名とパスワードは環境変数から取得、なければデフォルト
         self.username = getattr(settings, "BASIC_AUTH_USERNAME")
         self.password = getattr(settings, "BASIC_AUTH_PASSWORD")
@@ -18,6 +20,10 @@ class BasicAuthMiddleware:
         ]
 
     def __call__(self, request):
+        # BASIC認証が無効な場合は認証をスキップ
+        if not self.enabled:
+            return self.get_response(request)
+            
         # 除外パスかチェック
         if any(request.path.startswith(path) for path in self.exempt_paths):
             return self.get_response(request)
