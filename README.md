@@ -4,24 +4,102 @@
 [![Python](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
 [![Django](https://img.shields.io/badge/django-5.2.4-green.svg)](https://www.djangoproject.com/)
 
-VideoQは動画管理・共有・分析のためのWebアプリケーションです。
+VideoQは動画管理・共有・分析のためのWebアプリケーションです。AI技術を活用して動画コンテンツを自動分析し、セマンティック検索やRAG（Retrieval Augmented Generation）による質問応答機能を提供します。
 
-## 機能概要
-- 動画のアップロード・管理
-- 動画グループの作成・共有
-- ユーザー認証（サインアップ、ログイン、パスワードリセット）
-- サブスクリプション管理（Stripe連携）
-- OpenAI API連携による分析機能
-- ベクトル検索（OpenSearch または Pinecone）
-- RAG（Retrieval Augmented Generation）による質問応答
-- 関連質問の自動生成
+## 🚀 主要機能
 
-## セットアップ手順（Docker利用推奨）
+### 📹 動画管理
+- **動画アップロード**: 複数形式対応（MP4、AVI、MOV等）
+- **動画グループ**: 関連動画をグループ化して管理
+- **メタデータ管理**: タイトル、説明、タグ付け
+- **共有機能**: パスワード保護付き共有URL
 
-### 1. 必要なソフトウェア
-- Docker
-- Docker Compose
-- OpenAIアカウント（APIキー取得必須）
+### 🤖 AI分析機能
+- **自動文字起こし**: OpenAI Whisperによる音声認識
+- **セマンティック検索**: ベクトル検索による類似コンテンツ発見
+- **RAG質問応答**: 動画内容に基づく質問応答
+- **関連質問生成**: AIによる自動質問生成
+
+### 🔍 検索・分析
+- **全文検索**: 文字起こしテキストの検索
+- **セマンティック検索**: 意味的な類似性による検索
+- **時系列分析**: 動画内の特定時間へのジャンプ
+- **コンテンツ分析**: 動画内容の自動要約
+
+### 👥 ユーザー管理
+- **認証システム**: サインアップ、ログイン、パスワードリセット
+- **アクセス制限**: 共有URLの同時アクセス制限
+- **BASIC認証**: 環境変数による有効/無効制御
+
+## 🏗️ アーキテクチャ
+
+### 技術スタック
+- **Webフレームワーク**: Django 5.2.4
+- **データベース**: PostgreSQL + pgvector
+- **ベクトル検索**: OpenSearch（ローカル）または Pinecone（クラウド）
+- **非同期処理**: Celery + Redis
+- **コンテナ化**: Docker + Docker Compose
+- **AI/ML**: OpenAI API（GPT-4o-mini、text-embedding-3-small）
+- **リバースプロキシ**: Nginx
+- **トンネル**: Cloudflare Tunnel
+
+### システム構成
+
+#### ローカル版（デフォルト）
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Cloudflare    │    │     Nginx       │    │   Django Web    │
+│     Tunnel      │───▶│   (Port 8080)   │───▶│   (Port 8000)   │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+                                                       │
+                                                       ▼
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   PostgreSQL    │    │     Redis       │    │    Celery       │
+│   + pgvector    │◀───│   (Cache/Queue) │◀───│    Worker       │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+                                                       │
+                                                       ▼
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   OpenSearch    │    │   OpenAI API    │    │   ローカル       │
+│   (ベクトル検索)  │    │   (AI分析)      │    │   (動画保存)     │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+```
+
+#### S3版（本番環境推奨）
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Cloudflare    │    │     Nginx       │    │   Django Web    │
+│     Tunnel      │───▶│   (Port 8080)   │───▶│   (Port 8000)   │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+                                                       │
+                                                       ▼
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   PostgreSQL    │    │     Redis       │    │    Celery       │
+│   + pgvector    │◀───│   (Cache/Queue) │◀───│    Worker       │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+                                                       │
+                                                       ▼
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   OpenSearch    │    │   OpenAI API    │    │   AWS S3        │
+│   (ベクトル検索)  │    │   (AI分析)      │    │   (動画保存)     │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+```
+
+## 📋 セットアップ手順
+
+### 1. 前提条件
+
+#### 共通要件
+- Docker & Docker Compose
+- OpenAI APIキー
+- Cloudflareアカウント（トンネル機能使用時）
+
+#### ローカル版（デフォルト）
+- 追加要件なし（ローカルファイルシステムを使用）
+
+#### S3版（本番環境推奨）
+- AWS S3バケット
+- AWSアクセスキー・シークレットキー
 
 ### 2. リポジトリのクローン
 ```bash
@@ -32,184 +110,259 @@ cd videoq
 ### 3. 環境変数の設定
 `.env` ファイルを作成し、以下の値を設定してください：
 
-#### 必須設定
-- `DJANGO_SECRET_KEY` : Django秘密鍵
-- `STRIPE_SECRET_KEY` : Stripe秘密鍵
-- `STRIPE_PUBLISHABLE_KEY` : Stripe公開鍵
-- `STRIPE_WEBHOOK_SECRET` : Stripe Webhook秘密鍵
-- `OPENAI_API_KEY` : OpenAI APIキー（動画分析・RAG機能用）
+#### 🔐 必須設定
+```bash
+# Django設定
+DJANGO_SECRET_KEY=your-secret-key-here
 
-#### ベクトル検索プロバイダー設定
-- `VECTOR_SEARCH_PROVIDER` : ベクトル検索プロバイダー（`opensearch` または `pinecone`、デフォルト: `opensearch`）
+# OpenAI API（動画分析・RAG機能用）
+OPENAI_API_KEY=your-openai-api-key-here
 
-#### OpenSearch使用時（VECTOR_SEARCH_PROVIDER=opensearch）
-- 追加設定不要（Docker Composeで自動起動）
-
-#### Pinecone使用時（VECTOR_SEARCH_PROVIDER=pinecone）
-- `PINECONE_API_KEY` : Pinecone APIキー（必須）
-- `PINECONE_CLOUD` : クラウドプロバイダー（デフォルト: `aws`）
-- `PINECONE_REGION` : リージョン（デフォルト: `us-east-1`）
-
-#### データベース設定
-- `POSTGRES_PASSWORD` : PostgreSQLパスワード
-
-#### BASIC認証設定
-- `BASIC_AUTH_ENABLED` : BASIC認証の有効/無効（デフォルト: `TRUE`）
-- `BASIC_AUTH_USERNAME` : BASIC認証のユーザー名（デフォルト: `admin`）
-- `BASIC_AUTH_PASSWORD` : BASIC認証のパスワード（デフォルト: `password`）
-
-#### S3設定（動画ファイル保存用）
-- `AWS_ACCESS_KEY_ID` : AWSアクセスキーID
-- `AWS_SECRET_ACCESS_KEY` : AWSシークレットアクセスキー
-- `AWS_STORAGE_BUCKET_NAME` : S3バケット名（例: `videoq-yukiharada`）
-- `AWS_S3_REGION_NAME` : S3リージョン（例: `us-east-1`）
-
-#### 共有URLアクセス制限設定
-- `SHARE_ACCOUNT_MAX_CONCURRENT_USERS` : アカウント単位の同時アクセス上限人数（デフォルト: `30`）
-- `SHARE_SESSION_TIMEOUT_MINUTES` : セッションタイムアウト時間（分、デフォルト: `10`）
-- `REDIS_URL` : Redis接続URL（デフォルト: `redis://redis:6379/0`）
-
-**S3バケットのIAMポリシー設定例:**
-```json
-{
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Sid": "VisualEditor0",
-            "Effect": "Allow",
-            "Action": [
-                "s3:GetLifecycleConfiguration",
-                "s3:GetBucketTagging",
-                "s3:GetInventoryConfiguration",
-                "s3:GetObjectVersionTagging",
-                "s3:GetBucketLogging",
-                "s3:ListBucket",
-                "s3:GetAccelerateConfiguration",
-                "s3:GetObjectVersionAttributes",
-                "s3:GetBucketPolicy",
-                "s3:GetObjectVersionTorrent",
-                "s3:GetObjectAcl",
-                "s3:GetEncryptionConfiguration",
-                "s3:GetBucketObjectLockConfiguration",
-                "s3:GetIntelligentTieringConfiguration",
-                "s3:GetBucketRequestPayment",
-                "s3:GetObjectVersionAcl",
-                "s3:GetObjectTagging",
-                "s3:GetMetricsConfiguration",
-                "s3:GetBucketOwnershipControls",
-                "s3:DeleteObject",
-                "s3:PutObjectAcl",
-                "s3:GetBucketPublicAccessBlock",
-                "s3:GetBucketPolicyStatus",
-                "s3:GetObjectRetention",
-                "s3:GetBucketWebsite",
-                "s3:GetObjectAttributes",
-                "s3:GetBucketVersioning",
-                "s3:GetBucketAcl",
-                "s3:GetObjectLegalHold",
-                "s3:GetBucketNotification",
-                "s3:GetReplicationConfiguration",
-                "s3:PutObject",
-                "s3:GetObject",
-                "s3:GetBucketMetadataTableConfiguration",
-                "s3:GetObjectTorrent",
-                "s3:GetBucketCORS",
-                "s3:GetAnalyticsConfiguration",
-                "s3:GetObjectVersionForReplication",
-                "s3:GetBucketLocation",
-                "s3:GetObjectVersion"
-            ],
-            "Resource": [
-                "arn:aws:s3:::YOUR_BUCKET_NAME",
-                "arn:aws:s3:::YOUR_BUCKET_NAME/*"
-            ]
-        },
-        {
-            "Sid": "VisualEditor1",
-            "Effect": "Allow",
-            "Action": [
-                "s3:GetAccessPoint",
-                "s3:GetAccountPublicAccessBlock"
-            ],
-            "Resource": "*"
-        }
-    ]
-}
+# BASIC認証設定
+BASIC_AUTH_ENABLED=TRUE
+BASIC_AUTH_USERNAME=admin
+BASIC_AUTH_PASSWORD=your-basic-auth-password
 ```
 
-**注意:** `YOUR_BUCKET_NAME` を実際のS3バケット名に置き換えてください。
-
-### 4. Dockerイメージのビルドとコンテナ起動
+#### 🔍 ベクトル検索設定
 ```bash
+# ベクトル検索プロバイダー（opensearch または pinecone）
+VECTOR_SEARCH_PROVIDER=opensearch
+
+# OpenSearch使用時（デフォルト）
+# 追加設定不要（Docker Composeで自動起動）
+
+# Pinecone使用時
+PINECONE_API_KEY=your-pinecone-api-key
+PINECONE_CLOUD=aws
+PINECONE_REGION=us-east-1
+```
+
+#### 🗄️ データベース設定
+```bash
+POSTGRES_PASSWORD=your-postgres-password
+```
+
+#### 🔒 BASIC認証設定
+```bash
+# BASIC認証の有効/無効（デフォルト: TRUE）
+BASIC_AUTH_ENABLED=TRUE
+BASIC_AUTH_USERNAME=admin
+BASIC_AUTH_PASSWORD=your-basic-auth-password
+```
+
+#### 💾 ファイルストレージ設定
+
+##### ローカル版（デフォルト・開発環境推奨）
+```bash
+# ローカルファイル保存
+USE_S3=FALSE
+
+# ファイル保存場所
+# - 静的ファイル: ./static/
+# - メディアファイル: ./media/
+# - 動画ファイル: ./media/videos/
+```
+
+##### S3版（本番環境推奨）
+```bash
+# S3ファイル保存
+USE_S3=TRUE
+AWS_ACCESS_KEY_ID=your-aws-access-key
+AWS_SECRET_ACCESS_KEY=your-aws-secret-key
+AWS_STORAGE_BUCKET_NAME=your-s3-bucket-name
+AWS_S3_REGION_NAME=us-east-1
+```
+
+#### 🌐 Cloudflare Tunnel設定（オプション）
+```bash
+# Cloudflare Tunnel（外部アクセス用）
+CLOUDFLARE_TUNNEL_TOKEN=your-cloudflare-tunnel-token
+```
+
+#### 📧 メール設定（オプション）
+```bash
+# Mailgun使用時
+USE_MAILGUN=TRUE
+MAILGUN_API_KEY=your-mailgun-api-key
+MAILGUN_SENDER_DOMAIN=your-domain.com
+DEFAULT_FROM_EMAIL=noreply@your-domain.com
+```
+
+#### ⚙️ 共有URLアクセス制限設定
+```bash
+SHARE_ACCOUNT_MAX_CONCURRENT_USERS=30
+SHARE_SESSION_TIMEOUT_MINUTES=10
+REDIS_URL=redis://redis:6379/0
+```
+
+### 4. Dockerコンテナの起動
+```bash
+# 全サービスを起動
 docker compose up --build -d
+
+# ログの確認
+docker compose logs -f
 ```
 
-### 5. マイグレーションの適用
+### 5. データベースの初期化
 ```bash
+# マイグレーションの適用
 docker compose exec web python manage.py migrate
-```
 
-### 6. 管理ユーザーの作成（任意）
-```bash
+# 管理ユーザーの作成（オプション）
 docker compose exec web python manage.py createsuperuser
 ```
 
-### 7. アプリケーションアクセス
-- メインアプリ: `http://localhost:8080`
-- OpenSearchダッシュボード: `http://localhost:5601`
+### 6. アプリケーションアクセス
+- **メインアプリ**: `http://localhost:8080`
+- **OpenSearchダッシュボード**: `http://localhost:5601`
+- **Flower（Celery監視）**: `http://localhost:5555`
 
-## 主要ディレクトリ構成
-- `app/` : アプリケーション本体
-  - `models.py` : データモデル
-  - `views.py` : ビュー・API
-  - `tasks.py` : Celeryタスク
-  - `base_vector_service.py` : ベクトル検索ベースクラス
-  - `opensearch_service.py` : OpenSearch実装
-  - `pinecone_service.py` : Pinecone実装
-  - `vector_search_factory.py` : ベクトル検索ファクトリ
-- `videoq/` : プロジェクト設定
-- `static/` : 静的ファイル
-- `templates/` : テンプレートファイル
+## 📁 プロジェクト構造
 
-## 依存サービス
-- ベクトル検索（OpenSearch または Pinecone）
-  - OpenSearch: ローカルDocker（デフォルト）
-  - Pinecone: クラウドサーバレス（オプション）
-- AWS S3（動画ファイル保存）
-- Stripe（サブスクリプション管理）
-- OpenAI API（動画分析）
-- PostgreSQL（メインデータベース）
-- Redis（キャッシュ・タスクキュー）
+```
+videoq/
+├── app/                          # メインアプリケーション
+│   ├── models.py                 # データモデル
+│   ├── views.py                  # ビュー・API
+│   ├── tasks.py                  # Celeryタスク
+│   ├── middleware.py             # BASIC認証ミドルウェア
+│   ├── share_access_middleware.py # 共有アクセス制限
+│   ├── base_vector_service.py    # ベクトル検索ベースクラス
+│   ├── opensearch_service.py     # OpenSearch実装
+│   ├── pinecone_service.py       # Pinecone実装
+│   ├── vector_search_factory.py  # ベクトル検索ファクトリ
+│   ├── services.py               # ビジネスロジック
+│   ├── crypto_utils.py           # 暗号化ユーティリティ
+│   └── templates/                # テンプレート
+├── videoq/                       # プロジェクト設定
+│   ├── settings.py               # Django設定
+│   ├── urls.py                   # URL設定
+│   └── celery.py                 # Celery設定
+├── static/                       # 静的ファイル（ローカル版）
+├── media/                        # メディアファイル（ローカル版）
+│   └── videos/                   # 動画ファイル保存場所
+├── docker-compose.yml            # Docker Compose設定
+├── Dockerfile                    # Dockerイメージ設定
+├── nginx.conf                    # Nginx設定
+├── requirements.txt               # Python依存関係
+└── cloudflare-setup.md           # Cloudflare設定ガイド
+```
 
-## 技術スタック
-- **Webフレームワーク**: Django
-- **ベクトル検索**: OpenSearch（ローカル）または Pinecone（クラウドサーバレス）
-- **非同期処理**: Celery + Redis
-- **データベース**: PostgreSQL
-- **コンテナ化**: Docker + Docker Compose
-- **決済処理**: Stripe
-- **AI/ML**: OpenAI API（GPT-4o-mini、text-embedding-3-small）
-- **デザインパターン**: Factory Pattern、Abstract Base Class
+### ファイル保存場所
 
-## アーキテクチャ
+#### ローカル版
+- **静的ファイル**: `./static/`
+- **メディアファイル**: `./media/`
+- **動画ファイル**: `./media/videos/`
 
-### ベクトル検索の共通化
+#### S3版
+- **静的ファイル**: S3バケット内の`static/`ディレクトリ
+- **メディアファイル**: S3バケット内の`media/`ディレクトリ
+- **動画ファイル**: S3バケット内の`media/videos/`ディレクトリ
+
+## 🔧 主要コンポーネント
+
+### ベクトル検索システム
 - **BaseVectorService**: 共通機能を提供する抽象ベースクラス
-- **OpenSearchService**: OpenSearch固有の実装
-- **PineconeService**: Pinecone固有の実装
-- **VectorSearchFactory**: 環境変数に基づくプロバイダー選択
+- **OpenSearchService**: ローカルOpenSearch実装
+- **PineconeService**: クラウドPinecone実装
+- **VectorSearchFactory**: 環境変数によるプロバイダー選択
 
-### 主要機能
-- **動画処理**: 音声抽出 → 文字起こし → チャンク分割 → ベクトル化
-- **検索**: セマンティック検索による類似コンテンツ発見
-- **RAG**: 検索結果を基にした質問応答
-- **関連質問生成**: コンテキストに基づく質問自動生成
+### 動画処理パイプライン
 
-## ライセンス
+#### ローカル版
+1. **動画アップロード**: ファイル検証・ローカル保存（`./media/videos/`）
+2. **音声抽出**: FFmpegによる音声分離
+3. **文字起こし**: OpenAI Whisper API
+4. **チャンク分割**: 意味的な単位での分割
+5. **ベクトル化**: OpenAI Embedding API
+6. **インデックス保存**: ベクトル検索エンジン
+
+#### S3版
+1. **動画アップロード**: ファイル検証・S3保存
+2. **音声抽出**: FFmpegによる音声分離
+3. **文字起こし**: OpenAI Whisper API
+4. **チャンク分割**: 意味的な単位での分割
+5. **ベクトル化**: OpenAI Embedding API
+6. **インデックス保存**: ベクトル検索エンジン
+
+### 共有システム
+- **ShareAccessMiddleware**: 同時アクセス制限
+- **ShareAccessService**: 共有ロジック
+- **CryptoUtils**: URL暗号化
+
+## 🚀 デプロイメント
+
+### ローカル開発（ローカルストレージ版）
+```bash
+# 開発環境での起動（ローカルファイル保存）
+USE_S3=FALSE BASIC_AUTH_ENABLED=FALSE docker compose up --build -d
+```
+
+### 本番環境（S3版推奨）
+```bash
+# 本番環境用の設定
+USE_S3=TRUE
+DEBUG=False
+ALLOWED_HOSTS=your-domain.com
+SECURE_SSL_REDIRECT=True
+```
+
+### Cloudflare Tunnel使用時
+詳細は `cloudflare-setup.md` を参照してください。
+
+## 📊 監視・ログ
+
+### ログの確認
+```bash
+# 全サービスのログ
+docker compose logs -f
+
+# 特定サービスのログ
+docker compose logs -f web
+docker compose logs -f worker
+docker compose logs -f cloudflared
+```
+
+### ヘルスチェック
+- **アプリケーション**: `http://localhost:8080/health/`
+- **OpenSearch**: `http://localhost:5601`
+- **Flower**: `http://localhost:5555`
+
+## 🔒 セキュリティ
+
+### 認証・認可
+- **BASIC認証**: 環境変数による制御
+- **Django認証**: ユーザー管理
+- **共有アクセス制限**: 同時接続数制限
+
+### データ保護
+- **暗号化**: 共有URLの暗号化
+- **セッション管理**: セキュアなセッション設定
+- **CSRF保護**: Django標準のCSRF保護
+
+## 🤝 貢献
+
+1. このリポジトリをフォーク
+2. 機能ブランチを作成 (`git checkout -b feature/amazing-feature`)
+3. 変更をコミット (`git commit -m 'Add amazing feature'`)
+4. ブランチにプッシュ (`git push origin feature/amazing-feature`)
+5. プルリクエストを作成
+
+## 📄 ライセンス
+
 本プロジェクトのソースコードは、個人利用・学術利用・非営利利用に限り自由にご利用いただけます。
 
 ただし、本プロジェクトを利用したサービスを商用として公開・展開することは禁止します。
 
+## 🆘 サポート
+
+- **Issue**: バグ報告・機能要望
+- **Pull Request**: コード改善・新機能追加
+- **Documentation**: ドキュメント改善
+
 ---
 
-ご質問・不具合報告はIssueまたはPull Requestでご連絡ください。 
+**VideoQ** - AI-powered video management and analysis platform 

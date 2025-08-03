@@ -343,27 +343,19 @@ class OpenSearchService(BaseVectorService):
     def get_index_info(self):
         """インデックス情報を取得"""
         try:
-            chunks_info = self.opensearch.indices.get(index=self.chunks_index_name)
-            features_info = self.opensearch.indices.get(index=self.features_index_name)
+            chunks_stats = self.opensearch.indices.stats(index=self.chunks_index_name)
+            features_stats = self.opensearch.indices.stats(index=self.features_index_name)
 
             return {
                 "chunks_index": {
                     "name": self.chunks_index_name,
-                    "doc_count": chunks_info[self.chunks_index_name]["total"]["docs"][
-                        "count"
-                    ],
-                    "size": chunks_info[self.chunks_index_name]["total"]["store"][
-                        "size_in_bytes"
-                    ],
+                    "doc_count": chunks_stats["indices"][self.chunks_index_name]["total"]["docs"]["count"],
+                    "size": chunks_stats["indices"][self.chunks_index_name]["total"]["store"]["size_in_bytes"],
                 },
                 "features_index": {
                     "name": self.features_index_name,
-                    "doc_count": features_info[self.features_index_name]["total"][
-                        "docs"
-                    ]["count"],
-                    "size": features_info[self.features_index_name]["total"]["store"][
-                        "size_in_bytes"
-                    ],
+                    "doc_count": features_stats["indices"][self.features_index_name]["total"]["docs"]["count"],
+                    "size": features_stats["indices"][self.features_index_name]["total"]["store"]["size_in_bytes"],
                 },
             }
         except Exception as e:
