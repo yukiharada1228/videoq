@@ -13,7 +13,6 @@ class BasicAuthMiddleware:
         self.password = getattr(settings, "BASIC_AUTH_PASSWORD")
         # Basic認証を除外するパスのリスト
         self.exempt_paths = [
-            "/stripe/webhook/",  # Stripe Webhookエンドポイント
             "/health/",  # ヘルスチェックエンドポイント
             "/share/",  # 共有URLエンドポイント
             "/media/",  # メディアファイル認証はDjangoで行う
