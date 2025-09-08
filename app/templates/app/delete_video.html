@@ -1,0 +1,55 @@
+{% extends 'app/base.html' %}
+{% load tz %}
+
+{% block title %}動画削除 - VideoQ{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4>動画の削除確認</h4>
+                </div>
+                <div class="card-body">
+                    <p class="card-text">
+                        <strong>{{ object.title }}</strong> を削除しますか？
+                    </p>
+                    <p class="text-muted">
+                        この操作は取り消すことができません。動画ファイル、文字起こしデータ、埋め込みベクトルがすべて削除されます。
+                    </p>
+                    
+                    <div class="mt-3">
+                        <small class="text-muted">
+                            アップロード日時: {{ object.uploaded_at|localtime|date:"Y-m-d H:i" }}<br>
+                            ステータス: 
+                            {% if object.status == 'pending' %}
+                                <span class="badge bg-secondary">処理待ち</span>
+                            {% elif object.status == 'processing' %}
+                                <span class="badge bg-info">処理中</span>
+                            {% elif object.status == 'completed' %}
+                                <span class="badge bg-success">完了</span>
+                            {% elif object.status == 'error' %}
+                                <span class="badge bg-danger">エラー</span>
+                            {% endif %}
+                            <br>
+                            {% if object.status == 'completed' %}
+                                <!-- タイムスタンプ検索用・RAG用セグメント数の表示を削除 -->
+                            {% endif %}
+                        </small>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'app:home' %}" class="btn btn-secondary">キャンセル</a>
+                            <button type="submit" class="btn btn-danger">削除する</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

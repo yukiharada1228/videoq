@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}VideoQ{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- MathJax for mathematical expressions -->
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['\\(', '\\)']],
+                displayMath: [['\\[', '\\]']],
+                processEscapes: true,
+                processEnvironments: true
+            },
+            options: {
+                skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+            }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        :root {
+            /* シンプルなカラーパレット */
+            --primary-color: #2563eb;
+            --primary-hover: #1d4ed8;
+            --secondary-color: #64748b;
+            --success-color: #059669;
+            --warning-color: #d97706;
+            --danger-color: #dc2626;
+            --info-color: #0891b2;
+            --light-color: #f8fafc;
+            --dark-color: #1e293b;
+            --text-color: #334155;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --background-color: #ffffff;
+            --background-secondary: #f8fafc;
+            
+            /* 控えめなシャドウ */
+            --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+            --shadow-md: 0 4px 6px rgba(0,0,0,0.07);
+            --shadow-lg: 0 10px 15px rgba(0,0,0,0.1);
+            
+            /* 自然な角丸 */
+            --border-radius: 8px;
+            --border-radius-lg: 12px;
+            
+            /* 控えめなトランジション */
+            --transition: all 0.2s ease;
+        }
+
+        * {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        body {
+            background: var(--background-secondary);
+            min-height: 100vh;
+            font-weight: 400;
+            line-height: 1.6;
+            display: flex;
+            flex-direction: column;
+            color: var(--text-color);
+        }
+
+        /* ナビゲーション */
+        .navbar {
+            background: var(--background-color) !important;
+            border-bottom: 1px solid var(--border-color);
+            box-shadow: var(--shadow-sm);
+            padding: 1rem 0;
+        }
+
+        .navbar-brand {
+            font-weight: 600;
+            font-size: 1.5rem;
+            color: var(--primary-color) !important;
+        }
+
+        .nav-link {
+            font-weight: 500;
+            color: var(--text-color) !important;
+            transition: var(--transition);
+            border-radius: var(--border-radius);
+            padding: 0.5rem 1rem !important;
+            margin: 0 0.25rem;
+            text-decoration: none;
+        }
+
+        .nav-link:hover {
+            background: var(--light-color);
+            color: var(--primary-color) !important;
+            text-decoration: none;
+        }
+
+        .nav-link.active {
+            background: var(--primary-color);
+            color: white !important;
+        }
+
+        /* タグ選択UIのスタイル */
+        .tag-selection-container {
+            margin-top: 0.5rem;
+        }
+
+        .existing-tags-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        .tag-checkbox-item {
+            display: flex;
+            align-items: center;
+            padding: 0.5rem;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            background: var(--background-color);
+            transition: var(--transition);
+        }
+
+        .tag-checkbox-item:hover {
+            border-color: var(--primary-color);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .tag-checkbox-item input[type="checkbox"] {
+            margin-right: 0.75rem;
+            transform: scale(1.2);
+        }
+
+        .tag-label {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex: 1;
+            cursor: pointer;
+            margin: 0;
+        }
+
+        .tag-name {
+            font-weight: 500;
+            color: var(--text-color);
+        }
+
+        .tag-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            border: 2px solid var(--border-color);
+            margin-left: 0.5rem;
+        }
+
+        /* タグ選択のレスポンシブ対応 */
+        @media (max-width: 768px) {
+            .existing-tags-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+            text-decoration: none;
+        }
+
+        .nav-link.btn-link {
+            background: transparent;
+            border: none;
+            color: var(--text-color) !important;
+        }
+
+        .nav-link.btn-link:hover {
+            background: var(--light-color);
+            color: var(--primary-color) !important;
+        }
+
+        /* カード */
+        .card {
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow-sm);
+            transition: var(--transition);
+            background: var(--background-color);
+        }
+
+        .card:hover {
+            box-shadow: var(--shadow-md);
+        }
+
+        .card-header {
+            background: var(--background-secondary);
+            border-bottom: 1px solid var(--border-color);
+            border-radius: var(--border-radius) var(--border-radius) 0 0 !important;
+            font-weight: 600;
+            color: var(--text-color);
+        }
+
+        /* ボタン */
+        .btn {
+            border-radius: var(--border-radius);
+            font-weight: 500;
+            padding: 0.5rem 1rem;
+            transition: var(--transition);
+            border: 1px solid transparent;
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            border-color: var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-hover);
+            border-color: var(--primary-hover);
+            transform: none;
+        }
+
+        .btn-success {
+            background: var(--success-color);
+            border-color: var(--success-color);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #047857;
+            border-color: #047857;
+            transform: none;
+        }
+
+        .btn-info {
+            background: var(--info-color);
+            border-color: var(--info-color);
+            color: white;
+        }
+
+        .btn-warning {
+            background: var(--warning-color);
+            border-color: var(--warning-color);
+            color: white;
+        }
+
+        .btn-danger {
+            background: var(--danger-color);
+            border-color: var(--danger-color);
+            color: white;
+        }
+
+        .btn-outline-primary {
+            border: 1px solid var(--primary-color);
+            color: var(--primary-color);
+            background: transparent;
+        }
+
+        .btn-outline-primary:hover {
+            background: var(--primary-color);
+            border-color: var(--primary-color);
+            color: white;
+        }
+
+        /* アラート */
+        .alert {
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .alert-success {
+            background: #f0fdf4;
+            border-color: #bbf7d0;
+            color: #166534;
+        }
+
+        .alert-warning {
+            background: #fffbeb;
+            border-color: #fed7aa;
+            color: #92400e;
+        }
+
+        /* 統計カード */
+        .stats-card {
+            background: var(--background-color);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius-lg);
+            padding: 2rem;
+            text-align: center;
+            box-shadow: var(--shadow-sm);
+            transition: var(--transition);
+        }
+
+        .stats-card:hover {
+            box-shadow: var(--shadow-md);
+        }
+
+        .stats-card .display-4 {
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+
+        /* リストグループ */
+        .list-group-item {
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius) !important;
+            margin-bottom: 0.5rem;
+            background: var(--background-color);
+            transition: var(--transition);
+        }
+
+        .list-group-item:hover {
+            background: var(--background-secondary);
+        }
+
+        /* バッジ */
+        .badge {
+            border-radius: 20px;
+            font-weight: 500;
+            padding: 0.5rem 1rem;
+        }
+
+        /* フォーム */
+        .form-control, .form-select {
+            border-radius: var(--border-radius);
+            border: 1px solid var(--border-color);
+            padding: 0.75rem 1rem;
+            transition: var(--transition);
+            background: var(--background-color);
+        }
+
+        .form-control:focus, .form-select:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+            background: var(--background-color);
+        }
+
+        /* モーダル */
+        .modal-content {
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius-lg);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .modal-header {
+            background: var(--background-secondary);
+            border-bottom: 1px solid var(--border-color);
+            border-radius: var(--border-radius-lg) var(--border-radius-lg) 0 0;
+        }
+
+        /* レスポンシブ */
+        @media (max-width: 768px) {
+            .navbar {
+                padding: 0.5rem 0;
+            }
+            
+            .stats-card {
+                padding: 1.5rem;
+                margin-bottom: 1rem;
+            }
+            
+            .btn {
+                padding: 0.5rem 1rem;
+            }
+        }
+
+        /* スクロールバー */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--background-secondary);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--secondary-color);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-color);
+        }
+
+        /* ユーザー名表示 */
+        .navbar-text {
+            color: var(--primary-color);
+            font-weight: 500;
+        }
+
+        /* メインコンテナ */
+        main.container {
+            padding-top: 2rem;
+            padding-bottom: 2rem;
+        }
+
+        /* ページタイトル */
+        .page-title {
+            color: var(--text-color);
+            font-weight: 600;
+            font-size: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        /* アクションボタン */
+        .action-buttons {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        @media (max-width: 576px) {
+            .action-buttons {
+                flex-direction: column;
+            }
+            
+            .action-buttons .btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-light">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{% url 'app:home' %}">
+                <i class="bi bi-play-circle-fill me-2"></i>VideoQ
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    {% if user.is_authenticated %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'app:home' %}">
+                                <i class="bi bi-house"></i> ホーム
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'app:video_list' %}">
+                                <i class="bi bi-collection-play"></i> 動画一覧
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'app:video_group_list' %}">
+                                <i class="bi bi-collection"></i> 動画グループ
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'app:chat_logs_dashboard' %}">
+                                <i class="bi bi-clock-history"></i> チャット履歴
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'app:tag_management' %}">
+                                <i class="bi bi-hash"></i> タグ管理
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'app:upload_video' %}">
+                                <i class="bi bi-upload"></i> アップロード
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+                <ul class="navbar-nav ms-auto">
+                    {% if user.is_authenticated %}
+                        <li class="nav-item">
+                            <span class="navbar-text">こんにちは, {{ user.username }}さん</span>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'app:openai_key_update' %}">
+                                <i class="bi bi-key"></i> OpenAI APIキー設定
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <form method="post" action="{% url 'app:logout' %}" class="d-inline">
+                                {% csrf_token %}
+                                <button type="submit" class="nav-link btn btn-link p-0">
+                                    <i class="bi bi-box-arrow-right"></i> ログアウト
+                                </button>
+                            </form>
+                        </li>
+                    {% else %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'app:login' %}">
+                                <i class="bi bi-box-arrow-in-right"></i> ログイン
+                            </a>
+                        </li>
+                        {% if SIGNUP_ENABLED %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'app:signup' %}">
+                                <i class="bi bi-person-plus"></i> サインアップ
+                            </a>
+                        </li>
+                        {% endif %}
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+
+
+    <main class="container" style="flex:1;">
+        {% block content %}
+        {% endblock %}
+    </main>
+
+    <!-- フッター -->
+    <footer class="bg-light mt-5 py-4">
+        <div class="container">
+            <div class="row">
+                <div class="col-12 text-center">
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // シンプルなアクティブナビリンクのハイライト
+        document.addEventListener('DOMContentLoaded', function() {
+            const currentPath = window.location.pathname;
+            const navLinks = document.querySelectorAll('.nav-link');
+            navLinks.forEach(link => {
+                if (link.getAttribute('href') === currentPath) {
+                    link.classList.add('active');
+                }
+            });
+        });
+    </script>
+</body>
+</html> 

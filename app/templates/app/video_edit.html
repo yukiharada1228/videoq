@@ -1,0 +1,143 @@
+{% extends 'app/base.html' %}
+
+{% block title %}動画編集 - {{ object.title }} - VideoQ{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title mb-0">
+                        <i class="bi bi-pencil"></i> 動画を編集
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        {% if form.non_field_errors %}
+                            <div class="alert alert-danger">
+                                {% for error in form.non_field_errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.title.id_for_label }}" class="form-label">
+                                <i class="bi bi-tag"></i> タイトル <span class="text-danger">*</span>
+                            </label>
+                            {{ form.title }}
+                            {% if form.title.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.title.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.description.id_for_label }}" class="form-label">
+                                <i class="bi bi-card-text"></i> 説明
+                            </label>
+                            {{ form.description }}
+                            {% if form.description.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.description.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">動画の内容や説明を入力してください（任意）</div>
+                        </div>
+
+                        <!-- 既存タグの選択 -->
+                        <div class="mb-3">
+                            <label class="form-label">
+                                <i class="bi bi-hash"></i> 既存のタグから選択
+                            </label>
+                                                    <div class="tag-selection-container">
+                            {% if existing_tags %}
+                                <div class="existing-tags-grid">
+                                    {% for tag in existing_tags %}
+                                        <div class="tag-checkbox-item">
+                                            <input type="checkbox" name="existing_tags" value="{{ tag.id }}" id="tag_{{ tag.id }}" class="tag-checkbox"
+                                                   {% if tag in object.tags.all %}checked{% endif %}>
+                                            <label for="tag_{{ tag.id }}" class="tag-label">
+                                                <span class="tag-name">{{ tag.name }}</span>
+                                                {% if tag.color %}
+                                                    <span class="tag-color" style="background-color: {{ tag.color }};"></span>
+                                                {% endif %}
+                                            </label>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <div class="text-muted">
+                                    <i class="bi bi-info-circle me-2"></i>まだタグが作成されていません。下の入力欄で新規タグを作成できます。
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        </div>
+
+                        <!-- 新規タグの入力 -->
+                        <div class="mb-3">
+                            <label for="{{ form.new_tags_input.id_for_label }}" class="form-label">
+                                <i class="bi bi-plus-circle"></i> 新規タグの追加
+                            </label>
+                            {{ form.new_tags_input }}
+                            {% if form.new_tags_input.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.new_tags_input.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">新しいタグはカンマ , で区切って入力。既存のタグと組み合わせて使用できます。</div>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <a href="{% url 'app:video_detail' object.pk %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-left"></i> キャンセル
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle"></i> 更新
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card mt-4">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="bi bi-info-circle"></i> 編集について
+                    </h5>
+                    <p class="card-text">
+                        動画のタイトルと説明を変更できます。動画ファイル自体は変更できません。
+                    </p>
+                    <ul class="list-unstyled">
+                        <li><i class="bi bi-check text-success"></i> タイトルを変更して動画を識別しやすく</li>
+                        <li><i class="bi bi-check text-success"></i> 説明を追加して動画の内容を明確に</li>
+                        <li><i class="bi bi-check text-success"></i> いつでも再編集可能</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .form-control, .form-select {
+        border-radius: 0.375rem;
+    }
+    
+    .form-control:focus, .form-select:focus {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    }
+</style>
+{% endblock %} 

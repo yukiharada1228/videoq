@@ -1,0 +1,31 @@
+{% extends 'app/base.html' %}
+
+{% block title %}グループ削除 - VideoQ{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card">
+                <div class="card-header bg-danger text-black">
+                    <h4 class="mb-0"><i class="bi bi-trash"></i> グループ削除確認</h4>
+                </div>
+                <div class="card-body">
+                    <p>本当に<strong>{{ object.name }}</strong> を削除しますか？</p>
+                    <div class="alert alert-warning">
+                        <i class="bi bi-info-circle"></i>
+                        この操作は元に戻せません。<br>
+                        <strong>グループ内の動画は削除されません</strong>が、グループ自体とその関連情報はすべて削除されます。
+                    </div>
+                    <form method="post">{% csrf_token %}
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'app:video_group_detail' object.pk %}" class="btn btn-secondary">キャンセル</a>
+                            <button type="submit" class="btn btn-danger">削除する</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

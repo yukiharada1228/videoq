@@ -1,0 +1,206 @@
+{% extends 'app/base.html' %}
+
+{% block title %}OpenAI APIキー設定 - VideoQ{% endblock %}
+
+{% block content %}
+<div class="settings-container">
+    <div class="row justify-content-center">
+        <div class="col-lg-6 col-md-8 col-sm-10">
+            <!-- 設定フォーム -->
+            <div class="settings-card">
+                <div class="settings-header text-center mb-4">
+                    <div class="settings-icon mb-3">
+                        <i class="bi bi-key"></i>
+                    </div>
+                    <h2 class="settings-title">OpenAI APIキー設定</h2>
+                    <p class="settings-subtitle">AI機能を利用するためにOpenAI APIキーを設定してください</p>
+                </div>
+
+                <form method="post" class="settings-form">
+                    {% csrf_token %}
+                    
+                    <div class="form-group mb-4">
+                        <label for="{{ form.api_key.id_for_label }}" class="form-label">
+                            <i class="bi bi-key me-2"></i>OpenAI APIキー
+                        </label>
+                        {{ form.api_key }}
+                        <div class="form-text mt-2">
+                            <i class="bi bi-info-circle me-1"></i>
+                            {{ form.api_key.help_text }}
+                        </div>
+                        {% if form.api_key.errors %}
+                            <div class="text-danger small mt-1">
+                                {% for error in form.api_key.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="bi bi-check-circle me-2"></i>保存
+                        </button>
+                    </div>
+                </form>
+
+                <div class="settings-footer text-center mt-4">
+                    <div class="alert alert-info">
+                        <h6><i class="bi bi-lightbulb me-2"></i>APIキーの取得方法</h6>
+                        <ol class="text-start mb-0">
+                            <li><a href="https://platform.openai.com/api-keys" target="_blank" class="text-decoration-none">OpenAI Platform</a>にアクセス</li>
+                            <li>アカウントにログインまたは新規登録</li>
+                            <li>「API Keys」セクションで新しいキーを作成</li>
+                            <li>生成されたキーをコピーして上記に入力</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.settings-container {
+    padding: 2rem 0;
+}
+
+.settings-card {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(20px);
+    border-radius: var(--border-radius-lg);
+    padding: 3rem 2rem;
+    box-shadow: var(--shadow-xl);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.settings-icon {
+    width: 80px;
+    height: 80px;
+    background: var(--background-color); /* base.htmlの背景色を使用 */
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+    box-shadow: var(--shadow-lg);
+    border: 2px solid var(--primary-color); /* プライマリカラーのボーダー */
+}
+
+.settings-icon i {
+    font-size: 2.5rem;
+    color: var(--primary-color); /* base.htmlのプライマリカラーを使用 */
+}
+
+.settings-title {
+    background: var(--primary-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-weight: 700;
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+}
+
+.settings-subtitle {
+    color: #6c757d;
+    font-size: 1.1rem;
+    margin-bottom: 0;
+}
+
+.settings-form .form-control {
+    border: 2px solid #e9ecef;
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    font-size: 1rem;
+    transition: var(--transition);
+    background: rgba(255, 255, 255, 0.9);
+}
+
+.settings-form .form-control:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    background: white;
+}
+
+.settings-form .form-label {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 0.75rem;
+}
+
+.settings-form .form-text {
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+.settings-footer .alert {
+    border: none;
+    border-radius: var(--border-radius);
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+    border-left: 4px solid #667eea;
+}
+
+.settings-footer .alert h6 {
+    color: #495057;
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+.settings-footer .alert ol {
+    color: #6c757d;
+    font-size: 0.9rem;
+    line-height: 1.6;
+}
+
+.settings-footer .alert a {
+    color: #667eea;
+    font-weight: 500;
+}
+
+.settings-footer .alert a:hover {
+    color: #5a67d8;
+}
+
+/* アニメーション */
+.settings-card {
+    animation: slideInUp 0.6s ease-out;
+}
+
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* レスポンシブ */
+@media (max-width: 768px) {
+    .settings-card {
+        padding: 2rem 1.5rem;
+    }
+    
+    .settings-title {
+        font-size: 1.75rem;
+    }
+    
+    .settings-subtitle {
+        font-size: 1rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .settings-container {
+        padding: 1rem 0.5rem;
+    }
+    
+    .settings-card {
+        padding: 1.5rem 1rem;
+    }
+}
+</style>
+{% endblock %} 

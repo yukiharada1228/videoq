@@ -1,0 +1,111 @@
+{% extends 'app/base.html' %}
+
+{% block title %}サインアップ - VideoQ{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h2>サインアップ</h2>
+            </div>
+            <div class="card-body">
+                <form method="post" id="signup-form">
+                    {% csrf_token %}
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {{ form.non_field_errors }}
+                        </div>
+                    {% endif %}
+                    <div class="mb-3">
+                        {{ form.username.label_tag }}{{ form.username }}
+                        {% if form.username.errors %}
+                            <div class="text-danger small mt-1">{{ form.username.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.email.label_tag }}{{ form.email }}
+                        {% if form.email.errors %}
+                            <div class="text-danger small mt-1">{{ form.email.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.password1.label_tag }}{{ form.password1 }}
+                        {% if form.password1.errors %}
+                            <div class="text-danger small mt-1">{{ form.password1.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.password2.label_tag }}{{ form.password2 }}
+                        {% if form.password2.errors %}
+                            <div class="text-danger small mt-1">{{ form.password2.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="form-check mb-3">
+                        <input type="checkbox" id="id_agree_terms" name="agree_terms" {% if not form.agree_terms.value %}disabled{% endif %} {% if form.agree_terms.value %}checked{% endif %}>
+                        <label class="form-check-label" for="id_agree_terms">
+                            利用規約およびプライバシーポリシーに同意する
+                        </label>
+                        <button type="button" class="btn btn-link p-0 ms-2" id="show-terms-btn">利用規約・プライバシーポリシーを読む</button>
+                        {% if form.agree_terms.errors %}
+                            <div class="text-danger small mt-1">{{ form.agree_terms.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">登録</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- モーダルはform・カードの外、block content直下に配置 -->
+<div class="modal fade" id="termsModal" tabindex="-1" aria-labelledby="termsModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="termsModalLabel">利用規約・プライバシーポリシー</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="閉じる"></button>
+      </div>
+      <div class="modal-body" style="max-height:60vh; overflow-y:auto;">
+        <h6>利用規約</h6>
+        <div class="border p-2 mb-3 bg-light" style="max-height:25vh; overflow-y:auto; font-size:0.92em;">
+          {{ terms_html|safe }}
+        </div>
+        <h6>プライバシーポリシー</h6>
+        <div class="border p-2 bg-light" style="max-height:25vh; overflow-y:auto; font-size:0.92em;">
+          {{ privacy_html|safe }}
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">閉じる</button>
+        <button type="button" class="btn btn-primary" id="agree-btn">同意する</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  var showTermsBtn = document.getElementById('show-terms-btn');
+  var termsModal = new bootstrap.Modal(document.getElementById('termsModal'));
+  var agreeBtn = document.getElementById('agree-btn');
+  var agreeCheckbox = document.getElementById('id_agree_terms');
+
+  showTermsBtn.addEventListener('click', function(e) {
+    e.preventDefault();
+    termsModal.show();
+  });
+  agreeBtn.addEventListener('click', function() {
+    agreeCheckbox.checked = true;
+    agreeCheckbox.disabled = false;
+    termsModal.hide();
+  });
+  // チェックボックスは手動でONにできない
+  agreeCheckbox.addEventListener('click', function(e) {
+    if (agreeCheckbox.disabled) {
+      e.preventDefault();
+    }
+  });
+});
+</script>
+{% endblock %} 

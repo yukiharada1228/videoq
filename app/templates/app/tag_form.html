@@ -1,0 +1,148 @@
+{% extends 'app/base.html' %}
+
+{% block title %}{{ title }} - VideoQ{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <!-- ヘッダー -->
+            <div class="text-center mb-4">
+                <h1 class="h2 mb-2">
+                    <i class="bi bi-hash text-primary"></i> {{ title }}
+                </h1>
+                <p class="text-muted mb-0">タグの情報を設定してください</p>
+            </div>
+
+            <!-- フォーム -->
+            <div class="card">
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        {% if form.non_field_errors %}
+                            <div class="alert alert-danger">
+                                {% for error in form.non_field_errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        
+                        <!-- タグ名 -->
+                        <div class="mb-3">
+                            <label for="{{ form.name.id_for_label }}" class="form-label">
+                                <i class="bi bi-tag me-2"></i>タグ名 <span class="text-danger">*</span>
+                            </label>
+                            {{ form.name }}
+                            {% if form.name.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.name.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">タグの名前を入力してください（64文字以内）</div>
+                        </div>
+
+                        <!-- タグの色 -->
+                        <div class="mb-4">
+                            <label for="{{ form.color.id_for_label }}" class="form-label">
+                                <i class="bi bi-palette me-2"></i>タグの色
+                            </label>
+                            <div class="row">
+                                <div class="col-md-8">
+                                    {{ form.color }}
+                                    {% if form.color.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {% for error in form.color.errors %}
+                                                {{ error }}
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                    <div class="form-text">HEXカラーコード（例: #ff6b6b）または色名（例: red）</div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="color-preview-container">
+                                        <div class="color-preview" id="color-preview"></div>
+                                        <small class="text-muted">プレビュー</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ボタン -->
+                        <div class="d-flex gap-2">
+                            <a href="{% url 'app:tag_management' %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-left me-2"></i>キャンセル
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle me-2"></i>{{ submit_text }}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- ヘルプ情報 -->
+            <div class="card mt-4">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="bi bi-info-circle me-2"></i>タグについて
+                    </h5>
+                    <ul class="list-unstyled mb-0">
+                        <li><i class="bi bi-check text-success me-2"></i>タグ名は一意である必要があります</li>
+                        <li><i class="bi bi-check text-success me-2"></i>色を設定すると、動画一覧で視覚的に識別しやすくなります</li>
+                        <li><i class="bi bi-check text-success me-2"></i>作成後は動画のアップロード・編集時に選択できます</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .color-preview-container {
+        text-align: center;
+        padding: 1rem;
+    }
+    
+    .color-preview {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        border: 3px solid #dee2e6;
+        margin: 0 auto 0.5rem;
+        background-color: #f8f9fa;
+    }
+    
+    .form-control:focus {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const colorInput = document.getElementById('{{ form.color.id_for_label }}');
+    const colorPreview = document.getElementById('color-preview');
+    
+    function updateColorPreview() {
+        const color = colorInput.value;
+        if (color) {
+            colorPreview.style.backgroundColor = color;
+        } else {
+            colorPreview.style.backgroundColor = '#f8f9fa';
+        }
+    }
+    
+    // 初期表示
+    updateColorPreview();
+    
+    // 入力時の更新
+    colorInput.addEventListener('input', updateColorPreview);
+    
+    // フォーカス時の更新
+    colorInput.addEventListener('focus', updateColorPreview);
+});
+</script>
+{% endblock %}

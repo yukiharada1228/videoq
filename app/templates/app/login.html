@@ -1,0 +1,230 @@
+{% extends 'app/base.html' %}
+
+{% block title %}ログイン - VideoQ{% endblock %}
+
+{% block content %}
+<div class="login-container">
+    <div class="login-wrapper">
+        <div class="login-card">
+            <div class="login-header text-center mb-4">
+                <div class="login-logo mb-3">
+                    <i class="bi bi-play-circle-fill"></i>
+                </div>
+                <h2 class="login-title">VideoQへようこそ</h2>
+                <p class="login-subtitle">動画の文字起こし・グループ化・チャットで活用</p>
+            </div>
+
+            {% if form.errors %}
+                <div class="alert alert-danger d-flex align-items-center">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    <div>ユーザー名またはパスワードが正しくありません。</div>
+                </div>
+            {% endif %}
+
+            <form method="post" novalidate class="login-form">
+                {% csrf_token %}
+                <div class="form-group mb-4">
+                    <label for="id_username" class="form-label">
+                        <i class="bi bi-person me-2"></i>ユーザー名
+                    </label>
+                    <input type="text" 
+                           name="username" 
+                           autofocus 
+                           required 
+                           maxlength="150" 
+                           class="form-control form-control-lg" 
+                           id="id_username" 
+                           placeholder="ユーザー名を入力" 
+                           value="{{ form.username.value|default:'' }}">
+                    {% if form.username.errors %}
+                        <div class="text-danger small mt-1">{{ form.username.errors.0 }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="form-group mb-4">
+                    <label for="id_password" class="form-label">
+                        <i class="bi bi-lock me-2"></i>パスワード
+                    </label>
+                    <input type="password" 
+                           name="password" 
+                           required 
+                           class="form-control form-control-lg" 
+                           id="id_password" 
+                           placeholder="パスワードを入力">
+                    {% if form.password.errors %}
+                        <div class="text-danger small mt-1">{{ form.password.errors.0 }}</div>
+                    {% endif %}
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-lg w-100 mb-4">
+                    <i class="bi bi-box-arrow-in-right me-2"></i>ログイン
+                </button>
+            </form>
+
+            <div class="login-footer text-center">
+                <a href="{% url 'app:password_reset' %}" class="text-decoration-none">
+                    <i class="bi bi-question-circle me-1"></i>パスワードを忘れた場合
+                </a>
+                <hr class="my-4">
+                {% if SIGNUP_ENABLED %}
+                <p class="mb-0">
+                    アカウントをお持ちでない方は
+                    <a href="{% url 'app:signup' %}" class="text-decoration-none fw-bold">
+                        新規登録
+                    </a>
+                </p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.login-container {
+    background: var(--background-secondary);
+    min-height: calc(100vh - 200px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
+}
+
+.login-wrapper {
+    width: 100%;
+    max-width: 90vw;
+    display: flex;
+    justify-content: center;
+}
+
+.login-card {
+    background: var(--background-color);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-lg);
+    padding: clamp(2rem, 5vw, 4rem) clamp(1.5rem, 4vw, 3rem);
+    box-shadow: var(--shadow-lg);
+    width: 100%;
+    max-width: min(600px, 80vw);
+    min-width: 320px;
+}
+
+.login-logo {
+    width: clamp(60px, 8vw, 90px);
+    height: clamp(60px, 8vw, 90px);
+    background: var(--primary-color);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+    box-shadow: var(--shadow-md);
+}
+
+.login-logo i {
+    font-size: clamp(1.5rem, 3vw, 2.5rem);
+    color: white;
+}
+
+.login-title {
+    color: var(--text-color);
+    font-weight: 600;
+    font-size: clamp(1.5rem, 4vw, 2.5rem);
+    margin-bottom: 0.5rem;
+}
+
+.login-subtitle {
+    color: var(--text-muted);
+    font-size: clamp(0.9rem, 2vw, 1.2rem);
+    margin-bottom: 0;
+}
+
+.login-form .form-control {
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: clamp(0.75rem, 2vw, 1.25rem) clamp(1rem, 2.5vw, 1.5rem);
+    font-size: clamp(0.9rem, 2vw, 1.1rem);
+    transition: var(--transition);
+    background: var(--background-color);
+}
+
+.login-form .form-control:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    background: var(--background-color);
+}
+
+.login-form .form-label {
+    font-weight: 500;
+    color: var(--text-color);
+    margin-bottom: clamp(0.5rem, 1.5vw, 0.75rem);
+    font-size: clamp(0.9rem, 2vw, 1.1rem);
+}
+
+.login-form .form-label i {
+    color: var(--text-color);
+}
+
+.login-footer a {
+    color: var(--primary-color);
+    transition: var(--transition);
+    font-size: clamp(0.85rem, 2vw, 1rem);
+}
+
+.login-footer a:hover {
+    color: var(--primary-hover);
+}
+
+.login-footer hr {
+    border-color: var(--border-color);
+    margin: clamp(1.5rem, 3vw, 2.5rem) 0;
+}
+
+.login-footer p {
+    font-size: clamp(0.85rem, 2vw, 1rem);
+}
+
+/* レスポンシブ */
+@media (max-width: 768px) {
+    .login-container {
+        padding: 1rem 0.5rem;
+        min-height: calc(100vh - 150px);
+    }
+    
+    .login-wrapper {
+        max-width: 95vw;
+    }
+    
+    .login-card {
+        max-width: 90vw;
+        min-width: 280px;
+    }
+}
+
+@media (max-width: 576px) {
+    .login-container {
+        padding: 0.5rem;
+    }
+    
+    .login-wrapper {
+        max-width: 98vw;
+    }
+    
+    .login-card {
+        max-width: 95vw;
+        min-width: 260px;
+    }
+}
+
+/* 大きな画面での最適化 */
+@media (min-width: 1200px) {
+    .login-card {
+        max-width: 700px;
+    }
+}
+
+@media (min-width: 1600px) {
+    .login-card {
+        max-width: 800px;
+    }
+}
+</style>
+{% endblock %} 

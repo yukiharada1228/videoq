@@ -1,0 +1,96 @@
+{% extends 'app/base.html' %}
+
+{% block title %}タグ削除確認 - VideoQ{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <!-- ヘッダー -->
+            <div class="text-center mb-4">
+                <h1 class="h2 mb-2">
+                    <i class="bi bi-exclamation-triangle text-warning"></i> タグ削除確認
+                </h1>
+                <p class="text-muted mb-0">以下のタグを削除しますか？</p>
+            </div>
+
+            <!-- 削除対象のタグ情報 -->
+            <div class="card border-warning">
+                <div class="card-header bg-warning bg-opacity-10 border-warning">
+                    <h5 class="card-title mb-0 text-warning">
+                        <i class="bi bi-hash me-2"></i>削除対象のタグ
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h6 class="mb-2">{{ object.name }}</h6>
+                            {% if object.color %}
+                                <div class="d-flex align-items-center mb-2">
+                                    <span class="tag-color-display me-2" style="background-color: {{ object.color }};"></span>
+                                    <small class="text-muted">{{ object.color }}</small>
+                                </div>
+                            {% endif %}
+                            <small class="text-muted">
+                                作成日: {{ object.created_at|date:"Y年m月d日 H:i" }}
+                            </small>
+                        </div>
+                        <div class="col-md-4 text-center">
+                            <div class="tag-icon-large">
+                                <i class="bi bi-hash"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 影響範囲の警告 -->
+            <div class="alert alert-warning mt-4">
+                <div class="d-flex">
+                    <i class="bi bi-exclamation-triangle me-3 mt-1"></i>
+                    <div>
+                        <h6 class="alert-heading mb-2">削除の影響について</h6>
+                        <ul class="mb-0">
+                            <li>このタグが付いている動画からは、タグが自動的に削除されます</li>
+                            <li>動画自体は削除されません</li>
+                            <li>削除後は元に戻すことができません</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 操作ボタン -->
+            <div class="d-flex gap-2 justify-content-center">
+                <a href="{% url 'app:tag_management' %}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left me-2"></i>キャンセル
+                </a>
+                <form method="post" class="d-inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash me-2"></i>削除を実行
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .tag-color-display {
+        display: inline-block;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        border: 2px solid #dee2e6;
+    }
+    
+    .tag-icon-large {
+        font-size: 3rem;
+        color: #6c757d;
+    }
+    
+    .card.border-warning {
+        border-width: 2px;
+    }
+</style>
+{% endblock %}
