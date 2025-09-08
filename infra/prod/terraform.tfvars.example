@@ -1,0 +1,9 @@
+environment = "prod"
+
+pinecone_api_key     = ""
+pinecone_environment = "us-east-1"
+
+mailgun_api_key       = ""
+mailgun_sender_domain = ""
+basic_auth_password   = ""
+enable_https          = true
