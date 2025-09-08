@@ -323,13 +323,13 @@ class Video(models.Model):
     def hide_oldest_videos_for_user(cls, user, limit, exclude_video_id=None):
         """ユーザーの動画数が上限を超えた場合、古い動画から非表示にする"""
         visible_videos = cls.get_visible_videos_for_user(user)
-        
+
         # 除外する動画IDがある場合は除外
         if exclude_video_id:
             visible_videos = visible_videos.exclude(id=exclude_video_id)
-        
+
         current_count = visible_videos.count()
-        
+
         if current_count > limit:
             # 古い動画から非表示にする
             # スライスを取る前にIDのリストを取得
@@ -356,21 +356,23 @@ class Video(models.Model):
         limit = user.get_video_limit()
         visible_count = cls.get_visible_videos_for_user(user).count()
         hidden_videos = cls.objects.filter(user=user, is_visible=False)
-        
+
         # 表示可能な動画数が上限未満の場合、非表示動画を復活させる
         if visible_count < limit and hidden_videos.exists():
             # 復活させる動画の数を計算
             restore_count = min(limit - visible_count, hidden_videos.count())
-            
+
             # 古い順（アップロード日時順）で復活させる
             videos_to_restore_ids = list(
-                hidden_videos.order_by("uploaded_at")[:restore_count].values_list("id", flat=True)
+                hidden_videos.order_by("uploaded_at")[:restore_count].values_list(
+                    "id", flat=True
+                )
             )
-            
+
             if videos_to_restore_ids:
                 cls.objects.filter(id__in=videos_to_restore_ids).update(is_visible=True)
                 return len(videos_to_restore_ids)
-        
+
         return 0
 
     def delete(self, *args, **kwargs):

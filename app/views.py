@@ -78,14 +78,14 @@ class HomeView(LoginRequiredMixin, TemplateView):
         # 統計情報（表示可能な動画のみ）- 1回のクエリで最適化
         visible_videos = Video.get_visible_videos_for_user(self.request.user)
         video_stats = visible_videos.aggregate(
-            total=Count('id'),
-            completed=Count('id', filter=Q(status='completed')),
-            pending=Count('id', filter=Q(status='pending')),
-            processing=Count('id', filter=Q(status='processing')),
-            error=Count('id', filter=Q(status='error'))
+            total=Count("id"),
+            completed=Count("id", filter=Q(status="completed")),
+            pending=Count("id", filter=Q(status="pending")),
+            processing=Count("id", filter=Q(status="processing")),
+            error=Count("id", filter=Q(status="error")),
         )
-        context["total_videos"] = video_stats['total']
-        context["completed_videos"] = video_stats['completed']
+        context["total_videos"] = video_stats["total"]
+        context["completed_videos"] = video_stats["completed"]
         context["total_groups"] = video_groups.count()
 
         # 動画上限/残り本数
@@ -95,41 +95,47 @@ class HomeView(LoginRequiredMixin, TemplateView):
             video_limit = 0
         context["video_limit"] = video_limit
         context["video_remaining"] = max(0, video_limit - context["total_videos"])
-        
+
         # 既存の動画が上限を超えている場合、古い動画を非表示にする
         if context["total_videos"] > video_limit:
             hidden_count = Video.check_and_hide_over_limit_videos(self.request.user)
             if hidden_count > 0:
                 messages.info(
                     self.request,
-                    f"動画の上限({video_limit}本)を超えていたため、{hidden_count}本の古い動画を非表示にしました。"
+                    f"動画の上限({video_limit}本)を超えていたため、{hidden_count}本の古い動画を非表示にしました。",
                 )
                 # 統計情報を再取得
                 visible_videos = Video.get_visible_videos_for_user(self.request.user)
                 video_stats = visible_videos.aggregate(
-                    total=Count('id'),
-                    completed=Count('id', filter=Q(status='completed'))
+                    total=Count("id"),
+                    completed=Count("id", filter=Q(status="completed")),
                 )
-                context["total_videos"] = video_stats['total']
-                context["completed_videos"] = video_stats['completed']
-                context["video_remaining"] = max(0, video_limit - context["total_videos"])
+                context["total_videos"] = video_stats["total"]
+                context["completed_videos"] = video_stats["completed"]
+                context["video_remaining"] = max(
+                    0, video_limit - context["total_videos"]
+                )
         else:
             # 制限が緩和された場合、非表示動画を復活させる
-            restored_count = Video.restore_hidden_videos_if_under_limit(self.request.user)
+            restored_count = Video.restore_hidden_videos_if_under_limit(
+                self.request.user
+            )
             if restored_count > 0:
                 messages.success(
                     self.request,
-                    f"動画の上限が緩和されたため、{restored_count}本の動画を復活させました。"
+                    f"動画の上限が緩和されたため、{restored_count}本の動画を復活させました。",
                 )
                 # 統計情報を再取得
                 visible_videos = Video.get_visible_videos_for_user(self.request.user)
                 video_stats = visible_videos.aggregate(
-                    total=Count('id'),
-                    completed=Count('id', filter=Q(status='completed'))
+                    total=Count("id"),
+                    completed=Count("id", filter=Q(status="completed")),
                 )
-                context["total_videos"] = video_stats['total']
-                context["completed_videos"] = video_stats['completed']
-                context["video_remaining"] = max(0, video_limit - context["total_videos"])
+                context["total_videos"] = video_stats["total"]
+                context["completed_videos"] = video_stats["completed"]
+                context["video_remaining"] = max(
+                    0, video_limit - context["total_videos"]
+                )
 
         # API設定状態とオンボーディング情報
         context["api_key_configured"] = bool(self.request.user.encrypted_openai_api_key)
@@ -162,9 +168,9 @@ class VideoUploadView(LoginRequiredMixin, CreateView):
             "name"
         )
 
-        # 最近の動画（最新5件）- prefetch_relatedでN+1問題を回避
+        # 最近の動画（最新5件）- 表示可能な動画のみ、prefetch_relatedでN+1問題を回避
         context["recent_videos"] = (
-            Video.objects.filter(user=self.request.user)
+            Video.get_visible_videos_for_user(self.request.user)
             .prefetch_related("tags")
             .order_by("-uploaded_at")[:5]
         )
@@ -176,7 +182,7 @@ class VideoUploadView(LoginRequiredMixin, CreateView):
         context["user_video_limit"] = max_allowed
         context["user_video_count"] = current_total
         context["user_video_remaining"] = max(0, max_allowed - current_total)
-        
+
         # 上限を超えている場合の情報
         if current_total > max_allowed:
             context["over_limit"] = True
@@ -191,20 +197,22 @@ class VideoUploadView(LoginRequiredMixin, CreateView):
     def form_valid(self, form):
         user = self.request.user
         max_allowed = user.get_video_limit()
-        
+
         form.instance.user = user
         # 通常の保存を先に実行
         response = super().form_valid(form)
-        
+
         # 保存後に上限チェックを行い、必要に応じて古い動画を非表示にする
         # 新しくアップロードされた動画は除外
-        hidden_count = Video.hide_oldest_videos_for_user(user, max_allowed, exclude_video_id=self.object.id)
-        
+        hidden_count = Video.hide_oldest_videos_for_user(
+            user, max_allowed, exclude_video_id=self.object.id
+        )
+
         # 非表示にした動画がある場合はメッセージを表示
         if hidden_count > 0:
             messages.info(
                 self.request,
-                f"動画の上限({max_allowed}本)を超えたため、{hidden_count}本の古い動画を非表示にしました。"
+                f"動画の上限({max_allowed}本)を超えたため、{hidden_count}本の古い動画を非表示にしました。",
             )
         else:
             # 制限に余裕がある場合、非表示動画を復活させる
@@ -212,9 +220,9 @@ class VideoUploadView(LoginRequiredMixin, CreateView):
             if restored_count > 0:
                 messages.success(
                     self.request,
-                    f"動画の上限に余裕があるため、{restored_count}本の動画を復活させました。"
+                    f"動画の上限に余裕があるため、{restored_count}本の動画を復活させました。",
                 )
-        
+
         # バックグラウンド処理を起動
         process_video.delay(self.object.id)
         # AJAXの場合はJSONで成功を返す（リダイレクトしない）
@@ -707,17 +715,17 @@ class VideoListView(LoginRequiredMixin, ListView):
         # 統計情報を追加（表示可能な動画のみ）- 1回のクエリで最適化
         user_videos = Video.get_visible_videos_for_user(self.request.user)
         video_stats = user_videos.aggregate(
-            total=Count('id'),
-            completed=Count('id', filter=Q(status='completed')),
-            pending=Count('id', filter=Q(status='pending')),
-            processing=Count('id', filter=Q(status='processing')),
-            error=Count('id', filter=Q(status='error'))
+            total=Count("id"),
+            completed=Count("id", filter=Q(status="completed")),
+            pending=Count("id", filter=Q(status="pending")),
+            processing=Count("id", filter=Q(status="processing")),
+            error=Count("id", filter=Q(status="error")),
         )
-        context["total_videos"] = video_stats['total']
-        context["completed_videos"] = video_stats['completed']
-        context["pending_videos"] = video_stats['pending']
-        context["processing_videos"] = video_stats['processing']
-        context["error_videos"] = video_stats['error']
+        context["total_videos"] = video_stats["total"]
+        context["completed_videos"] = video_stats["completed"]
+        context["pending_videos"] = video_stats["pending"]
+        context["processing_videos"] = video_stats["processing"]
+        context["error_videos"] = video_stats["error"]
 
         # 非表示動画の数も表示
         hidden_videos = Video.objects.filter(
@@ -732,53 +740,59 @@ class VideoListView(LoginRequiredMixin, ListView):
             max_allowed = 0
         context["user_video_limit"] = max_allowed
         context["user_video_remaining"] = max(0, max_allowed - context["total_videos"])
-        
+
         # 既存の動画が上限を超えている場合、古い動画を非表示にする
         if context["total_videos"] > max_allowed:
             hidden_count = Video.check_and_hide_over_limit_videos(self.request.user)
             if hidden_count > 0:
                 messages.info(
                     self.request,
-                    f"動画の上限({max_allowed}本)を超えていたため、{hidden_count}本の古い動画を非表示にしました。"
+                    f"動画の上限({max_allowed}本)を超えていたため、{hidden_count}本の古い動画を非表示にしました。",
                 )
                 # 統計情報を再取得
                 user_videos = Video.get_visible_videos_for_user(self.request.user)
                 video_stats = user_videos.aggregate(
-                    total=Count('id'),
-                    completed=Count('id', filter=Q(status='completed')),
-                    pending=Count('id', filter=Q(status='pending')),
-                    processing=Count('id', filter=Q(status='processing')),
-                    error=Count('id', filter=Q(status='error'))
+                    total=Count("id"),
+                    completed=Count("id", filter=Q(status="completed")),
+                    pending=Count("id", filter=Q(status="pending")),
+                    processing=Count("id", filter=Q(status="processing")),
+                    error=Count("id", filter=Q(status="error")),
                 )
-                context["total_videos"] = video_stats['total']
-                context["completed_videos"] = video_stats['completed']
-                context["pending_videos"] = video_stats['pending']
-                context["processing_videos"] = video_stats['processing']
-                context["error_videos"] = video_stats['error']
-                context["user_video_remaining"] = max(0, max_allowed - context["total_videos"])
+                context["total_videos"] = video_stats["total"]
+                context["completed_videos"] = video_stats["completed"]
+                context["pending_videos"] = video_stats["pending"]
+                context["processing_videos"] = video_stats["processing"]
+                context["error_videos"] = video_stats["error"]
+                context["user_video_remaining"] = max(
+                    0, max_allowed - context["total_videos"]
+                )
         else:
             # 制限が緩和された場合、非表示動画を復活させる
-            restored_count = Video.restore_hidden_videos_if_under_limit(self.request.user)
+            restored_count = Video.restore_hidden_videos_if_under_limit(
+                self.request.user
+            )
             if restored_count > 0:
                 messages.success(
                     self.request,
-                    f"動画の上限が緩和されたため、{restored_count}本の動画を復活させました。"
+                    f"動画の上限が緩和されたため、{restored_count}本の動画を復活させました。",
                 )
                 # 統計情報を再取得
                 user_videos = Video.get_visible_videos_for_user(self.request.user)
                 video_stats = user_videos.aggregate(
-                    total=Count('id'),
-                    completed=Count('id', filter=Q(status='completed')),
-                    pending=Count('id', filter=Q(status='pending')),
-                    processing=Count('id', filter=Q(status='processing')),
-                    error=Count('id', filter=Q(status='error'))
+                    total=Count("id"),
+                    completed=Count("id", filter=Q(status="completed")),
+                    pending=Count("id", filter=Q(status="pending")),
+                    processing=Count("id", filter=Q(status="processing")),
+                    error=Count("id", filter=Q(status="error")),
                 )
-                context["total_videos"] = video_stats['total']
-                context["completed_videos"] = video_stats['completed']
-                context["pending_videos"] = video_stats['pending']
-                context["processing_videos"] = video_stats['processing']
-                context["error_videos"] = video_stats['error']
-                context["user_video_remaining"] = max(0, max_allowed - context["total_videos"])
+                context["total_videos"] = video_stats["total"]
+                context["completed_videos"] = video_stats["completed"]
+                context["pending_videos"] = video_stats["pending"]
+                context["processing_videos"] = video_stats["processing"]
+                context["error_videos"] = video_stats["error"]
+                context["user_video_remaining"] = max(
+                    0, max_allowed - context["total_videos"]
+                )
 
         # フィルター適用後の結果数も追加
         filtered_videos = self.get_queryset()
@@ -814,7 +828,7 @@ class BaseVideoGroupDetailView(DetailView):
 
     model = VideoGroup
     context_object_name = "group"
-    
+
     def get_queryset(self):
         return VideoGroup.objects.prefetch_related("videos", "videos__tags")
 
