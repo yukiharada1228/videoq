@@ -46,7 +46,7 @@ import os
 import mimetypes
 from django.urls import resolve
 from django.core.paginator import Paginator
-from django.db.models import Sum, Count
+from django.db.models import Sum, Count, Q
 
 
 def health_check(request):
@@ -67,19 +67,25 @@ class HomeView(LoginRequiredMixin, TemplateView):
         )
         context["video_groups"] = video_groups
 
-        # 最近の動画（最新5件）- prefetch_relatedでN+1問題を回避
+        # 最近の動画（最新5件）- 表示可能な動画のみ
         recent_videos = (
-            Video.objects.filter(user=self.request.user)
+            Video.get_visible_videos_for_user(self.request.user)
             .prefetch_related("tags")
             .order_by("-uploaded_at")[:5]
         )
         context["recent_videos"] = recent_videos
 
-        # 統計情報
-        context["total_videos"] = Video.objects.filter(user=self.request.user).count()
-        context["completed_videos"] = Video.objects.filter(
-            user=self.request.user, status="completed"
-        ).count()
+        # 統計情報（表示可能な動画のみ）- 1回のクエリで最適化
+        visible_videos = Video.get_visible_videos_for_user(self.request.user)
+        video_stats = visible_videos.aggregate(
+            total=Count("id"),
+            completed=Count("id", filter=Q(status="completed")),
+            pending=Count("id", filter=Q(status="pending")),
+            processing=Count("id", filter=Q(status="processing")),
+            error=Count("id", filter=Q(status="error")),
+        )
+        context["total_videos"] = video_stats["total"]
+        context["completed_videos"] = video_stats["completed"]
         context["total_groups"] = video_groups.count()
 
         # 動画上限/残り本数
@@ -89,6 +95,47 @@ class HomeView(LoginRequiredMixin, TemplateView):
             video_limit = 0
         context["video_limit"] = video_limit
         context["video_remaining"] = max(0, video_limit - context["total_videos"])
+
+        # 既存の動画が上限を超えている場合、古い動画を非表示にする
+        if context["total_videos"] > video_limit:
+            hidden_count = Video.check_and_hide_over_limit_videos(self.request.user)
+            if hidden_count > 0:
+                messages.info(
+                    self.request,
+                    f"動画の上限({video_limit}本)を超えていたため、{hidden_count}本の古い動画を非表示にしました。",
+                )
+                # 統計情報を再取得
+                visible_videos = Video.get_visible_videos_for_user(self.request.user)
+                video_stats = visible_videos.aggregate(
+                    total=Count("id"),
+                    completed=Count("id", filter=Q(status="completed")),
+                )
+                context["total_videos"] = video_stats["total"]
+                context["completed_videos"] = video_stats["completed"]
+                context["video_remaining"] = max(
+                    0, video_limit - context["total_videos"]
+                )
+        else:
+            # 制限が緩和された場合、非表示動画を復活させる
+            restored_count = Video.restore_hidden_videos_if_under_limit(
+                self.request.user
+            )
+            if restored_count > 0:
+                messages.success(
+                    self.request,
+                    f"動画の上限が緩和されたため、{restored_count}本の動画を復活させました。",
+                )
+                # 統計情報を再取得
+                visible_videos = Video.get_visible_videos_for_user(self.request.user)
+                video_stats = visible_videos.aggregate(
+                    total=Count("id"),
+                    completed=Count("id", filter=Q(status="completed")),
+                )
+                context["total_videos"] = video_stats["total"]
+                context["completed_videos"] = video_stats["completed"]
+                context["video_remaining"] = max(
+                    0, video_limit - context["total_videos"]
+                )
 
         # API設定状態とオンボーディング情報
         context["api_key_configured"] = bool(self.request.user.encrypted_openai_api_key)
@@ -121,20 +168,25 @@ class VideoUploadView(LoginRequiredMixin, CreateView):
             "name"
         )
 
-        # 最近の動画（最新5件）- prefetch_relatedでN+1問題を回避
+        # 最近の動画（最新5件）- 表示可能な動画のみ、prefetch_relatedでN+1問題を回避
         context["recent_videos"] = (
-            Video.objects.filter(user=self.request.user)
+            Video.get_visible_videos_for_user(self.request.user)
             .prefetch_related("tags")
             .order_by("-uploaded_at")[:5]
         )
 
         # 動画上限情報
         user = self.request.user
-        current_total = Video.objects.filter(user=user).count()
+        current_total = Video.get_visible_videos_for_user(user).count()
         max_allowed = user.get_video_limit()
         context["user_video_limit"] = max_allowed
         context["user_video_count"] = current_total
         context["user_video_remaining"] = max(0, max_allowed - current_total)
+
+        # 上限を超えている場合の情報
+        if current_total > max_allowed:
+            context["over_limit"] = True
+            context["over_limit_count"] = current_total - max_allowed
         return context
 
     def get_form_kwargs(self):
@@ -143,30 +195,34 @@ class VideoUploadView(LoginRequiredMixin, CreateView):
         return kwargs
 
     def form_valid(self, form):
-        # ユーザーの動画数上限を確認
         user = self.request.user
-        current_count = Video.objects.filter(user=user).count()
         max_allowed = user.get_video_limit()
-        if current_count >= max_allowed:
-            # AJAX（XHR）投稿の場合はJSONでエラーを返す（クライアント側で確実にブロック）
-            if self.request.headers.get("X-Requested-With") == "XMLHttpRequest":
-                return JsonResponse(
-                    {
-                        "success": False,
-                        "error": f"動画の上限({max_allowed}本)に達しています。不要な動画を削除するか、管理者にお問い合わせください。",
-                    },
-                    status=403,
-                )
-            # 通常フォーム送信時はメッセージを出してリダイレクト
-            messages.error(
-                self.request,
-                f"動画の上限({max_allowed}本)に達しています。不要な動画を削除するか、管理者にお問い合わせください。",
-            )
-            return redirect("app:video_list")
 
         form.instance.user = user
         # 通常の保存を先に実行
         response = super().form_valid(form)
+
+        # 保存後に上限チェックを行い、必要に応じて古い動画を非表示にする
+        # 新しくアップロードされた動画は除外
+        hidden_count = Video.hide_oldest_videos_for_user(
+            user, max_allowed, exclude_video_id=self.object.id
+        )
+
+        # 非表示にした動画がある場合はメッセージを表示
+        if hidden_count > 0:
+            messages.info(
+                self.request,
+                f"動画の上限({max_allowed}本)を超えたため、{hidden_count}本の古い動画を非表示にしました。",
+            )
+        else:
+            # 制限に余裕がある場合、非表示動画を復活させる
+            restored_count = Video.restore_hidden_videos_if_under_limit(user)
+            if restored_count > 0:
+                messages.success(
+                    self.request,
+                    f"動画の上限に余裕があるため、{restored_count}本の動画を復活させました。",
+                )
+
         # バックグラウンド処理を起動
         process_video.delay(self.object.id)
         # AJAXの場合はJSONで成功を返す（リダイレクトしない）
@@ -617,7 +673,7 @@ class VideoGroupListView(LoginRequiredMixin, ListView):
 
     def get_queryset(self):
         return VideoGroup.objects.filter(user=self.request.user).prefetch_related(
-            "videos"
+            "videos", "videos__tags"
         )
 
     def get_context_data(self, **kwargs):
@@ -635,8 +691,10 @@ class VideoListView(LoginRequiredMixin, ListView):
     paginate_by = 20  # リスト形式なので1ページあたり20件表示
 
     def get_queryset(self):
-        # ユーザーが所有する動画のみ表示（prefetch_relatedでN+1問題を回避）
-        queryset = Video.objects.filter(user=self.request.user).prefetch_related("tags")
+        # ユーザーの表示可能な動画のみ表示（prefetch_relatedでN+1問題を回避）
+        queryset = Video.get_visible_videos_for_user(
+            self.request.user
+        ).prefetch_related("tags")
 
         # タグでの検索
         tag_filter = self.request.GET.get("tag")
@@ -654,13 +712,27 @@ class VideoListView(LoginRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        # 統計情報を追加（フィルター適用前の全体数）
-        user_videos = Video.objects.filter(user=self.request.user)
-        context["total_videos"] = user_videos.count()
-        context["completed_videos"] = user_videos.filter(status="completed").count()
-        context["pending_videos"] = user_videos.filter(status="pending").count()
-        context["processing_videos"] = user_videos.filter(status="processing").count()
-        context["error_videos"] = user_videos.filter(status="error").count()
+        # 統計情報を追加（表示可能な動画のみ）- 1回のクエリで最適化
+        user_videos = Video.get_visible_videos_for_user(self.request.user)
+        video_stats = user_videos.aggregate(
+            total=Count("id"),
+            completed=Count("id", filter=Q(status="completed")),
+            pending=Count("id", filter=Q(status="pending")),
+            processing=Count("id", filter=Q(status="processing")),
+            error=Count("id", filter=Q(status="error")),
+        )
+        context["total_videos"] = video_stats["total"]
+        context["completed_videos"] = video_stats["completed"]
+        context["pending_videos"] = video_stats["pending"]
+        context["processing_videos"] = video_stats["processing"]
+        context["error_videos"] = video_stats["error"]
+
+        # 非表示動画の数も表示
+        hidden_videos = Video.objects.filter(
+            user=self.request.user, is_visible=False
+        ).count()
+        context["hidden_videos"] = hidden_videos
+
         # 動画上限情報
         try:
             max_allowed = self.request.user.get_video_limit()
@@ -668,6 +740,59 @@ class VideoListView(LoginRequiredMixin, ListView):
             max_allowed = 0
         context["user_video_limit"] = max_allowed
         context["user_video_remaining"] = max(0, max_allowed - context["total_videos"])
+
+        # 既存の動画が上限を超えている場合、古い動画を非表示にする
+        if context["total_videos"] > max_allowed:
+            hidden_count = Video.check_and_hide_over_limit_videos(self.request.user)
+            if hidden_count > 0:
+                messages.info(
+                    self.request,
+                    f"動画の上限({max_allowed}本)を超えていたため、{hidden_count}本の古い動画を非表示にしました。",
+                )
+                # 統計情報を再取得
+                user_videos = Video.get_visible_videos_for_user(self.request.user)
+                video_stats = user_videos.aggregate(
+                    total=Count("id"),
+                    completed=Count("id", filter=Q(status="completed")),
+                    pending=Count("id", filter=Q(status="pending")),
+                    processing=Count("id", filter=Q(status="processing")),
+                    error=Count("id", filter=Q(status="error")),
+                )
+                context["total_videos"] = video_stats["total"]
+                context["completed_videos"] = video_stats["completed"]
+                context["pending_videos"] = video_stats["pending"]
+                context["processing_videos"] = video_stats["processing"]
+                context["error_videos"] = video_stats["error"]
+                context["user_video_remaining"] = max(
+                    0, max_allowed - context["total_videos"]
+                )
+        else:
+            # 制限が緩和された場合、非表示動画を復活させる
+            restored_count = Video.restore_hidden_videos_if_under_limit(
+                self.request.user
+            )
+            if restored_count > 0:
+                messages.success(
+                    self.request,
+                    f"動画の上限が緩和されたため、{restored_count}本の動画を復活させました。",
+                )
+                # 統計情報を再取得
+                user_videos = Video.get_visible_videos_for_user(self.request.user)
+                video_stats = user_videos.aggregate(
+                    total=Count("id"),
+                    completed=Count("id", filter=Q(status="completed")),
+                    pending=Count("id", filter=Q(status="pending")),
+                    processing=Count("id", filter=Q(status="processing")),
+                    error=Count("id", filter=Q(status="error")),
+                )
+                context["total_videos"] = video_stats["total"]
+                context["completed_videos"] = video_stats["completed"]
+                context["pending_videos"] = video_stats["pending"]
+                context["processing_videos"] = video_stats["processing"]
+                context["error_videos"] = video_stats["error"]
+                context["user_video_remaining"] = max(
+                    0, max_allowed - context["total_videos"]
+                )
 
         # フィルター適用後の結果数も追加
         filtered_videos = self.get_queryset()
@@ -704,13 +829,24 @@ class BaseVideoGroupDetailView(DetailView):
     model = VideoGroup
     context_object_name = "group"
 
+    def get_queryset(self):
+        return VideoGroup.objects.prefetch_related("videos", "videos__tags")
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         group = self.get_object()
+        # 表示可能な完了動画のみを取得
         completed_videos = group.completed_videos.order_by("title")
         context["completed_videos"] = completed_videos
         context["video_count"] = completed_videos.count()
         context["group_id"] = group.id
+
+        # 非表示動画の数も表示（管理用）
+        hidden_videos_count = group.all_completed_videos.filter(
+            is_visible=False
+        ).count()
+        context["hidden_videos_count"] = hidden_videos_count
+
         return context
 
 
@@ -721,7 +857,7 @@ class VideoGroupDetailView(LoginRequiredMixin, BaseVideoGroupDetailView):
 
     def get_queryset(self):
         return VideoGroup.objects.filter(user=self.request.user).prefetch_related(
-            "videos__tags"
+            "videos", "videos__tags"
         )
 
     def get_context_data(self, **kwargs):
@@ -752,9 +888,9 @@ class VideoGroupDetailView(LoginRequiredMixin, BaseVideoGroupDetailView):
             context["max_concurrent_users"] = 0
             context["session_timeout_minutes"] = 0
 
-        # 追加可能な動画
+        # 追加可能な動画（表示可能な完了動画のみ）
         all_user_videos = Video.objects.filter(
-            user=self.request.user, status="completed"
+            user=self.request.user, status="completed", is_visible=True
         ).prefetch_related("tags")
         # グループに既に含まれている動画のIDを取得
         group_video_ids = set(context["completed_videos"].values_list("id", flat=True))
@@ -780,8 +916,13 @@ class VideoGroupAddVideoView(LoginRequiredMixin, View):
             if not video_id:
                 return JsonResponse({"error": "動画IDが指定されていません"}, status=400)
 
+            # 表示可能な完了動画のみを対象とする
             video = get_object_or_404(
-                Video, id=video_id, user=request.user, status="completed"
+                Video,
+                id=video_id,
+                user=request.user,
+                status="completed",
+                is_visible=True,
             )
 
             # 既にグループに追加されているかチェック
@@ -856,9 +997,9 @@ class VideoGroupAddByTagsView(LoginRequiredMixin, View):
                     {"error": f"存在しないタグ: {', '.join(missing)}"}, status=400
                 )
 
-            # ユーザーの完了動画から、全指定タグを持つ動画（AND）を抽出
+            # ユーザーの表示可能な完了動画から、全指定タグを持つ動画（AND）を抽出
             qs = Video.objects.filter(
-                user=request.user, status="completed"
+                user=request.user, status="completed", is_visible=True
             ).prefetch_related("tags")
             for tag in tags:
                 qs = qs.filter(tags=tag)
@@ -991,7 +1132,7 @@ class ShareVideoGroupView(BaseVideoGroupDetailView):
     def get_queryset(self):
         # share_tokenが設定されているグループのみ（prefetch_relatedでN+1問題を回避）
         return VideoGroup.objects.exclude(share_token__isnull=True).prefetch_related(
-            "videos__tags"
+            "videos", "videos__tags"
         )
 
     def get(self, request, *args, **kwargs):

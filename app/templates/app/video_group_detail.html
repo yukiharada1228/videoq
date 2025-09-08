@@ -96,6 +96,9 @@
                 <div class="card-header">
                     <h6 class="card-title mb-0">
                         <i class="bi bi-collection-play"></i> 動画一覧 ({{ video_count }}本)
+                        {% if hidden_videos_count > 0 %}
+                        <small class="text-muted">(非表示: {{ hidden_videos_count }}本)</small>
+                        {% endif %}
                     </h6>
                     <!-- タグ絞り込み（将来拡張: JSでフィルタリング） -->
                     <div class="mt-2">
@@ -236,6 +239,9 @@
                 <div class="card-header">
                     <h6 class="card-title mb-0">
                         <i class="bi bi-collection-play"></i> 動画一覧 ({{ video_count }}本)
+                        {% if hidden_videos_count > 0 %}
+                        <small class="text-muted">(非表示: {{ hidden_videos_count }}本)</small>
+                        {% endif %}
                     </h6>
                 </div>
                 <div class="card-body p-0" style="max-height: 70vh; overflow-y: auto;">

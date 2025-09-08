@@ -26,6 +26,12 @@
                     動画の上限（{{ user_video_limit }}本）に達しています。不要な動画を削除してください。
                     <a href="{% url 'app:video_list' %}" class="alert-link ms-2">動画一覧へ</a>
                 </div>
+                {% elif over_limit %}
+                <div class="alert alert-info m-3">
+                    <i class="bi bi-info-circle me-2"></i>
+                    現在{{ user_video_count }}本の動画があります（上限: {{ user_video_limit }}本）。
+                    新しい動画をアップロードすると、古い動画が自動的に非表示になります。
+                </div>
                 {% endif %}
                 <div class="upload-area" id="upload-area" {% if user_video_remaining|default:0 <= 0 %}style="pointer-events: none; opacity: .6;"{% endif %}>
                     <div class="upload-content text-center">

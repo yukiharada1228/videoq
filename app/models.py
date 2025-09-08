@@ -217,12 +217,22 @@ class VideoGroup(models.Model):
 
     @property
     def video_count(self):
-        """グループ内の動画数を取得"""
-        return self.videos.count()
+        """グループ内の表示可能な動画数を取得"""
+        return self.videos.filter(is_visible=True).count()
 
     @property
     def completed_videos(self):
-        """完了した動画のみを取得"""
+        """完了した表示可能な動画のみを取得"""
+        return self.videos.filter(status="completed", is_visible=True)
+
+    @property
+    def all_videos(self):
+        """すべての動画（非表示含む）を取得（管理用）"""
+        return self.videos.all()
+
+    @property
+    def all_completed_videos(self):
+        """すべての完了動画（非表示含む）を取得（管理用）"""
         return self.videos.filter(status="completed")
 
 
@@ -295,12 +305,75 @@ class Video(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
     error_message = models.TextField(blank=True)
     tags = models.ManyToManyField("Tag", blank=True, related_name="videos")
+    # 表示/非表示制御フィールドを追加
+    is_visible = models.BooleanField(default=True, help_text="動画の表示/非表示を制御")
 
     class Meta:
         ordering = ["-uploaded_at"]
 
     def __str__(self):
         return f"{self.title} (by {self.user.username})"
+
+    @classmethod
+    def get_visible_videos_for_user(cls, user):
+        """ユーザーの表示可能な動画のみを取得"""
+        return cls.objects.filter(user=user, is_visible=True)
+
+    @classmethod
+    def hide_oldest_videos_for_user(cls, user, limit, exclude_video_id=None):
+        """ユーザーの動画数が上限を超えた場合、古い動画から非表示にする"""
+        visible_videos = cls.get_visible_videos_for_user(user)
+
+        # 除外する動画IDがある場合は除外
+        if exclude_video_id:
+            visible_videos = visible_videos.exclude(id=exclude_video_id)
+
+        current_count = visible_videos.count()
+
+        if current_count > limit:
+            # 古い動画から非表示にする
+            # スライスを取る前にIDのリストを取得
+            videos_to_hide_ids = list(
+                visible_videos.order_by("uploaded_at")[
+                    : current_count - limit
+                ].values_list("id", flat=True)
+            )
+            if videos_to_hide_ids:
+                # IDのリストを使って更新
+                cls.objects.filter(id__in=videos_to_hide_ids).update(is_visible=False)
+                return len(videos_to_hide_ids)
+        return 0
+
+    @classmethod
+    def check_and_hide_over_limit_videos(cls, user):
+        """既存の動画が上限を超えている場合、古い動画を非表示にする"""
+        limit = user.get_video_limit()
+        return cls.hide_oldest_videos_for_user(user, limit)
+
+    @classmethod
+    def restore_hidden_videos_if_under_limit(cls, user):
+        """制限が緩和された場合、非表示動画を復活させる"""
+        limit = user.get_video_limit()
+        visible_count = cls.get_visible_videos_for_user(user).count()
+        hidden_videos = cls.objects.filter(user=user, is_visible=False)
+
+        # 表示可能な動画数が上限未満の場合、非表示動画を復活させる
+        if visible_count < limit and hidden_videos.exists():
+            # 復活させる動画の数を計算
+            restore_count = min(limit - visible_count, hidden_videos.count())
+
+            # 古い順（アップロード日時順）で復活させる
+            videos_to_restore_ids = list(
+                hidden_videos.order_by("uploaded_at")[:restore_count].values_list(
+                    "id", flat=True
+                )
+            )
+
+            if videos_to_restore_ids:
+                cls.objects.filter(id__in=videos_to_restore_ids).update(is_visible=True)
+                return len(videos_to_restore_ids)
+
+        return 0
 
     def delete(self, *args, **kwargs):
         """
