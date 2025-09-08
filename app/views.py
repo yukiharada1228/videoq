@@ -58,18 +58,21 @@ class HomeView(LoginRequiredMixin, TemplateView):
     template_name = "app/home.html"
 
     def get_context_data(self, **kwargs):
-
         context = super().get_context_data(**kwargs)
-        # ユーザーの動画グループを取得
-        video_groups = VideoGroup.objects.filter(user=self.request.user).order_by(
-            "-created_at"
+        # ユーザーの動画グループを取得（prefetch_relatedでN+1問題を回避）
+        video_groups = (
+            VideoGroup.objects.filter(user=self.request.user)
+            .prefetch_related("videos")
+            .order_by("-created_at")
         )
         context["video_groups"] = video_groups
 
-        # 最近の動画（最新5件）
-        recent_videos = Video.objects.filter(user=self.request.user).order_by(
-            "-uploaded_at"
-        )[:5]
+        # 最近の動画（最新5件）- prefetch_relatedでN+1問題を回避
+        recent_videos = (
+            Video.objects.filter(user=self.request.user)
+            .prefetch_related("tags")
+            .order_by("-uploaded_at")[:5]
+        )
         context["recent_videos"] = recent_videos
 
         # 統計情報
@@ -176,8 +179,8 @@ class VideoDetailView(LoginRequiredMixin, DetailView):
     context_object_name = "video"
 
     def get_queryset(self):
-        # ユーザーが所有する動画のみ表示
-        return Video.objects.filter(user=self.request.user)
+        # ユーザーが所有する動画のみ表示（prefetch_relatedでN+1問題を回避）
+        return Video.objects.filter(user=self.request.user).prefetch_related("tags")
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -206,8 +209,8 @@ class VideoEditView(LoginRequiredMixin, UpdateView):
     template_name = "app/video_edit.html"
 
     def get_queryset(self):
-        # ユーザーが所有する動画のみ編集可能
-        return Video.objects.filter(user=self.request.user)
+        # ユーザーが所有する動画のみ編集可能（prefetch_relatedでN+1問題を回避）
+        return Video.objects.filter(user=self.request.user).prefetch_related("tags")
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -605,7 +608,9 @@ class VideoGroupListView(LoginRequiredMixin, ListView):
     context_object_name = "video_groups"
 
     def get_queryset(self):
-        return VideoGroup.objects.filter(user=self.request.user)
+        return VideoGroup.objects.filter(user=self.request.user).prefetch_related(
+            "videos"
+        )
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -622,8 +627,8 @@ class VideoListView(LoginRequiredMixin, ListView):
     paginate_by = 20  # リスト形式なので1ページあたり20件表示
 
     def get_queryset(self):
-        # ユーザーが所有する動画のみ表示
-        queryset = Video.objects.filter(user=self.request.user)
+        # ユーザーが所有する動画のみ表示（prefetch_relatedでN+1問題を回避）
+        queryset = Video.objects.filter(user=self.request.user).prefetch_related("tags")
 
         # タグでの検索
         tag_filter = self.request.GET.get("tag")
@@ -707,7 +712,9 @@ class VideoGroupDetailView(LoginRequiredMixin, BaseVideoGroupDetailView):
     template_name = "app/video_group_detail.html"
 
     def get_queryset(self):
-        return VideoGroup.objects.filter(user=self.request.user)
+        return VideoGroup.objects.filter(user=self.request.user).prefetch_related(
+            "videos__tags"
+        )
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -740,7 +747,8 @@ class VideoGroupDetailView(LoginRequiredMixin, BaseVideoGroupDetailView):
         # 追加可能な動画
         all_user_videos = Video.objects.filter(
             user=self.request.user, status="completed"
-        )
+        ).prefetch_related("tags")
+        # グループに既に含まれている動画のIDを取得
         group_video_ids = set(context["completed_videos"].values_list("id", flat=True))
         available_videos = [
             video for video in all_user_videos if video.id not in group_video_ids
@@ -841,7 +849,9 @@ class VideoGroupAddByTagsView(LoginRequiredMixin, View):
                 )
 
             # ユーザーの完了動画から、全指定タグを持つ動画（AND）を抽出
-            qs = Video.objects.filter(user=request.user, status="completed")
+            qs = Video.objects.filter(
+                user=request.user, status="completed"
+            ).prefetch_related("tags")
             for tag in tags:
                 qs = qs.filter(tags=tag)
             candidate_ids = list(qs.values_list("id", flat=True))
@@ -861,8 +871,11 @@ class VideoGroupAddByTagsView(LoginRequiredMixin, View):
                 )
             )
             to_add_ids = [vid for vid in candidate_ids if vid not in existing_ids]
-            for vid in to_add_ids:
-                VideoGroupMember.objects.create(group=group, video_id=vid)
+
+            # 一括作成でN+1問題を回避
+            VideoGroupMember.objects.bulk_create(
+                [VideoGroupMember(group=group, video_id=vid) for vid in to_add_ids]
+            )
 
             return JsonResponse(
                 {
@@ -968,8 +981,10 @@ class ShareVideoGroupView(BaseVideoGroupDetailView):
     slug_url_kwarg = "share_token"
 
     def get_queryset(self):
-        # share_tokenが設定されているグループのみ
-        return VideoGroup.objects.exclude(share_token__isnull=True)
+        # share_tokenが設定されているグループのみ（prefetch_relatedでN+1問題を回避）
+        return VideoGroup.objects.exclude(share_token__isnull=True).prefetch_related(
+            "videos__tags"
+        )
 
     def get(self, request, *args, **kwargs):
         return super().get(request, *args, **kwargs)
@@ -1257,7 +1272,8 @@ class VideoGroupChatLogListView(LoginRequiredMixin, View):
         except Exception:
             limit = 100
 
-        logs = group.chat_logs.all().order_by("-created_at")[:limit]
+        # select_relatedでグループ情報を事前取得してN+1問題を回避
+        logs = group.chat_logs.select_related("group").order_by("-created_at")[:limit]
         data = [
             {
                 "id": log.id,
@@ -1659,7 +1675,9 @@ class TagManagementView(LoginRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["total_tags"] = self.get_queryset().count()
+        # クエリを再利用してN+1問題を回避
+        queryset = self.get_queryset()
+        context["total_tags"] = queryset.count()
         context["total_videos_with_tags"] = (
             Video.objects.filter(user=self.request.user, tags__isnull=False)
             .distinct()
