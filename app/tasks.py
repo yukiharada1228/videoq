@@ -333,7 +333,7 @@ def create_token_based_segments(all_segments, max_tokens_per_segment=7500):
 @shared_task
 def process_video(video_id):
     try:
-        video = Video.objects.get(id=video_id)
+        video = Video.objects.select_related("user").get(id=video_id)
         video.status = "processing"
         video.save()
     except Video.DoesNotExist:
