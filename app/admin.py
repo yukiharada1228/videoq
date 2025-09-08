@@ -30,9 +30,9 @@ class CustomUserAdmin(UserAdmin):
 
 @admin.register(Video)
 class VideoAdmin(admin.ModelAdmin):
-    list_display = ("title", "user", "uploaded_at", "status", "is_violation")
+    list_display = ("title", "user", "uploaded_at", "status")
     search_fields = ("title", "user__username")
-    list_filter = ("status", "is_violation")
+    list_filter = ("status",)
     ordering = ("-uploaded_at",)
 
 

@@ -280,11 +280,6 @@ class Video(models.Model):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="videos"
     )
-    # 違反フラグと理由を追加
-    is_violation = models.BooleanField(default=False, help_text="利用規約違反フラグ")
-    violation_reason = models.CharField(
-        max_length=255, blank=True, help_text="違反理由"
-    )
     file = models.FileField(
         upload_to=user_directory_path,
         storage=(
