@@ -120,6 +120,14 @@ class VideoUploadView(LoginRequiredMixin, CreateView):
         context["existing_tags"] = Tag.objects.filter(user=self.request.user).order_by(
             "name"
         )
+
+        # 最近の動画（最新5件）- prefetch_relatedでN+1問題を回避
+        context["recent_videos"] = (
+            Video.objects.filter(user=self.request.user)
+            .prefetch_related("tags")
+            .order_by("-uploaded_at")[:5]
+        )
+
         # 動画上限情報
         user = self.request.user
         current_total = Video.objects.filter(user=user).count()

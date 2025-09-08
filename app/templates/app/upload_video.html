@@ -264,9 +264,9 @@
                     </a>
                 </div>
                 <div class="card-body recent-videos-body">
-                    {% if user.videos.all %}
+                    {% if recent_videos %}
                         <div class="recent-videos-list">
-                            {% for video in user.videos.all|dictsortreversed:"uploaded_at"|slice:":5" %}
+                            {% for video in recent_videos %}
                                 <div class="video-item d-flex align-items-center p-3 mb-3 rounded">
                                     <div class="video-icon me-3">
                                         <i class="bi bi-play-circle-fill text-primary"></i>
