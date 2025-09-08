@@ -30,10 +30,23 @@ class CustomUserAdmin(UserAdmin):
 
 @admin.register(Video)
 class VideoAdmin(admin.ModelAdmin):
-    list_display = ("title", "user", "uploaded_at", "status")
+    list_display = ("title", "user", "status", "is_visible", "uploaded_at")
+    list_filter = ("status", "is_visible", "uploaded_at")
     search_fields = ("title", "user__username")
-    list_filter = ("status",)
     ordering = ("-uploaded_at",)
+    actions = ["make_visible", "make_hidden"]
+
+    def make_visible(self, request, queryset):
+        updated = queryset.update(is_visible=True)
+        self.message_user(request, f"{updated}件の動画を表示にしました。")
+
+    make_visible.short_description = "選択した動画を表示"
+
+    def make_hidden(self, request, queryset):
+        updated = queryset.update(is_visible=False)
+        self.message_user(request, f"{updated}件の動画を非表示にしました。")
+
+    make_hidden.short_description = "選択した動画を非表示"
 
 
 @admin.register(VideoGroup)
