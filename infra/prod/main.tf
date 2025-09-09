@@ -47,14 +47,15 @@ resource "aws_internet_gateway" "this" {
   }
 }
 
-resource "aws_eip" "nat" {
-  count      = 1
-  domain     = "vpc"
-  depends_on = [aws_internet_gateway.this]
-  tags = {
-    Name = "${local.name_prefix}-eip-nat-${count.index + 1}"
-  }
-}
+# NAT Gateway用のEIPは削除（NAT Gateway削除のため）
+# resource "aws_eip" "nat" {
+#   count      = 1
+#   domain     = "vpc"
+#   depends_on = [aws_internet_gateway.this]
+#   tags = {
+#     Name = "${local.name_prefix}-eip-nat-${count.index + 1}"
+#   }
+# }
 
 resource "aws_subnet" "public" {
   count                   = 2
@@ -81,15 +82,16 @@ resource "aws_subnet" "private" {
   }
 }
 
-resource "aws_nat_gateway" "this" {
-  count         = 1
-  allocation_id = aws_eip.nat[0].id
-  subnet_id     = aws_subnet.public[0].id
-  depends_on    = [aws_internet_gateway.this]
-  tags = {
-    Name = "${local.name_prefix}-nat-${count.index + 1}"
-  }
-}
+# NAT Gatewayは削除（VPC Endpoints + パブリックサブネット移行のため）
+# resource "aws_nat_gateway" "this" {
+#   count         = 1
+#   allocation_id = aws_eip.nat[0].id
+#   subnet_id     = aws_subnet.public[0].id
+#   depends_on    = [aws_internet_gateway.this]
+#   tags = {
+#     Name = "${local.name_prefix}-nat-${count.index + 1}"
+#   }
+# }
 
 resource "aws_route_table" "public" {
   vpc_id = aws_vpc.main.id
@@ -121,12 +123,13 @@ resource "aws_route_table" "private" {
   }
 }
 
-resource "aws_route" "private_nat" {
-  count                  = length(local.azs)
-  route_table_id         = aws_route_table.private[count.index].id
-  destination_cidr_block = "0.0.0.0/0"
-  nat_gateway_id         = aws_nat_gateway.this[0].id
-}
+# プライベートサブネットのNAT Gatewayルートは削除
+# resource "aws_route" "private_nat" {
+#   count                  = length(local.azs)
+#   route_table_id         = aws_route_table.private[count.index].id
+#   destination_cidr_block = "0.0.0.0/0"
+#   nat_gateway_id         = aws_nat_gateway.this[0].id
+# }
 
 resource "aws_route_table_association" "private" {
   count          = 2
@@ -166,73 +169,79 @@ resource "aws_vpc_endpoint" "s3" {
 }
 
 # Interface VPC Endpoints to keep AWS service traffic private
-resource "aws_vpc_endpoint" "ecr_api" {
-  count               = 0
-  vpc_id              = aws_vpc.main.id
-  service_name        = "com.amazonaws.${var.aws_region}.ecr.api"
-  vpc_endpoint_type   = "Interface"
-  private_dns_enabled = true
-  security_group_ids  = [aws_security_group.vpce.id]
-  subnet_ids          = aws_subnet.private[*].id
-  tags                = { Name = "${local.name_prefix}-vpce-ecr-api" }
-}
+# ECR API VPC Endpointは削除（パブリックサブネットから直接アクセス可能）
+# resource "aws_vpc_endpoint" "ecr_api" {
+#   count               = 1
+#   vpc_id              = aws_vpc.main.id
+#   service_name        = "com.amazonaws.${var.aws_region}.ecr.api"
+#   vpc_endpoint_type   = "Interface"
+#   private_dns_enabled = true
+#   security_group_ids  = [aws_security_group.vpce.id]
+#   subnet_ids          = aws_subnet.private[*].id
+#   tags                = { Name = "${local.name_prefix}-vpce-ecr-api" }
+# }
 
-resource "aws_vpc_endpoint" "ecr_dkr" {
-  count               = 0
-  vpc_id              = aws_vpc.main.id
-  service_name        = "com.amazonaws.${var.aws_region}.ecr.dkr"
-  vpc_endpoint_type   = "Interface"
-  private_dns_enabled = true
-  security_group_ids  = [aws_security_group.vpce.id]
-  subnet_ids          = aws_subnet.private[*].id
-  tags                = { Name = "${local.name_prefix}-vpce-ecr-dkr" }
-}
+# ECR Docker VPC Endpointは削除（パブリックサブネットから直接アクセス可能）
+# resource "aws_vpc_endpoint" "ecr_dkr" {
+#   count               = 1
+#   vpc_id              = aws_vpc.main.id
+#   service_name        = "com.amazonaws.${var.aws_region}.ecr.dkr"
+#   vpc_endpoint_type   = "Interface"
+#   private_dns_enabled = true
+#   security_group_ids  = [aws_security_group.vpce.id]
+#   subnet_ids          = aws_subnet.private[*].id
+#   tags                = { Name = "${local.name_prefix}-vpce-ecr-dkr" }
+# }
 
-resource "aws_vpc_endpoint" "logs" {
-  count               = 0
-  vpc_id              = aws_vpc.main.id
-  service_name        = "com.amazonaws.${var.aws_region}.logs"
-  vpc_endpoint_type   = "Interface"
-  private_dns_enabled = true
-  security_group_ids  = [aws_security_group.vpce.id]
-  subnet_ids          = aws_subnet.private[*].id
-  tags                = { Name = "${local.name_prefix}-vpce-logs" }
-}
+# CloudWatch Logs VPC Endpointは削除（パブリックサブネットから直接アクセス可能）
+# resource "aws_vpc_endpoint" "logs" {
+#   count               = 1
+#   vpc_id              = aws_vpc.main.id
+#   service_name        = "com.amazonaws.${var.aws_region}.logs"
+#   vpc_endpoint_type   = "Interface"
+#   private_dns_enabled = true
+#   security_group_ids  = [aws_security_group.vpce.id]
+#   subnet_ids          = aws_subnet.private[*].id
+#   tags                = { Name = "${local.name_prefix}-vpce-logs" }
+# }
 
-resource "aws_vpc_endpoint" "secretsmanager" {
-  count               = 0
-  vpc_id              = aws_vpc.main.id
-  service_name        = "com.amazonaws.${var.aws_region}.secretsmanager"
-  vpc_endpoint_type   = "Interface"
-  private_dns_enabled = true
-  security_group_ids  = [aws_security_group.vpce.id]
-  subnet_ids          = aws_subnet.private[*].id
-  tags                = { Name = "${local.name_prefix}-vpce-secretsmanager" }
-}
+# Secrets Manager VPC Endpointは削除（パブリックサブネットから直接アクセス可能）
+# resource "aws_vpc_endpoint" "secretsmanager" {
+#   count               = 1
+#   vpc_id              = aws_vpc.main.id
+#   service_name        = "com.amazonaws.${var.aws_region}.secretsmanager"
+#   vpc_endpoint_type   = "Interface"
+#   private_dns_enabled = true
+#   security_group_ids  = [aws_security_group.vpce.id]
+#   subnet_ids          = aws_subnet.private[*].id
+#   tags                = { Name = "${local.name_prefix}-vpce-secretsmanager" }
+# }
 
 
 
-resource "aws_vpc_endpoint" "ecs" {
-  count               = 0
-  vpc_id              = aws_vpc.main.id
-  service_name        = "com.amazonaws.${var.aws_region}.ecs"
-  vpc_endpoint_type   = "Interface"
-  private_dns_enabled = true
-  security_group_ids  = [aws_security_group.vpce.id]
-  subnet_ids          = aws_subnet.private[*].id
-  tags                = { Name = "${local.name_prefix}-vpce-ecs" }
-}
+# ECS API VPC Endpointは削除（パブリックサブネットから直接アクセス可能）
+# resource "aws_vpc_endpoint" "ecs" {
+#   count               = 1
+#   vpc_id              = aws_vpc.main.id
+#   service_name        = "com.amazonaws.${var.aws_region}.ecs"
+#   vpc_endpoint_type   = "Interface"
+#   private_dns_enabled = true
+#   security_group_ids  = [aws_security_group.vpce.id]
+#   subnet_ids          = aws_subnet.private[*].id
+#   tags                = { Name = "${local.name_prefix}-vpce-ecs" }
+# }
 
-resource "aws_vpc_endpoint" "ecs_telemetry" {
-  count               = 0
-  vpc_id              = aws_vpc.main.id
-  service_name        = "com.amazonaws.${var.aws_region}.ecs-telemetry"
-  vpc_endpoint_type   = "Interface"
-  private_dns_enabled = true
-  security_group_ids  = [aws_security_group.vpce.id]
-  subnet_ids          = aws_subnet.private[*].id
-  tags                = { Name = "${local.name_prefix}-vpce-ecs-telemetry" }
-}
+# ECS Telemetry VPC Endpointは削除（パブリックサブネットから直接アクセス可能）
+# resource "aws_vpc_endpoint" "ecs_telemetry" {
+#   count               = 1
+#   vpc_id              = aws_vpc.main.id
+#   service_name        = "com.amazonaws.${var.aws_region}.ecs-telemetry"
+#   vpc_endpoint_type   = "Interface"
+#   private_dns_enabled = true
+#   security_group_ids  = [aws_security_group.vpce.id]
+#   subnet_ids          = aws_subnet.private[*].id
+#   tags                = { Name = "${local.name_prefix}-vpce-ecs-telemetry" }
+# }
 
 # CloudWatch Metrics (PutMetricData) Interface Endpoint
 
