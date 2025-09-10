@@ -46,6 +46,15 @@ resource "aws_ecs_task_definition" "web" {
         { name = "SIGNUP_ENABLED", value = "TRUE" },
         { name = "BASIC_AUTH_ENABLED", value = "TRUE" },
         { name = "BASIC_AUTH_USERNAME", value = "admin" },
+        # HTTPS設定（本番環境）
+        { name = "SECURE_SSL_REDIRECT", value = "TRUE" },
+        { name = "SECURE_HSTS_SECONDS", value = "31536000" },
+        { name = "SECURE_HSTS_INCLUDE_SUBDOMAINS", value = "TRUE" },
+        { name = "SECURE_HSTS_PRELOAD", value = "TRUE" },
+        # セッション・CSRF設定（本番環境）
+        { name = "SESSION_COOKIE_SECURE", value = "TRUE" },
+        { name = "SESSION_COOKIE_AGE", value = "1209600" },
+        { name = "CSRF_COOKIE_SECURE", value = "TRUE" },
       ]
       secrets = [
         { name = "POSTGRES_PASSWORD", valueFrom = aws_secretsmanager_secret.db_password.arn },
@@ -131,6 +140,15 @@ resource "aws_ecs_task_definition" "worker" {
         { name = "SIGNUP_ENABLED", value = "TRUE" },
         { name = "BASIC_AUTH_ENABLED", value = "TRUE" },
         { name = "BASIC_AUTH_USERNAME", value = "admin" },
+        # HTTPS設定（本番環境）
+        { name = "SECURE_SSL_REDIRECT", value = "TRUE" },
+        { name = "SECURE_HSTS_SECONDS", value = "31536000" },
+        { name = "SECURE_HSTS_INCLUDE_SUBDOMAINS", value = "TRUE" },
+        { name = "SECURE_HSTS_PRELOAD", value = "TRUE" },
+        # セッション・CSRF設定（本番環境）
+        { name = "SESSION_COOKIE_SECURE", value = "TRUE" },
+        { name = "SESSION_COOKIE_AGE", value = "1209600" },
+        { name = "CSRF_COOKIE_SECURE", value = "TRUE" },
       ]
       secrets = [
         { name = "POSTGRES_PASSWORD", valueFrom = aws_secretsmanager_secret.db_password.arn },

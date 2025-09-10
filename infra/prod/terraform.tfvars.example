@@ -1,9 +1,23 @@
 environment = "prod"
 
+# Pinecone設定
 pinecone_api_key     = ""
 pinecone_environment = "us-east-1"
 
+# メール設定
 mailgun_api_key       = ""
 mailgun_sender_domain = ""
+
+# 認証設定
 basic_auth_password   = ""
+
+# HTTPS設定
 enable_https          = true
+
+# セキュリティ設定（本番環境では以下の値が自動的に設定されます）
+# SECURE_SSL_REDIRECT=TRUE
+# SECURE_HSTS_SECONDS=31536000
+# SECURE_HSTS_INCLUDE_SUBDOMAINS=TRUE
+# SECURE_HSTS_PRELOAD=TRUE
+# SESSION_COOKIE_SECURE=TRUE
+# CSRF_COOKIE_SECURE=TRUE

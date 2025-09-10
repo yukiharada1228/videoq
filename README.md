@@ -189,6 +189,22 @@ BASIC_AUTH_USERNAME=admin
 BASIC_AUTH_PASSWORD=your-basic-auth-password
 ```
 
+#### 🔐 セキュリティ設定（本番環境）
+```bash
+# HTTPS設定
+SECURE_SSL_REDIRECT=TRUE
+SECURE_HSTS_SECONDS=31536000
+SECURE_HSTS_INCLUDE_SUBDOMAINS=TRUE
+SECURE_HSTS_PRELOAD=TRUE
+
+# セッション・CSRF設定
+SESSION_COOKIE_SECURE=TRUE
+SESSION_COOKIE_AGE=1209600
+CSRF_COOKIE_SECURE=TRUE
+```
+
+**注意**: 本番環境では、Terraformでデプロイする際にこれらのセキュリティ設定が自動的に適用されます。ローカル開発環境では上記の設定を`.env`ファイルに追加してください。
+
 #### 👤 サインアップ受付制御
 ```bash
 # 新規登録の有効/無効（デフォルト: TRUE）
@@ -443,6 +459,8 @@ aws ecs update-service --cluster videoq-prod --service videoq-prod-web --force-n
 ## 📊 監視・ログ
 
 ### ログの確認
+ログは標準出力に出力されるため、Docker Composeのログコマンドで確認できます：
+
 ```bash
 # 全サービスのログ
 docker compose logs -f
@@ -450,7 +468,18 @@ docker compose logs -f
 # 特定サービスのログ
 docker compose logs -f web
 docker compose logs -f worker
+
+# ログレベル別の確認
+docker compose logs -f web | grep ERROR
+docker compose logs -f worker | grep INFO
 ```
+
+### ログ形式
+ログはJSON形式で出力され、以下の情報が含まれます：
+- `level`: ログレベル（INFO, WARNING, ERROR等）
+- `time`: タイムスタンプ
+- `module`: モジュール名
+- `message`: ログメッセージ
 
 ### ヘルスチェック
 

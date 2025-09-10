@@ -215,22 +215,6 @@ else:
     MEDIA_URL = "/media/"
     MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
-# ファイルアップロード設定
-FILE_UPLOAD_MAX_MEMORY_SIZE = 2621440  # 2.5MB
-FILE_UPLOAD_TEMP_DIR = None
-FILE_UPLOAD_PERMISSIONS = 0o644
-FILE_UPLOAD_DIRECTORY_PERMISSIONS = 0o755
-
-# 動画アップロード制限設定
-VIDEO_UPLOAD_MAX_SIZE_MB = int(
-    os.environ.get("VIDEO_UPLOAD_MAX_SIZE_MB", "100")
-)  # デフォルト100MB
-
-# ファイル名エンコーディング設定
-FILE_UPLOAD_HANDLERS = [
-    "django.core.files.uploadhandler.MemoryFileUploadHandler",
-    "django.core.files.uploadhandler.TemporaryFileUploadHandler",
-]
 
 # ユーザーごとのデフォルト動画数上限（環境変数で上書き可能）
 DEFAULT_MAX_VIDEOS_PER_USER = int(os.environ.get("DEFAULT_MAX_VIDEOS_PER_USER", "100"))
@@ -267,19 +251,74 @@ LOGIN_URL = "app:login"
 LOGIN_REDIRECT_URL = "app:home"
 AUTH_USER_MODEL = "app.User"
 
-# セッション設定
-SESSION_COOKIE_SECURE = False
-SESSION_COOKIE_HTTPONLY = True
-SESSION_COOKIE_SAMESITE = "Lax"
+# セキュリティ設定
+# HTTPS設定（本番環境ではTrueに設定）
+SECURE_SSL_REDIRECT = os.environ.get("SECURE_SSL_REDIRECT", "FALSE").upper() == "TRUE"
+SECURE_HSTS_SECONDS = int(os.environ.get("SECURE_HSTS_SECONDS", "0"))
+SECURE_HSTS_INCLUDE_SUBDOMAINS = (
+    os.environ.get("SECURE_HSTS_INCLUDE_SUBDOMAINS", "FALSE").upper() == "TRUE"
+)
+SECURE_HSTS_PRELOAD = os.environ.get("SECURE_HSTS_PRELOAD", "FALSE").upper() == "TRUE"
 
-# HTTP環境用のセキュリティ設定
-SECURE_SSL_REDIRECT = False
+# セキュリティヘッダー
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = "DENY"
+SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
+
+# セッションセキュリティ
+SESSION_COOKIE_SECURE = (
+    os.environ.get("SESSION_COOKIE_SECURE", "FALSE").upper() == "TRUE"
+)
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Lax"
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+SESSION_COOKIE_AGE = int(os.environ.get("SESSION_COOKIE_AGE", "1209600"))  # 2週間
+
+# CSRFセキュリティ
+CSRF_COOKIE_SECURE = os.environ.get("CSRF_COOKIE_SECURE", "FALSE").upper() == "TRUE"
+CSRF_COOKIE_HTTPONLY = True
+CSRF_COOKIE_SAMESITE = "Lax"
+CSRF_USE_SESSIONS = False
 
 # リバースプロキシ経由のHTTPS判定
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+# パスワード設定
+AUTH_PASSWORD_VALIDATORS = [
+    {
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
+    },
+    {
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
+        "OPTIONS": {
+            "min_length": 8,
+        },
+    },
+    {
+        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
+    },
+    {
+        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
+    },
+]
+
+# ファイルアップロードセキュリティ
+FILE_UPLOAD_MAX_MEMORY_SIZE = 2621440  # 2.5MB
+FILE_UPLOAD_TEMP_DIR = None
+FILE_UPLOAD_PERMISSIONS = 0o644
+FILE_UPLOAD_DIRECTORY_PERMISSIONS = 0o755
+
+# 動画アップロード制限設定
+VIDEO_UPLOAD_MAX_SIZE_MB = int(
+    os.environ.get("VIDEO_UPLOAD_MAX_SIZE_MB", "100")
+)  # デフォルト100MB
+
+# ファイル名エンコーディング設定
+FILE_UPLOAD_HANDLERS = [
+    "django.core.files.uploadhandler.MemoryFileUploadHandler",
+    "django.core.files.uploadhandler.TemporaryFileUploadHandler",
+]
 
 # Redis設定
 REDIS_URL = os.environ.get("REDIS_URL", "redis://redis:6379/0")
@@ -298,3 +337,50 @@ SHARE_ACCOUNT_MAX_CONCURRENT_USERS = int(
 SHARE_SESSION_TIMEOUT_MINUTES = int(
     os.environ.get("SHARE_SESSION_TIMEOUT_MINUTES", "10")
 )
+
+# ログ設定（標準出力のみ）
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
+            "style": "{",
+        },
+        "simple": {
+            "format": "{levelname} {message}",
+            "style": "{",
+        },
+        "json": {
+            "format": '{"level": "%(levelname)s", "time": "%(asctime)s", "module": "%(module)s", "message": "%(message)s"}',
+        },
+    },
+    "handlers": {
+        "console": {
+            "level": "INFO",
+            "class": "logging.StreamHandler",
+            "formatter": "json",
+        },
+    },
+    "loggers": {
+        "app": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "app.tasks": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "django": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": "WARNING",
+    },
+}
