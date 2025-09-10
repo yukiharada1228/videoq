@@ -8,6 +8,17 @@ from .models import Video
 from app.crypto_utils import decrypt_api_key
 from app.vector_search_factory import VectorSearchFactory
 import tiktoken
+import logging
+from .exceptions import (
+    VideoProcessingError,
+    VectorSearchError,
+    OpenAIAPIError,
+    FileStorageError,
+)
+from .utils import log_operation, log_error
+
+# ロガーの設定
+logger = logging.getLogger("app.tasks")
 
 
 def count_tokens(text: str, model: str = "text-embedding-3-small") -> int:
@@ -18,7 +29,7 @@ def count_tokens(text: str, model: str = "text-embedding-3-small") -> int:
         encoding = tiktoken.encoding_for_model(model)
         return len(encoding.encode(text))
     except Exception as e:
-        print(f"Error counting tokens: {e}")
+        logger.warning(f"Error counting tokens: {e}")
         # フォールバック: 概算（英語なら4文字=1トークン、日本語なら1文字=1トークン）
         return len(text) // 4
 
@@ -52,7 +63,7 @@ def truncate_text_to_token_limit(
                 encoding.decode(front_tokens) + "..." + encoding.decode(back_tokens)
             )
 
-        print(
+        logger.info(
             f"Text truncated from {len(tokens)} to {count_tokens(truncated_text)} tokens"
         )
         return truncated_text
@@ -70,7 +81,7 @@ def extract_and_split_audio(input_path, max_size_mb=24):
         probe = ffmpeg.probe(input_path)
         duration = float(probe["format"]["duration"])
 
-        print(f"Video duration: {duration:.2f} seconds")
+        logger.info(f"Video duration: {duration:.2f} seconds")
 
         # 一時ディレクトリを作成
         temp_dir = tempfile.gettempdir()
@@ -89,14 +100,14 @@ def extract_and_split_audio(input_path, max_size_mb=24):
 
         # 音声ファイルのサイズを確認
         audio_size_mb = os.path.getsize(temp_audio_path) / (1024 * 1024)
-        print(f"Extracted audio size: {audio_size_mb:.2f} MB")
+        logger.info(f"Extracted audio size: {audio_size_mb:.2f} MB")
 
         if audio_size_mb <= max_size_mb:
             # サイズが制限内の場合は分割不要
             audio_segments.append(
                 {"path": temp_audio_path, "start_time": 0, "end_time": duration}
             )
-            print(f"Audio is within size limit, no splitting needed")
+            logger.info(f"Audio is within size limit, no splitting needed")
 
         else:
             # サイズが大きい場合は分割が必要
@@ -332,44 +343,52 @@ def create_token_based_segments(all_segments, max_tokens_per_segment=7500):
 
 @shared_task
 def process_video(video_id):
+    """
+    動画処理タスク
+    音声抽出、文字起こし、ベクトル化、インデックス保存を行う
+    """
+    log_operation("process_video_started", video_id=video_id)
+
     try:
         video = Video.objects.select_related("user").get(id=video_id)
         video.status = "processing"
         video.save()
     except Video.DoesNotExist:
-        print(f"Video with id {video_id} does not exist")
-        return
+        log_error(f"Video with id {video_id} does not exist", video_id=video_id)
+        raise VideoProcessingError(
+            f"Video with id {video_id} does not exist", video_id=video_id
+        )
 
     # ユーザーごとのAPIキーを取得
     user = video.user
     if not user.encrypted_openai_api_key:
         error_msg = "OpenAI API key not registered for this user"
-        print(error_msg)
+        log_error(error_msg, user_id=user.id, video_id=video_id)
         video.status = "error"
         video.error_message = error_msg
         video.save()
-        return
+        raise VideoProcessingError(error_msg, video_id=video_id)
 
     try:
         api_key = decrypt_api_key(user.encrypted_openai_api_key)
     except Exception as e:
         error_msg = f"Failed to decrypt API key: {e}"
-        print(error_msg)
+        log_error(error_msg, user_id=user.id, video_id=video_id)
         video.status = "error"
         video.error_message = error_msg
         video.save()
-        return
+        raise VideoProcessingError(error_msg, video_id=video_id)
 
     # Initialize OpenAI client
     try:
         client = OpenAI(api_key=api_key)
     except Exception as e:
         error_msg = f"Failed to initialize OpenAI client: {e}"
-        print(error_msg)
+        log_error(error_msg, user_id=user.id, video_id=video_id)
         video.status = "error"
         video.error_message = error_msg
         video.save()
-        return
+        raise VideoProcessingError(error_msg, video_id=video_id)
 
     video_file_path = None
     audio_segments = []
@@ -581,36 +600,53 @@ def process_video(video_id):
                     ]
                     search_service.upsert_chunks(chunk_data)
             except Exception as e:
-                print(f"Warning: Failed to save chunk to vector search service: {e}")
+                logger.warning(f"Failed to save chunk to vector search service: {e}")
 
         video.status = "completed"
         video.save()
 
-        print(f"Successfully processed video {video_id}")
-        print(f"Total fine-grained segments: {len(all_segments)}")
-        print(f"Total RAG chunks: {len(chunks)}")
+        log_operation(
+            "process_video_completed",
+            video_id=video_id,
+            segments_count=len(all_segments),
+            chunks_count=len(chunks),
+        )
+        logger.info(f"Successfully processed video {video_id}")
+        logger.info(f"Total fine-grained segments: {len(all_segments)}")
+        logger.info(f"Total RAG chunks: {len(chunks)}")
 
-    except Exception as e:
-        # Handle exceptions from the API or other processing
-        error_msg = f"Error processing video {video_id}: {e}"
-        print(error_msg)
+    except VideoQException as e:
+        # VideoQExceptionの場合はそのまま再発生
+        log_error(
+            f"VideoQ error processing video {video_id}: {e.message}",
+            user_id=user.id,
+            video_id=video_id,
+        )
         video.status = "error"
         video.error_message = str(e)
         video.save()
-        return
+        raise
+    except Exception as e:
+        # その他の例外
+        error_msg = f"Error processing video {video_id}: {e}"
+        log_error(error_msg, user_id=user.id, video_id=video_id)
+        video.status = "error"
+        video.error_message = str(e)
+        video.save()
+        raise VideoProcessingError(error_msg, video_id=video_id)
     finally:
         # 一時ファイルを削除
         for segment_info in audio_segments:
             try:
                 os.remove(segment_info["path"])
-                print(f"Cleaned up temporary audio file: {segment_info['path']}")
+                logger.debug(f"Cleaned up temporary audio file: {segment_info['path']}")
             except Exception as e:
-                print(f"Error cleaning up temporary file: {e}")
+                logger.warning(f"Error cleaning up temporary file: {e}")
 
         # メインの一時ファイルも削除
         if video_file_path and os.path.exists(video_file_path):
             try:
                 os.remove(video_file_path)
-                print(f"Cleaned up temporary video file: {video_file_path}")
+                logger.debug(f"Cleaned up temporary video file: {video_file_path}")
             except Exception as e:
-                print(f"Error cleaning up temporary video file: {e}")
+                logger.warning(f"Error cleaning up temporary video file: {e}")

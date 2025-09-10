@@ -47,6 +47,17 @@ import mimetypes
 from django.urls import resolve
 from django.core.paginator import Paginator
 from django.db.models import Sum, Count, Q
+import logging
+from .exceptions import (
+    VideoQException,
+    VideoProcessingError,
+    VectorSearchError,
+    ValidationError,
+)
+from .utils import ErrorResponseHandler, log_operation, log_error
+
+# ロガーの設定
+logger = logging.getLogger("app")
 
 
 def health_check(request):
@@ -413,12 +424,26 @@ class VideoGroupChatView(LoginRequiredMixin, BaseVideoGroupChatView):
             return JsonResponse({"success": True, "results": results, "query": query})
 
         except json.JSONDecodeError:
-            return JsonResponse({"error": "無効なJSONデータです"}, status=400)
-        except Exception as e:
-            print(f"Group chat search error: {e}")
-            return JsonResponse(
-                {"error": f"検索中にエラーが発生しました: {str(e)}"}, status=500
+            return ErrorResponseHandler.create_error_response(
+                message="Invalid JSON data",
+                error_code="INVALID_JSON",
+                status_code=400,
+                user_message="無効なJSONデータです",
             )
+        except VideoQException as e:
+            log_error(
+                f"VideoQ error in group chat search: {e.message}",
+                user_id=request.user.id,
+                group_id=group_id,
+            )
+            return ErrorResponseHandler.handle_videoq_exception(e)
+        except Exception as e:
+            log_error(
+                f"Unexpected error in group chat search: {str(e)}",
+                user_id=request.user.id,
+                group_id=group_id,
+            )
+            return ErrorResponseHandler.handle_general_exception(e)
 
     @staticmethod
     def _create_log_with_quota(
@@ -593,13 +618,26 @@ class VideoGroupChatStreamView(LoginRequiredMixin, View):
             return response
 
         except json.JSONDecodeError:
-            return JsonResponse({"error": "無効なJSONデータです"}, status=400)
-        except Exception as e:
-            print(f"Group chat stream error: {e}")
-            return JsonResponse(
-                {"error": f"ストリーミング中にエラーが発生しました: {str(e)}"},
-                status=500,
+            return ErrorResponseHandler.create_error_response(
+                message="Invalid JSON data",
+                error_code="INVALID_JSON",
+                status_code=400,
+                user_message="無効なJSONデータです",
             )
+        except VideoQException as e:
+            log_error(
+                f"VideoQ error in group chat stream: {e.message}",
+                user_id=request.user.id,
+                group_id=group_id,
+            )
+            return ErrorResponseHandler.handle_videoq_exception(e)
+        except Exception as e:
+            log_error(
+                f"Unexpected error in group chat stream: {str(e)}",
+                user_id=request.user.id,
+                group_id=group_id,
+            )
+            return ErrorResponseHandler.handle_general_exception(e)
 
 
 class VideoDeleteView(LoginRequiredMixin, DeleteView):
