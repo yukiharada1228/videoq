@@ -52,6 +52,6 @@ class BasicViewTests(TestCase):
             resp.content.decode(),
             {
                 "success": False,
-                "error": "Video limit (0 videos) reached. Please delete unnecessary videos or contact administrator.",
+                "errors": {"file": ["Video limit reached (0 videos). Please delete some videos first."]},
             },
         )
