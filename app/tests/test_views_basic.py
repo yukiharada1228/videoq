@@ -37,7 +37,7 @@ class BasicViewTests(TestCase):
 
     def test_video_upload_view_limit_enforced(self):
         self.client.login(username="user", password="pass")
-        # ユーザーの上限を0に
+        # Set user limit to 0
         self.user.video_limit = 0
         self.user.save()
 
@@ -52,6 +52,6 @@ class BasicViewTests(TestCase):
             resp.content.decode(),
             {
                 "success": False,
-                "error": "動画の上限(0本)に達しています。不要な動画を削除するか、管理者にお問い合わせください。",
+                "error": "Video limit (0 videos) reached. Please delete unnecessary videos or contact administrator.",
             },
         )

@@ -8,7 +8,7 @@ from .models import VideoGroup
 
 
 class ShareAccessService:
-    """共有URLアクセス時の同時アクセス人数制限を管理するサービス"""
+    """Service to manage concurrent access limits for shared URLs"""
 
     def __init__(self):
         self.redis_client = redis.from_url(settings.REDIS_URL)
@@ -17,15 +17,15 @@ class ShareAccessService:
         self.session_timeout_seconds = self.session_timeout_minutes * 60
 
     def _get_account_key(self, user_id: int) -> str:
-        """アカウントのRedisキーを生成"""
+        """Generate Redis key for account"""
         return f"share_account:{user_id}:active_sessions"
 
     def _get_session_key(self, session_id: str) -> str:
-        """セッションのRedisキーを生成（ブラウザ単位）"""
+        """Generate Redis key for session (per browser)"""
         return f"share_session:{session_id}"
 
     def _get_user_id_from_share_token(self, share_token: str) -> Optional[int]:
-        """share_tokenからユーザーIDを取得"""
+        """Get user ID from share_token"""
         try:
             group = VideoGroup.objects.get(share_token=share_token)
             return group.user.id
@@ -34,23 +34,23 @@ class ShareAccessService:
 
     def register_session(self, share_token: str) -> Tuple[bool, str, Optional[str]]:
         """
-        セッションを登録し、アクセス制限をチェック
+        Register session and check access limits
 
         Returns:
-            Tuple[bool, str, Optional[str]]: (成功フラグ, セッションID, エラーメッセージ)
+            Tuple[bool, str, Optional[str]]: (success flag, session ID, error message)
         """
         try:
-            # ユーザーIDを取得
+            # Get user ID
             user_id = self._get_user_id_from_share_token(share_token)
             if user_id is None:
-                return False, "", "無効な共有トークンです。"
+                return False, "", "Invalid share token."
 
             account_key = self._get_account_key(user_id)
 
-            # 現在のアクティブセッション数を取得
+            # Get current active session count
             active_sessions = self.redis_client.smembers(account_key)
 
-            # タイムアウトしたセッションを削除（非アクティブ時間で判定）
+            # Remove timed out sessions (judged by inactive time)
             current_time = time.time()
             expired_sessions = []
 
@@ -60,7 +60,7 @@ class ShareAccessService:
 
                 if session_data:
                     session_info = json.loads(session_data)
-                    # 最終アクティビティからの経過時間で判定
+                    # Judge by elapsed time from last activity
                     last_activity = session_info.get(
                         "last_activity", session_info.get("created_at", 0)
                     )
@@ -68,22 +68,22 @@ class ShareAccessService:
                         expired_sessions.append(session_id)
                         self.redis_client.delete(session_key)
 
-            # 期限切れセッションを削除
+            # Delete expired sessions
             if expired_sessions:
                 self.redis_client.srem(account_key, *expired_sessions)
 
-            # 更新されたアクティブセッション数を取得
+            # Get updated active session count
             active_count = self.redis_client.scard(account_key)
 
-            # 制限チェック
+            # Check limits
             if active_count >= self.max_concurrent_users:
                 return (
                     False,
                     "",
-                    f"このアカウントの同時アクセス上限（{self.max_concurrent_users}人）に達しました。しばらく時間をおいてから再度アクセスしてください。",
+                    f"Maximum concurrent access limit for this account ({self.max_concurrent_users} users) has been reached. Please try again after a while.",
                 )
 
-            # 新しいセッションを登録
+            # Register new session
             session_id = str(uuid.uuid4())
             session_data = {
                 "session_id": session_id,
@@ -93,35 +93,37 @@ class ShareAccessService:
                 "user_id": user_id,
             }
 
-            # セッション情報を保存
+            # Save session information
             session_key = self._get_session_key(session_id)
             self.redis_client.setex(
                 session_key, self.session_timeout_seconds, json.dumps(session_data)
             )
 
-            # アクティブセッションリストに追加
+            # Add to active session list
             self.redis_client.sadd(account_key, session_id)
             self.redis_client.expire(account_key, self.session_timeout_seconds)
 
             return True, session_id, None
 
         except Exception as e:
-            return False, "", f"セッション登録中にエラーが発生しました: {str(e)}"
+            return False, "", f"Error occurred during session registration: {str(e)}"
 
     def update_session_activity(self, share_token: str, session_id: str) -> bool:
-        """セッションの最終アクティビティを更新"""
+        """Update session last activity"""
         try:
             session_key = self._get_session_key(session_id)
             session_data = self.redis_client.get(session_key)
 
             if session_data:
                 session_info = json.loads(session_data)
-                # 同じアカウントのセッションかチェック
+                # Check if it's a session for the same account
                 if session_info.get("user_id") == self._get_user_id_from_share_token(
                     share_token
                 ):
                     session_info["last_activity"] = time.time()
-                    session_info["share_token"] = share_token  # 最新のアクセス先を更新
+                    session_info["share_token"] = (
+                        share_token  # Update latest access destination
+                    )
 
                     self.redis_client.setex(
                         session_key,
@@ -136,9 +138,9 @@ class ShareAccessService:
             return False
 
     def remove_session(self, share_token: str, session_id: str) -> bool:
-        """セッションを削除"""
+        """Remove session"""
         try:
-            # ユーザーIDを取得
+            # Get user ID
             user_id = self._get_user_id_from_share_token(share_token)
             if user_id is None:
                 return False
@@ -146,10 +148,10 @@ class ShareAccessService:
             account_key = self._get_account_key(user_id)
             session_key = self._get_session_key(session_id)
 
-            # セッション情報を削除
+            # Delete session information
             self.redis_client.delete(session_key)
 
-            # アクティブセッションリストから削除
+            # Remove from active session list
             self.redis_client.srem(account_key, session_id)
 
             return True
@@ -158,16 +160,16 @@ class ShareAccessService:
             return False
 
     def get_current_active_count(self, share_token: str) -> int:
-        """現在のアクティブセッション数を取得"""
+        """Get current active session count"""
         try:
-            # ユーザーIDを取得
+            # Get user ID
             user_id = self._get_user_id_from_share_token(share_token)
             if user_id is None:
                 return 0
 
             account_key = self._get_account_key(user_id)
 
-            # 期限切れセッションをクリーンアップ
+            # Cleanup expired sessions
             self._cleanup_expired_sessions(share_token)
 
             return self.redis_client.scard(account_key)
@@ -176,9 +178,9 @@ class ShareAccessService:
             return 0
 
     def _cleanup_expired_sessions(self, share_token: str) -> None:
-        """期限切れセッションをクリーンアップ（非アクティブ時間で判定）"""
+        """Cleanup expired sessions (judged by inactive time)"""
         try:
-            # ユーザーIDを取得
+            # Get user ID
             user_id = self._get_user_id_from_share_token(share_token)
             if user_id is None:
                 return
@@ -202,7 +204,7 @@ class ShareAccessService:
                         expired_sessions.append(session_id)
                         self.redis_client.delete(session_key)
 
-            # 期限切れセッションを削除
+            # Delete expired sessions
             if expired_sessions:
                 self.redis_client.srem(account_key, *expired_sessions)
 
@@ -210,15 +212,15 @@ class ShareAccessService:
             pass
 
     def get_max_concurrent_users(self) -> int:
-        """最大同時アクセス数を取得"""
+        """Get maximum concurrent access count"""
         return self.max_concurrent_users
 
     def get_session_timeout_minutes(self) -> int:
-        """セッションタイムアウト時間（分）を取得"""
+        """Get session timeout time (minutes)"""
         return self.session_timeout_minutes
 
     def get_account_active_count(self, user_id: int) -> int:
-        """指定されたアカウントの現在のアクティブセッション数を取得"""
+        """Get current active session count for specified account"""
         try:
             account_key = self._get_account_key(user_id)
             return self.redis_client.scard(account_key)

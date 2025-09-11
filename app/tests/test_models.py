@@ -25,26 +25,26 @@ class ModelTests(TestCase):
         return content
 
     def test_user_video_limit_default(self):
-        # settings.DEFAULT_MAX_VIDEOS_PER_USER を 100 に固定
+        # Fix settings.DEFAULT_MAX_VIDEOS_PER_USER to 100
         with self.settings(DEFAULT_MAX_VIDEOS_PER_USER=100):
             self.assertEqual(self.user.get_video_limit(), 100)
 
     def test_video_crud_and_group_membership(self):
         # Create Tag
-        tag = Tag.objects.create(user=self.user, name="数学")
+        tag = Tag.objects.create(user=self.user, name="Math")
 
         # Create Video
         video = Video.objects.create(
             user=self.user,
             file=self._fake_video_file(),
-            title="テスト動画",
-            description="説明",
+            title="Test Video",
+            description="Description",
             status="completed",
         )
         video.tags.add(tag)
 
         # Create Group and add
-        group = VideoGroup.objects.create(user=self.user, name="授業", description="")
+        group = VideoGroup.objects.create(user=self.user, name="Class", description="")
         member = VideoGroupMember.objects.create(group=group, video=video)
 
         self.assertEqual(group.video_count, 1)

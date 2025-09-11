@@ -31,7 +31,7 @@ urlpatterns = [
         views.VideoReprocessView.as_view(),
         name="video_reprocess",
     ),
-    # 動画グループ関連のURL
+    # Video group related URLs
     path("groups/", views.VideoGroupListView.as_view(), name="video_group_list"),
     path(
         "groups/create/",
@@ -98,7 +98,7 @@ urlpatterns = [
         views.VideoGroupDeleteView.as_view(),
         name="video_group_delete",
     ),
-    # タグ管理関連のURL
+    # Tag management related URLs
     path("tags/", views.TagManagementView.as_view(), name="tag_management"),
     path("tags/create/", views.TagCreateView.as_view(), name="tag_create"),
     path("tags/<int:pk>/edit/", views.TagEditView.as_view(), name="tag_edit"),
@@ -106,14 +106,14 @@ urlpatterns = [
     path("signup/", views.SignUpView.as_view(), name="signup"),
     path("signup_done/", views.SignUpDoneView.as_view(), name="signup_done"),
     path("activate/<uidb64>/<token>/", views.ActivateView.as_view(), name="activate"),
-    # カスタムログインビュー（Stripe同期付き）
+    # Custom login view (with Stripe sync)
     path(
         "login/",
         views.LoginView.as_view(),
         name="login",
     ),
     path("logout/", auth_views.LogoutView.as_view(next_page="/login/"), name="logout"),
-    # パスワードリセット関連
+    # Password reset related
     path(
         "password_reset/",
         auth_views.PasswordResetView.as_view(

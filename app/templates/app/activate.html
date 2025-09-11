@@ -1,23 +1,23 @@
 {% extends 'app/base.html' %}
 
-{% block title %}アカウントの有効化 - VideoQ{% endblock %}
+{% block title %}Account Activation - VideoQ{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-md-6">
         <div class="card">
             <div class="card-header">
-                <h2>アカウントの有効化</h2>
+                <h2>Account Activation</h2>
             </div>
             <div class="card-body">
                 {% if result %}
                     <div class="alert alert-success">
-                        アカウントの有効化が完了しました。ログインしてください。
+                        Account activation completed. Please log in.
                     </div>
-                    <a href="{% url 'app:login' %}" class="btn btn-primary">ログイン画面へ</a>
+                    <a href="{% url 'app:login' %}" class="btn btn-primary">Go to Login</a>
                 {% else %}
                     <div class="alert alert-danger">
-                        無効なリンクです。再度お試しください。
+                        Invalid link. Please try again.
                     </div>
                 {% endif %}
             </div>

@@ -1,32 +1,32 @@
 {% extends 'app/base.html' %}
 {% load tz %}
 
-{% block title %}タグ管理 - VideoQ{% endblock %}
+{% block title %}Tag Management - VideoQ{% endblock %}
 
 {% block content %}
 <div class="container">
     <div class="row justify-content-center">
         <div class="col-lg-10">
-            <!-- ヘッダー -->
+            <!-- Header -->
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <div>
                     <h1 class="h2 mb-2">
-                        <i class="bi bi-hash text-primary"></i> タグ管理
+                        <i class="bi bi-hash text-primary"></i> Tag Management
                     </h1>
-                    <p class="text-muted mb-0">動画に付けるタグを管理できます</p>
+                    <p class="text-muted mb-0">Manage tags for your videos</p>
                 </div>
                 <a href="{% url 'app:tag_create' %}" class="btn btn-primary">
-                    <i class="bi bi-plus-circle me-2"></i>新規タグ作成
+                    <i class="bi bi-plus-circle me-2"></i>Create New Tag
                 </a>
             </div>
 
-            <!-- 統計情報 -->
+            <!-- Statistics -->
             <div class="row mb-4">
                 <div class="col-md-6">
                     <div class="card border-0 bg-light">
                         <div class="card-body text-center">
                             <h3 class="text-primary mb-1">{{ total_tags }}</h3>
-                            <p class="text-muted mb-0">作成済みタグ</p>
+                            <p class="text-muted mb-0">Created Tags</p>
                         </div>
                     </div>
                 </div>
@@ -34,17 +34,17 @@
                     <div class="card border-0 bg-light">
                         <div class="card-body text-center">
                             <h3 class="text-success mb-1">{{ total_videos_with_tags }}</h3>
-                            <p class="text-muted mb-0">タグ付き動画</p>
+                            <p class="text-muted mb-0">Tagged Videos</p>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- タグ一覧 -->
+            <!-- Tag List -->
             <div class="card">
                 <div class="card-header">
                     <h5 class="card-title mb-0">
-                        <i class="bi bi-list-ul me-2"></i>タグ一覧
+                        <i class="bi bi-list-ul me-2"></i>Tag List
                     </h5>
                 </div>
                 <div class="card-body p-0">
@@ -53,11 +53,11 @@
                             <table class="table table-hover mb-0">
                                 <thead class="table-light">
                                     <tr>
-                                        <th>タグ名</th>
-                                        <th>色</th>
-                                        <th>使用回数</th>
-                                        <th>作成日</th>
-                                        <th>操作</th>
+                                        <th>Tag Name</th>
+                                        <th>Color</th>
+                                        <th>Usage Count</th>
+                                        <th>Created Date</th>
+                                        <th>Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -71,7 +71,7 @@
                                                 <span class="tag-color-display" style="background-color: {{ tag.color }};"></span>
                                                 <small class="text-muted ms-2">{{ tag.color }}</small>
                                             {% else %}
-                                                <span class="text-muted">未設定</span>
+                                                <span class="text-muted">Not Set</span>
                                             {% endif %}
                                         </td>
                                         <td>
@@ -104,19 +104,19 @@
                             <div class="text-muted mb-3">
                                 <i class="bi bi-hash" style="font-size: 3rem;"></i>
                             </div>
-                            <h5 class="text-muted">まだタグが作成されていません</h5>
-                            <p class="text-muted">動画にタグを付けることで、効率的に管理できるようになります。</p>
+                            <h5 class="text-muted">No tags created yet</h5>
+                            <p class="text-muted">By tagging your videos, you can manage them more efficiently.</p>
                             <a href="{% url 'app:tag_create' %}" class="btn btn-primary">
-                                <i class="bi bi-plus-circle me-2"></i>最初のタグを作成
+                                <i class="bi bi-plus-circle me-2"></i>Create First Tag
                             </a>
                         </div>
                     {% endif %}
                 </div>
             </div>
 
-            <!-- ページネーション -->
+            <!-- Pagination -->
             {% if is_paginated %}
-            <nav aria-label="タグ一覧のページネーション" class="mt-4">
+            <nav aria-label="Tag list pagination" class="mt-4">
                 <ul class="pagination justify-content-center">
                     {% if page_obj.has_previous %}
                         <li class="page-item">

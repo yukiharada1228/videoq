@@ -38,11 +38,11 @@ class ShareApiTests(TestCase):
     @patch("app.share_access_service.redis")
     @patch("app.views.VectorSearchFactory.create_search_service")
     def test_share_group_chat(self, factory, mock_redis):
-        # 共有元ユーザーに有効なAPIキーを設定
+        # Set valid API key for sharing user
         self.owner.encrypted_openai_api_key = encrypt_api_key("sk-test")
         self.owner.save()
 
-        # Redisモック（ミドルウェアのセッション登録をパスさせる）
+        # Redis mock (pass middleware session registration)
         client = mock_redis.from_url.return_value
         client.smembers.return_value = set()
         client.scard.return_value = 0

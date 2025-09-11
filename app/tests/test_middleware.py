@@ -19,14 +19,14 @@ class BasicAuthMiddlewareTests(TestCase):
         self.assertEqual(resp.status_code, 200)
 
     def test_requires_basic_auth(self):
-        # 認証なし→401
+        # No authentication → 401
         resp = self.client.get("/")
         self.assertEqual(resp.status_code, 401)
 
-        # Basicヘッダで認証成功
+        # Authentication successful with Basic header
         import base64
 
         token = base64.b64encode(b"admin:password").decode("utf-8")
         resp2 = self.client.get("/", HTTP_AUTHORIZATION=f"Basic {token}")
-        # 認証後はCSRF等で302/200いずれでも良いが401ではないこと
+        # After authentication, 302/200 is fine for CSRF etc., but not 401
         self.assertNotEqual(resp2.status_code, 401)

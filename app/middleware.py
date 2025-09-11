@@ -6,24 +6,24 @@ from django.conf import settings
 class BasicAuthMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
-        # BASIC認証の有効/無効を環境変数から取得
+        # Get BASIC auth enable/disable from environment variable
         self.enabled = getattr(settings, "BASIC_AUTH_ENABLED", True)
-        # ユーザー名とパスワードは環境変数から取得、なければデフォルト
+        # Get username and password from environment variable, use defaults if not available
         self.username = getattr(settings, "BASIC_AUTH_USERNAME")
         self.password = getattr(settings, "BASIC_AUTH_PASSWORD")
-        # Basic認証を除外するパスのリスト
+        # List of paths to exclude from Basic authentication
         self.exempt_paths = [
-            "/health/",  # ヘルスチェックエンドポイント
-            "/share/",  # 共有URLエンドポイント
-            "/media/",  # メディアファイル認証はDjangoで行う
+            "/health/",  # Health check endpoint
+            "/share/",  # Share URL endpoint
+            "/media/",  # Media file authentication handled by Django
         ]
 
     def __call__(self, request):
-        # BASIC認証が無効な場合は認証をスキップ
+        # Skip authentication if BASIC auth is disabled
         if not self.enabled:
             return self.get_response(request)
 
-        # 除外パスかチェック
+        # Check if path is excluded
         if any(request.path.startswith(path) for path in self.exempt_paths):
             return self.get_response(request)
 

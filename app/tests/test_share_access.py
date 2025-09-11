@@ -24,11 +24,11 @@ class ShareAccessTests(TestCase):
 
     @patch("app.share_access_service.redis")
     def test_share_page_sets_session_cookie(self, mock_redis):
-        # Redisモックの基本的な戻り値
+        # Basic return values for Redis mock
         client = mock_redis.from_url.return_value
         client.smembers.return_value = set()
         client.scard.return_value = 0
 
         resp = self.client.get(f"/share/group/{self.group.share_token}/")
-        # セッションIDが付与される
+        # Session ID is assigned
         self.assertIn("share_session_id", resp.cookies)

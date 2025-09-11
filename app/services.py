@@ -5,14 +5,14 @@ import tiktoken
 
 def count_tokens(text: str, model: str = "text-embedding-3-small") -> int:
     """
-    テキストのトークン数をカウントする
+    Count tokens in text
     """
     try:
         encoding = tiktoken.encoding_for_model(model)
         return len(encoding.encode(text))
     except Exception as e:
         print(f"Error counting tokens: {e}")
-        # フォールバック: 概算（英語なら4文字=1トークン、日本語なら1文字=1トークン）
+        # Fallback: rough estimate (4 characters = 1 token for English, 1 character = 1 token for Japanese)
         return len(text) // 4
 
 
@@ -20,27 +20,27 @@ def truncate_text_to_token_limit(
     text: str, max_tokens: int = 8000, model: str = "text-embedding-3-small"
 ) -> str:
     """
-    テキストをトークン制限内に収める（改善版）
+    Keep text within token limits (improved version)
     """
     if count_tokens(text, model) <= max_tokens:
         return text
 
-    # トークン数を超えている場合、テキストを短縮
+    # If token count exceeds limit, truncate text
     encoding = tiktoken.encoding_for_model(model)
     tokens = encoding.encode(text)
 
     if len(tokens) > max_tokens:
-        # より良い短縮方法：先頭と末尾の両方を保持
-        front_tokens = tokens[: max_tokens // 2]  # 前半部分
-        back_tokens = tokens[-(max_tokens // 2) :]  # 後半部分
+        # Better truncation method: keep both beginning and end
+        front_tokens = tokens[: max_tokens // 2]  # First half
+        back_tokens = tokens[-(max_tokens // 2) :]  # Second half
 
-        # 重複を避けて結合
+        # Combine avoiding overlap
         if len(front_tokens) + len(back_tokens) > max_tokens:
-            # 重複が大きい場合は先頭部分のみ使用
+            # If overlap is large, use only the beginning part
             truncated_tokens = tokens[:max_tokens]
             truncated_text = encoding.decode(truncated_tokens)
         else:
-            # 先頭と末尾を結合
+            # Combine beginning and end
             truncated_text = (
                 encoding.decode(front_tokens) + "..." + encoding.decode(back_tokens)
             )
@@ -54,41 +54,41 @@ def truncate_text_to_token_limit(
 
 
 class VectorSearchService:
-    """OpenSearch/Pineconeによる動画グループ検索サービス（OpenAI公式API利用）"""
+    """Video group search service using OpenSearch/Pinecone (using OpenAI official API)"""
 
     def __init__(self, api_key):
         self.api_key = api_key
         self.client = OpenAI(api_key=self.api_key)
 
     def embed_query(self, query: str):
-        # トークン数をチェックして必要に応じて短縮
+        # Check token count and truncate if necessary
         token_count = count_tokens(query)
         if token_count > 8000:
             query = truncate_text_to_token_limit(query)
             print(f"Query truncated from {token_count} to {count_tokens(query)} tokens")
 
-        # OpenAI公式APIでクエリをベクトル化
+        # Vectorize query using OpenAI official API
         response = self.client.embeddings.create(
             model="text-embedding-3-small", input=query, encoding_format="float"
         )
         return response.data[0].embedding
 
     def search_group_chunks(self, group: VideoGroup, query: str, max_results: int = 5):
-        # VideoChunkは廃止済みのため未実装
+        # Not implemented as VideoChunk is deprecated
         raise NotImplementedError(
-            "VideoChunkは廃止され、Pineconeサーバーレスで管理されています。こちらのメソッドは利用しないでください。"
+            "VideoChunk is deprecated and managed by Pinecone serverless. Please do not use this method."
         )
 
     def search_group_features(
         self, group: VideoGroup, query: str, max_results: int = 5
     ):
-        # VideoFeatureは廃止されたため未実装
+        # Not implemented as VideoFeature is deprecated
         raise NotImplementedError(
-            "VideoFeatureは廃止され、字幕・タイムスタンプ検索機能はありません。"
+            "VideoFeature is deprecated and subtitle/timestamp search functionality is not available."
         )
 
     def search_group_all(self, group: VideoGroup, query: str, max_results: int = 5):
-        """チャンク・タイムスタンプ両方まとめて返す"""
+        """Return both chunks and timestamps together"""
         return {
             "group_results": self.search_group_chunks(group, query, max_results),
             "group_timestamp_results": self.search_group_features(
@@ -99,17 +99,17 @@ class VectorSearchService:
         }
 
     def generate_group_rag_answer(self, group, query, max_results=5):
-        # 類似チャンクを検索
+        # Search for similar chunks
         context_chunks = self.search_group_chunks(group, query, max_results)
         if not context_chunks:
             return {
-                "rag_answer": "申し訳ございませんが、この質問に関連する内容が見つかりませんでした。",
+                "rag_answer": "I apologize, but no relevant content was found for this question.",
                 "timestamp_results": [],
                 "query": query,
                 "group_name": group.name,
             }
 
-        # コンテキストを作成
+        # Create context
         context_text = "\n\n".join(
             [
                 f"[{c['video_title']} - {c['start_time']:.1f}s-{c['end_time']:.1f}s] {c['text']}"
@@ -117,25 +117,25 @@ class VectorSearchService:
             ]
         )
 
-        # プロンプトを作成
-        prompt = f"""あなたは動画グループ「{group.name}」の内容について質問に答えるアシスタントです。
+        # Create prompt
+        prompt = f"""You are an assistant that answers questions about the content of the video group "{group.name}".
 
-与えられたコンテキスト（動画グループの文字起こし）を基に、質問に対して正確で簡潔な回答を200字以内で提供してください。
+Based on the given context (transcription of the video group), provide accurate and concise answers to questions within 200 characters.
 
-コンテキスト:
+Context:
 {context_text}
 
-質問: {query}
+Question: {query}
 
-回答:"""
+Answer:"""
 
-        # OpenAI APIで回答生成
+        # Generate answer using OpenAI API
         response = self.client.chat.completions.create(
             model="gpt-4o-mini-2024-07-18",
             messages=[
                 {
                     "role": "system",
-                    "content": "あなたは動画グループの内容に基づいて質問に答えるアシスタントです。",
+                    "content": "You are an assistant that answers questions based on video group content.",
                 },
                 {"role": "user", "content": prompt},
             ],
@@ -144,7 +144,7 @@ class VectorSearchService:
         )
         rag_answer = response.choices[0].message.content.strip()
 
-        # 関連するタイムスタンプも検索
+        # Also search for related timestamps
         timestamp_results = self.search_group_features(group, rag_answer, max_results)
 
         return {

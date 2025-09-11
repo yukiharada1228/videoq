@@ -1,19 +1,19 @@
 {% extends 'app/base.html' %}
 
-{% block title %}OpenAI APIキー設定 - VideoQ{% endblock %}
+{% block title %}OpenAI API Key Settings - VideoQ{% endblock %}
 
 {% block content %}
 <div class="settings-container">
     <div class="row justify-content-center">
         <div class="col-lg-6 col-md-8 col-sm-10">
-            <!-- 設定フォーム -->
+            <!-- Settings Form -->
             <div class="settings-card">
                 <div class="settings-header text-center mb-4">
                     <div class="settings-icon mb-3">
                         <i class="bi bi-key"></i>
                     </div>
-                    <h2 class="settings-title">OpenAI APIキー設定</h2>
-                    <p class="settings-subtitle">AI機能を利用するためにOpenAI APIキーを設定してください</p>
+                    <h2 class="settings-title">OpenAI API Key Settings</h2>
+                    <p class="settings-subtitle">Please set your OpenAI API key to use AI features</p>
                 </div>
 
                 <form method="post" class="settings-form">
@@ -21,7 +21,7 @@
                     
                     <div class="form-group mb-4">
                         <label for="{{ form.api_key.id_for_label }}" class="form-label">
-                            <i class="bi bi-key me-2"></i>OpenAI APIキー
+                            <i class="bi bi-key me-2"></i>OpenAI API Key
                         </label>
                         {{ form.api_key }}
                         <div class="form-text mt-2">
@@ -39,19 +39,19 @@
 
                     <div class="d-grid">
                         <button type="submit" class="btn btn-primary btn-lg">
-                            <i class="bi bi-check-circle me-2"></i>保存
+                            <i class="bi bi-check-circle me-2"></i>Save
                         </button>
                     </div>
                 </form>
 
                 <div class="settings-footer text-center mt-4">
                     <div class="alert alert-info">
-                        <h6><i class="bi bi-lightbulb me-2"></i>APIキーの取得方法</h6>
+                        <h6><i class="bi bi-lightbulb me-2"></i>How to Get API Key</h6>
                         <ol class="text-start mb-0">
-                            <li><a href="https://platform.openai.com/api-keys" target="_blank" class="text-decoration-none">OpenAI Platform</a>にアクセス</li>
-                            <li>アカウントにログインまたは新規登録</li>
-                            <li>「API Keys」セクションで新しいキーを作成</li>
-                            <li>生成されたキーをコピーして上記に入力</li>
+                            <li>Access <a href="https://platform.openai.com/api-keys" target="_blank" class="text-decoration-none">OpenAI Platform</a></li>
+                            <li>Login to your account or create a new account</li>
+                            <li>Create a new key in the "API Keys" section</li>
+                            <li>Copy the generated key and enter it above</li>
                         </ol>
                     </div>
                 </div>
@@ -77,19 +77,19 @@
 .settings-icon {
     width: 80px;
     height: 80px;
-    background: var(--background-color); /* base.htmlの背景色を使用 */
+    background: var(--background-color); /* Use background color from base.html */
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     margin: 0 auto;
     box-shadow: var(--shadow-lg);
-    border: 2px solid var(--primary-color); /* プライマリカラーのボーダー */
+    border: 2px solid var(--primary-color); /* Primary color border */
 }
 
 .settings-icon i {
     font-size: 2.5rem;
-    color: var(--primary-color); /* base.htmlのプライマリカラーを使用 */
+    color: var(--primary-color); /* Use primary color from base.html */
 }
 
 .settings-title {
@@ -162,7 +162,7 @@
     color: #5a67d8;
 }
 
-/* アニメーション */
+/* Animation */
 .settings-card {
     animation: slideInUp 0.6s ease-out;
 }
@@ -178,7 +178,7 @@
     }
 }
 
-/* レスポンシブ */
+/* Responsive */
 @media (max-width: 768px) {
     .settings-card {
         padding: 2rem 1.5rem;

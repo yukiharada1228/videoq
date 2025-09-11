@@ -5,7 +5,7 @@
 
 {% block content %}
 <div class="container-fluid">
-    <!-- ヘッダー -->
+    <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-3">
         <div>
             <h2><i class="bi bi-collection"></i> {{ group.name }}</h2>
@@ -15,74 +15,74 @@
         </div>
         <div class="d-flex gap-2">
             <a href="{% url 'app:video_group_list' %}" class="btn btn-outline-secondary">
-                <i class="bi bi-arrow-left"></i> グループ一覧
+                <i class="bi bi-arrow-left"></i> Group List
             </a>
             <button class="btn btn-outline-primary" onclick="showAddVideoModal()">
-                <i class="bi bi-plus-circle"></i> 動画追加
+                <i class="bi bi-plus-circle"></i> Add Video
             </button>
             <a href="{% url 'app:video_group_delete' group.pk %}" class="btn btn-outline-danger">
-                <i class="bi bi-trash"></i> グループ削除
+                <i class="bi bi-trash"></i> Delete Group
             </a>
             <a href="{% url 'app:chat_logs_dashboard' %}?group_id={{ group.id }}" class="btn btn-outline-secondary">
-                <i class="bi bi-clock-history"></i> 履歴ダッシュボード
+                <i class="bi bi-clock-history"></i> History Dashboard
             </a>
-            <!-- 共有URL発行/無効化ボタン -->
+            <!-- Share URL generation/disable button -->
             {% if group.share_token %}
                 <button class="btn btn-outline-warning" id="disable-share-btn" onclick="toggleShare('disable')">
-                    <i class="bi bi-link-45deg"></i> 共有を無効化
+                    <i class="bi bi-link-45deg"></i> Disable Sharing
                 </button>
             {% else %}
                 <button class="btn btn-outline-success" id="enable-share-btn" onclick="toggleShare('enable')">
-                    <i class="bi bi-link-45deg"></i> 共有URL発行
+                    <i class="bi bi-link-45deg"></i> Generate Share URL
                 </button>
             {% endif %}
         </div>
     </div>
-    <!-- 共有URL表示エリア -->
+    <!-- Share URL display area -->
     {% if group.share_token and share_absolute_url %}
     <div class="alert alert-info d-flex align-items-center gap-2 justify-content-center flex-wrap">
         <span class="d-inline d-sm-none fw-bold" style="font-size:1.1rem;">
-            <i class="bi bi-link-45deg"></i> 共有URL
+            <i class="bi bi-link-45deg"></i> Share URL
         </span>
         <span class="d-none d-sm-inline">
-            <i class="bi bi-link-45deg"></i> 共有URL:
+            <i class="bi bi-link-45deg"></i> Share URL:
             <a href="{{ share_absolute_url }}" target="_blank" id="share-url-link">
                 {{ share_absolute_url }}
             </a>
         </span>
         <button class="btn btn-primary ms-2 px-4" style="font-weight:600;" onclick="copyShareUrl()">
-            <i class="bi bi-clipboard"></i> コピー
+            <i class="bi bi-clipboard"></i> Copy
         </button>
     </div>
     
-    <!-- アクセス情報表示 -->
+    <!-- Access information display -->
     {% if current_active_count is not None %}
     <div class="alert alert-warning d-flex align-items-center gap-2 justify-content-center flex-wrap">
         <span class="d-inline d-sm-none fw-bold" style="font-size:1.1rem;">
-            <i class="bi bi-people"></i> アカウントアクセス状況
+            <i class="bi bi-people"></i> Account Access Status
         </span>
         <span class="d-none d-sm-inline">
-            <i class="bi bi-people"></i> このアカウントの同時アクセス数: 
+            <i class="bi bi-people"></i> Current concurrent access for this account: 
             <strong>{{ current_active_count }}/{{ max_concurrent_users }}</strong>
-            <small class="text-muted">（最終操作から {{ session_timeout_minutes }} 分でタイムアウト）</small>
+            <small class="text-muted">(Timeout after {{ session_timeout_minutes }} minutes of inactivity)</small>
         </span>
     </div>
     {% endif %}
     {% endif %}
 
-    <!-- スマホ用タブUI -->
+    <!-- Mobile Tab UI -->
     <div class="d-md-none mb-4">
       <div class="card">
         <div class="card-body p-0">
           <ul class="nav nav-pills nav-fill" id="mobileTab" role="tablist">
             <li class="nav-item" role="presentation">
               <button class="nav-link rounded-0 w-100" id="tab-list" data-bs-toggle="tab" data-bs-target="#tabListPane" type="button" role="tab" aria-controls="tabListPane" aria-selected="false">
-                <i class="bi bi-collection-play me-2"></i>動画一覧
+                <i class="bi bi-collection-play me-2"></i>Video List
               </button>
             </li>
             <li class="nav-item" role="presentation">
               <button class="nav-link rounded-0 w-100 active" id="tab-playerchat" data-bs-toggle="tab" data-bs-target="#tabPlayerChatPane" type="button" role="tab" aria-controls="tabPlayerChatPane" aria-selected="true">
-                <i class="bi bi-play-circle me-2"></i>再生＋チャット
+                <i class="bi bi-play-circle me-2"></i>Play + Chat
               </button>
             </li>
           </ul>
@@ -90,19 +90,19 @@
       </div>
     </div>
     <div class="row g-2 d-none d-md-flex">
-        <!-- 左側: 動画一覧 -->
+        <!-- Left: Video List -->
         <div class="col-xl-2 col-lg-3 col-md-4">
             <div class="card h-100">
                 <div class="card-header">
                     <h6 class="card-title mb-0">
-                        <i class="bi bi-collection-play"></i> 動画一覧 ({{ video_count }}本)
+                        <i class="bi bi-collection-play"></i> Video List ({{ video_count }} videos)
                         {% if hidden_videos_count > 0 %}
-                        <small class="text-muted">(非表示: {{ hidden_videos_count }}本)</small>
+                        <small class="text-muted">(Hidden: {{ hidden_videos_count }} videos)</small>
                         {% endif %}
                     </h6>
-                    <!-- タグ絞り込み（将来拡張: JSでフィルタリング） -->
+                    <!-- Tag filtering (future expansion: JS filtering) -->
                     <div class="mt-2">
-                        <input type="text" id="tag-filter" class="form-control form-control-sm" placeholder="タグで絞り込み（カンマ区切り、AND）">
+                        <input type="text" id="tag-filter" class="form-control form-control-sm" placeholder="Filter by tags (comma-separated, AND)">
                     </div>
                 </div>
                 <div class="card-body p-0" style="max-height: 70vh; overflow-y: auto;">
@@ -116,9 +116,7 @@
                                     <div class="d-flex flex-column">
                                         <h6 class="mb-1 video-title">{{ video.title }}</h6>
                                         <small class="text-muted">
-                                            {% timezone "Asia/Tokyo" %}
                                             {{ video.uploaded_at|date:"m/d H:i" }}
-                                            {% endtimezone %}
                                         </small>
                                          {% if video.tags.all %}
                                          <div class="mt-1">
@@ -130,12 +128,12 @@
                                         <div class="mt-2 d-flex gap-1">
                                             <a href="{% url 'app:video_detail' video.pk %}"
                                                class="btn btn-outline-primary btn-sm"
-                                               title="動画詳細を表示">
-                                                <i class="bi bi-eye"></i> 詳細
+                                               title="Show video details">
+                                                <i class="bi bi-eye"></i> Details
                                             </a>
                                             <button class="btn btn-outline-danger btn-sm"
                                                     onclick="showDeleteVideoModal('{{ video.id }}', '{{ video.title|escapejs }}')"
-                                                    title="グループから削除">
+                                                    title="Remove from group">
                                                 <i class="bi bi-trash"></i>
                                             </button>
                                         </div>
@@ -146,54 +144,54 @@
                     {% else %}
                         <div class="text-center py-4">
                             <i class="bi bi-collection display-4 text-muted mb-3"></i>
-                            <p class="text-muted">まだ動画が追加されていません</p>
+                            <p class="text-muted">No videos added yet</p>
                         </div>
                     {% endif %}
                 </div>
             </div>
         </div>
 
-        <!-- 中央: 動画再生 -->
+        <!-- Center: Video Player -->
         <div class="col-xl-7 col-lg-6 col-md-8">
             <div class="card h-100">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h6 class="card-title mb-0">
-                        <i class="bi bi-play-circle"></i> 動画再生
+                        <i class="bi bi-play-circle"></i> Video Player
                     </h6>
                 </div>
                 <div class="card-body">
                     {% if completed_videos %}
                         <div id="video-player-container">
-                            <!-- 動画プレイヤー（大きく） -->
+                            <!-- Video player (large) -->
                             <div class="video-container mb-3">
                                 <video id="videoPlayer" controls class="w-100 h-100">
                                     <source src="{{ completed_videos.first.file.url }}" type="video/mp4">
-                                    お使いのブラウザは動画再生に対応していません。
+                                    Your browser does not support video playback.
                                 </video>
                             </div>
-                            <!-- 動画タイトル -->
+                            <!-- Video title -->
                             <h5 class="mb-3" id="current-video-title">{{ completed_videos.first.title }}</h5>    
                         </div>
                     {% else %}
                         <div class="text-center py-5">
                             <i class="bi bi-play-circle display-1 text-muted"></i>
-                            <h5 class="mt-3">動画を選択してください</h5>
-                            <p class="text-muted">左側の動画一覧から再生したい動画を選択してください</p>
+                            <h5 class="mt-3">Please select a video</h5>
+                            <p class="text-muted">Select a video from the video list on the left to play</p>
                         </div>
                     {% endif %}
                 </div>
             </div>
         </div>
 
-        <!-- 右側: チャット（統一デザイン） -->
+        <!-- Right: Chat (Unified Design) -->
         <div class="col-xl-3 col-lg-3 col-md-12">
             <div class="card h-100">
                 <div class="card-header" id="chat-section">
                     <div class="d-flex justify-content-between align-items-center">
                         <h6 class="card-title mb-0">
-                            <i class="bi bi-chat-dots"></i> チャット
+                            <i class="bi bi-chat-dots"></i> Chat
                         </h6>
-                        <!-- ストリーミングのみ -->
+                        <!-- Streaming only -->
                     </div>
                 </div>
                 <div class="card-body d-flex flex-column p-0">
@@ -201,46 +199,46 @@
                         <div id="chatHistory" class="flex-grow-1 overflow-auto p-3" style="max-height: 500px;">
                             <div class="text-center text-muted py-3">
                                 <i class="bi bi-robot"></i>
-                                <p class="mb-0">グループ内の動画について質問してください</p>
-                                <small>例: 「このグループで何について話していますか？」</small>
+                                <p class="mb-0">Ask questions about videos in this group</p>
+                                <small>Example: "What is discussed in this group?"</small>
                             </div>
                         </div>
                         <div class="p-3 border-top">
                             <div class="input-group">
-                                <input type="text" class="form-control" id="group-query" placeholder="質問を入力..." onkeypress="if(event.key==='Enter'){sendGroupChatStream('desktop');}">
+                                <input type="text" class="form-control" id="group-query" placeholder="Enter question..." onkeypress="if(event.key==='Enter'){sendGroupChatStream('desktop');}">
                                 <button class="btn btn-success" type="button" id="chat-submit" onclick="sendGroupChatStream('desktop')">
                                     <i class="bi bi-send"></i>
                                 </button>
                             </div>
                             <div id="chat-loading" class="text-center mt-2" style="display: none;">
                                 <div class="spinner-border spinner-border-sm text-primary" role="status">
-                                    <span class="visually-hidden">検索中...</span>
+                                    <span class="visually-hidden">Searching...</span>
                                 </div>
-                                <small class="text-muted ms-2">AIが回答を生成中...</small>
+                                <small class="text-muted ms-2">AI is generating answer...</small>
                             </div>
                         </div>
                     {% else %}
                         <div class="text-center py-5">
                             <i class="bi bi-chat-dots display-1 text-muted"></i>
-                            <h6 class="mt-3">グループチャット</h6>
-                            <p class="text-muted">動画を追加すると、ここでグループチャットが利用できます。</p>
+                            <h6 class="mt-3">Group Chat</h6>
+                            <p class="text-muted">Once you add videos, you can use group chat here.</p>
                         </div>
                     {% endif %}
                 </div>
             </div>
         </div>
     </div>
-    <!-- スマホ用タブ切り替えエリア -->
+    <!-- Mobile Tab Switch Area -->
     <div class="tab-content d-md-none">
       <div class="tab-pane fade" id="tabListPane" role="tabpanel">
-        <!-- 左カラム: 動画一覧 ... -->
+        <!-- Left Column: Video List ... -->
         <div class="col-xl-2 col-lg-3 col-md-4">
             <div class="card h-100">
                 <div class="card-header">
                     <h6 class="card-title mb-0">
-                        <i class="bi bi-collection-play"></i> 動画一覧 ({{ video_count }}本)
+                        <i class="bi bi-collection-play"></i> Video List ({{ video_count }} videos)
                         {% if hidden_videos_count > 0 %}
-                        <small class="text-muted">(非表示: {{ hidden_videos_count }}本)</small>
+                        <small class="text-muted">(Hidden: {{ hidden_videos_count }} videos)</small>
                         {% endif %}
                     </h6>
                 </div>
@@ -255,9 +253,7 @@
                                     <div class="d-flex flex-column">
                                         <h6 class="mb-1 video-title">{{ video.title }}</h6>
                                         <small class="text-muted">
-                                            {% timezone "Asia/Tokyo" %}
                                             {{ video.uploaded_at|date:"m/d H:i" }}
-                                            {% endtimezone %}
                                         </small>
                                           {% if video.tags.all %}
                                           <div class="mt-1">
@@ -273,7 +269,7 @@
                     {% else %}
                         <div class="text-center py-4">
                             <i class="bi bi-collection display-4 text-muted mb-3"></i>
-                            <p class="text-muted">まだ動画が追加されていません</p>
+                            <p class="text-muted">No videos added yet</p>
                         </div>
                     {% endif %}
                 </div>
@@ -284,7 +280,7 @@
         <div class="card h-100 mb-3">
           <div class="card-header d-flex justify-content-between align-items-center">
             <h6 class="card-title mb-0">
-              <i class="bi bi-play-circle"></i> 動画再生
+              <i class="bi bi-play-circle"></i> Video Player
             </h6>
           </div>
           <div class="card-body">
@@ -293,7 +289,7 @@
                 <div class="video-container mb-3">
                   <video id="videoPlayerMobile" controls class="w-100 h-100">
                     <source src="{{ completed_videos.first.file.url }}" type="video/mp4">
-                    お使いのブラウザは動画再生に対応していません。
+                    Your browser does not support video playback.
                   </video>
                 </div>
                 <h5 class="mb-3" id="current-video-title-mobile">{{ completed_videos.first.title }}</h5>
@@ -302,8 +298,8 @@
             {% else %}
               <div class="text-center py-5">
                 <i class="bi bi-play-circle display-1 text-muted"></i>
-                <h5 class="mt-3">動画を選択してください</h5>
-                <p class="text-muted">左側の動画一覧から再生したい動画を選択してください</p>
+                <h5 class="mt-3">Please select a video</h5>
+                <p class="text-muted">Select a video from the video list on the left to play</p>
               </div>
             {% endif %}
           </div>
@@ -312,9 +308,9 @@
           <div class="card-header" id="chat-section-mobile">
             <div class="d-flex justify-content-between align-items-center">
               <h6 class="card-title mb-0">
-                <i class="bi bi-chat-dots"></i> チャット
+                <i class="bi bi-chat-dots"></i> Chat
               </h6>
-              <!-- ストリーミングのみ -->
+              <!-- Streaming only -->
             </div>
           </div>
           <div class="card-body d-flex flex-column p-0">
@@ -322,29 +318,29 @@
               <div id="chatHistoryMobile" class="flex-grow-1 overflow-auto p-3" style="max-height: 300px;">
                 <div class="text-center text-muted py-3">
                   <i class="bi bi-robot"></i>
-                  <p class="mb-0">グループ内の動画について質問してください</p>
-                  <small>例: 「このグループで何について話していますか？」</small>
+                  <p class="mb-0">Ask questions about videos in this group</p>
+                  <small>Example: "What is discussed in this group?"</small>
                 </div>
               </div>
               <div class="p-3 border-top">
                 <div class="input-group">
-                  <input type="text" class="form-control" id="group-query-mobile" placeholder="質問を入力..." onkeypress="if(event.key==='Enter'){sendGroupChatStream('mobile');}">
+                  <input type="text" class="form-control" id="group-query-mobile" placeholder="Enter question..." onkeypress="if(event.key==='Enter'){sendGroupChatStream('mobile');}">
                   <button class="btn btn-success" type="button" id="chat-submit-mobile" onclick="sendGroupChatStream('mobile')">
                     <i class="bi bi-send"></i>
                   </button>
                 </div>
                 <div id="chat-loading-mobile" class="text-center mt-2" style="display: none;">
                   <div class="spinner-border spinner-border-sm text-primary" role="status">
-                    <span class="visually-hidden">検索中...</span>
+                    <span class="visually-hidden">Searching...</span>
                   </div>
-                  <small class="text-muted ms-2">AIが回答を生成中...</small>
+                  <small class="text-muted ms-2">AI is generating answer...</small>
                 </div>
               </div>
             {% else %}
               <div class="text-center py-5">
                 <i class="bi bi-chat-dots display-1 text-muted"></i>
-                <h6 class="mt-3">グループチャット</h6>
-                <p class="text-muted">動画を追加すると、ここでグループチャットが利用できます。</p>
+            <h6 class="mt-3">Group Chat</h6>
+            <p class="text-muted">Once you add videos, you can use group chat here.</p>
               </div>
             {% endif %}
           </div>
@@ -353,16 +349,16 @@
     </div>
 </div>
 
-<!-- トースト表示用コンテナ（固定配置） -->
+<!-- Toast Display Container (Fixed Position) -->
 <div id="toast-container" class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1080;"></div>
 
-<!-- 動画追加モーダル（選択追加 / タグで一括追加） -->
+<!-- Add Video Modal (Select Add / Bulk Add by Tags) -->
 <div class="modal fade" id="addVideoModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">
-                    <i class="bi bi-plus-circle"></i> 動画を追加
+                    <i class="bi bi-plus-circle"></i> Add Video
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
@@ -370,12 +366,12 @@
                 <ul class="nav nav-tabs" role="tablist">
                     <li class="nav-item" role="presentation">
                         <button class="nav-link active" id="by-select-tab" data-bs-toggle="tab" data-bs-target="#by-select-pane" type="button" role="tab" aria-controls="by-select-pane" aria-selected="true">
-                            <i class="bi bi-list-check me-1"></i> 選択して追加
+                            <i class="bi bi-list-check me-1"></i> Select and Add
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
                         <button class="nav-link" id="by-tags-tab" data-bs-toggle="tab" data-bs-target="#by-tags-pane" type="button" role="tab" aria-controls="by-tags-pane" aria-selected="false">
-                            <i class="bi bi-hash me-1"></i> タグで一括追加
+                            <i class="bi bi-hash me-1"></i> Bulk Add by Tags
                         </button>
                     </li>
                 </ul>
@@ -384,9 +380,9 @@
                         {% if available_videos %}
                         <form id="add-video-form">
                             <div class="mb-3">
-                                <label for="video-select" class="form-label">追加する動画を選択</label>
+                                <label for="video-select" class="form-label">Select videos to add</label>
                                 <select class="form-select" id="video-select" name="video_id" required>
-                                    <option value="">動画を選択してください</option>
+                                    <option value="">Please select a video</option>
                                     {% for video in available_videos %}
                                         <option value="{{ video.id }}">{{ video.title }}</option>
                                     {% endfor %}
@@ -396,12 +392,12 @@
                         {% else %}
                         <div class="text-center py-3">
                             <i class="bi bi-check-circle display-6 text-success mb-2"></i>
-                            <p class="text-muted mb-0">追加可能な動画がありません</p>
+                            <p class="text-muted mb-0">No videos available to add</p>
                         </div>
                         {% endif %}
                     </div>
                     <div class="tab-pane fade" id="by-tags-pane" role="tabpanel" aria-labelledby="by-tags-tab" tabindex="0">
-                        <div class="mb-2 small text-muted">既存タグから選択（選択した全てを含む動画を追加／AND）</div>
+                        <div class="mb-2 small text-muted">Select from existing tags (add videos containing all selected tags / AND)</div>
                         <div class="tag-selection-container">
                             {% if available_tags %}
                                 <div class="existing-tags-grid">
@@ -419,18 +415,18 @@
                                 </div>
                             {% else %}
                                 <div class="text-muted">
-                                    <i class="bi bi-info-circle me-2"></i>まだタグが作成されていません。タグ管理から作成してください。
+                                    <i class="bi bi-info-circle me-2"></i>No tags created yet. Please create them from tag management.
                                 </div>
                             {% endif %}
                         </div>
-                        <div class="form-text">「グループに追加」で一括追加します。</div>
+                        <div class="form-text">Bulk add with "Add to Group".</div>
                     </div>
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">閉じる</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                 <button type="button" class="btn btn-primary" onclick="addFromModal()">
-                    <i class="bi bi-plus"></i> グループに追加
+                    <i class="bi bi-plus"></i> Add to Group
                 </button>
             </div>
         </div>
@@ -438,31 +434,31 @@
     
 </div>
 
-<!-- 動画削除確認モーダル -->
+<!-- Video deletion confirmation modal -->
 <div class="modal fade" id="deleteVideoModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title text-danger">
-                    <i class="bi bi-exclamation-triangle"></i> 動画を削除
+                    <i class="bi bi-exclamation-triangle"></i> Delete Video
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <div class="text-center">
                     <i class="bi bi-trash display-4 text-danger mb-3"></i>
-                    <h6>この動画をグループから削除しますか？</h6>
+                    <h6>Do you want to remove this video from the group?</h6>
                     <p class="text-muted" id="delete-video-title"></p>
                     <div class="alert alert-warning">
                         <i class="bi bi-info-circle"></i>
-                        この操作は元に戻せません。動画自体は削除されませんが、グループからは除外されます。
+                        This operation cannot be undone. The video itself will not be deleted, but it will be removed from the group.
                     </div>
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                 <button type="button" class="btn btn-danger" onclick="deleteVideoFromGroup()">
-                    <i class="bi bi-trash"></i> 削除
+                    <i class="bi bi-trash"></i> Delete
                 </button>
             </div>
         </div>
@@ -471,12 +467,12 @@
 
 <!-- JavaScript -->
 <script>
-// ページ読み込み時にURLフラグメントをチェック
+// Check URL fragment on page load
 document.addEventListener('DOMContentLoaded', function() {
     if (window.location.hash === '#chat') {
         scrollToChat();
     }
-    // URLパラメータによる事前入力と自動送信
+    // Pre-fill and auto-send via URL parameters
     try {
         const params = new URLSearchParams(window.location.search);
         const prefill = params.get('prefill');
@@ -488,7 +484,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (mobileInput) mobileInput.value = prefill;
             scrollToChat();
             if (auto === '1') {
-                // 少し待ってから送信（UI安定のため）
+                // Wait a bit before sending (for UI stability)
                 setTimeout(() => {
                     if (desktopInput) {
                         sendGroupChatStream('desktop');
@@ -499,24 +495,24 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     } catch (e) {
-        console.warn('prefill処理でエラー:', e);
+        console.warn('Error in prefill processing:', e);
     }
 });
 
-// チャット部分にスクロール
+// Scroll to chat section
 function scrollToChat() {
     const chatSection = document.getElementById('chat-section');
     const chatSectionMobile = document.getElementById('chat-section-mobile');
     if (chatSection) {
         chatSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        // チャット入力フィールドにフォーカス
+        // Focus on chat input field
         const chatInput = document.getElementById('group-query');
         if (chatInput) {
             setTimeout(() => chatInput.focus(), 500);
         }
     } else if (chatSectionMobile) {
         chatSectionMobile.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        // チャット入力フィールドにフォーカス
+        // Focus on chat input field
         const chatInput = document.getElementById('group-query-mobile');
         if (chatInput) {
             setTimeout(() => chatInput.focus(), 500);
@@ -524,21 +520,21 @@ function scrollToChat() {
     }
 }
 
-// 動画プレイヤー
+// Video player
 const videoPlayer = document.getElementById('videoPlayer');
 const videoPlayerMobile = document.getElementById('videoPlayerMobile');
 
 
 
 
-// 動画選択
+// Video selection
 document.querySelectorAll('.video-item').forEach(item => {
     item.addEventListener('click', function() {
         const videoId = this.dataset.videoId;
         const videoUrl = this.dataset.videoUrl;
         const videoTitle = this.dataset.videoTitle;
         
-        // PC版とモバイル版の両方の動画プレイヤーを更新
+        // Update both PC and mobile video players
         const currentTitle = document.getElementById('current-video-title');
         const currentTitleMobile = document.getElementById('current-video-title-mobile');
         
@@ -551,11 +547,11 @@ document.querySelectorAll('.video-item').forEach(item => {
             currentTitleMobile.textContent = videoTitle;
         }
         
-        // 選択状態を更新
+        // Update selection state
         document.querySelectorAll('.video-item').forEach(v => v.classList.remove('active'));
         this.classList.add('active');
 
-        // タブを動画再生タブに切り替え
+        // Switch to video playback tab
         const tabPlayerChat = document.getElementById('tab-playerchat');
         if (tabPlayerChat) {
             const bsTab = new bootstrap.Tab(tabPlayerChat);
@@ -564,7 +560,7 @@ document.querySelectorAll('.video-item').forEach(item => {
     });
 });
 
-// 簡易タグ絞り込み（フロント側の表示フィルタ）
+// Simple tag filtering (frontend display filter)
 const tagFilterInput = document.getElementById('tag-filter');
 if (tagFilterInput) {
     tagFilterInput.addEventListener('input', function() {
@@ -583,11 +579,11 @@ if (tagFilterInput) {
     });
 }
 
-// タグで動画を一括追加（AND条件）
+// Bulk add videos by tags (AND condition)
 async function addVideosByTags() {
     const checked = Array.from(document.querySelectorAll('input[name="bulk_existing_tags"]:checked')).map(el => el.value.trim()).filter(Boolean);
     if (!checked.length) {
-        showToast('タグを選択してください', 'danger');
+        showToast('Please select tags', 'danger');
         return;
     }
     try {
@@ -601,46 +597,46 @@ async function addVideosByTags() {
         });
         const data = await res.json();
         if (!res.ok || !data.success) {
-            showToast(data.error || '追加に失敗しました', 'danger');
+            showToast(data.error || 'Failed to add', 'danger');
             return;
         }
-        showToast(data.message || '追加しました', 'success');
+        showToast(data.message || 'Added', 'success');
         const modalEl = document.getElementById('addVideoModal');
         const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
         modal.hide();
         setTimeout(() => location.reload(), 400);
     } catch (e) {
-        showToast('エラー: ' + e.message, 'danger');
+        showToast('Error: ' + e.message, 'danger');
     }
 }
 
-// モーダルのフッター「グループに追加」ボタンのハンドラ
+// Modal footer "Add to Group" button handler
 function addFromModal() {
-    // アクティブなタブを判定
+    // Determine active tab
     const tabTags = document.getElementById('by-tags-pane');
     const isTagsActive = tabTags && tabTags.classList.contains('active');
     if (isTagsActive) {
-        // タグで一括追加
+        // Bulk add by tags
         addVideosByTags();
     } else {
-        // 単一選択で追加
+        // Add by single selection
         addVideoToGroup();
     }
 }
 
-// 初期選択
+// Initial selection
 const firstVideoItem = document.querySelector('.video-item');
 if (firstVideoItem) {
     firstVideoItem.classList.add('active');
 }
 
-// 動画追加モーダル表示
+// Show add video modal
 function showAddVideoModal() {
     const modal = new bootstrap.Modal(document.getElementById('addVideoModal'));
     modal.show();
 }
 
-// 動画追加
+// Add video
 async function addVideoToGroup() {
     const videoId = document.getElementById('video-select').value;
     if (!videoId) return;
@@ -661,14 +657,14 @@ async function addVideoToGroup() {
             alert(data.message);
             location.reload();
         } else {
-            alert('エラー: ' + data.error);
+            alert('Error: ' + data.error);
         }
     } catch (error) {
-        alert('エラーが発生しました: ' + error.message);
+        alert('An error occurred: ' + error.message);
     }
 }
 
-// チャット送信（Enterキー）
+// Chat send (Enter key)
 function handleChatKeyPress(event) {
     if (event.key === 'Enter') {
         const isMobile = event.target.id === 'group-query-mobile';
@@ -676,7 +672,7 @@ function handleChatKeyPress(event) {
     }
 }
 
-// グループチャット送信
+// Group chat send
 async function sendGroupChat(mode = 'desktop') {
     const queryId = mode === 'mobile' ? 'group-query-mobile' : 'group-query';
     const submitBtnId = mode === 'mobile' ? 'chat-submit-mobile' : 'chat-submit';
@@ -690,12 +686,12 @@ async function sendGroupChat(mode = 'desktop') {
     const loading = document.getElementById(loadingId);
     const chatHistory = document.getElementById(historyId);
     
-    // UI状態を更新
+    // Update UI state
     submitBtn.disabled = true;
     submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i>';
     loading.style.display = 'block';
     
-    // ユーザーメッセージを追加
+    // Add user message
     addChatMessage('user', query, null, mode);
     
     try {
@@ -716,12 +712,12 @@ async function sendGroupChat(mode = 'desktop') {
         if (data.success) {
             addChatMessage('ai', data.results.rag_answer, data.results.timestamp_results, mode);
         } else {
-            addChatMessage('ai', 'エラー: ' + data.error, null, mode);
+            addChatMessage('ai', 'Error: ' + data.error, null, mode);
         }
     } catch (error) {
-        addChatMessage('ai', 'エラーが発生しました: ' + error.message, null, mode);
+        addChatMessage('ai', 'An error occurred: ' + error.message, null, mode);
     } finally {
-        // UI状態を復元
+        // Restore UI state
         submitBtn.disabled = false;
         submitBtn.innerHTML = '<i class="bi bi-send"></i>';
         loading.style.display = 'none';
@@ -729,20 +725,20 @@ async function sendGroupChat(mode = 'desktop') {
     }
 }
 
-// チャットモード管理
+// Chat mode management
 let currentChatMode = 'normal';
 
 function switchChatMode(mode, device = 'desktop') {
     currentChatMode = mode;
     
-    // デスクトップ用ボタンの状態を更新
+    // Update desktop button states
     if (device === 'desktop' || device === 'both') {
         document.getElementById('chat-mode-normal').classList.remove('active');
         document.getElementById('chat-mode-stream').classList.remove('active');
         document.getElementById(`chat-mode-${mode}`).classList.add('active');
     }
     
-    // モバイル用ボタンの状態を更新
+    // Update mobile button states
     if (device === 'mobile' || device === 'both') {
         document.getElementById('chat-mode-normal-mobile').classList.remove('active');
         document.getElementById('chat-mode-stream-mobile').classList.remove('active');
@@ -750,7 +746,7 @@ function switchChatMode(mode, device = 'desktop') {
     }
 }
 
-// チャット送信の統一関数
+// Unified chat send function
 function sendChat(mode = 'desktop') {
     if (currentChatMode === 'stream') {
         sendGroupChatStream(mode);
@@ -759,7 +755,7 @@ function sendChat(mode = 'desktop') {
     }
 }
 
-// ストリーミング専用のチャット送信関数のみ残す
+// Keep only streaming-specific chat send function
 async function sendGroupChatStream(mode = 'desktop') {
     const queryId = mode === 'mobile' ? 'group-query-mobile' : 'group-query';
     const submitBtnId = mode === 'mobile' ? 'chat-submit-mobile' : 'chat-submit';
@@ -773,18 +769,18 @@ async function sendGroupChatStream(mode = 'desktop') {
     const loading = document.getElementById(loadingId);
     const chatHistory = document.getElementById(historyId);
     
-    // UI状態を更新
+    // Update UI state
     submitBtn.disabled = true;
     submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i>';
     loading.style.display = 'block';
     
-    // 初期説明メッセージを削除（モバイルとデスクトップ両方に対応）
+    // Remove initial explanation message (support both mobile and desktop)
     const initialMessage = chatHistory.querySelector('.text-center.text-muted');
     if (initialMessage) {
         chatHistory.innerHTML = '';
     }
     
-    // ユーザーメッセージを直接追加（addChatMessageは使わない）
+    // Add user message directly (not using addChatMessage)
     const userMessageDiv = document.createElement('div');
     userMessageDiv.className = 'mb-3 d-flex justify-content-end';
     userMessageDiv.innerHTML = `
@@ -795,7 +791,7 @@ async function sendGroupChatStream(mode = 'desktop') {
     chatHistory.appendChild(userMessageDiv);
     chatHistory.scrollTop = chatHistory.scrollHeight;
     
-    // AIメッセージのプレースホルダーを作成
+    // Create AI message placeholder
     const uniqueId = 'ai-message-' + Date.now() + '-' + Math.floor(Math.random() * 10000);
     const aiMessageDiv = document.createElement('div');
     aiMessageDiv.className = 'mb-3 d-flex justify-content-start';
@@ -848,22 +844,22 @@ async function sendGroupChatStream(mode = 'desktop') {
                         const parsed = JSON.parse(data);
                         if (parsed.type === 'content') {
                             aiMessageSpan.textContent = parsed.full_answer;
-                            // MathJaxを再レンダリング
+                            // Re-render MathJax
                             if (window.MathJax) {
                                 window.MathJax.typesetPromise([aiMessageSpan]).catch((err) => console.log('MathJax error:', err));
                             }
                         } else if (parsed.type === 'complete') {
                             aiMessageSpan.textContent = parsed.full_answer;
-                            // MathJaxを再レンダリング
+                            // Re-render MathJax
                             if (window.MathJax) {
                                 window.MathJax.typesetPromise([aiMessageSpan]).catch((err) => console.log('MathJax error:', err));
                             }
-                            // タイムスタンプと関連質問を表示
+                            // Display timestamps and related questions
                             let timestampsHtml = '';
                             if (parsed.timestamp_results && parsed.timestamp_results.length > 0) {
                                 const item = parsed.timestamp_results[0];
                                 timestampsHtml = `
-                                    <div class="mt-2"><small class="text-muted">関連するタイムスタンプ:</small>
+                                    <div class="mt-2"><small class="text-muted">Related timestamps:</small>
                                     <div class="mt-1">
                                         <button class="btn btn-outline-primary btn-sm timestamp-btn" 
                                                 data-video-id="${item.video_id}" 
@@ -881,7 +877,7 @@ async function sendGroupChatStream(mode = 'desktop') {
                                 relatedQuestionsHtml = `
                                     <div class="mt-3 border-top pt-2">
                                         <small class="text-muted d-block mb-2">
-                                            <i class="bi bi-lightbulb"></i> 関連する質問:
+                                            <i class="bi bi-lightbulb"></i> Related questions:
                                         </small>
                                         <div class="d-flex flex-nowrap gap-1 overflow-x-auto" style="max-width: 100%; scrollbar-width: thin; scrollbar-color: #ccc transparent;">
                                             <style>
@@ -913,10 +909,10 @@ async function sendGroupChatStream(mode = 'desktop') {
                                 `;
                             }
                             
-                            // 両方をまとめて表示
+                            // Display both together
                             aiTimestampsDiv.innerHTML = timestampsHtml + relatedQuestionsHtml;
                             
-                            // タイムスタンプボタンのクリックイベント
+                            // Timestamp button click event
                             aiTimestampsDiv.querySelectorAll('.timestamp-btn').forEach(btn => {
                                 btn.addEventListener('click', function() {
                                     const videoId = this.dataset.videoId;
@@ -938,18 +934,18 @@ async function sendGroupChatStream(mode = 'desktop') {
                                 });
                             });
                             
-                            // 関連質問ボタンのクリックイベント
+                            // Related question button click event
                             aiTimestampsDiv.querySelectorAll('.related-question-btn').forEach(btn => {
                                 btn.addEventListener('click', function() {
                                     const question = this.dataset.question;
                                     const queryInput = document.getElementById(queryId);
                                     queryInput.value = question;
-                                    // そのまま送信
+                                    // Send as is
                                     sendGroupChatStream(mode);
                                 });
                             });
                         } else if (parsed.type === 'error') {
-                            aiMessageSpan.textContent = 'エラー: ' + parsed.message;
+                            aiMessageSpan.textContent = 'Error: ' + parsed.message;
                         }
                         chatHistory.scrollTop = chatHistory.scrollHeight;
                     } catch (e) {
@@ -959,7 +955,7 @@ async function sendGroupChatStream(mode = 'desktop') {
             }
         }
     } catch (error) {
-        aiMessageSpan.textContent = 'エラーが発生しました: ' + error.message;
+        aiMessageSpan.textContent = 'An error occurred: ' + error.message;
     } finally {
         submitBtn.disabled = false;
         submitBtn.innerHTML = '<i class="bi bi-send"></i>';
@@ -972,7 +968,7 @@ function addChatMessage(type, message, timestamps = null, relatedQuestions = nul
     const historyId = mode === 'mobile' ? 'chatHistoryMobile' : 'chatHistory';
     const chatHistory = document.getElementById(historyId);
     
-    // 初期説明メッセージを削除（モバイルとデスクトップ両方に対応）
+    // Remove initial explanation message (support both mobile and desktop)
     const initialMessage = chatHistory.querySelector('.text-center.text-muted');
     if (initialMessage) {
         chatHistory.innerHTML = '';
@@ -992,7 +988,7 @@ function addChatMessage(type, message, timestamps = null, relatedQuestions = nul
         let timestampsHtml = '';
         if (timestamps && timestamps.length > 0) {
             const item = timestamps[0];
-            timestampsHtml = '<div class="mt-2"><small class="text-muted">関連するタイムスタンプ:</small>';
+            timestampsHtml = '<div class="mt-2"><small class="text-muted">Related timestamps:</small>';
             timestampsHtml += `
                 <div class="mt-1">
                     <button class="btn btn-outline-primary btn-sm timestamp-btn" 
@@ -1011,7 +1007,7 @@ function addChatMessage(type, message, timestamps = null, relatedQuestions = nul
             relatedQuestionsHtml = `
                 <div class="mt-3 border-top pt-2">
                     <small class="text-muted d-block mb-2">
-                        <i class="bi bi-lightbulb"></i> 関連する質問:
+                        <i class="bi bi-lightbulb"></i> Related questions:
                     </small>
                     <div class="d-flex flex-nowrap gap-1 overflow-x-auto" style="max-width: 100%; scrollbar-width: thin; scrollbar-color: #ccc transparent;">
                         <style>
@@ -1051,7 +1047,7 @@ function addChatMessage(type, message, timestamps = null, relatedQuestions = nul
             </div>
         `;
         
-        // MathJaxを再レンダリング
+        // Re-render MathJax
         if (window.MathJax) {
             window.MathJax.typesetPromise([messageDiv]).catch((err) => console.log('MathJax error:', err));
         }
@@ -1082,13 +1078,13 @@ function addChatMessage(type, message, timestamps = null, relatedQuestions = nul
         });
     });
     
-    // 関連質問ボタンのクリックイベント
+    // Related question button click event
     messageDiv.querySelectorAll('.related-question-btn').forEach(btn => {
         btn.addEventListener('click', function() {
             const question = this.dataset.question;
             const queryInput = document.getElementById(mode === 'mobile' ? 'group-query-mobile' : 'group-query');
             queryInput.value = question;
-            // そのまま送信
+            // Send as is
             sendGroupChatStream(mode);
         });
     });
@@ -1106,16 +1102,16 @@ function formatTime(seconds) {
     }
 }
 
-// 動画削除確認モーダル表示
+// Show video deletion confirmation modal
 function showDeleteVideoModal(videoId, videoTitle) {
     const modal = new bootstrap.Modal(document.getElementById('deleteVideoModal'));
     modal.show();
     document.getElementById('delete-video-title').textContent = videoTitle;
-    // 削除対象の動画IDを保存
+    // Save video ID to delete
     document.getElementById('deleteVideoModal').setAttribute('data-video-id', videoId);
 }
 
-// 動画削除
+// Delete video
 async function deleteVideoFromGroup() {
     const videoId = document.getElementById('deleteVideoModal').getAttribute('data-video-id');
     if (!videoId) return;
@@ -1135,10 +1131,10 @@ async function deleteVideoFromGroup() {
             alert(data.message);
             location.reload();
         } else {
-            alert('エラー: ' + data.error);
+            alert('Error: ' + data.error);
         }
     } catch (error) {
-        alert('エラーが発生しました: ' + error.message);
+        alert('An error occurred: ' + error.message);
     }
 }
 
@@ -1156,17 +1152,17 @@ function toggleShare(action) {
         if (data.success) {
             location.reload();
         } else {
-            alert('エラー: ' + (data.error || '共有の切り替えに失敗しました'));
+            alert('Error: ' + (data.error || 'Failed to toggle sharing'));
         }
     });
 }
 
-// シンプルなトースト表示ユーティリティ（Bootstrap 5）
+// Simple toast display utility (Bootstrap 5)
 function showToast(message, variant = 'success') {
     const container = document.getElementById('toast-container');
-    if (!container) return alert(message); // 最低限のフォールバック
+    if (!container) return alert(message); // Minimal fallback
 
-    // 既存のトーストが多すぎる場合は古いものを削除
+    // Remove old toasts if there are too many
     while (container.children.length > 3) {
         container.removeChild(container.firstChild);
     }
@@ -1188,11 +1184,11 @@ function showToast(message, variant = 'success') {
     bsToast.show();
 }
 
-// 共有URLコピー（フォールバック付き）
+// Share URL copy (with fallback)
 function copyShareUrl() {
     const linkEl = document.getElementById('share-url-link');
     if (!linkEl || !linkEl.href) {
-        showToast('共有URLが見つかりません', 'danger');
+        showToast('Share URL not found', 'danger');
         return;
     }
     const url = linkEl.href;
@@ -1220,21 +1216,21 @@ function copyShareUrl() {
     if (navigator.clipboard && window.isSecureContext) {
         navigator.clipboard.writeText(url)
             .then(() => {
-                showToast('共有URLをコピーしました', 'success');
+                showToast('Share URL copied', 'success');
             })
             .catch(() => {
                 const ok = fallbackCopy();
-                showToast(ok ? '共有URLをコピーしました' : 'コピーに失敗しました', ok ? 'success' : 'danger');
+                showToast(ok ? 'Share URL copied' : 'Copy failed', ok ? 'success' : 'danger');
             });
     } else {
         const ok = fallbackCopy();
-        showToast(ok ? '共有URLをコピーしました' : 'コピーに失敗しました', ok ? 'success' : 'danger');
+        showToast(ok ? 'Share URL copied' : 'Copy failed', ok ? 'success' : 'danger');
     }
 }
 </script>
 
 <style>
-/* 追加モーダル内のタブ視認性（文字が消える問題対策） */
+/* Tab visibility in add modal (fix for disappearing text issue) */
 #addVideoModal .nav-tabs { border-bottom: 1px solid #e2e8f0; }
 #addVideoModal .nav-tabs .nav-link {
   color: #334155 !important;
@@ -1249,7 +1245,7 @@ function copyShareUrl() {
   background: transparent !important;
   border-bottom: 3px solid #2563eb !important;
 }
-/* 動画アイテムの改善 */
+/* Video item improvements */
 .video-item {
     cursor: pointer;
     border-left: 3px solid transparent;
@@ -1275,7 +1271,7 @@ function copyShareUrl() {
     font-weight: 600;
 }
 
-/* 動画プレイヤーの改善 */
+/* Video player improvements */
 .video-container {
     position: relative;
     border-radius: 0.75rem;
@@ -1289,7 +1285,7 @@ function copyShareUrl() {
     background-color: #000;
 }
 
-/* フォームコントロールの改善 */
+/* Form control improvements */
 .form-control, .form-select {
     border-radius: 0.5rem;
     border: 1px solid #ced4da;
@@ -1302,7 +1298,7 @@ function copyShareUrl() {
     transform: translateY(-1px);
 }
 
-/* ボタンの改善 */
+/* Button improvements */
 .btn {
     border-radius: 0.5rem;
     transition: all 0.2s;
@@ -1313,7 +1309,7 @@ function copyShareUrl() {
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-/* レスポンシブ対応 */
+/* Responsive support */
 @media (max-width: 1200px) {
     .video-container {
         height: 400px;
@@ -1350,7 +1346,7 @@ function copyShareUrl() {
         height: 300px;
     }
     
-    /* 削除ボタンのモバイル対応 */
+    /* Mobile support for delete button */
     .btn-outline-danger {
         padding: 0.25rem 0.5rem;
         font-size: 0.75rem;
@@ -1388,7 +1384,7 @@ function copyShareUrl() {
     }
 }
 
-/* アニメーション */
+/* Animations */
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
@@ -1398,7 +1394,7 @@ function copyShareUrl() {
     animation: fadeIn 0.3s ease-out;
 }
 
-/* スクロールバーの改善 */
+/* Scrollbar improvements */
 #chatHistory::-webkit-scrollbar {
     width: 6px;
 }
@@ -1417,7 +1413,7 @@ function copyShareUrl() {
     background: #a8a8a8;
 }
 
-/* 動画一覧のスクロールバー改善 */
+/* Video list scrollbar improvements */
 .card-body[style*="overflow-y: auto"]::-webkit-scrollbar {
     width: 8px;
 }
@@ -1436,7 +1432,7 @@ function copyShareUrl() {
     background: #adb5bd;
 }
 
-/* 動画一覧のホバー効果改善 */
+/* Video list hover effect improvements */
 .video-item:hover {
     background-color: #f8f9fa;
     transform: translateX(2px);
@@ -1458,7 +1454,7 @@ function copyShareUrl() {
     color: #495057 !important;
 }
 
-/* PCでは横並びを強制 */
+/* Force horizontal layout on PC */
 .video-item .d-flex.gap-1 {
   flex-direction: row !important;
 }
@@ -1481,7 +1477,7 @@ function copyShareUrl() {
   .tab-content { margin-bottom: 2rem; }
   .card.h-100 { min-height: 200px; }
   
-  /* モバイルタブの改善 */
+  /* Mobile tab improvements */
   .nav-pills .nav-link {
     font-size: 0.9rem;
     font-weight: 500;
@@ -1510,14 +1506,14 @@ function copyShareUrl() {
     font-size: 1.1rem;
   }
   
-  /* タブコンテナの改善 */
+  /* Tab container improvements */
   .nav-pills {
     border: 1px solid #dee2e6;
     border-radius: 0.5rem;
     overflow: hidden;
   }
   
-  /* 動画一覧のモバイル改善 */
+  /* Video list mobile improvements */
   .video-item {
     padding: 0.75rem;
     border-left: 3px solid transparent;
@@ -1534,12 +1530,12 @@ function copyShareUrl() {
     border-left-color: #0d6efd;
   }
   
-  /* チャットエリアのモバイル改善 */
+  /* Chat area mobile improvements */
   #chatHistoryMobile {
     max-height: 250px !important;
   }
   
-  /* 動画プレイヤーのモバイル改善 */
+  /* Video player mobile improvements */
   .video-container {
     height: 200px;
     border-radius: 0.5rem;
@@ -1551,14 +1547,14 @@ function copyShareUrl() {
   <div class="modal-dialog modal-lg modal-dialog-scrollable">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">チャット履歴</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="閉じる"></button>
+        <h5 class="modal-title">Chat History</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
         <div id="chatLogList" class="list-group"></div>
       </div>
       <div class="modal-footer">
-        <small class="text-muted">最新100件まで表示</small>
+        <small class="text-muted">Displaying latest 100 items</small>
       </div>
     </div>
   </div>
@@ -1566,17 +1562,17 @@ function copyShareUrl() {
 <script>
 function openChatLogModal() {
     const list = document.getElementById('chatLogList');
-    list.innerHTML = '<div class="text-center text-muted py-3">読み込み中...</div>';
+    list.innerHTML = '<div class="text-center text-muted py-3">Loading...</div>';
     const url = "{% url 'app:video_group_chat_logs' group.id %}?limit=100";
     fetch(url, { headers: { 'X-CSRFToken': '{{ csrf_token }}' }})
       .then(res => res.json())
       .then(data => {
         if (!data.success) {
-          list.innerHTML = '<div class="text-danger">読み込みに失敗しました。</div>';
+          list.innerHTML = '<div class="text-danger">Failed to load.</div>';
           return;
         }
         if (!data.logs.length) {
-          list.innerHTML = '<div class="text-muted">履歴はまだありません。</div>';
+          list.innerHTML = '<div class="text-muted">No history yet.</div>';
           return;
         }
         list.innerHTML = '';
@@ -1585,8 +1581,8 @@ function openChatLogModal() {
           el.className = 'list-group-item';
           const created = new Date(item.created_at);
           const sourceBadge = item.source === 'share'
-            ? '<span class="badge bg-info text-dark ms-2">共有</span>'
-            : '<span class="badge bg-secondary ms-2">オーナー</span>';
+            ? '<span class="badge bg-info text-dark ms-2">Share</span>'
+            : '<span class="badge bg-secondary ms-2">Owner</span>';
           el.innerHTML = `
             <div class="d-flex justify-content-between">
               <div><strong>${created.toLocaleString()}</strong> ${sourceBadge}</div>
@@ -1603,7 +1599,7 @@ function openChatLogModal() {
         });
       })
       .catch(() => {
-        list.innerHTML = '<div class="text-danger">読み込みに失敗しました。</div>';
+        list.innerHTML = '<div class="text-danger">Failed to load.</div>';
       });
 
     const modal = new bootstrap.Modal(document.getElementById('chatLogModal'));

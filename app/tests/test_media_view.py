@@ -35,17 +35,17 @@ class ProtectedMediaTests(TestCase):
         self.group.videos.add(self.video)
 
     def test_protected_media_requires_login_or_share_token(self):
-        # 未ログインかつ無効トークン
+        # Not logged in and invalid token
         resp = self.client.get(
             f"/media/videos/{self.user.id}/{self.video.file.name.split('/')[-1]}"
         )
         self.assertIn(resp.status_code, (302, 401, 403))
 
-        # 共有トークンで許可
+        # Allow with share token
         resp2 = self.client.get(
             f"/media/videos/{self.user.id}/{self.video.file.name.split('/')[-1]}",
             data={"share_token": self.group.share_token},
         )
-        # Nginx連携ヘッダが付与される想定
+        # Expected to have Nginx integration headers
         self.assertEqual(resp2.status_code, 200)
         self.assertIn("X-Accel-Redirect", resp2.headers)

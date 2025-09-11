@@ -21,7 +21,7 @@ class ChatLogViewsTests(TestCase):
         self.client.login(username="c", password="pass")
         self.group = VideoGroup.objects.create(user=self.user, name="G", description="")
 
-        # ダミーのログをいくつか
+        # Create some dummy logs
         for i in range(3):
             VideoGroupChatLog.objects.create(
                 group=self.group,
