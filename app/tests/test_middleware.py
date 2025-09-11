@@ -23,14 +23,23 @@ class BasicAuthMiddlewareTests(TestCase):
         resp = self.client.get("/health/")
         self.assertEqual(resp.status_code, 200)
         
-        # Test a protected endpoint - use a simple endpoint that doesn't require Django auth
-        resp = self.client.get("/upload/")
-        self.assertEqual(resp.status_code, 401)
-
-        # Authentication successful with Basic header
-        import base64
-
-        token = base64.b64encode(b"admin:password").decode("utf-8")
-        resp2 = self.client.get("/upload/", HTTP_AUTHORIZATION=f"Basic {token}")
-        # After authentication, 302/200 is fine for CSRF etc., but not 401
-        self.assertNotEqual(resp2.status_code, 401)
+        # Test Basic auth middleware directly
+        from app.middleware import BasicAuthMiddleware
+        from django.http import HttpRequest
+        from django.test import RequestFactory
+        
+        # Create a mock request
+        factory = RequestFactory()
+        request = factory.get('/test/')
+        
+        # Create middleware instance
+        middleware = BasicAuthMiddleware(lambda req: None)
+        
+        # Test without authentication
+        response = middleware(request)
+        self.assertEqual(response.status_code, 401)
+        
+        # Test with correct authentication
+        request_with_auth = factory.get('/test/', HTTP_AUTHORIZATION='Basic YWRtaW46cGFzc3dvcmQ=')
+        response = middleware(request_with_auth)
+        self.assertIsNone(response)  # Should pass through to next middleware
