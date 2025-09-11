@@ -1,10 +1,10 @@
 """
-VideoQアプリケーション用のカスタム例外クラス
+Custom exception classes for VideoQ application
 """
 
 
 class VideoQException(Exception):
-    """VideoQアプリケーションの基底例外クラス"""
+    """Base exception class for VideoQ application"""
 
     def __init__(self, message, error_code=None, details=None):
         self.message = message
@@ -14,7 +14,7 @@ class VideoQException(Exception):
 
 
 class VideoProcessingError(VideoQException):
-    """動画処理エラー"""
+    """Video processing error"""
 
     def __init__(self, message, video_id=None, details=None):
         self.video_id = video_id
@@ -24,7 +24,7 @@ class VideoProcessingError(VideoQException):
 
 
 class VectorSearchError(VideoQException):
-    """ベクトル検索エラー"""
+    """Vector search error"""
 
     def __init__(self, message, user_id=None, details=None):
         self.user_id = user_id
@@ -34,7 +34,7 @@ class VectorSearchError(VideoQException):
 
 
 class OpenAIAPIError(VideoQException):
-    """OpenAI APIエラー"""
+    """OpenAI API error"""
 
     def __init__(self, message, api_type=None, details=None):
         self.api_type = api_type
@@ -44,7 +44,7 @@ class OpenAIAPIError(VideoQException):
 
 
 class FileStorageError(VideoQException):
-    """ファイルストレージエラー"""
+    """File storage error"""
 
     def __init__(self, message, file_path=None, details=None):
         self.file_path = file_path
@@ -54,7 +54,7 @@ class FileStorageError(VideoQException):
 
 
 class ShareAccessError(VideoQException):
-    """共有アクセスエラー"""
+    """Share access error"""
 
     def __init__(self, message, share_token=None, details=None):
         self.share_token = share_token
@@ -64,7 +64,7 @@ class ShareAccessError(VideoQException):
 
 
 class ValidationError(VideoQException):
-    """バリデーションエラー"""
+    """Validation error"""
 
     def __init__(self, message, field=None, details=None):
         self.field = field

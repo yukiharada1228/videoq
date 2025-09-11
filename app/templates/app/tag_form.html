@@ -6,15 +6,15 @@
 <div class="container">
     <div class="row justify-content-center">
         <div class="col-lg-6">
-            <!-- ヘッダー -->
+            <!-- Header -->
             <div class="text-center mb-4">
                 <h1 class="h2 mb-2">
                     <i class="bi bi-hash text-primary"></i> {{ title }}
                 </h1>
-                <p class="text-muted mb-0">タグの情報を設定してください</p>
+                <p class="text-muted mb-0">Please set tag information</p>
             </div>
 
-            <!-- フォーム -->
+            <!-- Form -->
             <div class="card">
                 <div class="card-body">
                     <form method="post">
@@ -28,10 +28,10 @@
                             </div>
                         {% endif %}
                         
-                        <!-- タグ名 -->
+                        <!-- Tag name -->
                         <div class="mb-3">
                             <label for="{{ form.name.id_for_label }}" class="form-label">
-                                <i class="bi bi-tag me-2"></i>タグ名 <span class="text-danger">*</span>
+                                <i class="bi bi-tag me-2"></i>Tag Name <span class="text-danger">*</span>
                             </label>
                             {{ form.name }}
                             {% if form.name.errors %}
@@ -41,13 +41,13 @@
                                     {% endfor %}
                                 </div>
                             {% endif %}
-                            <div class="form-text">タグの名前を入力してください（64文字以内）</div>
+                            <div class="form-text">Enter tag name (64 characters or less)</div>
                         </div>
 
-                        <!-- タグの色 -->
+                        <!-- Tag color -->
                         <div class="mb-4">
                             <label for="{{ form.color.id_for_label }}" class="form-label">
-                                <i class="bi bi-palette me-2"></i>タグの色
+                                <i class="bi bi-palette me-2"></i>Tag Color
                             </label>
                             <div class="row">
                                 <div class="col-md-8">
@@ -59,21 +59,21 @@
                                             {% endfor %}
                                         </div>
                                     {% endif %}
-                                    <div class="form-text">HEXカラーコード（例: #ff6b6b）または色名（例: red）</div>
+                                    <div class="form-text">HEX color code (e.g., #ff6b6b) or color name (e.g., red)</div>
                                 </div>
                                 <div class="col-md-4">
                                     <div class="color-preview-container">
                                         <div class="color-preview" id="color-preview"></div>
-                                        <small class="text-muted">プレビュー</small>
+                                        <small class="text-muted">Preview</small>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- ボタン -->
+                        <!-- Buttons -->
                         <div class="d-flex gap-2">
                             <a href="{% url 'app:tag_management' %}" class="btn btn-outline-secondary">
-                                <i class="bi bi-arrow-left me-2"></i>キャンセル
+                                <i class="bi bi-arrow-left me-2"></i>Cancel
                             </a>
                             <button type="submit" class="btn btn-primary">
                                 <i class="bi bi-check-circle me-2"></i>{{ submit_text }}
@@ -83,16 +83,16 @@
                 </div>
             </div>
 
-            <!-- ヘルプ情報 -->
+            <!-- Help information -->
             <div class="card mt-4">
                 <div class="card-body">
                     <h5 class="card-title">
-                        <i class="bi bi-info-circle me-2"></i>タグについて
+                        <i class="bi bi-info-circle me-2"></i>About Tags
                     </h5>
                     <ul class="list-unstyled mb-0">
-                        <li><i class="bi bi-check text-success me-2"></i>タグ名は一意である必要があります</li>
-                        <li><i class="bi bi-check text-success me-2"></i>色を設定すると、動画一覧で視覚的に識別しやすくなります</li>
-                        <li><i class="bi bi-check text-success me-2"></i>作成後は動画のアップロード・編集時に選択できます</li>
+                        <li><i class="bi bi-check text-success me-2"></i>Tag names must be unique</li>
+                        <li><i class="bi bi-check text-success me-2"></i>Setting colors makes videos easier to identify visually in the list</li>
+                        <li><i class="bi bi-check text-success me-2"></i>After creation, can be selected during video upload and editing</li>
                     </ul>
                 </div>
             </div>
@@ -135,13 +135,13 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // 初期表示
+    // Initial display
     updateColorPreview();
     
-    // 入力時の更新
+    // Update on input
     colorInput.addEventListener('input', updateColorPreview);
     
-    // フォーカス時の更新
+    // Update on focus
     colorInput.addEventListener('focus', updateColorPreview);
 });
 </script>

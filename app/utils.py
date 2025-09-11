@@ -1,5 +1,5 @@
 """
-VideoQアプリケーション用のユーティリティ関数
+Utility functions for VideoQ application
 """
 
 import logging
@@ -8,12 +8,12 @@ from django.http import JsonResponse, HttpResponse
 from django.core.exceptions import ValidationError as DjangoValidationError
 from .exceptions import VideoQException
 
-# ロガーの設定
+# Logger configuration
 logger = logging.getLogger("app")
 
 
 class ErrorResponseHandler:
-    """統一されたエラーレスポンス処理クラス"""
+    """Unified error response handling class"""
 
     @staticmethod
     def create_error_response(
@@ -24,17 +24,17 @@ class ErrorResponseHandler:
         user_message: Optional[str] = None,
     ) -> JsonResponse:
         """
-        統一されたエラーレスポンスを作成
+        Create unified error response
 
         Args:
-            message: 内部用エラーメッセージ
-            error_code: エラーコード
-            status_code: HTTPステータスコード
-            details: 追加の詳細情報
-            user_message: ユーザー向けメッセージ（Noneの場合はmessageを使用）
+            message: Internal error message
+            error_code: Error code
+            status_code: HTTP status code
+            details: Additional details
+            user_message: User-facing message (uses message if None)
 
         Returns:
-            JsonResponse: エラーレスポンス
+            JsonResponse: Error response
         """
         response_data = {
             "success": False,
@@ -45,7 +45,7 @@ class ErrorResponseHandler:
             },
         }
 
-        # ログ出力
+        # Log output
         logger.error(
             f"Error response created: {error_code} - {message}",
             extra={
@@ -59,7 +59,7 @@ class ErrorResponseHandler:
 
     @staticmethod
     def handle_videoq_exception(exception: VideoQException) -> JsonResponse:
-        """VideoQExceptionを処理してエラーレスポンスを作成"""
+        """Process VideoQException and create error response"""
         return ErrorResponseHandler.create_error_response(
             message=exception.message,
             error_code=exception.error_code,
@@ -69,7 +69,7 @@ class ErrorResponseHandler:
 
     @staticmethod
     def handle_validation_error(exception: DjangoValidationError) -> JsonResponse:
-        """DjangoのValidationErrorを処理してエラーレスポンスを作成"""
+        """Process Django ValidationError and create error response"""
         error_messages = []
         if hasattr(exception, "message_dict"):
             for field, messages in exception.message_dict.items():
@@ -89,25 +89,25 @@ class ErrorResponseHandler:
 
     @staticmethod
     def handle_general_exception(exception: Exception) -> JsonResponse:
-        """一般的な例外を処理してエラーレスポンスを作成"""
+        """Handle general exceptions and create error responses"""
         logger.exception(f"Unexpected error occurred: {str(exception)}")
 
         return ErrorResponseHandler.create_error_response(
             message="An unexpected error occurred",
             error_code="INTERNAL_ERROR",
             status_code=500,
-            user_message="システムエラーが発生しました。しばらく時間をおいて再度お試しください。",
+            user_message="A system error occurred. Please try again after a while.",
         )
 
 
 def log_operation(operation: str, user_id: Optional[int] = None, **kwargs):
     """
-    操作ログを出力するヘルパー関数
+    Helper function to output operation logs
 
     Args:
-        operation: 操作名
-        user_id: ユーザーID
-        **kwargs: 追加のログ情報
+        operation: Operation name
+        user_id: User ID
+        **kwargs: Additional log information
     """
     logger.info(
         f"Operation: {operation}",
@@ -117,12 +117,12 @@ def log_operation(operation: str, user_id: Optional[int] = None, **kwargs):
 
 def log_error(error: str, user_id: Optional[int] = None, **kwargs):
     """
-    エラーログを出力するヘルパー関数
+    Helper function to output error logs
 
     Args:
-        error: エラーメッセージ
-        user_id: ユーザーID
-        **kwargs: 追加のログ情報
+        error: Error message
+        user_id: User ID
+        **kwargs: Additional log information
     """
     logger.error(
         f"Error: {error}", extra={"error": error, "user_id": user_id, **kwargs}

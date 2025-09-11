@@ -2,14 +2,14 @@
 {% load tz %}
 {% load time_filters %}
 
-{% block title %}チャット履歴ダッシュボード - VideoQ{% endblock %}
+{% block title %}Chat History Dashboard - VideoQ{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <h2 class="mb-0"><i class="bi bi-clock-history"></i> チャット履歴ダッシュボード</h2>
+        <h2 class="mb-0"><i class="bi bi-clock-history"></i> Chat History Dashboard</h2>
         <a href="{% url 'app:video_group_list' %}" class="btn btn-outline-secondary">
-            <i class="bi bi-arrow-left"></i> グループ一覧へ
+            <i class="bi bi-arrow-left"></i> Go to Group List
         </a>
     </div>
 
@@ -17,24 +17,24 @@
         <div class="card-body">
             <form method="get" id="filters-form" class="row g-2 align-items-end">
                 <div class="col-md-4">
-                    <label class="form-label">グループ</label>
+                    <label class="form-label">Group</label>
                     <select name="group_id" class="form-select" onchange="this.form.submit()">
-                        <option value="">すべて</option>
+                        <option value="">All</option>
                         {% for g in groups %}
                             <option value="{{ g.id }}" {% if current_group and current_group.id == g.id %}selected{% endif %}>{{ g.name }}</option>
                         {% endfor %}
                     </select>
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label">ソース</label>
+                    <label class="form-label">Source</label>
                     <select name="source" class="form-select" onchange="this.form.submit()">
-                        <option value="">すべて</option>
-                        <option value="owner" {% if current_source == 'owner' %}selected{% endif %}>オーナー</option>
-                        <option value="share" {% if current_source == 'share' %}selected{% endif %}>共有</option>
+                        <option value="">All</option>
+                        <option value="owner" {% if current_source == 'owner' %}selected{% endif %}>Owner</option>
+                        <option value="share" {% if current_source == 'share' %}selected{% endif %}>Share</option>
                     </select>
                 </div>
                 <div class="col-md-2">
-                    <label class="form-label">件数/ページ</label>
+                    <label class="form-label">Items per page</label>
                     <select name="per_page" class="form-select" onchange="this.form.submit()">
                         {% for n in per_page_options %}
                             <option value="{{ n }}" {% if per_page == n %}selected{% endif %}>{{ n }}</option>
@@ -42,30 +42,30 @@
                     </select>
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label">キーワード</label>
+                    <label class="form-label">Keywords</label>
                     <div class="input-group">
-                        <input type="text" class="form-control" name="q" value="{{ current_query|default:'' }}" placeholder="質問/回答を検索">
+                        <input type="text" class="form-control" name="q" value="{{ current_query|default:'' }}" placeholder="Search questions/answers">
                         <button class="btn btn-outline-secondary" type="submit"><i class="bi bi-search"></i></button>
-                        <a class="btn btn-outline-secondary" href="{% url 'app:chat_logs_dashboard' %}">クリア</a>
+                        <a class="btn btn-outline-secondary" href="{% url 'app:chat_logs_dashboard' %}">Clear</a>
                     </div>
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label">開始日時</label>
+                    <label class="form-label">Start Date/Time</label>
                     <input type="datetime-local" class="form-control" name="start" value="{{ current_start|default:'' }}" onchange="this.form.submit()">
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label">終了日時</label>
+                    <label class="form-label">End Date/Time</label>
                     <input type="datetime-local" class="form-control" name="end" value="{{ current_end|default:'' }}" onchange="this.form.submit()">
                 </div>
             </form>
-            <form method="post" action="{% url 'app:chat_log_bulk_delete' %}" class="mt-2" onsubmit="return confirm('表示条件に一致する履歴をすべて削除します。よろしいですか？');">
+            <form method="post" action="{% url 'app:chat_log_bulk_delete' %}" class="mt-2" onsubmit="return confirm('Delete all history matching the display conditions. Are you sure?');">
                 {% csrf_token %}
                 <input type="hidden" name="group_id" value="{{ current_group.id }}" {% if not current_group %}disabled{% endif %}>
                 <input type="hidden" name="source" value="{{ current_source }}" {% if not current_source %}disabled{% endif %}>
                 <input type="hidden" name="q" value="{{ current_query }}" {% if not current_query %}disabled{% endif %}>
                 <input type="hidden" name="start" value="{{ current_start }}" {% if not current_start %}disabled{% endif %}>
                 <input type="hidden" name="end" value="{{ current_end }}" {% if not current_end %}disabled{% endif %}>
-                <button type="submit" class="btn btn-outline-danger"><i class="bi bi-trash"></i> 表示中の履歴を一括削除</button>
+                <button type="submit" class="btn btn-outline-danger"><i class="bi bi-trash"></i> Bulk Delete Displayed History</button>
             </form>
             <form method="get" action="{% url 'app:chat_log_export' %}" class="mt-2">
                 <input type="hidden" name="group_id" value="{{ current_group.id }}" {% if not current_group %}disabled{% endif %}>
@@ -78,7 +78,7 @@
                         <option value="csv">CSV</option>
                         <option value="jsonl">JSONL</option>
                     </select>
-                    <button type="submit" class="btn btn-outline-primary"><i class="bi bi-download"></i> エクスポート</button>
+                    <button type="submit" class="btn btn-outline-primary"><i class="bi bi-download"></i> Export</button>
                 </div>
             </form>
         </div>
@@ -94,16 +94,16 @@
                                 <div>
                                     <strong>{{ log.group.name }}</strong>
                                     {% if log.source == 'share' %}
-                                        <span class="badge bg-info text-dark ms-2">共有</span>
+                                        <span class="badge bg-info text-dark ms-2">Share</span>
                                     {% else %}
-                                        <span class="badge bg-secondary ms-2">オーナー</span>
+                                        <span class="badge bg-secondary ms-2">Owner</span>
                                     {% endif %}
                                 </div>
                                 <div class="text-end">
-                                    <small class="text-muted d-block">{{ log.created_at|localtime|date:"Y/m/d H:i:s" }}</small>
-                                    <form method="post" action="{% url 'app:chat_log_delete' log.id %}" class="mt-1" onsubmit="return confirm('この履歴を削除します。よろしいですか？');">
+                                    <small class="text-muted d-block">{{ log.created_at|date:"Y/m/d H:i:s" }}</small>
+                                    <form method="post" action="{% url 'app:chat_log_delete' log.id %}" class="mt-1" onsubmit="return confirm('Delete this history. Are you sure?');">
                                         {% csrf_token %}
-                                        <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i> 削除</button>
+                                        <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i> Delete</button>
                                     </form>
                                 </div>
                             </div>
@@ -118,7 +118,7 @@
                                 {% if log.timestamp_results and log.timestamp_results.0 %}
                                     {% with item=log.timestamp_results.0 %}
                                     <div class="mt-2">
-                                        <div class="text-muted">関連タイムスタンプ:</div>
+                                        <div class="text-muted">Related Timestamps:</div>
                                         <a class="btn btn-sm btn-outline-secondary mt-1" href="/video/{{ item.video_id }}/#time={{ item.timestamp }}" target="_blank">
                                             {{ item.video_title }} @ {{ item.timestamp|format_hms }}
                                         </a>
@@ -133,22 +133,22 @@
                 <nav aria-label="pagination" class="mt-3">
                     <ul class="pagination mb-0">
                         {% if page_obj.has_previous %}
-                            <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&per_page={{ per_page }}{% if current_group %}&group_id={{ current_group.id }}{% endif %}{% if current_source %}&source={{ current_source }}{% endif %}{% if current_query %}&q={{ current_query|urlencode }}{% endif %}{% if current_start %}&start={{ current_start|urlencode }}{% endif %}{% if current_end %}&end={{ current_end|urlencode }}{% endif %}">前へ</a></li>
+                            <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&per_page={{ per_page }}{% if current_group %}&group_id={{ current_group.id }}{% endif %}{% if current_source %}&source={{ current_source }}{% endif %}{% if current_query %}&q={{ current_query|urlencode }}{% endif %}{% if current_start %}&start={{ current_start|urlencode }}{% endif %}{% if current_end %}&end={{ current_end|urlencode }}{% endif %}">Previous</a></li>
                         {% else %}
-                            <li class="page-item disabled"><span class="page-link">前へ</span></li>
+                            <li class="page-item disabled"><span class="page-link">Previous</span></li>
                         {% endif %}
                         <li class="page-item disabled"><span class="page-link">{{ page_obj.number }}/{{ paginator.num_pages }}</span></li>
                         {% if page_obj.has_next %}
-                            <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&per_page={{ per_page }}{% if current_group %}&group_id={{ current_group.id }}{% endif %}{% if current_source %}&source={{ current_source }}{% endif %}{% if current_query %}&q={{ current_query|urlencode }}{% endif %}{% if current_start %}&start={{ current_start|urlencode }}{% endif %}{% if current_end %}&end={{ current_end|urlencode }}{% endif %}">次へ</a></li>
+                            <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&per_page={{ per_page }}{% if current_group %}&group_id={{ current_group.id }}{% endif %}{% if current_source %}&source={{ current_source }}{% endif %}{% if current_query %}&q={{ current_query|urlencode }}{% endif %}{% if current_start %}&start={{ current_start|urlencode }}{% endif %}{% if current_end %}&end={{ current_end|urlencode }}{% endif %}">Next</a></li>
                         {% else %}
-                            <li class="page-item disabled"><span class="page-link">次へ</span></li>
+                            <li class="page-item disabled"><span class="page-link">Next</span></li>
                         {% endif %}
                     </ul>
                 </nav>
             {% else %}
                 <div class="text-center text-muted py-5">
                     <i class="bi bi-clipboard-check display-6"></i>
-                    <div class="mt-2">履歴がありません</div>
+                    <div class="mt-2">No history found</div>
                 </div>
             {% endif %}
         </div>

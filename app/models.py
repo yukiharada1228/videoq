@@ -8,15 +8,15 @@ import time
 
 
 class User(AbstractUser):
-    # OpenAI APIキー（暗号化保存）
+    # OpenAI API key (encrypted storage)
     encrypted_openai_api_key = models.TextField(
-        blank=True, null=True, help_text="暗号化されたOpenAI APIキー"
+        blank=True, null=True, help_text="Encrypted OpenAI API key"
     )
-    # このユーザー固有の動画数上限（null の場合はデフォルト設定を使用）
+    # User-specific video limit (uses default setting if null)
     video_limit = models.IntegerField(
         null=True,
         blank=True,
-        help_text="このユーザーの動画数上限（nullならデフォルト上限を適用）",
+        help_text="Video limit for this user (applies default limit if null)",
     )
 
     def __str__(self):
@@ -26,14 +26,14 @@ class User(AbstractUser):
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        """ユーザー削除時にPinecone/OpenSearchのデータも削除"""
+        """Delete Pinecone/OpenSearch data when user is deleted"""
         try:
             from app.vector_search_factory import VectorSearchFactory
 
             if VectorSearchFactory.is_pinecone_enabled():
                 from app.pinecone_service import PineconeService
 
-                # APIキーは不要（namespace削除のみ）
+                # API key not needed (namespace deletion only)
                 pinecone_service = PineconeService(
                     user_id=self.id, openai_api_key=None, ensure_indexes=False
                 )
@@ -50,12 +50,12 @@ class User(AbstractUser):
         super().delete(*args, **kwargs)
 
     def get_video_limit(self) -> int:
-        """このユーザーに適用される動画数上限を返す。
+        """Return the video limit applicable to this user.
 
-        ユーザー個別の `video_limit` が設定されていればそれを使用し、
-        設定されていなければ `settings.DEFAULT_MAX_VIDEOS_PER_USER` を使用する。
+        Uses the user-specific `video_limit` if set,
+        otherwise uses `settings.DEFAULT_MAX_VIDEOS_PER_USER`.
         """
-        # 遅延インポートで循環参照を回避
+        # Lazy import to avoid circular references
         from django.conf import settings as _settings
 
         default_limit = getattr(_settings, "DEFAULT_MAX_VIDEOS_PER_USER", 100)
@@ -74,40 +74,40 @@ class User(AbstractUser):
 
 class SafeLocalFileStorage(FileSystemStorage):
     """
-    ローカル用の安全なファイルストレージ
+    Safe file storage for local use
     """
 
     def get_available_name(self, name, max_length=None):
         """
-        ファイル名を安全な形式に変換して、重複を避ける
+        Convert filename to safe format and avoid duplicates
         """
-        # 絶対パスを相対パスに変換
+        # Convert absolute path to relative path
         if os.path.isabs(name):
             name = os.path.basename(name)
 
-        # ディレクトリ部分とファイル名部分に分割
+        # Split into directory and filename parts
         dir_name = os.path.dirname(name)
         base_name = os.path.basename(name)
         safe_base_name = self._get_safe_filename(base_name)
-        # ディレクトリがあれば結合、なければファイル名のみ
+        # Join if directory exists, otherwise filename only
         safe_name = (
             os.path.join(dir_name, safe_base_name) if dir_name else safe_base_name
         )
 
-        # 元のget_available_nameメソッドを呼び出して重複チェック
+        # Call original get_available_name method for duplicate check
         return super().get_available_name(safe_name, max_length)
 
     def _get_safe_filename(self, filename):
         """
-        ファイル名をタイムスタンプベースの安全な形式に変換する
+        Convert filename to timestamp-based safe format
         """
-        # 拡張子を取得
+        # Get file extension
         _, ext = os.path.splitext(filename)
 
-        # タイムスタンプベースのファイル名を生成
-        timestamp = int(time.time() * 1000)  # ミリ秒単位のタイムスタンプ
+        # Generate timestamp-based filename
+        timestamp = int(time.time() * 1000)  # Timestamp in milliseconds
 
-        # 安全なファイル名を生成
+        # Generate safe filename
         safe_name = f"video_{timestamp}{ext}"
 
         return safe_name
@@ -115,73 +115,73 @@ class SafeLocalFileStorage(FileSystemStorage):
 
 class SafeFileStorage(S3Boto3Storage):
     """
-    安全に処理するカスタムS3ストレージ
+    Custom S3 storage with safe processing
     """
 
     def __init__(self, *args, **kwargs):
-        # S3の設定を追加
+        # Add S3 configuration
         kwargs.update(
             {
                 "bucket_name": os.environ.get("AWS_STORAGE_BUCKET_NAME"),
                 "access_key": os.environ.get("AWS_ACCESS_KEY_ID"),
                 "secret_key": os.environ.get("AWS_SECRET_ACCESS_KEY"),
-                "location": "media/videos",  # S3内のディレクトリ
+                "location": "media/videos",  # Directory in S3
                 "default_acl": "private",
                 "custom_domain": False,
                 "querystring_auth": True,
                 "querystring_expire": 3600,
-                "file_overwrite": False,  # ファイルの上書きを防ぐ
+                "file_overwrite": False,  # Prevent file overwriting
             }
         )
         super().__init__(*args, **kwargs)
 
     def get_available_name(self, name, max_length=None):
         """
-        ファイル名を安全な形式に変換して、重複を避ける
+        Convert filename to safe format and avoid duplicates
         """
-        # 絶対パスを相対パスに変換
+        # Convert absolute path to relative path
         if os.path.isabs(name):
             name = os.path.basename(name)
 
-        # ディレクトリ部分とファイル名部分に分割
+        # Split into directory and filename parts
         dir_name = os.path.dirname(name)
         base_name = os.path.basename(name)
         safe_base_name = self._get_safe_filename(base_name)
-        # ディレクトリがあれば結合、なければファイル名のみ
+        # Join if directory exists, otherwise filename only
         safe_name = (
             os.path.join(dir_name, safe_base_name) if dir_name else safe_base_name
         )
 
-        # 元のget_available_nameメソッドを呼び出して重複チェック
+        # Call original get_available_name method for duplicate check
         return super().get_available_name(safe_name, max_length)
 
     def _get_safe_filename(self, filename):
         """
-        ファイル名をタイムスタンプベースの安全な形式に変換する
+        Convert filename to timestamp-based safe format
         """
-        # 拡張子を取得
+        # Get file extension
         _, ext = os.path.splitext(filename)
 
-        # タイムスタンプベースのファイル名を生成
-        timestamp = int(time.time() * 1000)  # ミリ秒単位のタイムスタンプ
+        # Generate timestamp-based filename
+        timestamp = int(time.time() * 1000)  # Timestamp in milliseconds
 
-        # 安全なファイル名を生成
+        # Generate safe filename
         safe_name = f"video_{timestamp}{ext}"
 
         return safe_name
 
     def _normalize_name(self, name):
         """
-        ファイル名を正規化する（S3用）
+        Normalize filename (for S3)
         """
-        # 絶対パスを相対パスに変換
+        # Convert absolute path to relative path
         if os.path.isabs(name):
             name = os.path.basename(name)
 
-        # スラッシュを正規化
+        # Normalize slashes
         name = name.replace("\\", "/")
 
-        # 先頭のスラッシュを削除
+        # Remove leading slash
         if name.startswith("/"):
             name = name[1:]
 
@@ -189,22 +189,22 @@ class SafeFileStorage(S3Boto3Storage):
 
 
 class VideoGroup(models.Model):
-    """動画グループ（プレイリストのような概念）"""
+    """Video group (playlist-like concept)"""
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="video_groups"
     )
-    name = models.CharField(max_length=255, help_text="グループ名")
-    description = models.TextField(blank=True, help_text="グループの説明")
+    name = models.CharField(max_length=255, help_text="Group name")
+    description = models.TextField(blank=True, help_text="Group description")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    # 共有用トークン（外部共有URL用）
+    # Share token (for external sharing URLs)
     share_token = models.CharField(
-        max_length=64, unique=True, null=True, blank=True, help_text="共有用トークン"
+        max_length=64, unique=True, null=True, blank=True, help_text="Share token"
     )
 
-    # ManyToManyFieldで動画との関連を定義
+    # Define relationship with videos using ManyToManyField
     videos = models.ManyToManyField(
         "Video", through="VideoGroupMember", related_name="video_groups_through"
     )
@@ -217,50 +217,53 @@ class VideoGroup(models.Model):
 
     @property
     def video_count(self):
-        """グループ内の表示可能な動画数を取得"""
+        """Get count of visible videos in the group"""
         return self.videos.filter(is_visible=True).count()
 
     @property
     def completed_videos(self):
-        """完了した表示可能な動画のみを取得"""
+        """Get only completed visible videos"""
         return self.videos.filter(status="completed", is_visible=True)
 
     @property
     def all_videos(self):
-        """すべての動画（非表示含む）を取得（管理用）"""
+        """Get all videos (including hidden ones) for management"""
         return self.videos.all()
 
     @property
     def all_completed_videos(self):
-        """すべての完了動画（非表示含む）を取得（管理用）"""
+        """Get all completed videos (including hidden ones) for management"""
         return self.videos.filter(status="completed")
 
 
 class VideoGroupMember(models.Model):
-    """動画グループのメンバー（動画とグループの関連）"""
+    """Video group member (relationship between video and group)"""
 
     group = models.ForeignKey(
         VideoGroup, on_delete=models.CASCADE, related_name="members"
     )
     video = models.ForeignKey("Video", on_delete=models.CASCADE, related_name="groups")
     added_at = models.DateTimeField(auto_now_add=True)
-    order = models.IntegerField(default=0, help_text="グループ内での順序")
+    order = models.IntegerField(default=0, help_text="Order within the group")
 
     class Meta:
         ordering = ["order", "added_at"]
-        unique_together = ["group", "video"]  # 同じ動画を同じグループに重複追加できない
+        unique_together = [
+            "group",
+            "video",
+        ]  # Cannot add the same video to the same group multiple times
 
     def __str__(self):
         return f"{self.video.title} in {self.group.name}"
 
 
 def user_directory_path(instance, filename):
-    # 例: videos/ユーザーID/ファイル名
+    # Example: videos/user_id/filename
     return f"videos/{instance.user.id}/{filename}"
 
 
 class Tag(models.Model):
-    """動画に付与するタグ（ユーザー単位で管理）"""
+    """Tags attached to videos (managed per user)"""
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -281,10 +284,10 @@ class Tag(models.Model):
 
 class Video(models.Model):
     STATUS_CHOICES = [
-        ("pending", "処理待ち"),
-        ("processing", "処理中"),
-        ("completed", "完了"),
-        ("error", "エラー"),
+        ("pending", "Pending"),
+        ("processing", "Processing"),
+        ("completed", "Completed"),
+        ("error", "Error"),
     ]
 
     user = models.ForeignKey(
@@ -305,8 +308,8 @@ class Video(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
     error_message = models.TextField(blank=True)
     tags = models.ManyToManyField("Tag", blank=True, related_name="videos")
-    # 表示/非表示制御フィールドを追加
-    is_visible = models.BooleanField(default=True, help_text="動画の表示/非表示を制御")
+    # Add visibility control field
+    is_visible = models.BooleanField(default=True, help_text="Control video visibility")
 
     class Meta:
         ordering = ["-uploaded_at"]
@@ -316,53 +319,53 @@ class Video(models.Model):
 
     @classmethod
     def get_visible_videos_for_user(cls, user):
-        """ユーザーの表示可能な動画のみを取得"""
+        """Get only visible videos for the user"""
         return cls.objects.filter(user=user, is_visible=True)
 
     @classmethod
     def hide_oldest_videos_for_user(cls, user, limit, exclude_video_id=None):
-        """ユーザーの動画数が上限を超えた場合、古い動画から非表示にする"""
+        """Hide oldest videos when user's video count exceeds limit"""
         visible_videos = cls.get_visible_videos_for_user(user)
 
-        # 除外する動画IDがある場合は除外
+        # Exclude specified video ID if provided
         if exclude_video_id:
             visible_videos = visible_videos.exclude(id=exclude_video_id)
 
         current_count = visible_videos.count()
 
         if current_count > limit:
-            # 古い動画から非表示にする
-            # スライスを取る前にIDのリストを取得
+            # Hide from oldest videos
+            # Get list of IDs before slicing
             videos_to_hide_ids = list(
                 visible_videos.order_by("uploaded_at")[
                     : current_count - limit
                 ].values_list("id", flat=True)
             )
             if videos_to_hide_ids:
-                # IDのリストを使って更新
+                # Update using list of IDs
                 cls.objects.filter(id__in=videos_to_hide_ids).update(is_visible=False)
                 return len(videos_to_hide_ids)
         return 0
 
     @classmethod
     def check_and_hide_over_limit_videos(cls, user):
-        """既存の動画が上限を超えている場合、古い動画を非表示にする"""
+        """Hide oldest videos if existing videos exceed limit"""
         limit = user.get_video_limit()
         return cls.hide_oldest_videos_for_user(user, limit)
 
     @classmethod
     def restore_hidden_videos_if_under_limit(cls, user):
-        """制限が緩和された場合、非表示動画を復活させる"""
+        """Restore hidden videos if limit is relaxed"""
         limit = user.get_video_limit()
         visible_count = cls.get_visible_videos_for_user(user).count()
         hidden_videos = cls.objects.filter(user=user, is_visible=False)
 
-        # 表示可能な動画数が上限未満の場合、非表示動画を復活させる
+        # Restore hidden videos if visible count is below limit
         if visible_count < limit and hidden_videos.exists():
-            # 復活させる動画の数を計算
+            # Calculate number of videos to restore
             restore_count = min(limit - visible_count, hidden_videos.count())
 
-            # 古い順（アップロード日時順）で復活させる
+            # Restore in order of oldest (by upload date)
             videos_to_restore_ids = list(
                 hidden_videos.order_by("uploaded_at")[:restore_count].values_list(
                     "id", flat=True
@@ -377,17 +380,17 @@ class Video(models.Model):
 
     def delete(self, *args, **kwargs):
         """
-        動画を完全に削除する（ファイル、OpenSearchService、DB）
+        Completely delete video (file, OpenSearchService, DB)
         """
         try:
-            # S3ファイルを削除
+            # Delete S3 file
             if self.file:
                 try:
                     self.file.delete(save=False)
                 except Exception as e:
                     print(f"Error deleting file: {e}")
 
-            # ベクトル検索サービスのベクトルデータを削除
+            # Delete vector data from vector search service
             try:
                 from app.vector_search_factory import VectorSearchFactory
 
@@ -398,19 +401,19 @@ class Video(models.Model):
             except Exception as e:
                 print(f"Error deleting vector search service vectors: {e}")
 
-            # DBレコードを削除
+            # Delete DB record
             super().delete(*args, **kwargs)
 
         except Exception as e:
             print(f"Error in video deletion: {e}")
-            # エラーが発生してもDBレコードは削除
+            # Delete DB record even if error occurs
             super().delete(*args, **kwargs)
 
 
 class VideoGroupChatLog(models.Model):
     SOURCE_CHOICES = [
-        ("owner", "オーナー"),
-        ("share", "共有"),
+        ("owner", "Owner"),
+        ("share", "Share"),
     ]
 
     group = models.ForeignKey(
@@ -421,7 +424,7 @@ class VideoGroupChatLog(models.Model):
     )
     source = models.CharField(max_length=16, choices=SOURCE_CHOICES)
     session_id = models.CharField(
-        max_length=64, blank=True, null=True, help_text="共有アクセスのセッションID"
+        max_length=64, blank=True, null=True, help_text="Session ID for shared access"
     )
     question = models.TextField()
     answer = models.TextField(blank=True, default="")
@@ -429,7 +432,9 @@ class VideoGroupChatLog(models.Model):
     related_questions = models.JSONField(blank=True, null=True)
     requester_ip = models.GenericIPAddressField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    approx_size = models.BigIntegerField(default=0, help_text="概算サイズ（バイト）")
+    approx_size = models.BigIntegerField(
+        default=0, help_text="Approximate size (bytes)"
+    )
 
     class Meta:
         ordering = ["-created_at"]

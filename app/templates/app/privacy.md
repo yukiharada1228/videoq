@@ -1,12 +1,12 @@
-# プライバシーポリシー（ダミー）
+# Privacy Policy (Dummy)
 
-このファイルはダミーコンテンツです。
+This file contains dummy content.
 
-実際のプライバシーポリシーは別途作成してください。
+Please create actual privacy policy separately.
 
-## 注意事項
-- 本ファイルは開発・テスト用のダミーです
-- 本番環境では適切なプライバシーポリシーに置き換えてください
-- 個人情報保護に関する内容については専門家に相談してください
+## Important Notes
+- This file is a dummy for development and testing purposes
+- Please replace with appropriate privacy policy in production environment
+- Please consult with legal experts regarding personal information protection
 
 ---

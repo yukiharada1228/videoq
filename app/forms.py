@@ -11,31 +11,31 @@ import os
 User = get_user_model()
 
 
-# サインアップ用フォーム
+# Signup form
 class SignUpForm(UserCreationForm):
     FORM_CONTROL_CLASS = "form-control"
 
     email = forms.EmailField(
-        label="メールアドレス",
+        label="Email Address",
         required=True,
         widget=forms.EmailInput(attrs={"class": FORM_CONTROL_CLASS}),
     )
     username = forms.CharField(
-        label="ユーザー名", widget=forms.TextInput(attrs={"class": FORM_CONTROL_CLASS})
+        label="Username", widget=forms.TextInput(attrs={"class": FORM_CONTROL_CLASS})
     )
     password1 = forms.CharField(
-        label="パスワード",
+        label="Password",
         widget=forms.PasswordInput(attrs={"class": FORM_CONTROL_CLASS}),
     )
     password2 = forms.CharField(
-        label="パスワード（確認）",
+        label="Password (Confirm)",
         widget=forms.PasswordInput(attrs={"class": FORM_CONTROL_CLASS}),
     )
     agree_terms = forms.BooleanField(
-        label='<a href="/terms/" target="_blank">利用規約</a>および<a href="/privacy/" target="_blank">プライバシーポリシー</a>に同意する',
+        label='I agree to the <a href="/terms/" target="_blank">Terms of Service</a> and <a href="/privacy/" target="_blank">Privacy Policy</a>',
         required=True,
         error_messages={
-            "required": "利用規約とプライバシーポリシーへの同意が必要です。"
+            "required": "Agreement to Terms of Service and Privacy Policy is required."
         },
     )
 
@@ -52,14 +52,14 @@ class SignUpForm(UserCreationForm):
         return self._check_field_exists(
             "username",
             self.cleaned_data.get("username"),
-            "このユーザー名は既に使用されています。",
+            "This username is already in use.",
         )
 
     def clean_email(self):
         return self._check_field_exists(
             "email",
             self.cleaned_data.get("email"),
-            "このメールアドレスは既に登録されています。",
+            "This email address is already registered.",
         )
 
     def save(self, commit=True):
@@ -72,10 +72,10 @@ class SignUpForm(UserCreationForm):
         return user
 
     def _send_activation_email(self, user):
-        subject = "VideoQ登録確認"
+        subject = "VideoQ Registration Confirmation"
         message_template = """
-ご登録ありがとうございます。
-以下URLをクリックして登録を完了してください。
+Thank you for registering.
+Please click the URL below to complete your registration.
 
 """
         uid = urlsafe_base64_encode(force_bytes(user.pk))
@@ -85,7 +85,7 @@ class SignUpForm(UserCreationForm):
         user.email_user(subject, message)
 
 
-# アカウント有効化用
+# Account activation
 def activate_user(uidb64, token):
     try:
         uid = urlsafe_base64_decode(uidb64).decode()
@@ -100,26 +100,27 @@ def activate_user(uidb64, token):
     return False
 
 
-# 動画アップロード用フォーム
+# Video upload form
 class VideoUploadForm(forms.ModelForm):
-    # 新規タグの入力（カンマ区切り）
+    # New tag input (comma-separated)
     new_tags_input = forms.CharField(
-        label="新規タグ（カンマ区切り・任意）",
+        label="New Tags (comma-separated, optional)",
         required=False,
         widget=forms.TextInput(
-            attrs={"class": "form-control", "placeholder": "例: 物理, 講義A, 期末対策"}
+            attrs={
+                "class": "form-control",
+                "placeholder": "e.g., physics, lecture A, final exam",
+            }
         ),
-        help_text="新しいタグはカンマ , で区切って入力。既存のタグと組み合わせて使用できます。",
+        help_text="Enter new tags separated by commas. Can be combined with existing tags.",
     )
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop("user", None)
         super().__init__(*args, **kwargs)
-        self.fields["title"].widget.attrs.setdefault(
-            "placeholder", "動画タイトルを入力"
-        )
+        self.fields["title"].widget.attrs.setdefault("placeholder", "Enter video title")
         self.fields["description"].widget.attrs.setdefault(
-            "placeholder", "説明（任意）"
+            "placeholder", "Description (optional)"
         )
 
     class Meta:
@@ -133,16 +134,16 @@ class VideoUploadForm(forms.ModelForm):
     def clean_file(self):
         file = self.cleaned_data.get("file")
         if file:
-            # ファイルサイズのチェック（設定から取得）
+            # Check file size (get from settings)
             max_size_mb = getattr(settings, "VIDEO_UPLOAD_MAX_SIZE_MB", 100)
             max_size_bytes = max_size_mb * 1024 * 1024
 
             if file.size > max_size_bytes:
                 raise forms.ValidationError(
-                    f"ファイルサイズは{max_size_mb}MB以下にしてください。"
+                    f"File size must be {max_size_mb}MB or less."
                 )
 
-            # ファイル形式のチェック
+            # Check file format
             allowed_extensions = [
                 ".mp4",
                 ".avi",
@@ -154,7 +155,7 @@ class VideoUploadForm(forms.ModelForm):
             ]
             ext = os.path.splitext(file.name)[1].lower()
             if ext not in allowed_extensions:
-                raise forms.ValidationError("対応していないファイル形式です。")
+                raise forms.ValidationError("Unsupported file format.")
 
         return file
 
@@ -180,7 +181,7 @@ class VideoUploadForm(forms.ModelForm):
         if not self.user:
             return video
 
-        # リクエストから既存タグのIDを取得
+        # Get existing tag IDs from request
         existing_tag_ids = self.data.getlist("existing_tags")
         tags = []
 
@@ -188,7 +189,7 @@ class VideoUploadForm(forms.ModelForm):
             existing_tags = Tag.objects.filter(id__in=existing_tag_ids, user=self.user)
             tags.extend(existing_tags)
 
-        # 新規タグを追加
+        # Add new tags
         new_tag_names = self._parse_new_tag_names()
         if new_tag_names:
             for name in new_tag_names:
@@ -199,16 +200,19 @@ class VideoUploadForm(forms.ModelForm):
         return video
 
 
-# 動画編集用フォーム
+# Video edit form
 class VideoEditForm(forms.ModelForm):
-    # 新規タグの入力（カンマ区切り）
+    # New tag input (comma-separated)
     new_tags_input = forms.CharField(
-        label="新規タグ（カンマ区切り・任意）",
+        label="New Tags (comma-separated, optional)",
         required=False,
         widget=forms.TextInput(
-            attrs={"class": "form-control", "placeholder": "例: 物理, 講義A, 期末対策"}
+            attrs={
+                "class": "form-control",
+                "placeholder": "e.g., physics, lecture A, final exam",
+            }
         ),
-        help_text="新しいタグはカンマ , で区切って入力。既存のタグと組み合わせて使用できます。",
+        help_text="Enter new tags separated by commas. Can be combined with existing tags.",
     )
 
     def __init__(self, *args, **kwargs):
@@ -245,7 +249,7 @@ class VideoEditForm(forms.ModelForm):
         if not self.user:
             return video
 
-        # リクエストから既存タグのIDを取得
+        # Get existing tag IDs from request
         existing_tag_ids = self.data.getlist("existing_tags")
         tags = []
 
@@ -253,7 +257,7 @@ class VideoEditForm(forms.ModelForm):
             existing_tags = Tag.objects.filter(id__in=existing_tag_ids, user=self.user)
             tags.extend(existing_tags)
 
-        # 新規タグを追加
+        # Add new tags
         new_tag_names = self._parse_new_tag_names()
         if new_tag_names:
             for name in new_tag_names:
@@ -264,7 +268,7 @@ class VideoEditForm(forms.ModelForm):
         return video
 
 
-# 動画グループ作成用フォーム
+# Video group creation form
 class VideoGroupForm(forms.ModelForm):
     class Meta:
         model = VideoGroup
@@ -273,35 +277,38 @@ class VideoGroupForm(forms.ModelForm):
 
 class OpenAIKeyForm(forms.ModelForm):
     api_key = forms.CharField(
-        label="OpenAI APIキー",
+        label="OpenAI API Key",
         required=True,
         widget=forms.PasswordInput(attrs={"class": "form-control"}),
-        help_text="あなたのOpenAI APIキーを入力してください。",
+        help_text="Enter your OpenAI API key.",
     )
 
     class Meta:
         model = User
-        fields = []  # DB保存は手動で行う
+        fields = []  # Manual DB save
 
 
-# タグ管理用フォーム
+# Tag management form
 class TagForm(forms.ModelForm):
     name = forms.CharField(
-        label="タグ名",
+        label="Tag Name",
         max_length=64,
         widget=forms.TextInput(
-            attrs={"class": "form-control", "placeholder": "例: 物理, 講義A, 期末対策"}
+            attrs={
+                "class": "form-control",
+                "placeholder": "e.g., physics, lecture A, final exam",
+            }
         ),
-        help_text="タグの名前を入力してください（64文字以内）",
+        help_text="Enter tag name (64 characters or less)",
     )
     color = forms.CharField(
-        label="タグの色",
+        label="Tag Color",
         max_length=16,
         required=False,
         widget=forms.TextInput(
-            attrs={"class": "form-control", "placeholder": "#ff6b6b または red"}
+            attrs={"class": "form-control", "placeholder": "#ff6b6b or red"}
         ),
-        help_text="HEXカラーコード（例: #ff6b6b）または色名（例: red）",
+        help_text="HEX color code (e.g., #ff6b6b) or color name (e.g., red)",
     )
 
     class Meta:

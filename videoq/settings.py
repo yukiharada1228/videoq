@@ -23,7 +23,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY")
-# CI/テスト環境向けのフォールバック
+# Fallback for CI/test environment
 if os.environ.get("DJANGO_TEST", "") == "1" and not SECRET_KEY:
     SECRET_KEY = "test_secret"
 
@@ -34,7 +34,7 @@ ALLOWED_HOSTS = os.environ.get(
     "DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,0.0.0.0"
 ).split(",")
 
-# CSRF設定
+# CSRF settings
 CSRF_TRUSTED_ORIGINS = os.environ.get(
     "DJANGO_CSRF_TRUSTED_ORIGINS", "http://localhost:8000,http://127.0.0.1:8000"
 ).split(",")
@@ -66,18 +66,18 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    "app.share_access_middleware.ShareAccessMiddleware",  # 共有アクセス制限ミドルウェア
+    "app.share_access_middleware.ShareAccessMiddleware",  # Share access restriction middleware
 ]
 
-# Basic認証の設定（環境変数で制御可能）
+# Basic authentication settings (controllable via environment variables)
 BASIC_AUTH_ENABLED = os.environ.get("BASIC_AUTH_ENABLED", "TRUE").upper() == "TRUE"
 BASIC_AUTH_USERNAME = os.environ.get("BASIC_AUTH_USERNAME", "admin")
 BASIC_AUTH_PASSWORD = os.environ.get("BASIC_AUTH_PASSWORD", "password")
 
-# サインアップ可否（環境変数で制御可能）
+# Signup availability (controllable via environment variables)
 SIGNUP_ENABLED = os.environ.get("SIGNUP_ENABLED", "TRUE").upper() == "TRUE"
 
-# BASIC認証を有効化する場合のみミドルウェアを挿入
+# Insert middleware only when Basic authentication is enabled
 if BASIC_AUTH_ENABLED:
     MIDDLEWARE.insert(0, "app.middleware.BasicAuthMiddleware")
 
@@ -116,7 +116,7 @@ DATABASES = {
     }
 }
 
-# テスト用DB: 環境変数で明示された場合はSQLiteを使用
+# Test DB: Use SQLite if explicitly specified via environment variable
 if os.environ.get("DJANGO_TEST", "") == "1":
     DATABASES = {
         "default": {"ENGINE": "django.db.backends.sqlite3", "NAME": ":memory:"}
@@ -145,9 +145,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
-LANGUAGE_CODE = "ja"
+LANGUAGE_CODE = "en"
 
-TIME_ZONE = "Asia/Tokyo"
+TIME_ZONE = "UTC"
 
 USE_I18N = True
 
@@ -157,66 +157,66 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-# 開発・本番環境の切り替え
+# Development/production environment switch
 USE_S3 = os.environ.get("USE_S3", "FALSE") == "TRUE"
 
-# 常にSTATIC_ROOTを設定（collectstaticコマンドに必要）
+# Always set STATIC_ROOT (required for collectstatic command)
 STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 
 if USE_S3:
-    # AWS S3の基本設定
+    # AWS S3 basic settings
     AWS_ACCESS_KEY_ID = os.environ.get("AWS_ACCESS_KEY_ID")
     AWS_SECRET_ACCESS_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY")
     AWS_STORAGE_BUCKET_NAME = os.environ.get("AWS_STORAGE_BUCKET_NAME")
     AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com"
     AWS_S3_REGION_NAME = "ap-northeast-1"
-    # プリサイン URL を有効化（デフォルト True）
+    # Enable presigned URLs (default True)
     AWS_QUERYSTRING_AUTH = True
-    # プリサイン URL の有効期限（秒, デフォルト3600）
+    # Presigned URL expiration (seconds, default 3600)
     AWS_QUERYSTRING_EXPIRE = 3600
-    # 全リージョン対応の署名バージョン
+    # All-region compatible signature version
     AWS_S3_SIGNATURE_VERSION = "s3v4"
 
-    # Django 4.2+ の方式でストレージを設定
+    # Configure storage using Django 4.2+ method
     STORAGES = {
-        "staticfiles": {  # 静的ファイル用ストレージ
+        "staticfiles": {  # Static file storage
             "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
             "OPTIONS": {
                 "bucket_name": AWS_STORAGE_BUCKET_NAME,
                 "access_key": AWS_ACCESS_KEY_ID,
                 "secret_key": AWS_SECRET_ACCESS_KEY,
-                "location": "static",  # S3内のディレクトリ
-                "default_acl": "private",  # ACL を private に変更
+                "location": "static",  # Directory in S3
+                "default_acl": "private",  # Change ACL to private
                 "custom_domain": False,
-                "querystring_auth": True,  # プリサイン URL を有効化
-                "querystring_expire": 3600,  # URL の有効期限を上書き
+                "querystring_auth": True,  # Enable presigned URLs
+                "querystring_expire": 3600,  # Override URL expiration
                 "object_parameters": {"CacheControl": "max-age=86400"},
             },
         },
-        "default": {  # メディアファイル用ストレージ
+        "default": {  # Media file storage
             "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
             "OPTIONS": {
                 "bucket_name": AWS_STORAGE_BUCKET_NAME,
                 "access_key": AWS_ACCESS_KEY_ID,
                 "secret_key": AWS_SECRET_ACCESS_KEY,
-                "location": "media",  # S3内のディレクトリ
-                "default_acl": "private",  # ACL を private に変更
+                "location": "media",  # Directory in S3
+                "default_acl": "private",  # Change ACL to private
                 "file_overwrite": False,
                 "custom_domain": False,
-                "querystring_auth": True,  # プリサイン URL を有効化
-                "querystring_expire": 3600,  # URL の有効期限を上書き
+                "querystring_auth": True,  # Enable presigned URLs
+                "querystring_expire": 3600,  # Override URL expiration
             },
         },
     }
 else:
-    # ローカル開発用設定
+    # Local development settings
     STATIC_URL = "/static/"
     STATIC_ROOT = os.path.join(BASE_DIR, "static")
     MEDIA_URL = "/media/"
     MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
 
-# ユーザーごとのデフォルト動画数上限（環境変数で上書き可能）
+# Default video count limit per user (overridable via environment variable)
 DEFAULT_MAX_VIDEOS_PER_USER = int(os.environ.get("DEFAULT_MAX_VIDEOS_PER_USER", "100"))
 
 # Default primary key field type
@@ -238,7 +238,7 @@ if USE_MAILGUN:
         "DEFAULT_FROM_EMAIL", f"VideoQ <noreply@{mailgun_sender_domain}>"
     )
 else:
-    # ローカル開発用: ターミナルにメール内容を出力
+    # Local development: output email content to terminal
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
     DEFAULT_FROM_EMAIL = os.environ.get(
         "DEFAULT_FROM_EMAIL", "VideoQ <noreply@localhost>"
@@ -251,8 +251,8 @@ LOGIN_URL = "app:login"
 LOGIN_REDIRECT_URL = "app:home"
 AUTH_USER_MODEL = "app.User"
 
-# セキュリティ設定
-# HTTPS設定（本番環境ではTrueに設定）
+# Security settings
+# HTTPS settings (set to True in production)
 SECURE_SSL_REDIRECT = os.environ.get("SECURE_SSL_REDIRECT", "FALSE").upper() == "TRUE"
 SECURE_HSTS_SECONDS = int(os.environ.get("SECURE_HSTS_SECONDS", "0"))
 SECURE_HSTS_INCLUDE_SUBDOMAINS = (
@@ -260,31 +260,31 @@ SECURE_HSTS_INCLUDE_SUBDOMAINS = (
 )
 SECURE_HSTS_PRELOAD = os.environ.get("SECURE_HSTS_PRELOAD", "FALSE").upper() == "TRUE"
 
-# セキュリティヘッダー
+# Security headers
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = "DENY"
 SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
 
-# セッションセキュリティ
+# Session security
 SESSION_COOKIE_SECURE = (
     os.environ.get("SESSION_COOKIE_SECURE", "FALSE").upper() == "TRUE"
 )
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
-SESSION_COOKIE_AGE = int(os.environ.get("SESSION_COOKIE_AGE", "1209600"))  # 2週間
+SESSION_COOKIE_AGE = int(os.environ.get("SESSION_COOKIE_AGE", "1209600"))  # 2 weeks
 
-# CSRFセキュリティ
+# CSRF security
 CSRF_COOKIE_SECURE = os.environ.get("CSRF_COOKIE_SECURE", "FALSE").upper() == "TRUE"
 CSRF_COOKIE_HTTPONLY = True
 CSRF_COOKIE_SAMESITE = "Lax"
 CSRF_USE_SESSIONS = False
 
-# リバースプロキシ経由のHTTPS判定
+# HTTPS detection via reverse proxy
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
-# パスワード設定
+# Password settings
 AUTH_PASSWORD_VALIDATORS = [
     {
         "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
@@ -303,34 +303,40 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-# ファイルアップロードセキュリティ
+# File upload security
 FILE_UPLOAD_MAX_MEMORY_SIZE = 2621440  # 2.5MB
 FILE_UPLOAD_TEMP_DIR = None
 FILE_UPLOAD_PERMISSIONS = 0o644
 FILE_UPLOAD_DIRECTORY_PERMISSIONS = 0o755
 
-# 動画アップロード制限設定
+# Video upload limit settings
 VIDEO_UPLOAD_MAX_SIZE_MB = int(
     os.environ.get("VIDEO_UPLOAD_MAX_SIZE_MB", "100")
-)  # デフォルト100MB
+)  # Default 100MB
 
-# ファイル名エンコーディング設定
+# Filename encoding settings
 FILE_UPLOAD_HANDLERS = [
     "django.core.files.uploadhandler.MemoryFileUploadHandler",
     "django.core.files.uploadhandler.TemporaryFileUploadHandler",
 ]
 
-# Redis設定
+# Redis settings
 REDIS_URL = os.environ.get("REDIS_URL", "redis://redis:6379/0")
 
 # Celery Configuration Options
-CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", "redis://redis:6379/1")
-CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", "redis://redis:6379/2")
-CELERY_ACCEPT_CONTENT = ["json"]
-CELERY_TASK_SERIALIZER = "json"
-CELERY_RESULT_SERIALIZER = "json"
+# Disable Celery in test environment
+if os.environ.get("DJANGO_TEST", "") != "1":
+    CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", "redis://redis:6379/1")
+    CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", "redis://redis:6379/2")
+    CELERY_ACCEPT_CONTENT = ["json"]
+    CELERY_TASK_SERIALIZER = "json"
+    CELERY_RESULT_SERIALIZER = "json"
+else:
+    # Test environment: Use in-memory broker
+    CELERY_TASK_ALWAYS_EAGER = True
+    CELERY_TASK_EAGER_PROPAGATES = True
 
-# 共有URL同時アクセス制限設定
+# Shared URL concurrent access limit settings
 SHARE_ACCOUNT_MAX_CONCURRENT_USERS = int(
     os.environ.get("SHARE_ACCOUNT_MAX_CONCURRENT_USERS", "30")
 )
@@ -338,7 +344,7 @@ SHARE_SESSION_TIMEOUT_MINUTES = int(
     os.environ.get("SHARE_SESSION_TIMEOUT_MINUTES", "10")
 )
 
-# ログ設定（標準出力のみ）
+# Log settings (stdout only)
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,

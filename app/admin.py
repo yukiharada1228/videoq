@@ -22,7 +22,7 @@ class CustomUserAdmin(UserAdmin):
 
     fieldsets = UserAdmin.fieldsets + (
         (
-            "クォータ設定",
+            "Quota Settings",
             {"fields": ("video_limit",)},
         ),
     )
@@ -38,15 +38,15 @@ class VideoAdmin(admin.ModelAdmin):
 
     def make_visible(self, request, queryset):
         updated = queryset.update(is_visible=True)
-        self.message_user(request, f"{updated}件の動画を表示にしました。")
+        self.message_user(request, f"Made {updated} videos visible.")
 
-    make_visible.short_description = "選択した動画を表示"
+    make_visible.short_description = "Make selected videos visible"
 
     def make_hidden(self, request, queryset):
         updated = queryset.update(is_visible=False)
-        self.message_user(request, f"{updated}件の動画を非表示にしました。")
+        self.message_user(request, f"Made {updated} videos hidden.")
 
-    make_hidden.short_description = "選択した動画を非表示"
+    make_hidden.short_description = "Make selected videos hidden"
 
 
 @admin.register(VideoGroup)

@@ -5,6 +5,7 @@ from unittest.mock import patch, MagicMock
 from app.models import Video
 from app.tasks import process_video
 from app.crypto_utils import encrypt_api_key
+from app.exceptions import VideoProcessingError
 
 
 @override_settings(
@@ -32,10 +33,12 @@ class TaskTests(TestCase):
 
     def test_process_video_without_api_key_sets_error(self):
         video = self._create_video()
-        process_video(video.id)
+        with self.assertRaises(VideoProcessingError) as context:
+            process_video(video.id)
         video.refresh_from_db()
         self.assertEqual(video.status, "error")
         self.assertIn("OpenAI API key not registered", video.error_message)
+        self.assertIn("OpenAI API key not registered", str(context.exception))
 
     @patch("app.tasks.OpenAI")
     @patch(
@@ -65,13 +68,13 @@ class TaskTests(TestCase):
         extract_mock,
         openai_cls_mock,
     ):
-        # APIキー設定
+        # API key configuration
         self.user.encrypted_openai_api_key = encrypt_api_key("sk-test")
         self.user.save()
 
         video = self._create_video()
 
-        # OpenAIモック: embeddingsとtranscriptionsが最低限動くように設定
+        # OpenAI mock: Configure to work minimally for embeddings and transcriptions
         client_instance = MagicMock()
         # embeddings
         client_instance.embeddings.create.return_value = MagicMock(
@@ -83,19 +86,19 @@ class TaskTests(TestCase):
         trans.segments = [MagicMock(start=0.0, end=1.0, text="hello")]
         client_instance.audio.transcriptions.create.return_value = trans
 
-        # video.transcript 代入時にAggregate扱いされないように str を返す
+        # Return str to avoid being treated as Aggregate when assigning video.transcript
         def _strip():
             return "hello"
 
         type(trans).text = property(lambda *_: "hello")
         openai_cls_mock.return_value = client_instance
 
-        # VectorSearchFactoryモック（OpenSearch/Pineconeの実接続を避ける）
+        # VectorSearchFactory mock (avoid real connection to OpenSearch/Pinecone)
         with patch("app.tasks.VectorSearchFactory.create_search_service") as factory:
             svc = MagicMock()
             svc.features_index_name = "videoq_features"
             svc.chunks_index_name = "videoq_chunks"
-            # OpenSearchの場合に呼ばれる属性を用意
+            # Prepare attributes called for OpenSearch case
             svc.opensearch = MagicMock()
             factory.return_value = svc
 

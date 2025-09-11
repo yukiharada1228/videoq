@@ -19,14 +19,58 @@ class BasicAuthMiddlewareTests(TestCase):
         self.assertEqual(resp.status_code, 200)
 
     def test_requires_basic_auth(self):
-        # 認証なし→401
-        resp = self.client.get("/")
-        self.assertEqual(resp.status_code, 401)
-
-        # Basicヘッダで認証成功
+        # Health endpoint is exempt
+        resp = self.client.get("/health/")
+        self.assertEqual(resp.status_code, 200)
+        
+        # Test Basic auth middleware directly with proper settings
+        from app.middleware import BasicAuthMiddleware
+        from django.test import RequestFactory
+        from django.conf import settings
+        
+        # Create middleware instance with test settings
+        middleware = BasicAuthMiddleware(lambda req: None)
+        
+        # Test without authentication
+        factory = RequestFactory()
+        request = factory.get('/test/')
+        response = middleware(request)
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response['WWW-Authenticate'], 'Basic realm="Restricted"')
+        
+        # Test with correct authentication
         import base64
-
-        token = base64.b64encode(b"admin:password").decode("utf-8")
-        resp2 = self.client.get("/", HTTP_AUTHORIZATION=f"Basic {token}")
-        # 認証後はCSRF等で302/200いずれでも良いが401ではないこと
-        self.assertNotEqual(resp2.status_code, 401)
+        credentials = f"{settings.BASIC_AUTH_USERNAME}:{settings.BASIC_AUTH_PASSWORD}"
+        encoded_credentials = base64.b64encode(credentials.encode()).decode()
+        request_with_auth = factory.get('/test/', HTTP_AUTHORIZATION=f'Basic {encoded_credentials}')
+        response = middleware(request_with_auth)
+        self.assertIsNone(response)  # Should pass through to next middleware
+        
+        # Test with wrong authentication
+        request_with_wrong_auth = factory.get('/test/', HTTP_AUTHORIZATION='Basic d3Jvbmc6cGFzc3dvcmQ=')
+        response = middleware(request_with_wrong_auth)
+        self.assertEqual(response.status_code, 401)
+        
+        # Test with malformed authentication header
+        request_with_malformed = factory.get('/test/', HTTP_AUTHORIZATION='Basic invalid_base64')
+        response = middleware(request_with_malformed)
+        self.assertEqual(response.status_code, 401)
+        
+        # Test with non-Basic authentication
+        request_with_bearer = factory.get('/test/', HTTP_AUTHORIZATION='Bearer token')
+        response = middleware(request_with_bearer)
+        self.assertEqual(response.status_code, 401)
+    
+    def test_basic_auth_disabled(self):
+        """Test that Basic auth can be disabled"""
+        from app.middleware import BasicAuthMiddleware
+        from django.test import RequestFactory
+        from django.test import override_settings
+        
+        # Test with Basic auth disabled
+        with override_settings(BASIC_AUTH_ENABLED=False):
+            middleware = BasicAuthMiddleware(lambda req: "OK")
+            factory = RequestFactory()
+            request = factory.get('/test/')
+            response = middleware(request)
+            self.assertEqual(response, "OK")  # Should pass through without auth

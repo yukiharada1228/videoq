@@ -1,6 +1,6 @@
 {% extends 'app/base.html' %}
 
-{% block title %}動画グループ作成 - VideoQ{% endblock %}
+{% block title %}Create Video Group - VideoQ{% endblock %}
 
 {% block content %}
 <div class="container mt-4">
@@ -9,7 +9,7 @@
             <div class="card">
                 <div class="card-header">
                     <h3 class="card-title mb-0">
-                        <i class="bi bi-collection-plus"></i> 新しい動画グループを作成
+                        <i class="bi bi-collection-plus"></i> Create New Video Group
                     </h3>
                 </div>
                 <div class="card-body">
@@ -18,7 +18,7 @@
                         
                         <div class="mb-3">
                             <label for="{{ form.name.id_for_label }}" class="form-label">
-                                <i class="bi bi-tag"></i> グループ名 <span class="text-danger">*</span>
+                                <i class="bi bi-tag"></i> Group Name <span class="text-danger">*</span>
                             </label>
                             {{ form.name }}
                             {% if form.name.errors %}
@@ -28,12 +28,12 @@
                                     {% endfor %}
                                 </div>
                             {% endif %}
-                            <div class="form-text">グループを識別するための名前を入力してください</div>
+                            <div class="form-text">Enter a name to identify the group</div>
                         </div>
 
                         <div class="mb-3">
                             <label for="{{ form.description.id_for_label }}" class="form-label">
-                                <i class="bi bi-card-text"></i> 説明
+                                <i class="bi bi-card-text"></i> Description
                             </label>
                             {{ form.description }}
                             {% if form.description.errors %}
@@ -43,15 +43,15 @@
                                     {% endfor %}
                                 </div>
                             {% endif %}
-                            <div class="form-text">グループの内容や目的を説明してください（任意）</div>
+                            <div class="form-text">Describe the group content or purpose (optional)</div>
                         </div>
 
                         <div class="d-flex gap-2">
                             <a href="{% url 'app:video_group_list' %}" class="btn btn-outline-secondary">
-                                <i class="bi bi-arrow-left"></i> キャンセル
+                                <i class="bi bi-arrow-left"></i> Cancel
                             </a>
                             <button type="submit" class="btn btn-primary">
-                                <i class="bi bi-check-circle"></i> グループを作成
+                                <i class="bi bi-check-circle"></i> Create Group
                             </button>
                         </div>
                     </form>
@@ -61,15 +61,15 @@
             <div class="card mt-4">
                 <div class="card-body">
                     <h5 class="card-title">
-                        <i class="bi bi-info-circle"></i> 動画グループについて
+                        <i class="bi bi-info-circle"></i> About Video Groups
                     </h5>
                     <p class="card-text">
-                        動画グループを作成すると、複数の動画をまとめて管理し、グループ全体に対してチャット検索ができるようになります。
+                        Creating a video group allows you to manage multiple videos together and perform chat searches across the entire group.
                     </p>
                     <ul class="list-unstyled">
-                        <li><i class="bi bi-check text-success"></i> 関連する動画をグループ化</li>
-                        <li><i class="bi bi-check text-success"></i> グループ全体でのチャット検索</li>
-                        <li><i class="bi bi-check text-success"></i> 複数動画にまたがる情報の取得</li>
+                        <li><i class="bi bi-check text-success"></i> Group related videos together</li>
+                        <li><i class="bi bi-check text-success"></i> Chat search across the entire group</li>
+                        <li><i class="bi bi-check text-success"></i> Retrieve information across multiple videos</li>
                     </ul>
                 </div>
             </div>

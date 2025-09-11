@@ -5,25 +5,25 @@ from app.pinecone_service import PineconeService
 
 
 class VectorSearchFactory:
-    """環境変数に基づいてベクトル検索サービスを生成するファクトリクラス"""
+    """Factory class to generate vector search service based on environment variables"""
 
     @staticmethod
     def create_search_service(
         user_id: int, openai_api_key: str | None = None, **kwargs
     ) -> Union[OpenSearchService, PineconeService]:
         """
-        環境変数VECTOR_SEARCH_PROVIDERに基づいて適切な検索サービスを返す
+        Return appropriate search service based on VECTOR_SEARCH_PROVIDER environment variable
 
         Args:
-            openai_api_key: OpenAI APIキー
-            user_id: ユーザーID
-            **kwargs: その他の引数
+            openai_api_key: OpenAI API key
+            user_id: User ID
+            **kwargs: Other arguments
 
         Returns:
-            OpenSearchService または PineconeService
+            OpenSearchService or PineconeService
 
         Raises:
-            ValueError: 無効なプロバイダーが指定された場合
+            ValueError: When invalid provider is specified
         """
         provider = os.getenv("VECTOR_SEARCH_PROVIDER", "opensearch").lower()
 
@@ -43,15 +43,15 @@ class VectorSearchFactory:
 
     @staticmethod
     def get_provider_name() -> str:
-        """現在設定されているプロバイダー名を返す"""
+        """Return currently configured provider name"""
         return os.getenv("VECTOR_SEARCH_PROVIDER", "opensearch").lower()
 
     @staticmethod
     def is_pinecone_enabled() -> bool:
-        """Pineconeが有効かどうかを返す"""
+        """Return whether Pinecone is enabled"""
         return VectorSearchFactory.get_provider_name() == "pinecone"
 
     @staticmethod
     def is_opensearch_enabled() -> bool:
-        """OpenSearchが有効かどうかを返す"""
+        """Return whether OpenSearch is enabled"""
         return VectorSearchFactory.get_provider_name() == "opensearch"

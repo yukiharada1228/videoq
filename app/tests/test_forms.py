@@ -10,7 +10,7 @@ from app.forms import VideoUploadForm, VideoEditForm, SignUpForm
     BASIC_AUTH_ENABLED=False,
     USE_S3=False,
     SECRET_KEY="test_secret",
-    VIDEO_UPLOAD_MAX_SIZE_MB=1,  # 小さめにしてサイズバリデーションを確認
+    VIDEO_UPLOAD_MAX_SIZE_MB=1,  # Set small to verify size validation
     DATABASES={"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": ":memory:"}},
 )
 class FormTests(TestCase):
@@ -33,16 +33,16 @@ class FormTests(TestCase):
         self.assertFalse(form.is_valid())
 
     def test_video_upload_form_validation_and_save(self):
-        # 小さいモックファイル
+        # Small mock file
         file = SimpleUploadedFile("movie.mp4", b"0" * 1000, content_type="video/mp4")
         data = QueryDict(mutable=True)
-        data["title"] = "題名"
-        data["description"] = "説明"
-        data["new_tags_input"] = "物理, 期末対策"
+        data["title"] = "Title"
+        data["description"] = "Description"
+        data["new_tags_input"] = "Physics, Final Exam"
         data.setlist("existing_tags", [])
         form = VideoUploadForm(data=data, files={"file": file}, user=self.user)
         self.assertTrue(form.is_valid(), form.errors)
-        # view 相当の処理を事前に行う（upload_to が user を参照するため）
+        # Pre-process equivalent to view (upload_to references user)
         form.instance.user = self.user
         video = form.save()
         self.assertEqual(video.tags.count(), 2)
@@ -60,7 +60,7 @@ class FormTests(TestCase):
         data = QueryDict(mutable=True)
         data["title"] = "t2"
         data["description"] = "d2"
-        data["new_tags_input"] = "数学"
+        data["new_tags_input"] = "Math"
         data.setlist("existing_tags", [])
         form = VideoEditForm(data=data, instance=video, user=self.user)
         self.assertTrue(form.is_valid(), form.errors)

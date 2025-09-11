@@ -6,7 +6,7 @@ from app.base_vector_service import BaseVectorService
 
 
 class OpenSearchService(BaseVectorService):
-    """OpenSearchによる動画グループ検索サービス（ユーザーごとインデックス分割）"""
+    """Video group search service using OpenSearch (index split per user)"""
 
     def __init__(
         self,
@@ -16,13 +16,13 @@ class OpenSearchService(BaseVectorService):
         opensearch_port: int = 9200,
         ensure_indexes: bool = True,
     ):
-        # OpenSearchクライアントの初期化
+        # Initialize OpenSearch client
         self.opensearch_host = opensearch_host or os.getenv(
             "OPENSEARCH_HOST", "opensearch"
         )
         self.opensearch_port = opensearch_port
 
-        # OpenSearch接続
+        # OpenSearch connection
         try:
             self.opensearch = OpenSearch(
                 hosts=[{"host": self.opensearch_host, "port": self.opensearch_port}],
@@ -40,7 +40,7 @@ class OpenSearchService(BaseVectorService):
             print(f"Error creating indexes: {e}")
             self.opensearch = None
 
-        # ベースクラスの初期化
+        # Initialize base class
         super().__init__(
             user_id=user_id,
             openai_api_key=openai_api_key,
@@ -48,21 +48,21 @@ class OpenSearchService(BaseVectorService):
         )
 
     def _get_chunks_index_name(self) -> str:
-        """チャンクインデックス名を取得（固定名）"""
+        """Get chunks index name (fixed name)"""
         return "videoq_chunks"
 
     def _get_features_index_name(self) -> str:
-        """フィーチャーインデックス名を取得（固定名）"""
+        """Get features index name (fixed name)"""
         return "videoq_features"
 
     def _ensure_indexes_exist(self):
-        """固定インデックスを作成（_routing必須・シャード数強化）"""
+        """Create fixed indexes (routing required, enhanced shard count)"""
         if self.opensearch is None:
             print("OpenSearch connection not available")
             return
         try:
             self.opensearch.info()
-            # チャンク用インデックス
+            # Chunks index
             if not self.opensearch.indices.exists(index=self.chunks_index_name):
                 print(f"Creating index: {self.chunks_index_name}")
                 index_body = {
@@ -101,7 +101,7 @@ class OpenSearchService(BaseVectorService):
                     index=self.chunks_index_name, body=index_body
                 )
                 print(f"Index {self.chunks_index_name} created successfully")
-            # フィーチャー用インデックス
+            # Features index
             if not self.opensearch.indices.exists(index=self.features_index_name):
                 print(f"Creating index: {self.features_index_name}")
                 index_body = {
@@ -145,7 +145,7 @@ class OpenSearchService(BaseVectorService):
     def search_group_chunks(
         self, group: VideoGroup, query: str, max_results: int = 5
     ) -> List[Dict[str, Any]]:
-        """グループ内のチャンクを検索（routing必須）"""
+        """Search chunks within group (routing required)"""
         if self.opensearch is None:
             print("OpenSearch connection not available")
             return []
@@ -208,7 +208,7 @@ class OpenSearchService(BaseVectorService):
     def search_group_features(
         self, group: VideoGroup, query: str, max_results: int = 5
     ) -> list:
-        """グループ内のタイムスタンプ付きセグメントを固定インデックスから検索（routing必須）"""
+        """Search timestamped segments in group from fixed index (routing required)"""
         if self.opensearch is None:
             print("OpenSearch connection not available")
             return []
@@ -256,8 +256,8 @@ class OpenSearchService(BaseVectorService):
             source = hit["_source"]
             timestamp = source.get("timestamp", 0.0)
 
-            # 同じvideo_idとtimestampでchunksインデックスからend_timeを取得
-            end_time = timestamp  # デフォルト値
+            # Get end_time from chunks index with same video_id and timestamp
+            end_time = timestamp  # Default value
             try:
                 chunk_search_body = {
                     "size": 1,
@@ -297,7 +297,7 @@ class OpenSearchService(BaseVectorService):
         return results
 
     def delete_video_data(self, video_id: int):
-        """特定の動画のデータを削除（routing必須）"""
+        """Delete data for specific video (routing required)"""
         try:
             delete_query = {
                 "query": {
@@ -327,7 +327,7 @@ class OpenSearchService(BaseVectorService):
             raise
 
     def delete_user_data(self):
-        """このユーザーの全データを固定インデックスから削除（routing必須）"""
+        """Delete all data for this user from fixed index (routing required)"""
         try:
             for index in [self.chunks_index_name, self.features_index_name]:
                 self.opensearch.delete_by_query(
@@ -341,7 +341,7 @@ class OpenSearchService(BaseVectorService):
             raise
 
     def get_index_info(self):
-        """インデックス情報を取得"""
+        """Get index information"""
         try:
             chunks_stats = self.opensearch.indices.stats(index=self.chunks_index_name)
             features_stats = self.opensearch.indices.stats(

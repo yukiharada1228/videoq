@@ -21,7 +21,7 @@ class VideoGroupViewsTests(TestCase):
         )
         self.client.login(username="grp", password="pass")
 
-        # 完了動画を1本作成
+        # Create one completed video
         self.video = Video.objects.create(
             user=self.user,
             file=SimpleUploadedFile("v.mp4", b"data", content_type="video/mp4"),

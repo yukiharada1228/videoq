@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 
 
 class RelatedQuestion(BaseModel):
-    question: str = Field(..., description="コンテキストに関連する自然な質問")
+    question: str = Field(..., description="Natural question related to context")
 
 
 class RelatedQuestionsResponse(BaseModel):
@@ -17,20 +17,20 @@ class RelatedQuestionsResponse(BaseModel):
 
 def count_tokens(text: str, model: str = "text-embedding-3-small") -> int:
     """
-    テキストのトークン数をカウントする
+    Count tokens in text
     """
     try:
         encoding = tiktoken.encoding_for_model(model)
         return len(encoding.encode(text))
     except Exception as e:
         print(f"Error counting tokens: {e}")
-        # フォールバック: 概算（英語なら4文字=1トークン、日本語なら1文字=1トークン）
+        # Fallback: rough estimate (4 characters = 1 token for English, 1 character = 1 token for Japanese)
         return len(text) // 4
 
 
 def truncate_text_to_token_limit(text: str, max_tokens: int = 8000) -> str:
     """
-    テキストをトークン制限内に収める
+    Keep text within token limits
     """
     encoding = tiktoken.encoding_for_model("text-embedding-3-small")
     tokens = encoding.encode(text)
@@ -38,13 +38,13 @@ def truncate_text_to_token_limit(text: str, max_tokens: int = 8000) -> str:
     if len(tokens) <= max_tokens:
         return text
 
-    # トークン制限内に収める
+    # Keep within token limits
     truncated_tokens = tokens[:max_tokens]
     return encoding.decode(truncated_tokens)
 
 
 class BaseVectorService(ABC):
-    """ベクトル検索サービスのベースクラス"""
+    """Base class for vector search service"""
 
     def __init__(
         self,
@@ -58,13 +58,13 @@ class BaseVectorService(ABC):
         self.openai_api_key = openai_api_key
         self.user_id = user_id
 
-        # OpenAI APIクライアントの初期化（APIキーがある場合のみ）
+        # Initialize OpenAI API client (only if API key is available)
         if openai_api_key:
             self.client = OpenAI(api_key=self.openai_api_key)
         else:
             self.client = None
 
-        # インデックス名（固定名）
+        # Index names (fixed names)
         self.chunks_index_name = self._get_chunks_index_name()
         self.features_index_name = self._get_features_index_name()
 
@@ -76,55 +76,55 @@ class BaseVectorService(ABC):
 
     @abstractmethod
     def _get_chunks_index_name(self) -> str:
-        """チャンクインデックス名を取得（固定名）"""
+        """Get chunks index name (fixed name)"""
         pass
 
     @abstractmethod
     def _get_features_index_name(self) -> str:
-        """フィーチャーインデックス名を取得（固定名）"""
+        """Get features index name (fixed name)"""
         pass
 
     @abstractmethod
     def _ensure_indexes_exist(self):
-        """インデックスが存在することを確認"""
+        """Ensure index exists"""
         pass
 
     @abstractmethod
     def search_group_chunks(
         self, group: VideoGroup, query: str, max_results: int = 5
     ) -> List[Dict[str, Any]]:
-        """グループ内のチャンクを検索"""
+        """Search chunks within group"""
         pass
 
     @abstractmethod
     def search_group_features(
         self, group: VideoGroup, query: str, max_results: int = 5
     ) -> List[Dict[str, Any]]:
-        """グループ内のタイムスタンプ付きセグメントを検索"""
+        """Search timestamped segments in group"""
         pass
 
     @abstractmethod
     def delete_video_data(self, video_id: int):
-        """特定の動画のデータを削除"""
+        """Delete data for specific video"""
         pass
 
     @abstractmethod
     def get_index_info(self) -> Dict[str, Any]:
-        """インデックス情報を取得"""
+        """Get index information"""
         pass
 
     def embed_query(self, query: str) -> List[float]:
-        """クエリをベクトル化"""
+        """Vectorize query"""
         if not self.client:
             raise ValueError("OpenAI API key is required for embedding queries")
 
-        # トークン数をチェックして必要に応じて短縮
+        # Check token count and truncate if necessary
         token_count = count_tokens(query)
         if token_count > 8000:
             query = truncate_text_to_token_limit(query)
             print(f"Query truncated from {token_count} to {count_tokens(query)} tokens")
 
-        # OpenAI公式APIでクエリをベクトル化
+        # Vectorize query using OpenAI official API
         response = self.client.embeddings.create(
             model="text-embedding-3-small", input=query, encoding_format="float"
         )
@@ -133,7 +133,7 @@ class BaseVectorService(ABC):
     def search_group_all(
         self, group: VideoGroup, query: str, max_results: int = 5
     ) -> Dict[str, Any]:
-        """チャンク・タイムスタンプ両方まとめて返す"""
+        """Return both chunks and timestamps together"""
         return {
             "group_results": self.search_group_chunks(group, query, max_results),
             "group_timestamp_results": self.search_group_features(
@@ -149,7 +149,7 @@ class BaseVectorService(ABC):
         context_chunks: List[Dict[str, Any]],
         max_questions: int = 3,
     ) -> List[Dict[str, str]]:
-        """コンテキストに基づいて関連質問を3つ生成"""
+        """Generate 3 related questions based on context"""
         if not self.client:
             raise ValueError("OpenAI API key is required for question generation")
 
@@ -163,7 +163,7 @@ class BaseVectorService(ABC):
             ]
         )
 
-        prompt = f"""動画グループ「{group.name}」の以下のコンテキストを読んで、ユーザーが興味を持ちそうな関連質問を3つ必ず生成してください。\n\n【重要】必ずコンテキストの内容に直接関連する質問を優先して生成してください。\nコンテキストに含まれる用語や話題を使って質問を作成してください。\n\nコンテキスト:\n{context_text}\n\n以下の点も考慮してください：\n1. ユーザーが深く理解したいと思いそうな内容\n2. 自然で会話的な質問"""
+        prompt = f"""Read the following context from video group "{group.name}" and generate exactly 3 related questions that users would be interested in.\n\n[Important] Prioritize generating questions directly related to the context content.\nCreate questions using terms and topics included in the context.\n\nContext:\n{context_text}\n\nPlease also consider:\n1. Content that users would want to understand deeply\n2. Natural and conversational questions"""
 
         try:
             response = self.client.responses.parse(
@@ -171,7 +171,7 @@ class BaseVectorService(ABC):
                 input=[
                     {
                         "role": "system",
-                        "content": "あなたは動画の内容に基づいて関連質問を生成するアシスタントです。",
+                        "content": "You are an assistant that generates related questions based on video content.",
                     },
                     {"role": "user", "content": prompt},
                 ],
@@ -187,41 +187,41 @@ class BaseVectorService(ABC):
     def generate_group_rag_answer(
         self, group: VideoGroup, query: str, max_results: int = 5
     ) -> Dict[str, Any]:
-        """グループ内の動画を使ってRAG回答を生成"""
+        """Generate RAG answer using videos within group"""
         if not self.client:
             raise ValueError("OpenAI API key is required for RAG answer generation")
 
-        # 検索結果を取得
+        # Get search results
         search_results = self.search_group_all(group, query, max_results)
 
-        # コンテキストを構築
+        # Build context
         context_parts = []
 
-        # チャンク結果を追加
+        # Add chunk results
         for result in search_results["group_results"]:
             context_parts.append(
-                f"動画: {result['video_title']} (時間: {result['start_time']:.1f}s-{result['end_time']:.1f}s)\n内容: {result['text']}"
+                f"Video: {result['video_title']} (Time: {result['start_time']:.1f}s-{result['end_time']:.1f}s)\nContent: {result['text']}"
             )
 
-        # タイムスタンプ結果を追加
+        # Add timestamp results
         for result in search_results["group_timestamp_results"]:
             context_parts.append(
-                f"動画: {result['video_title']} (時間: {result['timestamp']:.1f}s)\n内容: {result['text']}"
+                f"Video: {result['video_title']} (Time: {result['timestamp']:.1f}s)\nContent: {result['text']}"
             )
 
         context = "\n\n".join(context_parts)
 
-        # RAG回答生成のプロンプト
-        prompt = f"""あなたは動画グループ「{group.name}」の内容について質問に答えるアシスタントです。
+        # Prompt for RAG answer generation
+        prompt = f"""You are an assistant that answers questions about the content of video group "{group.name}".
 
-与えられたコンテキスト（動画グループの文字起こし）を基に、質問に対して正確で簡潔な回答を200字以内で提供してください。
+Based on the given context (transcription of the video group), provide accurate and concise answers to questions within 200 characters.
 
-コンテキスト:
+Context:
 {context}
 
-質問: {query}
+Question: {query}
 
-回答:"""
+Answer:"""
 
         try:
             response = self.client.chat.completions.create(
@@ -229,7 +229,7 @@ class BaseVectorService(ABC):
                 messages=[
                     {
                         "role": "system",
-                        "content": "あなたは動画グループの内容に基づいて質問に答えるアシスタントです。",
+                        "content": "You are an assistant that answers questions based on video group content.",
                     },
                     {"role": "user", "content": prompt},
                 ],
@@ -250,7 +250,7 @@ class BaseVectorService(ABC):
         except Exception as e:
             print(f"Error generating RAG answer: {e}")
             return {
-                "answer": "申し訳ございませんが、回答の生成中にエラーが発生しました。",
+                "answer": "I apologize, but an error occurred while generating the answer.",
                 "context": context,
                 "search_results": search_results,
                 "query": query,
@@ -261,17 +261,17 @@ class BaseVectorService(ABC):
     def generate_group_rag_answer_stream(
         self, group: VideoGroup, query: str, max_results: int = 5
     ) -> Generator[Dict[str, Any], None, None]:
-        """RAGによる回答生成（ストリーミング対応）"""
-        # 類似チャンクを検索
+        """Generate answer using RAG (streaming support)"""
+        # Search for similar chunks
         context_chunks = self.search_group_chunks(group, query, max_results)
         if not context_chunks:
             yield {
                 "type": "error",
-                "message": "申し訳ございませんが、この質問に関連する内容が見つかりませんでした。",
+                "message": "I apologize, but no relevant content was found for this question.",
             }
             return
 
-        # コンテキストを作成
+        # Create context
         context_text = "\n\n".join(
             [
                 f"[{c['video_title']} - {c['start_time']:.1f}s-{c['end_time']:.1f}s] {c['text']}"
@@ -279,19 +279,19 @@ class BaseVectorService(ABC):
             ]
         )
 
-        # プロンプトを作成
-        prompt = f"""あなたは動画グループ「{group.name}」の内容について質問に答えるアシスタントです。
+        # Create prompt
+        prompt = f"""You are an assistant that answers questions about the content of video group "{group.name}".
 
-与えられたコンテキスト（動画グループの文字起こし）を基に、質問に対して正確で簡潔な回答を200字以内で提供してください。
+Based on the given context (transcription of the video group), provide accurate and concise answers to questions within 200 characters.
 
-コンテキスト:
+Context:
 {context_text}
 
-質問: {query}
+Question: {query}
 
-回答:"""
+Answer:"""
 
-        # OpenAI APIでストリーミング回答生成
+        # Generate streaming answer using OpenAI API
         if not self.client:
             yield {
                 "type": "error",
@@ -305,7 +305,7 @@ class BaseVectorService(ABC):
                 messages=[
                     {
                         "role": "system",
-                        "content": "あなたは動画グループの内容に基づいて質問に答えるアシスタントです。",
+                        "content": "You are an assistant that answers questions based on video group content.",
                     },
                     {"role": "user", "content": prompt},
                 ],
@@ -325,14 +325,14 @@ class BaseVectorService(ABC):
                         "full_answer": full_answer,
                     }
 
-            # 完全な回答が生成されたら、関連するタイムスタンプも検索
+            # If complete answer is generated, also search for related timestamps
             timestamp_results = self.search_group_features(
                 group, full_answer, max_results
             )
 
-            # 関連質問を生成（timestamp検索結果を優先）
+            # Generate related questions (prioritize timestamp search results)
             if timestamp_results:
-                # timestamp検索でヒットしたチャンクを関連質問生成に使用
+                # Use chunks that hit in timestamp search for related question generation
                 timestamp_context_chunks = []
                 for result in timestamp_results:
                     timestamp_context_chunks.append(
@@ -341,14 +341,14 @@ class BaseVectorService(ABC):
                             "video_id": result["video_id"],
                             "video_title": result["video_title"],
                             "start_time": result["timestamp"],
-                            "end_time": result["end_time"],  # 本当のend_timeを使用
+                            "end_time": result["end_time"],  # Use actual end_time
                         }
                     )
                 related_questions = self.generate_related_questions(
                     group, timestamp_context_chunks, max_questions=3
                 )
             else:
-                # timestamp検索結果がない場合は従来通りRAGコンテキストを使用
+                # If no timestamp search results, use RAG context as usual
                 related_questions = self.generate_related_questions(
                     group, context_chunks, max_questions=3
                 )
@@ -365,5 +365,5 @@ class BaseVectorService(ABC):
         except Exception as e:
             yield {
                 "type": "error",
-                "message": f"回答生成中にエラーが発生しました: {str(e)}",
+                "message": f"Error occurred while generating answer: {str(e)}",
             }

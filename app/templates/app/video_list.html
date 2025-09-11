@@ -1,32 +1,32 @@
 {% extends 'app/base.html' %}
 {% load tz %}
 
-{% block title %}動画一覧 - VideoQ{% endblock %}
+{% block title %}Video List - VideoQ{% endblock %}
 
 {% block content %}
 <div class="row">
     <div class="col-12">
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1><i class="bi bi-collection-play"></i> 動画一覧</h1>
+            <h1><i class="bi bi-collection-play"></i> Video List</h1>
             {% if user_video_remaining|default:0 <= 0 %}
-            <a class="btn btn-primary disabled" aria-disabled="true" title="動画上限に達しています">
-                <i class="bi bi-plus-circle"></i> 新規アップロード
+            <a class="btn btn-primary disabled" aria-disabled="true" title="Video limit reached">
+                <i class="bi bi-plus-circle"></i> Upload New Video
             </a>
             {% else %}
             <a href="{% url 'app:upload_video' %}" class="btn btn-primary">
-                <i class="bi bi-plus-circle"></i> 新規アップロード
+                <i class="bi bi-plus-circle"></i> Upload New Video
             </a>
             {% endif %}
         </div>
 
-        <!-- 統計情報カード -->
+        <!-- Statistics Cards -->
         <div class="row mb-4">
             <div class="col-md-2 col-sm-4 col-6 mb-3">
                 <div class="card text-center">
                     <div class="card-body">
                         <h5 class="card-title text-primary">{{ total_videos }}</h5>
-                        <p class="card-text small">総動画数</p>
-                        <p class="card-text small text-muted">上限 {{ user_video_limit }} / 残り {{ user_video_remaining }}</p>
+                        <p class="card-text small">Total Videos</p>
+                        <p class="card-text small text-muted">Limit {{ user_video_limit }} / Remaining {{ user_video_remaining }}</p>
                     </div>
                 </div>
             </div>
@@ -34,7 +34,7 @@
                 <div class="card text-center">
                     <div class="card-body">
                         <h5 class="card-title text-success">{{ completed_videos }}</h5>
-                        <p class="card-text small">完了</p>
+                        <p class="card-text small">Completed</p>
                     </div>
                 </div>
             </div>
@@ -42,7 +42,7 @@
                 <div class="card text-center">
                     <div class="card-body">
                         <h5 class="card-title text-warning">{{ pending_videos }}</h5>
-                        <p class="card-text small">処理待ち</p>
+                        <p class="card-text small">Pending</p>
                     </div>
                 </div>
             </div>
@@ -50,7 +50,7 @@
                 <div class="card text-center">
                     <div class="card-body">
                         <h5 class="card-title text-info">{{ processing_videos }}</h5>
-                        <p class="card-text small">処理中</p>
+                        <p class="card-text small">Processing</p>
                     </div>
                 </div>
             </div>
@@ -58,7 +58,7 @@
                 <div class="card text-center">
                     <div class="card-body">
                         <h5 class="card-title text-danger">{{ error_videos }}</h5>
-                        <p class="card-text small">エラー</p>
+                        <p class="card-text small">Error</p>
                     </div>
                 </div>
             </div>
@@ -67,36 +67,36 @@
                 <div class="card text-center">
                     <div class="card-body">
                         <h5 class="card-title text-warning">{{ hidden_videos }}</h5>
-                        <p class="card-text small">非表示</p>
-                        <small class="text-muted">上限超過により非表示</small>
+                        <p class="card-text small">Hidden</p>
+                        <small class="text-muted">Hidden due to limit exceeded</small>
                     </div>
                 </div>
             </div>
             {% endif %}
         </div>
         
-        <!-- フィルター結果表示 -->
+        <!-- Filter Results Display -->
         {% if current_tag or current_status %}
         <div class="alert alert-info mb-4">
             <i class="bi bi-funnel"></i>
-            <strong>フィルター結果:</strong>
-            {% if current_tag %}<span class="badge bg-secondary me-2">タグ: {{ current_tag }}</span>{% endif %}
-            {% if current_status %}<span class="badge bg-secondary me-2">ステータス: {{ current_status }}</span>{% endif %}
-            <span class="badge bg-primary">{{ filtered_count }}件の動画が見つかりました</span>
+            <strong>Filter Results:</strong>
+            {% if current_tag %}<span class="badge bg-secondary me-2">Tag: {{ current_tag }}</span>{% endif %}
+            {% if current_status %}<span class="badge bg-secondary me-2">Status: {{ current_status }}</span>{% endif %}
+            <span class="badge bg-primary">{{ filtered_count }} videos found</span>
             <a href="{% url 'app:video_list' %}" class="btn btn-sm btn-outline-secondary ms-2">
-                <i class="bi bi-x-circle"></i> フィルターをクリア
+                <i class="bi bi-x-circle"></i> Clear Filter
             </a>
         </div>
         {% endif %}
 
-        <!-- 検索・フィルター -->
+        <!-- Search & Filter -->
         <div class="card mb-4">
             <div class="card-body">
                 <form method="get" class="row g-3">
                     <div class="col-md-4">
-                        <label for="tag" class="form-label">タグで検索</label>
+                        <label for="tag" class="form-label">Search by Tag</label>
                         <select name="tag" id="tag" class="form-select">
-                            <option value="">すべてのタグ</option>
+                            <option value="">All Tags</option>
                             {% for tag in available_tags %}
                                 <option value="{{ tag.name }}" {% if current_tag == tag.name %}selected{% endif %}>
                                     {{ tag.name }}
@@ -105,21 +105,21 @@
                         </select>
                     </div>
                     <div class="col-md-4">
-                        <label for="status" class="form-label">ステータスで検索</label>
+                        <label for="status" class="form-label">Search by Status</label>
                         <select name="status" id="status" class="form-select">
-                            <option value="">すべてのステータス</option>
-                            <option value="completed" {% if current_status == 'completed' %}selected{% endif %}>完了</option>
-                            <option value="processing" {% if current_status == 'processing' %}selected{% endif %}>処理中</option>
-                            <option value="pending" {% if current_status == 'pending' %}selected{% endif %}>処理待ち</option>
-                            <option value="error" {% if current_status == 'error' %}selected{% endif %}>エラー</option>
+                            <option value="">All Status</option>
+                            <option value="completed" {% if current_status == 'completed' %}selected{% endif %}>Completed</option>
+                            <option value="processing" {% if current_status == 'processing' %}selected{% endif %}>Processing</option>
+                            <option value="pending" {% if current_status == 'pending' %}selected{% endif %}>Pending</option>
+                            <option value="error" {% if current_status == 'error' %}selected{% endif %}>Error</option>
                         </select>
                     </div>
                     <div class="col-md-4 d-flex align-items-end">
                         <button type="submit" class="btn btn-primary me-2">
-                            <i class="bi bi-search"></i> 検索
+                            <i class="bi bi-search"></i> Search
                         </button>
                         <a href="{% url 'app:video_list' %}" class="btn btn-outline-secondary">
-                            <i class="bi bi-arrow-clockwise"></i> リセット
+                            <i class="bi bi-arrow-clockwise"></i> Reset
                         </a>
                     </div>
                 </form>
@@ -127,19 +127,19 @@
         </div>
 
         {% if videos %}
-            <!-- 動画リスト -->
+            <!-- Video List -->
             <div class="card">
                 <div class="card-body p-0">
                     <div class="table-responsive">
                         <table class="table table-hover mb-0">
                             <thead class="table-light">
                                 <tr>
-                                    <th>タイトル</th>
-                                    <th>説明</th>
-                                    <th>タグ</th>
-                                    <th>ステータス</th>
-                                    <th>アップロード日時</th>
-                                    <th>操作</th>
+                                    <th>Title</th>
+                                    <th>Description</th>
+                                    <th>Tags</th>
+                                    <th>Status</th>
+                                    <th>Upload Date</th>
+                                    <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -150,7 +150,7 @@
                                     </td>
                                     <td>
                                         <span class="text-muted">
-                                            {{ video.description|truncatechars:60|default:"説明なし" }}
+                                            {{ video.description|truncatechars:60|default:"No description" }}
                                         </span>
                                     </td>
                                     <td>
@@ -159,40 +159,40 @@
                                                 <span class="badge bg-secondary me-1">{{ tag.name }}</span>
                                             {% endfor %}
                                         {% else %}
-                                            <span class="text-muted">タグなし</span>
+                                            <span class="text-muted">No tags</span>
                                         {% endif %}
                                     </td>
                                     <td>
                                         {% if video.status == 'completed' %}
-                                            <span class="badge bg-success">完了</span>
+                                            <span class="badge bg-success">Completed</span>
                                         {% elif video.status == 'processing' %}
-                                            <span class="badge bg-info">処理中</span>
+                                            <span class="badge bg-info">Processing</span>
                                         {% elif video.status == 'pending' %}
-                                            <span class="badge bg-warning">処理待ち</span>
+                                            <span class="badge bg-warning">Pending</span>
                                         {% elif video.status == 'error' %}
-                                            <span class="badge bg-danger">エラー</span>
+                                            <span class="badge bg-danger">Error</span>
                                         {% endif %}
                                     </td>
                                     <td>
                                         <small class="text-muted">
-                                            {{ video.uploaded_at|localtime|date:"Y/m/d H:i" }}
+                                            {{ video.uploaded_at|date:"Y/m/d H:i" }}
                                         </small>
                                     </td>
                                     <td>
                                         <div class="btn-group" role="group">
-                                            <a href="{% url 'app:video_detail' video.pk %}" class="btn btn-sm btn-outline-primary" title="詳細">
+                                            <a href="{% url 'app:video_detail' video.pk %}" class="btn btn-sm btn-outline-primary" title="Details">
                                                 <i class="bi bi-eye"></i>
                                             </a>
-                                            <a href="{% url 'app:video_edit' video.pk %}" class="btn btn-sm btn-outline-secondary" title="編集">
+                                            <a href="{% url 'app:video_edit' video.pk %}" class="btn btn-sm btn-outline-secondary" title="Edit">
                                                 <i class="bi bi-pencil"></i>
                                             </a>
-                                            <a href="{% url 'app:delete_video' video.pk %}" class="btn btn-sm btn-outline-danger" title="削除">
+                                            <a href="{% url 'app:delete_video' video.pk %}" class="btn btn-sm btn-outline-danger" title="Delete">
                                                 <i class="bi bi-trash"></i>
                                             </a>
                                             {% if video.status == 'error' %}
                                                 <button class="btn btn-sm btn-outline-warning" 
                                                         onclick="reprocessVideo({{ video.id }})" 
-                                                        title="動画を再処理">
+                                                        title="Reprocess Video">
                                                     <i class="bi bi-arrow-clockwise"></i>
                                                 </button>
                                             {% endif %}
@@ -206,16 +206,16 @@
                 </div>
             </div>
 
-            <!-- ページネーション -->
+            <!-- Pagination -->
             {% if is_paginated %}
-            <nav aria-label="動画一覧のページネーション">
+            <nav aria-label="Video list pagination">
                 <ul class="pagination justify-content-center">
                     {% if page_obj.has_previous %}
                         <li class="page-item">
-                            <a class="page-link" href="?page=1{% if current_tag %}&tag={{ current_tag }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}">&laquo; 最初</a>
+                            <a class="page-link" href="?page=1{% if current_tag %}&tag={{ current_tag }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}">&laquo; First</a>
                         </li>
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if current_tag %}&tag={{ current_tag }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}">前へ</a>
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if current_tag %}&tag={{ current_tag }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}">Previous</a>
                         </li>
                     {% endif %}
 
@@ -227,10 +227,10 @@
 
                     {% if page_obj.has_next %}
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if current_tag %}&tag={{ current_tag }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}">次へ</a>
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if current_tag %}&tag={{ current_tag }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}">Next</a>
                         </li>
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if current_tag %}&tag={{ current_tag }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}">最後 &raquo;</a>
+                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if current_tag %}&tag={{ current_tag }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}">Last &raquo;</a>
                         </li>
                     {% endif %}
                 </ul>
@@ -240,10 +240,10 @@
         {% else %}
             <div class="text-center py-5">
                 <i class="bi bi-collection-play display-1 text-muted"></i>
-                <h3 class="mt-3">動画がありません</h3>
-                <p class="text-muted">最初の動画をアップロードしてみましょう！</p>
+                <h3 class="mt-3">No Videos</h3>
+                <p class="text-muted">Let's upload your first video!</p>
                 <a href="{% url 'app:upload_video' %}" class="btn btn-primary">
-                    <i class="bi bi-upload"></i> 動画をアップロード
+                    <i class="bi bi-upload"></i> Upload Video
                 </a>
             </div>
         {% endif %}
@@ -252,7 +252,7 @@
 
 <script>
 function reprocessVideo(videoId) {
-    if (confirm('この動画を再処理しますか？')) {
+    if (confirm('Do you want to reprocess this video?')) {
         fetch(`/video/${videoId}/reprocess/`, {
             method: 'POST',
             headers: {
@@ -263,27 +263,27 @@ function reprocessVideo(videoId) {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                alert('動画の再処理を開始しました。');
-                location.reload(); // ページを再読み込み
+                alert('Video reprocessing started.');
+                location.reload(); // Reload page
             } else {
-                alert('再処理の開始に失敗しました: ' + data.error);
+                alert('Failed to start reprocessing: ' + data.error);
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('再処理の開始に失敗しました。');
+            alert('Failed to start reprocessing.');
         });
     }
 }
 
-// タグまたはステータスが変更されたら自動的に検索を実行
+// Automatically execute search when tag or status changes
 document.addEventListener('DOMContentLoaded', function() {
     const tagSelect = document.getElementById('tag');
     const statusSelect = document.getElementById('status');
     
     if (tagSelect) {
         tagSelect.addEventListener('change', function() {
-            // ページを1にリセットして検索
+            // Reset page to 1 and search
             const url = new URL(window.location);
             url.searchParams.set('page', '1');
             if (this.value) {
@@ -297,7 +297,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     if (statusSelect) {
         statusSelect.addEventListener('change', function() {
-            // ページを1にリセットして検索
+            // Reset page to 1 and search
             const url = new URL(window.location);
             url.searchParams.set('page', '1');
             if (this.value) {

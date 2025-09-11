@@ -17,20 +17,20 @@ from .exceptions import (
 )
 from .utils import log_operation, log_error
 
-# ロガーの設定
+# Logger configuration
 logger = logging.getLogger("app.tasks")
 
 
 def count_tokens(text: str, model: str = "text-embedding-3-small") -> int:
     """
-    テキストのトークン数をカウントする
+    Count tokens in text
     """
     try:
         encoding = tiktoken.encoding_for_model(model)
         return len(encoding.encode(text))
     except Exception as e:
         logger.warning(f"Error counting tokens: {e}")
-        # フォールバック: 概算（英語なら4文字=1トークン、日本語なら1文字=1トークン）
+        # Fallback: rough estimate (4 characters = 1 token for English, 1 character = 1 token for Japanese)
         return len(text) // 4
 
 
@@ -38,27 +38,27 @@ def truncate_text_to_token_limit(
     text: str, max_tokens: int = 8000, model: str = "text-embedding-3-small"
 ) -> str:
     """
-    テキストをトークン制限内に収める（改善版）
+    Keep text within token limits (improved version)
     """
     if count_tokens(text, model) <= max_tokens:
         return text
 
-    # トークン数を超えている場合、テキストを短縮
+    # If token count exceeds limit, truncate text
     encoding = tiktoken.encoding_for_model(model)
     tokens = encoding.encode(text)
 
     if len(tokens) > max_tokens:
-        # より良い短縮方法：先頭と末尾の両方を保持
-        front_tokens = tokens[: max_tokens // 2]  # 前半部分
-        back_tokens = tokens[-(max_tokens // 2) :]  # 後半部分
+        # Better truncation method: keep both beginning and end
+        front_tokens = tokens[: max_tokens // 2]  # First half
+        back_tokens = tokens[-(max_tokens // 2) :]  # Second half
 
-        # 重複を避けて結合
+        # Combine avoiding overlap
         if len(front_tokens) + len(back_tokens) > max_tokens:
-            # 重複が大きい場合は先頭部分のみ使用
+            # If overlap is large, use only the beginning part
             truncated_tokens = tokens[:max_tokens]
             truncated_text = encoding.decode(truncated_tokens)
         else:
-            # 先頭と末尾を結合
+            # Combine beginning and end
             truncated_text = (
                 encoding.decode(front_tokens) + "..." + encoding.decode(back_tokens)
             )
@@ -73,21 +73,21 @@ def truncate_text_to_token_limit(
 
 def extract_and_split_audio(input_path, max_size_mb=24):
     """
-    動画から音声を抽出し、ファイルサイズに基づいて適切に分割する
-    max_size_mb: 各セグメントの最大サイズ（MB）
+    Extract audio from video and split appropriately based on file size
+    max_size_mb: Maximum size of each segment (MB)
     """
     try:
-        # 動画の情報を取得
+        # Get video information
         probe = ffmpeg.probe(input_path)
         duration = float(probe["format"]["duration"])
 
         logger.info(f"Video duration: {duration:.2f} seconds")
 
-        # 一時ディレクトリを作成
+        # Create temporary directory
         temp_dir = tempfile.gettempdir()
         audio_segments = []
 
-        # まず全体の音声を抽出してサイズを確認
+        # First extract entire audio and check size
         temp_audio_path = os.path.join(
             temp_dir, f"temp_audio_{os.path.basename(input_path)}.mp3"
         )
@@ -98,24 +98,24 @@ def extract_and_split_audio(input_path, max_size_mb=24):
         )
         ffmpeg.run(stream, overwrite_output=True, quiet=True)
 
-        # 音声ファイルのサイズを確認
+        # Check audio file size
         audio_size_mb = os.path.getsize(temp_audio_path) / (1024 * 1024)
         logger.info(f"Extracted audio size: {audio_size_mb:.2f} MB")
 
         if audio_size_mb <= max_size_mb:
-            # サイズが制限内の場合は分割不要
+            # No splitting needed if size is within limit
             audio_segments.append(
                 {"path": temp_audio_path, "start_time": 0, "end_time": duration}
             )
             logger.info(f"Audio is within size limit, no splitting needed")
 
         else:
-            # サイズが大きい場合は分割が必要
-            # 音声ファイルを削除して、動画を時間で分割
+            # Splitting needed if size is large
+            # Delete audio file and split video by time
             os.remove(temp_audio_path)
 
-            # 分割数を計算（余裕を持って少し小さめに）
-            safe_size_mb = max_size_mb * 0.8  # 20%の余裕
+            # Calculate number of segments (with some margin)
+            safe_size_mb = max_size_mb * 0.8  # 20% margin
             num_segments = int(audio_size_mb / safe_size_mb) + 1
             segment_duration = duration / num_segments
 
@@ -132,7 +132,7 @@ def extract_and_split_audio(input_path, max_size_mb=24):
                     temp_dir, f"audio_segment_{i}_{os.path.basename(input_path)}.mp3"
                 )
 
-                # 音声を抽出
+                # Extract audio
                 stream = ffmpeg.input(
                     input_path, ss=start_time, t=end_time - start_time
                 )
@@ -141,18 +141,18 @@ def extract_and_split_audio(input_path, max_size_mb=24):
                 )
                 ffmpeg.run(stream, overwrite_output=True, quiet=True)
 
-                # セグメントのサイズを確認
+                # Check segment size
                 segment_size_mb = os.path.getsize(audio_path) / (1024 * 1024)
                 print(
                     f"Segment {i+1} size: {segment_size_mb:.2f} MB ({start_time:.2f}s - {end_time:.2f}s)"
                 )
 
-                # まだ大きい場合は、さらに小さく分割
+                # If still too large, split further into smaller pieces
                 if segment_size_mb > max_size_mb:
                     print(f"Segment {i+1} is still too large, subdividing...")
                     os.remove(audio_path)
 
-                    # このセグメントをさらに分割
+                    # Split this segment further
                     sub_segments = int(segment_size_mb / safe_size_mb) + 1
                     sub_duration = (end_time - start_time) / sub_segments
 
@@ -205,17 +205,17 @@ def create_chunks_from_segments(
     all_segments, max_tokens_per_chunk=7500, overlap_tokens=500
 ):
     """
-    セグメントからRAG用のチャンクを作成する（トークン数ベース）
-    max_tokens_per_chunk: 各チャンクの最大トークン数
-    overlap_tokens: チャンク間の重複トークン数
+    Create RAG chunks from segments (token-based)
+    max_tokens_per_chunk: Maximum tokens per chunk
+    overlap_tokens: Overlapping tokens between chunks
     """
     if not all_segments:
         return []
 
-    # 全テキストを結合
+    # Combine all text
     full_text = " ".join([seg["text"] for seg in all_segments])
 
-    # トークン数ベースで分割
+    # Split based on token count
     encoding = tiktoken.encoding_for_model("text-embedding-3-small")
     tokens = encoding.encode(full_text)
 
@@ -224,7 +224,7 @@ def create_chunks_from_segments(
     chunks = []
     chunk_index = 0
 
-    # トークン数が制限内の場合は1つのチャンクとして扱う
+    # If token count is within limit, treat as single chunk
     if len(tokens) <= max_tokens_per_chunk:
         chunks.append(
             {
@@ -236,13 +236,13 @@ def create_chunks_from_segments(
         )
         return chunks
 
-    # トークン数ベースで分割
+    # Split based on token count
     i = 0
     while i < len(tokens):
-        # チャンクの終了位置を決定
+        # Determine chunk end position
         end_pos = min(i + max_tokens_per_chunk, len(tokens))
 
-        # チャンクのトークンを取得
+        # Get chunk tokens
         chunk_tokens = tokens[i:end_pos]
         chunk_text = encoding.decode(chunk_tokens)
 
@@ -250,8 +250,8 @@ def create_chunks_from_segments(
             i += max_tokens_per_chunk - overlap_tokens
             continue
 
-        # このチャンクの時間範囲を計算
-        # トークン位置に基づいて時間を推定
+        # Calculate time range for this chunk
+        # Estimate time based on token position
         token_ratio_start = i / len(tokens)
         token_ratio_end = end_pos / len(tokens)
 
@@ -270,10 +270,10 @@ def create_chunks_from_segments(
 
         chunk_index += 1
 
-        # 次のチャンクの開始位置（重複を考慮）
+        # Next chunk start position (considering overlap)
         i += max_tokens_per_chunk - overlap_tokens
 
-        # 無限ループ防止
+        # Prevent infinite loop
         if i >= len(tokens):
             break
 
@@ -283,8 +283,8 @@ def create_chunks_from_segments(
 
 def create_token_based_segments(all_segments, max_tokens_per_segment=7500):
     """
-    セグメントをトークン数ベースで再分割する
-    max_tokens_per_segment: 各セグメントの最大トークン数
+    Re-split segments based on token count
+    max_tokens_per_segment: Maximum tokens per segment
     """
     if not all_segments:
         return []
@@ -296,15 +296,15 @@ def create_token_based_segments(all_segments, max_tokens_per_segment=7500):
         text = segment["text"]
         tokens = encoding.encode(text)
 
-        # トークン数が制限内の場合はそのまま使用
+        # If token count is within limit, use as is
         if len(tokens) <= max_tokens_per_segment:
             new_segments.append(segment)
             continue
 
-        # トークン数が制限を超えている場合は分割
+        # Split if token count exceeds limit
         print(f"Splitting segment with {len(tokens)} tokens into smaller parts")
 
-        # トークン数ベースで分割
+        # Split based on token count
         i = 0
         segment_index = 0
         while i < len(tokens):
@@ -316,7 +316,7 @@ def create_token_based_segments(all_segments, max_tokens_per_segment=7500):
                 i += max_tokens_per_segment
                 continue
 
-            # 時間範囲を推定
+            # Estimate time range
             token_ratio_start = i / len(tokens)
             token_ratio_end = end_pos / len(tokens)
 
@@ -344,8 +344,8 @@ def create_token_based_segments(all_segments, max_tokens_per_segment=7500):
 @shared_task
 def process_video(video_id):
     """
-    動画処理タスク
-    音声抽出、文字起こし、ベクトル化、インデックス保存を行う
+    Video processing task
+    Perform audio extraction, transcription, vectorization, and index saving
     """
     log_operation("process_video_started", video_id=video_id)
 
@@ -359,7 +359,7 @@ def process_video(video_id):
             f"Video with id {video_id} does not exist", video_id=video_id
         )
 
-    # ユーザーごとのAPIキーを取得
+    # Get API key for each user
     user = video.user
     if not user.encrypted_openai_api_key:
         error_msg = "OpenAI API key not registered for this user"
@@ -396,17 +396,17 @@ def process_video(video_id):
     try:
         print(f"Starting transcription for video {video_id}")
 
-        # S3対応: ファイルを一時ディレクトリにダウンロード
-        # 一時ファイルを作成
+        # S3 support: Download file to temporary directory
+        # Create temporary file
         with tempfile.NamedTemporaryFile(
             delete=False, suffix=os.path.splitext(video.file.name)[1]
         ) as temp_file:
-            # S3からファイルをダウンロード
+            # Download file from S3
             with video.file.open("rb") as source_file:
                 shutil.copyfileobj(source_file, temp_file)
             video_file_path = temp_file.name
 
-        # 音声を抽出・分割
+        # Extract and split audio
         audio_segments = extract_and_split_audio(video_file_path)
 
         if not audio_segments:
@@ -417,14 +417,14 @@ def process_video(video_id):
             video.save()
             return
 
-        # 各セグメントを処理
+        # Process each segment
         full_transcript = ""
         all_segments = []
 
         for i, segment_info in enumerate(audio_segments):
             print(f"Processing audio segment {i+1}/{len(audio_segments)}")
 
-            # セグメントのサイズを確認
+            # Check segment size
             segment_size = os.path.getsize(segment_info["path"]) / (1024 * 1024)
             print(f"Segment {i+1} size: {segment_size:.2f} MB")
 
@@ -433,7 +433,7 @@ def process_video(video_id):
                     f"Warning: Segment {i+1} is still too large ({segment_size:.2f} MB)"
                 )
 
-            # Whisperで音声を文字起こし
+            # Transcribe audio with Whisper
             with open(segment_info["path"], "rb") as audio_file:
                 transcription = client.audio.transcriptions.create(
                     model="whisper-1",
@@ -442,13 +442,13 @@ def process_video(video_id):
                     timestamp_granularities=["segment"],
                 )
 
-            # 文字起こし結果を保存
+            # Save transcription results
             segment_text = transcription.text
             full_transcript += segment_text + " "
 
-            # 各セグメントのタイムスタンプを調整
+            # Adjust timestamps for each segment
             for whisper_segment in transcription.segments:
-                # 元の動画の時間に調整
+                # Adjust to original video time
                 adjusted_start = whisper_segment.start + segment_info["start_time"]
                 adjusted_end = whisper_segment.end + segment_info["start_time"]
 
@@ -460,44 +460,44 @@ def process_video(video_id):
                     }
                 )
 
-        # トークン数ベースでセグメントを再分割
+        # Re-split segments based on token count
         print("Creating token-based segments for timestamp search...")
         token_based_segments = create_token_based_segments(
             all_segments, max_tokens_per_segment=7500
         )
 
-        # タイムスタンプ検索用の細かいセグメントを作成
+        # Create fine segments for timestamp search
         print(
             f"Creating embeddings for {len(token_based_segments)} token-based segments..."
         )
         for i, segment in enumerate(token_based_segments):
             print(f"Creating embedding for segment {i+1}/{len(token_based_segments)}")
 
-            # トークン数を確認（既に制限内に収まっているはず）
+            # Check token count (should already be within limits)
             segment_text = segment["text"]
             token_count = count_tokens(segment_text)
             print(f"Segment {i+1} token count: {token_count}")
 
-            # 念のためチェック（通常は不要だが安全のため）
+            # Safety check (usually not needed but for safety)
             if token_count > 8000:
                 print(f"Warning: Segment {i+1} still exceeds limit, truncating...")
                 segment_text = truncate_text_to_token_limit(segment_text)
                 print(f"Segment {i+1} truncated to {count_tokens(segment_text)} tokens")
 
-            # テキストの埋め込みを取得
+            # Get text embedding
             embedding_response = client.embeddings.create(
                 model="text-embedding-3-small",
                 input=segment_text,
                 encoding_format="float",
             )
 
-            # ベクトル検索サービスに保存（タイムスタンプ検索用セグメント）
+            # Save to vector search service (timestamp search segments)
             try:
                 search_service = VectorSearchFactory.create_search_service(
                     user_id=video.user.id, openai_api_key=api_key
                 )
 
-                # タイムスタンプ検索用のメタデータを準備
+                # Prepare metadata for timestamp search
                 feature_document = {
                     "vector": embedding_response.data[0].embedding,
                     "video_id": str(video.id),
@@ -507,7 +507,7 @@ def process_video(video_id):
                     "type": "feature",
                 }
 
-                # ベクトル検索サービスに保存
+                # Save to vector search service
                 if VectorSearchFactory.is_opensearch_enabled():
                     search_service.opensearch.index(
                         index=search_service.features_index_name,
@@ -516,7 +516,7 @@ def process_video(video_id):
                         routing=str(video.user.id),
                     )
                 elif VectorSearchFactory.is_pinecone_enabled():
-                    # Pinecone用のデータ形式に変換
+                    # Convert to Pinecone data format
                     feature_data = [
                         {
                             "vector": feature_document["vector"],
@@ -531,7 +531,7 @@ def process_video(video_id):
             except Exception as e:
                 print(f"Warning: Failed to save feature to vector search service: {e}")
 
-        # RAG用の大きなチャンクを作成（トークン数ベース）
+        # Create large chunks for RAG (token-based)
         print("Creating RAG chunks with token-based splitting...")
         chunks = create_chunks_from_segments(
             all_segments, max_tokens_per_chunk=7500, overlap_tokens=500
@@ -540,31 +540,31 @@ def process_video(video_id):
         for i, chunk in enumerate(chunks):
             print(f"Creating RAG chunk {i+1}/{len(chunks)}")
 
-            # トークン数を確認（既に制限内に収まっているはず）
+            # Check token count (should already be within limits)
             chunk_text = chunk["text"]
             token_count = count_tokens(chunk_text)
             print(f"RAG chunk {i+1} token count: {token_count}")
 
-            # 念のためチェック（通常は不要だが安全のため）
+            # Safety check (usually not needed but for safety)
             if token_count > 8000:
                 print(f"Warning: RAG chunk {i+1} still exceeds limit, truncating...")
                 chunk_text = truncate_text_to_token_limit(chunk_text)
                 print(f"RAG chunk {i+1} truncated to {count_tokens(chunk_text)} tokens")
 
-            # チャンクの埋め込みを取得
+            # Get chunk embedding
             embedding_response = client.embeddings.create(
                 model="text-embedding-3-small",
                 input=chunk_text,
                 encoding_format="float",
             )
 
-            # ベクトル検索サービスに直接保存（RAG用チャンク）
+            # Save directly to vector search service (RAG chunks)
             try:
                 search_service = VectorSearchFactory.create_search_service(
                     user_id=video.user.id, openai_api_key=api_key
                 )
 
-                # チャンク用のメタデータを準備
+                # Prepare metadata for chunks
                 chunk_document = {
                     "vector": embedding_response.data[0].embedding,
                     "video_id": str(video.id),
@@ -576,7 +576,7 @@ def process_video(video_id):
                     "type": "chunk",
                 }
 
-                # ベクトル検索サービスに保存
+                # Save to vector search service
                 if VectorSearchFactory.is_opensearch_enabled():
                     search_service.opensearch.index(
                         index=search_service.chunks_index_name,
@@ -585,7 +585,7 @@ def process_video(video_id):
                         routing=str(video.user.id),
                     )
                 elif VectorSearchFactory.is_pinecone_enabled():
-                    # Pinecone用のデータ形式に変換
+                    # Convert to Pinecone data format
                     chunk_data = [
                         {
                             "vector": chunk_document["vector"],
@@ -616,7 +616,7 @@ def process_video(video_id):
         logger.info(f"Total RAG chunks: {len(chunks)}")
 
     except VideoQException as e:
-        # VideoQExceptionの場合はそのまま再発生
+        # For VideoQException, re-raise as is
         log_error(
             f"VideoQ error processing video {video_id}: {e.message}",
             user_id=user.id,
@@ -627,7 +627,7 @@ def process_video(video_id):
         video.save()
         raise
     except Exception as e:
-        # その他の例外
+        # Other exceptions
         error_msg = f"Error processing video {video_id}: {e}"
         log_error(error_msg, user_id=user.id, video_id=video_id)
         video.status = "error"
@@ -635,7 +635,7 @@ def process_video(video_id):
         video.save()
         raise VideoProcessingError(error_msg, video_id=video_id)
     finally:
-        # 一時ファイルを削除
+        # Delete temporary files
         for segment_info in audio_segments:
             try:
                 os.remove(segment_info["path"])
@@ -643,7 +643,7 @@ def process_video(video_id):
             except Exception as e:
                 logger.warning(f"Error cleaning up temporary file: {e}")
 
-        # メインの一時ファイルも削除
+        # Also delete main temporary file
         if video_file_path and os.path.exists(video_file_path):
             try:
                 os.remove(video_file_path)

@@ -5,13 +5,13 @@ register = template.Library()
 
 @register.filter
 def format_hms(value):
-    """秒数(float可)を h:mm:ss または m:ss に整形（切り捨て基準）"""
+    """Format seconds (float allowed) to h:mm:ss or m:ss (truncated)"""
     try:
         seconds = float(value or 0)
     except (TypeError, ValueError):
         return "0:00"
 
-    total_seconds = int(seconds)  # 小数は切り捨て
+    total_seconds = int(seconds)  # Truncate decimals
     hours = total_seconds // 3600
     minutes = (total_seconds % 3600) // 60
     secs = total_seconds % 60

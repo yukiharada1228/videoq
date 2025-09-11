@@ -2,18 +2,18 @@
 
 {% load tz %}
 
-{% block title %}動画グループ一覧 - VideoQ{% endblock %}
+{% block title %}Video Group List - VideoQ{% endblock %}
 
 {% block content %}
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2>動画グループ一覧</h2>
+        <h2>Video Group List</h2>
         <div class="d-flex gap-2">
             <a href="{% url 'app:home' %}" class="btn btn-outline-secondary">
-                <i class="bi bi-house"></i> ホーム
+                <i class="bi bi-house"></i> Home
             </a>
             <a href="{% url 'app:video_group_create' %}" class="btn btn-primary">
-                <i class="bi bi-plus-circle"></i> 新しいグループを作成
+                <i class="bi bi-plus-circle"></i> Create New Group
             </a>
         </div>
     </div>
@@ -34,20 +34,20 @@
                             {% endif %}
                             <div class="d-flex justify-content-between align-items-center">
                                 <small class="text-muted">
-                                    <i class="bi bi-collection-play"></i> {{ group.video_count }}本の動画
+                                    <i class="bi bi-collection-play"></i> {{ group.video_count }} videos
                                 </small>
                                 <small class="text-muted">
-                                    作成: {{ group.created_at|localtime|date:"Y-m-d" }}
+                                    Created: {{ group.created_at|date:"Y-m-d" }}
                                 </small>
                             </div>
                         </div>
                         <div class="card-footer">
                             <div class="d-flex gap-2">
                                 <a href="{% url 'app:video_group_detail' group.pk %}#chat" class="btn btn-success btn-sm w-100">
-                                    <i class="bi bi-chat"></i> チャット
+                                    <i class="bi bi-chat"></i> Chat
                                 </a>
                                 <a href="{% url 'app:video_group_delete' group.pk %}" class="btn btn-outline-danger btn-sm w-100 mt-1">
-                                    <i class="bi bi-trash"></i> グループ削除
+                                    <i class="bi bi-trash"></i> Delete Group
                                 </a>
                             </div>
                         </div>
@@ -59,10 +59,10 @@
         <div class="card">
             <div class="card-body text-center">
                 <i class="bi bi-collection display-1 text-muted mb-3"></i>
-                <h5 class="card-title">まだ動画グループがありません</h5>
-                <p class="card-text">動画をグループ化して、まとめてチャットできるようにしましょう！</p>
+                <h5 class="card-title">No video groups yet</h5>
+                <p class="card-text">Let's group your videos and chat with them together!</p>
                 <a href="{% url 'app:video_group_create' %}" class="btn btn-primary">
-                    <i class="bi bi-plus-circle"></i> 最初のグループを作成
+                    <i class="bi bi-plus-circle"></i> Create First Group
                 </a>
             </div>
         </div>

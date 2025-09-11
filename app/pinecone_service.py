@@ -6,7 +6,7 @@ from app.base_vector_service import BaseVectorService
 
 
 class PineconeService(BaseVectorService):
-    """Pineconeサーバレスによる動画グループ検索サービス（ユーザーごとインデックス分割）"""
+    """Video group search service using Pinecone serverless (index split per user)"""
 
     def __init__(
         self,
@@ -17,7 +17,7 @@ class PineconeService(BaseVectorService):
         pinecone_region: str | None = None,
         ensure_indexes: bool = True,
     ):
-        # Pineconeサーバレスクライアントの初期化
+        # Initialize Pinecone serverless client
         self.pinecone_api_key = pinecone_api_key or os.getenv("PINECONE_API_KEY")
         self.pinecone_cloud = pinecone_cloud or os.getenv("PINECONE_CLOUD", "aws")
         self.pinecone_region = pinecone_region or os.getenv(
@@ -31,7 +31,7 @@ class PineconeService(BaseVectorService):
         if not self.pinecone_region:
             raise ValueError("Pinecone region is required for serverless")
 
-        # Pineconeサーバレス接続
+        # Pinecone serverless connection
         try:
             self.pinecone = Pinecone(api_key=self.pinecone_api_key)
             print(
@@ -41,7 +41,7 @@ class PineconeService(BaseVectorService):
             print(f"Error connecting to Pinecone serverless: {e}")
             raise
 
-        # ベースクラスの初期化
+        # Initialize base class
         super().__init__(
             user_id=user_id,
             openai_api_key=openai_api_key,
@@ -49,17 +49,17 @@ class PineconeService(BaseVectorService):
         )
 
     def _get_chunks_index_name(self) -> str:
-        """チャンクインデックス名を取得（固定）"""
+        """Get chunks index name (fixed)"""
         return "videoq-chunks"
 
     def _get_features_index_name(self) -> str:
-        """フィーチャーインデックス名を取得（固定）"""
+        """Get features index name (fixed)"""
         return "videoq-features"
 
     def _ensure_indexes_exist(self):
-        """Pineconeサーバレスインデックスを作成（固定名のみ）"""
+        """Create Pinecone serverless indexes (fixed names only)"""
         try:
-            # チャンク用サーバレスインデックス
+            # Serverless index for chunks
             if self.chunks_index_name not in self.pinecone.list_indexes():
                 print(f"Creating serverless index: {self.chunks_index_name}")
                 self.pinecone.create_index(
@@ -74,7 +74,7 @@ class PineconeService(BaseVectorService):
             else:
                 print(f"Serverless index {self.chunks_index_name} already exists")
 
-            # フィーチャー用サーバレスインデックス
+            # Serverless index for features
             if self.features_index_name not in self.pinecone.list_indexes():
                 print(f"Creating serverless index: {self.features_index_name}")
                 self.pinecone.create_index(
@@ -97,7 +97,7 @@ class PineconeService(BaseVectorService):
     def search_group_chunks(
         self, group: VideoGroup, query: str, max_results: int = 5
     ) -> List[Dict[str, Any]]:
-        """グループ内のチャンクをサーバレスインデックスから検索（namespace=user_id）"""
+        """Search chunks in group from serverless index (namespace=user_id)"""
         try:
             index = self.pinecone.Index(self.chunks_index_name)
         except Exception as e:
@@ -138,7 +138,7 @@ class PineconeService(BaseVectorService):
     def search_group_features(
         self, group: VideoGroup, query: str, max_results: int = 5
     ) -> list:
-        """グループ内のタイムスタンプ付きセグメントをサーバレスインデックスから検索（namespace=user_id）"""
+        """Search timestamped segments in group from serverless index (namespace=user_id)"""
         try:
             index = self.pinecone.Index(self.features_index_name)
         except Exception as e:
@@ -164,8 +164,8 @@ class PineconeService(BaseVectorService):
             metadata = match.metadata
             timestamp = metadata.get("timestamp", 0.0)
 
-            # 同じvideo_idとtimestampでchunksインデックスからend_timeを取得
-            end_time = timestamp  # デフォルト値
+            # Get end_time from chunks index with same video_id and timestamp
+            end_time = timestamp  # Default value
             try:
                 chunks_index = self.pinecone.Index(self.chunks_index_name)
                 chunk_search_response = chunks_index.query(
@@ -200,15 +200,15 @@ class PineconeService(BaseVectorService):
         return results
 
     def delete_video_data(self, video_id: int):
-        """特定の動画のデータを削除（namespace=user_id）"""
+        """Delete data for specific video (namespace=user_id)"""
         try:
-            # チャンクインデックスから削除
+            # Delete from chunks index
             chunks_index = self.pinecone.Index(self.chunks_index_name)
             chunks_index.delete(
                 filter={"video_id": str(video_id)}, namespace=str(self.user_id)
             )
 
-            # フィーチャーインデックスから削除
+            # Delete from features index
             features_index = self.pinecone.Index(self.features_index_name)
             features_index.delete(
                 filter={"video_id": str(video_id)}, namespace=str(self.user_id)
@@ -221,7 +221,7 @@ class PineconeService(BaseVectorService):
             raise
 
     def get_index_info(self):
-        """インデックス情報を取得（namespaceごと）"""
+        """Get index information (per namespace)"""
         try:
             chunks_index = self.pinecone.Index(self.chunks_index_name)
             features_index = self.pinecone.Index(self.features_index_name)
@@ -250,7 +250,7 @@ class PineconeService(BaseVectorService):
             return {"error": str(e)}
 
     def upsert_chunks(self, chunks_data: List[Dict[str, Any]]):
-        """チャンクデータをPineconeサーバレスインデックスに挿入（namespace=user_id）"""
+        """Insert chunk data into Pinecone serverless index (namespace=user_id)"""
         try:
             index = self.pinecone.Index(self.chunks_index_name)
 
@@ -275,7 +275,7 @@ class PineconeService(BaseVectorService):
                     }
                 )
 
-            # サーバレスインデックスにバッチで挿入
+            # Batch insert to serverless index
             index.upsert(vectors=vectors, namespace=str(self.user_id))
             print(
                 f"Upserted {len(vectors)} chunks to Pinecone serverless index (namespace={self.user_id})"
@@ -286,7 +286,7 @@ class PineconeService(BaseVectorService):
             raise
 
     def upsert_features(self, features_data: List[Dict[str, Any]]):
-        """フィーチャーデータをPineconeサーバレスインデックスに挿入（namespace=user_id）"""
+        """Insert feature data into Pinecone serverless index (namespace=user_id)"""
         try:
             index = self.pinecone.Index(self.features_index_name)
 
@@ -307,7 +307,7 @@ class PineconeService(BaseVectorService):
                     }
                 )
 
-            # サーバレスインデックスにバッチで挿入
+            # Batch insert to serverless index
             index.upsert(vectors=vectors, namespace=str(self.user_id))
             print(
                 f"Upserted {len(vectors)} features to Pinecone serverless index (namespace={self.user_id})"
@@ -318,7 +318,7 @@ class PineconeService(BaseVectorService):
             raise
 
     def delete_user_namespace(self):
-        """このユーザーのnamespace全体を削除（退会・オフボード用）"""
+        """Delete entire namespace for this user (for account deletion/offboarding)"""
         try:
             chunks_index = self.pinecone.Index(self.chunks_index_name)
             features_index = self.pinecone.Index(self.features_index_name)

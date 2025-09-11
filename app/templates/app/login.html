@@ -1,6 +1,6 @@
 {% extends 'app/base.html' %}
 
-{% block title %}ログイン - VideoQ{% endblock %}
+{% block title %}Login - VideoQ{% endblock %}
 
 {% block content %}
 <div class="login-container">
@@ -10,14 +10,14 @@
                 <div class="login-logo mb-3">
                     <i class="bi bi-play-circle-fill"></i>
                 </div>
-                <h2 class="login-title">VideoQへようこそ</h2>
-                <p class="login-subtitle">動画の文字起こし・グループ化・チャットで活用</p>
+                <h2 class="login-title">Welcome to VideoQ</h2>
+                <p class="login-subtitle">Transcribe, group, and chat with your videos</p>
             </div>
 
             {% if form.errors %}
                 <div class="alert alert-danger d-flex align-items-center">
                     <i class="bi bi-exclamation-triangle me-2"></i>
-                    <div>ユーザー名またはパスワードが正しくありません。</div>
+                    <div>Username or password is incorrect.</div>
                 </div>
             {% endif %}
 
@@ -25,7 +25,7 @@
                 {% csrf_token %}
                 <div class="form-group mb-4">
                     <label for="id_username" class="form-label">
-                        <i class="bi bi-person me-2"></i>ユーザー名
+                        <i class="bi bi-person me-2"></i>Username
                     </label>
                     <input type="text" 
                            name="username" 
@@ -34,7 +34,7 @@
                            maxlength="150" 
                            class="form-control form-control-lg" 
                            id="id_username" 
-                           placeholder="ユーザー名を入力" 
+                           placeholder="Enter username" 
                            value="{{ form.username.value|default:'' }}">
                     {% if form.username.errors %}
                         <div class="text-danger small mt-1">{{ form.username.errors.0 }}</div>
@@ -43,34 +43,34 @@
 
                 <div class="form-group mb-4">
                     <label for="id_password" class="form-label">
-                        <i class="bi bi-lock me-2"></i>パスワード
+                        <i class="bi bi-lock me-2"></i>Password
                     </label>
                     <input type="password" 
                            name="password" 
                            required 
                            class="form-control form-control-lg" 
                            id="id_password" 
-                           placeholder="パスワードを入力">
+                           placeholder="Enter password">
                     {% if form.password.errors %}
                         <div class="text-danger small mt-1">{{ form.password.errors.0 }}</div>
                     {% endif %}
                 </div>
 
                 <button type="submit" class="btn btn-primary btn-lg w-100 mb-4">
-                    <i class="bi bi-box-arrow-in-right me-2"></i>ログイン
+                    <i class="bi bi-box-arrow-in-right me-2"></i>Login
                 </button>
             </form>
 
             <div class="login-footer text-center">
                 <a href="{% url 'app:password_reset' %}" class="text-decoration-none">
-                    <i class="bi bi-question-circle me-1"></i>パスワードを忘れた場合
+                    <i class="bi bi-question-circle me-1"></i>Forgot password?
                 </a>
                 <hr class="my-4">
                 {% if SIGNUP_ENABLED %}
                 <p class="mb-0">
-                    アカウントをお持ちでない方は
+                    Don't have an account?
                     <a href="{% url 'app:signup' %}" class="text-decoration-none fw-bold">
-                        新規登録
+                        Sign Up
                     </a>
                 </p>
                 {% endif %}
@@ -182,7 +182,7 @@
     font-size: clamp(0.85rem, 2vw, 1rem);
 }
 
-/* レスポンシブ */
+/* Responsive */
 @media (max-width: 768px) {
     .login-container {
         padding: 1rem 0.5rem;
@@ -214,7 +214,7 @@
     }
 }
 
-/* 大きな画面での最適化 */
+/* Optimization for large screens */
 @media (min-width: 1200px) {
     .login-card {
         max-width: 700px;
