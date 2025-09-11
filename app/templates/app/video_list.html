@@ -94,7 +94,12 @@
             <div class="card-body">
                 <form method="get" class="row g-3">
                     <div class="col-md-4">
-                        <label for="tag" class="form-label">Search by Tag</label>
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <label for="tag" class="form-label mb-0">Search by Tag</label>
+                            <a href="{% url 'app:tag_management' %}" class="btn btn-outline-secondary btn-sm" title="Manage Tags">
+                                <i class="bi bi-hash"></i> Manage
+                            </a>
+                        </div>
                         <select name="tag" id="tag" class="form-select">
                             <option value="">All Tags</option>
                             {% for tag in available_tags %}

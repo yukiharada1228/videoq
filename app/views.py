@@ -208,18 +208,28 @@ class VideoUploadView(LoginRequiredMixin, CreateView):
     def form_valid(self, form):
         user = self.request.user
         max_allowed = user.get_video_limit()
-        
+
         # Check video limit before saving
         current_total = Video.get_visible_videos_for_user(user).count()
         if current_total >= max_allowed:
             # Return error for AJAX requests
             if self.request.headers.get("X-Requested-With") == "XMLHttpRequest":
-                return JsonResponse({
-                    "success": False, 
-                    "errors": {"file": [f"Video limit reached ({max_allowed} videos). Please delete some videos first."]}
-                }, status=403)
+                return JsonResponse(
+                    {
+                        "success": False,
+                        "errors": {
+                            "file": [
+                                f"Video limit reached ({max_allowed} videos). Please delete some videos first."
+                            ]
+                        },
+                    },
+                    status=403,
+                )
             # For regular requests, add error to form
-            form.add_error("file", f"Video limit reached ({max_allowed} videos). Please delete some videos first.")
+            form.add_error(
+                "file",
+                f"Video limit reached ({max_allowed} videos). Please delete some videos first.",
+            )
             return self.form_invalid(form)
 
         form.instance.user = user
