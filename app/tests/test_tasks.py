@@ -5,6 +5,7 @@ from unittest.mock import patch, MagicMock
 from app.models import Video
 from app.tasks import process_video
 from app.crypto_utils import encrypt_api_key
+from app.exceptions import VideoProcessingError
 
 
 @override_settings(
@@ -32,10 +33,12 @@ class TaskTests(TestCase):
 
     def test_process_video_without_api_key_sets_error(self):
         video = self._create_video()
-        process_video(video.id)
+        with self.assertRaises(VideoProcessingError) as context:
+            process_video(video.id)
         video.refresh_from_db()
         self.assertEqual(video.status, "error")
         self.assertIn("OpenAI API key not registered", video.error_message)
+        self.assertIn("OpenAI API key not registered", str(context.exception))
 
     @patch("app.tasks.OpenAI")
     @patch(
