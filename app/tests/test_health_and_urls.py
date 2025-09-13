@@ -1,6 +1,6 @@
-from django.test import TestCase, Client, override_settings
-from django.urls import reverse, resolve
 from django.conf import settings
+from django.test import Client, TestCase, override_settings
+from django.urls import resolve, reverse
 
 
 @override_settings(

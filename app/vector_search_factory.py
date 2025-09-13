@@ -1,5 +1,6 @@
 import os
 from typing import Union
+
 from app.opensearch_service import OpenSearchService
 from app.pinecone_service import PineconeService
 

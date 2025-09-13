@@ -1,8 +1,10 @@
 import os
-from typing import List, Dict, Any
+from typing import Any, Dict, List
+
 from pinecone import Pinecone, ServerlessSpec
-from app.models import VideoGroup
+
 from app.base_vector_service import BaseVectorService
+from app.models import VideoGroup
 
 
 class PineconeService(BaseVectorService):

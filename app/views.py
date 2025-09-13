@@ -1,60 +1,41 @@
-from django.shortcuts import get_object_or_404
-from django.urls import reverse_lazy
-from django.views.generic import (
-    TemplateView,
-    CreateView,
-    DeleteView,
-    DetailView,
-    ListView,
-    UpdateView,
-)
-from django.views import View
-from django.http import JsonResponse, HttpResponse, StreamingHttpResponse
-from django.views.decorators.csrf import csrf_exempt
-from django.utils.decorators import method_decorator
-from .forms import (
-    SignUpForm,
-    activate_user,
-    VideoUploadForm,
-    VideoEditForm,
-    VideoGroupForm,
-    OpenAIKeyForm,
-    TagForm,
-)
-from django.contrib.auth.mixins import LoginRequiredMixin
-from django.contrib.auth.views import LoginView as AuthLoginView
-from .models import Video, VideoGroup, VideoGroupMember, Tag, VideoGroupChatLog
-from .tasks import (
-    process_video,
-)
-from app.vector_search_factory import VectorSearchFactory
-import json
-from django.contrib import messages
-from django.views.generic.edit import FormView
-from django.shortcuts import redirect
-from django.conf import settings
-from cryptography.fernet import Fernet
 import base64
 import hashlib
-from app.crypto_utils import encrypt_api_key, decrypt_api_key
-import secrets
-from django.contrib.auth.decorators import login_required
-from django.http import HttpResponse, Http404
-from django.utils import timezone
-from django.views.decorators.csrf import csrf_exempt
-import os
-import mimetypes
-from django.urls import resolve
-from django.core.paginator import Paginator
-from django.db.models import Sum, Count, Q
+import json
 import logging
-from .exceptions import (
-    VideoQException,
-    VideoProcessingError,
-    VectorSearchError,
-    ValidationError,
-)
-from .utils import ErrorResponseHandler, log_operation, log_error
+import mimetypes
+import os
+import secrets
+
+from cryptography.fernet import Fernet
+from django.conf import settings
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.views import LoginView as AuthLoginView
+from django.core.paginator import Paginator
+from django.db.models import Count, Q, Sum
+from django.http import (Http404, HttpResponse, JsonResponse,
+                         StreamingHttpResponse)
+from django.shortcuts import get_object_or_404, redirect
+from django.urls import resolve, reverse_lazy
+from django.utils import timezone
+from django.utils.decorators import method_decorator
+from django.views import View
+from django.views.decorators.csrf import csrf_exempt
+from django.views.generic import (CreateView, DeleteView, DetailView, ListView,
+                                  TemplateView, UpdateView)
+from django.views.generic.edit import FormView
+
+from app.crypto_utils import decrypt_api_key, encrypt_api_key
+from app.vector_search_factory import VectorSearchFactory
+
+from .exceptions import (ValidationError, VectorSearchError,
+                         VideoProcessingError, VideoQException)
+from .forms import (OpenAIKeyForm, SignUpForm, TagForm, VideoEditForm,
+                    VideoGroupForm, VideoUploadForm, activate_user)
+from .models import Tag, Video, VideoGroup, VideoGroupChatLog, VideoGroupMember
+from .tasks import process_video
+from .utils import ErrorResponseHandler, log_error, log_operation
 
 # Logger configuration
 logger = logging.getLogger("app")
@@ -690,8 +671,9 @@ class SignUpView(CreateView):
         return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
-        import markdown
         import os
+
+        import markdown
 
         context = super().get_context_data(**kwargs)
         terms_md_path = os.path.join(
@@ -1557,8 +1539,9 @@ class ChatLogDashboardView(LoginRequiredMixin, TemplateView):
         per_page = max(5, min(per_page, 100))
 
         # Date range filter
-        from django.utils.dateparse import parse_date, parse_datetime
         import datetime as _dt
+
+        from django.utils.dateparse import parse_date, parse_datetime
 
         start_param = self.request.GET.get("start") or ""
         end_param = self.request.GET.get("end") or ""
@@ -1661,9 +1644,10 @@ class ChatLogBulkDeleteView(LoginRequiredMixin, View):
     """Bulk delete chat history (matching dashboard display conditions, owner only)"""
 
     def post(self, request):
+        import datetime as _dt
+
         from django.db.models import Q
         from django.utils.dateparse import parse_date, parse_datetime
-        import datetime as _dt
 
         logs_qs = VideoGroupChatLog.objects.filter(owner=request.user)
 
@@ -1731,12 +1715,13 @@ class ChatLogExportView(LoginRequiredMixin, View):
     """Export chat history (CSV/JSONL). Apply same filters as dashboard."""
 
     def get(self, request):
-        from django.db.models import Q
-        from django.utils.dateparse import parse_date, parse_datetime
-        import datetime as _dt
         import csv
+        import datetime as _dt
         import json
+
+        from django.db.models import Q
         from django.http import HttpResponse
+        from django.utils.dateparse import parse_date, parse_datetime
 
         fmt = (request.GET.get("format") or "csv").lower()
         if fmt not in ("csv", "jsonl"):

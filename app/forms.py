@@ -1,3 +1,5 @@
+import os
+
 from django import forms
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -5,8 +7,8 @@ from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
-from .models import Video, VideoGroup, Tag
-import os
+
+from .models import Tag, Video, VideoGroup
 
 User = get_user_model()
 

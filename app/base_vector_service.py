@@ -1,10 +1,12 @@
 import os
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Generator
-from openai import OpenAI
-from app.models import VideoGroup
+from typing import Any, Dict, Generator, List
+
 import tiktoken
+from openai import OpenAI
 from pydantic import BaseModel, Field
+
+from app.models import VideoGroup
 
 
 class RelatedQuestion(BaseModel):

@@ -1,11 +1,13 @@
-from django.test import TestCase, override_settings
+from unittest.mock import MagicMock, patch
+
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
-from unittest.mock import patch, MagicMock
-from app.models import Video
-from app.tasks import process_video
+from django.test import TestCase, override_settings
+
 from app.crypto_utils import encrypt_api_key
 from app.exceptions import VideoProcessingError
+from app.models import Video
+from app.tasks import process_video
 
 
 @override_settings(

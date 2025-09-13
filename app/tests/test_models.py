@@ -1,7 +1,8 @@
-from django.test import TestCase, override_settings
 from django.contrib.auth import get_user_model
-from app.models import Video, VideoGroup, VideoGroupMember, Tag
 from django.core.files.base import ContentFile
+from django.test import TestCase, override_settings
+
+from app.models import Tag, Video, VideoGroup, VideoGroupMember
 
 
 @override_settings(

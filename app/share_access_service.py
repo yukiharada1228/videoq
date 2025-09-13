@@ -1,9 +1,11 @@
-import redis
 import json
 import time
 import uuid
-from django.conf import settings
 from typing import Optional, Tuple
+
+import redis
+from django.conf import settings
+
 from .models import VideoGroup
 
 
