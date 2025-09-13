@@ -1,6 +1,8 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import User, Video, VideoGroup, VideoGroupMember, VideoGroupChatLog
+
+from .models import (User, Video, VideoGroup, VideoGroupChatLog,
+                     VideoGroupMember)
 
 
 @admin.register(User)

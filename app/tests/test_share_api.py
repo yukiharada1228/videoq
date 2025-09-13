@@ -1,10 +1,12 @@
-from django.test import TestCase, Client, override_settings
+from unittest.mock import MagicMock, patch
+
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
-from unittest.mock import patch, MagicMock
-from app.models import Video, VideoGroup
-from app.crypto_utils import encrypt_api_key
+from django.test import Client, TestCase, override_settings
 from django.urls import reverse
+
+from app.crypto_utils import encrypt_api_key
+from app.models import Video, VideoGroup
 
 
 @override_settings(

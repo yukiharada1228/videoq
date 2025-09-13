@@ -1,6 +1,7 @@
-from .models import VideoGroup
-from openai import OpenAI
 import tiktoken
+from openai import OpenAI
+
+from .models import VideoGroup
 
 
 def count_tokens(text: str, model: str = "text-embedding-3-small") -> int:

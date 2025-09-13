@@ -1,20 +1,12 @@
-from django.urls import path
 from django.contrib.auth import views as auth_views
+from django.urls import path
+
 from . import views
-from .views import (
-    ShareVideoGroupView,
-    VideoGroupShareToggleView,
-    ShareVideoGroupChatView,
-    ShareVideoGroupChatStreamView,
-    ChatLogDashboardView,
-    ChatLogDeleteView,
-    ChatLogBulkDeleteView,
-    ChatLogExportView,
-    VideoGroupAddByTagsView,
-    TermsView,
-    PrivacyView,
-    protected_media,
-)
+from .views import (ChatLogBulkDeleteView, ChatLogDashboardView,
+                    ChatLogDeleteView, ChatLogExportView, PrivacyView,
+                    ShareVideoGroupChatStreamView, ShareVideoGroupChatView,
+                    ShareVideoGroupView, TermsView, VideoGroupAddByTagsView,
+                    VideoGroupShareToggleView, protected_media)
 
 app_name = "app"
 

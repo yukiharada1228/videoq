@@ -1,7 +1,9 @@
-from django.test import TestCase, Client, override_settings
-from django.contrib.auth import get_user_model
-from app.models import VideoGroup
 from unittest.mock import patch
+
+from django.contrib.auth import get_user_model
+from django.test import Client, TestCase, override_settings
+
+from app.models import VideoGroup
 
 
 @override_settings(

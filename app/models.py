@@ -1,10 +1,11 @@
-from django.db import models
-from django.contrib.auth.models import AbstractUser
-from django.conf import settings
-from django.core.files.storage import FileSystemStorage
-from storages.backends.s3boto3 import S3Boto3Storage
 import os
 import time
+
+from django.conf import settings
+from django.contrib.auth.models import AbstractUser
+from django.core.files.storage import FileSystemStorage
+from django.db import models
+from storages.backends.s3boto3 import S3Boto3Storage
 
 
 class User(AbstractUser):

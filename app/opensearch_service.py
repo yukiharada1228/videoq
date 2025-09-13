@@ -1,8 +1,10 @@
 import os
-from typing import List, Dict, Any
+from typing import Any, Dict, List
+
 from opensearchpy import OpenSearch
-from app.models import VideoGroup
+
 from app.base_vector_service import BaseVectorService
+from app.models import VideoGroup
 
 
 class OpenSearchService(BaseVectorService):

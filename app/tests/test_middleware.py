@@ -1,4 +1,4 @@
-from django.test import TestCase, Client, override_settings
+from django.test import Client, TestCase, override_settings
 
 
 @override_settings(
@@ -24,9 +24,10 @@ class BasicAuthMiddlewareTests(TestCase):
         self.assertEqual(resp.status_code, 200)
 
         # Test Basic auth middleware directly with proper settings
-        from app.middleware import BasicAuthMiddleware
-        from django.test import RequestFactory
         from django.conf import settings
+        from django.test import RequestFactory
+
+        from app.middleware import BasicAuthMiddleware
 
         # Create middleware instance with test settings
         middleware = BasicAuthMiddleware(lambda req: None)
@@ -70,9 +71,9 @@ class BasicAuthMiddlewareTests(TestCase):
 
     def test_basic_auth_disabled(self):
         """Test that Basic auth can be disabled"""
+        from django.test import RequestFactory, override_settings
+
         from app.middleware import BasicAuthMiddleware
-        from django.test import RequestFactory
-        from django.test import override_settings
 
         # Test with Basic auth disabled
         with override_settings(BASIC_AUTH_ENABLED=False):

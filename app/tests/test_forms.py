@@ -1,8 +1,9 @@
-from django.test import TestCase, override_settings
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.http import QueryDict
-from app.forms import VideoUploadForm, VideoEditForm, SignUpForm
+from django.test import TestCase, override_settings
+
+from app.forms import SignUpForm, VideoEditForm, VideoUploadForm
 
 
 @override_settings(

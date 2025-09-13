@@ -1,21 +1,20 @@
+import logging
 import os
-import tempfile
 import shutil
+import tempfile
+
 import ffmpeg
+import tiktoken
 from celery import shared_task
 from openai import OpenAI
-from .models import Video
+
 from app.crypto_utils import decrypt_api_key
 from app.vector_search_factory import VectorSearchFactory
-import tiktoken
-import logging
-from .exceptions import (
-    VideoProcessingError,
-    VectorSearchError,
-    OpenAIAPIError,
-    FileStorageError,
-)
-from .utils import log_operation, log_error
+
+from .exceptions import (FileStorageError, OpenAIAPIError, VectorSearchError,
+                         VideoProcessingError)
+from .models import Video
+from .utils import log_error, log_operation
 
 # Logger configuration
 logger = logging.getLogger("app.tasks")

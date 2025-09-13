@@ -1,8 +1,9 @@
-from django.test import TestCase, Client, override_settings
-from django.urls import reverse
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
-from app.models import Video, VideoGroup, Tag, VideoGroupMember
+from django.test import Client, TestCase, override_settings
+from django.urls import reverse
+
+from app.models import Tag, Video, VideoGroup, VideoGroupMember
 
 
 @override_settings(
