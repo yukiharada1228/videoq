@@ -1,5 +1,10 @@
+import logging
+
 from app.models import Video, VideoGroup, VideoGroupMember
+from app.tasks import transcribe_video
 from rest_framework import serializers
+
+logger = logging.getLogger(__name__)
 
 
 class UserOwnedSerializerMixin:
@@ -9,6 +14,14 @@ class UserOwnedSerializerMixin:
         """ユーザーを現在のユーザーに設定（DRY原則）"""
         validated_data["user"] = self.context["request"].user
         return super().create(validated_data)
+
+
+class BaseVideoGroupSerializer(serializers.ModelSerializer):
+    """VideoGroupの共通基底シリアライザー（DRY原則）"""
+
+    class Meta:
+        model = VideoGroup
+        fields = ["name", "description"]
 
 
 class VideoSerializer(serializers.ModelSerializer):
@@ -36,6 +49,20 @@ class VideoCreateSerializer(UserOwnedSerializerMixin, serializers.ModelSerialize
     class Meta:
         model = Video
         fields = ["file", "title", "description"]
+
+    def create(self, validated_data):
+        """Video作成時に文字起こしタスクを開始"""
+        video = super().create(validated_data)
+
+        # Celeryタスクを非同期で実行
+        logger.info(f"Starting transcription task for video ID: {video.id}")
+        try:
+            task = transcribe_video.delay(video.id)
+            logger.info(f"Transcription task created with ID: {task.id}")
+        except Exception as e:
+            logger.error(f"Failed to start transcription task: {e}")
+
+        return video
 
 
 class VideoUpdateSerializer(serializers.ModelSerializer):
@@ -110,17 +137,13 @@ class VideoGroupDetailSerializer(serializers.ModelSerializer):
         ]
 
 
-class VideoGroupCreateSerializer(UserOwnedSerializerMixin, serializers.ModelSerializer):
-    """VideoGroup作成用のシリアライザー"""
+class VideoGroupCreateSerializer(UserOwnedSerializerMixin, BaseVideoGroupSerializer):
+    """VideoGroup作成用のシリアライザー（DRY原則）"""
 
-    class Meta:
-        model = VideoGroup
-        fields = ["name", "description"]
+    pass
 
 
-class VideoGroupUpdateSerializer(serializers.ModelSerializer):
-    """VideoGroup更新用のシリアライザー"""
+class VideoGroupUpdateSerializer(BaseVideoGroupSerializer):
+    """VideoGroup更新用のシリアライザー（DRY原則）"""
 
-    class Meta:
-        model = VideoGroup
-        fields = ["name", "description"]
+    pass

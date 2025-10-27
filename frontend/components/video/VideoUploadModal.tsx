@@ -5,6 +5,7 @@ import { useVideoUpload } from '@/hooks/useVideoUpload';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { VideoUploadFormFields } from './VideoUploadFormFields';
+import { VideoUploadButton } from './VideoUploadButton';
 
 interface VideoUploadModalProps {
   isOpen: boolean;
@@ -67,15 +68,13 @@ export function VideoUploadModal({ isOpen, onClose, onUploadSuccess }: VideoUplo
             setTitle={setTitle}
             setDescription={setDescription}
             handleFileChange={handleFileChange}
-            showCancelButton={false}
+            hideButtons={true}
           />
           <DialogFooter>
             <Button type="button" variant="outline" onClick={handleClose} disabled={isUploading}>
               キャンセル
             </Button>
-            <Button type="submit" disabled={isUploading}>
-              {isUploading ? 'アップロード中...' : 'アップロード'}
-            </Button>
+            <VideoUploadButton isUploading={isUploading} />
           </DialogFooter>
         </form>
       </DialogContent>

@@ -8,12 +8,29 @@ interface UseVideoUploadReturn {
   isUploading: boolean;
   error: string | null;
   success: boolean;
-  setFile: (file: File | null) => void;
   setTitle: (title: string) => void;
   setDescription: (description: string) => void;
   handleFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  handleSubmit: (e: React.FormEvent, onSuccess?: () => void, onComplete?: () => void) => Promise<void>;
+  handleSubmit: (e: React.FormEvent, onSuccess?: () => void) => Promise<void>;
   reset: () => void;
+}
+
+interface ValidationResult {
+  isValid: boolean;
+  error?: string;
+}
+
+/**
+ * バリデーションロジック（DRY原則）
+ */
+function validateVideoUpload(file: File | null, title: string): ValidationResult {
+  if (!file) {
+    return { isValid: false, error: 'ファイルを選択してください' };
+  }
+  if (!title.trim()) {
+    return { isValid: false, error: 'タイトルを入力してください' };
+  }
+  return { isValid: true };
 }
 
 export function useVideoUpload(): UseVideoUploadReturn {
@@ -44,13 +61,10 @@ export function useVideoUpload(): UseVideoUploadReturn {
   ) => {
     e.preventDefault();
     
-    if (!file) {
-      setError('ファイルを選択してください');
-      return;
-    }
-
-    if (!title.trim()) {
-      setError('タイトルを入力してください');
+    // DRY原則: 共通のバリデーション関数を使用
+    const validation = validateVideoUpload(file, title);
+    if (!validation.isValid) {
+      setError(validation.error!);
       return;
     }
 
@@ -60,7 +74,7 @@ export function useVideoUpload(): UseVideoUploadReturn {
 
     try {
       const request: VideoUploadRequest = {
-        file,
+        file: file!,
         title: title.trim(),
         description: description.trim() || undefined,
       };
@@ -85,7 +99,6 @@ export function useVideoUpload(): UseVideoUploadReturn {
     isUploading,
     error,
     success,
-    setFile,
     setTitle,
     setDescription,
     handleFileChange,
