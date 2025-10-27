@@ -36,24 +36,29 @@ export function VideoList({ videos }: VideoListProps) {
         <Link key={video.id} href={`/videos/${video.id}`}>
           <Card className="hover:shadow-lg transition-all duration-300 cursor-pointer border border-gray-200 hover:border-blue-300 overflow-hidden group">
             {/* サムネイル */}
-            <div className="relative w-full h-48 bg-black overflow-hidden group">
+            <div className="relative w-full h-48 bg-gray-900 overflow-hidden group">
               {video.file ? (
-                <video 
-                  className="w-full h-full object-cover"
-                  muted
-                  playsInline
-                  onMouseEnter={(e) => {
-                    const video = e.currentTarget;
-                    video.play().catch(() => {});
-                  }}
-                  onMouseLeave={(e) => {
-                    const video = e.currentTarget;
-                    video.pause();
-                    video.currentTime = 0;
-                  }}
-                >
-                  <source src={video.file} type="video/mp4" />
-                </video>
+                <>
+                  <video 
+                    className="w-full h-full object-cover"
+                    muted
+                    playsInline
+                    preload="metadata"
+                    onMouseEnter={(e) => {
+                      const video = e.currentTarget;
+                      video.play().catch(() => {});
+                    }}
+                    onMouseLeave={(e) => {
+                      const video = e.currentTarget;
+                      video.pause();
+                      video.currentTime = 0;
+                    }}
+                  >
+                    <source src={video.file} type="video/mp4" />
+                  </video>
+                  {/* ホバー時のオーバーレイ（薄い） */}
+                  <div className="absolute inset-0 bg-black opacity-0 group-hover:opacity-20 transition-opacity pointer-events-none"></div>
+                </>
               ) : (
                 <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
                   <svg className="w-20 h-20 text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -62,14 +67,14 @@ export function VideoList({ videos }: VideoListProps) {
                 </div>
               )}
               {/* ステータスバッジ（上に表示） */}
-              <div className="absolute top-3 right-3">
+              <div className="absolute top-3 right-3 z-10">
                 <span className={getStatusBadgeClassName(video.status, 'sm')}>
                   {getStatusLabel(video.status)}
                 </span>
               </div>
               {/* ホバー時に表示されるプレイアイコン */}
-              <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 transition-opacity">
-                <div className="w-16 h-16 bg-white bg-opacity-90 rounded-full flex items-center justify-center">
+              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                <div className="w-16 h-16 bg-white bg-opacity-95 rounded-full flex items-center justify-center shadow-lg">
                   <svg className="w-8 h-8 text-gray-900 ml-1" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M8 5v14l11-7z" />
                   </svg>
