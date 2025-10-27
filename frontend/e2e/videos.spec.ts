@@ -39,9 +39,10 @@ test.describe('Videos', () => {
     // ページが読み込まれるまで待つ
     await page.waitForLoadState('domcontentloaded');
     
-    // 統計情報が表示されることを確認（Cardコンポーネントを探す）
-    const statsCards = page.locator('[class*="Card"], text=/動画/, text=/グループ/');
-    await expect(statsCards.first()).toBeVisible({ timeout: 10000 });
+    // 統計情報が表示されることを確認
+    // まずはページに何かコンテンツがあることを確認
+    const cards = page.locator('[class*="Card"]');
+    await expect(cards.first()).toBeVisible({ timeout: 10000 });
   });
 });
 
