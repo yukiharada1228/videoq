@@ -1,20 +1,21 @@
 """暗号化・復号化に関するユーティリティ関数"""
 
-from django.conf import settings
-from cryptography.fernet import Fernet
 import base64
+
+from cryptography.fernet import Fernet
+from django.conf import settings
 
 
 class EncryptionHelper:
     """暗号化・復号化のヘルパークラス（キー生成をキャッシュ）"""
-    
+
     _cipher_suite = None
-    
+
     @classmethod
     def get_cipher_suite(cls):
         """Fernet cipher suiteを取得（シングルトンパターン）"""
         if cls._cipher_suite is None:
-            secret_key = settings.SECRET_KEY.encode()[:32].ljust(32, b'0')
+            secret_key = settings.SECRET_KEY.encode()[:32].ljust(32, b"0")
             encryption_key = base64.urlsafe_b64encode(secret_key)
             cls._cipher_suite = Fernet(encryption_key)
         return cls._cipher_suite
