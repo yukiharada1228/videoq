@@ -27,8 +27,8 @@ test.describe('Videos', () => {
     // ページが読み込まれるまで待つ
     await page.waitForLoadState('domcontentloaded');
     
-    // ページが表示されていることを確認（より具体的なセレクター）
-    const heading = page.locator('h1, h2, [class*="title"]').first();
+    // "動画一覧"というヘッダーが表示されていることを確認
+    const heading = page.locator('h1:has-text("動画一覧")');
     await expect(heading).toBeVisible({ timeout: 5000 });
   });
 
@@ -39,10 +39,9 @@ test.describe('Videos', () => {
     // ページが読み込まれるまで待つ
     await page.waitForLoadState('domcontentloaded');
     
-    // 統計情報が表示されることを確認
-    // まずはページに何かコンテンツがあることを確認
-    const cards = page.locator('[class*="Card"]');
-    await expect(cards.first()).toBeVisible({ timeout: 10000 });
+    // "動画"という文字が表示されることを確認（統計情報の一部）
+    const statsSection = page.locator('text=動画, text=本の動画').first();
+    await expect(statsSection).toBeVisible({ timeout: 10000 });
   });
 });
 
