@@ -12,6 +12,11 @@ export interface RefreshResponse {
 export interface User {
   id: number;
   username: string;
+  encrypted_openai_api_key?: string | null;
+}
+
+export interface UpdateUserRequest {
+  encrypted_openai_api_key?: string | null;
 }
 
 export interface SignupRequest {
@@ -155,6 +160,13 @@ class ApiClient {
 
   async getMe(): Promise<User> {
     return this.request<User>('/auth/me');
+  }
+
+  async updateMe(data: UpdateUserRequest): Promise<User> {
+    return this.request<User>('/auth/me', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
   }
 
   async logout(): Promise<void> {

@@ -1,38 +1,16 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageLayout } from '@/components/layout/PageLayout';
-import { apiClient, User } from '@/lib/api';
+import { apiClient } from '@/lib/api';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/hooks/useAuth';
+import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 
 export default function Home() {
   const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    checkAuth();
-  }, []);
-
-  const checkAuth = async () => {
-    if (!apiClient.isAuthenticated()) {
-      router.push('/login');
-      return;
-    }
-
-    try {
-      const userData = await apiClient.getMe();
-      setUser(userData);
-    } catch (error) {
-      console.error('Failed to fetch user:', error);
-      apiClient.logout();
-      router.push('/login');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { user, loading } = useAuth();
 
   const handleLogout = () => {
     apiClient.logout();
@@ -40,14 +18,7 @@ export default function Home() {
   };
 
   if (loading || !user) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-center">
-          <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-gray-200 border-t-blue-600"></div>
-          <p className="text-gray-600">読み込み中...</p>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
   return (
@@ -55,6 +26,9 @@ export default function Home() {
       headerContent={
         <>
           <span className="text-gray-700">ようこそ、{user.username}さん</span>
+          <Button onClick={() => router.push('/settings')} variant="outline">
+            設定
+          </Button>
           <Button onClick={handleLogout} variant="outline">
             ログアウト
           </Button>
@@ -68,9 +42,27 @@ export default function Home() {
             <CardDescription>あなたのアカウント情報</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
-              <p><strong>ユーザー名:</strong> {user.username}</p>
-              <p><strong>ユーザーID:</strong> {user.id}</p>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <p><strong>ユーザー名:</strong> {user.username}</p>
+                <p><strong>ユーザーID:</strong> {user.id}</p>
+                <div className="border-t pt-2">
+                  <p className="text-sm font-medium text-gray-700">OpenAI API キー:</p>
+                  {user.encrypted_openai_api_key ? (
+                    <div className="mt-1 flex items-center gap-2">
+                      <code className="rounded bg-gray-100 px-2 py-1 text-sm font-mono">
+                        {user.encrypted_openai_api_key.substring(0, 8)}...
+                      </code>
+                      <span className="text-sm text-green-600">✓ 設定済み</span>
+                    </div>
+                  ) : (
+                    <div className="mt-1">
+                      <span className="text-sm text-gray-500">未設定</span>
+                      <p className="text-xs text-gray-400">設定ページでAPIキーを設定してください</p>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>

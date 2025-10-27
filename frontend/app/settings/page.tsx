@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,38 +8,23 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { apiClient } from '@/lib/api';
+import { useAuth } from '@/hooks/useAuth';
+import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 
 export default function Settings() {
   const router = useRouter();
+  const { user, loading } = useAuth();
   const [apiKey, setApiKey] = useState('');
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
+  // ユーザー情報が読み込まれたらAPIキーを設定
   useEffect(() => {
-    loadSettings();
-  }, []);
-
-  const loadSettings = async () => {
-    if (!apiClient.isAuthenticated()) {
-      router.push('/login');
-      return;
+    if (user && user.encrypted_openai_api_key) {
+      setApiKey(user.encrypted_openai_api_key);
     }
-
-    try {
-      const user = await apiClient.getMe();
-      if (user.encrypted_openai_api_key) {
-        setApiKey(user.encrypted_openai_api_key);
-      }
-    } catch (error) {
-      console.error('Failed to load settings:', error);
-      apiClient.logout();
-      router.push('/login');
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [user]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -87,15 +72,8 @@ export default function Settings() {
     );
   };
 
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-center">
-          <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-gray-200 border-t-blue-600"></div>
-          <p className="text-gray-600">読み込み中...</p>
-        </div>
-      </div>
-    );
+  if (loading || !user) {
+    return <LoadingSpinner />;
   }
 
   return (

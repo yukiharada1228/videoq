@@ -3,4 +3,6 @@ from django.db import models
 
 
 class User(AbstractUser):
-    pass
+    encrypted_openai_api_key = models.TextField(
+        blank=True, null=True, help_text="Encrypted OpenAI API key"
+    )
