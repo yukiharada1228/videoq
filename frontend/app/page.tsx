@@ -48,19 +48,16 @@ export default function Home() {
                 <p><strong>ユーザー名:</strong> {user.username}</p>
                 <p><strong>ユーザーID:</strong> {user.id}</p>
                 <div className="border-t pt-2">
-                  <p className="text-sm font-medium text-gray-700">OpenAI API キー:</p>
-                  {user.encrypted_openai_api_key ? (
-                    <div className="mt-1 flex items-center gap-2">
-                      <code className="rounded bg-gray-100 px-2 py-1 text-sm font-mono">
-                        {user.encrypted_openai_api_key.substring(0, 8)}...
-                      </code>
+                  <div className="mt-1 flex items-center gap-2">
+                    <span className="text-sm font-medium text-gray-700">OpenAI API キー:</span>
+                    {user.encrypted_openai_api_key ? (
                       <span className="text-sm text-green-600">✓ 設定済み</span>
-                    </div>
-                  ) : (
-                    <div className="mt-1">
+                    ) : (
                       <span className="text-sm text-gray-500">未設定</span>
-                      <p className="text-xs text-gray-400">設定ページでAPIキーを設定してください</p>
-                    </div>
+                    )}
+                  </div>
+                  {!user.encrypted_openai_api_key && (
+                    <p className="text-xs text-gray-400 mt-1">設定ページでAPIキーを設定してください</p>
                   )}
                 </div>
               </div>

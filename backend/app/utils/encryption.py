@@ -27,5 +27,10 @@ def decrypt_api_key(encrypted_text: str) -> str:
 
 def is_encrypted(text: str) -> bool:
     """テキストが既に暗号化されているかチェック"""
-    return text.startswith("gAAAAAB")
-
+    try:
+        encrypted_key = get_encryption_key()
+        cipher_suite = Fernet(encrypted_key)
+        cipher_suite.decrypt(text.encode())
+        return True
+    except:
+        return False
