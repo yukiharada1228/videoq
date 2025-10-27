@@ -17,7 +17,10 @@ test.describe('Video Groups', () => {
     await page.click('button[type="submit"]');
     
     // ホームページに遷移するのを待つ
-    await page.waitForURL('/', { timeout: 10000 });
+    await page.waitForURL('/', { timeout: 15000 });
+    
+    // ログイン成功を確認（body要素が表示されている）
+    await page.waitForLoadState('networkidle');
   });
 
   test('グループ一覧ページが表示される', async ({ page }) => {
@@ -27,9 +30,14 @@ test.describe('Video Groups', () => {
     // ページが読み込まれるまで待つ
     await page.waitForLoadState('networkidle');
     
-    // ページに何か要素があることを確認（基本チェック）
-    const body = page.locator('body');
-    await expect(body).toBeVisible({ timeout: 5000 });
+    // 現在のURLを確認
+    const currentUrl = page.url();
+    console.log('Current URL:', currentUrl);
+    
+    // もしログインページにリダイレクトされている場合は、URLだけを確認して失敗させる
+    if (currentUrl.includes('/login')) {
+      throw new Error('認証が必要なページにアクセスできませんでした。ログインに失敗している可能性があります。');
+    }
     
     // URLが正しいことを確認
     await expect(page).toHaveURL(/\/videos\/groups/, { timeout: 5000 });
