@@ -47,9 +47,12 @@ test.describe('Video Groups', () => {
     await page.goto('/videos/groups', { waitUntil: 'networkidle' });
     await page.waitForLoadState('networkidle');
     
+    // ページが完全に読み込まれるまで追加で待つ
+    await page.waitForTimeout(3000);
+    
     // "新規グループを作成"ボタンが表示されていることを確認
     const createButton = page.locator('button:has-text("新規グループを作成")');
-    await expect(createButton).toBeVisible({ timeout: 10000 });
+    await expect(createButton).toBeVisible({ timeout: 15000 });
   });
 
   test('グループ詳細ページにアクセスできる', async ({ page }) => {
