@@ -85,4 +85,70 @@ class Video(models.Model):
         ordering = ["-uploaded_at"]
 
     def __str__(self):
-        return f"{self.title} (by {self.user.username})"
+        # N+1問題対策: userが読み込まれていない場合はidを使用
+        try:
+            username = self.user.username
+        except AttributeError:
+            username = f"user_{self.user_id}"
+        return f"{self.title} (by {username})"
+
+
+class VideoGroup(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="video_groups"
+    )
+    name = models.CharField(max_length=255, help_text="Group name")
+    description = models.TextField(blank=True, help_text="Group description")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    # Share token (for external sharing URLs)
+    share_token = models.CharField(
+        max_length=64, unique=True, null=True, blank=True, help_text="Share token"
+    )
+
+    # Define relationship with videos using ManyToManyField
+    videos = models.ManyToManyField(
+        "Video", through="VideoGroupMember", related_name="video_groups_through"
+    )
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        # N+1問題対策: userが読み込まれていない場合はidを使用
+        try:
+            username = self.user.username
+        except AttributeError:
+            username = f"user_{self.user_id}"
+        return f"{self.name} (by {username})"
+
+
+class VideoGroupMember(models.Model):
+    group = models.ForeignKey(
+        VideoGroup, on_delete=models.CASCADE, related_name="members"
+    )
+    video = models.ForeignKey("Video", on_delete=models.CASCADE, related_name="groups")
+    added_at = models.DateTimeField(auto_now_add=True)
+    order = models.IntegerField(default=0, help_text="Order within the group")
+
+    class Meta:
+        ordering = ["order", "added_at"]
+        unique_together = [
+            "group",
+            "video",
+        ]  # Cannot add the same video to the same group multiple times
+
+    def __str__(self):
+        # N+1問題対策: videoとgroupが読み込まれていない場合はidを使用
+        try:
+            video_title = self.video.title
+        except AttributeError:
+            video_title = f"video_{self.video_id}"
+
+        try:
+            group_name = self.group.name
+        except AttributeError:
+            group_name = f"group_{self.group_id}"
+
+        return f"{video_title} in {group_name}"

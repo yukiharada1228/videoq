@@ -1,61 +1,164 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
-import { ChatPanel } from '@/components/chat/ChatPanel';
+import { Button } from '@/components/ui/button';
+import { apiClient } from '@/lib/api';
 
 export default function Home() {
   const router = useRouter();
   const { user, loading } = useAuth();
+  const [stats, setStats] = useState({
+    totalVideos: 0,
+    totalGroups: 0,
+    completedVideos: 0,
+    pendingVideos: 0,
+    processingVideos: 0,
+    errorVideos: 0,
+  });
+  const [isLoadingStats, setIsLoadingStats] = useState(true);
 
-  if (loading || !user) {
-    return <LoadingSpinner />;
+  useEffect(() => {
+    if (user) {
+      loadStats();
+    }
+  }, [user]);
+
+  const loadStats = async () => {
+    try {
+      setIsLoadingStats(true);
+      const [videos, groups] = await Promise.all([
+        apiClient.getVideos().catch(() => []),
+        apiClient.getVideoGroups().catch(() => []),
+      ]);
+
+      const completedCount = videos.filter(v => v.status === 'completed').length;
+      const pendingCount = videos.filter(v => v.status === 'pending').length;
+      const processingCount = videos.filter(v => v.status === 'processing').length;
+      const errorCount = videos.filter(v => v.status === 'error').length;
+
+      setStats({
+        totalVideos: videos.length,
+        totalGroups: groups.length,
+        completedVideos: completedCount,
+        pendingVideos: pendingCount,
+        processingVideos: processingCount,
+        errorVideos: errorCount,
+      });
+    } catch (err) {
+      console.error('Failed to load stats:', err);
+    } finally {
+      setIsLoadingStats(false);
+    }
+  };
+
+  const handleUploadClick = () => {
+    router.push('/videos?upload=true');
+  };
+
+  if (loading || !user || isLoadingStats) {
+    return (
+      <PageLayout>
+        <LoadingSpinner />
+      </PageLayout>
+    );
   }
 
   return (
-    <PageLayout
-      headerContent={
-        <button
-          onClick={() => router.push('/videos')}
-          className="text-gray-600 hover:text-gray-900 transition-colors"
-        >
-          動画一覧
-        </button>
-      }
-    >
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>ダッシュボード</CardTitle>
-            <CardDescription>あなたのアカウント情報</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <p><strong>ユーザー名:</strong> {user.username}</p>
-                <p><strong>ユーザーID:</strong> {user.id}</p>
-                <div className="border-t pt-2">
-                  <div className="mt-1 flex items-center gap-2">
-                    <span className="text-sm font-medium text-gray-700">OpenAI API キー:</span>
-                    {user.encrypted_openai_api_key ? (
-                      <span className="text-sm text-green-600">✓ 設定済み</span>
-                    ) : (
-                      <span className="text-sm text-gray-500">未設定</span>
-                    )}
-                  </div>
-                  {!user.encrypted_openai_api_key && (
-                    <p className="text-xs text-gray-400 mt-1">設定ページでAPIキーを設定してください</p>
-                  )}
-                </div>
+    <PageLayout>
+      <div className="max-w-4xl mx-auto space-y-8">
+        {/* ウェルカムセクション */}
+        <div className="text-center space-y-4">
+          <h1 className="text-5xl font-bold text-gray-900">Welcome back!</h1>
+          <p className="text-xl text-gray-600">{user.username}さん、おかえりなさい</p>
+        </div>
+
+        {/* メインアクション */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Card className="hover:shadow-xl transition-all cursor-pointer border-2 hover:border-blue-300" onClick={handleUploadClick}>
+            <CardHeader>
+              <div className="text-4xl mb-2">📹</div>
+              <CardTitle className="text-xl">動画をアップロード</CardTitle>
+              <CardDescription>新しい動画をアップロードして管理</CardDescription>
+            </CardHeader>
+          </Card>
+
+          <Card className="hover:shadow-xl transition-all cursor-pointer border-2 hover:border-green-300" onClick={() => router.push('/videos')}>
+            <CardHeader>
+              <div className="text-4xl mb-2">🎬</div>
+              <CardTitle className="text-xl">動画一覧</CardTitle>
+              <CardDescription className="text-2xl font-bold text-green-600">{stats.totalVideos}本</CardDescription>
+            </CardHeader>
+          </Card>
+
+          <Card className="hover:shadow-xl transition-all cursor-pointer border-2 hover:border-purple-300" onClick={() => router.push('/videos/groups')}>
+            <CardHeader>
+              <div className="text-4xl mb-2">📁</div>
+              <CardTitle className="text-xl">グループ</CardTitle>
+              <CardDescription className="text-2xl font-bold text-purple-600">{stats.totalGroups}個</CardDescription>
+            </CardHeader>
+          </Card>
+        </div>
+
+        {/* 統計情報 */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Card>
+            <CardContent className="pt-6 text-center">
+              <div className="text-4xl font-bold text-green-600">{stats.completedVideos}</div>
+              <p className="text-sm text-gray-600 mt-2">処理完了</p>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="pt-6 text-center">
+              <div className="text-4xl font-bold text-blue-600">{stats.pendingVideos}</div>
+              <p className="text-sm text-gray-600 mt-2">待機中</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-6 text-center">
+              <div className="text-4xl font-bold text-yellow-600">{stats.processingVideos}</div>
+              <p className="text-sm text-gray-600 mt-2">処理中</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-6 text-center">
+              <div className="text-4xl font-bold text-red-600">{stats.errorVideos}</div>
+              <p className="text-sm text-gray-600 mt-2">エラー</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* アカウント情報（簡潔） */}
+        <Card className="bg-gray-50">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">ユーザー名</p>
+                <p className="text-lg font-semibold text-gray-900">{user.username}</p>
+              </div>
+              <div className="text-right">
+                {user.encrypted_openai_api_key ? (
+                  <span className="text-sm text-green-600">✓ API キー設定済み</span>
+                ) : (
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={() => router.push('/settings')}
+                  >
+                    API キーを設定
+                  </Button>
+                )}
               </div>
             </div>
           </CardContent>
         </Card>
-        
-        <ChatPanel hasApiKey={!!user.encrypted_openai_api_key} />
       </div>
     </PageLayout>
   );
