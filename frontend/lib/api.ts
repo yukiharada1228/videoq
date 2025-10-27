@@ -52,6 +52,7 @@ export interface Video {
 
 export interface VideoList {
   id: number;
+  file: string;
   title: string;
   description: string;
   uploaded_at: string;
