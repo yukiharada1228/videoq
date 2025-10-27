@@ -10,19 +10,17 @@ test.describe('Video Groups', () => {
     
     // ログインフォームが表示されるまで待つ
     await page.waitForSelector('form', { timeout: 5000 });
-  });
-
-  test('グループ一覧ページが表示される', async ({ page }) => {
+    
     // ログイン処理
     await page.fill('input[name="username"]', 'testuser');
     await page.fill('input[name="password"]', 'testpass123');
-    
-    // ログインボタンをクリック
     await page.click('button[type="submit"]');
     
     // ホームページに遷移するのを待つ
     await page.waitForURL('/', { timeout: 10000 });
-    
+  });
+
+  test('グループ一覧ページが表示される', async ({ page }) => {
     // グループページに移動
     await page.goto('/videos/groups', { waitUntil: 'networkidle' });
     
@@ -38,14 +36,6 @@ test.describe('Video Groups', () => {
   });
 
   test('グループ作成ボタンが表示される', async ({ page }) => {
-    // ログイン処理
-    await page.fill('input[name="username"]', 'testuser');
-    await page.fill('input[name="password"]', 'testpass123');
-    await page.click('button[type="submit"]');
-    
-    // ホームページに遷移するのを待つ
-    await page.waitForURL('/', { timeout: 10000 });
-    
     // グループページに移動
     await page.goto('/videos/groups', { waitUntil: 'networkidle' });
     await page.waitForLoadState('networkidle');

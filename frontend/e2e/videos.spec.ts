@@ -18,6 +18,9 @@ test.describe('Videos', () => {
     
     // ホームページに遷移するのを待つ
     await page.waitForURL('/', { timeout: 10000 });
+    
+    // セッションを保持するために少し待つ
+    await page.waitForTimeout(1000);
   });
 
   test('動画一覧ページにアクセスできる', async ({ page }) => {
