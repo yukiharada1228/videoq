@@ -20,7 +20,7 @@ test.describe('Video Groups', () => {
     // ログインボタンをクリック
     await page.click('button[type="submit"]');
     
-    // ホームページに遷移するのを待つ（URLがルートに変わったことを確認）
+    // ホームページに遷移するのを待つ
     await page.waitForURL('/', { timeout: 10000 });
     
     // グループページに移動
@@ -29,13 +29,12 @@ test.describe('Video Groups', () => {
     // ページが読み込まれるまで待つ
     await page.waitForLoadState('networkidle');
     
-    // ページタイトルまたはカードコンポーネントを確認
-    // より柔軟なセレクターを使用
-    const pageContent = page.locator('body').first();
-    await expect(pageContent).toBeVisible({ timeout: 5000 });
+    // "動画グループ"というh1が表示されていることを確認
+    const heading = page.locator('h1:has-text("動画グループ")');
+    await expect(heading).toBeVisible({ timeout: 10000 });
   });
 
-  test('グループ作成ページにアクセスできる', async ({ page }) => {
+  test('グループ作成ボタンが表示される', async ({ page }) => {
     // ログイン処理
     await page.fill('input[name="username"]', 'testuser');
     await page.fill('input[name="password"]', 'testpass123');
@@ -48,12 +47,9 @@ test.describe('Video Groups', () => {
     await page.goto('/videos/groups', { waitUntil: 'networkidle' });
     await page.waitForLoadState('networkidle');
     
-    // ページにボタンが存在することを確認
-    const buttons = page.locator('button');
-    const buttonCount = await buttons.count();
-    
-    // ボタンが存在することを確認
-    expect(buttonCount).toBeGreaterThan(0);
+    // "新規グループを作成"ボタンが表示されていることを確認
+    const createButton = page.locator('button:has-text("新規グループを作成")');
+    await expect(createButton).toBeVisible({ timeout: 10000 });
   });
 
   test('グループ詳細ページにアクセスできる', async ({ page }) => {
@@ -72,13 +68,13 @@ test.describe('Video Groups', () => {
     // ローディングが完了するまで待つ
     await page.waitForTimeout(2000);
     
-    // グループカードまたはリンクを探す
-    const groupLinks = page.locator('a[href*="/groups/"]');
-    const linkCount = await groupLinks.count();
+    // Cardコンポーネントを探す
+    const groupCards = page.locator('[class*="Card"][class*="cursor-pointer"]');
+    const cardCount = await groupCards.count();
     
     // グループが存在する場合は詳細ページにアクセス
-    if (linkCount > 0) {
-      await groupLinks.first().click();
+    if (cardCount > 0) {
+      await groupCards.first().click();
       
       // URLが変更されていることを確認
       await expect(page).toHaveURL(/\/videos\/groups\/\d+/, { timeout: 10000 });

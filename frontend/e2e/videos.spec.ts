@@ -30,9 +30,9 @@ test.describe('Videos', () => {
     // 少し待機してコンテンツが描画されるのを待つ
     await page.waitForTimeout(2000);
     
-    // ページに何かコンテンツがあることを確認（より柔軟なアプローチ）
-    const pageContent = page.locator('h1, h2, button, [class*="Card"]').first();
-    await expect(pageContent).toBeVisible({ timeout: 10000 });
+    // "動画一覧"というh1が表示されていることを確認
+    const heading = page.locator('h1:has-text("動画一覧")');
+    await expect(heading).toBeVisible({ timeout: 10000 });
   });
 
   test('ホームページから統計情報が表示される', async ({ page }) => {
@@ -43,12 +43,11 @@ test.describe('Videos', () => {
     await page.waitForLoadState('domcontentloaded');
     
     // 少し待機してコンテンツが描画されるのを待つ
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(3000);
     
-    // 統計情報が表示されることを確認
-    // Cardコンポーネントまたはボタンが存在することを確認
-    const content = page.locator('[class*="Card"], button, h1').first();
-    await expect(content).toBeVisible({ timeout: 10000 });
+    // "Welcome back!"というh1が表示されていることを確認
+    const heading = page.locator('h1:has-text("Welcome back!")');
+    await expect(heading).toBeVisible({ timeout: 10000 });
   });
 });
 
