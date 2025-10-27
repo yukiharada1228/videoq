@@ -9,7 +9,6 @@ User = get_user_model()
 class CustomUserAdmin(UserAdmin):
     list_display = (
         "username",
-        "email",
         "date_joined",
         "last_login",
         "is_active",
