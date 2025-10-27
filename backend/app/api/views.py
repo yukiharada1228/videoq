@@ -10,14 +10,29 @@ from .serializers import (LoginSerializer, RefreshSerializer, UserSerializer,
 User = get_user_model()
 
 
+class PublicAPIView(generics.GenericAPIView):
+    """認証不要のAPIビュー"""
+
+    permission_classes = [AllowAny]
+
+
+class AuthenticatedAPIView(generics.GenericAPIView):
+    """認証必須のAPIビュー"""
+
+    permission_classes = [IsAuthenticated]
+
+
 class UserSignupView(generics.CreateAPIView):
+    """ユーザー新規登録ビュー"""
+
     queryset = User.objects.all()
     serializer_class = UserSignupSerializer
     permission_classes = [AllowAny]
 
 
-class LoginView(generics.GenericAPIView):
-    permission_classes = [AllowAny]
+class LoginView(PublicAPIView):
+    """ログインビュー"""
+
     serializer_class = LoginSerializer
 
     def post(self, request):
@@ -30,8 +45,9 @@ class LoginView(generics.GenericAPIView):
         return Response({"access": str(refresh.access_token), "refresh": str(refresh)})
 
 
-class RefreshView(generics.GenericAPIView):
-    permission_classes = [AllowAny]
+class RefreshView(PublicAPIView):
+    """トークンリフレッシュビュー"""
+
     serializer_class = RefreshSerializer
 
     def post(self, request):
@@ -47,8 +63,9 @@ class RefreshView(generics.GenericAPIView):
         return Response({"access": str(access)})
 
 
-class MeView(generics.RetrieveAPIView):
-    permission_classes = [IsAuthenticated]
+class MeView(AuthenticatedAPIView, generics.RetrieveAPIView):
+    """現在のユーザー情報取得ビュー"""
+
     serializer_class = UserSerializer
 
     def get_object(self):

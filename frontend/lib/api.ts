@@ -31,24 +31,55 @@ class ApiClient {
     this.baseUrl = API_URL;
   }
 
-  private async request<T>(
-    endpoint: string,
-    options: RequestInit = {}
-  ): Promise<T> {
-    const url = `${this.baseUrl}${endpoint}`;
-    
-    // ローカルストレージからトークンを取得
-    const accessToken = localStorage.getItem('access_token');
-    
-    const headers: HeadersInit = {
+  // ローカルストレージへのアクセスを共通化
+  private getToken(): string | null {
+    return localStorage.getItem('access_token');
+  }
+
+  private setTokens(access: string, refresh: string): void {
+    localStorage.setItem('access_token', access);
+    localStorage.setItem('refresh_token', refresh);
+  }
+
+  private removeTokens(): void {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+  }
+
+  private buildHeaders(additionalHeaders?: HeadersInit): Record<string, string> {
+    const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      ...options.headers,
+      ...(additionalHeaders as Record<string, string>),
     };
 
-    // トークンがある場合はヘッダーに追加
+    const accessToken = this.getToken();
     if (accessToken) {
       headers['Authorization'] = `Bearer ${accessToken}`;
     }
+
+    return headers;
+  }
+
+  private async handleError(response: Response): Promise<never> {
+    const error = await response.json().catch(() => ({ 
+      detail: response.statusText 
+    }));
+    throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+  }
+
+  private async handleAuthError(): Promise<void> {
+    this.removeTokens();
+    window.location.href = '/login';
+    throw new Error('認証に失敗しました。再度ログインしてください。');
+  }
+
+  private async request<T>(
+    endpoint: string,
+    options: RequestInit = {},
+    retryCount: number = 0
+  ): Promise<T> {
+    const url = `${this.baseUrl}${endpoint}`;
+    const headers = this.buildHeaders(options.headers);
 
     const config: RequestInit = {
       ...options,
@@ -58,11 +89,18 @@ class ApiClient {
     try {
       const response = await fetch(url, config);
       
+      // 401エラー（認証エラー）の場合、リフレッシュトークンで再試行
+      if (response.status === 401 && retryCount === 0) {
+        try {
+          await this.refreshToken();
+          return this.request(endpoint, options, retryCount + 1);
+        } catch (refreshError) {
+          await this.handleAuthError();
+        }
+      }
+      
       if (!response.ok) {
-        const error = await response.json().catch(() => ({ 
-          detail: response.statusText 
-        }));
-        throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+        await this.handleError(response);
       }
 
       return await response.json();
@@ -85,9 +123,7 @@ class ApiClient {
       body: JSON.stringify(data),
     });
     
-    // トークンをローカルストレージに保存
-    localStorage.setItem('access_token', response.access);
-    localStorage.setItem('refresh_token', response.refresh);
+    this.setTokens(response.access, response.refresh);
     
     return response;
   }
@@ -99,14 +135,22 @@ class ApiClient {
       throw new Error('No refresh token found');
     }
 
-    const response = await this.request<RefreshResponse>('/auth/refresh/', {
+    const url = `${this.baseUrl}/auth/refresh/`;
+    
+    const response = await fetch(url, {
       method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refresh: refreshToken }),
     });
 
-    localStorage.setItem('access_token', response.access);
+    if (!response.ok) {
+      throw new Error('Refresh token failed');
+    }
 
-    return response;
+    const data = await response.json();
+    localStorage.setItem('access_token', data.access);
+
+    return data;
   }
 
   async getMe(): Promise<User> {
@@ -114,12 +158,11 @@ class ApiClient {
   }
 
   async logout(): Promise<void> {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
+    this.removeTokens();
   }
 
   isAuthenticated(): boolean {
-    return !!localStorage.getItem('access_token');
+    return !!this.getToken();
   }
 }
 
