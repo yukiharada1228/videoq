@@ -70,6 +70,44 @@ export interface VideoUpdateRequest {
   description?: string;
 }
 
+export interface VideoGroup {
+  id: number;
+  name: string;
+  description: string;
+  created_at: string;
+  updated_at?: string;
+  video_count: number;
+  videos?: VideoInGroup[];
+}
+
+export interface VideoInGroup {
+  id: number;
+  title: string;
+  description: string;
+  file: string;
+  uploaded_at: string;
+  status: 'pending' | 'processing' | 'completed' | 'error';
+  order: number;
+}
+
+export interface VideoGroupCreateRequest {
+  name: string;
+  description?: string;
+}
+
+export interface VideoGroupUpdateRequest {
+  name?: string;
+  description?: string;
+}
+
+export interface VideoGroupList {
+  id: number;
+  name: string;
+  description: string;
+  created_at: string;
+  video_count: number;
+}
+
 class ApiClient {
   private baseUrl: string;
 
@@ -166,7 +204,26 @@ class ApiClient {
 
   // レスポンスのJSONを安全に取得する共通メソッド（DRY原則）
   private async parseJsonResponse<T>(response: Response): Promise<T> {
-    return await response.json();
+    const contentType = response.headers.get('content-type');
+    const isJson = contentType && contentType.includes('application/json');
+    
+    // Content-LengthまたはTransfer-Encodingヘッダーをチェック
+    const contentLength = response.headers.get('content-length');
+    if (contentLength === '0' || (!isJson && !contentLength)) {
+      return {} as T;
+    }
+    
+    const text = await response.text();
+    if (!text || text.trim() === '') {
+      return {} as T;
+    }
+    
+    try {
+      return JSON.parse(text) as T;
+    } catch (e) {
+      console.warn('Failed to parse JSON:', text);
+      return {} as T;
+    }
   }
 
   // 401エラーを処理する共通メソッド（DRY原則）
@@ -381,6 +438,55 @@ class ApiClient {
 
   async deleteVideo(id: number): Promise<void> {
     return this.request<void>(`/videos/${id}/`, {
+      method: 'DELETE',
+    });
+  }
+
+  // VideoGroup関連のメソッド
+  async getVideoGroups(): Promise<VideoGroupList[]> {
+    return this.request<VideoGroupList[]>('/videos/groups/');
+  }
+
+  async getVideoGroup(id: number): Promise<VideoGroup> {
+    return this.request<VideoGroup>(`/videos/groups/${id}/`);
+  }
+
+  async createVideoGroup(data: VideoGroupCreateRequest): Promise<VideoGroup> {
+    return this.request<VideoGroup>('/videos/groups/', {
+      method: 'POST',
+      body: data,
+    });
+  }
+
+  async updateVideoGroup(id: number, data: VideoGroupUpdateRequest): Promise<VideoGroup> {
+    return this.request<VideoGroup>(`/videos/groups/${id}/`, {
+      method: 'PATCH',
+      body: data,
+    });
+  }
+
+  async deleteVideoGroup(id: number): Promise<void> {
+    return this.request<void>(`/videos/groups/${id}/`, {
+      method: 'DELETE',
+    });
+  }
+
+  // グループに動画を追加・削除
+  async addVideoToGroup(groupId: number, videoId: number): Promise<void> {
+    return this.request<void>(`/videos/groups/${groupId}/videos/${videoId}/`, {
+      method: 'POST',
+    });
+  }
+
+  async addVideosToGroup(groupId: number, videoIds: number[]): Promise<{ message: string; added_count: number; skipped_count: number }> {
+    return this.request<{ message: string; added_count: number; skipped_count: number }>(`/videos/groups/${groupId}/videos/`, {
+      method: 'POST',
+      body: { video_ids: videoIds },
+    });
+  }
+
+  async removeVideoFromGroup(groupId: number, videoId: number): Promise<void> {
+    return this.request<void>(`/videos/groups/${groupId}/videos/${videoId}/remove/`, {
       method: 'DELETE',
     });
   }
