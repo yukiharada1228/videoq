@@ -39,13 +39,13 @@ test.describe('Videos', () => {
     // ページが読み込まれるまで待つ
     await page.waitForLoadState('domcontentloaded');
     
-    // 統計カードが表示されることを確認（より柔軟なセレクター）
-    // Cardコンポーネントまたは統計情報が含まれている要素を探す
-    const statsCards = page.locator('[class*="Card"], div:has-text("本の動画"), div:has-text("グループ")');
-    await expect(statsCards.first()).toBeVisible({ timeout: 15000 }).catch(async () => {
-      // フォールバック: ページに何かコンテンツがあることを確認
-      const body = page.locator('body');
-      await expect(body).toBeVisible({ timeout: 1000 });
+    // 統計カードが表示されることを確認
+    // "本"という文字が含まれる要素を探す（"本の動画"、"個"など）
+    const statsInfo = page.locator('text=/本/, text=/グループ/').first();
+    await expect(statsInfo).toBeVisible({ timeout: 15000 }).catch(async () => {
+      // フォールバック: Cardコンポーネントがあることを確認
+      const cards = page.locator('[class*="Card"]').first();
+      await expect(cards).toBeVisible({ timeout: 5000 });
     });
   });
 });
