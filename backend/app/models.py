@@ -1,4 +1,10 @@
+import os
+import time
+import uuid
+
+from django.conf import settings
 from django.contrib.auth.models import AbstractUser
+from django.core.files.storage import FileSystemStorage
 from django.db import models
 
 
@@ -6,3 +12,77 @@ class User(AbstractUser):
     encrypted_openai_api_key = models.TextField(
         blank=True, null=True, help_text="Encrypted OpenAI API key"
     )
+
+
+def user_directory_path(instance, filename):
+    return f"videos/{instance.user.id}/{filename}"
+
+
+class SafeFileStorage(FileSystemStorage):
+    """
+    Safe file storage for local use
+    """
+
+    def get_available_name(self, name, max_length=None):
+        """
+        Convert filename to safe format and avoid duplicates
+        """
+        # Convert absolute path to relative path
+        if os.path.isabs(name):
+            name = os.path.basename(name)
+
+        # Split into directory and filename parts
+        dir_name = os.path.dirname(name)
+        base_name = os.path.basename(name)
+        safe_base_name = self._get_safe_filename(base_name)
+        # Join if directory exists, otherwise filename only
+        safe_name = (
+            os.path.join(dir_name, safe_base_name) if dir_name else safe_base_name
+        )
+
+        # Call original get_available_name method for duplicate check
+        return super().get_available_name(safe_name, max_length)
+
+    def _get_safe_filename(self, filename):
+        """
+        Convert filename to timestamp-based safe format
+        """
+        # Get file extension
+        _, ext = os.path.splitext(filename)
+
+        # Generate timestamp-based filename
+        timestamp = int(time.time() * 1000)  # Timestamp in milliseconds
+
+        # Generate safe filename with UUID for better uniqueness
+        safe_name = f"video_{timestamp}_{str(uuid.uuid4())[:8]}{ext}"
+
+        return safe_name
+
+
+class Video(models.Model):
+    STATUS_CHOICES = [
+        ("pending", "Pending"),
+        ("processing", "Processing"),
+        ("completed", "Completed"),
+        ("error", "Error"),
+    ]
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="videos"
+    )
+    file = models.FileField(
+        upload_to=user_directory_path,
+        storage=SafeFileStorage(),
+    )
+    title = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    transcript = models.TextField(blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
+    error_message = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["-uploaded_at"]
+
+    def __str__(self):
+        return f"{self.title} (by {self.user.username})"

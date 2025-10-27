@@ -1,9 +1,7 @@
 'use client';
 
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageLayout } from '@/components/layout/PageLayout';
-import { apiClient } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
@@ -13,11 +11,6 @@ export default function Home() {
   const router = useRouter();
   const { user, loading } = useAuth();
 
-  const handleLogout = () => {
-    apiClient.logout();
-    router.push('/login');
-  };
-
   if (loading || !user) {
     return <LoadingSpinner />;
   }
@@ -25,15 +18,12 @@ export default function Home() {
   return (
     <PageLayout
       headerContent={
-        <>
-          <span className="text-gray-700">ようこそ、{user.username}さん</span>
-          <Button onClick={() => router.push('/settings')} variant="outline">
-            設定
-          </Button>
-          <Button onClick={handleLogout} variant="outline">
-            ログアウト
-          </Button>
-        </>
+        <button
+          onClick={() => router.push('/videos')}
+          className="text-gray-600 hover:text-gray-900 transition-colors"
+        >
+          動画一覧
+        </button>
       }
     >
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

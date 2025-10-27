@@ -38,6 +38,37 @@ export interface ChatRequest {
   messages: ChatMessage[];
 }
 
+export interface Video {
+  id: number;
+  user: number;
+  file: string;
+  title: string;
+  description: string;
+  uploaded_at: string;
+  transcript?: string;
+  status: 'pending' | 'processing' | 'completed' | 'error';
+  error_message?: string;
+}
+
+export interface VideoList {
+  id: number;
+  title: string;
+  description: string;
+  uploaded_at: string;
+  status: 'pending' | 'processing' | 'completed' | 'error';
+}
+
+export interface VideoUploadRequest {
+  file: File;
+  title: string;
+  description?: string;
+}
+
+export interface VideoUpdateRequest {
+  title?: string;
+  description?: string;
+}
+
 class ApiClient {
   private baseUrl: string;
 
@@ -299,6 +330,58 @@ class ApiClient {
 
   isAuthenticated(): boolean {
     return !!this.getToken();
+  }
+
+  // Video関連のメソッド
+  async getVideos(): Promise<VideoList[]> {
+    return this.request<VideoList[]>('/videos/');
+  }
+
+  async getVideo(id: number): Promise<Video> {
+    return this.request<Video>(`/videos/${id}/`);
+  }
+
+  async uploadVideo(data: VideoUploadRequest): Promise<Video> {
+    const formData = new FormData();
+    formData.append('file', data.file);
+    formData.append('title', data.title);
+    if (data.description) {
+      formData.append('description', data.description);
+    }
+
+    const url = this.buildUrl('/videos/');
+    const token = this.getToken();
+    
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    try {
+      const response = await this.executeRequest<Video>(url, {
+        method: 'POST',
+        headers,
+        body: formData,
+      });
+
+      return await this.parseJsonResponse<Video>(response);
+    } catch (error) {
+      this.logError('Video upload failed:', error);
+      throw error;
+    }
+  }
+
+  async updateVideo(id: number, data: VideoUpdateRequest): Promise<Video> {
+    return this.request<Video>(`/videos/${id}/`, {
+      method: 'PATCH',
+      body: data,
+    });
+  }
+
+  async deleteVideo(id: number): Promise<void> {
+    return this.request<void>(`/videos/${id}/`, {
+      method: 'DELETE',
+    });
   }
 }
 

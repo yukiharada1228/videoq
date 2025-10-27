@@ -46,32 +46,12 @@ export default function Settings() {
     }
   };
 
-  const handleLogout = () => {
-    apiClient.logout();
-    router.push('/login');
-  };
-
-  const goHome = () => {
-    router.push('/');
-  };
-
   if (loading || !user) {
     return <LoadingSpinner />;
   }
 
   return (
-      <PageLayout
-      headerContent={
-        <>
-          <Button onClick={goHome} variant="outline">
-            ホームに戻る
-          </Button>
-          <Button onClick={handleLogout} variant="outline">
-            ログアウト
-          </Button>
-        </>
-      }
-    >
+      <PageLayout>
       <div className="mx-auto max-w-2xl space-y-6">
         <Card>
           <CardHeader>
