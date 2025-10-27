@@ -2,8 +2,6 @@
 
 import { VideoList as VideoListType } from '@/lib/api';
 import { Card, CardContent } from '@/components/ui/card';
-import { formatDistanceToNow } from 'date-fns';
-import { ja } from 'date-fns/locale';
 import Link from 'next/link';
 import { getStatusBadgeClassName, getStatusLabel } from '@/lib/utils/video';
 
@@ -92,7 +90,14 @@ export function VideoList({ videos }: VideoListProps) {
                 <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                {formatDistanceToNow(new Date(video.uploaded_at), { addSuffix: true, locale: ja })}
+                {new Date(video.uploaded_at).toLocaleString('ja-JP', {
+                  year: 'numeric',
+                  month: '2-digit',
+                  day: '2-digit',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  second: '2-digit'
+                })}
               </div>
             </CardContent>
           </Card>
