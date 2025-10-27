@@ -3,8 +3,8 @@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { MessageAlert } from '@/components/common/MessageAlert';
-import { InlineSpinner } from '@/components/common/InlineSpinner';
 import { Button } from '@/components/ui/button';
+import { VideoUploadButton } from './VideoUploadButton';
 
 interface VideoUploadFormFieldsProps {
   title: string;
@@ -18,6 +18,8 @@ interface VideoUploadFormFieldsProps {
   showCancelButton?: boolean;
   onCancel?: () => void;
   cancelButtonClassName?: string;
+  hideButtons?: boolean;
+  renderButtons?: () => React.ReactNode;
 }
 
 export function VideoUploadFormFields({
@@ -32,6 +34,8 @@ export function VideoUploadFormFields({
   showCancelButton = false,
   onCancel,
   cancelButtonClassName,
+  hideButtons = false,
+  renderButtons,
 }: VideoUploadFormFieldsProps) {
   return (
     <>
@@ -75,33 +79,25 @@ export function VideoUploadFormFields({
       {error && <MessageAlert type="error" message={error} />}
       {success && <MessageAlert type="success" message="アップロード成功！" />}
 
-      {showCancelButton ? (
-        <div className="flex gap-2">
-          <Button type="button" variant="outline" onClick={onCancel} disabled={isUploading} className={cancelButtonClassName}>
-            キャンセル
-          </Button>
-          <Button type="submit" disabled={isUploading} className="flex-1">
-            {isUploading ? (
-              <span className="flex items-center justify-center">
-                <InlineSpinner className="mr-2" />
-                アップロード中...
-              </span>
-            ) : (
-              'アップロード'
-            )}
-          </Button>
-        </div>
-      ) : (
-        <Button type="submit" disabled={isUploading} className="w-full">
-          {isUploading ? (
-            <span className="flex items-center">
-              <InlineSpinner className="mr-2" />
-              アップロード中...
-            </span>
-          ) : (
-            'アップロード'
-          )}
-        </Button>
+      {!hideButtons && (
+        renderButtons ? (
+          renderButtons()
+        ) : showCancelButton ? (
+          <div className="flex gap-2">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={onCancel} 
+              disabled={isUploading} 
+              className={cancelButtonClassName}
+            >
+              キャンセル
+            </Button>
+            <VideoUploadButton isUploading={isUploading} fullWidth className="flex-1" />
+          </div>
+        ) : (
+          <VideoUploadButton isUploading={isUploading} fullWidth />
+        )
       )}
     </>
   );
