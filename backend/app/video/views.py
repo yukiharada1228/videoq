@@ -162,13 +162,10 @@ def _handle_validation_error(value, field_name: str, entity_name: str):
 
 def _get_group_and_video(user, group_id, video_id):
     """共通のグループとビデオ取得ロジック（DRY原則・N+1問題対策）"""
-    # N+1問題対策: get()を使用して効率化
-    try:
-        group = VideoGroup.objects.get(user=user, id=group_id)
-        video = Video.objects.get(user=user, id=video_id)
-        return group, video
-    except (VideoGroup.DoesNotExist, Video.DoesNotExist):
-        return None, None
+    # N+1問題対策: filter().first()を使用してNoneを返す（例外を投げない）
+    group = VideoGroup.objects.filter(user=user, id=group_id).first()
+    video = Video.objects.filter(user=user, id=video_id).first()
+    return group, video
 
 
 def _validate_ownership(user, resource, entity_name: str):
