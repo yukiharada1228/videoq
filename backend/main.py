@@ -1,5 +1,5 @@
 def main():
-    print("Hello from backend!")
+    print("Hello from ask-video-backend!")
 
 
 if __name__ == "__main__":
