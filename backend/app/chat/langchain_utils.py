@@ -2,19 +2,14 @@
 
 from typing import Tuple
 
+from app.utils.encryption import decrypt_api_key
+from app.utils.responses import create_error_response
 from django.contrib.auth import get_user_model
 from langchain_openai import ChatOpenAI
 from rest_framework import status
 from rest_framework.response import Response
 
-from app.utils.encryption import decrypt_api_key
-
 User = get_user_model()
-
-
-def create_error_response(message: str, status_code: int) -> Response:
-    """エラーレスポンスを作成する共通ヘルパー"""
-    return Response({"error": message}, status=status_code)
 
 
 def get_langchain_llm(user) -> Tuple[ChatOpenAI, Response]:
@@ -52,8 +47,11 @@ def get_langchain_llm(user) -> Tuple[ChatOpenAI, Response]:
 def handle_langchain_exception(exception: Exception) -> Response:
     """LangChain/OpenAI APIの例外をハンドリングする共通ヘルパー"""
     error_message = str(exception)
-    
-    if "invalid_api_key" in error_message.lower() or "authentication" in error_message.lower():
+
+    if (
+        "invalid_api_key" in error_message.lower()
+        or "authentication" in error_message.lower()
+    ):
         return create_error_response("無効なAPIキーです", status.HTTP_401_UNAUTHORIZED)
     elif "rate_limit" in error_message.lower():
         return create_error_response(
@@ -63,4 +61,3 @@ def handle_langchain_exception(exception: Exception) -> Response:
         return create_error_response(
             f"OpenAI APIエラー: {str(exception)}", status.HTTP_500_INTERNAL_SERVER_ERROR
         )
-

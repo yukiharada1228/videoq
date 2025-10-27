@@ -1,6 +1,6 @@
+from app.utils.mixins import AuthenticatedViewMixin, PublicViewMixin
 from django.contrib.auth import get_user_model
 from rest_framework import generics
-from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 
@@ -10,16 +10,12 @@ from .serializers import (LoginSerializer, RefreshSerializer, UserSerializer,
 User = get_user_model()
 
 
-class PublicAPIView(generics.GenericAPIView):
-    """認証不要のAPIビュー"""
-
-    permission_classes = [AllowAny]
+class PublicAPIView(PublicViewMixin, generics.GenericAPIView):
+    """認証不要のAPIビュー（DRY原則）"""
 
 
-class AuthenticatedAPIView(generics.GenericAPIView):
-    """認証必須のAPIビュー"""
-
-    permission_classes = [IsAuthenticated]
+class AuthenticatedAPIView(AuthenticatedViewMixin, generics.GenericAPIView):
+    """認証必須のAPIビュー（DRY原則）"""
 
 
 class UserSignupView(generics.CreateAPIView):
@@ -27,7 +23,7 @@ class UserSignupView(generics.CreateAPIView):
 
     queryset = User.objects.all()
     serializer_class = UserSignupSerializer
-    permission_classes = [AllowAny]
+    permission_classes = PublicViewMixin.permission_classes
 
 
 class LoginView(PublicAPIView):
