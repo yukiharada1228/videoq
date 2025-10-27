@@ -1,70 +1,20 @@
-from typing import Tuple
-
-import openai
-from app.utils.encryption import decrypt_api_key
-from django.contrib.auth import get_user_model
+from app.utils.mixins import AuthenticatedViewMixin
+from app.utils.responses import create_error_response
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from rest_framework import generics, status
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework_simplejwt.authentication import JWTAuthentication
 
-User = get_user_model()
-
-
-def create_error_response(message: str, status_code: int) -> Response:
-    """エラーレスポンスを作成する共通ヘルパー"""
-    return Response({"error": message}, status=status_code)
+from .langchain_utils import get_langchain_llm, handle_langchain_exception
 
 
-def get_openai_client(user) -> Tuple[openai.OpenAI, Response]:
-    """
-    OpenAIクライアントを取得する共通ヘルパー
-
-    Returns:
-        Tuple[OpenAI, Response]: (クライアント, エラーレスポンス)
-                                成功した場合、エラーレスポンスはNone
-    """
-    if not user.encrypted_openai_api_key:
-        return None, create_error_response(
-            "OpenAI APIキーが設定されていません", status.HTTP_400_BAD_REQUEST
-        )
-
-    try:
-        api_key = decrypt_api_key(user.encrypted_openai_api_key)
-    except Exception as e:
-        return None, create_error_response(
-            f"APIキーの復号化に失敗しました: {str(e)}",
-            status.HTTP_500_INTERNAL_SERVER_ERROR,
-        )
-
-    return openai.OpenAI(api_key=api_key), None
-
-
-def handle_openai_exception(exception: Exception) -> Response:
-    """OpenAI APIの例外をハンドリングする共通ヘルパー"""
-    if isinstance(exception, openai.AuthenticationError):
-        return create_error_response("無効なAPIキーです", status.HTTP_401_UNAUTHORIZED)
-    elif isinstance(exception, openai.RateLimitError):
-        return create_error_response(
-            "APIのレート制限に達しました", status.HTTP_429_TOO_MANY_REQUESTS
-        )
-    else:
-        return create_error_response(
-            f"OpenAI APIエラー: {str(exception)}", status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
-
-
-class ChatView(generics.CreateAPIView):
-    """チャットビュー"""
-
-    permission_classes = [IsAuthenticated]
-    authentication_classes = [JWTAuthentication]
+class ChatView(AuthenticatedViewMixin, generics.CreateAPIView):
+    """チャットビュー（LangChain使用）"""
 
     def post(self, request):
         user = request.user
 
-        # OpenAIクライアントを取得
-        client, error_response = get_openai_client(user)
+        # LangChainのLLMを取得
+        llm, error_response = get_langchain_llm(user)
         if error_response:
             return error_response
 
@@ -76,21 +26,28 @@ class ChatView(generics.CreateAPIView):
             )
 
         try:
-            # チャット補完を実行
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": msg.get("role", "user"), "content": msg.get("content", "")}
-                    for msg in messages
-                ],
-            )
+            # LangChainのメッセージ形式に変換
+            langchain_messages = []
+            for msg in messages:
+                role = msg.get("role", "user")
+                content = msg.get("content", "")
+
+                if role == "system":
+                    langchain_messages.append(SystemMessage(content=content))
+                elif role == "user":
+                    langchain_messages.append(HumanMessage(content=content))
+                elif role == "assistant":
+                    langchain_messages.append(AIMessage(content=content))
+
+            # LangChainでチャット補完を実行
+            response = llm.invoke(langchain_messages)
 
             return Response(
                 {
                     "role": "assistant",
-                    "content": response.choices[0].message.content,
+                    "content": response.content,
                 }
             )
 
         except Exception as e:
-            return handle_openai_exception(e)
+            return handle_langchain_exception(e)

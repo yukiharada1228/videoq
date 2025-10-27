@@ -1,4 +1,6 @@
 from app.models import Video, VideoGroup, VideoGroupMember
+from app.utils.mixins import AuthenticatedViewMixin, DynamicSerializerMixin
+from app.utils.responses import create_error_response
 from rest_framework import generics, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -8,39 +10,6 @@ from .serializers import (VideoCreateSerializer, VideoGroupCreateSerializer,
                           VideoGroupDetailSerializer, VideoGroupListSerializer,
                           VideoGroupUpdateSerializer, VideoListSerializer,
                           VideoSerializer, VideoUpdateSerializer)
-
-
-class DynamicSerializerMixin:
-    """動的にシリアライザーを切り替える共通ミックスイン（DRY原則）"""
-
-    def get_serializer_class(self):
-        """リクエストのメソッドに応じてシリアライザーを変更"""
-        if not hasattr(self, "serializer_map") or not self.serializer_map:
-            # serializer_mapがない場合は、従来の方法を試す
-            if hasattr(self, "serializer_class") and self.serializer_class:
-                return self.serializer_class
-            return super().get_serializer_class()
-
-        method = self.request.method
-        serializer_class = self.serializer_map.get(method)
-
-        if serializer_class:
-            return serializer_class
-
-        # マッチしない場合はデフォルト（最初の値）を使用
-        return next(iter(self.serializer_map.values()))
-
-
-class AuthenticatedViewMixin:
-    """認証必須の共通ミックスイン（DRY原則）"""
-
-    permission_classes = [IsAuthenticated]
-
-    def get_serializer_context(self):
-        """シリアライザーにリクエストコンテキストを渡す（DRY原則）"""
-        context = super().get_serializer_context()
-        context["request"] = self.request
-        return context
 
 
 class BaseVideoView(AuthenticatedViewMixin):
@@ -146,17 +115,13 @@ class VideoGroupDetailView(
         return self._get_filtered_queryset(annotate_only=False)
 
 
-def _create_error_response(
-    error_message: str, http_status: int = status.HTTP_404_NOT_FOUND
-):
-    """共通のエラーレスポンス生成ロジック（DRY原則）"""
-    return Response({"error": error_message}, status=http_status)
+# create_error_responseはapp.utils.responsesからインポート済み（DRY原則）
 
 
 def _handle_validation_error(value, entity_name: str):
     """共通のバリデーションチェック（DRY原則）"""
     if not value:
-        return _create_error_response(
+        return create_error_response(
             f"{entity_name}が見つかりません", status.HTTP_404_NOT_FOUND
         )
     return None
@@ -194,7 +159,7 @@ def _validate_video_ids(request, entity_name: str):
     """video_idsのバリデーション（DRY原則）"""
     video_ids = request.data.get("video_ids", [])
     if not video_ids:
-        return None, _create_error_response(
+        return None, create_error_response(
             f"{entity_name}IDが指定されていません", status.HTTP_400_BAD_REQUEST
         )
     return video_ids, None
@@ -203,22 +168,32 @@ def _validate_video_ids(request, entity_name: str):
 def _validate_videos_count(videos, video_ids):
     """動画の取得数チェック（DRY原則）"""
     if len(videos) != len(video_ids):
-        return _create_error_response(
+        return create_error_response(
             "一部の動画が見つかりません", status.HTTP_404_NOT_FOUND
         )
     return None
 
 
+def _get_member_queryset(group, video=None):
+    """共通のメンバークエリ（DRY原則・N+1問題対策）"""
+    queryset = VideoGroupMember.objects.filter(group=group)
+    if video:
+        queryset = queryset.filter(video=video)
+    return queryset
+
+
 def _member_exists(group, video):
     """メンバーの存在チェック（DRY原則・N+1問題対策）"""
-    return VideoGroupMember.objects.filter(group=group, video=video).exists()
+    return _get_member_queryset(group, video).exists()
 
 
-def _check_and_get_member(group, video, error_message):
+def _check_and_get_member(
+    group, video, error_message, status_code=status.HTTP_404_NOT_FOUND
+):
     """メンバーの存在チェックと取得（DRY原則・N+1問題対策）"""
-    member = VideoGroupMember.objects.filter(group=group, video=video).first()
+    member = _get_member_queryset(group, video).first()
     if not member:
-        return None, _create_error_response(error_message)
+        return None, create_error_response(error_message, status_code)
     return member, None
 
 
@@ -227,7 +202,10 @@ def authenticated_api_view(methods):
     """認証必須のAPIビューデコレーター（DRY原則）"""
 
     def decorator(view_func):
-        return permission_classes([IsAuthenticated])(api_view(methods)(view_func))
+        # utils/mixins.pyのAuthenticatedViewMixinと同様の設定を使用
+        return permission_classes(AuthenticatedViewMixin.permission_classes)(
+            api_view(methods)(view_func)
+        )
 
     return decorator
 
@@ -239,7 +217,7 @@ def with_error_handling(view_func):
         try:
             return view_func(*args, **kwargs)
         except Exception as e:
-            return _create_error_response(str(e), status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return create_error_response(str(e), status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     return wrapper
 
@@ -265,12 +243,13 @@ def add_video_to_group(request, group_id, video_id):
         return error
 
     # すでに追加されているかチェック（N+1問題対策・DRY原則: 1つのクエリのみ）
-    if _member_exists(group, video):
-        return _create_error_response(
+    member = _get_member_queryset(group, video).first()
+    if member:
+        return create_error_response(
             "この動画は既にグループに追加されています", status.HTTP_400_BAD_REQUEST
         )
 
-    # グループに追加（N+1問題対策）
+    # グループに追加
     member = VideoGroupMember.objects.create(group=group, video=video)
 
     return Response(
@@ -303,10 +282,11 @@ def add_videos_to_group(request, group_id):
         return error
 
     # 既に追加されている動画をチェック（N+1問題対策）
+    video_ids_list = [v.id for v in videos]
     existing_members = set(
-        VideoGroupMember.objects.filter(group=group, video__in=videos).values_list(
-            "video_id", flat=True
-        )
+        _get_member_queryset(group)
+        .filter(video_id__in=video_ids_list)
+        .values_list("video_id", flat=True)
     )
 
     # 追加可能な動画のみをフィルタリング（N+1問題対策）
