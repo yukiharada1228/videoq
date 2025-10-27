@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiClient, User } from '@/lib/api';
 
 interface UseAuthReturn {
   user: User | null;
   loading: boolean;
+  refetch: () => Promise<void>;
 }
 
 interface UseAuthOptions {
@@ -12,17 +13,20 @@ interface UseAuthOptions {
   onAuthError?: () => void;
 }
 
+/**
+ * 認証状態を管理するカスタムフック（DRY原則に従う）
+ */
 export function useAuth(options: UseAuthOptions = {}): UseAuthReturn {
   const { redirectToLogin = true, onAuthError } = options;
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    checkAuth();
-  }, []);
+  // useRefでコールバックを保持し、無限ループを防ぐ
+  const onAuthErrorRef = useRef(onAuthError);
+  onAuthErrorRef.current = onAuthError;
 
-  const checkAuth = async () => {
+  const checkAuth = useCallback(async () => {
     if (!apiClient.isAuthenticated()) {
       if (redirectToLogin) {
         router.push('/login');
@@ -40,14 +44,22 @@ export function useAuth(options: UseAuthOptions = {}): UseAuthReturn {
       if (redirectToLogin) {
         router.push('/login');
       }
-      if (onAuthError) {
-        onAuthError();
+      if (onAuthErrorRef.current) {
+        onAuthErrorRef.current();
       }
     } finally {
       setLoading(false);
     }
-  };
+  }, [redirectToLogin, router]);
 
-  return { user, loading };
+  useEffect(() => {
+    checkAuth();
+  }, [checkAuth]);
+
+  return { 
+    user, 
+    loading, 
+    refetch: checkAuth,
+  };
 }
 
