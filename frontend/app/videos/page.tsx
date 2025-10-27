@@ -7,6 +7,7 @@ import { VideoList } from '@/components/video/VideoList';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { MessageAlert } from '@/components/common/MessageAlert';
+import { Button } from '@/components/ui/button';
 
 export default function VideosPage() {
   const { videos, isLoading, error, loadVideos } = useVideos();
@@ -26,16 +27,7 @@ export default function VideosPage() {
 
   return (
     <>
-      <PageLayout
-        headerContent={
-          <button
-            onClick={handleUploadClick}
-            className="text-gray-600 hover:text-gray-900 transition-colors"
-          >
-            ＋ 動画をアップロード
-          </button>
-        }
-      >
+      <PageLayout>
         <div className="space-y-6">
           {/* ヘッダー */}
           <div className="flex items-center justify-between">
@@ -45,6 +37,10 @@ export default function VideosPage() {
                 {videos.length > 0 ? `${videos.length}本の動画` : '動画をアップロードして管理しましょう'}
               </p>
             </div>
+            <Button onClick={handleUploadClick} className="flex items-center gap-2">
+              <span>＋</span>
+              <span>動画をアップロード</span>
+            </Button>
           </div>
 
           {/* 統計情報 */}

@@ -26,6 +26,23 @@ export function Header({ children }: HeaderProps) {
             <Link href="/" className="text-xl font-bold text-gray-900">
               Ask Video
             </Link>
+            {user && (
+              <>
+                <button
+                  onClick={() => router.push('/videos')}
+                  className="text-gray-600 hover:text-gray-900 transition-colors"
+                >
+                  動画一覧
+                </button>
+                <span className="text-gray-300">|</span>
+                <button
+                  onClick={() => router.push('/videos/groups')}
+                  className="text-gray-600 hover:text-gray-900 transition-colors"
+                >
+                  グループ
+              </button>
+              </>
+            )}
             {children}
           </div>
           
