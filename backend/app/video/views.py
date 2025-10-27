@@ -127,11 +127,19 @@ def _handle_validation_error(value, entity_name: str):
     return None
 
 
-def _validate_and_get_resource(user, model_class, resource_id, entity_name: str):
+def _validate_and_get_resource(
+    user, model_class, resource_id, entity_name: str, select_related_fields=None
+):
     """共通のリソース取得と検証ロジック（DRY原則・N+1問題対策）"""
     # N+1問題対策: filter().first()を使用してNoneを返す（例外を投げない）
     # userでフィルタリングしているので所有権の確認は自動的に行われる
-    resource = model_class.objects.filter(user=user, id=resource_id).first()
+    queryset = model_class.objects.filter(user=user, id=resource_id)
+
+    # N+1問題対策: 必要に応じてselect_relatedを追加
+    if select_related_fields:
+        queryset = queryset.select_related(*select_related_fields)
+
+    resource = queryset.first()
 
     # リソースが見つからない場合（存在しない、または所有権がない）
     error = _handle_validation_error(resource, entity_name)
@@ -141,14 +149,19 @@ def _validate_and_get_resource(user, model_class, resource_id, entity_name: str)
     return resource, None
 
 
-def _get_group_and_video(user, group_id, video_id):
+def _get_group_and_video(user, group_id, video_id, select_related_fields=None):
     """共通のグループとビデオ取得ロジック（DRY原則・N+1問題対策）"""
     # DRY原則: 共通の検証関数を使用
-    group, error = _validate_and_get_resource(user, VideoGroup, group_id, "グループ")
+    # N+1問題対策: 必要に応じてselect_relatedを適用
+    group, error = _validate_and_get_resource(
+        user, VideoGroup, group_id, "グループ", select_related_fields
+    )
     if error:
         return None, None, error
 
-    video, error = _validate_and_get_resource(user, Video, video_id, "動画")
+    video, error = _validate_and_get_resource(
+        user, Video, video_id, "動画", select_related_fields
+    )
     if error:
         return None, None, error
 
@@ -174,11 +187,16 @@ def _validate_videos_count(videos, video_ids):
     return None
 
 
-def _get_member_queryset(group, video=None):
+def _get_member_queryset(group, video=None, select_related=False):
     """共通のメンバークエリ（DRY原則・N+1問題対策）"""
     queryset = VideoGroupMember.objects.filter(group=group)
     if video:
         queryset = queryset.filter(video=video)
+
+    # N+1問題対策: videoやgroupのデータが必要な場合のみselect_relatedを適用
+    if select_related:
+        queryset = queryset.select_related("video", "group")
+
     return queryset
 
 
@@ -274,6 +292,7 @@ def add_videos_to_group(request, group_id):
         return error
 
     # 動画を一括取得（N+1問題対策）
+    # select_relatedはここでは不要（userデータは既に検証済み）
     videos = list(Video.objects.filter(user=request.user, id__in=video_ids))
 
     # DRY原則: 共通のバリデーション関数を使用
