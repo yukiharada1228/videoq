@@ -45,7 +45,15 @@ class LoginSerializer(serializers.Serializer, CredentialsSerializerMixin):
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ["id", "username"]
+        fields = ["id", "username", "encrypted_openai_api_key"]
+
+
+class UserUpdateSerializer(serializers.ModelSerializer):
+    """ユーザー情報更新用のシリアライザー"""
+
+    class Meta:
+        model = User
+        fields = ["encrypted_openai_api_key"]
 
 
 class RefreshSerializer(serializers.Serializer):
@@ -54,7 +62,7 @@ class RefreshSerializer(serializers.Serializer):
     def validate_refresh(self, value):
         """リフレッシュトークンの検証"""
         if not value:
-            raise serializers.ValidationError("refresh は必須です")
+            raise serializers.ValidationError("no refresh")
         try:
             # トークンの検証を行い、refresh_objとして保存
             self._refresh_obj = RefreshToken(value)

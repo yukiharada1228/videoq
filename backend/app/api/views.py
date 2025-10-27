@@ -5,7 +5,7 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .serializers import (LoginSerializer, RefreshSerializer, UserSerializer,
-                          UserSignupSerializer)
+                          UserSignupSerializer, UserUpdateSerializer)
 
 User = get_user_model()
 
@@ -51,22 +51,20 @@ class RefreshView(PublicAPIView):
     serializer_class = RefreshSerializer
 
     def post(self, request):
-        if not request.data.get("refresh"):
-            return Response({"detail": "no refresh"}, status=401)
         serializer = self.get_serializer(data=request.data)
-        try:
-            serializer.is_valid(raise_exception=True)
-        except Exception:
-            return Response({"detail": "invalid refresh"}, status=401)
+        serializer.is_valid(raise_exception=True)
         refresh = serializer.validated_data["refresh_obj"]
         access = refresh.access_token
         return Response({"access": str(access)})
 
 
-class MeView(AuthenticatedAPIView, generics.RetrieveAPIView):
-    """現在のユーザー情報取得ビュー"""
+class MeView(AuthenticatedAPIView, generics.RetrieveUpdateAPIView):
+    """現在のユーザー情報取得・更新ビュー"""
 
-    serializer_class = UserSerializer
+    def get_serializer_class(self):
+        if self.request.method == "PUT" or self.request.method == "PATCH":
+            return UserUpdateSerializer
+        return UserSerializer
 
     def get_object(self):
         return self.request.user
