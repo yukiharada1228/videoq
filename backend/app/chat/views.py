@@ -1,21 +1,14 @@
+from app.utils.mixins import AuthenticatedViewMixin
+from app.utils.responses import create_error_response
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
-
-from .langchain_utils import (
-    create_error_response,
-    get_langchain_llm,
-    handle_langchain_exception,
-)
 from rest_framework import generics, status
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework_simplejwt.authentication import JWTAuthentication
+
+from .langchain_utils import get_langchain_llm, handle_langchain_exception
 
 
-class ChatView(generics.CreateAPIView):
+class ChatView(AuthenticatedViewMixin, generics.CreateAPIView):
     """チャットビュー（LangChain使用）"""
-
-    permission_classes = [IsAuthenticated]
-    authentication_classes = [JWTAuthentication]
 
     def post(self, request):
         user = request.user
