@@ -153,42 +153,73 @@ def _create_error_response(
     return Response({"error": error_message}, status=http_status)
 
 
-def _handle_validation_error(value, field_name: str, entity_name: str):
+def _handle_validation_error(value, entity_name: str):
     """共通のバリデーションチェック（DRY原則）"""
     if not value:
-        return _create_error_response(f"{entity_name}が見つかりません")
-    return None
-
-
-def _get_group_and_video(user, group_id, video_id):
-    """共通のグループとビデオ取得ロジック（DRY原則・N+1問題対策）"""
-    # N+1問題対策: filter().first()を使用してNoneを返す（例外を投げない）
-    group = VideoGroup.objects.filter(user=user, id=group_id).first()
-    video = Video.objects.filter(user=user, id=video_id).first()
-    return group, video
-
-
-def _validate_ownership(user, resource, entity_name: str):
-    """共通の所有権検証ロジック（DRY原則）"""
-    error = _handle_validation_error(resource, entity_name, entity_name)
-    if error:
-        return error
-    if resource.user != user:
         return _create_error_response(
-            f"この{entity_name}にアクセスする権限がありません",
-            status.HTTP_403_FORBIDDEN,
+            f"{entity_name}が見つかりません", status.HTTP_404_NOT_FOUND
         )
     return None
 
 
-def _validate_user_owns_group(user, group):
-    """グループ所有権検証（DRY原則）"""
-    return _validate_ownership(user, group, "グループ")
+def _validate_and_get_resource(user, model_class, resource_id, entity_name: str):
+    """共通のリソース取得と検証ロジック（DRY原則・N+1問題対策）"""
+    # N+1問題対策: filter().first()を使用してNoneを返す（例外を投げない）
+    # userでフィルタリングしているので所有権の確認は自動的に行われる
+    resource = model_class.objects.filter(user=user, id=resource_id).first()
+
+    # リソースが見つからない場合（存在しない、または所有権がない）
+    error = _handle_validation_error(resource, entity_name)
+    if error:
+        return None, error
+
+    return resource, None
 
 
-def _validate_user_owns_video(user, video):
-    """ビデオ所有権検証（DRY原則）"""
-    return _validate_ownership(user, video, "動画")
+def _get_group_and_video(user, group_id, video_id):
+    """共通のグループとビデオ取得ロジック（DRY原則・N+1問題対策）"""
+    # DRY原則: 共通の検証関数を使用
+    group, error = _validate_and_get_resource(user, VideoGroup, group_id, "グループ")
+    if error:
+        return None, None, error
+
+    video, error = _validate_and_get_resource(user, Video, video_id, "動画")
+    if error:
+        return None, None, error
+
+    return group, video, None
+
+
+def _validate_video_ids(request, entity_name: str):
+    """video_idsのバリデーション（DRY原則）"""
+    video_ids = request.data.get("video_ids", [])
+    if not video_ids:
+        return None, _create_error_response(
+            f"{entity_name}IDが指定されていません", status.HTTP_400_BAD_REQUEST
+        )
+    return video_ids, None
+
+
+def _validate_videos_count(videos, video_ids):
+    """動画の取得数チェック（DRY原則）"""
+    if len(videos) != len(video_ids):
+        return _create_error_response(
+            "一部の動画が見つかりません", status.HTTP_404_NOT_FOUND
+        )
+    return None
+
+
+def _member_exists(group, video):
+    """メンバーの存在チェック（DRY原則・N+1問題対策）"""
+    return VideoGroupMember.objects.filter(group=group, video=video).exists()
+
+
+def _check_and_get_member(group, video, error_message):
+    """メンバーの存在チェックと取得（DRY原則・N+1問題対策）"""
+    member = VideoGroupMember.objects.filter(group=group, video=video).first()
+    if not member:
+        return None, _create_error_response(error_message)
+    return member, None
 
 
 # DRY原則: 認証必須APIビューデコレーター
@@ -201,125 +232,123 @@ def authenticated_api_view(methods):
     return decorator
 
 
-@authenticated_api_view(["POST"])
+def with_error_handling(view_func):
+    """共通のエラーハンドリングデコレーター（DRY原則）"""
+
+    def wrapper(*args, **kwargs):
+        try:
+            return view_func(*args, **kwargs)
+        except Exception as e:
+            return _create_error_response(str(e), status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    return wrapper
+
+
+def authenticated_view_with_error_handling(methods):
+    """認証とエラーハンドリングを組み合わせたデコレーター（DRY原則）"""
+
+    def decorator(view_func):
+        # エラーハンドリングを最初に適用し、次に認証を適用
+        wrapped = with_error_handling(view_func)
+        return authenticated_api_view(methods)(wrapped)
+
+    return decorator
+
+
+@authenticated_view_with_error_handling(["POST"])
 def add_video_to_group(request, group_id, video_id):
     """グループに動画を追加（DRY原則・N+1問題対策）"""
-    try:
-        group, video = _get_group_and_video(request.user, group_id, video_id)
+    group, video, error = _get_group_and_video(request.user, group_id, video_id)
 
-        # DRY原則: 共通の検証関数を使用
-        error_response = _validate_user_owns_group(request.user, group)
-        if error_response:
-            return error_response
+    # DRY原則: 共通の検証結果をチェック
+    if error:
+        return error
 
-        error_response = _validate_user_owns_video(request.user, video)
-        if error_response:
-            return error_response
-
-        # すでに追加されているかチェック（N+1問題対策: 1つのクエリのみ）
-        if VideoGroupMember.objects.filter(group=group, video=video).exists():
-            return _create_error_response(
-                "この動画は既にグループに追加されています", status.HTTP_400_BAD_REQUEST
-            )
-
-        # グループに追加
-        member = VideoGroupMember.objects.create(group=group, video=video)
-
-        return Response(
-            {"message": "動画をグループに追加しました", "id": member.id},
-            status=status.HTTP_201_CREATED,
+    # すでに追加されているかチェック（N+1問題対策・DRY原則: 1つのクエリのみ）
+    if _member_exists(group, video):
+        return _create_error_response(
+            "この動画は既にグループに追加されています", status.HTTP_400_BAD_REQUEST
         )
 
-    except Exception as e:
-        return _create_error_response(str(e), status.HTTP_500_INTERNAL_SERVER_ERROR)
+    # グループに追加（N+1問題対策）
+    member = VideoGroupMember.objects.create(group=group, video=video)
+
+    return Response(
+        {"message": "動画をグループに追加しました", "id": member.id},
+        status=status.HTTP_201_CREATED,
+    )
 
 
-@authenticated_api_view(["POST"])
+@authenticated_view_with_error_handling(["POST"])
 def add_videos_to_group(request, group_id):
     """グループに複数の動画を追加（N+1問題対策・DRY原則）"""
-    try:
-        # DRY原則: 共通の取得関数を使用（ただし、video_idは任意）
-        try:
-            group = VideoGroup.objects.get(user=request.user, id=group_id)
-        except VideoGroup.DoesNotExist:
-            group = None
+    # DRY原則: 共通の検証関数を使用
+    group, error = _validate_and_get_resource(
+        request.user, VideoGroup, group_id, "グループ"
+    )
+    if error:
+        return error
 
-        # DRY原則: 共通の検証関数を使用
-        error_response = _validate_user_owns_group(request.user, group)
-        if error_response:
-            return error_response
+    # DRY原則: 共通のバリデーション関数を使用
+    video_ids, error = _validate_video_ids(request, "動画")
+    if error:
+        return error
 
-        video_ids = request.data.get("video_ids", [])
-        if not video_ids:
-            return _create_error_response(
-                "動画IDが指定されていません", status.HTTP_400_BAD_REQUEST
-            )
+    # 動画を一括取得（N+1問題対策）
+    videos = list(Video.objects.filter(user=request.user, id__in=video_ids))
 
-        # 動画を一括取得（N+1問題対策）
-        videos = list(Video.objects.filter(user=request.user, id__in=video_ids))
+    # DRY原則: 共通のバリデーション関数を使用
+    error = _validate_videos_count(videos, video_ids)
+    if error:
+        return error
 
-        if len(videos) != len(video_ids):
-            return _create_error_response(
-                "一部の動画が見つかりません", status.HTTP_404_NOT_FOUND
-            )
-
-        # 既に追加されている動画をチェック（N+1問題対策）
-        existing_members = set(
-            VideoGroupMember.objects.filter(group=group, video__in=videos).values_list(
-                "video_id", flat=True
-            )
+    # 既に追加されている動画をチェック（N+1問題対策）
+    existing_members = set(
+        VideoGroupMember.objects.filter(group=group, video__in=videos).values_list(
+            "video_id", flat=True
         )
+    )
 
-        # 追加可能な動画のみをフィルタリング（N+1問題対策）
-        videos_to_add = [video for video in videos if video.id not in existing_members]
+    # 追加可能な動画のみをフィルタリング（N+1問題対策）
+    videos_to_add = [video for video in videos if video.id not in existing_members]
 
-        # バッチで追加
-        members_to_create = [
-            VideoGroupMember(group=group, video=video) for video in videos_to_add
-        ]
-        VideoGroupMember.objects.bulk_create(members_to_create)
+    # バッチで追加
+    members_to_create = [
+        VideoGroupMember(group=group, video=video) for video in videos_to_add
+    ]
+    VideoGroupMember.objects.bulk_create(members_to_create)
 
-        added_count = len(members_to_create)
-        skipped_count = len(video_ids) - added_count
+    added_count = len(members_to_create)
+    skipped_count = len(video_ids) - added_count
 
-        return Response(
-            {
-                "message": f"{added_count}個の動画をグループに追加しました",
-                "added_count": added_count,
-                "skipped_count": skipped_count,
-            },
-            status=status.HTTP_201_CREATED,
-        )
-
-    except Exception as e:
-        return _create_error_response(str(e), status.HTTP_500_INTERNAL_SERVER_ERROR)
+    return Response(
+        {
+            "message": f"{added_count}個の動画をグループに追加しました",
+            "added_count": added_count,
+            "skipped_count": skipped_count,
+        },
+        status=status.HTTP_201_CREATED,
+    )
 
 
-@authenticated_api_view(["DELETE"])
+@authenticated_view_with_error_handling(["DELETE"])
 def remove_video_from_group(request, group_id, video_id):
     """グループから動画を削除（DRY原則）"""
-    try:
-        group, video = _get_group_and_video(request.user, group_id, video_id)
+    group, video, error = _get_group_and_video(request.user, group_id, video_id)
 
-        # DRY原則: 共通の検証関数を使用
-        error_response = _validate_user_owns_group(request.user, group)
-        if error_response:
-            return error_response
+    # DRY原則: 共通の検証結果をチェック
+    if error:
+        return error
 
-        error_response = _validate_user_owns_video(request.user, video)
-        if error_response:
-            return error_response
+    # グループメンバーを削除（DRY原則・N+1問題対策）
+    member, error = _check_and_get_member(
+        group, video, "この動画はグループに追加されていません"
+    )
+    if error:
+        return error
 
-        # グループメンバーを削除
-        member = VideoGroupMember.objects.filter(group=group, video=video).first()
-        if not member:
-            return _create_error_response("この動画はグループに追加されていません")
+    member.delete()
 
-        member.delete()
-
-        return Response(
-            {"message": "動画をグループから削除しました"}, status=status.HTTP_200_OK
-        )
-
-    except Exception as e:
-        return _create_error_response(str(e), status.HTTP_500_INTERNAL_SERVER_ERROR)
+    return Response(
+        {"message": "動画をグループから削除しました"}, status=status.HTTP_200_OK
+    )
