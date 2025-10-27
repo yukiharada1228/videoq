@@ -137,19 +137,9 @@ export default function Settings() {
               {error && <MessageAlert message={error} type="error" />}
               {success && <MessageAlert message="設定を保存しました" type="success" />}
 
-              <div className="flex gap-4">
-                <Button type="submit" disabled={saving}>
-                  {saving ? '保存中...' : '保存'}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={goHome}
-                  disabled={saving}
-                >
-                  キャンセル
-                </Button>
-              </div>
+              <Button type="submit" disabled={saving}>
+                {saving ? '保存中...' : '保存'}
+              </Button>
             </form>
           </CardContent>
         </Card>
