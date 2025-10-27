@@ -10,6 +10,7 @@ import { PageLayout } from '@/components/layout/PageLayout';
 import { apiClient } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
+import { MessageAlert } from '@/components/common/MessageAlert';
 
 export default function Settings() {
   const router = useRouter();
@@ -52,24 +53,6 @@ export default function Settings() {
 
   const goHome = () => {
     router.push('/');
-  };
-
-  const MessageAlert = ({ 
-    message, 
-    type 
-  }: { 
-    message: string; 
-    type: 'error' | 'success' 
-  }) => {
-    const styles = type === 'error' 
-      ? 'bg-red-50 text-red-800' 
-      : 'bg-green-50 text-green-800';
-    
-    return (
-      <div className={`rounded-md p-4 text-sm ${styles}`}>
-        {message}
-      </div>
-    );
   };
 
   if (loading || !user) {

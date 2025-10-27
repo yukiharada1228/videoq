@@ -5,6 +5,7 @@ import { PageLayout } from '@/components/layout/PageLayout';
 import { AuthForm } from '@/components/auth/AuthForm';
 import { useAuthForm } from '@/hooks/useAuthForm';
 import { apiClient } from '@/lib/api';
+import { AUTH_FIELDS } from '@/lib/authConfig';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -22,22 +23,7 @@ export default function LoginPage() {
       <AuthForm
         title="ログイン"
         description="アカウントにログインしてサービスをご利用ください"
-        fields={[
-          {
-            id: 'username',
-            name: 'username',
-            label: 'ユーザー名',
-            type: 'text',
-            placeholder: 'ユーザー名を入力',
-          },
-          {
-            id: 'password',
-            name: 'password',
-            label: 'パスワード',
-            type: 'password',
-            placeholder: 'パスワードを入力',
-          },
-        ]}
+        fields={[AUTH_FIELDS.USERNAME, AUTH_FIELDS.PASSWORD]}
         formData={formData}
         error={error}
         loading={loading}

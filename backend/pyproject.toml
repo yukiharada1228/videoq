@@ -12,4 +12,6 @@ dependencies = [
     "gunicorn>=23.0.0",
     "uvicorn>=0.38.0",
     "uvicorn-worker>=0.4.0",
+    "openai>=1.0.0",
+    "cryptography>=42.0.0",
 ]
