@@ -45,7 +45,10 @@ class VideoUpdateSerializer(serializers.ModelSerializer):
 
 
 class VideoListSerializer(serializers.ModelSerializer):
-    """Video一覧用のシリアライザー"""
+    """Video一覧用のシリアライザー
+    Note: userフィールドを含めていないため、N+1問題対策のため
+    VideoListViewではselect_related('user')は不要
+    """
 
     class Meta:
         model = Video

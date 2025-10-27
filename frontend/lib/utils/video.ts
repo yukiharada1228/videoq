@@ -41,3 +41,30 @@ export function getStatusLabel(status: string): string {
   return labels[status as VideoStatus] || status;
 }
 
+/**
+ * 日付を日本語形式でフォーマット（DRY原則）
+ * @param date ISO形式の日付文字列またはDateオブジェクト
+ * @param format 'full' | 'short' - 日時形式の詳細度
+ * @returns フォーマットされた日付文字列
+ */
+export function formatDate(date: string | Date, format: 'full' | 'short' = 'full'): string {
+  const dateObj = typeof date === 'string' ? new Date(date) : date;
+  
+  if (format === 'short') {
+    return dateObj.toLocaleDateString('ja-JP', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+  }
+  
+  return dateObj.toLocaleString('ja-JP', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
+}
+

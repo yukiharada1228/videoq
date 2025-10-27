@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { MessageAlert } from '@/components/common/MessageAlert';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
-import { getStatusBadgeClassName, getStatusLabel } from '@/lib/utils/video';
+import { getStatusBadgeClassName, getStatusLabel, formatDate } from '@/lib/utils/video';
 import Link from 'next/link';
 
 export default function VideoDetailPage() {
@@ -109,7 +109,7 @@ export default function VideoDetailPage() {
               <div>
                 <p className="text-sm font-medium text-gray-600">アップロード日時</p>
                 <p className="text-gray-900">
-                  {new Date(video.uploaded_at).toLocaleString('ja-JP')}
+                  {formatDate(video.uploaded_at)}
                 </p>
               </div>
             </CardContent>
