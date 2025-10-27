@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useVideos } from '@/hooks/useVideos';
 import { VideoUploadModal } from '@/components/video/VideoUploadModal';
 import { VideoList } from '@/components/video/VideoList';
@@ -12,6 +13,14 @@ import { Button } from '@/components/ui/button';
 export default function VideosPage() {
   const { videos, isLoading, error, loadVideos } = useVideos();
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    // URLパラメータにupload=trueが含まれている場合、モーダルを開く
+    if (searchParams?.get('upload') === 'true') {
+      setIsUploadModalOpen(true);
+    }
+  }, [searchParams]);
 
   const handleUploadSuccess = () => {
     loadVideos();
