@@ -1,6 +1,7 @@
 from django.contrib.auth import authenticate, get_user_model
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken
+from app.utils.encryption import encrypt_api_key, is_encrypted
 
 User = get_user_model()
 
@@ -54,6 +55,25 @@ class UserUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ["encrypted_openai_api_key"]
+
+    def update(self, instance, validated_data):
+        encrypted_api_key = validated_data.get("encrypted_openai_api_key")
+        
+        if encrypted_api_key:
+            # APIキーが既に暗号化されているかチェック
+            # プレーンテキストの場合のみ暗号化
+            if not is_encrypted(encrypted_api_key):
+                try:
+                    encrypted_api_key = encrypt_api_key(encrypted_api_key)
+                except Exception as e:
+                    raise serializers.ValidationError(f"APIキーの暗号化に失敗しました: {str(e)}")
+            
+            validated_data["encrypted_openai_api_key"] = encrypted_api_key
+        else:
+            # nullの場合は暗号化しない
+            validated_data["encrypted_openai_api_key"] = None
+
+        return super().update(instance, validated_data)
 
 
 class RefreshSerializer(serializers.Serializer):

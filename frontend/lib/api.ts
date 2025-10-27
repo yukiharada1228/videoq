@@ -29,6 +29,15 @@ export interface LoginRequest {
   password: string;
 }
 
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export interface ChatRequest {
+  messages: ChatMessage[];
+}
+
 class ApiClient {
   private baseUrl: string;
 
@@ -165,6 +174,13 @@ class ApiClient {
   async updateMe(data: UpdateUserRequest): Promise<User> {
     return this.request<User>('/auth/me', {
       method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async chat(data: ChatRequest): Promise<ChatMessage> {
+    return this.request<ChatMessage>('/chat/', {
+      method: 'POST',
       body: JSON.stringify(data),
     });
   }

@@ -7,6 +7,7 @@ import { apiClient } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
+import { ChatPanel } from '@/components/chat/ChatPanel';
 
 export default function Home() {
   const router = useRouter();
@@ -35,7 +36,7 @@ export default function Home() {
         </>
       }
     >
-      <div className="space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
             <CardTitle>ダッシュボード</CardTitle>
@@ -66,6 +67,8 @@ export default function Home() {
             </div>
           </CardContent>
         </Card>
+        
+        <ChatPanel hasApiKey={!!user.encrypted_openai_api_key} />
       </div>
     </PageLayout>
   );
