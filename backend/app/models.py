@@ -85,7 +85,12 @@ class Video(models.Model):
         ordering = ["-uploaded_at"]
 
     def __str__(self):
-        return f"{self.title} (by {self.user.username})"
+        # N+1問題対策: userが読み込まれていない場合はidを使用
+        try:
+            username = self.user.username
+        except AttributeError:
+            username = f"user_{self.user_id}"
+        return f"{self.title} (by {username})"
 
 
 class VideoGroup(models.Model):
@@ -111,7 +116,12 @@ class VideoGroup(models.Model):
         ordering = ["-created_at"]
 
     def __str__(self):
-        return f"{self.name} (by {self.user.username})"
+        # N+1問題対策: userが読み込まれていない場合はidを使用
+        try:
+            username = self.user.username
+        except AttributeError:
+            username = f"user_{self.user_id}"
+        return f"{self.name} (by {username})"
 
 
 class VideoGroupMember(models.Model):
@@ -130,4 +140,15 @@ class VideoGroupMember(models.Model):
         ]  # Cannot add the same video to the same group multiple times
 
     def __str__(self):
-        return f"{self.video.title} in {self.group.name}"
+        # N+1問題対策: videoとgroupが読み込まれていない場合はidを使用
+        try:
+            video_title = self.video.title
+        except AttributeError:
+            video_title = f"video_{self.video_id}"
+
+        try:
+            group_name = self.group.name
+        except AttributeError:
+            group_name = f"group_{self.group_id}"
+
+        return f"{video_title} in {group_name}"
