@@ -36,17 +36,44 @@ export function VideoList({ videos }: VideoListProps) {
         <Link key={video.id} href={`/videos/${video.id}`}>
           <Card className="hover:shadow-lg transition-all duration-300 cursor-pointer border border-gray-200 hover:border-blue-300 overflow-hidden group">
             {/* サムネイル */}
-            <div className="relative w-full h-48 bg-gradient-to-br from-blue-50 to-indigo-100 overflow-hidden">
-              <div className="absolute inset-0 flex items-center justify-center">
-                <svg className="w-20 h-20 text-blue-300 group-hover:text-blue-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                </svg>
-              </div>
+            <div className="relative w-full h-48 bg-black overflow-hidden group">
+              {video.file ? (
+                <video 
+                  className="w-full h-full object-cover"
+                  muted
+                  playsInline
+                  onMouseEnter={(e) => {
+                    const video = e.currentTarget;
+                    video.play().catch(() => {});
+                  }}
+                  onMouseLeave={(e) => {
+                    const video = e.currentTarget;
+                    video.pause();
+                    video.currentTime = 0;
+                  }}
+                >
+                  <source src={video.file} type="video/mp4" />
+                </video>
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+                  <svg className="w-20 h-20 text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                </div>
+              )}
               {/* ステータスバッジ（上に表示） */}
               <div className="absolute top-3 right-3">
                 <span className={getStatusBadgeClassName(video.status, 'sm')}>
                   {getStatusLabel(video.status)}
                 </span>
+              </div>
+              {/* ホバー時に表示されるプレイアイコン */}
+              <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="w-16 h-16 bg-white bg-opacity-90 rounded-full flex items-center justify-center">
+                  <svg className="w-8 h-8 text-gray-900 ml-1" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
+                </div>
               </div>
             </div>
 

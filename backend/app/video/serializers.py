@@ -45,10 +45,10 @@ class VideoUpdateSerializer(serializers.ModelSerializer):
 
 
 class VideoListSerializer(serializers.ModelSerializer):
-    """Video一覧用のシリアライザー（ファイルパスは含まない）"""
+    """Video一覧用のシリアライザー"""
 
     class Meta:
         model = Video
-        fields = ["id", "title", "description", "uploaded_at", "status"]
+        fields = ["id", "file", "title", "description", "uploaded_at", "status"]
         read_only_fields = ["id", "uploaded_at"]
 
