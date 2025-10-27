@@ -23,9 +23,12 @@ export function ChatPanel({ hasApiKey }: ChatPanelProps) {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    }
   };
 
   useEffect(() => {
@@ -67,12 +70,16 @@ export function ChatPanel({ hasApiKey }: ChatPanelProps) {
     }
   };
 
+  const ChatHeader = () => (
+    <CardHeader>
+      <CardTitle>チャット</CardTitle>
+    </CardHeader>
+  );
+
   if (!hasApiKey) {
     return (
       <Card className="h-[600px] flex flex-col">
-        <CardHeader>
-          <CardTitle>チャット</CardTitle>
-        </CardHeader>
+        <ChatHeader />
         <CardContent className="flex-1 flex items-center justify-center">
           <div className="text-center text-gray-500">
             <p className="mb-2">APIキーが設定されていません</p>
@@ -85,11 +92,9 @@ export function ChatPanel({ hasApiKey }: ChatPanelProps) {
 
   return (
     <Card className="h-[600px] flex flex-col">
-      <CardHeader>
-        <CardTitle>チャット</CardTitle>
-      </CardHeader>
+      <ChatHeader />
       <CardContent className="flex-1 flex flex-col overflow-hidden">
-        <div className="flex-1 overflow-y-auto space-y-4 mb-4">
+        <div ref={messagesContainerRef} className="flex-1 overflow-y-auto space-y-4 mb-4">
           {messages.map((message, index) => (
             <div
               key={index}
