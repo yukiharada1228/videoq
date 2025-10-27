@@ -78,8 +78,8 @@ test.describe('Video Groups', () => {
       // URLが変更されていることを確認
       await expect(page).toHaveURL(/\/videos\/groups\/\d+/, { timeout: 10000 });
     } else {
-      // グループがない場合はスキップ
-      test.skip('グループが存在しません');
+      // グループがない場合は、ページが正常に表示されたことを確認
+      await expect(page).toHaveURL(/\/videos\/groups/, { timeout: 5000 });
     }
   });
 
