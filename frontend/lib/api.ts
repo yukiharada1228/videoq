@@ -29,6 +29,15 @@ export interface LoginRequest {
   password: string;
 }
 
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export interface ChatRequest {
+  messages: ChatMessage[];
+}
+
 class ApiClient {
   private baseUrl: string;
 
@@ -37,23 +46,63 @@ class ApiClient {
   }
 
   // ローカルストレージへのアクセスを共通化
+  // トークンを取得する共通メソッド（DRY原則）
+  private getTokenFromStorage(key: string): string | null {
+    return localStorage.getItem(key);
+  }
+
   private getToken(): string | null {
-    return localStorage.getItem('access_token');
+    return this.getTokenFromStorage('access_token');
+  }
+
+  private getRefreshToken(): string | null {
+    return this.getTokenFromStorage('refresh_token');
+  }
+
+  private setToken(key: string, value: string): void {
+    localStorage.setItem(key, value);
   }
 
   private setTokens(access: string, refresh: string): void {
-    localStorage.setItem('access_token', access);
-    localStorage.setItem('refresh_token', refresh);
+    this.setToken('access_token', access);
+    this.setToken('refresh_token', refresh);
+  }
+
+  private setAccessToken(access: string): void {
+    this.setToken('access_token', access);
+  }
+
+  // トークンを削除する共通メソッド（DRY原則）
+  private removeToken(key: string): void {
+    localStorage.removeItem(key);
   }
 
   private removeTokens(): void {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
+    this.removeToken('access_token');
+    this.removeToken('refresh_token');
+  }
+
+  // URLを構築する共通メソッド（DRY原則）
+  private buildUrl(endpoint: string): string {
+    return `${this.baseUrl}${endpoint}`;
+  }
+
+  // bodyがオブジェクトの場合、自動的にJSON.stringifyする共通メソッド（DRY原則）
+  private stringifyBody(body: any): BodyInit | null | undefined {
+    if (body && typeof body === 'object' && !(body instanceof FormData) && !(body instanceof URLSearchParams) && !(body instanceof ReadableStream) && !(body instanceof ArrayBuffer)) {
+      return JSON.stringify(body);
+    }
+    return body;
+  }
+
+  // 基本的なJSONヘッダーを生成する共通メソッド（DRY原則）
+  private getJsonHeaders(): Record<string, string> {
+    return { 'Content-Type': 'application/json' };
   }
 
   private buildHeaders(additionalHeaders?: HeadersInit): Record<string, string> {
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
+      ...this.getJsonHeaders(),
       ...(additionalHeaders as Record<string, string>),
     };
 
@@ -66,10 +115,10 @@ class ApiClient {
   }
 
   private async handleError(response: Response): Promise<never> {
-    const error = await response.json().catch(() => ({ 
+    const error: any = await response.json().catch(() => ({ 
       detail: response.statusText 
     }));
-    throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+    throw new Error(error?.detail || error?.message || `HTTP error! status: ${response.status}`);
   }
 
   private async handleAuthError(): Promise<void> {
@@ -78,39 +127,91 @@ class ApiClient {
     throw new Error('認証に失敗しました。再度ログインしてください。');
   }
 
+  // エラーログを出力する共通メソッド（DRY原則）
+  private logError(message: string, error: any): void {
+    console.error(message, error);
+  }
+
+  // レスポンスのJSONを安全に取得する共通メソッド（DRY原則）
+  private async parseJsonResponse<T>(response: Response): Promise<T> {
+    return await response.json();
+  }
+
+  // 401エラーを処理する共通メソッド（DRY原則）
+  private async handle401Error<T>(response: Response, retryCount: number, retryCallback: () => Promise<T>): Promise<T | null> {
+    if (response.status === 401 && retryCount === 0) {
+      try {
+        await this.refreshToken();
+        const result = await retryCallback();
+        return result;
+      } catch (refreshError) {
+        await this.handleAuthError();
+      }
+      return null;
+    }
+    
+    if (response.status === 401) {
+      await this.handleAuthError();
+      return null;
+    }
+    
+    return null;
+  }
+
+  /**
+   * 共通のfetch実行ロジック（DRY原則に従う）
+   * リトライロジックなしの基本的なfetch処理
+   * 401エラーは例外を投げず、呼び出し元で特別な処理が可能
+   */
+  private async executeRequest<T>(
+    url: string,
+    config: RequestInit
+  ): Promise<Response> {
+    const response = await fetch(url, config);
+    
+    // 401以外のエラーは即座に処理
+    if (!response.ok && response.status !== 401) {
+      await this.handleError(response);
+    }
+
+    return response;
+  }
+
   private async request<T>(
     endpoint: string,
-    options: RequestInit = {},
+    options: Omit<RequestInit, 'body'> & { body?: any } = {},
     retryCount: number = 0
   ): Promise<T> {
-    const url = `${this.baseUrl}${endpoint}`;
+    // 共通メソッドを使用してURLを構築
+    const url = this.buildUrl(endpoint);
     const headers = this.buildHeaders(options.headers);
+
+    // 共通メソッドを使用してbodyを文字列化
+    const body = this.stringifyBody(options.body);
 
     const config: RequestInit = {
       ...options,
+      body,
       headers,
     };
 
     try {
-      const response = await fetch(url, config);
+      // 共通のfetch実行ロジックを使用
+      const response = await this.executeRequest<T>(url, config);
       
-      // 401エラー（認証エラー）の場合、リフレッシュトークンで再試行
-      if (response.status === 401 && retryCount === 0) {
-        try {
-          await this.refreshToken();
-          return this.request(endpoint, options, retryCount + 1);
-        } catch (refreshError) {
-          await this.handleAuthError();
-        }
-      }
+      // 共通メソッドを使用して401エラーを処理
+      const retryResult = await this.handle401Error<T>(response, retryCount, () => this.request(endpoint, options, retryCount + 1));
       
-      if (!response.ok) {
-        await this.handleError(response);
+      // リトライした場合は再帰的に呼ばれた結果を返す
+      if (retryResult !== null && retryResult !== undefined) {
+        return retryResult as T;
       }
 
-      return await response.json();
+      // 共通メソッドを使用してレスポンスのJSONを取得
+      return await this.parseJsonResponse<T>(response);
     } catch (error) {
-      console.error('API request failed:', error);
+      // 共通メソッドを使用してエラーログを出力
+      this.logError('API request failed:', error);
       throw error;
     }
   }
@@ -118,14 +219,14 @@ class ApiClient {
   async signup(data: SignupRequest): Promise<void> {
     await this.request('/auth/signup/', {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: data,
     });
   }
 
   async login(data: LoginRequest): Promise<LoginResponse> {
     const response = await this.request<LoginResponse>('/auth/login/', {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: data,
     });
     
     this.setTokens(response.access, response.refresh);
@@ -134,28 +235,44 @@ class ApiClient {
   }
 
   async refreshToken(): Promise<RefreshResponse> {
-    const refreshToken = localStorage.getItem('refresh_token');
+    const refreshToken = this.getRefreshToken();
     
     if (!refreshToken) {
       throw new Error('No refresh token found');
     }
 
-    const url = `${this.baseUrl}/auth/refresh/`;
+    // 認証エラー時のリトライを防ぐため、APIエンドポイントを直接呼び出す
+    // 共通メソッドを使用してURLを構築
+    const url = this.buildUrl('/auth/refresh/');
+    const body = { refresh: refreshToken };
     
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refresh: refreshToken }),
-    });
+    // 共通メソッドを使用してbodyを文字列化（DRY原則）
+    const bodyStringified = this.stringifyBody(body);
+    
+    try {
+      // 共通メソッドを使用してJSONヘッダーを取得（DRY原則）
+      const response = await this.executeRequest<RefreshResponse>(url, {
+        method: 'POST',
+        headers: this.getJsonHeaders(),
+        body: bodyStringified,
+      });
+      
+      // 共通メソッドを使用してレスポンスのJSONを取得
+      const data = await this.parseJsonResponse<RefreshResponse>(response);
+      
+      // 新しいアクセストークンを保存
+      if (data.access) {
+        this.setAccessToken(data.access);
+      }
 
-    if (!response.ok) {
-      throw new Error('Refresh token failed');
+      return data;
+    } catch (error) {
+      // リフレッシュトークンも無効な場合は認証エラーとして処理
+      // 共通メソッドを使用してエラーログを出力
+      this.logError('Refresh token failed:', error);
+      await this.handleAuthError();
+      throw error;
     }
-
-    const data = await response.json();
-    localStorage.setItem('access_token', data.access);
-
-    return data;
   }
 
   async getMe(): Promise<User> {
@@ -165,7 +282,14 @@ class ApiClient {
   async updateMe(data: UpdateUserRequest): Promise<User> {
     return this.request<User>('/auth/me', {
       method: 'PUT',
-      body: JSON.stringify(data),
+      body: data,
+    });
+  }
+
+  async chat(data: ChatRequest): Promise<ChatMessage> {
+    return this.request<ChatMessage>('/chat/', {
+      method: 'POST',
+      body: data,
     });
   }
 
