@@ -204,7 +204,26 @@ class ApiClient {
 
   // レスポンスのJSONを安全に取得する共通メソッド（DRY原則）
   private async parseJsonResponse<T>(response: Response): Promise<T> {
-    return await response.json();
+    const contentType = response.headers.get('content-type');
+    const isJson = contentType && contentType.includes('application/json');
+    
+    // Content-LengthまたはTransfer-Encodingヘッダーをチェック
+    const contentLength = response.headers.get('content-length');
+    if (contentLength === '0' || (!isJson && !contentLength)) {
+      return {} as T;
+    }
+    
+    const text = await response.text();
+    if (!text || text.trim() === '') {
+      return {} as T;
+    }
+    
+    try {
+      return JSON.parse(text) as T;
+    } catch (e) {
+      console.warn('Failed to parse JSON:', text);
+      return {} as T;
+    }
   }
 
   // 401エラーを処理する共通メソッド（DRY原則）
