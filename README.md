@@ -70,16 +70,29 @@ npm run dev
 
 - ユーザー登録・ログイン機能
 - JWT 認証によるセッション管理
+- 動画アップロード・管理機能
+- チャット機能（OpenAI API連携）
 - レスポンシブデザイン
 
 ## 開発
 
 ### バックエンドの API エンドポイント
 
+#### 認証
 - `POST /api/auth/signup/` - ユーザー登録
 - `POST /api/auth/login/` - ログイン
 - `POST /api/auth/refresh/` - トークンリフレッシュ
 - `GET /api/auth/me` - 現在のユーザー情報
+
+#### 動画管理
+- `GET /api/videos/` - 動画一覧取得
+- `POST /api/videos/` - 動画アップロード
+- `GET /api/videos/<id>/` - 動画詳細取得
+- `PATCH /api/videos/<id>/` - 動画情報更新
+- `DELETE /api/videos/<id>/` - 動画削除
+
+#### チャット
+- `POST /api/chat/` - チャット送信
 
 ### CORS 設定
 
