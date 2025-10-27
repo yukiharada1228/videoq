@@ -16,16 +16,7 @@ export default function Home() {
   }
 
   return (
-    <PageLayout
-      headerContent={
-        <button
-          onClick={() => router.push('/videos')}
-          className="text-gray-600 hover:text-gray-900 transition-colors"
-        >
-          動画一覧
-        </button>
-      }
-    >
+    <PageLayout>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>

@@ -1,0 +1,16 @@
+/**
+ * 共通のエラーハンドリング関数（DRY原則）
+ * @param err - エラーオブジェクト
+ * @param defaultMessage - デフォルトのエラーメッセージ
+ * @param setError - エラーメッセージを設定する関数
+ */
+export const handleAsyncError = (
+  err: any, 
+  defaultMessage: string, 
+  setError: (msg: string) => void
+): void => {
+  const errorMessage = err.message || defaultMessage;
+  setError(errorMessage);
+  console.error(defaultMessage, err);
+};
+
