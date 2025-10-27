@@ -11,14 +11,17 @@ from .serializers import (
 )
 
 
-class VideoListView(generics.ListCreateAPIView):
-    """Video一覧取得・作成ビュー"""
-
+class BaseVideoView:
+    """共通のVideoビュー基底クラス（DRY原則）"""
     permission_classes = [IsAuthenticated]
-
+    
     def get_queryset(self):
-        """現在のユーザーのVideoのみを返す（N+1問題対策）"""
-        return Video.objects.filter(user=self.request.user).select_related('user')
+        """現在のユーザーのVideoのみを返す共通ロジック（DRY原則）"""
+        return Video.objects.filter(user=self.request.user)
+
+
+class VideoListView(BaseVideoView, generics.ListCreateAPIView):
+    """Video一覧取得・作成ビュー"""
 
     def get_serializer_class(self):
         """リクエストのメソッドに応じてシリアライザーを変更"""
@@ -27,14 +30,12 @@ class VideoListView(generics.ListCreateAPIView):
         return VideoListSerializer
 
 
-class VideoDetailView(generics.RetrieveUpdateDestroyAPIView):
+class VideoDetailView(BaseVideoView, generics.RetrieveUpdateDestroyAPIView):
     """Video詳細・更新・削除ビュー"""
 
-    permission_classes = [IsAuthenticated]
-
     def get_queryset(self):
-        """現在のユーザーのVideoのみを返す（N+1問題対策）"""
-        return Video.objects.filter(user=self.request.user).select_related('user')
+        """N+1問題対策: シリアライザーにuserを含めているため、select_relatedが必要"""
+        return super().get_queryset().select_related('user')
 
     def get_serializer_class(self):
         """リクエストのメソッドに応じてシリアライザーを変更"""
