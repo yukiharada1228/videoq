@@ -90,14 +90,14 @@ def extract_and_split_audio(input_path, max_size_mb=24):
 
         # Check audio file size
         audio_size_mb = os.path.getsize(temp_audio_path) / (1024 * 1024)
-        logger.info(f"Extracted audio size: {audio_size_mb:.2f} MB")
+        logger.debug(f"Extracted audio size: {audio_size_mb:.2f} MB")
 
         if audio_size_mb <= max_size_mb:
             # No splitting needed if size is within limit
             audio_segments.append(
                 {"path": temp_audio_path, "start_time": 0, "end_time": duration}
             )
-            logger.info(f"Audio is within size limit, no splitting needed")
+            logger.debug(f"Audio is within size limit, no splitting needed")
 
         else:
             # Splitting needed if size is large
@@ -129,12 +129,6 @@ def extract_and_split_audio(input_path, max_size_mb=24):
                     stream, audio_path, acodec="mp3", audio_bitrate="128k"
                 )
                 ffmpeg.run(stream, overwrite_output=True, quiet=True)
-
-                # Check segment size
-                segment_size_mb = os.path.getsize(audio_path) / (1024 * 1024)
-                logger.info(
-                    f"Segment {i+1} size: {segment_size_mb:.2f} MB ({start_time:.2f}s - {end_time:.2f}s)"
-                )
 
                 audio_segments.append(
                     {"path": audio_path, "start_time": start_time, "end_time": end_time}
@@ -168,7 +162,7 @@ def transcribe_audio_segment(client, segment_info):
 @shared_task(bind=True, max_retries=3)
 def transcribe_video(self, video_id):
     """
-    Whisper APIを使用して動画の文字起こしを実行（高速化版）
+    Whisper APIを使用して動画の文字起こしを実行
     ffmpegで変換が必要な場合は自動的にMP3に変換
 
     Args:
@@ -234,8 +228,6 @@ def transcribe_video(self, video_id):
                 futures.append((i, segment_info, future))
 
             for i, segment_info, future in futures:
-                logger.info(f"Processing audio segment {i+1}/{len(audio_segments)}")
-
                 transcription, error = future.result()
 
                 if error:
@@ -263,9 +255,7 @@ def transcribe_video(self, video_id):
         video.error_message = ""
         video.save()
 
-        logger.info(f"Successfully processed video {video_id}")
-        logger.info(f"Total segments: {len(all_segments)}")
-        logger.info(f"Transcription completed with SRT format")
+        logger.info(f"Successfully processed video {video_id} with {len(all_segments)} segments")
 
         return srt_content
 
@@ -299,8 +289,5 @@ def transcribe_video(self, video_id):
             try:
                 if os.path.exists(segment_info["path"]):
                     os.remove(segment_info["path"])
-                    logger.debug(
-                        f"Cleaned up temporary audio file: {segment_info['path']}"
-                    )
             except Exception as e:
                 logger.warning(f"Error cleaning up temporary audio file: {e}")
