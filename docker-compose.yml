@@ -1,36 +1,54 @@
 services:
   redis:
-    image: "redis:alpine"
+    image: redis:alpine
     container_name: ask-video-redis
     networks:
       - ask-video-network
+
+  postgres:
+    image: pgvector/pgvector:pg17
+    container_name: ask-video-postgres
+    env_file:
+      - .env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - ask-video-network
+
   backend:
     build: ./backend
     container_name: ask-video-backend
     ports:
-      - 8000:8000
+      - "8000:8000"
+    env_file:
+      - .env
     volumes:
       - staticfiles:/app/staticfiles
       - ./backend/media:/app/media
-      - ./backend/db.sqlite3:/app/db.sqlite3
+    depends_on:
+      - postgres
+      - redis
     networks:
       - ask-video-network
+
   celery-worker:
     build: ./backend
     container_name: ask-video-celery-worker
     command: uv run celery -A ask_video worker --loglevel=info
+    env_file:
+      - .env
     volumes:
       - ./backend/media:/app/media
-      - ./backend/db.sqlite3:/app/db.sqlite3
     depends_on:
       - redis
     networks:
       - ask-video-network
+
   opensearch:
     image: opensearchproject/opensearch:3
     container_name: ask-video-opensearch
     ports:
-      - 9200:9200
+      - "9200:9200"
     env_file:
       - .env
     environment:
@@ -50,6 +68,7 @@ services:
       - opensearch_data:/usr/share/opensearch/data
     networks:
       - ask-video-network
+
   opensearch-dashboards:
     image: opensearchproject/opensearch-dashboards:3
     container_name: ask-video-opensearch-dashboards
@@ -61,9 +80,12 @@ services:
       - opensearch
     networks:
       - ask-video-network
+
 volumes:
   staticfiles:
   opensearch_data:
+  postgres_data:
+
 networks:
   ask-video-network:
     driver: bridge
