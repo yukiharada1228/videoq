@@ -103,7 +103,11 @@ class SceneSplitter:
         return best_tau, adaptive_threshold
 
     def _apply_otsu_recursive_split(
-        self, embeddings: np.ndarray, texts: List[str], timestamps: List[str]
+        self,
+        embeddings: np.ndarray,
+        texts: List[str],
+        timestamps: List[str],
+        max_tokens: int,
     ) -> List[Dict[str, Any]]:
         """
         Otsu法を再帰的に適用してシーンを分割
@@ -112,8 +116,19 @@ class SceneSplitter:
             シーン情報のリスト
         """
 
+        # 字幕ごとのトークン数と累積和を事前計算
+        token_counts = [self.embedder.count_tokens(t) for t in texts]
+        token_prefix = [0]
+        for c in token_counts:
+            token_prefix.append(token_prefix[-1] + c)
+
+        def range_tokens(s: int, e: int) -> int:
+            # [s, e] のトークン数を返す（両端含む）
+            return token_prefix[e + 1] - token_prefix[s]
+
         def split_scene(start, end):
-            if end - start <= 2:
+            # 終了条件: チャンクの合計トークン数が閾値以内、または分割不能
+            if range_tokens(start, end) <= max_tokens or start == end:
                 return [
                     {
                         "start_time": timestamps[start],
@@ -127,14 +142,6 @@ class SceneSplitter:
             mu0 = np.mean(segment[:tau], axis=0)
             mu1 = np.mean(segment[tau:], axis=0)
             criterion = N0 * N1 * np.sum((mu0 - mu1) ** 2)
-            if criterion < thr or N0 < 3 or N1 < 3:
-                return [
-                    {
-                        "start_time": timestamps[start],
-                        "end_time": timestamps[end],
-                        "subtitles": texts[start : end + 1],
-                    }
-                ]
             split_idx = start + tau
             return split_scene(start, split_idx - 1) + split_scene(split_idx, end)
 
@@ -156,7 +163,7 @@ class SceneSplitter:
         texts = [t for _, t in subs]
         times = [ts for ts, _ in subs]
         embeds = self.embedder.get_embeddings(texts, max_tokens)
-        scenes = self._apply_otsu_recursive_split(embeds, texts, times)
+        scenes = self._apply_otsu_recursive_split(embeds, texts, times, max_tokens)
         return scenes_to_srt_string(scenes)
 
 
