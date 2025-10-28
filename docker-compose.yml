@@ -12,6 +12,7 @@ services:
     volumes:
       - staticfiles:/app/staticfiles
       - ./backend/media:/app/media
+      - ./backend/db.sqlite3:/app/db.sqlite3
     networks:
       - ask-video-network
   celery-worker:
@@ -20,6 +21,7 @@ services:
     command: uv run celery -A ask_video worker --loglevel=info
     volumes:
       - ./backend/media:/app/media
+      - ./backend/db.sqlite3:/app/db.sqlite3
     depends_on:
       - redis
     networks:
