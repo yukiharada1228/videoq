@@ -26,8 +26,42 @@ services:
       - redis
     networks:
       - ask-video-network
+  opensearch:
+    image: opensearchproject/opensearch:3
+    container_name: ask-video-opensearch
+    env_file:
+      - .env
+    environment:
+      - discovery.type=${DISCOVERY_TYPE}
+      - bootstrap.memory_lock=${BOOTSTRAP_MEMORY_LOCK}
+      - OPENSEARCH_JAVA_OPTS=${OPENSEARCH_JAVA_OPTS}
+      - DISABLE_INSTALL_DEMO_CONFIG=${DISABLE_INSTALL_DEMO_CONFIG}
+      - DISABLE_SECURITY_PLUGIN=${DISABLE_SECURITY_PLUGIN}
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    volumes:
+      - opensearch_data:/usr/share/opensearch/data
+    networks:
+      - ask-video-network
+  opensearch-dashboards:
+    image: opensearchproject/opensearch-dashboards:3
+    container_name: ask-video-opensearch-dashboards
+    ports:
+      - "5601:5601"
+    env_file:
+      - .env
+    depends_on:
+      - opensearch
+    networks:
+      - ask-video-network
 volumes:
   staticfiles:
+  opensearch_data:
 networks:
   ask-video-network:
     driver: bridge

@@ -490,6 +490,13 @@ class ApiClient {
       method: 'DELETE',
     });
   }
+
+  async reorderVideosInGroup(groupId: number, videoIds: number[]): Promise<{ message: string }> {
+    return this.request<{ message: string }>(`/videos/groups/${groupId}/reorder/`, {
+      method: 'PATCH',
+      body: { video_ids: videoIds },
+    });
+  }
 }
 
 export const apiClient = new ApiClient();
