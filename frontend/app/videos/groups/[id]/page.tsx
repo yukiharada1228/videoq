@@ -19,6 +19,93 @@ import { useAuth } from '@/hooks/useAuth';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { handleAsyncError } from '@/lib/utils/errorHandling';
+import { useAsyncState } from '@/hooks/useAsyncState';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import {
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+
+// ソータブルな動画アイテムコンポーネント
+interface SortableVideoItemProps {
+  video: VideoInGroup;
+  isSelected: boolean;
+  onSelect: (videoId: number) => void;
+  onRemove: (videoId: number) => void;
+}
+
+function SortableVideoItem({ video, isSelected, onSelect, onRemove }: SortableVideoItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: video.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    touchAction: 'none',
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      onClick={() => onSelect(video.id)}
+      className={`p-3 border rounded cursor-pointer hover:bg-gray-50 cursor-grab active:cursor-grabbing ${
+        isSelected ? 'bg-blue-50 border-blue-300' : ''
+      } ${isDragging ? 'shadow-lg' : ''}`}
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex-1 min-w-0">
+          <h3 className="font-semibold text-sm text-gray-900 truncate">{video.title}</h3>
+          <p className="text-xs text-gray-600 line-clamp-1">{video.description || '説明なし'}</p>
+          <div className="flex items-center gap-2 mt-2">
+            <span className={getStatusBadgeClassName(video.status, 'sm')}>
+              {getStatusLabel(video.status)}
+            </span>
+          </div>
+        </div>
+        <div className="flex items-center gap-1 ml-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 text-xs"
+            onPointerDown={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemove(video.id);
+            }}
+          >
+            削除
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function VideoGroupDetailPage() {
   const params = useParams();
@@ -26,13 +113,17 @@ export default function VideoGroupDetailPage() {
   const groupId = params?.id ? parseInt(params.id as string) : null;
   const { user } = useAuth();
 
-  const [group, setGroup] = useState<VideoGroup | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // DRY原則: useAsyncStateを使用して状態管理を統一
+  const { data: group, isLoading, error, execute: loadGroup, setData: setGroup } = useAsyncState<VideoGroup>({
+    initialData: null,
+  });
+
+  const { data: availableVideos, isLoading: isLoadingVideos, execute: loadAvailableVideos } = useAsyncState<VideoList[]>({
+    initialData: [],
+  });
+
   const [isDeleting, setIsDeleting] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [availableVideos, setAvailableVideos] = useState<VideoList[]>([]);
-  const [isLoadingVideos, setIsLoadingVideos] = useState(false);
   const [selectedVideos, setSelectedVideos] = useState<number[]>([]);
   const [isAdding, setIsAdding] = useState(false);
   type SelectedVideo = {
@@ -44,67 +135,63 @@ export default function VideoGroupDetailPage() {
   };
   const [selectedVideo, setSelectedVideo] = useState<SelectedVideo | null>(null);
 
-  const loadGroup = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      const data = await apiClient.getVideoGroup(groupId!);
-      setGroup(data);
-    } catch (err) {
-      handleAsyncError(err, 'グループの読み込みに失敗しました', setError);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [groupId]);
+  // ドラッグアンドドロップのセンサー設定
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // 8px移動したらドラッグ開始（クリック誤発火防止）
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
-  const loadAvailableVideos = useCallback(async () => {
+  const loadGroupData = useCallback(async () => {
+    if (!groupId) return;
+    await loadGroup(() => apiClient.getVideoGroup(groupId));
+  }, [groupId, loadGroup]);
+
+  const loadAvailableVideosData = useCallback(async () => {
     if (!group?.videos) return;
     
-    try {
-      setIsLoadingVideos(true);
+    await loadAvailableVideos(async () => {
       const videos = await apiClient.getVideos();
       // すでにグループに追加されている動画を除外
-      const currentVideoIds = group.videos.map(v => v.id);
+      const currentVideoIds = group.videos?.map(v => v.id) || [];
       // Setを使用してO(1)ルックアップを実現（N+1問題対策）
       const currentVideoIdSet = new Set(currentVideoIds);
-      const available = videos.filter(v => !currentVideoIdSet.has(v.id));
-      setAvailableVideos(available);
-    } catch (err) {
-      handleAsyncError(err, '動画の読み込みに失敗しました', setError);
-    } finally {
-      setIsLoadingVideos(false);
-    }
-  }, [group?.videos]);
+      return videos.filter(v => !currentVideoIdSet.has(v.id));
+    });
+  }, [group?.videos, loadAvailableVideos]);
 
   useEffect(() => {
     if (groupId) {
-      loadGroup();
+      loadGroupData();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [groupId]);
 
   useEffect(() => {
     if (isAddModalOpen && group) {
-      loadAvailableVideos();
+      loadAvailableVideosData();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAddModalOpen]);
 
   const handleAddVideos = async () => {
     if (selectedVideos.length === 0) {
-      setError('動画を選択してください');
       return;
     }
 
     try {
       setIsAdding(true);
-      setError(null);
       
       // 選択された動画を一括追加（N+1問題の解決）
       const result = await apiClient.addVideosToGroup(groupId!, selectedVideos);
       
       // グループを再読み込み
-      await loadGroup();
+      await loadGroupData();
       setIsAddModalOpen(false);
       setSelectedVideos([]);
       
@@ -113,7 +200,7 @@ export default function VideoGroupDetailPage() {
         alert(`${result.added_count}個の動画を追加しました（${result.skipped_count}個は既に追加済みでした）`);
       }
     } catch (err) {
-      handleAsyncError(err, '動画の追加に失敗しました', setError);
+      handleAsyncError(err, '動画の追加に失敗しました', () => {});
     } finally {
       setIsAdding(false);
     }
@@ -126,21 +213,56 @@ export default function VideoGroupDetailPage() {
 
     try {
       await apiClient.removeVideoFromGroup(groupId!, videoId);
-      await loadGroup();
+      await loadGroupData();
       // 削除した動画が選択されていた場合、選択を解除
       if (selectedVideo?.id === videoId) {
         setSelectedVideo(null);
       }
     } catch (err) {
-      handleAsyncError(err, '動画の削除に失敗しました', setError);
+      handleAsyncError(err, '動画の削除に失敗しました', () => {});
     }
   };
 
   const handleVideoSelect = (videoId: number) => {
     // グループ情報から直接動画データを取得（N+1問題の解決）
+    // 既にprefetch_relatedで取得済みのデータを使用
     const video = group?.videos?.find(v => v.id === videoId);
     if (video) {
       setSelectedVideo(video);
+    }
+  };
+
+  // ドラッグエンドハンドラー
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (!over || active.id === over.id) {
+      return;
+    }
+
+    if (!group?.videos) {
+      return;
+    }
+
+    const oldIndex = group.videos.findIndex((video) => video.id === active.id);
+    const newIndex = group.videos.findIndex((video) => video.id === over.id);
+
+    if (oldIndex === -1 || newIndex === -1) {
+      return;
+    }
+
+    // ローカル状態を即座に更新（楽観的更新）
+    const newVideos = arrayMove(group.videos, oldIndex, newIndex);
+    setGroup({ ...group, videos: newVideos });
+
+    try {
+      // サーバーに順序を送信
+      const videoIds = newVideos.map(video => video.id);
+      await apiClient.reorderVideosInGroup(groupId!, videoIds);
+    } catch (err) {
+      // エラーが発生した場合は元に戻す
+      handleAsyncError(err, '動画の順序更新に失敗しました', () => {});
+      await loadGroupData();
     }
   };
 
@@ -154,7 +276,7 @@ export default function VideoGroupDetailPage() {
       await apiClient.deleteVideoGroup(groupId!);
       router.push('/videos/groups');
     } catch (err) {
-      handleAsyncError(err, 'グループの削除に失敗しました', setError);
+      handleAsyncError(err, 'グループの削除に失敗しました', () => {});
     } finally {
       setIsDeleting(false);
     }
@@ -218,11 +340,11 @@ export default function VideoGroupDetailPage() {
                   <div className="space-y-4 py-4">
                     {isLoadingVideos ? (
                       <LoadingSpinner />
-                    ) : availableVideos.length === 0 ? (
+                    ) : availableVideos && availableVideos.length === 0 ? (
                       <p className="text-center text-gray-500 py-4">追加可能な動画がありません</p>
                     ) : (
                       <div className="space-y-2 max-h-[400px] overflow-y-auto">
-                        {availableVideos.map((video) => (
+                        {availableVideos?.map((video) => (
                           <div key={video.id} className="flex items-center space-x-2 p-3 border rounded hover:bg-gray-50">
                             <Checkbox
                               id={`video-${video.id}`}
@@ -289,34 +411,26 @@ export default function VideoGroupDetailPage() {
               </CardHeader>
               <CardContent className="space-y-2">
                 {group.videos && group.videos.length > 0 ? (
-                  group.videos.map((video) => (
-                    <div
-                      key={video.id}
-                      onClick={() => handleVideoSelect(video.id)}
-                      className={`p-3 border rounded cursor-pointer hover:bg-gray-50 ${
-                        selectedVideo?.id === video.id ? 'bg-blue-50 border-blue-300' : ''
-                      }`}
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <SortableContext
+                      items={group.videos.map(video => video.id)}
+                      strategy={verticalListSortingStrategy}
                     >
-                      <h3 className="font-semibold text-sm text-gray-900 truncate">{video.title}</h3>
-                      <p className="text-xs text-gray-600 line-clamp-1">{video.description || '説明なし'}</p>
-                      <div className="flex items-center gap-2 mt-2">
-                        <span className={getStatusBadgeClassName(video.status, 'sm')}>
-                          {getStatusLabel(video.status)}
-                        </span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 text-xs"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleRemoveVideo(video.id);
-                          }}
-                        >
-                          削除
-                        </Button>
-                      </div>
-                    </div>
-                  ))
+                      {group.videos.map((video) => (
+                        <SortableVideoItem
+                          key={video.id}
+                          video={video}
+                          isSelected={selectedVideo?.id === video.id}
+                          onSelect={handleVideoSelect}
+                          onRemove={handleRemoveVideo}
+                        />
+                      ))}
+                    </SortableContext>
+                  </DndContext>
                 ) : (
                   <p className="text-center text-gray-500 py-4 text-sm">動画がありません</p>
                 )}

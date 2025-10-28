@@ -301,6 +301,7 @@ def add_videos_to_group(request, group_id):
         return error
 
     # 既に追加されている動画をチェック（N+1問題対策）
+    # 一括でvideo_idを取得してSetでO(1)ルックアップを実現
     video_ids_list = [v.id for v in videos]
     existing_members = set(
         _get_member_queryset(group)
@@ -350,4 +351,56 @@ def remove_video_from_group(request, group_id, video_id):
 
     return Response(
         {"message": "動画をグループから削除しました"}, status=status.HTTP_200_OK
+    )
+
+
+@authenticated_view_with_error_handling(["PATCH"])
+def reorder_videos_in_group(request, group_id):
+    """グループ内の動画の順序を更新"""
+    # DRY原則: 共通の検証関数を使用
+    group, error = _validate_and_get_resource(
+        request.user, VideoGroup, group_id, "グループ"
+    )
+    if error:
+        return error
+
+    # リクエストボディからvideo_idsの配列を取得
+    try:
+        video_ids = request.data.get('video_ids', [])
+        if not isinstance(video_ids, list):
+            return create_error_response(
+                "video_idsは配列である必要があります", status.HTTP_400_BAD_REQUEST
+            )
+    except Exception:
+        return create_error_response(
+            "リクエストボディの解析に失敗しました", status.HTTP_400_BAD_REQUEST
+        )
+
+    # グループ内の動画メンバーを取得（N+1問題対策）
+    # select_relatedでvideoデータも事前取得
+    members = VideoGroupMember.objects.filter(group=group).select_related('video')
+    
+    # 指定されたvideo_idsがグループ内の動画と一致するかチェック
+    # O(1)ルックアップのためにSetを使用
+    group_video_ids = set(member.video_id for member in members)
+    if set(video_ids) != group_video_ids:
+        return create_error_response(
+            "指定された動画IDがグループ内の動画と一致しません", status.HTTP_400_BAD_REQUEST
+        )
+
+    # 順序を更新（N+1問題対策）
+    # bulk_updateを使用して一括更新
+    member_dict = {member.video_id: member for member in members}
+    members_to_update = []
+    
+    for index, video_id in enumerate(video_ids):
+        member = member_dict[video_id]
+        member.order = index
+        members_to_update.append(member)
+    
+    # 一括更新でN+1問題を解決
+    VideoGroupMember.objects.bulk_update(members_to_update, ['order'])
+
+    return Response(
+        {"message": "動画の順序を更新しました"}, status=status.HTTP_200_OK
     )
