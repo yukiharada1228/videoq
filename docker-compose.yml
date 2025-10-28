@@ -1,0 +1,31 @@
+services:
+  redis:
+    image: "redis:alpine"
+    container_name: ask-video-redis
+    networks:
+      - ask-video-network
+  backend:
+    build: ./backend
+    container_name: ask-video-backend
+    ports:
+      - 8000:8000
+    volumes:
+      - staticfiles:/app/staticfiles
+      - ./backend/media:/app/media
+    networks:
+      - ask-video-network
+  celery-worker:
+    build: ./backend
+    container_name: ask-video-celery-worker
+    command: uv run celery -A ask_video worker --loglevel=info
+    volumes:
+      - ./backend/media:/app/media
+    depends_on:
+      - redis
+    networks:
+      - ask-video-network
+volumes:
+  staticfiles:
+networks:
+  ask-video-network:
+    driver: bridge
