@@ -29,6 +29,8 @@ services:
   opensearch:
     image: opensearchproject/opensearch:3
     container_name: ask-video-opensearch
+    ports:
+      - 9200:9200
     env_file:
       - .env
     environment:

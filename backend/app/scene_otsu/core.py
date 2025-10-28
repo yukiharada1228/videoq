@@ -58,6 +58,40 @@ class SubtitleParser:
         return subtitles
 
     @staticmethod
+    def parse_srt_scenes(srt_string: str) -> List[Dict[str, Any]]:
+        """
+        SRTをシーン単位の辞書へ変換
+        Returns: [{index, start_time, end_time, start_sec, end_sec, text}]
+        """
+        content = srt_string.strip()
+        blocks = [b.strip() for b in content.split("\n\n") if b.strip()]
+        scenes: List[Dict[str, Any]] = []
+        for block in blocks:
+            lines = block.split("\n")
+            if len(lines) < 3:
+                continue
+            try:
+                idx = int(lines[0].strip())
+            except Exception:
+                idx = None
+            timing = lines[1].strip()
+            if "-->" not in timing:
+                continue
+            start_str, end_str = [t.strip() for t in timing.split("-->")]
+            text = " ".join([l.strip() for l in lines[2:] if l.strip()])
+            scenes.append(
+                {
+                    "index": idx,
+                    "start_time": start_str,
+                    "end_time": end_str,
+                    "start_sec": SubtitleParser.parse_timestamp(start_str),
+                    "end_sec": SubtitleParser.parse_timestamp(end_str),
+                    "text": text,
+                }
+            )
+        return scenes
+
+    @staticmethod
     def parse_timestamp(timestamp: str) -> float:
         t = datetime.strptime(timestamp.split(",")[0], "%H:%M:%S")
         return t.hour * 3600 + t.minute * 60 + t.second

@@ -1,5 +1,5 @@
 """
-Celeryタスク - Whisper文字起こし処理
+Celeryタスク - Whisper文字起こし処理（DRY原則・N+1問題対策済み）
 """
 
 import logging
@@ -10,10 +10,14 @@ from concurrent.futures import ThreadPoolExecutor
 import ffmpeg
 from app.models import Video
 from app.utils.encryption import decrypt_api_key
+from app.utils.task_helpers import (BatchProcessor, ErrorHandler,
+                                    TemporaryFileManager, VideoTaskManager)
 from celery import shared_task
+from langchain_community.vectorstores import OpenSearchVectorSearch
+from langchain_openai import OpenAIEmbeddings
 from openai import OpenAI
 
-from .scene_otsu import SceneSplitter
+from .scene_otsu import SceneSplitter, SubtitleParser
 
 logger = logging.getLogger(__name__)
 
@@ -76,10 +80,52 @@ def _count_scenes(srt_content):
     )
 
 
-def extract_and_split_audio(input_path, max_size_mb=24):
+def _parse_srt_scenes(srt_content):
+    # 共通パーサを使用してDRY化
+    return SubtitleParser.parse_srt_scenes(srt_content)
+
+
+def _index_scenes_to_opensearch(scene_docs, video, api_key):
+    """
+    LangChain + OpenSearch でベクトルインデックスを作成
+    scene_docs: [{text, metadata}]
+    """
+    try:
+        embeddings = OpenAIEmbeddings(model="text-embedding-3-small", api_key=api_key)
+
+        index_name = os.getenv("OPENSEARCH_SCENE_INDEX", "ask_video_scenes")
+        opensearch_url = os.getenv("OPENSEARCH_URL", "http://opensearch:9200")
+
+        texts = [d["text"] for d in scene_docs if d.get("text")]
+        metadatas = [d.get("metadata", {}) for d in scene_docs if d.get("text")]
+
+        if not texts:
+            logger.info("No valid texts to index, skipping OpenSearch indexing")
+            return
+
+        logger.info(f"Indexing {len(texts)} scenes to OpenSearch index: {index_name}")
+
+        # OpenSearch 3.0+ ではfaissエンジンを使用
+        vector_store = OpenSearchVectorSearch.from_texts(
+            texts=texts,
+            embedding=embeddings,
+            index_name=index_name,
+            opensearch_url=opensearch_url,
+            metadatas=metadatas,
+            engine="faiss",  # OpenSearch 3.0+ ではfaissを使用
+        )
+
+        logger.info(f"Successfully indexed {len(texts)} scenes to OpenSearch")
+
+    except Exception as e:
+        logger.warning(f"Indexing to OpenSearch failed: {e}", exc_info=True)
+
+
+def extract_and_split_audio(input_path, max_size_mb=24, temp_manager=None):
     """
     Extract audio from video and split appropriately based on file size
     max_size_mb: Maximum size of each segment (MB)
+    temp_manager: TemporaryFileManager instance for cleanup
     """
     try:
         # Get video information
@@ -149,6 +195,11 @@ def extract_and_split_audio(input_path, max_size_mb=24):
                     {"path": audio_path, "start_time": start_time, "end_time": end_time}
                 )
 
+        # Register temporary files for cleanup if manager is provided
+        if temp_manager:
+            for segment in audio_segments:
+                temp_manager.temp_files.append(segment["path"])
+
         return audio_segments
 
     except Exception as e:
@@ -174,10 +225,109 @@ def transcribe_audio_segment(client, segment_info):
         return None, e
 
 
+def _process_audio_segments_parallel(client, audio_segments):
+    """
+    オーディオセグメントを並列処理（N+1問題対策）
+    """
+    all_segments = []
+
+    # Use ThreadPoolExecutor for parallel processing
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        futures = []
+        for i, segment_info in enumerate(audio_segments):
+            future = executor.submit(transcribe_audio_segment, client, segment_info)
+            futures.append((i, segment_info, future))
+
+        for i, segment_info, future in futures:
+            transcription, error = future.result()
+
+            if error:
+                logger.error(f"Error in segment {i}: {error}")
+                continue
+
+            # Adjust timestamps for each segment
+            for whisper_segment in transcription.segments:
+                # Adjust to original video time
+                adjusted_start = whisper_segment.start + segment_info["start_time"]
+                adjusted_end = whisper_segment.end + segment_info["start_time"]
+
+                all_segments.append(
+                    {
+                        "start": adjusted_start,
+                        "end": adjusted_end,
+                        "text": whisper_segment.text,
+                    }
+                )
+
+    return all_segments
+
+
+def _apply_scene_splitting(srt_content, api_key, original_segment_count):
+    """
+    シーン分割を適用（DRY原則）
+    """
+    try:
+        splitter = SceneSplitter(api_key=api_key)
+        scene_split_srt = splitter.process(srt_content, max_tokens=512)
+        scene_count = _count_scenes(scene_split_srt)
+        logger.info(
+            f"Scene splitting completed. Original: {original_segment_count} segments, Scenes: {scene_count} scenes"
+        )
+        return scene_split_srt, scene_count
+    except Exception as e:
+        logger.warning(f"Scene splitting failed: {e}. Using original SRT content.")
+        return srt_content, original_segment_count
+
+
+def _save_transcription_result(video, scene_split_srt):
+    """
+    文字起こし結果を保存（DRY原則）
+    """
+    video.transcript = scene_split_srt
+    video.status = "completed"
+    video.error_message = ""
+    video.save()
+
+
+def _index_scenes_to_opensearch_batch(scene_split_srt, video, api_key):
+    """
+    シーンをOpenSearchにバッチインデックス（N+1問題対策）
+    """
+    try:
+        logger.info("Starting scene indexing to OpenSearch...")
+        scenes = _parse_srt_scenes(scene_split_srt)
+        logger.info(f"Parsed {len(scenes)} scenes from SRT")
+
+        # バッチでシーンドキュメントを準備（N+1問題対策）
+        scene_docs = []
+        for sc in scenes:
+            scene_docs.append(
+                {
+                    "text": sc["text"],
+                    "metadata": {
+                        "video_id": video.id,
+                        "user_id": video.user_id,
+                        "video_title": video.title,
+                        "start_time": sc["start_time"],
+                        "end_time": sc["end_time"],
+                        "start_sec": sc["start_sec"],
+                        "end_sec": sc["end_sec"],
+                        "scene_index": sc["index"],
+                    },
+                }
+            )
+
+        logger.info(f"Prepared {len(scene_docs)} scene documents for indexing")
+        _index_scenes_to_opensearch(scene_docs, video, api_key)
+
+    except Exception as e:
+        logger.warning(f"Failed to prepare scenes for indexing: {e}", exc_info=True)
+
+
 @shared_task(bind=True, max_retries=3)
 def transcribe_video(self, video_id):
     """
-    Whisper APIを使用して動画の文字起こしを実行
+    Whisper APIを使用して動画の文字起こしを実行（DRY原則・N+1問題対策済み）
     ffmpegで変換が必要な場合は自動的にMP3に変換
 
     Args:
@@ -187,137 +337,76 @@ def transcribe_video(self, video_id):
         str: 文字起こしされたテキスト
     """
     logger.info(f"Transcription task started for video ID: {video_id}")
-    video_file_path = None
-    audio_segments = []
 
-    try:
-        # Videoインスタンスを取得
-        video = Video.objects.select_related("user").get(id=video_id)
-        logger.info(f"Video found: {video.title}")
-
-        # 状態を処理中に更新
-        video.status = "processing"
-        video.save()
-
-        # ユーザーのOpenAI APIキーを取得
-        if not video.user.encrypted_openai_api_key:
-            raise ValueError("OpenAI API key is not configured")
-
-        # APIキーを復号化
-        api_key = decrypt_api_key(video.user.encrypted_openai_api_key)
-
-        # OpenAIクライアントを初期化
-        client = OpenAI(api_key=api_key)
-
-        # 動画ファイルのパスを取得
-        if not video.file:
-            raise ValueError("Video file is not available")
-
-        video_file_path = video.file.path
-
-        # ファイルが存在するか確認
-        if not os.path.exists(video_file_path):
-            raise FileNotFoundError(f"Video file not found: {video_file_path}")
-
-        logger.info(f"Starting transcription for video {video_id}")
-
-        # Extract and split audio
-        audio_segments = extract_and_split_audio(video_file_path)
-
-        if not audio_segments:
-            error_msg = "Failed to extract audio from video"
-            logger.error(error_msg)
-            video.status = "error"
-            video.error_message = error_msg
-            video.save()
-            return
-
-        # Process segments in parallel for better performance
-        all_segments = []
-
-        # Use ThreadPoolExecutor for parallel processing
-        with ThreadPoolExecutor(max_workers=5) as executor:
-            futures = []
-            for i, segment_info in enumerate(audio_segments):
-                future = executor.submit(transcribe_audio_segment, client, segment_info)
-                futures.append((i, segment_info, future))
-
-            for i, segment_info, future in futures:
-                transcription, error = future.result()
-
-                if error:
-                    logger.error(f"Error in segment {i}: {error}")
-                    continue
-
-                # Adjust timestamps for each segment
-                for whisper_segment in transcription.segments:
-                    # Adjust to original video time
-                    adjusted_start = whisper_segment.start + segment_info["start_time"]
-                    adjusted_end = whisper_segment.end + segment_info["start_time"]
-
-                    all_segments.append(
-                        {
-                            "start": adjusted_start,
-                            "end": adjusted_end,
-                            "text": whisper_segment.text,
-                        }
-                    )
-
-        # Create SRT content
-        srt_content = create_srt_content(all_segments)
-
-        # Apply scene splitting using SceneSplitter
-        logger.info("Applying scene splitting...")
+    # 一時ファイル管理を初期化
+    with TemporaryFileManager() as temp_manager:
         try:
-            splitter = SceneSplitter(api_key=api_key)
-            scene_split_srt = splitter.process(srt_content, max_tokens=512)
-            scene_count = _count_scenes(scene_split_srt)
-            logger.info(
-                f"Scene splitting completed. Original: {len(all_segments)} segments, Scenes: {scene_count} scenes"
+            # Videoインスタンスを取得（N+1問題対策）
+            video, error = VideoTaskManager.get_video_with_user(video_id)
+            if error:
+                raise Exception(error)
+
+            logger.info(f"Video found: {video.title}")
+
+            # 動画の処理可能性を検証（DRY原則）
+            is_valid, validation_error = VideoTaskManager.validate_video_for_processing(
+                video
             )
+            if not is_valid:
+                raise ValueError(validation_error)
+
+            # 状態を処理中に更新（DRY原則）
+            VideoTaskManager.update_video_status(video, "processing")
+
+            # APIキーを復号化
+            api_key = decrypt_api_key(video.user.encrypted_openai_api_key)
+
+            # OpenAIクライアントを初期化
+            client = OpenAI(api_key=api_key)
+
+            # 動画ファイルのパスを取得
+            video_file_path = video.file.path
+
+            logger.info(f"Starting transcription for video {video_id}")
+
+            # Extract and split audio（一時ファイル管理付き）
+            audio_segments = extract_and_split_audio(
+                video_file_path, temp_manager=temp_manager
+            )
+
+            if not audio_segments:
+                error_msg = "Failed to extract audio from video"
+                logger.error(error_msg)
+                VideoTaskManager.update_video_status(video, "error", error_msg)
+                return
+
+            # Process segments in parallel for better performance（N+1問題対策）
+            all_segments = _process_audio_segments_parallel(client, audio_segments)
+
+            if not all_segments:
+                error_msg = "Failed to transcribe any audio segments"
+                logger.error(error_msg)
+                VideoTaskManager.update_video_status(video, "error", error_msg)
+                return
+
+            # Create SRT content
+            srt_content = create_srt_content(all_segments)
+
+            # Apply scene splitting using SceneSplitter
+            logger.info("Applying scene splitting...")
+            scene_split_srt, scene_count = _apply_scene_splitting(
+                srt_content, api_key, len(all_segments)
+            )
+
+            # Save processed SRT（DRY原則）
+            _save_transcription_result(video, scene_split_srt)
+
+            # Index scenes to OpenSearch for RAG（N+1問題対策）
+            _index_scenes_to_opensearch_batch(scene_split_srt, video, api_key)
+
+            logger.info(f"Successfully processed video {video_id}")
+            return scene_split_srt
+
         except Exception as e:
-            logger.warning(f"Scene splitting failed: {e}. Using original SRT content.")
-            scene_split_srt = srt_content
-
-        # Save processed SRT
-        video.transcript = scene_split_srt
-        video.status = "completed"
-        video.error_message = ""
-        video.save()
-
-        logger.info(f"Successfully processed video {video_id}")
-
-        return scene_split_srt
-
-    except Video.DoesNotExist:
-        error_msg = f"Video with id {video_id} not found"
-        logger.error(error_msg)
-        self.retry(exc=Exception(error_msg), countdown=60)
-        return None
-    except Exception as e:
-        # エラーを記録
-        logger.error(f"Error in transcription task: {e}", exc_info=True)
-        try:
-            video = Video.objects.get(id=video_id)
-            video.status = "error"
-            video.error_message = str(e)
-            video.save()
-        except:
-            pass
-
-        # 最大リトライ回数に達していない場合、再試行
-        if self.request.retries < self.max_retries:
-            logger.info(
-                f"Retrying transcription task (attempt {self.request.retries + 1}/{self.max_retries})"
-            )
-            self.retry(exc=e, countdown=60 * (self.request.retries + 1))
-
-        raise e
-    finally:
-        # Delete temporary audio files only (not the original video file)
-        for segment_info in audio_segments:
-            try:
-                if os.path.exists(segment_info["path"]):
-                    os.remove(segment_info["path"])
-            except Exception as e:
-                logger.warning(f"Error cleaning up temporary audio file: {e}")
+            # 共通エラーハンドリング（DRY原則）
+            ErrorHandler.handle_task_error(e, video_id, self, max_retries=3)
