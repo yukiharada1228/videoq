@@ -9,9 +9,9 @@ import { Button } from '@/components/ui/button';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { MessageAlert } from '@/components/common/MessageAlert';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
-import { formatDate } from '@/lib/utils/video';
 import Link from 'next/link';
 import { getStatusBadgeClassName, getStatusLabel } from '@/lib/utils/video';
+import { convertVideoInGroupToSelectedVideo, createVideoIdSet, SelectedVideo } from '@/lib/utils/videoConversion';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ChatPanel } from '@/components/chat/ChatPanel';
@@ -126,13 +126,6 @@ export default function VideoGroupDetailPage() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedVideos, setSelectedVideos] = useState<number[]>([]);
   const [isAdding, setIsAdding] = useState(false);
-  type SelectedVideo = {
-    id: number;
-    title: string;
-    description: string;
-    file: string;
-    status: string;
-  };
   const [selectedVideo, setSelectedVideo] = useState<SelectedVideo | null>(null);
 
   // ドラッグアンドドロップのセンサー設定
@@ -159,8 +152,8 @@ export default function VideoGroupDetailPage() {
       const videos = await apiClient.getVideos();
       // すでにグループに追加されている動画を除外
       const currentVideoIds = group.videos?.map(v => v.id) || [];
-      // Setを使用してO(1)ルックアップを実現（N+1問題対策）
-      const currentVideoIdSet = new Set(currentVideoIds);
+      // 共通のSet作成関数を使用（DRY原則・N+1問題対策）
+      const currentVideoIdSet = createVideoIdSet(currentVideoIds);
       return videos.filter(v => !currentVideoIdSet.has(v.id));
     });
   }, [group?.videos, loadAvailableVideos]);
@@ -228,7 +221,8 @@ export default function VideoGroupDetailPage() {
     // 既にprefetch_relatedで取得済みのデータを使用
     const video = group?.videos?.find(v => v.id === videoId);
     if (video) {
-      setSelectedVideo(video);
+      // 共通の変換関数を使用（DRY原則・N+1問題対策）
+      setSelectedVideo(convertVideoInGroupToSelectedVideo(video));
     }
   };
 

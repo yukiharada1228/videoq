@@ -1,0 +1,98 @@
+'use client';
+
+import { VideoList as VideoListType, VideoInGroup } from '@/lib/api';
+import { Card, CardContent } from '@/components/ui/card';
+import { getStatusBadgeClassName, getStatusLabel, formatDate } from '@/lib/utils/video';
+import Link from 'next/link';
+
+interface VideoCardProps {
+  video: VideoListType | VideoInGroup;
+  showLink?: boolean;
+  className?: string;
+  onClick?: () => void;
+}
+
+export function VideoCard({ video, showLink = true, className = '', onClick }: VideoCardProps) {
+  const cardContent = (
+    <Card className={`hover:shadow-lg transition-all duration-300 cursor-pointer border border-gray-200 hover:border-blue-300 overflow-hidden group ${className}`}>
+      {/* サムネイル */}
+      <div className="relative w-full h-48 bg-gray-900 overflow-hidden group">
+        {video.file ? (
+          <>
+            <video 
+              className="w-full h-full object-cover"
+              muted
+              playsInline
+              preload="metadata"
+              onMouseEnter={(e) => {
+                const video = e.currentTarget;
+                video.play().catch(() => {});
+              }}
+              onMouseLeave={(e) => {
+                const video = e.currentTarget;
+                video.pause();
+                video.currentTime = 0;
+              }}
+            >
+              <source src={video.file} type="video/mp4" />
+            </video>
+            {/* ホバー時のオーバーレイ（薄い） */}
+            <div className="absolute inset-0 bg-black opacity-0 group-hover:opacity-20 transition-opacity pointer-events-none"></div>
+          </>
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+            <svg className="w-20 h-20 text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+          </div>
+        )}
+        {/* ステータスバッジ（上に表示） */}
+        <div className="absolute top-3 right-3 z-10">
+          <span className={getStatusBadgeClassName(video.status, 'sm')}>
+            {getStatusLabel(video.status)}
+          </span>
+        </div>
+      </div>
+
+      <CardContent className="p-4 space-y-3">
+        {/* タイトル */}
+        <div>
+          <h3 className="font-semibold text-gray-900 line-clamp-2 group-hover:text-blue-600 transition-colors">
+            {video.title}
+          </h3>
+        </div>
+
+        {/* 説明 */}
+        <p className="text-sm text-gray-600 line-clamp-2">
+          {video.description || '説明なし'}
+        </p>
+
+        {/* 日時 */}
+        <div className="flex items-center text-xs text-gray-400 pt-2 border-t border-gray-100">
+          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          {formatDate(video.uploaded_at)}
+        </div>
+      </CardContent>
+    </Card>
+  );
+
+  if (showLink && 'id' in video) {
+    return (
+      <Link href={`/videos/${video.id}`}>
+        {cardContent}
+      </Link>
+    );
+  }
+
+  if (onClick) {
+    return (
+      <div onClick={onClick}>
+        {cardContent}
+      </div>
+    );
+  }
+
+  return cardContent;
+}
