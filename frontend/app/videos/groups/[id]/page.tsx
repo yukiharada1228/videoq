@@ -338,8 +338,12 @@ export default function VideoGroupDetailPage() {
               <CardContent className="flex-1 flex items-center justify-center">
                 {selectedVideo ? (
                   selectedVideo.file ? (
-                    <video controls className="w-full max-h-[500px] rounded">
-                      <source src={selectedVideo.file} type="video/mp4" />
+                    <video
+                      key={selectedVideo.id}
+                      controls
+                      className="w-full max-h-[500px] rounded"
+                      src={selectedVideo.file}
+                    >
                       お使いのブラウザは動画タグをサポートしていません。
                     </video>
                   ) : (
