@@ -1,3 +1,3 @@
-from .core import SceneSplitter
+from .core import SceneSplitter, SubtitleParser
 
-__all__ = ["SceneSplitter"]
+__all__ = ["SceneSplitter", "SubtitleParser"]

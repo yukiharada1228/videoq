@@ -1,10 +1,10 @@
-from rest_framework import generics, status
-from rest_framework.response import Response
-
 from app.models import Video, VideoGroup, VideoGroupMember
 from app.utils.decorators import authenticated_view_with_error_handling
 from app.utils.mixins import AuthenticatedViewMixin, DynamicSerializerMixin
+from app.utils.query_optimizer import BatchProcessor, QueryOptimizer
 from app.utils.responses import create_error_response
+from rest_framework import generics, status
+from rest_framework.response import Response
 
 from .serializers import (VideoCreateSerializer, VideoGroupCreateSerializer,
                           VideoGroupDetailSerializer, VideoGroupListSerializer,
@@ -13,11 +13,21 @@ from .serializers import (VideoCreateSerializer, VideoGroupCreateSerializer,
 
 
 class BaseVideoView(AuthenticatedViewMixin):
-    """共通のVideoビュー基底クラス（DRY原則）"""
+    """共通のVideoビュー基底クラス（DRY原則・N+1問題対策）"""
 
     def get_queryset(self):
-        """現在のユーザーのVideoのみを返す共通ロジック（DRY原則）"""
-        return Video.objects.filter(user=self.request.user)
+        """現在のユーザーのVideoのみを返す共通ロジック（N+1問題対策）"""
+        return QueryOptimizer.get_videos_with_metadata(
+            user_id=self.request.user.id,
+            include_transcript=self.should_include_transcript(),
+            include_groups=self.should_include_groups(),
+        )
+
+    def should_include_groups(self):
+        return False
+
+    def should_include_transcript(self):
+        return False
 
 
 class VideoListView(DynamicSerializerMixin, BaseVideoView, generics.ListCreateAPIView):
@@ -47,9 +57,11 @@ class VideoDetailView(
         "PATCH": VideoUpdateSerializer,
     }
 
-    def get_queryset(self):
-        """N+1問題対策: シリアライザーにuserを含めているため、select_relatedが必要"""
-        return super().get_queryset().select_related("user")
+    def should_include_groups(self):
+        return True
+
+    def should_include_transcript(self):
+        return True
 
     def destroy(self, request, *args, **kwargs):
         """Video削除時にファイルも削除"""
@@ -65,21 +77,11 @@ class BaseVideoGroupView(AuthenticatedViewMixin):
 
     def _get_filtered_queryset(self, annotate_only=False):
         """共通のクエリ取得ロジック（DRY原則・N+1問題対策）"""
-        from django.db.models import Count, Prefetch
-
-        queryset = VideoGroup.objects.filter(user=self.request.user).annotate(
-            video_count=Count("members__video")
+        return QueryOptimizer.get_video_groups_with_videos(
+            user_id=self.request.user.id,
+            include_videos=not annotate_only,
+            annotate_video_count=True,
         )
-
-        # 詳細表示の場合はprefetch_relatedを追加
-        if not annotate_only:
-            queryset = queryset.prefetch_related(
-                Prefetch(
-                    "members", queryset=VideoGroupMember.objects.select_related("video")
-                )
-            )
-
-        return queryset
 
 
 class VideoGroupListView(
