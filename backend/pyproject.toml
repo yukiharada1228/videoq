@@ -23,4 +23,5 @@ dependencies = [
     "numpy>=2.0.0",
     "scikit-learn>=1.7.2",
     "opensearch-py>=3.0.0",
+    "psycopg2-binary>=2.9.11"
 ]
