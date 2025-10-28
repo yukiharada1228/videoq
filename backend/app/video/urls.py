@@ -2,7 +2,7 @@ from django.urls import path
 
 from .views import (VideoDetailView, VideoGroupDetailView, VideoGroupListView,
                     VideoListView, add_video_to_group, add_videos_to_group,
-                    remove_video_from_group)
+                    remove_video_from_group, reorder_videos_in_group)
 
 urlpatterns = [
     path("", VideoListView.as_view(), name="video-list"),
@@ -21,5 +21,10 @@ urlpatterns = [
         "groups/<int:group_id>/videos/<int:video_id>/remove/",
         remove_video_from_group,
         name="remove-video-from-group",
+    ),
+    path(
+        "groups/<int:group_id>/reorder/",
+        reorder_videos_in_group,
+        name="reorder-videos-in-group",
     ),
 ]

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { apiClient, VideoUploadRequest } from '@/lib/api';
+import { useFormState } from './useFormState';
 
 interface UseVideoUploadReturn {
   file: File | null;
@@ -35,11 +36,25 @@ function validateVideoUpload(file: File | null, title: string): ValidationResult
 
 export function useVideoUpload(): UseVideoUploadReturn {
   const [file, setFile] = useState<File | null>(null);
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [isUploading, setIsUploading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+
+  const { formData, isLoading, error, updateField, handleSubmit, reset: resetForm, setError } = useFormState({
+    initialData: { title: '', description: '' },
+    validate: (data) => validateVideoUpload(file, data.title),
+    onSubmit: async (data) => {
+      const request: VideoUploadRequest = {
+        file: file!,
+        title: data.title.trim(),
+        description: data.description.trim() || undefined,
+      };
+
+      await apiClient.uploadVideo(request);
+      setSuccess(true);
+    },
+    onSuccess: () => {
+      setSuccess(true);
+    },
+  });
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -49,60 +64,28 @@ export function useVideoUpload(): UseVideoUploadReturn {
 
   const reset = () => {
     setFile(null);
-    setTitle('');
-    setDescription('');
-    setError(null);
     setSuccess(false);
+    resetForm();
   };
 
-  const handleSubmit = async (
-    e: React.FormEvent,
-    onSuccess?: () => void
-  ) => {
-    e.preventDefault();
-    
-    // DRY原則: 共通のバリデーション関数を使用
-    const validation = validateVideoUpload(file, title);
-    if (!validation.isValid) {
-      setError(validation.error!);
-      return;
-    }
-
-    setIsUploading(true);
-    setError(null);
-    setSuccess(false);
-
-    try {
-      const request: VideoUploadRequest = {
-        file: file!,
-        title: title.trim(),
-        description: description.trim() || undefined,
-      };
-
-      await apiClient.uploadVideo(request);
-      setSuccess(true);
-
-      if (onSuccess) {
-        onSuccess();
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'アップロードに失敗しました');
-    } finally {
-      setIsUploading(false);
+  const handleSubmitWithCallback = async (e: React.FormEvent, onSuccess?: () => void) => {
+    await handleSubmit(e);
+    if (onSuccess) {
+      onSuccess();
     }
   };
 
   return {
     file,
-    title,
-    description,
-    isUploading,
+    title: formData.title,
+    description: formData.description,
+    isUploading: isLoading,
     error,
     success,
-    setTitle,
-    setDescription,
+    setTitle: (title: string) => updateField('title', title),
+    setDescription: (description: string) => updateField('description', description),
     handleFileChange,
-    handleSubmit,
+    handleSubmit: handleSubmitWithCallback,
     reset,
   };
 }

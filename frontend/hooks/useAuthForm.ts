@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useFormState } from './useFormState';
 
 interface UseAuthFormProps<T> {
   onSubmit: (data: T) => Promise<void>;
@@ -8,9 +8,9 @@ interface UseAuthFormProps<T> {
 
 interface UseAuthFormReturn<T> {
   formData: T;
-  error: string;
+  error: string | null;
   loading: boolean;
-  setError: (error: string) => void;
+  setError: (error: string | null) => void;
   handleChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleSubmit: (e: React.FormEvent) => Promise<void>;
 }
@@ -20,38 +20,20 @@ export function useAuthForm<T extends Record<string, any>>({
   initialData,
   onSuccessRedirect,
 }: UseAuthFormProps<T>): UseAuthFormReturn<T> {
-  const [formData, setFormData] = useState<T>(initialData);
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const { formData, isLoading, error, updateField, handleSubmit, setError } = useFormState({
+    initialData,
+    onSubmit,
+    onSuccess: onSuccessRedirect,
+  });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData((prev) => ({
-      ...prev,
-      [e.target.name]: e.target.value,
-    }));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
-
-    try {
-      await onSubmit(formData);
-      if (onSuccessRedirect) {
-        onSuccessRedirect();
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'エラーが発生しました');
-    } finally {
-      setLoading(false);
-    }
+    updateField(e.target.name as keyof T, e.target.value as T[keyof T]);
   };
 
   return {
     formData,
     error,
-    loading,
+    loading: isLoading,
     setError,
     handleChange,
     handleSubmit,
