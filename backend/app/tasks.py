@@ -13,6 +13,8 @@ from app.utils.encryption import decrypt_api_key
 from celery import shared_task
 from openai import OpenAI
 
+from .scene_otsu import SceneSplitter
+
 logger = logging.getLogger(__name__)
 
 # Whisper APIがサポートしている形式
@@ -59,6 +61,19 @@ def create_srt_content(segments):
         srt_lines.append("")  # 空行で区切る
 
     return "\n".join(srt_lines)
+
+
+def _count_scenes(srt_content):
+    """
+    Count the number of scenes in an SRT file
+    """
+    return len(
+        [
+            line
+            for line in srt_content.split("\n")
+            if line.strip() and line.strip().isdigit()
+        ]
+    )
 
 
 def extract_and_split_audio(input_path, max_size_mb=24):
@@ -248,16 +263,31 @@ def transcribe_video(self, video_id):
                         }
                     )
 
-        # Create SRT content and save
+        # Create SRT content
         srt_content = create_srt_content(all_segments)
-        video.transcript = srt_content
+
+        # Apply scene splitting using SceneSplitter
+        logger.info("Applying scene splitting...")
+        try:
+            splitter = SceneSplitter(api_key=api_key)
+            scene_split_srt = splitter.process(srt_content, max_tokens=512)
+            scene_count = _count_scenes(scene_split_srt)
+            logger.info(
+                f"Scene splitting completed. Original: {len(all_segments)} segments, Scenes: {scene_count} scenes"
+            )
+        except Exception as e:
+            logger.warning(f"Scene splitting failed: {e}. Using original SRT content.")
+            scene_split_srt = srt_content
+
+        # Save processed SRT
+        video.transcript = scene_split_srt
         video.status = "completed"
         video.error_message = ""
         video.save()
 
-        logger.info(f"Successfully processed video {video_id} with {len(all_segments)} segments")
+        logger.info(f"Successfully processed video {video_id}")
 
-        return srt_content
+        return scene_split_srt
 
     except Video.DoesNotExist:
         error_msg = f"Video with id {video_id} not found"
