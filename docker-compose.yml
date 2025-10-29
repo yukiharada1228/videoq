@@ -44,9 +44,22 @@ services:
     networks:
       - ask-video-network
 
+  nginx:
+    image: nginx:alpine
+    container_name: ask-video-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - staticfiles:/static
+      - ./backend/media:/media
+    depends_on:
+      - backend
+    networks:
+      - ask-video-network
+
 volumes:
   staticfiles:
-  opensearch_data:
   postgres_data:
 
 networks:
