@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { apiClient, VideoUploadRequest } from '@/lib/api';
-import { useFormState } from './useFormState';
+import { useAsyncState } from './useAsyncState';
 
 interface UseVideoUploadReturn {
   file: File | null;
@@ -36,56 +36,66 @@ function validateVideoUpload(file: File | null, title: string): ValidationResult
 
 export function useVideoUpload(): UseVideoUploadReturn {
   const [file, setFile] = useState<File | null>(null);
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
   const [success, setSuccess] = useState(false);
 
-  const { formData, isLoading, error, updateField, handleSubmit, reset: resetForm, setError } = useFormState({
-    initialData: { title: '', description: '' },
-    validate: (data) => validateVideoUpload(file, data.title),
-    onSubmit: async (data) => {
-      const request: VideoUploadRequest = {
-        file: file!,
-        title: data.title.trim(),
-        description: data.description.trim() || undefined,
-      };
-
-      await apiClient.uploadVideo(request);
-      setSuccess(true);
-    },
+  const { isLoading, error, execute: uploadVideo, setError } = useAsyncState({
     onSuccess: () => {
       setSuccess(true);
     },
   });
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setFile(e.target.files[0]);
     }
-  };
+  }, []);
 
-  const reset = () => {
+  const reset = useCallback(() => {
     setFile(null);
+    setTitle('');
+    setDescription('');
     setSuccess(false);
-    resetForm();
-  };
+    setError(null);
+  }, [setError]);
 
-  const handleSubmitWithCallback = async (e: React.FormEvent, onSuccess?: () => void) => {
-    await handleSubmit(e);
+  const handleSubmit = useCallback(async (e: React.FormEvent, onSuccess?: () => void) => {
+    e.preventDefault();
+    
+    const validation = validateVideoUpload(file, title);
+    if (!validation.isValid) {
+      setError(validation.error || 'バリデーションエラー');
+      return;
+    }
+
+    await uploadVideo(async () => {
+      const request: VideoUploadRequest = {
+        file: file!,
+        title: title.trim(),
+        description: description.trim() || undefined,
+      };
+
+      await apiClient.uploadVideo(request);
+      return request;
+    });
+
     if (onSuccess) {
       onSuccess();
     }
-  };
+  }, [uploadVideo, file, title, description, setError]);
 
   return {
     file,
-    title: formData.title,
-    description: formData.description,
+    title,
+    description,
     isUploading: isLoading,
     error,
     success,
-    setTitle: (title: string) => updateField('title', title),
-    setDescription: (description: string) => updateField('description', description),
+    setTitle,
+    setDescription,
     handleFileChange,
-    handleSubmit: handleSubmitWithCallback,
+    handleSubmit,
     reset,
   };
 }

@@ -25,7 +25,7 @@ interface AuthFormProps {
   description: string;
   fields: FormFieldConfig[];
   formData: Record<string, string>;
-  error: string;
+  error: string | null;
   loading: boolean;
   submitButtonText: string;
   loadingButtonText: string;
