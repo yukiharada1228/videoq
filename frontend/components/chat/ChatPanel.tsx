@@ -11,9 +11,10 @@ interface Message {
 
 interface ChatPanelProps {
   hasApiKey: boolean;
+  groupId?: number;
 }
 
-export function ChatPanel({ hasApiKey }: ChatPanelProps) {
+export function ChatPanel({ hasApiKey, groupId }: ChatPanelProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
@@ -46,6 +47,7 @@ export function ChatPanel({ hasApiKey }: ChatPanelProps) {
     try {
       const response = await apiClient.chat({
         messages: [...messages, userMessage],
+        ...(groupId ? { group_id: groupId } : {}),
       });
 
       setMessages((prev) => [...prev, response]);

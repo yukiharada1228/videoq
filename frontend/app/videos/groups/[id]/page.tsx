@@ -468,7 +468,7 @@ export default function VideoGroupDetailPage() {
 
           {/* 右側：チャット */}
           <div className="col-span-3">
-            <ChatPanel hasApiKey={!!user?.encrypted_openai_api_key} />
+            <ChatPanel hasApiKey={!!user?.encrypted_openai_api_key} groupId={groupId ?? undefined} />
           </div>
         </div>
         </div>
