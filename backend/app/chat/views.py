@@ -1,9 +1,9 @@
-# RAG 用
 from app.models import VideoGroup
 from app.utils.encryption import decrypt_api_key
 from app.utils.responses import create_error_response
 from app.utils.vector_manager import PGVectorManager
-from app.views import CookieJWTAuthentication, ShareTokenAuthentication
+from app.views import ShareTokenAuthentication, IsAuthenticatedOrSharedAccess
+from rest_framework_simplejwt.authentication import JWTAuthentication
 from langchain_community.vectorstores import PGVector
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_openai import OpenAIEmbeddings
@@ -14,25 +14,12 @@ from rest_framework.response import Response
 from .langchain_utils import get_langchain_llm, handle_langchain_exception
 
 
-class IsAuthenticatedOrSharedAccess(BasePermission):
-    """認証済みまたは有効な共有トークンを持つユーザーのみアクセス可能"""
-
-    def has_permission(self, request, view):
-        # JWT認証が成功している場合
-        if request.user and request.user.is_authenticated:
-            return True
-
-        # ShareTokenAuthentication が成功している場合（request.auth に情報が入る）
-        if request.auth and isinstance(request.auth, dict) and "share_token" in request.auth:
-            return True
-
-        return False
 
 
 class ChatView(generics.CreateAPIView):
     """チャットビュー（LangChain使用・共有トークン対応）"""
 
-    authentication_classes = [CookieJWTAuthentication, ShareTokenAuthentication]
+    authentication_classes = [JWTAuthentication, ShareTokenAuthentication]
     permission_classes = [IsAuthenticatedOrSharedAccess]
 
     def post(self, request):
