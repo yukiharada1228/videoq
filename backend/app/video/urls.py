@@ -2,6 +2,7 @@ from django.urls import path
 
 from .views import (VideoDetailView, VideoGroupDetailView, VideoGroupListView,
                     VideoListView, add_video_to_group, add_videos_to_group,
+                    create_share_link, delete_share_link, get_shared_group,
                     remove_video_from_group, reorder_videos_in_group)
 
 urlpatterns = [
@@ -26,5 +27,21 @@ urlpatterns = [
         "groups/<int:group_id>/reorder/",
         reorder_videos_in_group,
         name="reorder-videos-in-group",
+    ),
+    # 共有リンク関連
+    path(
+        "groups/<int:group_id>/share/",
+        create_share_link,
+        name="create-share-link",
+    ),
+    path(
+        "groups/<int:group_id>/share/delete/",
+        delete_share_link,
+        name="delete-share-link",
+    ),
+    path(
+        "groups/shared/<str:share_token>/",
+        get_shared_group,
+        name="get-shared-group",
     ),
 ]

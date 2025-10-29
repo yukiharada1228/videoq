@@ -127,6 +127,8 @@ export default function VideoGroupDetailPage() {
   const [selectedVideos, setSelectedVideos] = useState<number[]>([]);
   const [isAdding, setIsAdding] = useState(false);
   const [selectedVideo, setSelectedVideo] = useState<SelectedVideo | null>(null);
+  const [shareLink, setShareLink] = useState<string | null>(null);
+  const [isGeneratingLink, setIsGeneratingLink] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const pendingStartTimeRef = useRef<number | null>(null);
 
@@ -217,6 +219,54 @@ export default function VideoGroupDetailPage() {
       handleAsyncError(err, '動画の削除に失敗しました', () => {});
     }
   };
+
+  const handleGenerateShareLink = async () => {
+    if (!group) return;
+
+    try {
+      setIsGeneratingLink(true);
+      const result = await apiClient.createShareLink(group.id);
+      const shareUrl = `${window.location.origin}/share/${result.share_token}`;
+      setShareLink(shareUrl);
+      await loadGroupData(); // グループを再読み込みしてshare_tokenを更新
+    } catch (err) {
+      handleAsyncError(err, '共有リンクの生成に失敗しました', () => {});
+    } finally {
+      setIsGeneratingLink(false);
+    }
+  };
+
+  const handleDeleteShareLink = async () => {
+    if (!group || !confirm('共有リンクを無効化しますか？')) return;
+
+    try {
+      await apiClient.deleteShareLink(group.id);
+      setShareLink(null);
+      await loadGroupData(); // グループを再読み込み
+    } catch (err) {
+      handleAsyncError(err, '共有リンクの削除に失敗しました', () => {});
+    }
+  };
+
+  const handleCopyShareLink = () => {
+    if (!shareLink) return;
+
+    navigator.clipboard.writeText(shareLink).then(() => {
+      alert('共有リンクをコピーしました');
+    }).catch(() => {
+      alert('コピーに失敗しました');
+    });
+  };
+
+  // グループが読み込まれたら、共有リンクをセット
+  useEffect(() => {
+    if (group?.share_token) {
+      const shareUrl = `${window.location.origin}/share/${group.share_token}`;
+      setShareLink(shareUrl);
+    } else {
+      setShareLink(null);
+    }
+  }, [group?.share_token]);
 
   const handleVideoSelect = (videoId: number) => {
     // グループ情報から直接動画データを取得（N+1問題の解決）
@@ -442,6 +492,55 @@ export default function VideoGroupDetailPage() {
           </div>
 
           {error && <MessageAlert type="error" message={error} />}
+
+          {/* 共有リンクセクション */}
+          <Card>
+            <CardHeader>
+              <CardTitle>グループを共有</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {shareLink ? (
+                <div className="space-y-3">
+                  <p className="text-sm text-gray-600">
+                    このグループは共有リンクで公開されています。リンクを知っている人は誰でもアクセスできます。
+                  </p>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={shareLink}
+                      readOnly
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded text-sm"
+                    />
+                    <Button onClick={handleCopyShareLink} variant="outline">
+                      コピー
+                    </Button>
+                    <Button onClick={handleDeleteShareLink} variant="destructive">
+                      無効化
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-sm text-gray-600">
+                    共有リンクを生成すると、ログインなしでこのグループの動画を閲覧できるようになります。
+                  </p>
+                  <Button
+                    onClick={handleGenerateShareLink}
+                    disabled={isGeneratingLink}
+                  >
+                    {isGeneratingLink ? (
+                      <span className="flex items-center">
+                        <InlineSpinner className="mr-2" />
+                        生成中...
+                      </span>
+                    ) : (
+                      '共有リンクを生成'
+                    )}
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
           {/* 3カラムレイアウト */}
           <div className="grid grid-cols-12 gap-4 flex-1 min-h-0">

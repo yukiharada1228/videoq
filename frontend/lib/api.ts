@@ -45,6 +45,7 @@ export interface ChatMessage {
 export interface ChatRequest {
   messages: ChatMessage[];
   group_id?: number;
+  share_token?: string;
 }
 
 export interface Video {
@@ -87,6 +88,8 @@ export interface VideoGroup {
   updated_at?: string;
   video_count: number;
   videos?: VideoInGroup[];
+  share_token?: string | null;
+  owner_has_api_key?: boolean;
 }
 
 export interface VideoInGroup {
@@ -386,9 +389,12 @@ class ApiClient {
   }
 
   async chat(data: ChatRequest): Promise<ChatMessage> {
-    return this.request<ChatMessage>('/chat/', {
+    const { share_token, ...bodyData } = data;
+    const endpoint = share_token ? `/chat/?share_token=${share_token}` : '/chat/';
+
+    return this.request<ChatMessage>(endpoint, {
       method: 'POST',
-      body: data,
+      body: bodyData,
     });
   }
 
@@ -506,6 +512,42 @@ class ApiClient {
       method: 'PATCH',
       body: { video_ids: videoIds },
     });
+  }
+
+  // 共有リンク関連
+  async createShareLink(groupId: number): Promise<{ message: string; share_token: string }> {
+    return this.request<{ message: string; share_token: string }>(
+      `/videos/groups/${groupId}/share/`,
+      {
+        method: 'POST',
+      }
+    );
+  }
+
+  async deleteShareLink(groupId: number): Promise<{ message: string }> {
+    return this.request<{ message: string }>(`/videos/groups/${groupId}/share/delete/`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getSharedGroup(shareToken: string): Promise<VideoGroup> {
+    // 共有グループは認証不要なので、credentials を含めない
+    const url = this.buildUrl(`/videos/groups/shared/${shareToken}/`);
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || `Failed to fetch shared group: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  // 共有グループの動画URL取得（share_tokenをクエリパラメータに追加）
+  getSharedVideoUrl(videoFile: string, shareToken: string): string {
+    const url = new URL(videoFile, window.location.origin);
+    url.searchParams.set('share_token', shareToken);
+    return url.toString();
   }
 
 }
