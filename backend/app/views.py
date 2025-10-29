@@ -40,9 +40,10 @@ def protected_media(request, path):
 
             return HttpResponseForbidden("Invalid share token or video.")
     else:
-        from django.http import HttpResponseUnauthorized
+        from django.http import HttpResponse
 
-        return HttpResponseUnauthorized("Authentication required. Please provide a valid JWT token or share_token.")
+        response = HttpResponse("Authentication required. Please provide a valid JWT token or share_token.", status=401)
+        return response
 
     file_path = os.path.join(settings.MEDIA_ROOT, path)
     if not os.path.exists(file_path):
