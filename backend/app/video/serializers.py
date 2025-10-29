@@ -117,13 +117,20 @@ class VideoGroupDetailSerializer(serializers.ModelSerializer):
 
     def get_videos(self, obj):
         """ビデオの詳細情報を取得（N+1問題対策・DRY原則）"""
-        # prefetch_relatedで既に取得されているメンバーを使用（追加クエリなし）
+        # N+1問題対策: prefetch_relatedで既に取得されているメンバーを使用（追加クエリなし）
         # list()で評価を確定（遅延評価の回避）
         members = list(obj.members.all())
 
         if not members:
             return []
 
+        # DRY原則: 共通のシリアライズ処理を使用
+        return self._serialize_members_with_order(members)
+
+    def _serialize_members_with_order(self, members):
+        """
+        メンバーをorder情報付きでシリアライズ（DRY原則・N+1問題対策）
+        """
         # VideoListSerializerを使って各videoをシリアライズ（絶対URLを自動生成・DRY原則）
         videos = [member.video for member in members]
         video_data_list = VideoListSerializer(

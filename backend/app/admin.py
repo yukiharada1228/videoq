@@ -1,10 +1,31 @@
 from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.contrib.auth.admin import UserAdmin
+from django.db.models import Count
 
 from .models import Video, VideoGroup, VideoGroupMember
 
 User = get_user_model()
+
+
+# DRY原則: 共通のAdmin設定を一元管理
+class BaseAdminMixin:
+    """Adminの共通設定を一元管理（DRY原則）"""
+    
+    @staticmethod
+    def get_optimized_queryset(request, model_class, select_related_fields=None, annotate_fields=None):
+        """
+        最適化されたクエリセットを取得（N+1問題対策・DRY原則）
+        """
+        queryset = model_class.objects.all()
+        
+        if select_related_fields:
+            queryset = queryset.select_related(*select_related_fields)
+            
+        if annotate_fields:
+            queryset = queryset.annotate(**annotate_fields)
+            
+        return queryset
 
 
 @admin.register(User)
@@ -31,8 +52,10 @@ class VideoAdmin(admin.ModelAdmin):
     readonly_fields = ("uploaded_at",)
 
     def get_queryset(self, request):
-        """N+1問題対策: userリレーションを事前読み込み"""
-        return super().get_queryset(request).select_related("user")
+        """N+1問題対策: userリレーションを事前読み込み（DRY原則）"""
+        return BaseAdminMixin.get_optimized_queryset(
+            request, Video, select_related_fields=["user"]
+        )
 
 
 @admin.register(VideoGroup)
@@ -43,14 +66,12 @@ class VideoGroupAdmin(admin.ModelAdmin):
     readonly_fields = ("created_at", "updated_at", "get_video_count")
 
     def get_queryset(self, request):
-        """N+1問題対策: userリレーションとvideo_countを事前読み込み"""
-        from django.db.models import Count
-
-        return (
-            super()
-            .get_queryset(request)
-            .select_related("user")
-            .annotate(video_count=Count("members__video"))
+        """N+1問題対策: userリレーションとvideo_countを事前読み込み（DRY原則）"""
+        return BaseAdminMixin.get_optimized_queryset(
+            request, 
+            VideoGroup, 
+            select_related_fields=["user"],
+            annotate_fields={"video_count": Count("members__video")}
         )
 
     def get_video_count(self, obj):
@@ -69,5 +90,7 @@ class VideoGroupMemberAdmin(admin.ModelAdmin):
     readonly_fields = ("added_at",)
 
     def get_queryset(self, request):
-        """N+1問題対策: groupとvideoリレーションを事前読み込み"""
-        return super().get_queryset(request).select_related("group", "video")
+        """N+1問題対策: groupとvideoリレーションを事前読み込み（DRY原則）"""
+        return BaseAdminMixin.get_optimized_queryset(
+            request, VideoGroupMember, select_related_fields=["group", "video"]
+        )

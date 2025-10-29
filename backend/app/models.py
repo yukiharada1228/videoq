@@ -6,6 +6,8 @@ from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.core.files.storage import FileSystemStorage
 from django.db import models
+from django.db.models.signals import post_delete
+from django.dispatch import receiver
 
 
 class User(AbstractUser):
@@ -91,6 +93,37 @@ class Video(models.Model):
         except AttributeError:
             username = f"user_{self.user_id}"
         return f"{self.title} (by {username})"
+
+
+@receiver(post_delete, sender=Video)
+def delete_video_vectors(sender, instance, **kwargs):
+    """
+    Videoが削除された際にPGVectorからベクトルデータも削除（DRY原則・N+1問題対策）
+    """
+    try:
+        # DRY原則: PGVectorManagerを使用してベクトル削除
+        from app.utils.vector_manager import PGVectorManager
+        
+        def delete_operation(cursor):
+            delete_query = """
+                DELETE FROM langchain_pg_embedding 
+                WHERE cmetadata->>'video_id' = %s
+            """
+            cursor.execute(delete_query, (str(instance.id),))
+            return cursor.rowcount
+
+        deleted_count = PGVectorManager.execute_with_connection(delete_operation)
+        
+        if deleted_count > 0:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f"Deleted {deleted_count} vector documents for video {instance.id}")
+            
+    except Exception as e:
+        # ベクトル削除の失敗は動画削除を阻害しない（DRY原則）
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(f"Failed to delete vectors for video {instance.id}: {e}")
 
 
 class VideoGroup(models.Model):
