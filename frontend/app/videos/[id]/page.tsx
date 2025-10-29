@@ -2,7 +2,7 @@
 
 import { useRouter, useParams } from 'next/navigation';
 import { useVideo } from '@/hooks/useVideos';
-import { useMutation } from '@/hooks/useMutation';
+import { useAsyncState } from '@/hooks/useAsyncState';
 import { apiClient } from '@/lib/api';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,16 +20,10 @@ export default function VideoDetailPage() {
 
   const { video, isLoading, error } = useVideo(videoId);
   
-  const { isLoading: isDeleting, error: deleteError, mutate: handleDelete } = useMutation(
-    async () => {
-      if (!videoId) return;
-      await apiClient.deleteVideo(videoId);
-    },
-    {
-      onSuccess: () => router.push('/videos'),
-      confirmMessage: 'この動画を削除しますか？',
-    }
-  );
+  const { isLoading: isDeleting, error: deleteError, mutate: handleDelete } = useAsyncState({
+    onSuccess: () => router.push('/videos'),
+    confirmMessage: 'この動画を削除しますか？',
+  });
 
   if (isLoading) {
     return (
@@ -71,7 +65,10 @@ export default function VideoDetailPage() {
             <Link href="/videos">
               <Button variant="outline">一覧に戻る</Button>
             </Link>
-            <Button variant="destructive" onClick={() => handleDelete()} disabled={isDeleting}>
+            <Button variant="destructive" onClick={() => handleDelete(async () => {
+              if (!videoId) return;
+              await apiClient.deleteVideo(videoId);
+            })} disabled={isDeleting}>
               {isDeleting ? (
                 <span className="flex items-center">
                   <InlineSpinner className="mr-2" color="red" />

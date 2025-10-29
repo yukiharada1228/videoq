@@ -1,7 +1,7 @@
-import { useRef } from 'react';
+import { useRef, useCallback } from 'react';
 import { apiClient, Video, VideoList as VideoListType } from '@/lib/api';
 import { useRouter } from 'next/navigation';
-import { useApiCall } from './useCommonHooks';
+import { useAsyncState } from './useAsyncState';
 
 /**
  * 動画一覧を取得するフック（DRY原則・N+1問題対策済み）
@@ -14,17 +14,24 @@ interface UseVideosReturn {
 }
 
 export function useVideos(): UseVideosReturn {
-  const { data, isLoading, error, refetch } = useApiCall<VideoListType[]>({
-    fetchFn: () => apiClient.getVideos(),
-    errorMessage: '動画の読み込みに失敗しました',
-    shouldFetch: true,
+  const { data: videos, isLoading, error, execute: loadVideos } = useAsyncState<VideoListType[]>({
+    initialData: [],
+    onError: (error) => {
+      console.error('動画の読み込みに失敗しました:', error);
+    },
   });
 
+  const handleLoadVideos = useCallback(async () => {
+    await loadVideos(async () => {
+      return await apiClient.getVideos();
+    });
+  }, [loadVideos]);
+
   return {
-    videos: data || [],
+    videos: videos || [],
     isLoading,
     error,
-    loadVideos: refetch,
+    loadVideos: handleLoadVideos,
   };
 }
 
@@ -49,24 +56,30 @@ export function useVideo(videoId: number | null): UseVideoReturn {
   const videoIdRef = useRef(videoId);
   videoIdRef.current = videoId;
 
-  const shouldFetch = !!videoId;
-  
-  const { data, isLoading, error, refetch } = useApiCall<Video>({
-    fetchFn: () => apiClient.getVideo(videoIdRef.current!),
-    errorMessage: '動画の読み込みに失敗しました',
-    shouldFetch,
-    onFetchStart: () => {
-      if (!apiClient.isAuthenticated()) {
-        routerRef.current.push('/login');
-      }
+  const { data: video, isLoading, error, execute: loadVideo } = useAsyncState<Video>({
+    initialData: null,
+    onError: (error) => {
+      console.error('動画の読み込みに失敗しました:', error);
     },
   });
 
+  const handleLoadVideo = useCallback(async () => {
+    if (!videoIdRef.current) return;
+    
+    await loadVideo(async () => {
+      if (!apiClient.isAuthenticated()) {
+        routerRef.current.push('/login');
+        throw new Error('認証が必要です');
+      }
+      return await apiClient.getVideo(videoIdRef.current!);
+    });
+  }, [loadVideo]);
+
   return {
-    video: data || null,
+    video: video || null,
     isLoading,
     error,
-    loadVideo: refetch,
+    loadVideo: handleLoadVideo,
   };
 }
 
