@@ -387,7 +387,3 @@ docker-compose up --build -d
 # マイグレーションを再適用
 docker-compose exec backend uv run python manage.py migrate
 ```
-
-## ライセンス
-
-このプロジェクトは MIT ライセンスのもとで公開されています。
