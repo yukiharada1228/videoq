@@ -499,7 +499,7 @@ export default function VideoGroupDetailPage() {
                       key={selectedVideo.id}
                       controls
                       className="w-full max-h-[500px] rounded"
-                      src={selectedVideo.file}
+                      src={apiClient.getAuthenticatedMediaUrl(selectedVideo.file)}
                       onCanPlay={handleVideoCanPlay}
                     >
                       お使いのブラウザは動画タグをサポートしていません。

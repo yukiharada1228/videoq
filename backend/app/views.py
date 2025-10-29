@@ -8,14 +8,32 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 
 def protected_media(request, path):
     share_token = request.GET.get("share_token")
+    token_param = request.GET.get("token")
     
-    # JWT認証をチェック
+    # JWT認証をチェック（Authorizationヘッダーまたはtokenクエリパラメータ）
     jwt_auth = JWTAuthentication()
+    user_authenticated = False
+    
+    # Authorizationヘッダーから認証を試行
     try:
         user, token = jwt_auth.authenticate(request)
         user_authenticated = user is not None
     except:
-        user_authenticated = False
+        pass
+    
+    # tokenクエリパラメータから認証を試行
+    if not user_authenticated and token_param:
+        from rest_framework_simplejwt.tokens import AccessToken
+        try:
+            access_token = AccessToken(token_param)
+            user = access_token.payload.get('user_id')
+            if user:
+                from django.contrib.auth import get_user_model
+                User = get_user_model()
+                user_obj = User.objects.get(id=user)
+                user_authenticated = True
+        except:
+            pass
 
     # 1. Allow logged-in users (JWT認証)
     if user_authenticated:
