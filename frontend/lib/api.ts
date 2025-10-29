@@ -294,7 +294,6 @@ class ApiClient {
       ...options,
       body,
       headers,
-      credentials: 'include', // Cookie を送信
     };
 
     try {
@@ -372,6 +371,15 @@ class ApiClient {
       // リフレッシュトークンも無効な場合は認証エラーとして処理
       // 共通メソッドを使用してエラーログを出力
       this.logError('Refresh token failed:', error);
+      
+      // 詳細なエラーログを追加
+      if (error instanceof Error) {
+        console.error('Refresh token error name:', error.name);
+        console.error('Refresh token error message:', error.message);
+        console.error('Refresh token error stack:', error.stack);
+      }
+      console.error('Full refresh token error object:', error);
+
       await this.handleAuthError();
       throw error;
     }
@@ -405,6 +413,7 @@ class ApiClient {
   isAuthenticated(): boolean {
     return !!this.getToken();
   }
+
 
   // Video関連のメソッド
   async getVideos(): Promise<VideoList[]> {
