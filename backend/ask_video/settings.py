@@ -49,9 +49,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get("SECRET_KEY", DefaultSettings.SECRET_KEY)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = os.environ.get(
+    "ALLOWED_HOSTS", 
+    "localhost,127.0.0.1"
+).split(",")
 
 
 # Application definition
@@ -173,7 +176,10 @@ SIMPLE_JWT = {
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
 
-CORS_ALLOWED_ORIGINS = DefaultSettings.CORS_ALLOWED_ORIGINS
+CORS_ALLOWED_ORIGINS = os.environ.get(
+    "CORS_ALLOWED_ORIGINS", 
+    DefaultSettings.CORS_ALLOWED_ORIGINS
+).split(",") if os.environ.get("CORS_ALLOWED_ORIGINS") else DefaultSettings.CORS_ALLOWED_ORIGINS
 
 CORS_ALLOW_CREDENTIALS = True
 
