@@ -11,20 +11,22 @@ User = get_user_model()
 # DRY原則: 共通のAdmin設定を一元管理
 class BaseAdminMixin:
     """Adminの共通設定を一元管理（DRY原則）"""
-    
+
     @staticmethod
-    def get_optimized_queryset(request, model_class, select_related_fields=None, annotate_fields=None):
+    def get_optimized_queryset(
+        request, model_class, select_related_fields=None, annotate_fields=None
+    ):
         """
         最適化されたクエリセットを取得（N+1問題対策・DRY原則）
         """
         queryset = model_class.objects.all()
-        
+
         if select_related_fields:
             queryset = queryset.select_related(*select_related_fields)
-            
+
         if annotate_fields:
             queryset = queryset.annotate(**annotate_fields)
-            
+
         return queryset
 
 
@@ -68,10 +70,10 @@ class VideoGroupAdmin(admin.ModelAdmin):
     def get_queryset(self, request):
         """N+1問題対策: userリレーションとvideo_countを事前読み込み（DRY原則）"""
         return BaseAdminMixin.get_optimized_queryset(
-            request, 
-            VideoGroup, 
+            request,
+            VideoGroup,
             select_related_fields=["user"],
-            annotate_fields={"video_count": Count("members__video")}
+            annotate_fields={"video_count": Count("members__video")},
         )
 
     def get_video_count(self, obj):

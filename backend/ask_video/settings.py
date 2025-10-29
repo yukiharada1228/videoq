@@ -20,22 +20,23 @@ import dj_database_url
 # DRY原則: 環境変数のデフォルト値を一元管理
 class DefaultSettings:
     """設定のデフォルト値を一元管理（DRY原則）"""
-    
+
     # Database
     DATABASE_URL = "postgres://postgres:postgres@localhost:5432/postgres"
-    
+
     # Celery
     CELERY_BROKER_URL = "redis://localhost:6379/0"
     CELERY_RESULT_BACKEND = "redis://localhost:6379/0"
-    
+
     # Security
     SECRET_KEY = "django-insecure-644978l%$qgjwpo$w!5i7l#y(m&h)e$u#3en_a%ln^4!js$-*+"
-    
+
     # CORS
     CORS_ALLOWED_ORIGINS = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
     ]
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -177,8 +178,12 @@ CORS_ALLOWED_ORIGINS = DefaultSettings.CORS_ALLOWED_ORIGINS
 CORS_ALLOW_CREDENTIALS = True
 
 # Celery Configuration
-CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", DefaultSettings.CELERY_BROKER_URL)
-CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", DefaultSettings.CELERY_RESULT_BACKEND)
+CELERY_BROKER_URL = os.environ.get(
+    "CELERY_BROKER_URL", DefaultSettings.CELERY_BROKER_URL
+)
+CELERY_RESULT_BACKEND = os.environ.get(
+    "CELERY_RESULT_BACKEND", DefaultSettings.CELERY_RESULT_BACKEND
+)
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
