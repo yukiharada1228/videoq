@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { apiClient, VideoGroup, VideoList, Video, VideoInGroup } from '@/lib/api';
 import { PageLayout } from '@/components/layout/PageLayout';
@@ -127,6 +127,8 @@ export default function VideoGroupDetailPage() {
   const [selectedVideos, setSelectedVideos] = useState<number[]>([]);
   const [isAdding, setIsAdding] = useState(false);
   const [selectedVideo, setSelectedVideo] = useState<SelectedVideo | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const pendingStartTimeRef = useRef<number | null>(null);
 
   // ドラッグアンドドロップのセンサー設定
   const sensors = useSensors(
@@ -228,10 +230,20 @@ export default function VideoGroupDetailPage() {
 
   // チャットから動画を選択して指定時間から再生する関数
   const handleVideoPlayFromTime = (videoId: number, startTime: string) => {
-    // 時間文字列を秒に変換
+    // 時間文字列を秒に変換（形式: HH:MM:SS,mmm または MM:SS）
     const timeToSeconds = (timeStr: string): number => {
-      const parts = timeStr.split(':');
-      if (parts.length === 2) {
+      // カンマがあればミリ秒部分を削除
+      const timeWithoutMs = timeStr.split(',')[0];
+      const parts = timeWithoutMs.split(':');
+
+      if (parts.length === 3) {
+        // HH:MM:SS 形式
+        const hours = parseInt(parts[0], 10);
+        const minutes = parseInt(parts[1], 10);
+        const seconds = parseInt(parts[2], 10);
+        return hours * 3600 + minutes * 60 + seconds;
+      } else if (parts.length === 2) {
+        // MM:SS 形式
         const minutes = parseInt(parts[0], 10);
         const seconds = parseInt(parts[1], 10);
         return minutes * 60 + seconds;
@@ -239,17 +251,27 @@ export default function VideoGroupDetailPage() {
       return 0;
     };
 
-    // 動画を選択
-    handleVideoSelect(videoId);
-    
-    // 少し遅延してから時間を設定（動画要素がレンダリングされるまで待つ）
-    setTimeout(() => {
-      const videoElement = document.querySelector('video') as HTMLVideoElement;
-      if (videoElement) {
-        videoElement.currentTime = timeToSeconds(startTime);
-        videoElement.play();
-      }
-    }, 100);
+    const seconds = timeToSeconds(startTime);
+
+    // 同じ動画が既に選択されている場合は即座に時間を設定
+    if (selectedVideo?.id === videoId && videoRef.current) {
+      videoRef.current.currentTime = seconds;
+      videoRef.current.play();
+    } else {
+      // 別の動画を選択する場合は開始時間を保存
+      pendingStartTimeRef.current = seconds;
+      handleVideoSelect(videoId);
+    }
+  };
+
+  // 動画が読み込まれて再生可能になったら指定時間から再生
+  const handleVideoCanPlay = (event: React.SyntheticEvent<HTMLVideoElement>) => {
+    if (pendingStartTimeRef.current !== null) {
+      const videoElement = event.currentTarget;
+      videoElement.currentTime = pendingStartTimeRef.current;
+      videoElement.play();
+      pendingStartTimeRef.current = null;
+    }
   };
 
   // ドラッグエンドハンドラー
@@ -473,10 +495,12 @@ export default function VideoGroupDetailPage() {
                 {selectedVideo ? (
                   selectedVideo.file ? (
                     <video
+                      ref={videoRef}
                       key={selectedVideo.id}
                       controls
                       className="w-full max-h-[500px] rounded"
                       src={selectedVideo.file}
+                      onCanPlay={handleVideoCanPlay}
                     >
                       お使いのブラウザは動画タグをサポートしていません。
                     </video>
