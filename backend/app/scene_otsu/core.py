@@ -22,14 +22,6 @@ class OpenAIEmbedder:
         return len(self.encoding.encode(text))
 
     def get_embeddings(self, texts: List[str], max_tokens: int = 200) -> np.ndarray:
-        # トークン数をチェックして警告を出す
-        for i, text in enumerate(texts):
-            token_count = self.count_tokens(text)
-            if token_count > max_tokens:
-                print(
-                    f"⚠️  字幕 {i+1} のトークン数が {token_count} です（上限: {max_tokens}）"
-                )
-
         all_embeddings = []
         for i in tqdm(range(0, len(texts), self.batch_size), desc="Embedding生成中"):
             batch = texts[i : i + self.batch_size]
