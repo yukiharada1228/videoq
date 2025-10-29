@@ -2,19 +2,21 @@ import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { apiClient } from '@/lib/api';
+import { apiClient, RelatedVideo } from '@/lib/api';
 
 interface Message {
   role: 'user' | 'assistant';
   content: string;
+  related_videos?: RelatedVideo[];
 }
 
 interface ChatPanelProps {
   hasApiKey: boolean;
   groupId?: number;
+  onVideoPlay?: (videoId: number, startTime: string) => void;
 }
 
-export function ChatPanel({ hasApiKey, groupId }: ChatPanelProps) {
+export function ChatPanel({ hasApiKey, groupId, onVideoPlay }: ChatPanelProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
@@ -35,6 +37,29 @@ export function ChatPanel({ hasApiKey, groupId }: ChatPanelProps) {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // 時間文字列を秒に変換する関数
+  const timeToSeconds = (timeStr: string): number => {
+    const parts = timeStr.split(':');
+    if (parts.length === 2) {
+      const minutes = parseInt(parts[0], 10);
+      const seconds = parseInt(parts[1], 10);
+      return minutes * 60 + seconds;
+    }
+    return 0;
+  };
+
+  // 動画ページに遷移する関数
+  const navigateToVideo = (videoId: number, startTime: string) => {
+    if (onVideoPlay) {
+      // グループ画面内で動画を再生
+      onVideoPlay(videoId, startTime);
+    } else {
+      // 新しいタブで動画ページを開く
+      const seconds = timeToSeconds(startTime);
+      window.open(`/videos/${videoId}?t=${seconds}`, '_blank');
+    }
+  };
 
   const handleSend = async () => {
     if (!input.trim() || loading || !hasApiKey) return;
@@ -112,6 +137,23 @@ export function ChatPanel({ hasApiKey, groupId }: ChatPanelProps) {
                 }`}
               >
                 <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                {message.related_videos && message.related_videos.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-gray-300">
+                    <p className="text-xs text-gray-600 mb-2">関連動画:</p>
+                    <div className="flex gap-2 overflow-x-auto pb-1">
+                      {message.related_videos.map((video, videoIndex) => (
+                        <div 
+                          key={videoIndex} 
+                          className="flex-shrink-0 bg-white border border-gray-200 rounded p-2 hover:bg-gray-50 cursor-pointer"
+                          onClick={() => navigateToVideo(video.video_id, video.start_time)}
+                        >
+                          <p className="text-xs font-medium text-gray-800 truncate mb-1">{video.title}</p>
+                          <p className="text-xs text-gray-600">{video.start_time}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           ))}

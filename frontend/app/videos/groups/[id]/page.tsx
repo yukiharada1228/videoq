@@ -226,6 +226,32 @@ export default function VideoGroupDetailPage() {
     }
   };
 
+  // チャットから動画を選択して指定時間から再生する関数
+  const handleVideoPlayFromTime = (videoId: number, startTime: string) => {
+    // 時間文字列を秒に変換
+    const timeToSeconds = (timeStr: string): number => {
+      const parts = timeStr.split(':');
+      if (parts.length === 2) {
+        const minutes = parseInt(parts[0], 10);
+        const seconds = parseInt(parts[1], 10);
+        return minutes * 60 + seconds;
+      }
+      return 0;
+    };
+
+    // 動画を選択
+    handleVideoSelect(videoId);
+    
+    // 少し遅延してから時間を設定（動画要素がレンダリングされるまで待つ）
+    setTimeout(() => {
+      const videoElement = document.querySelector('video') as HTMLVideoElement;
+      if (videoElement) {
+        videoElement.currentTime = timeToSeconds(startTime);
+        videoElement.play();
+      }
+    }, 100);
+  };
+
   // ドラッグエンドハンドラー
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
@@ -468,7 +494,11 @@ export default function VideoGroupDetailPage() {
 
           {/* 右側：チャット */}
           <div className="col-span-3">
-            <ChatPanel hasApiKey={!!user?.encrypted_openai_api_key} groupId={groupId ?? undefined} />
+            <ChatPanel 
+              hasApiKey={!!user?.encrypted_openai_api_key} 
+              groupId={groupId ?? undefined}
+              onVideoPlay={handleVideoPlayFromTime}
+            />
           </div>
         </div>
         </div>

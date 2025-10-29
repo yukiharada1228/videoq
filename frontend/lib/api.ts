@@ -29,9 +29,17 @@ export interface LoginRequest {
   password: string;
 }
 
+export interface RelatedVideo {
+  video_id: number;
+  title: string;
+  start_time: string;
+  end_time: string;
+}
+
 export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
+  related_videos?: RelatedVideo[];
 }
 
 export interface ChatRequest {
