@@ -1,4 +1,5 @@
-import { useFormState } from './useFormState';
+import { useState, useCallback } from 'react';
+import { useAsyncState } from './useAsyncState';
 
 interface UseAuthFormProps<T> {
   onSubmit: (data: T) => Promise<void>;
@@ -20,15 +21,27 @@ export function useAuthForm<T extends Record<string, any>>({
   initialData,
   onSuccessRedirect,
 }: UseAuthFormProps<T>): UseAuthFormReturn<T> {
-  const { formData, isLoading, error, updateField, handleSubmit, setError } = useFormState({
-    initialData,
-    onSubmit,
+  const [formData, setFormData] = useState<T>(initialData);
+  
+  const { isLoading, error, execute: submitForm, setError } = useAsyncState({
     onSuccess: onSuccessRedirect,
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const updateField = useCallback((field: keyof T, value: T[keyof T]) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  }, []);
+
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     updateField(e.target.name as keyof T, e.target.value as T[keyof T]);
-  };
+  }, [updateField]);
+
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
+    await submitForm(async () => {
+      await onSubmit(formData);
+      return formData;
+    });
+  }, [submitForm, onSubmit, formData]);
 
   return {
     formData,
