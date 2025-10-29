@@ -60,8 +60,6 @@ export default function SharedGroupPage() {
       try {
         setIsLoading(true);
         const groupData = await apiClient.getSharedGroup(shareToken);
-        console.log('Shared group data:', groupData);
-        console.log('Owner has API key:', groupData.owner_has_api_key);
         setGroup(groupData);
 
         // 最初の動画を自動選択

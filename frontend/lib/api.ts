@@ -132,7 +132,6 @@ class ApiClient {
   
   async isAuthenticated(): Promise<boolean> {
     try {
-      console.log('🔍 Checking authentication...');
       const response = await fetch(`${this.baseUrl}/auth/me/`, {
         method: 'GET',
         credentials: 'include', // HttpOnly Cookieを送信
@@ -140,10 +139,8 @@ class ApiClient {
           'Content-Type': 'application/json',
         },
       });
-      console.log('🔍 Auth check response:', response.status, response.ok);
       return response.ok;
     } catch (error) {
-      console.error('🔍 Auth check error:', error);
       return false;
     }
   }
@@ -158,7 +155,7 @@ class ApiClient {
         },
       });
     } catch (error) {
-      console.error('Logout error:', error);
+      // Silently handle logout errors
     }
   }
 
@@ -230,7 +227,6 @@ class ApiClient {
     try {
       return JSON.parse(text) as T;
     } catch (e) {
-      console.warn('Failed to parse JSON:', text);
       return {} as T;
     }
   }
