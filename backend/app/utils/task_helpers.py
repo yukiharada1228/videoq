@@ -155,8 +155,8 @@ class ErrorHandler:
         error: Exception, video_id: int, task_instance=None, max_retries: int = 3
     ) -> None:
         """
-        タスクエラーの共通処理（DRY原則）
-
+        タスクエラーの共通処理（DRY原則・N+1問題対策）
+        
         Args:
             error: 発生したエラー
             video_id: 動画ID
@@ -165,14 +165,24 @@ class ErrorHandler:
         """
         logger.error(f"Error in task for video {video_id}: {error}", exc_info=True)
 
-        # 動画ステータスをエラーに更新
+        # N+1問題対策: 動画ステータスをエラーに更新（select_relatedは不要）
+        # DRY原則: VideoTaskManagerを使用
         try:
-            video = Video.objects.get(id=video_id)
+            video = Video.objects.only("id").get(id=video_id)
             VideoTaskManager.update_video_status(video, "error", str(error))
         except Exception as update_error:
             logger.error(f"Failed to update video status: {update_error}")
 
-        # リトライ処理
+        # DRY原則: リトライ処理を共通化
+        ErrorHandler._handle_retry_logic(task_instance, error, max_retries)
+
+        raise error
+
+    @staticmethod
+    def _handle_retry_logic(task_instance, error: Exception, max_retries: int) -> None:
+        """
+        リトライ処理の共通ロジック（DRY原則）
+        """
         if task_instance and task_instance.request.retries < max_retries:
             logger.info(
                 f"Retrying task (attempt {task_instance.request.retries + 1}/{max_retries})"
@@ -180,8 +190,6 @@ class ErrorHandler:
             task_instance.retry(
                 exc=error, countdown=60 * (task_instance.request.retries + 1)
             )
-
-        raise error
 
     @staticmethod
     def safe_execute(func, *args, **kwargs):
@@ -197,3 +205,24 @@ class ErrorHandler:
         except Exception as e:
             logger.error(f"Error executing function {func.__name__}: {e}")
             return None, e
+
+    @staticmethod
+    def handle_database_error(error: Exception, operation: str) -> None:
+        """
+        データベースエラーの共通処理（DRY原則）
+        """
+        logger.error(f"Database error during {operation}: {error}", exc_info=True)
+        raise error
+
+    @staticmethod
+    def validate_required_fields(data: dict, required_fields: list) -> tuple[bool, str]:
+        """
+        必須フィールドのバリデーション（DRY原則）
+        
+        Returns:
+            (is_valid, error_message)
+        """
+        missing_fields = [field for field in required_fields if field not in data or not data[field]]
+        if missing_fields:
+            return False, f"Missing required fields: {', '.join(missing_fields)}"
+        return True, ""

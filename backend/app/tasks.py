@@ -12,8 +12,9 @@ from app.models import Video
 from app.utils.encryption import decrypt_api_key
 from app.utils.task_helpers import (BatchProcessor, ErrorHandler,
                                     TemporaryFileManager, VideoTaskManager)
+from app.utils.vector_manager import PGVectorManager
 from celery import shared_task
-from langchain_community.vectorstores import OpenSearchVectorSearch
+from langchain_community.vectorstores import PGVector
 from langchain_openai import OpenAIEmbeddings
 from openai import OpenAI
 
@@ -85,40 +86,45 @@ def _parse_srt_scenes(srt_content):
     return SubtitleParser.parse_srt_scenes(srt_content)
 
 
-def _index_scenes_to_opensearch(scene_docs, video, api_key):
+# PGVector操作は utils/vector_manager.py に移動済み
+
+
+def _index_scenes_to_vectorstore(scene_docs, video, api_key):
     """
-    LangChain + OpenSearch でベクトルインデックスを作成
+    LangChain + pgvector でベクトルインデックスを作成（DRY原則・N+1問題対策）
     scene_docs: [{text, metadata}]
     """
     try:
         embeddings = OpenAIEmbeddings(model="text-embedding-3-small", api_key=api_key)
-
-        index_name = os.getenv("OPENSEARCH_SCENE_INDEX", "ask_video_scenes")
-        opensearch_url = os.getenv("OPENSEARCH_URL", "http://opensearch:9200")
+        config = PGVectorManager.get_config()
 
         texts = [d["text"] for d in scene_docs if d.get("text")]
         metadatas = [d.get("metadata", {}) for d in scene_docs if d.get("text")]
 
         if not texts:
-            logger.info("No valid texts to index, skipping OpenSearch indexing")
+            logger.info("No valid texts to index, skipping pgvector indexing")
             return
 
-        logger.info(f"Indexing {len(texts)} scenes to OpenSearch index: {index_name}")
-
-        # OpenSearch 3.0+ ではfaissエンジンを使用
-        vector_store = OpenSearchVectorSearch.from_texts(
-            texts=texts,
-            embedding=embeddings,
-            index_name=index_name,
-            opensearch_url=opensearch_url,
-            metadatas=metadatas,
-            engine="faiss",  # OpenSearch 3.0+ ではfaissを使用
+        logger.info(
+            f"Indexing {len(texts)} scenes to pgvector collection: {config['collection_name']}"
         )
 
-        logger.info(f"Successfully indexed {len(texts)} scenes to OpenSearch")
+        # pgvectorでベクトルストアを作成
+        vector_store = PGVector.from_texts(
+            texts=texts,
+            embedding=embeddings,
+            collection_name=config["collection_name"],
+            connection_string=config["database_url"],
+            metadatas=metadatas,
+        )
+
+        logger.info(f"Successfully indexed {len(texts)} scenes to pgvector")
 
     except Exception as e:
-        logger.warning(f"Indexing to OpenSearch failed: {e}", exc_info=True)
+        logger.warning(f"Indexing to pgvector failed: {e}", exc_info=True)
+
+
+# 削除メソッドは utils/vector_manager.py に移動済み
 
 
 def extract_and_split_audio(input_path, max_size_mb=24, temp_manager=None):
@@ -283,45 +289,59 @@ def _save_transcription_result(video, scene_split_srt):
     """
     文字起こし結果を保存（DRY原則）
     """
+    VideoTaskManager.update_video_status(video, "completed", "")
     video.transcript = scene_split_srt
-    video.status = "completed"
-    video.error_message = ""
-    video.save()
+    video.save(update_fields=["transcript"])
 
 
-def _index_scenes_to_opensearch_batch(scene_split_srt, video, api_key):
+def _handle_transcription_error(video, error_msg):
     """
-    シーンをOpenSearchにバッチインデックス（N+1問題対策）
+    文字起こしエラーの共通処理（DRY原則）
+    """
+    logger.error(error_msg)
+    VideoTaskManager.update_video_status(video, "error", error_msg)
+
+
+def _index_scenes_batch(scene_split_srt, video, api_key):
+    """
+    シーンをpgvectorにバッチインデックス（N+1問題対策・DRY原則）
     """
     try:
-        logger.info("Starting scene indexing to OpenSearch...")
+        logger.info("Starting scene indexing to pgvector...")
         scenes = _parse_srt_scenes(scene_split_srt)
         logger.info(f"Parsed {len(scenes)} scenes from SRT")
 
-        # バッチでシーンドキュメントを準備（N+1問題対策）
-        scene_docs = []
-        for sc in scenes:
-            scene_docs.append(
-                {
-                    "text": sc["text"],
-                    "metadata": {
-                        "video_id": video.id,
-                        "user_id": video.user_id,
-                        "video_title": video.title,
-                        "start_time": sc["start_time"],
-                        "end_time": sc["end_time"],
-                        "start_sec": sc["start_sec"],
-                        "end_sec": sc["end_sec"],
-                        "scene_index": sc["index"],
-                    },
-                }
-            )
+        # N+1問題対策: バッチでシーンドキュメントを準備（リスト内包表記で最適化）
+        # DRY原則: メタデータ作成を共通化
+        scene_docs = [
+            {
+                "text": sc["text"],
+                "metadata": _create_scene_metadata(video, sc),
+            }
+            for sc in scenes
+        ]
 
         logger.info(f"Prepared {len(scene_docs)} scene documents for indexing")
-        _index_scenes_to_opensearch(scene_docs, video, api_key)
+        _index_scenes_to_vectorstore(scene_docs, video, api_key)
 
     except Exception as e:
         logger.warning(f"Failed to prepare scenes for indexing: {e}", exc_info=True)
+
+
+def _create_scene_metadata(video, scene):
+    """
+    シーンメタデータを作成（DRY原則）
+    """
+    return {
+        "video_id": video.id,
+        "user_id": video.user_id,
+        "video_title": video.title,
+        "start_time": scene["start_time"],
+        "end_time": scene["end_time"],
+        "start_sec": scene["start_sec"],
+        "end_sec": scene["end_sec"],
+        "scene_index": scene["index"],
+    }
 
 
 @shared_task(bind=True, max_retries=3)
@@ -375,18 +395,14 @@ def transcribe_video(self, video_id):
             )
 
             if not audio_segments:
-                error_msg = "Failed to extract audio from video"
-                logger.error(error_msg)
-                VideoTaskManager.update_video_status(video, "error", error_msg)
+                _handle_transcription_error(video, "Failed to extract audio from video")
                 return
 
             # Process segments in parallel for better performance（N+1問題対策）
             all_segments = _process_audio_segments_parallel(client, audio_segments)
 
             if not all_segments:
-                error_msg = "Failed to transcribe any audio segments"
-                logger.error(error_msg)
-                VideoTaskManager.update_video_status(video, "error", error_msg)
+                _handle_transcription_error(video, "Failed to transcribe any audio segments")
                 return
 
             # Create SRT content
@@ -401,8 +417,8 @@ def transcribe_video(self, video_id):
             # Save processed SRT（DRY原則）
             _save_transcription_result(video, scene_split_srt)
 
-            # Index scenes to OpenSearch for RAG（N+1問題対策）
-            _index_scenes_to_opensearch_batch(scene_split_srt, video, api_key)
+            # Index scenes to vector store for RAG（N+1問題対策）
+            _index_scenes_batch(scene_split_srt, video, api_key)
 
             logger.info(f"Successfully processed video {video_id}")
             return scene_split_srt
