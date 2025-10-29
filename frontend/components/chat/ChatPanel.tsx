@@ -38,10 +38,20 @@ export function ChatPanel({ hasApiKey, groupId, onVideoPlay }: ChatPanelProps) {
     scrollToBottom();
   }, [messages]);
 
-  // 時間文字列を秒に変換する関数
+  // 時間文字列を秒に変換する関数（形式: HH:MM:SS,mmm または MM:SS）
   const timeToSeconds = (timeStr: string): number => {
-    const parts = timeStr.split(':');
-    if (parts.length === 2) {
+    // カンマがあればミリ秒部分を削除
+    const timeWithoutMs = timeStr.split(',')[0];
+    const parts = timeWithoutMs.split(':');
+
+    if (parts.length === 3) {
+      // HH:MM:SS 形式
+      const hours = parseInt(parts[0], 10);
+      const minutes = parseInt(parts[1], 10);
+      const seconds = parseInt(parts[2], 10);
+      return hours * 3600 + minutes * 60 + seconds;
+    } else if (parts.length === 2) {
+      // MM:SS 形式
       const minutes = parseInt(parts[0], 10);
       const seconds = parseInt(parts[1], 10);
       return minutes * 60 + seconds;

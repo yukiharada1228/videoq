@@ -1,7 +1,7 @@
 'use client';
 
-import { useRouter, useParams } from 'next/navigation';
-import { useEffect } from 'react';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
+import { useEffect, useRef } from 'react';
 import { useVideo } from '@/hooks/useVideos';
 import { useAsyncState } from '@/hooks/useAsyncState';
 import { apiClient } from '@/lib/api';
@@ -17,7 +17,10 @@ import Link from 'next/link';
 export default function VideoDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const videoId = params?.id ? parseInt(params.id as string) : null;
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const startTime = searchParams.get('t');
 
   const { video, isLoading, error, loadVideo } = useVideo(videoId);
 
@@ -26,6 +29,17 @@ export default function VideoDetailPage() {
       loadVideo();
     }
   }, [videoId, loadVideo]);
+
+  // 動画が読み込まれたら指定時間から再生
+  const handleVideoLoaded = () => {
+    if (videoRef.current && startTime) {
+      const seconds = parseInt(startTime, 10);
+      if (!isNaN(seconds)) {
+        videoRef.current.currentTime = seconds;
+        videoRef.current.play();
+      }
+    }
+  };
   
   const { isLoading: isDeleting, error: deleteError, mutate: handleDelete } = useAsyncState({
     onSuccess: () => router.push('/videos'),
@@ -125,7 +139,12 @@ export default function VideoDetailPage() {
             </CardHeader>
             <CardContent>
               {video.file ? (
-                <video controls className="w-full rounded">
+                <video
+                  ref={videoRef}
+                  controls
+                  className="w-full rounded"
+                  onLoadedMetadata={handleVideoLoaded}
+                >
                   <source src={video.file} type="video/mp4" />
                   お使いのブラウザは動画タグをサポートしていません。
                 </video>
