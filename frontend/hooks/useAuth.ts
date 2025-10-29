@@ -27,7 +27,9 @@ export function useAuth(options: UseAuthOptions = {}): UseAuthReturn {
   onAuthErrorRef.current = onAuthError;
 
   const checkAuth = useCallback(async () => {
-    if (!apiClient.isAuthenticated()) {
+    // HttpOnly Cookieベースの認証では、非同期で認証状態をチェック
+    const isAuth = await apiClient.isAuthenticated();
+    if (!isAuth) {
       if (redirectToLogin) {
         router.push('/login');
       }
@@ -40,7 +42,7 @@ export function useAuth(options: UseAuthOptions = {}): UseAuthReturn {
       setUser(userData);
     } catch (error) {
       console.error('Failed to fetch user:', error);
-      apiClient.logout();
+      await apiClient.logout();
       if (redirectToLogin) {
         router.push('/login');
       }

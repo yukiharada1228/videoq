@@ -3,7 +3,7 @@ from app.utils.encryption import decrypt_api_key
 from app.utils.responses import create_error_response
 from app.utils.vector_manager import PGVectorManager
 from app.views import ShareTokenAuthentication, IsAuthenticatedOrSharedAccess
-from rest_framework_simplejwt.authentication import JWTAuthentication
+from app.authentication import CookieJWTAuthentication
 from langchain_community.vectorstores import PGVector
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_openai import OpenAIEmbeddings
@@ -19,7 +19,7 @@ from .langchain_utils import get_langchain_llm, handle_langchain_exception
 class ChatView(generics.CreateAPIView):
     """チャットビュー（LangChain使用・共有トークン対応）"""
 
-    authentication_classes = [JWTAuthentication, ShareTokenAuthentication]
+    authentication_classes = [CookieJWTAuthentication, ShareTokenAuthentication]
     permission_classes = [IsAuthenticatedOrSharedAccess]
 
     def post(self, request):

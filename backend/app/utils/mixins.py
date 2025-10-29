@@ -1,14 +1,14 @@
 """共通のミックスイン（DRY原則）"""
 
 from rest_framework.permissions import AllowAny, IsAuthenticated
-from rest_framework_simplejwt.authentication import JWTAuthentication
+from app.authentication import CookieJWTAuthentication
 
 
 class AuthenticatedViewMixin:
     """認証必須の共通ミックスイン（DRY原則）"""
 
     permission_classes = [IsAuthenticated]
-    authentication_classes = [JWTAuthentication]
+    authentication_classes = [CookieJWTAuthentication]
 
     def get_serializer_context(self):
         """シリアライザーにリクエストコンテキストを渡す（DRY原則）"""

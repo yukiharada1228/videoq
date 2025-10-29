@@ -62,6 +62,20 @@ class LoginView(PublicAPIView):
         return response
 
 
+class LogoutView(AuthenticatedAPIView):
+    """ログアウトビュー"""
+
+    def post(self, request):
+        """HttpOnly Cookieを削除してログアウト"""
+        response = Response({"message": "ログアウトしました"})
+        
+        # HttpOnly Cookieを削除
+        response.delete_cookie("access_token")
+        response.delete_cookie("refresh_token")
+        
+        return response
+
+
 class RefreshView(PublicAPIView):
     """トークンリフレッシュビュー"""
 
