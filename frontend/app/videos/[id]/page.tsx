@@ -143,9 +143,9 @@ export default function VideoDetailPage() {
                   ref={videoRef}
                   controls
                   className="w-full rounded"
+                  src={video.file}
                   onLoadedMetadata={handleVideoLoaded}
                 >
-                  <source src={apiClient.getAuthenticatedMediaUrl(video.file)} type="video/mp4" />
                   お使いのブラウザは動画タグをサポートしていません。
                 </video>
               ) : (

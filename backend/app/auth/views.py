@@ -38,7 +38,28 @@ class LoginView(PublicAPIView):
         serializer.is_valid(raise_exception=True)
         user = serializer.validated_data["user"]
         refresh = RefreshToken.for_user(user)
-        return Response({"access": str(refresh.access_token), "refresh": str(refresh)})
+
+        response = Response({"access": str(refresh.access_token), "refresh": str(refresh)})
+
+        # HttpOnly Cookie に JWT トークンを設定
+        response.set_cookie(
+            key="access_token",
+            value=str(refresh.access_token),
+            httponly=True,
+            secure=False,  # 開発環境では False、本番では True
+            samesite="Lax",
+            max_age=60 * 10,  # 10分（ACCESS_TOKEN_LIFETIME と同じ）
+        )
+        response.set_cookie(
+            key="refresh_token",
+            value=str(refresh),
+            httponly=True,
+            secure=False,  # 開発環境では False、本番では True
+            samesite="Lax",
+            max_age=60 * 60 * 24 * 14,  # 14日（REFRESH_TOKEN_LIFETIME と同じ）
+        )
+
+        return response
 
 
 class RefreshView(PublicAPIView):
@@ -51,7 +72,20 @@ class RefreshView(PublicAPIView):
         serializer.is_valid(raise_exception=True)
         refresh = serializer.validated_data["refresh_obj"]
         access = refresh.access_token
-        return Response({"access": str(access)})
+
+        response = Response({"access": str(access)})
+
+        # HttpOnly Cookie に新しい access_token を設定
+        response.set_cookie(
+            key="access_token",
+            value=str(access),
+            httponly=True,
+            secure=False,  # 開発環境では False、本番では True
+            samesite="Lax",
+            max_age=60 * 10,  # 10分（ACCESS_TOKEN_LIFETIME と同じ）
+        )
+
+        return response
 
 
 class MeView(AuthenticatedAPIView, generics.RetrieveUpdateAPIView):
