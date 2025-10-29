@@ -19,11 +19,12 @@ export function VideoCard({ video, showLink = true, className = '', onClick }: V
       <div className="relative w-full h-48 bg-gray-900 overflow-hidden group">
         {video.file ? (
           <>
-            <video 
+            <video
               className="w-full h-full object-cover"
               muted
               playsInline
               preload="metadata"
+              src={video.file}
               onMouseEnter={(e) => {
                 const video = e.currentTarget;
                 video.play().catch(() => {});
@@ -33,9 +34,7 @@ export function VideoCard({ video, showLink = true, className = '', onClick }: V
                 video.pause();
                 video.currentTime = 0;
               }}
-            >
-              <source src={video.file} type="video/mp4" />
-            </video>
+            />
             {/* ホバー時のオーバーレイ（薄い） */}
             <div className="absolute inset-0 bg-black opacity-0 group-hover:opacity-20 transition-opacity pointer-events-none"></div>
           </>
