@@ -93,7 +93,7 @@ export default function Home() {
           <Card className="hover:shadow-xl transition-all cursor-pointer border-2 hover:border-purple-300" onClick={() => router.push('/videos/groups')}>
             <CardHeader>
               <div className="text-4xl mb-2">📁</div>
-              <CardTitle className="text-xl">グループ</CardTitle>
+              <CardTitle className="text-xl">チャットグループ</CardTitle>
               <CardDescription className="text-2xl font-bold text-purple-600">{rawData?.groups?.length || 0}個</CardDescription>
             </CardHeader>
           </Card>

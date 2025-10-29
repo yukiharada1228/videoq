@@ -33,7 +33,7 @@ export default function VideoGroupsPage() {
       const data = await apiClient.getVideoGroups();
       setGroups(data);
     } catch (err) {
-      handleAsyncError(err, 'グループの読み込みに失敗しました', setError);
+      handleAsyncError(err, 'チャットグループの読み込みに失敗しました', setError);
     } finally {
       setIsLoading(false);
     }
@@ -51,7 +51,7 @@ export default function VideoGroupsPage() {
   const handleCreateGroup = async () => {
     try {
       if (!newGroupName.trim()) {
-        setError('グループ名を入力してください');
+        setError('チャットグループ名を入力してください');
         return;
       }
       setError(null);
@@ -67,7 +67,7 @@ export default function VideoGroupsPage() {
       setLoadedUserId(null);
       await loadGroups();
     } catch (err) {
-      handleAsyncError(err, 'グループの作成に失敗しました', setError);
+      handleAsyncError(err, 'チャットグループの作成に失敗しました', setError);
     }
   };
 
@@ -87,26 +87,26 @@ export default function VideoGroupsPage() {
     <PageLayout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold text-gray-900">動画グループ</h1>
+          <h1 className="text-3xl font-bold text-gray-900">チャットグループ</h1>
           <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
             <DialogTrigger asChild>
-              <Button>新規グループを作成</Button>
+              <Button>新規チャットグループを作成</Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>新規グループを作成</DialogTitle>
+                <DialogTitle>新規チャットグループを作成</DialogTitle>
                 <DialogDescription>
-                  グループ名と説明を入力してください
+                  チャットグループ名と説明を入力してください
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-4">
                 <div className="space-y-2">
-                  <Label htmlFor="name">グループ名</Label>
+                  <Label htmlFor="name">チャットグループ名</Label>
                   <Input
                     id="name"
                     value={newGroupName}
                     onChange={(e) => setNewGroupName(e.target.value)}
-                    placeholder="グループ名"
+                    placeholder="チャットグループ名"
                   />
                 </div>
                 <div className="space-y-2">
@@ -135,7 +135,7 @@ export default function VideoGroupsPage() {
         {groups.length === 0 ? (
           <Card>
             <CardContent className="pt-6">
-              <p className="text-center text-gray-500">グループがありません</p>
+              <p className="text-center text-gray-500">チャットグループがありません</p>
             </CardContent>
           </Card>
         ) : (
