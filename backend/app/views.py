@@ -84,18 +84,18 @@ class ProtectedMediaView(APIView):
         if not os.path.exists(file_path):
             raise Http404()
 
+        # pathから動画ファイルを特定
+        # path例: videos/1/video_xxxxx.mp4
+        from app.models import Video
+        video = Video.objects.filter(file=path).first()
+
+        if not video:
+            raise Http404()
+
         # 共有トークンによるアクセスの場合、動画が共有グループに属しているか確認
         if hasattr(request, "auth") and isinstance(request.auth, dict):
             if "share_token" in request.auth:
                 group = request.auth.get("group")
-
-                # pathから動画ファイルを特定
-                # path例: videos/1/video_xxxxx.mp4
-                from app.models import Video
-                video = Video.objects.filter(file=path).first()
-
-                if not video:
-                    raise Http404()
 
                 # この動画が共有グループに含まれているかチェック
                 is_in_group = VideoGroupMember.objects.filter(
@@ -105,6 +105,14 @@ class ProtectedMediaView(APIView):
 
                 if not is_in_group:
                     raise Http404()
+        else:
+            # JWT認証ユーザーの場合、動画がそのユーザーの所有物であることを確認
+            if request.user and request.user.is_authenticated:
+                if video.user != request.user:
+                    raise Http404()
+            else:
+                # 認証されていない場合はアクセス不可
+                raise Http404()
 
         # X-Accel-Redirect を使用して nginx にファイル配信を委譲
         response = HttpResponse()
