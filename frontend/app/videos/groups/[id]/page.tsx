@@ -6,6 +6,8 @@ import { apiClient, VideoGroup, VideoList, Video, VideoInGroup } from '@/lib/api
 import { PageLayout } from '@/components/layout/PageLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { MessageAlert } from '@/components/common/MessageAlert';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
@@ -132,6 +134,11 @@ export default function VideoGroupDetailPage() {
   const [isCopied, setIsCopied] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const pendingStartTimeRef = useRef<number | null>(null);
+
+  // 編集モードの状態管理
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedName, setEditedName] = useState('');
+  const [editedDescription, setEditedDescription] = useState('');
 
   // ドラッグアンドドロップのセンサー設定
   const sensors = useSensors(
@@ -293,6 +300,14 @@ export default function VideoGroupDetailPage() {
     setIsCopied(false); // 共有リンクが変わったらコピー状態をリセット
   }, [group?.share_token]);
 
+  // グループデータが読み込まれたら編集用の状態を初期化
+  useEffect(() => {
+    if (group) {
+      setEditedName(group.name);
+      setEditedDescription(group.description || '');
+    }
+  }, [group]);
+
   const handleVideoSelect = (videoId: number) => {
     // グループ情報から直接動画データを取得（N+1問題の解決）
     // 既にprefetch_relatedで取得済みのデータを使用
@@ -399,6 +414,22 @@ export default function VideoGroupDetailPage() {
     }
   };
 
+  const { isLoading: isUpdating, error: updateError, mutate: handleUpdate } = useAsyncState({
+    onSuccess: () => {
+      setIsEditing(false);
+      loadGroupData(); // グループ情報を再読み込み
+    },
+  });
+
+  // 編集をキャンセル
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    if (group) {
+      setEditedName(group.name);
+      setEditedDescription(group.description || '');
+    }
+  };
+
   if (isLoading) {
     return (
       <PageLayout>
@@ -436,17 +467,84 @@ export default function VideoGroupDetailPage() {
       <div className="flex-1 container mx-auto px-4 py-4">
         <div className="space-y-4 h-full flex flex-col">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">{group.name}</h1>
-              <p className="text-gray-500 mt-1">
-                {group.description || '説明なし'}
-              </p>
+            <div className="flex-1">
+              {isEditing ? (
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-600 block mb-1">
+                      グループ名
+                    </label>
+                    <Input
+                      type="text"
+                      value={editedName}
+                      onChange={(e) => setEditedName(e.target.value)}
+                      className="w-full max-w-md"
+                      disabled={isUpdating}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-600 block mb-1">
+                      説明
+                    </label>
+                    <Textarea
+                      value={editedDescription}
+                      onChange={(e) => setEditedDescription(e.target.value)}
+                      className="w-full max-w-md min-h-[100px]"
+                      disabled={isUpdating}
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={() => handleUpdate(async () => {
+                        if (!groupId) return;
+                        await apiClient.updateVideoGroup(groupId, {
+                          name: editedName,
+                          description: editedDescription,
+                        });
+                      })}
+                      disabled={isUpdating || !editedName.trim()}
+                    >
+                      {isUpdating ? (
+                        <span className="flex items-center">
+                          <InlineSpinner className="mr-2" />
+                          保存中...
+                        </span>
+                      ) : (
+                        '保存'
+                      )}
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      onClick={handleCancelEdit}
+                      disabled={isUpdating}
+                    >
+                      キャンセル
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <h1 className="text-3xl font-bold text-gray-900">{group.name}</h1>
+                  <p className="text-gray-500 mt-1">
+                    {group.description || '説明なし'}
+                  </p>
+                </>
+              )}
             </div>
             <div className="flex gap-2">
-              <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
-                <DialogTrigger asChild>
-                  <Button>動画を追加</Button>
-                </DialogTrigger>
+              {!isEditing && (
+                <Button 
+                  variant="outline" 
+                  onClick={() => setIsEditing(true)}
+                >
+                  編集
+                </Button>
+              )}
+              {!isEditing && (
+                <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
+                  <DialogTrigger asChild>
+                    <Button>動画を追加</Button>
+                  </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
                     <DialogTitle>動画を追加</DialogTitle>
@@ -500,23 +598,26 @@ export default function VideoGroupDetailPage() {
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
+              )}
               <Link href="/videos/groups">
                 <Button variant="outline">一覧に戻る</Button>
               </Link>
-              <Button variant="destructive" onClick={handleDelete} disabled={isDeleting}>
-                {isDeleting ? (
-                  <span className="flex items-center">
-                    <InlineSpinner className="mr-2" color="red" />
-                    削除中...
-                  </span>
-                ) : (
-                  '削除'
-                )}
-              </Button>
+              {!isEditing && (
+                <Button variant="destructive" onClick={handleDelete} disabled={isDeleting}>
+                  {isDeleting ? (
+                    <span className="flex items-center">
+                      <InlineSpinner className="mr-2" color="red" />
+                      削除中...
+                    </span>
+                  ) : (
+                    '削除'
+                  )}
+                </Button>
+              )}
             </div>
           </div>
 
-          {error && <MessageAlert type="error" message={error} />}
+          {(error || updateError) && <MessageAlert type="error" message={error || updateError || ''} />}
 
           {/* 共有リンクセクション */}
           <div className="bg-white border border-gray-200 rounded-lg p-4">
