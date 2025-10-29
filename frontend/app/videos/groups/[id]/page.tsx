@@ -129,6 +129,7 @@ export default function VideoGroupDetailPage() {
   const [selectedVideo, setSelectedVideo] = useState<SelectedVideo | null>(null);
   const [shareLink, setShareLink] = useState<string | null>(null);
   const [isGeneratingLink, setIsGeneratingLink] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const pendingStartTimeRef = useRef<number | null>(null);
 
@@ -248,14 +249,37 @@ export default function VideoGroupDetailPage() {
     }
   };
 
-  const handleCopyShareLink = () => {
+  const handleCopyShareLink = async () => {
     if (!shareLink) return;
 
-    navigator.clipboard.writeText(shareLink).then(() => {
-      alert('共有リンクをコピーしました');
-    }).catch(() => {
-      alert('コピーに失敗しました');
-    });
+    try {
+      // モダンな Clipboard API を試す
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(shareLink);
+      } else {
+        // フォールバック: 古いブラウザや非HTTPSの場合
+        const textArea = document.createElement('textarea');
+        textArea.value = shareLink;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        const successful = document.execCommand('copy');
+        textArea.remove();
+
+        if (!successful) {
+          throw new Error('Copy command failed');
+        }
+      }
+
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+      alert('コピーに失敗しました。手動でコピーしてください。');
+    }
   };
 
   // グループが読み込まれたら、共有リンクをセット
@@ -266,6 +290,7 @@ export default function VideoGroupDetailPage() {
     } else {
       setShareLink(null);
     }
+    setIsCopied(false); // 共有リンクが変わったらコピー状態をリセット
   }, [group?.share_token]);
 
   const handleVideoSelect = (videoId: number) => {
@@ -494,53 +519,55 @@ export default function VideoGroupDetailPage() {
           {error && <MessageAlert type="error" message={error} />}
 
           {/* 共有リンクセクション */}
-          <Card>
-            <CardHeader>
-              <CardTitle>グループを共有</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {shareLink ? (
-                <div className="space-y-3">
-                  <p className="text-sm text-gray-600">
-                    このグループは共有リンクで公開されています。リンクを知っている人は誰でもアクセスできます。
-                  </p>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={shareLink}
-                      readOnly
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded text-sm"
-                    />
-                    <Button onClick={handleCopyShareLink} variant="outline">
-                      コピー
-                    </Button>
-                    <Button onClick={handleDeleteShareLink} variant="destructive">
-                      無効化
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <p className="text-sm text-gray-600">
-                    共有リンクを生成すると、ログインなしでこのグループの動画を閲覧できるようになります。
-                  </p>
+          <div className="bg-white border border-gray-200 rounded-lg p-4">
+            <h3 className="text-sm font-semibold text-gray-900 mb-2">グループを共有</h3>
+            {shareLink ? (
+              <div className="space-y-2">
+                <p className="text-xs text-gray-600">
+                  このグループは共有リンクで公開されています。
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={shareLink}
+                    readOnly
+                    className="flex-1 px-2 py-1.5 border border-gray-300 rounded text-xs"
+                  />
                   <Button
-                    onClick={handleGenerateShareLink}
-                    disabled={isGeneratingLink}
+                    onClick={handleCopyShareLink}
+                    variant={isCopied ? "default" : "outline"}
+                    size="sm"
+                    disabled={isCopied}
                   >
-                    {isGeneratingLink ? (
-                      <span className="flex items-center">
-                        <InlineSpinner className="mr-2" />
-                        生成中...
-                      </span>
-                    ) : (
-                      '共有リンクを生成'
-                    )}
+                    {isCopied ? '✓ コピー済み' : 'コピー'}
+                  </Button>
+                  <Button onClick={handleDeleteShareLink} variant="destructive" size="sm">
+                    無効化
                   </Button>
                 </div>
-              )}
-            </CardContent>
-          </Card>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-xs text-gray-600">
+                  共有リンクを生成すると、ログインなしで閲覧できるようになります。
+                </p>
+                <Button
+                  onClick={handleGenerateShareLink}
+                  disabled={isGeneratingLink}
+                  size="sm"
+                >
+                  {isGeneratingLink ? (
+                    <span className="flex items-center">
+                      <InlineSpinner className="mr-2" />
+                      生成中...
+                    </span>
+                  ) : (
+                    '共有リンクを生成'
+                  )}
+                </Button>
+              </div>
+            )}
+          </div>
 
           {/* 3カラムレイアウト */}
           <div className="grid grid-cols-12 gap-4 flex-1 min-h-0">
