@@ -26,8 +26,9 @@ class VideoGroupAPITestCase(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(VideoGroup.objects.count(), 1)
-        self.assertEqual(VideoGroup.objects.get().name, "Test Group")
-        self.assertEqual(VideoGroup.objects.get().user, self.user)
+        group = VideoGroup.objects.get()
+        self.assertEqual(group.name, "Test Group")
+        self.assertEqual(group.user, self.user)
 
     def test_list_video_groups(self):
         """グループ一覧取得のテスト"""

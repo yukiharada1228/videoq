@@ -76,6 +76,7 @@ class QueryOptimizer:
             queryset: ベースとなるクエリセット
             include_videos: 動画情報を含めるか
             include_user: ユーザー情報を含めるか
+            annotate_video_count: 動画数をアノテートするか
 
         Returns:
             最適化されたクエリセット
@@ -235,19 +236,22 @@ class CacheOptimizer:
     def get_cached_video_data(video_ids: List[int]) -> Dict[int, Dict[str, Any]]:
         """
         動画データをキャッシュから取得（N+1問題対策）
-
+        
         Args:
             video_ids: 動画IDのリスト
-
+            
         Returns:
             動画IDをキーとしたデータ辞書
         """
         if not video_ids:
             return {}
 
+        # N+1問題対策: 一度のクエリで必要なデータを取得
         videos = QueryOptimizer.get_videos_with_metadata(
             user_id=None, include_transcript=False
-        ).filter(id__in=video_ids)
+        ).filter(id__in=video_ids).only(
+            "id", "title", "status", "uploaded_at", "user_id"
+        )
 
         return {
             video.id: {
@@ -260,20 +264,95 @@ class CacheOptimizer:
         }
 
     @staticmethod
+    def get_cached_video_group_data(group_ids: List[int]) -> Dict[int, Dict[str, Any]]:
+        """
+        動画グループデータをキャッシュから取得（N+1問題対策）
+        
+        Args:
+            group_ids: グループIDのリスト
+            
+        Returns:
+            グループIDをキーとしたデータ辞書
+        """
+        if not group_ids:
+            return {}
+
+        # N+1問題対策: 一度のクエリで必要なデータを取得
+        groups = VideoGroup.objects.filter(
+            id__in=group_ids
+        ).select_related("user").annotate(
+            video_count=Count("members__video", distinct=True)
+        ).only(
+            "id", "name", "description", "created_at", "user_id", "video_count"
+        )
+
+        return {
+            group.id: {
+                "name": group.name,
+                "description": group.description,
+                "created_at": group.created_at,
+                "user_id": group.user_id,
+                "video_count": group.video_count,
+            }
+            for group in groups
+        }
+
+    @staticmethod
     def prefetch_related_data(
         queryset: QuerySet, related_fields: List[str]
     ) -> QuerySet:
         """
         関連データを事前取得（N+1問題対策）
-
+        
         Args:
             queryset: ベースとなるクエリセット
             related_fields: 事前取得する関連フィールドのリスト
-
+            
         Returns:
             最適化されたクエリセット
         """
         if not related_fields:
             return queryset
-
+        
         return queryset.prefetch_related(*related_fields)
+
+    @staticmethod
+    def optimize_bulk_operations(queryset: QuerySet, operation_type: str) -> QuerySet:
+        """
+        バルク操作用のクエリセットを最適化（N+1問題対策）
+        
+        Args:
+            queryset: ベースとなるクエリセット
+            operation_type: 操作タイプ（'update', 'delete', 'create'）
+            
+        Returns:
+            最適化されたクエリセット
+        """
+        if operation_type == 'update':
+            # 更新操作では必要なフィールドのみを選択
+            return queryset.only('id')
+        elif operation_type == 'delete':
+            # 削除操作ではIDのみを選択
+            return queryset.only('id')
+        elif operation_type == 'create':
+            # 作成操作ではデフォルトのまま
+            return queryset
+        else:
+            return queryset
+
+    @staticmethod
+    def get_optimized_count_queryset(model_class, filters: dict = None) -> QuerySet:
+        """
+        カウント用の最適化されたクエリセットを取得（N+1問題対策）
+        
+        Args:
+            model_class: モデルクラス
+            filters: フィルター条件
+            
+        Returns:
+            最適化されたクエリセット
+        """
+        queryset = model_class.objects.only('id')
+        if filters:
+            queryset = queryset.filter(**filters)
+        return queryset
