@@ -1,9 +1,9 @@
+from app.authentication import CookieJWTAuthentication
 from app.models import VideoGroup
 from app.utils.encryption import decrypt_api_key
 from app.utils.responses import create_error_response
 from app.utils.vector_manager import PGVectorManager
-from app.views import ShareTokenAuthentication, IsAuthenticatedOrSharedAccess
-from app.authentication import CookieJWTAuthentication
+from app.views import IsAuthenticatedOrSharedAccess, ShareTokenAuthentication
 from langchain_community.vectorstores import PGVector
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_openai import OpenAIEmbeddings
@@ -12,8 +12,6 @@ from rest_framework.permissions import BasePermission
 from rest_framework.response import Response
 
 from .langchain_utils import get_langchain_llm, handle_langchain_exception
-
-
 
 
 class ChatView(generics.CreateAPIView):
@@ -36,8 +34,10 @@ class ChatView(generics.CreateAPIView):
                 )
 
             try:
-                group = VideoGroup.objects.select_related("user").prefetch_related("members").get(
-                    id=group_id, share_token=share_token
+                group = (
+                    VideoGroup.objects.select_related("user")
+                    .prefetch_related("members")
+                    .get(id=group_id, share_token=share_token)
                 )
                 user = group.user  # グループオーナーのユーザー
             except VideoGroup.DoesNotExist:

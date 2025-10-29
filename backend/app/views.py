@@ -1,6 +1,8 @@
 import mimetypes
 import os
 
+# CookieJWTAuthenticationは app.authentication からインポート
+from app.authentication import CookieJWTAuthentication
 from app.models import VideoGroup, VideoGroupMember
 from django.conf import settings
 from django.http import Http404, HttpResponse
@@ -8,9 +10,6 @@ from rest_framework.authentication import BaseAuthentication
 from rest_framework.permissions import BasePermission
 from rest_framework.request import Request
 from rest_framework.views import APIView
-
-# CookieJWTAuthenticationは app.authentication からインポート
-from app.authentication import CookieJWTAuthentication
 
 
 class ShareTokenAuthentication(BaseAuthentication):
@@ -87,6 +86,7 @@ class ProtectedMediaView(APIView):
         # pathから動画ファイルを特定
         # path例: videos/1/video_xxxxx.mp4
         from app.models import Video
+
         video = Video.objects.filter(file=path).first()
 
         if not video:
@@ -99,8 +99,7 @@ class ProtectedMediaView(APIView):
 
                 # この動画が共有グループに含まれているかチェック
                 is_in_group = VideoGroupMember.objects.filter(
-                    group=group,
-                    video=video
+                    group=group, video=video
                 ).exists()
 
                 if not is_in_group:

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { apiClient, VideoGroup, VideoList, Video, VideoInGroup } from '@/lib/api';
+import { apiClient, VideoGroup, VideoList, VideoInGroup } from '@/lib/api';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
