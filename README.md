@@ -70,12 +70,11 @@ ask-video/
 
 ### 前提条件
 
-このプロジェクトのバックエンドは **Docker Compose** を使用することを前提として設計されています。
+このプロジェクトは **Docker Compose** を使用することを前提として設計されています。
 
 **必須:**
 - Docker Desktop または Docker Engine（20.10以上）
 - Docker Compose（2.0以上、通常Docker Desktopに含まれる）
-- フロントエンドをローカルで開発する場合: Node.js 18以上とnpm
 
 **推奨環境:**
 - macOS, Linux, または Windows（WSL2推奨）
@@ -84,7 +83,7 @@ ask-video/
 
 ### Docker Compose によるセットアップ
 
-**バックエンドは Docker Compose を使用することを前提としています。**
+このプロジェクトは全てのサービス（フロントエンド、バックエンド、データベース、Redis、Celery、Nginx）をDocker Composeで管理します。
 
 #### 1. 環境変数の設定
 
@@ -103,53 +102,77 @@ nano .env
 - `SECRET_KEY` - Django のシークレットキー
 - `DATABASE_URL` - PostgreSQL接続URL（任意）
 - `CELERY_BROKER_URL` - Redis接続URL（任意）
+- その他、アプリケーションに必要な環境変数（OpenAI APIキーなど）
 
-#### 2. コンテナのビルドと起動
+#### 2. 全サービスの起動
 
 ```bash
-# バックエンド関連コンテナの起動
-docker-compose up -d postgres redis
+# 全てのサービス（redis, postgres, backend, celery-worker, frontend, nginx）をビルドして起動
+docker-compose up --build -d
+```
 
-# バックエンドサービスのビルドと起動
-docker-compose up --build -d backend celery-worker
+このコマンドで以下のサービスが起動します：
+- **redis**: Redis（Celeryブローカー）
+- **postgres**: PostgreSQLデータベース（pgvector拡張付き）
+- **backend**: Django REST APIサーバー（ポート8000内部）
+- **celery-worker**: Celeryワーカー（バックグラウンドタスク処理）
+- **frontend**: Next.jsフロントエンド（ポート3000内部）
+- **nginx**: リバースプロキシ（ポート80）
 
-# 初回マイグレーション
+#### 3. 初回セットアップ
+
+```bash
+# データベースマイグレーションの実行
 docker-compose exec backend uv run python manage.py migrate
 
 # 管理者ユーザーの作成（初回のみ）
 docker-compose exec backend uv run python manage.py createsuperuser
-
-# Nginxの起動
-docker-compose up -d nginx
 ```
 
-#### 3. 起動確認
+#### 4. 起動確認
 
-- バックエンドAPI: http://localhost:80/api
-- 管理画面: http://localhost:80/admin
-- フロントエンド: http://localhost:80（フロントエンド起動後）
+全てのサービスが起動したら、以下のURLにアクセスできます：
+
+- **フロントエンド**: http://localhost
+- **バックエンドAPI**: http://localhost/api
+- **管理画面**: http://localhost/admin
 
 #### その他の便利なコマンド
 
 ```bash
-# 全コンテナの起動
-docker-compose up -d
+# 全コンテナのステータス確認
+docker-compose ps
 
-# ログの確認
+# ログの確認（全サービス）
+docker-compose logs -f
+
+# 特定のサービスのログ確認
 docker-compose logs -f backend
 docker-compose logs -f celery-worker
+docker-compose logs -f frontend
 
 # コンテナの停止
 docker-compose stop
 
-# コンテナの再起動
+# コンテナの停止と削除（ボリュームは保持）
+docker-compose down
+
+# コンテナの停止と削除（ボリュームも削除）
+docker-compose down -v
+
+# 特定のサービスの再起動
 docker-compose restart backend
 
+# 全サービスの再起動
+docker-compose restart
+
 # データベースへの接続
-docker-compose exec postgres psql -U postgres -d postgres
+docker-compose exec postgres psql -U $POSTGRES_USER -d $POSTGRES_DB
 ```
 
-### フロントエンドのセットアップ（開発環境）
+### フロントエンドのローカル開発（オプション）
+
+フロントエンドのみローカルで開発する場合：
 
 ```bash
 cd frontend
@@ -158,13 +181,14 @@ cd frontend
 npm install
 
 # 環境変数の設定
-echo "NEXT_PUBLIC_API_URL=http://localhost:80/api" > .env.local
+echo "NEXT_PUBLIC_API_URL=http://localhost/api" > .env.local
 
 # 開発サーバーの起動
 npm run dev
 ```
 
-フロントエンドは http://localhost:3000 で起動します（開発時は別ポートで起動）。
+この場合、フロントエンドは http://localhost:3000 で起動します（開発時は別ポートで起動）。
+バックエンドは `docker-compose up -d backend postgres redis celery-worker nginx` で起動しておく必要があります。
 
 詳細は `frontend/README.md` を参照してください。
 
@@ -253,14 +277,14 @@ npm run dev
 
 ### 基本情報
 
-- **ベースURL**: `http://localhost:80`（Docker構成の既定）
+- **ベースURL**: `http://localhost`（Docker構成の既定）
 - **APIパス**: `/api`
 - **認証**: `Authorization: Bearer <access_token>`（外部クライアントはBearer推奨）
 - **トークン有効期限**: アクセス10分、リフレッシュ14日
 
 環境変数例:
 ```bash
-BASE_URL="http://localhost:80"
+BASE_URL="http://localhost"
 ACCESS="<JWT_ACCESS_TOKEN>"
 TOKEN="<SHARE_TOKEN>"
 ```
@@ -441,10 +465,11 @@ curl -X DELETE -H "Authorization: Bearer $ACCESS" \
 
 このプロジェクトは以下のサービスで構成されています：
 
-- **postgres**: PostgreSQLデータベース（pgvector拡張付き）
 - **redis**: Redis（Celeryブローカーおよび結果バックエンド）
-- **backend**: Django REST APIサーバー
+- **postgres**: PostgreSQLデータベース（pgvector拡張付き）
+- **backend**: Django REST APIサーバー（ポート8000内部）
 - **celery-worker**: Celeryワーカー（バックグラウンドタスク処理）
+- **frontend**: Next.jsフロントエンド（ポート3000内部）
 - **nginx**: リバースプロキシ（ポート80）
 
 ### ボリュームマウント
@@ -494,6 +519,18 @@ docker-compose logs -f backend celery-worker
 ### フロントエンド
 
 ```bash
+# フロントエンドコンテナ内でコマンドを実行
+docker-compose exec frontend npm run build
+
+# フロントエンドのログ確認
+docker-compose logs -f frontend
+```
+
+ローカル開発環境の場合：
+
+```bash
+cd frontend
+
 # ビルド
 npm run build
 
@@ -517,11 +554,29 @@ npm run test:e2e:ui
 
 ## トラブルシューティング
 
+### 全サービスが起動しない
+
+1. Docker Composeのステータスを確認
+```bash
+docker-compose ps
+```
+
+2. ログを確認してエラーを特定
+```bash
+docker-compose logs
+```
+
+3. コンテナを再ビルド
+```bash
+docker-compose down
+docker-compose up --build -d
+```
+
 ### Celeryタスクが実行されない
 
 1. Celeryワーカーのコンテナが起動しているか確認
 ```bash
-docker-compose ps
+docker-compose ps celery-worker
 ```
 
 2. Celeryワーカーのログを確認
@@ -565,6 +620,25 @@ docker-compose ps postgres
 docker-compose exec backend uv run python manage.py dbshell
 ```
 
+### フロントエンドが表示されない
+
+1. フロントエンドコンテナが起動しているか確認
+```bash
+docker-compose ps frontend
+```
+
+2. フロントエンドのログを確認
+```bash
+docker-compose logs frontend
+```
+
+3. Nginxが正常に動作しているか確認
+```bash
+docker-compose logs nginx
+```
+
+4. Nginxの設定を確認（`nginx.conf`）
+
 ### コンテナの再ビルドが必要な場合
 
 ```bash
@@ -576,4 +650,16 @@ docker-compose up --build -d
 
 # マイグレーションを再適用
 docker-compose exec backend uv run python manage.py migrate
+```
+
+### ボリュームの問題
+
+データを完全にリセットしたい場合：
+
+```bash
+# 警告: このコマンドは全てのデータを削除します
+docker-compose down -v
+docker-compose up --build -d
+docker-compose exec backend uv run python manage.py migrate
+docker-compose exec backend uv run python manage.py createsuperuser
 ```
