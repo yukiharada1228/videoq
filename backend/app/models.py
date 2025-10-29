@@ -103,7 +103,7 @@ def delete_video_vectors(sender, instance, **kwargs):
     try:
         # DRY原則: PGVectorManagerを使用してベクトル削除
         from app.utils.vector_manager import PGVectorManager
-        
+
         def delete_operation(cursor):
             delete_query = """
                 DELETE FROM langchain_pg_embedding 
@@ -113,15 +113,19 @@ def delete_video_vectors(sender, instance, **kwargs):
             return cursor.rowcount
 
         deleted_count = PGVectorManager.execute_with_connection(delete_operation)
-        
+
         if deleted_count > 0:
             import logging
+
             logger = logging.getLogger(__name__)
-            logger.info(f"Deleted {deleted_count} vector documents for video {instance.id}")
-            
+            logger.info(
+                f"Deleted {deleted_count} vector documents for video {instance.id}"
+            )
+
     except Exception as e:
         # ベクトル削除の失敗は動画削除を阻害しない（DRY原則）
         import logging
+
         logger = logging.getLogger(__name__)
         logger.warning(f"Failed to delete vectors for video {instance.id}: {e}")
 
