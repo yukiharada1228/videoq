@@ -1,23 +1,65 @@
 # RAG 用
 from app.models import VideoGroup
 from app.utils.encryption import decrypt_api_key
-from app.utils.mixins import AuthenticatedViewMixin
 from app.utils.responses import create_error_response
 from app.utils.vector_manager import PGVectorManager
+from app.views import CookieJWTAuthentication, ShareTokenAuthentication
 from langchain_community.vectorstores import PGVector
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_openai import OpenAIEmbeddings
 from rest_framework import generics, status
+from rest_framework.permissions import BasePermission
 from rest_framework.response import Response
 
 from .langchain_utils import get_langchain_llm, handle_langchain_exception
 
 
-class ChatView(AuthenticatedViewMixin, generics.CreateAPIView):
-    """チャットビュー（LangChain使用）"""
+class IsAuthenticatedOrSharedAccess(BasePermission):
+    """認証済みまたは有効な共有トークンを持つユーザーのみアクセス可能"""
+
+    def has_permission(self, request, view):
+        # JWT認証が成功している場合
+        if request.user and request.user.is_authenticated:
+            return True
+
+        # ShareTokenAuthentication が成功している場合（request.auth に情報が入る）
+        if request.auth and isinstance(request.auth, dict) and "share_token" in request.auth:
+            return True
+
+        return False
+
+
+class ChatView(generics.CreateAPIView):
+    """チャットビュー（LangChain使用・共有トークン対応）"""
+
+    authentication_classes = [CookieJWTAuthentication, ShareTokenAuthentication]
+    permission_classes = [IsAuthenticatedOrSharedAccess]
 
     def post(self, request):
-        user = request.user
+        # 共有トークン認証の場合
+        share_token = request.query_params.get("share_token")
+        is_shared = share_token is not None
+
+        if is_shared:
+            # 共有トークンでグループを取得
+            group_id = request.data.get("group_id")
+            if not group_id:
+                return create_error_response(
+                    "グループIDが指定されていません", status.HTTP_400_BAD_REQUEST
+                )
+
+            try:
+                group = VideoGroup.objects.select_related("user").prefetch_related("members").get(
+                    id=group_id, share_token=share_token
+                )
+                user = group.user  # グループオーナーのユーザー
+            except VideoGroup.DoesNotExist:
+                return create_error_response(
+                    "共有グループが見つかりません", status.HTTP_404_NOT_FOUND
+                )
+        else:
+            # 通常の認証済みユーザー
+            user = request.user
 
         # LangChainのLLMを取得
         llm, error_response = get_langchain_llm(user)
@@ -49,16 +91,18 @@ class ChatView(AuthenticatedViewMixin, generics.CreateAPIView):
 
             # グループRAG: group_id が指定されていれば関連動画でベクトル検索
             if group_id is not None:
-                try:
-                    group = (
-                        VideoGroup.objects.select_related("user")
-                        .prefetch_related("members")
-                        .get(id=group_id, user_id=user.id)
-                    )
-                except VideoGroup.DoesNotExist:
-                    return create_error_response(
-                        "指定のグループが見つかりません", status.HTTP_404_NOT_FOUND
-                    )
+                # 共有トークンの場合は既にグループを取得済み
+                if not is_shared:
+                    try:
+                        group = (
+                            VideoGroup.objects.select_related("user")
+                            .prefetch_related("members")
+                            .get(id=group_id, user_id=user.id)
+                        )
+                    except VideoGroup.DoesNotExist:
+                        return create_error_response(
+                            "指定のグループが見つかりません", status.HTTP_404_NOT_FOUND
+                        )
 
                 # 直近のユーザ質問を抽出
                 query_text = None

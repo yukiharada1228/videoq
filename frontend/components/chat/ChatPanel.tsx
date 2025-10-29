@@ -14,9 +14,10 @@ interface ChatPanelProps {
   hasApiKey: boolean;
   groupId?: number;
   onVideoPlay?: (videoId: number, startTime: string) => void;
+  shareToken?: string;
 }
 
-export function ChatPanel({ hasApiKey, groupId, onVideoPlay }: ChatPanelProps) {
+export function ChatPanel({ hasApiKey, groupId, onVideoPlay, shareToken }: ChatPanelProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
@@ -83,6 +84,7 @@ export function ChatPanel({ hasApiKey, groupId, onVideoPlay }: ChatPanelProps) {
       const response = await apiClient.chat({
         messages: [...messages, userMessage],
         ...(groupId ? { group_id: groupId } : {}),
+        ...(shareToken ? { share_token: shareToken } : {}),
       });
 
       setMessages((prev) => [...prev, response]);
