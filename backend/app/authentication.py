@@ -24,7 +24,7 @@ class CookieJWTAuthentication(JWTAuthentication):
 
         # Cookie から access_token を取得
         raw_token = request.COOKIES.get("access_token")
-        
+
         if raw_token is None:
             return None
 
@@ -34,4 +34,3 @@ class CookieJWTAuthentication(JWTAuthentication):
             return user, validated_token
         except InvalidToken:
             return None
-

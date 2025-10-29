@@ -1,7 +1,7 @@
 """共通のミックスイン（DRY原則）"""
 
-from rest_framework.permissions import AllowAny, IsAuthenticated
 from app.authentication import CookieJWTAuthentication
+from rest_framework.permissions import AllowAny, IsAuthenticated
 
 
 class AuthenticatedViewMixin:

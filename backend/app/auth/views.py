@@ -1,7 +1,8 @@
 from app.utils.mixins import AuthenticatedViewMixin, PublicViewMixin
 from django.contrib.auth import get_user_model
-from rest_framework import generics
+from rest_framework import generics, status
 from rest_framework.response import Response
+from rest_framework_simplejwt.exceptions import InvalidToken
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .serializers import (LoginSerializer, RefreshSerializer, UserSerializer,
@@ -39,7 +40,9 @@ class LoginView(PublicAPIView):
         user = serializer.validated_data["user"]
         refresh = RefreshToken.for_user(user)
 
-        response = Response({"access": str(refresh.access_token), "refresh": str(refresh)})
+        response = Response(
+            {"access": str(refresh.access_token), "refresh": str(refresh)}
+        )
 
         # HttpOnly Cookie に JWT トークンを設定
         response.set_cookie(
@@ -68,11 +71,11 @@ class LogoutView(AuthenticatedAPIView):
     def post(self, request):
         """HttpOnly Cookieを削除してログアウト"""
         response = Response({"message": "ログアウトしました"})
-        
+
         # HttpOnly Cookieを削除
         response.delete_cookie("access_token")
         response.delete_cookie("refresh_token")
-        
+
         return response
 
 
@@ -82,9 +85,24 @@ class RefreshView(PublicAPIView):
     serializer_class = RefreshSerializer
 
     def post(self, request):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        refresh = serializer.validated_data["refresh_obj"]
+        # Cookieからリフレッシュトークンを取得（優先）
+        refresh_token = request.COOKIES.get("refresh_token")
+        
+        # Cookieにない場合はリクエストボディから取得（後方互換性）
+        if not refresh_token:
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            refresh = serializer.validated_data["refresh_obj"]
+        else:
+            # Cookieから取得したトークンを検証
+            try:
+                refresh = RefreshToken(refresh_token)
+            except InvalidToken:
+                return Response(
+                    {"detail": "無効なリフレッシュトークンです"},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
+        
         access = refresh.access_token
 
         response = Response({"access": str(access)})
