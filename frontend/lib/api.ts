@@ -127,41 +127,39 @@ class ApiClient {
     this.baseUrl = API_URL;
   }
 
-  // ローカルストレージへのアクセスを共通化
-  // トークンを取得する共通メソッド（DRY原則）
-  private getTokenFromStorage(key: string): string | null {
-    return localStorage.getItem(key);
+  // HttpOnly Cookieベースの認証（セキュリティ強化）
+  // localStorageの代わりにHttpOnly Cookieを使用してXSS攻撃を防止
+  
+  async isAuthenticated(): Promise<boolean> {
+    try {
+      console.log('🔍 Checking authentication...');
+      const response = await fetch(`${this.baseUrl}/auth/me/`, {
+        method: 'GET',
+        credentials: 'include', // HttpOnly Cookieを送信
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      console.log('🔍 Auth check response:', response.status, response.ok);
+      return response.ok;
+    } catch (error) {
+      console.error('🔍 Auth check error:', error);
+      return false;
+    }
   }
 
-  private getToken(): string | null {
-    return this.getTokenFromStorage('access_token');
-  }
-
-  private getRefreshToken(): string | null {
-    return this.getTokenFromStorage('refresh_token');
-  }
-
-  private setToken(key: string, value: string): void {
-    localStorage.setItem(key, value);
-  }
-
-  private setTokens(access: string, refresh: string): void {
-    this.setToken('access_token', access);
-    this.setToken('refresh_token', refresh);
-  }
-
-  private setAccessToken(access: string): void {
-    this.setToken('access_token', access);
-  }
-
-  // トークンを削除する共通メソッド（DRY原則）
-  private removeToken(key: string): void {
-    localStorage.removeItem(key);
-  }
-
-  private removeTokens(): void {
-    this.removeToken('access_token');
-    this.removeToken('refresh_token');
+  async logout(): Promise<void> {
+    try {
+      await fetch(`${this.baseUrl}/auth/logout/`, {
+        method: 'POST',
+        credentials: 'include', // HttpOnly Cookieを送信
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
   }
 
   // URLを構築する共通メソッド（DRY原則）
@@ -188,10 +186,8 @@ class ApiClient {
       ...(additionalHeaders as Record<string, string>),
     };
 
-    const accessToken = this.getToken();
-    if (accessToken) {
-      headers['Authorization'] = `Bearer ${accessToken}`;
-    }
+    // HttpOnly Cookieを使用するため、Authorizationヘッダーは不要
+    // XSS攻撃を防ぐため、トークンをJavaScriptからアクセス可能な場所に保存しない
 
     return headers;
   }
@@ -204,7 +200,8 @@ class ApiClient {
   }
 
   private async handleAuthError(): Promise<void> {
-    this.removeTokens();
+    // HttpOnly Cookieベースの認証では、ログアウト処理をバックエンドに委譲
+    await this.logout();
     window.location.href = '/login';
     throw new Error('認証に失敗しました。再度ログインしてください。');
   }
@@ -294,6 +291,7 @@ class ApiClient {
       ...options,
       body,
       headers,
+      credentials: 'include', // HttpOnly Cookieを送信
     };
 
     try {
@@ -330,51 +328,23 @@ class ApiClient {
       body: data,
     });
     
-    this.setTokens(response.access, response.refresh);
+    // HttpOnly Cookieベースの認証では、バックエンドがCookieを設定するため
+    // フロントエンドでトークンを保存する必要はない
     
     return response;
   }
 
   async refreshToken(): Promise<RefreshResponse> {
-    const refreshToken = this.getRefreshToken();
+    // HttpOnly Cookieベースの認証では、バックエンドがCookieを自動更新するため
+    // フロントエンドでリフレッシュトークンを管理する必要はない
+    // 必要に応じてバックエンドのリフレッシュエンドポイントを呼び出す
     
-    if (!refreshToken) {
-      throw new Error('No refresh token found');
-    }
-
-    // 認証エラー時のリトライを防ぐため、APIエンドポイントを直接呼び出す
-    // 共通メソッドを使用してURLを構築
-    const url = this.buildUrl('/auth/refresh/');
-    const body = { refresh: refreshToken };
+    const response = await this.request<RefreshResponse>('/auth/refresh/', {
+      method: 'POST',
+      body: {}, // バックエンドがCookieからリフレッシュトークンを取得
+    });
     
-    // 共通メソッドを使用してbodyを文字列化（DRY原則）
-    const bodyStringified = this.stringifyBody(body);
-    
-    try {
-      // 共通メソッドを使用してJSONヘッダーを取得（DRY原則）
-      const response = await this.executeRequest<RefreshResponse>(url, {
-        method: 'POST',
-        headers: this.getJsonHeaders(),
-        body: bodyStringified,
-      });
-      
-      // 共通メソッドを使用してレスポンスのJSONを取得
-      const data = await this.parseJsonResponse<RefreshResponse>(response);
-      
-      // 新しいアクセストークンを保存
-      if (data.access) {
-        this.setAccessToken(data.access);
-      }
-
-      return data;
-    } catch (error) {
-      // リフレッシュトークンも無効な場合は認証エラーとして処理
-      // 共通メソッドを使用してエラーログを出力
-      this.logError('Refresh token failed:', error);
-
-      await this.handleAuthError();
-      throw error;
-    }
+    return response;
   }
 
   async getMe(): Promise<User> {
@@ -398,13 +368,6 @@ class ApiClient {
     });
   }
 
-  async logout(): Promise<void> {
-    this.removeTokens();
-  }
-
-  isAuthenticated(): boolean {
-    return !!this.getToken();
-  }
 
 
   // Video関連のメソッド
@@ -425,12 +388,9 @@ class ApiClient {
     }
 
     const url = this.buildUrl('/videos/');
-    const token = this.getToken();
     
+    // HttpOnly Cookieベースの認証では、Authorizationヘッダーは不要
     const headers: Record<string, string> = {};
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
 
     try {
       const response = await this.executeRequest<Video>(url, {
