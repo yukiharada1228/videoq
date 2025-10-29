@@ -181,7 +181,6 @@ CORS_ALLOWED_ORIGINS = (
     else DefaultSettings.CORS_ALLOWED_ORIGINS
 )
 
-CORS_ALLOW_CREDENTIALS = True
 
 # Celery Configuration
 CELERY_BROKER_URL = os.environ.get(
