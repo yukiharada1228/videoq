@@ -64,11 +64,38 @@ class VideoDetailView(
         return True
 
     def destroy(self, request, *args, **kwargs):
-        """Video削除時にファイルも削除"""
+        """Video削除時にファイルとベクトルデータも削除（DRY原則・N+1問題対策）"""
         instance = self.get_object()
+        video_id = instance.id
+        
         # ファイルが存在する場合は削除
         if instance.file:
             instance.file.delete(save=False)
+            
+        # DRY原則: PGVectorManagerを使用してベクトル削除
+        from app.utils.vector_manager import PGVectorManager
+        
+        try:
+            def delete_operation(cursor):
+                delete_query = """
+                    DELETE FROM langchain_pg_embedding 
+                    WHERE cmetadata->>'video_id' = %s
+                """
+                cursor.execute(delete_query, (str(video_id),))
+                return cursor.rowcount
+
+            deleted_count = PGVectorManager.execute_with_connection(delete_operation)
+            
+            if deleted_count > 0:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.info(f"Deleted {deleted_count} vector documents for video {video_id}")
+                
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Failed to delete vectors for video {video_id}: {e}")
+        
         return super().destroy(request, *args, **kwargs)
 
 
@@ -189,6 +216,38 @@ def _validate_videos_count(videos, video_ids):
     return None
 
 
+def _handle_group_video_operation(request, group_id, video_id, operation_func, success_message, success_status=status.HTTP_200_OK):
+    """
+    グループと動画の操作を共通処理（DRY原則・N+1問題対策）
+    
+    Args:
+        request: HTTPリクエスト
+        group_id: グループID
+        video_id: 動画ID
+        operation_func: 実行する操作の関数
+        success_message: 成功時のメッセージ
+        success_status: 成功時のステータスコード
+    
+    Returns:
+        Response: 操作結果
+    """
+    group, video, error = _get_group_and_video(request.user, group_id, video_id)
+    
+    # DRY原則: 共通の検証結果をチェック
+    if error:
+        return error
+    
+    # 操作を実行
+    result = operation_func(group, video)
+    if isinstance(result, Response):
+        return result
+    
+    return Response(
+        {"message": success_message},
+        status=success_status,
+    )
+
+
 def _get_member_queryset(group, video=None, select_related=False):
     """共通のメンバークエリ（DRY原則・N+1問題対策）"""
     queryset = VideoGroupMember.objects.filter(group=group)
@@ -220,15 +279,8 @@ def _check_and_get_member(
 # DRY原則: 共通デコレーターはapp.utils.decoratorsからインポート済み
 
 
-@authenticated_view_with_error_handling(["POST"])
-def add_video_to_group(request, group_id, video_id):
-    """グループに動画を追加（DRY原則・N+1問題対策）"""
-    group, video, error = _get_group_and_video(request.user, group_id, video_id)
-
-    # DRY原則: 共通の検証結果をチェック
-    if error:
-        return error
-
+def _add_video_to_group_operation(group, video):
+    """動画をグループに追加する操作（DRY原則）"""
     # すでに追加されているかチェック（N+1問題対策・DRY原則: 1つのクエリのみ）
     member = _get_member_queryset(group, video).first()
     if member:
@@ -238,10 +290,17 @@ def add_video_to_group(request, group_id, video_id):
 
     # グループに追加
     member = VideoGroupMember.objects.create(group=group, video=video)
-
     return Response(
         {"message": "動画をグループに追加しました", "id": member.id},
         status=status.HTTP_201_CREATED,
+    )
+
+
+@authenticated_view_with_error_handling(["POST"])
+def add_video_to_group(request, group_id, video_id):
+    """グループに動画を追加（DRY原則・N+1問題対策）"""
+    return _handle_group_video_operation(
+        request, group_id, video_id, _add_video_to_group_operation, "動画をグループに追加しました", status.HTTP_201_CREATED
     )
 
 
