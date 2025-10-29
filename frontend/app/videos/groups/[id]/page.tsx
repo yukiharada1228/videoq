@@ -673,36 +673,38 @@ export default function VideoGroupDetailPage() {
           {/* 3カラムレイアウト */}
           <div className="grid grid-cols-12 gap-4 flex-1 min-h-0">
           {/* 左側：動画一覧 */}
-          <div className="col-span-3 overflow-y-auto">
-            <Card className="h-full">
+          <div className="col-span-3 h-full">
+            <Card className="h-full flex flex-col">
               <CardHeader>
                 <CardTitle>動画一覧</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-2">
-                {group.videos && group.videos.length > 0 ? (
-                  <DndContext
-                    sensors={sensors}
-                    collisionDetection={closestCenter}
-                    onDragEnd={handleDragEnd}
-                  >
-                    <SortableContext
-                      items={group.videos.map(video => video.id)}
-                      strategy={verticalListSortingStrategy}
+              <CardContent className="flex-1 flex flex-col overflow-hidden">
+                <div className="flex-1 overflow-y-auto space-y-2">
+                  {group.videos && group.videos.length > 0 ? (
+                    <DndContext
+                      sensors={sensors}
+                      collisionDetection={closestCenter}
+                      onDragEnd={handleDragEnd}
                     >
-                      {group.videos.map((video) => (
-                        <SortableVideoItem
-                          key={video.id}
-                          video={video}
-                          isSelected={selectedVideo?.id === video.id}
-                          onSelect={handleVideoSelect}
-                          onRemove={handleRemoveVideo}
-                        />
-                      ))}
-                    </SortableContext>
-                  </DndContext>
-                ) : (
-                  <p className="text-center text-gray-500 py-4 text-sm">動画がありません</p>
-                )}
+                      <SortableContext
+                        items={group.videos.map(video => video.id)}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        {group.videos.map((video) => (
+                          <SortableVideoItem
+                            key={video.id}
+                            video={video}
+                            isSelected={selectedVideo?.id === video.id}
+                            onSelect={handleVideoSelect}
+                            onRemove={handleRemoveVideo}
+                          />
+                        ))}
+                      </SortableContext>
+                    </DndContext>
+                  ) : (
+                    <p className="text-center text-gray-500 py-4 text-sm">動画がありません</p>
+                  )}
+                </div>
               </CardContent>
             </Card>
           </div>
