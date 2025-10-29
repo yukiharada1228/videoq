@@ -515,15 +515,12 @@ def get_shared_group(request, share_token):
     queryset = VideoGroup.objects.filter(share_token=share_token)
 
     # QueryOptimizerを使用してN+1問題を解決
-    group = (
-        QueryOptimizer.optimize_video_group_queryset(
-            queryset,
-            include_videos=True,
-            include_user=True,  # オーナーのAPIキー情報を取得するため必要
-            annotate_video_count=True,
-        )
-        .first()
-    )
+    group = QueryOptimizer.optimize_video_group_queryset(
+        queryset,
+        include_videos=True,
+        include_user=True,  # オーナーのAPIキー情報を取得するため必要
+        annotate_video_count=True,
+    ).first()
 
     if not group:
         return create_error_response(
