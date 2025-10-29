@@ -247,6 +247,204 @@ npm run dev
 
 - `GET /media/<path>` - 認証されたメディアファイルの配信（JWTまたは共有トークン必要）
 
+## 外部利用者向けAPIガイド
+
+このセクションでは、外部クライアントからAPIを利用するための実践的な使い方をまとめます。
+
+### 基本情報
+
+- **ベースURL**: `http://localhost:80`（Docker構成の既定）
+- **APIパス**: `/api`
+- **認証**: `Authorization: Bearer <access_token>`（外部クライアントはBearer推奨）
+- **トークン有効期限**: アクセス10分、リフレッシュ14日
+
+環境変数例:
+```bash
+BASE_URL="http://localhost:80"
+ACCESS="<JWT_ACCESS_TOKEN>"
+TOKEN="<SHARE_TOKEN>"
+```
+
+### クイックスタート
+
+#### 1. 認証（サインアップ/ログイン）
+
+```bash
+# サインアップ
+curl -X POST "$BASE_URL/api/auth/signup/" \
+  -H "Content-Type: application/json" \
+  -d '{"username":"alice","password":"pass1234"}'
+
+# ログイン（access/refresh を取得）
+curl -X POST "$BASE_URL/api/auth/login/" \
+  -H "Content-Type: application/json" \
+  -d '{"username":"alice","password":"pass1234"}'
+# レスポンスの access を以降の Authorization に使用
+
+# アクセストークン再発行
+curl -X POST "$BASE_URL/api/auth/refresh/" \
+  -H "Content-Type: application/json" \
+  -d '{"refresh":"<JWT_REFRESH_TOKEN>"}'
+
+# 現在のユーザー情報取得
+curl -H "Authorization: Bearer $ACCESS" "$BASE_URL/api/auth/me/"
+
+# OpenAIキーを保存（暗号化保存）
+curl -X PATCH "$BASE_URL/api/auth/me/" \
+  -H "Authorization: Bearer $ACCESS" \
+  -H "Content-Type: application/json" \
+  -d '{"encrypted_openai_api_key":"sk-xxxx"}'
+
+# ログアウト
+curl -X POST "$BASE_URL/api/auth/logout/" \
+  -H "Authorization: Bearer $ACCESS"
+```
+
+#### 2. 動画のアップロードと状態確認
+
+```bash
+# アップロード（multipart）
+curl -X POST "$BASE_URL/api/videos/" \
+  -H "Authorization: Bearer $ACCESS" \
+  -F "file=@/path/to/movie.mp4" \
+  -F "title=デモ動画" \
+  -F "description=説明文"
+
+# 一覧取得
+curl -H "Authorization: Bearer $ACCESS" "$BASE_URL/api/videos/"
+
+# 詳細取得（transcript/status/error_message を確認）
+curl -H "Authorization: Bearer $ACCESS" "$BASE_URL/api/videos/123/"
+
+# 更新
+curl -X PATCH "$BASE_URL/api/videos/123/" \
+  -H "Authorization: Bearer $ACCESS" \
+  -H "Content-Type: application/json" \
+  -d '{"title":"新しいタイトル"}'
+
+# 削除
+curl -X DELETE -H "Authorization: Bearer $ACCESS" \
+  "$BASE_URL/api/videos/123/"
+```
+
+#### 3. 動画グループの作成と動画の追加
+
+```bash
+# グループ作成
+curl -X POST "$BASE_URL/api/videos/groups/" \
+  -H "Authorization: Bearer $ACCESS" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"プロジェクトA","description":"関連動画"}'
+
+# グループ一覧
+curl -H "Authorization: Bearer $ACCESS" "$BASE_URL/api/videos/groups/"
+
+# グループ詳細
+curl -H "Authorization: Bearer $ACCESS" "$BASE_URL/api/videos/groups/10/"
+
+# 動画をグループに追加（単体）
+curl -X POST -H "Authorization: Bearer $ACCESS" \
+  "$BASE_URL/api/videos/groups/10/videos/123/"
+
+# 動画をグループに追加（複数）
+curl -X POST "$BASE_URL/api/videos/groups/10/videos/" \
+  -H "Authorization: Bearer $ACCESS" \
+  -H "Content-Type: application/json" \
+  -d '{"video_ids":[101,102,103]}'
+
+# グループから動画削除
+curl -X DELETE -H "Authorization: Bearer $ACCESS" \
+  "$BASE_URL/api/videos/groups/10/videos/123/remove/"
+
+# グループ内動画の順序変更
+curl -X PATCH "$BASE_URL/api/videos/groups/10/reorder/" \
+  -H "Authorization: Bearer $ACCESS" \
+  -H "Content-Type: application/json" \
+  -d '{"video_ids":[103,101,102]}'
+
+# グループ更新
+curl -X PATCH "$BASE_URL/api/videos/groups/10/" \
+  -H "Authorization: Bearer $ACCESS" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"新しい名称"}'
+
+# グループ削除
+curl -X DELETE -H "Authorization: Bearer $ACCESS" \
+  "$BASE_URL/api/videos/groups/10/"
+```
+
+#### 4. チャット（RAG対応）
+
+```bash
+# JWT（Bearer）で利用
+curl -X POST "$BASE_URL/api/chat/" \
+  -H "Authorization: Bearer $ACCESS" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "group_id": 10,
+    "messages": [
+      {"role":"system","content":"あなたは有能なアシスタントです。"},
+      {"role":"user","content":"要点を要約して"}
+    ]
+  }'
+```
+
+備考:
+- `group_id` を渡すと、そのグループの動画に限定してベクトル検索（RAG）が実行されます。
+- OpenAIのAPIキーは `/api/auth/me/` で保存してください（`encrypted_openai_api_key`）。
+
+#### 5. 共有リンク
+
+```bash
+# 共有リンクの発行（share_token を取得）
+curl -X POST -H "Authorization: Bearer $ACCESS" \
+  "$BASE_URL/api/videos/groups/10/share/"
+
+# 共有グループの参照（認証不要）
+curl "$BASE_URL/api/videos/groups/shared/$TOKEN/"
+
+# 共有トークンでチャット（body に group_id 必須）
+curl -X POST "$BASE_URL/api/chat/?share_token=$TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "group_id": 10,
+    "messages": [
+      {"role":"user","content":"この動画群の概要は？"}
+    ]
+  }'
+
+# 共有リンクの無効化
+curl -X DELETE -H "Authorization: Bearer $ACCESS" \
+  "$BASE_URL/api/videos/groups/10/share/delete/"
+```
+
+#### 6. 保護されたメディア配信
+
+```bash
+# Bearer で取得
+curl -L -H "Authorization: Bearer $ACCESS" \
+  "$BASE_URL/media/videos/123/video.mp4" -o video.mp4
+
+# 共有トークンで取得
+curl -L "$BASE_URL/media/videos/123/video.mp4?share_token=$TOKEN" -o video.mp4
+```
+
+### エラーレスポンス
+
+代表的なエラーレスポンス:
+
+- **400**: バリデーションエラー（例: `"video_idsは配列である必要があります"`)
+- **401**: 認証エラー（例: `"無効なリフレッシュトークンです"`)
+- **403**: 権限不足
+- **404**: リソースなし（例: `"共有リンクが見つかりません"`、`"グループが見つかりません"`）
+
+### 認証の使い分け
+
+**外部クライアントからの利用時は、必ず `Authorization` ヘッダー（Bearer）を使用してください。Cookieベースの認証は使用しないでください。動画ファイルが保存されたままになる原因となります。**
+
+- **外部クライアント**: `Authorization` ヘッダー（Bearer）**のみ**使用
+- **内部ブラウザアプリ**: HttpOnly Cookie（自動リフレッシュ呼び出しが容易）
+
 ## Docker Compose構成
 
 このプロジェクトは以下のサービスで構成されています：
