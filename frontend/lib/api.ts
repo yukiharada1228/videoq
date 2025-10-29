@@ -36,6 +36,7 @@ export interface ChatMessage {
 
 export interface ChatRequest {
   messages: ChatMessage[];
+  group_id?: number;
 }
 
 export interface Video {

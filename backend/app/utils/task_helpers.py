@@ -156,7 +156,7 @@ class ErrorHandler:
     ) -> None:
         """
         タスクエラーの共通処理（DRY原則・N+1問題対策）
-        
+
         Args:
             error: 発生したエラー
             video_id: 動画ID
@@ -218,11 +218,13 @@ class ErrorHandler:
     def validate_required_fields(data: dict, required_fields: list) -> tuple[bool, str]:
         """
         必須フィールドのバリデーション（DRY原則）
-        
+
         Returns:
             (is_valid, error_message)
         """
-        missing_fields = [field for field in required_fields if field not in data or not data[field]]
+        missing_fields = [
+            field for field in required_fields if field not in data or not data[field]
+        ]
         if missing_fields:
             return False, f"Missing required fields: {', '.join(missing_fields)}"
         return True, ""

@@ -402,7 +402,9 @@ def transcribe_video(self, video_id):
             all_segments = _process_audio_segments_parallel(client, audio_segments)
 
             if not all_segments:
-                _handle_transcription_error(video, "Failed to transcribe any audio segments")
+                _handle_transcription_error(
+                    video, "Failed to transcribe any audio segments"
+                )
                 return
 
             # Create SRT content
