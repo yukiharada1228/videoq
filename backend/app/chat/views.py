@@ -107,7 +107,7 @@ class ChatView(AuthenticatedViewMixin, generics.CreateAPIView):
                             f"[{idx}] {title} {st} - {et}\n{d.page_content}"
                         )
                     context_lines.append(
-                        "不明な場合は推測せず、その旨を伝えてください。"
+                        "不明な場合は推測せず、その旨を200文字以内で伝えてください。"
                     )
                     system_ctx = SystemMessage(content="\n\n".join(context_lines))
                     langchain_messages = [system_ctx] + langchain_messages
