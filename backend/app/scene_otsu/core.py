@@ -36,7 +36,13 @@ class OpenAIEmbedder:
 
 class SubtitleParser:
     @staticmethod
-    def parse_srt_string(srt_string: str) -> List[Tuple[str, str]]:
+    def parse_srt_string(srt_string: str) -> List[Tuple[str, str, str]]:
+        """
+        SRT文字列を解析
+        
+        Returns:
+            [(start_timestamp, end_timestamp, text), ...]
+        """
         content = srt_string.strip()
         blocks = content.split("\n\n")
         subtitles = []
@@ -44,9 +50,12 @@ class SubtitleParser:
             lines = block.strip().split("\n")
             if len(lines) < 3:
                 continue
-            timestamp = lines[1].split("-->")[0].strip()
+            timing = lines[1].strip()
+            if "-->" not in timing:
+                continue
+            start_timestamp, end_timestamp = [t.strip() for t in timing.split("-->")]
             text = " ".join(lines[2:])
-            subtitles.append((timestamp, text))
+            subtitles.append((start_timestamp, end_timestamp, text))
         return subtitles
 
     @staticmethod
@@ -85,8 +94,22 @@ class SubtitleParser:
 
     @staticmethod
     def parse_timestamp(timestamp: str) -> float:
-        t = datetime.strptime(timestamp.split(",")[0], "%H:%M:%S")
-        return t.hour * 3600 + t.minute * 60 + t.second
+        """
+        タイムスタンプ文字列（HH:MM:SS,mmmまたはHH:MM:SS）を秒数に変換
+        
+        Args:
+            timestamp: タイムスタンプ文字列
+            
+        Returns:
+            秒数（float、ミリ秒を含む）
+        """
+        parts = timestamp.split(",")
+        t = datetime.strptime(parts[0], "%H:%M:%S")
+        seconds = t.hour * 3600 + t.minute * 60 + t.second
+        if len(parts) > 1:
+            milliseconds = int(parts[1])
+            seconds += milliseconds / 1000.0
+        return seconds
 
 
 class SceneSplitter:
@@ -106,6 +129,75 @@ class SceneSplitter:
             batch_size: embedding生成のバッチサイズ
         """
         self.embedder = OpenAIEmbedder(api_key, model, batch_size)
+
+    def _seconds_to_timestamp(self, seconds: float) -> str:
+        """秒数をHH:MM:SS,mmm形式のタイムスタンプに変換"""
+        hours = int(seconds // 3600)
+        minutes = int((seconds % 3600) // 60)
+        secs = int(seconds % 60)
+        milliseconds = int((seconds % 1) * 1000)
+        return f"{hours:02d}:{minutes:02d}:{secs:02d},{milliseconds:03d}"
+
+    def _split_long_text(
+        self, text: str, start_timestamp: str, end_timestamp: str, max_tokens: int
+    ) -> List[Dict[str, Any]]:
+        """
+        長いテキストをトークンレベルで強制分割
+
+        Args:
+            text: 分割対象のテキスト
+            start_timestamp: 開始タイムスタンプ
+            end_timestamp: 終了タイムスタンプ
+            max_tokens: 最大トークン数
+
+        Returns:
+            分割されたシーン情報のリスト
+        """
+        encoded = self.embedder.encoding.encode(text)
+        total_tokens = len(encoded)
+        
+        if total_tokens <= max_tokens:
+            return [
+                {
+                    "start_time": start_timestamp,
+                    "end_time": end_timestamp,
+                    "subtitles": [text],
+                }
+            ]
+        
+        # タイムスタンプを秒数に変換
+        start_sec = SubtitleParser.parse_timestamp(start_timestamp)
+        end_sec = SubtitleParser.parse_timestamp(end_timestamp)
+        duration = end_sec - start_sec
+        
+        scenes = []
+        num_chunks = (total_tokens + max_tokens - 1) // max_tokens  # 切り上げ
+        
+        for i in range(num_chunks):
+            chunk_start = i * max_tokens
+            chunk_end = min((i + 1) * max_tokens, total_tokens)
+            chunk_tokens = encoded[chunk_start:chunk_end]
+            chunk_text = self.embedder.encoding.decode(chunk_tokens)
+            
+            # タイムスタンプを線形補間
+            chunk_start_ratio = chunk_start / total_tokens
+            chunk_end_ratio = chunk_end / total_tokens
+            chunk_start_sec = start_sec + duration * chunk_start_ratio
+            chunk_end_sec = start_sec + duration * chunk_end_ratio
+            
+            # 秒数をタイムスタンプ文字列に変換
+            chunk_start_ts = self._seconds_to_timestamp(chunk_start_sec)
+            chunk_end_ts = self._seconds_to_timestamp(chunk_end_sec)
+            
+            scenes.append(
+                {
+                    "start_time": chunk_start_ts,
+                    "end_time": chunk_end_ts,
+                    "subtitles": [chunk_text],
+                }
+            )
+        
+        return scenes
 
     def _find_otsu_threshold(self, embeddings: np.ndarray) -> int:
         """
@@ -131,7 +223,8 @@ class SceneSplitter:
         self,
         embeddings: np.ndarray,
         texts: List[str],
-        timestamps: List[str],
+        start_timestamps: List[str],
+        end_timestamps: List[str],
         max_tokens: int,
     ) -> List[Dict[str, Any]]:
         """
@@ -152,12 +245,20 @@ class SceneSplitter:
             return token_prefix[e + 1] - token_prefix[s]
 
         def split_scene(start, end):
-            # 終了条件: チャンクの合計トークン数が閾値以内、または分割不能
-            if range_tokens(start, end) <= max_tokens or start == end:
+            token_count = range_tokens(start, end)
+            
+            # 単一字幕がmax_tokensを超える場合は強制分割
+            if start == end and token_count > max_tokens:
+                return self._split_long_text(
+                    texts[start], start_timestamps[start], end_timestamps[end], max_tokens
+                )
+            
+            # 終了条件: チャンクの合計トークン数が閾値以内、または分割不能（かつmax_tokens以内）
+            if token_count <= max_tokens or start == end:
                 return [
                     {
-                        "start_time": timestamps[start],
-                        "end_time": timestamps[end],
+                        "start_time": start_timestamps[start],
+                        "end_time": end_timestamps[end],
                         "subtitles": texts[start : end + 1],
                     }
                 ]
@@ -181,10 +282,11 @@ class SceneSplitter:
             シーン分割されたSRT文字列
         """
         subs = SubtitleParser.parse_srt_string(srt_string)
-        texts = [t for _, t in subs]
-        times = [ts for ts, _ in subs]
+        texts = [t for _, _, t in subs]
+        start_times = [start_ts for start_ts, _, _ in subs]
+        end_times = [end_ts for _, end_ts, _ in subs]
         embeds = self.embedder.get_embeddings(texts, max_tokens)
-        scenes = self._apply_otsu_recursive_split(embeds, texts, times, max_tokens)
+        scenes = self._apply_otsu_recursive_split(embeds, texts, start_times, end_times, max_tokens)
         return scenes_to_srt_string(scenes)
 
 
