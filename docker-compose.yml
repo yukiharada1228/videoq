@@ -44,6 +44,16 @@ services:
     networks:
       - ask-video-network
 
+  frontend:
+    build: ./frontend
+    container_name: ask-video-frontend
+    env_file:
+      - .env
+    depends_on:
+      - backend
+    networks:
+      - ask-video-network
+
   nginx:
     image: nginx:alpine
     container_name: ask-video-nginx
@@ -55,6 +65,7 @@ services:
       - ./backend/media:/media
     depends_on:
       - backend
+      - frontend
     networks:
       - ask-video-network
 
