@@ -418,16 +418,8 @@ curl -X DELETE -H "Authorization: Bearer $ACCESS" \
   "$BASE_URL/api/videos/groups/10/share/delete/"
 ```
 
-#### 6. 保護されたメディア配信
-
-```bash
-# Bearer で取得
-curl -L -H "Authorization: Bearer $ACCESS" \
-  "$BASE_URL/media/videos/123/video.mp4" -o video.mp4
-
-# 共有トークンで取得
-curl -L "$BASE_URL/media/videos/123/video.mp4?share_token=$TOKEN" -o video.mp4
-```
+備考:
+- 外部APIクライアントからアップロードした動画は、処理完了後にファイルが削除されるため、保護されたメディア配信によるファイル取得はできません。文字起こし結果やメタデータの取得のみが可能です。
 
 ### エラーレスポンス
 
