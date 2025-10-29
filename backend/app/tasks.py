@@ -368,6 +368,9 @@ def transcribe_video(self, video_id):
 
             logger.info(f"Video found: {video.title}")
 
+            # 外部APIクライアントからのアップロードかどうかを保持
+            is_external_upload = video.is_external_upload
+
             # 動画の処理可能性を検証（DRY原則）
             is_valid, validation_error = VideoTaskManager.validate_video_for_processing(
                 video
@@ -384,8 +387,9 @@ def transcribe_video(self, video_id):
             # OpenAIクライアントを初期化
             client = OpenAI(api_key=api_key)
 
-            # 動画ファイルのパスを取得
+            # 動画ファイルのパスを取得（削除するために保持）
             video_file_path = video.file.path
+            video_file = video.file  # ファイルオブジェクトも保持
 
             logger.info(f"Starting transcription for video {video_id}")
 
@@ -423,6 +427,21 @@ def transcribe_video(self, video_id):
             _index_scenes_batch(scene_split_srt, video, api_key)
 
             logger.info(f"Successfully processed video {video_id}")
+
+            # 外部APIクライアントからのアップロードの場合、処理完了後にファイルを削除
+            if is_external_upload:
+                try:
+                    # ファイルを削除
+                    if video_file:
+                        video_file.delete(save=False)
+                        logger.info(
+                            f"Deleted video file for external upload (video ID: {video_id})"
+                        )
+                except Exception as e:
+                    logger.warning(
+                        f"Failed to delete video file for external upload (video ID: {video_id}): {e}"
+                    )
+
             return scene_split_srt
 
         except Exception as e:

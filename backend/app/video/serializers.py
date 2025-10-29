@@ -52,7 +52,21 @@ class VideoCreateSerializer(UserOwnedSerializerMixin, serializers.ModelSerialize
 
     def create(self, validated_data):
         """Video作成時に文字起こしタスクを開始"""
+        request = self.context.get("request")
+
+        # Authorizationヘッダーが存在するかチェック（外部APIクライアントの判定）
+        is_external_client = request and request.META.get("HTTP_AUTHORIZATION")
+
+        # Videoインスタンスを作成
         video = super().create(validated_data)
+
+        # 外部APIクライアントからの場合はフラグを設定
+        if is_external_client:
+            video.is_external_upload = True
+            video.save(update_fields=["is_external_upload"])
+            logger.info(
+                f"External API client upload detected for video ID: {video.id}. File will be deleted after processing."
+            )
 
         # Celeryタスクを非同期で実行
         logger.info(f"Starting transcription task for video ID: {video.id}")
@@ -116,7 +130,14 @@ class VideoGroupDetailSerializer(serializers.ModelSerializer):
             "share_token",
             "owner_has_api_key",
         ]
-        read_only_fields = ["id", "created_at", "updated_at", "video_count", "share_token", "owner_has_api_key"]
+        read_only_fields = [
+            "id",
+            "created_at",
+            "updated_at",
+            "video_count",
+            "share_token",
+            "owner_has_api_key",
+        ]
 
     def get_videos(self, obj):
         """ビデオの詳細情報を取得（N+1問題対策・DRY原則）"""
@@ -149,10 +170,15 @@ class VideoGroupDetailSerializer(serializers.ModelSerializer):
     def get_owner_has_api_key(self, obj):
         """グループオーナーがAPIキーを持っているかを返す"""
         import logging
+
         logger = logging.getLogger(__name__)
-        logger.info(f"Group ID: {obj.id}, User: {obj.user}, Has user: {obj.user is not None}")
+        logger.info(
+            f"Group ID: {obj.id}, User: {obj.user}, Has user: {obj.user is not None}"
+        )
         if obj.user:
-            logger.info(f"User ID: {obj.user.id}, Encrypted API key: {obj.user.encrypted_openai_api_key is not None}")
+            logger.info(
+                f"User ID: {obj.user.id}, Encrypted API key: {obj.user.encrypted_openai_api_key is not None}"
+            )
             has_key = bool(obj.user.encrypted_openai_api_key)
             logger.info(f"Has API key: {has_key}")
             return has_key
