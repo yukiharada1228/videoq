@@ -39,7 +39,7 @@ export function Header({ children }: HeaderProps) {
                   onClick={() => router.push('/videos/groups')}
                   className="text-gray-600 hover:text-gray-900 transition-colors"
                 >
-                  グループ
+                  チャットグループ
               </button>
               </>
             )}

@@ -162,7 +162,7 @@ export default function VideoGroupDetailPage() {
     
     await loadAvailableVideos(async () => {
       const videos = await apiClient.getVideos();
-      // すでにグループに追加されている動画を除外
+      // すでにチャットグループに追加されている動画を除外
       const currentVideoIds = group.videos?.map(v => v.id) || [];
       // 共通のSet作成関数を使用（DRY原則・N+1問題対策）
       const currentVideoIdSet = createVideoIdSet(currentVideoIds);
@@ -195,7 +195,7 @@ export default function VideoGroupDetailPage() {
       // 選択された動画を一括追加（N+1問題の解決）
       const result = await apiClient.addVideosToGroup(groupId!, selectedVideos);
       
-      // グループを再読み込み
+      // チャットグループを再読み込み
       await loadGroupData();
       setIsAddModalOpen(false);
       setSelectedVideos([]);
@@ -212,7 +212,7 @@ export default function VideoGroupDetailPage() {
   };
 
   const handleRemoveVideo = async (videoId: number) => {
-    if (!confirm('この動画をグループから削除しますか？')) {
+    if (!confirm('この動画をチャットグループから削除しますか？')) {
       return;
     }
 
@@ -236,7 +236,7 @@ export default function VideoGroupDetailPage() {
       const result = await apiClient.createShareLink(group.id);
       const shareUrl = `${window.location.origin}/share/${result.share_token}`;
       setShareLink(shareUrl);
-      await loadGroupData(); // グループを再読み込みしてshare_tokenを更新
+      await loadGroupData(); // チャットグループを再読み込みしてshare_tokenを更新
     } catch (err) {
       handleAsyncError(err, '共有リンクの生成に失敗しました', () => {});
     } finally {
@@ -250,7 +250,7 @@ export default function VideoGroupDetailPage() {
     try {
       await apiClient.deleteShareLink(group.id);
       setShareLink(null);
-      await loadGroupData(); // グループを再読み込み
+      await loadGroupData(); // チャットグループを再読み込み
     } catch (err) {
       handleAsyncError(err, '共有リンクの削除に失敗しました', () => {});
     }
@@ -289,7 +289,7 @@ export default function VideoGroupDetailPage() {
     }
   };
 
-  // グループが読み込まれたら、共有リンクをセット
+  // チャットグループが読み込まれたら、共有リンクをセット
   useEffect(() => {
     if (group?.share_token) {
       const shareUrl = `${window.location.origin}/share/${group.share_token}`;
@@ -300,7 +300,7 @@ export default function VideoGroupDetailPage() {
     setIsCopied(false); // 共有リンクが変わったらコピー状態をリセット
   }, [group?.share_token]);
 
-  // グループデータが読み込まれたら編集用の状態を初期化
+  // チャットグループデータが読み込まれたら編集用の状態を初期化
   useEffect(() => {
     if (group) {
       setEditedName(group.name);
@@ -309,7 +309,7 @@ export default function VideoGroupDetailPage() {
   }, [group]);
 
   const handleVideoSelect = (videoId: number) => {
-    // グループ情報から直接動画データを取得（N+1問題の解決）
+    // チャットグループ情報から直接動画データを取得（N+1問題の解決）
     // 既にprefetch_relatedで取得済みのデータを使用
     const video = group?.videos?.find(v => v.id === videoId);
     if (video) {
@@ -399,7 +399,7 @@ export default function VideoGroupDetailPage() {
   };
 
   const handleDelete = async () => {
-    if (!confirm('このグループを削除しますか？')) {
+    if (!confirm('このチャットグループを削除しますか？')) {
       return;
     }
 
@@ -408,7 +408,7 @@ export default function VideoGroupDetailPage() {
       await apiClient.deleteVideoGroup(groupId!);
       router.push('/videos/groups');
     } catch (err) {
-      handleAsyncError(err, 'グループの削除に失敗しました', () => {});
+      handleAsyncError(err, 'チャットグループの削除に失敗しました', () => {});
     } finally {
       setIsDeleting(false);
     }
@@ -417,7 +417,7 @@ export default function VideoGroupDetailPage() {
   const { isLoading: isUpdating, error: updateError, mutate: handleUpdate } = useAsyncState({
     onSuccess: () => {
       setIsEditing(false);
-      loadGroupData(); // グループ情報を再読み込み
+      loadGroupData(); // チャットグループ情報を再読み込み
     },
   });
 
@@ -456,7 +456,7 @@ export default function VideoGroupDetailPage() {
   if (!group) {
     return (
       <PageLayout>
-        <div className="text-center text-gray-500">グループが見つかりません</div>
+        <div className="text-center text-gray-500">チャットグループが見つかりません</div>
       </PageLayout>
     );
   }
@@ -472,7 +472,7 @@ export default function VideoGroupDetailPage() {
                 <div className="space-y-4">
                   <div>
                     <label className="text-sm font-medium text-gray-600 block mb-1">
-                      グループ名
+                      チャットグループ名
                     </label>
                     <Input
                       type="text"
@@ -549,7 +549,7 @@ export default function VideoGroupDetailPage() {
                   <DialogHeader>
                     <DialogTitle>動画を追加</DialogTitle>
                     <DialogDescription>
-                      グループに追加する動画を選択してください
+                      チャットグループに追加する動画を選択してください
                     </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4 py-4">
@@ -621,11 +621,11 @@ export default function VideoGroupDetailPage() {
 
           {/* 共有リンクセクション */}
           <div className="bg-white border border-gray-200 rounded-lg p-4">
-            <h3 className="text-sm font-semibold text-gray-900 mb-2">グループを共有</h3>
+            <h3 className="text-sm font-semibold text-gray-900 mb-2">チャットグループを共有</h3>
             {shareLink ? (
               <div className="space-y-2">
                 <p className="text-xs text-gray-600">
-                  このグループは共有リンクで公開されています。
+                  このチャットグループは共有リンクで公開されています。
                 </p>
                 <div className="flex gap-2">
                   <input

@@ -68,7 +68,7 @@ export default function SharedGroupPage() {
           setSelectedVideo(firstVideo);
         }
       } catch (err) {
-        setError('共有グループの読み込みに失敗しました');
+        setError('共有チャットグループの読み込みに失敗しました');
         console.error(err);
       } finally {
         setIsLoading(false);
@@ -149,7 +149,7 @@ export default function SharedGroupPage() {
         <div className="flex-1 flex items-center justify-center p-4">
           <Card className="max-w-md w-full">
             <CardContent className="py-16 text-center">
-              <MessageAlert type="error" message={error || '共有グループが見つかりません'} />
+              <MessageAlert type="error" message={error || '共有チャットグループが見つかりません'} />
             </CardContent>
           </Card>
         </div>
