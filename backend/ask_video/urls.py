@@ -25,6 +25,7 @@ urlpatterns = [
     path("api/auth/", include("app.auth.urls")),
     path("api/chat/", include("app.chat.urls")),
     path("api/videos/", include("app.video.urls")),
+    path("", include("app.urls")),
 ]
 
 # 開発環境でのみMEDIAファイルを提供

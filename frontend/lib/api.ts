@@ -506,6 +506,19 @@ class ApiClient {
       body: { video_ids: videoIds },
     });
   }
+
+  // メディアファイル用の認証付きURLを生成
+  getAuthenticatedMediaUrl(mediaUrl: string): string {
+    const token = this.getToken();
+    if (!token) {
+      return mediaUrl; // トークンがない場合は元のURLを返す
+    }
+    
+    // URLにJWTトークンをクエリパラメータとして追加
+    const url = new URL(mediaUrl, window.location.origin);
+    url.searchParams.set('token', token);
+    return url.toString();
+  }
 }
 
 export const apiClient = new ApiClient();
