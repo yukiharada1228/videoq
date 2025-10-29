@@ -99,12 +99,24 @@ class ChatView(AuthenticatedViewMixin, generics.CreateAPIView):
                     context_lines.append(
                         "以下はあなたの動画グループから抽出した関連シーンです。回答は必ずこの文脈を最優先してください。"
                     )
+
+                    # 関連動画の情報を保存
+                    related_videos = []
                     for idx, d in enumerate(docs, 1):
                         title = d.metadata.get("video_title", "")
                         st = d.metadata.get("start_time", "")
                         et = d.metadata.get("end_time", "")
+                        video_id = d.metadata.get("video_id", "")
                         context_lines.append(
                             f"[{idx}] {title} {st} - {et}\n{d.page_content}"
+                        )
+                        related_videos.append(
+                            {
+                                "video_id": video_id,
+                                "title": title,
+                                "start_time": st,
+                                "end_time": et,
+                            }
                         )
                     context_lines.append(
                         "不明な場合は推測せず、その旨を200文字以内で伝えてください。"
@@ -115,12 +127,16 @@ class ChatView(AuthenticatedViewMixin, generics.CreateAPIView):
             # LangChainでチャット補完を実行（RAGの有無に関わらず）
             response = llm.invoke(langchain_messages)
 
-            return Response(
-                {
-                    "role": "assistant",
-                    "content": response.content,
-                }
-            )
+            response_data = {
+                "role": "assistant",
+                "content": response.content,
+            }
+
+            # RAGが実行された場合は関連動画の情報も含める
+            if group_id is not None and "related_videos" in locals():
+                response_data["related_videos"] = related_videos
+
+            return Response(response_data)
 
         except Exception as e:
             return handle_langchain_exception(e)
