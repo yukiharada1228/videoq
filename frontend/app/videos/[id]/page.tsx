@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter, useParams } from 'next/navigation';
+import { useEffect } from 'react';
 import { useVideo } from '@/hooks/useVideos';
 import { useAsyncState } from '@/hooks/useAsyncState';
 import { apiClient } from '@/lib/api';
@@ -18,7 +19,13 @@ export default function VideoDetailPage() {
   const router = useRouter();
   const videoId = params?.id ? parseInt(params.id as string) : null;
 
-  const { video, isLoading, error } = useVideo(videoId);
+  const { video, isLoading, error, loadVideo } = useVideo(videoId);
+
+  useEffect(() => {
+    if (videoId) {
+      loadVideo();
+    }
+  }, [videoId, loadVideo]);
   
   const { isLoading: isDeleting, error: deleteError, mutate: handleDelete } = useAsyncState({
     onSuccess: () => router.push('/videos'),
