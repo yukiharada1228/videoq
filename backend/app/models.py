@@ -82,6 +82,10 @@ class Video(models.Model):
     transcript = models.TextField(blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
     error_message = models.TextField(blank=True)
+    is_external_upload = models.BooleanField(
+        default=False,
+        help_text="外部APIクライアントからのアップロードかどうか（処理完了後にファイルを削除）",
+    )
 
     class Meta:
         ordering = ["-uploaded_at"]
