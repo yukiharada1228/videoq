@@ -205,11 +205,7 @@ export function withPerformanceMeasurement<T extends (...args: any[]) => any>(
   label: string
 ): T {
   return ((...args: Parameters<T>) => {
-    const start = performance.now();
     const result = fn(...args);
-    const end = performance.now();
-    
-    console.log(`${label}: ${(end - start).toFixed(2)}ms`);
     return result;
   }) as T;
 }
@@ -225,11 +221,7 @@ export function withAsyncPerformanceMeasurement<T extends (...args: any[]) => Pr
   label: string
 ): T {
   return (async (...args: Parameters<T>) => {
-    const start = performance.now();
     const result = await fn(...args);
-    const end = performance.now();
-    
-    console.log(`${label}: ${(end - start).toFixed(2)}ms`);
     return result;
   }) as T;
 }

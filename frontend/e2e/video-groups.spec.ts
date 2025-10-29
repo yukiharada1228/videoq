@@ -32,7 +32,6 @@ test.describe('Video Groups', () => {
     
     // 現在のURLを確認
     const currentUrl = page.url();
-    console.log('Current URL:', currentUrl);
     
     // もしログインページにリダイレクトされている場合は、URLだけを確認して失敗させる
     if (currentUrl.includes('/login')) {
