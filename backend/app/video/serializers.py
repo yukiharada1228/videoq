@@ -101,6 +101,7 @@ class VideoGroupDetailSerializer(serializers.ModelSerializer):
 
     video_count = serializers.IntegerField(read_only=True)
     videos = serializers.SerializerMethodField()
+    owner_has_api_key = serializers.SerializerMethodField()
 
     class Meta:
         model = VideoGroup
@@ -112,8 +113,10 @@ class VideoGroupDetailSerializer(serializers.ModelSerializer):
             "updated_at",
             "video_count",
             "videos",
+            "share_token",
+            "owner_has_api_key",
         ]
-        read_only_fields = ["id", "created_at", "updated_at", "video_count"]
+        read_only_fields = ["id", "created_at", "updated_at", "video_count", "share_token", "owner_has_api_key"]
 
     def get_videos(self, obj):
         """ビデオの詳細情報を取得（N+1問題対策・DRY原則）"""
@@ -142,6 +145,18 @@ class VideoGroupDetailSerializer(serializers.ModelSerializer):
             {**video_data, "order": member.order}
             for member, video_data in zip(members, video_data_list)
         ]
+
+    def get_owner_has_api_key(self, obj):
+        """グループオーナーがAPIキーを持っているかを返す"""
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"Group ID: {obj.id}, User: {obj.user}, Has user: {obj.user is not None}")
+        if obj.user:
+            logger.info(f"User ID: {obj.user.id}, Encrypted API key: {obj.user.encrypted_openai_api_key is not None}")
+            has_key = bool(obj.user.encrypted_openai_api_key)
+            logger.info(f"Has API key: {has_key}")
+            return has_key
+        return False
 
 
 class VideoGroupCreateSerializer(UserOwnedSerializerMixin, BaseVideoGroupSerializer):

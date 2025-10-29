@@ -1,9 +1,13 @@
+import secrets
+
 from app.models import Video, VideoGroup, VideoGroupMember
 from app.utils.decorators import authenticated_view_with_error_handling
 from app.utils.mixins import AuthenticatedViewMixin, DynamicSerializerMixin
 from app.utils.query_optimizer import BatchProcessor, QueryOptimizer
 from app.utils.responses import create_error_response
 from rest_framework import generics, status
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 from .serializers import (VideoCreateSerializer, VideoGroupCreateSerializer,
@@ -448,3 +452,84 @@ def reorder_videos_in_group(request, group_id):
     VideoGroupMember.objects.bulk_update(members_to_update, ["order"])
 
     return Response({"message": "動画の順序を更新しました"}, status=status.HTTP_200_OK)
+
+
+@authenticated_view_with_error_handling(["POST"])
+def create_share_link(request, group_id):
+    """グループの共有リンクを生成"""
+    # グループの取得と検証
+    group, error = _validate_and_get_resource(
+        request.user, VideoGroup, group_id, "グループ"
+    )
+    if error:
+        return error
+
+    # ランダムなトークンを生成（32バイト = 64文字の16進数）
+    share_token = secrets.token_urlsafe(32)
+    group.share_token = share_token
+    group.save(update_fields=["share_token"])
+
+    return Response(
+        {
+            "message": "共有リンクを生成しました",
+            "share_token": share_token,
+        },
+        status=status.HTTP_201_CREATED,
+    )
+
+
+@authenticated_view_with_error_handling(["DELETE"])
+def delete_share_link(request, group_id):
+    """グループの共有リンクを無効化"""
+    # グループの取得と検証
+    group, error = _validate_and_get_resource(
+        request.user, VideoGroup, group_id, "グループ"
+    )
+    if error:
+        return error
+
+    if not group.share_token:
+        return create_error_response(
+            "共有リンクは設定されていません", status.HTTP_404_NOT_FOUND
+        )
+
+    group.share_token = None
+    group.save(update_fields=["share_token"])
+
+    return Response(
+        {"message": "共有リンクを無効化しました"},
+        status=status.HTTP_200_OK,
+    )
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def get_shared_group(request, share_token):
+    """
+    共有トークンでグループを取得（認証不要）
+
+    公開グループとして誰でもアクセス可能
+    """
+    # share_tokenでグループを取得（N+1問題対策）
+    # user_idでフィルタせず、share_tokenのみでフィルタ
+    queryset = VideoGroup.objects.filter(share_token=share_token)
+
+    # QueryOptimizerを使用してN+1問題を解決
+    group = (
+        QueryOptimizer.optimize_video_group_queryset(
+            queryset,
+            include_videos=True,
+            include_user=True,  # オーナーのAPIキー情報を取得するため必要
+            annotate_video_count=True,
+        )
+        .first()
+    )
+
+    if not group:
+        return create_error_response(
+            "共有リンクが見つかりません", status.HTTP_404_NOT_FOUND
+        )
+
+    # シリアライザーを使用してレスポンスを生成
+    serializer = VideoGroupDetailSerializer(group)
+    return Response(serializer.data, status=status.HTTP_200_OK)
