@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { useRouter } from 'next/navigation';
@@ -8,53 +8,48 @@ import { useAuth } from '@/hooks/useAuth';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { Button } from '@/components/ui/button';
 import { apiClient } from '@/lib/api';
+import { useAsyncState } from '@/hooks/useAsyncState';
+import { useVideoStats } from '@/hooks/useVideoStats';
 
 export default function Home() {
   const router = useRouter();
   const { user, loading } = useAuth();
-  const [stats, setStats] = useState({
-    totalVideos: 0,
-    totalGroups: 0,
-    completedVideos: 0,
-    pendingVideos: 0,
-    processingVideos: 0,
-    errorVideos: 0,
+  
+  const { data: rawData, isLoading: isLoadingStats, execute: loadStats } = useAsyncState<{
+    videos: any[];
+    groups: any[];
+  }>({
+    initialData: {
+      videos: [],
+      groups: [],
+    }
   });
-  const [isLoadingStats, setIsLoadingStats] = useState(true);
+
+  const videoStats = useVideoStats(rawData?.videos || []);
 
   useEffect(() => {
-    if (user) {
-      loadStats();
+    if (user && !isLoadingStats && (!rawData?.videos || rawData.videos.length === 0)) {
+      const loadData = async () => {
+        try {
+          // 並列でAPI呼び出しを実行（N+1問題対策）
+          const [videos, groups] = await Promise.all([
+            apiClient.getVideos().catch(() => []),
+            apiClient.getVideoGroups().catch(() => []),
+          ]);
+
+          // データを一度に設定（DRY原則）
+          await loadStats(async () => ({
+            videos,
+            groups,
+          }));
+        } catch (error) {
+          console.error('Failed to load stats:', error);
+        }
+      };
+      
+      loadData();
     }
-  }, [user]);
-
-  const loadStats = async () => {
-    try {
-      setIsLoadingStats(true);
-      const [videos, groups] = await Promise.all([
-        apiClient.getVideos().catch(() => []),
-        apiClient.getVideoGroups().catch(() => []),
-      ]);
-
-      const completedCount = videos.filter(v => v.status === 'completed').length;
-      const pendingCount = videos.filter(v => v.status === 'pending').length;
-      const processingCount = videos.filter(v => v.status === 'processing').length;
-      const errorCount = videos.filter(v => v.status === 'error').length;
-
-      setStats({
-        totalVideos: videos.length,
-        totalGroups: groups.length,
-        completedVideos: completedCount,
-        pendingVideos: pendingCount,
-        processingVideos: processingCount,
-        errorVideos: errorCount,
-      });
-    } catch (err) {
-      console.error('Failed to load stats:', err);
-    } finally {
-      setIsLoadingStats(false);
-    }
-  };
+  }, [user, isLoadingStats, rawData?.videos?.length]);
 
   const handleUploadClick = () => {
     router.push('/videos?upload=true');
@@ -91,7 +86,7 @@ export default function Home() {
             <CardHeader>
               <div className="text-4xl mb-2">🎬</div>
               <CardTitle className="text-xl">動画一覧</CardTitle>
-              <CardDescription className="text-2xl font-bold text-green-600">{stats.totalVideos}本</CardDescription>
+              <CardDescription className="text-2xl font-bold text-green-600">{videoStats.total}本</CardDescription>
             </CardHeader>
           </Card>
 
@@ -99,7 +94,7 @@ export default function Home() {
             <CardHeader>
               <div className="text-4xl mb-2">📁</div>
               <CardTitle className="text-xl">グループ</CardTitle>
-              <CardDescription className="text-2xl font-bold text-purple-600">{stats.totalGroups}個</CardDescription>
+              <CardDescription className="text-2xl font-bold text-purple-600">{rawData?.groups?.length || 0}個</CardDescription>
             </CardHeader>
           </Card>
         </div>
@@ -108,28 +103,28 @@ export default function Home() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card>
             <CardContent className="pt-6 text-center">
-              <div className="text-4xl font-bold text-green-600">{stats.completedVideos}</div>
+              <div className="text-4xl font-bold text-green-600">{videoStats.completed}</div>
               <p className="text-sm text-gray-600 mt-2">処理完了</p>
             </CardContent>
           </Card>
           
           <Card>
             <CardContent className="pt-6 text-center">
-              <div className="text-4xl font-bold text-blue-600">{stats.pendingVideos}</div>
+              <div className="text-4xl font-bold text-blue-600">{videoStats.pending}</div>
               <p className="text-sm text-gray-600 mt-2">待機中</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardContent className="pt-6 text-center">
-              <div className="text-4xl font-bold text-yellow-600">{stats.processingVideos}</div>
+              <div className="text-4xl font-bold text-yellow-600">{videoStats.processing}</div>
               <p className="text-sm text-gray-600 mt-2">処理中</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardContent className="pt-6 text-center">
-              <div className="text-4xl font-bold text-red-600">{stats.errorVideos}</div>
+              <div className="text-4xl font-bold text-red-600">{videoStats.error}</div>
               <p className="text-sm text-gray-600 mt-2">エラー</p>
             </CardContent>
           </Card>

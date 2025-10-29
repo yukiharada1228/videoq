@@ -1,21 +1,25 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useVideos } from '@/hooks/useVideos';
 import { useVideoStats } from '@/hooks/useVideoStats';
 import { VideoUploadModal } from '@/components/video/VideoUploadModal';
 import { VideoList } from '@/components/video/VideoList';
 import { PageLayout } from '@/components/layout/PageLayout';
-import { LoadingSpinner } from '@/components/common/LoadingSpinner';
-import { MessageAlert } from '@/components/common/MessageAlert';
+import { LoadingState } from '@/components/common/LoadingState';
 import { Button } from '@/components/ui/button';
 
-export default function VideosPage() {
+function VideosContent() {
   const { videos, isLoading, error, loadVideos } = useVideos();
   const stats = useVideoStats(videos);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const searchParams = useSearchParams();
+
+  useEffect(() => {
+    // ページ読み込み時に動画一覧を取得
+    loadVideos();
+  }, [loadVideos]);
 
   useEffect(() => {
     // URLパラメータにupload=trueが含まれている場合、モーダルを開く
@@ -77,15 +81,9 @@ export default function VideosPage() {
           )}
 
           {/* コンテンツ */}
-          {isLoading ? (
-            <div className="flex justify-center items-center h-64">
-              <LoadingSpinner fullScreen={false} />
-            </div>
-          ) : error ? (
-            <MessageAlert type="error" message={error} />
-          ) : (
+          <LoadingState isLoading={isLoading} error={error}>
             <VideoList videos={videos} />
-          )}
+          </LoadingState>
         </div>
       </PageLayout>
 
@@ -95,6 +93,14 @@ export default function VideosPage() {
         onUploadSuccess={handleUploadSuccess}
       />
     </>
+  );
+}
+
+export default function VideosPage() {
+  return (
+    <Suspense fallback={<div>読み込み中...</div>}>
+      <VideosContent />
+    </Suspense>
   );
 }
 
