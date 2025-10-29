@@ -107,12 +107,12 @@ class SceneSplitter:
         """
         self.embedder = OpenAIEmbedder(api_key, model, batch_size)
 
-    def _find_otsu_threshold(self, embeddings: np.ndarray) -> Tuple[int, float]:
+    def _find_otsu_threshold(self, embeddings: np.ndarray) -> int:
         """
         多次元Otsu法を使用して最適な分割点を求める
 
         Returns:
-            (best_split_index, threshold): 最適な分割インデックスと閾値
+            best_split_index: 最適な分割インデックス
         """
         T = len(embeddings)
         max_criterion = float("-inf")
@@ -125,8 +125,7 @@ class SceneSplitter:
             if criterion > max_criterion:
                 max_criterion = criterion
                 best_tau = tau
-        adaptive_threshold = max_criterion * 0.5
-        return best_tau, adaptive_threshold
+        return best_tau
 
     def _apply_otsu_recursive_split(
         self,
@@ -163,11 +162,7 @@ class SceneSplitter:
                     }
                 ]
             segment = embeddings[start : end + 1]
-            tau, thr = self._find_otsu_threshold(segment)
-            N0, N1 = tau, len(segment) - tau
-            mu0 = np.mean(segment[:tau], axis=0)
-            mu1 = np.mean(segment[tau:], axis=0)
-            criterion = N0 * N1 * np.sum((mu0 - mu1) ** 2)
+            tau = self._find_otsu_threshold(segment)
             split_idx = start + tau
             return split_scene(start, split_idx - 1) + split_scene(split_idx, end)
 
