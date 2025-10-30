@@ -87,7 +87,7 @@ class RefreshView(PublicAPIView):
     def post(self, request):
         # Cookieからリフレッシュトークンを取得（優先）
         refresh_token = request.COOKIES.get("refresh_token")
-        
+
         # Cookieにない場合はリクエストボディから取得（後方互換性）
         if not refresh_token:
             serializer = self.get_serializer(data=request.data)
@@ -100,9 +100,9 @@ class RefreshView(PublicAPIView):
             except InvalidToken:
                 return Response(
                     {"detail": "無効なリフレッシュトークンです"},
-                    status=status.HTTP_401_UNAUTHORIZED
+                    status=status.HTTP_401_UNAUTHORIZED,
                 )
-        
+
         access = refresh.access_token
 
         response = Response({"access": str(access)})

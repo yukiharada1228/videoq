@@ -27,24 +27,21 @@ export function useAuth(options: UseAuthOptions = {}): UseAuthReturn {
   onAuthErrorRef.current = onAuthError;
 
   const checkAuth = useCallback(async () => {
-    // HttpOnly Cookieベースの認証では、非同期で認証状態をチェック
-    const isAuth = await apiClient.isAuthenticated();
-    if (!isAuth) {
-      if (redirectToLogin) {
-        router.push('/login');
-      }
-      setLoading(false);
-      return;
-    }
-
     try {
       const userData = await apiClient.getMe();
       setUser(userData);
     } catch (error) {
-      console.error('Failed to fetch user:', error);
-      await apiClient.logout();
+      // apiClient.getMe()内で401エラーが処理され、
+      // トークンリフレッシュが試みられます。
+      // リフレッシュにも失敗した場合は、apiClient内で/loginにリダイレクトされます。
+      // ここでは、認証失敗時の追加処理や、
+      // ネットワークエラーなど他の原因でgetMeが失敗した場合のハンドリングを行います。
+      console.error('Authentication check failed:', error);
       if (redirectToLogin) {
-        router.push('/login');
+        // apiClientがリダイレクトを処理しなかった場合に備える
+        if (window.location.pathname !== '/login') {
+          router.push('/login');
+        }
       }
       if (onAuthErrorRef.current) {
         onAuthErrorRef.current();
