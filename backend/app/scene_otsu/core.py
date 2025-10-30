@@ -39,7 +39,7 @@ class SubtitleParser:
     def parse_srt_string(srt_string: str) -> List[Tuple[str, str, str]]:
         """
         SRT文字列を解析
-        
+
         Returns:
             [(start_timestamp, end_timestamp, text), ...]
         """
@@ -96,10 +96,10 @@ class SubtitleParser:
     def parse_timestamp(timestamp: str) -> float:
         """
         タイムスタンプ文字列（HH:MM:SS,mmmまたはHH:MM:SS）を秒数に変換
-        
+
         Args:
             timestamp: タイムスタンプ文字列
-            
+
         Returns:
             秒数（float、ミリ秒を含む）
         """
@@ -155,7 +155,7 @@ class SceneSplitter:
         """
         encoded = self.embedder.encoding.encode(text)
         total_tokens = len(encoded)
-        
+
         if total_tokens <= max_tokens:
             return [
                 {
@@ -164,31 +164,31 @@ class SceneSplitter:
                     "subtitles": [text],
                 }
             ]
-        
+
         # タイムスタンプを秒数に変換
         start_sec = SubtitleParser.parse_timestamp(start_timestamp)
         end_sec = SubtitleParser.parse_timestamp(end_timestamp)
         duration = end_sec - start_sec
-        
+
         scenes = []
         num_chunks = (total_tokens + max_tokens - 1) // max_tokens  # 切り上げ
-        
+
         for i in range(num_chunks):
             chunk_start = i * max_tokens
             chunk_end = min((i + 1) * max_tokens, total_tokens)
             chunk_tokens = encoded[chunk_start:chunk_end]
             chunk_text = self.embedder.encoding.decode(chunk_tokens)
-            
+
             # タイムスタンプを線形補間
             chunk_start_ratio = chunk_start / total_tokens
             chunk_end_ratio = chunk_end / total_tokens
             chunk_start_sec = start_sec + duration * chunk_start_ratio
             chunk_end_sec = start_sec + duration * chunk_end_ratio
-            
+
             # 秒数をタイムスタンプ文字列に変換
             chunk_start_ts = self._seconds_to_timestamp(chunk_start_sec)
             chunk_end_ts = self._seconds_to_timestamp(chunk_end_sec)
-            
+
             scenes.append(
                 {
                     "start_time": chunk_start_ts,
@@ -196,7 +196,7 @@ class SceneSplitter:
                     "subtitles": [chunk_text],
                 }
             )
-        
+
         return scenes
 
     def _find_otsu_threshold(self, embeddings: np.ndarray) -> int:
@@ -246,13 +246,16 @@ class SceneSplitter:
 
         def split_scene(start, end):
             token_count = range_tokens(start, end)
-            
+
             # 単一字幕がmax_tokensを超える場合は強制分割
             if start == end and token_count > max_tokens:
                 return self._split_long_text(
-                    texts[start], start_timestamps[start], end_timestamps[end], max_tokens
+                    texts[start],
+                    start_timestamps[start],
+                    end_timestamps[end],
+                    max_tokens,
                 )
-            
+
             # 終了条件: チャンクの合計トークン数が閾値以内、または分割不能（かつmax_tokens以内）
             if token_count <= max_tokens or start == end:
                 return [
@@ -286,7 +289,9 @@ class SceneSplitter:
         start_times = [start_ts for start_ts, _, _ in subs]
         end_times = [end_ts for _, end_ts, _ in subs]
         embeds = self.embedder.get_embeddings(texts, max_tokens)
-        scenes = self._apply_otsu_recursive_split(embeds, texts, start_times, end_times, max_tokens)
+        scenes = self._apply_otsu_recursive_split(
+            embeds, texts, start_times, end_times, max_tokens
+        )
         return scenes_to_srt_string(scenes)
 
 
