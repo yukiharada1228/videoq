@@ -379,6 +379,49 @@ class ApiClient {
   }
 
 
+  async exportChatHistoryCsv(groupId: number): Promise<void> {
+    const url = this.buildUrl(`/chat/history/export/?group_id=${groupId}`);
+
+    const doFetch = async (): Promise<Response> => {
+      return fetch(url, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {},
+      });
+    };
+
+    let response = await doFetch();
+    if (response.status === 401) {
+      try {
+        await this.refreshToken();
+        response = await doFetch();
+      } catch (e) {
+        await this.logout();
+        throw new Error('認証に失敗しました。再度ログインしてください。');
+      }
+    }
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(text || `Failed to export CSV: ${response.statusText}`);
+    }
+
+    const blob = await response.blob();
+    const disposition = response.headers.get('Content-Disposition') || response.headers.get('content-disposition') || '';
+    const match = disposition.match(/filename=\"?([^\";]+)\"?/i);
+    const filename = match?.[1] || `chat_history_group_${groupId}.csv`;
+
+    const link = document.createElement('a');
+    const href = window.URL.createObjectURL(blob);
+    link.href = href;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(href);
+  }
+
+
 
   // Video関連のメソッド
   async getVideos(): Promise<VideoList[]> {

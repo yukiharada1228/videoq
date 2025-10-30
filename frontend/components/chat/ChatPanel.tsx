@@ -57,6 +57,15 @@ export function ChatPanel({ hasApiKey, groupId, onVideoPlay, shareToken }: ChatP
     }
   };
 
+  const exportHistoryCsv = async () => {
+    if (!groupId || !!shareToken) return;
+    try {
+      await apiClient.exportChatHistoryCsv(groupId);
+    } catch (e) {
+      console.error('Failed to export CSV', e);
+    }
+  };
+
   // 時間文字列を秒に変換する関数（形式: HH:MM:SS,mmm または MM:SS）
   const timeToSeconds = (timeStr: string): number => {
     // カンマがあればミリ秒部分を削除
@@ -214,7 +223,12 @@ export function ChatPanel({ hasApiKey, groupId, onVideoPlay, shareToken }: ChatP
           <div className="bg-white w-full max-w-2xl max-h-[80vh] rounded shadow-lg overflow-hidden flex flex-col">
             <div className="p-4 border-b flex items-center justify-between">
               <div className="font-semibold">会話履歴</div>
-              <Button variant="ghost" onClick={() => setHistoryOpen(false)}>閉じる</Button>
+              <div className="flex items-center gap-2">
+                {!historyLoading && (history?.length ?? 0) > 0 && (
+                  <Button variant="outline" onClick={exportHistoryCsv}>CSVエクスポート</Button>
+                )}
+                <Button variant="ghost" onClick={() => setHistoryOpen(false)}>閉じる</Button>
+              </div>
             </div>
             <div className="p-4 overflow-auto">
               {historyLoading && <div className="text-sm text-gray-500">読込中...</div>}
