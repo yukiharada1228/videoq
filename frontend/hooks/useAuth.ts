@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { apiClient, User } from '@/lib/api';
 
 interface UseAuthReturn {
@@ -19,6 +19,7 @@ interface UseAuthOptions {
 export function useAuth(options: UseAuthOptions = {}): UseAuthReturn {
   const { redirectToLogin = true, onAuthError } = options;
   const router = useRouter();
+  const pathname = usePathname();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -52,12 +53,18 @@ export function useAuth(options: UseAuthOptions = {}): UseAuthReturn {
   }, [redirectToLogin, router]);
 
   useEffect(() => {
-    checkAuth();
-  }, [checkAuth]);
+    const authRequired = !['/login', '/signup', '/share'].some(path => pathname.startsWith(path));
 
-  return { 
-    user, 
-    loading, 
+    if (authRequired) {
+      checkAuth();
+    } else {
+      setLoading(false);
+    }
+  }, [checkAuth, pathname]);
+
+  return {
+    user,
+    loading,
     refetch: checkAuth,
   };
 }
