@@ -51,7 +51,7 @@ class LoginView(PublicAPIView):
             httponly=True,
             secure=False,  # 開発環境では False、本番では True
             samesite="Lax",
-            max_age=60 * 10,  # 10分（ACCESS_TOKEN_LIFETIME と同じ）
+            max_age=60 * 1,  # 1分（ACCESS_TOKEN_LIFETIME と同じ）
         )
         response.set_cookie(
             key="refresh_token",
@@ -114,7 +114,7 @@ class RefreshView(PublicAPIView):
             httponly=True,
             secure=False,  # 開発環境では False、本番では True
             samesite="Lax",
-            max_age=60 * 10,  # 10分（ACCESS_TOKEN_LIFETIME と同じ）
+            max_age=60 * 1,  # 1分（ACCESS_TOKEN_LIFETIME と同じ）
         )
 
         return response
