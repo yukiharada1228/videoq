@@ -25,6 +25,7 @@ services:
     volumes:
       - staticfiles:/app/staticfiles
       - ./backend/media:/app/media
+      - ./backend/app/migrations:/app/app/migrations
     depends_on:
       - postgres
       - redis
