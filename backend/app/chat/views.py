@@ -12,6 +12,9 @@ from rest_framework.permissions import BasePermission
 from rest_framework.response import Response
 
 from .langchain_utils import get_langchain_llm, handle_langchain_exception
+from .serializers import ChatLogSerializer
+from rest_framework.permissions import IsAuthenticated
+from app.models import ChatLog
 
 
 class ChatView(generics.CreateAPIView):
@@ -167,7 +170,45 @@ class ChatView(generics.CreateAPIView):
             if group_id is not None and "related_videos" in locals():
                 response_data["related_videos"] = related_videos
 
+            # 会話ログ保存（グループ文脈時のみ）
+            if group_id is not None:
+                # 直近のユーザー質問は上で抽出済み（query_text）
+                ChatLog.objects.create(
+                    user=(group.user if is_shared else user),
+                    group=group,
+                    question=query_text,
+                    answer=response.content,
+                    related_videos=locals().get("related_videos", []),
+                    is_shared_origin=is_shared,
+                )
+
             return Response(response_data)
 
         except Exception as e:
             return handle_langchain_exception(e)
+
+
+class ChatHistoryView(generics.ListAPIView):
+    """
+    グループの会話履歴を所有者のみが取得可能。
+    GET /api/chat/history/?group_id=123
+    """
+
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+    serializer_class = ChatLogSerializer
+
+    def get_queryset(self):
+        group_id = self.request.query_params.get("group_id")
+        if not group_id:
+            return ChatLog.objects.none()
+
+        try:
+            group = (
+                VideoGroup.objects.select_related("user")
+                .get(id=group_id, user_id=self.request.user.id)
+            )
+        except VideoGroup.DoesNotExist:
+            return ChatLog.objects.none()
+
+        return group.chat_logs.select_related("user").order_by("-created_at")

@@ -36,6 +36,16 @@ export interface RelatedVideo {
   end_time: string;
 }
 
+export interface ChatHistoryItem {
+  id: number;
+  group: number;
+  question: string;
+  answer: string;
+  related_videos: RelatedVideo[];
+  is_shared_origin: boolean;
+  created_at: string;
+}
+
 export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
@@ -362,6 +372,10 @@ class ApiClient {
       method: 'POST',
       body: bodyData,
     });
+  }
+
+  async getChatHistory(groupId: number): Promise<ChatHistoryItem[]> {
+    return this.request<ChatHistoryItem[]>(`/chat/history/?group_id=${groupId}`);
   }
 
 

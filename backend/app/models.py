@@ -193,3 +193,20 @@ class VideoGroupMember(models.Model):
             group_name = f"group_{self.group_id}"
 
         return f"{video_title} in {group_name}"
+
+
+class ChatLog(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="chat_logs"
+    )
+    group = models.ForeignKey(
+        "VideoGroup", on_delete=models.CASCADE, related_name="chat_logs"
+    )
+    question = models.TextField()
+    answer = models.TextField()
+    related_videos = models.JSONField(default=list, blank=True)
+    is_shared_origin = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
