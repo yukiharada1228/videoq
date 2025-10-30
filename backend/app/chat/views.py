@@ -1,24 +1,23 @@
+import csv
+import json
+
 from app.authentication import CookieJWTAuthentication
-from app.models import VideoGroup
+from app.models import ChatLog, VideoGroup
 from app.utils.encryption import decrypt_api_key
 from app.utils.responses import create_error_response
 from app.utils.vector_manager import PGVectorManager
 from app.views import IsAuthenticatedOrSharedAccess, ShareTokenAuthentication
+from django.http import HttpResponse
 from langchain_community.vectorstores import PGVector
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_openai import OpenAIEmbeddings
 from rest_framework import generics, status
-from rest_framework.permissions import BasePermission
+from rest_framework.permissions import BasePermission, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from django.http import HttpResponse
-import csv
-import json
 
 from .langchain_utils import get_langchain_llm, handle_langchain_exception
 from .serializers import ChatLogSerializer
-from rest_framework.permissions import IsAuthenticated
-from app.models import ChatLog
 
 
 class ChatView(generics.CreateAPIView):
@@ -208,9 +207,8 @@ class ChatHistoryView(generics.ListAPIView):
             return ChatLog.objects.none()
 
         try:
-            group = (
-                VideoGroup.objects.select_related("user")
-                .get(id=group_id, user_id=self.request.user.id)
+            group = VideoGroup.objects.select_related("user").get(
+                id=group_id, user_id=self.request.user.id
             )
         except VideoGroup.DoesNotExist:
             return ChatLog.objects.none()
@@ -231,32 +229,36 @@ class ChatHistoryExportView(APIView):
     def get(self, request):
         group_id = request.query_params.get("group_id")
         if not group_id:
-            return create_error_response("グループIDが指定されていません", status.HTTP_400_BAD_REQUEST)
+            return create_error_response(
+                "グループIDが指定されていません", status.HTTP_400_BAD_REQUEST
+            )
 
         try:
-            group = (
-                VideoGroup.objects.select_related("user").get(
-                    id=group_id, user_id=request.user.id
-                )
+            group = VideoGroup.objects.select_related("user").get(
+                id=group_id, user_id=request.user.id
             )
         except VideoGroup.DoesNotExist:
-            return create_error_response("指定のグループが見つかりません", status.HTTP_404_NOT_FOUND)
+            return create_error_response(
+                "指定のグループが見つかりません", status.HTTP_404_NOT_FOUND
+            )
 
         queryset = group.chat_logs.select_related("user").order_by("created_at")
 
         response = HttpResponse(content_type="text/csv; charset=utf-8")
         filename = f"chat_history_group_{group.id}.csv"
-        response["Content-Disposition"] = f"attachment; filename=\"{filename}\""
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
 
         writer = csv.writer(response)
         # ヘッダー
-        writer.writerow([
-            "created_at",
-            "question",
-            "answer",
-            "is_shared_origin",
-            "related_videos",
-        ])
+        writer.writerow(
+            [
+                "created_at",
+                "question",
+                "answer",
+                "is_shared_origin",
+                "related_videos",
+            ]
+        )
 
         for log in queryset:
             # related_videos はJSON文字列として格納
@@ -265,12 +267,14 @@ class ChatHistoryExportView(APIView):
             except Exception:
                 related_videos_str = "[]"
 
-            writer.writerow([
-                log.created_at.isoformat(),
-                log.question,
-                log.answer,
-                "true" if log.is_shared_origin else "false",
-                related_videos_str,
-            ])
+            writer.writerow(
+                [
+                    log.created_at.isoformat(),
+                    log.question,
+                    log.answer,
+                    "true" if log.is_shared_origin else "false",
+                    related_videos_str,
+                ]
+            )
 
         return response

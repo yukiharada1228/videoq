@@ -1,5 +1,5 @@
-from rest_framework import serializers
 from app.models import ChatLog
+from rest_framework import serializers
 
 
 class ChatLogSerializer(serializers.ModelSerializer):
@@ -14,5 +14,3 @@ class ChatLogSerializer(serializers.ModelSerializer):
             "is_shared_origin",
             "created_at",
         ]
-
-
