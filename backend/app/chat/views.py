@@ -10,6 +10,10 @@ from langchain_openai import OpenAIEmbeddings
 from rest_framework import generics, status
 from rest_framework.permissions import BasePermission
 from rest_framework.response import Response
+from rest_framework.views import APIView
+from django.http import HttpResponse
+import csv
+import json
 
 from .langchain_utils import get_langchain_llm, handle_langchain_exception
 from .serializers import ChatLogSerializer
@@ -212,3 +216,61 @@ class ChatHistoryView(generics.ListAPIView):
             return ChatLog.objects.none()
 
         return group.chat_logs.select_related("user").order_by("-created_at")
+
+
+class ChatHistoryExportView(APIView):
+    """
+    グループの会話履歴をCSVでエクスポート。
+    所有者のみ許可。
+    GET /api/chat/history/export/?group_id=123
+    """
+
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        group_id = request.query_params.get("group_id")
+        if not group_id:
+            return create_error_response("グループIDが指定されていません", status.HTTP_400_BAD_REQUEST)
+
+        try:
+            group = (
+                VideoGroup.objects.select_related("user").get(
+                    id=group_id, user_id=request.user.id
+                )
+            )
+        except VideoGroup.DoesNotExist:
+            return create_error_response("指定のグループが見つかりません", status.HTTP_404_NOT_FOUND)
+
+        queryset = group.chat_logs.select_related("user").order_by("created_at")
+
+        response = HttpResponse(content_type="text/csv; charset=utf-8")
+        filename = f"chat_history_group_{group.id}.csv"
+        response["Content-Disposition"] = f"attachment; filename=\"{filename}\""
+
+        writer = csv.writer(response)
+        # ヘッダー
+        writer.writerow([
+            "created_at",
+            "question",
+            "answer",
+            "is_shared_origin",
+            "related_videos",
+        ])
+
+        for log in queryset:
+            # related_videos はJSON文字列として格納
+            try:
+                related_videos_str = json.dumps(log.related_videos, ensure_ascii=False)
+            except Exception:
+                related_videos_str = "[]"
+
+            writer.writerow([
+                log.created_at.isoformat(),
+                log.question,
+                log.answer,
+                "true" if log.is_shared_origin else "false",
+                related_videos_str,
+            ])
+
+        return response
