@@ -8,7 +8,7 @@ from app.utils.responses import create_error_response
 from app.utils.vector_manager import PGVectorManager
 from app.views import IsAuthenticatedOrSharedAccess, ShareTokenAuthentication
 from django.http import HttpResponse
-from langchain_community.vectorstores import PGVector
+from langchain_postgres import PGVector
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_openai import OpenAIEmbeddings
 from rest_framework import generics, status
@@ -112,23 +112,39 @@ class ChatView(generics.CreateAPIView):
                     model="text-embedding-3-small", api_key=api_key
                 )
                 config = PGVectorManager.get_config()
+                # langchain_postgresはpsycopg3を使用するため、接続文字列を変換
+                # postgresql:// → postgresql+psycopg://
+                connection_str = config["database_url"]
+                if connection_str.startswith("postgresql://"):
+                    connection_str = connection_str.replace("postgresql://", "postgresql+psycopg://", 1)
+                
                 vector_store = PGVector.from_existing_index(
                     collection_name=config["collection_name"],
                     embedding=embeddings,
-                    connection_string=config["database_url"],
+                    connection=connection_str,  # langchain_postgresではconnectionパラメータを使用（psycopg3形式）
+                    use_jsonb=True,  # JSONBフィルタリングを有効化（$in演算子を使用するために必要）
                 )
 
                 # グループ内の video_id をクエリ時にフィルタ
                 group_video_ids = list(group.members.values_list("video_id", flat=True))
 
-                docs = vector_store.similarity_search(
-                    query_text,
-                    k=6,
-                    filter={
-                        "user_id": user.id,  # メタデータ型に合わせ数値で渡す
-                        "video_id": {"$in": group_video_ids},
-                    },
-                )
+                # グループに動画が追加されている場合のみRAGを実行
+                if group_video_ids:
+                    # cmetadata->>'video_id'は文字列として取得されるため、文字列に変換
+                    # (削除クエリでも str(video_id) を使用しているため)
+                    group_video_ids_str = [str(vid) for vid in group_video_ids]
+                    
+                    docs = vector_store.similarity_search(
+                        query_text,
+                        k=6,
+                        filter={
+                            "user_id": user.id,
+                            "video_id": {"$in": group_video_ids_str},  # 文字列リストに変換（JSONBから文字列として取得されるため）
+                        },
+                    )
+                else:
+                    # グループに動画が追加されていない場合はRAGをスキップ
+                    docs = []
 
                 if docs:
                     # コンテキストを SystemMessage として付与

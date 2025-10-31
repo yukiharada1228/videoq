@@ -82,7 +82,9 @@ function VideosContent() {
 
           {/* コンテンツ */}
           <LoadingState isLoading={isLoading} error={error}>
-            <VideoList videos={videos} />
+            <div className="max-h-[600px] overflow-y-auto">
+              <VideoList videos={videos} />
+            </div>
           </LoadingState>
         </div>
       </PageLayout>

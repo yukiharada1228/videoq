@@ -14,7 +14,7 @@ from app.utils.task_helpers import (BatchProcessor, ErrorHandler,
                                     TemporaryFileManager, VideoTaskManager)
 from app.utils.vector_manager import PGVectorManager
 from celery import shared_task
-from langchain_community.vectorstores import PGVector
+from langchain_postgres import PGVector
 from langchain_openai import OpenAIEmbeddings
 from openai import OpenAI
 
@@ -110,21 +110,25 @@ def _index_scenes_to_vectorstore(scene_docs, video, api_key):
         )
 
         # pgvectorでベクトルストアを作成
+        # langchain_postgresはpsycopg3を使用するため、接続文字列を変換
+        # postgresql:// → postgresql+psycopg://
+        connection_str = config["database_url"]
+        if connection_str.startswith("postgresql://"):
+            connection_str = connection_str.replace("postgresql://", "postgresql+psycopg://", 1)
+        
         vector_store = PGVector.from_texts(
             texts=texts,
             embedding=embeddings,
             collection_name=config["collection_name"],
-            connection_string=config["database_url"],
+            connection=connection_str,  # langchain_postgresではconnectionパラメータを使用（psycopg3形式）
             metadatas=metadatas,
+            use_jsonb=True,  # JSONBフィルタリングを有効化
         )
 
         logger.info(f"Successfully indexed {len(texts)} scenes to pgvector")
 
     except Exception as e:
         logger.warning(f"Indexing to pgvector failed: {e}", exc_info=True)
-
-
-# 削除メソッドは utils/vector_manager.py に移動済み
 
 
 def extract_and_split_audio(input_path, max_size_mb=24, temp_manager=None):
