@@ -20,51 +20,147 @@
 
 ```
 ask-video/
-├── backend/          # Django REST Framework バックエンド
-│   ├── app/          # メインアプリケーション
-│   │   ├── auth/     # 認証機能
-│   │   ├── video/   # 動画管理機能
-│   │   ├── chat/     # チャット機能
-│   │   └── utils/    # ユーティリティ
-│   ├── ask_video/    # Djangoプロジェクト設定
-│   ├── media/        # アップロードされたメディアファイル
-│   └── README.md     # バックエンドREADME
-├── frontend/         # Next.js + TypeScript フロントエンド
-│   ├── app/          # Next.js App Router
-│   ├── components/   # Reactコンポーネント
-│   ├── hooks/        # カスタムフック
-│   └── README.md     # フロントエンドREADME
-├── docker-compose.yml # Docker Compose設定
-├── nginx.conf        # Nginx設定
-└── README.md         # このファイル
+├── backend/                    # Django REST Framework バックエンド
+│   ├── app/                     # メインアプリケーション
+│   │   ├── auth/                # 認証機能（views, serializers, urls）
+│   │   ├── video/               # 動画管理機能（views, serializers, urls, tests）
+│   │   ├── chat/                # チャット機能（views, serializers, urls, langchain_utils）
+│   │   ├── scene_otsu/          # シーン分割機能
+│   │   ├── utils/               # ユーティリティ（encryption, vector_manager, task_helpers等）
+│   │   ├── migrations/          # データベースマイグレーション
+│   │   ├── models.py            # データモデル（User, Video, VideoGroup, ChatLog等）
+│   │   ├── tasks.py             # Celeryタスク（文字起こし処理等）
+│   │   ├── authentication.py   # カスタム認証クラス
+│   │   └── celery_config.py     # Celery設定
+│   ├── ask_video/               # Djangoプロジェクト設定
+│   │   ├── settings.py          # Django設定
+│   │   ├── urls.py              # URL設定
+│   │   ├── wsgi.py              # WSGI設定
+│   │   └── asgi.py              # ASGI設定
+│   ├── media/                   # アップロードされたメディアファイル
+│   ├── pyproject.toml           # Python依存関係（uv）
+│   ├── Dockerfile               # バックエンドDockerイメージ
+│   └── README.md                # バックエンドREADME
+├── frontend/                    # Next.js + TypeScript フロントエンド
+│   ├── app/                     # Next.js App Router
+│   │   ├── page.tsx             # ホームページ
+│   │   ├── login/               # ログインページ
+│   │   ├── signup/               # サインアップページ
+│   │   ├── videos/               # 動画関連ページ
+│   │   ├── chat/                 # チャット履歴
+│   │   └── share/                # 共有ページ
+│   ├── components/              # Reactコンポーネント
+│   │   ├── auth/                # 認証コンポーネント
+│   │   ├── video/               # 動画関連コンポーネント
+│   │   ├── chat/                # チャットコンポーネント
+│   │   ├── layout/              # レイアウトコンポーネント
+│   │   ├── common/              # 共通コンポーネント
+│   │   └── ui/                  # UIコンポーネント（shadcn/ui）
+│   ├── hooks/                   # カスタムフック（useAuth, useVideos等）
+│   ├── lib/                     # ライブラリ・ユーティリティ（api, errorUtils等）
+│   ├── e2e/                     # Playwright E2Eテスト
+│   ├── package.json             # Node.js依存関係
+│   ├── Dockerfile               # フロントエンドDockerイメージ
+│   └── README.md                # フロントエンドREADME
+├── docker-compose.yml           # Docker Compose設定
+├── nginx.conf                   # Nginx設定
+└── README.md                    # このファイル
 ```
 
 ## 使用技術
 
 ### バックエンド
-- **Django 5.2.7** - Webフレームワーク
-- **Django REST Framework** - REST API構築
-- **JWT認証** (django-rest-framework-simplejwt) - 認証システム
-- **Celery** - バックグラウンドタスク処理
-- **Redis** - Celeryブローカー・キュー管理
-- **PostgreSQL** - データベース
-- **pgvector** - ベクトルデータベース機能
+
+#### フレームワーク・API
+- **Django** (>=5.2.7) - Webフレームワーク
+- **Django REST Framework** (>=3.16.1) - REST API構築
+- **django-rest-framework-simplejwt** (>=5.5.1) - JWT認証システム
+- **django-cors-headers** (>=4.9.0) - CORS設定
+
+#### サーバー・WSGI
+- **Gunicorn** (>=23.0.0) - WSGIサーバー
+- **Uvicorn** (>=0.38.0) - ASGIサーバー
+- **uvicorn-worker** (>=0.4.0) - Uvicornワーカー
+
+#### バックグラウンド処理
+- **Celery** (>=5.5.3) - バックグラウンドタスク処理
+- **Redis** (>=7.0.0) - Celeryブローカー・キュー管理
+
+#### データベース
+- **PostgreSQL** - リレーショナルデータベース
+- **psycopg2-binary** (>=2.9.11) - PostgreSQLアダプタ
+- **dj-database-url** (>=3.0.1) - データベースURLパーサー
+- **pgvector** (>=0.3.0) - PostgreSQL拡張（ベクトルデータベース）
+
+#### AI・機械学習
+- **OpenAI** (>=2.6.1) - OpenAI APIクライアント（Whisper API、ChatGPT）
+- **LangChain** (>=1.0.2) - LLMアプリケーションフレームワーク
+- **langchain-openai** (>=1.0.1) - LangChain OpenAI統合
+- **langchain-community** (>=0.4.1) - LangChainコミュニティ拡張
+- **langchain-postgres** (>=0.0.16) - LangChain PostgreSQL統合
+- **numpy** (>=2.0.0) - 数値計算ライブラリ
+- **scikit-learn** (>=1.7.2) - 機械学習ライブラリ
+- **opensearch-py** (>=3.0.0) - OpenSearchクライアント
+
+#### 動画・音声処理
+- **ffmpeg-python** (>=0.2.0) - ffmpeg Pythonバインディング
+
+#### セキュリティ・暗号化
+- **cryptography** (>=46.0.3) - 暗号化ライブラリ（APIキー暗号化）
+
+#### パッケージ管理
 - **uv** - 高速なPythonパッケージマネージャー
-- **Whisper API** (OpenAI) - 音声文字起こし
-- **OpenAI API** - チャット機能
-- **ffmpeg** - 動画変換
 
 ### フロントエンド
-- **Next.js 16** - React フレームワーク
-- **TypeScript** - 型安全性
-- **Tailwind CSS** - UIスタイリング
-- **shadcn/ui** - UIコンポーネント
-- **Playwright** - E2Eテスト
+
+#### フレームワーク・ランタイム
+- **Next.js** (16.0.0) - React フレームワーク
+- **React** (19.2.0) - UIライブラリ
+- **React DOM** (19.2.0) - React DOMレンダラー
+- **TypeScript** (^5) - 型安全性
+
+#### UIコンポーネント・スタイリング
+- **Tailwind CSS** (^4) - ユーティリティファーストCSSフレームワーク
+- **@tailwindcss/postcss** (^4) - Tailwind CSS PostCSSプラグイン
+- **tw-animate-css** (^1.4.0) - Tailwind CSSアニメーション
+- **Radix UI** - アクセシブルなUIコンポーネントプリミティブ
+  - **@radix-ui/react-checkbox** (^1.3.3) - チェックボックスコンポーネント
+  - **@radix-ui/react-dialog** (^1.1.15) - ダイアログコンポーネント
+  - **@radix-ui/react-label** (^2.1.7) - ラベルコンポーネント
+  - **@radix-ui/react-slot** (^1.2.3) - スロットコンポーネント
+- **lucide-react** (^0.548.0) - アイコンライブラリ
+- **class-variance-authority** (^0.7.1) - コンポーネントバリアント管理
+- **clsx** (^2.1.1) - クラス名ユーティリティ
+- **tailwind-merge** (^3.3.1) - Tailwindクラス名マージ
+
+#### フォーム管理
+- **react-hook-form** (^7.65.0) - フォーム状態管理
+- **@hookform/resolvers** (^5.2.2) - フォームバリデーションリゾルバー
+- **zod** (^4.1.12) - スキーマバリデーション
+
+#### ドラッグ&ドロップ
+- **@dnd-kit/core** (^6.3.1) - ドラッグ&ドロップコアライブラリ
+- **@dnd-kit/sortable** (^10.0.0) - ソート可能なリスト
+- **@dnd-kit/utilities** (^3.2.2) - DnD Kitユーティリティ
+
+#### ユーティリティ
+- **date-fns** (^4.1.0) - 日付操作ライブラリ
+
+#### テスト
+- **@playwright/test** (^1.56.1) - E2Eテストフレームワーク
+
+#### 開発ツール
+- **ESLint** (^9) - コードリンティング
+- **eslint-config-next** (16.0.0) - Next.js ESLint設定
+- **@types/node** (^20) - Node.js型定義
+- **@types/react** (^19) - React型定義
+- **@types/react-dom** (^19) - React DOM型定義
 
 ### インフラ
 - **Docker & Docker Compose** - コンテナ化
-- **Nginx** - リバースプロキシ
-- **Gunicorn** - WSGIサーバー
+- **Nginx** - リバースプロキシ・ロードバランサー
+- **PostgreSQL** (pgvector拡張付き) - データベース
+- **Redis** - キャッシュ・メッセージブローカー
 
 ## セットアップ
 
@@ -486,10 +582,11 @@ curl -X DELETE -H "Authorization: Bearer $ACCESS" \
 
 ### 主要モデル
 
-- **User**: ユーザー情報（暗号化されたOpenAI APIキーを含む）
-- **Video**: 動画情報（タイトル、説明、文字起こし、ステータスなど）
+- **User**: ユーザー情報（Django AbstractUserを継承、暗号化されたOpenAI APIキーを含む）
+- **Video**: 動画情報（タイトル、説明、ファイル、文字起こし、ステータス、外部アップロードフラグなど）
 - **VideoGroup**: 動画グループ（名前、説明、共有トークンなど）
-- **VideoGroupMember**: 動画とグループの関連付け
+- **VideoGroupMember**: 動画とグループの関連付け（順序管理機能付き）
+- **ChatLog**: チャットログ（質問、回答、関連動画、共有元フラグなど）
 
 ## 開発
 
