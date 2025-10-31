@@ -16,7 +16,6 @@ dependencies = [
     "cryptography>=46.0.3",
     "langchain>=1.0.2",
     "langchain-openai>=1.0.1",
-    "langchain-community>=0.4.1",
     "celery>=5.5.3",
     "redis>=7.0.0",
     "ffmpeg-python>=0.2.0",
