@@ -100,7 +100,6 @@ ask-video/
 - **langchain-postgres** (>=0.0.16) - LangChain PostgreSQL統合
 - **numpy** (>=2.0.0) - 数値計算ライブラリ
 - **scikit-learn** (>=1.7.2) - 機械学習ライブラリ
-- **opensearch-py** (>=3.0.0) - OpenSearchクライアント
 
 #### 動画・音声処理
 - **ffmpeg-python** (>=0.2.0) - ffmpeg Pythonバインディング

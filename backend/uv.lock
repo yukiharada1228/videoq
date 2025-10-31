@@ -194,7 +194,6 @@ dependencies = [
     { name = "langchain-postgres" },
     { name = "numpy" },
     { name = "openai" },
-    { name = "opensearch-py" },
     { name = "pgvector" },
     { name = "psycopg2-binary" },
     { name = "redis" },
@@ -220,7 +219,6 @@ requires-dist = [
     { name = "langchain-postgres", specifier = ">=0.0.16" },
     { name = "numpy", specifier = ">=2.0.0" },
     { name = "openai", specifier = ">=2.6.1" },
-    { name = "opensearch-py", specifier = ">=3.0.0" },
     { name = "pgvector", specifier = ">=0.3.0" },
     { name = "psycopg2-binary", specifier = ">=2.9.11" },
     { name = "redis", specifier = ">=7.0.0" },
@@ -664,14 +662,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/a8/27/2874a325c11112066139769f7794afae238a07ce6adf96259f08fd37a9d7/djangorestframework_simplejwt-5.5.1.tar.gz", hash = "sha256:e72c5572f51d7803021288e2057afcbd03f17fe11d484096f40a460abc76e87f", size = 101265, upload-time = "2025-07-21T16:52:25.026Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/60/94/fdfb7b2f0b16cd3ed4d4171c55c1c07a2d1e3b106c5978c8ad0c15b4a48b/djangorestframework_simplejwt-5.5.1-py3-none-any.whl", hash = "sha256:2c30f3707053d384e9f315d11c2daccfcb548d4faa453111ca19a542b732e469", size = 107674, upload-time = "2025-07-21T16:52:07.493Z" },
-]
-
-[[package]]
-name = "events"
-version = "0.5"
-source = { registry = "https://pypi.org/simple" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/25/ed/e47dec0626edd468c84c04d97769e7ab4ea6457b7f54dcb3f72b17fcd876/Events-0.5-py3-none-any.whl", hash = "sha256:a7286af378ba3e46640ac9825156c93bdba7502174dd696090fdfcd4d80a1abd", size = 6758, upload-time = "2023-07-31T08:23:13.645Z" },
 ]
 
 [[package]]
@@ -1466,22 +1456,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/c4/44/303deb97be7c1c9b53118b52825cbd1557aeeff510f3a52566b1fa66f6a2/openai-2.6.1.tar.gz", hash = "sha256:27ae704d190615fca0c0fc2b796a38f8b5879645a3a52c9c453b23f97141bb49", size = 593043, upload-time = "2025-10-24T13:29:52.79Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/15/0e/331df43df633e6105ff9cf45e0ce57762bd126a45ac16b25a43f6738d8a2/openai-2.6.1-py3-none-any.whl", hash = "sha256:904e4b5254a8416746a2f05649594fa41b19d799843cd134dac86167e094edef", size = 1005551, upload-time = "2025-10-24T13:29:50.973Z" },
-]
-
-[[package]]
-name = "opensearch-py"
-version = "3.0.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "certifi" },
-    { name = "events" },
-    { name = "python-dateutil" },
-    { name = "requests" },
-    { name = "urllib3" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/b8/58/ecec7f855aae7bcfb08f570088c6cb993f68c361a0727abab35dbf021acb/opensearch_py-3.0.0.tar.gz", hash = "sha256:ebb38f303f8a3f794db816196315bcddad880be0dc75094e3334bc271db2ed39", size = 248890, upload-time = "2025-06-17T05:39:48.453Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/71/e0/69fd114c607b0323d3f864ab4a5ecb87d76ec5a172d2e36a739c8baebea1/opensearch_py-3.0.0-py3-none-any.whl", hash = "sha256:842bf5d56a4a0d8290eda9bb921c50f3080e5dc4e5fefb9c9648289da3f6a8bb", size = 371491, upload-time = "2025-06-17T05:39:46.539Z" },
 ]
 
 [[package]]
