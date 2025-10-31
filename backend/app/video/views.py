@@ -67,6 +67,68 @@ class VideoDetailView(
     def should_include_transcript(self):
         return True
 
+    def update(self, request, *args, **kwargs):
+        """Video更新時にPGVectorのmetadataも更新"""
+        partial = kwargs.pop("partial", False)
+        instance = self.get_object()
+
+        # 更新前のタイトルを保存
+        old_title = instance.title
+
+        # 通常の更新処理を実行
+        response = super().update(request, *args, partial=partial, **kwargs)
+
+        # インスタンスを再取得して最新のデータを取得
+        instance.refresh_from_db()
+
+        # タイトルが変更された場合、PGVectorのmetadataを更新
+        if old_title != instance.title:
+            self._update_video_title_in_pgvector(instance.id, instance.title)
+
+        return response
+
+    def _update_video_title_in_pgvector(self, video_id, new_title):
+        """PGVectorのmetadata内のvideo_titleを更新"""
+        try:
+            import logging
+
+            from app.utils.vector_manager import PGVectorManager
+
+            logger = logging.getLogger(__name__)
+
+            def update_operation(cursor):
+                update_query = """
+                    UPDATE langchain_pg_embedding 
+                    SET cmetadata = jsonb_set(
+                        cmetadata::jsonb,
+                        '{video_title}',
+                        to_jsonb(%s::text)
+                    )
+                    WHERE cmetadata->>'video_id' = %s
+                """
+                cursor.execute(update_query, (new_title, str(video_id)))
+                return cursor.rowcount
+
+            updated_count = PGVectorManager.execute_with_connection(update_operation)
+
+            if updated_count > 0:
+                logger.info(
+                    f"Updated video_title to '{new_title}' for {updated_count} vector documents (video ID: {video_id})"
+                )
+            else:
+                logger.info(
+                    f"No vector documents found to update for video ID: {video_id}"
+                )
+
+        except Exception as e:
+            import logging
+
+            logger = logging.getLogger(__name__)
+            logger.warning(
+                f"Failed to update video_title in PGVector for video {video_id}: {e}",
+                exc_info=True,
+            )
+
     def destroy(self, request, *args, **kwargs):
         """Video削除時にファイルとベクトルデータも削除（DRY原則・N+1問題対策）"""
         instance = self.get_object()
