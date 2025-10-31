@@ -613,29 +613,20 @@ docker-compose logs -f backend celery-worker
 
 **注意:** Docker環境では全てのPythonコマンドを `uv run` 経由で実行します。
 
-### フロントエンド
+### フロントエンド（Docker環境）
 
 ```bash
-# フロントエンドコンテナ内でコマンドを実行
+# フロントエンドのビルド
 docker-compose exec frontend npm run build
+
+# E2Eテストの実行
+docker-compose exec frontend npm run test:e2e
+
+# E2Eテスト（UIモード）
+docker-compose exec frontend npm run test:e2e:ui
 
 # フロントエンドのログ確認
 docker-compose logs -f frontend
-```
-
-ローカル開発環境の場合：
-
-```bash
-cd frontend
-
-# ビルド
-npm run build
-
-# E2Eテストの実行
-npm run test:e2e
-
-# E2Eテスト（UIモード）
-npm run test:e2e:ui
 ```
 
 ## 本番環境のデプロイ
