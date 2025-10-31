@@ -96,7 +96,6 @@ ask-video/
 - **OpenAI** (>=2.6.1) - OpenAI APIクライアント（Whisper API、ChatGPT）
 - **LangChain** (>=1.0.2) - LLMアプリケーションフレームワーク
 - **langchain-openai** (>=1.0.1) - LangChain OpenAI統合
-- **langchain-community** (>=0.4.1) - LangChainコミュニティ拡張
 - **langchain-postgres** (>=0.0.16) - LangChain PostgreSQL統合
 - **numpy** (>=2.0.0) - 数値計算ライブラリ
 - **scikit-learn** (>=1.7.2) - 機械学習ライブラリ
