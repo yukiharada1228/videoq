@@ -153,9 +153,6 @@ class VideoGroupDetailView(
         return self._get_filtered_queryset(annotate_only=False)
 
 
-# create_error_responseはapp.utils.responsesからインポート済み（DRY原則）
-
-
 def _handle_validation_error(value, entity_name: str):
     """共通のバリデーションチェック（DRY原則）"""
     if not value:
