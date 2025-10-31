@@ -25,5 +25,6 @@ dependencies = [
     "opensearch-py>=3.0.0",
     "psycopg2-binary>=2.9.11",
     "dj-database-url>=3.0.1",
-    "pgvector>=0.3.0"
+    "pgvector>=0.3.0",
+    "langchain-postgres>=0.0.16"
 ]
