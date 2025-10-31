@@ -264,28 +264,6 @@ docker-compose restart
 docker-compose exec postgres psql -U $POSTGRES_USER -d $POSTGRES_DB
 ```
 
-### フロントエンドのローカル開発（オプション）
-
-フロントエンドのみローカルで開発する場合：
-
-```bash
-cd frontend
-
-# 依存関係のインストール
-npm install
-
-# 環境変数の設定
-echo "NEXT_PUBLIC_API_URL=http://localhost/api" > .env.local
-
-# 開発サーバーの起動
-npm run dev
-```
-
-この場合、フロントエンドは http://localhost:3000 で起動します（開発時は別ポートで起動）。
-バックエンドは `docker-compose up -d backend postgres redis celery-worker nginx` で起動しておく必要があります。
-
-詳細は `frontend/README.md` を参照してください。
-
 ## 機能詳細
 
 ### 認証機能
