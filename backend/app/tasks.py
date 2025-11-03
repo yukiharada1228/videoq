@@ -393,9 +393,31 @@ def transcribe_video(self, video_id):
             # OpenAIクライアントを初期化
             client = OpenAI(api_key=api_key)
 
-            # 動画ファイルのパスを取得（削除するために保持）
-            video_file_path = video.file.path
+            # 動画ファイルの処理（S3対応）
             video_file = video.file  # ファイルオブジェクトも保持
+
+            # S3の場合は一時的にローカルにダウンロード
+            try:
+                # ローカルファイルシステムの場合
+                video_file_path = video.file.path
+            except (NotImplementedError, AttributeError):
+                # S3などのリモートストレージの場合
+                # 一時ファイルにダウンロード
+                temp_video_path = os.path.join(
+                    tempfile.gettempdir(),
+                    f"video_{video_id}_{os.path.basename(video_file.name)}",
+                )
+                logger.info(f"Downloading video from S3 to {temp_video_path}")
+
+                # S3からファイルをダウンロード
+                with video_file.open("rb") as remote_file:
+                    with open(temp_video_path, "wb") as local_file:
+                        local_file.write(remote_file.read())
+
+                video_file_path = temp_video_path
+                # 一時ファイルとして登録（処理後に削除）
+                temp_manager.temp_files.append(temp_video_path)
+                logger.info(f"Video downloaded successfully to {temp_video_path}")
 
             logger.info(f"Starting transcription for video {video_id}")
 
