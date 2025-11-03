@@ -9,10 +9,12 @@ export type VideoStatus = 'pending' | 'processing' | 'completed' | 'error';
  */
 export function getStatusBadgeClassName(
   status: string,
-  size: 'sm' | 'md' = 'md'
+  size: 'xs' | 'sm' | 'md' = 'md'
 ): string {
   const baseClass = 'inline-flex items-center rounded-full font-medium';
-  const sizeClass = size === 'sm' 
+  const sizeClass = size === 'xs'
+    ? 'px-1.5 py-0.5 text-[10px]'
+    : size === 'sm' 
     ? 'px-2.5 py-0.5 text-xs' 
     : 'px-3 py-1 text-sm';
   
