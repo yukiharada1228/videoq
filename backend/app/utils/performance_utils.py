@@ -1,5 +1,5 @@
 """
-共通のパフォーマンス最適化ユーティリティ（DRY原則・N+1問題対策）
+共通のパフォーマンス最適化ユーティリティ
 """
 
 import logging
@@ -17,7 +17,7 @@ T = TypeVar("T")
 
 
 class PerformanceOptimizer:
-    """パフォーマンス最適化の共通クラス（DRY原則・N+1問題対策）"""
+    """パフォーマンス最適化の共通クラス"""
 
     @staticmethod
     def measure_time(func: Callable) -> Callable:
@@ -91,7 +91,7 @@ class PerformanceOptimizer:
 
 
 class CacheManager:
-    """キャッシュ管理の共通クラス（DRY原則・N+1問題対策）"""
+    """キャッシュ管理の共通クラス"""
 
     @staticmethod
     def get_or_set(key: str, default: Callable[[], T], timeout: int = 300) -> T:
@@ -141,116 +141,6 @@ class CacheManager:
         """
         # 実装は使用するキャッシュバックエンドに依存
         logger.info(f"キャッシュパターン '{pattern}' を無効化")
-
-
-class QueryOptimizer:
-    """クエリ最適化の共通クラス（N+1問題対策）"""
-
-    @staticmethod
-    def optimize_queryset(
-        queryset: QuerySet,
-        select_related_fields: Optional[List[str]] = None,
-        prefetch_related_fields: Optional[List[str]] = None,
-        only_fields: Optional[List[str]] = None,
-    ) -> QuerySet:
-        """
-        クエリセットを最適化（N+1問題対策）
-
-        Args:
-            queryset: ベースとなるクエリセット
-            select_related_fields: select_relatedするフィールド
-            prefetch_related_fields: prefetch_relatedするフィールド
-            only_fields: onlyで取得するフィールド
-
-        Returns:
-            最適化されたクエリセット
-        """
-        if select_related_fields:
-            queryset = queryset.select_related(*select_related_fields)
-
-        if prefetch_related_fields:
-            queryset = queryset.prefetch_related(*prefetch_related_fields)
-
-        if only_fields:
-            queryset = queryset.only(*only_fields)
-
-        return queryset
-
-    @staticmethod
-    def bulk_optimize(
-        queryset: QuerySet, operation: str, batch_size: int = 1000
-    ) -> QuerySet:
-        """
-        バルク操作用にクエリセットを最適化（N+1問題対策）
-
-        Args:
-            queryset: ベースとなるクエリセット
-            operation: 操作タイプ（'update', 'delete', 'create'）
-            batch_size: バッチサイズ
-
-        Returns:
-            最適化されたクエリセット
-        """
-        if operation == "update":
-            return queryset.only("id")
-        elif operation == "delete":
-            return queryset.only("id")
-        elif operation == "create":
-            return queryset
-        else:
-            return queryset
-
-
-class BatchProcessor:
-    """バッチ処理の共通クラス（N+1問題対策）"""
-
-    @staticmethod
-    def process_in_batches(
-        items: List[Any], processor: Callable[[List[Any]], Any], batch_size: int = 100
-    ) -> List[Any]:
-        """
-        アイテムをバッチで処理（N+1問題対策）
-
-        Args:
-            items: 処理するアイテムのリスト
-            processor: バッチ処理関数
-            batch_size: バッチサイズ
-
-        Returns:
-            処理結果のリスト
-        """
-        results = []
-
-        for i in range(0, len(items), batch_size):
-            batch = items[i : i + batch_size]
-            batch_result = processor(batch)
-            results.append(batch_result)
-
-        return results
-
-    @staticmethod
-    def process_async_in_batches(
-        items: List[Any], processor: Callable[[List[Any]], Any], batch_size: int = 100
-    ) -> List[Any]:
-        """
-        アイテムを非同期バッチで処理（N+1問題対策）
-
-        Args:
-            items: 処理するアイテムのリスト
-            processor: 非同期バッチ処理関数
-            batch_size: バッチサイズ
-
-        Returns:
-            処理結果のリスト
-        """
-        results = []
-
-        for i in range(0, len(items), batch_size):
-            batch = items[i : i + batch_size]
-            batch_result = processor(batch)
-            results.append(batch_result)
-
-        return results
 
 
 class MemoryOptimizer:

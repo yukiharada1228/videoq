@@ -1,5 +1,5 @@
 """
-Celeryタスク - Whisper文字起こし処理（DRY原則・N+1問題対策済み）
+Celeryタスク - Whisper文字起こし処理
 """
 
 import logging
@@ -14,8 +14,8 @@ from app.utils.task_helpers import (BatchProcessor, ErrorHandler,
                                     TemporaryFileManager, VideoTaskManager)
 from app.utils.vector_manager import PGVectorManager
 from celery import shared_task
-from langchain_postgres import PGVector
 from langchain_openai import OpenAIEmbeddings
+from langchain_postgres import PGVector
 from openai import OpenAI
 
 from .scene_otsu import SceneSplitter, SubtitleParser
@@ -91,7 +91,7 @@ def _parse_srt_scenes(srt_content):
 
 def _index_scenes_to_vectorstore(scene_docs, video, api_key):
     """
-    LangChain + pgvector でベクトルインデックスを作成（DRY原則・N+1問題対策）
+    LangChain + pgvector でベクトルインデックスを作成
     scene_docs: [{text, metadata}]
     """
     try:
@@ -114,8 +114,10 @@ def _index_scenes_to_vectorstore(scene_docs, video, api_key):
         # postgresql:// → postgresql+psycopg://
         connection_str = config["database_url"]
         if connection_str.startswith("postgresql://"):
-            connection_str = connection_str.replace("postgresql://", "postgresql+psycopg://", 1)
-        
+            connection_str = connection_str.replace(
+                "postgresql://", "postgresql+psycopg://", 1
+            )
+
         vector_store = PGVector.from_texts(
             texts=texts,
             embedding=embeddings,
@@ -308,7 +310,7 @@ def _handle_transcription_error(video, error_msg):
 
 def _index_scenes_batch(scene_split_srt, video, api_key):
     """
-    シーンをpgvectorにバッチインデックス（N+1問題対策・DRY原則）
+    シーンをpgvectorにバッチインデックス
     """
     try:
         logger.info("Starting scene indexing to pgvector...")
@@ -351,7 +353,7 @@ def _create_scene_metadata(video, scene):
 @shared_task(bind=True, max_retries=3)
 def transcribe_video(self, video_id):
     """
-    Whisper APIを使用して動画の文字起こしを実行（DRY原則・N+1問題対策済み）
+    Whisper APIを使用して動画の文字起こしを実行
     ffmpegで変換が必要な場合は自動的にMP3に変換
 
     Args:
