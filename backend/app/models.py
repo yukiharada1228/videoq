@@ -8,6 +8,7 @@ from django.core.files.storage import FileSystemStorage
 from django.db import models
 from django.db.models.signals import post_delete
 from django.dispatch import receiver
+from storages.backends.s3boto3 import S3Boto3Storage
 
 
 class User(AbstractUser):
@@ -20,9 +21,10 @@ def user_directory_path(instance, filename):
     return f"videos/{instance.user.id}/{filename}"
 
 
-class SafeFileStorage(FileSystemStorage):
+class SafeStorageMixin:
     """
-    Safe file storage for local use
+    Mixin for safe file storage processing
+    Provides common functionality for filename sanitization
     """
 
     def get_available_name(self, name, max_length=None):
@@ -61,6 +63,46 @@ class SafeFileStorage(FileSystemStorage):
         return safe_name
 
 
+class SafeFileSystemStorage(SafeStorageMixin, FileSystemStorage):
+    """
+    Safe file storage for local use
+    """
+
+    pass
+
+
+class SafeS3Boto3Storage(SafeStorageMixin, S3Boto3Storage):
+    """
+    Custom S3 storage with safe processing
+    """
+
+    def __init__(self, *args, **kwargs):
+        # Add S3 configuration
+        kwargs.update(
+            {
+                "bucket_name": os.environ.get("AWS_STORAGE_BUCKET_NAME"),
+                "access_key": os.environ.get("AWS_ACCESS_KEY_ID"),
+                "secret_key": os.environ.get("AWS_SECRET_ACCESS_KEY"),
+                "location": "media",  # Directory in S3
+                "default_acl": "private",
+                "custom_domain": False,
+                "querystring_auth": True,
+                "querystring_expire": 3600,
+                "file_overwrite": False,  # Prevent file overwriting
+            }
+        )
+        super().__init__(*args, **kwargs)
+
+
+def get_default_storage():
+    """
+    Get default storage based on settings.USE_S3_STORAGE
+    """
+    if settings.USE_S3_STORAGE:
+        return SafeS3Boto3Storage()
+    return SafeFileSystemStorage()
+
+
 class Video(models.Model):
     STATUS_CHOICES = [
         ("pending", "Pending"),
@@ -74,7 +116,7 @@ class Video(models.Model):
     )
     file = models.FileField(
         upload_to=user_directory_path,
-        storage=SafeFileStorage(),
+        storage=get_default_storage(),
     )
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True)
