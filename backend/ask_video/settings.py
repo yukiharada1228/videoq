@@ -40,6 +40,9 @@ class DefaultSettings:
     # Feature flags
     ENABLE_SIGNUP = True
 
+    # Storage
+    USE_S3_STORAGE = False
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -206,3 +209,9 @@ CELERY_TASK_SOFT_TIME_LIMIT = 25 * 60  # 25 minutes
 
 # Feature flags
 ENABLE_SIGNUP = os.environ.get("ENABLE_SIGNUP", "true").lower() == "true"
+
+# Storage configuration
+USE_S3_STORAGE = (
+    os.environ.get("USE_S3_STORAGE", str(DefaultSettings.USE_S3_STORAGE)).lower()
+    == "true"
+)
