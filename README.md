@@ -39,16 +39,19 @@ ask-video/
 │   │   └── asgi.py              # ASGI設定
 │   ├── media/                   # アップロードされたメディアファイル
 │   ├── pyproject.toml           # Python依存関係（uv）
+│   ├── main.py                  # エントリーポイント
+│   ├── manage.py                # Django管理スクリプト
 │   ├── Dockerfile               # バックエンドDockerイメージ
 │   └── README.md                # バックエンドREADME
 ├── frontend/                    # Next.js + TypeScript フロントエンド
 │   ├── app/                     # Next.js App Router
 │   │   ├── page.tsx             # ホームページ
 │   │   ├── login/               # ログインページ
-│   │   ├── signup/               # サインアップページ
-│   │   ├── videos/               # 動画関連ページ
-│   │   ├── chat/                 # チャット履歴
-│   │   └── share/                # 共有ページ
+│   │   ├── signup/              # サインアップページ
+│   │   ├── settings/            # 設定ページ
+│   │   ├── videos/              # 動画関連ページ
+│   │   ├── chat/                # チャット履歴
+│   │   └── share/               # 共有ページ
 │   ├── components/              # Reactコンポーネント
 │   │   ├── auth/                # 認証コンポーネント
 │   │   ├── video/               # 動画関連コンポーネント
@@ -87,7 +90,7 @@ ask-video/
 - **Redis** (>=7.0.0) - Celeryブローカー・キュー管理
 
 #### データベース
-- **PostgreSQL** - リレーショナルデータベース
+- **PostgreSQL** (17, pgvector拡張付き) - リレーショナルデータベース
 - **psycopg2-binary** (>=2.9.11) - PostgreSQLアダプタ
 - **dj-database-url** (>=3.0.1) - データベースURLパーサー
 - **pgvector** (>=0.3.0) - PostgreSQL拡張（ベクトルデータベース）
@@ -102,6 +105,10 @@ ask-video/
 
 #### 動画・音声処理
 - **ffmpeg-python** (>=0.2.0) - ffmpeg Pythonバインディング
+
+#### ストレージ
+- **django-storages** (>=1.14.6) - Djangoストレージバックエンド（S3対応）
+- **boto3** (>=1.40.64) - AWS SDK for Python（S3等）
 
 #### セキュリティ・暗号化
 - **cryptography** (>=46.0.3) - 暗号化ライブラリ（APIキー暗号化）
@@ -157,7 +164,7 @@ ask-video/
 ### インフラ
 - **Docker & Docker Compose** - コンテナ化
 - **Nginx** - リバースプロキシ・ロードバランサー
-- **PostgreSQL** (pgvector拡張付き) - データベース
+- **PostgreSQL** (17, pgvector拡張付き) - データベース
 - **Redis** - キャッシュ・メッセージブローカー
 
 ## セットアップ
@@ -207,7 +214,7 @@ docker-compose up --build -d
 
 このコマンドで以下のサービスが起動します：
 - **redis**: Redis（Celeryブローカー）
-- **postgres**: PostgreSQLデータベース（pgvector拡張付き）
+- **postgres**: PostgreSQLデータベース（17, pgvector拡張付き）
 - **backend**: Django REST APIサーバー（ポート8000内部）
 - **celery-worker**: Celeryワーカー（バックグラウンドタスク処理）
 - **frontend**: Next.jsフロントエンド（ポート3000内部）
@@ -538,7 +545,7 @@ curl -X DELETE -H "Authorization: Bearer $ACCESS" \
 このプロジェクトは以下のサービスで構成されています：
 
 - **redis**: Redis（Celeryブローカーおよび結果バックエンド）
-- **postgres**: PostgreSQLデータベース（pgvector拡張付き）
+- **postgres**: PostgreSQLデータベース（17, pgvector拡張付き）
 - **backend**: Django REST APIサーバー（ポート8000内部）
 - **celery-worker**: Celeryワーカー（バックグラウンドタスク処理）
 - **frontend**: Next.jsフロントエンド（ポート3000内部）
@@ -657,7 +664,7 @@ docker-compose exec redis redis-cli ping  # PONG が返ってくればOK
 
 4. Celeryタスクの登録状況を確認
 ```bash
-docker-compose exec backend uv run python -c "from ask_video.celery import app; print(app.tasks.keys())"
+docker-compose exec backend uv run python -c "from app.celery_config import app; print(app.tasks.keys())"
 ```
 
 ### 文字起こしが失敗する
