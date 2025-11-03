@@ -67,8 +67,18 @@ class VideoTaskManager:
         if not video.file:
             return False, "Video file is not available"
 
-        if not os.path.exists(video.file.path):
-            return False, f"Video file not found: {video.file.path}"
+        # S3対応: ファイルの存在確認
+        try:
+            # ローカルファイルシステムの場合
+            if not os.path.exists(video.file.path):
+                return False, f"Video file not found: {video.file.path}"
+        except (NotImplementedError, AttributeError):
+            # S3などのリモートストレージの場合
+            # ファイルオブジェクトが存在するか確認
+            try:
+                video.file.open("rb").close()
+            except Exception as e:
+                return False, f"Video file not accessible: {e}"
 
         if not video.user.encrypted_openai_api_key:
             return False, "OpenAI API key is not configured"
