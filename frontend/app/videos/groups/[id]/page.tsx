@@ -673,8 +673,8 @@ export default function VideoGroupDetailPage() {
           {/* 3カラムレイアウト */}
           <div className="grid grid-cols-12 gap-4 flex-1 min-h-0">
           {/* 左側：動画一覧 */}
-          <div className="col-span-3 h-full">
-            <Card className="h-full flex flex-col">
+          <div className="col-span-3">
+            <Card className="h-[600px] flex flex-col">
               <CardHeader>
                 <CardTitle>動画一覧</CardTitle>
               </CardHeader>
