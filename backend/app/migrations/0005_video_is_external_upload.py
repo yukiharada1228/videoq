@@ -6,13 +6,16 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('app', '0004_videogroup_videogroupmember_videogroup_videos'),
+        ("app", "0004_videogroup_videogroupmember_videogroup_videos"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='video',
-            name='is_external_upload',
-            field=models.BooleanField(default=False, help_text='外部APIクライアントからのアップロードかどうか（処理完了後にファイルを削除）'),
+            model_name="video",
+            name="is_external_upload",
+            field=models.BooleanField(
+                default=False,
+                help_text="外部APIクライアントからのアップロードかどうか（処理完了後にファイルを削除）",
+            ),
         ),
     ]

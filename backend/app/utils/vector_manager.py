@@ -1,5 +1,5 @@
 """
-PGVector操作の統一管理（DRY原則・N+1問題対策）
+PGVector操作の統一管理
 """
 
 import logging
@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 class PGVectorManager:
     """
-    PGVector操作の統一管理クラス（DRY原則・N+1問題対策）
+    PGVector操作の統一管理クラス
     """
 
     _config = None
@@ -59,7 +59,7 @@ class PGVectorManager:
     @classmethod
     def execute_with_connection(cls, operation_func):
         """
-        接続を使用して操作を実行（DRY原則・N+1問題対策）
+        接続を使用して操作を実行
         """
         conn = cls.get_connection()
         cursor = conn.cursor()
@@ -77,7 +77,7 @@ class PGVectorManager:
 
 def delete_video_vectors(video_id):
     """
-    指定された動画IDに関連するベクトルデータをPGVectorから確実に削除（DRY原則・N+1問題対策）
+    指定された動画IDに関連するベクトルデータをPGVectorから確実に削除
     """
     try:
         config = PGVectorManager.get_config()

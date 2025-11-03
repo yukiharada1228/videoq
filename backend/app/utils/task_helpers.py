@@ -1,5 +1,5 @@
 """
-タスク処理の共通ユーティリティ（DRY原則・N+1問題対策）
+タスク処理の共通ユーティリティ
 """
 
 import logging
@@ -155,7 +155,7 @@ class ErrorHandler:
         error: Exception, video_id: int, task_instance=None, max_retries: int = 3
     ) -> None:
         """
-        タスクエラーの共通処理（DRY原則・N+1問題対策）
+        タスクエラーの共通処理
 
         Args:
             error: 発生したエラー

@@ -2,15 +2,16 @@ import csv
 import json
 
 from app.authentication import CookieJWTAuthentication
-from app.models import ChatLog, VideoGroup
+from app.models import ChatLog, VideoGroup, VideoGroupMember
 from app.utils.encryption import decrypt_api_key
 from app.utils.responses import create_error_response
 from app.utils.vector_manager import PGVectorManager
 from app.views import IsAuthenticatedOrSharedAccess, ShareTokenAuthentication
+from django.db.models import Prefetch
 from django.http import HttpResponse
-from langchain_postgres import PGVector
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_openai import OpenAIEmbeddings
+from langchain_postgres import PGVector
 from rest_framework import generics, status
 from rest_framework.permissions import BasePermission, IsAuthenticated
 from rest_framework.response import Response
@@ -18,6 +19,77 @@ from rest_framework.views import APIView
 
 from .langchain_utils import get_langchain_llm, handle_langchain_exception
 from .serializers import ChatLogSerializer
+
+
+def _get_chat_logs_queryset(group, ascending=True):
+    """
+    チャットログクエリセットを取得
+
+    Args:
+        group: VideoGroupインスタンス
+        ascending: 昇順かどうか（True: 昇順、False: 降順）
+
+    Returns:
+        QuerySet: チャットログのクエリセット
+    """
+    order_field = "created_at" if ascending else "-created_at"
+    return group.chat_logs.select_related("user").order_by(order_field)
+
+
+def _create_vector_store(user):
+    """
+    ベクトルストアを作成（DRY原則）
+
+    Args:
+        user: ユーザーオブジェクト
+
+    Returns:
+        PGVector: ベクトルストアインスタンス
+    """
+    api_key = decrypt_api_key(user.encrypted_openai_api_key)
+    embeddings = OpenAIEmbeddings(model="text-embedding-3-small", api_key=api_key)
+    config = PGVectorManager.get_config()
+    # langchain_postgresはpsycopg3を使用するため、接続文字列を変換
+    # postgresql:// → postgresql+psycopg://
+    connection_str = config["database_url"]
+    if connection_str.startswith("postgresql://"):
+        connection_str = connection_str.replace(
+            "postgresql://", "postgresql+psycopg://", 1
+        )
+
+    return PGVector.from_existing_index(
+        collection_name=config["collection_name"],
+        embedding=embeddings,
+        connection=connection_str,  # langchain_postgresではconnectionパラメータを使用（psycopg3形式）
+        use_jsonb=True,  # JSONBフィルタリングを有効化（$in演算子を使用するために必要）
+    )
+
+
+def _get_video_group_with_members(group_id, user_id=None, share_token=None):
+    """
+    グループとメンバー情報を取得
+
+    Args:
+        group_id: グループID
+        user_id: ユーザーID（オプション）
+        share_token: 共有トークン（オプション）
+
+    Returns:
+        VideoGroup: グループオブジェクト
+    """
+    queryset = VideoGroup.objects.select_related("user").prefetch_related(
+        Prefetch(
+            "members",
+            queryset=VideoGroupMember.objects.select_related("video"),
+        )
+    )
+
+    if share_token:
+        return queryset.get(id=group_id, share_token=share_token)
+    elif user_id:
+        return queryset.get(id=group_id, user_id=user_id)
+    else:
+        return queryset.get(id=group_id)
 
 
 class ChatView(generics.CreateAPIView):
@@ -40,11 +112,7 @@ class ChatView(generics.CreateAPIView):
                 )
 
             try:
-                group = (
-                    VideoGroup.objects.select_related("user")
-                    .prefetch_related("members")
-                    .get(id=group_id, share_token=share_token)
-                )
+                group = _get_video_group_with_members(group_id, share_token=share_token)
                 user = group.user  # グループオーナーのユーザー
             except VideoGroup.DoesNotExist:
                 return create_error_response(
@@ -87,11 +155,7 @@ class ChatView(generics.CreateAPIView):
                 # 共有トークンの場合は既にグループを取得済み
                 if not is_shared:
                     try:
-                        group = (
-                            VideoGroup.objects.select_related("user")
-                            .prefetch_related("members")
-                            .get(id=group_id, user_id=user.id)
-                        )
+                        group = _get_video_group_with_members(group_id, user_id=user.id)
                     except VideoGroup.DoesNotExist:
                         return create_error_response(
                             "指定のグループが見つかりません", status.HTTP_404_NOT_FOUND
@@ -106,40 +170,26 @@ class ChatView(generics.CreateAPIView):
                 if not query_text:
                     query_text = messages[-1].get("content", "")
 
-                # ベクトルストアへ接続
-                api_key = decrypt_api_key(user.encrypted_openai_api_key)
-                embeddings = OpenAIEmbeddings(
-                    model="text-embedding-3-small", api_key=api_key
-                )
-                config = PGVectorManager.get_config()
-                # langchain_postgresはpsycopg3を使用するため、接続文字列を変換
-                # postgresql:// → postgresql+psycopg://
-                connection_str = config["database_url"]
-                if connection_str.startswith("postgresql://"):
-                    connection_str = connection_str.replace("postgresql://", "postgresql+psycopg://", 1)
-                
-                vector_store = PGVector.from_existing_index(
-                    collection_name=config["collection_name"],
-                    embedding=embeddings,
-                    connection=connection_str,  # langchain_postgresではconnectionパラメータを使用（psycopg3形式）
-                    use_jsonb=True,  # JSONBフィルタリングを有効化（$in演算子を使用するために必要）
-                )
+                # ベクトルストアへ接続（DRY原則）
+                vector_store = _create_vector_store(user)
 
-                # グループ内の video_id をクエリ時にフィルタ
-                group_video_ids = list(group.members.values_list("video_id", flat=True))
+                # グループ内の video_id をクエリ時にフィルタ（N+1問題対策: prefetch済みデータを使用）
+                group_video_ids = [member.video_id for member in group.members.all()]
 
                 # グループに動画が追加されている場合のみRAGを実行
                 if group_video_ids:
                     # cmetadata->>'video_id'は文字列として取得されるため、文字列に変換
                     # (削除クエリでも str(video_id) を使用しているため)
                     group_video_ids_str = [str(vid) for vid in group_video_ids]
-                    
+
                     docs = vector_store.similarity_search(
                         query_text,
                         k=6,
                         filter={
                             "user_id": user.id,
-                            "video_id": {"$in": group_video_ids_str},  # 文字列リストに変換（JSONBから文字列として取得されるため）
+                            "video_id": {
+                                "$in": group_video_ids_str
+                            },  # 文字列リストに変換（JSONBから文字列として取得されるため）
                         },
                     )
                 else:
@@ -223,13 +273,13 @@ class ChatHistoryView(generics.ListAPIView):
             return ChatLog.objects.none()
 
         try:
-            group = VideoGroup.objects.select_related("user").get(
-                id=group_id, user_id=self.request.user.id
+            group = _get_video_group_with_members(
+                group_id, user_id=self.request.user.id
             )
         except VideoGroup.DoesNotExist:
             return ChatLog.objects.none()
 
-        return group.chat_logs.select_related("user").order_by("-created_at")
+        return _get_chat_logs_queryset(group, ascending=False)
 
 
 class ChatHistoryExportView(APIView):
@@ -250,15 +300,13 @@ class ChatHistoryExportView(APIView):
             )
 
         try:
-            group = VideoGroup.objects.select_related("user").get(
-                id=group_id, user_id=request.user.id
-            )
+            group = _get_video_group_with_members(group_id, user_id=request.user.id)
         except VideoGroup.DoesNotExist:
             return create_error_response(
                 "指定のグループが見つかりません", status.HTTP_404_NOT_FOUND
             )
 
-        queryset = group.chat_logs.select_related("user").order_by("created_at")
+        queryset = _get_chat_logs_queryset(group, ascending=True)
 
         response = HttpResponse(content_type="text/csv; charset=utf-8")
         filename = f"chat_history_group_{group.id}.csv"
