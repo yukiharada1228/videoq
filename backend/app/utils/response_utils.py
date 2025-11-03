@@ -185,7 +185,7 @@ class ValidationHelper:
 
 
 class CacheHelper:
-    """キャッシュの共通ヘルパー（DRY原則・N+1問題対策）"""
+    """キャッシュの共通ヘルパー"""
 
     @staticmethod
     def get_cache_key(prefix: str, *args: Any) -> str:

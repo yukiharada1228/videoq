@@ -1,6 +1,9 @@
+import logging
 import secrets
 
 from app.models import Video, VideoGroup, VideoGroupMember
+
+logger = logging.getLogger(__name__)
 from app.utils.decorators import authenticated_view_with_error_handling
 from app.utils.mixins import AuthenticatedViewMixin, DynamicSerializerMixin
 from app.utils.query_optimizer import BatchProcessor, QueryOptimizer
@@ -17,10 +20,10 @@ from .serializers import (VideoCreateSerializer, VideoGroupCreateSerializer,
 
 
 class BaseVideoView(AuthenticatedViewMixin):
-    """共通のVideoビュー基底クラス（DRY原則・N+1問題対策）"""
+    """共通のVideoビュー基底クラス"""
 
     def get_queryset(self):
-        """現在のユーザーのVideoのみを返す共通ロジック（N+1問題対策）"""
+        """現在のユーザーのVideoのみを返す共通ロジック"""
         return QueryOptimizer.get_videos_with_metadata(
             user_id=self.request.user.id,
             include_transcript=self.should_include_transcript(),
@@ -90,11 +93,7 @@ class VideoDetailView(
     def _update_video_title_in_pgvector(self, video_id, new_title):
         """PGVectorのmetadata内のvideo_titleを更新"""
         try:
-            import logging
-
             from app.utils.vector_manager import PGVectorManager
-
-            logger = logging.getLogger(__name__)
 
             def update_operation(cursor):
                 update_query = """
@@ -121,16 +120,13 @@ class VideoDetailView(
                 )
 
         except Exception as e:
-            import logging
-
-            logger = logging.getLogger(__name__)
             logger.warning(
                 f"Failed to update video_title in PGVector for video {video_id}: {e}",
                 exc_info=True,
             )
 
     def destroy(self, request, *args, **kwargs):
-        """Video削除時にファイルとベクトルデータも削除（DRY原則・N+1問題対策）"""
+        """Video削除時にファイルとベクトルデータも削除"""
         instance = self.get_object()
         video_id = instance.id
 
@@ -154,17 +150,11 @@ class VideoDetailView(
             deleted_count = PGVectorManager.execute_with_connection(delete_operation)
 
             if deleted_count > 0:
-                import logging
-
-                logger = logging.getLogger(__name__)
                 logger.info(
                     f"Deleted {deleted_count} vector documents for video {video_id}"
                 )
 
         except Exception as e:
-            import logging
-
-            logger = logging.getLogger(__name__)
             logger.warning(f"Failed to delete vectors for video {video_id}: {e}")
 
         return super().destroy(request, *args, **kwargs)
@@ -174,7 +164,7 @@ class BaseVideoGroupView(AuthenticatedViewMixin):
     """共通のVideoGroupビュー基底クラス（DRY原則）"""
 
     def _get_filtered_queryset(self, annotate_only=False):
-        """共通のクエリ取得ロジック（DRY原則・N+1問題対策）"""
+        """共通のクエリ取得ロジック"""
         return QueryOptimizer.get_video_groups_with_videos(
             user_id=self.request.user.id,
             include_videos=not annotate_only,
@@ -227,7 +217,7 @@ def _handle_validation_error(value, entity_name: str):
 def _validate_and_get_resource(
     user, model_class, resource_id, entity_name: str, select_related_fields=None
 ):
-    """共通のリソース取得と検証ロジック（DRY原則・N+1問題対策）"""
+    """共通のリソース取得と検証ロジック"""
     # N+1問題対策: filter().first()を使用してNoneを返す（例外を投げない）
     # userでフィルタリングしているので所有権の確認は自動的に行われる
     queryset = model_class.objects.filter(user=user, id=resource_id)
@@ -247,7 +237,7 @@ def _validate_and_get_resource(
 
 
 def _get_group_and_video(user, group_id, video_id, select_related_fields=None):
-    """共通のグループとビデオ取得ロジック（DRY原則・N+1問題対策）"""
+    """共通のグループとビデオ取得ロジック"""
     # DRY原則: 共通の検証関数を使用
     # N+1問題対策: 必要に応じてselect_relatedを適用
     group, error = _validate_and_get_resource(
@@ -293,7 +283,7 @@ def _handle_group_video_operation(
     success_status=status.HTTP_200_OK,
 ):
     """
-    グループと動画の操作を共通処理（DRY原則・N+1問題対策）
+    グループと動画の操作を共通処理
 
     Args:
         request: HTTPリクエスト
@@ -324,7 +314,7 @@ def _handle_group_video_operation(
 
 
 def _get_member_queryset(group, video=None, select_related=False):
-    """共通のメンバークエリ（DRY原則・N+1問題対策）"""
+    """共通のメンバークエリ"""
     queryset = VideoGroupMember.objects.filter(group=group)
     if video:
         queryset = queryset.filter(video=video)
@@ -337,14 +327,14 @@ def _get_member_queryset(group, video=None, select_related=False):
 
 
 def _member_exists(group, video):
-    """メンバーの存在チェック（DRY原則・N+1問題対策）"""
+    """メンバーの存在チェック"""
     return _get_member_queryset(group, video).exists()
 
 
 def _check_and_get_member(
     group, video, error_message, status_code=status.HTTP_404_NOT_FOUND
 ):
-    """メンバーの存在チェックと取得（DRY原則・N+1問題対策）"""
+    """メンバーの存在チェックと取得"""
     member = _get_member_queryset(group, video).first()
     if not member:
         return None, create_error_response(error_message, status_code)
@@ -356,7 +346,7 @@ def _check_and_get_member(
 
 def _add_video_to_group_operation(group, video):
     """動画をグループに追加する操作（DRY原則）"""
-    # すでに追加されているかチェック（N+1問題対策・DRY原則: 1つのクエリのみ）
+    # すでに追加されているかチェック
     member = _get_member_queryset(group, video).first()
     if member:
         return create_error_response(
@@ -373,7 +363,7 @@ def _add_video_to_group_operation(group, video):
 
 @authenticated_view_with_error_handling(["POST"])
 def add_video_to_group(request, group_id, video_id):
-    """グループに動画を追加（DRY原則・N+1問題対策）"""
+    """グループに動画を追加"""
     return _handle_group_video_operation(
         request,
         group_id,
@@ -386,7 +376,7 @@ def add_video_to_group(request, group_id, video_id):
 
 @authenticated_view_with_error_handling(["POST"])
 def add_videos_to_group(request, group_id):
-    """グループに複数の動画を追加（N+1問題対策・DRY原則）"""
+    """グループに複数の動画を追加"""
     # DRY原則: 共通の検証関数を使用
     group, error = _validate_and_get_resource(
         request.user, VideoGroup, group_id, "グループ"
@@ -448,7 +438,7 @@ def remove_video_from_group(request, group_id, video_id):
     if error:
         return error
 
-    # グループメンバーを削除（DRY原則・N+1問題対策）
+    # グループメンバーを削除
     member, error = _check_and_get_member(
         group, video, "この動画はグループに追加されていません"
     )

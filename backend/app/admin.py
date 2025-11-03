@@ -17,7 +17,7 @@ class BaseAdminMixin:
         request, model_class, select_related_fields=None, annotate_fields=None
     ):
         """
-        最適化されたクエリセットを取得（N+1問題対策・DRY原則）
+        最適化されたクエリセットを取得
         """
         queryset = model_class.objects.all()
 
@@ -77,7 +77,7 @@ class VideoGroupAdmin(admin.ModelAdmin):
         )
 
     def get_video_count(self, obj):
-        """annotateで追加されたvideo_countを表示（DRY原則・N+1問題対策）"""
+        """annotateで追加されたvideo_countを表示"""
         return getattr(obj, "video_count", obj.members.count())
 
     get_video_count.short_description = "動画数"

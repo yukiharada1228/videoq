@@ -102,7 +102,7 @@ class Video(models.Model):
 @receiver(post_delete, sender=Video)
 def delete_video_vectors(sender, instance, **kwargs):
     """
-    Videoが削除された際にPGVectorからベクトルデータも削除（DRY原則・N+1問題対策）
+    Videoが削除された際にPGVectorからベクトルデータも削除
     """
     try:
         # DRY原則: PGVectorManagerを使用してベクトル削除
