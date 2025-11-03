@@ -28,7 +28,7 @@ class Migration(migrations.Migration):
                 (
                     "file",
                     models.FileField(
-                        storage=app.models.SafeFileStorage(),
+                        storage=app.models.SafeFileSystemStorage(),
                         upload_to=app.models.user_directory_path,
                     ),
                 ),
