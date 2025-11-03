@@ -8,6 +8,7 @@ import os
 import subprocess
 import tempfile
 from concurrent.futures import ThreadPoolExecutor
+
 from app.models import Video
 from app.utils.encryption import decrypt_api_key
 from app.utils.task_helpers import (BatchProcessor, ErrorHandler,
@@ -86,9 +87,6 @@ def _parse_srt_scenes(srt_content):
     return SubtitleParser.parse_srt_scenes(srt_content)
 
 
-# PGVector操作は utils/vector_manager.py に移動済み
-
-
 def _index_scenes_to_vectorstore(scene_docs, video, api_key):
     """
     LangChain + pgvector でベクトルインデックスを作成
@@ -144,14 +142,16 @@ def extract_and_split_audio(input_path, max_size_mb=24, temp_manager=None):
         probe_result = subprocess.run(
             [
                 "ffprobe",
-                "-v", "quiet",
-                "-print_format", "json",
+                "-v",
+                "quiet",
+                "-print_format",
+                "json",
                 "-show_format",
-                input_path
+                input_path,
             ],
             capture_output=True,
             text=True,
-            check=True
+            check=True,
         )
         probe = json.loads(probe_result.stdout)
         duration = float(probe["format"]["duration"])
@@ -171,15 +171,18 @@ def extract_and_split_audio(input_path, max_size_mb=24, temp_manager=None):
         subprocess.run(
             [
                 "ffmpeg",
-                "-i", input_path,
-                "-acodec", "mp3",
-                "-ab", "128k",
+                "-i",
+                input_path,
+                "-acodec",
+                "mp3",
+                "-ab",
+                "128k",
                 "-y",  # overwrite output
-                temp_audio_path
+                temp_audio_path,
             ],
             check=True,
             capture_output=True,
-            text=True
+            text=True,
         )
 
         # Check audio file size
@@ -220,17 +223,22 @@ def extract_and_split_audio(input_path, max_size_mb=24, temp_manager=None):
                 subprocess.run(
                     [
                         "ffmpeg",
-                        "-i", input_path,
-                        "-ss", str(start_time),
-                        "-t", str(segment_duration_actual),
-                        "-acodec", "mp3",
-                        "-ab", "128k",
+                        "-i",
+                        input_path,
+                        "-ss",
+                        str(start_time),
+                        "-t",
+                        str(segment_duration_actual),
+                        "-acodec",
+                        "mp3",
+                        "-ab",
+                        "128k",
                         "-y",  # overwrite output
-                        audio_path
+                        audio_path,
                     ],
                     check=True,
                     capture_output=True,
-                    text=True
+                    text=True,
                 )
 
                 audio_segments.append(
