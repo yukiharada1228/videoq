@@ -2,12 +2,12 @@
 Celeryタスク - Whisper文字起こし処理
 """
 
+import json
 import logging
 import os
+import subprocess
 import tempfile
 from concurrent.futures import ThreadPoolExecutor
-
-import ffmpeg
 from app.models import Video
 from app.utils.encryption import decrypt_api_key
 from app.utils.task_helpers import (BatchProcessor, ErrorHandler,
@@ -140,8 +140,20 @@ def extract_and_split_audio(input_path, max_size_mb=24, temp_manager=None):
     temp_manager: TemporaryFileManager instance for cleanup
     """
     try:
-        # Get video information
-        probe = ffmpeg.probe(input_path)
+        # Get video information using ffprobe
+        probe_result = subprocess.run(
+            [
+                "ffprobe",
+                "-v", "quiet",
+                "-print_format", "json",
+                "-show_format",
+                input_path
+            ],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        probe = json.loads(probe_result.stdout)
         duration = float(probe["format"]["duration"])
 
         logger.info(f"Video duration: {duration:.2f} seconds")
@@ -155,11 +167,20 @@ def extract_and_split_audio(input_path, max_size_mb=24, temp_manager=None):
             temp_dir, f"temp_audio_{os.path.basename(input_path)}.mp3"
         )
 
-        stream = ffmpeg.input(input_path)
-        stream = ffmpeg.output(
-            stream, temp_audio_path, acodec="mp3", audio_bitrate="128k"
+        # Extract audio using ffmpeg
+        subprocess.run(
+            [
+                "ffmpeg",
+                "-i", input_path,
+                "-acodec", "mp3",
+                "-ab", "128k",
+                "-y",  # overwrite output
+                temp_audio_path
+            ],
+            check=True,
+            capture_output=True,
+            text=True
         )
-        ffmpeg.run(stream, overwrite_output=True, quiet=True)
 
         # Check audio file size
         audio_size_mb = os.path.getsize(temp_audio_path) / (1024 * 1024)
@@ -189,19 +210,28 @@ def extract_and_split_audio(input_path, max_size_mb=24, temp_manager=None):
             for i in range(num_segments):
                 start_time = i * segment_duration
                 end_time = min((i + 1) * segment_duration, duration)
+                segment_duration_actual = end_time - start_time
 
                 audio_path = os.path.join(
                     temp_dir, f"audio_segment_{i}_{os.path.basename(input_path)}.mp3"
                 )
 
-                # Extract audio
-                stream = ffmpeg.input(
-                    input_path, ss=start_time, t=end_time - start_time
+                # Extract audio segment using ffmpeg
+                subprocess.run(
+                    [
+                        "ffmpeg",
+                        "-i", input_path,
+                        "-ss", str(start_time),
+                        "-t", str(segment_duration_actual),
+                        "-acodec", "mp3",
+                        "-ab", "128k",
+                        "-y",  # overwrite output
+                        audio_path
+                    ],
+                    check=True,
+                    capture_output=True,
+                    text=True
                 )
-                stream = ffmpeg.output(
-                    stream, audio_path, acodec="mp3", audio_bitrate="128k"
-                )
-                ffmpeg.run(stream, overwrite_output=True, quiet=True)
 
                 audio_segments.append(
                     {"path": audio_path, "start_time": start_time, "end_time": end_time}
@@ -214,6 +244,9 @@ def extract_and_split_audio(input_path, max_size_mb=24, temp_manager=None):
 
         return audio_segments
 
+    except subprocess.CalledProcessError as e:
+        logger.error(f"Error running ffmpeg/ffprobe: {e.stderr}")
+        return []
     except Exception as e:
         logger.error(f"Error extracting/splitting audio: {e}")
         return []
