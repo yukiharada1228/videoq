@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { apiClient, VideoGroup, VideoList, VideoInGroup } from '@/lib/api';
@@ -126,6 +127,10 @@ export default function VideoGroupDetailPage() {
 
   const [isDeleting, setIsDeleting] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [videoSearch, setVideoSearch] = useState('');
+  const [videoSearchInput, setVideoSearchInput] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('');
+  const [ordering, setOrdering] = useState<'uploaded_at_desc' | 'uploaded_at_asc' | 'title_asc' | 'title_desc'>('uploaded_at_desc');
   const [selectedVideos, setSelectedVideos] = useState<number[]>([]);
   const [isAdding, setIsAdding] = useState(false);
   const [selectedVideo, setSelectedVideo] = useState<SelectedVideo | null>(null);
@@ -161,14 +166,18 @@ export default function VideoGroupDetailPage() {
     if (!group?.videos) return;
     
     await loadAvailableVideos(async () => {
-      const videos = await apiClient.getVideos();
+      const videos = await apiClient.getVideos({
+        q: videoSearch.trim() || undefined,
+        status: statusFilter || undefined,
+        ordering,
+      });
       // すでにチャットグループに追加されている動画を除外
       const currentVideoIds = group.videos?.map(v => v.id) || [];
       // 共通のSet作成関数を使用（DRY原則・N+1問題対策）
       const currentVideoIdSet = createVideoIdSet(currentVideoIds);
       return videos.filter(v => !currentVideoIdSet.has(v.id));
     });
-  }, [group?.videos, loadAvailableVideos]);
+  }, [group?.videos, loadAvailableVideos, videoSearch, statusFilter, ordering]);
 
   useEffect(() => {
     if (groupId) {
@@ -177,12 +186,18 @@ export default function VideoGroupDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [groupId]);
 
+  // 検索入力のデバウンス
+  useEffect(() => {
+    const handler = setTimeout(() => setVideoSearch(videoSearchInput), 300);
+    return () => clearTimeout(handler);
+  }, [videoSearchInput]);
+
   useEffect(() => {
     if (isAddModalOpen && group) {
       loadAvailableVideosData();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAddModalOpen]);
+  }, [isAddModalOpen, videoSearch, statusFilter, ordering]);
 
   const handleAddVideos = async () => {
     if (selectedVideos.length === 0) {
@@ -553,6 +568,52 @@ export default function VideoGroupDetailPage() {
                     </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4 py-4">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Input
+                        placeholder="タイトル/説明を検索"
+                        value={videoSearchInput}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setVideoSearchInput(e.target.value)}
+                        className="w-full md:w-1/2"
+                      />
+                      <select
+                        value={statusFilter}
+                        onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setStatusFilter(e.target.value)}
+                        className="border border-gray-300 rounded px-2 py-2 text-sm bg-white"
+                      >
+                        <option value="">すべてのステータス</option>
+                        <option value="completed">完了</option>
+                        <option value="processing">処理中</option>
+                        <option value="pending">待機中</option>
+                        <option value="error">エラー</option>
+                      </select>
+                      <select
+                        value={ordering}
+                        onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setOrdering(e.target.value as any)}
+                        className="border border-gray-300 rounded px-2 py-2 text-sm bg-white"
+                      >
+                        <option value="uploaded_at_desc">新しい順</option>
+                        <option value="uploaded_at_asc">古い順</option>
+                        <option value="title_asc">タイトル昇順</option>
+                        <option value="title_desc">タイトル降順</option>
+                      </select>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setSelectedVideos(availableVideos?.map(v => v.id) ?? [])}
+                        disabled={!availableVideos?.length}
+                      >
+                        全選択
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setSelectedVideos([])}
+                        disabled={selectedVideos.length === 0}
+                      >
+                        選択解除
+                      </Button>
+                    </div>
+
                     {isLoadingVideos ? (
                       <LoadingSpinner />
                     ) : availableVideos && availableVideos.length === 0 ? (

@@ -49,7 +49,7 @@ def _create_vector_store(user):
     api_key = decrypt_api_key(user.encrypted_openai_api_key)
     embeddings = OpenAIEmbeddings(model="text-embedding-3-small", api_key=api_key)
     config = PGVectorManager.get_config()
-    
+
     connection_str = PGVectorManager.get_psycopg_connection_string()
 
     return PGVector.from_existing_index(
