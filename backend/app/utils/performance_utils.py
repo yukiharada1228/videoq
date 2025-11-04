@@ -22,7 +22,7 @@ class PerformanceOptimizer:
     @staticmethod
     def measure_time(func: Callable) -> Callable:
         """
-        実行時間を測定するデコレータ（DRY原則）
+        実行時間を測定するデコレータ
 
         Args:
             func: 測定する関数
@@ -45,7 +45,7 @@ class PerformanceOptimizer:
     @staticmethod
     def measure_async_time(func: Callable) -> Callable:
         """
-        非同期実行時間を測定するデコレータ（DRY原則）
+        非同期実行時間を測定するデコレータ
 
         Args:
             func: 測定する非同期関数
@@ -96,7 +96,7 @@ class CacheManager:
     @staticmethod
     def get_or_set(key: str, default: Callable[[], T], timeout: int = 300) -> T:
         """
-        キャッシュから取得、なければ設定（DRY原則）
+        キャッシュから取得、なければ設定
 
         Args:
             key: キャッシュキー
@@ -115,7 +115,7 @@ class CacheManager:
     @staticmethod
     def get_or_set_async(key: str, default: Callable[[], T], timeout: int = 300) -> T:
         """
-        非同期キャッシュから取得、なければ設定（DRY原則）
+        非同期キャッシュから取得、なければ設定
 
         Args:
             key: キャッシュキー
@@ -134,7 +134,7 @@ class CacheManager:
     @staticmethod
     def invalidate_pattern(pattern: str) -> None:
         """
-        パターンに一致するキャッシュを無効化（DRY原則）
+        パターンに一致するキャッシュを無効化
 
         Args:
             pattern: 無効化するパターン
@@ -144,7 +144,7 @@ class CacheManager:
 
 
 class MemoryOptimizer:
-    """メモリ最適化の共通クラス（DRY原則）"""
+    """メモリ最適化の共通クラス"""
 
     @staticmethod
     def chunked_iterator(queryset: QuerySet, chunk_size: int = 1000):
@@ -169,7 +169,7 @@ class MemoryOptimizer:
         items: List[Any], mapper: Callable[[Any], Any], chunk_size: int = 1000
     ) -> List[Any]:
         """
-        メモリ効率的なマッピング（DRY原則）
+        メモリ効率的なマッピング
 
         Args:
             items: マッピングするアイテムのリスト

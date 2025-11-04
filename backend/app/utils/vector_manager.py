@@ -22,7 +22,7 @@ class PGVectorManager:
     @classmethod
     def get_config(cls):
         """
-        PGVector設定を取得（DRY原則・シングルトンパターン）
+        PGVector設定を取得（シングルトンパターン）
         """
         if cls._config is None:
             cls._config = {
@@ -39,7 +39,7 @@ class PGVectorManager:
     @classmethod
     def get_connection(cls):
         """
-        PGVector接続を取得（DRY原則・接続プール）
+        PGVector接続を取得（接続プール）
         """
         if cls._connection is None or cls._connection.closed:
             config = cls.get_config()
@@ -50,7 +50,7 @@ class PGVectorManager:
     @classmethod
     def close_connection(cls):
         """
-        接続を閉じる（DRY原則）
+        接続を閉じる
         """
         if cls._connection and not cls._connection.closed:
             cls._connection.close()
@@ -73,6 +73,19 @@ class PGVectorManager:
             raise e
         finally:
             cursor.close()
+
+    @classmethod
+    def get_psycopg_connection_string(cls):
+        """
+        langchain_postgres用の接続文字列を取得
+        postgresql:// → postgresql+psycopg:// に変換
+        """
+        connection_str = cls.get_config()["database_url"]
+        if connection_str.startswith("postgresql://"):
+            connection_str = connection_str.replace(
+                "postgresql://", "postgresql+psycopg://", 1
+            )
+        return connection_str
 
 
 def delete_video_vectors(video_id):
@@ -149,3 +162,49 @@ def delete_video_vectors_batch(video_ids):
         logger.warning(
             f"Failed to batch delete vectors for videos {video_ids}: {e}", exc_info=True
         )
+
+
+def update_video_title_in_vectors(video_id, new_title):
+    """
+    PGVectorのmetadata内のvideo_titleを更新
+    
+    Args:
+        video_id: 動画ID
+        new_title: 新しいタイトル
+    
+    Returns:
+        int: 更新されたドキュメント数
+    """
+    try:
+        def update_operation(cursor):
+            update_query = """
+                UPDATE langchain_pg_embedding 
+                SET cmetadata = jsonb_set(
+                    cmetadata::jsonb,
+                    '{video_title}',
+                    to_jsonb(%s::text)
+                )
+                WHERE cmetadata->>'video_id' = %s
+            """
+            cursor.execute(update_query, (new_title, str(video_id)))
+            return cursor.rowcount
+
+        updated_count = PGVectorManager.execute_with_connection(update_operation)
+
+        if updated_count > 0:
+            logger.info(
+                f"Updated video_title to '{new_title}' for {updated_count} vector documents (video ID: {video_id})"
+            )
+        else:
+            logger.info(
+                f"No vector documents found to update for video ID: {video_id}"
+            )
+        
+        return updated_count
+
+    except Exception as e:
+        logger.warning(
+            f"Failed to update video_title in PGVector for video {video_id}: {e}",
+            exc_info=True,
+        )
+        return 0

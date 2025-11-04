@@ -8,16 +8,16 @@ logger = logging.getLogger(__name__)
 
 
 class UserOwnedSerializerMixin:
-    """ユーザー所有リソースの共通シリアライザー基底クラス（DRY原則）"""
+    """ユーザー所有リソースの共通シリアライザー基底クラス"""
 
     def create(self, validated_data):
-        """ユーザーを現在のユーザーに設定（DRY原則）"""
+        """ユーザーを現在のユーザーに設定"""
         validated_data["user"] = self.context["request"].user
         return super().create(validated_data)
 
 
 class BaseVideoGroupSerializer(serializers.ModelSerializer):
-    """VideoGroupの共通基底シリアライザー（DRY原則）"""
+    """VideoGroupの共通基底シリアライザー"""
 
     class Meta:
         model = VideoGroup
@@ -148,12 +148,11 @@ class VideoGroupDetailSerializer(serializers.ModelSerializer):
         if not members:
             return []
 
-        # DRY原則: 共通のシリアライズ処理を使用
         return self._serialize_members_with_order(members)
 
     def _serialize_members_with_order(self, members):
         """メンバーをorder情報付きでシリアライズ"""
-        # VideoListSerializerを使って各videoをシリアライズ（絶対URLを自動生成・DRY原則）
+        # VideoListSerializerを使って各videoをシリアライズ（絶対URLを自動生成）
         videos = [member.video for member in members]
         video_data_list = VideoListSerializer(
             videos, many=True, context=self.context
@@ -167,22 +166,20 @@ class VideoGroupDetailSerializer(serializers.ModelSerializer):
 
     def get_owner_has_api_key(self, obj):
         """グループオーナーがAPIキーを持っているかを返す"""
-        # DRY原則: userオブジェクトを一度だけ取得
         user = obj.user
         if not user:
             return False
 
-        # DRY原則: シンプルな1行で返す
         return bool(user.encrypted_openai_api_key)
 
 
 class VideoGroupCreateSerializer(UserOwnedSerializerMixin, BaseVideoGroupSerializer):
-    """VideoGroup作成用のシリアライザー（DRY原則）"""
+    """VideoGroup作成用のシリアライザー"""
 
     pass
 
 
 class VideoGroupUpdateSerializer(BaseVideoGroupSerializer):
-    """VideoGroup更新用のシリアライザー（DRY原則）"""
+    """VideoGroup更新用のシリアライザー"""
 
     pass

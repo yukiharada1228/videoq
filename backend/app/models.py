@@ -142,34 +142,17 @@ class Video(models.Model):
 
 
 @receiver(post_delete, sender=Video)
-def delete_video_vectors(sender, instance, **kwargs):
+def delete_video_vectors_signal(sender, instance, **kwargs):
     """
     Videoが削除された際にPGVectorからベクトルデータも削除
     """
     try:
-        # DRY原則: PGVectorManagerを使用してベクトル削除
-        from app.utils.vector_manager import PGVectorManager
+        from app.utils.vector_manager import delete_video_vectors
 
-        def delete_operation(cursor):
-            delete_query = """
-                DELETE FROM langchain_pg_embedding 
-                WHERE cmetadata->>'video_id' = %s
-            """
-            cursor.execute(delete_query, (str(instance.id),))
-            return cursor.rowcount
-
-        deleted_count = PGVectorManager.execute_with_connection(delete_operation)
-
-        if deleted_count > 0:
-            import logging
-
-            logger = logging.getLogger(__name__)
-            logger.info(
-                f"Deleted {deleted_count} vector documents for video {instance.id}"
-            )
+        delete_video_vectors(instance.id)
 
     except Exception as e:
-        # ベクトル削除の失敗は動画削除を阻害しない（DRY原則）
+        # ベクトル削除の失敗は動画削除を阻害しない
         import logging
 
         logger = logging.getLogger(__name__)
