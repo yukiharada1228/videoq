@@ -459,6 +459,7 @@ class ApiClient {
         method: 'POST',
         headers,
         body: formData,
+        credentials: 'include',
       });
 
       return await this.parseJsonResponse<Video>(response);
