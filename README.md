@@ -40,7 +40,6 @@ ask-video/
 │   ├── media/                   # アップロードされたメディアファイル
 │   ├── pyproject.toml           # Python依存関係（uv）
 │   ├── uv.lock                   # uv依存関係ロックファイル
-│   ├── main.py                  # エントリーポイント
 │   ├── manage.py                # Django管理スクリプト
 │   ├── Dockerfile               # バックエンドDockerイメージ
 │   └── README.md                # バックエンドREADME
