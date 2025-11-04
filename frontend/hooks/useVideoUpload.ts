@@ -28,7 +28,9 @@ function validateVideoUpload(file: File | null, title: string): ValidationResult
   if (!file) {
     return { isValid: false, error: 'ファイルを選択してください' };
   }
-  if (!title.trim()) {
+  // タイトルが空の場合はファイル名を使用するので、ファイルがあればOK
+  const finalTitle = title.trim() || file.name.replace(/\.[^/.]+$/, '');
+  if (!finalTitle) {
     return { isValid: false, error: 'タイトルを入力してください' };
   }
   return { isValid: true };
@@ -48,9 +50,13 @@ export function useVideoUpload(): UseVideoUploadReturn {
 
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0]);
+      const selectedFile = e.target.files[0];
+      setFile(selectedFile);
+      // ファイル名（拡張子を除く）をタイトルに自動設定
+      const fileNameWithoutExt = selectedFile.name.replace(/\.[^/.]+$/, '');
+      setTitle(fileNameWithoutExt);
     }
-  }, []);
+  }, [setTitle]);
 
   const reset = useCallback(() => {
     setFile(null);
@@ -70,9 +76,12 @@ export function useVideoUpload(): UseVideoUploadReturn {
     }
 
     await uploadVideo(async () => {
+      // タイトルが空の場合はファイル名（拡張子を除く）を使用
+      const finalTitle = title.trim() || (file ? file.name.replace(/\.[^/.]+$/, '') : '');
+      
       const request: VideoUploadRequest = {
         file: file!,
-        title: title.trim(),
+        title: finalTitle,
         description: description.trim() || undefined,
       };
 

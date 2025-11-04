@@ -11,6 +11,7 @@ interface VideoUploadProps {
 
 export function VideoUpload({ onUploadSuccess }: VideoUploadProps) {
   const {
+    file,
     title,
     description,
     isUploading,
@@ -49,6 +50,7 @@ export function VideoUpload({ onUploadSuccess }: VideoUploadProps) {
             setTitle={setTitle}
             setDescription={setDescription}
             handleFileChange={handleFileChange}
+            file={file}
           />
         </form>
       </CardContent>
