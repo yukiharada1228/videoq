@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 class VideoTaskManager:
-    """動画タスク処理の共通管理クラス（DRY原則）"""
+    """動画タスク処理の共通管理クラス"""
 
     @staticmethod
     def get_video_with_user(video_id: int) -> Tuple[Optional[Video], Optional[str]]:
@@ -41,7 +41,7 @@ class VideoTaskManager:
     @staticmethod
     def update_video_status(video: Video, status: str, error_message: str = "") -> bool:
         """
-        動画のステータスを更新（DRY原則）
+        動画のステータスを更新
 
         Returns:
             bool: 更新成功かどうか
@@ -59,7 +59,7 @@ class VideoTaskManager:
     @staticmethod
     def validate_video_for_processing(video: Video) -> Tuple[bool, Optional[str]]:
         """
-        動画の処理可能性を検証（DRY原則）
+        動画の処理可能性を検証
 
         Returns:
             (is_valid, error_message)
@@ -87,7 +87,7 @@ class VideoTaskManager:
 
 
 class TemporaryFileManager:
-    """一時ファイル管理の共通クラス（DRY原則）"""
+    """一時ファイル管理の共通クラス"""
 
     def __init__(self):
         self.temp_files: List[str] = []
@@ -158,7 +158,7 @@ class BatchProcessor:
 
 
 class ErrorHandler:
-    """エラーハンドリングの共通クラス（DRY原則）"""
+    """エラーハンドリングの共通クラス"""
 
     @staticmethod
     def handle_task_error(
@@ -176,14 +176,12 @@ class ErrorHandler:
         logger.error(f"Error in task for video {video_id}: {error}", exc_info=True)
 
         # N+1問題対策: 動画ステータスをエラーに更新（select_relatedは不要）
-        # DRY原則: VideoTaskManagerを使用
         try:
             video = Video.objects.only("id").get(id=video_id)
             VideoTaskManager.update_video_status(video, "error", str(error))
         except Exception as update_error:
             logger.error(f"Failed to update video status: {update_error}")
 
-        # DRY原則: リトライ処理を共通化
         ErrorHandler._handle_retry_logic(task_instance, error, max_retries)
 
         raise error
@@ -191,7 +189,7 @@ class ErrorHandler:
     @staticmethod
     def _handle_retry_logic(task_instance, error: Exception, max_retries: int) -> None:
         """
-        リトライ処理の共通ロジック（DRY原則）
+        リトライ処理の共通ロジック
         """
         if task_instance and task_instance.request.retries < max_retries:
             logger.info(
@@ -204,7 +202,7 @@ class ErrorHandler:
     @staticmethod
     def safe_execute(func, *args, **kwargs):
         """
-        安全な関数実行（DRY原則）
+        安全な関数実行
 
         Returns:
             (result, error)
@@ -219,7 +217,7 @@ class ErrorHandler:
     @staticmethod
     def handle_database_error(error: Exception, operation: str) -> None:
         """
-        データベースエラーの共通処理（DRY原則）
+        データベースエラーの共通処理
         """
         logger.error(f"Database error during {operation}: {error}", exc_info=True)
         raise error
@@ -227,7 +225,7 @@ class ErrorHandler:
     @staticmethod
     def validate_required_fields(data: dict, required_fields: list) -> tuple[bool, str]:
         """
-        必須フィールドのバリデーション（DRY原則）
+        必須フィールドのバリデーション
 
         Returns:
             (is_valid, error_message)

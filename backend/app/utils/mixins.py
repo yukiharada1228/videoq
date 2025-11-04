@@ -1,30 +1,30 @@
-"""共通のミックスイン（DRY原則）"""
+"""共通のミックスイン"""
 
 from app.authentication import CookieJWTAuthentication
 from rest_framework.permissions import AllowAny, IsAuthenticated
 
 
 class AuthenticatedViewMixin:
-    """認証必須の共通ミックスイン（DRY原則）"""
+    """認証必須の共通ミックスイン"""
 
     permission_classes = [IsAuthenticated]
     authentication_classes = [CookieJWTAuthentication]
 
     def get_serializer_context(self):
-        """シリアライザーにリクエストコンテキストを渡す（DRY原則）"""
+        """シリアライザーにリクエストコンテキストを渡す"""
         context = super().get_serializer_context()
         context["request"] = self.request
         return context
 
 
 class PublicViewMixin:
-    """認証不要の共通ミックスイン（DRY原則）"""
+    """認証不要の共通ミックスイン"""
 
     permission_classes = [AllowAny]
 
 
 class DynamicSerializerMixin:
-    """動的にシリアライザーを切り替える共通ミックスイン（DRY原則）"""
+    """動的にシリアライザーを切り替える共通ミックスイン"""
 
     def get_serializer_class(self):
         """リクエストのメソッドに応じてシリアライザーを変更"""

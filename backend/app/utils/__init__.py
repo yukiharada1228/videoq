@@ -1,4 +1,3 @@
-# DRY原則: 共通のミックスインとヘルパー関数をエクスポート
 from .mixins import (AuthenticatedViewMixin, DynamicSerializerMixin,
                      PublicViewMixin)
 from .responses import create_error_response

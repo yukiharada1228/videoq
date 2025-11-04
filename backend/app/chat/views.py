@@ -38,7 +38,7 @@ def _get_chat_logs_queryset(group, ascending=True):
 
 def _create_vector_store(user):
     """
-    ベクトルストアを作成（DRY原則）
+    ベクトルストアを作成
 
     Args:
         user: ユーザーオブジェクト
@@ -49,13 +49,8 @@ def _create_vector_store(user):
     api_key = decrypt_api_key(user.encrypted_openai_api_key)
     embeddings = OpenAIEmbeddings(model="text-embedding-3-small", api_key=api_key)
     config = PGVectorManager.get_config()
-    # langchain_postgresはpsycopg3を使用するため、接続文字列を変換
-    # postgresql:// → postgresql+psycopg://
-    connection_str = config["database_url"]
-    if connection_str.startswith("postgresql://"):
-        connection_str = connection_str.replace(
-            "postgresql://", "postgresql+psycopg://", 1
-        )
+    
+    connection_str = PGVectorManager.get_psycopg_connection_string()
 
     return PGVector.from_existing_index(
         collection_name=config["collection_name"],
@@ -170,11 +165,13 @@ class ChatView(generics.CreateAPIView):
                 if not query_text:
                     query_text = messages[-1].get("content", "")
 
-                # ベクトルストアへ接続（DRY原則）
+                # ベクトルストアへ接続
                 vector_store = _create_vector_store(user)
 
                 # グループ内の video_id をクエリ時にフィルタ（N+1問題対策: prefetch済みデータを使用）
-                group_video_ids = [member.video_id for member in group.members.all()]
+                # list()で評価を確定してN+1問題を完全に回避
+                members = list(group.members.all())
+                group_video_ids = [member.video_id for member in members]
 
                 # グループに動画が追加されている場合のみRAGを実行
                 if group_video_ids:
@@ -206,10 +203,11 @@ class ChatView(generics.CreateAPIView):
                     # 関連動画の情報を保存
                     related_videos = []
                     for idx, d in enumerate(docs, 1):
-                        title = d.metadata.get("video_title", "")
-                        st = d.metadata.get("start_time", "")
-                        et = d.metadata.get("end_time", "")
-                        video_id = d.metadata.get("video_id", "")
+                        metadata = d.metadata
+                        title = metadata.get("video_title", "")
+                        st = metadata.get("start_time", "")
+                        et = metadata.get("end_time", "")
+                        video_id = metadata.get("video_id", "")
                         context_lines.append(
                             f"[{idx}] {title} {st} - {et}\n{d.page_content}"
                         )
