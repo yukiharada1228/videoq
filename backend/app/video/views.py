@@ -8,6 +8,7 @@ from app.utils.decorators import authenticated_view_with_error_handling
 from app.utils.mixins import AuthenticatedViewMixin, DynamicSerializerMixin
 from app.utils.query_optimizer import BatchProcessor, QueryOptimizer
 from app.utils.responses import create_error_response
+from django.db.models import Q
 from rest_framework import generics, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
@@ -49,6 +50,31 @@ class VideoListView(DynamicSerializerMixin, BaseVideoView, generics.ListCreateAP
         "GET": VideoListSerializer,
         "POST": VideoCreateSerializer,
     }
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        q = self.request.query_params.get("q", "").strip()
+        status_value = self.request.query_params.get("status", "").strip()
+        ordering = self.request.query_params.get("ordering", "").strip()
+
+        if q:
+            queryset = queryset.filter(
+                Q(title__icontains=q) | Q(description__icontains=q)
+            )
+
+        if status_value:
+            queryset = queryset.filter(status=status_value)
+
+        ordering_map = {
+            "uploaded_at_desc": "-uploaded_at",
+            "uploaded_at_asc": "uploaded_at",
+            "title_asc": "title",
+            "title_desc": "-title",
+        }
+        if ordering in ordering_map:
+            queryset = queryset.order_by(ordering_map[ordering])
+
+        return queryset
 
 
 class VideoDetailView(
@@ -421,9 +447,7 @@ def reorder_videos_in_group(request, group_id):
     # グループ内の動画メンバーを取得（N+1問題対策）
     # select_relatedでvideoデータも事前取得
     # list()で評価を確定してN+1問題を完全に回避
-    members = list(
-        VideoGroupMember.objects.filter(group=group).select_related("video")
-    )
+    members = list(VideoGroupMember.objects.filter(group=group).select_related("video"))
 
     # 指定されたvideo_idsがグループ内の動画と一致するかチェック
     # O(1)ルックアップのためにSetを使用
@@ -453,11 +477,11 @@ def reorder_videos_in_group(request, group_id):
 def _update_share_token(group, token_value):
     """
     共有トークンを更新する共通処理
-    
+
     Args:
         group: VideoGroupインスタンス
         token_value: 設定するトークン値（Noneの場合は削除）
-    
+
     Returns:
         None
     """
