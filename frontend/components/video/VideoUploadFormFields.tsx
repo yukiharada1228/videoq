@@ -15,6 +15,7 @@ interface VideoUploadFormFieldsProps {
   setTitle: (title: string) => void;
   setDescription: (description: string) => void;
   handleFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  file?: File | null;
   showCancelButton?: boolean;
   onCancel?: () => void;
   cancelButtonClassName?: string;
@@ -31,12 +32,22 @@ export function VideoUploadFormFields({
   setTitle,
   setDescription,
   handleFileChange,
+  file,
   showCancelButton = false,
   onCancel,
   cancelButtonClassName,
   hideButtons = false,
   renderButtons,
 }: VideoUploadFormFieldsProps) {
+  // プレースホルダーを動的に生成
+  const getTitlePlaceholder = () => {
+    if (file) {
+      const fileNameWithoutExt = file.name.replace(/\.[^/.]+$/, '');
+      return `${fileNameWithoutExt}（デフォルト）`;
+    }
+    return '動画のタイトルを入力';
+  };
+
   return (
     <>
       <div className="space-y-2">
@@ -58,7 +69,7 @@ export function VideoUploadFormFields({
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="動画のタイトルを入力"
+          placeholder={getTitlePlaceholder()}
           disabled={isUploading}
           required
         />
