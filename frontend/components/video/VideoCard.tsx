@@ -53,16 +53,16 @@ export function VideoCard({ video, showLink = true, className = '', onClick }: V
         </div>
       </div>
 
-      <CardContent className="p-2 md:p-3 space-y-1 flex flex-col h-full">
+      <CardContent className="p-2 md:p-3 space-y-1.5 flex flex-col">
         {/* タイトル */}
-        <div className="flex-1 min-h-0">
+        <div>
           <h3 className="font-medium text-sm text-gray-900 line-clamp-2 group-hover:text-blue-600 transition-colors leading-tight">
             {video.title}
           </h3>
         </div>
 
         {/* 日時 */}
-        <div className="flex items-center text-xs text-gray-400 flex-shrink-0">
+        <div className="flex items-center text-xs text-gray-500">
           <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
