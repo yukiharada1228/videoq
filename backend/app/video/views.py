@@ -45,7 +45,6 @@ class VideoListView(DynamicSerializerMixin, BaseVideoView, generics.ListCreateAP
     - 将来的に追加の関連データが必要な場合はget_queryset()をオーバーライド可能
     """
 
-    # DRY原則: シリアライザーマッピング
     serializer_map = {
         "GET": VideoListSerializer,
         "POST": VideoCreateSerializer,
@@ -57,7 +56,6 @@ class VideoDetailView(
 ):
     """Video詳細・更新・削除ビュー"""
 
-    # DRY原則: シリアライザーマッピング
     serializer_map = {
         "GET": VideoSerializer,
         "PUT": VideoUpdateSerializer,
@@ -92,38 +90,9 @@ class VideoDetailView(
 
     def _update_video_title_in_pgvector(self, video_id, new_title):
         """PGVectorのmetadata内のvideo_titleを更新"""
-        try:
-            from app.utils.vector_manager import PGVectorManager
+        from app.utils.vector_manager import update_video_title_in_vectors
 
-            def update_operation(cursor):
-                update_query = """
-                    UPDATE langchain_pg_embedding 
-                    SET cmetadata = jsonb_set(
-                        cmetadata::jsonb,
-                        '{video_title}',
-                        to_jsonb(%s::text)
-                    )
-                    WHERE cmetadata->>'video_id' = %s
-                """
-                cursor.execute(update_query, (new_title, str(video_id)))
-                return cursor.rowcount
-
-            updated_count = PGVectorManager.execute_with_connection(update_operation)
-
-            if updated_count > 0:
-                logger.info(
-                    f"Updated video_title to '{new_title}' for {updated_count} vector documents (video ID: {video_id})"
-                )
-            else:
-                logger.info(
-                    f"No vector documents found to update for video ID: {video_id}"
-                )
-
-        except Exception as e:
-            logger.warning(
-                f"Failed to update video_title in PGVector for video {video_id}: {e}",
-                exc_info=True,
-            )
+        update_video_title_in_vectors(video_id, new_title)
 
     def destroy(self, request, *args, **kwargs):
         """Video削除時にファイルとベクトルデータも削除"""
@@ -134,26 +103,10 @@ class VideoDetailView(
         if instance.file:
             instance.file.delete(save=False)
 
-        # DRY原則: PGVectorManagerを使用してベクトル削除
-        from app.utils.vector_manager import PGVectorManager
+        from app.utils.vector_manager import delete_video_vectors
 
         try:
-
-            def delete_operation(cursor):
-                delete_query = """
-                    DELETE FROM langchain_pg_embedding 
-                    WHERE cmetadata->>'video_id' = %s
-                """
-                cursor.execute(delete_query, (str(video_id),))
-                return cursor.rowcount
-
-            deleted_count = PGVectorManager.execute_with_connection(delete_operation)
-
-            if deleted_count > 0:
-                logger.info(
-                    f"Deleted {deleted_count} vector documents for video {video_id}"
-                )
-
+            delete_video_vectors(video_id)
         except Exception as e:
             logger.warning(f"Failed to delete vectors for video {video_id}: {e}")
 
@@ -161,7 +114,7 @@ class VideoDetailView(
 
 
 class BaseVideoGroupView(AuthenticatedViewMixin):
-    """共通のVideoGroupビュー基底クラス（DRY原則）"""
+    """共通のVideoGroupビュー基底クラス"""
 
     def _get_filtered_queryset(self, annotate_only=False):
         """共通のクエリ取得ロジック"""
@@ -177,7 +130,6 @@ class VideoGroupListView(
 ):
     """VideoGroup一覧取得・作成ビュー（N+1問題対策）"""
 
-    # DRY原則: シリアライザーマッピング
     serializer_map = {
         "GET": VideoGroupListSerializer,
         "POST": VideoGroupCreateSerializer,
@@ -193,7 +145,6 @@ class VideoGroupDetailView(
 ):
     """VideoGroup詳細・更新・削除ビュー（N+1問題対策）"""
 
-    # DRY原則: シリアライザーマッピング
     serializer_map = {
         "GET": VideoGroupDetailSerializer,
         "PUT": VideoGroupUpdateSerializer,
@@ -206,7 +157,7 @@ class VideoGroupDetailView(
 
 
 def _handle_validation_error(value, entity_name: str):
-    """共通のバリデーションチェック（DRY原則）"""
+    """共通のバリデーションチェック"""
     if not value:
         return create_error_response(
             f"{entity_name}が見つかりません", status.HTTP_404_NOT_FOUND
@@ -238,7 +189,6 @@ def _validate_and_get_resource(
 
 def _get_group_and_video(user, group_id, video_id, select_related_fields=None):
     """共通のグループとビデオ取得ロジック"""
-    # DRY原則: 共通の検証関数を使用
     # N+1問題対策: 必要に応じてselect_relatedを適用
     group, error = _validate_and_get_resource(
         user, VideoGroup, group_id, "グループ", select_related_fields
@@ -256,7 +206,7 @@ def _get_group_and_video(user, group_id, video_id, select_related_fields=None):
 
 
 def _validate_video_ids(request, entity_name: str):
-    """video_idsのバリデーション（DRY原則）"""
+    """video_idsのバリデーション"""
     video_ids = request.data.get("video_ids", [])
     if not video_ids:
         return None, create_error_response(
@@ -266,7 +216,7 @@ def _validate_video_ids(request, entity_name: str):
 
 
 def _validate_videos_count(videos, video_ids):
-    """動画の取得数チェック（DRY原則）"""
+    """動画の取得数チェック"""
     if len(videos) != len(video_ids):
         return create_error_response(
             "一部の動画が見つかりません", status.HTTP_404_NOT_FOUND
@@ -298,7 +248,6 @@ def _handle_group_video_operation(
     """
     group, video, error = _get_group_and_video(request.user, group_id, video_id)
 
-    # DRY原則: 共通の検証結果をチェック
     if error:
         return error
 
@@ -341,11 +290,11 @@ def _check_and_get_member(
     return member, None
 
 
-# DRY原則: 共通デコレーターはapp.utils.decoratorsからインポート済み
+# 共通デコレーターはapp.utils.decoratorsからインポート済み
 
 
 def _add_video_to_group_operation(group, video):
-    """動画をグループに追加する操作（DRY原則）"""
+    """動画をグループに追加する操作"""
     # すでに追加されているかチェック
     member = _get_member_queryset(group, video).first()
     if member:
@@ -377,14 +326,12 @@ def add_video_to_group(request, group_id, video_id):
 @authenticated_view_with_error_handling(["POST"])
 def add_videos_to_group(request, group_id):
     """グループに複数の動画を追加"""
-    # DRY原則: 共通の検証関数を使用
     group, error = _validate_and_get_resource(
         request.user, VideoGroup, group_id, "グループ"
     )
     if error:
         return error
 
-    # DRY原則: 共通のバリデーション関数を使用
     video_ids, error = _validate_video_ids(request, "動画")
     if error:
         return error
@@ -393,7 +340,6 @@ def add_videos_to_group(request, group_id):
     # select_relatedはここでは不要（userデータは既に検証済み）
     videos = list(Video.objects.filter(user=request.user, id__in=video_ids))
 
-    # DRY原則: 共通のバリデーション関数を使用
     error = _validate_videos_count(videos, video_ids)
     if error:
         return error
@@ -431,10 +377,9 @@ def add_videos_to_group(request, group_id):
 
 @authenticated_view_with_error_handling(["DELETE"])
 def remove_video_from_group(request, group_id, video_id):
-    """グループから動画を削除（DRY原則）"""
+    """グループから動画を削除"""
     group, video, error = _get_group_and_video(request.user, group_id, video_id)
 
-    # DRY原則: 共通の検証結果をチェック
     if error:
         return error
 
@@ -455,7 +400,6 @@ def remove_video_from_group(request, group_id, video_id):
 @authenticated_view_with_error_handling(["PATCH"])
 def reorder_videos_in_group(request, group_id):
     """グループ内の動画の順序を更新"""
-    # DRY原則: 共通の検証関数を使用
     group, error = _validate_and_get_resource(
         request.user, VideoGroup, group_id, "グループ"
     )
@@ -476,7 +420,10 @@ def reorder_videos_in_group(request, group_id):
 
     # グループ内の動画メンバーを取得（N+1問題対策）
     # select_relatedでvideoデータも事前取得
-    members = VideoGroupMember.objects.filter(group=group).select_related("video")
+    # list()で評価を確定してN+1問題を完全に回避
+    members = list(
+        VideoGroupMember.objects.filter(group=group).select_related("video")
+    )
 
     # 指定されたvideo_idsがグループ内の動画と一致するかチェック
     # O(1)ルックアップのためにSetを使用
@@ -503,6 +450,21 @@ def reorder_videos_in_group(request, group_id):
     return Response({"message": "動画の順序を更新しました"}, status=status.HTTP_200_OK)
 
 
+def _update_share_token(group, token_value):
+    """
+    共有トークンを更新する共通処理
+    
+    Args:
+        group: VideoGroupインスタンス
+        token_value: 設定するトークン値（Noneの場合は削除）
+    
+    Returns:
+        None
+    """
+    group.share_token = token_value
+    group.save(update_fields=["share_token"])
+
+
 @authenticated_view_with_error_handling(["POST"])
 def create_share_link(request, group_id):
     """グループの共有リンクを生成"""
@@ -513,10 +475,8 @@ def create_share_link(request, group_id):
     if error:
         return error
 
-    # ランダムなトークンを生成（32バイト = 64文字の16進数）
     share_token = secrets.token_urlsafe(32)
-    group.share_token = share_token
-    group.save(update_fields=["share_token"])
+    _update_share_token(group, share_token)
 
     return Response(
         {
@@ -542,8 +502,7 @@ def delete_share_link(request, group_id):
             "共有リンクは設定されていません", status.HTTP_404_NOT_FOUND
         )
 
-    group.share_token = None
-    group.save(update_fields=["share_token"])
+    _update_share_token(group, None)
 
     return Response(
         {"message": "共有リンクを無効化しました"},

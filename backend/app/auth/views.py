@@ -12,11 +12,11 @@ User = get_user_model()
 
 
 class PublicAPIView(PublicViewMixin, generics.GenericAPIView):
-    """認証不要のAPIビュー（DRY原則）"""
+    """認証不要のAPIビュー"""
 
 
 class AuthenticatedAPIView(AuthenticatedViewMixin, generics.GenericAPIView):
-    """認証必須のAPIビュー（DRY原則）"""
+    """認証必須のAPIビュー"""
 
 
 class UserSignupView(generics.CreateAPIView):
