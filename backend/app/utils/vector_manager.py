@@ -167,15 +167,16 @@ def delete_video_vectors_batch(video_ids):
 def update_video_title_in_vectors(video_id, new_title):
     """
     PGVectorのmetadata内のvideo_titleを更新
-    
+
     Args:
         video_id: 動画ID
         new_title: 新しいタイトル
-    
+
     Returns:
         int: 更新されたドキュメント数
     """
     try:
+
         def update_operation(cursor):
             update_query = """
                 UPDATE langchain_pg_embedding 
@@ -196,10 +197,8 @@ def update_video_title_in_vectors(video_id, new_title):
                 f"Updated video_title to '{new_title}' for {updated_count} vector documents (video ID: {video_id})"
             )
         else:
-            logger.info(
-                f"No vector documents found to update for video ID: {video_id}"
-            )
-        
+            logger.info(f"No vector documents found to update for video ID: {video_id}")
+
         return updated_count
 
     except Exception as e:
