@@ -196,8 +196,11 @@ ask-video/
 プロジェクトルートに `.env` ファイルを作成し、必要な環境変数を設定してください。
 
 ```bash
-# .env ファイルの作成
-nano .env
+# .env.example をコピーして .env ファイルを作成
+cp .env.example .env
+
+# 必要な環境変数を設定
+vim .env
 ```
 
 必要な環境変数：
@@ -207,6 +210,15 @@ nano .env
 - `SECRET_KEY` - Django のシークレットキー
 - `DATABASE_URL` - PostgreSQL接続URL（任意）
 - `CELERY_BROKER_URL` - Redis接続URL（任意）
+- `CELERY_RESULT_BACKEND` - Celery結果バックエンドURL（任意）
+- `ENABLE_SIGNUP` - サインアップ機能の有効/無効（デフォルト: "True"）
+- `ALLOWED_HOSTS` - 許可するホスト名（カンマ区切り）
+- `CORS_ALLOWED_ORIGINS` - CORS許可オリジン（カンマ区切り）
+- `USE_S3_STORAGE` - S3ストレージを使用する場合 "true"（デフォルト: "false"）
+- `AWS_STORAGE_BUCKET_NAME` - S3バケット名（`USE_S3_STORAGE=true` の場合に必須）
+- `AWS_ACCESS_KEY_ID` - AWSアクセスキーID（`USE_S3_STORAGE=true` の場合に必須）
+- `AWS_SECRET_ACCESS_KEY` - AWSシークレットアクセスキー（`USE_S3_STORAGE=true` の場合に必須）
+- `NEXT_PUBLIC_API_URL` - Next.js用のAPI URL
 - その他、アプリケーションに必要な環境変数（OpenAI APIキーなど）
 
 #### 2. 全サービスの起動
