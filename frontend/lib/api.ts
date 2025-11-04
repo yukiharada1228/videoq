@@ -424,8 +424,17 @@ class ApiClient {
 
 
   // Video関連のメソッド
-  async getVideos(): Promise<VideoList[]> {
-    return this.request<VideoList[]>('/videos/');
+  async getVideos(params?: { q?: string; status?: string; ordering?: 'uploaded_at_desc' | 'uploaded_at_asc' | 'title_asc' | 'title_desc' }): Promise<VideoList[]> {
+    const queryParams: Record<string, string> = {};
+    if (params?.q && params.q.trim() !== '') queryParams.q = params.q.trim();
+    if (params?.status && params.status.trim() !== '') queryParams.status = params.status.trim();
+    if (params?.ordering) queryParams.ordering = params.ordering;
+
+    const query = Object.keys(queryParams).length
+      ? `?${new URLSearchParams(queryParams).toString()}`
+      : '';
+
+    return this.request<VideoList[]>(`/videos/${query}`);
   }
 
   async getVideo(id: number): Promise<Video> {
