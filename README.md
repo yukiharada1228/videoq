@@ -39,6 +39,7 @@ ask-video/
 │   │   └── asgi.py              # ASGI設定
 │   ├── media/                   # アップロードされたメディアファイル
 │   ├── pyproject.toml           # Python依存関係（uv）
+│   ├── uv.lock                   # uv依存関係ロックファイル
 │   ├── main.py                  # エントリーポイント
 │   ├── manage.py                # Django管理スクリプト
 │   ├── Dockerfile               # バックエンドDockerイメージ
@@ -50,8 +51,11 @@ ask-video/
 │   │   ├── signup/              # サインアップページ
 │   │   ├── settings/            # 設定ページ
 │   │   ├── videos/              # 動画関連ページ
-│   │   ├── chat/                # チャット履歴
+│   │   │   ├── page.tsx         # 動画一覧ページ
+│   │   │   ├── [id]/            # 動画詳細ページ
+│   │   │   └── groups/           # 動画グループページ
 │   │   └── share/               # 共有ページ
+│   │       └── [token]/         # 共有トークンページ
 │   ├── components/              # Reactコンポーネント
 │   │   ├── auth/                # 認証コンポーネント
 │   │   ├── video/               # 動画関連コンポーネント
@@ -63,6 +67,7 @@ ask-video/
 │   ├── lib/                     # ライブラリ・ユーティリティ（api, errorUtils等）
 │   ├── e2e/                     # Playwright E2Eテスト
 │   ├── package.json             # Node.js依存関係
+│   ├── package-lock.json         # npm依存関係ロックファイル
 │   ├── Dockerfile               # フロントエンドDockerイメージ
 │   └── README.md                # フロントエンドREADME
 ├── docker-compose.yml           # Docker Compose設定
@@ -104,7 +109,7 @@ ask-video/
 - **scikit-learn** (>=1.7.2) - 機械学習ライブラリ
 
 #### 動画・音声処理
-- **ffmpeg-python** (>=0.2.0) - ffmpeg Pythonバインディング
+- **ffmpeg** - 動画・音声変換ツール（システムレベル、Dockerfileでインストール）
 
 #### ストレージ
 - **django-storages** (>=1.14.6) - Djangoストレージバックエンド（S3対応）
@@ -188,11 +193,10 @@ ask-video/
 
 #### 1. 環境変数の設定
 
+プロジェクトルートに `.env` ファイルを作成し、必要な環境変数を設定してください。
+
 ```bash
 # .env ファイルの作成
-cp .env.example .env
-
-# 必要な環境変数を設定
 nano .env
 ```
 
