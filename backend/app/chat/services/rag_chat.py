@@ -59,16 +59,17 @@ class RagChatService:
             rag_chain = (
                 RunnablePassthrough.assign(
                     docs=itemgetter("query_text") | retriever
-                )
-                .assign(
+                ).assign(
                     context_and_metadata=lambda x: {
                         **self._build_system_context(x["docs"]),
                         "related_videos": self._extract_related_videos(x["docs"]),
                     }
                 )
-                | RunnableLambda(self._prepare_prompt_input)
-                | self.prompt
-                | self.llm
+                | RunnableLambda(self._prepare_chain_inputs)
+                | RunnablePassthrough.assign(
+                    llm_response=itemgetter("prompt_input") | self.prompt | self.llm
+                )
+                | RunnableLambda(self._finalize_chain_output)
             )
         else:
             # リトリーバーがない場合（グループがない場合）
@@ -79,24 +80,20 @@ class RagChatService:
                         "related_videos": None,
                     }
                 )
-                | RunnableLambda(self._prepare_prompt_input)
-                | self.prompt
-                | self.llm
+                | RunnableLambda(self._prepare_chain_inputs)
+                | RunnablePassthrough.assign(
+                    llm_response=itemgetter("prompt_input") | self.prompt | self.llm
+                )
+                | RunnableLambda(self._finalize_chain_output)
             )
 
         # チェーンを実行
-        if retriever is not None:
-            # 関連動画を取得するために、チェーン実行前にドキュメントを取得
-            # （チェーン内でもドキュメントを取得するが、関連動画の抽出にはチェーン外で取得したものを使用）
-            docs = retriever.invoke(query_text)
-            related_videos = self._extract_related_videos(docs)
-            result = rag_chain.invoke({"query_text": query_text})
-        else:
-            result = rag_chain.invoke({"query_text": query_text})
-            related_videos = None
+        result = rag_chain.invoke({"query_text": query_text})
+        llm_response = result.get("llm_response")
+        related_videos = result.get("related_videos")
 
         return RagChatResult(
-            llm_response=result,
+            llm_response=llm_response,
             query_text=query_text,
             related_videos=related_videos,
         )
@@ -135,9 +132,7 @@ class RagChatService:
 
         return retriever
 
-    def _build_system_context(
-        self, docs: List
-    ) -> Dict[str, Optional[str]]:
+    def _build_system_context(self, docs: List) -> Dict[str, Optional[str]]:
         """ドキュメントからシステムコンテキストを構築（公式パターンに沿った実装）"""
         if not docs:
             return {
@@ -185,8 +180,8 @@ class RagChatService:
 
         return related_videos
 
-    def _prepare_prompt_input(self, data: Dict[str, object]) -> Dict[str, str]:
-        """プロンプト入力の準備（公式パターン）"""
+    def _prepare_chain_inputs(self, data: Dict[str, object]) -> Dict[str, object]:
+        """プロンプト入力と関連メタデータの準備"""
         context_and_metadata = data.get("context_and_metadata", {})
         system_context = context_and_metadata.get("system_context")
         if system_context is None:
@@ -194,8 +189,18 @@ class RagChatService:
         query_text = data.get("query_text", "")
 
         return {
-            "system_context": system_context,
-            "query_text": query_text,
+            "prompt_input": {
+                "system_context": system_context,
+                "query_text": query_text,
+            },
+            "related_videos": context_and_metadata.get("related_videos"),
+        }
+
+    def _finalize_chain_output(self, data: Dict[str, object]) -> Dict[str, object]:
+        """チェーン実行結果の整形"""
+        return {
+            "llm_response": data.get("llm_response"),
+            "related_videos": data.get("related_videos"),
         }
 
     def _create_vector_store(self) -> PGVector:
