@@ -4,9 +4,8 @@ from typing import TYPE_CHECKING, Dict, List, Optional, Sequence
 from app.utils.encryption import decrypt_api_key
 from app.utils.vector_manager import PGVectorManager
 from langchain_core.messages import AIMessage
-from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.runnables import RunnableLambda, RunnablePassthrough
+from langchain_core.runnables import RunnableLambda
 from langchain_openai import OpenAIEmbeddings
 from langchain_postgres import PGVector
 
@@ -21,7 +20,6 @@ class RagChatResult:
     llm_response: AIMessage
     query_text: str
     related_videos: Optional[List[Dict[str, str]]]
-    response_text: str
 
 
 DEFAULT_SYSTEM_CONTEXT = (
@@ -42,8 +40,6 @@ class RagChatService:
                 ("human", "{query_text}"),
             ]
         )
-        self.output_parser = StrOutputParser()
-        self._vector_store: Optional[PGVector] = None
 
     def run(
         self,
@@ -58,15 +54,12 @@ class RagChatService:
         }
 
         context_chain = (
-            RunnablePassthrough.assign(
-                retriever=RunnableLambda(self._attach_group_retriever)
-            )
-            .assign(docs=RunnableLambda(self._run_similarity_search))
-            .assign(context_bundle=RunnableLambda(self._build_system_context))
+            RunnableLambda(self._attach_group_retriever)
+            | RunnableLambda(self._run_similarity_search)
+            | RunnableLambda(self._build_system_context)
         )
 
-        context_state = context_chain.invoke(payload)
-        context_bundle = context_state.get("context_bundle", {})
+        context_bundle = context_chain.invoke(payload)
 
         system_context = context_bundle.get("system_context") or DEFAULT_SYSTEM_CONTEXT
         related_videos = context_bundle.get("related_videos")
@@ -77,13 +70,11 @@ class RagChatService:
         )
 
         llm_response = self.llm.invoke(formatted_messages)
-        response_text = self.output_parser.invoke(llm_response)
 
         return RagChatResult(
             llm_response=llm_response,
             query_text=query_text,
             related_videos=related_videos,
-            response_text=response_text,
         )
 
     def _extract_latest_user_query(self, messages: Sequence[Dict[str, str]]) -> str:
@@ -96,18 +87,18 @@ class RagChatService:
 
         return ""
 
-    def _attach_group_retriever(self, payload: Dict[str, object]) -> Optional[object]:
+    def _attach_group_retriever(self, payload: Dict[str, object]) -> Dict[str, object]:
         group = payload.get("group")
         if group is None:
-            return None
+            return {**payload, "retriever": None}
 
         members = list(group.members.all())
         group_video_ids = [str(member.video_id) for member in members]
 
         if not group_video_ids:
-            return None
+            return {**payload, "retriever": None}
 
-        vector_store = self._get_vector_store()
+        vector_store = self._create_vector_store()
         retriever = vector_store.as_retriever(
             search_kwargs={
                 "k": 6,
@@ -118,17 +109,17 @@ class RagChatService:
             }
         )
 
-        return retriever
+        return {**payload, "retriever": retriever}
 
-    def _run_similarity_search(self, payload: Dict[str, object]) -> List[object]:
+    def _run_similarity_search(self, payload: Dict[str, object]) -> Dict[str, object]:
         retriever = payload.get("retriever")
         query_text = payload.get("query_text", "")
 
         if retriever is None or not query_text:
-            return []
+            return {**payload, "docs": []}
 
         docs = retriever.invoke(query_text)
-        return docs
+        return {**payload, "docs": docs}
 
     def _build_system_context(
         self, payload: Dict[str, object]
@@ -171,20 +162,15 @@ class RagChatService:
             "related_videos": related_videos,
         }
 
-    def _get_vector_store(self) -> PGVector:
-        if self._vector_store is None:
-            api_key = decrypt_api_key(self.user.encrypted_openai_api_key)
-            embeddings = OpenAIEmbeddings(
-                model="text-embedding-3-small", api_key=api_key
-            )
-            config = PGVectorManager.get_config()
-            connection_str = PGVectorManager.get_psycopg_connection_string()
+    def _create_vector_store(self) -> PGVector:
+        api_key = decrypt_api_key(self.user.encrypted_openai_api_key)
+        embeddings = OpenAIEmbeddings(model="text-embedding-3-small", api_key=api_key)
+        config = PGVectorManager.get_config()
+        connection_str = PGVectorManager.get_psycopg_connection_string()
 
-            self._vector_store = PGVector.from_existing_index(
-                collection_name=config["collection_name"],
-                embedding=embeddings,
-                connection=connection_str,
-                use_jsonb=True,
-            )
-
-        return self._vector_store
+        return PGVector.from_existing_index(
+            collection_name=config["collection_name"],
+            embedding=embeddings,
+            connection=connection_str,
+            use_jsonb=True,
+        )
