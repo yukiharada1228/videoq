@@ -1,6 +1,5 @@
+from app.media.views import ProtectedMediaView
 from django.urls import path
-
-from .views import ProtectedMediaView
 
 app_name = "app"
 

@@ -1,6 +1,6 @@
 from functools import wraps
 
-from app.utils.responses import create_error_response
+from app.common.responses import create_error_response
 from rest_framework import status
 
 
