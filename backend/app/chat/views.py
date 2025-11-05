@@ -54,10 +54,10 @@ def _get_video_group_with_members(group_id, user_id=None, share_token=None):
 
     if share_token:
         return queryset.get(id=group_id, share_token=share_token)
-    if user_id:
+    elif user_id:
         return queryset.get(id=group_id, user_id=user_id)
-
-    raise VideoGroup.DoesNotExist("share_token か user_id の指定が必要です")
+    else:
+        return queryset.get(id=group_id)
 
 
 class ChatView(generics.CreateAPIView):
@@ -121,7 +121,7 @@ class ChatView(generics.CreateAPIView):
 
             response_data = {
                 "role": "assistant",
-                "content": result.response_text,
+                "content": result.llm_response.content,
             }
 
             if group_id is not None and result.related_videos:
@@ -132,7 +132,7 @@ class ChatView(generics.CreateAPIView):
                     user=(group.user if is_shared else user),
                     group=group,
                     question=result.query_text,
-                    answer=result.response_text,
+                    answer=result.llm_response.content,
                     related_videos=result.related_videos or [],
                     is_shared_origin=is_shared,
                 )
