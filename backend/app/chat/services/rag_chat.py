@@ -1,11 +1,12 @@
 from dataclasses import dataclass
+from operator import itemgetter
 from typing import TYPE_CHECKING, Dict, List, Optional, Sequence
 
 from app.utils.encryption import decrypt_api_key
 from app.utils.vector_manager import PGVectorManager
 from langchain_core.messages import AIMessage
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.runnables import RunnableLambda
+from langchain_core.runnables import RunnableLambda, RunnablePassthrough
 from langchain_openai import OpenAIEmbeddings
 from langchain_postgres import PGVector
 
@@ -48,31 +49,54 @@ class RagChatService:
     ) -> RagChatResult:
         query_text = self._extract_latest_user_query(messages)
 
-        payload = {
-            "query_text": query_text,
-            "group": group,
-        }
+        # リトリーバーの取得（グループがある場合のみ）
+        retriever = self._get_retriever(group)
 
-        context_chain = (
-            RunnableLambda(self._attach_group_retriever)
-            | RunnableLambda(self._run_similarity_search)
-            | RunnableLambda(self._build_system_context)
-        )
+        # 公式パターンに沿ったRAGチェーンの構築
+        if retriever is not None:
+            # 公式パターンに沿ったRAGチェーン
+            # 公式パターン: RunnablePassthrough.assign を使用
+            rag_chain = (
+                RunnablePassthrough.assign(
+                    docs=itemgetter("query_text") | retriever
+                )
+                .assign(
+                    context_and_metadata=lambda x: {
+                        **self._build_system_context(x["docs"]),
+                        "related_videos": self._extract_related_videos(x["docs"]),
+                    }
+                )
+                | RunnableLambda(self._prepare_prompt_input)
+                | self.prompt
+                | self.llm
+            )
+        else:
+            # リトリーバーがない場合（グループがない場合）
+            rag_chain = (
+                RunnablePassthrough.assign(
+                    context_and_metadata=lambda x: {
+                        "system_context": None,
+                        "related_videos": None,
+                    }
+                )
+                | RunnableLambda(self._prepare_prompt_input)
+                | self.prompt
+                | self.llm
+            )
 
-        context_bundle = context_chain.invoke(payload)
-
-        system_context = context_bundle.get("system_context") or DEFAULT_SYSTEM_CONTEXT
-        related_videos = context_bundle.get("related_videos")
-
-        formatted_messages = self.prompt.format_messages(
-            system_context=system_context,
-            query_text=query_text,
-        )
-
-        llm_response = self.llm.invoke(formatted_messages)
+        # チェーンを実行
+        if retriever is not None:
+            # 関連動画を取得するために、チェーン実行前にドキュメントを取得
+            # （チェーン内でもドキュメントを取得するが、関連動画の抽出にはチェーン外で取得したものを使用）
+            docs = retriever.invoke(query_text)
+            related_videos = self._extract_related_videos(docs)
+            result = rag_chain.invoke({"query_text": query_text})
+        else:
+            result = rag_chain.invoke({"query_text": query_text})
+            related_videos = None
 
         return RagChatResult(
-            llm_response=llm_response,
+            llm_response=result,
             query_text=query_text,
             related_videos=related_videos,
         )
@@ -87,16 +111,16 @@ class RagChatService:
 
         return ""
 
-    def _attach_group_retriever(self, payload: Dict[str, object]) -> Dict[str, object]:
-        group = payload.get("group")
+    def _get_retriever(self, group: Optional["VideoGroup"]) -> Optional:
+        """グループからリトリーバーを取得する（公式パターン）"""
         if group is None:
-            return {**payload, "retriever": None}
+            return None
 
         members = list(group.members.all())
         group_video_ids = [str(member.video_id) for member in members]
 
         if not group_video_ids:
-            return {**payload, "retriever": None}
+            return None
 
         vector_store = self._create_vector_store()
         retriever = vector_store.as_retriever(
@@ -109,48 +133,29 @@ class RagChatService:
             }
         )
 
-        return {**payload, "retriever": retriever}
-
-    def _run_similarity_search(self, payload: Dict[str, object]) -> Dict[str, object]:
-        retriever = payload.get("retriever")
-        query_text = payload.get("query_text", "")
-
-        if retriever is None or not query_text:
-            return {**payload, "docs": []}
-
-        docs = retriever.invoke(query_text)
-        return {**payload, "docs": docs}
+        return retriever
 
     def _build_system_context(
-        self, payload: Dict[str, object]
-    ) -> Dict[str, Optional[object]]:
-        docs = payload.get("docs") or []
-
+        self, docs: List
+    ) -> Dict[str, Optional[str]]:
+        """ドキュメントからシステムコンテキストを構築（公式パターンに沿った実装）"""
         if not docs:
-            return {"system_context": None, "related_videos": None}
+            return {
+                "system_context": None,
+            }
 
         context_lines: List[str] = [
             "以下はあなたの動画グループから抽出した関連シーンです。回答は必ずこの文脈を最優先してください。"
         ]
-        related_videos: List[Dict[str, str]] = []
 
         for idx, doc in enumerate(docs, start=1):
             metadata = getattr(doc, "metadata", {}) or {}
             title = metadata.get("video_title", "")
             start_time = metadata.get("start_time", "")
             end_time = metadata.get("end_time", "")
-            video_id = metadata.get("video_id", "")
 
             context_lines.append(
                 f"[{idx}] {title} {start_time} - {end_time}\n{doc.page_content}"
-            )
-            related_videos.append(
-                {
-                    "video_id": video_id,
-                    "title": title,
-                    "start_time": start_time,
-                    "end_time": end_time,
-                }
             )
 
         context_lines.append(
@@ -159,7 +164,38 @@ class RagChatService:
 
         return {
             "system_context": "\n\n".join(context_lines),
-            "related_videos": related_videos,
+        }
+
+    def _extract_related_videos(self, docs: List) -> Optional[List[Dict[str, str]]]:
+        """ドキュメントから関連動画を抽出"""
+        if not docs:
+            return None
+
+        related_videos: List[Dict[str, str]] = []
+        for doc in docs:
+            metadata = getattr(doc, "metadata", {}) or {}
+            related_videos.append(
+                {
+                    "video_id": metadata.get("video_id", ""),
+                    "title": metadata.get("video_title", ""),
+                    "start_time": metadata.get("start_time", ""),
+                    "end_time": metadata.get("end_time", ""),
+                }
+            )
+
+        return related_videos
+
+    def _prepare_prompt_input(self, data: Dict[str, object]) -> Dict[str, str]:
+        """プロンプト入力の準備（公式パターン）"""
+        context_and_metadata = data.get("context_and_metadata", {})
+        system_context = context_and_metadata.get("system_context")
+        if system_context is None:
+            system_context = DEFAULT_SYSTEM_CONTEXT
+        query_text = data.get("query_text", "")
+
+        return {
+            "system_context": system_context,
+            "query_text": query_text,
         }
 
     def _create_vector_store(self) -> PGVector:
