@@ -1,6 +1,6 @@
 """共通のミックスイン"""
 
-from app.authentication import CookieJWTAuthentication
+from app.common.authentication import CookieJWTAuthentication
 from rest_framework.permissions import AllowAny, IsAuthenticated
 
 
