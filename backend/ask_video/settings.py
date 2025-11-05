@@ -165,7 +165,7 @@ AUTH_USER_MODEL = "app.User"
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "app.authentication.CookieJWTAuthentication",
+        "app.common.authentication.CookieJWTAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",

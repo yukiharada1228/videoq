@@ -1,4 +1,4 @@
-"""共通のレスポンスヘルパー"""
+"""共通レスポンスヘルパー"""
 
 from rest_framework import status
 from rest_framework.response import Response
@@ -7,15 +7,19 @@ from rest_framework.response import Response
 def create_error_response(
     message: str, status_code: int = status.HTTP_400_BAD_REQUEST
 ) -> Response:
-    """エラーレスポンスを作成する共通ヘルパー"""
+    """エラーレスポンスを生成"""
+
     return Response({"error": message}, status=status_code)
 
 
 def create_success_response(
-    data: dict = None, message: str = None, status_code: int = status.HTTP_200_OK
+    data: dict | None = None,
+    message: str | None = None,
+    status_code: int = status.HTTP_200_OK,
 ) -> Response:
-    """成功レスポンスを作成する共通ヘルパー"""
-    response_data = {}
+    """成功レスポンスを生成"""
+
+    response_data: dict = {}
     if data:
         response_data.update(data)
     if message:
@@ -24,12 +28,15 @@ def create_success_response(
 
 
 def create_created_response(
-    data: dict = None, message: str = "Created successfully"
+    data: dict | None = None,
+    message: str = "Created successfully",
 ) -> Response:
-    """作成成功レスポンスを作成する共通ヘルパー"""
+    """作成成功レスポンスを生成"""
+
     return create_success_response(data, message, status.HTTP_201_CREATED)
 
 
 def create_no_content_response() -> Response:
-    """No Contentレスポンスを作成する共通ヘルパー"""
+    """No Content レスポンス"""
+
     return Response(status=status.HTTP_204_NO_CONTENT)

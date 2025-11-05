@@ -1,13 +1,13 @@
 import logging
 import secrets
 
+from app.common.responses import create_error_response
 from app.models import Video, VideoGroup, VideoGroupMember
 
 logger = logging.getLogger(__name__)
 from app.utils.decorators import authenticated_view_with_error_handling
 from app.utils.mixins import AuthenticatedViewMixin, DynamicSerializerMixin
 from app.utils.query_optimizer import BatchProcessor, QueryOptimizer
-from app.utils.responses import create_error_response
 from django.db.models import Q
 from rest_framework import generics, status
 from rest_framework.decorators import api_view, permission_classes
