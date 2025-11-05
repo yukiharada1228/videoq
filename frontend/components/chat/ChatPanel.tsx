@@ -109,7 +109,8 @@ export function ChatPanel({ hasApiKey, groupId, onVideoPlay, shareToken }: ChatP
 
     try {
       const response = await apiClient.chat({
-        messages: [...messages, userMessage],
+        // バックエンドは最新のユーザメッセージのみを参照するため最小限で送信
+        messages: [userMessage],
         ...(groupId ? { group_id: groupId } : {}),
         ...(shareToken ? { share_token: shareToken } : {}),
       });
