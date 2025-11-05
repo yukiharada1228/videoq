@@ -6,7 +6,7 @@ from app.utils.encryption import decrypt_api_key
 from app.utils.vector_manager import PGVectorManager
 from langchain_core.messages import AIMessage
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.runnables import RunnableLambda, RunnablePassthrough
+from langchain_core.runnables import RunnableLambda, RunnableParallel
 from langchain_openai import OpenAIEmbeddings
 from langchain_postgres import PGVector
 
@@ -55,36 +55,30 @@ class RagChatService:
         # 公式パターンに沿ったRAGチェーンの構築
         if retriever is not None:
             # 公式パターンに沿ったRAGチェーン
-            # 公式パターン: RunnablePassthrough.assign を使用
             rag_chain = (
-                RunnablePassthrough.assign(
-                    docs=itemgetter("query_text") | retriever
-                ).assign(
-                    context_and_metadata=lambda x: {
-                        **self._build_system_context(x["docs"]),
-                        "related_videos": self._extract_related_videos(x["docs"]),
+                RunnableParallel(
+                    {
+                        "query_text": itemgetter("query_text"),
+                        "docs": itemgetter("query_text") | retriever,
                     }
                 )
-                | RunnableLambda(self._prepare_chain_inputs)
-                | RunnablePassthrough.assign(
-                    llm_response=itemgetter("prompt_input") | self.prompt | self.llm
+                | RunnableLambda(self._build_prompt_payload)
+                | RunnableParallel(
+                    {
+                        "llm_response": itemgetter("prompt_input")
+                        | self.prompt
+                        | self.llm,
+                        "related_videos": itemgetter("related_videos"),
+                    }
                 )
-                | RunnableLambda(self._finalize_chain_output)
             )
         else:
             # リトリーバーがない場合（グループがない場合）
-            rag_chain = (
-                RunnablePassthrough.assign(
-                    context_and_metadata=lambda x: {
-                        "system_context": None,
-                        "related_videos": None,
-                    }
-                )
-                | RunnableLambda(self._prepare_chain_inputs)
-                | RunnablePassthrough.assign(
-                    llm_response=itemgetter("prompt_input") | self.prompt | self.llm
-                )
-                | RunnableLambda(self._finalize_chain_output)
+            rag_chain = RunnableLambda(self._build_prompt_payload) | RunnableParallel(
+                {
+                    "llm_response": itemgetter("prompt_input") | self.prompt | self.llm,
+                    "related_videos": itemgetter("related_videos"),
+                }
             )
 
         # チェーンを実行
@@ -180,27 +174,21 @@ class RagChatService:
 
         return related_videos
 
-    def _prepare_chain_inputs(self, data: Dict[str, object]) -> Dict[str, object]:
-        """プロンプト入力と関連メタデータの準備"""
-        context_and_metadata = data.get("context_and_metadata", {})
-        system_context = context_and_metadata.get("system_context")
+    def _build_prompt_payload(self, data: Dict[str, object]) -> Dict[str, object]:
+        """プロンプト入力と関連メタデータをまとめる"""
+        docs = data.get("docs") or []
+        query_text = data.get("query_text", "")
+
+        system_context = self._build_system_context(docs).get("system_context")
         if system_context is None:
             system_context = DEFAULT_SYSTEM_CONTEXT
-        query_text = data.get("query_text", "")
 
         return {
             "prompt_input": {
                 "system_context": system_context,
                 "query_text": query_text,
             },
-            "related_videos": context_and_metadata.get("related_videos"),
-        }
-
-    def _finalize_chain_output(self, data: Dict[str, object]) -> Dict[str, object]:
-        """チェーン実行結果の整形"""
-        return {
-            "llm_response": data.get("llm_response"),
-            "related_videos": data.get("related_videos"),
+            "related_videos": self._extract_related_videos(docs),
         }
 
     def _create_vector_store(self) -> PGVector:
