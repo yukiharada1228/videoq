@@ -53,6 +53,16 @@ class VideoCreateSerializer(UserOwnedSerializerMixin, serializers.ModelSerialize
     def create(self, validated_data):
         """Video作成時に文字起こしタスクを開始"""
         request = self.context.get("request")
+        user = getattr(request, "user", None)
+
+        if user and getattr(user, "video_limit", None) is not None:
+            current_count = Video.objects.filter(user=user).count()
+            if current_count >= user.video_limit:
+                raise serializers.ValidationError(
+                    {
+                        "detail": "動画の上限に達しています。不要な動画を削除するか、管理者に上限の変更を依頼してください。"
+                    }
+                )
 
         # Authorizationヘッダーが存在するかチェック（外部APIクライアントの判定）
         is_external_client = request and request.META.get("HTTP_AUTHORIZATION")
