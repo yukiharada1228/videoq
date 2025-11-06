@@ -33,6 +33,7 @@ class BaseAdminMixin:
 class CustomUserAdmin(UserAdmin):
     list_display = (
         "username",
+        "video_limit",
         "date_joined",
         "last_login",
         "is_active",
@@ -43,6 +44,23 @@ class CustomUserAdmin(UserAdmin):
     )
     search_fields = ("username",)
     ordering = ("-date_joined",)
+    fieldsets = UserAdmin.fieldsets + (
+        (
+            "動画設定",
+            {
+                "fields": ("video_limit",),
+            },
+        ),
+    )
+    add_fieldsets = UserAdmin.add_fieldsets + (
+        (
+            "動画設定",
+            {
+                "classes": ("wide",),
+                "fields": ("video_limit",),
+            },
+        ),
+    )
 
 
 @admin.register(Video)
