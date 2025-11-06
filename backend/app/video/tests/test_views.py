@@ -1,5 +1,6 @@
 from app.models import Video, VideoGroup, VideoGroupMember
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
@@ -243,3 +244,39 @@ class VideoGroupPermissionTestCase(APITestCase):
         # 所有権がないので404を返す
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         self.assertEqual(VideoGroup.objects.count(), 1)
+
+
+class VideoUploadLimitTestCase(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="limituser", password="testpass123"
+        )
+        self.user.video_limit = 1
+        self.user.save(update_fields=["video_limit"])
+
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+        self.url = reverse("video-list")
+
+    def _upload_video(self, title="Test Video"):
+        file_content = b"dummy video content"
+        upload_file = SimpleUploadedFile(
+            "test_video.mp4",
+            file_content,
+            content_type="video/mp4",
+        )
+        data = {
+            "file": upload_file,
+            "title": title,
+            "description": "Test description",
+        }
+        return self.client.post(self.url, data, format="multipart")
+
+    def test_video_creation_respects_limit(self):
+        first_response = self._upload_video(title="Video 1")
+        self.assertEqual(first_response.status_code, status.HTTP_201_CREATED)
+
+        second_response = self._upload_video(title="Video 2")
+        self.assertEqual(second_response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("detail", second_response.data)
+        self.assertEqual(Video.objects.filter(user=self.user).count(), 1)

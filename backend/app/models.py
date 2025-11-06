@@ -15,6 +15,10 @@ class User(AbstractUser):
     encrypted_openai_api_key = models.TextField(
         blank=True, null=True, help_text="Encrypted OpenAI API key"
     )
+    video_limit = models.PositiveIntegerField(
+        default=10,
+        help_text="ユーザーが保持できる動画の最大数。必要に応じて管理画面から変更できます。",
+    )
 
 
 def user_directory_path(instance, filename):
