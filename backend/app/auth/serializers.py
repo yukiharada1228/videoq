@@ -1,7 +1,15 @@
+import logging
+
+from app.utils.email import send_email_verification
 from app.utils.encryption import encrypt_api_key, is_encrypted
 from django.contrib.auth import authenticate, get_user_model
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.encoding import force_str
+from django.utils.http import urlsafe_base64_decode
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken
+
+logger = logging.getLogger(__name__)
 
 User = get_user_model()
 
@@ -20,13 +28,41 @@ class CredentialsSerializerMixin:
 
 
 class UserSignupSerializer(serializers.ModelSerializer):
+    email = serializers.EmailField()
+
     class Meta:
         model = User
-        fields = ["username", "password"]
+        fields = ["username", "email", "password"]
         extra_kwargs = {"password": {"write_only": True}}
 
+    def validate_email(self, value: str) -> str:
+        if User.objects.filter(email__iexact=value).exists():
+            raise serializers.ValidationError(
+                "このメールアドレスは既に登録されています。"
+            )
+        return value
+
     def create(self, validated_data):
-        user = User.objects.create_user(**validated_data)
+        try:
+            user = User.objects.create_user(
+                username=validated_data["username"],
+                email=validated_data["email"],
+                password=validated_data["password"],
+                is_active=False,
+            )
+        except Exception as exc:
+            logger.exception("Failed to create user during signup")
+            raise exc
+
+        try:
+            send_email_verification(user)
+        except Exception:
+            # ユーザーを作成済みでもメール送信失敗時は例外を伝播させる
+            user.delete()
+            raise serializers.ValidationError(
+                "確認メールの送信に失敗しました。しばらくしてから再度お試しください。"
+            )
+
         return user
 
 
@@ -45,7 +81,7 @@ class LoginSerializer(serializers.Serializer, CredentialsSerializerMixin):
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ["id", "username", "encrypted_openai_api_key"]
+        fields = ["id", "username", "email", "encrypted_openai_api_key"]
 
 
 class UserUpdateSerializer(serializers.ModelSerializer):
@@ -95,3 +131,33 @@ class RefreshSerializer(serializers.Serializer):
         # validate_refreshで作成したrefresh_objを使用
         attrs["refresh_obj"] = self._refresh_obj
         return attrs
+
+
+class EmailVerificationSerializer(serializers.Serializer):
+    uid = serializers.CharField()
+    token = serializers.CharField()
+
+    def validate(self, attrs):
+        uidb64 = attrs.get("uid")
+        token = attrs.get("token")
+
+        try:
+            uid = force_str(urlsafe_base64_decode(uidb64))
+            user = User.objects.get(pk=uid)
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            raise serializers.ValidationError("無効な確認リンクです。")
+
+        if not default_token_generator.check_token(user, token):
+            raise serializers.ValidationError(
+                "トークンが無効、または有効期限が切れています。"
+            )
+
+        attrs["user"] = user
+        return attrs
+
+    def save(self, **kwargs):
+        user = self.validated_data["user"]
+        if not user.is_active:
+            user.is_active = True
+            user.save(update_fields=["is_active"])
+        return user

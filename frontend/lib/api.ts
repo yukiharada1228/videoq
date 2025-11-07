@@ -1,5 +1,7 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
 
+type RequestBody = BodyInit | object | null | undefined;
+
 export interface LoginResponse {
   access: string;
   refresh: string;
@@ -21,7 +23,17 @@ export interface UpdateUserRequest {
 
 export interface SignupRequest {
   username: string;
+  email: string;
   password: string;
+}
+
+export interface VerifyEmailRequest {
+  uid: string;
+  token: string;
+}
+
+export interface VerifyEmailResponse {
+  detail?: string;
 }
 
 export interface LoginRequest {
@@ -150,7 +162,7 @@ class ApiClient {
         },
       });
       return response.ok;
-    } catch (error) {
+    } catch {
       return false;
     }
   }
@@ -164,7 +176,7 @@ class ApiClient {
           'Content-Type': 'application/json',
         },
       });
-    } catch (error) {
+    } catch {
       // Silently handle logout errors
     }
   }
@@ -175,8 +187,15 @@ class ApiClient {
   }
 
   // bodyがオブジェクトの場合、自動的にJSON.stringifyする共通メソッド（DRY原則）
-  private stringifyBody(body: any): BodyInit | null | undefined {
-    if (body && typeof body === 'object' && !(body instanceof FormData) && !(body instanceof URLSearchParams) && !(body instanceof ReadableStream) && !(body instanceof ArrayBuffer)) {
+  private stringifyBody(body: RequestBody): BodyInit | null | undefined {
+    if (
+      body &&
+      typeof body === 'object' &&
+      !(body instanceof FormData) &&
+      !(body instanceof URLSearchParams) &&
+      !(body instanceof ReadableStream) &&
+      !(body instanceof ArrayBuffer)
+    ) {
       return JSON.stringify(body);
     }
     return body;
@@ -200,10 +219,22 @@ class ApiClient {
   }
 
   private async handleError(response: Response): Promise<never> {
-    const error: any = await response.json().catch(() => ({ 
-      detail: response.statusText 
-    }));
-    throw new Error(error?.detail || error?.message || `HTTP error! status: ${response.status}`);
+    const errorData = (await response.json().catch(() => ({
+      detail: response.statusText,
+    }))) as unknown;
+
+    if (errorData && typeof errorData === 'object') {
+      const maybeDetail = (errorData as { detail?: unknown }).detail;
+      const maybeMessage = (errorData as { message?: unknown }).message;
+      if (typeof maybeDetail === 'string') {
+        throw new Error(maybeDetail);
+      }
+      if (typeof maybeMessage === 'string') {
+        throw new Error(maybeMessage);
+      }
+    }
+
+    throw new Error(`HTTP error! status: ${response.status}`);
   }
 
   private async handleAuthError(): Promise<void> {
@@ -214,7 +245,7 @@ class ApiClient {
   }
 
   // エラーログを出力する共通メソッド（DRY原則）
-  private logError(message: string, error: any): void {
+  private logError(message: string, error: unknown): void {
     console.error(message, error);
   }
 
@@ -236,7 +267,7 @@ class ApiClient {
     
     try {
       return JSON.parse(text) as T;
-    } catch (e) {
+    } catch {
       return {} as T;
     }
   }
@@ -248,7 +279,7 @@ class ApiClient {
         await this.refreshToken();
         const result = await retryCallback();
         return result;
-      } catch (refreshError) {
+      } catch {
         await this.handleAuthError();
       }
       return null;
@@ -267,7 +298,7 @@ class ApiClient {
    * リトライロジックなしの基本的なfetch処理
    * 401エラーは例外を投げず、呼び出し元で特別な処理が可能
    */
-  private async executeRequest<T>(
+  private async executeRequest(
     url: string,
     config: RequestInit
   ): Promise<Response> {
@@ -283,7 +314,7 @@ class ApiClient {
 
   private async request<T>(
     endpoint: string,
-    options: Omit<RequestInit, 'body'> & { body?: any } = {},
+    options: Omit<RequestInit, 'body'> & { body?: RequestBody } = {},
     retryCount: number = 0
   ): Promise<T> {
     // 共通メソッドを使用してURLを構築
@@ -302,7 +333,7 @@ class ApiClient {
 
     try {
       // 共通のfetch実行ロジックを使用
-      const response = await this.executeRequest<T>(url, config);
+      const response = await this.executeRequest(url, config);
       
       // 共通メソッドを使用して401エラーを処理
       const retryResult = await this.handle401Error<T>(response, retryCount, () => this.request(endpoint, options, retryCount + 1));
@@ -323,6 +354,13 @@ class ApiClient {
 
   async signup(data: SignupRequest): Promise<void> {
     await this.request('/auth/signup/', {
+      method: 'POST',
+      body: data,
+    });
+  }
+
+  async verifyEmail(data: VerifyEmailRequest): Promise<VerifyEmailResponse> {
+    return this.request<VerifyEmailResponse>('/auth/verify-email/', {
       method: 'POST',
       body: data,
     });
@@ -395,7 +433,7 @@ class ApiClient {
       try {
         await this.refreshToken();
         response = await doFetch();
-      } catch (e) {
+      } catch {
         await this.logout();
         throw new Error('認証に失敗しました。再度ログインしてください。');
       }
@@ -455,7 +493,7 @@ class ApiClient {
     const headers: Record<string, string> = {};
 
     try {
-      const response = await this.executeRequest<Video>(url, {
+      const response = await this.executeRequest(url, {
         method: 'POST',
         headers,
         body: formData,

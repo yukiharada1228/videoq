@@ -1,13 +1,15 @@
 from django.conf import settings
 from django.urls import path
 
-from .views import LoginView, LogoutView, MeView, RefreshView, UserSignupView
+from .views import (EmailVerificationView, LoginView, LogoutView, MeView,
+                    RefreshView, UserSignupView)
 
 urlpatterns = [
     path("login/", LoginView.as_view(), name="auth-login"),
     path("logout/", LogoutView.as_view(), name="auth-logout"),
     path("refresh/", RefreshView.as_view(), name="auth-refresh"),
     path("me/", MeView.as_view(), name="auth-me"),
+    path("verify-email/", EmailVerificationView.as_view(), name="auth-verify-email"),
 ]
 
 # 環境変数でサインアップ機能をオン/オフ

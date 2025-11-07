@@ -2,8 +2,6 @@
  * 共通のAPI呼び出しパターン（DRY原則・N+1問題対策）
  */
 
-import { apiClient } from './api';
-
 /**
  * 並列API呼び出しの共通関数（N+1問題対策）
  * @param apiCalls - API呼び出しの配列
@@ -43,20 +41,23 @@ export async function retryApiCall<T>(
   maxRetries: number = 3,
   delay: number = 1000
 ): Promise<T> {
-  let lastError: Error;
+  let lastError: Error | null = null;
   
   for (let i = 0; i <= maxRetries; i++) {
     try {
       return await apiCall();
     } catch (error) {
-      lastError = error as Error;
+      lastError = error instanceof Error ? error : new Error('API call failed');
       if (i < maxRetries) {
         await new Promise(resolve => setTimeout(resolve, delay * Math.pow(2, i)));
       }
     }
   }
   
-  throw lastError!;
+  if (lastError) {
+    throw lastError;
+  }
+  throw new Error('API call failed');
 }
 
 /**

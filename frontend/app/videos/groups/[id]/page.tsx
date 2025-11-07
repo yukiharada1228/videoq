@@ -43,6 +43,15 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
+const ORDERING_OPTIONS = [
+  'uploaded_at_desc',
+  'uploaded_at_asc',
+  'title_asc',
+  'title_desc',
+] as const;
+
+type OrderingOption = (typeof ORDERING_OPTIONS)[number];
+
 // ソータブルな動画アイテムコンポーネント
 interface SortableVideoItemProps {
   video: VideoInGroup;
@@ -130,7 +139,7 @@ export default function VideoGroupDetailPage() {
   const [videoSearch, setVideoSearch] = useState('');
   const [videoSearchInput, setVideoSearchInput] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('');
-  const [ordering, setOrdering] = useState<'uploaded_at_desc' | 'uploaded_at_asc' | 'title_asc' | 'title_desc'>('uploaded_at_desc');
+  const [ordering, setOrdering] = useState<OrderingOption>('uploaded_at_desc');
   const [selectedVideos, setSelectedVideos] = useState<number[]>([]);
   const [isAdding, setIsAdding] = useState(false);
   const [selectedVideo, setSelectedVideo] = useState<SelectedVideo | null>(null);
@@ -145,6 +154,12 @@ export default function VideoGroupDetailPage() {
   const [editedName, setEditedName] = useState('');
   const [editedDescription, setEditedDescription] = useState('');
 
+  const handleOrderingChange = useCallback((event: React.ChangeEvent<HTMLSelectElement>) => {
+    const value = event.target.value as OrderingOption;
+    if (ORDERING_OPTIONS.includes(value)) {
+      setOrdering(value);
+    }
+  }, []);
   // ドラッグアンドドロップのセンサー設定
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -588,7 +603,7 @@ export default function VideoGroupDetailPage() {
                       </select>
                       <select
                         value={ordering}
-                        onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setOrdering(e.target.value as any)}
+                        onChange={handleOrderingChange}
                         className="border border-gray-300 rounded px-2 py-2 text-sm bg-white"
                       >
                         <option value="uploaded_at_desc">新しい順</option>

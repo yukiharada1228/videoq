@@ -43,6 +43,16 @@ class DefaultSettings:
     # Storage
     USE_S3_STORAGE = False
 
+    # Email
+    FRONTEND_URL = "http://localhost:3000"
+    DEFAULT_FROM_EMAIL = "noreply@askvideo.local"
+    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+    EMAIL_HOST = ""
+    EMAIL_PORT = 587
+    EMAIL_HOST_USER = ""
+    EMAIL_HOST_PASSWORD = ""
+    EMAIL_USE_TLS = True
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -73,6 +83,7 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt",
     "corsheaders",
     "app",
+    "anymail",
 ]
 
 MIDDLEWARE = [
@@ -215,3 +226,33 @@ USE_S3_STORAGE = (
     os.environ.get("USE_S3_STORAGE", str(DefaultSettings.USE_S3_STORAGE)).lower()
     == "true"
 )
+
+FRONTEND_URL = os.environ.get("FRONTEND_URL", DefaultSettings.FRONTEND_URL)
+DEFAULT_FROM_EMAIL = os.environ.get(
+    "DEFAULT_FROM_EMAIL", DefaultSettings.DEFAULT_FROM_EMAIL
+)
+EMAIL_BACKEND = DefaultSettings.EMAIL_BACKEND
+
+USE_MAILGUN = os.environ.get("USE_MAILGUN", "false").lower() == "true"
+
+if USE_MAILGUN:
+    EMAIL_BACKEND = "anymail.backends.mailgun.EmailBackend"
+    mailgun_sender_domain = os.environ.get("MAILGUN_SENDER_DOMAIN", "")
+    ANYMAIL = {
+        "MAILGUN_API_KEY": os.environ.get("MAILGUN_API_KEY"),
+        "MAILGUN_SENDER_DOMAIN": mailgun_sender_domain,
+    }
+    if "DEFAULT_FROM_EMAIL" not in os.environ and mailgun_sender_domain:
+        DEFAULT_FROM_EMAIL = f"Ask Video <noreply@{mailgun_sender_domain}>"
+else:
+    EMAIL_BACKEND = os.environ.get("EMAIL_BACKEND", DefaultSettings.EMAIL_BACKEND)
+    EMAIL_HOST = os.environ.get("EMAIL_HOST", DefaultSettings.EMAIL_HOST)
+    EMAIL_PORT = int(os.environ.get("EMAIL_PORT", DefaultSettings.EMAIL_PORT))
+    EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", DefaultSettings.EMAIL_HOST_USER)
+    EMAIL_HOST_PASSWORD = os.environ.get(
+        "EMAIL_HOST_PASSWORD", DefaultSettings.EMAIL_HOST_PASSWORD
+    )
+    EMAIL_USE_TLS = (
+        os.environ.get("EMAIL_USE_TLS", str(DefaultSettings.EMAIL_USE_TLS)).lower()
+        == "true"
+    )

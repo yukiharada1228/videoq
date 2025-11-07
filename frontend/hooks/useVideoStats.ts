@@ -1,9 +1,9 @@
 import { useMemo } from 'react';
 
-export interface Video {
-  id: number;
-  status: 'pending' | 'processing' | 'completed' | 'error';
-  [key: string]: any;
+export type VideoStatus = 'pending' | 'processing' | 'completed' | 'error';
+
+export interface VideoLike {
+  status: VideoStatus;
 }
 
 export interface VideoStats {
@@ -19,7 +19,7 @@ export interface VideoStats {
  * @param videos - 動画の配列
  * @returns 統計情報オブジェクト
  */
-export function useVideoStats(videos: Video[]): VideoStats {
+export function useVideoStats<T extends VideoLike>(videos: T[]): VideoStats {
   return useMemo(() => {
     const stats = {
       total: videos.length,

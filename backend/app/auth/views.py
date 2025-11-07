@@ -5,7 +5,8 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.exceptions import InvalidToken
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .serializers import (LoginSerializer, RefreshSerializer, UserSerializer,
+from .serializers import (EmailVerificationSerializer, LoginSerializer,
+                          RefreshSerializer, UserSerializer,
                           UserSignupSerializer, UserUpdateSerializer)
 
 User = get_user_model()
@@ -25,6 +26,17 @@ class UserSignupView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = UserSignupSerializer
     permission_classes = PublicViewMixin.permission_classes
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(
+            {"detail": "確認メールを送信しました。メールをご確認ください。"},
+            status=status.HTTP_201_CREATED,
+            headers=headers,
+        )
 
 
 class LoginView(PublicAPIView):
@@ -118,6 +130,18 @@ class RefreshView(PublicAPIView):
         )
 
         return response
+
+
+class EmailVerificationView(PublicAPIView):
+    """メール認証完了ビュー"""
+
+    serializer_class = EmailVerificationSerializer
+
+    def post(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({"detail": "メール認証が完了しました。ログインしてください。"})
 
 
 class MeView(AuthenticatedAPIView, generics.RetrieveUpdateAPIView):

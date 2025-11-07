@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { Button } from '@/components/ui/button';
-import { apiClient } from '@/lib/api';
+import { apiClient, type VideoGroupList, type VideoList } from '@/lib/api';
 import { useAsyncState } from '@/hooks/useAsyncState';
 import { useVideoStats } from '@/hooks/useVideoStats';
 
@@ -16,8 +16,8 @@ export default function Home() {
   const { user, loading } = useAuth();
   
   const { data: rawData, isLoading: isLoadingStats, execute: loadStats } = useAsyncState<{
-    videos: any[];
-    groups: any[];
+    videos: VideoList[];
+    groups: VideoGroupList[];
   }>({
     initialData: {
       videos: [],
@@ -26,9 +26,10 @@ export default function Home() {
   });
 
   const videoStats = useVideoStats(rawData?.videos || []);
+  const hasVideos = (rawData?.videos?.length ?? 0) > 0;
 
   useEffect(() => {
-    if (user && !isLoadingStats && (!rawData?.videos || rawData.videos.length === 0)) {
+    if (user && !isLoadingStats && !hasVideos) {
       const loadData = async () => {
         try {
           // 並列でAPI呼び出しを実行（N+1問題対策）
@@ -49,7 +50,7 @@ export default function Home() {
       
       loadData();
     }
-  }, [user, isLoadingStats, rawData?.videos?.length]);
+  }, [user, isLoadingStats, hasVideos, loadStats]);
 
   const handleUploadClick = () => {
     router.push('/videos?upload=true');
