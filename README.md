@@ -8,10 +8,10 @@
 
 ### 主な機能
 
-- **ユーザー認証**: JWTによる認証システム
+- **ユーザー認証**: JWTによる認証システム（メール認証、パスワードリセット対応）
 - **動画アップロード**: 複数の動画形式に対応
 - **自動文字起こし**: Whisper APIによる自動文字起こし（Celeryバックグラウンド処理）
-- **AIチャット**: OpenAI APIによる動画内容についての質問応答
+- **AIチャット**: OpenAI APIによる動画内容についての質問応答（RAG対応）
 - **動画グループ管理**: 複数の動画をグループ化して管理
 - **共有機能**: 共有トークンによる動画グループの共有
 - **保護されたメディア配信**: 認証によるメディアファイルの安全な配信
@@ -22,15 +22,16 @@
 ask-video/
 ├── backend/                    # Django REST Framework バックエンド
 │   ├── app/                     # メインアプリケーション
-│   │   ├── auth/                # 認証機能（views, serializers, urls）
+│   │   ├── auth/                # 認証機能（views, serializers, urls, tests）
 │   │   ├── video/               # 動画管理機能（views, serializers, urls, tests）
-│   │   ├── chat/                # チャット機能（views, serializers, urls, langchain_utils）
+│   │   ├── chat/                # チャット機能（views, serializers, urls, services）
+│   │   ├── common/              # 共通機能（authentication, permissions, responses）
+│   │   ├── media/               # メディア配信機能（views）
 │   │   ├── scene_otsu/          # シーン分割機能
-│   │   ├── utils/               # ユーティリティ（encryption, vector_manager, task_helpers等）
+│   │   ├── utils/               # ユーティリティ（encryption, vector_manager, task_helpers, email等）
 │   │   ├── migrations/          # データベースマイグレーション
 │   │   ├── models.py            # データモデル（User, Video, VideoGroup, ChatLog等）
 │   │   ├── tasks.py             # Celeryタスク（文字起こし処理等）
-│   │   ├── authentication.py   # カスタム認証クラス
 │   │   └── celery_config.py     # Celery設定
 │   ├── ask_video/               # Djangoプロジェクト設定
 │   │   ├── settings.py          # Django設定
@@ -48,11 +49,16 @@ ask-video/
 │   │   ├── page.tsx             # ホームページ
 │   │   ├── login/               # ログインページ
 │   │   ├── signup/              # サインアップページ
+│   │   │   └── check-email/      # メール確認待ちページ
+│   │   ├── verify-email/         # メール認証ページ
+│   │   ├── forgot-password/     # パスワードリセット要求ページ
+│   │   ├── reset-password/       # パスワードリセットページ
 │   │   ├── settings/            # 設定ページ
 │   │   ├── videos/              # 動画関連ページ
 │   │   │   ├── page.tsx         # 動画一覧ページ
 │   │   │   ├── [id]/            # 動画詳細ページ
-│   │   │   └── groups/           # 動画グループページ
+│   │   │   └── groups/          # 動画グループページ
+│   │   │       └── [id]/        # 動画グループ詳細ページ
 │   │   └── share/               # 共有ページ
 │   │       └── [token]/         # 共有トークンページ
 │   ├── components/              # Reactコンポーネント
@@ -62,7 +68,7 @@ ask-video/
 │   │   ├── layout/              # レイアウトコンポーネント
 │   │   ├── common/              # 共通コンポーネント
 │   │   └── ui/                  # UIコンポーネント（shadcn/ui）
-│   ├── hooks/                   # カスタムフック（useAuth, useVideos等）
+│   ├── hooks/                   # カスタムフック（useAuth, useVideos, useAsyncState等）
 │   ├── lib/                     # ライブラリ・ユーティリティ（api, errorUtils等）
 │   ├── e2e/                     # Playwright E2Eテスト
 │   ├── package.json             # Node.js依存関係
@@ -83,6 +89,7 @@ ask-video/
 - **Django REST Framework** (>=3.16.1) - REST API構築
 - **django-rest-framework-simplejwt** (>=5.5.1) - JWT認証システム
 - **django-cors-headers** (>=4.9.0) - CORS設定
+- **django-anymail** (>=13.1) - メール送信（メール認証、パスワードリセット用）
 
 #### サーバー・WSGI
 - **Gunicorn** (>=23.0.0) - WSGIサーバー
@@ -213,6 +220,8 @@ vim .env
 - `ENABLE_SIGNUP` - サインアップ機能の有効/無効（デフォルト: "True"）
 - `ALLOWED_HOSTS` - 許可するホスト名（カンマ区切り）
 - `CORS_ALLOWED_ORIGINS` - CORS許可オリジン（カンマ区切り）
+- `ANYMAIL_*` - メール送信設定（メール認証、パスワードリセット用）
+- `FRONTEND_URL` - フロントエンドURL（メール内のリンク生成用）
 - `USE_S3_STORAGE` - S3ストレージを使用する場合 "true"（デフォルト: "false"）
 - `AWS_STORAGE_BUCKET_NAME` - S3バケット名（`USE_S3_STORAGE=true` の場合に必須）
 - `AWS_ACCESS_KEY_ID` - AWSアクセスキーID（`USE_S3_STORAGE=true` の場合に必須）
@@ -290,10 +299,12 @@ docker-compose exec postgres psql -U $POSTGRES_USER -d $POSTGRES_DB
 
 ### 認証機能
 
-- ユーザー登録
+- ユーザー登録（メール認証対応）
+- メール認証（サインアップ後の確認）
 - ログイン（JWT）
 - トークンリフレッシュ
 - ログアウト
+- パスワードリセット（メール送信によるリセット）
 
 ### 動画管理
 
@@ -329,11 +340,15 @@ docker-compose exec postgres psql -U $POSTGRES_USER -d $POSTGRES_DB
 
 ### 認証
 
-- `POST /api/auth/signup/` - ユーザー登録
+- `POST /api/auth/signup/` - ユーザー登録（メール認証が必要）
+- `POST /api/auth/verify-email/` - メール認証
 - `POST /api/auth/login/` - ログイン
 - `POST /api/auth/logout/` - ログアウト
 - `POST /api/auth/refresh/` - トークンリフレッシュ
 - `GET /api/auth/me/` - 現在のユーザー情報
+- `PATCH /api/auth/me/` - ユーザー情報更新（OpenAI APIキー保存等）
+- `POST /api/auth/password-reset/` - パスワードリセット要求
+- `POST /api/auth/password-reset/confirm/` - パスワードリセット確認
 
 ### 動画管理
 
@@ -388,10 +403,15 @@ TOKEN="<SHARE_TOKEN>"
 #### 1. 認証（サインアップ/ログイン）
 
 ```bash
-# サインアップ
+# サインアップ（メール認証が必要）
 curl -X POST "$BASE_URL/api/auth/signup/" \
   -H "Content-Type: application/json" \
-  -d '{"username":"alice","password":"pass1234"}'
+  -d '{"username":"alice","email":"alice@example.com","password":"pass1234"}'
+
+# メール認証（サインアップ後にメールで送られてくるトークンを使用）
+curl -X POST "$BASE_URL/api/auth/verify-email/" \
+  -H "Content-Type: application/json" \
+  -d '{"uid":"<USER_ID>","token":"<VERIFICATION_TOKEN>"}'
 
 # ログイン（access/refresh を取得）
 curl -X POST "$BASE_URL/api/auth/login/" \
@@ -407,11 +427,21 @@ curl -X POST "$BASE_URL/api/auth/refresh/" \
 # 現在のユーザー情報取得
 curl -H "Authorization: Bearer $ACCESS" "$BASE_URL/api/auth/me/"
 
-# OpenAIキーを保存（暗号化保存）
+# ユーザー情報更新（OpenAIキーを保存、暗号化保存）
 curl -X PATCH "$BASE_URL/api/auth/me/" \
   -H "Authorization: Bearer $ACCESS" \
   -H "Content-Type: application/json" \
   -d '{"encrypted_openai_api_key":"sk-xxxx"}'
+
+# パスワードリセット要求
+curl -X POST "$BASE_URL/api/auth/password-reset/" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"alice@example.com"}'
+
+# パスワードリセット確認（メールで送られてくるトークンを使用）
+curl -X POST "$BASE_URL/api/auth/password-reset/confirm/" \
+  -H "Content-Type: application/json" \
+  -d '{"uid":"<USER_ID>","token":"<RESET_TOKEN>","new_password":"newpass1234"}'
 
 # ログアウト
 curl -X POST "$BASE_URL/api/auth/logout/" \
@@ -509,7 +539,8 @@ curl -X POST "$BASE_URL/api/chat/" \
 
 備考:
 - `group_id` を渡すと、そのグループの動画に限定してベクトル検索（RAG）が実行されます。
-- OpenAIのAPIキーは `/api/auth/me/` で保存してください（`encrypted_openai_api_key`）。
+- OpenAIのAPIキーは `/api/auth/me/` の `PATCH` リクエストで保存してください（`encrypted_openai_api_key`）。
+- 共有トークンでもチャットが利用可能です（`share_token` クエリパラメータを使用）。
 
 #### 5. 共有リンク
 
@@ -580,8 +611,8 @@ curl -X DELETE -H "Authorization: Bearer $ACCESS" \
 
 ### 主要モデル
 
-- **User**: ユーザー情報（Django AbstractUserを継承、暗号化されたOpenAI APIキーを含む）
-- **Video**: 動画情報（タイトル、説明、ファイル、文字起こし、ステータス、外部アップロードフラグなど）
+- **User**: ユーザー情報（Django AbstractUserを継承、暗号化されたOpenAI APIキー、メール認証状態を含む）
+- **Video**: 動画情報（タイトル、説明、ファイル、文字起こし、ステータス、外部アップロードフラグ、動画制限など）
 - **VideoGroup**: 動画グループ（名前、説明、共有トークンなど）
 - **VideoGroupMember**: 動画とグループの関連付け（順序管理機能付き）
 - **ChatLog**: チャットログ（質問、回答、関連動画、共有元フラグなど）
