@@ -16,6 +16,14 @@ export interface FormFieldConfig {
  * 認証フォームで共通使用されるフィールド定義
  */
 export const AUTH_FIELDS = {
+  EMAIL: {
+    id: 'email',
+    name: 'email',
+    label: 'メールアドレス',
+    type: 'email',
+    placeholder: 'メールアドレスを入力',
+  } as FormFieldConfig,
+
   USERNAME: {
     id: 'username',
     name: 'username',
