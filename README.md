@@ -22,15 +22,16 @@
 ask-video/
 ├── backend/                    # Django REST Framework バックエンド
 │   ├── app/                     # メインアプリケーション
-│   │   ├── auth/                # 認証機能（views, serializers, urls）
+│   │   ├── auth/                # 認証機能（views, serializers, urls, tests）
 │   │   ├── video/               # 動画管理機能（views, serializers, urls, tests）
-│   │   ├── chat/                # チャット機能（views, serializers, urls, langchain_utils）
+│   │   ├── chat/                # チャット機能（views, serializers, urls, services）
+│   │   ├── common/              # 共通機能（authentication, permissions, responses）
+│   │   ├── media/               # メディア配信機能（views）
 │   │   ├── scene_otsu/          # シーン分割機能
-│   │   ├── utils/               # ユーティリティ（encryption, vector_manager, task_helpers等）
+│   │   ├── utils/               # ユーティリティ（encryption, vector_manager, task_helpers, email等）
 │   │   ├── migrations/          # データベースマイグレーション
 │   │   ├── models.py            # データモデル（User, Video, VideoGroup, ChatLog等）
 │   │   ├── tasks.py             # Celeryタスク（文字起こし処理等）
-│   │   ├── authentication.py   # カスタム認証クラス
 │   │   └── celery_config.py     # Celery設定
 │   ├── ask_video/               # Djangoプロジェクト設定
 │   │   ├── settings.py          # Django設定
@@ -40,6 +41,7 @@ ask-video/
 │   ├── media/                   # アップロードされたメディアファイル
 │   ├── pyproject.toml           # Python依存関係（uv）
 │   ├── uv.lock                   # uv依存関係ロックファイル
+│   ├── main.py                  # アプリケーションエントリーポイント
 │   ├── manage.py                # Django管理スクリプト
 │   ├── Dockerfile               # バックエンドDockerイメージ
 │   └── README.md                # バックエンドREADME
@@ -48,6 +50,8 @@ ask-video/
 │   │   ├── page.tsx             # ホームページ
 │   │   ├── login/               # ログインページ
 │   │   ├── signup/              # サインアップページ
+│   │   │   └── check-email/     # メール確認待ちページ
+│   │   ├── verify-email/        # メール認証ページ
 │   │   ├── settings/            # 設定ページ
 │   │   ├── videos/              # 動画関連ページ
 │   │   │   ├── page.tsx         # 動画一覧ページ
@@ -83,6 +87,7 @@ ask-video/
 - **Django REST Framework** (>=3.16.1) - REST API構築
 - **django-rest-framework-simplejwt** (>=5.5.1) - JWT認証システム
 - **django-cors-headers** (>=4.9.0) - CORS設定
+- **django-anymail** (>=13.1) - メール送信ライブラリ
 
 #### サーバー・WSGI
 - **Gunicorn** (>=23.0.0) - WSGIサーバー
@@ -213,11 +218,28 @@ vim .env
 - `ENABLE_SIGNUP` - サインアップ機能の有効/無効（デフォルト: "True"）
 - `ALLOWED_HOSTS` - 許可するホスト名（カンマ区切り）
 - `CORS_ALLOWED_ORIGINS` - CORS許可オリジン（カンマ区切り）
+- `FRONTEND_URL` - フロントエンドのURL（メール認証リンク生成用、デフォルト: "http://localhost:3000"）
 - `USE_S3_STORAGE` - S3ストレージを使用する場合 "true"（デフォルト: "false"）
 - `AWS_STORAGE_BUCKET_NAME` - S3バケット名（`USE_S3_STORAGE=true` の場合に必須）
 - `AWS_ACCESS_KEY_ID` - AWSアクセスキーID（`USE_S3_STORAGE=true` の場合に必須）
 - `AWS_SECRET_ACCESS_KEY` - AWSシークレットアクセスキー（`USE_S3_STORAGE=true` の場合に必須）
 - `NEXT_PUBLIC_API_URL` - Next.js用のAPI URL
+
+**メール設定（メール認証機能を使用する場合）:**
+- `USE_MAILGUN` - Mailgunを使用する場合 "true"（デフォルト: "false"）
+  - `USE_MAILGUN=true` の場合:
+    - `MAILGUN_API_KEY` - Mailgun APIキー（必須）
+    - `MAILGUN_SENDER_DOMAIN` - Mailgun送信ドメイン（必須）
+  - `USE_MAILGUN=false` の場合（SMTP使用）:
+    - `EMAIL_BACKEND` - メールバックエンド（デフォルト: "django.core.mail.backends.console.EmailBackend"）
+    - `EMAIL_HOST` - SMTPサーバーホスト
+    - `EMAIL_PORT` - SMTPポート（デフォルト: 587）
+    - `EMAIL_HOST_USER` - SMTPユーザー名
+    - `EMAIL_HOST_PASSWORD` - SMTPパスワード
+    - `EMAIL_USE_TLS` - TLS使用（デフォルト: "true"）
+- `DEFAULT_FROM_EMAIL` - 送信元メールアドレス（デフォルト: "noreply@askvideo.local"）
+
+**その他:**
 - その他、アプリケーションに必要な環境変数（OpenAI APIキーなど）
 
 #### 2. 全サービスの起動
@@ -291,9 +313,11 @@ docker-compose exec postgres psql -U $POSTGRES_USER -d $POSTGRES_DB
 ### 認証機能
 
 - ユーザー登録
+- メール認証（登録後のメール確認）
 - ログイン（JWT）
 - トークンリフレッシュ
 - ログアウト
+- パスワード変更
 
 ### 動画管理
 
@@ -330,10 +354,13 @@ docker-compose exec postgres psql -U $POSTGRES_USER -d $POSTGRES_DB
 ### 認証
 
 - `POST /api/auth/signup/` - ユーザー登録
+- `POST /api/auth/verify-email/` - メール認証
 - `POST /api/auth/login/` - ログイン
 - `POST /api/auth/logout/` - ログアウト
 - `POST /api/auth/refresh/` - トークンリフレッシュ
-- `GET /api/auth/me/` - 現在のユーザー情報
+- `GET /api/auth/me/` - 現在のユーザー情報取得
+- `PATCH /api/auth/me/` - 現在のユーザー情報更新
+- `POST /api/auth/password/change/` - パスワード変更
 
 ### 動画管理
 
@@ -416,6 +443,21 @@ curl -X PATCH "$BASE_URL/api/auth/me/" \
 # ログアウト
 curl -X POST "$BASE_URL/api/auth/logout/" \
   -H "Authorization: Bearer $ACCESS"
+
+# メール認証（サインアップ後にメールで送られてくるトークンを使用）
+curl -X POST "$BASE_URL/api/auth/verify-email/" \
+  -H "Content-Type: application/json" \
+  -d '{"uid":"<USER_ID>","token":"<VERIFICATION_TOKEN>"}'
+
+# パスワード変更
+curl -X POST "$BASE_URL/api/auth/password/change/" \
+  -H "Authorization: Bearer $ACCESS" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "current_password":"oldpass123",
+    "new_password":"newpass456",
+    "new_password_confirm":"newpass456"
+  }'
 ```
 
 #### 2. 動画のアップロードと状態確認
@@ -580,7 +622,7 @@ curl -X DELETE -H "Authorization: Bearer $ACCESS" \
 
 ### 主要モデル
 
-- **User**: ユーザー情報（Django AbstractUserを継承、暗号化されたOpenAI APIキーを含む）
+- **User**: ユーザー情報（Django AbstractUserを継承、暗号化されたOpenAI APIキー、メールアドレス、動画制限数を含む）
 - **Video**: 動画情報（タイトル、説明、ファイル、文字起こし、ステータス、外部アップロードフラグなど）
 - **VideoGroup**: 動画グループ（名前、説明、共有トークンなど）
 - **VideoGroupMember**: 動画とグループの関連付け（順序管理機能付き）
@@ -679,7 +721,7 @@ docker-compose exec redis redis-cli ping  # PONG が返ってくればOK
 
 4. Celeryタスクの登録状況を確認
 ```bash
-docker-compose exec backend uv run python -c "from app.celery_config import app; print(app.tasks.keys())"
+docker-compose exec backend uv run celery -A ask_video inspect registered
 ```
 
 ### 文字起こしが失敗する
