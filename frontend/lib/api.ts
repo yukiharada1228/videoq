@@ -21,6 +21,12 @@ export interface UpdateUserRequest {
   encrypted_openai_api_key?: string | null;
 }
 
+export interface ChangePasswordRequest {
+  current_password: string;
+  new_password: string;
+  new_password_confirm: string;
+}
+
 export interface SignupRequest {
   username: string;
   email: string;
@@ -398,6 +404,13 @@ class ApiClient {
   async updateMe(data: UpdateUserRequest): Promise<User> {
     return this.request<User>('/auth/me', {
       method: 'PUT',
+      body: data,
+    });
+  }
+
+  async changePassword(data: ChangePasswordRequest): Promise<{ detail?: string }> {
+    return this.request<{ detail?: string }>('/auth/password/change/', {
+      method: 'POST',
       body: data,
     });
   }

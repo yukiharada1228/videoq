@@ -14,9 +14,16 @@ import { MessageAlert } from '@/components/common/MessageAlert';
 export default function Settings() {
   const { user, loading } = useAuth();
   const [apiKey, setApiKey] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
+  const [apiSaving, setApiSaving] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
+  const [apiSuccess, setApiSuccess] = useState(false);
+
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
 
   // ユーザー情報が読み込まれたらAPIキーを設定
   useEffect(() => {
@@ -25,22 +32,54 @@ export default function Settings() {
     }
   }, [user]);
 
-  const handleSave = async (e: React.FormEvent) => {
+  const handleApiKeySave = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSaving(true);
-    setError(null);
-    setSuccess(false);
+    setApiSaving(true);
+    setApiError(null);
+    setApiSuccess(false);
 
     try {
       await apiClient.updateMe({
         encrypted_openai_api_key: apiKey || null,
       });
-      setSuccess(true);
+      setApiSuccess(true);
     } catch (error) {
       console.error('Failed to save settings:', error);
-      setError('設定の保存に失敗しました');
+      setApiError('設定の保存に失敗しました');
     } finally {
-      setSaving(false);
+      setApiSaving(false);
+    }
+  };
+
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordSaving(true);
+    setPasswordError(null);
+    setPasswordSuccess(null);
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError('新しいパスワードが一致しません');
+      setPasswordSaving(false);
+      return;
+    }
+
+    try {
+      const response = await apiClient.changePassword({
+        current_password: currentPassword,
+        new_password: newPassword,
+        new_password_confirm: confirmPassword,
+      });
+      setPasswordSuccess(response.detail ?? 'パスワードを変更しました。');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (error) {
+      console.error('Failed to change password:', error);
+      setPasswordError(
+        error instanceof Error ? error.message : 'パスワードの変更に失敗しました'
+      );
+    } finally {
+      setPasswordSaving(false);
     }
   };
 
@@ -57,7 +96,7 @@ export default function Settings() {
             <CardDescription>OpenAI APIキーを設定します</CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSave} className="space-y-4">
+            <form onSubmit={handleApiKeySave} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="apiKey">OpenAI API キー</Label>
                 <Input
@@ -73,11 +112,59 @@ export default function Settings() {
                 </p>
               </div>
 
-              {error && <MessageAlert message={error} type="error" />}
-              {success && <MessageAlert message="設定を保存しました" type="success" />}
+              {apiError && <MessageAlert message={apiError} type="error" />}
+              {apiSuccess && <MessageAlert message="設定を保存しました" type="success" />}
 
-              <Button type="submit" disabled={saving}>
-                {saving ? '保存中...' : '保存'}
+              <Button type="submit" disabled={apiSaving}>
+                {apiSaving ? '保存中...' : '保存'}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>パスワード変更</CardTitle>
+            <CardDescription>現在のパスワードと新しいパスワードを入力してください</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handlePasswordChange} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="currentPassword">現在のパスワード</Label>
+                <Input
+                  id="currentPassword"
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="newPassword">新しいパスワード</Label>
+                <Input
+                  id="newPassword"
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">新しいパスワード（確認）</Label>
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                />
+              </div>
+
+              {passwordError && <MessageAlert message={passwordError} type="error" />}
+              {passwordSuccess && <MessageAlert message={passwordSuccess} type="success" />}
+
+              <Button type="submit" disabled={passwordSaving}>
+                {passwordSaving ? '変更中...' : '変更'}
               </Button>
             </form>
           </CardContent>
