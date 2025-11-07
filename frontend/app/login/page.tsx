@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { AuthForm } from '@/components/auth/AuthForm';
@@ -20,6 +21,7 @@ export default function LoginPage() {
 
   return (
     <PageLayout centered>
+      <div className="w-full max-w-md space-y-4">
       <AuthForm
         title="ログイン"
         description="アカウントにログインしてサービスをご利用ください"
@@ -37,6 +39,12 @@ export default function LoginPage() {
           href: '/signup',
         }}
       />
+        <div className="text-center text-sm">
+          <Link href="/forgot-password" className="text-blue-600 hover:underline">
+            パスワードをお忘れですか？
+          </Link>
+        </div>
+      </div>
     </PageLayout>
   );
 }

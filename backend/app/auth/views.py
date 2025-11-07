@@ -6,8 +6,10 @@ from rest_framework_simplejwt.exceptions import InvalidToken
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .serializers import (EmailVerificationSerializer, LoginSerializer,
-                          RefreshSerializer, UserSerializer,
-                          UserSignupSerializer, UserUpdateSerializer)
+                          PasswordResetConfirmSerializer,
+                          PasswordResetRequestSerializer, RefreshSerializer,
+                          UserSerializer, UserSignupSerializer,
+                          UserUpdateSerializer)
 
 User = get_user_model()
 
@@ -142,6 +144,38 @@ class EmailVerificationView(PublicAPIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response({"detail": "メール認証が完了しました。ログインしてください。"})
+
+
+class PasswordResetRequestView(PublicAPIView):
+    """パスワードリセット要求ビュー"""
+
+    serializer_class = PasswordResetRequestSerializer
+
+    def post(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(
+            {
+                "detail": "パスワードリセット用のメールを送信しました。メールをご確認ください。"
+            }
+        )
+
+
+class PasswordResetConfirmView(PublicAPIView):
+    """パスワードリセット確定ビュー"""
+
+    serializer_class = PasswordResetConfirmSerializer
+
+    def post(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(
+            {
+                "detail": "パスワードをリセットしました。新しいパスワードでログインしてください。"
+            }
+        )
 
 
 class MeView(AuthenticatedAPIView, generics.RetrieveUpdateAPIView):

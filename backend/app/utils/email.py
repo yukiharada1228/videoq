@@ -40,3 +40,31 @@ def send_email_verification(user: User) -> None:
     except Exception:
         logger.exception("Failed to send verification email to %s", user.email)
         raise
+
+
+def build_password_reset_link(user: User) -> str:
+    uid = urlsafe_base64_encode(force_bytes(user.pk))
+    token = default_token_generator.make_token(user)
+    frontend_url = getattr(settings, "FRONTEND_URL", "http://localhost:3000")
+    return f"{frontend_url}/reset-password?uid={uid}&token={token}"
+
+
+def send_password_reset_email(user: User) -> None:
+    subject = "[Ask Video] パスワード再設定のご案内"
+    reset_link = build_password_reset_link(user)
+    message_lines: Sequence[str] = [
+        "Ask Video のパスワード再設定を受け付けました。",
+        "以下のURLから24時間以内に新しいパスワードを設定してください。",
+        "",
+        reset_link,
+        "",
+        "心当たりがない場合はこのメールを破棄してください。",
+    ]
+    message = "\n".join(message_lines)
+    from_email = getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@askvideo.local")
+    recipient_list = [user.email]
+    try:
+        send_mail(subject, message, from_email, recipient_list, fail_silently=False)
+    except Exception:
+        logger.exception("Failed to send password reset email to %s", user.email)
+        raise
