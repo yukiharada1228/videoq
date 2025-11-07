@@ -10,18 +10,19 @@ import { AUTH_FIELDS } from '@/lib/authConfig';
 export default function SignupPage() {
   const router = useRouter();
 
-  const { formData, error, loading, setError, handleChange, handleSubmit } = useAuthForm({
-    onSubmit: async (data: { username: string; password: string; confirmPassword: string }) => {
+  const { formData, error, loading, handleChange, handleSubmit } = useAuthForm({
+    onSubmit: async (data: { username: string; email: string; password: string; confirmPassword: string }) => {
       if (data.password !== data.confirmPassword) {
         throw new Error('パスワードが一致しません');
       }
       await apiClient.signup({
         username: data.username,
+        email: data.email,
         password: data.password,
       });
     },
-    initialData: { username: '', password: '', confirmPassword: '' },
-    onSuccessRedirect: () => router.push('/login'),
+    initialData: { username: '', email: '', password: '', confirmPassword: '' },
+    onSuccessRedirect: () => router.push('/signup/check-email'),
   });
 
   return (
@@ -30,6 +31,7 @@ export default function SignupPage() {
         title="新規登録"
         description="新しいアカウントを作成してサービスをご利用ください"
         fields={[
+          AUTH_FIELDS.EMAIL,
           AUTH_FIELDS.USERNAME,
           AUTH_FIELDS.PASSWORD_WITH_MIN_LENGTH,
           AUTH_FIELDS.CONFIRM_PASSWORD,

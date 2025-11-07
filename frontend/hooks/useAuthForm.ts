@@ -16,7 +16,7 @@ interface UseAuthFormReturn<T> {
   handleSubmit: (e: React.FormEvent) => Promise<void>;
 }
 
-export function useAuthForm<T extends Record<string, any>>({
+export function useAuthForm<T extends Record<string, unknown>>({
   onSubmit,
   initialData,
   onSuccessRedirect,

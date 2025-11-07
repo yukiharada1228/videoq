@@ -43,8 +43,8 @@ export interface CommonModalProps {
 /**
  * 共通のフォームプロパティ（DRY原則）
  */
-export interface CommonFormProps {
-  onSubmit: (data: any) => void;
+export interface CommonFormProps<T = unknown> {
+  onSubmit: (data: T) => void;
   children: React.ReactNode;
   loading?: boolean;
   error?: string | null;
@@ -124,9 +124,9 @@ export interface CommonSearchProps {
 /**
  * 共通のフィルタープロパティ（DRY原則）
  */
-export interface CommonFilterProps {
-  filters: Record<string, any>;
-  onChange: (filters: Record<string, any>) => void;
+export interface CommonFilterProps<T = unknown> {
+  filters: Record<string, T>;
+  onChange: (filters: Record<string, T>) => void;
   onReset?: () => void;
   className?: string;
 }

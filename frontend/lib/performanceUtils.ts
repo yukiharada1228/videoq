@@ -8,7 +8,7 @@
  * @param keySelector - キャッシュキーを選択する関数
  * @returns メモ化された関数
  */
-export function memoize<T extends (...args: any[]) => any>(
+export function memoize<T extends (...args: unknown[]) => unknown>(
   fn: T,
   keySelector?: (...args: Parameters<T>) => string
 ): T {
@@ -18,10 +18,10 @@ export function memoize<T extends (...args: any[]) => any>(
     const key = keySelector ? keySelector(...args) : JSON.stringify(args);
     
     if (cache.has(key)) {
-      return cache.get(key);
+      return cache.get(key) as ReturnType<T>;
     }
     
-    const result = fn(...args);
+    const result = fn(...args) as ReturnType<T>;
     cache.set(key, result);
     return result;
   }) as T;
@@ -105,7 +105,7 @@ export async function parallelProcess<T, R>(
  * @param ttl - キャッシュの有効期限（ミリ秒）
  * @returns キャッシュ付き関数
  */
-export function withCache<T extends (...args: any[]) => any>(
+export function withCache<T extends (...args: unknown[]) => unknown>(
   fn: T,
   ttl: number = 5 * 60 * 1000 // 5分
 ): T {
@@ -119,7 +119,7 @@ export function withCache<T extends (...args: any[]) => any>(
       return cached.data;
     }
     
-    const result = fn(...args);
+    const result = fn(...args) as ReturnType<T>;
     cache.set(key, { data: result, timestamp: Date.now() });
     return result;
   }) as T;
@@ -132,26 +132,29 @@ export function withCache<T extends (...args: any[]) => any>(
  * @param delay - リトライ間隔（ミリ秒）
  * @returns リトライ付き関数
  */
-export function withRetry<T extends (...args: any[]) => Promise<any>>(
+export function withRetry<T extends (...args: unknown[]) => Promise<unknown>>(
   fn: T,
   maxRetries: number = 3,
   delay: number = 1000
 ): T {
   return (async (...args: Parameters<T>) => {
-    let lastError: Error;
+    let lastError: Error | null = null;
     
     for (let i = 0; i <= maxRetries; i++) {
       try {
         return await fn(...args);
       } catch (error) {
-        lastError = error as Error;
+        lastError = error instanceof Error ? error : new Error('Operation failed');
         if (i < maxRetries) {
           await new Promise(resolve => setTimeout(resolve, delay * Math.pow(2, i)));
         }
       }
     }
     
-    throw lastError!;
+    if (lastError) {
+      throw lastError;
+    }
+    throw new Error('Operation failed');
   }) as T;
 }
 
@@ -161,7 +164,7 @@ export function withRetry<T extends (...args: any[]) => Promise<any>>(
  * @param delay - デバウンス遅延（ミリ秒）
  * @returns デバウンス付き関数
  */
-export function withDebounce<T extends (...args: any[]) => any>(
+export function withDebounce<T extends (...args: unknown[]) => unknown>(
   fn: T,
   delay: number = 300
 ): T {
@@ -179,7 +182,7 @@ export function withDebounce<T extends (...args: any[]) => any>(
  * @param delay - スロットル遅延（ミリ秒）
  * @returns スロットル付き関数
  */
-export function withThrottle<T extends (...args: any[]) => any>(
+export function withThrottle<T extends (...args: unknown[]) => unknown>(
   fn: T,
   delay: number = 100
 ): T {
@@ -200,12 +203,18 @@ export function withThrottle<T extends (...args: any[]) => any>(
  * @param label - 測定ラベル
  * @returns 測定結果付き関数
  */
-export function withPerformanceMeasurement<T extends (...args: any[]) => any>(
+export function withPerformanceMeasurement<T extends (...args: unknown[]) => unknown>(
   fn: T,
   label: string
 ): T {
   return ((...args: Parameters<T>) => {
+    const hasPerformance = typeof performance !== 'undefined';
+    const start = hasPerformance ? performance.now() : 0;
     const result = fn(...args);
+    if (hasPerformance && process.env.NODE_ENV !== 'production') {
+      const duration = performance.now() - start;
+      console.debug(`[Performance] ${label}: ${duration.toFixed(2)}ms`);
+    }
     return result;
   }) as T;
 }
@@ -216,12 +225,18 @@ export function withPerformanceMeasurement<T extends (...args: any[]) => any>(
  * @param label - 測定ラベル
  * @returns 測定結果付き非同期関数
  */
-export function withAsyncPerformanceMeasurement<T extends (...args: any[]) => Promise<any>>(
+export function withAsyncPerformanceMeasurement<T extends (...args: unknown[]) => Promise<unknown>>(
   fn: T,
   label: string
 ): T {
   return (async (...args: Parameters<T>) => {
+    const hasPerformance = typeof performance !== 'undefined';
+    const start = hasPerformance ? performance.now() : 0;
     const result = await fn(...args);
+    if (hasPerformance && process.env.NODE_ENV !== 'production') {
+      const duration = performance.now() - start;
+      console.debug(`[Performance] ${label}: ${duration.toFixed(2)}ms`);
+    }
     return result;
   }) as T;
 }

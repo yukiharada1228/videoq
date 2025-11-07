@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useVideoUpload } from '@/hooks/useVideoUpload';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -28,12 +28,12 @@ export function VideoUploadModal({ isOpen, onClose, onUploadSuccess }: VideoUplo
     reset,
   } = useVideoUpload();
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     if (!isUploading) {
       reset();
       onClose();
     }
-  };
+  }, [isUploading, onClose, reset]);
 
   useEffect(() => {
     if (success) {
@@ -45,7 +45,7 @@ export function VideoUploadModal({ isOpen, onClose, onUploadSuccess }: VideoUplo
       }, 2000);
       return () => clearTimeout(timer);
     }
-  }, [success, onUploadSuccess]);
+  }, [success, onUploadSuccess, handleClose]);
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && !isUploading && handleClose()}>

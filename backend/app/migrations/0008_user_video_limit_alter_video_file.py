@@ -7,18 +7,24 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('app', '0007_alter_video_file'),
+        ("app", "0007_alter_video_file"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='user',
-            name='video_limit',
-            field=models.PositiveIntegerField(default=10, help_text='ユーザーが保持できる動画の最大数。必要に応じて管理画面から変更できます。'),
+            model_name="user",
+            name="video_limit",
+            field=models.PositiveIntegerField(
+                default=10,
+                help_text="ユーザーが保持できる動画の最大数。必要に応じて管理画面から変更できます。",
+            ),
         ),
         migrations.AlterField(
-            model_name='video',
-            name='file',
-            field=models.FileField(storage=app.models.SafeFileSystemStorage(), upload_to=app.models.user_directory_path),
+            model_name="video",
+            name="file",
+            field=models.FileField(
+                storage=app.models.SafeFileSystemStorage(),
+                upload_to=app.models.user_directory_path,
+            ),
         ),
     ]
