@@ -1,4 +1,4 @@
-import { useRef, useCallback } from 'react';
+import { useCallback } from 'react';
 import { apiClient, Video, VideoList as VideoListType } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { useAsyncState } from './useAsyncState';
@@ -48,14 +48,6 @@ interface UseVideoReturn {
 export function useVideo(videoId: number | null): UseVideoReturn {
   const router = useRouter();
   
-  // routerをrefで保持して依存配列の問題を回避
-  const routerRef = useRef(router);
-  routerRef.current = router;
-
-  // videoIdをrefで保持して最新の値を常に使用
-  const videoIdRef = useRef(videoId);
-  videoIdRef.current = videoId;
-
   const { data: video, isLoading, error, execute: loadVideo } = useAsyncState<Video>({
     initialData: null,
     onError: (error) => {
@@ -64,16 +56,16 @@ export function useVideo(videoId: number | null): UseVideoReturn {
   });
 
   const handleLoadVideo = useCallback(async () => {
-    if (!videoIdRef.current) return;
+    if (!videoId) return;
     
     await loadVideo(async () => {
       if (!apiClient.isAuthenticated()) {
-        routerRef.current.push('/login');
+        router.push('/login');
         throw new Error('認証が必要です');
       }
-      return await apiClient.getVideo(videoIdRef.current!);
+      return await apiClient.getVideo(videoId);
     });
-  }, [loadVideo]);
+  }, [videoId, loadVideo, router]);
 
   return {
     video: video || null,

@@ -5,11 +5,11 @@
  * @param setError - エラーメッセージを設定する関数
  */
 export const handleAsyncError = (
-  err: any, 
+  err: unknown, 
   defaultMessage: string, 
   setError: (msg: string) => void
 ): void => {
-  const errorMessage = err.message || defaultMessage;
+  const errorMessage = err instanceof Error && err.message ? err.message : defaultMessage;
   setError(errorMessage);
   console.error(defaultMessage, err);
 };

@@ -21,13 +21,13 @@ interface UseAsyncStateReturn<T> {
   isLoading: boolean;
   error: string | null;
   execute: (asyncFn: () => Promise<T>) => Promise<T | undefined>;
-  mutate: (...args: any[]) => Promise<T | undefined>;
+  mutate: (asyncFn: () => Promise<T>) => Promise<T | undefined>;
   reset: () => void;
   setData: (data: T | null) => void;
   setError: (error: string | null) => void;
 }
 
-export function useAsyncState<T = any>(
+export function useAsyncState<T = unknown>(
   options: UseAsyncStateOptions<T> = {}
 ): UseAsyncStateReturn<T> {
   const { initialData = null, onSuccess, onError, confirmMessage } = options;
@@ -60,7 +60,8 @@ export function useAsyncState<T = any>(
       setError(errorMessage);
       
       if (onErrorRef.current) {
-        onErrorRef.current(err as Error);
+        const errorObject = err instanceof Error ? err : new Error(errorMessage);
+        onErrorRef.current(errorObject);
       }
       
       throw err;
@@ -92,7 +93,8 @@ export function useAsyncState<T = any>(
       setError(errorMessage);
       
       if (onErrorRef.current) {
-        onErrorRef.current(err as Error);
+        const errorObject = err instanceof Error ? err : new Error(errorMessage);
+        onErrorRef.current(errorObject);
       }
       
       throw err;

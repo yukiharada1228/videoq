@@ -2,8 +2,8 @@
  * 共通のユーティリティ関数（DRY原則）
  */
 
-import { type ClassValue, clsx } from "clsx"
-import { twMerge } from "tailwind-merge"
+import { type ClassValue, clsx } from "clsx";
+import { twMerge } from "tailwind-merge";
 
 /**
  * Tailwind CSSクラス名を結合する関数
@@ -11,7 +11,7 @@ import { twMerge } from "tailwind-merge"
  * @returns 結合されたクラス名文字列
  */
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
+  return twMerge(clsx(inputs));
 }
 
 /**
@@ -20,9 +20,10 @@ export function cn(...inputs: ClassValue[]) {
  * @param values - 置換する値
  * @returns フォーマットされた文字列
  */
-export function formatString(template: string, values: Record<string, any>): string {
+export function formatString(template: string, values: Record<string, unknown>): string {
   return template.replace(/\{(\w+)\}/g, (match, key) => {
-    return values[key] !== undefined ? String(values[key]) : match;
+    const value = values[key];
+    return value !== undefined ? String(value) : match;
   });
 }
 
@@ -186,7 +187,7 @@ export function deepClone<T>(obj: T): T {
  * @param delay - 遅延時間（ミリ秒）
  * @returns デバウンスされた関数
  */
-export function debounce<T extends (...args: any[]) => any>(
+export function debounce<T extends (...args: unknown[]) => unknown>(
   func: T,
   delay: number
 ): (...args: Parameters<T>) => void {
@@ -203,7 +204,7 @@ export function debounce<T extends (...args: any[]) => any>(
  * @param delay - 遅延時間（ミリ秒）
  * @returns スロットルされた関数
  */
-export function throttle<T extends (...args: any[]) => any>(
+export function throttle<T extends (...args: unknown[]) => unknown>(
   func: T,
   delay: number
 ): (...args: Parameters<T>) => void {

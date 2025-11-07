@@ -31,14 +31,6 @@ export default function VideoDetailPage() {
   const [editedTitle, setEditedTitle] = useState('');
   const [editedDescription, setEditedDescription] = useState('');
 
-  // 動画データが読み込まれたら編集用の状態を初期化
-  useEffect(() => {
-    if (video) {
-      setEditedTitle(video.title);
-      setEditedDescription(video.description || '');
-    }
-  }, [video]);
-
   useEffect(() => {
     if (videoId) {
       loadVideo();
@@ -115,9 +107,14 @@ export default function VideoDetailPage() {
           <h1 className="text-3xl font-bold text-gray-900">{video.title}</h1>
           <div className="flex gap-2">
             {!isEditing && (
-              <Button 
-                variant="outline" 
-                onClick={() => setIsEditing(true)}
+              <Button
+                variant="outline"
+                onClick={() => {
+                  if (!video) return;
+                  setEditedTitle(video.title);
+                  setEditedDescription(video.description || '');
+                  setIsEditing(true);
+                }}
               >
                 編集
               </Button>
