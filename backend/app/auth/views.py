@@ -6,8 +6,9 @@ from rest_framework_simplejwt.exceptions import InvalidToken
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .serializers import (EmailVerificationSerializer, LoginSerializer,
-                          RefreshSerializer, UserSerializer,
-                          UserSignupSerializer, UserUpdateSerializer)
+                          PasswordChangeSerializer, RefreshSerializer,
+                          UserSerializer, UserSignupSerializer,
+                          UserUpdateSerializer)
 
 User = get_user_model()
 
@@ -154,3 +155,15 @@ class MeView(AuthenticatedAPIView, generics.RetrieveUpdateAPIView):
 
     def get_object(self):
         return self.request.user
+
+
+class PasswordChangeView(AuthenticatedAPIView):
+    """パスワード変更ビュー"""
+
+    serializer_class = PasswordChangeSerializer
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({"detail": "パスワードを変更しました。"})
