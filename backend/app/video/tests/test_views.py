@@ -14,7 +14,9 @@ class VideoGroupAPITestCase(APITestCase):
     def setUp(self):
         """テスト用のデータを準備"""
         self.user = User.objects.create_user(
-            username="testuser", password="testpass123"
+            username="testuser",
+            email="testuser@example.com",
+            password="testpass123",
         )
         self.client = APIClient()
         self.client.force_authenticate(user=self.user)
@@ -92,7 +94,9 @@ class VideoGroupMemberAPITestCase(APITestCase):
     def setUp(self):
         """テスト用のデータを準備"""
         self.user = User.objects.create_user(
-            username="testuser", password="testpass123"
+            username="testuser",
+            email="member@example.com",
+            password="testpass123",
         )
         self.client = APIClient()
         self.client.force_authenticate(user=self.user)
@@ -201,8 +205,12 @@ class VideoGroupPermissionTestCase(APITestCase):
 
     def setUp(self):
         """テスト用のデータを準備"""
-        self.user1 = User.objects.create_user(username="user1", password="testpass123")
-        self.user2 = User.objects.create_user(username="user2", password="testpass123")
+        self.user1 = User.objects.create_user(
+            username="user1", email="user1@example.com", password="testpass123"
+        )
+        self.user2 = User.objects.create_user(
+            username="user2", email="user2@example.com", password="testpass123"
+        )
 
         # user1のグループを作成
         self.group = VideoGroup.objects.create(
@@ -249,7 +257,9 @@ class VideoGroupPermissionTestCase(APITestCase):
 class VideoUploadLimitTestCase(APITestCase):
     def setUp(self):
         self.user = User.objects.create_user(
-            username="limituser", password="testpass123"
+            username="limituser",
+            email="limituser@example.com",
+            password="testpass123",
         )
         self.user.video_limit = 1
         self.user.save(update_fields=["video_limit"])
