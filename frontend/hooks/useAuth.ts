@@ -53,7 +53,16 @@ export function useAuth(options: UseAuthOptions = {}): UseAuthReturn {
   }, [redirectToLogin, router]);
 
   useEffect(() => {
-    const authRequired = !['/login', '/signup', '/share'].some(path => pathname.startsWith(path));
+    const publicPaths = [
+      '/login',
+      '/signup',
+      '/signup/check-email',
+      '/forgot-password',
+      '/reset-password',
+      '/verify-email',
+      '/share',
+    ];
+    const authRequired = !publicPaths.some((path) => pathname.startsWith(path));
 
     if (authRequired) {
       checkAuth();
