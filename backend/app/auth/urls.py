@@ -2,6 +2,7 @@ from django.conf import settings
 from django.urls import path
 
 from .views import (EmailVerificationView, LoginView, LogoutView, MeView,
+                    PasswordResetConfirmView, PasswordResetRequestView,
                     RefreshView, UserSignupView)
 
 urlpatterns = [
@@ -10,6 +11,16 @@ urlpatterns = [
     path("refresh/", RefreshView.as_view(), name="auth-refresh"),
     path("me/", MeView.as_view(), name="auth-me"),
     path("verify-email/", EmailVerificationView.as_view(), name="auth-verify-email"),
+    path(
+        "password-reset/",
+        PasswordResetRequestView.as_view(),
+        name="auth-password-reset",
+    ),
+    path(
+        "password-reset/confirm/",
+        PasswordResetConfirmView.as_view(),
+        name="auth-password-reset-confirm",
+    ),
 ]
 
 # 環境変数でサインアップ機能をオン/オフ

@@ -36,6 +36,16 @@ export interface VerifyEmailResponse {
   detail?: string;
 }
 
+export interface PasswordResetRequest {
+  email: string;
+}
+
+export interface PasswordResetConfirmRequest {
+  uid: string;
+  token: string;
+  new_password: string;
+}
+
 export interface LoginRequest {
   username: string;
   password: string;
@@ -376,6 +386,20 @@ class ApiClient {
     // フロントエンドでトークンを保存する必要はない
     
     return response;
+  }
+
+  async requestPasswordReset(data: PasswordResetRequest): Promise<void> {
+    await this.request('/auth/password-reset/', {
+      method: 'POST',
+      body: data,
+    });
+  }
+
+  async confirmPasswordReset(data: PasswordResetConfirmRequest): Promise<void> {
+    await this.request('/auth/password-reset/confirm/', {
+      method: 'POST',
+      body: data,
+    });
   }
 
   async refreshToken(): Promise<RefreshResponse> {

@@ -1,8 +1,9 @@
 import logging
 
-from app.utils.email import send_email_verification
+from app.utils.email import send_email_verification, send_password_reset_email
 from app.utils.encryption import encrypt_api_key, is_encrypted
 from django.contrib.auth import authenticate, get_user_model
+from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.encoding import force_str
 from django.utils.http import urlsafe_base64_decode
@@ -160,4 +161,60 @@ class EmailVerificationSerializer(serializers.Serializer):
         if not user.is_active:
             user.is_active = True
             user.save(update_fields=["is_active"])
+        return user
+
+
+class PasswordResetRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+    def save(self, **kwargs):
+        email = self.validated_data["email"]
+        user = (
+            User.objects.filter(email__iexact=email, is_active=True)
+            .order_by("id")
+            .first()
+        )
+        if not user:
+            return None
+
+        send_password_reset_email(user)
+        return user
+
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    uid = serializers.CharField()
+    token = serializers.CharField()
+    new_password = serializers.CharField(
+        write_only=True, style={"input_type": "password"}, min_length=8
+    )
+
+    default_error_messages = {
+        "invalid_link": "無効なリセットリンクです。",
+        "invalid_token": "トークンが無効、または有効期限が切れています。",
+    }
+
+    def validate(self, attrs):
+        uidb64 = attrs.get("uid")
+        token = attrs.get("token")
+
+        try:
+            uid = force_str(urlsafe_base64_decode(uidb64))
+            user = User.objects.get(pk=uid)
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            self.fail("invalid_link")
+
+        if not default_token_generator.check_token(user, token):
+            self.fail("invalid_token")
+
+        new_password = attrs.get("new_password")
+        validate_password(new_password, user)
+
+        attrs["user"] = user
+        return attrs
+
+    def save(self, **kwargs):
+        user = self.validated_data["user"]
+        new_password = self.validated_data["new_password"]
+        user.set_password(new_password)
+        user.save(update_fields=["password"])
         return user
