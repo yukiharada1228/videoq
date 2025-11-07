@@ -10,7 +10,7 @@
  */
 export function validateForm<T>(
   data: T,
-  rules: Partial<Record<keyof T, (value: any) => string | null>>
+  rules: Partial<Record<keyof T, (value: T[keyof T]) => string | null>>
 ): { isValid: boolean; errors: Record<string, string> } {
   const errors: Record<string, string> = {};
   
@@ -33,8 +33,12 @@ export function validateForm<T>(
  * フォームフィールドの共通バリデーション関数（DRY原則）
  */
 export const formValidators = {
-  required: (value: any): string | null => {
-    if (!value || (typeof value === 'string' && !value.trim())) {
+  required: (value: unknown): string | null => {
+    if (
+      value === null ||
+      value === undefined ||
+      (typeof value === 'string' && value.trim() === '')
+    ) {
       return 'この項目は必須です';
     }
     return null;
@@ -65,7 +69,7 @@ export const formValidators = {
     return null;
   },
   
-  fileSize: (maxSizeMB: number) => (file: File): string | null => {
+  fileSize: (maxSizeMB: number) => (file?: File | null): string | null => {
     if (!file) return null;
     const maxSizeBytes = maxSizeMB * 1024 * 1024;
     if (file.size > maxSizeBytes) {
@@ -74,7 +78,7 @@ export const formValidators = {
     return null;
   },
   
-  fileType: (allowedTypes: string[]) => (file: File): string | null => {
+  fileType: (allowedTypes: string[]) => (file?: File | null): string | null => {
     if (!file) return null;
     if (!allowedTypes.includes(file.type)) {
       return `対応していないファイル形式です。許可されている形式: ${allowedTypes.join(', ')}`;

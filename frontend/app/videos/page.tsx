@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useState, useEffect, Suspense, useMemo } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useVideos } from '@/hooks/useVideos';
 import { useVideoStats } from '@/hooks/useVideoStats';
 import { VideoUploadModal } from '@/components/video/VideoUploadModal';
@@ -15,18 +15,17 @@ function VideosContent() {
   const stats = useVideoStats(videos);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const searchParams = useSearchParams();
+  const router = useRouter();
+
+  const shouldOpenModalFromQuery = useMemo(
+    () => searchParams?.get('upload') === 'true',
+    [searchParams]
+  );
 
   useEffect(() => {
     // ページ読み込み時に動画一覧を取得
     loadVideos();
   }, [loadVideos]);
-
-  useEffect(() => {
-    // URLパラメータにupload=trueが含まれている場合、モーダルを開く
-    if (searchParams?.get('upload') === 'true') {
-      setIsUploadModalOpen(true);
-    }
-  }, [searchParams]);
 
   const handleUploadSuccess = () => {
     loadVideos();
@@ -38,6 +37,9 @@ function VideosContent() {
 
   const handleCloseModal = () => {
     setIsUploadModalOpen(false);
+    if (shouldOpenModalFromQuery) {
+      router.replace('/videos', { scroll: false });
+    }
   };
 
   return (
@@ -90,7 +92,7 @@ function VideosContent() {
       </PageLayout>
 
       <VideoUploadModal
-        isOpen={isUploadModalOpen}
+        isOpen={shouldOpenModalFromQuery || isUploadModalOpen}
         onClose={handleCloseModal}
         onUploadSuccess={handleUploadSuccess}
       />
