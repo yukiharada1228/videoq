@@ -8,6 +8,8 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   related_videos?: RelatedVideo[];
+  chatLogId?: number;
+  feedback?: 'good' | 'bad' | null;
 }
 
 interface ChatPanelProps {
@@ -31,6 +33,7 @@ export function ChatPanel({ hasApiKey, groupId, onVideoPlay, shareToken }: ChatP
   const [historyOpen, setHistoryOpen] = useState(false);
   const [history, setHistory] = useState<ChatHistoryItem[] | null>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [feedbackUpdatingId, setFeedbackUpdatingId] = useState<number | null>(null);
 
   const scrollToBottom = () => {
     if (messagesContainerRef.current) {
@@ -115,7 +118,16 @@ export function ChatPanel({ hasApiKey, groupId, onVideoPlay, shareToken }: ChatP
         ...(shareToken ? { share_token: shareToken } : {}),
       });
 
-      setMessages((prev) => [...prev, response]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: response.role,
+          content: response.content,
+          related_videos: response.related_videos,
+          chatLogId: response.chat_log_id,
+          feedback: response.feedback ?? null,
+        },
+      ]);
     } catch (error) {
       console.error('Chat error:', error);
       setMessages((prev) => [
@@ -127,6 +139,39 @@ export function ChatPanel({ hasApiKey, groupId, onVideoPlay, shareToken }: ChatP
       ]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleFeedback = async (chatLogId: number, value: 'good' | 'bad') => {
+    const targetMessage = messages.find((message) => message.chatLogId === chatLogId);
+    if (!targetMessage) return;
+
+    const nextFeedback = targetMessage.feedback === value ? null : value;
+
+    setFeedbackUpdatingId(chatLogId);
+    try {
+      const result = await apiClient.setChatFeedback(chatLogId, nextFeedback, shareToken);
+      const normalizedFeedback = result.feedback ?? null;
+
+      setMessages((prev) =>
+        prev.map((message) =>
+          message.chatLogId === chatLogId
+            ? { ...message, feedback: normalizedFeedback }
+            : message,
+        ),
+      );
+
+      setHistory((prev) =>
+        prev
+          ? prev.map((item) =>
+              item.id === chatLogId ? { ...item, feedback: normalizedFeedback } : item,
+            )
+          : prev,
+      );
+    } catch (error) {
+      console.error('Failed to update feedback', error);
+    } finally {
+      setFeedbackUpdatingId(null);
     }
   };
 
@@ -198,6 +243,27 @@ export function ChatPanel({ hasApiKey, groupId, onVideoPlay, shareToken }: ChatP
                       </div>
                     </div>
                   )}
+                  {message.role === 'assistant' && message.chatLogId && (
+                    <div className="mt-3 flex items-center gap-2">
+                      <span className="text-xs text-gray-500">フィードバック:</span>
+                      <Button
+                        size="sm"
+                        variant={message.feedback === 'good' ? 'default' : 'outline'}
+                        disabled={feedbackUpdatingId === message.chatLogId}
+                        onClick={() => handleFeedback(message.chatLogId!, 'good')}
+                      >
+                        Good
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={message.feedback === 'bad' ? 'default' : 'outline'}
+                        disabled={feedbackUpdatingId === message.chatLogId}
+                        onClick={() => handleFeedback(message.chatLogId!, 'bad')}
+                      >
+                        Bad
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -264,6 +330,14 @@ export function ChatPanel({ hasApiKey, groupId, onVideoPlay, shareToken }: ChatP
                       {item.is_shared_origin && (
                         <div className="mt-2 text-[10px] text-purple-600">共有リンク経由</div>
                       )}
+                      <div className="mt-2 text-xs text-gray-600">
+                        フィードバック:{' '}
+                        {item.feedback === 'good'
+                          ? 'Good'
+                          : item.feedback === 'bad'
+                          ? 'Bad'
+                          : '未評価'}
+                      </div>
                     </div>
                   ))}
                 </div>
