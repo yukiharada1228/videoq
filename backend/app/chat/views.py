@@ -128,7 +128,7 @@ class ChatView(generics.CreateAPIView):
                 response_data["related_videos"] = result.related_videos
 
             if group_id is not None and group is not None:
-                ChatLog.objects.create(
+                chat_log = ChatLog.objects.create(
                     user=(group.user if is_shared else user),
                     group=group,
                     question=result.query_text,
@@ -136,11 +136,71 @@ class ChatView(generics.CreateAPIView):
                     related_videos=result.related_videos or [],
                     is_shared_origin=is_shared,
                 )
+                response_data["chat_log_id"] = chat_log.id
+                response_data["feedback"] = chat_log.feedback
 
             return Response(response_data)
 
         except Exception as e:
             return handle_langchain_exception(e)
+
+
+class ChatFeedbackView(APIView):
+    authentication_classes = [CookieJWTAuthentication, ShareTokenAuthentication]
+    permission_classes = [IsAuthenticatedOrSharedAccess]
+
+    def post(self, request):
+        share_token = request.query_params.get("share_token")
+        chat_log_id = request.data.get("chat_log_id")
+        feedback = request.data.get("feedback")
+
+        if chat_log_id is None:
+            return create_error_response(
+                "chat_log_idが指定されていません", status.HTTP_400_BAD_REQUEST
+            )
+
+        if feedback == "":
+            feedback = None
+
+        valid_feedback = {
+            None,
+            ChatLog.FeedbackChoices.GOOD,
+            ChatLog.FeedbackChoices.BAD,
+        }
+
+        if feedback not in valid_feedback:
+            return create_error_response(
+                "feedbackはgoodまたはbad、または未指定(null)で指定してください",
+                status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            chat_log = ChatLog.objects.select_related("group").get(id=chat_log_id)
+        except ChatLog.DoesNotExist:
+            return create_error_response(
+                "指定のチャット履歴が見つかりません", status.HTTP_404_NOT_FOUND
+            )
+
+        if share_token:
+            if chat_log.group.share_token != share_token:
+                return create_error_response(
+                    "共有トークンが一致しません", status.HTTP_403_FORBIDDEN
+                )
+        else:
+            if chat_log.group.user_id != request.user.id:
+                return create_error_response(
+                    "この履歴にアクセスする権限がありません", status.HTTP_403_FORBIDDEN
+                )
+
+        chat_log.feedback = feedback
+        chat_log.save(update_fields=["feedback"])
+
+        return Response(
+            {
+                "chat_log_id": chat_log.id,
+                "feedback": chat_log.feedback,
+            }
+        )
 
 
 class ChatHistoryView(generics.ListAPIView):
@@ -207,6 +267,7 @@ class ChatHistoryExportView(APIView):
                 "answer",
                 "is_shared_origin",
                 "related_videos",
+                "feedback",
             ]
         )
 
@@ -224,6 +285,7 @@ class ChatHistoryExportView(APIView):
                     log.answer,
                     "true" if log.is_shared_origin else "false",
                     related_videos_str,
+                    log.feedback or "",
                 ]
             )
 
