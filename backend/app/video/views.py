@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 from app.utils.decorators import authenticated_view_with_error_handling
 from app.utils.mixins import AuthenticatedViewMixin, DynamicSerializerMixin
 from app.utils.query_optimizer import BatchProcessor, QueryOptimizer
-from django.db.models import Q, Max
+from django.db.models import Max, Q
 from rest_framework import generics, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
