@@ -12,5 +12,6 @@ class ChatLogSerializer(serializers.ModelSerializer):
             "answer",
             "related_videos",
             "is_shared_origin",
+            "feedback",
             "created_at",
         ]

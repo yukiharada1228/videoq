@@ -65,6 +65,7 @@ export interface ChatHistoryItem {
   answer: string;
   related_videos: RelatedVideo[];
   is_shared_origin: boolean;
+  feedback?: 'good' | 'bad' | null;
   created_at: string;
 }
 
@@ -72,6 +73,8 @@ export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
   related_videos?: RelatedVideo[];
+  chat_log_id?: number;
+  feedback?: 'good' | 'bad' | null;
 }
 
 export interface ChatRequest {
@@ -433,6 +436,22 @@ class ApiClient {
     return this.request<ChatMessage>(endpoint, {
       method: 'POST',
       body: bodyData,
+    });
+  }
+
+  async setChatFeedback(
+    chatLogId: number,
+    feedback: 'good' | 'bad' | null,
+    shareToken?: string,
+  ): Promise<{ chat_log_id: number; feedback: 'good' | 'bad' | null }> {
+    const endpoint = shareToken ? `/chat/feedback/?share_token=${shareToken}` : '/chat/feedback/';
+
+    return this.request(endpoint, {
+      method: 'POST',
+      body: {
+        chat_log_id: chatLogId,
+        feedback,
+      },
     });
   }
 
