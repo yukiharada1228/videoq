@@ -13,7 +13,7 @@ import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { MessageAlert } from '@/components/common/MessageAlert';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
 import Link from 'next/link';
-import { getStatusBadgeClassName, getStatusLabel } from '@/lib/utils/video';
+import { getStatusBadgeClassName, getStatusLabel, timeStringToSeconds } from '@/lib/utils/video';
 import { convertVideoInGroupToSelectedVideo, createVideoIdSet, SelectedVideo } from '@/lib/utils/videoConversion';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -188,7 +188,7 @@ export default function VideoGroupDetailPage() {
       });
       // すでにチャットグループに追加されている動画を除外
       const currentVideoIds = group.videos?.map(v => v.id) || [];
-      // 共通のSet作成関数を使用（DRY原則・N+1問題対策）
+      // 共通のSet作成関数を使用
       const currentVideoIdSet = createVideoIdSet(currentVideoIds);
       return videos.filter(v => !currentVideoIdSet.has(v.id));
     });
@@ -343,35 +343,15 @@ export default function VideoGroupDetailPage() {
     // 既にprefetch_relatedで取得済みのデータを使用
     const video = group?.videos?.find(v => v.id === videoId);
     if (video) {
-      // 共通の変換関数を使用（DRY原則・N+1問題対策）
+      // 共通の変換関数を使用
       setSelectedVideo(convertVideoInGroupToSelectedVideo(video));
     }
   };
 
   // チャットから動画を選択して指定時間から再生する関数
   const handleVideoPlayFromTime = (videoId: number, startTime: string) => {
-    // 時間文字列を秒に変換（形式: HH:MM:SS,mmm または MM:SS）
-    const timeToSeconds = (timeStr: string): number => {
-      // カンマがあればミリ秒部分を削除
-      const timeWithoutMs = timeStr.split(',')[0];
-      const parts = timeWithoutMs.split(':');
-
-      if (parts.length === 3) {
-        // HH:MM:SS 形式
-        const hours = parseInt(parts[0], 10);
-        const minutes = parseInt(parts[1], 10);
-        const seconds = parseInt(parts[2], 10);
-        return hours * 3600 + minutes * 60 + seconds;
-      } else if (parts.length === 2) {
-        // MM:SS 形式
-        const minutes = parseInt(parts[0], 10);
-        const seconds = parseInt(parts[1], 10);
-        return minutes * 60 + seconds;
-      }
-      return 0;
-    };
-
-    const seconds = timeToSeconds(startTime);
+    // 共通ユーティリティで時間文字列を秒に変換（DRY対応）
+    const seconds = timeStringToSeconds(startTime);
 
     // 同じ動画が既に選択されている場合は即座に時間を設定
     if (selectedVideo?.id === videoId && videoRef.current) {

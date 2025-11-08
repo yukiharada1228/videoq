@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { apiClient, RelatedVideo, ChatHistoryItem } from '@/lib/api';
+import { timeStringToSeconds } from '@/lib/utils/video';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -69,27 +70,6 @@ export function ChatPanel({ hasApiKey, groupId, onVideoPlay, shareToken }: ChatP
     }
   };
 
-  // 時間文字列を秒に変換する関数（形式: HH:MM:SS,mmm または MM:SS）
-  const timeToSeconds = (timeStr: string): number => {
-    // カンマがあればミリ秒部分を削除
-    const timeWithoutMs = timeStr.split(',')[0];
-    const parts = timeWithoutMs.split(':');
-
-    if (parts.length === 3) {
-      // HH:MM:SS 形式
-      const hours = parseInt(parts[0], 10);
-      const minutes = parseInt(parts[1], 10);
-      const seconds = parseInt(parts[2], 10);
-      return hours * 3600 + minutes * 60 + seconds;
-    } else if (parts.length === 2) {
-      // MM:SS 形式
-      const minutes = parseInt(parts[0], 10);
-      const seconds = parseInt(parts[1], 10);
-      return minutes * 60 + seconds;
-    }
-    return 0;
-  };
-
   // 動画ページに遷移する関数
   const navigateToVideo = (videoId: number, startTime: string) => {
     if (onVideoPlay) {
@@ -97,7 +77,7 @@ export function ChatPanel({ hasApiKey, groupId, onVideoPlay, shareToken }: ChatP
       onVideoPlay(videoId, startTime);
     } else {
       // 新しいタブで動画ページを開く
-      const seconds = timeToSeconds(startTime);
+      const seconds = timeStringToSeconds(startTime);
       window.open(`/videos/${videoId}?t=${seconds}`, '_blank');
     }
   };
