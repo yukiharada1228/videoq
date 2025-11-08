@@ -1,9 +1,9 @@
 /**
- * 共通のデータ処理ユーティリティ（DRY原則・N+1問題対策）
+ * 共通のデータ処理ユーティリティ
  */
 
 /**
- * 動画IDのSetを作成する共通関数（DRY原則・N+1問題対策）
+ * 動画IDのSetを作成する共通関数
  * @param videoIds - 動画IDの配列
  * @returns 動画IDのSet
  */
@@ -38,7 +38,7 @@ export function mapItems<T, U>(
 }
 
 /**
- * 配列をグループ化する共通関数（DRY原則・N+1問題対策）
+ * 配列をグループ化する共通関数
  * @param items - グループ化する配列
  * @param keySelector - キーを選択する関数
  * @returns グループ化されたオブジェクト
@@ -80,7 +80,7 @@ export function sortItems<T>(
 }
 
 /**
- * 配列から重複を削除する共通関数（DRY原則・N+1問題対策）
+ * 配列から重複を削除する共通関数
  * @param items - 重複を削除する配列
  * @param keySelector - 重複判定のキーを選択する関数
  * @returns 重複が削除された配列

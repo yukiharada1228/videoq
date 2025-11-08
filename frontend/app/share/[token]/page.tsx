@@ -9,7 +9,7 @@ import { MessageAlert } from '@/components/common/MessageAlert';
 import { ChatPanel } from '@/components/chat/ChatPanel';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
-import { getStatusBadgeClassName, getStatusLabel } from '@/lib/utils/video';
+import { getStatusBadgeClassName, getStatusLabel, timeStringToSeconds } from '@/lib/utils/video';
 import { convertVideoInGroupToSelectedVideo, SelectedVideo } from '@/lib/utils/videoConversion';
 
 // 共有ページ用の動画アイテムコンポーネント（ドラッグ＆ドロップなし）
@@ -96,28 +96,8 @@ export default function SharedGroupPage() {
 
   // チャットから動画を選択して指定時間から再生する関数
   const handleVideoPlayFromTime = (videoId: number, startTime: string) => {
-    // 時間文字列を秒に変換（形式: HH:MM:SS,mmm または MM:SS）
-    const timeToSeconds = (timeStr: string): number => {
-      // カンマがあればミリ秒部分を削除
-      const timeWithoutMs = timeStr.split(',')[0];
-      const parts = timeWithoutMs.split(':');
-
-      if (parts.length === 3) {
-        // HH:MM:SS 形式
-        const hours = parseInt(parts[0], 10);
-        const minutes = parseInt(parts[1], 10);
-        const seconds = parseInt(parts[2], 10);
-        return hours * 3600 + minutes * 60 + seconds;
-      } else if (parts.length === 2) {
-        // MM:SS 形式
-        const minutes = parseInt(parts[0], 10);
-        const seconds = parseInt(parts[1], 10);
-        return minutes * 60 + seconds;
-      }
-      return 0;
-    };
-
-    const seconds = timeToSeconds(startTime);
+    // 共通ユーティリティで時間文字列を秒に変換（DRY対応）
+    const seconds = timeStringToSeconds(startTime);
 
     // 同じ動画が既に選択されている場合は即座に時間を設定
     if (selectedVideo?.id === videoId && videoRef.current) {

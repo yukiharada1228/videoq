@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useAsyncState } from './useAsyncState';
 
 /**
- * 動画一覧を取得するフック（DRY原則・N+1問題対策済み）
+ * 動画一覧を取得するフック
  */
 interface UseVideosReturn {
   videos: VideoListType[];
@@ -36,7 +36,7 @@ export function useVideos(): UseVideosReturn {
 }
 
 /**
- * 単一動画を取得するフック（DRY原則・N+1問題対策済み）
+ * 単一動画を取得するフック
  */
 interface UseVideoReturn {
   video: Video | null;

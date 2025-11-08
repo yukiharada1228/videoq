@@ -70,3 +70,40 @@ export function formatDate(date: string | Date, format: 'full' | 'short' = 'full
   });
 }
 
+/**
+ * 動画の時間文字列（HH:MM:SS,mmm / MM:SS / SS）を秒数に変換
+ */
+export function timeStringToSeconds(timeStr: string): number {
+  if (!timeStr) {
+    return 0;
+  }
+
+  const timeWithoutMs = timeStr.split(/[,.]/)[0];
+  const parts = timeWithoutMs.split(':').map((part) => part.trim());
+
+  if (parts.length === 0 || parts.some((part) => part === '')) {
+    return 0;
+  }
+
+  const numbers = parts.map((part) => Number.parseInt(part, 10));
+  if (numbers.some(Number.isNaN)) {
+    return 0;
+  }
+
+  if (numbers.length === 3) {
+    const [hours, minutes, seconds] = numbers;
+    return hours * 3600 + minutes * 60 + seconds;
+  }
+
+  if (numbers.length === 2) {
+    const [minutes, seconds] = numbers;
+    return minutes * 60 + seconds;
+  }
+
+  if (numbers.length === 1) {
+    return numbers[0];
+  }
+
+  return 0;
+}
+
