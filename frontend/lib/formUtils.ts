@@ -1,9 +1,9 @@
 /**
- * 共通のフォーム処理ユーティリティ（DRY原則）
+ * 共通のフォーム処理ユーティリティ
  */
 
 /**
- * フォームバリデーションの共通関数（DRY原則）
+ * フォームバリデーションの共通関数
  * @param data - バリデーションするデータ
  * @param rules - バリデーションルール
  * @returns バリデーション結果
@@ -30,7 +30,7 @@ export function validateForm<T>(
 }
 
 /**
- * フォームフィールドの共通バリデーション関数（DRY原則）
+ * フォームフィールドの共通バリデーション関数
  */
 export const formValidators = {
   required: (value: unknown): string | null => {
@@ -88,7 +88,7 @@ export const formValidators = {
 };
 
 /**
- * フォームデータの初期化関数（DRY原則）
+ * フォームデータの初期化関数
  * @param initialData - 初期データ
  * @returns 初期化されたフォームデータ
  */
@@ -97,7 +97,7 @@ export function initializeFormData<T>(initialData: T): T {
 }
 
 /**
- * フォームデータのリセット関数（DRY原則）
+ * フォームデータのリセット関数
  * @param initialData - 初期データ
  * @returns リセットされたフォームデータ
  */
@@ -106,7 +106,7 @@ export function resetFormData<T>(initialData: T): T {
 }
 
 /**
- * フォームデータの更新関数（DRY原則）
+ * フォームデータの更新関数
  * @param currentData - 現在のデータ
  * @param updates - 更新するデータ
  * @returns 更新されたフォームデータ
@@ -119,7 +119,7 @@ export function updateFormData<T>(
 }
 
 /**
- * フォームデータの差分取得関数（DRY原則）
+ * フォームデータの差分取得関数
  * @param originalData - 元のデータ
  * @param currentData - 現在のデータ
  * @returns 変更されたフィールドのみのオブジェクト

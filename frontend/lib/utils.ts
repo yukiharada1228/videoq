@@ -1,5 +1,5 @@
 /**
- * 共通のユーティリティ関数（DRY原則）
+ * 共通のユーティリティ関数
  */
 
 import { type ClassValue, clsx } from "clsx";
@@ -15,7 +15,7 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
- * 文字列のフォーマット関数（DRY原則）
+ * 文字列のフォーマット関数
  * @param template - テンプレート文字列
  * @param values - 置換する値
  * @returns フォーマットされた文字列
@@ -28,7 +28,7 @@ export function formatString(template: string, values: Record<string, unknown>):
 }
 
 /**
- * 日付のフォーマット関数（DRY原則）
+ * 日付のフォーマット関数
  * @param date - 日付オブジェクトまたは文字列
  * @param format - フォーマット文字列
  * @returns フォーマットされた日付文字列
@@ -52,7 +52,7 @@ export function formatDate(date: Date | string, format: string = 'YYYY-MM-DD'): 
 }
 
 /**
- * ファイルサイズのフォーマット関数（DRY原則）
+ * ファイルサイズのフォーマット関数
  * @param bytes - バイト数
  * @returns フォーマットされたファイルサイズ文字列
  */
@@ -67,7 +67,7 @@ export function formatFileSize(bytes: number): string {
 }
 
 /**
- * 時間のフォーマット関数（DRY原則）
+ * 時間のフォーマット関数
  * @param seconds - 秒数
  * @returns フォーマットされた時間文字列
  */
@@ -83,7 +83,7 @@ export function formatDuration(seconds: number): string {
 }
 
 /**
- * 数値のフォーマット関数（DRY原則）
+ * 数値のフォーマット関数
  * @param num - 数値
  * @param decimals - 小数点以下の桁数
  * @returns フォーマットされた数値文字列
@@ -96,7 +96,7 @@ export function formatNumber(num: number, decimals: number = 0): string {
 }
 
 /**
- * パーセンテージのフォーマット関数（DRY原則）
+ * パーセンテージのフォーマット関数
  * @param value - 値
  * @param total - 合計値
  * @param decimals - 小数点以下の桁数
@@ -109,7 +109,7 @@ export function formatPercentage(value: number, total: number, decimals: number 
 }
 
 /**
- * 文字列の切り詰め関数（DRY原則）
+ * 文字列の切り詰め関数
  * @param str - 文字列
  * @param maxLength - 最大長
  * @param suffix - 接尾辞
@@ -121,7 +121,7 @@ export function truncateString(str: string, maxLength: number, suffix: string = 
 }
 
 /**
- * 文字列のサニタイズ関数（DRY原則）
+ * 文字列のサニタイズ関数
  * @param str - 文字列
  * @returns サニタイズされた文字列
  */
@@ -133,7 +133,7 @@ export function sanitizeString(str: string): string {
 }
 
 /**
- * 配列のシャッフル関数（DRY原則）
+ * 配列のシャッフル関数
  * @param array - 配列
  * @returns シャッフルされた配列
  */
@@ -147,7 +147,7 @@ export function shuffleArray<T>(array: T[]): T[] {
 }
 
 /**
- * 配列のチャンク分割関数（DRY原則）
+ * 配列のチャンク分割関数
  * @param array - 配列
  * @param size - チャンクサイズ
  * @returns チャンクに分割された配列
@@ -161,7 +161,7 @@ export function chunkArray<T>(array: T[], size: number): T[][] {
 }
 
 /**
- * オブジェクトのディープクローン関数（DRY原則）
+ * オブジェクトのディープクローン関数
  * @param obj - オブジェクト
  * @returns クローンされたオブジェクト
  */
@@ -182,7 +182,7 @@ export function deepClone<T>(obj: T): T {
 }
 
 /**
- * デバウンス関数（DRY原則）
+ * デバウンス関数
  * @param func - 関数
  * @param delay - 遅延時間（ミリ秒）
  * @returns デバウンスされた関数
@@ -199,7 +199,7 @@ export function debounce<T extends (...args: unknown[]) => unknown>(
 }
 
 /**
- * スロットル関数（DRY原則）
+ * スロットル関数
  * @param func - 関数
  * @param delay - 遅延時間（ミリ秒）
  * @returns スロットルされた関数

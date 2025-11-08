@@ -14,7 +14,7 @@ interface UseAuthOptions {
 }
 
 /**
- * 認証状態を管理するカスタムフック（DRY原則に従う）
+ * 認証状態を管理するカスタムフック
  */
 export function useAuth(options: UseAuthOptions = {}): UseAuthReturn {
   const { redirectToLogin = true, onAuthError } = options;

@@ -126,7 +126,7 @@ export function withCache<T extends (...args: unknown[]) => unknown>(
 }
 
 /**
- * リトライ付き関数（DRY原則）
+ * リトライ付き関数
  * @param fn - リトライする関数
  * @param maxRetries - 最大リトライ回数
  * @param delay - リトライ間隔（ミリ秒）
@@ -159,7 +159,7 @@ export function withRetry<T extends (...args: unknown[]) => Promise<unknown>>(
 }
 
 /**
- * デバウンス付き関数（DRY原則）
+ * デバウンス付き関数
  * @param fn - デバウンスする関数
  * @param delay - デバウンス遅延（ミリ秒）
  * @returns デバウンス付き関数
@@ -177,7 +177,7 @@ export function withDebounce<T extends (...args: unknown[]) => unknown>(
 }
 
 /**
- * スロットル付き関数（DRY原則）
+ * スロットル付き関数
  * @param fn - スロットルする関数
  * @param delay - スロットル遅延（ミリ秒）
  * @returns スロットル付き関数
@@ -198,7 +198,7 @@ export function withThrottle<T extends (...args: unknown[]) => unknown>(
 }
 
 /**
- * パフォーマンス測定関数（DRY原則）
+ * パフォーマンス測定関数
  * @param fn - 測定する関数
  * @param label - 測定ラベル
  * @returns 測定結果付き関数
@@ -220,7 +220,7 @@ export function withPerformanceMeasurement<T extends (...args: unknown[]) => unk
 }
 
 /**
- * 非同期パフォーマンス測定関数（DRY原則）
+ * 非同期パフォーマンス測定関数
  * @param fn - 測定する非同期関数
  * @param label - 測定ラベル
  * @returns 測定結果付き非同期関数

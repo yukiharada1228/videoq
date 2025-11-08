@@ -22,7 +22,7 @@ interface ValidationResult {
 }
 
 /**
- * バリデーションロジック（DRY原則）
+ * バリデーションロジック
  */
 function validateVideoUpload(file: File | null, title: string): ValidationResult {
   if (!file) {

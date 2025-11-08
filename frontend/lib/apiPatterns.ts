@@ -3,7 +3,7 @@
  */
 
 /**
- * 並列API呼び出しの共通関数（N+1問題対策）
+ * 並列API呼び出しの共通関数
  * @param apiCalls - API呼び出しの配列
  * @returns 並列実行された結果の配列
  */
@@ -14,7 +14,7 @@ export async function parallelApiCalls<T>(
 }
 
 /**
- * 条件付きAPI呼び出しの共通関数（DRY原則）
+ * 条件付きAPI呼び出しの共通関数
  * @param condition - 呼び出し条件
  * @param apiCall - API呼び出し関数
  * @param fallback - 条件が満たされない場合のフォールバック値
@@ -30,7 +30,7 @@ export async function conditionalApiCall<T>(
 }
 
 /**
- * リトライ付きAPI呼び出しの共通関数（DRY原則）
+ * リトライ付きAPI呼び出しの共通関数
  * @param apiCall - API呼び出し関数
  * @param maxRetries - 最大リトライ回数
  * @param delay - リトライ間隔（ミリ秒）
@@ -61,7 +61,7 @@ export async function retryApiCall<T>(
 }
 
 /**
- * バッチAPI呼び出しの共通関数（N+1問題対策）
+ * バッチAPI呼び出しの共通関数
  * @param items - 処理するアイテムの配列
  * @param batchSize - バッチサイズ
  * @param apiCall - バッチ処理用のAPI呼び出し関数
@@ -84,7 +84,7 @@ export async function batchApiCall<T, R>(
 }
 
 /**
- * キャッシュ付きAPI呼び出しの共通関数（N+1問題対策）
+ * キャッシュ付きAPI呼び出しの共通関数
  * @param key - キャッシュキー
  * @param apiCall - API呼び出し関数
  * @param ttl - キャッシュの有効期限（ミリ秒）
@@ -110,7 +110,7 @@ export function cachedApiCall<T>(
 }
 
 /**
- * デバウンス付きAPI呼び出しの共通関数（DRY原則）
+ * デバウンス付きAPI呼び出しの共通関数
  * @param apiCall - API呼び出し関数
  * @param delay - デバウンス遅延（ミリ秒）
  * @returns デバウンスされたAPI呼び出し関数
