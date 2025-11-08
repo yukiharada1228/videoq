@@ -226,6 +226,10 @@ class VideoGroupMember(models.Model):
 
 
 class ChatLog(models.Model):
+    class FeedbackChoices(models.TextChoices):
+        GOOD = "good", "Good"
+        BAD = "bad", "Bad"
+
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="chat_logs"
     )
@@ -236,6 +240,13 @@ class ChatLog(models.Model):
     answer = models.TextField()
     related_videos = models.JSONField(default=list, blank=True)
     is_shared_origin = models.BooleanField(default=False)
+    feedback = models.CharField(
+        max_length=4,
+        choices=FeedbackChoices.choices,
+        blank=True,
+        null=True,
+        help_text="回答に対するフィードバック（good/bad）",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
