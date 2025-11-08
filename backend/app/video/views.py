@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 from app.utils.decorators import authenticated_view_with_error_handling
 from app.utils.mixins import AuthenticatedViewMixin, DynamicSerializerMixin
 from app.utils.query_optimizer import BatchProcessor, QueryOptimizer
-from django.db.models import Q
+from django.db.models import Q, Max
 from rest_framework import generics, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
@@ -328,8 +328,17 @@ def _add_video_to_group_operation(group, video):
             "この動画は既にグループに追加されています", status.HTTP_400_BAD_REQUEST
         )
 
-    # グループに追加
-    member = VideoGroupMember.objects.create(group=group, video=video)
+    # グループ内の末尾に配置されるよう order を採番
+    max_order = (
+        _get_member_queryset(group).aggregate(max_order=Max("order")).get("max_order")
+    )
+    next_order = (max_order if max_order is not None else -1) + 1
+
+    member = VideoGroupMember.objects.create(
+        group=group,
+        video=video,
+        order=next_order,
+    )
     return Response(
         {"message": "動画をグループに追加しました", "id": member.id},
         status=status.HTTP_201_CREATED,
@@ -379,12 +388,26 @@ def add_videos_to_group(request, group_id):
         .values_list("video_id", flat=True)
     )
 
-    # 追加可能な動画のみをフィルタリング（N+1問題対策）
-    videos_to_add = [video for video in videos if video.id not in existing_members]
+    # 追加可能な動画のみを、選択順にフィルタリング（N+1問題対策）
+    video_map = {video.id: video for video in videos}
+    videos_to_add = [
+        video_map[video_id]
+        for video_id in video_ids
+        if video_id in video_map and video_id not in existing_members
+    ]
 
     # バッチで追加
+    current_max_order = (
+        _get_member_queryset(group).aggregate(max_order=Max("order")).get("max_order")
+    )
+    base_order = current_max_order if current_max_order is not None else -1
     members_to_create = [
-        VideoGroupMember(group=group, video=video) for video in videos_to_add
+        VideoGroupMember(
+            group=group,
+            video=video,
+            order=base_order + index,
+        )
+        for index, video in enumerate(videos_to_add, start=1)
     ]
     VideoGroupMember.objects.bulk_create(members_to_create)
 
