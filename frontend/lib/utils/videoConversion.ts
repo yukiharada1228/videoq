@@ -9,7 +9,7 @@ export interface SelectedVideo {
 }
 
 /**
- * VideoInGroupからSelectedVideoに変換する共通関数（DRY原則・N+1問題対策）
+ * VideoInGroupからSelectedVideoに変換する共通関数
  */
 export function convertVideoInGroupToSelectedVideo(video: VideoInGroup): SelectedVideo {
   return {
@@ -22,7 +22,7 @@ export function convertVideoInGroupToSelectedVideo(video: VideoInGroup): Selecte
 }
 
 /**
- * VideoListからSelectedVideoに変換する共通関数（DRY原則・N+1問題対策）
+ * VideoListからSelectedVideoに変換する共通関数
  */
 export function convertVideoListToSelectedVideo(video: VideoList): SelectedVideo {
   return {

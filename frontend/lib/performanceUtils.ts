@@ -1,9 +1,9 @@
 /**
- * 共通のパフォーマンス最適化ユーティリティ（DRY原則・N+1問題対策）
+ * 共通のパフォーマンス最適化ユーティリティ
  */
 
 /**
- * メモ化関数（DRY原則・N+1問題対策）
+ * メモ化関数
  * @param fn - メモ化する関数
  * @param keySelector - キャッシュキーを選択する関数
  * @returns メモ化された関数
@@ -28,7 +28,7 @@ export function memoize<T extends (...args: unknown[]) => unknown>(
 }
 
 /**
- * 遅延読み込み関数（DRY原則・N+1問題対策）
+ * 遅延読み込み関数
  * @param loader - データを読み込む関数
  * @param cache - キャッシュマップ
  * @returns 遅延読み込み関数
@@ -54,7 +54,7 @@ export function lazyLoad<T>(
 }
 
 /**
- * バッチ処理関数（DRY原則・N+1問題対策）
+ * バッチ処理関数
  * @param items - 処理するアイテムの配列
  * @param processor - バッチ処理関数
  * @param batchSize - バッチサイズ
@@ -77,7 +77,7 @@ export async function batchProcess<T, R>(
 }
 
 /**
- * 並列処理関数（DRY原則・N+1問題対策）
+ * 並列処理関数
  * @param items - 処理するアイテムの配列
  * @param processor - 並列処理関数
  * @param concurrency - 並列度
@@ -100,7 +100,7 @@ export async function parallelProcess<T, R>(
 }
 
 /**
- * キャッシュ付き関数（DRY原則・N+1問題対策）
+ * キャッシュ付き関数
  * @param fn - キャッシュする関数
  * @param ttl - キャッシュの有効期限（ミリ秒）
  * @returns キャッシュ付き関数
