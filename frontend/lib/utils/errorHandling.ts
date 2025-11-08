@@ -1,5 +1,5 @@
 /**
- * 共通のエラーハンドリング関数（DRY原則）
+ * 共通のエラーハンドリング関数
  * @param err - エラーオブジェクト
  * @param defaultMessage - デフォルトのエラーメッセージ
  * @param setError - エラーメッセージを設定する関数

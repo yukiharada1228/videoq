@@ -11,7 +11,7 @@ interface LoadingStateProps {
 }
 
 /**
- * ローディング状態とエラー状態を統一管理するコンポーネント（DRY原則）
+ * ローディング状態とエラー状態を統一管理するコンポーネント
  */
 export function LoadingState({
   isLoading,

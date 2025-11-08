@@ -1,11 +1,11 @@
 /**
- * 共通のコンポーネントパターン（DRY原則）
+ * 共通のコンポーネントパターン
  */
 
 import React from 'react';
 
 /**
- * 共通のボタンプロパティ（DRY原則）
+ * 共通のボタンプロパティ
  */
 export interface CommonButtonProps {
   children: React.ReactNode;
@@ -18,7 +18,7 @@ export interface CommonButtonProps {
 }
 
 /**
- * 共通のカードプロパティ（DRY原則）
+ * 共通のカードプロパティ
  */
 export interface CommonCardProps {
   children: React.ReactNode;
@@ -29,7 +29,7 @@ export interface CommonCardProps {
 }
 
 /**
- * 共通のモーダルプロパティ（DRY原則）
+ * 共通のモーダルプロパティ
  */
 export interface CommonModalProps {
   isOpen: boolean;
@@ -41,7 +41,7 @@ export interface CommonModalProps {
 }
 
 /**
- * 共通のフォームプロパティ（DRY原則）
+ * 共通のフォームプロパティ
  */
 export interface CommonFormProps<T = unknown> {
   onSubmit: (data: T) => void;
@@ -52,7 +52,7 @@ export interface CommonFormProps<T = unknown> {
 }
 
 /**
- * 共通のリストプロパティ（DRY原則）
+ * 共通のリストプロパティ
  */
 export interface CommonListProps<T> {
   items: T[];
@@ -63,7 +63,7 @@ export interface CommonListProps<T> {
 }
 
 /**
- * 共通のページプロパティ（DRY原則）
+ * 共通のページプロパティ
  */
 export interface CommonPageProps {
   title?: string;
@@ -75,7 +75,7 @@ export interface CommonPageProps {
 }
 
 /**
- * 共通のアラートプロパティ（DRY原則）
+ * 共通のアラートプロパティ
  */
 export interface CommonAlertProps {
   type: 'success' | 'error' | 'warning' | 'info';
@@ -85,7 +85,7 @@ export interface CommonAlertProps {
 }
 
 /**
- * 共通のローディングプロパティ（DRY原則）
+ * 共通のローディングプロパティ
  */
 export interface CommonLoadingProps {
   message?: string;
@@ -95,7 +95,7 @@ export interface CommonLoadingProps {
 }
 
 /**
- * 共通のアイテムプロパティ（DRY原則）
+ * 共通のアイテムプロパティ
  */
 export interface CommonItemProps {
   id: string | number;
@@ -110,7 +110,7 @@ export interface CommonItemProps {
 }
 
 /**
- * 共通の検索プロパティ（DRY原則）
+ * 共通の検索プロパティ
  */
 export interface CommonSearchProps {
   value: string;
@@ -122,7 +122,7 @@ export interface CommonSearchProps {
 }
 
 /**
- * 共通のフィルタープロパティ（DRY原則）
+ * 共通のフィルタープロパティ
  */
 export interface CommonFilterProps<T = unknown> {
   filters: Record<string, T>;
@@ -132,7 +132,7 @@ export interface CommonFilterProps<T = unknown> {
 }
 
 /**
- * 共通のページネーションプロパティ（DRY原則）
+ * 共通のページネーションプロパティ
  */
 export interface CommonPaginationProps {
   currentPage: number;
