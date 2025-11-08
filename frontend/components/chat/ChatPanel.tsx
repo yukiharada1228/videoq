@@ -245,7 +245,6 @@ export function ChatPanel({ hasApiKey, groupId, onVideoPlay, shareToken }: ChatP
                   )}
                   {message.role === 'assistant' && message.chatLogId && (
                     <div className="mt-3 flex items-center gap-2">
-                      <span className="text-xs text-gray-500">フィードバック:</span>
                       <Button
                         size="sm"
                         variant={message.feedback === 'good' ? 'default' : 'outline'}
