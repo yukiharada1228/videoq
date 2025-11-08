@@ -194,12 +194,12 @@ class ApiClient {
     }
   }
 
-  // URLを構築する共通メソッド（DRY原則）
+  // URLを構築する共通メソッド
   private buildUrl(endpoint: string): string {
     return `${this.baseUrl}${endpoint}`;
   }
 
-  // bodyがオブジェクトの場合、自動的にJSON.stringifyする共通メソッド（DRY原則）
+  // bodyがオブジェクトの場合、自動的にJSON.stringifyする共通メソッド
   private stringifyBody(body: RequestBody): BodyInit | null | undefined {
     if (
       body &&
@@ -214,7 +214,7 @@ class ApiClient {
     return body;
   }
 
-  // 基本的なJSONヘッダーを生成する共通メソッド（DRY原則）
+  // 基本的なJSONヘッダーを生成する共通メソッド
   private getJsonHeaders(): Record<string, string> {
     return { 'Content-Type': 'application/json' };
   }
@@ -257,12 +257,12 @@ class ApiClient {
     throw new Error('認証に失敗しました。再度ログインしてください。');
   }
 
-  // エラーログを出力する共通メソッド（DRY原則）
+  // エラーログを出力する共通メソッド
   private logError(message: string, error: unknown): void {
     console.error(message, error);
   }
 
-  // レスポンスのJSONを安全に取得する共通メソッド（DRY原則）
+  // レスポンスのJSONを安全に取得する共通メソッド
   private async parseJsonResponse<T>(response: Response): Promise<T> {
     const contentType = response.headers.get('content-type');
     const isJson = contentType && contentType.includes('application/json');
@@ -285,7 +285,7 @@ class ApiClient {
     }
   }
 
-  // 401エラーを処理する共通メソッド（DRY原則）
+  // 401エラーを処理する共通メソッド
   private async handle401Error<T>(response: Response, retryCount: number, retryCallback: () => Promise<T>): Promise<T | null> {
     if (response.status === 401 && retryCount === 0) {
       try {

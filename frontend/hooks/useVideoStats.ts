@@ -15,7 +15,7 @@ export interface VideoStats {
 }
 
 /**
- * 動画の統計情報を計算するカスタムフック（DRY原則）
+ * 動画の統計情報を計算するカスタムフック
  * @param videos - 動画の配列
  * @returns 統計情報オブジェクト
  */

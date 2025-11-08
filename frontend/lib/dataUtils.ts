@@ -12,7 +12,7 @@ export function createVideoIdSet(videoIds: number[]): Set<number> {
 }
 
 /**
- * 配列をフィルタリングする共通関数（DRY原則）
+ * 配列をフィルタリングする共通関数
  * @param items - フィルタリングする配列
  * @param predicate - フィルタリング条件
  * @returns フィルタリングされた配列
@@ -25,7 +25,7 @@ export function filterItems<T>(
 }
 
 /**
- * 配列をマッピングする共通関数（DRY原則）
+ * 配列をマッピングする共通関数
  * @param items - マッピングする配列
  * @param mapper - マッピング関数
  * @returns マッピングされた配列
@@ -58,7 +58,7 @@ export function groupBy<T, K extends string | number>(
 }
 
 /**
- * 配列をソートする共通関数（DRY原則）
+ * 配列をソートする共通関数
  * @param items - ソートする配列
  * @param keySelector - ソートキーを選択する関数
  * @param ascending - 昇順かどうか
