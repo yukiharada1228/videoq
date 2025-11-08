@@ -1,9 +1,9 @@
 /**
- * 共通のエラーハンドリングユーティリティ（DRY原則）
+ * 共通のエラーハンドリングユーティリティ
  */
 
 /**
- * 非同期エラーを処理する共通関数（DRY原則）
+ * 非同期エラーを処理する共通関数
  * @param error - エラーオブジェクト
  * @param defaultMessage - デフォルトのエラーメッセージ
  * @param onError - エラー時のコールバック関数
@@ -19,7 +19,7 @@ export function handleAsyncError(
 }
 
 /**
- * APIエラーレスポンスを処理する共通関数（DRY原則）
+ * APIエラーレスポンスを処理する共通関数
  * @param response - レスポンスオブジェクト
  * @returns エラーメッセージまたはnull
  */
@@ -44,7 +44,7 @@ export function handleApiError(response: Response): string | null {
 }
 
 /**
- * バリデーションエラーを処理する共通関数（DRY原則）
+ * バリデーションエラーを処理する共通関数
  * @param errors - バリデーションエラーの配列
  * @returns エラーメッセージ
  */

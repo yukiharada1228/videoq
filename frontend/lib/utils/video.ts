@@ -44,7 +44,7 @@ export function getStatusLabel(status: string): string {
 }
 
 /**
- * 日付を日本語形式でフォーマット（DRY原則）
+ * 日付を日本語形式でフォーマット
  * @param date ISO形式の日付文字列またはDateオブジェクト
  * @param format 'full' | 'short' - 日時形式の詳細度
  * @returns フォーマットされた日付文字列

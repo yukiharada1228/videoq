@@ -35,14 +35,14 @@ export function convertVideoListToSelectedVideo(video: VideoList): SelectedVideo
 }
 
 /**
- * 動画IDの配列からSetを作成する共通関数（N+1問題対策）
+ * 動画IDの配列からSetを作成する共通関数
  */
 export function createVideoIdSet(videoIds: number[]): Set<number> {
   return new Set(videoIds);
 }
 
 /**
- * 動画配列からIDの配列を抽出する共通関数（N+1問題対策）
+ * 動画配列からIDの配列を抽出する共通関数
  */
 export function extractVideoIds(videos: VideoInGroup[] | VideoList[]): number[] {
   return videos.map(video => video.id);
