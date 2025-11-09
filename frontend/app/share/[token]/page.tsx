@@ -141,7 +141,7 @@ export default function SharedGroupPage() {
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
       <Header />
-      <div className="flex-1 container mx-auto px-4 py-4">
+      <div className="flex-1 w-full px-6 py-6">
         <div className="space-y-4 h-full flex flex-col">
           <div className="flex items-center justify-between">
             <div>
@@ -155,9 +155,9 @@ export default function SharedGroupPage() {
           {error && <MessageAlert type="error" message={error} />}
 
           {/* 3カラムレイアウト */}
-          <div className="grid grid-cols-12 gap-4 flex-1 min-h-0">
+          <div className="grid flex-1 min-h-0 gap-6 grid-cols-[320px_minmax(0,1fr)_360px]">
             {/* 左側：動画一覧 */}
-            <div className="col-span-3">
+            <div className="flex flex-col min-h-0">
               <Card className="h-[600px] flex flex-col">
                 <CardHeader>
                   <CardTitle>動画一覧</CardTitle>
@@ -182,8 +182,8 @@ export default function SharedGroupPage() {
             </div>
 
             {/* 中央：動画プレイヤー */}
-            <div className="col-span-6">
-              <Card className="h-full flex flex-col">
+            <div className="flex flex-col min-h-0">
+              <Card className="h-[600px] flex flex-col">
                 <CardHeader>
                   <CardTitle>
                     {selectedVideo ? selectedVideo.title : '動画を選択してください'}
@@ -218,7 +218,7 @@ export default function SharedGroupPage() {
             </div>
 
             {/* 右側：チャット */}
-            <div className="col-span-3">
+            <div className="flex flex-col min-h-0">
               <ChatPanel
                 hasApiKey={!!group.owner_has_api_key}
                 groupId={group.id}
