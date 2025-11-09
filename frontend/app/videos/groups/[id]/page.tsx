@@ -348,6 +348,27 @@ export default function VideoGroupDetailPage() {
     }
   };
 
+  // グループの動画が読み込まれたら先頭の動画を自動選択
+  useEffect(() => {
+    const videos = group?.videos;
+
+    if (!videos || videos.length === 0) {
+      if (selectedVideo) {
+        setSelectedVideo(null);
+      }
+      return;
+    }
+
+    const exists = selectedVideo
+      ? videos.some((video) => video.id === selectedVideo.id)
+      : false;
+
+    if (!exists) {
+      const firstVideo = convertVideoInGroupToSelectedVideo(videos[0]);
+      setSelectedVideo(firstVideo);
+    }
+  }, [group?.videos, selectedVideo]);
+
   // チャットから動画を選択して指定時間から再生する関数
   const handleVideoPlayFromTime = (videoId: number, startTime: string) => {
     // 共通ユーティリティで時間文字列を秒に変換（DRY対応）
