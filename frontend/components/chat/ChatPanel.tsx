@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { apiClient, RelatedVideo, ChatHistoryItem } from '@/lib/api';
 import { timeStringToSeconds } from '@/lib/utils/video';
+import { cn } from '@/lib/utils';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -18,9 +19,10 @@ interface ChatPanelProps {
   groupId?: number;
   onVideoPlay?: (videoId: number, startTime: string) => void;
   shareToken?: string;
+  className?: string;
 }
 
-export function ChatPanel({ hasApiKey, groupId, onVideoPlay, shareToken }: ChatPanelProps) {
+export function ChatPanel({ hasApiKey, groupId, onVideoPlay, shareToken, className }: ChatPanelProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
@@ -171,9 +173,11 @@ export function ChatPanel({ hasApiKey, groupId, onVideoPlay, shareToken }: ChatP
     </CardHeader>
   );
 
+  const cardClassName = cn('flex flex-col', className ?? 'h-[600px]');
+
   if (!hasApiKey) {
     return (
-      <Card className="h-[600px] flex flex-col">
+      <Card className={cardClassName}>
         <ChatHeader />
         <CardContent className="flex-1 flex items-center justify-center">
           <div className="text-center text-gray-500">
@@ -187,9 +191,9 @@ export function ChatPanel({ hasApiKey, groupId, onVideoPlay, shareToken }: ChatP
 
   return (
     <>
-      <Card className="h-[600px] flex flex-col">
+      <Card className={cardClassName}>
         <ChatHeader />
-        <CardContent className="flex-1 flex flex-col overflow-hidden">
+        <CardContent className="flex-1 flex flex-col overflow-hidden min-h-0">
           <div ref={messagesContainerRef} className="flex-1 overflow-y-auto space-y-4 mb-4">
             {messages.map((message, index) => (
               <div
