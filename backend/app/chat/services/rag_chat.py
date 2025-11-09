@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from operator import itemgetter
 from typing import TYPE_CHECKING, Dict, List, Optional, Sequence
 
-from app.chat.prompts import get_system_context_parts, get_system_prompt
+from app.chat.prompts import build_system_prompt
 from app.utils.encryption import decrypt_api_key
 from app.utils.vector_manager import PGVectorManager
 from langchain_core.messages import AIMessage
@@ -32,7 +32,7 @@ class RagChatService:
         self.llm = llm
         self.prompt = ChatPromptTemplate.from_messages(
             [
-                ("system", "{system_context}"),
+                ("system", "{system_prompt}"),
                 ("human", "{query_text}"),
             ]
         )
@@ -123,39 +123,25 @@ class RagChatService:
 
         return retriever
 
-    def _build_system_context(
-        self, docs: List, locale: Optional[str]
-    ) -> Dict[str, Optional[str]]:
-        """ドキュメントからシステムコンテキストを構築（公式パターンに沿った実装）"""
+    def _build_reference_entries(self, docs: List) -> List[str]:
+        """ドキュメントから詳細プロンプト用の参考情報リストを生成"""
         if not docs:
-            return {
-                "system_context": None,
-            }
+            return []
 
-        context_parts = get_system_context_parts(locale)
-        context_lines: List[str] = []
-
-        lead = context_parts.get("lead")
-        if lead:
-            context_lines.append(lead)
+        reference_entries: List[str] = []
 
         for idx, doc in enumerate(docs, start=1):
             metadata = getattr(doc, "metadata", {}) or {}
             title = metadata.get("video_title", "")
             start_time = metadata.get("start_time", "")
             end_time = metadata.get("end_time", "")
+            page_content = getattr(doc, "page_content", "")
 
-            context_lines.append(
-                f"[{idx}] {title} {start_time} - {end_time}\n{doc.page_content}"
+            reference_entries.append(
+                f"[{idx}] {title} {start_time} - {end_time}\n{page_content}"
             )
 
-        footer = context_parts.get("footer")
-        if footer:
-            context_lines.append(footer)
-
-        return {
-            "system_context": "\n\n".join(context_lines),
-        }
+        return reference_entries
 
     def _extract_related_videos(self, docs: List) -> Optional[List[Dict[str, str]]]:
         """ドキュメントから関連動画を抽出"""
@@ -182,13 +168,12 @@ class RagChatService:
         query_text = data.get("query_text", "")
         locale = data.get("locale")
 
-        system_context = self._build_system_context(docs, locale).get("system_context")
-        if system_context is None:
-            system_context = get_system_prompt(locale)
+        reference_entries = self._build_reference_entries(docs)
+        system_prompt = build_system_prompt(locale=locale, references=reference_entries)
 
         return {
             "prompt_input": {
-                "system_context": system_context,
+                "system_prompt": system_prompt,
                 "query_text": query_text,
             },
             "related_videos": self._extract_related_videos(docs),
