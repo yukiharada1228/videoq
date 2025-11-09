@@ -114,9 +114,17 @@ class ChatView(generics.CreateAPIView):
                     )
 
             service = RagChatService(user=user, llm=llm)
+            accept_language = request.headers.get("Accept-Language", "")
+            request_locale = (
+                accept_language.split(",")[0].split(";")[0].strip()
+                if accept_language
+                else ""
+            ) or None
+
             result = service.run(
                 messages=messages,
                 group=group if group_id is not None else None,
+                locale=request_locale,
             )
 
             response_data = {
