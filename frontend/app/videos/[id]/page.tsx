@@ -71,7 +71,7 @@ export default function VideoDetailPage() {
 
   if (isLoading) {
     return (
-      <PageLayout>
+      <PageLayout fullWidth>
         <div className="flex justify-center items-center h-64">
           <LoadingSpinner fullScreen={false} />
         </div>
@@ -81,7 +81,7 @@ export default function VideoDetailPage() {
 
   if (error && !video) {
     return (
-      <PageLayout>
+      <PageLayout fullWidth>
         <div className="space-y-4">
           <MessageAlert type="error" message={error} />
           <Link href="/videos">
@@ -94,14 +94,14 @@ export default function VideoDetailPage() {
 
   if (!video) {
     return (
-      <PageLayout>
+      <PageLayout fullWidth>
         <div className="text-center text-gray-500">動画が見つかりません</div>
       </PageLayout>
     );
   }
 
   return (
-    <PageLayout>
+    <PageLayout fullWidth>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold text-gray-900">{video.title}</h1>
