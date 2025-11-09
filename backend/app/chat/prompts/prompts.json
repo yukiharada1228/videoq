@@ -17,7 +17,7 @@
       },
       "reference": {
         "lead": "Below are relevant scenes extracted from the user's video group.",
-        "footer": "Include scene numbers and brief descriptions when helpful.",
+        "footer": "Include brief descriptions when helpful.",
         "empty": "No reference scenes are available. Base your answer on the rules above."
       }
     },
@@ -38,7 +38,7 @@
       },
       "reference": {
         "lead": "以下は動画グループから抽出した参考シーンです。",
-        "footer": "必要に応じてシーン番号だけでなく短い概要も添えて説明してください。",
+        "footer": "必要に応じて短い概要を添えて説明してください。",
         "empty": "利用できる参考シーンはありません。ルールに従って可能な範囲で回答してください。"
       }
     }
