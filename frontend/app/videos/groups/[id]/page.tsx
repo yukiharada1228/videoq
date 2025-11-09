@@ -442,7 +442,7 @@ export default function VideoGroupDetailPage() {
 
   if (isLoading) {
     return (
-      <PageLayout>
+      <PageLayout fullWidth>
         <div className="flex justify-center items-center h-64">
           <LoadingSpinner fullScreen={false} />
         </div>
@@ -452,7 +452,7 @@ export default function VideoGroupDetailPage() {
 
   if (error && !group) {
     return (
-      <PageLayout>
+      <PageLayout fullWidth>
         <div className="space-y-4">
           <MessageAlert type="error" message={error} />
           <Link href="/videos/groups">
@@ -465,7 +465,7 @@ export default function VideoGroupDetailPage() {
 
   if (!group) {
     return (
-      <PageLayout>
+      <PageLayout fullWidth>
         <div className="text-center text-gray-500">チャットグループが見つかりません</div>
       </PageLayout>
     );
