@@ -73,6 +73,18 @@ services:
     networks:
       - ask-video-network
 
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: ask-video-cloudflared
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    env_file:
+      - .env
+    depends_on:
+      - nginx
+    networks:
+      - ask-video-network
+    restart: unless-stopped
+
 volumes:
   staticfiles:
   postgres_data:
