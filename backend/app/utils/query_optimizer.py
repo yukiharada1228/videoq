@@ -2,7 +2,7 @@
 データベースクエリ最適化ユーティリティ（N+1問題対策）
 """
 
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 from app.models import Video, VideoGroup, VideoGroupMember
 from django.db.models import Count, Prefetch, QuerySet
@@ -342,7 +342,9 @@ class CacheOptimizer:
             return queryset
 
     @staticmethod
-    def get_optimized_count_queryset(model_class, filters: dict = None) -> QuerySet:
+    def get_optimized_count_queryset(
+        model_class, filters: Optional[Dict[str, Any]] = None
+    ) -> QuerySet:
         """
         カウント用の最適化されたクエリセットを取得（N+1問題対策）
 

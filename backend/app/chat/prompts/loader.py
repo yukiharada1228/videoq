@@ -4,7 +4,7 @@ import json
 from copy import deepcopy
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Sequence
+from typing import Any, Dict, Iterable, List, Optional, Sequence, cast
 
 DEFAULT_LOCALE = "default"
 PROMPTS_ROOT_KEY = "rag"
@@ -82,7 +82,8 @@ def build_system_prompt(
     section_titles = config.get("section_titles", {})
     reference_config = config.get("reference", {})
 
-    if not all([header_template, role, background, request, format_instruction]):
+    fields = [header_template, role, background, request, format_instruction]
+    if not all(isinstance(field, str) and field.strip() for field in fields):
         raise PromptConfigurationError(
             "Prompt configuration lacks required header fields."
         )
@@ -94,11 +95,17 @@ def build_system_prompt(
     format_label = section_titles.get("format", "# Format")
     reference_label = section_titles.get("reference", "# Reference Materials")
 
-    header = header_template.format(
-        role=role,
-        background=background,
-        request=request,
-        format_instruction=format_instruction,
+    header_template_str = cast(str, header_template)
+    role_str = cast(str, role)
+    background_str = cast(str, background)
+    request_str = cast(str, request)
+    format_instruction_str = cast(str, format_instruction)
+
+    header = header_template_str.format(
+        role=role_str,
+        background=background_str,
+        request=request_str,
+        format_instruction=format_instruction_str,
         rules_label=rules_label,
         format_label=format_label,
         reference_label=reference_label,
@@ -112,7 +119,15 @@ def build_system_prompt(
     else:
         lines.append("1. Follow common-sense safety best practices.")
 
-    lines.extend(["", format_label, format_instruction.strip(), "", reference_label])
+    lines.extend(
+        [
+            "",
+            format_label,
+            format_instruction_str.strip(),
+            "",
+            reference_label,
+        ]
+    )
 
     reference_lead = reference_config.get("lead", "")
     reference_footer = reference_config.get("footer", "")
@@ -129,4 +144,4 @@ def build_system_prompt(
     elif reference_empty:
         lines.append(reference_empty)
 
-    return "\n".join(filter(lambda line: line is not None, lines))
+    return "\n".join(lines)

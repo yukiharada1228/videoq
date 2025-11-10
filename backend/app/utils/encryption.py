@@ -39,5 +39,5 @@ def is_encrypted(text: str) -> bool:
         cipher_suite = EncryptionHelper.get_cipher_suite()
         cipher_suite.decrypt(text.encode())
         return True
-    except:
+    except Exception:
         return False

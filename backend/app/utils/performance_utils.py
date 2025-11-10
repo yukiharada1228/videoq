@@ -5,7 +5,7 @@
 import logging
 import time
 from functools import wraps
-from typing import Any, Callable, Dict, List, Optional, TypeVar, Union
+from typing import Any, Callable, List, TypeVar
 
 from django.core.cache import cache
 from django.db import connection

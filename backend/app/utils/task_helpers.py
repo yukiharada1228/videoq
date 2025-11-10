@@ -6,11 +6,10 @@ import logging
 import os
 import tempfile
 from contextlib import contextmanager
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 
 from app.models import Video
 from django.db import transaction
-from django.db.models import QuerySet
 
 logger = logging.getLogger(__name__)
 
