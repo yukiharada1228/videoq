@@ -154,6 +154,9 @@ export default function VideoGroupDetailPage() {
   const [editedName, setEditedName] = useState('');
   const [editedDescription, setEditedDescription] = useState('');
 
+  // モバイル用タブ状態
+  const [mobileTab, setMobileTab] = useState<'videos' | 'player' | 'chat'>('player');
+
   const handleOrderingChange = useCallback((event: React.ChangeEvent<HTMLSelectElement>) => {
     const value = event.target.value as OrderingOption;
     if (ORDERING_OPTIONS.includes(value)) {
@@ -374,6 +377,11 @@ export default function VideoGroupDetailPage() {
     // 共通ユーティリティで時間文字列を秒に変換（DRY対応）
     const seconds = timeStringToSeconds(startTime);
 
+    // モバイルの場合は自動的にプレイヤータブに切り替え
+    if (window.innerWidth < 1024) {
+      setMobileTab('player');
+    }
+
     // 同じ動画が既に選択されている場合は即座に時間を設定
     if (selectedVideo?.id === videoId && videoRef.current) {
       videoRef.current.currentTime = seconds;
@@ -497,7 +505,7 @@ export default function VideoGroupDetailPage() {
       <Header />
       <div className="flex-1 w-full px-6 py-6">
         <div className="space-y-4 h-full flex flex-col">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div className="flex-1">
               {isEditing ? (
                 <div className="space-y-4">
@@ -509,7 +517,7 @@ export default function VideoGroupDetailPage() {
                       type="text"
                       value={editedName}
                       onChange={(e) => setEditedName(e.target.value)}
-                      className="w-full max-w-md"
+                      className="w-full"
                       disabled={isUpdating}
                     />
                   </div>
@@ -520,11 +528,11 @@ export default function VideoGroupDetailPage() {
                     <Textarea
                       value={editedDescription}
                       onChange={(e) => setEditedDescription(e.target.value)}
-                      className="w-full max-w-md min-h-[100px]"
+                      className="w-full min-h-[100px]"
                       disabled={isUpdating}
                     />
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <Button
                       onClick={() => handleUpdate(async () => {
                         if (!groupId) return;
@@ -544,8 +552,8 @@ export default function VideoGroupDetailPage() {
                         '保存'
                       )}
                     </Button>
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       onClick={handleCancelEdit}
                       disabled={isUpdating}
                     >
@@ -555,18 +563,20 @@ export default function VideoGroupDetailPage() {
                 </div>
               ) : (
                 <>
-                  <h1 className="text-3xl font-bold text-gray-900">{group.name}</h1>
-                  <p className="text-gray-500 mt-1">
+                  <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">{group.name}</h1>
+                  <p className="text-sm lg:text-base text-gray-500 mt-1">
                     {group.description || '説明なし'}
                   </p>
                 </>
               )}
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {!isEditing && (
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   onClick={() => setIsEditing(true)}
+                  size="sm"
+                  className="lg:size-default"
                 >
                   編集
                 </Button>
@@ -574,9 +584,9 @@ export default function VideoGroupDetailPage() {
               {!isEditing && (
                 <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
                   <DialogTrigger asChild>
-                    <Button>動画を追加</Button>
+                    <Button size="sm" className="lg:size-default">動画を追加</Button>
                   </DialogTrigger>
-                <DialogContent>
+                <DialogContent className="max-w-[95vw] lg:max-w-2xl max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle>動画を追加</DialogTitle>
                     <DialogDescription>
@@ -677,10 +687,10 @@ export default function VideoGroupDetailPage() {
               </Dialog>
               )}
               <Link href="/videos/groups">
-                <Button variant="outline">一覧に戻る</Button>
+                <Button variant="outline" size="sm" className="lg:size-default">一覧に戻る</Button>
               </Link>
               {!isEditing && (
-                <Button variant="destructive" onClick={handleDelete} disabled={isDeleting}>
+                <Button variant="destructive" onClick={handleDelete} disabled={isDeleting} size="sm" className="lg:size-default">
                   {isDeleting ? (
                     <span className="flex items-center">
                       <InlineSpinner className="mr-2" color="red" />
@@ -747,11 +757,45 @@ export default function VideoGroupDetailPage() {
             )}
           </div>
 
-          {/* 3カラムレイアウト */}
-          <div className="grid flex-1 min-h-0 gap-6 grid-cols-[320px_minmax(0,1fr)_360px]">
+          {/* モバイル用タブナビゲーション */}
+          <div className="lg:hidden flex border-b border-gray-200 bg-white rounded-t-lg">
+            <button
+              onClick={() => setMobileTab('videos')}
+              className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+                mobileTab === 'videos'
+                  ? 'text-blue-600 border-b-2 border-blue-600'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              動画一覧
+            </button>
+            <button
+              onClick={() => setMobileTab('player')}
+              className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+                mobileTab === 'player'
+                  ? 'text-blue-600 border-b-2 border-blue-600'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              プレイヤー
+            </button>
+            <button
+              onClick={() => setMobileTab('chat')}
+              className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+                mobileTab === 'chat'
+                  ? 'text-blue-600 border-b-2 border-blue-600'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              チャット
+            </button>
+          </div>
+
+          {/* レスポンシブレイアウト: モバイルはタブ切り替え、PCは3カラム */}
+          <div className="flex flex-col lg:grid flex-1 min-h-0 gap-4 lg:gap-6 lg:grid-cols-[320px_minmax(0,1fr)_360px]">
           {/* 左側：動画一覧 */}
-          <div className="flex flex-col min-h-0">
-            <Card className="h-[600px] flex flex-col">
+          <div className={`flex-col min-h-0 ${mobileTab === 'videos' ? 'flex' : 'hidden lg:flex'}`}>
+            <Card className="h-[500px] lg:h-[600px] flex flex-col">
               <CardHeader>
                 <CardTitle>動画一覧</CardTitle>
               </CardHeader>
@@ -772,7 +816,13 @@ export default function VideoGroupDetailPage() {
                             key={video.id}
                             video={video}
                             isSelected={selectedVideo?.id === video.id}
-                            onSelect={handleVideoSelect}
+                            onSelect={(videoId) => {
+                              handleVideoSelect(videoId);
+                              // モバイルで動画を選択したらプレイヤータブに切り替え
+                              if (window.innerWidth < 1024) {
+                                setMobileTab('player');
+                              }
+                            }}
                             onRemove={handleRemoveVideo}
                           />
                         ))}
@@ -787,35 +837,35 @@ export default function VideoGroupDetailPage() {
           </div>
 
           {/* 中央：動画プレイヤー */}
-          <div className="flex flex-col min-h-0">
-            <Card className="h-[600px] flex flex-col">
+          <div className={`flex-col min-h-0 ${mobileTab === 'player' ? 'flex' : 'hidden lg:flex'}`}>
+            <Card className="h-[500px] lg:h-[600px] flex flex-col">
               <CardHeader>
-                <CardTitle>
+                <CardTitle className="text-base lg:text-lg">
                   {selectedVideo ? selectedVideo.title : '動画を選択してください'}
                 </CardTitle>
                 {selectedVideo && (
-                  <p className="text-sm text-gray-600 mt-1">{selectedVideo.description || '説明なし'}</p>
+                  <p className="text-xs lg:text-sm text-gray-600 mt-1">{selectedVideo.description || '説明なし'}</p>
                 )}
               </CardHeader>
-              <CardContent className="flex-1 flex items-center justify-center">
+              <CardContent className="flex-1 flex items-center justify-center overflow-hidden">
                 {selectedVideo ? (
                   selectedVideo.file ? (
                     <video
                       ref={videoRef}
                       key={selectedVideo.id}
                       controls
-                      className="w-full max-h-[500px] rounded"
+                      className="w-full h-full max-h-[400px] lg:max-h-[500px] rounded object-contain"
                       src={selectedVideo.file}
                       onCanPlay={handleVideoCanPlay}
                     >
                       お使いのブラウザは動画タグをサポートしていません。
                     </video>
                   ) : (
-                    <p className="text-gray-500">動画ファイルがありません</p>
+                    <p className="text-gray-500 text-sm">動画ファイルがありません</p>
                   )
                 ) : (
-                  <p className="text-gray-500 text-center">
-                    左側のリストから動画を選択してください
+                  <p className="text-gray-500 text-center text-sm">
+                    動画一覧から動画を選択してください
                   </p>
                 )}
               </CardContent>
@@ -823,11 +873,12 @@ export default function VideoGroupDetailPage() {
           </div>
 
           {/* 右側：チャット */}
-          <div className="flex flex-col min-h-0">
-            <ChatPanel 
-              hasApiKey={!!user?.encrypted_openai_api_key} 
+          <div className={`flex-col min-h-0 ${mobileTab === 'chat' ? 'flex' : 'hidden lg:flex'}`}>
+            <ChatPanel
+              hasApiKey={!!user?.encrypted_openai_api_key}
               groupId={groupId ?? undefined}
               onVideoPlay={handleVideoPlayFromTime}
+              className="h-[500px] lg:h-[600px]"
             />
           </div>
         </div>

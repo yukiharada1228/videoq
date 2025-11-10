@@ -173,7 +173,7 @@ export function ChatPanel({ hasApiKey, groupId, onVideoPlay, shareToken, classNa
     </CardHeader>
   );
 
-  const cardClassName = cn('flex flex-col', className ?? 'h-[600px]');
+  const cardClassName = cn('flex flex-col', className ?? 'h-[500px] lg:h-[600px]');
 
   if (!hasApiKey) {
     return (
@@ -269,15 +269,18 @@ export function ChatPanel({ hasApiKey, groupId, onVideoPlay, shareToken, classNa
       </Card>
 
       {historyOpen && (
-        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
           <div className="bg-white w-full max-w-2xl max-h-[80vh] rounded shadow-lg overflow-hidden flex flex-col">
-            <div className="p-4 border-b flex items-center justify-between">
-              <div className="font-semibold">会話履歴</div>
+            <div className="p-3 lg:p-4 border-b flex items-center justify-between">
+              <div className="font-semibold text-sm lg:text-base">会話履歴</div>
               <div className="flex items-center gap-2">
                 {!historyLoading && (history?.length ?? 0) > 0 && (
-                  <Button variant="outline" onClick={exportHistoryCsv}>CSVエクスポート</Button>
+                  <Button variant="outline" size="sm" onClick={exportHistoryCsv}>
+                    <span className="hidden lg:inline">CSVエクスポート</span>
+                    <span className="lg:hidden">CSV</span>
+                  </Button>
                 )}
-                <Button variant="ghost" onClick={() => setHistoryOpen(false)}>閉じる</Button>
+                <Button variant="ghost" size="sm" onClick={() => setHistoryOpen(false)}>閉じる</Button>
               </div>
             </div>
             <div className="p-4 overflow-auto">
