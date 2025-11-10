@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useVideoUpload } from '@/hooks/useVideoUpload';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { VideoUploadFormFields } from './VideoUploadFormFields';
@@ -23,6 +24,7 @@ export function VideoUpload({ onUploadSuccess }: VideoUploadProps) {
     handleSubmit,
     reset,
   } = useVideoUpload();
+  const { t } = useTranslation();
 
   useEffect(() => {
     if (success && onUploadSuccess) {
@@ -36,8 +38,8 @@ export function VideoUpload({ onUploadSuccess }: VideoUploadProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>動画をアップロード</CardTitle>
-        <CardDescription>動画ファイルをアップロードして管理できます</CardDescription>
+        <CardTitle>{t('videos.upload.title')}</CardTitle>
+        <CardDescription>{t('videos.upload.description')}</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={(e) => handleSubmit(e, onUploadSuccess)} className="space-y-4">

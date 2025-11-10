@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { useTranslation } from 'react-i18next';
 
 interface VideoNavBarProps {
   onUploadClick: () => void;
@@ -8,6 +9,7 @@ interface VideoNavBarProps {
 
 export function VideoNavBar({ onUploadClick }: VideoNavBarProps) {
   const router = useRouter();
+  const { t } = useTranslation();
 
   return (
     <div className="bg-white border-b">
@@ -17,14 +19,14 @@ export function VideoNavBar({ onUploadClick }: VideoNavBarProps) {
             onClick={() => router.push('/')}
             className="text-gray-600 hover:text-gray-900 transition-colors"
           >
-            ← ホーム
+            ← {t('common.actions.backToHome')}
           </button>
           <span className="text-gray-300">|</span>
           <button
             onClick={onUploadClick}
             className="text-gray-600 hover:text-gray-900 transition-colors"
           >
-            ＋ 動画をアップロード
+            ＋ {t('videos.list.uploadButton')}
           </button>
         </nav>
       </div>

@@ -6,9 +6,9 @@
 export interface FormFieldConfig {
   id: string;
   name: string;
-  label: string;
   type: string;
-  placeholder: string;
+  labelKey: string;
+  placeholderKey: string;
   minLength?: number;
 }
 
@@ -19,42 +19,42 @@ export const AUTH_FIELDS = {
   EMAIL: {
     id: 'email',
     name: 'email',
-    label: 'メールアドレス',
     type: 'email',
-    placeholder: 'メールアドレスを入力',
+    labelKey: 'auth.fields.email.label',
+    placeholderKey: 'auth.fields.email.placeholder',
   } as FormFieldConfig,
 
   USERNAME: {
     id: 'username',
     name: 'username',
-    label: 'ユーザー名',
     type: 'text',
-    placeholder: 'ユーザー名を入力',
+    labelKey: 'auth.fields.username.label',
+    placeholderKey: 'auth.fields.username.placeholder',
   } as FormFieldConfig,
 
   PASSWORD: {
     id: 'password',
     name: 'password',
-    label: 'パスワード',
     type: 'password',
-    placeholder: 'パスワードを入力',
+    labelKey: 'auth.fields.password.label',
+    placeholderKey: 'auth.fields.password.placeholder',
   } as FormFieldConfig,
 
   PASSWORD_WITH_MIN_LENGTH: {
     id: 'password',
     name: 'password',
-    label: 'パスワード',
     type: 'password',
-    placeholder: 'パスワードを入力',
+    labelKey: 'auth.fields.password.label',
+    placeholderKey: 'auth.fields.password.placeholder',
     minLength: 8,
   } as FormFieldConfig,
 
   CONFIRM_PASSWORD: {
     id: 'confirmPassword',
     name: 'confirmPassword',
-    label: 'パスワード（確認）',
     type: 'password',
-    placeholder: 'パスワードを再入力',
+    labelKey: 'auth.fields.passwordConfirmation.label',
+    placeholderKey: 'auth.fields.passwordConfirmation.placeholder',
     minLength: 8,
   } as FormFieldConfig,
 } as const;

@@ -1,6 +1,10 @@
+import { initI18n } from '@/i18n/config';
+
 /**
  * 動画のステータスに関連するユーティリティ関数
  */
+
+const i18n = initI18n();
 
 export type VideoStatus = 'pending' | 'processing' | 'completed' | 'error';
 
@@ -30,17 +34,12 @@ export function getStatusBadgeClassName(
 }
 
 /**
- * ステータスの日本語ラベルを取得
+ * ステータスラベルを取得
  */
-export function getStatusLabel(status: string): string {
-  const labels: Record<VideoStatus, string> = {
-    pending: '待機中',
-    processing: '処理中',
-    completed: '完了',
-    error: 'エラー',
-  };
-  
-  return labels[status as VideoStatus] || status;
+export function getStatusLabel(status: string, locale?: string): string {
+  const key = `common.status.${status}`;
+  const label = i18n.t(key, locale ? { lng: locale } : undefined);
+  return label === key ? status : label;
 }
 
 /**
@@ -49,18 +48,27 @@ export function getStatusLabel(status: string): string {
  * @param format 'full' | 'short' - 日時形式の詳細度
  * @returns フォーマットされた日付文字列
  */
-export function formatDate(date: string | Date, format: 'full' | 'short' = 'full'): string {
+export function formatDate(
+  date: string | Date,
+  format: 'full' | 'short' = 'full',
+  locale?: string
+): string {
   const dateObj = typeof date === 'string' ? new Date(date) : date;
+  const resolvedLocale =
+    locale ||
+    (typeof navigator !== 'undefined' && navigator.language) ||
+    i18n.language ||
+    'en-US';
   
   if (format === 'short') {
-    return dateObj.toLocaleDateString('ja-JP', {
+    return dateObj.toLocaleDateString(resolvedLocale, {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
     });
   }
   
-  return dateObj.toLocaleString('ja-JP', {
+  return dateObj.toLocaleString(resolvedLocale, {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',

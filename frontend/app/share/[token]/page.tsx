@@ -11,6 +11,7 @@ import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { getStatusBadgeClassName, getStatusLabel, timeStringToSeconds } from '@/lib/utils/video';
 import { convertVideoInGroupToSelectedVideo, SelectedVideo } from '@/lib/utils/videoConversion';
+import { useTranslation } from 'react-i18next';
 
 // 共有ページ用の動画アイテムコンポーネント（ドラッグ＆ドロップなし）
 interface VideoItemProps {
@@ -20,6 +21,7 @@ interface VideoItemProps {
 }
 
 function VideoItem({ video, isSelected, onSelect }: VideoItemProps) {
+  const { t, i18n } = useTranslation();
   return (
     <div
       onClick={() => onSelect(video.id)}
@@ -30,10 +32,12 @@ function VideoItem({ video, isSelected, onSelect }: VideoItemProps) {
       <div className="flex items-center justify-between">
         <div className="flex-1 min-w-0">
           <h3 className="font-semibold text-sm text-gray-900 truncate">{video.title}</h3>
-          <p className="text-xs text-gray-600 line-clamp-1">{video.description || '説明なし'}</p>
+          <p className="text-xs text-gray-600 line-clamp-1">
+            {video.description || t('videos.shared.noDescription')}
+          </p>
           <div className="flex items-center gap-2 mt-2">
             <span className={getStatusBadgeClassName(video.status, 'sm')}>
-              {getStatusLabel(video.status)}
+              {getStatusLabel(video.status, i18n.language)}
             </span>
           </div>
         </div>
@@ -45,6 +49,7 @@ function VideoItem({ video, isSelected, onSelect }: VideoItemProps) {
 export default function SharedGroupPage() {
   const params = useParams();
   const shareToken = params?.token as string;
+  const { t } = useTranslation();
 
   const [group, setGroup] = useState<VideoGroup | null>(null);
   const [selectedVideo, setSelectedVideo] = useState<SelectedVideo | null>(null);
@@ -71,7 +76,7 @@ export default function SharedGroupPage() {
           setSelectedVideo(firstVideo);
         }
       } catch (err) {
-        setError('共有チャットグループの読み込みに失敗しました');
+        setError(t('common.messages.shareLoadFailed'));
         console.error(err);
       } finally {
         setIsLoading(false);
@@ -79,7 +84,7 @@ export default function SharedGroupPage() {
     };
 
     loadGroup();
-  }, [shareToken]);
+  }, [shareToken, t]);
 
   const handleVideoSelect = (videoId: number) => {
     const video = group?.videos?.find(v => v.id === videoId);
@@ -141,7 +146,10 @@ export default function SharedGroupPage() {
         <div className="flex-1 flex items-center justify-center p-4">
           <Card className="max-w-md w-full">
             <CardContent className="py-16 text-center">
-              <MessageAlert type="error" message={error || '共有チャットグループが見つかりません'} />
+              <MessageAlert
+                type="error"
+                message={error || t('common.messages.shareNotFound')}
+              />
             </CardContent>
           </Card>
         </div>
@@ -159,7 +167,7 @@ export default function SharedGroupPage() {
             <div>
               <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">{group.name}</h1>
               <p className="text-sm lg:text-base text-gray-500 mt-1">
-                {group.description || '説明なし'}
+                {group.description || t('videos.shared.descriptionFallback')}
               </p>
             </div>
           </div>
@@ -176,7 +184,7 @@ export default function SharedGroupPage() {
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
-              動画一覧
+              {t('videos.shared.tabs.videos')}
             </button>
             <button
               onClick={() => setMobileTab('player')}
@@ -186,7 +194,7 @@ export default function SharedGroupPage() {
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
-              プレイヤー
+              {t('videos.shared.tabs.player')}
             </button>
             <button
               onClick={() => setMobileTab('chat')}
@@ -196,7 +204,7 @@ export default function SharedGroupPage() {
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
-              チャット
+              {t('videos.shared.tabs.chat')}
             </button>
           </div>
 
@@ -206,7 +214,7 @@ export default function SharedGroupPage() {
             <div className={`flex-col min-h-0 ${mobileTab === 'videos' ? 'flex' : 'hidden lg:flex'}`}>
               <Card className="h-[500px] lg:h-[600px] flex flex-col">
                 <CardHeader>
-                  <CardTitle>動画一覧</CardTitle>
+                  <CardTitle>{t('videos.shared.tabs.videos')}</CardTitle>
                 </CardHeader>
                 <CardContent className="flex-1 flex flex-col overflow-hidden">
                   <div className="flex-1 overflow-y-auto space-y-2">
@@ -220,7 +228,9 @@ export default function SharedGroupPage() {
                         />
                       ))
                     ) : (
-                      <p className="text-center text-gray-500 py-4 text-sm">動画がありません</p>
+                      <p className="text-center text-gray-500 py-4 text-sm">
+                        {t('videos.shared.noVideos')}
+                      </p>
                     )}
                   </div>
                 </CardContent>
@@ -232,10 +242,12 @@ export default function SharedGroupPage() {
               <Card className="h-[500px] lg:h-[600px] flex flex-col">
                 <CardHeader>
                   <CardTitle className="text-base lg:text-lg">
-                    {selectedVideo ? selectedVideo.title : '動画を選択してください'}
+                    {selectedVideo ? selectedVideo.title : t('videos.shared.playerPlaceholder')}
                   </CardTitle>
                   {selectedVideo && (
-                    <p className="text-xs lg:text-sm text-gray-600 mt-1">{selectedVideo.description || '説明なし'}</p>
+                    <p className="text-xs lg:text-sm text-gray-600 mt-1">
+                      {selectedVideo.description || t('videos.shared.noDescription')}
+                    </p>
                   )}
                 </CardHeader>
                 <CardContent className="flex-1 flex items-center justify-center overflow-hidden">
@@ -249,14 +261,16 @@ export default function SharedGroupPage() {
                         src={apiClient.getSharedVideoUrl(selectedVideo.file, shareToken)}
                         onCanPlay={handleVideoCanPlay}
                       >
-                        お使いのブラウザは動画タグをサポートしていません。
+                        {t('common.messages.browserNoVideoSupport')}
                       </video>
                     ) : (
-                      <p className="text-gray-500 text-sm">動画ファイルがありません</p>
+                      <p className="text-gray-500 text-sm">
+                        {t('videos.shared.videoNoFile')}
+                      </p>
                     )
                   ) : (
                     <p className="text-gray-500 text-center text-sm">
-                      動画一覧から動画を選択してください
+                      {t('videos.shared.playerPlaceholder')}
                     </p>
                   )}
                 </CardContent>

@@ -3,7 +3,9 @@
 import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { Trans, useTranslation } from 'react-i18next';
 
+import { initI18n } from '@/i18n/config';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
 import { MessageAlert } from '@/components/common/MessageAlert';
@@ -17,11 +19,12 @@ function VerifyEmailContent() {
   const uid = searchParams.get('uid');
   const token = searchParams.get('token');
   const isInvalidLink = !uid || !token;
+  const { t } = useTranslation();
   const [state, setState] = useState<VerificationState>(() =>
     isInvalidLink ? 'error' : 'loading'
   );
   const [message, setMessage] = useState(() =>
-    isInvalidLink ? '無効な認証リンクです。' : 'メール認証を確認しています...'
+    isInvalidLink ? t('auth.verifyEmail.invalidLink') : t('auth.verifyEmail.loading')
   );
 
   useEffect(() => {
@@ -35,7 +38,7 @@ function VerifyEmailContent() {
       try {
         const response = await apiClient.verifyEmail({ uid: uid!, token: token! });
         setState('success');
-        setMessage(response.detail ?? 'メール認証が完了しました。ログインしてください。');
+        setMessage(response.detail ?? t('auth.verifyEmail.success'));
         timer = setTimeout(() => {
           router.replace('/login');
         }, 2000);
@@ -44,7 +47,7 @@ function VerifyEmailContent() {
         if (error instanceof Error) {
           setMessage(error.message);
         } else {
-          setMessage('メール認証に失敗しました。リンクの有効期限が切れている可能性があります。');
+          setMessage(t('auth.verifyEmail.error'));
         }
       }
     };
@@ -56,7 +59,7 @@ function VerifyEmailContent() {
         clearTimeout(timer);
       }
     };
-  }, [isInvalidLink, uid, token, router]);
+  }, [isInvalidLink, uid, token, router, t]);
 
   const renderContent = () => {
     if (state === 'loading') {
@@ -75,21 +78,27 @@ function VerifyEmailContent() {
         <MessageAlert message={message} type={type} />
         {state === 'success' ? (
           <p className="text-center text-sm text-gray-600">
-            まもなくログイン画面に移動します。移動しない場合は{' '}
-            <Link href="/login" className="text-blue-600 hover:underline">
-              こちら
-            </Link>
-            をクリックしてください。
+            <Trans
+              i18nKey="auth.verifyEmail.redirect"
+              components={{
+                link: (
+                  <Link href="/login" className="text-blue-600 hover:underline" />
+                ),
+              }}
+            />
           </p>
         ) : (
           <div className="space-y-2 text-sm text-gray-600">
-            <p>リンクが無効の場合は、再度新規登録を行うかサポートまでお問い合わせください。</p>
+            <p>{t('auth.verifyEmail.retry')}</p>
             <p>
-              ログイン画面に戻る場合は{' '}
-              <Link href="/login" className="text-blue-600 hover:underline">
-                こちら
-              </Link>
-              をクリックしてください。
+              <Trans
+                i18nKey="auth.verifyEmail.backToLogin"
+                components={{
+                  link: (
+                    <Link href="/login" className="text-blue-600 hover:underline" />
+                  ),
+                }}
+              />
             </p>
           </div>
         )}
@@ -101,9 +110,9 @@ function VerifyEmailContent() {
     <PageLayout centered>
       <div className="w-full max-w-md space-y-6 rounded-lg bg-white p-8 shadow">
         <div className="space-y-2 text-center">
-          <h1 className="text-2xl font-semibold">メール認証</h1>
+          <h1 className="text-2xl font-semibold">{t('auth.verifyEmail.title')}</h1>
           <p className="text-sm text-gray-600">
-            登録されたメールアドレスを確認し、アカウントの有効化を進めています。
+            {t('auth.verifyEmail.description')}
           </p>
         </div>
         {renderContent()}
@@ -113,14 +122,16 @@ function VerifyEmailContent() {
 }
 
 function VerifyEmailFallback() {
+  const i18n = initI18n();
+
   return (
     <PageLayout centered>
       <div className="w-full max-w-md space-y-6 rounded-lg bg-white p-8 shadow">
         <div className="space-y-2 text-center">
-          <h1 className="text-2xl font-semibold">メール認証</h1>
+          <h1 className="text-2xl font-semibold">{i18n.t('auth.verifyEmail.fallbackTitle')}</h1>
           <div className="flex items-center justify-center space-x-3">
             <InlineSpinner />
-            <span className="text-sm text-gray-600">メール認証を確認しています...</span>
+            <span className="text-sm text-gray-600">{i18n.t('auth.verifyEmail.fallbackLoading')}</span>
           </div>
         </div>
       </div>

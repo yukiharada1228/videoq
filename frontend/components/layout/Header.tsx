@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/lib/api';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface HeaderProps {
   children?: React.ReactNode;
@@ -14,6 +15,7 @@ export function Header({ children }: HeaderProps) {
   const router = useRouter();
   const { user } = useAuth({ redirectToLogin: false });
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { t } = useTranslation();
 
   const handleLogout = () => {
     apiClient.logout();
@@ -35,7 +37,7 @@ export function Header({ children }: HeaderProps) {
         <nav className="hidden md:flex items-center justify-between">
           <div className="flex items-center gap-6">
             <Link href="/" className="text-xl font-bold text-gray-900">
-              Ask Video
+              {t('navigation.brand')}
             </Link>
             {user && (
               <>
@@ -43,15 +45,15 @@ export function Header({ children }: HeaderProps) {
                   onClick={() => router.push('/videos')}
                   className="text-gray-600 hover:text-gray-900 transition-colors"
                 >
-                  動画一覧
+                  {t('navigation.videos')}
                 </button>
                 <span className="text-gray-300">|</span>
                 <button
                   onClick={() => router.push('/videos/groups')}
                   className="text-gray-600 hover:text-gray-900 transition-colors"
                 >
-                  チャットグループ
-              </button>
+                  {t('navigation.videoGroups')}
+                </button>
               </>
             )}
             {children}
@@ -59,20 +61,22 @@ export function Header({ children }: HeaderProps) {
 
           {user && (
             <div className="flex items-center gap-6">
-              <span className="text-gray-600">ようこそ、{user.username}さん</span>
+              <span className="text-gray-600">
+                {t('navigation.welcome', { username: user.username })}
+              </span>
               <span className="text-gray-300">|</span>
               <button
                 onClick={() => router.push('/settings')}
                 className="text-gray-600 hover:text-gray-900 transition-colors"
               >
-                設定
+                {t('navigation.settings')}
               </button>
               <span className="text-gray-300">|</span>
               <button
                 onClick={handleLogout}
                 className="text-gray-600 hover:text-gray-900 transition-colors"
               >
-                ログアウト
+                {t('navigation.logout')}
               </button>
             </div>
           )}
@@ -82,13 +86,13 @@ export function Header({ children }: HeaderProps) {
         <nav className="md:hidden">
           <div className="flex items-center justify-between">
             <Link href="/" className="text-xl font-bold text-gray-900">
-              Ask Video
+              {t('navigation.brand')}
             </Link>
             {user && (
               <button
                 onClick={toggleMobileMenu}
                 className="p-2 text-gray-600 hover:text-gray-900 transition-colors"
-                aria-label="メニューを開く"
+                aria-label={t('common.actions.openMenu')}
               >
                 <svg
                   className="w-6 h-6"
@@ -120,7 +124,7 @@ export function Header({ children }: HeaderProps) {
           {isMobileMenuOpen && user && (
             <div className="mt-3 pt-3 border-t border-gray-200 space-y-2">
               <div className="px-2 py-2 text-sm text-gray-600 border-b border-gray-100">
-                ようこそ、{user.username}さん
+                {t('navigation.welcome', { username: user.username })}
               </div>
               <button
                 onClick={() => {
@@ -129,7 +133,7 @@ export function Header({ children }: HeaderProps) {
                 }}
                 className="block w-full text-left px-2 py-2 text-gray-600 hover:bg-gray-50 rounded transition-colors"
               >
-                動画一覧
+                {t('navigation.videos')}
               </button>
               <button
                 onClick={() => {
@@ -138,7 +142,7 @@ export function Header({ children }: HeaderProps) {
                 }}
                 className="block w-full text-left px-2 py-2 text-gray-600 hover:bg-gray-50 rounded transition-colors"
               >
-                チャットグループ
+                {t('navigation.videoGroups')}
               </button>
               <button
                 onClick={() => {
@@ -147,7 +151,7 @@ export function Header({ children }: HeaderProps) {
                 }}
                 className="block w-full text-left px-2 py-2 text-gray-600 hover:bg-gray-50 rounded transition-colors"
               >
-                設定
+                {t('navigation.settings')}
               </button>
               <button
                 onClick={() => {
@@ -156,7 +160,7 @@ export function Header({ children }: HeaderProps) {
                 }}
                 className="block w-full text-left px-2 py-2 text-red-600 hover:bg-red-50 rounded transition-colors"
               >
-                ログアウト
+                {t('navigation.logout')}
               </button>
             </div>
           )}

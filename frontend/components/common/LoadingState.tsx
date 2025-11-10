@@ -1,3 +1,4 @@
+import { initI18n } from '@/i18n/config';
 import { LoadingSpinner } from './LoadingSpinner';
 import { MessageAlert } from './MessageAlert';
 
@@ -17,14 +18,17 @@ export function LoadingState({
   isLoading,
   error,
   children,
-  loadingMessage = '読み込み中...',
+  loadingMessage,
   errorMessage,
   fullScreen = false,
 }: LoadingStateProps) {
+  const i18n = initI18n();
+  const resolvedLoadingMessage = loadingMessage ?? i18n.t('common.loading');
+
   if (isLoading) {
     return (
       <div className={fullScreen ? "flex min-h-screen items-center justify-center" : "flex justify-center items-center h-64"}>
-        <LoadingSpinner message={loadingMessage} fullScreen={fullScreen} />
+        <LoadingSpinner message={resolvedLoadingMessage} fullScreen={fullScreen} />
       </div>
     );
   }

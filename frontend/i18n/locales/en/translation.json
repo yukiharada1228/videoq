@@ -1,0 +1,414 @@
+{
+  "common": {
+    "appName": "Ask Video",
+    "loading": "Loading...",
+    "notProvided": "Not provided",
+    "actions": {
+      "backToHome": "Back to home",
+      "backToList": "Back to list",
+      "create": "Create",
+      "save": "Save",
+      "saving": "Saving...",
+      "cancel": "Cancel",
+      "delete": "Delete",
+      "deleting": "Deleting...",
+      "edit": "Edit",
+      "upload": "Upload",
+      "uploading": "Uploading...",
+      "send": "Send",
+      "sending": "Sending...",
+      "setApiKey": "Set API key",
+      "generate": "Generate",
+      "generating": "Generating...",
+      "disable": "Disable",
+      "copy": "Copy",
+      "copied": "Copied ✓",
+      "close": "Close",
+      "exportCsv": "Export CSV",
+      "selectAll": "Select all",
+      "clearSelection": "Clear selection",
+      "add": "Add",
+      "adding": "Adding...",
+      "openMenu": "Open menu"
+    },
+    "labels": {
+      "username": "Username",
+      "email": "Email address",
+      "password": "Password",
+      "passwordConfirmation": "Confirm password",
+      "apiKey": "OpenAI API key",
+      "description": "Description",
+      "status": "Status",
+      "uploadedAt": "Uploaded at",
+      "transcript": "Transcript",
+      "title": "Title",
+      "file": "File",
+      "player": "Player",
+      "chat": "Chat"
+    },
+    "status": {
+      "pending": "Pending",
+      "processing": "Processing",
+      "completed": "Completed",
+      "error": "Error"
+    },
+    "messages": {
+      "noDescription": "No description",
+      "videoNotFound": "Video not found",
+      "groupNotFound": "Chat group not found",
+      "transcriptionPending": "Transcription has not started yet.",
+      "transcriptionProcessing": "Transcription is currently processing...",
+      "transcriptionUnavailable": "Transcription is not available yet.",
+      "transcriptionError": "An error occurred while processing the transcription.",
+      "browserNoVideoSupport": "Your browser does not support the video tag.",
+      "apiKeyConfigured": "API key configured",
+      "apiKeyMissing": "Set API key",
+      "noVideos": "No videos yet",
+      "addVideosHint": "Use the \"Upload video\" button above to add videos.",
+      "noGroups": "No chat groups yet",
+      "noAvailableVideos": "No videos available to add",
+      "uploadSuccess": "Upload succeeded!",
+      "shareLoadFailed": "Failed to load the shared chat group",
+      "shareNotFound": "Shared chat group not found",
+      "selectVideo": "Select a video from the list",
+      "videoFileMissing": "Video file is unavailable",
+      "copyFailed": "Copy failed. Please copy it manually.",
+      "noHistory": "No history available",
+      "loadingHistory": "Loading...",
+      "noApiKey": "API key is not configured",
+      "setApiKeyPrompt": "Please configure your API key on the settings page."
+    }
+  },
+  "navigation": {
+    "brand": "Ask Video",
+    "videos": "Videos",
+    "videoGroups": "Chat groups",
+    "settings": "Settings",
+    "logout": "Log out",
+    "welcome": "Welcome, {{username}}",
+    "openMenu": "Open menu"
+  },
+  "layout": {
+    "footer": {
+      "copyright": "© {{year}} Ask Video. All rights reserved."
+    }
+  },
+  "home": {
+    "welcome": {
+      "title": "Welcome back!",
+      "subtitle": "Welcome back, {{username}}!"
+    },
+    "actions": {
+      "upload": {
+        "title": "Upload video",
+        "description": "Upload and manage new videos"
+      },
+      "library": {
+        "title": "Video library",
+        "description_one": "{{count}} video",
+        "description_other": "{{count}} videos"
+      },
+      "groups": {
+        "title": "Chat groups",
+        "description_one": "{{count}} group",
+        "description_other": "{{count}} groups"
+      }
+    },
+    "stats": {
+      "completed": "Completed",
+      "pending": "Pending",
+      "processing": "Processing",
+      "error": "Error"
+    },
+    "account": {
+      "username": "Username",
+      "apiKeySet": "✓ API key configured",
+      "apiKeyMissing": "Set API key"
+    }
+  },
+  "videos": {
+    "list": {
+      "title": "Video library",
+      "subtitle_one": "{{count}} video",
+      "subtitle_other": "{{count}} videos",
+      "emptySubtitle": "Upload a video to get started",
+      "uploadButton": "Upload video",
+      "stats": {
+        "total": "Total videos",
+        "completed": "Completed",
+        "pending": "Pending",
+        "processing": "Processing"
+      },
+      "noVideos": "No videos yet",
+      "noVideosHint": "Use the \"Upload video\" button above to add videos.",
+      "loading": "Loading..."
+    },
+    "upload": {
+      "title": "Upload video",
+      "description": "Upload and manage your video files.",
+      "fileLabel": "File",
+      "titleLabel": "Title *",
+      "descriptionLabel": "Description",
+      "titlePlaceholder": "{{fileName}} (default)",
+      "titleEmptyPlaceholder": "Enter a video title",
+      "descriptionPlaceholder": "Optional video description",
+      "success": "Upload succeeded!",
+      "cancel": "Cancel",
+      "upload": "Upload",
+      "uploading": "Uploading...",
+      "validation": {
+        "noFile": "Please select a file",
+        "noTitle": "Please enter a title",
+        "generic": "Validation error"
+      }
+    },
+    "detail": {
+      "edit": "Edit",
+      "back": "Back to list",
+      "delete": "Delete",
+      "deleting": "Deleting...",
+      "info": "Information",
+      "video": "Video",
+      "transcript": "Transcript",
+      "errorCard": "Error",
+      "labels": {
+        "title": "Title",
+        "description": "Description",
+        "status": "Status",
+        "uploadedAt": "Uploaded at"
+      },
+      "editTitleLabel": "Title",
+      "editDescriptionLabel": "Description",
+      "save": "Save",
+      "saving": "Saving...",
+      "cancel": "Cancel",
+      "noVideo": "Video not found",
+      "videoUnavailable": "Video file is unavailable",
+      "deleteConfirm": "Are you sure you want to delete this video?"
+    },
+    "groups": {
+      "title": "Chat groups",
+      "create": "Create chat group",
+      "createTitle": "Create chat group",
+      "createDescription": "Enter a name and description for the chat group.",
+      "nameLabel": "Chat group name",
+      "namePlaceholder": "Chat group name",
+      "descriptionLabel": "Description",
+      "descriptionPlaceholder": "Optional description",
+      "createError": "Failed to create chat group",
+      "loadError": "Failed to load chat groups",
+      "empty": "No chat groups yet",
+      "videoCount_one": "{{count}} video",
+      "videoCount_other": "{{count}} videos"
+    },
+    "groupDetail": {
+      "edit": "Edit",
+      "add": "Add videos",
+      "addDescription": "Select the videos to add to this chat group",
+      "back": "Back to list",
+      "delete": "Delete",
+      "deleting": "Deleting...",
+      "deleteConfirm": "Are you sure you want to delete this chat group?",
+      "removeVideoConfirm": "Remove this video from the chat group?",
+      "addError": "Failed to add videos to the chat group",
+      "removeVideoError": "Failed to remove the video from the chat group",
+      "share": {
+        "title": "Share this chat group",
+        "enabled": "This chat group is shared via a public link.",
+        "disabled": "Generate a share link to allow access without signing in."
+      },
+      "generate": "Generate share link",
+      "generating": "Generating...",
+      "copy": "Copy",
+      "copied": "Copied ✓",
+      "disable": "Disable",
+      "generateShareError": "Failed to generate the share link",
+      "disableShareError": "Failed to disable the share link",
+      "searchPlaceholder": "Search by title or description",
+      "statusFilter": {
+        "all": "All statuses",
+        "completed": "Completed",
+        "processing": "Processing",
+        "pending": "Pending",
+        "error": "Error"
+      },
+      "ordering": {
+        "uploadedDesc": "Newest first",
+        "uploadedAsc": "Oldest first",
+        "titleAsc": "Title (A-Z)",
+        "titleDesc": "Title (Z-A)"
+      },
+      "selectAll": "Select all",
+      "clearSelection": "Clear selection",
+      "noAvailableVideos": "No videos available to add",
+      "add": "Add",
+      "adding": "Adding...",
+      "addResult": "{{added}} videos added ({{skipped}} already existed).",
+      "orderUpdateError": "Failed to update video order",
+      "mobileTabs": {
+        "videos": "Videos",
+        "player": "Player",
+        "chat": "Chat"
+      },
+      "playerPlaceholder": "Select a video from the list",
+      "videoNoFile": "Video file is unavailable",
+      "videoListTitle": "Videos",
+      "videoListEmpty": "No videos yet",
+      "remove": "Remove",
+      "deleteError": "Failed to delete the chat group"
+    },
+    "shared": {
+      "loading": "Loading...",
+      "descriptionFallback": "No description",
+      "tabs": {
+        "videos": "Videos",
+        "player": "Player",
+        "chat": "Chat"
+      },
+      "playerPlaceholder": "Select a video from the list",
+      "videoNoFile": "Video file is unavailable",
+      "noVideos": "No videos yet",
+      "noDescription": "No description"
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "Sign in",
+      "description": "Sign in to access the service.",
+      "submit": "Sign in",
+      "submitting": "Signing in...",
+      "footerQuestion": "Don't have an account?",
+      "footerLink": "Register here",
+      "forgotPassword": "Forgot your password?"
+    },
+    "signup": {
+      "title": "Create account",
+      "description": "Create a new account to start using the service.",
+      "submit": "Create account",
+      "submitting": "Creating...",
+      "footerQuestion": "Already have an account?",
+      "footerLink": "Sign in here",
+      "passwordMismatch": "Passwords do not match"
+    },
+    "checkEmail": {
+      "title": "Check your email",
+      "description": "We sent a confirmation email to your inbox. Please open the link to complete your registration.",
+      "alert": "Please open the confirmation link before it expires.",
+      "help": "If the email does not arrive, wait a moment and try again. Contact support if the problem persists.",
+      "backToLogin": "Back to sign-in"
+    },
+    "forgotPassword": {
+      "title": "Forgot your password?",
+      "description": "Enter the email associated with your account and we'll send a password reset link.",
+      "success": "We sent a password reset email. If you don't see it within a few minutes, please check your spam folder.",
+      "submit": "Send reset link",
+      "submitting": "Sending...",
+      "backToLogin": "Back to sign-in"
+    },
+    "resetPassword": {
+      "title": "Set a new password",
+      "description": "Enter a secure new password.",
+      "invalidLink": "The reset link is invalid. Please request a new password reset.",
+      "passwordMismatch": "Passwords do not match",
+      "success": "Your password has been reset. Please sign in with your new password.",
+      "submit": "Update password",
+      "submitting": "Updating...",
+      "backToLogin": "Back to sign-in",
+      "newPassword": "New password",
+      "newPasswordPlaceholder": "Enter at least 8 characters",
+      "confirmPassword": "Confirm new password",
+      "confirmPasswordPlaceholder": "Enter the same password again"
+    },
+    "verifyEmail": {
+      "title": "Email verification",
+      "description": "We are confirming the email address associated with your account.",
+      "loading": "Checking your email verification...",
+      "invalidLink": "The verification link is invalid.",
+      "success": "Email verification completed. Please sign in.",
+      "redirect": "You will be redirected to the sign-in page shortly. If not, click <link>here</link>.",
+      "redirectLink": "here",
+      "error": "Email verification failed. The link may have expired.",
+      "retry": "If the link is invalid, please register again or contact support.",
+      "backToLogin": "If you need to return to the sign-in page, click <link>here</link>.",
+      "fallbackTitle": "Email verification",
+      "fallbackLoading": "Checking your email verification..."
+    },
+    "fields": {
+      "email": {
+        "label": "Email address",
+        "placeholder": "Enter your email"
+      },
+      "username": {
+        "label": "Username",
+        "placeholder": "Enter your username"
+      },
+      "password": {
+        "label": "Password",
+        "placeholder": "Enter your password"
+      },
+      "passwordConfirmation": {
+        "label": "Confirm password",
+        "placeholder": "Re-enter your password"
+      }
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "description": "Configure your OpenAI API key.",
+    "label": "OpenAI API key",
+    "helper": "Enter your OpenAI API key. The value is stored encrypted.",
+    "success": "Settings saved successfully.",
+    "error": "Failed to save settings.",
+    "submit": "Save",
+    "submitting": "Saving..."
+  },
+  "chat": {
+    "title": "Chat",
+    "history": "Conversation history",
+    "historyEmpty": "No history available",
+    "historyLoading": "Loading...",
+    "exportCsv": "Export CSV",
+    "exportCsvShort": "CSV",
+    "close": "Close",
+    "question": "Question",
+    "answer": "Answer",
+    "relatedVideos": "Related videos",
+    "sharedOrigin": "Shared link",
+    "feedback": "Feedback",
+    "feedbackGood": "Good",
+    "feedbackBad": "Bad",
+    "feedbackNone": "Not rated",
+    "placeholder": "Type a message...",
+    "assistantGreeting": "Hello! Ask me anything about your videos.",
+    "error": "An error occurred. Please make sure your API key is configured correctly."
+  },
+  "shared": {
+    "loadError": "Failed to load the shared chat group.",
+    "notFound": "Shared chat group not found."
+  },
+  "errors": {
+    "operationFailed": "Operation failed",
+    "badRequest": "The request is invalid",
+    "unauthorized": "Authentication required",
+    "forbidden": "Access denied",
+    "notFound": "Resource not found",
+    "server": "A server error occurred",
+    "generic": "An error occurred ({{status}})",
+    "multiple": "Multiple errors: {{errors}}",
+    "authFailed": "Authentication failed. Please sign in again."
+  },
+  "validation": {
+    "required": "This field is required",
+    "email": "Please enter a valid email address",
+    "minLength": "Please enter at least {{min}} characters",
+    "maxLength": "Please enter {{max}} characters or fewer",
+    "fileSize": "File size must be {{max}} MB or less",
+    "fileType": "Unsupported file type. Allowed: {{types}}"
+  },
+  "confirmations": {
+    "deleteVideo": "Are you sure you want to delete this video?",
+    "deleteGroup": "Are you sure you want to delete this chat group?",
+    "removeGroupVideo": "Remove this video from the chat group?",
+    "disableShareLink": "Disable the share link?"
+  }
+}
