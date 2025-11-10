@@ -53,6 +53,9 @@ export default function SharedGroupPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const pendingStartTimeRef = useRef<number | null>(null);
 
+  // モバイル用タブ状態
+  const [mobileTab, setMobileTab] = useState<'videos' | 'player' | 'chat'>('player');
+
   useEffect(() => {
     const loadGroup = async () => {
       if (!shareToken) return;
@@ -83,6 +86,10 @@ export default function SharedGroupPage() {
     if (video) {
       const selectedVid = convertVideoInGroupToSelectedVideo(video);
       setSelectedVideo(selectedVid);
+      // モバイルで動画を選択したらプレイヤータブに切り替え
+      if (window.innerWidth < 1024) {
+        setMobileTab('player');
+      }
     }
   };
 
@@ -98,6 +105,11 @@ export default function SharedGroupPage() {
   const handleVideoPlayFromTime = (videoId: number, startTime: string) => {
     // 共通ユーティリティで時間文字列を秒に変換（DRY対応）
     const seconds = timeStringToSeconds(startTime);
+
+    // モバイルの場合は自動的にプレイヤータブに切り替え
+    if (window.innerWidth < 1024) {
+      setMobileTab('player');
+    }
 
     // 同じ動画が既に選択されている場合は即座に時間を設定
     if (selectedVideo?.id === videoId && videoRef.current) {
@@ -145,8 +157,8 @@ export default function SharedGroupPage() {
         <div className="space-y-4 h-full flex flex-col">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">{group.name}</h1>
-              <p className="text-gray-500 mt-1">
+              <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">{group.name}</h1>
+              <p className="text-sm lg:text-base text-gray-500 mt-1">
                 {group.description || '説明なし'}
               </p>
             </div>
@@ -154,11 +166,45 @@ export default function SharedGroupPage() {
 
           {error && <MessageAlert type="error" message={error} />}
 
-          {/* 3カラムレイアウト */}
-          <div className="grid flex-1 min-h-0 gap-6 grid-cols-[320px_minmax(0,1fr)_360px]">
+          {/* モバイル用タブナビゲーション */}
+          <div className="lg:hidden flex border-b border-gray-200 bg-white rounded-t-lg">
+            <button
+              onClick={() => setMobileTab('videos')}
+              className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+                mobileTab === 'videos'
+                  ? 'text-blue-600 border-b-2 border-blue-600'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              動画一覧
+            </button>
+            <button
+              onClick={() => setMobileTab('player')}
+              className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+                mobileTab === 'player'
+                  ? 'text-blue-600 border-b-2 border-blue-600'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              プレイヤー
+            </button>
+            <button
+              onClick={() => setMobileTab('chat')}
+              className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+                mobileTab === 'chat'
+                  ? 'text-blue-600 border-b-2 border-blue-600'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              チャット
+            </button>
+          </div>
+
+          {/* レスポンシブレイアウト: モバイルはタブ切り替え、PCは3カラム */}
+          <div className="flex flex-col lg:grid flex-1 min-h-0 gap-4 lg:gap-6 lg:grid-cols-[320px_minmax(0,1fr)_360px]">
             {/* 左側：動画一覧 */}
-            <div className="flex flex-col min-h-0">
-              <Card className="h-[600px] flex flex-col">
+            <div className={`flex-col min-h-0 ${mobileTab === 'videos' ? 'flex' : 'hidden lg:flex'}`}>
+              <Card className="h-[500px] lg:h-[600px] flex flex-col">
                 <CardHeader>
                   <CardTitle>動画一覧</CardTitle>
                 </CardHeader>
@@ -182,35 +228,35 @@ export default function SharedGroupPage() {
             </div>
 
             {/* 中央：動画プレイヤー */}
-            <div className="flex flex-col min-h-0">
-              <Card className="h-[600px] flex flex-col">
+            <div className={`flex-col min-h-0 ${mobileTab === 'player' ? 'flex' : 'hidden lg:flex'}`}>
+              <Card className="h-[500px] lg:h-[600px] flex flex-col">
                 <CardHeader>
-                  <CardTitle>
+                  <CardTitle className="text-base lg:text-lg">
                     {selectedVideo ? selectedVideo.title : '動画を選択してください'}
                   </CardTitle>
                   {selectedVideo && (
-                    <p className="text-sm text-gray-600 mt-1">{selectedVideo.description || '説明なし'}</p>
+                    <p className="text-xs lg:text-sm text-gray-600 mt-1">{selectedVideo.description || '説明なし'}</p>
                   )}
                 </CardHeader>
-                <CardContent className="flex-1 flex items-center justify-center">
+                <CardContent className="flex-1 flex items-center justify-center overflow-hidden">
                   {selectedVideo ? (
                     selectedVideo.file ? (
                       <video
                         ref={videoRef}
                         key={selectedVideo.id}
                         controls
-                        className="w-full max-h-[500px] rounded"
+                        className="w-full h-full max-h-[400px] lg:max-h-[500px] rounded object-contain"
                         src={apiClient.getSharedVideoUrl(selectedVideo.file, shareToken)}
                         onCanPlay={handleVideoCanPlay}
                       >
                         お使いのブラウザは動画タグをサポートしていません。
                       </video>
                     ) : (
-                      <p className="text-gray-500">動画ファイルがありません</p>
+                      <p className="text-gray-500 text-sm">動画ファイルがありません</p>
                     )
                   ) : (
-                    <p className="text-gray-500 text-center">
-                      左側のリストから動画を選択してください
+                    <p className="text-gray-500 text-center text-sm">
+                      動画一覧から動画を選択してください
                     </p>
                   )}
                 </CardContent>
@@ -218,12 +264,13 @@ export default function SharedGroupPage() {
             </div>
 
             {/* 右側：チャット */}
-            <div className="flex flex-col min-h-0">
+            <div className={`flex-col min-h-0 ${mobileTab === 'chat' ? 'flex' : 'hidden lg:flex'}`}>
               <ChatPanel
                 hasApiKey={!!group.owner_has_api_key}
                 groupId={group.id}
                 onVideoPlay={handleVideoPlayFromTime}
                 shareToken={shareToken}
+                className="h-[500px] lg:h-[600px]"
               />
             </div>
           </div>

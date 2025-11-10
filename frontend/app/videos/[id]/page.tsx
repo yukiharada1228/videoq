@@ -103,9 +103,9 @@ export default function VideoDetailPage() {
   return (
     <PageLayout fullWidth>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold text-gray-900">{video.title}</h1>
-          <div className="flex gap-2">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">{video.title}</h1>
+          <div className="flex flex-wrap gap-2">
             {!isEditing && (
               <Button
                 variant="outline"
@@ -115,18 +115,20 @@ export default function VideoDetailPage() {
                   setEditedDescription(video.description || '');
                   setIsEditing(true);
                 }}
+                size="sm"
+                className="lg:size-default"
               >
                 編集
               </Button>
             )}
             <Link href="/videos">
-              <Button variant="outline">一覧に戻る</Button>
+              <Button variant="outline" size="sm" className="lg:size-default">一覧に戻る</Button>
             </Link>
             {!isEditing && (
               <Button variant="destructive" onClick={() => handleDelete(async () => {
                 if (!videoId) return;
                 await apiClient.deleteVideo(videoId);
-              })} disabled={isDeleting}>
+              })} disabled={isDeleting} size="sm" className="lg:size-default">
                 {isDeleting ? (
                   <span className="flex items-center">
                     <InlineSpinner className="mr-2" color="red" />
