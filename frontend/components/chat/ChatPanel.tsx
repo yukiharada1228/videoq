@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { apiClient, RelatedVideo, ChatHistoryItem } from '@/lib/api';
 import { timeStringToSeconds } from '@/lib/utils/video';
 import { cn } from '@/lib/utils';
+import { useTranslation } from 'react-i18next';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -23,10 +24,11 @@ interface ChatPanelProps {
 }
 
 export function ChatPanel({ hasApiKey, groupId, onVideoPlay, shareToken, className }: ChatPanelProps) {
-  const [messages, setMessages] = useState<Message[]>([
+  const { t } = useTranslation();
+  const [messages, setMessages] = useState<Message[]>(() => [
     {
       role: 'assistant',
-      content: 'こんにちは！動画に関する質問にお答えします。何か質問はありますか？',
+      content: t('chat.assistantGreeting'),
     },
   ]);
   const [input, setInput] = useState('');
@@ -116,7 +118,7 @@ export function ChatPanel({ hasApiKey, groupId, onVideoPlay, shareToken, classNa
         ...prev,
         {
           role: 'assistant',
-          content: 'エラーが発生しました。APIキーが正しく設定されているか確認してください。',
+          content: t('chat.error'),
         },
       ]);
     } finally {
@@ -166,9 +168,11 @@ export function ChatPanel({ hasApiKey, groupId, onVideoPlay, shareToken, classNa
 
   const ChatHeader = () => (
     <CardHeader className="flex items-center justify-between">
-      <CardTitle>チャット</CardTitle>
+      <CardTitle>{t('chat.title')}</CardTitle>
       {groupId && !shareToken && (
-        <Button variant="outline" onClick={openHistory}>会話履歴</Button>
+        <Button variant="outline" onClick={openHistory}>
+          {t('chat.history')}
+        </Button>
       )}
     </CardHeader>
   );
@@ -181,8 +185,8 @@ export function ChatPanel({ hasApiKey, groupId, onVideoPlay, shareToken, classNa
         <ChatHeader />
         <CardContent className="flex-1 flex items-center justify-center">
           <div className="text-center text-gray-500">
-            <p className="mb-2">APIキーが設定されていません</p>
-            <p className="text-sm">設定ページでAPIキーを設定してください</p>
+            <p className="mb-2">{t('common.messages.noApiKey')}</p>
+            <p className="text-sm">{t('common.messages.setApiKeyPrompt')}</p>
           </div>
         </CardContent>
       </Card>
@@ -212,7 +216,7 @@ export function ChatPanel({ hasApiKey, groupId, onVideoPlay, shareToken, classNa
                   <p className="text-sm whitespace-pre-wrap">{message.content}</p>
                   {message.related_videos && message.related_videos.length > 0 && (
                     <div className="mt-3 pt-3 border-t border-gray-300">
-                      <p className="text-xs text-gray-600 mb-2">関連動画:</p>
+                      <p className="text-xs text-gray-600 mb-2">{t('chat.relatedVideos')}:</p>
                       <div className="flex gap-2 overflow-x-auto pb-1">
                         {message.related_videos.map((video, videoIndex) => (
                           <div 
@@ -235,7 +239,7 @@ export function ChatPanel({ hasApiKey, groupId, onVideoPlay, shareToken, classNa
                         disabled={feedbackUpdatingId === message.chatLogId}
                         onClick={() => handleFeedback(message.chatLogId!, 'good')}
                       >
-                        Good
+                        {t('chat.feedbackGood')}
                       </Button>
                       <Button
                         size="sm"
@@ -243,7 +247,7 @@ export function ChatPanel({ hasApiKey, groupId, onVideoPlay, shareToken, classNa
                         disabled={feedbackUpdatingId === message.chatLogId}
                         onClick={() => handleFeedback(message.chatLogId!, 'bad')}
                       >
-                        Bad
+                        {t('chat.feedbackBad')}
                       </Button>
                     </div>
                   )}
@@ -256,13 +260,13 @@ export function ChatPanel({ hasApiKey, groupId, onVideoPlay, shareToken, classNa
             <Input
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder="メッセージを入力..."
+              onKeyDown={handleKeyPress}
+              placeholder={t('chat.placeholder') as string}
               disabled={loading}
               className="flex-1"
             />
             <Button onClick={handleSend} disabled={loading || !input.trim()}>
-              {loading ? '送信中...' : '送信'}
+            {loading ? t('common.actions.sending') : t('common.actions.send')}
             </Button>
           </div>
         </CardContent>
@@ -272,21 +276,23 @@ export function ChatPanel({ hasApiKey, groupId, onVideoPlay, shareToken, classNa
         <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
           <div className="bg-white w-full max-w-2xl max-h-[80vh] rounded shadow-lg overflow-hidden flex flex-col">
             <div className="p-3 lg:p-4 border-b flex items-center justify-between">
-              <div className="font-semibold text-sm lg:text-base">会話履歴</div>
+              <div className="font-semibold text-sm lg:text-base">{t('chat.history')}</div>
               <div className="flex items-center gap-2">
                 {!historyLoading && (history?.length ?? 0) > 0 && (
                   <Button variant="outline" size="sm" onClick={exportHistoryCsv}>
-                    <span className="hidden lg:inline">CSVエクスポート</span>
-                    <span className="lg:hidden">CSV</span>
+                    <span className="hidden lg:inline">{t('chat.exportCsv')}</span>
+                    <span className="lg:hidden">{t('chat.exportCsvShort')}</span>
                   </Button>
                 )}
-                <Button variant="ghost" size="sm" onClick={() => setHistoryOpen(false)}>閉じる</Button>
+                <Button variant="ghost" size="sm" onClick={() => setHistoryOpen(false)}>
+                  {t('chat.close')}
+                </Button>
               </div>
             </div>
             <div className="p-4 overflow-auto">
-              {historyLoading && <div className="text-sm text-gray-500">読込中...</div>}
+              {historyLoading && <div className="text-sm text-gray-500">{t('chat.historyLoading')}</div>}
               {!historyLoading && (history?.length ?? 0) === 0 && (
-                <div className="text-sm text-gray-500">履歴はありません</div>
+                <div className="text-sm text-gray-500">{t('chat.historyEmpty')}</div>
               )}
               {!historyLoading && (history?.length ?? 0) > 0 && (
                 <div className="space-y-4">
@@ -294,16 +300,16 @@ export function ChatPanel({ hasApiKey, groupId, onVideoPlay, shareToken, classNa
                     <div key={item.id} className="border rounded p-3">
                       <div className="text-xs text-gray-500 mb-2">{new Date(item.created_at).toLocaleString()}</div>
                       <div className="mb-2">
-                        <div className="text-xs text-gray-600 mb-1">質問</div>
+                        <div className="text-xs text-gray-600 mb-1">{t('chat.question')}</div>
                         <div className="whitespace-pre-wrap">{item.question}</div>
                       </div>
                       <div>
-                        <div className="text-xs text-gray-600 mb-1">回答</div>
+                        <div className="text-xs text-gray-600 mb-1">{t('chat.answer')}</div>
                         <div className="whitespace-pre-wrap">{item.answer}</div>
                       </div>
                       {item.related_videos?.length > 0 && (
                         <div className="mt-3 pt-3 border-t">
-                          <div className="text-xs text-gray-600 mb-1">関連動画</div>
+                          <div className="text-xs text-gray-600 mb-1">{t('chat.relatedVideos')}</div>
                           <div className="flex gap-2 overflow-x-auto">
                             {item.related_videos.map((v, idx) => (
                               <div key={idx} className="text-xs px-2 py-1 border rounded bg-gray-50">
@@ -314,15 +320,15 @@ export function ChatPanel({ hasApiKey, groupId, onVideoPlay, shareToken, classNa
                         </div>
                       )}
                       {item.is_shared_origin && (
-                        <div className="mt-2 text-[10px] text-purple-600">共有リンク経由</div>
+                        <div className="mt-2 text-[10px] text-purple-600">{t('chat.sharedOrigin')}</div>
                       )}
                       <div className="mt-2 text-xs text-gray-600">
-                        フィードバック:{' '}
+                        {t('chat.feedback')}{' '}
                         {item.feedback === 'good'
-                          ? 'Good'
+                          ? t('chat.feedbackGood')
                           : item.feedback === 'bad'
-                          ? 'Bad'
-                          : '未評価'}
+                          ? t('chat.feedbackBad')
+                          : t('chat.feedbackNone')}
                       </div>
                     </div>
                   ))}

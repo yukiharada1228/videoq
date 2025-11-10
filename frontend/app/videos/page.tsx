@@ -2,6 +2,8 @@
 
 import { useState, useEffect, Suspense, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useTranslation } from 'react-i18next';
+import { initI18n } from '@/i18n/config';
 import { useVideos } from '@/hooks/useVideos';
 import { useVideoStats } from '@/hooks/useVideoStats';
 import { VideoUploadModal } from '@/components/video/VideoUploadModal';
@@ -16,6 +18,7 @@ function VideosContent() {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { t } = useTranslation();
 
   const shouldOpenModalFromQuery = useMemo(
     () => searchParams?.get('upload') === 'true',
@@ -49,14 +52,18 @@ function VideosContent() {
           {/* ヘッダー */}
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div>
-              <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">動画一覧</h1>
+              <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">
+                {t('videos.list.title')}
+              </h1>
               <p className="text-sm lg:text-base text-gray-500 mt-1">
-                {stats.total > 0 ? `${stats.total}本の動画` : '動画をアップロードして管理しましょう'}
+                {stats.total > 0
+                  ? t('videos.list.subtitle', { count: stats.total })
+                  : t('videos.list.emptySubtitle')}
               </p>
             </div>
             <Button onClick={handleUploadClick} className="flex items-center gap-2 w-full lg:w-auto" size="sm">
               <span>＋</span>
-              <span>動画をアップロード</span>
+              <span>{t('videos.list.uploadButton')}</span>
             </Button>
           </div>
 
@@ -65,25 +72,29 @@ function VideosContent() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="bg-blue-50 rounded-lg p-4 border border-blue-100">
                 <div className="text-2xl font-bold text-blue-600">{stats.total}</div>
-                <div className="text-sm text-blue-600">総動画数</div>
+                <div className="text-sm text-blue-600">{t('videos.list.stats.total')}</div>
               </div>
               <div className="bg-green-50 rounded-lg p-4 border border-green-100">
                 <div className="text-2xl font-bold text-green-600">{stats.completed}</div>
-                <div className="text-sm text-green-600">完了</div>
+                <div className="text-sm text-green-600">{t('videos.list.stats.completed')}</div>
               </div>
               <div className="bg-yellow-50 rounded-lg p-4 border border-yellow-100">
                 <div className="text-2xl font-bold text-yellow-600">{stats.pending}</div>
-                <div className="text-sm text-yellow-600">待機中</div>
+                <div className="text-sm text-yellow-600">{t('videos.list.stats.pending')}</div>
               </div>
               <div className="bg-purple-50 rounded-lg p-4 border border-purple-100">
                 <div className="text-2xl font-bold text-purple-600">{stats.processing}</div>
-                <div className="text-sm text-purple-600">処理中</div>
+                <div className="text-sm text-purple-600">{t('videos.list.stats.processing')}</div>
               </div>
             </div>
           )}
 
           {/* コンテンツ */}
-          <LoadingState isLoading={isLoading} error={error}>
+          <LoadingState
+            isLoading={isLoading}
+            error={error}
+            loadingMessage={t('videos.list.loading')}
+          >
             <div className="max-h-[600px] overflow-y-auto">
               <VideoList videos={videos} />
             </div>
@@ -102,9 +113,14 @@ function VideosContent() {
 
 export default function VideosPage() {
   return (
-    <Suspense fallback={<div>読み込み中...</div>}>
+    <Suspense fallback={<div>{initTranslationFallback()}</div>}>
       <VideosContent />
     </Suspense>
   );
+}
+
+function initTranslationFallback() {
+  const i18n = initI18n();
+  return i18n.t('common.loading');
 }
 

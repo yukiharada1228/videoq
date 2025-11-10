@@ -1,6 +1,10 @@
+import { initI18n } from "@/i18n/config";
+
 /**
  * 共通のフォーム処理ユーティリティ
  */
+
+const i18n = initI18n();
 
 /**
  * フォームバリデーションの共通関数
@@ -39,7 +43,7 @@ export const formValidators = {
       value === undefined ||
       (typeof value === 'string' && value.trim() === '')
     ) {
-      return 'この項目は必須です';
+      return i18n.t("validation.required");
     }
     return null;
   },
@@ -48,7 +52,7 @@ export const formValidators = {
     if (!value) return null;
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(value)) {
-      return '有効なメールアドレスを入力してください';
+      return i18n.t("validation.email");
     }
     return null;
   },
@@ -56,7 +60,7 @@ export const formValidators = {
   minLength: (min: number) => (value: string): string | null => {
     if (!value) return null;
     if (value.length < min) {
-      return `${min}文字以上で入力してください`;
+      return i18n.t("validation.minLength", { min });
     }
     return null;
   },
@@ -64,7 +68,7 @@ export const formValidators = {
   maxLength: (max: number) => (value: string): string | null => {
     if (!value) return null;
     if (value.length > max) {
-      return `${max}文字以下で入力してください`;
+      return i18n.t("validation.maxLength", { max });
     }
     return null;
   },
@@ -73,7 +77,7 @@ export const formValidators = {
     if (!file) return null;
     const maxSizeBytes = maxSizeMB * 1024 * 1024;
     if (file.size > maxSizeBytes) {
-      return `ファイルサイズは${maxSizeMB}MB以下にしてください`;
+      return i18n.t("validation.fileSize", { max: maxSizeMB });
     }
     return null;
   },
@@ -81,7 +85,9 @@ export const formValidators = {
   fileType: (allowedTypes: string[]) => (file?: File | null): string | null => {
     if (!file) return null;
     if (!allowedTypes.includes(file.type)) {
-      return `対応していないファイル形式です。許可されている形式: ${allowedTypes.join(', ')}`;
+      return i18n.t("validation.fileType", {
+        types: allowedTypes.join(", "),
+      });
     }
     return null;
   },

@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { apiClient, VideoUploadRequest } from '@/lib/api';
+import { initI18n } from '@/i18n/config';
 import { useAsyncState } from './useAsyncState';
 
 interface UseVideoUploadReturn {
@@ -24,14 +25,16 @@ interface ValidationResult {
 /**
  * バリデーションロジック
  */
+const i18n = initI18n();
+
 function validateVideoUpload(file: File | null, title: string): ValidationResult {
   if (!file) {
-    return { isValid: false, error: 'ファイルを選択してください' };
+    return { isValid: false, error: i18n.t('videos.upload.validation.noFile') };
   }
   // タイトルが空の場合はファイル名を使用するので、ファイルがあればOK
   const finalTitle = title.trim() || file.name.replace(/\.[^/.]+$/, '');
   if (!finalTitle) {
-    return { isValid: false, error: 'タイトルを入力してください' };
+    return { isValid: false, error: i18n.t('videos.upload.validation.noTitle') };
   }
   return { isValid: true };
 }
@@ -71,7 +74,7 @@ export function useVideoUpload(): UseVideoUploadReturn {
     
     const validation = validateVideoUpload(file, title);
     if (!validation.isValid) {
-      setError(validation.error || 'バリデーションエラー');
+      setError(validation.error || i18n.t('videos.upload.validation.generic'));
       return;
     }
 

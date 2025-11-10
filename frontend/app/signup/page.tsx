@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { useTranslation } from 'react-i18next';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { AuthForm } from '@/components/auth/AuthForm';
 import { useAuthForm } from '@/hooks/useAuthForm';
@@ -9,11 +10,12 @@ import { AUTH_FIELDS } from '@/lib/authConfig';
 
 export default function SignupPage() {
   const router = useRouter();
+  const { t } = useTranslation();
 
   const { formData, error, loading, handleChange, handleSubmit } = useAuthForm({
     onSubmit: async (data: { username: string; email: string; password: string; confirmPassword: string }) => {
       if (data.password !== data.confirmPassword) {
-        throw new Error('パスワードが一致しません');
+        throw new Error(t('auth.signup.passwordMismatch'));
       }
       await apiClient.signup({
         username: data.username,
@@ -25,27 +27,33 @@ export default function SignupPage() {
     onSuccessRedirect: () => router.push('/signup/check-email'),
   });
 
+  const fields = [
+    AUTH_FIELDS.EMAIL,
+    AUTH_FIELDS.USERNAME,
+    AUTH_FIELDS.PASSWORD_WITH_MIN_LENGTH,
+    AUTH_FIELDS.CONFIRM_PASSWORD,
+  ].map((field) => ({
+    ...field,
+    label: t(field.labelKey),
+    placeholder: t(field.placeholderKey),
+  }));
+
   return (
     <PageLayout centered>
       <AuthForm
-        title="新規登録"
-        description="新しいアカウントを作成してサービスをご利用ください"
-        fields={[
-          AUTH_FIELDS.EMAIL,
-          AUTH_FIELDS.USERNAME,
-          AUTH_FIELDS.PASSWORD_WITH_MIN_LENGTH,
-          AUTH_FIELDS.CONFIRM_PASSWORD,
-        ]}
+        title={t('auth.signup.title')}
+        description={t('auth.signup.description')}
+        fields={fields}
         formData={formData}
         error={error}
         loading={loading}
-        submitButtonText="新規登録"
-        loadingButtonText="登録中..."
+        submitButtonText={t('auth.signup.submit')}
+        loadingButtonText={t('auth.signup.submitting')}
         onChange={handleChange}
         onSubmit={handleSubmit}
         footer={{
-          questionText: 'すでにアカウントをお持ちの方は',
-          linkText: 'こちらからログイン',
+          questionText: t('auth.signup.footerQuestion'),
+          linkText: t('auth.signup.footerLink'),
           href: '/login',
         }}
       />
