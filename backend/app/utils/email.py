@@ -10,6 +10,7 @@ from django.utils.http import urlsafe_base64_encode
 
 logger = logging.getLogger(__name__)
 
+
 def build_email_verification_link(user: AbstractBaseUser) -> str:
     uid = urlsafe_base64_encode(force_bytes(user.pk))
     token = default_token_generator.make_token(user)
