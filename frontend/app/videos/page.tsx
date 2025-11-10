@@ -47,14 +47,14 @@ function VideosContent() {
       <PageLayout fullWidth>
         <div className="space-y-6">
           {/* ヘッダー */}
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">動画一覧</h1>
-              <p className="text-gray-500 mt-1">
+              <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">動画一覧</h1>
+              <p className="text-sm lg:text-base text-gray-500 mt-1">
                 {stats.total > 0 ? `${stats.total}本の動画` : '動画をアップロードして管理しましょう'}
               </p>
             </div>
-            <Button onClick={handleUploadClick} className="flex items-center gap-2">
+            <Button onClick={handleUploadClick} className="flex items-center gap-2 w-full lg:w-auto" size="sm">
               <span>＋</span>
               <span>動画をアップロード</span>
             </Button>
