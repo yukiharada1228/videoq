@@ -377,6 +377,11 @@ export default function VideoGroupDetailPage() {
     // 共通ユーティリティで時間文字列を秒に変換（DRY対応）
     const seconds = timeStringToSeconds(startTime);
 
+    // モバイルの場合は自動的にプレイヤータブに切り替え
+    if (window.innerWidth < 1024) {
+      setMobileTab('player');
+    }
+
     // 同じ動画が既に選択されている場合は即座に時間を設定
     if (selectedVideo?.id === videoId && videoRef.current) {
       videoRef.current.currentTime = seconds;
