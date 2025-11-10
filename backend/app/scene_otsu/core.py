@@ -79,7 +79,7 @@ class SubtitleParser:
             if "-->" not in timing:
                 continue
             start_str, end_str = [t.strip() for t in timing.split("-->")]
-            text = " ".join([l.strip() for l in lines[2:] if l.strip()])
+            text = " ".join([line.strip() for line in lines[2:] if line.strip()])
             scenes.append(
                 {
                     "index": idx,
@@ -105,7 +105,7 @@ class SubtitleParser:
         """
         parts = timestamp.split(",")
         t = datetime.strptime(parts[0], "%H:%M:%S")
-        seconds = t.hour * 3600 + t.minute * 60 + t.second
+        seconds = float(t.hour * 3600 + t.minute * 60 + t.second)
         if len(parts) > 1:
             milliseconds = int(parts[1])
             seconds += milliseconds / 1000.0

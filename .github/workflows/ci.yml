@@ -44,6 +44,16 @@ jobs:
         working-directory: backend
         run: uv sync --frozen
 
+      - name: Run Ruff
+        working-directory: backend
+        run: uvx ruff check app ask_video
+
+      - name: Run mypy
+        working-directory: backend
+        env:
+          DJANGO_SETTINGS_MODULE: ask_video.settings
+        run: uvx mypy --config-file mypy.ini app ask_video
+
       - name: Create pgvector extension
         run: |
           sudo apt-get update
@@ -89,9 +99,14 @@ jobs:
           NEXT_TELEMETRY_DISABLED: "1"
         run: npm run lint
 
+      - name: Type check
+        working-directory: frontend
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: npm run typecheck
+
       - name: Build
         working-directory: frontend
         env:
           NEXT_TELEMETRY_DISABLED: "1"
         run: npm run build
-

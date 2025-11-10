@@ -93,12 +93,10 @@ class VideoGroupAdmin(admin.ModelAdmin):
             annotate_fields={"video_count": Count("members__video")},
         )
 
+    @admin.display(description="動画数", ordering="video_count")
     def get_video_count(self, obj):
         """annotateで追加されたvideo_countを表示"""
         return getattr(obj, "video_count", obj.members.count())
-
-    get_video_count.short_description = "動画数"
-    get_video_count.admin_order_field = "video_count"
 
 
 @admin.register(VideoGroupMember)
