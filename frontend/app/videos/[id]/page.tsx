@@ -1,7 +1,9 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useVideo } from '@/hooks/useVideos';
 import { useAsyncState } from '@/hooks/useAsyncState';
 import { apiClient } from '@/lib/api';
@@ -14,7 +16,6 @@ import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { MessageAlert } from '@/components/common/MessageAlert';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
 import { getStatusBadgeClassName, getStatusLabel, formatDate } from '@/lib/utils/video';
-import Link from 'next/link';
 
 export default function VideoDetailPage() {
   const params = useParams();
@@ -23,6 +24,7 @@ export default function VideoDetailPage() {
   const videoId = params?.id ? parseInt(params.id as string) : null;
   const videoRef = useRef<HTMLVideoElement>(null);
   const startTime = searchParams.get('t');
+  const { t, i18n } = useTranslation();
 
   const { video, isLoading, error, loadVideo } = useVideo(videoId);
 
@@ -50,7 +52,7 @@ export default function VideoDetailPage() {
   
   const { isLoading: isDeleting, error: deleteError, mutate: handleDelete } = useAsyncState({
     onSuccess: () => router.push('/videos'),
-    confirmMessage: 'この動画を削除しますか？',
+    confirmMessage: t('confirmations.deleteVideo'),
   });
 
   const { isLoading: isUpdating, error: updateError, mutate: handleUpdate } = useAsyncState({
@@ -85,7 +87,7 @@ export default function VideoDetailPage() {
         <div className="space-y-4">
           <MessageAlert type="error" message={error} />
           <Link href="/videos">
-            <Button variant="outline">一覧に戻る</Button>
+            <Button variant="outline">{t('common.actions.backToList')}</Button>
           </Link>
         </div>
       </PageLayout>
@@ -95,7 +97,7 @@ export default function VideoDetailPage() {
   if (!video) {
     return (
       <PageLayout fullWidth>
-        <div className="text-center text-gray-500">動画が見つかりません</div>
+        <div className="text-center text-gray-500">{t('common.messages.videoNotFound')}</div>
       </PageLayout>
     );
   }
@@ -118,11 +120,13 @@ export default function VideoDetailPage() {
                 size="sm"
                 className="lg:size-default"
               >
-                編集
+                {t('videos.detail.edit')}
               </Button>
             )}
             <Link href="/videos">
-              <Button variant="outline" size="sm" className="lg:size-default">一覧に戻る</Button>
+              <Button variant="outline" size="sm" className="lg:size-default">
+                {t('common.actions.backToList')}
+              </Button>
             </Link>
             {!isEditing && (
               <Button variant="destructive" onClick={() => handleDelete(async () => {
@@ -132,10 +136,10 @@ export default function VideoDetailPage() {
                 {isDeleting ? (
                   <span className="flex items-center">
                     <InlineSpinner className="mr-2" color="red" />
-                    削除中...
+                    {t('common.actions.deleting')}
                   </span>
                 ) : (
-                  '削除'
+                  t('common.actions.delete')
                 )}
               </Button>
             )}
@@ -147,14 +151,14 @@ export default function VideoDetailPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card>
             <CardHeader>
-              <CardTitle>情報</CardTitle>
+              <CardTitle>{t('videos.detail.info')}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               {isEditing ? (
                 <>
                   <div>
                     <label className="text-sm font-medium text-gray-600 block mb-1">
-                      タイトル
+                      {t('videos.detail.editTitleLabel')}
                     </label>
                     <Input
                       type="text"
@@ -166,7 +170,7 @@ export default function VideoDetailPage() {
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-600 block mb-1">
-                      説明
+                      {t('videos.detail.editDescriptionLabel')}
                     </label>
                     <Textarea
                       value={editedDescription}
@@ -189,10 +193,10 @@ export default function VideoDetailPage() {
                       {isUpdating ? (
                         <span className="flex items-center">
                           <InlineSpinner className="mr-2" />
-                          保存中...
+                          {t('videos.detail.saving')}
                         </span>
                       ) : (
-                        '保存'
+                        t('videos.detail.save')
                       )}
                     </Button>
                     <Button 
@@ -200,32 +204,32 @@ export default function VideoDetailPage() {
                       onClick={handleCancelEdit}
                       disabled={isUpdating}
                     >
-                      キャンセル
+                      {t('videos.detail.cancel')}
                     </Button>
                   </div>
                 </>
               ) : (
                 <>
                   <div>
-                    <p className="text-sm font-medium text-gray-600">タイトル</p>
+                    <p className="text-sm font-medium text-gray-600">{t('videos.detail.labels.title')}</p>
                     <p className="text-gray-900">{video.title}</p>
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-600">説明</p>
-                    <p className="text-gray-900">{video.description || '説明なし'}</p>
+                    <p className="text-sm font-medium text-gray-600">{t('videos.detail.labels.description')}</p>
+                    <p className="text-gray-900">{video.description || t('common.messages.noDescription')}</p>
                   </div>
                 </>
               )}
               <div>
-                <p className="text-sm font-medium text-gray-600">ステータス</p>
+                <p className="text-sm font-medium text-gray-600">{t('videos.detail.labels.status')}</p>
                 <span className={getStatusBadgeClassName(video.status, 'md')}>
-                  {getStatusLabel(video.status)}
+                  {getStatusLabel(video.status, i18n.language)}
                 </span>
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-600">アップロード日時</p>
+                <p className="text-sm font-medium text-gray-600">{t('videos.detail.labels.uploadedAt')}</p>
                 <p className="text-gray-900">
-                  {formatDate(video.uploaded_at)}
+                  {formatDate(video.uploaded_at, 'full', i18n.language)}
                 </p>
               </div>
             </CardContent>
@@ -233,7 +237,7 @@ export default function VideoDetailPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>動画</CardTitle>
+              <CardTitle>{t('videos.detail.video')}</CardTitle>
             </CardHeader>
             <CardContent>
               {video.file ? (
@@ -244,10 +248,10 @@ export default function VideoDetailPage() {
                   src={video.file}
                   onLoadedMetadata={handleVideoLoaded}
                 >
-                  お使いのブラウザは動画タグをサポートしていません。
+                  {t('common.messages.browserNoVideoSupport')}
                 </video>
               ) : (
-                <p className="text-gray-500">動画ファイルがありません</p>
+                <p className="text-gray-500">{t('common.messages.videoFileMissing')}</p>
               )}
             </CardContent>
           </Card>
@@ -255,7 +259,7 @@ export default function VideoDetailPage() {
           {video.transcript && video.transcript.trim() ? (
             <Card className="lg:col-span-2">
               <CardHeader>
-                <CardTitle>文字起こし</CardTitle>
+                <CardTitle>{t('videos.detail.transcript')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-gray-900 whitespace-pre-wrap">{video.transcript}</p>
@@ -264,20 +268,20 @@ export default function VideoDetailPage() {
           ) : (
             <Card className="lg:col-span-2">
               <CardHeader>
-                <CardTitle>文字起こし</CardTitle>
+                <CardTitle>{t('videos.detail.transcript')}</CardTitle>
               </CardHeader>
               <CardContent>
                 {video.status === 'pending' && (
-                  <p className="text-gray-500 italic">文字起こし処理はまだ開始されていません。</p>
+                  <p className="text-gray-500 italic">{t('common.messages.transcriptionPending')}</p>
                 )}
                 {video.status === 'processing' && (
-                  <p className="text-gray-500 italic">文字起こしを処理しています...</p>
+                  <p className="text-gray-500 italic">{t('common.messages.transcriptionProcessing')}</p>
                 )}
                 {video.status === 'completed' && (
-                  <p className="text-gray-500 italic">文字起こしはまだ利用できません。</p>
+                  <p className="text-gray-500 italic">{t('common.messages.transcriptionUnavailable')}</p>
                 )}
                 {video.status === 'error' && (
-                  <p className="text-red-600 italic">文字起こしの処理中にエラーが発生しました。</p>
+                  <p className="text-red-600 italic">{t('common.messages.transcriptionError')}</p>
                 )}
               </CardContent>
             </Card>
@@ -286,7 +290,7 @@ export default function VideoDetailPage() {
           {video.error_message && (
             <Card className="lg:col-span-2">
               <CardHeader>
-                <CardTitle className="text-red-600">エラー</CardTitle>
+                <CardTitle className="text-red-600">{t('videos.detail.errorCard')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-red-800">{video.error_message}</p>

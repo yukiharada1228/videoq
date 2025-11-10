@@ -1,4 +1,8 @@
+import { initI18n } from '@/i18n/config';
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+
+const i18n = initI18n();
 
 type RequestBody = BodyInit | object | null | undefined;
 
@@ -254,7 +258,7 @@ class ApiClient {
     // HttpOnly Cookieベースの認証では、ログアウト処理をバックエンドに委譲
     await this.logout();
     window.location.href = '/login';
-    throw new Error('認証に失敗しました。再度ログインしてください。');
+    throw new Error(i18n.t("errors.authFailed"));
   }
 
   // エラーログを出力する共通メソッド
@@ -478,7 +482,7 @@ class ApiClient {
         response = await doFetch();
       } catch {
         await this.logout();
-        throw new Error('認証に失敗しました。再度ログインしてください。');
+        throw new Error(i18n.t("errors.authFailed"));
       }
     }
 

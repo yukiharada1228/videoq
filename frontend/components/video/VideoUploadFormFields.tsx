@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { MessageAlert } from '@/components/common/MessageAlert';
 import { Button } from '@/components/ui/button';
 import { VideoUploadButton } from './VideoUploadButton';
+import { useTranslation } from 'react-i18next';
 
 interface VideoUploadFormFieldsProps {
   title: string;
@@ -39,19 +40,21 @@ export function VideoUploadFormFields({
   hideButtons = false,
   renderButtons,
 }: VideoUploadFormFieldsProps) {
+  const { t } = useTranslation();
+
   // プレースホルダーを動的に生成
   const getTitlePlaceholder = () => {
     if (file) {
       const fileNameWithoutExt = file.name.replace(/\.[^/.]+$/, '');
-      return `${fileNameWithoutExt}（デフォルト）`;
+      return t('videos.upload.titlePlaceholder', { fileName: fileNameWithoutExt });
     }
-    return '動画のタイトルを入力';
+    return t('videos.upload.titleEmptyPlaceholder');
   };
 
   return (
     <>
       <div className="space-y-2">
-        <Label htmlFor="file">ファイル</Label>
+        <Label htmlFor="file">{t('videos.upload.fileLabel')}</Label>
         <Input
           id="file"
           type="file"
@@ -63,7 +66,7 @@ export function VideoUploadFormFields({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="title">タイトル *</Label>
+        <Label htmlFor="title">{t('videos.upload.titleLabel')}</Label>
         <Input
           id="title"
           type="text"
@@ -76,19 +79,19 @@ export function VideoUploadFormFields({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="description">説明</Label>
+        <Label htmlFor="description">{t('videos.upload.descriptionLabel')}</Label>
         <textarea
           id="description"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder="動画の説明（任意）"
+          placeholder={t('videos.upload.descriptionPlaceholder')}
           disabled={isUploading}
           className="w-full min-h-[100px] px-3 py-2 border border-gray-300 rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
       </div>
 
       {error && <MessageAlert type="error" message={error} />}
-      {success && <MessageAlert type="success" message="アップロード成功！" />}
+      {success && <MessageAlert type="success" message={t('videos.upload.success')} />}
 
       {!hideButtons && (
         renderButtons ? (
@@ -102,7 +105,7 @@ export function VideoUploadFormFields({
               disabled={isUploading} 
               className={cancelButtonClassName}
             >
-              キャンセル
+              {t('common.actions.cancel')}
             </Button>
             <VideoUploadButton isUploading={isUploading} fullWidth className="flex-1" />
           </div>

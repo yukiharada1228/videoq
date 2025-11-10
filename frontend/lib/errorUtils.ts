@@ -1,6 +1,10 @@
+import { initI18n } from "@/i18n/config";
+
 /**
  * 共通のエラーハンドリングユーティリティ
  */
+
+const i18n = initI18n();
 
 /**
  * 非同期エラーを処理する共通関数
@@ -14,7 +18,7 @@ export function handleAsyncError(
   onError: () => void
 ): void {
   const errorMessage = error instanceof Error ? error.message : defaultMessage;
-  console.error('Async operation failed:', errorMessage);
+    console.error("Async operation failed:", errorMessage);
   onError();
 }
 
@@ -27,17 +31,17 @@ export function handleApiError(response: Response): string | null {
   if (!response.ok) {
     switch (response.status) {
       case 400:
-        return 'リクエストが無効です';
+        return i18n.t("errors.badRequest");
       case 401:
-        return '認証が必要です';
+        return i18n.t("errors.unauthorized");
       case 403:
-        return 'アクセスが拒否されました';
+        return i18n.t("errors.forbidden");
       case 404:
-        return 'リソースが見つかりません';
+        return i18n.t("errors.notFound");
       case 500:
-        return 'サーバーエラーが発生しました';
+        return i18n.t("errors.server");
       default:
-        return `エラーが発生しました (${response.status})`;
+        return i18n.t("errors.generic", { status: response.status });
     }
   }
   return null;
@@ -49,7 +53,7 @@ export function handleApiError(response: Response): string | null {
  * @returns エラーメッセージ
  */
 export function handleValidationErrors(errors: string[]): string {
-  if (errors.length === 0) return '';
+  if (errors.length === 0) return "";
   if (errors.length === 1) return errors[0];
-  return `複数のエラーがあります: ${errors.join(', ')}`;
+  return i18n.t("errors.multiple", { errors: errors.join(", ") });
 }

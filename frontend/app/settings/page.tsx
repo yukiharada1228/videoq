@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -17,6 +18,7 @@ export default function Settings() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const { t } = useTranslation();
 
   // ユーザー情報が読み込まれたらAPIキーを設定
   useEffect(() => {
@@ -38,7 +40,7 @@ export default function Settings() {
       setSuccess(true);
     } catch (error) {
       console.error('Failed to save settings:', error);
-      setError('設定の保存に失敗しました');
+      setError(t('settings.error'));
     } finally {
       setSaving(false);
     }
@@ -53,13 +55,13 @@ export default function Settings() {
       <div className="mx-auto max-w-2xl space-y-6">
         <Card>
           <CardHeader>
-            <CardTitle>設定</CardTitle>
-            <CardDescription>OpenAI APIキーを設定します</CardDescription>
+            <CardTitle>{t('settings.title')}</CardTitle>
+            <CardDescription>{t('settings.description')}</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSave} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="apiKey">OpenAI API キー</Label>
+                <Label htmlFor="apiKey">{t('settings.label')}</Label>
                 <Input
                   id="apiKey"
                   type="password"
@@ -69,15 +71,15 @@ export default function Settings() {
                   className="font-mono"
                 />
                 <p className="text-sm text-gray-500">
-                  OpenAI APIキーを入力してください。この情報は暗号化して保存されます。
+                  {t('settings.helper')}
                 </p>
               </div>
 
               {error && <MessageAlert message={error} type="error" />}
-              {success && <MessageAlert message="設定を保存しました" type="success" />}
+              {success && <MessageAlert message={t('settings.success')} type="success" />}
 
               <Button type="submit" disabled={saving}>
-                {saving ? '保存中...' : '保存'}
+                {saving ? t('settings.submitting') : t('settings.submit')}
               </Button>
             </form>
           </CardContent>
