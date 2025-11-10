@@ -1,148 +1,148 @@
 # Ask Video Frontend
 
-Next.js + TypeScript + Tailwind CSS + shadcn/ui を使用したフロントエンドアプリケーションです。
+A frontend application built with Next.js, TypeScript, Tailwind CSS, and shadcn/ui.
 
-## セットアップ
+## Setup
 
-### 必要な環境
-- Node.js 18以上
-- npm または yarn
+### Requirements
+- Node.js 18+
+- npm or yarn
 
-### インストール
+### Install
 
 ```bash
 npm install
 ```
 
-### 環境変数の設定
+### Environment variables
 
-`.env.local` ファイルを作成して、以下の内容を追加してください：
+Create a `.env.local` file and add:
 
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:8000/api
 ```
 
-### 開発サーバーの起動
+### Start development server
 
 ```bash
 npm run dev
 ```
 
-ブラウザで [http://localhost:3000](http://localhost:3000) を開いてください。
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-## 機能
+## Features
 
-- ユーザー登録・メール認証 (`/signup`, `/verify-email`)
-- ログイン・ログアウト (`/login`)
-- パスワードリセット (`/forgot-password`, `/reset-password`)
-- 動画アップロード・管理 (`/videos`)
-- 動画グループ管理 (`/videos/groups`)
-- AIチャット機能（RAG対応）
-- 共有リンク機能 (`/share/[token]`)
-- ユーザー設定 (`/settings`)
-- JWT認証によるセッション管理
-- レスポンシブデザイン
+- User registration and email verification (`/signup`, `/verify-email`)
+- Login and logout (`/login`)
+- Password reset (`/forgot-password`, `/reset-password`)
+- Video upload and management (`/videos`)
+- Video group management (`/videos/groups`)
+- AI chat (RAG-enabled)
+- Share links (`/share/[token]`)
+- User settings (`/settings`)
+- Session management via JWT
+- Responsive design
 
-## 使用技術
+## Tech
 
-- **Next.js 16** - React フレームワーク
-- **React 19** - UIライブラリ
-- **TypeScript** - 型安全な開発
-- **Tailwind CSS 4** - ユーティリティファーストのCSS フレームワーク
-- **Radix UI** - アクセシブルなUIコンポーネントプリミティブ
-- **shadcn/ui** - 高品質なUIコンポーネントライブラリ
-- **react-hook-form** - フォーム状態管理
-- **zod** - スキーマバリデーション
-- **@dnd-kit** - ドラッグ&ドロップ機能
-- **Playwright** - E2Eテスト
+- **Next.js 16** - React framework
+- **React 19** - UI library
+- **TypeScript** - Type-safe development
+- **Tailwind CSS 4** - Utility-first CSS
+- **Radix UI** - Accessible UI primitives
+- **shadcn/ui** - High quality UI components
+- **react-hook-form** - Form state management
+- **zod** - Schema validation
+- **@dnd-kit** - Drag & drop
+- **Playwright** - E2E tests
 
-## 国際化 (i18n)
+## Internationalization (i18n)
 
-- 画面テキストはすべて [i18next](https://www.i18next.com/) + `react-i18next` で管理しています。デフォルト言語は英語 (`en`) で、ブラウザ設定・`lang` クエリ・ローカルストレージ・Cookie の順に自動検出して日本語 (`ja`) へ切り替わります。
-- ルートレイアウトで `I18nProvider` をラップしているため、アプリケーション内では `const { t } = useTranslation();` を呼び出して `t('translation.key')` で文言を取得してください。
-- React コンポーネント以外（ユーティリティや API ラッパーなど）で翻訳が必要な場合は `import { initI18n } from '@/i18n/config';` を用いて i18next インスタンスを初期化し、`initI18n().t(...)` を利用します。
-- 翻訳文字列は `frontend/i18n/locales/en/translation.json`（英語）と `frontend/i18n/locales/ja/translation.json`（日本語）に定義しています。新しいキーを追加する際は、両言語ファイルを同時に更新してください。
-- ドキュメントルートの `<html>` タグは初期表示時に `lang="en"` を宣言し、クライアントでの言語判定後に `I18nProvider` が自動的に `document.documentElement.lang` を更新します。
+- All UI texts are managed by [i18next](https://www.i18next.com/) + `react-i18next`. The default language is English (`en`). Language is auto-detected in this order: browser settings, `lang` query, localStorage, then Cookie. It switches to Japanese (`ja`) if matched.
+- The root layout wraps the app with `I18nProvider`, so in React code you can use `const { t } = useTranslation();` and call `t('translation.key')`.
+- For non-React code (utilities, API wrappers), initialize an i18next instance with `import { initI18n } from '@/i18n/config';` and then call `initI18n().t(...)`.
+- Translation strings are defined in `frontend/i18n/locales/en/translation.json` (English) and `frontend/i18n/locales/ja/translation.json` (Japanese). When adding new keys, update both files together.
+- The document root `<html>` starts with `lang="en"`. After client-side language detection, `I18nProvider` updates `document.documentElement.lang` automatically.
 
-## ディレクトリ構造
+## Directory structure
 
 ```
 frontend/
 ├── app/                      # Next.js App Router
-│   ├── page.tsx              # ホームページ
-│   ├── login/                 # ログインページ
-│   ├── signup/                # サインアップページ
-│   │   └── check-email/       # メール確認待ちページ
-│   ├── verify-email/          # メール認証ページ
-│   ├── forgot-password/      # パスワードリセット要求ページ
-│   ├── reset-password/        # パスワードリセットページ
-│   ├── settings/              # 設定ページ
-│   ├── videos/                # 動画関連ページ
-│   │   ├── page.tsx          # 動画一覧ページ
-│   │   ├── [id]/             # 動画詳細ページ
-│   │   └── groups/            # 動画グループページ
-│   │       └── [id]/         # 動画グループ詳細ページ
-│   └── share/                 # 共有ページ
-│       └── [token]/          # 共有トークンページ
-├── components/                # Reactコンポーネント
-│   ├── auth/                  # 認証コンポーネント
-│   ├── video/                 # 動画関連コンポーネント
-│   ├── chat/                  # チャットコンポーネント
-│   ├── layout/                # レイアウトコンポーネント
-│   ├── common/                # 共通コンポーネント
-│   └── ui/                    # UIコンポーネント（shadcn/ui）
-├── hooks/                     # カスタムフック（useAuth, useVideos, useAsyncState等）
-├── lib/                       # ライブラリ・ユーティリティ（api, errorUtils等）
-├── e2e/                       # Playwright E2Eテスト
-├── public/                    # 静的ファイル
-├── package.json               # Node.js依存関係
-├── Dockerfile                 # フロントエンドDockerイメージ
-└── README.md                  # このファイル
+│   ├── page.tsx              # Home page
+│   ├── login/                # Login page
+│   ├── signup/               # Sign-up page
+│   │   └── check-email/      # Waiting-for-confirmation page
+│   ├── verify-email/         # Email verification page
+│   ├── forgot-password/      # Password reset request page
+│   ├── reset-password/       # Password reset page
+│   ├── settings/             # Settings page
+│   ├── videos/               # Video pages
+│   │   ├── page.tsx          # Video list page
+│   │   ├── [id]/             # Video detail page
+│   │   └── groups/           # Video group pages
+│   │       └── [id]/         # Video group detail page
+│   └── share/                # Share pages
+│       └── [token]/          # Share token page
+├── components/               # React components
+│   ├── auth/                 # Auth components
+│   ├── video/                # Video components
+│   ├── chat/                 # Chat components
+│   ├── layout/               # Layout components
+│   ├── common/               # Common components
+│   └── ui/                   # UI components (shadcn/ui)
+├── hooks/                    # Custom hooks (useAuth, useVideos, useAsyncState, etc.)
+├── lib/                      # Libraries and utilities (api, errorUtils, etc.)
+├── e2e/                      # Playwright E2E tests
+├── public/                   # Static assets
+├── package.json              # Node.js dependencies
+├── Dockerfile                # Frontend Docker image
+└── README.md                 # This file
 ```
 
-## バックエンドとの連携
+## Integration with Backend
 
-このフロントエンドは Django REST Framework で実装されたバックエンドAPIと連携します。
+This frontend communicates with a Django REST Framework backend API.
 
-### APIエンドポイント
+### API Endpoints
 
-#### 認証
-- `POST /api/auth/signup/` - ユーザー登録（メール認証が必要）
-- `POST /api/auth/verify-email/` - メール認証
-- `POST /api/auth/login/` - ログイン
-- `POST /api/auth/logout/` - ログアウト
-- `POST /api/auth/refresh/` - トークンリフレッシュ
-- `GET /api/auth/me/` - 現在のユーザー情報
-- `PATCH /api/auth/me/` - ユーザー情報更新（OpenAI APIキー保存等）
-- `POST /api/auth/password-reset/` - パスワードリセット要求
-- `POST /api/auth/password-reset/confirm/` - パスワードリセット確認
+#### Auth
+- `POST /api/auth/signup/` - User registration (requires email verification)
+- `POST /api/auth/verify-email/` - Email verification
+- `POST /api/auth/login/` - Login
+- `POST /api/auth/logout/` - Logout
+- `POST /api/auth/refresh/` - Token refresh
+- `GET /api/auth/me/` - Current user info
+- `PATCH /api/auth/me/` - Update user info (save OpenAI API key)
+- `POST /api/auth/password-reset/` - Request password reset
+- `POST /api/auth/password-reset/confirm/` - Confirm password reset
 
-#### 動画管理
-- `GET /api/videos/` - 動画一覧取得
-- `POST /api/videos/` - 動画アップロード
-- `GET /api/videos/<id>/` - 動画詳細取得
-- `PATCH /api/videos/<id>/` - 動画情報更新
-- `DELETE /api/videos/<id>/` - 動画削除
+#### Videos
+- `GET /api/videos/` - List videos
+- `POST /api/videos/` - Upload video
+- `GET /api/videos/<id>/` - Get video detail
+- `PATCH /api/videos/<id>/` - Update video
+- `DELETE /api/videos/<id>/` - Delete video
 
-#### 動画グループ
-- `GET /api/videos/groups/` - グループ一覧取得
-- `POST /api/videos/groups/` - グループ作成
-- `GET /api/videos/groups/<id>/` - グループ詳細取得
-- `PATCH /api/videos/groups/<id>/` - グループ更新
-- `DELETE /api/videos/groups/<id>/` - グループ削除
-- `POST /api/videos/groups/<id>/videos/` - 動画をグループに追加
-- `POST /api/videos/groups/<id>/share/` - 共有リンク作成
-- `GET /api/videos/groups/shared/<token>/` - 共有グループ情報取得
+#### Video Groups
+- `GET /api/videos/groups/` - List groups
+- `POST /api/videos/groups/` - Create group
+- `GET /api/videos/groups/<id>/` - Group detail
+- `PATCH /api/videos/groups/<id>/` - Update group
+- `DELETE /api/videos/groups/<id>/` - Delete group
+- `POST /api/videos/groups/<id>/videos/` - Add videos to group
+- `POST /api/videos/groups/<id>/share/` - Create share link
+- `GET /api/videos/groups/shared/<token>/` - Get shared group info
 
-#### チャット
-- `POST /api/chat/` - チャット送信
-- `GET /api/chat/history/` - チャット履歴取得
-- `GET /api/chat/history/export/` - チャット履歴エクスポート
-- `POST /api/chat/feedback/` - チャットフィードバック送信
+#### Chat
+- `POST /api/chat/` - Send chat
+- `GET /api/chat/history/` - Get chat history
+- `GET /api/chat/history/export/` - Export chat history
+- `POST /api/chat/feedback/` - Send chat feedback
 
-### CORS設定
+### CORS settings
 
-バックエンドの `settings.py` で以下のCORS設定が必要です（環境変数 `CORS_ALLOWED_ORIGINS` で設定可能）：
+Configure the following in backend `settings.py` (or via `CORS_ALLOWED_ORIGINS` env):
 
 ```python
 CORS_ALLOWED_ORIGINS = [
@@ -153,49 +153,49 @@ CORS_ALLOWED_ORIGINS = [
 CORS_ALLOW_CREDENTIALS = True
 ```
 
-**注意:** このプロジェクトはDocker Composeを使用することを前提として設計されています。Docker環境では、Nginxがリバースプロキシとして動作し、フロントエンドとバックエンドを統合します。
+**Note:** This project is designed for Docker Compose. In Docker, Nginx works as the reverse proxy to serve both frontend and backend.
 
-## ビルド
+## Build
 
 ```bash
 npm run build
 ```
 
-## テスト
+## Tests
 
-### E2Eテスト（Playwright）
+### E2E (Playwright)
 
 ```bash
-# E2Eテストの実行
+# Run E2E tests
 npm run test:e2e
 
-# E2Eテスト（UIモード）
+# E2E tests (UI mode)
 npm run test:e2e:ui
 
-# E2Eテスト（ヘッドモード）
+# E2E tests (headed)
 npm run test:e2e:headed
 
-# テストレポートの表示
+# View test report
 npm run test:e2e:report
 ```
 
-## Docker環境での開発
+## Development in Docker
 
-このプロジェクトはDocker Composeを使用することを前提としています。詳細はプロジェクトルートのREADME.mdを参照してください。
+This project assumes Docker Compose. See the root README for details.
 
 ```bash
-# Docker環境でのコマンド実行例
+# Example commands in Docker environment
 docker-compose exec frontend npm run build
 docker-compose exec frontend npm run test:e2e
 docker-compose logs -f frontend
 ```
 
-## 本番環境でのデプロイ
+## Production
 
-本番環境では以下の手順を実行してください：
+Steps for production:
 
-1. 環境変数 `NEXT_PUBLIC_API_URL` を本番環境のAPI URLに設定
-2. `npm run build` でビルド
-3. `npm start` で本番サーバーを起動
+1. Set `NEXT_PUBLIC_API_URL` to the production API URL
+2. Build with `npm run build`
+3. Start with `npm start`
 
-または、Docker Composeを使用してデプロイします。
+Or deploy using Docker Compose.
