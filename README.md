@@ -1,554 +1,553 @@
 # Ask Video
 
-動画の文字起こしとAIチャット機能を提供するWebアプリケーションです。
+A web application that provides video transcription and AI chat features.
 
-## 概要
+## Overview
 
-このアプリケーションは、動画のアップロード、自動文字起こし、AIチャットなどの機能を提供します。ユーザーは動画をアップロードすると、自動的に文字起こし処理が行われ、その内容に対してAIチャットで質問することができます。
+This application offers video upload, automatic transcription, and AI chat. When a user uploads a video, transcription runs automatically in the background, and the user can ask questions about the content via AI chat.
 
-### 主な機能
+### Key Features
 
-- **ユーザー認証**: JWTによる認証システム（メール認証、パスワードリセット対応）
-- **動画アップロード**: 複数の動画形式に対応
-- **自動文字起こし**: Whisper APIによる自動文字起こし（Celeryバックグラウンド処理）
-- **AIチャット**: OpenAI APIによる動画内容についての質問応答（RAG対応）
-- **動画グループ管理**: 複数の動画をグループ化して管理
-- **共有機能**: 共有トークンによる動画グループの共有
-- **保護されたメディア配信**: 認証によるメディアファイルの安全な配信
+- **User Authentication**: JWT-based auth (email verification and password reset supported)
+- **Video Upload**: Supports multiple video formats
+- **Automatic Transcription**: Whisper API with Celery background processing
+- **AI Chat**: Q&A about video content using the OpenAI API (RAG-enabled)
+- **Video Group Management**: Organize multiple videos into groups
+- **Sharing**: Share video groups via share tokens
+- **Protected Media Delivery**: Secure media delivery via authentication
 
-## プロジェクト構成
+## Project Structure
 
 ```
 ask-video/
-├── backend/                    # Django REST Framework バックエンド
-│   ├── app/                     # メインアプリケーション
-│   │   ├── auth/                # 認証機能（views, serializers, urls, tests）
-│   │   ├── video/               # 動画管理機能（views, serializers, urls, tests）
-│   │   ├── chat/                # チャット機能（views, serializers, urls, services）
-│   │   ├── common/              # 共通機能（authentication, permissions, responses）
-│   │   ├── media/               # メディア配信機能（views）
-│   │   ├── scene_otsu/          # シーン分割機能
-│   │   ├── utils/               # ユーティリティ（encryption, vector_manager, task_helpers, email等）
-│   │   ├── migrations/          # データベースマイグレーション
-│   │   ├── models.py            # データモデル（User, Video, VideoGroup, ChatLog等）
-│   │   ├── tasks.py             # Celeryタスク（文字起こし処理等）
-│   │   └── celery_config.py     # Celery設定
-│   ├── ask_video/               # Djangoプロジェクト設定
-│   │   ├── settings.py          # Django設定
-│   │   ├── urls.py              # URL設定
-│   │   ├── wsgi.py              # WSGI設定
-│   │   └── asgi.py              # ASGI設定
-│   ├── media/                   # アップロードされたメディアファイル
-│   ├── pyproject.toml           # Python依存関係（uv）
-│   ├── uv.lock                   # uv依存関係ロックファイル
-│   ├── manage.py                # Django管理スクリプト
-│   ├── Dockerfile               # バックエンドDockerイメージ
-│   └── README.md                # バックエンドREADME
-├── frontend/                    # Next.js + TypeScript フロントエンド
+├── backend/                    # Django REST Framework backend
+│   ├── app/                     # Main application
+│   │   ├── auth/                # Auth features (views, serializers, urls, tests)
+│   │   ├── video/               # Video management (views, serializers, urls, tests)
+│   │   ├── chat/                # Chat (views, serializers, urls, services)
+│   │   ├── common/              # Common (authentication, permissions, responses)
+│   │   ├── media/               # Media delivery (views)
+│   │   ├── scene_otsu/          # Scene detection
+│   │   ├── utils/               # Utilities (encryption, vector_manager, task_helpers, email, etc.)
+│   │   ├── migrations/          # Database migrations
+│   │   ├── models.py            # Data models (User, Video, VideoGroup, ChatLog, etc.)
+│   │   ├── tasks.py             # Celery tasks (transcription, etc.)
+│   │   └── celery_config.py     # Celery configuration
+│   ├── ask_video/               # Django project settings
+│   │   ├── settings.py          # Django settings
+│   │   ├── urls.py              # URL settings
+│   │   ├── wsgi.py              # WSGI
+│   │   └── asgi.py              # ASGI
+│   ├── media/                   # Uploaded media files
+│   ├── pyproject.toml           # Python dependencies (uv)
+│   ├── uv.lock                  # uv dependency lock file
+│   ├── manage.py                # Django management script
+│   ├── Dockerfile               # Backend Docker image
+│   └── README.md                # Backend README
+├── frontend/                    # Next.js + TypeScript frontend
 │   ├── app/                     # Next.js App Router
-│   │   ├── page.tsx             # ホームページ
-│   │   ├── login/               # ログインページ
-│   │   ├── signup/              # サインアップページ
-│   │   │   └── check-email/      # メール確認待ちページ
-│   │   ├── verify-email/         # メール認証ページ
-│   │   ├── forgot-password/     # パスワードリセット要求ページ
-│   │   ├── reset-password/       # パスワードリセットページ
-│   │   ├── settings/            # 設定ページ
-│   │   ├── videos/              # 動画関連ページ
-│   │   │   ├── page.tsx         # 動画一覧ページ
-│   │   │   ├── [id]/            # 動画詳細ページ
-│   │   │   └── groups/          # 動画グループページ
-│   │   │       └── [id]/        # 動画グループ詳細ページ
-│   │   └── share/               # 共有ページ
-│   │       └── [token]/         # 共有トークンページ
-│   ├── components/              # Reactコンポーネント
-│   │   ├── auth/                # 認証コンポーネント
-│   │   ├── video/               # 動画関連コンポーネント
-│   │   ├── chat/                # チャットコンポーネント
-│   │   ├── layout/              # レイアウトコンポーネント
-│   │   ├── common/              # 共通コンポーネント
-│   │   └── ui/                  # UIコンポーネント（shadcn/ui）
-│   ├── hooks/                   # カスタムフック（useAuth, useVideos, useAsyncState等）
-│   ├── lib/                     # ライブラリ・ユーティリティ（api, errorUtils等）
-│   ├── e2e/                     # Playwright E2Eテスト
-│   ├── package.json             # Node.js依存関係
-│   ├── package-lock.json         # npm依存関係ロックファイル
-│   ├── Dockerfile               # フロントエンドDockerイメージ
-│   └── README.md                # フロントエンドREADME
-├── docker-compose.yml           # Docker Compose設定
-├── nginx.conf                   # Nginx設定
-└── README.md                    # このファイル
+│   │   ├── page.tsx             # Home page
+│   │   ├── login/               # Login page
+│   │   ├── signup/              # Sign-up page
+│   │   │   └── check-email/      # Waiting for email confirmation page
+│   │   ├── verify-email/         # Email verification page
+│   │   ├── forgot-password/     # Password reset request page
+│   │   ├── reset-password/       # Password reset page
+│   │   ├── settings/            # Settings page
+│   │   ├── videos/              # Video pages
+│   │   │   ├── page.tsx         # Video list page
+│   │   │   ├── [id]/            # Video detail page
+│   │   │   └── groups/          # Video group pages
+│   │   │       └── [id]/        # Video group detail page
+│   │   └── share/               # Share pages
+│   │       └── [token]/         # Share token page
+│   ├── components/              # React components
+│   │   ├── auth/                # Auth components
+│   │   ├── video/               # Video components
+│   │   ├── chat/                # Chat components
+│   │   ├── layout/              # Layout components
+│   │   ├── common/              # Common components
+│   │   └── ui/                  # UI components (shadcn/ui)
+│   ├── hooks/                   # Custom hooks (useAuth, useVideos, useAsyncState, etc.)
+│   ├── lib/                     # Libraries/utilities (api, errorUtils, etc.)
+│   ├── e2e/                     # Playwright E2E tests
+│   ├── package.json             # Node.js dependencies
+│   ├── package-lock.json        # npm lockfile
+│   ├── Dockerfile               # Frontend Docker image
+│   └── README.md                # Frontend README
+├── docker-compose.yml           # Docker Compose config
+├── nginx.conf                   # Nginx config
+└── README.md                    # This file
 ```
 
-## 使用技術
+## Tech Stack
 
-### バックエンド
+### Backend
 
-#### フレームワーク・API
-- **Django** (>=5.2.7) - Webフレームワーク
-- **Django REST Framework** (>=3.16.1) - REST API構築
-- **django-rest-framework-simplejwt** (>=5.5.1) - JWT認証システム
-- **django-cors-headers** (>=4.9.0) - CORS設定
-- **django-anymail** (>=13.1) - メール送信（メール認証、パスワードリセット用）
+#### Frameworks / APIs
+- **Django** (>=5.2.7) - Web framework
+- **Django REST Framework** (>=3.16.1) - REST API
+- **django-rest-framework-simplejwt** (>=5.5.1) - JWT auth
+- **django-cors-headers** (>=4.9.0) - CORS settings
+- **django-anymail** (>=13.1) - Email sending (verification, password reset)
 
-#### サーバー・WSGI
-- **Gunicorn** (>=23.0.0) - WSGIサーバー
-- **Uvicorn** (>=0.38.0) - ASGIサーバー
-- **uvicorn-worker** (>=0.4.0) - Uvicornワーカー
+#### Servers / WSGI
+- **Gunicorn** (>=23.0.0) - WSGI server
+- **Uvicorn** (>=0.38.0) - ASGI server
+- **uvicorn-worker** (>=0.4.0) - Uvicorn worker
 
-#### バックグラウンド処理
-- **Celery** (>=5.5.3) - バックグラウンドタスク処理
-- **Redis** (>=7.0.0) - Celeryブローカー・キュー管理
+#### Background Processing
+- **Celery** (>=5.5.3) - Background task processing
+- **Redis** (>=7.0.0) - Celery broker and queue management
 
-#### データベース
-- **PostgreSQL** (17, pgvector拡張付き) - リレーショナルデータベース
-- **psycopg2-binary** (>=2.9.11) - PostgreSQLアダプタ
-- **dj-database-url** (>=3.0.1) - データベースURLパーサー
-- **pgvector** (>=0.3.0) - PostgreSQL拡張（ベクトルデータベース）
+#### Database
+- **PostgreSQL** (17 with pgvector) - Relational database
+- **psycopg2-binary** (>=2.9.11) - PostgreSQL adapter
+- **dj-database-url** (>=3.0.1) - Database URL parser
+- **pgvector** (>=0.3.0) - PostgreSQL extension (vector database)
 
-#### AI・機械学習
-- **OpenAI** (>=2.6.1) - OpenAI APIクライアント（Whisper API、ChatGPT）
-- **LangChain** (>=1.0.2) - LLMアプリケーションフレームワーク
-- **langchain-openai** (>=1.0.1) - LangChain OpenAI統合
-- **langchain-postgres** (>=0.0.16) - LangChain PostgreSQL統合
-- **numpy** (>=2.0.0) - 数値計算ライブラリ
-- **scikit-learn** (>=1.7.2) - 機械学習ライブラリ
+#### AI / ML
+- **OpenAI** (>=2.6.1) - OpenAI API client (Whisper API, ChatGPT)
+- **LangChain** (>=1.0.2) - LLM app framework
+- **langchain-openai** (>=1.0.1) - LangChain OpenAI integration
+- **langchain-postgres** (>=0.0.16) - LangChain PostgreSQL integration
+- **numpy** (>=2.0.0) - Numerical computing library
+- **scikit-learn** (>=1.7.2) - Machine learning library
 
-#### 動画・音声処理
-- **ffmpeg** - 動画・音声変換ツール（システムレベル、Dockerfileでインストール）
+#### Video / Audio Processing
+- **ffmpeg** - Media conversion tool (installed at system/Docker level)
 
-#### ストレージ
-- **django-storages** (>=1.14.6) - Djangoストレージバックエンド（S3対応）
-- **boto3** (>=1.40.64) - AWS SDK for Python（S3等）
+#### Storage
+- **django-storages** (>=1.14.6) - Django storage backends (S3)
++- **boto3** (>=1.40.64) - AWS SDK for Python (S3, etc.)
 
-#### セキュリティ・暗号化
-- **cryptography** (>=46.0.3) - 暗号化ライブラリ（APIキー暗号化）
+#### Security / Encryption
+- **cryptography** (>=46.0.3) - Encryption library (API key encryption)
 
-#### パッケージ管理
-- **uv** - 高速なPythonパッケージマネージャー
+#### Package Management
+- **uv** - Fast Python package manager
 
-### フロントエンド
+### Frontend
 
-#### フレームワーク・ランタイム
-- **Next.js** (16.0.0) - React フレームワーク
-- **React** (19.2.0) - UIライブラリ
-- **React DOM** (19.2.0) - React DOMレンダラー
-- **TypeScript** (^5) - 型安全性
+#### Frameworks / Runtime
+- **Next.js** (16.0.0) - React framework
+- **React** (19.2.0) - UI library
+- **React DOM** (19.2.0) - React DOM renderer
+- **TypeScript** (^5) - Type safety
 
-#### UIコンポーネント・スタイリング
-- **Tailwind CSS** (^4) - ユーティリティファーストCSSフレームワーク
-- **@tailwindcss/postcss** (^4) - Tailwind CSS PostCSSプラグイン
-- **tw-animate-css** (^1.4.0) - Tailwind CSSアニメーション
-- **Radix UI** - アクセシブルなUIコンポーネントプリミティブ
-  - **@radix-ui/react-checkbox** (^1.3.3) - チェックボックスコンポーネント
-  - **@radix-ui/react-dialog** (^1.1.15) - ダイアログコンポーネント
-  - **@radix-ui/react-label** (^2.1.7) - ラベルコンポーネント
-  - **@radix-ui/react-slot** (^1.2.3) - スロットコンポーネント
-- **lucide-react** (^0.548.0) - アイコンライブラリ
-- **class-variance-authority** (^0.7.1) - コンポーネントバリアント管理
-- **clsx** (^2.1.1) - クラス名ユーティリティ
-- **tailwind-merge** (^3.3.1) - Tailwindクラス名マージ
+#### UI Components / Styling
+- **Tailwind CSS** (^4) - Utility-first CSS framework
+- **@tailwindcss/postcss** (^4) - Tailwind CSS PostCSS plugin
+- **tw-animate-css** (^1.4.0) - Tailwind CSS animations
+- **Radix UI** - Accessible UI primitives
+  - **@radix-ui/react-checkbox** (^1.3.3) - Checkbox
+  - **@radix-ui/react-dialog** (^1.1.15) - Dialog
+  - **@radix-ui/react-label** (^2.1.7) - Label
+  - **@radix-ui/react-slot** (^1.2.3) - Slot
+- **lucide-react** (^0.548.0) - Icon library
+- **class-variance-authority** (^0.7.1) - Component variants
+- **clsx** (^2.1.1) - Classname utility
+- **tailwind-merge** (^3.3.1) - Tailwind class merge
 
-#### フォーム管理
-- **react-hook-form** (^7.65.0) - フォーム状態管理
-- **@hookform/resolvers** (^5.2.2) - フォームバリデーションリゾルバー
-- **zod** (^4.1.12) - スキーマバリデーション
+#### Forms
+- **react-hook-form** (^7.65.0) - Form state management
+- **@hookform/resolvers** (^5.2.2) - Validation resolvers
+- **zod** (^4.1.12) - Schema validation
 
-#### ドラッグ&ドロップ
-- **@dnd-kit/core** (^6.3.1) - ドラッグ&ドロップコアライブラリ
-- **@dnd-kit/sortable** (^10.0.0) - ソート可能なリスト
-- **@dnd-kit/utilities** (^3.2.2) - DnD Kitユーティリティ
+#### Drag & Drop
+- **@dnd-kit/core** (^6.3.1) - DnD core
+- **@dnd-kit/sortable** (^10.0.0) - Sortable lists
+- **@dnd-kit/utilities** (^3.2.2) - DnD utilities
 
-#### ユーティリティ
-- **date-fns** (^4.1.0) - 日付操作ライブラリ
+#### Utilities
+- **date-fns** (^4.1.0) - Date utilities
 
-#### テスト
-- **@playwright/test** (^1.56.1) - E2Eテストフレームワーク
+#### Testing
+- **@playwright/test** (^1.56.1) - E2E testing framework
 
-#### 開発ツール
-- **ESLint** (^9) - コードリンティング
-- **eslint-config-next** (16.0.0) - Next.js ESLint設定
-- **@types/node** (^20) - Node.js型定義
-- **@types/react** (^19) - React型定義
-- **@types/react-dom** (^19) - React DOM型定義
+#### Dev Tools
+- **ESLint** (^9) - Linting
+- **eslint-config-next** (16.0.0) - Next.js ESLint config
+- **@types/node** (^20) - Node.js type definitions
+- **@types/react** (^19) - React type definitions
+- **@types/react-dom** (^19) - React DOM type definitions
 
-### インフラ
-- **Docker & Docker Compose** - コンテナ化
-- **Nginx** - リバースプロキシ・ロードバランサー
-- **PostgreSQL** (17, pgvector拡張付き) - データベース
-- **Redis** - キャッシュ・メッセージブローカー
+### Infrastructure
+- **Docker & Docker Compose** - Containerization
+- **Nginx** - Reverse proxy / load balancer
+- **PostgreSQL** (17 with pgvector) - Database
+- **Redis** - Cache / message broker
 
-## セットアップ
+## Setup
 
-### 前提条件
+### Prerequisites
 
-このプロジェクトは **Docker Compose** を使用することを前提として設計されています。
+This project is designed to run with **Docker Compose**.
 
-**必須:**
-- Docker Desktop または Docker Engine（20.10以上）
-- Docker Compose（2.0以上、通常Docker Desktopに含まれる）
+**Required:**
+- Docker Desktop or Docker Engine (20.10+)
+- Docker Compose (2.0+, typically bundled with Docker Desktop)
 
-**推奨環境:**
-- macOS, Linux, または Windows（WSL2推奨）
-- 最低 4GB RAM
-- 最低 10GB の空きディスク容量
+**Recommended Environment:**
+- macOS, Linux, or Windows (WSL2 recommended)
+- At least 4GB RAM
+- At least 10GB free disk space
 
-### Docker Compose によるセットアップ
+### Setup with Docker Compose
 
-このプロジェクトは全てのサービス（フロントエンド、バックエンド、データベース、Redis、Celery、Nginx）をDocker Composeで管理します。
+All services (frontend, backend, database, Redis, Celery, Nginx) are managed by Docker Compose.
 
-#### 1. 環境変数の設定
+#### 1. Configure environment variables
 
-プロジェクトルートに `.env` ファイルを作成し、必要な環境変数を設定してください。
+Create a `.env` file in the project root and set the required variables.
 
 ```bash
-# .env.example をコピーして .env ファイルを作成
+# Copy .env.example to .env
 cp .env.example .env
 
-# 必要な環境変数を設定
+# Edit variables as needed
 vim .env
 ```
 
-必要な環境変数：
-- `POSTGRES_DB` - PostgreSQLデータベース名
-- `POSTGRES_USER` - PostgreSQLユーザー名
-- `POSTGRES_PASSWORD` - PostgreSQLパスワード
-- `SECRET_KEY` - Django のシークレットキー
-- `DATABASE_URL` - PostgreSQL接続URL（任意）
-- `CELERY_BROKER_URL` - Redis接続URL（任意）
-- `CELERY_RESULT_BACKEND` - Celery結果バックエンドURL（任意）
-- `ENABLE_SIGNUP` - サインアップ機能の有効/無効（デフォルト: "True"）
-- `ALLOWED_HOSTS` - 許可するホスト名（カンマ区切り）
-- `CORS_ALLOWED_ORIGINS` - CORS許可オリジン（カンマ区切り）
-- `ANYMAIL_*` - メール送信設定（メール認証、パスワードリセット用）
-- `FRONTEND_URL` - フロントエンドURL（メール内のリンク生成用）
-- `USE_S3_STORAGE` - S3ストレージを使用する場合 "true"（デフォルト: "false"）
-- `AWS_STORAGE_BUCKET_NAME` - S3バケット名（`USE_S3_STORAGE=true` の場合に必須）
-- `AWS_ACCESS_KEY_ID` - AWSアクセスキーID（`USE_S3_STORAGE=true` の場合に必須）
-- `AWS_SECRET_ACCESS_KEY` - AWSシークレットアクセスキー（`USE_S3_STORAGE=true` の場合に必須）
-- `NEXT_PUBLIC_API_URL` - Next.js用のAPI URL
-- その他、アプリケーションに必要な環境変数（OpenAI APIキーなど）
+Required variables:
+- `POSTGRES_DB` - PostgreSQL database name
+- `POSTGRES_USER` - PostgreSQL user
+- `POSTGRES_PASSWORD` - PostgreSQL password
+- `SECRET_KEY` - Django secret key
+- `DATABASE_URL` - PostgreSQL connection URL (optional)
+- `CELERY_BROKER_URL` - Redis connection URL (optional)
+- `CELERY_RESULT_BACKEND` - Celery result backend URL (optional)
+- `ENABLE_SIGNUP` - Enable/disable sign-up (default: "True")
+- `ALLOWED_HOSTS` - Allowed hostnames (comma-separated)
+- `CORS_ALLOWED_ORIGINS` - CORS allowed origins (comma-separated)
+- `ANYMAIL_*` - Email sending config (for email verification and password reset)
+- `FRONTEND_URL` - Frontend URL (used for links in emails)
+- `USE_S3_STORAGE` - Use S3 storage if "true" (default: "false")
+- `AWS_STORAGE_BUCKET_NAME` - S3 bucket name (required if `USE_S3_STORAGE=true`)
+- `AWS_ACCESS_KEY_ID` - AWS access key ID (required if `USE_S3_STORAGE=true`)
+- `AWS_SECRET_ACCESS_KEY` - AWS secret access key (required if `USE_S3_STORAGE=true`)
+- `NEXT_PUBLIC_API_URL` - API URL for Next.js
+- Other variables required by the application (e.g., OpenAI API key)
 
-#### 2. 全サービスの起動
+#### 2. Start all services
 
 ```bash
-# 全てのサービス（redis, postgres, backend, celery-worker, frontend, nginx）をビルドして起動
+# Build and start all services (redis, postgres, backend, celery-worker, frontend, nginx)
 docker-compose up --build -d
 ```
 
-このコマンドで以下のサービスが起動します：
-- **redis**: Redis（Celeryブローカー）
-- **postgres**: PostgreSQLデータベース（17, pgvector拡張付き）
-- **backend**: Django REST APIサーバー（ポート8000内部）
-- **celery-worker**: Celeryワーカー（バックグラウンドタスク処理）
-- **frontend**: Next.jsフロントエンド（ポート3000内部）
-- **nginx**: リバースプロキシ（ポート80）
+This starts:
+- **redis**: Redis (Celery broker)
+- **postgres**: PostgreSQL database (17 with pgvector)
+- **backend**: Django REST API (internal port 8000)
+- **celery-worker**: Celery worker (background tasks)
+- **frontend**: Next.js frontend (internal port 3000)
+- **nginx**: Reverse proxy (port 80)
 
-#### 3. 初回セットアップ
+#### 3. First-time setup
 
 ```bash
-# データベースマイグレーションの実行
+# Run database migrations
 docker-compose exec backend uv run python manage.py migrate
 
-# 管理者ユーザーの作成（初回のみ）
+# Create admin user (first time only)
 docker-compose exec backend uv run python manage.py createsuperuser
 ```
 
-#### 4. 起動確認
+#### 4. Verify startup
 
-全てのサービスが起動したら、以下のURLにアクセスできます：
+After all services are up, you can access:
 
-- **フロントエンド**: http://localhost
-- **バックエンドAPI**: http://localhost/api
-- **管理画面**: http://localhost/admin
+- **Frontend**: http://localhost
+- **Backend API**: http://localhost/api
+- **Admin**: http://localhost/admin
 
-#### その他の便利なコマンド
+#### Other useful commands
 
 ```bash
-# 全コンテナのステータス確認
+# Check status of all containers
 docker-compose ps
 
-# ログの確認（全サービス）
+# Tail logs for all services
 docker-compose logs -f
 
-# 特定のサービスのログ確認
+# Tail logs for specific services
 docker-compose logs -f backend
 docker-compose logs -f celery-worker
 docker-compose logs -f frontend
 
-# コンテナの停止
+# Stop containers
 docker-compose stop
 
-# コンテナの停止と削除（ボリュームは保持）
+# Stop and remove containers (keep volumes)
 docker-compose down
 
-# コンテナの停止と削除（ボリュームも削除）
+# Stop and remove containers (remove volumes too)
 docker-compose down -v
 
-# 特定のサービスの再起動
+# Restart a specific service
 docker-compose restart backend
 
-# 全サービスの再起動
+# Restart all services
 docker-compose restart
 
-# データベースへの接続
+# Connect to the database
 docker-compose exec postgres psql -U $POSTGRES_USER -d $POSTGRES_DB
 ```
 
-## 機能詳細
+## Feature Details
 
-### 認証機能
+### Authentication
 
-- ユーザー登録（メール認証対応）
-- メール認証（サインアップ後の確認）
-- ログイン（JWT）
-- トークンリフレッシュ
-- ログアウト
-- パスワードリセット（メール送信によるリセット）
+- User registration (with email verification)
+- Email verification (post sign-up)
+- Login (JWT)
+- Token refresh
+- Logout
+- Password reset (via email)
 
-### 動画管理
+### Video Management
 
-- 動画のアップロード（MP4, MOV, WEBM など）
-- 自動文字起こし（Whisper API）
-- 動画情報の更新・削除
-- 動画一覧の取得
+- Upload videos (MP4, MOV, WEBM, etc.)
+- Automatic transcription (Whisper API)
+- Update and delete video information
+- Get video list
 
-#### 対応ファイル形式
-- 音声: `.flac`, `.m4a`, `.mp3`, `.mpga`, `.oga`, `.ogg`, `.wav`, `.webm`
-- 動画: `.mp4`, `.mpeg`, `.webm`, `.mov`（ffmpegでMP3に自動変換）
+#### Supported File Formats
+- Audio: `.flac`, `.m4a`, `.mp3`, `.mpga`, `.oga`, `.ogg`, `.wav`, `.webm`
+- Video: `.mp4`, `.mpeg`, `.webm`, `.mov` (auto-converted to MP3 via ffmpeg)
 
-### 動画グループ
+### Video Groups
 
-- グループの作成・編集・削除
-- 複数動画のグループ追加
-- グループ内の動画順序変更
-- 共有トークンによるグループ共有
+- Create, edit, and delete groups
+- Add multiple videos to a group
+- Reorder videos within a group
+- Share groups with share tokens
 
-### AIチャット
+### AI Chat
 
-- 動画内容に関する質問
-- OpenAI APIとの対話
-- 文字起こしデータに基づく回答
+- Ask questions about video content
+- Conversational integration with the OpenAI API
+- Answers grounded in transcription data
 
-### 共有機能
+### Sharing
 
-- 共有トークンの生成
-- 共有リンクでの動画閲覧
-- 認証なしでの共有動画アクセス
+- Generate share tokens
+- View videos via shared links
+- Access shared videos without authentication
 
-## APIエンドポイント
+## API Endpoints
 
-### 認証
+### Authentication
 
-- `POST /api/auth/signup/` - ユーザー登録（メール認証が必要）
-- `POST /api/auth/verify-email/` - メール認証
-- `POST /api/auth/login/` - ログイン
-- `POST /api/auth/logout/` - ログアウト
-- `POST /api/auth/refresh/` - トークンリフレッシュ
-- `GET /api/auth/me/` - 現在のユーザー情報
-- `PATCH /api/auth/me/` - ユーザー情報更新（OpenAI APIキー保存等）
-- `POST /api/auth/password-reset/` - パスワードリセット要求
-- `POST /api/auth/password-reset/confirm/` - パスワードリセット確認
+- `POST /api/auth/signup/` - Sign up (requires email verification)
+- `POST /api/auth/verify-email/` - Email verification
+- `POST /api/auth/login/` - Login
+- `POST /api/auth/logout/` - Logout
+- `POST /api/auth/refresh/` - Token refresh
+- `GET /api/auth/me/` - Current user info
+- `PATCH /api/auth/me/` - Update user info (save OpenAI API key)
+- `POST /api/auth/password-reset/` - Request password reset
+- `POST /api/auth/password-reset/confirm/` - Confirm password reset
 
-### 動画管理
+### Video Management
 
-- `GET /api/videos/` - 動画一覧取得
-- `POST /api/videos/` - 動画アップロード
-- `GET /api/videos/<id>/` - 動画詳細取得
-- `PATCH /api/videos/<id>/` - 動画情報更新
-- `DELETE /api/videos/<id>/` - 動画削除
+- `GET /api/videos/` - List videos
+- `POST /api/videos/` - Upload video
+- `GET /api/videos/<id>/` - Get video detail
+- `PATCH /api/videos/<id>/` - Update video
+- `DELETE /api/videos/<id>/` - Delete video
 
-### 動画グループ
+### Video Groups
 
-- `GET /api/videos/groups/` - グループ一覧取得
-- `POST /api/videos/groups/` - グループ作成
-- `GET /api/videos/groups/<id>/` - グループ詳細取得
-- `PATCH /api/videos/groups/<id>/` - グループ更新
-- `DELETE /api/videos/groups/<id>/` - グループ削除
-- `POST /api/videos/groups/<id>/videos/` - 動画をグループに追加
-- `DELETE /api/videos/groups/<id>/videos/<video_id>/remove/` - グループから動画削除
-- `POST /api/videos/groups/<id>/reorder/` - グループ内動画の順序変更
-- `POST /api/videos/groups/<id>/share/` - 共有リンク作成
-- `DELETE /api/videos/groups/<id>/share/delete/` - 共有リンク削除
-- `GET /api/videos/groups/shared/<token>/` - 共有グループ情報取得
+- `GET /api/videos/groups/` - List groups
+- `POST /api/videos/groups/` - Create group
+- `GET /api/videos/groups/<id>/` - Group detail
+- `PATCH /api/videos/groups/<id>/` - Update group
+- `DELETE /api/videos/groups/<id>/` - Delete group
+- `POST /api/videos/groups/<id>/videos/` - Add videos to group
+- `DELETE /api/videos/groups/<id>/videos/<video_id>/remove/` - Remove video from group
+- `POST /api/videos/groups/<id>/reorder/` - Reorder videos in group
+- `POST /api/videos/groups/<id>/share/` - Create share link
+- `DELETE /api/videos/groups/<id>/share/delete/` - Delete share link
+- `GET /api/videos/groups/shared/<token>/` - Get shared group info
 
-### チャット
+### Chat
 
-- `POST /api/chat/` - チャット送信
-- `GET /api/chat/history/` - チャット履歴取得（`group_id` クエリパラメータ必須）
-- `GET /api/chat/history/export/` - チャット履歴エクスポート（CSV形式）
-- `POST /api/chat/feedback/` - チャットフィードバック送信
+- `POST /api/chat/` - Send chat
+- `GET /api/chat/history/` - Get chat history (requires `group_id` query param)
+- `GET /api/chat/history/export/` - Export chat history (CSV)
+- `POST /api/chat/feedback/` - Submit chat feedback
 
-### メディア配信
+### Media Delivery
 
-- `GET /media/<path>` - 認証されたメディアファイルの配信（JWTまたは共有トークン必要）
+- `GET /media/<path>` - Serve protected media (requires JWT or share token)
 
-## 外部利用者向けAPIガイド
+## API Guide for External Clients
 
-このセクションでは、外部クライアントからAPIを利用するための実践的な使い方をまとめます。
+This section summarizes practical usage from external clients.
 
-### 基本情報
+### Basics
 
-- **ベースURL**: `http://localhost`（Docker構成の既定）
-- **APIパス**: `/api`
-- **認証**: `Authorization: Bearer <access_token>`（外部クライアントはBearer推奨）
-- **トークン有効期限**: アクセス10分、リフレッシュ14日
+- **Base URL**: `http://localhost` (default in Docker setup)
+- **API path**: `/api`
+- **Auth**: `Authorization: Bearer <access_token>` (use Bearer auth for external clients)
+- **Token TTL**: Access 10 minutes, Refresh 14 days
 
-環境変数例:
+Environment variable examples:
 ```bash
 BASE_URL="http://localhost"
 ACCESS="<JWT_ACCESS_TOKEN>"
 TOKEN="<SHARE_TOKEN>"
 ```
 
-### クイックスタート
+### Quickstart
 
-#### 1. 認証（サインアップ/ログイン）
+#### 1. Authentication (Sign-up / Login)
 
 ```bash
-# サインアップ（メール認証が必要）
+# Sign up (email verification required)
 curl -X POST "$BASE_URL/api/auth/signup/" \
   -H "Content-Type: application/json" \
   -d '{"username":"alice","email":"alice@example.com","password":"pass1234"}'
 
-# メール認証（サインアップ後にメールで送られてくるトークンを使用）
+# Email verification (use token sent via email after sign-up)
 curl -X POST "$BASE_URL/api/auth/verify-email/" \
   -H "Content-Type: application/json" \
   -d '{"uid":"<USER_ID>","token":"<VERIFICATION_TOKEN>"}'
 
-# ログイン（access/refresh を取得）
+# Login (get access/refresh)
 curl -X POST "$BASE_URL/api/auth/login/" \
   -H "Content-Type: application/json" \
   -d '{"username":"alice","password":"pass1234"}'
-# レスポンスの access を以降の Authorization に使用
+# Use the access token for subsequent Authorization headers
 
-# アクセストークン再発行
+# Refresh access token
 curl -X POST "$BASE_URL/api/auth/refresh/" \
   -H "Content-Type: application/json" \
   -d '{"refresh":"<JWT_REFRESH_TOKEN>"}'
 
-# 現在のユーザー情報取得
+# Get current user
 curl -H "Authorization: Bearer $ACCESS" "$BASE_URL/api/auth/me/"
 
-# ユーザー情報更新（OpenAIキーを保存、暗号化保存）
+# Update user (save OpenAI key, stored encrypted)
 curl -X PATCH "$BASE_URL/api/auth/me/" \
   -H "Authorization: Bearer $ACCESS" \
   -H "Content-Type: application/json" \
   -d '{"encrypted_openai_api_key":"sk-xxxx"}'
 
-# パスワードリセット要求
+# Request password reset
 curl -X POST "$BASE_URL/api/auth/password-reset/" \
   -H "Content-Type: application/json" \
   -d '{"email":"alice@example.com"}'
 
-# パスワードリセット確認（メールで送られてくるトークンを使用）
+# Confirm password reset (use token sent via email)
 curl -X POST "$BASE_URL/api/auth/password-reset/confirm/" \
   -H "Content-Type: application/json" \
   -d '{"uid":"<USER_ID>","token":"<RESET_TOKEN>","new_password":"newpass1234"}'
 
-# ログアウト
+# Logout
 curl -X POST "$BASE_URL/api/auth/logout/" \
   -H "Authorization: Bearer $ACCESS"
 ```
 
-#### 2. 動画のアップロードと状態確認
+#### 2. Upload a video and check status
 
 ```bash
-# アップロード（multipart）
+# Upload (multipart)
 curl -X POST "$BASE_URL/api/videos/" \
   -H "Authorization: Bearer $ACCESS" \
   -F "file=@/path/to/movie.mp4" \
-  -F "title=デモ動画" \
-  -F "description=説明文"
+  -F "title=Demo Video" \
+  -F "description=Description"
 
-# 一覧取得
+# List
 curl -H "Authorization: Bearer $ACCESS" "$BASE_URL/api/videos/"
 
-# 詳細取得（transcript/status/error_message を確認）
+# Detail (check transcript/status/error_message)
 curl -H "Authorization: Bearer $ACCESS" "$BASE_URL/api/videos/123/"
 
-# 更新
+# Update
 curl -X PATCH "$BASE_URL/api/videos/123/" \
   -H "Authorization: Bearer $ACCESS" \
   -H "Content-Type: application/json" \
-  -d '{"title":"新しいタイトル"}'
+  -d '{"title":"New title"}'
 
-# 削除
+# Delete
 curl -X DELETE -H "Authorization: Bearer $ACCESS" \
   "$BASE_URL/api/videos/123/"
 ```
 
-#### 3. 動画グループの作成と動画の追加
+#### 3. Create a video group and add videos
 
 ```bash
-# グループ作成
+# Create group
 curl -X POST "$BASE_URL/api/videos/groups/" \
   -H "Authorization: Bearer $ACCESS" \
   -H "Content-Type: application/json" \
-  -d '{"name":"プロジェクトA","description":"関連動画"}'
+  -d '{"name":"Project A","description":"Related videos"}'
 
-# グループ一覧
+# List groups
 curl -H "Authorization: Bearer $ACCESS" "$BASE_URL/api/videos/groups/"
 
-# グループ詳細
+# Group detail
 curl -H "Authorization: Bearer $ACCESS" "$BASE_URL/api/videos/groups/10/"
 
-# 動画をグループに追加（単体）
+# Add a single video to group
 curl -X POST -H "Authorization: Bearer $ACCESS" \
   "$BASE_URL/api/videos/groups/10/videos/123/"
 
-# 動画をグループに追加（複数）
+# Add multiple videos to group
 curl -X POST "$BASE_URL/api/videos/groups/10/videos/" \
   -H "Authorization: Bearer $ACCESS" \
   -H "Content-Type: application/json" \
   -d '{"video_ids":[101,102,103]}'
 
-# グループから動画削除
+# Remove a video from group
 curl -X DELETE -H "Authorization: Bearer $ACCESS" \
   "$BASE_URL/api/videos/groups/10/videos/123/remove/"
 
-# グループ内動画の順序変更
+# Reorder videos within group
 curl -X PATCH "$BASE_URL/api/videos/groups/10/reorder/" \
   -H "Authorization: Bearer $ACCESS" \
   -H "Content-Type: application/json" \
   -d '{"video_ids":[103,101,102]}'
 
-# グループ更新
+# Update group
 curl -X PATCH "$BASE_URL/api/videos/groups/10/" \
   -H "Authorization: Bearer $ACCESS" \
   -H "Content-Type: application/json" \
-  -d '{"name":"新しい名称"}'
+  -d '{"name":"New name"}'
 
-# グループ削除
+# Delete group
 curl -X DELETE -H "Authorization: Bearer $ACCESS" \
   "$BASE_URL/api/videos/groups/10/"
 ```
 
-#### 4. チャット（RAG対応）
+#### 4. Chat (RAG-enabled)
 
 ```bash
-# JWT（Bearer）で利用
+# Use with JWT (Bearer)
 curl -X POST "$BASE_URL/api/chat/" \
   -H "Authorization: Bearer $ACCESS" \
   -H "Content-Type: application/json" \
   -d '{
     "group_id": 10,
     "messages": [
-      {"role":"system","content":"あなたは有能なアシスタントです。"},
-      {"role":"user","content":"要点を要約して"}
+      {"role":"user","content":"Summarize the key points."}
     ]
   }'
 
-# チャット履歴取得
+# Get chat history
 curl -H "Authorization: Bearer $ACCESS" \
   "$BASE_URL/api/chat/history/?group_id=10"
 
-# チャット履歴エクスポート（CSV形式）
+# Export chat history (CSV)
 curl -H "Authorization: Bearer $ACCESS" \
   "$BASE_URL/api/chat/history/export/?group_id=10" \
   -o chat_history.csv
 
-# チャットフィードバック送信
+# Send chat feedback
 curl -X POST "$BASE_URL/api/chat/feedback/" \
   -H "Authorization: Bearer $ACCESS" \
   -H "Content-Type: application/json" \
@@ -558,244 +557,245 @@ curl -X POST "$BASE_URL/api/chat/feedback/" \
   }'
 ```
 
-備考:
-- `group_id` を渡すと、そのグループの動画に限定してベクトル検索（RAG）が実行されます。
-- OpenAIのAPIキーは `/api/auth/me/` の `PATCH` リクエストで保存してください（`encrypted_openai_api_key`）。
-- 共有トークンでもチャットが利用可能です（`share_token` クエリパラメータを使用）。
+Notes:
+- If you pass `group_id`, vector search (RAG) is limited to videos in that group.
+- Save your OpenAI API key via a `PATCH` request to `/api/auth/me/` (`encrypted_openai_api_key`).
+- Chat is also available with a share token (use the `share_token` query parameter).
+- Do not send a `system` message; the backend constructs the system prompt internally. Only the latest `user` message in `messages` is used.
 
-#### 5. 共有リンク
+#### 5. Share links
 
 ```bash
-# 共有リンクの発行（share_token を取得）
+# Issue a share link (get share_token)
 curl -X POST -H "Authorization: Bearer $ACCESS" \
   "$BASE_URL/api/videos/groups/10/share/"
 
-# 共有グループの参照（認証不要）
+# View shared group (no auth required)
 curl "$BASE_URL/api/videos/groups/shared/$TOKEN/"
 
-# 共有トークンでチャット（body に group_id 必須）
+# Chat with share token (body requires group_id)
 curl -X POST "$BASE_URL/api/chat/?share_token=$TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
     "group_id": 10,
     "messages": [
-      {"role":"user","content":"この動画群の概要は？"}
+      {"role":"user","content":"What is the overview of these videos?"}
     ]
   }'
 
-# 共有リンクの無効化
+# Disable share link
 curl -X DELETE -H "Authorization: Bearer $ACCESS" \
   "$BASE_URL/api/videos/groups/10/share/delete/"
 ```
 
-備考:
-- 外部APIクライアントからアップロードした動画は、処理完了後にファイルが削除されるため、保護されたメディア配信によるファイル取得はできません。文字起こし結果やメタデータの取得のみが可能です。
+Notes:
+- For videos uploaded via external API clients, the source files are deleted after processing. Protected media delivery is not available for those files; only transcripts and metadata can be retrieved.
 
-### エラーレスポンス
+### Error Responses
 
-代表的なエラーレスポンス:
+Common error responses:
 
-- **400**: バリデーションエラー（例: `"video_idsは配列である必要があります"`)
-- **401**: 認証エラー（例: `"無効なリフレッシュトークンです"`)
-- **403**: 権限不足
-- **404**: リソースなし（例: `"共有リンクが見つかりません"`、`"グループが見つかりません"`）
+- **400**: Validation error (e.g., `"video_ids must be an array"`)
+- **401**: Authentication error (e.g., `"Invalid refresh token"`)
+- **403**: Permission denied
+- **404**: Resource not found (e.g., `"Share link not found"`, `"Group not found"`)
 
-### 認証の使い分け
+### Authentication Modes
 
-**外部クライアントからの利用時は、必ず `Authorization` ヘッダー（Bearer）を使用してください。Cookieベースの認証は使用しないでください。動画ファイルが保存されたままになる原因となります。**
+**For external clients, always use the `Authorization` header (Bearer). Do not use cookie-based auth, as it can cause uploaded files to remain stored.**
 
-- **外部クライアント**: `Authorization` ヘッダー（Bearer）**のみ**使用
-- **内部ブラウザアプリ**: HttpOnly Cookie（自動リフレッシュ呼び出しが容易）
+- **External clients**: Use the `Authorization` header (Bearer) only
+- **Internal browser app**: HttpOnly cookies (easy automatic refresh)
 
-## Docker Compose構成
+## Docker Compose Architecture
 
-このプロジェクトは以下のサービスで構成されています：
+This project consists of the following services:
 
-- **redis**: Redis（Celeryブローカーおよび結果バックエンド）
-- **postgres**: PostgreSQLデータベース（17, pgvector拡張付き）
-- **backend**: Django REST APIサーバー（ポート8000内部）
-- **celery-worker**: Celeryワーカー（バックグラウンドタスク処理）
-- **frontend**: Next.jsフロントエンド（ポート3000内部）
-- **nginx**: リバースプロキシ（ポート80）
+- **redis**: Redis (Celery broker and result backend)
+- **postgres**: PostgreSQL database (17 with pgvector)
+- **backend**: Django REST API (internal port 8000)
+- **celery-worker**: Celery worker (background tasks)
+- **frontend**: Next.js frontend (internal port 3000)
+- **nginx**: Reverse proxy (port 80)
 
-### ボリュームマウント
+### Volume Mounts
 
-- `postgres_data`: PostgreSQLデータの永続化
-- `staticfiles`: Djangoの静的ファイル
-- `./backend/media`: アップロードされたメディアファイル
+- `postgres_data`: Persist PostgreSQL data
+- `staticfiles`: Django static files
+- `./backend/media`: Uploaded media files
 
-### ネットワーク
+### Network
 
-全サービスは `ask-video-network` というDockerネットワーク内で通信します。
+All services communicate within the `ask-video-network` Docker network.
 
-## データベーススキーマ
+## Database Schema
 
-### 主要モデル
+### Main Models
 
-- **User**: ユーザー情報（Django AbstractUserを継承、暗号化されたOpenAI APIキー、メール認証状態を含む）
-- **Video**: 動画情報（タイトル、説明、ファイル、文字起こし、ステータス、外部アップロードフラグ、動画制限など）
-- **VideoGroup**: 動画グループ（名前、説明、共有トークンなど）
-- **VideoGroupMember**: 動画とグループの関連付け（順序管理機能付き）
-- **ChatLog**: チャットログ（質問、回答、関連動画、共有元フラグなど）
+- **User**: User info (extends Django AbstractUser; includes encrypted OpenAI API key and email verification state)
+- **Video**: Video info (title, description, file, transcript, status, external upload flag, restrictions, etc.)
+- **VideoGroup**: Video groups (name, description, share token, etc.)
+- **VideoGroupMember**: Association between videos and groups (ordering support)
+- **ChatLog**: Chat logs (question, answer, related videos, shared-from flag, etc.)
 
-## 開発
+## Development
 
-### バックエンド（Docker環境）
+### Backend (Docker environment)
 
-このプロジェクトではPythonパッケージ管理に `uv` を使用しています。
+This project uses `uv` for Python package management.
 
 ```bash
-# テストの実行
+# Run tests
 docker-compose exec backend uv run python manage.py test
 
-# マイグレーションの作成
+# Create migrations
 docker-compose exec backend uv run python manage.py makemigrations
 
-# マイグレーションの適用
+# Apply migrations
 docker-compose exec backend uv run python manage.py migrate
 
-# Djangoシェルを開く
+# Open Django shell
 docker-compose exec backend uv run python manage.py shell
 
-# ログの確認（リアルタイム）
+# Tail logs (live)
 docker-compose logs -f backend celery-worker
 ```
 
-**注意:** Docker環境では全てのPythonコマンドを `uv run` 経由で実行します。
+**Note:** In Docker, run all Python commands via `uv run`.
 
-### フロントエンド（Docker環境）
+### Frontend (Docker environment)
 
 ```bash
-# フロントエンドのビルド
+# Build the frontend
 docker-compose exec frontend npm run build
 
-# E2Eテストの実行
+# Run E2E tests
 docker-compose exec frontend npm run test:e2e
 
-# E2Eテスト（UIモード）
+# E2E tests (UI mode)
 docker-compose exec frontend npm run test:e2e:ui
 
-# フロントエンドのログ確認
+# Tail frontend logs
 docker-compose logs -f frontend
 ```
 
-## 本番環境のデプロイ
+## Production Deployment
 
-本番環境では以下の点に注意してください：
+Pay attention to the following in production:
 
-1. **環境変数の設定**: `.env` ファイルで適切な値を設定
-2. **セキュリティ**: `SECRET_KEY` を安全に管理
-3. **データベース**: PostgreSQL の適切な設定
-4. **メディアファイル**: ストレージの適切な設定
-5. **CORS設定**: 許可するオリジンを設定
-6. **SSL/TLS**: HTTPS の設定
+1. **Environment variables**: Set appropriate values in `.env`
+2. **Security**: Keep `SECRET_KEY` safe
+3. **Database**: Configure PostgreSQL properly
+4. **Media files**: Configure storage appropriately
+5. **CORS**: Set allowed origins
+6. **SSL/TLS**: Configure HTTPS
 
-## トラブルシューティング
+## Troubleshooting
 
-### 全サービスが起動しない
+### All services fail to start
 
-1. Docker Composeのステータスを確認
+1. Check Docker Compose status
 ```bash
 docker-compose ps
 ```
 
-2. ログを確認してエラーを特定
+2. Inspect logs for errors
 ```bash
 docker-compose logs
 ```
 
-3. コンテナを再ビルド
+3. Rebuild containers
 ```bash
 docker-compose down
 docker-compose up --build -d
 ```
 
-### Celeryタスクが実行されない
+### Celery tasks do not run
 
-1. Celeryワーカーのコンテナが起動しているか確認
+1. Check the Celery worker container is running
 ```bash
 docker-compose ps celery-worker
 ```
 
-2. Celeryワーカーのログを確認
+2. Check Celery worker logs
 ```bash
 docker-compose logs celery-worker
 ```
 
-3. Redisが起動しているか確認
+3. Verify Redis is running
 ```bash
 docker-compose ps redis
-# または
-docker-compose exec redis redis-cli ping  # PONG が返ってくればOK
+# Or
+docker-compose exec redis redis-cli ping  # Expect PONG
 ```
 
-4. Celeryタスクの登録状況を確認
+4. Check registered Celery tasks
 ```bash
 docker-compose exec backend uv run python -c "from app.celery_config import app; print(app.tasks.keys())"
 ```
 
-### 文字起こしが失敗する
+### Transcription fails
 
-1. ユーザーのOpenAI APIキーが設定されているか確認
-2. APIキーが有効か確認
-3. 動画ファイルが存在するか確認
+1. Ensure the user's OpenAI API key is set
+2. Verify the API key is valid
+3. Ensure the video file exists
 ```bash
 docker-compose exec backend uv run python manage.py shell
 >>> from app.models import Video
 >>> video = Video.objects.first()
->>> print(video.error_message)  # エラーメッセージを確認
+>>> print(video.error_message)  # Inspect error message
 ```
 
-### データベース接続エラー
+### Database connection errors
 
-1. PostgreSQLコンテナが起動しているか確認
+1. Ensure the PostgreSQL container is running
 ```bash
 docker-compose ps postgres
 ```
 
-2. データベース接続を確認
+2. Check DB connection
 ```bash
 docker-compose exec backend uv run python manage.py dbshell
 ```
 
-### フロントエンドが表示されない
+### Frontend does not render
 
-1. フロントエンドコンテナが起動しているか確認
+1. Ensure the frontend container is running
 ```bash
 docker-compose ps frontend
 ```
 
-2. フロントエンドのログを確認
+2. Check frontend logs
 ```bash
 docker-compose logs frontend
 ```
 
-3. Nginxが正常に動作しているか確認
+3. Ensure Nginx is healthy
 ```bash
 docker-compose logs nginx
 ```
 
-4. Nginxの設定を確認（`nginx.conf`）
+4. Review Nginx config (`nginx.conf`)
 
-### コンテナの再ビルドが必要な場合
+### When a rebuild is needed
 
 ```bash
-# 全コンテナの停止
+# Stop all containers
 docker-compose down
 
-# イメージを再ビルドして起動
+# Rebuild images and start
 docker-compose up --build -d
 
-# マイグレーションを再適用
+# Re-apply migrations
 docker-compose exec backend uv run python manage.py migrate
 ```
 
-### ボリュームの問題
+### Volume issues
 
-データを完全にリセットしたい場合：
+To completely reset data:
 
 ```bash
-# 警告: このコマンドは全てのデータを削除します
+# Warning: this removes all data
 docker-compose down -v
 docker-compose up --build -d
 docker-compose exec backend uv run python manage.py migrate
