@@ -68,6 +68,8 @@ python manage.py runserver
 uv run celery -A ask_video worker --loglevel=info
 ```
 
+**注意:** このプロジェクトはDocker Composeを使用することを前提として設計されています。ローカル開発環境でのセットアップは、プロジェクトルートのREADME.mdを参照してください。
+
 ## トラブルシューティング
 
 ### Celeryタスクが実行されない場合
@@ -95,13 +97,14 @@ uv run celery -A ask_video worker --loglevel=debug
 
 ### 1. ユーザー登録とAPIキー設定
 
-- POST `/api/auth/register/` でユーザー登録
-- PUT `/api/auth/api-key/` でOpenAI APIキーを設定（暗号化して保存）
+- POST `/api/auth/signup/` でユーザー登録（メール認証が必要）
+- POST `/api/auth/verify-email/` でメール認証
+- PATCH `/api/auth/me/` でOpenAI APIキーを設定（暗号化して保存、`encrypted_openai_api_key` フィールド）
 
 ### 2. 動画のアップロード
 
 ```bash
-POST /api/video/videos/
+POST /api/videos/
 {
   "file": <video_file>,
   "title": "動画タイトル",
@@ -113,8 +116,9 @@ POST /api/video/videos/
 
 **対応ファイル形式:**
 - 音声: `.flac`, `.m4a`, `.mp3`, `.mpga`, `.oga`, `.ogg`, `.wav`, `.webm`
-- 動画: `.mp4`, `.mpeg`, `.webm`
+- 動画: `.mp4`, `.mpeg`, `.webm`, `.mov`（ffmpegでMP3に自動変換）
 - **その他の形式（MOVなど）**: ffmpegでMP3に自動変換されます
+
 処理状況は `status` フィールドで確認できます：
 - `pending`: 処理待ち
 - `processing`: 処理中
@@ -124,10 +128,43 @@ POST /api/video/videos/
 ### 3. 文字起こし結果の確認
 
 ```bash
-GET /api/video/videos/{id}/
+GET /api/videos/{id}/
 ```
 
 `transcript` フィールドに文字起こし結果が格納されます。
+
+### 4. 動画グループ管理
+
+```bash
+# グループ作成
+POST /api/videos/groups/
+{
+  "name": "グループ名",
+  "description": "説明"
+}
+
+# 動画をグループに追加
+POST /api/videos/groups/{group_id}/videos/
+{
+  "video_ids": [1, 2, 3]
+}
+```
+
+### 5. チャット機能
+
+```bash
+# チャット送信（RAG対応）
+POST /api/chat/
+{
+  "group_id": 10,
+  "messages": [
+    {"role": "user", "content": "質問内容"}
+  ]
+}
+
+# チャット履歴取得
+GET /api/chat/history/?group_id=10
+```
 
 ## Celery設定
 
@@ -167,14 +204,24 @@ backend/
 │   ├── tasks.py          # Celeryタスク（文字起こし処理）
 │   ├── celery_config.py  # Celeryアプリ設定
 │   ├── models.py         # データモデル
-│   ├── video/
-│   │   ├── serializers.py  # シリアライザー
-│   │   └── views.py        # ビュー
-│   └── ...
+│   ├── auth/             # 認証機能（views, serializers, urls, tests）
+│   ├── video/            # 動画管理機能（views, serializers, urls, tests）
+│   ├── chat/             # チャット機能（views, serializers, urls, services）
+│   ├── common/           # 共通機能（authentication, permissions, responses）
+│   ├── media/            # メディア配信機能（views）
+│   ├── scene_otsu/       # シーン分割機能
+│   ├── utils/            # ユーティリティ（encryption, vector_manager, task_helpers, email等）
+│   └── migrations/       # データベースマイグレーション
 ├── ask_video/
 │   ├── settings.py      # Django設定（Celery設定含む）
-│   └── ...
-└── pyproject.toml        # 依存関係
+│   ├── urls.py          # URL設定
+│   ├── wsgi.py          # WSGI設定
+│   └── asgi.py          # ASGI設定
+├── media/               # アップロードされたメディアファイル
+├── pyproject.toml        # Python依存関係（uv）
+├── uv.lock              # uv依存関係ロックファイル
+├── manage.py            # Django管理スクリプト
+└── Dockerfile           # バックエンドDockerイメージ
 ```
 
 ## トラブルシューティング
@@ -187,8 +234,19 @@ backend/
 
 ### 文字起こしタスクが失敗する
 
-1. ユーザーのOpenAI APIキーが設定されているか確認
+1. ユーザーのOpenAI APIキーが設定されているか確認（`/api/auth/me/` で `encrypted_openai_api_key` を確認）
 2. APIキーが有効か確認
 3. 動画ファイルが存在するか確認
 4. `error_message` フィールドで詳細を確認
+
+### Docker環境での開発
+
+このプロジェクトはDocker Composeを使用することを前提としています。詳細はプロジェクトルートのREADME.mdを参照してください。
+
+```bash
+# Docker環境でのコマンド実行例
+docker-compose exec backend uv run python manage.py migrate
+docker-compose exec backend uv run python manage.py shell
+docker-compose exec backend uv run celery -A ask_video worker --loglevel=info
+```
 

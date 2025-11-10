@@ -375,6 +375,9 @@ docker-compose exec postgres psql -U $POSTGRES_USER -d $POSTGRES_DB
 ### チャット
 
 - `POST /api/chat/` - チャット送信
+- `GET /api/chat/history/` - チャット履歴取得（`group_id` クエリパラメータ必須）
+- `GET /api/chat/history/export/` - チャット履歴エクスポート（CSV形式）
+- `POST /api/chat/feedback/` - チャットフィードバック送信
 
 ### メディア配信
 
@@ -534,6 +537,24 @@ curl -X POST "$BASE_URL/api/chat/" \
       {"role":"system","content":"あなたは有能なアシスタントです。"},
       {"role":"user","content":"要点を要約して"}
     ]
+  }'
+
+# チャット履歴取得
+curl -H "Authorization: Bearer $ACCESS" \
+  "$BASE_URL/api/chat/history/?group_id=10"
+
+# チャット履歴エクスポート（CSV形式）
+curl -H "Authorization: Bearer $ACCESS" \
+  "$BASE_URL/api/chat/history/export/?group_id=10" \
+  -o chat_history.csv
+
+# チャットフィードバック送信
+curl -X POST "$BASE_URL/api/chat/feedback/" \
+  -H "Authorization: Bearer $ACCESS" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "chat_log_id": 123,
+    "feedback": "helpful"
   }'
 ```
 
