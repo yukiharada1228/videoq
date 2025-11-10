@@ -2,7 +2,7 @@ import logging
 from typing import Sequence
 
 from django.conf import settings
-from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AbstractBaseUser
 from django.contrib.auth.tokens import default_token_generator
 from django.core.mail import send_mail
 from django.utils.encoding import force_bytes
@@ -10,17 +10,14 @@ from django.utils.http import urlsafe_base64_encode
 
 logger = logging.getLogger(__name__)
 
-User = get_user_model()
-
-
-def build_email_verification_link(user: User) -> str:
+def build_email_verification_link(user: AbstractBaseUser) -> str:
     uid = urlsafe_base64_encode(force_bytes(user.pk))
     token = default_token_generator.make_token(user)
     frontend_url = getattr(settings, "FRONTEND_URL", "http://localhost:3000")
     return f"{frontend_url}/verify-email?uid={uid}&token={token}"
 
 
-def send_email_verification(user: User) -> None:
+def send_email_verification(user: AbstractBaseUser) -> None:
     """
     Send an email verification mail to the specified user.
     """
@@ -42,14 +39,14 @@ def send_email_verification(user: User) -> None:
         raise
 
 
-def build_password_reset_link(user: User) -> str:
+def build_password_reset_link(user: AbstractBaseUser) -> str:
     uid = urlsafe_base64_encode(force_bytes(user.pk))
     token = default_token_generator.make_token(user)
     frontend_url = getattr(settings, "FRONTEND_URL", "http://localhost:3000")
     return f"{frontend_url}/reset-password?uid={uid}&token={token}"
 
 
-def send_password_reset_email(user: User) -> None:
+def send_password_reset_email(user: AbstractBaseUser) -> None:
     subject = "[Ask Video] パスワード再設定のご案内"
     reset_link = build_password_reset_link(user)
     message_lines: Sequence[str] = [

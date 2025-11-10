@@ -2,7 +2,7 @@
 共通のレスポンス処理ユーティリティ
 """
 
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 from rest_framework import status
 from rest_framework.response import Response
