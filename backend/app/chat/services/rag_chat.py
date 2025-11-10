@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from operator import itemgetter
-from typing import TYPE_CHECKING, Dict, List, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, cast
 
 from app.chat.prompts import build_system_prompt
 from app.utils.encryption import decrypt_api_key
@@ -99,7 +99,7 @@ class RagChatService:
 
         return ""
 
-    def _get_retriever(self, group: Optional["VideoGroup"]) -> Optional:
+    def _get_retriever(self, group: Optional["VideoGroup"]) -> Optional[Any]:
         """グループからリトリーバーを取得する（公式パターン）"""
         if group is None:
             return None
@@ -123,7 +123,7 @@ class RagChatService:
 
         return retriever
 
-    def _build_reference_entries(self, docs: List) -> List[str]:
+    def _build_reference_entries(self, docs: Sequence[Any]) -> List[str]:
         """ドキュメントから詳細プロンプト用の参考情報リストを生成"""
         if not docs:
             return []
@@ -143,7 +143,9 @@ class RagChatService:
 
         return reference_entries
 
-    def _extract_related_videos(self, docs: List) -> Optional[List[Dict[str, str]]]:
+    def _extract_related_videos(
+        self, docs: Sequence[Any]
+    ) -> Optional[List[Dict[str, str]]]:
         """ドキュメントから関連動画を抽出"""
         if not docs:
             return None
@@ -162,11 +164,12 @@ class RagChatService:
 
         return related_videos
 
-    def _build_prompt_payload(self, data: Dict[str, object]) -> Dict[str, object]:
+    def _build_prompt_payload(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """プロンプト入力と関連メタデータをまとめる"""
-        docs = data.get("docs") or []
-        query_text = data.get("query_text", "")
-        locale = data.get("locale")
+        docs_obj = data.get("docs") or []
+        docs = cast(Sequence[Any], docs_obj)
+        query_text = cast(str, data.get("query_text", ""))
+        locale = cast(Optional[str], data.get("locale"))
 
         reference_entries = self._build_reference_entries(docs)
         system_prompt = build_system_prompt(locale=locale, references=reference_entries)

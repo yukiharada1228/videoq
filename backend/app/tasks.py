@@ -9,10 +9,8 @@ import subprocess
 import tempfile
 from concurrent.futures import ThreadPoolExecutor
 
-from app.models import Video
 from app.utils.encryption import decrypt_api_key
-from app.utils.task_helpers import (BatchProcessor, ErrorHandler,
-                                    TemporaryFileManager, VideoTaskManager)
+from app.utils.task_helpers import ErrorHandler, TemporaryFileManager, VideoTaskManager
 from app.utils.vector_manager import PGVectorManager
 from celery import shared_task
 from langchain_openai import OpenAIEmbeddings
@@ -117,7 +115,7 @@ def _index_scenes_to_vectorstore(scene_docs, video, api_key):
                 "postgresql://", "postgresql+psycopg://", 1
             )
 
-        vector_store = PGVector.from_texts(
+        PGVector.from_texts(
             texts=texts,
             embedding=embeddings,
             collection_name=config["collection_name"],
@@ -195,7 +193,7 @@ def extract_and_split_audio(input_path, max_size_mb=24, temp_manager=None):
             audio_segments.append(
                 {"path": temp_audio_path, "start_time": 0, "end_time": duration}
             )
-            logger.debug(f"Audio is within size limit, no splitting needed")
+            logger.debug("Audio is within size limit, no splitting needed")
 
         else:
             # Splitting needed if size is large
