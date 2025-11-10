@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslation } from 'react-i18next';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { MessageAlert } from '@/components/common/MessageAlert';
@@ -25,6 +26,7 @@ export default function VideoGroupsPage() {
   const [newGroupName, setNewGroupName] = useState('');
   const [newGroupDescription, setNewGroupDescription] = useState('');
   const [loadedUserId, setLoadedUserId] = useState<number | null>(null);
+  const { t } = useTranslation();
 
   const loadGroups = useCallback(async () => {
     try {
@@ -33,25 +35,23 @@ export default function VideoGroupsPage() {
       const data = await apiClient.getVideoGroups();
       setGroups(data);
     } catch (err) {
-      handleAsyncError(err, 'チャットグループの読み込みに失敗しました', setError);
+      handleAsyncError(err, t('videos.groups.loadError'), setError);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
-    // 既にロード済みの場合は何もしない（複数回ロード防止）
     if (user?.id && loadedUserId !== user.id) {
       setLoadedUserId(user.id);
-      loadGroups();
+      void loadGroups();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
+  }, [user?.id, loadedUserId, loadGroups]);
 
   const handleCreateGroup = async () => {
     try {
       if (!newGroupName.trim()) {
-        setError('チャットグループ名を入力してください');
+        setError(t('videos.groups.validation.nameRequired'));
         return;
       }
       setError(null);
@@ -67,7 +67,7 @@ export default function VideoGroupsPage() {
       setLoadedUserId(null);
       await loadGroups();
     } catch (err) {
-      handleAsyncError(err, 'チャットグループの作成に失敗しました', setError);
+      handleAsyncError(err, t('videos.groups.createError'), setError);
     }
   };
 
@@ -87,44 +87,44 @@ export default function VideoGroupsPage() {
     <PageLayout fullWidth>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold text-gray-900">チャットグループ</h1>
+          <h1 className="text-3xl font-bold text-gray-900">{t('videos.groups.title')}</h1>
           <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
             <DialogTrigger asChild>
-              <Button>新規チャットグループを作成</Button>
+              <Button>{t('videos.groups.create')}</Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>新規チャットグループを作成</DialogTitle>
+                <DialogTitle>{t('videos.groups.createTitle')}</DialogTitle>
                 <DialogDescription>
-                  チャットグループ名と説明を入力してください
+                  {t('videos.groups.createDescription')}
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-4">
                 <div className="space-y-2">
-                  <Label htmlFor="name">チャットグループ名</Label>
+                  <Label htmlFor="name">{t('videos.groups.nameLabel')}</Label>
                   <Input
                     id="name"
                     value={newGroupName}
                     onChange={(e) => setNewGroupName(e.target.value)}
-                    placeholder="チャットグループ名"
+                    placeholder={t('videos.groups.namePlaceholder')}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="description">説明</Label>
+                  <Label htmlFor="description">{t('videos.groups.descriptionLabel')}</Label>
                   <Textarea
                     id="description"
                     value={newGroupDescription}
                     onChange={(e) => setNewGroupDescription(e.target.value)}
-                    placeholder="説明（任意）"
+                    placeholder={t('videos.groups.descriptionPlaceholder')}
                     rows={3}
                   />
                 </div>
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setIsCreateModalOpen(false)}>
-                  キャンセル
+                  {t('common.actions.cancel')}
                 </Button>
-                <Button onClick={handleCreateGroup}>作成</Button>
+                <Button onClick={handleCreateGroup}>{t('common.actions.create')}</Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -135,7 +135,7 @@ export default function VideoGroupsPage() {
         {groups.length === 0 ? (
           <Card>
             <CardContent className="pt-6">
-              <p className="text-center text-gray-500">チャットグループがありません</p>
+              <p className="text-center text-gray-500">{t('videos.groups.empty')}</p>
             </CardContent>
           </Card>
         ) : (
@@ -148,11 +148,11 @@ export default function VideoGroupsPage() {
               >
                 <CardHeader>
                   <CardTitle>{group.name}</CardTitle>
-                  <CardDescription>{group.description || '説明なし'}</CardDescription>
+                  <CardDescription>{group.description || t('common.messages.noDescription')}</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm text-gray-600">
-                    {group.video_count} 個の動画
+                    {t('videos.groups.videoCount', { count: group.video_count })}
                   </p>
                 </CardContent>
               </Card>

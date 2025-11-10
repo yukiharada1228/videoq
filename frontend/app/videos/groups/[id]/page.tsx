@@ -23,6 +23,7 @@ import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { handleAsyncError } from '@/lib/utils/errorHandling';
 import { useAsyncState } from '@/hooks/useAsyncState';
+import { useTranslation } from 'react-i18next';
 import {
   DndContext,
   closestCenter,
@@ -61,6 +62,7 @@ interface SortableVideoItemProps {
 }
 
 function SortableVideoItem({ video, isSelected, onSelect, onRemove }: SortableVideoItemProps) {
+  const { t, i18n } = useTranslation();
   const {
     attributes,
     listeners,
@@ -91,10 +93,12 @@ function SortableVideoItem({ video, isSelected, onSelect, onRemove }: SortableVi
       <div className="flex items-center justify-between">
         <div className="flex-1 min-w-0">
           <h3 className="font-semibold text-sm text-gray-900 truncate">{video.title}</h3>
-          <p className="text-xs text-gray-600 line-clamp-1">{video.description || '説明なし'}</p>
+          <p className="text-xs text-gray-600 line-clamp-1">
+            {video.description || t('common.messages.noDescription')}
+          </p>
           <div className="flex items-center gap-2 mt-2">
             <span className={getStatusBadgeClassName(video.status, 'sm')}>
-              {getStatusLabel(video.status)}
+              {getStatusLabel(video.status, i18n.language)}
             </span>
           </div>
         </div>
@@ -111,7 +115,7 @@ function SortableVideoItem({ video, isSelected, onSelect, onRemove }: SortableVi
               onRemove(video.id);
             }}
           >
-            削除
+            {t('videos.groupDetail.remove')}
           </Button>
         </div>
       </div>
@@ -124,6 +128,7 @@ export default function VideoGroupDetailPage() {
   const router = useRouter();
   const groupId = params?.id ? parseInt(params.id as string) : null;
   const { user } = useAuth();
+  const { t } = useTranslation();
 
   // DRY原則: useAsyncStateを使用して状態管理を統一
   const { data: group, isLoading, error, execute: loadGroup, setData: setGroup } = useAsyncState<VideoGroup>({
@@ -224,28 +229,30 @@ export default function VideoGroupDetailPage() {
 
     try {
       setIsAdding(true);
-      
-      // 選択された動画を一括追加（N+1問題の解決）
+
       const result = await apiClient.addVideosToGroup(groupId!, selectedVideos);
-      
-      // チャットグループを再読み込み
+
       await loadGroupData();
       setIsAddModalOpen(false);
       setSelectedVideos([]);
-      
-      // 結果を表示
+
       if (result.skipped_count > 0) {
-        alert(`${result.added_count}個の動画を追加しました（${result.skipped_count}個は既に追加済みでした）`);
+        alert(
+          t('videos.groupDetail.addResult', {
+            added: result.added_count,
+            skipped: result.skipped_count,
+          })
+        );
       }
     } catch (err) {
-      handleAsyncError(err, '動画の追加に失敗しました', () => {});
+      handleAsyncError(err, t('videos.groupDetail.addError'), () => {});
     } finally {
       setIsAdding(false);
     }
   };
 
   const handleRemoveVideo = async (videoId: number) => {
-    if (!confirm('この動画をチャットグループから削除しますか？')) {
+    if (!confirm(t('videos.groupDetail.removeVideoConfirm'))) {
       return;
     }
 
@@ -257,7 +264,7 @@ export default function VideoGroupDetailPage() {
         setSelectedVideo(null);
       }
     } catch (err) {
-      handleAsyncError(err, '動画の削除に失敗しました', () => {});
+      handleAsyncError(err, t('videos.groupDetail.removeVideoError'), () => {});
     }
   };
 
@@ -271,21 +278,21 @@ export default function VideoGroupDetailPage() {
       setShareLink(shareUrl);
       await loadGroupData(); // チャットグループを再読み込みしてshare_tokenを更新
     } catch (err) {
-      handleAsyncError(err, '共有リンクの生成に失敗しました', () => {});
+      handleAsyncError(err, t('videos.groupDetail.generateShareError'), () => {});
     } finally {
       setIsGeneratingLink(false);
     }
   };
 
   const handleDeleteShareLink = async () => {
-    if (!group || !confirm('共有リンクを無効化しますか？')) return;
+    if (!group || !confirm(t('confirmations.disableShareLink'))) return;
 
     try {
       await apiClient.deleteShareLink(group.id);
       setShareLink(null);
       await loadGroupData(); // チャットグループを再読み込み
     } catch (err) {
-      handleAsyncError(err, '共有リンクの削除に失敗しました', () => {});
+      handleAsyncError(err, t('videos.groupDetail.disableShareError'), () => {});
     }
   };
 
@@ -318,7 +325,7 @@ export default function VideoGroupDetailPage() {
       setTimeout(() => setIsCopied(false), 2000);
     } catch (err) {
       console.error('Failed to copy:', err);
-      alert('コピーに失敗しました。手動でコピーしてください。');
+      alert(t('common.messages.copyFailed'));
     }
   };
 
@@ -431,14 +438,13 @@ export default function VideoGroupDetailPage() {
       const videoIds = newVideos.map(video => video.id);
       await apiClient.reorderVideosInGroup(groupId!, videoIds);
     } catch (err) {
-      // エラーが発生した場合は元に戻す
-      handleAsyncError(err, '動画の順序更新に失敗しました', () => {});
+      handleAsyncError(err, t('videos.groupDetail.orderUpdateError'), () => {});
       await loadGroupData();
     }
   };
 
   const handleDelete = async () => {
-    if (!confirm('このチャットグループを削除しますか？')) {
+    if (!confirm(t('confirmations.deleteGroup'))) {
       return;
     }
 
@@ -447,7 +453,7 @@ export default function VideoGroupDetailPage() {
       await apiClient.deleteVideoGroup(groupId!);
       router.push('/videos/groups');
     } catch (err) {
-      handleAsyncError(err, 'チャットグループの削除に失敗しました', () => {});
+      handleAsyncError(err, t('videos.groupDetail.deleteError'), () => {});
     } finally {
       setIsDeleting(false);
     }
@@ -485,7 +491,7 @@ export default function VideoGroupDetailPage() {
         <div className="space-y-4">
           <MessageAlert type="error" message={error} />
           <Link href="/videos/groups">
-            <Button variant="outline">一覧に戻る</Button>
+            <Button variant="outline">{t('common.actions.backToList')}</Button>
           </Link>
         </div>
       </PageLayout>
@@ -495,7 +501,9 @@ export default function VideoGroupDetailPage() {
   if (!group) {
     return (
       <PageLayout fullWidth>
-        <div className="text-center text-gray-500">チャットグループが見つかりません</div>
+        <div className="text-center text-gray-500">
+          {t('common.messages.groupNotFound')}
+        </div>
       </PageLayout>
     );
   }
@@ -511,7 +519,7 @@ export default function VideoGroupDetailPage() {
                 <div className="space-y-4">
                   <div>
                     <label className="text-sm font-medium text-gray-600 block mb-1">
-                      チャットグループ名
+                      {t('videos.groups.nameLabel')}
                     </label>
                     <Input
                       type="text"
@@ -523,7 +531,7 @@ export default function VideoGroupDetailPage() {
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-600 block mb-1">
-                      説明
+                      {t('videos.groups.descriptionLabel')}
                     </label>
                     <Textarea
                       value={editedDescription}
@@ -546,10 +554,10 @@ export default function VideoGroupDetailPage() {
                       {isUpdating ? (
                         <span className="flex items-center">
                           <InlineSpinner className="mr-2" />
-                          保存中...
+                          {t('common.actions.saving')}
                         </span>
                       ) : (
-                        '保存'
+                        t('common.actions.save')
                       )}
                     </Button>
                     <Button
@@ -557,7 +565,7 @@ export default function VideoGroupDetailPage() {
                       onClick={handleCancelEdit}
                       disabled={isUpdating}
                     >
-                      キャンセル
+                      {t('common.actions.cancel')}
                     </Button>
                   </div>
                 </div>
@@ -565,7 +573,7 @@ export default function VideoGroupDetailPage() {
                 <>
                   <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">{group.name}</h1>
                   <p className="text-sm lg:text-base text-gray-500 mt-1">
-                    {group.description || '説明なし'}
+                    {group.description || t('common.messages.noDescription')}
                   </p>
                 </>
               )}
@@ -578,25 +586,27 @@ export default function VideoGroupDetailPage() {
                   size="sm"
                   className="lg:size-default"
                 >
-                  編集
+                  {t('videos.groupDetail.edit')}
                 </Button>
               )}
               {!isEditing && (
                 <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
                   <DialogTrigger asChild>
-                    <Button size="sm" className="lg:size-default">動画を追加</Button>
+                    <Button size="sm" className="lg:size-default">
+                      {t('videos.groupDetail.add')}
+                    </Button>
                   </DialogTrigger>
                 <DialogContent className="max-w-[95vw] lg:max-w-2xl max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
-                    <DialogTitle>動画を追加</DialogTitle>
+                    <DialogTitle>{t('videos.groupDetail.add')}</DialogTitle>
                     <DialogDescription>
-                      チャットグループに追加する動画を選択してください
+                      {t('videos.groupDetail.addDescription')}
                     </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4 py-4">
                     <div className="flex flex-wrap items-center gap-2">
                       <Input
-                        placeholder="タイトル/説明を検索"
+                        placeholder={t('videos.groupDetail.searchPlaceholder')}
                         value={videoSearchInput}
                         onChange={(e: React.ChangeEvent<HTMLInputElement>) => setVideoSearchInput(e.target.value)}
                         className="w-full md:w-1/2"
@@ -606,21 +616,29 @@ export default function VideoGroupDetailPage() {
                         onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setStatusFilter(e.target.value)}
                         className="border border-gray-300 rounded px-2 py-2 text-sm bg-white"
                       >
-                        <option value="">すべてのステータス</option>
-                        <option value="completed">完了</option>
-                        <option value="processing">処理中</option>
-                        <option value="pending">待機中</option>
-                        <option value="error">エラー</option>
+                        <option value="">{t('videos.groupDetail.statusFilter.all')}</option>
+                        <option value="completed">{t('videos.groupDetail.statusFilter.completed')}</option>
+                        <option value="processing">{t('videos.groupDetail.statusFilter.processing')}</option>
+                        <option value="pending">{t('videos.groupDetail.statusFilter.pending')}</option>
+                        <option value="error">{t('videos.groupDetail.statusFilter.error')}</option>
                       </select>
                       <select
                         value={ordering}
                         onChange={handleOrderingChange}
                         className="border border-gray-300 rounded px-2 py-2 text-sm bg-white"
                       >
-                        <option value="uploaded_at_desc">新しい順</option>
-                        <option value="uploaded_at_asc">古い順</option>
-                        <option value="title_asc">タイトル昇順</option>
-                        <option value="title_desc">タイトル降順</option>
+                        <option value="uploaded_at_desc">
+                          {t('videos.groupDetail.ordering.uploadedDesc')}
+                        </option>
+                        <option value="uploaded_at_asc">
+                          {t('videos.groupDetail.ordering.uploadedAsc')}
+                        </option>
+                        <option value="title_asc">
+                          {t('videos.groupDetail.ordering.titleAsc')}
+                        </option>
+                        <option value="title_desc">
+                          {t('videos.groupDetail.ordering.titleDesc')}
+                        </option>
                       </select>
                       <Button
                         variant="outline"
@@ -628,7 +646,7 @@ export default function VideoGroupDetailPage() {
                         onClick={() => setSelectedVideos(availableVideos?.map(v => v.id) ?? [])}
                         disabled={!availableVideos?.length}
                       >
-                        全選択
+                        {t('videos.groupDetail.selectAll')}
                       </Button>
                       <Button
                         variant="outline"
@@ -636,14 +654,16 @@ export default function VideoGroupDetailPage() {
                         onClick={() => setSelectedVideos([])}
                         disabled={selectedVideos.length === 0}
                       >
-                        選択解除
+                        {t('videos.groupDetail.clearSelection')}
                       </Button>
                     </div>
 
                     {isLoadingVideos ? (
                       <LoadingSpinner />
                     ) : availableVideos && availableVideos.length === 0 ? (
-                      <p className="text-center text-gray-500 py-4">追加可能な動画がありません</p>
+                      <p className="text-center text-gray-500 py-4">
+                        {t('videos.groupDetail.noAvailableVideos')}
+                      </p>
                     ) : (
                       <div className="space-y-2 max-h-[400px] overflow-y-auto">
                         {availableVideos?.map((video) => (
@@ -661,7 +681,9 @@ export default function VideoGroupDetailPage() {
                             />
                             <label htmlFor={`video-${video.id}`} className="flex-1 cursor-pointer">
                               <div className="font-medium text-gray-900">{video.title}</div>
-                              <div className="text-sm text-gray-600">{video.description || '説明なし'}</div>
+                              <div className="text-sm text-gray-600">
+                                {video.description || t('common.messages.noDescription')}
+                              </div>
                             </label>
                           </div>
                         ))}
@@ -670,16 +692,16 @@ export default function VideoGroupDetailPage() {
                   </div>
                   <DialogFooter>
                     <Button variant="outline" onClick={() => setIsAddModalOpen(false)}>
-                      キャンセル
+                      {t('common.actions.cancel')}
                     </Button>
                     <Button onClick={handleAddVideos} disabled={isAdding || selectedVideos.length === 0}>
                       {isAdding ? (
                         <span className="flex items-center">
                           <InlineSpinner className="mr-2" />
-                          追加中...
+                          {t('videos.groupDetail.adding')}
                         </span>
                       ) : (
-                        '追加'
+                        t('videos.groupDetail.add')
                       )}
                     </Button>
                   </DialogFooter>
@@ -687,17 +709,19 @@ export default function VideoGroupDetailPage() {
               </Dialog>
               )}
               <Link href="/videos/groups">
-                <Button variant="outline" size="sm" className="lg:size-default">一覧に戻る</Button>
+                <Button variant="outline" size="sm" className="lg:size-default">
+                  {t('common.actions.backToList')}
+                </Button>
               </Link>
               {!isEditing && (
                 <Button variant="destructive" onClick={handleDelete} disabled={isDeleting} size="sm" className="lg:size-default">
                   {isDeleting ? (
                     <span className="flex items-center">
                       <InlineSpinner className="mr-2" color="red" />
-                      削除中...
+                      {t('videos.groupDetail.deleting')}
                     </span>
                   ) : (
-                    '削除'
+                    t('videos.groupDetail.delete')
                   )}
                 </Button>
               )}
@@ -708,11 +732,13 @@ export default function VideoGroupDetailPage() {
 
           {/* 共有リンクセクション */}
           <div className="bg-white border border-gray-200 rounded-lg p-4">
-            <h3 className="text-sm font-semibold text-gray-900 mb-2">チャットグループを共有</h3>
+            <h3 className="text-sm font-semibold text-gray-900 mb-2">
+              {t('videos.groupDetail.share.title')}
+            </h3>
             {shareLink ? (
               <div className="space-y-2">
                 <p className="text-xs text-gray-600">
-                  このチャットグループは共有リンクで公開されています。
+                  {t('videos.groupDetail.share.enabled')}
                 </p>
                 <div className="flex gap-2">
                   <input
@@ -727,17 +753,17 @@ export default function VideoGroupDetailPage() {
                     size="sm"
                     disabled={isCopied}
                   >
-                    {isCopied ? '✓ コピー済み' : 'コピー'}
+                    {isCopied ? t('videos.groupDetail.copied') : t('videos.groupDetail.copy')}
                   </Button>
                   <Button onClick={handleDeleteShareLink} variant="destructive" size="sm">
-                    無効化
+                    {t('videos.groupDetail.disable')}
                   </Button>
                 </div>
               </div>
             ) : (
               <div className="space-y-2">
                 <p className="text-xs text-gray-600">
-                  共有リンクを生成すると、ログインなしで閲覧できるようになります。
+                  {t('videos.groupDetail.share.disabled')}
                 </p>
                 <Button
                   onClick={handleGenerateShareLink}
@@ -747,10 +773,10 @@ export default function VideoGroupDetailPage() {
                   {isGeneratingLink ? (
                     <span className="flex items-center">
                       <InlineSpinner className="mr-2" />
-                      生成中...
+                      {t('videos.groupDetail.generating')}
                     </span>
                   ) : (
-                    '共有リンクを生成'
+                    t('videos.groupDetail.generate')
                   )}
                 </Button>
               </div>
@@ -767,7 +793,7 @@ export default function VideoGroupDetailPage() {
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
-              動画一覧
+              {t('videos.groupDetail.mobileTabs.videos')}
             </button>
             <button
               onClick={() => setMobileTab('player')}
@@ -777,7 +803,7 @@ export default function VideoGroupDetailPage() {
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
-              プレイヤー
+              {t('videos.groupDetail.mobileTabs.player')}
             </button>
             <button
               onClick={() => setMobileTab('chat')}
@@ -787,7 +813,7 @@ export default function VideoGroupDetailPage() {
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
-              チャット
+              {t('videos.groupDetail.mobileTabs.chat')}
             </button>
           </div>
 
@@ -797,7 +823,7 @@ export default function VideoGroupDetailPage() {
           <div className={`flex-col min-h-0 ${mobileTab === 'videos' ? 'flex' : 'hidden lg:flex'}`}>
             <Card className="h-[500px] lg:h-[600px] flex flex-col">
               <CardHeader>
-                <CardTitle>動画一覧</CardTitle>
+                <CardTitle>{t('videos.groupDetail.videoListTitle')}</CardTitle>
               </CardHeader>
               <CardContent className="flex-1 flex flex-col overflow-hidden">
                 <div className="flex-1 overflow-y-auto space-y-2">
@@ -829,7 +855,9 @@ export default function VideoGroupDetailPage() {
                       </SortableContext>
                     </DndContext>
                   ) : (
-                    <p className="text-center text-gray-500 py-4 text-sm">動画がありません</p>
+                    <p className="text-center text-gray-500 py-4 text-sm">
+                      {t('videos.groupDetail.videoListEmpty')}
+                    </p>
                   )}
                 </div>
               </CardContent>
@@ -841,10 +869,12 @@ export default function VideoGroupDetailPage() {
             <Card className="h-[500px] lg:h-[600px] flex flex-col">
               <CardHeader>
                 <CardTitle className="text-base lg:text-lg">
-                  {selectedVideo ? selectedVideo.title : '動画を選択してください'}
+                  {selectedVideo ? selectedVideo.title : t('videos.groupDetail.playerPlaceholder')}
                 </CardTitle>
                 {selectedVideo && (
-                  <p className="text-xs lg:text-sm text-gray-600 mt-1">{selectedVideo.description || '説明なし'}</p>
+                  <p className="text-xs lg:text-sm text-gray-600 mt-1">
+                    {selectedVideo.description || t('common.messages.noDescription')}
+                  </p>
                 )}
               </CardHeader>
               <CardContent className="flex-1 flex items-center justify-center overflow-hidden">
@@ -858,14 +888,16 @@ export default function VideoGroupDetailPage() {
                       src={selectedVideo.file}
                       onCanPlay={handleVideoCanPlay}
                     >
-                      お使いのブラウザは動画タグをサポートしていません。
+                      {t('common.messages.browserNoVideoSupport')}
                     </video>
                   ) : (
-                    <p className="text-gray-500 text-sm">動画ファイルがありません</p>
+                    <p className="text-gray-500 text-sm">
+                      {t('videos.groupDetail.videoNoFile')}
+                    </p>
                   )
                 ) : (
                   <p className="text-gray-500 text-center text-sm">
-                    動画一覧から動画を選択してください
+                    {t('videos.groupDetail.playerPlaceholder')}
                   </p>
                 )}
               </CardContent>

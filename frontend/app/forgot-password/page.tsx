@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useTranslation } from 'react-i18next';
 import { PageLayout } from '@/components/layout/PageLayout';
 import {
   Card,
@@ -21,6 +22,7 @@ import { useAsyncState } from '@/hooks/useAsyncState';
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [success, setSuccess] = useState(false);
+  const { t } = useTranslation();
   const { isLoading, error, execute, setError } = useAsyncState<void>({
     onSuccess: () => setSuccess(true),
   });
@@ -42,9 +44,9 @@ export default function ForgotPasswordPage() {
       <div className="w-full max-w-md">
         <Card>
           <CardHeader>
-            <CardTitle>パスワードをお忘れですか？</CardTitle>
+            <CardTitle>{t('auth.forgotPassword.title')}</CardTitle>
             <CardDescription>
-              登録済みのメールアドレスを入力すると、パスワード再設定用のリンクをメールでお送りします。
+              {t('auth.forgotPassword.description')}
             </CardDescription>
           </CardHeader>
           <form onSubmit={handleSubmit}>
@@ -52,28 +54,28 @@ export default function ForgotPasswordPage() {
               {error && <MessageAlert message={error} type="error" />}
               {success && (
                 <MessageAlert
-                  message="パスワードリセット用のメールを送信しました。数分待っても届かない場合は迷惑メールフォルダをご確認ください。"
+                  message={t('auth.forgotPassword.success')}
                   type="success"
                 />
               )}
               <div className="space-y-2">
-                <Label htmlFor="email">メールアドレス</Label>
+                <Label htmlFor="email">{t('auth.fields.email.label')}</Label>
                 <Input
                   id="email"
                   type="email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
+                  placeholder={t('auth.fields.email.placeholder')}
                 />
               </div>
             </CardContent>
             <CardFooter className="flex flex-col space-y-4 pt-4">
               <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? '送信中...' : 'リセットリンクを送信'}
+                {isLoading ? t('auth.forgotPassword.submitting') : t('auth.forgotPassword.submit')}
               </Button>
               <Link href="/login" className="text-center text-sm text-blue-600 hover:underline">
-                ログイン画面に戻る
+                {t('auth.forgotPassword.backToLogin')}
               </Link>
             </CardFooter>
           </form>

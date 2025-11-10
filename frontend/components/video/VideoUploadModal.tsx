@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useVideoUpload } from '@/hooks/useVideoUpload';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -27,6 +28,7 @@ export function VideoUploadModal({ isOpen, onClose, onUploadSuccess }: VideoUplo
     handleSubmit,
     reset,
   } = useVideoUpload();
+  const { t } = useTranslation();
 
   const handleClose = useCallback(() => {
     if (!isUploading) {
@@ -51,9 +53,9 @@ export function VideoUploadModal({ isOpen, onClose, onUploadSuccess }: VideoUplo
     <Dialog open={isOpen} onOpenChange={(open) => !open && !isUploading && handleClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>動画をアップロード</DialogTitle>
+          <DialogTitle>{t('videos.upload.title')}</DialogTitle>
           <DialogDescription>
-            動画ファイルをアップロードして管理できます
+            {t('videos.upload.description')}
           </DialogDescription>
         </DialogHeader>
         <form 
@@ -74,7 +76,7 @@ export function VideoUploadModal({ isOpen, onClose, onUploadSuccess }: VideoUplo
           />
           <DialogFooter>
             <Button type="button" variant="outline" onClick={handleClose} disabled={isUploading}>
-              キャンセル
+              {t('common.actions.cancel')}
             </Button>
             <VideoUploadButton isUploading={isUploading} />
           </DialogFooter>

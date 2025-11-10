@@ -2,6 +2,7 @@
 
 import { Button } from '@/components/ui/button';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
+import { useTranslation } from 'react-i18next';
 
 interface VideoUploadButtonProps {
   isUploading: boolean;
@@ -16,6 +17,8 @@ export function VideoUploadButton({
   variant = 'default',
   fullWidth = false
 }: VideoUploadButtonProps) {
+  const { t } = useTranslation();
+
   return (
     <Button 
       type="submit" 
@@ -26,10 +29,10 @@ export function VideoUploadButton({
       {isUploading ? (
         <span className={fullWidth ? "flex items-center" : "flex items-center justify-center"}>
           <InlineSpinner className="mr-2" />
-          アップロード中...
+          {t('videos.upload.uploading')}
         </span>
       ) : (
-        'アップロード'
+        t('videos.upload.upload')
       )}
     </Button>
   );

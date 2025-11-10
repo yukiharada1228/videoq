@@ -56,6 +56,14 @@ npm run dev
 - **@dnd-kit** - ドラッグ&ドロップ機能
 - **Playwright** - E2Eテスト
 
+## 国際化 (i18n)
+
+- 画面テキストはすべて [i18next](https://www.i18next.com/) + `react-i18next` で管理しています。デフォルト言語は英語 (`en`) で、ブラウザ設定・`lang` クエリ・ローカルストレージ・Cookie の順に自動検出して日本語 (`ja`) へ切り替わります。
+- ルートレイアウトで `I18nProvider` をラップしているため、アプリケーション内では `const { t } = useTranslation();` を呼び出して `t('translation.key')` で文言を取得してください。
+- React コンポーネント以外（ユーティリティや API ラッパーなど）で翻訳が必要な場合は `import { initI18n } from '@/i18n/config';` を用いて i18next インスタンスを初期化し、`initI18n().t(...)` を利用します。
+- 翻訳文字列は `frontend/i18n/locales/en/translation.json`（英語）と `frontend/i18n/locales/ja/translation.json`（日本語）に定義しています。新しいキーを追加する際は、両言語ファイルを同時に更新してください。
+- ドキュメントルートの `<html>` タグは初期表示時に `lang="en"` を宣言し、クライアントでの言語判定後に `I18nProvider` が自動的に `document.documentElement.lang` を更新します。
+
 ## ディレクトリ構造
 
 ```

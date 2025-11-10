@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { useRouter } from 'next/navigation';
@@ -14,6 +15,7 @@ import { useVideoStats } from '@/hooks/useVideoStats';
 export default function Home() {
   const router = useRouter();
   const { user, loading } = useAuth();
+  const { t } = useTranslation();
   
   const { data: rawData, isLoading: isLoadingStats, execute: loadStats } = useAsyncState<{
     videos: VideoList[];
@@ -69,8 +71,12 @@ export default function Home() {
       <div className="max-w-4xl mx-auto space-y-8">
         {/* ウェルカムセクション */}
         <div className="text-center space-y-4">
-          <h1 className="text-5xl font-bold text-gray-900">Welcome back!</h1>
-          <p className="text-xl text-gray-600">{user.username}さん、おかえりなさい</p>
+          <h1 className="text-5xl font-bold text-gray-900">
+            {t('home.welcome.title')}
+          </h1>
+          <p className="text-xl text-gray-600">
+            {t('home.welcome.subtitle', { username: user.username })}
+          </p>
         </div>
 
         {/* メインアクション */}
@@ -78,24 +84,28 @@ export default function Home() {
           <Card className="hover:shadow-xl transition-all cursor-pointer border-2 hover:border-blue-300" onClick={handleUploadClick}>
             <CardHeader>
               <div className="text-4xl mb-2">📹</div>
-              <CardTitle className="text-xl">動画をアップロード</CardTitle>
-              <CardDescription>新しい動画をアップロードして管理</CardDescription>
+              <CardTitle className="text-xl">{t('home.actions.upload.title')}</CardTitle>
+              <CardDescription>{t('home.actions.upload.description')}</CardDescription>
             </CardHeader>
           </Card>
 
           <Card className="hover:shadow-xl transition-all cursor-pointer border-2 hover:border-green-300" onClick={() => router.push('/videos')}>
             <CardHeader>
               <div className="text-4xl mb-2">🎬</div>
-              <CardTitle className="text-xl">動画一覧</CardTitle>
-              <CardDescription className="text-2xl font-bold text-green-600">{videoStats.total}本</CardDescription>
+              <CardTitle className="text-xl">{t('home.actions.library.title')}</CardTitle>
+              <CardDescription className="text-2xl font-bold text-green-600">
+                {t('home.actions.library.description', { count: videoStats.total })}
+              </CardDescription>
             </CardHeader>
           </Card>
 
           <Card className="hover:shadow-xl transition-all cursor-pointer border-2 hover:border-purple-300" onClick={() => router.push('/videos/groups')}>
             <CardHeader>
               <div className="text-4xl mb-2">📁</div>
-              <CardTitle className="text-xl">チャットグループ</CardTitle>
-              <CardDescription className="text-2xl font-bold text-purple-600">{rawData?.groups?.length || 0}個</CardDescription>
+              <CardTitle className="text-xl">{t('home.actions.groups.title')}</CardTitle>
+              <CardDescription className="text-2xl font-bold text-purple-600">
+                {t('home.actions.groups.description', { count: rawData?.groups?.length || 0 })}
+              </CardDescription>
             </CardHeader>
           </Card>
         </div>
@@ -105,28 +115,28 @@ export default function Home() {
           <Card>
             <CardContent className="pt-6 text-center">
               <div className="text-4xl font-bold text-green-600">{videoStats.completed}</div>
-              <p className="text-sm text-gray-600 mt-2">処理完了</p>
+              <p className="text-sm text-gray-600 mt-2">{t('home.stats.completed')}</p>
             </CardContent>
           </Card>
           
           <Card>
             <CardContent className="pt-6 text-center">
               <div className="text-4xl font-bold text-blue-600">{videoStats.pending}</div>
-              <p className="text-sm text-gray-600 mt-2">待機中</p>
+              <p className="text-sm text-gray-600 mt-2">{t('home.stats.pending')}</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardContent className="pt-6 text-center">
               <div className="text-4xl font-bold text-yellow-600">{videoStats.processing}</div>
-              <p className="text-sm text-gray-600 mt-2">処理中</p>
+              <p className="text-sm text-gray-600 mt-2">{t('home.stats.processing')}</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardContent className="pt-6 text-center">
               <div className="text-4xl font-bold text-red-600">{videoStats.error}</div>
-              <p className="text-sm text-gray-600 mt-2">エラー</p>
+              <p className="text-sm text-gray-600 mt-2">{t('home.stats.error')}</p>
             </CardContent>
           </Card>
         </div>
@@ -136,19 +146,19 @@ export default function Home() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">ユーザー名</p>
+                <p className="text-sm text-gray-600">{t('home.account.username')}</p>
                 <p className="text-lg font-semibold text-gray-900">{user.username}</p>
               </div>
               <div className="text-right">
                 {user.encrypted_openai_api_key ? (
-                  <span className="text-sm text-green-600">✓ API キー設定済み</span>
+                  <span className="text-sm text-green-600">{t('home.account.apiKeySet')}</span>
                 ) : (
                   <Button 
                     size="sm" 
                     variant="outline" 
                     onClick={() => router.push('/settings')}
                   >
-                    API キーを設定
+                    {t('home.account.apiKeyMissing')}
                   </Button>
                 )}
               </div>
