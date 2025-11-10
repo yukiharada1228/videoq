@@ -145,8 +145,8 @@ export default function SharedGroupPage() {
         <div className="space-y-4 h-full flex flex-col">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">{group.name}</h1>
-              <p className="text-gray-500 mt-1">
+              <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">{group.name}</h1>
+              <p className="text-sm lg:text-base text-gray-500 mt-1">
                 {group.description || '説明なし'}
               </p>
             </div>
@@ -154,11 +154,11 @@ export default function SharedGroupPage() {
 
           {error && <MessageAlert type="error" message={error} />}
 
-          {/* 3カラムレイアウト */}
-          <div className="grid flex-1 min-h-0 gap-6 grid-cols-[320px_minmax(0,1fr)_360px]">
+          {/* レスポンシブレイアウト: モバイルは縦スタック、PCは3カラム */}
+          <div className="flex flex-col lg:grid flex-1 min-h-0 gap-4 lg:gap-6 lg:grid-cols-[320px_minmax(0,1fr)_360px]">
             {/* 左側：動画一覧 */}
             <div className="flex flex-col min-h-0">
-              <Card className="h-[600px] flex flex-col">
+              <Card className="h-[400px] lg:h-[600px] flex flex-col">
                 <CardHeader>
                   <CardTitle>動画一覧</CardTitle>
                 </CardHeader>
@@ -183,34 +183,34 @@ export default function SharedGroupPage() {
 
             {/* 中央：動画プレイヤー */}
             <div className="flex flex-col min-h-0">
-              <Card className="h-[600px] flex flex-col">
+              <Card className="h-[400px] lg:h-[600px] flex flex-col">
                 <CardHeader>
-                  <CardTitle>
+                  <CardTitle className="text-base lg:text-lg">
                     {selectedVideo ? selectedVideo.title : '動画を選択してください'}
                   </CardTitle>
                   {selectedVideo && (
-                    <p className="text-sm text-gray-600 mt-1">{selectedVideo.description || '説明なし'}</p>
+                    <p className="text-xs lg:text-sm text-gray-600 mt-1">{selectedVideo.description || '説明なし'}</p>
                   )}
                 </CardHeader>
-                <CardContent className="flex-1 flex items-center justify-center">
+                <CardContent className="flex-1 flex items-center justify-center overflow-hidden">
                   {selectedVideo ? (
                     selectedVideo.file ? (
                       <video
                         ref={videoRef}
                         key={selectedVideo.id}
                         controls
-                        className="w-full max-h-[500px] rounded"
+                        className="w-full h-full max-h-[300px] lg:max-h-[500px] rounded object-contain"
                         src={apiClient.getSharedVideoUrl(selectedVideo.file, shareToken)}
                         onCanPlay={handleVideoCanPlay}
                       >
                         お使いのブラウザは動画タグをサポートしていません。
                       </video>
                     ) : (
-                      <p className="text-gray-500">動画ファイルがありません</p>
+                      <p className="text-gray-500 text-sm">動画ファイルがありません</p>
                     )
                   ) : (
-                    <p className="text-gray-500 text-center">
-                      左側のリストから動画を選択してください
+                    <p className="text-gray-500 text-center text-sm">
+                      動画一覧から動画を選択してください
                     </p>
                   )}
                 </CardContent>
@@ -224,6 +224,7 @@ export default function SharedGroupPage() {
                 groupId={group.id}
                 onVideoPlay={handleVideoPlayFromTime}
                 shareToken={shareToken}
+                className="h-[500px] lg:h-[600px]"
               />
             </div>
           </div>
