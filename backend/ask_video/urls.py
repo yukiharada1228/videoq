@@ -36,6 +36,7 @@ urlpatterns = [
             title="ask-video API Schema",
             description="API for all things …",
             version="1.0.0",
+            public=False,
             permission_classes=[AllowAny],
             authentication_classes=[CookieJWTAuthentication],
         ),
