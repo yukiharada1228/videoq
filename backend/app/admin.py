@@ -9,14 +9,14 @@ User = get_user_model()
 
 
 class BaseAdminMixin:
-    """Adminの共通設定を一元管理"""
+    """Unified management of common admin settings"""
 
     @staticmethod
     def get_optimized_queryset(
         request, model_class, select_related_fields=None, annotate_fields=None
     ):
         """
-        最適化されたクエリセットを取得
+        Get optimized queryset
         """
         queryset = model_class.objects.all()
 
@@ -46,7 +46,7 @@ class CustomUserAdmin(UserAdmin):
     ordering = ("-date_joined",)
     fieldsets = UserAdmin.fieldsets + (
         (
-            "動画設定",
+            "Video Settings",
             {
                 "fields": ("video_limit",),
             },
@@ -54,7 +54,7 @@ class CustomUserAdmin(UserAdmin):
     )
     add_fieldsets = UserAdmin.add_fieldsets + (
         (
-            "動画設定",
+            "Video Settings",
             {
                 "classes": ("wide",),
                 "fields": ("video_limit",),
@@ -71,7 +71,7 @@ class VideoAdmin(admin.ModelAdmin):
     readonly_fields = ("uploaded_at",)
 
     def get_queryset(self, request):
-        """N+1問題対策: userリレーションを事前読み込み"""
+        """N+1 prevention: Preload user relation"""
         return BaseAdminMixin.get_optimized_queryset(
             request, Video, select_related_fields=["user"]
         )
@@ -85,7 +85,7 @@ class VideoGroupAdmin(admin.ModelAdmin):
     readonly_fields = ("created_at", "updated_at", "get_video_count")
 
     def get_queryset(self, request):
-        """N+1問題対策: userリレーションとvideo_countを事前読み込み"""
+        """N+1 prevention: Preload user relation and video_count"""
         return BaseAdminMixin.get_optimized_queryset(
             request,
             VideoGroup,
@@ -93,9 +93,9 @@ class VideoGroupAdmin(admin.ModelAdmin):
             annotate_fields={"video_count": Count("members__video")},
         )
 
-    @admin.display(description="動画数", ordering="video_count")
+    @admin.display(description="Video Count", ordering="video_count")
     def get_video_count(self, obj):
-        """annotateで追加されたvideo_countを表示"""
+        """Display video_count added by annotate"""
         return getattr(obj, "video_count", obj.members.count())
 
 
@@ -107,7 +107,7 @@ class VideoGroupMemberAdmin(admin.ModelAdmin):
     readonly_fields = ("added_at",)
 
     def get_queryset(self, request):
-        """N+1問題対策: groupとvideoリレーションを事前読み込み"""
+        """N+1 prevention: Preload group and video relations"""
         return BaseAdminMixin.get_optimized_queryset(
             request, VideoGroupMember, select_related_fields=["group", "video"]
         )

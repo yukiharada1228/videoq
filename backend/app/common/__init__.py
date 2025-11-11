@@ -1,4 +1,4 @@
-"""アプリ全体で共有する共通モジュール"""
+"""Common modules shared across the application"""
 
 from .authentication import CookieJWTAuthentication
 from .permissions import (IsAuthenticatedOrSharedAccess,

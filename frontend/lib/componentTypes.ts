@@ -1,11 +1,11 @@
 /**
- * 共通のコンポーネントパターン
+ * Common component patterns
  */
 
 import React from 'react';
 
 /**
- * 共通のボタンプロパティ
+ * Common button properties
  */
 export interface CommonButtonProps {
   children: React.ReactNode;
@@ -18,7 +18,7 @@ export interface CommonButtonProps {
 }
 
 /**
- * 共通のカードプロパティ
+ * Common card properties
  */
 export interface CommonCardProps {
   children: React.ReactNode;
@@ -29,7 +29,7 @@ export interface CommonCardProps {
 }
 
 /**
- * 共通のモーダルプロパティ
+ * Common modal properties
  */
 export interface CommonModalProps {
   isOpen: boolean;
@@ -41,7 +41,7 @@ export interface CommonModalProps {
 }
 
 /**
- * 共通のフォームプロパティ
+ * Common form properties
  */
 export interface CommonFormProps<T = unknown> {
   onSubmit: (data: T) => void;
@@ -52,7 +52,7 @@ export interface CommonFormProps<T = unknown> {
 }
 
 /**
- * 共通のリストプロパティ
+ * Common list properties
  */
 export interface CommonListProps<T> {
   items: T[];
@@ -63,7 +63,7 @@ export interface CommonListProps<T> {
 }
 
 /**
- * 共通のページプロパティ
+ * Common page properties
  */
 export interface CommonPageProps {
   title?: string;
@@ -75,7 +75,7 @@ export interface CommonPageProps {
 }
 
 /**
- * 共通のアラートプロパティ
+ * Common alert properties
  */
 export interface CommonAlertProps {
   type: 'success' | 'error' | 'warning' | 'info';
@@ -85,7 +85,7 @@ export interface CommonAlertProps {
 }
 
 /**
- * 共通のローディングプロパティ
+ * Common loading properties
  */
 export interface CommonLoadingProps {
   message?: string;
@@ -95,7 +95,7 @@ export interface CommonLoadingProps {
 }
 
 /**
- * 共通のアイテムプロパティ
+ * Common item properties
  */
 export interface CommonItemProps {
   id: string | number;
@@ -110,7 +110,7 @@ export interface CommonItemProps {
 }
 
 /**
- * 共通の検索プロパティ
+ * Common search properties
  */
 export interface CommonSearchProps {
   value: string;
@@ -122,7 +122,7 @@ export interface CommonSearchProps {
 }
 
 /**
- * 共通のフィルタープロパティ
+ * Common filter properties
  */
 export interface CommonFilterProps<T = unknown> {
   filters: Record<string, T>;
@@ -132,7 +132,7 @@ export interface CommonFilterProps<T = unknown> {
 }
 
 /**
- * 共通のページネーションプロパティ
+ * Common pagination properties
  */
 export interface CommonPaginationProps {
   currentPage: number;

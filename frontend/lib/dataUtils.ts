@@ -1,21 +1,21 @@
 /**
- * 共通のデータ処理ユーティリティ
+ * Common data processing utilities
  */
 
 /**
- * 動画IDのSetを作成する共通関数
- * @param videoIds - 動画IDの配列
- * @returns 動画IDのSet
+ * Common function to create Set of video IDs
+ * @param videoIds - Array of video IDs
+ * @returns Set of video IDs
  */
 export function createVideoIdSet(videoIds: number[]): Set<number> {
   return new Set(videoIds);
 }
 
 /**
- * 配列をフィルタリングする共通関数
- * @param items - フィルタリングする配列
- * @param predicate - フィルタリング条件
- * @returns フィルタリングされた配列
+ * Common function to filter array
+ * @param items - Array to filter
+ * @param predicate - Filtering condition
+ * @returns Filtered array
  */
 export function filterItems<T>(
   items: T[],
@@ -25,10 +25,10 @@ export function filterItems<T>(
 }
 
 /**
- * 配列をマッピングする共通関数
- * @param items - マッピングする配列
- * @param mapper - マッピング関数
- * @returns マッピングされた配列
+ * Common function to map array
+ * @param items - Array to map
+ * @param mapper - Mapping function
+ * @returns Mapped array
  */
 export function mapItems<T, U>(
   items: T[],
@@ -38,10 +38,10 @@ export function mapItems<T, U>(
 }
 
 /**
- * 配列をグループ化する共通関数
- * @param items - グループ化する配列
- * @param keySelector - キーを選択する関数
- * @returns グループ化されたオブジェクト
+ * Common function to group array
+ * @param items - Array to group
+ * @param keySelector - Function to select key
+ * @returns Grouped object
  */
 export function groupBy<T, K extends string | number>(
   items: T[],
@@ -58,11 +58,11 @@ export function groupBy<T, K extends string | number>(
 }
 
 /**
- * 配列をソートする共通関数
- * @param items - ソートする配列
- * @param keySelector - ソートキーを選択する関数
- * @param ascending - 昇順かどうか
- * @returns ソートされた配列
+ * Common function to sort array
+ * @param items - Array to sort
+ * @param keySelector - Function to select sort key
+ * @param ascending - Whether ascending order
+ * @returns Sorted array
  */
 export function sortItems<T>(
   items: T[],
@@ -80,10 +80,10 @@ export function sortItems<T>(
 }
 
 /**
- * 配列から重複を削除する共通関数
- * @param items - 重複を削除する配列
- * @param keySelector - 重複判定のキーを選択する関数
- * @returns 重複が削除された配列
+ * Common function to remove duplicates from array
+ * @param items - Array to remove duplicates from
+ * @param keySelector - Function to select key for duplicate detection
+ * @returns Array with duplicates removed
  */
 export function removeDuplicates<T>(
   items: T[],

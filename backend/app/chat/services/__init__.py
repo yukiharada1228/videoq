@@ -1,4 +1,4 @@
-"""チャット機能向けサービスモジュール"""
+"""Service module for chat functionality"""
 
 from .llm import get_langchain_llm, handle_langchain_exception
 from .rag_chat import RagChatResult, RagChatService

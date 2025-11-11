@@ -16,15 +16,15 @@ User = get_user_model()
 
 
 class CredentialsSerializerMixin:
-    """認証情報の共通バリデーション"""
+    """Common validation for credentials"""
 
     def validate_credentials(self, username: str, password: str):
-        """ユーザー名とパスワードの検証"""
+        """Validate username and password"""
         if not username or not password:
-            raise serializers.ValidationError("username と password は必須です")
+            raise serializers.ValidationError("username and password are required")
         user = authenticate(username=username, password=password)
         if user is None:
-            raise serializers.ValidationError("認証に失敗しました")
+            raise serializers.ValidationError("Authentication failed")
         return user
 
 
@@ -39,7 +39,7 @@ class UserSignupSerializer(serializers.ModelSerializer):
     def validate_email(self, value: str) -> str:
         if User.objects.filter(email__iexact=value).exists():
             raise serializers.ValidationError(
-                "このメールアドレスは既に登録されています。"
+                "This email address is already registered."
             )
         return value
 
@@ -58,10 +58,10 @@ class UserSignupSerializer(serializers.ModelSerializer):
         try:
             send_email_verification(user)
         except Exception:
-            # ユーザーを作成済みでもメール送信失敗時は例外を伝播させる
+            # Propagate exception even if user is created but email sending fails
             user.delete()
             raise serializers.ValidationError(
-                "確認メールの送信に失敗しました。しばらくしてから再度お試しください。"
+                "Failed to send verification email. Please try again later."
             )
 
         return user
@@ -86,7 +86,7 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class UserUpdateSerializer(serializers.ModelSerializer):
-    """ユーザー情報更新用のシリアライザー"""
+    """Serializer for updating user information"""
 
     class Meta:
         model = User
@@ -96,19 +96,19 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         encrypted_api_key = validated_data.get("encrypted_openai_api_key")
 
         if encrypted_api_key:
-            # APIキーが既に暗号化されているかチェック
-            # プレーンテキストの場合のみ暗号化
+            # Check if API key is already encrypted
+            # Only encrypt if it's plain text
             if not is_encrypted(encrypted_api_key):
                 try:
                     encrypted_api_key = encrypt_api_key(encrypted_api_key)
                 except Exception as e:
                     raise serializers.ValidationError(
-                        f"APIキーの暗号化に失敗しました: {str(e)}"
+                        f"Failed to encrypt API key: {str(e)}"
                     )
 
             validated_data["encrypted_openai_api_key"] = encrypted_api_key
         else:
-            # nullの場合は暗号化しない
+            # Don't encrypt if null
             validated_data["encrypted_openai_api_key"] = None
 
         return super().update(instance, validated_data)
@@ -118,18 +118,18 @@ class RefreshSerializer(serializers.Serializer):
     refresh = serializers.CharField()
 
     def validate_refresh(self, value):
-        """リフレッシュトークンの検証"""
+        """Validate refresh token"""
         if not value:
             raise serializers.ValidationError("no refresh")
         try:
-            # トークンの検証を行い、refresh_objとして保存
+            # Validate token and save as refresh_obj
             self._refresh_obj = RefreshToken(value)
         except Exception:
             raise serializers.ValidationError("invalid refresh")
         return value
 
     def validate(self, attrs):
-        # validate_refreshで作成したrefresh_objを使用
+        # Use refresh_obj created in validate_refresh
         attrs["refresh_obj"] = self._refresh_obj
         return attrs
 
@@ -146,11 +146,11 @@ class EmailVerificationSerializer(serializers.Serializer):
             uid = force_str(urlsafe_base64_decode(uidb64))
             user = User.objects.get(pk=uid)
         except (TypeError, ValueError, OverflowError, User.DoesNotExist):
-            raise serializers.ValidationError("無効な確認リンクです。")
+            raise serializers.ValidationError("Invalid verification link.")
 
         if not default_token_generator.check_token(user, token):
             raise serializers.ValidationError(
-                "トークンが無効、または有効期限が切れています。"
+                "Token is invalid or has expired."
             )
 
         attrs["user"] = user
@@ -189,8 +189,8 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
     )
 
     default_error_messages = {
-        "invalid_link": "無効なリセットリンクです。",
-        "invalid_token": "トークンが無効、または有効期限が切れています。",
+        "invalid_link": "Invalid reset link.",
+        "invalid_token": "Token is invalid or has expired.",
     }
 
     def validate(self, attrs):

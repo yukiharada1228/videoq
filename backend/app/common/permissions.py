@@ -1,4 +1,4 @@
-"""共通の権限・認証補助モジュール"""
+"""Common permissions and authentication helper module"""
 
 from app.models import VideoGroup
 from rest_framework.authentication import BaseAuthentication
@@ -7,7 +7,7 @@ from rest_framework.request import Request
 
 
 class ShareTokenAuthentication(BaseAuthentication):
-    """共有トークンを用いた簡易認証"""
+    """Simple authentication using share token"""
 
     def authenticate(self, request: Request):
         share_token = request.query_params.get("share_token")
@@ -22,7 +22,7 @@ class ShareTokenAuthentication(BaseAuthentication):
 
 
 class IsAuthenticatedOrSharedAccess(BasePermission):
-    """JWT認証または共有トークンを許可する共通パーミッション"""
+    """Common permission that allows JWT authentication or share token"""
 
     def has_permission(self, request, view):
         if request.user and request.user.is_authenticated:

@@ -1,11 +1,11 @@
 /**
- * 共通のAPI呼び出しパターン
+ * Common API call patterns
  */
 
 /**
- * 並列API呼び出しの共通関数
- * @param apiCalls - API呼び出しの配列
- * @returns 並列実行された結果の配列
+ * Common function for parallel API calls
+ * @param apiCalls - Array of API calls
+ * @returns Array of parallel execution results
  */
 export async function parallelApiCalls<T>(
   apiCalls: (() => Promise<T>)[]
@@ -14,11 +14,11 @@ export async function parallelApiCalls<T>(
 }
 
 /**
- * 条件付きAPI呼び出しの共通関数
- * @param condition - 呼び出し条件
- * @param apiCall - API呼び出し関数
- * @param fallback - 条件が満たされない場合のフォールバック値
- * @returns API呼び出し結果またはフォールバック値
+ * Common function for conditional API calls
+ * @param condition - Call condition
+ * @param apiCall - API call function
+ * @param fallback - Fallback value when condition is not met
+ * @returns API call result or fallback value
  */
 export async function conditionalApiCall<T>(
   condition: boolean,
@@ -30,11 +30,11 @@ export async function conditionalApiCall<T>(
 }
 
 /**
- * リトライ付きAPI呼び出しの共通関数
- * @param apiCall - API呼び出し関数
- * @param maxRetries - 最大リトライ回数
- * @param delay - リトライ間隔（ミリ秒）
- * @returns API呼び出し結果
+ * Common function for API calls with retry
+ * @param apiCall - API call function
+ * @param maxRetries - Maximum number of retries
+ * @param delay - Retry interval (milliseconds)
+ * @returns API call result
  */
 export async function retryApiCall<T>(
   apiCall: () => Promise<T>,
@@ -61,11 +61,11 @@ export async function retryApiCall<T>(
 }
 
 /**
- * バッチAPI呼び出しの共通関数
- * @param items - 処理するアイテムの配列
- * @param batchSize - バッチサイズ
- * @param apiCall - バッチ処理用のAPI呼び出し関数
- * @returns 処理結果の配列
+ * Common function for batch API calls
+ * @param items - Array of items to process
+ * @param batchSize - Batch size
+ * @param apiCall - API call function for batch processing
+ * @returns Array of processing results
  */
 export async function batchApiCall<T, R>(
   items: T[],
@@ -84,16 +84,16 @@ export async function batchApiCall<T, R>(
 }
 
 /**
- * キャッシュ付きAPI呼び出しの共通関数
- * @param key - キャッシュキー
- * @param apiCall - API呼び出し関数
- * @param ttl - キャッシュの有効期限（ミリ秒）
- * @returns API呼び出し結果
+ * Common function for cached API calls
+ * @param key - Cache key
+ * @param apiCall - API call function
+ * @param ttl - Cache TTL (milliseconds)
+ * @returns API call result
  */
 export function cachedApiCall<T>(
   key: string,
   apiCall: () => Promise<T>,
-  ttl: number = 5 * 60 * 1000 // 5分
+  ttl: number = 5 * 60 * 1000 // 5 minutes
 ): () => Promise<T> {
   const cache = new Map<string, { data: T; timestamp: number }>();
   
@@ -110,10 +110,10 @@ export function cachedApiCall<T>(
 }
 
 /**
- * デバウンス付きAPI呼び出しの共通関数
- * @param apiCall - API呼び出し関数
- * @param delay - デバウンス遅延（ミリ秒）
- * @returns デバウンスされたAPI呼び出し関数
+ * Common function for debounced API calls
+ * @param apiCall - API call function
+ * @param delay - Debounce delay (milliseconds)
+ * @returns Debounced API call function
  */
 export function debouncedApiCall<T>(
   apiCall: () => Promise<T>,

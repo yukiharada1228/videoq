@@ -1,6 +1,6 @@
 /**
- * 認証フォームの共通設定
- * DRY原則に従って、重複するフィールド定義を一元管理
+ * Common configuration for authentication forms
+ * Centralized management of duplicate field definitions following DRY principle
  */
 
 export interface FormFieldConfig {
@@ -13,7 +13,7 @@ export interface FormFieldConfig {
 }
 
 /**
- * 認証フォームで共通使用されるフィールド定義
+ * Field definitions commonly used in authentication forms
  */
 export const AUTH_FIELDS = {
   EMAIL: {

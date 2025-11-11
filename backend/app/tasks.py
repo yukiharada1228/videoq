@@ -1,5 +1,5 @@
 """
-Celeryタスク - Whisper文字起こし処理
+Celery tasks - Whisper transcription processing
 """
 
 import json
@@ -88,7 +88,7 @@ def _parse_srt_scenes(srt_content):
 
 def _index_scenes_to_vectorstore(scene_docs, video, api_key):
     """
-    LangChain + pgvector でベクトルインデックスを作成
+    Create vector index using LangChain + pgvector
     scene_docs: [{text, metadata}]
     """
     try:
@@ -317,7 +317,7 @@ def _process_audio_segments_parallel(client, audio_segments):
 
 def _apply_scene_splitting(srt_content, api_key, original_segment_count):
     """
-    シーン分割を適用
+    Apply scene splitting
     """
     try:
         splitter = SceneSplitter(api_key=api_key)
@@ -334,7 +334,7 @@ def _apply_scene_splitting(srt_content, api_key, original_segment_count):
 
 def _save_transcription_result(video, scene_split_srt):
     """
-    文字起こし結果を保存
+    Save transcription result
     """
     VideoTaskManager.update_video_status(video, "completed", "")
     video.transcript = scene_split_srt
@@ -343,7 +343,7 @@ def _save_transcription_result(video, scene_split_srt):
 
 def _handle_transcription_error(video, error_msg):
     """
-    文字起こしエラーの共通処理
+    Common error handling for transcription errors
     """
     logger.error(error_msg)
     VideoTaskManager.update_video_status(video, "error", error_msg)
@@ -351,7 +351,7 @@ def _handle_transcription_error(video, error_msg):
 
 def _index_scenes_batch(scene_split_srt, video, api_key):
     """
-    シーンをpgvectorにバッチインデックス
+    Batch index scenes to pgvector
     """
     try:
         logger.info("Starting scene indexing to pgvector...")
@@ -376,7 +376,7 @@ def _index_scenes_batch(scene_split_srt, video, api_key):
 
 def _create_scene_metadata(video, scene):
     """
-    シーンメタデータを作成
+    Create scene metadata
     """
     return {
         "video_id": video.id,
@@ -393,14 +393,14 @@ def _create_scene_metadata(video, scene):
 @shared_task(bind=True, max_retries=3)
 def transcribe_video(self, video_id):
     """
-    Whisper APIを使用して動画の文字起こしを実行
-    ffmpegで変換が必要な場合は自動的にMP3に変換
+    Execute video transcription using Whisper API
+    Automatically converts to MP3 using ffmpeg if conversion is needed
 
     Args:
-        video_id: 文字起こし対象のVideoインスタンスのID
+        video_id: ID of the Video instance to transcribe
 
     Returns:
-        str: 文字起こしされたテキスト
+        str: Transcribed text
     """
     logger.info(f"Transcription task started for video ID: {video_id}")
 

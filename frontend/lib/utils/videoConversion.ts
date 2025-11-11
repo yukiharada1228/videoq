@@ -9,7 +9,7 @@ export interface SelectedVideo {
 }
 
 /**
- * VideoInGroupからSelectedVideoに変換する共通関数
+ * Common function to convert VideoInGroup to SelectedVideo
  */
 export function convertVideoInGroupToSelectedVideo(video: VideoInGroup): SelectedVideo {
   return {
@@ -22,7 +22,7 @@ export function convertVideoInGroupToSelectedVideo(video: VideoInGroup): Selecte
 }
 
 /**
- * VideoListからSelectedVideoに変換する共通関数
+ * Common function to convert VideoList to SelectedVideo
  */
 export function convertVideoListToSelectedVideo(video: VideoList): SelectedVideo {
   return {
@@ -35,14 +35,14 @@ export function convertVideoListToSelectedVideo(video: VideoList): SelectedVideo
 }
 
 /**
- * 動画IDの配列からSetを作成する共通関数
+ * Common function to create Set from array of video IDs
  */
 export function createVideoIdSet(videoIds: number[]): Set<number> {
   return new Set(videoIds);
 }
 
 /**
- * 動画配列からIDの配列を抽出する共通関数
+ * Common function to extract array of IDs from array of videos
  */
 export function extractVideoIds(videos: VideoInGroup[] | VideoList[]): number[] {
   return videos.map(video => video.id);

@@ -325,7 +325,7 @@ def _add_video_to_group_operation(group, video):
     member = _get_member_queryset(group, video).first()
     if member:
         return create_error_response(
-            "この動画は既にグループに追加されています", status.HTTP_400_BAD_REQUEST
+            "This video is already added to the group", status.HTTP_400_BAD_REQUEST
         )
 
     # Assign order to place at the end of the group
@@ -340,7 +340,7 @@ def _add_video_to_group_operation(group, video):
         order=next_order,
     )
     return Response(
-        {"message": "動画をグループに追加しました", "id": member.id},
+        {"message": "Video added to group", "id": member.id},
         status=status.HTTP_201_CREATED,
     )
 

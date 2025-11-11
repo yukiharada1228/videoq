@@ -5,7 +5,7 @@ from rest_framework import status
 
 
 def authenticated_api_view(methods):
-    """認証必須のAPIビューデコレーター"""
+    """Decorator for authenticated API views"""
 
     def decorator(view_func):
         from app.utils.mixins import AuthenticatedViewMixin
@@ -19,7 +19,7 @@ def authenticated_api_view(methods):
 
 
 def with_error_handling(view_func):
-    """共通のエラーハンドリングデコレーター"""
+    """Common error handling decorator"""
 
     @wraps(view_func)
     def wrapper(*args, **kwargs):
@@ -32,10 +32,10 @@ def with_error_handling(view_func):
 
 
 def authenticated_view_with_error_handling(methods):
-    """認証とエラーハンドリングを組み合わせたデコレーター"""
+    """Decorator combining authentication and error handling"""
 
     def decorator(view_func):
-        # エラーハンドリングを最初に適用し、次に認証を適用
+        # Apply error handling first, then authentication
         wrapped = with_error_handling(view_func)
         return authenticated_api_view(methods)(wrapped)
 
