@@ -15,6 +15,7 @@ This application offers video upload, automatic transcription, and AI chat. When
 - **Video Group Management**: Organize multiple videos into groups
 - **Sharing**: Share video groups via share tokens
 - **Protected Media Delivery**: Secure media delivery via authentication
+- **Internationalization**: Multi-language support (English/Japanese) with i18next
 
 ## Project Structure
 
@@ -70,6 +71,7 @@ ask-video/
 │   │   └── ui/                  # UI components (shadcn/ui)
 │   ├── hooks/                   # Custom hooks (useAuth, useVideos, useAsyncState, etc.)
 │   ├── lib/                     # Libraries/utilities (api, errorUtils, etc.)
+│   ├── i18n/                    # Internationalization (i18next config and locales)
 │   ├── e2e/                     # Playwright E2E tests
 │   ├── package.json             # Node.js dependencies
 │   ├── package-lock.json        # npm lockfile
@@ -119,7 +121,11 @@ ask-video/
 
 #### Storage
 - **django-storages** (>=1.14.6) - Django storage backends (S3)
-+- **boto3** (>=1.40.64) - AWS SDK for Python (S3, etc.)
+- **boto3** (>=1.40.64) - AWS SDK for Python (S3, etc.)
+
+#### API Documentation
+- **PyYAML** (>=6.0.3) - YAML parser
+- **uritemplate** (>=4.2.0) - URI template support
 
 #### Security / Encryption
 - **cryptography** (>=46.0.3) - Encryption library (API key encryption)
@@ -158,6 +164,11 @@ ask-video/
 - **@dnd-kit/core** (^6.3.1) - DnD core
 - **@dnd-kit/sortable** (^10.0.0) - Sortable lists
 - **@dnd-kit/utilities** (^3.2.2) - DnD utilities
+
+#### Internationalization
+- **i18next** (^24.2.1) - Internationalization framework
+- **react-i18next** (^15.1.0) - React integration for i18next
+- **i18next-browser-languagedetector** (^8.0.0) - Language detection
 
 #### Utilities
 - **date-fns** (^4.1.0) - Date utilities
@@ -260,6 +271,7 @@ After all services are up, you can access:
 
 - **Frontend**: http://localhost
 - **Backend API**: http://localhost/api
+- **API Documentation**: http://localhost/api/docs/ (Swagger UI)
 - **Admin**: http://localhost/admin
 
 #### Other useful commands
@@ -336,6 +348,12 @@ docker-compose exec postgres psql -U $POSTGRES_USER -d $POSTGRES_DB
 - View videos via shared links
 - Access shared videos without authentication
 
+### Internationalization
+
+- Multi-language support (English/Japanese)
+- Automatic language detection based on browser settings
+- Language switching via query parameter or localStorage
+
 ## API Endpoints
 
 ### Authentication
@@ -382,6 +400,11 @@ docker-compose exec postgres psql -U $POSTGRES_USER -d $POSTGRES_DB
 ### Media Delivery
 
 - `GET /media/<path>` - Serve protected media (requires JWT or share token)
+
+### API Documentation
+
+- `GET /api/docs/` - Swagger UI for API documentation
+- `GET /api/schema/` - OpenAPI schema endpoint
 
 ## API Guide for External Clients
 
