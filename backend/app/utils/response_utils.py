@@ -1,5 +1,5 @@
 """
-共通のレスポンス処理ユーティリティ
+Common response processing utilities
 """
 
 from typing import Any, Dict, List, Optional
@@ -9,26 +9,26 @@ from rest_framework.response import Response
 
 
 class ResponseBuilder:
-    """レスポンス構築の共通クラス"""
+    """Common response building class"""
 
     @staticmethod
     def success(
         data: Any = None,
-        message: str = "操作が正常に完了しました",
+        message: str = "Operation completed successfully",
         status_code: int = status.HTTP_200_OK,
         meta: Optional[Dict[str, Any]] = None,
     ) -> Response:
         """
-        成功レスポンスを構築
+        Build success response
 
         Args:
-            data: レスポンスデータ
-            message: メッセージ
-            status_code: HTTPステータスコード
-            meta: メタデータ
+            data: Response data
+            message: Message
+            status_code: HTTP status code
+            meta: Metadata
 
         Returns:
-            構築されたレスポンス
+            Built response
         """
         response_data = {
             "success": True,
@@ -43,22 +43,22 @@ class ResponseBuilder:
 
     @staticmethod
     def error(
-        message: str = "エラーが発生しました",
+        message: str = "An error occurred",
         status_code: int = status.HTTP_400_BAD_REQUEST,
         errors: Optional[Dict[str, List[str]]] = None,
         details: Optional[Dict[str, Any]] = None,
     ) -> Response:
         """
-        エラーレスポンスを構築
+        Build error response
 
         Args:
-            message: エラーメッセージ
-            status_code: HTTPステータスコード
-            errors: バリデーションエラー
-            details: 詳細情報
+            message: Error message
+            status_code: HTTP status code
+            errors: Validation errors
+            details: Detailed information
 
         Returns:
-            構築されたレスポンス
+            Built response
         """
         response_data = {
             "success": False,
@@ -79,20 +79,20 @@ class ResponseBuilder:
         page: int,
         page_size: int,
         total_count: int,
-        message: str = "データを正常に取得しました",
+        message: str = "Data retrieved successfully",
     ) -> Response:
         """
-        ページネーション付きレスポンスを構築
+        Build paginated response
 
         Args:
-            data: データリスト
-            page: 現在のページ
-            page_size: ページサイズ
-            total_count: 総件数
-            message: メッセージ
+            data: Data list
+            page: Current page
+            page_size: Page size
+            total_count: Total count
+            message: Message
 
         Returns:
-            構築されたレスポンス
+            Built response
         """
         total_pages = (total_count + page_size - 1) // page_size
 
@@ -111,18 +111,18 @@ class ResponseBuilder:
 
 
 class ValidationHelper:
-    """バリデーションの共通ヘルパー"""
+    """Common validation helper"""
 
     @staticmethod
     def validate_required_fields(
         data: Dict[str, Any], required_fields: List[str]
     ) -> tuple[bool, Optional[Dict[str, List[str]]]]:
         """
-        必須フィールドのバリデーション
+        Validate required fields
 
         Args:
-            data: バリデーションするデータ
-            required_fields: 必須フィールドのリスト
+            data: Data to validate
+            required_fields: List of required fields
 
         Returns:
             (is_valid, errors)
@@ -131,7 +131,7 @@ class ValidationHelper:
 
         for field in required_fields:
             if field not in data or not data[field]:
-                errors[field] = [f"{field}は必須です"]
+                errors[field] = [f"{field} is required"]
 
         return len(errors) == 0, errors if errors else None
 
@@ -143,16 +143,16 @@ class ValidationHelper:
         max_length: Optional[int] = None,
     ) -> Optional[str]:
         """
-        フィールドの長さをバリデーション
+        Validate field length
 
         Args:
-            data: バリデーションするデータ
-            field: フィールド名
-            min_length: 最小長
-            max_length: 最大長
+            data: Data to validate
+            field: Field name
+            min_length: Minimum length
+            max_length: Maximum length
 
         Returns:
-            エラーメッセージ（エラーがない場合はNone）
+            Error message (None if no error)
         """
         if field not in data:
             return None
@@ -160,23 +160,23 @@ class ValidationHelper:
         value = str(data[field])
 
         if min_length is not None and len(value) < min_length:
-            return f"{field}は{min_length}文字以上で入力してください"
+            return f"{field} must be at least {min_length} characters"
 
         if max_length is not None and len(value) > max_length:
-            return f"{field}は{max_length}文字以下で入力してください"
+            return f"{field} must be at most {max_length} characters"
 
         return None
 
     @staticmethod
     def validate_email_format(email: str) -> bool:
         """
-        メールアドレスの形式をバリデーション
+        Validate email format
 
         Args:
-            email: メールアドレス
+            email: Email address
 
         Returns:
-            有効な場合はTrue
+            True if valid
         """
         import re
 
@@ -185,19 +185,19 @@ class ValidationHelper:
 
 
 class CacheHelper:
-    """キャッシュの共通ヘルパー"""
+    """Common cache helper"""
 
     @staticmethod
     def get_cache_key(prefix: str, *args: Any) -> str:
         """
-        キャッシュキーを生成
+        Generate cache key
 
         Args:
-            prefix: プレフィックス
-            *args: キーの要素
+            prefix: Prefix
+            *args: Key elements
 
         Returns:
-            生成されたキャッシュキー
+            Generated cache key
         """
         key_parts = [prefix] + [str(arg) for arg in args]
         return ":".join(key_parts)
@@ -205,27 +205,27 @@ class CacheHelper:
     @staticmethod
     def get_user_cache_key(user_id: int, resource: str) -> str:
         """
-        ユーザー固有のキャッシュキーを生成
+        Generate user-specific cache key
 
         Args:
-            user_id: ユーザーID
-            resource: リソース名
+            user_id: User ID
+            resource: Resource name
 
         Returns:
-            生成されたキャッシュキー
+            Generated cache key
         """
         return CacheHelper.get_cache_key("user", user_id, resource)
 
     @staticmethod
     def get_resource_cache_key(resource: str, resource_id: int) -> str:
         """
-        リソース固有のキャッシュキーを生成
+        Generate resource-specific cache key
 
         Args:
-            resource: リソース名
-            resource_id: リソースID
+            resource: Resource name
+            resource_id: Resource ID
 
         Returns:
-            生成されたキャッシュキー
+            Generated cache key
         """
         return CacheHelper.get_cache_key("resource", resource, resource_id)

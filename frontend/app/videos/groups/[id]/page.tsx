@@ -53,7 +53,7 @@ const ORDERING_OPTIONS = [
 
 type OrderingOption = (typeof ORDERING_OPTIONS)[number];
 
-// ソータブルな動画アイテムコンポーネント
+// Sortable video item component
 interface SortableVideoItemProps {
   video: VideoInGroup;
   isSelected: boolean;
@@ -130,7 +130,7 @@ export default function VideoGroupDetailPage() {
   const { user } = useAuth();
   const { t } = useTranslation();
 
-  // DRY原則: useAsyncStateを使用して状態管理を統一
+  // DRY principle: Use useAsyncState to unify state management
   const { data: group, isLoading, error, execute: loadGroup, setData: setGroup } = useAsyncState<VideoGroup>({
     initialData: null,
   });
@@ -154,12 +154,12 @@ export default function VideoGroupDetailPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const pendingStartTimeRef = useRef<number | null>(null);
 
-  // 編集モードの状態管理
+  // Edit mode state management
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState('');
   const [editedDescription, setEditedDescription] = useState('');
 
-  // モバイル用タブ状態
+  // Mobile tab state
   const [mobileTab, setMobileTab] = useState<'videos' | 'player' | 'chat'>('player');
 
   const handleOrderingChange = useCallback((event: React.ChangeEvent<HTMLSelectElement>) => {
@@ -168,11 +168,11 @@ export default function VideoGroupDetailPage() {
       setOrdering(value);
     }
   }, []);
-  // ドラッグアンドドロップのセンサー設定
+  // Drag and drop sensor configuration
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8, // 8px移動したらドラッグ開始（クリック誤発火防止）
+        distance: 8, // Start drag after 8px movement (prevent accidental clicks)
       },
     }),
     useSensor(KeyboardSensor, {
@@ -194,9 +194,9 @@ export default function VideoGroupDetailPage() {
         status: statusFilter || undefined,
         ordering,
       });
-      // すでにチャットグループに追加されている動画を除外
+      // Exclude videos already added to chat group
       const currentVideoIds = group.videos?.map(v => v.id) || [];
-      // 共通のSet作成関数を使用
+      // Use common Set creation function
       const currentVideoIdSet = createVideoIdSet(currentVideoIds);
       return videos.filter(v => !currentVideoIdSet.has(v.id));
     });
@@ -209,7 +209,7 @@ export default function VideoGroupDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [groupId]);
 
-  // 検索入力のデバウンス
+  // Debounce search input
   useEffect(() => {
     const handler = setTimeout(() => setVideoSearch(videoSearchInput), 300);
     return () => clearTimeout(handler);
@@ -259,7 +259,7 @@ export default function VideoGroupDetailPage() {
     try {
       await apiClient.removeVideoFromGroup(groupId!, videoId);
       await loadGroupData();
-      // 削除した動画が選択されていた場合、選択を解除
+      // Clear selection if deleted video was selected
       if (selectedVideo?.id === videoId) {
         setSelectedVideo(null);
       }
@@ -276,7 +276,7 @@ export default function VideoGroupDetailPage() {
       const result = await apiClient.createShareLink(group.id);
       const shareUrl = `${window.location.origin}/share/${result.share_token}`;
       setShareLink(shareUrl);
-      await loadGroupData(); // チャットグループを再読み込みしてshare_tokenを更新
+      await loadGroupData(); // Reload chat group to update share_token
     } catch (err) {
       handleAsyncError(err, t('videos.groupDetail.generateShareError'), () => {});
     } finally {
@@ -290,7 +290,7 @@ export default function VideoGroupDetailPage() {
     try {
       await apiClient.deleteShareLink(group.id);
       setShareLink(null);
-      await loadGroupData(); // チャットグループを再読み込み
+      await loadGroupData(); // Reload chat group
     } catch (err) {
       handleAsyncError(err, t('videos.groupDetail.disableShareError'), () => {});
     }
@@ -300,11 +300,11 @@ export default function VideoGroupDetailPage() {
     if (!shareLink) return;
 
     try {
-      // モダンな Clipboard API を試す
+      // Try modern Clipboard API
       if (navigator.clipboard && window.isSecureContext) {
         await navigator.clipboard.writeText(shareLink);
       } else {
-        // フォールバック: 古いブラウザや非HTTPSの場合
+        // Fallback: For older browsers or non-HTTPS
         const textArea = document.createElement('textarea');
         textArea.value = shareLink;
         textArea.style.position = 'fixed';
@@ -329,7 +329,7 @@ export default function VideoGroupDetailPage() {
     }
   };
 
-  // チャットグループが読み込まれたら、共有リンクをセット
+  // Set share link when chat group is loaded
   useEffect(() => {
     if (group?.share_token) {
       const shareUrl = `${window.location.origin}/share/${group.share_token}`;
@@ -337,10 +337,10 @@ export default function VideoGroupDetailPage() {
     } else {
       setShareLink(null);
     }
-    setIsCopied(false); // 共有リンクが変わったらコピー状態をリセット
+    setIsCopied(false); // Reset copy state when share link changes
   }, [group?.share_token]);
 
-  // チャットグループデータが読み込まれたら編集用の状態を初期化
+  // Initialize edit state when chat group data is loaded
   useEffect(() => {
     if (group) {
       setEditedName(group.name);
@@ -349,16 +349,16 @@ export default function VideoGroupDetailPage() {
   }, [group]);
 
   const handleVideoSelect = (videoId: number) => {
-    // チャットグループ情報から直接動画データを取得（N+1問題の解決）
-    // 既にprefetch_relatedで取得済みのデータを使用
+    // Get video data directly from chat group info (solves N+1 problem)
+    // Use data already fetched with prefetch_related
     const video = group?.videos?.find(v => v.id === videoId);
     if (video) {
-      // 共通の変換関数を使用
+      // Use common conversion function
       setSelectedVideo(convertVideoInGroupToSelectedVideo(video));
     }
   };
 
-  // グループの動画が読み込まれたら先頭の動画を自動選択
+  // Automatically select first video when group videos are loaded
   useEffect(() => {
     const videos = group?.videos;
 
@@ -379,28 +379,28 @@ export default function VideoGroupDetailPage() {
     }
   }, [group?.videos, selectedVideo]);
 
-  // チャットから動画を選択して指定時間から再生する関数
+  // Function to select video from chat and play from specified time
   const handleVideoPlayFromTime = (videoId: number, startTime: string) => {
-    // 共通ユーティリティで時間文字列を秒に変換（DRY対応）
+    // Convert time string to seconds using common utility (DRY)
     const seconds = timeStringToSeconds(startTime);
 
-    // モバイルの場合は自動的にプレイヤータブに切り替え
+    // Automatically switch to player tab on mobile
     if (window.innerWidth < 1024) {
       setMobileTab('player');
     }
 
-    // 同じ動画が既に選択されている場合は即座に時間を設定
+    // Set time immediately if same video is already selected
     if (selectedVideo?.id === videoId && videoRef.current) {
       videoRef.current.currentTime = seconds;
       videoRef.current.play();
     } else {
-      // 別の動画を選択する場合は開始時間を保存
+      // Save start time when selecting different video
       pendingStartTimeRef.current = seconds;
       handleVideoSelect(videoId);
     }
   };
 
-  // 動画が読み込まれて再生可能になったら指定時間から再生
+  // Play from specified time when video is loaded and ready
   const handleVideoCanPlay = (event: React.SyntheticEvent<HTMLVideoElement>) => {
     if (pendingStartTimeRef.current !== null) {
       const videoElement = event.currentTarget;
@@ -410,7 +410,7 @@ export default function VideoGroupDetailPage() {
     }
   };
 
-  // ドラッグエンドハンドラー
+  // Drag end handler
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
 
@@ -429,12 +429,12 @@ export default function VideoGroupDetailPage() {
       return;
     }
 
-    // ローカル状態を即座に更新（楽観的更新）
+    // Update local state immediately (optimistic update)
     const newVideos = arrayMove(group.videos, oldIndex, newIndex);
     setGroup({ ...group, videos: newVideos });
 
     try {
-      // サーバーに順序を送信
+      // Send order to server
       const videoIds = newVideos.map(video => video.id);
       await apiClient.reorderVideosInGroup(groupId!, videoIds);
     } catch (err) {
@@ -462,11 +462,11 @@ export default function VideoGroupDetailPage() {
   const { isLoading: isUpdating, error: updateError, mutate: handleUpdate } = useAsyncState({
     onSuccess: () => {
       setIsEditing(false);
-      loadGroupData(); // チャットグループ情報を再読み込み
+      loadGroupData(); // Reload chat group info
     },
   });
 
-  // 編集をキャンセル
+  // Cancel edit
   const handleCancelEdit = () => {
     setIsEditing(false);
     if (group) {
@@ -844,7 +844,7 @@ export default function VideoGroupDetailPage() {
                             isSelected={selectedVideo?.id === video.id}
                             onSelect={(videoId) => {
                               handleVideoSelect(videoId);
-                              // モバイルで動画を選択したらプレイヤータブに切り替え
+                              // Switch to player tab when video is selected on mobile
                               if (window.innerWidth < 1024) {
                                 setMobileTab('player');
                               }

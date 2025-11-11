@@ -22,7 +22,7 @@ from .scene_otsu import SceneSplitter, SubtitleParser
 
 logger = logging.getLogger(__name__)
 
-# Whisper APIがサポートしている形式
+# Formats supported by Whisper API
 SUPPORTED_FORMATS = {
     ".flac",
     ".m4a",
@@ -59,11 +59,11 @@ def create_srt_content(segments):
         end_time = format_time_for_srt(segment["end"])
         text = segment["text"].strip()
 
-        # SRT形式に整形
+        # Format as SRT
         srt_lines.append(f"{i}")
         srt_lines.append(f"{start_time} --> {end_time}")
         srt_lines.append(text)
-        srt_lines.append("")  # 空行で区切る
+        srt_lines.append("")  # Separate with empty line
 
     return "\n".join(srt_lines)
 
@@ -82,7 +82,7 @@ def _count_scenes(srt_content):
 
 
 def _parse_srt_scenes(srt_content):
-    # 共通パーサを使用してDRY化
+    # Use common parser to follow DRY principle
     return SubtitleParser.parse_srt_scenes(srt_content)
 
 
@@ -107,8 +107,8 @@ def _index_scenes_to_vectorstore(scene_docs, video, api_key):
             f"Indexing {len(texts)} scenes to pgvector collection: {config['collection_name']}"
         )
 
-        # pgvectorでベクトルストアを作成
-        # langchain_postgresはpsycopg3を使用するため、接続文字列を変換
+        # Create vector store with pgvector
+        # langchain_postgres uses psycopg3, so convert connection string
         # postgresql:// → postgresql+psycopg://
         connection_str = config["database_url"]
         if connection_str.startswith("postgresql://"):
@@ -120,9 +120,9 @@ def _index_scenes_to_vectorstore(scene_docs, video, api_key):
             texts=texts,
             embedding=embeddings,
             collection_name=config["collection_name"],
-            connection=connection_str,  # langchain_postgresではconnectionパラメータを使用（psycopg3形式）
+            connection=connection_str,  # langchain_postgres uses connection parameter (psycopg3 format)
             metadatas=metadatas,
-            use_jsonb=True,  # JSONBフィルタリングを有効化
+            use_jsonb=True,  # Enable JSONB filtering
         )
 
         logger.info(f"Successfully indexed {len(texts)} scenes to pgvector")
@@ -280,7 +280,7 @@ def transcribe_audio_segment(client, segment_info):
 
 def _process_audio_segments_parallel(client, audio_segments):
     """
-    オーディオセグメントを並列処理（N+1問題対策）
+    Process audio segments in parallel (N+1 prevention)
     """
     all_segments = []
 
@@ -358,7 +358,7 @@ def _index_scenes_batch(scene_split_srt, video, api_key):
         scenes = _parse_srt_scenes(scene_split_srt)
         logger.info(f"Parsed {len(scenes)} scenes from SRT")
 
-        # N+1問題対策: バッチでシーンドキュメントを準備（リスト内包表記で最適化）
+        # N+1 prevention: Prepare scene documents in batch (optimized with list comprehension)
         scene_docs = [
             {
                 "text": sc["text"],
@@ -404,64 +404,64 @@ def transcribe_video(self, video_id):
     """
     logger.info(f"Transcription task started for video ID: {video_id}")
 
-    # 一時ファイル管理を初期化
+    # Initialize temporary file management
     with TemporaryFileManager() as temp_manager:
         try:
-            # Videoインスタンスを取得（N+1問題対策）
+            # Get Video instance (N+1 prevention)
             video, error = VideoTaskManager.get_video_with_user(video_id)
             if error:
                 raise Exception(error)
 
             logger.info(f"Video found: {video.title}")
 
-            # 外部APIクライアントからのアップロードかどうかを保持
+            # Keep track of whether this is an upload from external API client
             is_external_upload = video.is_external_upload
 
-            # 動画の処理可能性を検証
+            # Validate video processability
             is_valid, validation_error = VideoTaskManager.validate_video_for_processing(
                 video
             )
             if not is_valid:
                 raise ValueError(validation_error)
 
-            # 状態を処理中に更新
+            # Update status to processing
             VideoTaskManager.update_video_status(video, "processing")
 
-            # APIキーを復号化
+            # Decrypt API key
             api_key = decrypt_api_key(video.user.encrypted_openai_api_key)
 
-            # OpenAIクライアントを初期化
+            # Initialize OpenAI client
             client = OpenAI(api_key=api_key)
 
-            # 動画ファイルの処理（S3対応）
-            video_file = video.file  # ファイルオブジェクトも保持
+            # Process video file (S3 support)
+            video_file = video.file  # Also keep file object
 
-            # S3の場合は一時的にローカルにダウンロード
+            # Download temporarily to local if S3
             try:
-                # ローカルファイルシステムの場合
+                # Local filesystem case
                 video_file_path = video.file.path
             except (NotImplementedError, AttributeError):
-                # S3などのリモートストレージの場合
-                # 一時ファイルにダウンロード
+                # Remote storage like S3 case
+                # Download to temporary file
                 temp_video_path = os.path.join(
                     tempfile.gettempdir(),
                     f"video_{video_id}_{os.path.basename(video_file.name)}",
                 )
                 logger.info(f"Downloading video from S3 to {temp_video_path}")
 
-                # S3からファイルをダウンロード
+                # Download file from S3
                 with video_file.open("rb") as remote_file:
                     with open(temp_video_path, "wb") as local_file:
                         local_file.write(remote_file.read())
 
                 video_file_path = temp_video_path
-                # 一時ファイルとして登録（処理後に削除）
+                # Register as temporary file (to be deleted after processing)
                 temp_manager.temp_files.append(temp_video_path)
                 logger.info(f"Video downloaded successfully to {temp_video_path}")
 
             logger.info(f"Starting transcription for video {video_id}")
 
-            # Extract and split audio（一時ファイル管理付き）
+            # Extract and split audio (with temporary file management)
             audio_segments = extract_and_split_audio(
                 video_file_path, temp_manager=temp_manager
             )
@@ -470,7 +470,7 @@ def transcribe_video(self, video_id):
                 _handle_transcription_error(video, "Failed to extract audio from video")
                 return
 
-            # Process segments in parallel for better performance（N+1問題対策）
+            # Process segments in parallel for better performance (N+1 prevention)
             all_segments = _process_audio_segments_parallel(client, audio_segments)
 
             if not all_segments:
@@ -491,15 +491,15 @@ def transcribe_video(self, video_id):
             # Save processed SRT
             _save_transcription_result(video, scene_split_srt)
 
-            # Index scenes to vector store for RAG（N+1問題対策）
+            # Index scenes to vector store for RAG (N+1 prevention)
             _index_scenes_batch(scene_split_srt, video, api_key)
 
             logger.info(f"Successfully processed video {video_id}")
 
-            # 外部APIクライアントからのアップロードの場合、処理完了後にファイルを削除
+            # Delete file after processing if uploaded from external API client
             if is_external_upload:
                 try:
-                    # ファイルを削除
+                    # Delete file
                     if video_file:
                         video_file.delete(save=False)
                         logger.info(
@@ -513,5 +513,5 @@ def transcribe_video(self, video_id):
             return scene_split_srt
 
         except Exception as e:
-            # 共通エラーハンドリング
+            # Common error handling
             ErrorHandler.handle_task_error(e, video_id, self, max_retries=3)

@@ -63,7 +63,7 @@ export default function VideoGroupsPage() {
       setNewGroupDescription('');
       setIsCreateModalOpen(false);
       
-      // 再読み込み
+      // Reload
       setLoadedUserId(null);
       await loadGroups();
     } catch (err) {

@@ -166,14 +166,14 @@ class ApiClient {
     this.baseUrl = API_URL;
   }
 
-  // HttpOnly Cookieベースの認証（セキュリティ強化）
-  // localStorageの代わりにHttpOnly Cookieを使用してXSS攻撃を防止
+  // HttpOnly Cookie-based authentication (security enhancement)
+  // Use HttpOnly Cookie instead of localStorage to prevent XSS attacks
   
   async isAuthenticated(): Promise<boolean> {
     try {
       const response = await fetch(`${this.baseUrl}/auth/me/`, {
         method: 'GET',
-        credentials: 'include', // HttpOnly Cookieを送信
+        credentials: 'include', // Send HttpOnly Cookie
         headers: {
           'Content-Type': 'application/json',
         },
@@ -188,7 +188,7 @@ class ApiClient {
     try {
       await fetch(`${this.baseUrl}/auth/logout/`, {
         method: 'POST',
-        credentials: 'include', // HttpOnly Cookieを送信
+        credentials: 'include', // Send HttpOnly Cookie
         headers: {
           'Content-Type': 'application/json',
         },
@@ -198,12 +198,12 @@ class ApiClient {
     }
   }
 
-  // URLを構築する共通メソッド
+  // Common method to build URL
   private buildUrl(endpoint: string): string {
     return `${this.baseUrl}${endpoint}`;
   }
 
-  // bodyがオブジェクトの場合、自動的にJSON.stringifyする共通メソッド
+  // Common method to automatically JSON.stringify body if it's an object
   private stringifyBody(body: RequestBody): BodyInit | null | undefined {
     if (
       body &&
@@ -218,7 +218,7 @@ class ApiClient {
     return body;
   }
 
-  // 基本的なJSONヘッダーを生成する共通メソッド
+  // Common method to generate basic JSON headers
   private getJsonHeaders(): Record<string, string> {
     return { 'Content-Type': 'application/json' };
   }
@@ -229,8 +229,8 @@ class ApiClient {
       ...(additionalHeaders as Record<string, string>),
     };
 
-    // HttpOnly Cookieを使用するため、Authorizationヘッダーは不要
-    // XSS攻撃を防ぐため、トークンをJavaScriptからアクセス可能な場所に保存しない
+    // Authorization header not needed since we use HttpOnly Cookie
+    // Don't store tokens in JavaScript-accessible locations to prevent XSS attacks
 
     return headers;
   }
@@ -255,23 +255,23 @@ class ApiClient {
   }
 
   private async handleAuthError(): Promise<void> {
-    // HttpOnly Cookieベースの認証では、ログアウト処理をバックエンドに委譲
+    // With HttpOnly Cookie-based authentication, delegate logout to backend
     await this.logout();
     window.location.href = '/login';
     throw new Error(i18n.t("errors.authFailed"));
   }
 
-  // エラーログを出力する共通メソッド
+  // Common method to output error logs
   private logError(message: string, error: unknown): void {
     console.error(message, error);
   }
 
-  // レスポンスのJSONを安全に取得する共通メソッド
+  // Common method to safely get JSON from response
   private async parseJsonResponse<T>(response: Response): Promise<T> {
     const contentType = response.headers.get('content-type');
     const isJson = contentType && contentType.includes('application/json');
     
-    // Content-LengthまたはTransfer-Encodingヘッダーをチェック
+    // Check Content-Length or Transfer-Encoding header
     const contentLength = response.headers.get('content-length');
     if (contentLength === '0' || (!isJson && !contentLength)) {
       return {} as T;
@@ -289,7 +289,7 @@ class ApiClient {
     }
   }
 
-  // 401エラーを処理する共通メソッド
+  // Common method to handle 401 errors
   private async handle401Error<T>(response: Response, retryCount: number, retryCallback: () => Promise<T>): Promise<T | null> {
     if (response.status === 401 && retryCount === 0) {
       try {
@@ -311,9 +311,9 @@ class ApiClient {
   }
 
   /**
-   * 共通のfetch実行ロジック（DRY原則に従う）
-   * リトライロジックなしの基本的なfetch処理
-   * 401エラーは例外を投げず、呼び出し元で特別な処理が可能
+   * Common fetch execution logic (following DRY principle)
+   * Basic fetch processing without retry logic
+   * 401 errors don't throw exceptions, allowing special handling by caller
    */
   private async executeRequest(
     url: string,
@@ -321,7 +321,7 @@ class ApiClient {
   ): Promise<Response> {
     const response = await fetch(url, config);
     
-    // 401以外のエラーは即座に処理
+    // Process errors other than 401 immediately
     if (!response.ok && response.status !== 401) {
       await this.handleError(response);
     }
@@ -334,36 +334,36 @@ class ApiClient {
     options: Omit<RequestInit, 'body'> & { body?: RequestBody } = {},
     retryCount: number = 0
   ): Promise<T> {
-    // 共通メソッドを使用してURLを構築
+    // Use common method to build URL
     const url = this.buildUrl(endpoint);
     const headers = this.buildHeaders(options.headers);
 
-    // 共通メソッドを使用してbodyを文字列化
+    // Use common method to stringify body
     const body = this.stringifyBody(options.body);
 
     const config: RequestInit = {
       ...options,
       body,
       headers,
-      credentials: 'include', // HttpOnly Cookieを送信
+      credentials: 'include', // Send HttpOnly Cookie
     };
 
     try {
-      // 共通のfetch実行ロジックを使用
+      // Use common fetch execution logic
       const response = await this.executeRequest(url, config);
       
-      // 共通メソッドを使用して401エラーを処理
+      // Use common method to handle 401 errors
       const retryResult = await this.handle401Error<T>(response, retryCount, () => this.request(endpoint, options, retryCount + 1));
       
-      // リトライした場合は再帰的に呼ばれた結果を返す
+      // Return recursively called result if retried
       if (retryResult !== null && retryResult !== undefined) {
         return retryResult as T;
       }
 
-      // 共通メソッドを使用してレスポンスのJSONを取得
+      // Use common method to get JSON from response
       return await this.parseJsonResponse<T>(response);
     } catch (error) {
-      // 共通メソッドを使用してエラーログを出力
+      // Use common method to output error logs
       this.logError('API request failed:', error);
       throw error;
     }
@@ -389,8 +389,8 @@ class ApiClient {
       body: data,
     });
     
-    // HttpOnly Cookieベースの認証では、バックエンドがCookieを設定するため
-    // フロントエンドでトークンを保存する必要はない
+    // With HttpOnly Cookie-based authentication, backend sets Cookie
+    // No need to store tokens on frontend
     
     return response;
   }
@@ -410,13 +410,13 @@ class ApiClient {
   }
 
   async refreshToken(): Promise<RefreshResponse> {
-    // HttpOnly Cookieベースの認証では、バックエンドがCookieを自動更新するため
-    // フロントエンドでリフレッシュトークンを管理する必要はない
-    // 必要に応じてバックエンドのリフレッシュエンドポイントを呼び出す
+    // With HttpOnly Cookie-based authentication, backend automatically updates Cookie
+    // No need to manage refresh tokens on frontend
+    // Call backend refresh endpoint as needed
     
     const response = await this.request<RefreshResponse>('/auth/refresh/', {
       method: 'POST',
-      body: {}, // バックエンドがCookieからリフレッシュトークンを取得
+      body: {}, // Backend gets refresh token from Cookie
     });
     
     return response;
@@ -508,7 +508,7 @@ class ApiClient {
 
 
 
-  // Video関連のメソッド
+  // Video-related methods
   async getVideos(params?: { q?: string; status?: string; ordering?: 'uploaded_at_desc' | 'uploaded_at_asc' | 'title_asc' | 'title_desc' }): Promise<VideoList[]> {
     const queryParams: Record<string, string> = {};
     if (params?.q && params.q.trim() !== '') queryParams.q = params.q.trim();
@@ -536,7 +536,7 @@ class ApiClient {
 
     const url = this.buildUrl('/videos/');
     
-    // HttpOnly Cookieベースの認証では、Authorizationヘッダーは不要
+    // Authorization header not needed with HttpOnly Cookie-based authentication
     const headers: Record<string, string> = {};
 
     try {
@@ -567,7 +567,7 @@ class ApiClient {
     });
   }
 
-  // VideoGroup関連のメソッド
+  // VideoGroup-related methods
   async getVideoGroups(): Promise<VideoGroupList[]> {
     return this.request<VideoGroupList[]>('/videos/groups/');
   }
@@ -596,7 +596,7 @@ class ApiClient {
     });
   }
 
-  // グループに動画を追加・削除
+  // Add/remove videos to/from group
   async addVideoToGroup(groupId: number, videoId: number): Promise<void> {
     return this.request<void>(`/videos/groups/${groupId}/videos/${videoId}/`, {
       method: 'POST',
@@ -623,7 +623,7 @@ class ApiClient {
     });
   }
 
-  // 共有リンク関連
+  // Share link related
   async createShareLink(groupId: number): Promise<{ message: string; share_token: string }> {
     return this.request<{ message: string; share_token: string }>(
       `/videos/groups/${groupId}/share/`,
@@ -640,7 +640,7 @@ class ApiClient {
   }
 
   async getSharedGroup(shareToken: string): Promise<VideoGroup> {
-    // 共有グループは認証不要なので、credentials を含めない
+    // Shared groups don't require authentication, so don't include credentials
     const url = this.buildUrl(`/videos/groups/shared/${shareToken}/`);
     const response = await fetch(url);
 
@@ -652,7 +652,7 @@ class ApiClient {
     return response.json();
   }
 
-  // 共有グループの動画URL取得（share_tokenをクエリパラメータに追加）
+  // Get video URL for shared group (add share_token as query parameter)
   getSharedVideoUrl(videoFile: string, shareToken: string): string {
     const url = new URL(videoFile, window.location.origin);
     url.searchParams.set('share_token', shareToken);

@@ -31,7 +31,7 @@ function validateVideoUpload(file: File | null, title: string): ValidationResult
   if (!file) {
     return { isValid: false, error: i18n.t('videos.upload.validation.noFile') };
   }
-  // タイトルが空の場合はファイル名を使用するので、ファイルがあればOK
+  // File is OK if title is empty since filename will be used
   const finalTitle = title.trim() || file.name.replace(/\.[^/.]+$/, '');
   if (!finalTitle) {
     return { isValid: false, error: i18n.t('videos.upload.validation.noTitle') };
@@ -55,7 +55,7 @@ export function useVideoUpload(): UseVideoUploadReturn {
     if (e.target.files && e.target.files[0]) {
       const selectedFile = e.target.files[0];
       setFile(selectedFile);
-      // ファイル名（拡張子を除く）をタイトルに自動設定
+      // Automatically set filename (without extension) as title
       const fileNameWithoutExt = selectedFile.name.replace(/\.[^/.]+$/, '');
       setTitle(fileNameWithoutExt);
     }
@@ -79,7 +79,7 @@ export function useVideoUpload(): UseVideoUploadReturn {
     }
 
     await uploadVideo(async () => {
-      // タイトルが空の場合はファイル名（拡張子を除く）を使用
+      // Use filename (without extension) if title is empty
       const finalTitle = title.trim() || (file ? file.name.replace(/\.[^/.]+$/, '') : '');
       
       const request: VideoUploadRequest = {

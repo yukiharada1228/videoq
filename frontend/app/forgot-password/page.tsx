@@ -33,9 +33,9 @@ export default function ForgotPasswordPage() {
     setError(null);
 
     try {
-      await execute(() => apiClient.requestPasswordReset({ email }));
+      await execute(() => apiClient.requestPasswordReset({ email })      );
     } catch {
-      // useAsyncState がエラー表示を管理
+      // useAsyncState manages error display
     }
   };
 

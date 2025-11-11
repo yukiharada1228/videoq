@@ -1,5 +1,5 @@
 """
-データベースクエリ最適化ユーティリティ（N+1問題対策）
+Database query optimization utilities (N+1 prevention)
 """
 
 from typing import Any, Dict, List, Optional
@@ -9,7 +9,7 @@ from django.db.models import Count, Prefetch, QuerySet
 
 
 class QueryOptimizer:
-    """データベースクエリの最適化クラス（N+1問題対策）"""
+    """Database query optimization class (N+1 prevention)"""
 
     @staticmethod
     def optimize_video_queryset(
@@ -19,16 +19,16 @@ class QueryOptimizer:
         include_groups: bool = False,
     ) -> QuerySet:
         """
-        動画クエリセットを最適化（N+1問題対策）
+        Optimize video queryset (N+1 prevention)
 
         Args:
-            queryset: ベースとなるクエリセット
-            include_user: ユーザー情報を含めるか
-            include_transcript: 文字起こしを含めるか
-            include_groups: グループ情報を含めるか
+            queryset: Base queryset
+            include_user: Whether to include user information
+            include_transcript: Whether to include transcript
+            include_groups: Whether to include group information
 
         Returns:
-            最適化されたクエリセット
+            Optimized queryset
         """
         select_related_fields = []
         if include_user:
@@ -70,16 +70,16 @@ class QueryOptimizer:
         annotate_video_count: bool = True,
     ) -> QuerySet:
         """
-        動画グループクエリセットを最適化（N+1問題対策）
+        Optimize video group queryset (N+1 prevention)
 
         Args:
-            queryset: ベースとなるクエリセット
-            include_videos: 動画情報を含めるか
-            include_user: ユーザー情報を含めるか
-            annotate_video_count: 動画数をアノテートするか
+            queryset: Base queryset
+            include_videos: Whether to include video information
+            include_user: Whether to include user information
+            annotate_video_count: Whether to annotate video count
 
         Returns:
-            最適化されたクエリセット
+            Optimized queryset
         """
         if include_user:
             queryset = queryset.select_related("user")
@@ -107,16 +107,16 @@ class QueryOptimizer:
         include_groups: bool = False,
     ) -> QuerySet:
         """
-        メタデータ付きで動画を取得（N+1問題対策）
+        Get videos with metadata (N+1 prevention)
 
         Args:
-            user_id: ユーザーID
-            include_transcript: 文字起こしを含めるか
-            status_filter: ステータスフィルター
-            include_groups: グループ情報を含めるか
+            user_id: User ID
+            include_transcript: Whether to include transcript
+            status_filter: Status filter
+            include_groups: Whether to include group information
 
         Returns:
-            最適化された動画クエリセット
+            Optimized video queryset
         """
         if user_id is not None:
             queryset = Video.objects.filter(user_id=user_id)
@@ -142,13 +142,13 @@ class QueryOptimizer:
         annotate_video_count: bool = True,
     ) -> QuerySet:
         """
-        動画付きでグループを取得（N+1問題対策）
+        Get groups with videos (N+1 prevention)
 
         Args:
-            user_id: ユーザーID
+            user_id: User ID
 
         Returns:
-            最適化されたグループクエリセット
+            Optimized group queryset
         """
         queryset = VideoGroup.objects.filter(user_id=user_id)
 
@@ -161,19 +161,19 @@ class QueryOptimizer:
 
 
 class BatchProcessor:
-    """バッチ処理の最適化クラス（N+1問題対策）"""
+    """Batch processing optimization class (N+1 prevention)"""
 
     @staticmethod
     def bulk_update_videos(videos: List[Video], fields: List[str]) -> int:
         """
-        動画をバッチ更新（N+1問題対策）
+        Batch update videos (N+1 prevention)
 
         Args:
-            videos: 更新する動画のリスト
-            fields: 更新するフィールドのリスト
+            videos: List of videos to update
+            fields: List of fields to update
 
         Returns:
-            更新されたレコード数
+            Number of updated records
         """
         if not videos:
             return 0
@@ -185,15 +185,15 @@ class BatchProcessor:
         group_id: int, video_ids: List[int], orders: Optional[List[int]] = None
     ) -> List[VideoGroupMember]:
         """
-        動画グループメンバーをバッチ作成（N+1問題対策）
+        Batch create video group members (N+1 prevention)
 
         Args:
-            group_id: グループID
-            video_ids: 動画IDのリスト
-            orders: 順序のリスト（オプション）
+            group_id: Group ID
+            video_ids: List of video IDs
+            orders: List of orders (optional)
 
         Returns:
-            作成されたメンバーのリスト
+            List of created members
         """
         if not video_ids:
             return []
@@ -211,14 +211,14 @@ class BatchProcessor:
     @staticmethod
     def bulk_delete_video_group_members(group_id: int, video_ids: List[int]) -> int:
         """
-        動画グループメンバーをバッチ削除（N+1問題対策）
+        Batch delete video group members (N+1 prevention)
 
         Args:
-            group_id: グループID
-            video_ids: 削除する動画IDのリスト
+            group_id: Group ID
+            video_ids: List of video IDs to delete
 
         Returns:
-            削除されたレコード数
+            Number of deleted records
         """
         if not video_ids:
             return 0
@@ -230,23 +230,23 @@ class BatchProcessor:
 
 
 class CacheOptimizer:
-    """キャッシュ最適化クラス（N+1問題対策）"""
+    """Cache optimization class (N+1 prevention)"""
 
     @staticmethod
     def get_cached_video_data(video_ids: List[int]) -> Dict[int, Dict[str, Any]]:
         """
-        動画データをキャッシュから取得（N+1問題対策）
+        Get video data from cache (N+1 prevention)
 
         Args:
-            video_ids: 動画IDのリスト
+            video_ids: List of video IDs
 
         Returns:
-            動画IDをキーとしたデータ辞書
+            Dictionary with video ID as key
         """
         if not video_ids:
             return {}
 
-        # N+1問題対策: 一度のクエリで必要なデータを取得
+        # N+1 prevention: Get required data in a single query
         videos = (
             QueryOptimizer.get_videos_with_metadata(
                 user_id=None, include_transcript=False
@@ -268,18 +268,18 @@ class CacheOptimizer:
     @staticmethod
     def get_cached_video_group_data(group_ids: List[int]) -> Dict[int, Dict[str, Any]]:
         """
-        動画グループデータをキャッシュから取得（N+1問題対策）
+        Get video group data from cache (N+1 prevention)
 
         Args:
-            group_ids: グループIDのリスト
+            group_ids: List of group IDs
 
         Returns:
-            グループIDをキーとしたデータ辞書
+            Dictionary with group ID as key
         """
         if not group_ids:
             return {}
 
-        # N+1問題対策: 一度のクエリで必要なデータを取得
+        # N+1 prevention: Get required data in a single query
         groups = (
             VideoGroup.objects.filter(id__in=group_ids)
             .select_related("user")
@@ -303,14 +303,14 @@ class CacheOptimizer:
         queryset: QuerySet, related_fields: List[str]
     ) -> QuerySet:
         """
-        関連データを事前取得（N+1問題対策）
+        Prefetch related data (N+1 prevention)
 
         Args:
-            queryset: ベースとなるクエリセット
-            related_fields: 事前取得する関連フィールドのリスト
+            queryset: Base queryset
+            related_fields: List of related fields to prefetch
 
         Returns:
-            最適化されたクエリセット
+            Optimized queryset
         """
         if not related_fields:
             return queryset
@@ -320,23 +320,23 @@ class CacheOptimizer:
     @staticmethod
     def optimize_bulk_operations(queryset: QuerySet, operation_type: str) -> QuerySet:
         """
-        バルク操作用のクエリセットを最適化（N+1問題対策）
+        Optimize queryset for bulk operations (N+1 prevention)
 
         Args:
-            queryset: ベースとなるクエリセット
-            operation_type: 操作タイプ（'update', 'delete', 'create'）
+            queryset: Base queryset
+            operation_type: Operation type ('update', 'delete', 'create')
 
         Returns:
-            最適化されたクエリセット
+            Optimized queryset
         """
         if operation_type == "update":
-            # 更新操作では必要なフィールドのみを選択
+            # Select only necessary fields for update operations
             return queryset.only("id")
         elif operation_type == "delete":
-            # 削除操作ではIDのみを選択
+            # Select only ID for delete operations
             return queryset.only("id")
         elif operation_type == "create":
-            # 作成操作ではデフォルトのまま
+            # Keep default for create operations
             return queryset
         else:
             return queryset
@@ -346,14 +346,14 @@ class CacheOptimizer:
         model_class, filters: Optional[Dict[str, Any]] = None
     ) -> QuerySet:
         """
-        カウント用の最適化されたクエリセットを取得（N+1問題対策）
+        Get optimized queryset for counting (N+1 prevention)
 
         Args:
-            model_class: モデルクラス
-            filters: フィルター条件
+            model_class: Model class
+            filters: Filter conditions
 
         Returns:
-            最適化されたクエリセット
+            Optimized queryset
         """
         queryset = model_class.objects.only("id")
         if filters:

@@ -51,7 +51,7 @@ export function ChatPanel({ hasApiKey, groupId, onVideoPlay, shareToken, classNa
   }, [messages]);
 
   const openHistory = async () => {
-    if (!groupId || !!shareToken) return; // 共有リンクでは無効
+    if (!groupId || !!shareToken) return; // Disabled for share links
     setHistoryOpen(true);
     setHistoryLoading(true);
     try {
@@ -74,13 +74,13 @@ export function ChatPanel({ hasApiKey, groupId, onVideoPlay, shareToken, classNa
     }
   };
 
-  // 動画ページに遷移する関数
+  // Function to navigate to video page
   const navigateToVideo = (videoId: number, startTime: string) => {
     if (onVideoPlay) {
-      // グループ画面内で動画を再生
+      // Play video within group screen
       onVideoPlay(videoId, startTime);
     } else {
-      // 新しいタブで動画ページを開く
+      // Open video page in new tab
       const seconds = timeStringToSeconds(startTime);
       window.open(`/videos/${videoId}?t=${seconds}`, '_blank');
     }
@@ -96,7 +96,7 @@ export function ChatPanel({ hasApiKey, groupId, onVideoPlay, shareToken, classNa
 
     try {
       const response = await apiClient.chat({
-        // バックエンドは最新のユーザメッセージのみを参照するため最小限で送信
+        // Send minimal data since backend only references latest user message
         messages: [userMessage],
         ...(groupId ? { group_id: groupId } : {}),
         ...(shareToken ? { share_token: shareToken } : {}),

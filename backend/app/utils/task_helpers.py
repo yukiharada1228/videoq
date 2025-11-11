@@ -1,5 +1,5 @@
 """
-タスク処理の共通ユーティリティ
+Common task processing utilities
 """
 
 import logging
@@ -15,12 +15,12 @@ logger = logging.getLogger(__name__)
 
 
 class VideoTaskManager:
-    """動画タスク処理の共通管理クラス"""
+    """Common management class for video task processing"""
 
     @staticmethod
     def get_video_with_user(video_id: int) -> Tuple[Optional[Video], Optional[str]]:
         """
-        動画とユーザー情報を一度に取得（N+1問題対策）
+        Get video and user information at once (N+1 prevention)
 
         Returns:
             (video, error_message)
@@ -40,10 +40,10 @@ class VideoTaskManager:
     @staticmethod
     def update_video_status(video: Video, status: str, error_message: str = "") -> bool:
         """
-        動画のステータスを更新
+        Update video status
 
         Returns:
-            bool: 更新成功かどうか
+            bool: Whether update succeeded
         """
         try:
             video.status = status
@@ -58,7 +58,7 @@ class VideoTaskManager:
     @staticmethod
     def validate_video_for_processing(video: Video) -> Tuple[bool, Optional[str]]:
         """
-        動画の処理可能性を検証
+        Validate video processability
 
         Returns:
             (is_valid, error_message)
@@ -66,14 +66,14 @@ class VideoTaskManager:
         if not video.file:
             return False, "Video file is not available"
 
-        # S3対応: ファイルの存在確認
+        # S3 support: Check file existence
         try:
-            # ローカルファイルシステムの場合
+            # Local filesystem case
             if not os.path.exists(video.file.path):
                 return False, f"Video file not found: {video.file.path}"
         except (NotImplementedError, AttributeError):
-            # S3などのリモートストレージの場合
-            # ファイルオブジェクトが存在するか確認
+            # Remote storage like S3 case
+            # Check if file object exists
             try:
                 video.file.open("rb").close()
             except Exception as e:
@@ -86,13 +86,13 @@ class VideoTaskManager:
 
 
 class TemporaryFileManager:
-    """一時ファイル管理の共通クラス"""
+    """Common temporary file management class"""
 
     def __init__(self):
         self.temp_files: List[str] = []
 
     def create_temp_file(self, suffix: str = "", prefix: str = "temp_") -> str:
-        """一時ファイルを作成して管理リストに追加"""
+        """Create temporary file and add to management list"""
         temp_file = tempfile.NamedTemporaryFile(
             suffix=suffix, prefix=prefix, delete=False
         )
@@ -101,7 +101,7 @@ class TemporaryFileManager:
         return temp_file.name
 
     def cleanup_all(self):
-        """管理されている一時ファイルをすべて削除"""
+        """Delete all managed temporary files"""
         for temp_file in self.temp_files:
             try:
                 if os.path.exists(temp_file):
@@ -119,23 +119,23 @@ class TemporaryFileManager:
 
 
 class BatchProcessor:
-    """バッチ処理の共通クラス（N+1問題対策）"""
+    """Common batch processing class (N+1 prevention)"""
 
     @staticmethod
     def process_in_batches(
         items: List[Any], batch_size: int, process_func, *args, **kwargs
     ) -> List[Any]:
         """
-        アイテムをバッチで処理（N+1問題対策）
+        Process items in batches (N+1 prevention)
 
         Args:
-            items: 処理するアイテムのリスト
-            batch_size: バッチサイズ
-            process_func: 処理関数
-            *args, **kwargs: 処理関数に渡す引数
+            items: List of items to process
+            batch_size: Batch size
+            process_func: Processing function
+            *args, **kwargs: Arguments to pass to processing function
 
         Returns:
-            処理結果のリスト
+            List of processing results
         """
         results = []
         for i in range(0, len(items), batch_size):
@@ -147,7 +147,7 @@ class BatchProcessor:
     @staticmethod
     @contextmanager
     def database_transaction():
-        """データベーストランザクションのコンテキストマネージャー"""
+        """Database transaction context manager"""
         try:
             with transaction.atomic():
                 yield
@@ -157,24 +157,24 @@ class BatchProcessor:
 
 
 class ErrorHandler:
-    """エラーハンドリングの共通クラス"""
+    """Common error handling class"""
 
     @staticmethod
     def handle_task_error(
         error: Exception, video_id: int, task_instance=None, max_retries: int = 3
     ) -> None:
         """
-        タスクエラーの共通処理
+        Common task error handling
 
         Args:
-            error: 発生したエラー
-            video_id: 動画ID
-            task_instance: Celeryタスクインスタンス
-            max_retries: 最大リトライ回数
+            error: Occurred error
+            video_id: Video ID
+            task_instance: Celery task instance
+            max_retries: Maximum retry count
         """
         logger.error(f"Error in task for video {video_id}: {error}", exc_info=True)
 
-        # N+1問題対策: 動画ステータスをエラーに更新（select_relatedは不要）
+        # N+1 prevention: Update video status to error (select_related not needed)
         try:
             video = Video.objects.only("id").get(id=video_id)
             VideoTaskManager.update_video_status(video, "error", str(error))
@@ -188,7 +188,7 @@ class ErrorHandler:
     @staticmethod
     def _handle_retry_logic(task_instance, error: Exception, max_retries: int) -> None:
         """
-        リトライ処理の共通ロジック
+        Common retry logic
         """
         if task_instance and task_instance.request.retries < max_retries:
             logger.info(
@@ -201,7 +201,7 @@ class ErrorHandler:
     @staticmethod
     def safe_execute(func, *args, **kwargs):
         """
-        安全な関数実行
+        Safe function execution
 
         Returns:
             (result, error)
@@ -216,7 +216,7 @@ class ErrorHandler:
     @staticmethod
     def handle_database_error(error: Exception, operation: str) -> None:
         """
-        データベースエラーの共通処理
+        Common database error handling
         """
         logger.error(f"Database error during {operation}: {error}", exc_info=True)
         raise error
@@ -224,7 +224,7 @@ class ErrorHandler:
     @staticmethod
     def validate_required_fields(data: dict, required_fields: list) -> tuple[bool, str]:
         """
-        必須フィールドのバリデーション
+        Validate required fields
 
         Returns:
             (is_valid, error_message)

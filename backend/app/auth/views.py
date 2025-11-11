@@ -15,15 +15,15 @@ User = get_user_model()
 
 
 class PublicAPIView(PublicViewMixin, generics.GenericAPIView):
-    """認証不要のAPIビュー"""
+    """API view that doesn't require authentication"""
 
 
 class AuthenticatedAPIView(AuthenticatedViewMixin, generics.GenericAPIView):
-    """認証必須のAPIビュー"""
+    """API view that requires authentication"""
 
 
 class UserSignupView(generics.CreateAPIView):
-    """ユーザー新規登録ビュー"""
+    """User registration view"""
 
     queryset = User.objects.all()
     serializer_class = UserSignupSerializer
@@ -35,14 +35,14 @@ class UserSignupView(generics.CreateAPIView):
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
         return Response(
-            {"detail": "確認メールを送信しました。メールをご確認ください。"},
+            {"detail": "Verification email sent. Please check your email."},
             status=status.HTTP_201_CREATED,
             headers=headers,
         )
 
 
 class LoginView(PublicAPIView):
-    """ログインビュー"""
+    """Login view"""
 
     serializer_class = LoginSerializer
 
@@ -58,35 +58,35 @@ class LoginView(PublicAPIView):
             {"access": str(refresh.access_token), "refresh": str(refresh)}
         )
 
-        # HttpOnly Cookie に JWT トークンを設定
+        # Set JWT token in HttpOnly Cookie
         response.set_cookie(
             key="access_token",
             value=str(refresh.access_token),
             httponly=True,
-            secure=False,  # 開発環境では False、本番では True
+            secure=False,  # False in development, True in production
             samesite="Lax",
-            max_age=60 * 10,  # 10分（ACCESS_TOKEN_LIFETIME と同じ）
+            max_age=60 * 10,  # 10 minutes (same as ACCESS_TOKEN_LIFETIME)
         )
         response.set_cookie(
             key="refresh_token",
             value=str(refresh),
             httponly=True,
-            secure=False,  # 開発環境では False、本番では True
+            secure=False,  # False in development, True in production
             samesite="Lax",
-            max_age=60 * 60 * 24 * 14,  # 14日（REFRESH_TOKEN_LIFETIME と同じ）
+            max_age=60 * 60 * 24 * 14,  # 14 days (same as REFRESH_TOKEN_LIFETIME)
         )
 
         return response
 
 
 class LogoutView(AuthenticatedAPIView):
-    """ログアウトビュー"""
+    """Logout view"""
 
     def post(self, request):
-        """HttpOnly Cookieを削除してログアウト"""
-        response = Response({"message": "ログアウトしました"})
+        """Logout by deleting HttpOnly Cookie"""
+        response = Response({"message": "Logged out successfully"})
 
-        # HttpOnly Cookieを削除
+        # Delete HttpOnly Cookie
         response.delete_cookie("access_token")
         response.delete_cookie("refresh_token")
 
@@ -94,26 +94,26 @@ class LogoutView(AuthenticatedAPIView):
 
 
 class RefreshView(PublicAPIView):
-    """トークンリフレッシュビュー"""
+    """Token refresh view"""
 
     serializer_class = RefreshSerializer
 
     def post(self, request):
-        # Cookieからリフレッシュトークンを取得（優先）
+        # Get refresh token from Cookie (priority)
         refresh_token = request.COOKIES.get("refresh_token")
 
-        # Cookieにない場合はリクエストボディから取得（後方互換性）
+        # Get from request body if not in Cookie (backward compatibility)
         if not refresh_token:
             serializer = self.get_serializer(data=request.data)
             serializer.is_valid(raise_exception=True)
             refresh = serializer.validated_data["refresh_obj"]
         else:
-            # Cookieから取得したトークンを検証
+            # Verify token obtained from Cookie
             try:
                 refresh = RefreshToken(refresh_token)
             except InvalidToken:
                 return Response(
-                    {"detail": "無効なリフレッシュトークンです"},
+                    {"detail": "Invalid refresh token"},
                     status=status.HTTP_401_UNAUTHORIZED,
                 )
 
@@ -121,21 +121,21 @@ class RefreshView(PublicAPIView):
 
         response = Response({"access": str(access)})
 
-        # HttpOnly Cookie に新しい access_token を設定
+        # Set new access_token in HttpOnly Cookie
         response.set_cookie(
             key="access_token",
             value=str(access),
             httponly=True,
-            secure=False,  # 開発環境では False、本番では True
+            secure=False,  # False in development, True in production
             samesite="Lax",
-            max_age=60 * 10,  # 10分（ACCESS_TOKEN_LIFETIME と同じ）
+            max_age=60 * 10,  # 10 minutes (same as ACCESS_TOKEN_LIFETIME)
         )
 
         return response
 
 
 class EmailVerificationView(PublicAPIView):
-    """メール認証完了ビュー"""
+    """Email verification completion view"""
 
     serializer_class = EmailVerificationSerializer
 
@@ -143,11 +143,11 @@ class EmailVerificationView(PublicAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return Response({"detail": "メール認証が完了しました。ログインしてください。"})
+        return Response({"detail": "Email verification completed. Please sign in."})
 
 
 class PasswordResetRequestView(PublicAPIView):
-    """パスワードリセット要求ビュー"""
+    """Password reset request view"""
 
     serializer_class = PasswordResetRequestSerializer
 
@@ -157,13 +157,13 @@ class PasswordResetRequestView(PublicAPIView):
         serializer.save()
         return Response(
             {
-                "detail": "パスワードリセット用のメールを送信しました。メールをご確認ください。"
+                "detail": "Password reset email sent. Please check your email."
             }
         )
 
 
 class PasswordResetConfirmView(PublicAPIView):
-    """パスワードリセット確定ビュー"""
+    """Password reset confirmation view"""
 
     serializer_class = PasswordResetConfirmSerializer
 
@@ -173,13 +173,13 @@ class PasswordResetConfirmView(PublicAPIView):
         serializer.save()
         return Response(
             {
-                "detail": "パスワードをリセットしました。新しいパスワードでログインしてください。"
+                "detail": "Password reset successfully. Please sign in with your new password."
             }
         )
 
 
 class MeView(AuthenticatedAPIView, generics.RetrieveUpdateAPIView):
-    """現在のユーザー情報取得・更新ビュー"""
+    """Current user information retrieval and update view"""
 
     def get_serializer_class(self):
         if self.request.method == "PUT" or self.request.method == "PATCH":

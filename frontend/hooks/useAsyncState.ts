@@ -36,7 +36,7 @@ export function useAsyncState<T = unknown>(
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // コールバックをrefで保持して無限ループを防ぐ
+  // Keep callbacks in ref to prevent infinite loops
   const onSuccessRef = useRef(onSuccess);
   const onErrorRef = useRef(onError);
   onSuccessRef.current = onSuccess;

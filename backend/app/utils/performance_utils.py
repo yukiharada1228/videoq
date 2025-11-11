@@ -1,5 +1,5 @@
 """
-共通のパフォーマンス最適化ユーティリティ
+Common performance optimization utilities
 """
 
 import logging
@@ -17,18 +17,18 @@ T = TypeVar("T")
 
 
 class PerformanceOptimizer:
-    """パフォーマンス最適化の共通クラス"""
+    """Common performance optimization class"""
 
     @staticmethod
     def measure_time(func: Callable) -> Callable:
         """
-        実行時間を測定するデコレータ
+        Decorator to measure execution time
 
         Args:
-            func: 測定する関数
+            func: Function to measure
 
         Returns:
-            測定結果付き関数
+            Function with measurement results
         """
 
         @wraps(func)
@@ -37,7 +37,7 @@ class PerformanceOptimizer:
             result = func(*args, **kwargs)
             end_time = time.time()
 
-            logger.info(f"{func.__name__}: {end_time - start_time:.2f}秒")
+            logger.info(f"{func.__name__}: {end_time - start_time:.2f} seconds")
             return result
 
         return wrapper
@@ -45,13 +45,13 @@ class PerformanceOptimizer:
     @staticmethod
     def measure_async_time(func: Callable) -> Callable:
         """
-        非同期実行時間を測定するデコレータ
+        Decorator to measure async execution time
 
         Args:
-            func: 測定する非同期関数
+            func: Async function to measure
 
         Returns:
-            測定結果付き非同期関数
+            Async function with measurement results
         """
 
         @wraps(func)
@@ -60,7 +60,7 @@ class PerformanceOptimizer:
             result = await func(*args, **kwargs)
             end_time = time.time()
 
-            logger.info(f"{func.__name__}: {end_time - start_time:.2f}秒")
+            logger.info(f"{func.__name__}: {end_time - start_time:.2f} seconds")
             return result
 
         return wrapper
@@ -68,13 +68,13 @@ class PerformanceOptimizer:
     @staticmethod
     def count_queries(func: Callable) -> Callable:
         """
-        データベースクエリ数を測定するデコレータ（N+1問題対策）
+        Decorator to measure database query count (N+1 prevention)
 
         Args:
-            func: 測定する関数
+            func: Function to measure
 
         Returns:
-            クエリ数測定結果付き関数
+            Function with query count measurement results
         """
 
         @wraps(func)
@@ -84,27 +84,27 @@ class PerformanceOptimizer:
             final_queries = len(connection.queries)
 
             query_count = final_queries - initial_queries
-            logger.info(f"{func.__name__}: {query_count}クエリ実行")
+            logger.info(f"{func.__name__}: {query_count} queries executed")
             return result
 
         return wrapper
 
 
 class CacheManager:
-    """キャッシュ管理の共通クラス"""
+    """Common cache management class"""
 
     @staticmethod
     def get_or_set(key: str, default: Callable[[], T], timeout: int = 300) -> T:
         """
-        キャッシュから取得、なければ設定
+        Get from cache, or set if not exists
 
         Args:
-            key: キャッシュキー
-            default: デフォルト値を生成する関数
-            timeout: キャッシュの有効期限（秒）
+            key: Cache key
+            default: Function to generate default value
+            timeout: Cache expiration time (seconds)
 
         Returns:
-            キャッシュされた値
+            Cached value
         """
         result = cache.get(key)
         if result is None:
@@ -115,15 +115,15 @@ class CacheManager:
     @staticmethod
     def get_or_set_async(key: str, default: Callable[[], T], timeout: int = 300) -> T:
         """
-        非同期キャッシュから取得、なければ設定
+        Get from async cache, or set if not exists
 
         Args:
-            key: キャッシュキー
-            default: デフォルト値を生成する非同期関数
-            timeout: キャッシュの有効期限（秒）
+            key: Cache key
+            default: Async function to generate default value
+            timeout: Cache expiration time (seconds)
 
         Returns:
-            キャッシュされた値
+            Cached value
         """
         result = cache.get(key)
         if result is None:
@@ -134,29 +134,29 @@ class CacheManager:
     @staticmethod
     def invalidate_pattern(pattern: str) -> None:
         """
-        パターンに一致するキャッシュを無効化
+        Invalidate cache matching pattern
 
         Args:
-            pattern: 無効化するパターン
+            pattern: Pattern to invalidate
         """
-        # 実装は使用するキャッシュバックエンドに依存
-        logger.info(f"キャッシュパターン '{pattern}' を無効化")
+        # Implementation depends on cache backend used
+        logger.info(f"Invalidating cache pattern '{pattern}'")
 
 
 class MemoryOptimizer:
-    """メモリ最適化の共通クラス"""
+    """Common memory optimization class"""
 
     @staticmethod
     def chunked_iterator(queryset: QuerySet, chunk_size: int = 1000):
         """
-        チャンクでイテレート（メモリ効率化）
+        Iterate in chunks (memory efficient)
 
         Args:
-            queryset: クエリセット
-            chunk_size: チャンクサイズ
+            queryset: QuerySet
+            chunk_size: Chunk size
 
         Yields:
-            チャンクごとのデータ
+            Data per chunk
         """
         total_count = queryset.count()
 
@@ -169,15 +169,15 @@ class MemoryOptimizer:
         items: List[Any], mapper: Callable[[Any], Any], chunk_size: int = 1000
     ) -> List[Any]:
         """
-        メモリ効率的なマッピング
+        Memory-efficient mapping
 
         Args:
-            items: マッピングするアイテムのリスト
-            mapper: マッピング関数
-            chunk_size: チャンクサイズ
+            items: List of items to map
+            mapper: Mapping function
+            chunk_size: Chunk size
 
         Returns:
-            マッピング結果のリスト
+            List of mapping results
         """
         results = []
 

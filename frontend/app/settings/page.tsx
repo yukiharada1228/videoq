@@ -20,7 +20,7 @@ export default function Settings() {
   const [success, setSuccess] = useState(false);
   const { t } = useTranslation();
 
-  // ユーザー情報が読み込まれたらAPIキーを設定
+  // Set API key when user info is loaded
   useEffect(() => {
     if (user && user.encrypted_openai_api_key) {
       setApiKey(user.encrypted_openai_api_key);
