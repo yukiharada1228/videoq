@@ -8,16 +8,16 @@ logger = logging.getLogger(__name__)
 
 
 class UserOwnedSerializerMixin:
-    """ユーザー所有リソースの共通シリアライザー基底クラス"""
+    """Common serializer base class for user-owned resources"""
 
     def create(self, validated_data):
-        """ユーザーを現在のユーザーに設定"""
+        """Set user to current user"""
         validated_data["user"] = self.context["request"].user
         return super().create(validated_data)
 
 
 class BaseVideoGroupSerializer(serializers.ModelSerializer):
-    """VideoGroupの共通基底シリアライザー"""
+    """Common base serializer for VideoGroup"""
 
     class Meta:
         model = VideoGroup
@@ -25,7 +25,7 @@ class BaseVideoGroupSerializer(serializers.ModelSerializer):
 
 
 class VideoSerializer(serializers.ModelSerializer):
-    """Videoモデルのシリアライザー"""
+    """Serializer for Video model"""
 
     class Meta:
         model = Video
@@ -44,14 +44,14 @@ class VideoSerializer(serializers.ModelSerializer):
 
 
 class VideoCreateSerializer(UserOwnedSerializerMixin, serializers.ModelSerializer):
-    """Video作成用のシリアライザー"""
+    """Serializer for Video creation"""
 
     class Meta:
         model = Video
         fields = ["file", "title", "description"]
 
     def create(self, validated_data):
-        """Video作成時に文字起こしタスクを開始"""
+        """Start transcription task when Video is created"""
         request = self.context.get("request")
         user = getattr(request, "user", None)
 
@@ -60,17 +60,17 @@ class VideoCreateSerializer(UserOwnedSerializerMixin, serializers.ModelSerialize
             if current_count >= user.video_limit:
                 raise serializers.ValidationError(
                     {
-                        "detail": "動画の上限に達しています。不要な動画を削除するか、管理者に上限の変更を依頼してください。"
+                        "detail": "Video limit reached. Please delete unnecessary videos or contact an administrator to change the limit."
                     }
                 )
 
-        # Authorizationヘッダーが存在するかチェック（外部APIクライアントの判定）
+        # Check if Authorization header exists (determine external API client)
         is_external_client = request and request.META.get("HTTP_AUTHORIZATION")
 
-        # Videoインスタンスを作成
+        # Create Video instance
         video = super().create(validated_data)
 
-        # 外部APIクライアントからの場合はフラグを設定
+        # Set flag if from external API client
         if is_external_client:
             video.is_external_upload = True
             video.save(update_fields=["is_external_upload"])
@@ -78,7 +78,7 @@ class VideoCreateSerializer(UserOwnedSerializerMixin, serializers.ModelSerialize
                 f"External API client upload detected for video ID: {video.id}. File will be deleted after processing."
             )
 
-        # Celeryタスクを非同期で実行
+        # Execute Celery task asynchronously
         logger.info(f"Starting transcription task for video ID: {video.id}")
         try:
             task = transcribe_video.delay(video.id)
@@ -90,7 +90,7 @@ class VideoCreateSerializer(UserOwnedSerializerMixin, serializers.ModelSerialize
 
 
 class VideoUpdateSerializer(serializers.ModelSerializer):
-    """Video更新用のシリアライザー"""
+    """Serializer for Video update"""
 
     class Meta:
         model = Video
@@ -98,9 +98,9 @@ class VideoUpdateSerializer(serializers.ModelSerializer):
 
 
 class VideoListSerializer(serializers.ModelSerializer):
-    """Video一覧用のシリアライザー
-    Note: userフィールドを含めていないため、N+1問題対策のため
-    VideoListViewではselect_related('user')は不要
+    """Serializer for Video list
+    Note: select_related('user') not needed in VideoListView for N+1 prevention
+    since user field is not included
     """
 
     class Meta:
@@ -110,7 +110,7 @@ class VideoListSerializer(serializers.ModelSerializer):
 
 
 class VideoGroupListSerializer(serializers.ModelSerializer):
-    """VideoGroup一覧用のシリアライザー"""
+    """Serializer for VideoGroup list"""
 
     video_count = serializers.IntegerField(read_only=True)
 
@@ -121,7 +121,7 @@ class VideoGroupListSerializer(serializers.ModelSerializer):
 
 
 class VideoGroupDetailSerializer(serializers.ModelSerializer):
-    """VideoGroup詳細用のシリアライザー"""
+    """Serializer for VideoGroup detail"""
 
     video_count = serializers.IntegerField(read_only=True)
     videos = serializers.SerializerMethodField()
@@ -150,9 +150,9 @@ class VideoGroupDetailSerializer(serializers.ModelSerializer):
         ]
 
     def get_videos(self, obj):
-        """ビデオの詳細情報を取得"""
-        # N+1問題対策: prefetch_relatedで既に取得されているメンバーを使用（追加クエリなし）
-        # list()で評価を確定（遅延評価の回避）
+        """Get video detailed information"""
+        # N+1 prevention: Use members already fetched with prefetch_related (no additional query)
+        # Use list() to evaluate (avoid lazy evaluation)
         members = list(obj.members.all())
 
         if not members:
@@ -161,21 +161,21 @@ class VideoGroupDetailSerializer(serializers.ModelSerializer):
         return self._serialize_members_with_order(members)
 
     def _serialize_members_with_order(self, members):
-        """メンバーをorder情報付きでシリアライズ"""
-        # VideoListSerializerを使って各videoをシリアライズ（絶対URLを自動生成）
+        """Serialize members with order information"""
+        # Serialize each video using VideoListSerializer (automatically generates absolute URL)
         videos = [member.video for member in members]
         video_data_list = VideoListSerializer(
             videos, many=True, context=self.context
         ).data
 
-        # order情報を追加して返す（N+1問題対策: O(n)のルックアップ）
+        # Add order information and return (N+1 prevention: O(n) lookup)
         return [
             {**video_data, "order": member.order}
             for member, video_data in zip(members, video_data_list)
         ]
 
     def get_owner_has_api_key(self, obj):
-        """グループオーナーがAPIキーを持っているかを返す"""
+        """Return whether group owner has API key"""
         user = obj.user
         if not user:
             return False
@@ -184,12 +184,12 @@ class VideoGroupDetailSerializer(serializers.ModelSerializer):
 
 
 class VideoGroupCreateSerializer(UserOwnedSerializerMixin, BaseVideoGroupSerializer):
-    """VideoGroup作成用のシリアライザー"""
+    """Serializer for VideoGroup creation"""
 
     pass
 
 
 class VideoGroupUpdateSerializer(BaseVideoGroupSerializer):
-    """VideoGroup更新用のシリアライザー"""
+    """Serializer for VideoGroup update"""
 
     pass

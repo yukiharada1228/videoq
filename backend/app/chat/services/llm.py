@@ -1,4 +1,4 @@
-"""LangChain向けヘルパー"""
+"""LangChain helper functions"""
 
 from typing import Tuple
 
@@ -15,14 +15,14 @@ User = get_user_model()
 def get_langchain_llm(user) -> Tuple[ChatOpenAI, Response]:
     if not user.encrypted_openai_api_key:
         return None, create_error_response(
-            "OpenAI APIキーが設定されていません", status.HTTP_400_BAD_REQUEST
+            "OpenAI API key is not configured", status.HTTP_400_BAD_REQUEST
         )
 
     try:
         api_key = decrypt_api_key(user.encrypted_openai_api_key)
     except Exception as exc:
         return None, create_error_response(
-            f"APIキーの復号化に失敗しました: {exc}",
+            f"Failed to decrypt API key: {exc}",
             status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
@@ -43,14 +43,14 @@ def handle_langchain_exception(exception: Exception) -> Response:
         "invalid_api_key" in error_message.lower()
         or "authentication" in error_message.lower()
     ):
-        return create_error_response("無効なAPIキーです", status.HTTP_401_UNAUTHORIZED)
+        return create_error_response("Invalid API key", status.HTTP_401_UNAUTHORIZED)
 
     if "rate_limit" in error_message.lower():
         return create_error_response(
-            "APIのレート制限に達しました", status.HTTP_429_TOO_MANY_REQUESTS
+            "API rate limit reached", status.HTTP_429_TOO_MANY_REQUESTS
         )
 
     return create_error_response(
-        f"OpenAI APIエラー: {exception}",
+        f"OpenAI API error: {exception}",
         status.HTTP_500_INTERNAL_SERVER_ERROR,
     )

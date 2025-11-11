@@ -61,46 +61,46 @@ def _get_video_group_with_members(group_id, user_id=None, share_token=None):
 
 
 class ChatView(generics.CreateAPIView):
-    """チャットビュー（LangChain使用・共有トークン対応）"""
+    """Chat view (using LangChain, supports share token)"""
 
     authentication_classes = [CookieJWTAuthentication, ShareTokenAuthentication]
     permission_classes = [IsAuthenticatedOrSharedAccess]
 
     def post(self, request):
-        # 共有トークン認証の場合
+        # Shared token authentication case
         share_token = request.query_params.get("share_token")
         is_shared = share_token is not None
         group = None
 
         if is_shared:
-            # 共有トークンでグループを取得
+            # Get group by share token
             group_id = request.data.get("group_id")
             if not group_id:
                 return create_error_response(
-                    "グループIDが指定されていません", status.HTTP_400_BAD_REQUEST
+                    "Group ID not specified", status.HTTP_400_BAD_REQUEST
                 )
 
             try:
                 group = _get_video_group_with_members(group_id, share_token=share_token)
-                user = group.user  # グループオーナーのユーザー
+                user = group.user  # Group owner's user
             except VideoGroup.DoesNotExist:
                 return create_error_response(
-                    "共有グループが見つかりません", status.HTTP_404_NOT_FOUND
+                    "Shared group not found", status.HTTP_404_NOT_FOUND
                 )
         else:
-            # 通常の認証済みユーザー
+            # Normal authenticated user
             user = request.user
 
-        # LangChainのLLMを取得
+        # Get LangChain LLM
         llm, error_response = get_langchain_llm(user)
         if error_response:
             return error_response
 
-        # メッセージを検証
+        # Validate messages
         messages = request.data.get("messages", [])
         if not messages:
             return create_error_response(
-                "メッセージが空です", status.HTTP_400_BAD_REQUEST
+                "Messages are empty", status.HTTP_400_BAD_REQUEST
             )
 
         group_id = request.data.get("group_id")
@@ -110,7 +110,7 @@ class ChatView(generics.CreateAPIView):
                     group = _get_video_group_with_members(group_id, user_id=user.id)
                 except VideoGroup.DoesNotExist:
                     return create_error_response(
-                        "指定のグループが見つかりません", status.HTTP_404_NOT_FOUND
+                        "Specified group not found", status.HTTP_404_NOT_FOUND
                     )
 
             service = RagChatService(user=user, llm=llm)
@@ -164,7 +164,7 @@ class ChatFeedbackView(APIView):
 
         if chat_log_id is None:
             return create_error_response(
-                "chat_log_idが指定されていません", status.HTTP_400_BAD_REQUEST
+                "chat_log_id not specified", status.HTTP_400_BAD_REQUEST
             )
 
         if feedback == "":
@@ -178,7 +178,7 @@ class ChatFeedbackView(APIView):
 
         if feedback not in valid_feedback:
             return create_error_response(
-                "feedbackはgoodまたはbad、または未指定(null)で指定してください",
+                "feedback must be 'good', 'bad', or null (unspecified)",
                 status.HTTP_400_BAD_REQUEST,
             )
 
@@ -186,18 +186,18 @@ class ChatFeedbackView(APIView):
             chat_log = ChatLog.objects.select_related("group").get(id=chat_log_id)
         except ChatLog.DoesNotExist:
             return create_error_response(
-                "指定のチャット履歴が見つかりません", status.HTTP_404_NOT_FOUND
+                "Specified chat history not found", status.HTTP_404_NOT_FOUND
             )
 
         if share_token:
             if chat_log.group.share_token != share_token:
                 return create_error_response(
-                    "共有トークンが一致しません", status.HTTP_403_FORBIDDEN
+                    "Share token mismatch", status.HTTP_403_FORBIDDEN
                 )
         else:
             if chat_log.group.user_id != request.user.id:
                 return create_error_response(
-                    "この履歴にアクセスする権限がありません", status.HTTP_403_FORBIDDEN
+                    "No permission to access this history", status.HTTP_403_FORBIDDEN
                 )
 
         chat_log.feedback = feedback
@@ -250,14 +250,14 @@ class ChatHistoryExportView(APIView):
         group_id = request.query_params.get("group_id")
         if not group_id:
             return create_error_response(
-                "グループIDが指定されていません", status.HTTP_400_BAD_REQUEST
+                "Group ID not specified", status.HTTP_400_BAD_REQUEST
             )
 
         try:
             group = _get_video_group_with_members(group_id, user_id=request.user.id)
         except VideoGroup.DoesNotExist:
             return create_error_response(
-                "指定のグループが見つかりません", status.HTTP_404_NOT_FOUND
+                "Specified group not found", status.HTTP_404_NOT_FOUND
             )
 
         queryset = _get_chat_logs_queryset(group, ascending=True)
@@ -267,7 +267,7 @@ class ChatHistoryExportView(APIView):
         response["Content-Disposition"] = f'attachment; filename="{filename}"'
 
         writer = csv.writer(response)
-        # ヘッダー
+        # Header
         writer.writerow(
             [
                 "created_at",
@@ -280,7 +280,7 @@ class ChatHistoryExportView(APIView):
         )
 
         for log in queryset:
-            # related_videos はJSON文字列として格納
+            # related_videos is stored as JSON string
             try:
                 related_videos_str = json.dumps(log.related_videos, ensure_ascii=False)
             except Exception:

@@ -34,13 +34,13 @@ export default function Home() {
     if (user && !isLoadingStats && !hasVideos) {
       const loadData = async () => {
         try {
-          // 並列でAPI呼び出しを実行
+          // Execute API calls in parallel
           const [videos, groups] = await Promise.all([
             apiClient.getVideos().catch(() => []),
             apiClient.getVideoGroups().catch(() => []),
           ]);
 
-          // データを一度に設定
+          // Set data at once
           await loadStats(async () => ({
             videos,
             groups,

@@ -21,10 +21,10 @@ logger = logging.getLogger(__name__)
 
 
 class BaseVideoView(AuthenticatedViewMixin):
-    """共通のVideoビュー基底クラス"""
+    """Common base Video view class"""
 
     def get_queryset(self):
-        """現在のユーザーのVideoのみを返す共通ロジック"""
+        """Common logic to return only current user's Videos"""
         return QueryOptimizer.get_videos_with_metadata(
             user_id=self.request.user.id,
             include_transcript=self.should_include_transcript(),
@@ -39,11 +39,11 @@ class BaseVideoView(AuthenticatedViewMixin):
 
 
 class VideoListView(DynamicSerializerMixin, BaseVideoView, generics.ListCreateAPIView):
-    """Video一覧取得・作成ビュー
+    """Video list retrieval and creation view
 
-    N+1問題対策:
-    - VideoListSerializerにuserを含めていないため、select_relatedは不要
-    - 将来的に追加の関連データが必要な場合はget_queryset()をオーバーライド可能
+    N+1 prevention:
+    - select_related not needed since VideoListSerializer doesn't include user
+    - Can override get_queryset() if additional related data is needed in the future
     """
 
     serializer_map = {
@@ -80,7 +80,7 @@ class VideoListView(DynamicSerializerMixin, BaseVideoView, generics.ListCreateAP
 class VideoDetailView(
     DynamicSerializerMixin, BaseVideoView, generics.RetrieveUpdateDestroyAPIView
 ):
-    """Video詳細・更新・削除ビュー"""
+    """Video detail, update, and delete view"""
 
     serializer_map = {
         "GET": VideoSerializer,
@@ -95,37 +95,37 @@ class VideoDetailView(
         return True
 
     def update(self, request, *args, **kwargs):
-        """Video更新時にPGVectorのmetadataも更新"""
+        """Update PGVector metadata when Video is updated"""
         partial = kwargs.pop("partial", False)
         instance = self.get_object()
 
-        # 更新前のタイトルを保存
+        # Save title before update
         old_title = instance.title
 
-        # 通常の更新処理を実行
+        # Execute normal update process
         response = super().update(request, *args, partial=partial, **kwargs)
 
-        # インスタンスを再取得して最新のデータを取得
+        # Refresh instance to get latest data
         instance.refresh_from_db()
 
-        # タイトルが変更された場合、PGVectorのmetadataを更新
+        # Update PGVector metadata if title has changed
         if old_title != instance.title:
             self._update_video_title_in_pgvector(instance.id, instance.title)
 
         return response
 
     def _update_video_title_in_pgvector(self, video_id, new_title):
-        """PGVectorのmetadata内のvideo_titleを更新"""
+        """Update video_title in PGVector metadata"""
         from app.utils.vector_manager import update_video_title_in_vectors
 
         update_video_title_in_vectors(video_id, new_title)
 
     def destroy(self, request, *args, **kwargs):
-        """Video削除時にファイルとベクトルデータも削除"""
+        """Delete file and vector data when Video is deleted"""
         instance = self.get_object()
         video_id = instance.id
 
-        # ファイルが存在する場合は削除
+        # Delete file if it exists
         if instance.file:
             instance.file.delete(save=False)
 
@@ -140,10 +140,10 @@ class VideoDetailView(
 
 
 class BaseVideoGroupView(AuthenticatedViewMixin):
-    """共通のVideoGroupビュー基底クラス"""
+    """Common base VideoGroup view class"""
 
     def _get_filtered_queryset(self, annotate_only=False):
-        """共通のクエリ取得ロジック"""
+        """Common query retrieval logic"""
         return QueryOptimizer.get_video_groups_with_videos(
             user_id=self.request.user.id,
             include_videos=not annotate_only,
@@ -154,7 +154,7 @@ class BaseVideoGroupView(AuthenticatedViewMixin):
 class VideoGroupListView(
     DynamicSerializerMixin, BaseVideoGroupView, generics.ListCreateAPIView
 ):
-    """VideoGroup一覧取得・作成ビュー（N+1問題対策）"""
+    """VideoGroup list retrieval and creation view (N+1 prevention)"""
 
     serializer_map = {
         "GET": VideoGroupListSerializer,
@@ -162,14 +162,14 @@ class VideoGroupListView(
     }
 
     def get_queryset(self):
-        """現在のユーザーのVideoGroupのみを返す（N+1問題対策）"""
+        """Return only current user's VideoGroups (N+1 prevention)"""
         return self._get_filtered_queryset(annotate_only=True)
 
 
 class VideoGroupDetailView(
     DynamicSerializerMixin, BaseVideoGroupView, generics.RetrieveUpdateDestroyAPIView
 ):
-    """VideoGroup詳細・更新・削除ビュー（N+1問題対策）"""
+    """VideoGroup detail, update, and delete view (N+1 prevention)"""
 
     serializer_map = {
         "GET": VideoGroupDetailSerializer,
@@ -178,15 +178,15 @@ class VideoGroupDetailView(
     }
 
     def get_queryset(self):
-        """現在のユーザーのVideoGroupのみを返す（N+1問題対策）"""
+        """Return only current user's VideoGroups (N+1 prevention)"""
         return self._get_filtered_queryset(annotate_only=False)
 
 
 def _handle_validation_error(value, entity_name: str):
-    """共通のバリデーションチェック"""
+    """Common validation check"""
     if not value:
         return create_error_response(
-            f"{entity_name}が見つかりません", status.HTTP_404_NOT_FOUND
+            f"{entity_name} not found", status.HTTP_404_NOT_FOUND
         )
     return None
 
@@ -194,18 +194,18 @@ def _handle_validation_error(value, entity_name: str):
 def _validate_and_get_resource(
     user, model_class, resource_id, entity_name: str, select_related_fields=None
 ):
-    """共通のリソース取得と検証ロジック"""
-    # N+1問題対策: filter().first()を使用してNoneを返す（例外を投げない）
-    # userでフィルタリングしているので所有権の確認は自動的に行われる
+    """Common resource retrieval and validation logic"""
+    # N+1 prevention: Use filter().first() to return None (don't raise exception)
+    # Ownership check is automatic since we filter by user
     queryset = model_class.objects.filter(user=user, id=resource_id)
 
-    # N+1問題対策: 必要に応じてselect_relatedを追加
+    # N+1 prevention: Add select_related if needed
     if select_related_fields:
         queryset = queryset.select_related(*select_related_fields)
 
     resource = queryset.first()
 
-    # リソースが見つからない場合（存在しない、または所有権がない）
+    # Resource not found (doesn't exist or user doesn't own it)
     error = _handle_validation_error(resource, entity_name)
     if error:
         return None, error
@@ -214,16 +214,16 @@ def _validate_and_get_resource(
 
 
 def _get_group_and_video(user, group_id, video_id, select_related_fields=None):
-    """共通のグループとビデオ取得ロジック"""
-    # N+1問題対策: 必要に応じてselect_relatedを適用
+    """Common group and video retrieval logic"""
+    # N+1 prevention: Apply select_related if needed
     group, error = _validate_and_get_resource(
-        user, VideoGroup, group_id, "グループ", select_related_fields
+        user, VideoGroup, group_id, "Group", select_related_fields
     )
     if error:
         return None, None, error
 
     video, error = _validate_and_get_resource(
-        user, Video, video_id, "動画", select_related_fields
+        user, Video, video_id, "Video", select_related_fields
     )
     if error:
         return None, None, error
@@ -232,20 +232,20 @@ def _get_group_and_video(user, group_id, video_id, select_related_fields=None):
 
 
 def _validate_video_ids(request, entity_name: str):
-    """video_idsのバリデーション"""
+    """Validate video_ids"""
     video_ids = request.data.get("video_ids", [])
     if not video_ids:
         return None, create_error_response(
-            f"{entity_name}IDが指定されていません", status.HTTP_400_BAD_REQUEST
+            f"{entity_name} ID not specified", status.HTTP_400_BAD_REQUEST
         )
     return video_ids, None
 
 
 def _validate_videos_count(videos, video_ids):
-    """動画の取得数チェック"""
+    """Check video count"""
     if len(videos) != len(video_ids):
         return create_error_response(
-            "一部の動画が見つかりません", status.HTTP_404_NOT_FOUND
+            "Some videos not found", status.HTTP_404_NOT_FOUND
         )
     return None
 
@@ -259,25 +259,25 @@ def _handle_group_video_operation(
     success_status=status.HTTP_200_OK,
 ):
     """
-    グループと動画の操作を共通処理
+    Common handler for group and video operations
 
     Args:
-        request: HTTPリクエスト
-        group_id: グループID
-        video_id: 動画ID
-        operation_func: 実行する操作の関数
-        success_message: 成功時のメッセージ
-        success_status: 成功時のステータスコード
+        request: HTTP request
+        group_id: Group ID
+        video_id: Video ID
+        operation_func: Function to execute the operation
+        success_message: Success message
+        success_status: Success status code
 
     Returns:
-        Response: 操作結果
+        Response: Operation result
     """
     group, video, error = _get_group_and_video(request.user, group_id, video_id)
 
     if error:
         return error
 
-    # 操作を実行
+    # Execute operation
     result = operation_func(group, video)
     if isinstance(result, Response):
         return result
@@ -289,12 +289,12 @@ def _handle_group_video_operation(
 
 
 def _get_member_queryset(group, video=None, select_related=False):
-    """共通のメンバークエリ"""
+    """Common member query"""
     queryset = VideoGroupMember.objects.filter(group=group)
     if video:
         queryset = queryset.filter(video=video)
 
-    # N+1問題対策: videoやgroupのデータが必要な場合のみselect_relatedを適用
+    # N+1 prevention: Apply select_related only when video or group data is needed
     if select_related:
         queryset = queryset.select_related("video", "group")
 
@@ -302,33 +302,33 @@ def _get_member_queryset(group, video=None, select_related=False):
 
 
 def _member_exists(group, video):
-    """メンバーの存在チェック"""
+    """Check if member exists"""
     return _get_member_queryset(group, video).exists()
 
 
 def _check_and_get_member(
     group, video, error_message, status_code=status.HTTP_404_NOT_FOUND
 ):
-    """メンバーの存在チェックと取得"""
+    """Check member existence and retrieve"""
     member = _get_member_queryset(group, video).first()
     if not member:
         return None, create_error_response(error_message, status_code)
     return member, None
 
 
-# 共通デコレーターはapp.utils.decoratorsからインポート済み
+# Common decorators are already imported from app.utils.decorators
 
 
 def _add_video_to_group_operation(group, video):
-    """動画をグループに追加する操作"""
-    # すでに追加されているかチェック
+    """Operation to add video to group"""
+    # Check if already added
     member = _get_member_queryset(group, video).first()
     if member:
         return create_error_response(
             "この動画は既にグループに追加されています", status.HTTP_400_BAD_REQUEST
         )
 
-    # グループ内の末尾に配置されるよう order を採番
+    # Assign order to place at the end of the group
     max_order = (
         _get_member_queryset(group).aggregate(max_order=Max("order")).get("max_order")
     )
@@ -347,40 +347,40 @@ def _add_video_to_group_operation(group, video):
 
 @authenticated_view_with_error_handling(["POST"])
 def add_video_to_group(request, group_id, video_id):
-    """グループに動画を追加"""
+    """Add video to group"""
     return _handle_group_video_operation(
         request,
         group_id,
         video_id,
         _add_video_to_group_operation,
-        "動画をグループに追加しました",
+        "Video added to group",
         status.HTTP_201_CREATED,
     )
 
 
 @authenticated_view_with_error_handling(["POST"])
 def add_videos_to_group(request, group_id):
-    """グループに複数の動画を追加"""
+    """Add multiple videos to group"""
     group, error = _validate_and_get_resource(
-        request.user, VideoGroup, group_id, "グループ"
+        request.user, VideoGroup, group_id, "Group"
     )
     if error:
         return error
 
-    video_ids, error = _validate_video_ids(request, "動画")
+    video_ids, error = _validate_video_ids(request, "Video")
     if error:
         return error
 
-    # 動画を一括取得（N+1問題対策）
-    # select_relatedはここでは不要（userデータは既に検証済み）
+    # Bulk fetch videos (N+1 prevention)
+    # select_related not needed here (user data already validated)
     videos = list(Video.objects.filter(user=request.user, id__in=video_ids))
 
     error = _validate_videos_count(videos, video_ids)
     if error:
         return error
 
-    # 既に追加されている動画をチェック（N+1問題対策）
-    # 一括でvideo_idを取得してSetでO(1)ルックアップを実現
+    # Check for already added videos (N+1 prevention)
+    # Bulk fetch video_ids and use Set for O(1) lookup
     video_ids_list = [v.id for v in videos]
     existing_members = set(
         _get_member_queryset(group)
@@ -388,7 +388,7 @@ def add_videos_to_group(request, group_id):
         .values_list("video_id", flat=True)
     )
 
-    # 追加可能な動画のみを、選択順にフィルタリング（N+1問題対策）
+    # Filter only addable videos in selection order (N+1 prevention)
     video_map = {video.id: video for video in videos}
     videos_to_add = [
         video_map[video_id]
@@ -396,7 +396,7 @@ def add_videos_to_group(request, group_id):
         if video_id in video_map and video_id not in existing_members
     ]
 
-    # バッチで追加
+    # Add in batch
     current_max_order = (
         _get_member_queryset(group).aggregate(max_order=Max("order")).get("max_order")
     )
@@ -416,7 +416,7 @@ def add_videos_to_group(request, group_id):
 
     return Response(
         {
-            "message": f"{added_count}個の動画をグループに追加しました",
+            "message": f"Added {added_count} videos to group",
             "added_count": added_count,
             "skipped_count": skipped_count,
         },
@@ -426,15 +426,15 @@ def add_videos_to_group(request, group_id):
 
 @authenticated_view_with_error_handling(["DELETE"])
 def remove_video_from_group(request, group_id, video_id):
-    """グループから動画を削除"""
+    """Remove video from group"""
     group, video, error = _get_group_and_video(request.user, group_id, video_id)
 
     if error:
         return error
 
-    # グループメンバーを削除
+    # Delete group member
     member, error = _check_and_get_member(
-        group, video, "この動画はグループに追加されていません"
+        group, video, "This video is not added to the group"
     )
     if error:
         return error
@@ -442,47 +442,47 @@ def remove_video_from_group(request, group_id, video_id):
     member.delete()
 
     return Response(
-        {"message": "動画をグループから削除しました"}, status=status.HTTP_200_OK
+        {"message": "Video removed from group"}, status=status.HTTP_200_OK
     )
 
 
 @authenticated_view_with_error_handling(["PATCH"])
 def reorder_videos_in_group(request, group_id):
-    """グループ内の動画の順序を更新"""
+    """Update video order in group"""
     group, error = _validate_and_get_resource(
-        request.user, VideoGroup, group_id, "グループ"
+        request.user, VideoGroup, group_id, "Group"
     )
     if error:
         return error
 
-    # リクエストボディからvideo_idsの配列を取得
+    # Get video_ids array from request body
     try:
         video_ids = request.data.get("video_ids", [])
         if not isinstance(video_ids, list):
             return create_error_response(
-                "video_idsは配列である必要があります", status.HTTP_400_BAD_REQUEST
+                "video_ids must be an array", status.HTTP_400_BAD_REQUEST
             )
     except Exception:
         return create_error_response(
-            "リクエストボディの解析に失敗しました", status.HTTP_400_BAD_REQUEST
+            "Failed to parse request body", status.HTTP_400_BAD_REQUEST
         )
 
-    # グループ内の動画メンバーを取得（N+1問題対策）
-    # select_relatedでvideoデータも事前取得
-    # list()で評価を確定してN+1問題を完全に回避
+    # Get video members in group (N+1 prevention)
+    # Pre-fetch video data with select_related
+    # Use list() to evaluate and completely avoid N+1 problem
     members = list(VideoGroupMember.objects.filter(group=group).select_related("video"))
 
-    # 指定されたvideo_idsがグループ内の動画と一致するかチェック
-    # O(1)ルックアップのためにSetを使用
+    # Check if specified video_ids match videos in group
+    # Use Set for O(1) lookup
     group_video_ids = set(member.video_id for member in members)
     if set(video_ids) != group_video_ids:
         return create_error_response(
-            "指定された動画IDがグループ内の動画と一致しません",
+            "Specified video IDs do not match videos in group",
             status.HTTP_400_BAD_REQUEST,
         )
 
-    # 順序を更新（N+1問題対策）
-    # bulk_updateを使用して一括更新
+    # Update order (N+1 prevention)
+    # Use bulk_update for batch update
     member_dict = {member.video_id: member for member in members}
     members_to_update = []
 
@@ -491,19 +491,19 @@ def reorder_videos_in_group(request, group_id):
         member.order = index
         members_to_update.append(member)
 
-    # 一括更新でN+1問題を解決
+    # Solve N+1 problem with batch update
     VideoGroupMember.objects.bulk_update(members_to_update, ["order"])
 
-    return Response({"message": "動画の順序を更新しました"}, status=status.HTTP_200_OK)
+    return Response({"message": "Video order updated"}, status=status.HTTP_200_OK)
 
 
 def _update_share_token(group, token_value):
     """
-    共有トークンを更新する共通処理
+    Common handler to update share token
 
     Args:
-        group: VideoGroupインスタンス
-        token_value: 設定するトークン値（Noneの場合は削除）
+        group: VideoGroup instance
+        token_value: Token value to set (None to delete)
 
     Returns:
         None
@@ -514,10 +514,10 @@ def _update_share_token(group, token_value):
 
 @authenticated_view_with_error_handling(["POST"])
 def create_share_link(request, group_id):
-    """グループの共有リンクを生成"""
-    # グループの取得と検証
+    """Generate share link for group"""
+    # Get and validate group
     group, error = _validate_and_get_resource(
-        request.user, VideoGroup, group_id, "グループ"
+        request.user, VideoGroup, group_id, "Group"
     )
     if error:
         return error
@@ -527,7 +527,7 @@ def create_share_link(request, group_id):
 
     return Response(
         {
-            "message": "共有リンクを生成しました",
+            "message": "Share link generated",
             "share_token": share_token,
         },
         status=status.HTTP_201_CREATED,
@@ -536,23 +536,23 @@ def create_share_link(request, group_id):
 
 @authenticated_view_with_error_handling(["DELETE"])
 def delete_share_link(request, group_id):
-    """グループの共有リンクを無効化"""
-    # グループの取得と検証
+    """Disable share link for group"""
+    # Get and validate group
     group, error = _validate_and_get_resource(
-        request.user, VideoGroup, group_id, "グループ"
+        request.user, VideoGroup, group_id, "Group"
     )
     if error:
         return error
 
     if not group.share_token:
         return create_error_response(
-            "共有リンクは設定されていません", status.HTTP_404_NOT_FOUND
+            "Share link is not configured", status.HTTP_404_NOT_FOUND
         )
 
     _update_share_token(group, None)
 
     return Response(
-        {"message": "共有リンクを無効化しました"},
+        {"message": "Share link disabled"},
         status=status.HTTP_200_OK,
     )
 
@@ -561,27 +561,27 @@ def delete_share_link(request, group_id):
 @permission_classes([AllowAny])
 def get_shared_group(request, share_token):
     """
-    共有トークンでグループを取得（認証不要）
+    Get group by share token (no authentication required)
 
-    公開グループとして誰でもアクセス可能
+    Public group accessible by anyone
     """
-    # share_tokenでグループを取得（N+1問題対策）
-    # user_idでフィルタせず、share_tokenのみでフィルタ
+    # Get group by share_token (N+1 prevention)
+    # Filter only by share_token, not by user_id
     queryset = VideoGroup.objects.filter(share_token=share_token)
 
-    # QueryOptimizerを使用してN+1問題を解決
+    # Use QueryOptimizer to solve N+1 problem
     group = QueryOptimizer.optimize_video_group_queryset(
         queryset,
         include_videos=True,
-        include_user=True,  # オーナーのAPIキー情報を取得するため必要
+        include_user=True,  # Required to get owner's API key information
         annotate_video_count=True,
     ).first()
 
     if not group:
         return create_error_response(
-            "共有リンクが見つかりません", status.HTTP_404_NOT_FOUND
+            "Share link not found", status.HTTP_404_NOT_FOUND
         )
 
-    # シリアライザーを使用してレスポンスを生成
+    # Generate response using serializer
     serializer = VideoGroupDetailSerializer(group)
     return Response(serializer.data, status=status.HTTP_200_OK)

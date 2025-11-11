@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from operator import itemgetter
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, cast
 
 from app.chat.prompts import build_system_prompt
@@ -6,16 +7,17 @@ from app.utils.encryption import decrypt_api_key
 from app.utils.vector_manager import PGVectorManager
 from langchain_core.messages import AIMessage
 from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.runnables import RunnableLambda, RunnableParallel
 from langchain_openai import OpenAIEmbeddings
 from langchain_postgres import PGVector
 
-if TYPE_CHECKING:  # pragma: no cover - 型チェック用のみに使用
+if TYPE_CHECKING:  # pragma: no cover - Used only for type checking
     from app.models import VideoGroup
 
 
 @dataclass
 class RagChatResult:
-    """RAG実行結果"""
+    """RAG execution result"""
 
     llm_response: AIMessage
     query_text: str
@@ -23,7 +25,7 @@ class RagChatResult:
 
 
 class RagChatService:
-    """チャット用RAGロジックを担うサービスクラス"""
+    """Service class that handles RAG logic for chat"""
 
     def __init__(self, user, llm):
         self.user = user
@@ -41,49 +43,50 @@ class RagChatService:
         group: Optional["VideoGroup"] = None,
         locale: Optional[str] = None,
     ) -> RagChatResult:
-        """
-        RAGチャットを実行し、結果を返す。
-        VideoGroupが指定されている場合はRAGを使用し、そうでない場合は通常のチャットを実行する。
-        """
         query_text = self._extract_latest_user_query(messages)
+
+        # Get retriever (only if group exists)
         retriever = self._get_retriever(group)
 
-        if retriever:
-            return self._run_rag_chat(query_text, locale, retriever)
+        # Build RAG chain following official pattern
+        if retriever is not None:
+            # RAG chain following official pattern
+            rag_chain = (
+                RunnableParallel(
+                    {
+                        "query_text": itemgetter("query_text"),
+                        "locale": itemgetter("locale"),
+                        "docs": itemgetter("query_text") | retriever,
+                    }
+                )
+                | RunnableLambda(self._build_prompt_payload)
+                | RunnableParallel(
+                    {
+                        "llm_response": itemgetter("prompt_input")
+                        | self.prompt
+                        | self.llm,
+                        "related_videos": itemgetter("related_videos"),
+                    }
+                )
+            )
         else:
-            return self._run_simple_chat(query_text, locale)
+            # When retriever is not available (no group)
+            rag_chain = RunnableLambda(self._build_prompt_payload) | RunnableParallel(
+                {
+                    "llm_response": itemgetter("prompt_input") | self.prompt | self.llm,
+                    "related_videos": itemgetter("related_videos"),
+                }
+            )
 
-    def _run_rag_chat(
-        self, query_text: str, locale: Optional[str], retriever: Any
-    ) -> RagChatResult:
-        """RAGを使用してチャットを実行する"""
-        # 1. 元のクエリでドキュメントを検索
-        docs = retriever.get_relevant_documents(query_text)
-
-        # 2. 検索結果を元にLLMの応答を生成
-        system_prompt = build_system_prompt(
-            locale=locale,
-            references=self._build_reference_entries(docs),
-        )
-        prompt_input = {"system_prompt": system_prompt, "query_text": query_text}
-        llm_response = (self.prompt | self.llm).invoke(prompt_input)
-
-        # 3. LLMの応答を元に関連動画を再検索
-        related_videos = self._research_related_videos(llm_response, docs, retriever)
+        # Execute chain
+        result = rag_chain.invoke({"query_text": query_text, "locale": locale})
+        llm_response = result.get("llm_response")
+        related_videos = result.get("related_videos")
 
         return RagChatResult(
             llm_response=llm_response,
             query_text=query_text,
             related_videos=related_videos,
-        )
-
-    def _run_simple_chat(self, query_text: str, locale: Optional[str]) -> RagChatResult:
-        """RAGを使用せずに単純なチャットを実行する"""
-        system_prompt = build_system_prompt(locale=locale, references=[])
-        prompt_input = {"system_prompt": system_prompt, "query_text": query_text}
-        llm_response = (self.prompt | self.llm).invoke(prompt_input)
-        return RagChatResult(
-            llm_response=llm_response, query_text=query_text, related_videos=None
         )
 
     def _extract_latest_user_query(self, messages: Sequence[Dict[str, str]]) -> str:
@@ -97,7 +100,7 @@ class RagChatService:
         return ""
 
     def _get_retriever(self, group: Optional["VideoGroup"]) -> Optional[Any]:
-        """グループからリトリーバーを取得する（公式パターン）"""
+        """Get retriever from group"""
         if group is None:
             return None
 
@@ -121,7 +124,7 @@ class RagChatService:
         return retriever
 
     def _build_reference_entries(self, docs: Sequence[Any]) -> List[str]:
-        """ドキュメントから詳細プロンプト用の参考情報リストを生成"""
+        """Generate reference information list for detailed prompt from documents"""
         if not docs:
             return []
 
@@ -143,7 +146,7 @@ class RagChatService:
     def _extract_related_videos(
         self, docs: Sequence[Any]
     ) -> Optional[List[Dict[str, str]]]:
-        """ドキュメントから関連動画を抽出"""
+        """Extract related videos from documents"""
         if not docs:
             return None
 
@@ -161,18 +164,23 @@ class RagChatService:
 
         return related_videos
 
-    def _research_related_videos(
-        self, llm_response: AIMessage, docs: Sequence[Any], retriever: Any
-    ) -> Optional[List[Dict[str, str]]]:
-        """LLMの回答を元に関連動画を再検索する"""
-        llm_response_text = cast(str, llm_response.content)
+    def _build_prompt_payload(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Combine prompt input and related metadata"""
+        docs_obj = data.get("docs") or []
+        docs = cast(Sequence[Any], docs_obj)
+        query_text = cast(str, data.get("query_text", ""))
+        locale = cast(Optional[str], data.get("locale"))
 
-        # LLMの回答があればそれで再検索、なければ元の検索結果を使う
-        search_docs = docs
-        if llm_response_text:
-            search_docs = retriever.get_relevant_documents(llm_response_text)
+        reference_entries = self._build_reference_entries(docs)
+        system_prompt = build_system_prompt(locale=locale, references=reference_entries)
 
-        return self._extract_related_videos(search_docs)
+        return {
+            "prompt_input": {
+                "system_prompt": system_prompt,
+                "query_text": query_text,
+            },
+            "related_videos": self._extract_related_videos(docs),
+        }
 
     def _create_vector_store(self) -> PGVector:
         api_key = decrypt_api_key(self.user.encrypted_openai_api_key)

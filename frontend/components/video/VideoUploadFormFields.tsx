@@ -42,7 +42,7 @@ export function VideoUploadFormFields({
 }: VideoUploadFormFieldsProps) {
   const { t } = useTranslation();
 
-  // プレースホルダーを動的に生成
+  // Dynamically generate placeholder
   const getTitlePlaceholder = () => {
     if (file) {
       const fileNameWithoutExt = file.name.replace(/\.[^/.]+$/, '');

@@ -17,9 +17,9 @@ from pathlib import Path
 import dj_database_url
 
 
-# DRY原則: 環境変数のデフォルト値を一元管理
+# DRY principle: Centralized management of environment variable defaults
 class DefaultSettings:
-    """設定のデフォルト値を一元管理（DRY原則）"""
+    """Centralized management of default settings (DRY principle)"""
 
     # Database
     DATABASE_URL = "postgres://postgres:postgres@localhost:5432/postgres"
@@ -181,7 +181,7 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
     ],
-    # セキュリティ: 本番環境ではBrowsable APIを無効化
+    # Security: Disable Browsable API in production
     "DEFAULT_RENDERER_CLASSES": [
         "rest_framework.renderers.JSONRenderer",
     ],

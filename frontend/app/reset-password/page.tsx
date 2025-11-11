@@ -64,7 +64,7 @@ function ResetPasswordContent() {
         })
       );
     } catch {
-      // useAsyncState がエラー表示を管理
+      // useAsyncState manages error display
     }
   };
 

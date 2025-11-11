@@ -28,7 +28,7 @@ urlpatterns = [
         reorder_videos_in_group,
         name="reorder-videos-in-group",
     ),
-    # 共有リンク関連
+    # Share link related
     path(
         "groups/<int:group_id>/share/",
         create_share_link,

@@ -26,7 +26,7 @@ function VideosContent() {
   );
 
   useEffect(() => {
-    // ページ読み込み時に動画一覧を取得
+    // Load video list on page load
     loadVideos();
   }, [loadVideos]);
 

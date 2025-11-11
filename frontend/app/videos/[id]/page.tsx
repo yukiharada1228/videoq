@@ -28,7 +28,7 @@ export default function VideoDetailPage() {
 
   const { video, isLoading, error, loadVideo } = useVideo(videoId);
 
-  // 編集モードの状態管理
+  // Edit mode state management
   const [isEditing, setIsEditing] = useState(false);
   const [editedTitle, setEditedTitle] = useState('');
   const [editedDescription, setEditedDescription] = useState('');
@@ -39,7 +39,7 @@ export default function VideoDetailPage() {
     }
   }, [videoId, loadVideo]);
 
-  // 動画が読み込まれたら指定時間から再生
+  // Play from specified time when video is loaded
   const handleVideoLoaded = () => {
     if (videoRef.current && startTime) {
       const seconds = parseInt(startTime, 10);
@@ -58,11 +58,11 @@ export default function VideoDetailPage() {
   const { isLoading: isUpdating, error: updateError, mutate: handleUpdate } = useAsyncState({
     onSuccess: () => {
       setIsEditing(false);
-      loadVideo(); // 動画情報を再読み込み
+      loadVideo(); // Reload video info
     },
   });
 
-  // 編集をキャンセル
+  // Cancel edit
   const handleCancelEdit = () => {
     setIsEditing(false);
     if (video) {

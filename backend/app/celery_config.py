@@ -1,5 +1,5 @@
 """
-Celeryアプリケーションの設定
+Celery application configuration
 """
 
 import logging
@@ -9,16 +9,16 @@ from celery import Celery
 
 logger = logging.getLogger(__name__)
 
-# Djangoの設定をロード
+# Load Django settings
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "ask_video.settings")
 
-# Celeryアプリケーションを作成
+# Create Celery application
 app = Celery("ask_video")
 
-# Djangoの設定からCelery設定を読み込む
+# Load Celery settings from Django settings
 app.config_from_object("django.conf:settings", namespace="CELERY")
 
-# アプリケーション内のタスクを自動検出
+# Auto-discover tasks in application
 app.autodiscover_tasks()
 
 logger.info("Celery app configured")
@@ -26,5 +26,5 @@ logger.info("Celery app configured")
 
 @app.task(bind=True, ignore_result=True)
 def debug_task(self):
-    """デバッグ用のタスク"""
+    """Debug task"""
     pass

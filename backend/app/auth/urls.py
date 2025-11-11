@@ -23,6 +23,6 @@ urlpatterns = [
     ),
 ]
 
-# 環境変数でサインアップ機能をオン/オフ
+# Enable/disable signup feature via environment variable
 if settings.ENABLE_SIGNUP:
     urlpatterns.append(path("signup/", UserSignupView.as_view(), name="signup"))

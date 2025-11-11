@@ -6,6 +6,6 @@ class AppConfig(DjangoAppConfig):
     name = "app"
 
     def ready(self):
-        """アプリケーションの準備完了時にCeleryアプリを初期化"""
-        # Celeryアプリをインポート（循環インポートを避けるため）
+        """Initialize Celery app when application is ready"""
+        # Import Celery app (to avoid circular import)
         import app.celery_config  # noqa

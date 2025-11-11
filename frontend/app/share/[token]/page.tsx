@@ -13,7 +13,7 @@ import { getStatusBadgeClassName, getStatusLabel, timeStringToSeconds } from '@/
 import { convertVideoInGroupToSelectedVideo, SelectedVideo } from '@/lib/utils/videoConversion';
 import { useTranslation } from 'react-i18next';
 
-// 共有ページ用の動画アイテムコンポーネント（ドラッグ＆ドロップなし）
+// Video item component for shared page (no drag & drop)
 interface VideoItemProps {
   video: VideoInGroup;
   isSelected: boolean;
@@ -58,7 +58,7 @@ export default function SharedGroupPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const pendingStartTimeRef = useRef<number | null>(null);
 
-  // モバイル用タブ状態
+  // Mobile tab state
   const [mobileTab, setMobileTab] = useState<'videos' | 'player' | 'chat'>('player');
 
   useEffect(() => {
@@ -70,7 +70,7 @@ export default function SharedGroupPage() {
         const groupData = await apiClient.getSharedGroup(shareToken);
         setGroup(groupData);
 
-        // 最初の動画を自動選択
+        // Automatically select first video
         if (groupData.videos && groupData.videos.length > 0) {
           const firstVideo = convertVideoInGroupToSelectedVideo(groupData.videos[0]);
           setSelectedVideo(firstVideo);
@@ -91,7 +91,7 @@ export default function SharedGroupPage() {
     if (video) {
       const selectedVid = convertVideoInGroupToSelectedVideo(video);
       setSelectedVideo(selectedVid);
-      // モバイルで動画を選択したらプレイヤータブに切り替え
+      // Switch to player tab when video is selected on mobile
       if (window.innerWidth < 1024) {
         setMobileTab('player');
       }
@@ -106,22 +106,22 @@ export default function SharedGroupPage() {
     }
   };
 
-  // チャットから動画を選択して指定時間から再生する関数
+  // Function to select video from chat and play from specified time
   const handleVideoPlayFromTime = (videoId: number, startTime: string) => {
-    // 共通ユーティリティで時間文字列を秒に変換（DRY対応）
+    // Convert time string to seconds using common utility (DRY)
     const seconds = timeStringToSeconds(startTime);
 
-    // モバイルの場合は自動的にプレイヤータブに切り替え
+    // Automatically switch to player tab on mobile
     if (window.innerWidth < 1024) {
       setMobileTab('player');
     }
 
-    // 同じ動画が既に選択されている場合は即座に時間を設定
+    // Set time immediately if same video is already selected
     if (selectedVideo?.id === videoId && videoRef.current) {
       videoRef.current.currentTime = seconds;
       videoRef.current.play();
     } else {
-      // 別の動画を選択する場合は開始時間を保存
+      // Save start time when selecting different video
       pendingStartTimeRef.current = seconds;
       handleVideoSelect(videoId);
     }
