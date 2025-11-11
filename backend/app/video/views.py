@@ -244,9 +244,7 @@ def _validate_video_ids(request, entity_name: str):
 def _validate_videos_count(videos, video_ids):
     """Check video count"""
     if len(videos) != len(video_ids):
-        return create_error_response(
-            "Some videos not found", status.HTTP_404_NOT_FOUND
-        )
+        return create_error_response("Some videos not found", status.HTTP_404_NOT_FOUND)
     return None
 
 
@@ -441,9 +439,7 @@ def remove_video_from_group(request, group_id, video_id):
 
     member.delete()
 
-    return Response(
-        {"message": "Video removed from group"}, status=status.HTTP_200_OK
-    )
+    return Response({"message": "Video removed from group"}, status=status.HTTP_200_OK)
 
 
 @authenticated_view_with_error_handling(["PATCH"])
@@ -578,9 +574,7 @@ def get_shared_group(request, share_token):
     ).first()
 
     if not group:
-        return create_error_response(
-            "Share link not found", status.HTTP_404_NOT_FOUND
-        )
+        return create_error_response("Share link not found", status.HTTP_404_NOT_FOUND)
 
     # Generate response using serializer
     serializer = VideoGroupDetailSerializer(group)

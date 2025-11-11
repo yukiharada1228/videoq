@@ -26,5 +26,7 @@ dependencies = [
     "redis>=7.0.0",
     "scikit-learn>=1.7.2",
     "uvicorn-worker>=0.4.0",
-    "uvicorn>=0.38.0"
+    "uvicorn>=0.38.0",
+    "PyYAML>=6.0.3",
+    "uritemplate>=4.2.0"
 ]

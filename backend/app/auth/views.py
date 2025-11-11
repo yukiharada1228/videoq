@@ -156,9 +156,7 @@ class PasswordResetRequestView(PublicAPIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(
-            {
-                "detail": "Password reset email sent. Please check your email."
-            }
+            {"detail": "Password reset email sent. Please check your email."}
         )
 
 
