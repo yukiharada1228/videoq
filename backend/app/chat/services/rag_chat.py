@@ -59,11 +59,12 @@ class RagChatService:
         """RAGを使用してチャットを実行する"""
         # 1. 元のクエリでドキュメントを検索
         docs = retriever.get_relevant_documents(query_text)
+        reversed_docs = docs[::-1]
 
         # 2. 検索結果を元にLLMの応答を生成
         system_prompt = build_system_prompt(
             locale=locale,
-            references=self._build_reference_entries(docs),
+            references=self._build_reference_entries(reversed_docs),
         )
         prompt_input = {"system_prompt": system_prompt, "query_text": query_text}
         llm_response = (self.prompt | self.llm).invoke(prompt_input)
