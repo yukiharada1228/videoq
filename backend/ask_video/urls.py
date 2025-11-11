@@ -15,6 +15,7 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 
+from app.common.authentication import CookieJWTAuthentication
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
@@ -36,7 +37,7 @@ urlpatterns = [
             description="API for all things …",
             version="1.0.0",
             permission_classes=[AllowAny],
-            authentication_classes=[],
+            authentication_classes=[CookieJWTAuthentication],
         ),
         name="openapi-schema",
     ),
