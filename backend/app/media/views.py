@@ -11,7 +11,7 @@ from rest_framework.views import APIView
 
 
 class ProtectedMediaView(APIView):
-    """JWT認証または共有トークンで保護されたメディアファイルを配信するビュー"""
+    """View to serve media files protected by JWT authentication or share token"""
 
     authentication_classes = [CookieJWTAuthentication, ShareTokenAuthentication]
     permission_classes = [IsAuthenticatedOrSharedAccess]

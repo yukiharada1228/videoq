@@ -1,16 +1,16 @@
 import { initI18n } from "@/i18n/config";
 
 /**
- * 共通のエラーハンドリングユーティリティ
+ * Common error handling utilities
  */
 
 const i18n = initI18n();
 
 /**
- * 非同期エラーを処理する共通関数
- * @param error - エラーオブジェクト
- * @param defaultMessage - デフォルトのエラーメッセージ
- * @param onError - エラー時のコールバック関数
+ * Common function to handle async errors
+ * @param error - Error object
+ * @param defaultMessage - Default error message
+ * @param onError - Callback function on error
  */
 export function handleAsyncError(
   error: unknown,
@@ -23,9 +23,9 @@ export function handleAsyncError(
 }
 
 /**
- * APIエラーレスポンスを処理する共通関数
- * @param response - レスポンスオブジェクト
- * @returns エラーメッセージまたはnull
+ * Common function to handle API error responses
+ * @param response - Response object
+ * @returns Error message or null
  */
 export function handleApiError(response: Response): string | null {
   if (!response.ok) {
@@ -48,9 +48,9 @@ export function handleApiError(response: Response): string | null {
 }
 
 /**
- * バリデーションエラーを処理する共通関数
- * @param errors - バリデーションエラーの配列
- * @returns エラーメッセージ
+ * Common function to handle validation errors
+ * @param errors - Array of validation errors
+ * @returns Error message
  */
 export function handleValidationErrors(errors: string[]): string {
   if (errors.length === 0) return "";

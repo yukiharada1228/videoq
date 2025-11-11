@@ -18,7 +18,7 @@ class User(AbstractUser):
     )
     video_limit = models.PositiveIntegerField(
         default=10,
-        help_text="ユーザーが保持できる動画の最大数。必要に応じて管理画面から変更できます。",
+        help_text="Maximum number of videos a user can keep. Can be changed from the admin panel if needed.",
     )
 
 
@@ -131,14 +131,14 @@ class Video(models.Model):
     error_message = models.TextField(blank=True)
     is_external_upload = models.BooleanField(
         default=False,
-        help_text="外部APIクライアントからのアップロードかどうか（処理完了後にファイルを削除）",
+        help_text="Whether this is an upload from an external API client (file will be deleted after processing)",
     )
 
     class Meta:
         ordering = ["-uploaded_at"]
 
     def __str__(self):
-        # N+1問題対策: userが読み込まれていない場合はidを使用
+        # N+1 prevention: Use id if user is not loaded
         try:
             username = self.user.username
         except AttributeError:
@@ -149,7 +149,7 @@ class Video(models.Model):
 @receiver(post_delete, sender=Video)
 def delete_video_vectors_signal(sender, instance, **kwargs):
     """
-    Videoが削除された際にPGVectorからベクトルデータも削除
+    Delete vector data from PGVector when Video is deleted
     """
     try:
         from app.utils.vector_manager import delete_video_vectors
@@ -157,7 +157,7 @@ def delete_video_vectors_signal(sender, instance, **kwargs):
         delete_video_vectors(instance.id)
 
     except Exception as e:
-        # ベクトル削除の失敗は動画削除を阻害しない
+        # Vector deletion failure should not prevent video deletion
         import logging
 
         logger = logging.getLogger(__name__)
@@ -187,7 +187,7 @@ class VideoGroup(models.Model):
         ordering = ["-created_at"]
 
     def __str__(self):
-        # N+1問題対策: userが読み込まれていない場合はidを使用
+        # N+1 prevention: Use id if user is not loaded
         try:
             username = self.user.username
         except AttributeError:
@@ -211,7 +211,7 @@ class VideoGroupMember(models.Model):
         ]  # Cannot add the same video to the same group multiple times
 
     def __str__(self):
-        # N+1問題対策: videoとgroupが読み込まれていない場合はidを使用
+        # N+1 prevention: Use id if video and group are not loaded
         try:
             video_title = self.video.title
         except AttributeError:
@@ -245,7 +245,7 @@ class ChatLog(models.Model):
         choices=FeedbackChoices.choices,
         blank=True,
         null=True,
-        help_text="回答に対するフィードバック（good/bad）",
+        help_text="Feedback on the answer (good/bad)",
     )
     created_at = models.DateTimeField(auto_now_add=True)
 

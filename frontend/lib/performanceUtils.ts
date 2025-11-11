@@ -1,12 +1,12 @@
 /**
- * 共通のパフォーマンス最適化ユーティリティ
+ * Common performance optimization utilities
  */
 
 /**
- * メモ化関数
- * @param fn - メモ化する関数
- * @param keySelector - キャッシュキーを選択する関数
- * @returns メモ化された関数
+ * Memoization function
+ * @param fn - Function to memoize
+ * @param keySelector - Function to select cache key
+ * @returns Memoized function
  */
 export function memoize<T extends (...args: unknown[]) => unknown>(
   fn: T,
@@ -28,10 +28,10 @@ export function memoize<T extends (...args: unknown[]) => unknown>(
 }
 
 /**
- * 遅延読み込み関数
- * @param loader - データを読み込む関数
- * @param cache - キャッシュマップ
- * @returns 遅延読み込み関数
+ * Lazy load function
+ * @param loader - Function to load data
+ * @param cache - Cache map
+ * @returns Lazy load function
  */
 export function lazyLoad<T>(
   loader: () => Promise<T>,
@@ -54,11 +54,11 @@ export function lazyLoad<T>(
 }
 
 /**
- * バッチ処理関数
- * @param items - 処理するアイテムの配列
- * @param processor - バッチ処理関数
- * @param batchSize - バッチサイズ
- * @returns 処理結果の配列
+ * Batch processing function
+ * @param items - Array of items to process
+ * @param processor - Batch processing function
+ * @param batchSize - Batch size
+ * @returns Array of processing results
  */
 export async function batchProcess<T, R>(
   items: T[],
@@ -77,11 +77,11 @@ export async function batchProcess<T, R>(
 }
 
 /**
- * 並列処理関数
- * @param items - 処理するアイテムの配列
- * @param processor - 並列処理関数
- * @param concurrency - 並列度
- * @returns 処理結果の配列
+ * Parallel processing function
+ * @param items - Array of items to process
+ * @param processor - Parallel processing function
+ * @param concurrency - Concurrency level
+ * @returns Array of processing results
  */
 export async function parallelProcess<T, R>(
   items: T[],
@@ -100,14 +100,14 @@ export async function parallelProcess<T, R>(
 }
 
 /**
- * キャッシュ付き関数
- * @param fn - キャッシュする関数
- * @param ttl - キャッシュの有効期限（ミリ秒）
- * @returns キャッシュ付き関数
+ * Function with cache
+ * @param fn - Function to cache
+ * @param ttl - Cache TTL (milliseconds)
+ * @returns Function with cache
  */
 export function withCache<T extends (...args: unknown[]) => unknown>(
   fn: T,
-  ttl: number = 5 * 60 * 1000 // 5分
+  ttl: number = 5 * 60 * 1000 // 5 minutes
 ): T {
   const cache = new Map<string, { data: ReturnType<T>; timestamp: number }>();
   
@@ -126,11 +126,11 @@ export function withCache<T extends (...args: unknown[]) => unknown>(
 }
 
 /**
- * リトライ付き関数
- * @param fn - リトライする関数
- * @param maxRetries - 最大リトライ回数
- * @param delay - リトライ間隔（ミリ秒）
- * @returns リトライ付き関数
+ * Function with retry
+ * @param fn - Function to retry
+ * @param maxRetries - Maximum number of retries
+ * @param delay - Retry interval (milliseconds)
+ * @returns Function with retry
  */
 export function withRetry<T extends (...args: unknown[]) => Promise<unknown>>(
   fn: T,
@@ -159,10 +159,10 @@ export function withRetry<T extends (...args: unknown[]) => Promise<unknown>>(
 }
 
 /**
- * デバウンス付き関数
- * @param fn - デバウンスする関数
- * @param delay - デバウンス遅延（ミリ秒）
- * @returns デバウンス付き関数
+ * Function with debounce
+ * @param fn - Function to debounce
+ * @param delay - Debounce delay (milliseconds)
+ * @returns Function with debounce
  */
 export function withDebounce<T extends (...args: unknown[]) => unknown>(
   fn: T,
@@ -177,10 +177,10 @@ export function withDebounce<T extends (...args: unknown[]) => unknown>(
 }
 
 /**
- * スロットル付き関数
- * @param fn - スロットルする関数
- * @param delay - スロットル遅延（ミリ秒）
- * @returns スロットル付き関数
+ * Function with throttle
+ * @param fn - Function to throttle
+ * @param delay - Throttle delay (milliseconds)
+ * @returns Function with throttle
  */
 export function withThrottle<T extends (...args: unknown[]) => unknown>(
   fn: T,
@@ -198,10 +198,10 @@ export function withThrottle<T extends (...args: unknown[]) => unknown>(
 }
 
 /**
- * パフォーマンス測定関数
- * @param fn - 測定する関数
- * @param label - 測定ラベル
- * @returns 測定結果付き関数
+ * Performance measurement function
+ * @param fn - Function to measure
+ * @param label - Measurement label
+ * @returns Function with measurement results
  */
 export function withPerformanceMeasurement<T extends (...args: unknown[]) => unknown>(
   fn: T,
@@ -220,10 +220,10 @@ export function withPerformanceMeasurement<T extends (...args: unknown[]) => unk
 }
 
 /**
- * 非同期パフォーマンス測定関数
- * @param fn - 測定する非同期関数
- * @param label - 測定ラベル
- * @returns 測定結果付き非同期関数
+ * Async performance measurement function
+ * @param fn - Async function to measure
+ * @param label - Measurement label
+ * @returns Async function with measurement results
  */
 export function withAsyncPerformanceMeasurement<T extends (...args: unknown[]) => Promise<unknown>>(
   fn: T,

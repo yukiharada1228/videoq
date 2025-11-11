@@ -1,4 +1,4 @@
-"""共通認証ユーティリティ"""
+"""Common authentication utilities"""
 
 from rest_framework.request import Request
 from rest_framework_simplejwt.authentication import JWTAuthentication
@@ -6,7 +6,7 @@ from rest_framework_simplejwt.exceptions import InvalidToken
 
 
 class CookieJWTAuthentication(JWTAuthentication):
-    """Cookie または Authorization ヘッダーから JWT トークンを取得する認証クラス"""
+    """Authentication class that retrieves JWT token from Cookie or Authorization header"""
 
     def authenticate(self, request: Request):
         header_auth = super().authenticate(request)

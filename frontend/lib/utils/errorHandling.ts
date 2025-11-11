@@ -1,8 +1,8 @@
 /**
- * 共通のエラーハンドリング関数
- * @param err - エラーオブジェクト
- * @param defaultMessage - デフォルトのエラーメッセージ
- * @param setError - エラーメッセージを設定する関数
+ * Common error handling function
+ * @param err - Error object
+ * @param defaultMessage - Default error message
+ * @param setError - Function to set error message
  */
 export const handleAsyncError = (
   err: unknown, 

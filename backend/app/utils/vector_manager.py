@@ -1,5 +1,5 @@
 """
-PGVector操作の統一管理
+Unified management of PGVector operations
 """
 
 import logging
@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 class PGVectorManager:
     """
-    PGVector操作の統一管理クラス
+    Unified management class for PGVector operations
     """
 
     _config = None
@@ -22,7 +22,7 @@ class PGVectorManager:
     @classmethod
     def get_config(cls):
         """
-        PGVector設定を取得（シングルトンパターン）
+        Get PGVector configuration (singleton pattern)
         """
         if cls._config is None:
             cls._config = {
@@ -39,7 +39,7 @@ class PGVectorManager:
     @classmethod
     def get_connection(cls):
         """
-        PGVector接続を取得（接続プール）
+        Get PGVector connection (connection pool)
         """
         if cls._connection is None or cls._connection.closed:
             config = cls.get_config()
@@ -50,7 +50,7 @@ class PGVectorManager:
     @classmethod
     def close_connection(cls):
         """
-        接続を閉じる
+        Close connection
         """
         if cls._connection and not cls._connection.closed:
             cls._connection.close()
@@ -59,7 +59,7 @@ class PGVectorManager:
     @classmethod
     def execute_with_connection(cls, operation_func):
         """
-        接続を使用して操作を実行
+        Execute operation using connection
         """
         conn = cls.get_connection()
         cursor = conn.cursor()
@@ -77,8 +77,8 @@ class PGVectorManager:
     @classmethod
     def get_psycopg_connection_string(cls):
         """
-        langchain_postgres用の接続文字列を取得
-        postgresql:// → postgresql+psycopg:// に変換
+        Get connection string for langchain_postgres
+        Convert postgresql:// → postgresql+psycopg://
         """
         connection_str = cls.get_config()["database_url"]
         if connection_str.startswith("postgresql://"):
@@ -90,7 +90,7 @@ class PGVectorManager:
 
 def delete_video_vectors(video_id):
     """
-    指定された動画IDに関連するベクトルデータをPGVectorから確実に削除
+    Safely delete vector data related to the specified video ID from PGVector
     """
     try:
         config = PGVectorManager.get_config()
@@ -99,7 +99,7 @@ def delete_video_vectors(video_id):
         )
 
         def delete_operation(cursor):
-            # video_idでフィルタリングして一発で削除
+            # Filter by video_id and delete in one operation
             delete_query = """
                 DELETE FROM langchain_pg_embedding 
                 WHERE cmetadata->>'video_id' = %s
@@ -124,7 +124,7 @@ def delete_video_vectors(video_id):
 
 def delete_video_vectors_batch(video_ids):
     """
-    複数の動画IDに関連するベクトルデータをバッチで削除（N+1問題対策）
+    Batch delete vector data related to multiple video IDs (N+1 prevention)
     """
     if not video_ids:
         return
@@ -136,7 +136,7 @@ def delete_video_vectors_batch(video_ids):
         )
 
         def batch_delete_operation(cursor):
-            # 複数のvideo_idを一度に削除（N+1問題対策）
+            # Delete multiple video_ids at once (N+1 prevention)
             video_id_strs = [str(vid) for vid in video_ids]
             placeholders = ",".join(["%s"] * len(video_id_strs))
 
@@ -166,14 +166,14 @@ def delete_video_vectors_batch(video_ids):
 
 def update_video_title_in_vectors(video_id, new_title):
     """
-    PGVectorのmetadata内のvideo_titleを更新
+    Update video_title in PGVector metadata
 
     Args:
-        video_id: 動画ID
-        new_title: 新しいタイトル
+        video_id: Video ID
+        new_title: New title
 
     Returns:
-        int: 更新されたドキュメント数
+        int: Number of documents updated
     """
     try:
 

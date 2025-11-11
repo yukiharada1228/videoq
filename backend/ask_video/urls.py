@@ -28,6 +28,6 @@ urlpatterns = [
     path("", include("app.urls")),
 ]
 
-# 開発環境でのみMEDIAファイルを提供
+# Serve MEDIA files only in development environment
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

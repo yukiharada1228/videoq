@@ -1,1 +1,1 @@
-"""メディア関連機能"""
+"""Media-related functionality"""

@@ -20,14 +20,14 @@ from .services import (RagChatService, get_langchain_llm,
 
 def _get_chat_logs_queryset(group, ascending=True):
     """
-    チャットログクエリセットを取得
+    Get chat log queryset
 
     Args:
-        group: VideoGroupインスタンス
-        ascending: 昇順かどうか（True: 昇順、False: 降順）
+        group: VideoGroup instance
+        ascending: Whether to sort ascending (True: ascending, False: descending)
 
     Returns:
-        QuerySet: チャットログのクエリセット
+        QuerySet: Chat log queryset
     """
     order_field = "created_at" if ascending else "-created_at"
     return group.chat_logs.select_related("user").order_by(order_field)
@@ -35,15 +35,15 @@ def _get_chat_logs_queryset(group, ascending=True):
 
 def _get_video_group_with_members(group_id, user_id=None, share_token=None):
     """
-    グループとメンバー情報を取得
+    Get group and member information
 
     Args:
-        group_id: グループID
-        user_id: ユーザーID（オプション）
-        share_token: 共有トークン（オプション）
+        group_id: Group ID
+        user_id: User ID (optional)
+        share_token: Share token (optional)
 
     Returns:
-        VideoGroup: グループオブジェクト
+        VideoGroup: Group object
     """
     queryset = VideoGroup.objects.select_related("user").prefetch_related(
         Prefetch(
@@ -213,7 +213,7 @@ class ChatFeedbackView(APIView):
 
 class ChatHistoryView(generics.ListAPIView):
     """
-    グループの会話履歴を所有者のみが取得可能。
+    Get conversation history for a group. Only the owner can access.
     GET /api/chat/history/?group_id=123
     """
 
@@ -238,8 +238,8 @@ class ChatHistoryView(generics.ListAPIView):
 
 class ChatHistoryExportView(APIView):
     """
-    グループの会話履歴をCSVでエクスポート。
-    所有者のみ許可。
+    Export group conversation history as CSV.
+    Only the owner is allowed.
     GET /api/chat/history/export/?group_id=123
     """
 

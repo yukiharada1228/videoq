@@ -1,35 +1,35 @@
-"""共通のミックスイン"""
+"""Common mixins"""
 
 from app.common.authentication import CookieJWTAuthentication
 from rest_framework.permissions import AllowAny, IsAuthenticated
 
 
 class AuthenticatedViewMixin:
-    """認証必須の共通ミックスイン"""
+    """Common mixin for authenticated views"""
 
     permission_classes = [IsAuthenticated]
     authentication_classes = [CookieJWTAuthentication]
 
     def get_serializer_context(self):
-        """シリアライザーにリクエストコンテキストを渡す"""
+        """Pass request context to serializer"""
         context = super().get_serializer_context()
         context["request"] = self.request
         return context
 
 
 class PublicViewMixin:
-    """認証不要の共通ミックスイン"""
+    """Common mixin for public views (no authentication required)"""
 
     permission_classes = [AllowAny]
 
 
 class DynamicSerializerMixin:
-    """動的にシリアライザーを切り替える共通ミックスイン"""
+    """Common mixin to dynamically switch serializers"""
 
     def get_serializer_class(self):
-        """リクエストのメソッドに応じてシリアライザーを変更"""
+        """Change serializer based on request method"""
         if not hasattr(self, "serializer_map") or not self.serializer_map:
-            # serializer_mapがない場合は、従来の方法を試す
+            # If serializer_map doesn't exist, try the conventional method
             if hasattr(self, "serializer_class") and self.serializer_class:
                 return self.serializer_class
             return super().get_serializer_class()
@@ -40,5 +40,5 @@ class DynamicSerializerMixin:
         if serializer_class:
             return serializer_class
 
-        # マッチしない場合はデフォルト（最初の値）を使用
+        # Use default (first value) if no match
         return next(iter(self.serializer_map.values()))

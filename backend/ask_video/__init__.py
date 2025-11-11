@@ -1,8 +1,8 @@
 """
-Djangoプロジェクトの初期化ファイル
+Django project initialization file
 """
 
-# Celeryアプリケーションをインポート
+# Import Celery application
 from app.celery_config import app as celery_app
 
 __all__ = ("celery_app",)

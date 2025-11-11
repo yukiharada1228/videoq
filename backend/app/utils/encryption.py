@@ -1,4 +1,4 @@
-"""暗号化・復号化に関するユーティリティ関数"""
+"""Utility functions for encryption and decryption"""
 
 import base64
 
@@ -7,13 +7,13 @@ from django.conf import settings
 
 
 class EncryptionHelper:
-    """暗号化・復号化のヘルパークラス（キー生成をキャッシュ）"""
+    """Helper class for encryption and decryption (caches key generation)"""
 
     _cipher_suite = None
 
     @classmethod
     def get_cipher_suite(cls):
-        """Fernet cipher suiteを取得（シングルトンパターン）"""
+        """Get Fernet cipher suite (singleton pattern)"""
         if cls._cipher_suite is None:
             secret_key = settings.SECRET_KEY.encode()[:32].ljust(32, b"0")
             encryption_key = base64.urlsafe_b64encode(secret_key)
@@ -22,19 +22,19 @@ class EncryptionHelper:
 
 
 def encrypt_api_key(plain_text: str) -> str:
-    """APIキーを暗号化"""
+    """Encrypt API key"""
     cipher_suite = EncryptionHelper.get_cipher_suite()
     return cipher_suite.encrypt(plain_text.encode()).decode()
 
 
 def decrypt_api_key(encrypted_text: str) -> str:
-    """APIキーを復号化"""
+    """Decrypt API key"""
     cipher_suite = EncryptionHelper.get_cipher_suite()
     return cipher_suite.decrypt(encrypted_text.encode()).decode()
 
 
 def is_encrypted(text: str) -> bool:
-    """テキストが既に暗号化されているかチェック"""
+    """Check if text is already encrypted"""
     try:
         cipher_suite = EncryptionHelper.get_cipher_suite()
         cipher_suite.decrypt(text.encode())

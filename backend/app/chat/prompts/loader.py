@@ -12,7 +12,7 @@ PROMPTS_PATH = Path(__file__).with_name("prompts.json")
 
 
 class PromptConfigurationError(RuntimeError):
-    """プロンプト設定に問題がある場合の例外."""
+    """Exception raised when there is a problem with prompt configuration."""
 
 
 @lru_cache(maxsize=1)
@@ -70,7 +70,7 @@ def _resolve_locale_config(locale: Optional[str]) -> Dict[str, Any]:
 def build_system_prompt(
     locale: Optional[str] = None, references: Optional[Sequence[str]] = None
 ) -> str:
-    """詳細プロンプトテンプレートに基づきシステムメッセージを構築する。"""
+    """Build system message based on detailed prompt template."""
     config = _resolve_locale_config(locale)
 
     header_template = config.get("header")

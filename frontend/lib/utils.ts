@@ -1,24 +1,24 @@
 /**
- * 共通のユーティリティ関数
+ * Common utility functions
  */
 
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
 /**
- * Tailwind CSSクラス名を結合する関数
- * @param inputs - クラス名またはクラス名の配列
- * @returns 結合されたクラス名文字列
+ * Function to merge Tailwind CSS class names
+ * @param inputs - Class names or array of class names
+ * @returns Merged class name string
  */
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
 /**
- * 文字列のフォーマット関数
- * @param template - テンプレート文字列
- * @param values - 置換する値
- * @returns フォーマットされた文字列
+ * String formatting function
+ * @param template - Template string
+ * @param values - Values to replace
+ * @returns Formatted string
  */
 export function formatString(template: string, values: Record<string, unknown>): string {
   return template.replace(/\{(\w+)\}/g, (match, key) => {
@@ -28,10 +28,10 @@ export function formatString(template: string, values: Record<string, unknown>):
 }
 
 /**
- * 日付のフォーマット関数
- * @param date - 日付オブジェクトまたは文字列
- * @param format - フォーマット文字列
- * @returns フォーマットされた日付文字列
+ * Date formatting function
+ * @param date - Date object or string
+ * @param format - Format string
+ * @returns Formatted date string
  */
 export function formatDate(date: Date | string, format: string = 'YYYY-MM-DD'): string {
   const d = new Date(date);
@@ -52,9 +52,9 @@ export function formatDate(date: Date | string, format: string = 'YYYY-MM-DD'): 
 }
 
 /**
- * ファイルサイズのフォーマット関数
- * @param bytes - バイト数
- * @returns フォーマットされたファイルサイズ文字列
+ * File size formatting function
+ * @param bytes - Number of bytes
+ * @returns Formatted file size string
  */
 export function formatFileSize(bytes: number): string {
   if (bytes === 0) return '0 Bytes';
@@ -67,9 +67,9 @@ export function formatFileSize(bytes: number): string {
 }
 
 /**
- * 時間のフォーマット関数
- * @param seconds - 秒数
- * @returns フォーマットされた時間文字列
+ * Time formatting function
+ * @param seconds - Number of seconds
+ * @returns Formatted time string
  */
 export function formatDuration(seconds: number): string {
   const hours = Math.floor(seconds / 3600);
@@ -83,24 +83,24 @@ export function formatDuration(seconds: number): string {
 }
 
 /**
- * 数値のフォーマット関数
- * @param num - 数値
- * @param decimals - 小数点以下の桁数
- * @returns フォーマットされた数値文字列
+ * Number formatting function
+ * @param num - Number
+ * @param decimals - Number of decimal places
+ * @returns Formatted number string
  */
 export function formatNumber(num: number, decimals: number = 0): string {
-  return num.toLocaleString('ja-JP', {
+  return num.toLocaleString('en-US', {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
   });
 }
 
 /**
- * パーセンテージのフォーマット関数
- * @param value - 値
- * @param total - 合計値
- * @param decimals - 小数点以下の桁数
- * @returns フォーマットされたパーセンテージ文字列
+ * Percentage formatting function
+ * @param value - Value
+ * @param total - Total value
+ * @param decimals - Number of decimal places
+ * @returns Formatted percentage string
  */
 export function formatPercentage(value: number, total: number, decimals: number = 1): string {
   if (total === 0) return '0%';
@@ -109,11 +109,11 @@ export function formatPercentage(value: number, total: number, decimals: number 
 }
 
 /**
- * 文字列の切り詰め関数
- * @param str - 文字列
- * @param maxLength - 最大長
- * @param suffix - 接尾辞
- * @returns 切り詰められた文字列
+ * String truncation function
+ * @param str - String
+ * @param maxLength - Maximum length
+ * @param suffix - Suffix
+ * @returns Truncated string
  */
 export function truncateString(str: string, maxLength: number, suffix: string = '...'): string {
   if (str.length <= maxLength) return str;
@@ -121,21 +121,21 @@ export function truncateString(str: string, maxLength: number, suffix: string = 
 }
 
 /**
- * 文字列のサニタイズ関数
- * @param str - 文字列
- * @returns サニタイズされた文字列
+ * String sanitization function
+ * @param str - String
+ * @returns Sanitized string
  */
 export function sanitizeString(str: string): string {
   return str
-    .replace(/[<>]/g, '') // HTMLタグを除去
-    .replace(/['"]/g, '') // クォートを除去
+    .replace(/[<>]/g, '') // Remove HTML tags
+    .replace(/['"]/g, '') // Remove quotes
     .trim();
 }
 
 /**
- * 配列のシャッフル関数
- * @param array - 配列
- * @returns シャッフルされた配列
+ * Array shuffle function
+ * @param array - Array
+ * @returns Shuffled array
  */
 export function shuffleArray<T>(array: T[]): T[] {
   const shuffled = [...array];
@@ -147,10 +147,10 @@ export function shuffleArray<T>(array: T[]): T[] {
 }
 
 /**
- * 配列のチャンク分割関数
- * @param array - 配列
- * @param size - チャンクサイズ
- * @returns チャンクに分割された配列
+ * Array chunking function
+ * @param array - Array
+ * @param size - Chunk size
+ * @returns Array split into chunks
  */
 export function chunkArray<T>(array: T[], size: number): T[][] {
   const chunks: T[][] = [];
@@ -161,9 +161,9 @@ export function chunkArray<T>(array: T[], size: number): T[][] {
 }
 
 /**
- * オブジェクトのディープクローン関数
- * @param obj - オブジェクト
- * @returns クローンされたオブジェクト
+ * Deep clone function for objects
+ * @param obj - Object
+ * @returns Cloned object
  */
 export function deepClone<T>(obj: T): T {
   if (obj === null || typeof obj !== 'object') return obj;
@@ -182,10 +182,10 @@ export function deepClone<T>(obj: T): T {
 }
 
 /**
- * デバウンス関数
- * @param func - 関数
- * @param delay - 遅延時間（ミリ秒）
- * @returns デバウンスされた関数
+ * Debounce function
+ * @param func - Function
+ * @param delay - Delay time (milliseconds)
+ * @returns Debounced function
  */
 export function debounce<T extends (...args: unknown[]) => unknown>(
   func: T,
@@ -199,10 +199,10 @@ export function debounce<T extends (...args: unknown[]) => unknown>(
 }
 
 /**
- * スロットル関数
- * @param func - 関数
- * @param delay - 遅延時間（ミリ秒）
- * @returns スロットルされた関数
+ * Throttle function
+ * @param func - Function
+ * @param delay - Delay time (milliseconds)
+ * @returns Throttled function
  */
 export function throttle<T extends (...args: unknown[]) => unknown>(
   func: T,

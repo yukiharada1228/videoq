@@ -1,7 +1,7 @@
 import { initI18n } from '@/i18n/config';
 
 /**
- * 動画のステータスに関連するユーティリティ関数
+ * Utility functions related to video status
  */
 
 const i18n = initI18n();
@@ -9,7 +9,7 @@ const i18n = initI18n();
 export type VideoStatus = 'pending' | 'processing' | 'completed' | 'error';
 
 /**
- * ステータスバッジのクラス名を取得
+ * Get status badge class name
  */
 export function getStatusBadgeClassName(
   status: string,
@@ -34,7 +34,7 @@ export function getStatusBadgeClassName(
 }
 
 /**
- * ステータスラベルを取得
+ * Get status label
  */
 export function getStatusLabel(status: string, locale?: string): string {
   const key = `common.status.${status}`;
@@ -43,10 +43,10 @@ export function getStatusLabel(status: string, locale?: string): string {
 }
 
 /**
- * 日付を日本語形式でフォーマット
- * @param date ISO形式の日付文字列またはDateオブジェクト
- * @param format 'full' | 'short' - 日時形式の詳細度
- * @returns フォーマットされた日付文字列
+ * Format date in locale format
+ * @param date ISO date string or Date object
+ * @param format 'full' | 'short' - Detail level of datetime format
+ * @returns Formatted date string
  */
 export function formatDate(
   date: string | Date,
@@ -79,7 +79,7 @@ export function formatDate(
 }
 
 /**
- * 動画の時間文字列（HH:MM:SS,mmm / MM:SS / SS）を秒数に変換
+ * Convert video time string (HH:MM:SS,mmm / MM:SS / SS) to seconds
  */
 export function timeStringToSeconds(timeStr: string): number {
   if (!timeStr) {

@@ -1,16 +1,16 @@
 import { initI18n } from "@/i18n/config";
 
 /**
- * 共通のフォーム処理ユーティリティ
+ * Common form processing utilities
  */
 
 const i18n = initI18n();
 
 /**
- * フォームバリデーションの共通関数
- * @param data - バリデーションするデータ
- * @param rules - バリデーションルール
- * @returns バリデーション結果
+ * Common form validation function
+ * @param data - Data to validate
+ * @param rules - Validation rules
+ * @returns Validation result
  */
 export function validateForm<T>(
   data: T,
@@ -34,7 +34,7 @@ export function validateForm<T>(
 }
 
 /**
- * フォームフィールドの共通バリデーション関数
+ * Common validation functions for form fields
  */
 export const formValidators = {
   required: (value: unknown): string | null => {
@@ -94,28 +94,28 @@ export const formValidators = {
 };
 
 /**
- * フォームデータの初期化関数
- * @param initialData - 初期データ
- * @returns 初期化されたフォームデータ
+ * Function to initialize form data
+ * @param initialData - Initial data
+ * @returns Initialized form data
  */
 export function initializeFormData<T>(initialData: T): T {
   return { ...initialData };
 }
 
 /**
- * フォームデータのリセット関数
- * @param initialData - 初期データ
- * @returns リセットされたフォームデータ
+ * Function to reset form data
+ * @param initialData - Initial data
+ * @returns Reset form data
  */
 export function resetFormData<T>(initialData: T): T {
   return { ...initialData };
 }
 
 /**
- * フォームデータの更新関数
- * @param currentData - 現在のデータ
- * @param updates - 更新するデータ
- * @returns 更新されたフォームデータ
+ * Function to update form data
+ * @param currentData - Current data
+ * @param updates - Data to update
+ * @returns Updated form data
  */
 export function updateFormData<T>(
   currentData: T,
@@ -125,10 +125,10 @@ export function updateFormData<T>(
 }
 
 /**
- * フォームデータの差分取得関数
- * @param originalData - 元のデータ
- * @param currentData - 現在のデータ
- * @returns 変更されたフィールドのみのオブジェクト
+ * Function to get form data differences
+ * @param originalData - Original data
+ * @param currentData - Current data
+ * @returns Object containing only changed fields
  */
 export function getFormDataChanges<T>(
   originalData: T,

@@ -22,11 +22,11 @@ def send_email_verification(user: AbstractBaseUser) -> None:
     """
     Send an email verification mail to the specified user.
     """
-    subject = "[Ask Video] 仮登録完了のお知らせ"
+    subject = "[Ask Video] Temporary Registration Complete"
     verification_link = build_email_verification_link(user)
     message_lines: Sequence[str] = [
-        "Ask Video にご登録いただきありがとうございます。",
-        "以下のURLをクリックして、本登録を完了してください。",
+        "Thank you for registering with Ask Video.",
+        "Please click the following URL to complete your registration.",
         "",
         verification_link,
     ]
@@ -48,15 +48,15 @@ def build_password_reset_link(user: AbstractBaseUser) -> str:
 
 
 def send_password_reset_email(user: AbstractBaseUser) -> None:
-    subject = "[Ask Video] パスワード再設定のご案内"
+    subject = "[Ask Video] Password Reset Instructions"
     reset_link = build_password_reset_link(user)
     message_lines: Sequence[str] = [
-        "Ask Video のパスワード再設定を受け付けました。",
-        "以下のURLから24時間以内に新しいパスワードを設定してください。",
+        "We have received a password reset request for Ask Video.",
+        "Please set a new password from the following URL within 24 hours.",
         "",
         reset_link,
         "",
-        "心当たりがない場合はこのメールを破棄してください。",
+        "If you did not request this, please ignore this email.",
     ]
     message = "\n".join(message_lines)
     from_email = getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@askvideo.local")
