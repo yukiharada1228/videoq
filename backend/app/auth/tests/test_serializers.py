@@ -222,6 +222,21 @@ class UserUpdateSerializerTests(APITestCase):
         self.user.refresh_from_db()
         self.assertIsNone(self.user.encrypted_openai_api_key)
 
+    @patch("app.auth.serializers.encrypt_api_key")
+    def test_update_encryption_error(self, mock_encrypt):
+        """Test updating with encryption error"""
+        mock_encrypt.side_effect = Exception("Encryption failed")
+
+        serializer = UserUpdateSerializer(
+            self.user, data={"encrypted_openai_api_key": "sk-test123"}
+        )
+        self.assertTrue(serializer.is_valid())
+
+        with self.assertRaises(serializers.ValidationError) as cm:
+            serializer.save()
+
+        self.assertIn("Failed to encrypt API key", str(cm.exception))
+
 
 class RefreshSerializerTests(APITestCase):
     """Tests for RefreshSerializer"""
