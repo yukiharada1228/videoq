@@ -11,8 +11,6 @@ from django.utils.http import urlsafe_base64_encode
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from app.utils.encryption import encrypt_api_key
-
 User = get_user_model()
 
 
