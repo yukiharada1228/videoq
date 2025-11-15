@@ -280,11 +280,11 @@ class CacheOptimizer:
             return {}
 
         # N+1 prevention: Get required data in a single query
+        # Note: video_count is an annotation, so we can't use only()
         groups = (
             VideoGroup.objects.filter(id__in=group_ids)
             .select_related("user")
             .annotate(video_count=Count("members__video", distinct=True))
-            .only("id", "name", "description", "created_at", "user_id", "video_count")
         )
 
         return {
