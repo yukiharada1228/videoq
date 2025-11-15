@@ -385,7 +385,7 @@ class VideoDetailViewTests(APITestCase):
             status="completed",
         )
 
-    @patch("app.video.views.update_video_title_in_vectors")
+    @patch("app.utils.vector_manager.update_video_title_in_vectors")
     def test_update_video_title_updates_pgvector(self, mock_update):
         """Test that updating video title updates PGVector"""
         url = reverse("video-detail", kwargs={"pk": self.video.pk})
@@ -410,7 +410,7 @@ class VideoDetailViewTests(APITestCase):
         self.assertEqual(self.video.description, "Updated Description")
         self.assertEqual(self.video.title, "Original Title")
 
-    @patch("app.video.views.delete_video_vectors")
+    @patch("app.utils.vector_manager.delete_video_vectors")
     def test_delete_video_deletes_vectors(self, mock_delete):
         """Test that deleting video deletes vectors"""
         url = reverse("video-detail", kwargs={"pk": self.video.pk})
@@ -421,7 +421,7 @@ class VideoDetailViewTests(APITestCase):
         self.assertFalse(Video.objects.filter(pk=self.video.pk).exists())
         mock_delete.assert_called_once_with(self.video.id)
 
-    @patch("app.video.views.delete_video_vectors")
+    @patch("app.utils.vector_manager.delete_video_vectors")
     def test_delete_video_vector_error_handling(self, mock_delete):
         """Test that vector deletion error doesn't prevent video deletion"""
         mock_delete.side_effect = Exception("Vector deletion failed")
