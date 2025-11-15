@@ -2,6 +2,7 @@
 Tests for common authentication module
 """
 from django.contrib.auth import get_user_model
+from django.test import RequestFactory
 from rest_framework.test import APITestCase
 
 from app.common.authentication import CookieJWTAuthentication
@@ -20,14 +21,15 @@ class CookieJWTAuthenticationTests(APITestCase):
             password="testpass123",
         )
         self.auth = CookieJWTAuthentication()
+        self.factory = RequestFactory()
 
     def test_authenticate_with_cookie(self):
         """Test authentication using cookie"""
         refresh = RefreshToken.for_user(self.user)
         access_token = str(refresh.access_token)
 
-        request = self.client.request()
-        request.COOKIES["access_token"] = access_token
+        request = self.factory.get("/")
+        request.COOKIES = {"access_token": access_token}
 
         result = self.auth.authenticate(request)
 
@@ -40,8 +42,7 @@ class CookieJWTAuthenticationTests(APITestCase):
         refresh = RefreshToken.for_user(self.user)
         access_token = str(refresh.access_token)
 
-        request = self.client.request()
-        request.META["HTTP_AUTHORIZATION"] = f"Bearer {access_token}"
+        request = self.factory.get("/", HTTP_AUTHORIZATION=f"Bearer {access_token}")
 
         result = self.auth.authenticate(request)
 
@@ -51,8 +52,8 @@ class CookieJWTAuthenticationTests(APITestCase):
 
     def test_authenticate_with_invalid_cookie(self):
         """Test authentication with invalid token in cookie"""
-        request = self.client.request()
-        request.COOKIES["access_token"] = "invalid-token"
+        request = self.factory.get("/")
+        request.COOKIES = {"access_token": "invalid-token"}
 
         result = self.auth.authenticate(request)
 
@@ -60,7 +61,7 @@ class CookieJWTAuthenticationTests(APITestCase):
 
     def test_authenticate_without_token(self):
         """Test authentication without token"""
-        request = self.client.request()
+        request = self.factory.get("/")
 
         result = self.auth.authenticate(request)
 
@@ -80,9 +81,8 @@ class CookieJWTAuthenticationTests(APITestCase):
         other_refresh = RefreshToken.for_user(other_user)
         other_access_token = str(other_refresh.access_token)
 
-        request = self.client.request()
-        request.META["HTTP_AUTHORIZATION"] = f"Bearer {access_token}"
-        request.COOKIES["access_token"] = other_access_token
+        request = self.factory.get("/", HTTP_AUTHORIZATION=f"Bearer {access_token}")
+        request.COOKIES = {"access_token": other_access_token}
 
         result = self.auth.authenticate(request)
 

@@ -2,7 +2,8 @@
 Tests for common permissions module
 """
 from django.contrib.auth import get_user_model
-from rest_framework.test import APITestCase, RequestFactory
+from django.test import RequestFactory
+from rest_framework.test import APITestCase
 
 from app.common.permissions import (
     IsAuthenticatedOrSharedAccess,
