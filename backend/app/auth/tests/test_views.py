@@ -131,6 +131,14 @@ class RefreshViewTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
+    def test_refresh_with_empty_cookie(self):
+        """Test token refresh with empty cookie"""
+        self.client.cookies["refresh_token"] = ""
+
+        response = self.client.post(self.url, {"refresh": ""}, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
 
 class EmailVerificationViewTests(APITestCase):
     """Tests for EmailVerificationView"""
@@ -251,4 +259,14 @@ class MeViewTests(APITestCase):
         response = self.client.get(self.url)
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_update_current_user_patch(self):
+        """Test updating current user with PATCH method"""
+        data = {"encrypted_openai_api_key": "sk-test123"}
+
+        response = self.client.patch(self.url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.user.refresh_from_db()
+        self.assertIsNotNone(self.user.encrypted_openai_api_key)
 
