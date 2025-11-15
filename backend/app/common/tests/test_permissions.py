@@ -1,6 +1,8 @@
 """
 Tests for common permissions module
 """
+import secrets
+
 from django.contrib.auth import get_user_model
 from django.test import RequestFactory
 from rest_framework.request import Request
@@ -24,8 +26,10 @@ class ShareTokenAuthenticationTests(APITestCase):
             email="test@example.com",
             password="testpass123",
         )
+        # Generate share_token for testing
+        share_token = secrets.token_urlsafe(32)
         self.group = VideoGroup.objects.create(
-            user=self.user, name="Test Group", description="Test"
+            user=self.user, name="Test Group", description="Test", share_token=share_token
         )
         self.auth = ShareTokenAuthentication()
         self.factory = APIRequestFactory()

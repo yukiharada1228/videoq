@@ -61,15 +61,18 @@ class ProtectedMediaViewTests(APITestCase):
 
     def test_get_media_with_share_token(self):
         """Test accessing media with share token"""
+        import secrets
+
+        share_token = secrets.token_urlsafe(32)
         group = VideoGroup.objects.create(
-            user=self.user, name="Test Group", description="Test"
+            user=self.user, name="Test Group", description="Test", share_token=share_token
         )
         VideoGroupMember.objects.create(group=group, video=self.video, order=0)
 
         # Don't force authenticate - use share token instead
         self.client.force_authenticate(user=None)
         url = reverse("app:protected_media", kwargs={"path": self.video.file.name})
-        url += f"?share_token={group.share_token}"
+        url += f"?share_token={share_token}"
 
         response = self.client.get(url)
 
@@ -103,15 +106,18 @@ class ProtectedMediaViewTests(APITestCase):
 
     def test_get_media_share_token_wrong_group(self):
         """Test accessing media with share token for wrong group"""
-        group = VideoGroup.objects.create(
-            user=self.user, name="Test Group", description="Test"
+        import secrets
+
+        share_token = secrets.token_urlsafe(32)
+        # Create group but don't add video to it
+        VideoGroup.objects.create(
+            user=self.user, name="Test Group", description="Test", share_token=share_token
         )
-        # Video is not in this group
 
         # Don't force authenticate - use share token instead
         self.client.force_authenticate(user=None)
         url = reverse("app:protected_media", kwargs={"path": self.video.file.name})
-        url += f"?share_token={group.share_token}"
+        url += f"?share_token={share_token}"
 
         response = self.client.get(url)
 
