@@ -1,15 +1,19 @@
 """
 Tests for auth serializers
 """
+from unittest.mock import patch
+
 from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import default_token_generator
 from django.core import mail
 from django.test import override_settings
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
+from rest_framework import serializers
 from rest_framework.test import APITestCase
 
 from app.auth.serializers import (
+    CredentialsSerializerMixin,
     EmailVerificationSerializer,
     LoginSerializer,
     PasswordResetConfirmSerializer,
@@ -77,6 +81,41 @@ class UserSignupSerializerTests(APITestCase):
         serializer = UserSignupSerializer(data=data)
         self.assertFalse(serializer.is_valid())
         self.assertIn("email", serializer.errors)
+
+    @patch("app.auth.serializers.send_email_verification")
+    def test_create_user_email_send_failure(self, mock_send_email):
+        """Test user creation when email sending fails"""
+        mock_send_email.side_effect = Exception("Email service unavailable")
+
+        data = {
+            "username": "newuser",
+            "email": "newuser@example.com",
+            "password": "SecurePass123",
+        }
+        serializer = UserSignupSerializer(data=data)
+        self.assertTrue(serializer.is_valid())
+
+        with self.assertRaises(serializers.ValidationError):
+            serializer.save()
+
+        # User should be deleted if email sending fails
+        self.assertFalse(User.objects.filter(username="newuser").exists())
+
+    @patch("app.auth.serializers.User.objects.create_user")
+    def test_create_user_database_error(self, mock_create_user):
+        """Test user creation when database error occurs"""
+        mock_create_user.side_effect = Exception("Database error")
+
+        data = {
+            "username": "newuser",
+            "email": "newuser@example.com",
+            "password": "SecurePass123",
+        }
+        serializer = UserSignupSerializer(data=data)
+        self.assertTrue(serializer.is_valid())
+
+        with self.assertRaises(Exception):
+            serializer.save()
 
 
 class LoginSerializerTests(APITestCase):
@@ -356,4 +395,50 @@ class PasswordResetConfirmSerializerTests(APITestCase):
         }
         serializer = PasswordResetConfirmSerializer(data=data)
         self.assertFalse(serializer.is_valid())
+
+
+class CredentialsSerializerMixinTests(APITestCase):
+    """Tests for CredentialsSerializerMixin"""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="testuser",
+            email="test@example.com",
+            password="testpass123",
+        )
+
+    def test_validate_credentials_success(self):
+        """Test validate_credentials with valid credentials"""
+        mixin = CredentialsSerializerMixin()
+        user = mixin.validate_credentials("testuser", "testpass123")
+
+        self.assertEqual(user, self.user)
+
+    def test_validate_credentials_invalid_username(self):
+        """Test validate_credentials with invalid username"""
+        mixin = CredentialsSerializerMixin()
+
+        with self.assertRaises(serializers.ValidationError):
+            mixin.validate_credentials("wronguser", "testpass123")
+
+    def test_validate_credentials_invalid_password(self):
+        """Test validate_credentials with invalid password"""
+        mixin = CredentialsSerializerMixin()
+
+        with self.assertRaises(serializers.ValidationError):
+            mixin.validate_credentials("testuser", "wrongpass")
+
+    def test_validate_credentials_missing_username(self):
+        """Test validate_credentials with missing username"""
+        mixin = CredentialsSerializerMixin()
+
+        with self.assertRaises(serializers.ValidationError):
+            mixin.validate_credentials("", "testpass123")
+
+    def test_validate_credentials_missing_password(self):
+        """Test validate_credentials with missing password"""
+        mixin = CredentialsSerializerMixin()
+
+        with self.assertRaises(serializers.ValidationError):
+            mixin.validate_credentials("testuser", "")
 
