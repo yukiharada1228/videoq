@@ -1,6 +1,7 @@
 """
 Tests for chat views
 """
+import secrets
 from unittest.mock import MagicMock, patch
 
 from django.contrib.auth import get_user_model
@@ -34,8 +35,10 @@ class ChatViewTests(APITestCase):
             description="Test Description",
             status="completed",
         )
+        # Generate share_token for testing
+        share_token = secrets.token_urlsafe(32)
         self.group = VideoGroup.objects.create(
-            user=self.user, name="Test Group", description="Test"
+            user=self.user, name="Test Group", description="Test", share_token=share_token
         )
         VideoGroupMember.objects.create(group=self.group, video=self.video, order=0)
 
@@ -234,8 +237,10 @@ class ChatFeedbackViewTests(APITestCase):
         self.client = APIClient()
         self.client.force_authenticate(user=self.user)
 
+        # Generate share_token for testing
+        share_token = secrets.token_urlsafe(32)
         self.group = VideoGroup.objects.create(
-            user=self.user, name="Test Group", description="Test"
+            user=self.user, name="Test Group", description="Test", share_token=share_token
         )
         self.chat_log = ChatLog.objects.create(
             user=self.user,
@@ -345,12 +350,13 @@ class ChatFeedbackViewTests(APITestCase):
 
     def test_update_feedback_share_token_mismatch(self):
         """Test updating feedback with wrong share token"""
-        other_group = VideoGroup.objects.create(
-            user=self.user, name="Other Group", description="Test"
+        other_share_token = secrets.token_urlsafe(32)
+        VideoGroup.objects.create(
+            user=self.user, name="Other Group", description="Test", share_token=other_share_token
         )
 
         url = reverse("chat-feedback")
-        url += f"?share_token={other_group.share_token}"
+        url += f"?share_token={other_share_token}"
         data = {"chat_log_id": self.chat_log.id, "feedback": "good"}
 
         response = self.client.post(url, data, format="json")
