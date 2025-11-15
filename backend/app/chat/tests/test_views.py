@@ -139,7 +139,12 @@ class ChatViewTests(APITestCase):
     @patch("app.chat.views.get_langchain_llm")
     def test_chat_llm_error(self, mock_get_llm):
         """Test chat with LLM error"""
-        mock_get_llm.return_value = (None, {"error": "LLM error"})
+        from app.common.responses import create_error_response
+
+        error_response = create_error_response(
+            "OpenAI API key is not configured", status.HTTP_400_BAD_REQUEST
+        )
+        mock_get_llm.return_value = (None, error_response)
 
         url = reverse("chat")
         data = {"messages": [{"role": "user", "content": "Test question"}]}
@@ -152,6 +157,7 @@ class ChatViewTests(APITestCase):
     @patch("app.chat.views.RagChatService")
     def test_chat_with_share_token(self, mock_service_class, mock_get_llm):
         """Test chat with share token"""
+        # Use group owner's user for LLM
         mock_llm = MagicMock()
         mock_get_llm.return_value = (mock_llm, None)
 
@@ -163,6 +169,8 @@ class ChatViewTests(APITestCase):
         mock_service.run.return_value = mock_result
         mock_service_class.return_value = mock_service
 
+        # Don't force authenticate - use share token instead
+        self.client.force_authenticate(user=None)
         url = reverse("chat")
         url += f"?share_token={self.group.share_token}"
         data = {
@@ -321,6 +329,8 @@ class ChatFeedbackViewTests(APITestCase):
 
     def test_update_feedback_with_share_token(self):
         """Test updating feedback with share token"""
+        # Don't force authenticate - use share token instead
+        self.client.force_authenticate(user=None)
         url = reverse("chat-feedback")
         url += f"?share_token={self.group.share_token}"
         data = {"chat_log_id": self.chat_log.id, "feedback": "good"}

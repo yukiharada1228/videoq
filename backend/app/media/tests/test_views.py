@@ -52,7 +52,7 @@ class ProtectedMediaViewTests(APITestCase):
     def test_get_media_with_authenticated_user(self):
         """Test accessing media with authenticated user"""
         self.client.force_authenticate(user=self.user)
-        url = reverse("protected-media", kwargs={"path": self.video.file.name})
+        url = reverse("app:protected_media", kwargs={"path": self.video.file.name})
 
         response = self.client.get(url)
 
@@ -66,7 +66,7 @@ class ProtectedMediaViewTests(APITestCase):
         )
         VideoGroupMember.objects.create(group=group, video=self.video, order=0)
 
-        url = reverse("protected-media", kwargs={"path": self.video.file.name})
+        url = reverse("app:protected_media", kwargs={"path": self.video.file.name})
         url += f"?share_token={group.share_token}"
 
         response = self.client.get(url)
@@ -76,7 +76,7 @@ class ProtectedMediaViewTests(APITestCase):
 
     def test_get_media_unauthorized(self):
         """Test accessing media without authentication"""
-        url = reverse("protected-media", kwargs={"path": self.video.file.name})
+        url = reverse("app:protected_media", kwargs={"path": self.video.file.name})
 
         response = self.client.get(url)
 
@@ -90,7 +90,7 @@ class ProtectedMediaViewTests(APITestCase):
             password="testpass123",
         )
         self.client.force_authenticate(user=other_user)
-        url = reverse("protected-media", kwargs={"path": self.video.file.name})
+        url = reverse("app:protected_media", kwargs={"path": self.video.file.name})
 
         response = self.client.get(url)
 
@@ -103,7 +103,7 @@ class ProtectedMediaViewTests(APITestCase):
         )
         # Video is not in this group
 
-        url = reverse("protected-media", kwargs={"path": self.video.file.name})
+        url = reverse("app:protected_media", kwargs={"path": self.video.file.name})
         url += f"?share_token={group.share_token}"
 
         response = self.client.get(url)
@@ -113,7 +113,7 @@ class ProtectedMediaViewTests(APITestCase):
     def test_get_media_file_not_found(self):
         """Test accessing non-existent file"""
         self.client.force_authenticate(user=self.user)
-        url = reverse("protected-media", kwargs={"path": "nonexistent.mp4"})
+        url = reverse("app:protected_media", kwargs={"path": "nonexistent.mp4"})
 
         response = self.client.get(url)
 
@@ -131,7 +131,7 @@ class ProtectedMediaViewTests(APITestCase):
         with open(file_path, "wb") as f:
             f.write(other_file.read())
 
-        url = reverse("protected-media", kwargs={"path": other_file.name})
+        url = reverse("app:protected_media", kwargs={"path": other_file.name})
 
         response = self.client.get(url)
 
@@ -146,7 +146,7 @@ class ProtectedMediaViewTests(APITestCase):
         """Test that Content-Type header is set correctly"""
         mock_guess_type.return_value = ("video/mp4", None)
         self.client.force_authenticate(user=self.user)
-        url = reverse("protected-media", kwargs={"path": self.video.file.name})
+        url = reverse("app:protected_media", kwargs={"path": self.video.file.name})
 
         response = self.client.get(url)
 

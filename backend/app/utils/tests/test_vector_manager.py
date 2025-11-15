@@ -45,13 +45,15 @@ class PGVectorManagerTests(TestCase):
         self.assertIn("database_url", config)
         self.assertIn("collection_name", config)
 
-    @patch("app.utils.vector_manager.psycopg2.connect")
     @patch("app.utils.vector_manager.register_vector")
-    def test_get_connection(self, mock_register, mock_connect):
+    @patch("app.utils.vector_manager.psycopg2.connect")
+    def test_get_connection(self, mock_connect, mock_register):
         """Test get_connection"""
         mock_conn = MagicMock()
         mock_conn.closed = False
         mock_connect.return_value = mock_conn
+        # Mock register_vector to avoid database connection
+        mock_register.return_value = None
 
         conn = PGVectorManager.get_connection()
 
@@ -59,12 +61,14 @@ class PGVectorManagerTests(TestCase):
         mock_connect.assert_called_once()
         mock_register.assert_called_once_with(mock_conn)
 
+    @patch("app.utils.vector_manager.register_vector")
     @patch("app.utils.vector_manager.psycopg2.connect")
-    def test_get_connection_reuses_existing(self, mock_connect):
+    def test_get_connection_reuses_existing(self, mock_connect, mock_register):
         """Test get_connection reuses existing connection"""
         mock_conn = MagicMock()
         mock_conn.closed = False
         mock_connect.return_value = mock_conn
+        mock_register.return_value = None
 
         conn1 = PGVectorManager.get_connection()
         conn2 = PGVectorManager.get_connection()
@@ -73,12 +77,14 @@ class PGVectorManagerTests(TestCase):
         # Should only connect once
         self.assertEqual(mock_connect.call_count, 1)
 
+    @patch("app.utils.vector_manager.register_vector")
     @patch("app.utils.vector_manager.psycopg2.connect")
-    def test_close_connection(self, mock_connect):
+    def test_close_connection(self, mock_connect, mock_register):
         """Test close_connection"""
         mock_conn = MagicMock()
         mock_conn.closed = False
         mock_connect.return_value = mock_conn
+        mock_register.return_value = None
 
         PGVectorManager.get_connection()
         PGVectorManager.close_connection()
@@ -86,14 +92,16 @@ class PGVectorManagerTests(TestCase):
         mock_conn.close.assert_called_once()
         self.assertIsNone(PGVectorManager._connection)
 
+    @patch("app.utils.vector_manager.register_vector")
     @patch("app.utils.vector_manager.psycopg2.connect")
-    def test_execute_with_connection_success(self, mock_connect):
+    def test_execute_with_connection_success(self, mock_connect, mock_register):
         """Test execute_with_connection with successful operation"""
         mock_conn = MagicMock()
         mock_conn.closed = False
         mock_cursor = MagicMock()
         mock_conn.cursor.return_value = mock_cursor
         mock_connect.return_value = mock_conn
+        mock_register.return_value = None
 
         def operation(cursor):
             return "result"
@@ -104,14 +112,16 @@ class PGVectorManagerTests(TestCase):
         mock_conn.commit.assert_called_once()
         mock_cursor.close.assert_called_once()
 
+    @patch("app.utils.vector_manager.register_vector")
     @patch("app.utils.vector_manager.psycopg2.connect")
-    def test_execute_with_connection_error(self, mock_connect):
+    def test_execute_with_connection_error(self, mock_connect, mock_register):
         """Test execute_with_connection with error"""
         mock_conn = MagicMock()
         mock_conn.closed = False
         mock_cursor = MagicMock()
         mock_conn.cursor.return_value = mock_cursor
         mock_connect.return_value = mock_conn
+        mock_register.return_value = None
 
         def operation(cursor):
             raise ValueError("Test error")
