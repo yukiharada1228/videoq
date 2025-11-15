@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from app.models import Video, VideoGroup, VideoGroupMember
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -290,3 +292,259 @@ class VideoUploadLimitTestCase(APITestCase):
         self.assertEqual(second_response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("detail", second_response.data)
         self.assertEqual(Video.objects.filter(user=self.user).count(), 1)
+
+
+class VideoListViewTests(APITestCase):
+    """Tests for VideoListView search, filter, and ordering"""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="testuser",
+            email="test@example.com",
+            password="testpass123",
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+
+        # Create test videos
+        self.video1 = Video.objects.create(
+            user=self.user,
+            title="Python Tutorial",
+            description="Learn Python programming",
+            status="completed",
+        )
+        self.video2 = Video.objects.create(
+            user=self.user,
+            title="Django Guide",
+            description="Django framework tutorial",
+            status="pending",
+        )
+        self.video3 = Video.objects.create(
+            user=self.user,
+            title="JavaScript Basics",
+            description="JavaScript programming basics",
+            status="completed",
+        )
+
+    def test_list_videos_with_search(self):
+        """Test video list with search query"""
+        url = reverse("video-list")
+        response = self.client.get(url, {"q": "Python"})
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]["title"], "Python Tutorial")
+
+    def test_list_videos_with_status_filter(self):
+        """Test video list with status filter"""
+        url = reverse("video-list")
+        response = self.client.get(url, {"status": "completed"})
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 2)
+        for video in response.data:
+            self.assertEqual(video["status"], "completed")
+
+    def test_list_videos_with_ordering(self):
+        """Test video list with ordering"""
+        url = reverse("video-list")
+        response = self.client.get(url, {"ordering": "title_asc"})
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 3)
+        self.assertEqual(response.data[0]["title"], "Django Guide")
+        self.assertEqual(response.data[1]["title"], "JavaScript Basics")
+        self.assertEqual(response.data[2]["title"], "Python Tutorial")
+
+    def test_list_videos_with_combined_filters(self):
+        """Test video list with search and status filter"""
+        url = reverse("video-list")
+        response = self.client.get(url, {"q": "Django", "status": "pending"})
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]["title"], "Django Guide")
+
+
+class VideoDetailViewTests(APITestCase):
+    """Tests for VideoDetailView update and delete"""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="testuser",
+            email="test@example.com",
+            password="testpass123",
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+
+        self.video = Video.objects.create(
+            user=self.user,
+            title="Original Title",
+            description="Original Description",
+            status="completed",
+        )
+
+    @patch("app.video.views.update_video_title_in_vectors")
+    def test_update_video_title_updates_pgvector(self, mock_update):
+        """Test that updating video title updates PGVector"""
+        url = reverse("video-detail", kwargs={"pk": self.video.pk})
+        data = {"title": "Updated Title"}
+
+        response = self.client.patch(url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.video.refresh_from_db()
+        self.assertEqual(self.video.title, "Updated Title")
+        mock_update.assert_called_once_with(self.video.id, "Updated Title")
+
+    def test_update_video_without_title_change(self):
+        """Test that updating video without title change doesn't update PGVector"""
+        url = reverse("video-detail", kwargs={"pk": self.video.pk})
+        data = {"description": "Updated Description"}
+
+        response = self.client.patch(url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.video.refresh_from_db()
+        self.assertEqual(self.video.description, "Updated Description")
+        self.assertEqual(self.video.title, "Original Title")
+
+    @patch("app.video.views.delete_video_vectors")
+    def test_delete_video_deletes_vectors(self, mock_delete):
+        """Test that deleting video deletes vectors"""
+        url = reverse("video-detail", kwargs={"pk": self.video.pk})
+
+        response = self.client.delete(url)
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(Video.objects.filter(pk=self.video.pk).exists())
+        mock_delete.assert_called_once_with(self.video.id)
+
+    @patch("app.video.views.delete_video_vectors")
+    def test_delete_video_vector_error_handling(self, mock_delete):
+        """Test that vector deletion error doesn't prevent video deletion"""
+        mock_delete.side_effect = Exception("Vector deletion failed")
+        url = reverse("video-detail", kwargs={"pk": self.video.pk})
+
+        response = self.client.delete(url)
+
+        # Video should still be deleted even if vector deletion fails
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(Video.objects.filter(pk=self.video.pk).exists())
+
+
+class ShareLinkTests(APITestCase):
+    """Tests for share link functionality"""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="testuser",
+            email="test@example.com",
+            password="testpass123",
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+
+        self.group = VideoGroup.objects.create(
+            user=self.user, name="Test Group", description="Test"
+        )
+
+    def test_create_share_link(self):
+        """Test creating a share link"""
+        url = reverse("create-share-link", kwargs={"group_id": self.group.pk})
+
+        response = self.client.post(url)
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertIn("share_token", response.data)
+        self.group.refresh_from_db()
+        self.assertIsNotNone(self.group.share_token)
+
+    def test_delete_share_link(self):
+        """Test deleting a share link"""
+        import secrets
+
+        self.group.share_token = secrets.token_urlsafe(32)
+        self.group.save()
+
+        url = reverse("delete-share-link", kwargs={"group_id": self.group.pk})
+
+        response = self.client.delete(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.group.refresh_from_db()
+        self.assertIsNone(self.group.share_token)
+
+    def test_get_shared_group(self):
+        """Test getting shared group by token"""
+        import secrets
+
+        share_token = secrets.token_urlsafe(32)
+        self.group.share_token = share_token
+        self.group.save()
+
+        url = reverse("get-shared-group", kwargs={"share_token": share_token})
+
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["name"], "Test Group")
+
+    def test_get_shared_group_not_found(self):
+        """Test getting shared group with invalid token"""
+        url = reverse("get-shared-group", kwargs={"share_token": "invalid-token"})
+
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+
+class ReorderVideosTests(APITestCase):
+    """Tests for reordering videos in group"""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="testuser",
+            email="test@example.com",
+            password="testpass123",
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+
+        self.group = VideoGroup.objects.create(
+            user=self.user, name="Test Group", description="Test"
+        )
+        self.video1 = Video.objects.create(
+            user=self.user, title="Video 1", status="completed"
+        )
+        self.video2 = Video.objects.create(
+            user=self.user, title="Video 2", status="completed"
+        )
+        self.video3 = Video.objects.create(
+            user=self.user, title="Video 3", status="completed"
+        )
+
+        VideoGroupMember.objects.create(group=self.group, video=self.video1, order=0)
+        VideoGroupMember.objects.create(group=self.group, video=self.video2, order=1)
+        VideoGroupMember.objects.create(group=self.group, video=self.video3, order=2)
+
+    def test_reorder_videos(self):
+        """Test reordering videos in group"""
+        url = reverse("reorder-videos-in-group", kwargs={"group_id": self.group.pk})
+        data = {"video_ids": [self.video3.pk, self.video1.pk, self.video2.pk]}
+
+        response = self.client.patch(url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.video1.refresh_from_db()
+        self.video2.refresh_from_db()
+        self.video3.refresh_from_db()
+
+        member1 = VideoGroupMember.objects.get(group=self.group, video=self.video1)
+        member2 = VideoGroupMember.objects.get(group=self.group, video=self.video2)
+        member3 = VideoGroupMember.objects.get(group=self.group, video=self.video3)
+
+        self.assertEqual(member1.order, 1)
+        self.assertEqual(member2.order, 2)
+        self.assertEqual(member3.order, 0)
