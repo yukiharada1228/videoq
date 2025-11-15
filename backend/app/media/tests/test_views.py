@@ -66,6 +66,8 @@ class ProtectedMediaViewTests(APITestCase):
         )
         VideoGroupMember.objects.create(group=group, video=self.video, order=0)
 
+        # Don't force authenticate - use share token instead
+        self.client.force_authenticate(user=None)
         url = reverse("app:protected_media", kwargs={"path": self.video.file.name})
         url += f"?share_token={group.share_token}"
 
@@ -76,11 +78,14 @@ class ProtectedMediaViewTests(APITestCase):
 
     def test_get_media_unauthorized(self):
         """Test accessing media without authentication"""
+        # Don't authenticate
+        self.client.force_authenticate(user=None)
         url = reverse("app:protected_media", kwargs={"path": self.video.file.name})
 
         response = self.client.get(url)
 
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        # Should return 401 (Unauthorized) because authentication failed
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_get_media_wrong_user(self):
         """Test accessing media with wrong user"""
@@ -103,11 +108,14 @@ class ProtectedMediaViewTests(APITestCase):
         )
         # Video is not in this group
 
+        # Don't force authenticate - use share token instead
+        self.client.force_authenticate(user=None)
         url = reverse("app:protected_media", kwargs={"path": self.video.file.name})
         url += f"?share_token={group.share_token}"
 
         response = self.client.get(url)
 
+        # Share token authentication succeeds, but video is not in group, so 404
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_get_media_file_not_found(self):
