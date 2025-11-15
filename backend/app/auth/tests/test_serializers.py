@@ -7,8 +7,6 @@ from django.core import mail
 from django.test import override_settings
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
-from rest_framework import status
-from rest_framework.exceptions import ValidationError
 from rest_framework.test import APITestCase
 
 from app.auth.serializers import (
@@ -322,7 +320,7 @@ class PasswordResetConfirmSerializerTests(APITestCase):
         }
         serializer = PasswordResetConfirmSerializer(data=data)
         self.assertTrue(serializer.is_valid())
-        user = serializer.save()
+        serializer.save()
 
         self.user.refresh_from_db()
         self.assertTrue(self.user.check_password("NewSecurePass123"))

@@ -2,10 +2,8 @@
 Tests for performance_utils module
 """
 import time
-from unittest.mock import Mock, patch
 
 from django.core.cache import cache
-from django.db import connection
 from django.test import TestCase
 
 from app.models import User
@@ -56,7 +54,6 @@ class PerformanceOptimizerTests(TestCase):
             )
             return User.objects.count()
 
-        initial_count = len(connection.queries)
         result = test_function()
         self.assertGreater(result, 0)
 
@@ -157,25 +154,28 @@ class MemoryOptimizerTests(TestCase):
 
     def test_memory_efficient_map(self):
         """Test memory_efficient_map"""
-        items = [1, 2, 3, 4, 5]
-        mapper = lambda x: x * 2
+        def mapper(x):
+            return x * 2
 
+        items = [1, 2, 3, 4, 5]
         result = MemoryOptimizer.memory_efficient_map(items, mapper, chunk_size=2)
         self.assertEqual(result, [2, 4, 6, 8, 10])
 
     def test_memory_efficient_map_with_empty_list(self):
         """Test memory_efficient_map with empty list"""
-        items = []
-        mapper = lambda x: x * 2
+        def mapper(x):
+            return x * 2
 
+        items = []
         result = MemoryOptimizer.memory_efficient_map(items, mapper, chunk_size=2)
         self.assertEqual(result, [])
 
     def test_memory_efficient_map_with_single_chunk(self):
         """Test memory_efficient_map with items fitting in one chunk"""
-        items = [1, 2]
-        mapper = lambda x: x * 2
+        def mapper(x):
+            return x * 2
 
+        items = [1, 2]
         result = MemoryOptimizer.memory_efficient_map(items, mapper, chunk_size=10)
         self.assertEqual(result, [2, 4])
 
