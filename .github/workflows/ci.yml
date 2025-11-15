@@ -126,7 +126,6 @@ jobs:
           uv run coverage xml
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
-        environment: CODECOV_TOKEN
         with:
           files: ./backend/coverage.xml
           flags: backend
