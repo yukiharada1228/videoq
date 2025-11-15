@@ -4,8 +4,10 @@ Tests for common permissions module
 from django.contrib.auth import get_user_model
 from rest_framework.test import APITestCase, RequestFactory
 
-from app.common.authentication import ShareTokenAuthentication
-from app.common.permissions import IsAuthenticatedOrSharedAccess
+from app.common.permissions import (
+    IsAuthenticatedOrSharedAccess,
+    ShareTokenAuthentication,
+)
 from app.models import VideoGroup
 
 User = get_user_model()
