@@ -1,15 +1,65 @@
 name: CI
-
 on:
   push:
     branches:
       - main
   pull_request:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  backend:
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+              - '.github/workflows/ci.yml'
+            frontend:
+              - 'frontend/**'
+              - '.github/workflows/ci.yml'
+
+  backend-lint:
+    name: Backend Lint
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+          cache-dependency-glob: "backend/**/pyproject.toml"
+      - name: Install dependencies
+        working-directory: backend
+        run: uv sync --frozen
+      - name: Run Ruff
+        working-directory: backend
+        run: uvx ruff check app ask_video
+      - name: Run mypy
+        working-directory: backend
+        env:
+          DJANGO_SETTINGS_MODULE: ask_video.settings
+        run: uvx mypy --config-file mypy.ini app ask_video
+
+  backend-test:
     name: Backend Tests
     runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
     services:
       postgres:
         image: ankane/pgvector:latest
@@ -28,85 +78,141 @@ jobs:
         image: redis:7
         ports:
           - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v3
-
-      - name: Install backend dependencies
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+          cache-dependency-glob: "backend/**/pyproject.toml"
+      - name: Install dependencies
         working-directory: backend
         run: uv sync --frozen
-
-      - name: Run Ruff
-        working-directory: backend
-        run: uvx ruff check app ask_video
-
-      - name: Run mypy
-        working-directory: backend
-        env:
-          DJANGO_SETTINGS_MODULE: ask_video.settings
-        run: uvx mypy --config-file mypy.ini app ask_video
-
       - name: Create pgvector extension
         run: |
           sudo apt-get update
           sudo apt-get install -y postgresql-client
           PGPASSWORD=postgres psql -h localhost -U postgres -d ask_video -c "CREATE EXTENSION IF NOT EXISTS vector;"
-
       - name: Apply migrations
         working-directory: backend
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/ask_video
         run: uv run python manage.py migrate --noinput
-
-      - name: Run backend tests
+      - name: Run tests with coverage
         working-directory: backend
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/ask_video
           REDIS_URL: redis://localhost:6379/0
           DJANGO_SECRET_KEY: test-secret
           OPENAI_API_KEY: test-key
-        run: uv run python manage.py test
+        run: |
+          uv run coverage run --source='.' manage.py test
+          uv run coverage report
+          uv run coverage xml
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./backend/coverage.xml
+          flags: backend
+          fail_ci_if_error: false
 
-  frontend:
-    name: Frontend Checks
+  backend-security:
+    name: Backend Security Scan
     runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v3
+      - name: Install dependencies
+        working-directory: backend
+        run: uv sync --frozen
+      - name: Run safety check
+        working-directory: backend
+        run: uvx safety check --json || true
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+  frontend-lint:
+    name: Frontend Lint & Type Check
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-
-      - name: Install frontend dependencies
+      - name: Install dependencies
         working-directory: frontend
         run: npm ci
-
       - name: Lint
         working-directory: frontend
         env:
           NEXT_TELEMETRY_DISABLED: "1"
         run: npm run lint
-
       - name: Type check
         working-directory: frontend
         env:
           NEXT_TELEMETRY_DISABLED: "1"
         run: npm run typecheck
 
+  frontend-build:
+    name: Frontend Build
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
       - name: Build
         working-directory: frontend
         env:
           NEXT_TELEMETRY_DISABLED: "1"
         run: npm run build
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build
+          path: frontend/.next
+          retention-days: 7
+
+  ci-success:
+    name: CI Success
+    runs-on: ubuntu-latest
+    needs:
+      - changes
+      - backend-lint
+      - backend-test
+      - backend-security
+      - frontend-lint
+      - frontend-build
+    if: always()
+    steps:
+      - name: Check all jobs status
+        run: |
+          if [[ "${{ needs.backend-lint.result }}" == "failure" ]] || \
+             [[ "${{ needs.backend-test.result }}" == "failure" ]] || \
+             [[ "${{ needs.frontend-lint.result }}" == "failure" ]] || \
+             [[ "${{ needs.frontend-build.result }}" == "failure" ]]; then
+            echo "One or more jobs failed"
+            exit 1
+          fi
+          echo "All jobs succeeded or were skipped"
