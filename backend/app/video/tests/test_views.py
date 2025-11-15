@@ -414,12 +414,17 @@ class VideoDetailViewTests(APITestCase):
     def test_delete_video_deletes_vectors(self, mock_delete):
         """Test that deleting video deletes vectors"""
         url = reverse("video-detail", kwargs={"pk": self.video.pk})
+        video_id = self.video.id
 
         response = self.client.delete(url)
 
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertFalse(Video.objects.filter(pk=self.video.pk).exists())
-        mock_delete.assert_called_once_with(self.video.id)
+        # delete_video_vectors is called twice: once in destroy() and once in post_delete signal
+        self.assertEqual(mock_delete.call_count, 2)
+        # Both calls should be with the same video_id
+        self.assertEqual(mock_delete.call_args_list[0][0][0], video_id)
+        self.assertEqual(mock_delete.call_args_list[1][0][0], video_id)
 
     @patch("app.utils.vector_manager.delete_video_vectors")
     def test_delete_video_vector_error_handling(self, mock_delete):
