@@ -3,7 +3,8 @@ Tests for common permissions module
 """
 from django.contrib.auth import get_user_model
 from django.test import RequestFactory
-from rest_framework.test import APITestCase
+from rest_framework.request import Request
+from rest_framework.test import APITestCase, APIRequestFactory
 
 from app.common.permissions import (
     IsAuthenticatedOrSharedAccess,
@@ -27,13 +28,14 @@ class ShareTokenAuthenticationTests(APITestCase):
             user=self.user, name="Test Group", description="Test"
         )
         self.auth = ShareTokenAuthentication()
-        self.factory = RequestFactory()
+        self.factory = APIRequestFactory()
 
     def test_authenticate_with_valid_token(self):
         """Test authentication with valid share token"""
         request = self.factory.get("/", {"share_token": self.group.share_token})
+        drf_request = Request(request)
 
-        result = self.auth.authenticate(request)
+        result = self.auth.authenticate(drf_request)
 
         self.assertIsNotNone(result)
         user, auth_data = result
@@ -44,16 +46,18 @@ class ShareTokenAuthenticationTests(APITestCase):
     def test_authenticate_with_invalid_token(self):
         """Test authentication with invalid share token"""
         request = self.factory.get("/", {"share_token": "invalid-token"})
+        drf_request = Request(request)
 
-        result = self.auth.authenticate(request)
+        result = self.auth.authenticate(drf_request)
 
         self.assertIsNone(result)
 
     def test_authenticate_without_token(self):
         """Test authentication without share token"""
         request = self.factory.get("/")
+        drf_request = Request(request)
 
-        result = self.auth.authenticate(request)
+        result = self.auth.authenticate(drf_request)
 
         self.assertIsNone(result)
 
