@@ -54,7 +54,6 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 - **react-hook-form** - Form state management
 - **zod** - Schema validation
 - **@dnd-kit** - Drag & drop
-- **Playwright** - E2E tests
 
 ## Internationalization (i18n)
 
@@ -93,7 +92,6 @@ frontend/
 │   └── ui/                   # UI components (shadcn/ui)
 ├── hooks/                    # Custom hooks (useAuth, useVideos, useAsyncState, etc.)
 ├── lib/                      # Libraries and utilities (api, errorUtils, etc.)
-├── e2e/                      # Playwright E2E tests
 ├── public/                   # Static assets
 ├── package.json              # Node.js dependencies
 ├── Dockerfile                # Frontend Docker image
@@ -161,24 +159,6 @@ CORS_ALLOW_CREDENTIALS = True
 npm run build
 ```
 
-## Tests
-
-### E2E (Playwright)
-
-```bash
-# Run E2E tests
-npm run test:e2e
-
-# E2E tests (UI mode)
-npm run test:e2e:ui
-
-# E2E tests (headed)
-npm run test:e2e:headed
-
-# View test report
-npm run test:e2e:report
-```
-
 ## Development in Docker
 
 This project assumes Docker Compose. See the root README for details.
@@ -186,7 +166,6 @@ This project assumes Docker Compose. See the root README for details.
 ```bash
 # Example commands in Docker environment
 docker-compose exec frontend npm run build
-docker-compose exec frontend npm run test:e2e
 docker-compose logs -f frontend
 ```
 
