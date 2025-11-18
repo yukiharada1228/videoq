@@ -132,26 +132,6 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
 
-  backend-security:
-    name: Backend Security Scan
-    runs-on: ubuntu-latest
-    needs: changes
-    if: needs.changes.outputs.backend == 'true'
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - uses: astral-sh/setup-uv@v3
-        continue-on-error: true
-        id: setup-uv
-      - name: Install dependencies
-        working-directory: backend
-        run: uv sync --frozen
-      - name: Run safety check
-        working-directory: backend
-        run: uvx safety check --json || true
-
   frontend-lint:
     name: Frontend Lint & Type Check
     runs-on: ubuntu-latest

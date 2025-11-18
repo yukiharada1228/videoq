@@ -61,8 +61,24 @@ describe('apiPatterns', () => {
   })
 
   describe('retryApiCall', () => {
+    // 各テストで完全にクリーンな状態にする
+    beforeAll(() => {
+      jest.useRealTimers()
+    })
+
+    afterAll(() => {
+      jest.useRealTimers()
+    })
+
     beforeEach(() => {
-      jest.useFakeTimers()
+      jest.clearAllMocks()
+      jest.clearAllTimers()
+    })
+
+    afterEach(() => {
+      jest.clearAllMocks()
+      jest.clearAllTimers()
+      jest.useRealTimers()
     })
 
     it('should succeed on first try', async () => {
@@ -73,41 +89,65 @@ describe('apiPatterns', () => {
       expect(apiCall).toHaveBeenCalledTimes(1)
     })
 
-    it('should retry on failure', async () => {
+    it('should retry on failure then succeed', async () => {
+      jest.useFakeTimers()
+      
       const apiCall = jest.fn()
         .mockRejectedValueOnce(new Error('Failed'))
         .mockRejectedValueOnce(new Error('Failed'))
         .mockResolvedValue('success')
 
       const promise = retryApiCall(apiCall, 3, 1000)
-
-      // Advance timers for retry delays
-      jest.advanceTimersByTime(2000)
       await jest.runAllTimersAsync()
       const result = await promise
 
       expect(result).toBe('success')
       expect(apiCall).toHaveBeenCalledTimes(3)
+      
+      jest.useRealTimers()
+    }, 10000)
+
+    it('should use exponential backoff for retries', async () => {
+      jest.useFakeTimers()
+      
+      const delays: number[] = []
+      let lastCallTime: number | null = null
+      
+      const apiCall = jest.fn().mockImplementation(() => {
+        const now = Date.now()
+        if (lastCallTime !== null) {
+          delays.push(now - lastCallTime)
+        }
+        lastCallTime = now
+        
+        if (apiCall.mock.calls.length < 3) {
+          return Promise.reject(new Error('Failed'))
+        }
+        return Promise.resolve('success')
+      })
+      
+      const promise = retryApiCall(apiCall, 3, 1000)
+      await jest.runAllTimersAsync()
+      const result = await promise
+      
+      expect(result).toBe('success')
+      expect(apiCall).toHaveBeenCalledTimes(3)
+      
+      // 指数バックオフの確認: 1000ms, 2000ms
+      expect(delays).toHaveLength(2)
+      expect(delays[0]).toBe(1000)  // 1回目のリトライは1000ms後
+      expect(delays[1]).toBe(2000)  // 2回目のリトライは2000ms後（指数バックオフ）
+      
+      jest.useRealTimers()
     }, 10000)
 
     it('should throw after max retries', async () => {
-      const apiCall = jest.fn()
-        .mockRejectedValueOnce(new Error('Failed'))
-        .mockRejectedValueOnce(new Error('Failed'))
-        .mockRejectedValueOnce(new Error('Failed'))
+      // Real timersを使用し、短いdelayで実行
+      // テストの目的は「maxRetries回リトライした後に失敗する」ことの確認
+      const apiCall = jest.fn().mockRejectedValue(new Error('Failed'))
 
-      const promise = retryApiCall(apiCall, 2, 1000)
-
-      jest.advanceTimersByTime(5000)
-      await jest.runAllTimersAsync()
-
-      await expect(promise).rejects.toThrow('Failed')
-      expect(apiCall).toHaveBeenCalledTimes(3)
-    }, 10000)
-
-    afterEach(() => {
-      jest.runOnlyPendingTimers()
-      jest.useRealTimers()
+      await expect(retryApiCall(apiCall, 2, 10)).rejects.toThrow('Failed')
+      expect(apiCall).toHaveBeenCalledTimes(3) // 初回 + 2回のリトライ
     })
   })
 
@@ -134,8 +174,23 @@ describe('apiPatterns', () => {
   })
 
   describe('cachedApiCall', () => {
+    beforeAll(() => {
+      jest.useRealTimers()
+    })
+
+    afterAll(() => {
+      jest.useRealTimers()
+    })
+
     beforeEach(() => {
-      jest.useFakeTimers()
+      jest.clearAllMocks()
+      jest.clearAllTimers()
+    })
+
+    afterEach(() => {
+      jest.clearAllMocks()
+      jest.clearAllTimers()
+      jest.useRealTimers()
     })
 
     it('should cache API call result', async () => {
@@ -151,28 +206,44 @@ describe('apiPatterns', () => {
     })
 
     it('should refresh cache after TTL', async () => {
+      jest.useFakeTimers()
+      
       const apiCall = jest.fn().mockResolvedValue('data')
-      const cached = cachedApiCall('key', apiCall, 5000)
+      const cached = cachedApiCall('key2', apiCall, 5000)
 
       await cached()
       jest.advanceTimersByTime(6000)
       await cached()
 
       expect(apiCall).toHaveBeenCalledTimes(2)
-    })
-
-    afterEach(() => {
-      jest.runOnlyPendingTimers()
+      
       jest.useRealTimers()
     })
   })
 
   describe('debouncedApiCall', () => {
+    beforeAll(() => {
+      jest.useRealTimers()
+    })
+
+    afterAll(() => {
+      jest.useRealTimers()
+    })
+
     beforeEach(() => {
-      jest.useFakeTimers()
+      jest.clearAllMocks()
+      jest.clearAllTimers()
+    })
+
+    afterEach(() => {
+      jest.clearAllMocks()
+      jest.clearAllTimers()
+      jest.useRealTimers()
     })
 
     it('should debounce API calls', async () => {
+      jest.useFakeTimers()
+      
       const apiCall = jest.fn().mockResolvedValue('data')
       const debounced = debouncedApiCall(apiCall, 1000)
 
@@ -180,23 +251,13 @@ describe('apiPatterns', () => {
       const promise2 = debounced()
       const promise3 = debounced()
 
-      // Wait for debounce delay
-      jest.advanceTimersByTime(1000)
-      
-      // Wait for all promises to resolve
-      await Promise.resolve()
       await jest.runAllTimersAsync()
-
       const results = await Promise.all([promise1, promise2, promise3])
 
       expect(results).toEqual(['data', 'data', 'data'])
       expect(apiCall).toHaveBeenCalledTimes(1)
-    }, 15000)
-
-    afterEach(() => {
-      jest.runOnlyPendingTimers()
+      
       jest.useRealTimers()
-    })
+    }, 15000)
   })
 })
-
