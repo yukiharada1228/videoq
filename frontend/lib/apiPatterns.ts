@@ -120,23 +120,36 @@ export function debouncedApiCall<T>(
   delay: number = 300
 ): () => Promise<T> {
   let timeoutId: NodeJS.Timeout;
-  let promise: Promise<T> | null = null;
+  let pendingPromise: Promise<T> | null = null;
+  let resolvers: Array<{
+    resolve: (value: T) => void;
+    reject: (reason: any) => void;
+  }> = [];
   
   return (): Promise<T> => {
     return new Promise((resolve, reject) => {
       clearTimeout(timeoutId);
       
+      // Add resolver to the list
+      resolvers.push({ resolve, reject });
+      
       timeoutId = setTimeout(async () => {
+        const currentResolvers = [...resolvers];
+        resolvers = [];
+        
         try {
-          if (!promise) {
-            promise = apiCall();
+          if (!pendingPromise) {
+            pendingPromise = apiCall();
           }
-          const result = await promise;
-          resolve(result);
+          const result = await pendingPromise;
+          
+          // Resolve all pending promises
+          currentResolvers.forEach(({ resolve }) => resolve(result));
         } catch (error) {
-          reject(error);
+          // Reject all pending promises
+          currentResolvers.forEach(({ reject }) => reject(error));
         } finally {
-          promise = null;
+          pendingPromise = null;
         }
       }, delay);
     });
