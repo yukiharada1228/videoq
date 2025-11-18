@@ -2,198 +2,277 @@
 
 Django REST API application providing video transcription and chat features.
 
+## Overview
+
+This backend provides:
+- User authentication (JWT with email verification and password reset)
+- Video upload and management
+- Automatic transcription using Whisper API (Celery background processing)
+- Video group management
+- AI chat with RAG (Retrieval-Augmented Generation) support
+- Share token functionality
+- Protected media delivery
+
 ## Features
 
-- User authentication (JWT)
-- Video upload
-- Transcription with Whisper API (Celery background processing)
-- Video group management
-- Chat with ChatGPT
+- **User Authentication**: JWT-based auth with email verification and password reset
+- **Video Upload**: Supports multiple video/audio formats with automatic conversion
+- **Automatic Transcription**: Whisper API with Celery background processing
+- **Video Group Management**: Organize multiple videos into groups
+- **AI Chat**: RAG-enabled chat using OpenAI API
+- **Sharing**: Share video groups via share tokens
+- **Protected Media Delivery**: Secure media delivery via authentication
 
 ## Setup
 
-### 1. Install dependencies
+**This project is designed to run with Docker Compose.** For setup instructions, see the root [README.md](../README.md).
 
+### Quick Start with Docker Compose
+
+```bash
+# From project root
+docker-compose up --build -d
+
+# Run migrations
+docker-compose exec backend uv run python manage.py migrate
+
+# Create superuser (first time only)
+docker-compose exec backend uv run python manage.py createsuperuser
+```
+
+### Local Development (Optional)
+
+If you need to run the backend locally without Docker:
+
+1. **Install dependencies** (requires Python 3.11+ and [uv](https://github.com/astral-sh/uv)):
 ```bash
 uv sync
 ```
 
-### 1.5. Install ffmpeg
-
-Files in formats that Whisper API does not support (e.g., MOV) are automatically converted to MP3. You need `ffmpeg` installed.
-
+2. **Install ffmpeg** (required for video format conversion):
 ```bash
 # Ubuntu/Debian
-sudo apt-get update
-sudo apt-get install ffmpeg
+sudo apt-get update && sudo apt-get install ffmpeg
 
 # macOS
 brew install ffmpeg
 
 # Windows
-# Download and install from https://ffmpeg.org/download.html
+# Download from https://ffmpeg.org/download.html
 ```
 
-### 2. Run database migrations
-
-```bash
-python manage.py migrate
-```
-
-### 3. Start Redis
-
-Celery requires Redis.
-
+3. **Start Redis** (required for Celery):
 ```bash
 # Using Docker
-docker run -d -p 6379:6379 redis:latest
+docker run -d -p 6379:6379 redis:alpine
 
-# Or if Redis is installed locally
+# Or if installed locally
 redis-server
 ```
 
-### 4. Start Celery worker
-
+4. **Configure environment variables** (create `.env` file):
 ```bash
-# Terminal 1 - start Celery worker
-celery -A ask_video worker --loglevel=info
-
-# Terminal 2 - start Django dev server
-python manage.py runserver
+SECRET_KEY=your-secret-key
+DATABASE_URL=postgresql://user:password@localhost:5432/ask_video
+CELERY_BROKER_URL=redis://localhost:6379/0
+CELERY_RESULT_BACKEND=redis://localhost:6379/0
+# ... other required variables (see root README)
 ```
 
-**Using uv:**
+5. **Run database migrations**:
 ```bash
+uv run python manage.py migrate
+```
+
+6. **Start services**:
+```bash
+# Terminal 1 - Celery worker
 uv run celery -A ask_video worker --loglevel=info
+
+# Terminal 2 - Django dev server
+uv run python manage.py runserver
 ```
 
-**Note:** This project is designed to be used with Docker Compose. For local development environment setup, see the root README.
+**Note:** For production and most development scenarios, Docker Compose is recommended.
 
-## Troubleshooting
+## API Usage
 
-### When Celery tasks do not execute
+### Authentication
 
-1. **Verify the Celery worker is running**
+1. **Sign up** (email verification required):
 ```bash
-ps aux | grep celery
-```
-
-2. **Inspect registered tasks**
-```bash
-uv run celery -A ask_video inspect registered
-```
-
-3. **Ensure correct app name**
-Start with the new config (`-A ask_video`), not the old (`-A config`).
-
-4. **Check logs**
-```bash
-# Inspect errors in worker logs
-uv run celery -A ask_video worker --loglevel=debug
-```
-
-## Usage
-
-### 1. Sign up and set API key
-
-- Sign up with `POST /api/auth/signup/` (email verification required)
-- Verify email with `POST /api/auth/verify-email/`
-- Set OpenAI API key with `PATCH /api/auth/me/` (stored encrypted in `encrypted_openai_api_key`)
-
-### 2. Upload a video
-
-```bash
-POST /api/videos/
+POST /api/auth/signup/
 {
-  "file": <video_file>,
-  "title": "Video title",
-  "description": "Description"
+  "username": "alice",
+  "email": "alice@example.com",
+  "password": "pass1234"
 }
 ```
 
-Uploading a video automatically starts the transcription process.
-
-**Supported file types:**
-- Audio: `.flac`, `.m4a`, `.mp3`, `.mpga`, `.oga`, `.ogg`, `.wav`, `.webm`
-- Video: `.mp4`, `.mpeg`, `.webm`, `.mov` (auto-converted to MP3 via ffmpeg)
-- **Other formats (e.g., MOV)**: auto-converted to MP3 via ffmpeg
-
-You can check processing status via the `status` field:
-- `pending`: Waiting
--- `processing`: In progress
-- `completed`: Completed
-- `error`: Error
-
-### 3. Check transcription result
-
+2. **Verify email** (use token sent via email):
 ```bash
-GET /api/videos/{id}/
+POST /api/auth/verify-email/
+{
+  "uid": "<USER_ID>",
+  "token": "<VERIFICATION_TOKEN>"
+}
 ```
 
-Transcription is stored in the `transcript` field.
-
-### 4. Manage video groups
-
+3. **Login**:
 ```bash
-# Create a group
+POST /api/auth/login/
+{
+  "username": "alice",
+  "password": "pass1234"
+}
+```
+
+4. **Set OpenAI API key** (stored encrypted):
+```bash
+PATCH /api/auth/me/
+Authorization: Bearer <access_token>
+{
+  "encrypted_openai_api_key": "sk-xxxx"
+}
+```
+
+### Video Management
+
+**Upload a video** (automatically starts transcription):
+```bash
+POST /api/videos/
+Authorization: Bearer <access_token>
+Content-Type: multipart/form-data
+
+file: <video_file>
+title: "Video title"
+description: "Description"
+```
+
+**Supported file formats:**
+- Audio: `.flac`, `.m4a`, `.mp3`, `.mpga`, `.oga`, `.ogg`, `.wav`, `.webm`
+- Video: `.mp4`, `.mpeg`, `.webm`, `.mov` (auto-converted to MP3 via ffmpeg)
+
+**Check transcription status:**
+```bash
+GET /api/videos/{id}/
+Authorization: Bearer <access_token>
+```
+
+Response includes:
+- `status`: `pending`, `processing`, `completed`, or `error`
+- `transcript`: Transcription text (when completed)
+- `error_message`: Error details (if status is `error`)
+
+### Video Groups
+
+**Create a group:**
+```bash
 POST /api/videos/groups/
+Authorization: Bearer <access_token>
 {
   "name": "Group name",
   "description": "Description"
 }
+```
 
-# Add videos to a group
+**Add videos to group:**
+```bash
 POST /api/videos/groups/{group_id}/videos/
+Authorization: Bearer <access_token>
 {
   "video_ids": [1, 2, 3]
 }
 ```
 
-### 5. Chat
-
+**Reorder videos in group:**
 ```bash
-# Send a chat (RAG-enabled)
+POST /api/videos/groups/{group_id}/reorder/
+Authorization: Bearer <access_token>
+{
+  "video_ids": [3, 1, 2]
+}
+```
+
+**Create share link:**
+```bash
+POST /api/videos/groups/{group_id}/share/
+Authorization: Bearer <access_token>
+```
+
+### AI Chat (RAG-enabled)
+
+**Send a chat message:**
+```bash
 POST /api/chat/
+Authorization: Bearer <access_token>
 {
   "group_id": 10,
   "messages": [
-    {"role": "user", "content": "Your question"}
+    {"role": "user", "content": "Summarize the key points."}
   ]
 }
-
-# Get chat history
-GET /api/chat/history/?group_id=10
 ```
+
+**Get chat history:**
+```bash
+GET /api/chat/history/?group_id=10
+Authorization: Bearer <access_token>
+```
+
+**Export chat history (CSV):**
+```bash
+GET /api/chat/history/export/?group_id=10
+Authorization: Bearer <access_token>
+```
+
+**Notes:**
+- Chat uses RAG (Retrieval-Augmented Generation) to ground answers in video transcripts
+- Only the latest `user` message in `messages` is used
+- Do not send `system` messages; the backend constructs the system prompt internally
+- Chat is also available with share tokens (use `share_token` query parameter)
+
+For complete API documentation, see the root [README.md](../README.md).
 
 ## Celery Configuration
 
-### Environment variables
+Celery is used for background task processing (primarily video transcription).
 
-You can configure Celery using the following variables:
+### Environment Variables
+
+Configure Celery using environment variables:
 
 ```bash
-# Redis connection URLs
-CELERY_BROKER_URL=redis://localhost:6379/0
-CELERY_RESULT_BACKEND=redis://localhost:6379/0
+# Redis connection URLs (defaults shown)
+CELERY_BROKER_URL=redis://redis:6379/0
+CELERY_RESULT_BACKEND=redis://redis:6379/0
 
-# Timeouts
-CELERY_TASK_TIME_LIMIT=1800  # 30 minutes
-CELERY_TASK_SOFT_TIME_LIMIT=1500  # 25 minutes
+# Task timeouts
+CELERY_TASK_TIME_LIMIT=1800      # 30 minutes (hard limit)
+CELERY_TASK_SOFT_TIME_LIMIT=1500 # 25 minutes (soft limit)
 ```
 
-### Production
+### Running Celery Worker
 
-In production, run Redis on a separate server and set appropriate URLs:
+**In Docker Compose** (recommended):
+```bash
+# Celery worker runs automatically as a service
+docker-compose up celery-worker
 
-```python
-# settings.py
-CELERY_BROKER_URL = os.environ.get(
-    "CELERY_BROKER_URL", "redis://your-redis-server:6379/0"
-)
-CELERY_RESULT_BACKEND = os.environ.get(
-    "CELERY_RESULT_BACKEND", "redis://your-redis-server:6379/0"
-)
+# Check logs
+docker-compose logs -f celery-worker
 ```
+
+**Locally:**
+```bash
+uv run celery -A ask_video worker --loglevel=info
+```
+
+### Tasks
+
+Main Celery tasks:
+- `app.tasks.transcribe_video`: Transcribes video using Whisper API
+- Tasks are automatically triggered when videos are uploaded
 
 ## Directory Structure
 
@@ -223,29 +302,128 @@ backend/
 └── Dockerfile            # Backend Docker image
 ```
 
+## Development
+
+### Docker Compose Environment (Recommended)
+
+```bash
+# Run tests
+docker-compose exec backend uv run python manage.py test
+
+# Create migrations
+docker-compose exec backend uv run python manage.py makemigrations
+
+# Apply migrations
+docker-compose exec backend uv run python manage.py migrate
+
+# Open Django shell
+docker-compose exec backend uv run python manage.py shell
+
+# View logs
+docker-compose logs -f backend celery-worker
+```
+
+**Note:** In Docker, always run Python commands via `uv run`.
+
+### Local Development
+
+If running locally:
+```bash
+# Run tests
+uv run python manage.py test
+
+# Create migrations
+uv run python manage.py makemigrations
+
+# Apply migrations
+uv run python manage.py migrate
+
+# Open Django shell
+uv run python manage.py shell
+```
+
 ## Troubleshooting
 
 ### Celery worker does not receive tasks
 
-1. Ensure Redis is running
-2. Ensure the Celery worker is healthy
-3. Check logs for errors
+1. **Check Redis is running:**
+```bash
+# In Docker
+docker-compose ps redis
+docker-compose exec redis redis-cli ping  # Should return PONG
+
+# Locally
+redis-cli ping
+```
+
+2. **Check Celery worker is running:**
+```bash
+# In Docker
+docker-compose ps celery-worker
+docker-compose logs celery-worker
+
+# Locally
+ps aux | grep celery
+```
+
+3. **Verify registered tasks:**
+```bash
+# In Docker
+docker-compose exec backend uv run celery -A ask_video inspect registered
+
+# Locally
+uv run celery -A ask_video inspect registered
+```
+
+4. **Check logs for errors:**
+```bash
+# In Docker
+docker-compose logs -f celery-worker
+
+# Locally
+# Check terminal output where Celery worker is running
+```
 
 ### Transcription task fails
 
-1. Ensure the user’s OpenAI API key is set (`encrypted_openai_api_key` in `/api/auth/me/`)
-2. Validate the API key works
-3. Ensure the video file exists
-4. Inspect details in the `error_message` field
+1. **Ensure user's OpenAI API key is set:**
+   - User must set `encrypted_openai_api_key` via `PATCH /api/auth/me/`
+   - Check in Django shell: `User.objects.get(username='...').encrypted_openai_api_key`
 
-### Development in Docker
+2. **Validate API key:**
+   - Test the API key directly with OpenAI API
+   - Ensure it has access to Whisper API
 
-This project assumes Docker Compose. See the root README for details.
-
+3. **Check video file exists:**
 ```bash
-# Example commands in Docker environment
-docker-compose exec backend uv run python manage.py migrate
-docker-compose exec backend uv run python manage.py shell
-docker-compose exec backend uv run celery -A ask_video worker --loglevel=info
+# In Django shell
+from app.models import Video
+video = Video.objects.get(id=...)
+print(video.file.path)  # Check file path
 ```
+
+4. **Inspect error details:**
+```bash
+# In Django shell
+video = Video.objects.get(id=...)
+print(video.status)        # Should be 'error'
+print(video.error_message) # Error details
+```
+
+### Database connection errors
+
+1. **Check PostgreSQL is running:**
+```bash
+docker-compose ps postgres
+```
+
+2. **Test database connection:**
+```bash
+docker-compose exec backend uv run python manage.py dbshell
+```
+
+3. **Check environment variables:**
+   - Ensure `DATABASE_URL` or `POSTGRES_*` variables are set correctly
+
+For more troubleshooting, see the root [README.md](../README.md).
 

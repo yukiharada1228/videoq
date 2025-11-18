@@ -2,33 +2,59 @@
 
 A frontend application built with Next.js, TypeScript, Tailwind CSS, and shadcn/ui.
 
+## Overview
+
+This frontend provides:
+- User authentication (signup, login, email verification, password reset)
+- Video upload and management
+- Video group management with drag-and-drop reordering
+- AI chat interface (RAG-enabled)
+- Share link functionality
+- User settings (OpenAI API key management)
+- Internationalization (English/Japanese)
+
 ## Setup
 
-### Requirements
-- Node.js 18+
-- npm or yarn
+**This project is designed to run with Docker Compose.** For setup instructions, see the root [README.md](../README.md).
 
-### Install
+### Quick Start with Docker Compose
 
+```bash
+# From project root
+docker-compose up --build -d
+
+# Access frontend
+# http://localhost (via Nginx reverse proxy)
+```
+
+### Local Development (Optional)
+
+If you need to run the frontend locally without Docker:
+
+1. **Requirements:**
+   - Node.js 18+
+   - npm or yarn
+
+2. **Install dependencies:**
 ```bash
 npm install
 ```
 
-### Environment variables
+3. **Configure environment variables:**
 
-Create a `.env.local` file and add:
-
+Create a `.env.local` file:
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:8000/api
 ```
 
-### Start development server
-
+4. **Start development server:**
 ```bash
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+**Note:** For production and most development scenarios, Docker Compose is recommended.
 
 ## Features
 
@@ -57,11 +83,54 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ## Internationalization (i18n)
 
-- All UI texts are managed by [i18next](https://www.i18next.com/) + `react-i18next`. The default language is English (`en`). Language is auto-detected in this order: browser settings, `lang` query, localStorage, then Cookie. It switches to Japanese (`ja`) if matched.
-- The root layout wraps the app with `I18nProvider`, so in React code you can use `const { t } = useTranslation();` and call `t('translation.key')`.
-- For non-React code (utilities, API wrappers), initialize an i18next instance with `import { initI18n } from '@/i18n/config';` and then call `initI18n().t(...)`.
-- Translation strings are defined in `frontend/i18n/locales/en/translation.json` (English) and `frontend/i18n/locales/ja/translation.json` (Japanese). When adding new keys, update both files together.
-- The document root `<html>` starts with `lang="en"`. After client-side language detection, `I18nProvider` updates `document.documentElement.lang` automatically.
+This frontend supports multiple languages using [i18next](https://www.i18next.com/) and `react-i18next`.
+
+### Supported Languages
+- English (`en`) - Default
+- Japanese (`ja`)
+
+### Language Detection
+
+Language is auto-detected in this order:
+1. `lang` query parameter (e.g., `?lang=ja`)
+2. Cookie (`i18next` cookie)
+3. localStorage (`i18nextLng`)
+4. Browser settings (navigator language)
+
+### Usage in React Components
+
+```typescript
+import { useTranslation } from 'react-i18next';
+
+function MyComponent() {
+  const { t } = useTranslation();
+  return <div>{t('translation.key')}</div>;
+}
+```
+
+### Usage in Non-React Code
+
+```typescript
+import { initI18n } from '@/i18n/config';
+
+const i18n = initI18n();
+const text = i18n.t('translation.key');
+```
+
+### Translation Files
+
+Translation strings are defined in:
+- `frontend/i18n/locales/en/translation.json` (English)
+- `frontend/i18n/locales/ja/translation.json` (Japanese)
+
+**Important:** When adding new translation keys, update both files.
+
+### Configuration
+
+The root layout wraps the app with `I18nProvider`, which:
+- Initializes i18next on the client
+- Updates `document.documentElement.lang` based on detected language
+- Provides translation context to all components
 
 ## Directory structure
 
@@ -129,7 +198,10 @@ This frontend communicates with a Django REST Framework backend API.
 - `PATCH /api/videos/groups/<id>/` - Update group
 - `DELETE /api/videos/groups/<id>/` - Delete group
 - `POST /api/videos/groups/<id>/videos/` - Add videos to group
+- `DELETE /api/videos/groups/<id>/videos/<video_id>/remove/` - Remove video from group
+- `POST /api/videos/groups/<id>/reorder/` - Reorder videos in group
 - `POST /api/videos/groups/<id>/share/` - Create share link
+- `DELETE /api/videos/groups/<id>/share/delete/` - Delete share link
 - `GET /api/videos/groups/shared/<token>/` - Get shared group info
 
 #### Chat
@@ -138,43 +210,100 @@ This frontend communicates with a Django REST Framework backend API.
 - `GET /api/chat/history/export/` - Export chat history
 - `POST /api/chat/feedback/` - Send chat feedback
 
-### CORS settings
+### CORS Settings
 
-Configure the following in backend `settings.py` (or via `CORS_ALLOWED_ORIGINS` env):
+When running locally (frontend on port 3000, backend on port 8000), configure CORS in the backend:
 
+**Via environment variable:**
+```env
+CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+CORS_ALLOW_CREDENTIALS=true
+```
+
+**Or in backend `settings.py`:**
 ```python
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
 ]
-
 CORS_ALLOW_CREDENTIALS = True
 ```
 
-**Note:** This project is designed for Docker Compose. In Docker, Nginx works as the reverse proxy to serve both frontend and backend.
+**Note:** In Docker Compose, Nginx works as the reverse proxy, so CORS is typically not needed between frontend and backend (they communicate internally). CORS is only needed for external API access or when running services separately.
 
-## Build
+## Development
 
+### Docker Compose Environment (Recommended)
+
+```bash
+# Build the frontend
+docker-compose exec frontend npm run build
+
+# View logs
+docker-compose logs -f frontend
+
+# Run linter
+docker-compose exec frontend npm run lint
+
+# Type check
+docker-compose exec frontend npm run typecheck
+
+# Run unit tests
+docker-compose exec frontend npm run test
+
+# Run tests with coverage
+docker-compose exec frontend npm run test:coverage
+```
+
+### Local Development
+
+```bash
+# Build
+npm run build
+
+# Start production server
+npm start
+
+# Run linter
+npm run lint
+
+# Type check
+npm run typecheck
+
+# Run unit tests
+npm run test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Run tests with coverage
+npm run test:coverage
+```
+
+## Production Deployment
+
+### Using Docker Compose (Recommended)
+
+1. Set environment variables in `.env`:
+```env
+NEXT_PUBLIC_API_URL=https://api.example.com/api
+```
+
+2. Build and start:
+```bash
+docker-compose up --build -d
+```
+
+### Standalone Deployment
+
+1. Set `NEXT_PUBLIC_API_URL` to the production API URL
+2. Build:
 ```bash
 npm run build
 ```
-
-## Development in Docker
-
-This project assumes Docker Compose. See the root README for details.
-
+3. Start:
 ```bash
-# Example commands in Docker environment
-docker-compose exec frontend npm run build
-docker-compose logs -f frontend
+npm start
 ```
 
-## Production
-
-Steps for production:
-
-1. Set `NEXT_PUBLIC_API_URL` to the production API URL
-2. Build with `npm run build`
-3. Start with `npm start`
-
-Or deploy using Docker Compose.
+The frontend will run on port 3000 by default (or the port specified by `PORT` environment variable).
