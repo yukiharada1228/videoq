@@ -31,6 +31,5 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules"],
-  "types": ["jest", "@testing-library/jest-dom"]
+  "exclude": ["node_modules"]
 }
