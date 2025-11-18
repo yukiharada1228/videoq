@@ -16,14 +16,14 @@ describe('VideoUploadButton', () => {
   })
 
   it('should apply fullWidth className when fullWidth is true', () => {
-    const { container } = render(<VideoUploadButton isUploading={false} fullWidth={true} />)
+    render(<VideoUploadButton isUploading={false} fullWidth={true} />)
     
     const button = screen.getByRole('button')
     expect(button.className).toContain('w-full')
   })
 
   it('should apply custom className', () => {
-    const { container } = render(<VideoUploadButton isUploading={false} className="custom-class" />)
+    render(<VideoUploadButton isUploading={false} className="custom-class" />)
     
     const button = screen.getByRole('button')
     expect(button.className).toContain('custom-class')

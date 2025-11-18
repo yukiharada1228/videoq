@@ -9,7 +9,16 @@ jest.mock('@/hooks/useVideoUpload', () => ({
 
 // Mock VideoUploadFormFields
 jest.mock('../VideoUploadFormFields', () => ({
-  VideoUploadFormFields: ({ title, description, isUploading, error, success, setTitle, setDescription, handleFileChange }: any) => (
+  VideoUploadFormFields: ({ title, description, isUploading, error, success, setTitle, setDescription, handleFileChange }: {
+    title: string
+    description: string
+    isUploading: boolean
+    error: string | null
+    success: boolean
+    setTitle: (value: string) => void
+    setDescription: (value: string) => void
+    handleFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void
+  }) => (
     <div>
       <input
         type="file"

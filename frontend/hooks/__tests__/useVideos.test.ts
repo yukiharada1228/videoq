@@ -60,7 +60,7 @@ describe('useVideos', () => {
     await act(async () => {
       try {
         await result.current.loadVideos()
-      } catch (e) {
+      } catch {
         // Expected to throw
       }
     })
@@ -127,7 +127,7 @@ describe('useVideo', () => {
     await act(async () => {
       try {
         await result.current.loadVideo()
-      } catch (e) {
+      } catch {
         // Expected to throw
       }
     })
@@ -144,7 +144,7 @@ describe('useVideo', () => {
     await act(async () => {
       try {
         await result.current.loadVideo()
-      } catch (e) {
+      } catch {
         // Expected to throw
       }
     })

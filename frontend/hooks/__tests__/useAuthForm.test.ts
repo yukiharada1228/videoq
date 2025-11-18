@@ -102,7 +102,7 @@ describe('useAuthForm', () => {
         await result.current.handleSubmit({
           preventDefault: jest.fn(),
         } as unknown as React.FormEvent)
-      } catch (e) {
+      } catch {
         // Expected to throw
       }
     })
