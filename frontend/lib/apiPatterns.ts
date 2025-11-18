@@ -42,22 +42,22 @@ export async function retryApiCall<T>(
   delay: number = 1000
 ): Promise<T> {
   let lastError: Error | null = null;
-  
+
   for (let i = 0; i <= maxRetries; i++) {
     try {
       return await apiCall();
     } catch (error) {
-      lastError = error instanceof Error ? error : new Error('API call failed');
+      // Preserve the original error information, even if it's not an Error object.
+      lastError = error instanceof Error ? error : new Error(String(error));
       if (i < maxRetries) {
         await new Promise(resolve => setTimeout(resolve, delay * Math.pow(2, i)));
       }
     }
   }
-  
-  if (lastError) {
-    throw lastError;
-  }
-  throw new Error('API call failed');
+
+  // If the loop completes, lastError will always be non-null.
+  // We use a non-null assertion (!) to tell TypeScript it's safe to throw.
+  throw lastError!;
 }
 
 /**
@@ -73,13 +73,13 @@ export async function batchApiCall<T, R>(
   apiCall: (batch: T[]) => Promise<R[]>
 ): Promise<R[]> {
   const results: R[] = [];
-  
+
   for (let i = 0; i < items.length; i += batchSize) {
     const batch = items.slice(i, i + batchSize);
     const batchResults = await apiCall(batch);
     results.push(...batchResults);
   }
-  
+
   return results;
 }
 
@@ -96,13 +96,13 @@ export function cachedApiCall<T>(
   ttl: number = 5 * 60 * 1000 // 5 minutes
 ): () => Promise<T> {
   const cache = new Map<string, { data: T; timestamp: number }>();
-  
+
   return async (): Promise<T> => {
     const cached = cache.get(key);
     if (cached && Date.now() - cached.timestamp < ttl) {
       return cached.data;
     }
-    
+
     const data = await apiCall();
     cache.set(key, { data, timestamp: Date.now() });
     return data;
@@ -120,23 +120,36 @@ export function debouncedApiCall<T>(
   delay: number = 300
 ): () => Promise<T> {
   let timeoutId: NodeJS.Timeout;
-  let promise: Promise<T> | null = null;
-  
+  let pendingPromise: Promise<T> | null = null;
+  let resolvers: Array<{
+    resolve: (value: T) => void;
+    reject: (reason: unknown) => void;
+  }> = [];
+
   return (): Promise<T> => {
     return new Promise((resolve, reject) => {
       clearTimeout(timeoutId);
-      
+
+      // Add resolver to the list
+      resolvers.push({ resolve, reject });
+
       timeoutId = setTimeout(async () => {
+        const currentResolvers = [...resolvers];
+        resolvers = [];
+
         try {
-          if (!promise) {
-            promise = apiCall();
+          if (!pendingPromise) {
+            pendingPromise = apiCall();
           }
-          const result = await promise;
-          resolve(result);
+          const result = await pendingPromise;
+
+          // Resolve all pending promises
+          currentResolvers.forEach(({ resolve }) => resolve(result));
         } catch (error) {
-          reject(error);
+          // Reject all pending promises
+          currentResolvers.forEach(({ reject }) => reject(error));
         } finally {
-          promise = null;
+          pendingPromise = null;
         }
       }, delay);
     });
