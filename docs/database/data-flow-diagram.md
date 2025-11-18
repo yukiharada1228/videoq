@@ -81,8 +81,8 @@ flowchart TD
     Action -->|Reorder| Reorder[Reorder]
     
     Create --> API1[POST /api/videos/groups/]
-    Add --> API2[POST /api/videos/groups/{id}/videos/]
-    Reorder --> API3[PATCH /api/videos/groups/{id}/reorder/]
+    Add --> API2[POST /api/videos/groups/<id>/videos/]
+    Reorder --> API3[PATCH /api/videos/groups/<id>/reorder/]
     
     API1 --> Validate1{Validation}
     API2 --> Validate2{Validation}
@@ -117,7 +117,7 @@ flowchart TD
 ```mermaid
 flowchart TD
     Start1([Owner]) --> Generate[Generate Share Link]
-    Generate --> API1[POST /api/videos/groups/{id}/share/]
+    Generate --> API1[POST /api/videos/groups/<id>/share/]
     API1 --> Validate1[(Database<br/>Verify Ownership)]
     Validate1 --> GenerateToken[Generate Token]
     GenerateToken --> SaveToken[(Database<br/>Save share_token)]
@@ -127,7 +127,7 @@ flowchart TD
     Share --> Guest([Guest])
     Guest --> Access[Access Share URL]
     Access --> Frontend[Frontend]
-    Frontend --> API2[GET /api/videos/groups/shared/{token}/]
+    Frontend --> API2[GET /api/videos/groups/shared/<token>/]
     
     API2 --> ValidateToken[(Database<br/>Verify Token)]
     ValidateToken --> GetGroup[(Database<br/>Get VideoGroup)]
@@ -137,7 +137,7 @@ flowchart TD
     Frontend --> Guest
     
     Guest --> Chat[Send Chat]
-    Chat --> API3[POST /api/chat/?share_token={token}]
+    Chat --> API3[POST /api/chat/?share_token=<token>]
     API3 --> ValidateToken2[(Database<br/>Verify Token)]
     ValidateToken2 --> GetOwner[(Database<br/>Get Owner's API Key)]
     GetOwner --> RAG[RAG Processing]
