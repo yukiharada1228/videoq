@@ -39,7 +39,7 @@ describe('useVideoUpload', () => {
     act(() => {
       result.current.handleFileChange({
         target: { files: [file] },
-      } as React.ChangeEvent<HTMLInputElement>)
+      } as unknown as React.ChangeEvent<HTMLInputElement>)
     })
 
     expect(result.current.file).toBe(file)
@@ -74,7 +74,7 @@ describe('useVideoUpload', () => {
     act(() => {
       result.current.handleFileChange({
         target: { files: [file] },
-      } as React.ChangeEvent<HTMLInputElement>)
+      } as unknown as React.ChangeEvent<HTMLInputElement>)
     })
 
     act(() => {
@@ -119,7 +119,7 @@ describe('useVideoUpload', () => {
     act(() => {
       result.current.handleFileChange({
         target: { files: [file] },
-      } as React.ChangeEvent<HTMLInputElement>)
+      } as unknown as React.ChangeEvent<HTMLInputElement>)
     })
 
     act(() => {
@@ -150,7 +150,7 @@ describe('useVideoUpload', () => {
     act(() => {
       result.current.handleFileChange({
         target: { files: [file] },
-      } as React.ChangeEvent<HTMLInputElement>)
+      } as unknown as React.ChangeEvent<HTMLInputElement>)
     })
 
     await act(async () => {
@@ -195,7 +195,7 @@ describe('useVideoUpload', () => {
     act(() => {
       result.current.handleFileChange({
         target: { files: [file] },
-      } as React.ChangeEvent<HTMLInputElement>)
+      } as unknown as React.ChangeEvent<HTMLInputElement>)
     })
 
     await act(async () => {

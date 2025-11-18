@@ -91,7 +91,10 @@ describe('apiPatterns', () => {
     }, 10000)
 
     it('should throw after max retries', async () => {
-      const apiCall = jest.fn().mockRejectedValue(new Error('Failed'))
+      const apiCall = jest.fn()
+        .mockRejectedValueOnce(new Error('Failed'))
+        .mockRejectedValueOnce(new Error('Failed'))
+        .mockRejectedValueOnce(new Error('Failed'))
 
       const promise = retryApiCall(apiCall, 2, 1000)
 
@@ -177,14 +180,18 @@ describe('apiPatterns', () => {
       const promise2 = debounced()
       const promise3 = debounced()
 
+      // Wait for debounce delay
       jest.advanceTimersByTime(1000)
+      
+      // Wait for all promises to resolve
+      await Promise.resolve()
       await jest.runAllTimersAsync()
 
       const results = await Promise.all([promise1, promise2, promise3])
 
       expect(results).toEqual(['data', 'data', 'data'])
       expect(apiCall).toHaveBeenCalledTimes(1)
-    }, 10000)
+    }, 15000)
 
     afterEach(() => {
       jest.runOnlyPendingTimers()

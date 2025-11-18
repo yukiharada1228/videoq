@@ -15,7 +15,7 @@ describe('performanceUtils', () => {
   describe('memoize', () => {
     it('should memoize function results', () => {
       const fn = jest.fn((x: number) => x * 2)
-      const memoized = memoize(fn)
+      const memoized = memoize(fn as (...args: unknown[]) => unknown)
 
       const result1 = memoized(5)
       const result2 = memoized(5)
@@ -28,7 +28,7 @@ describe('performanceUtils', () => {
     it('should use custom key selector', () => {
       const fn = jest.fn((a: number, b: number) => a + b)
       const keySelector = (a: number, b: number) => `${a}-${b}`
-      const memoized = memoize(fn, keySelector)
+      const memoized = memoize(fn as (...args: unknown[]) => unknown, keySelector as (...args: unknown[]) => string)
 
       const result1 = memoized(1, 2)
       const result2 = memoized(1, 2)
@@ -40,7 +40,7 @@ describe('performanceUtils', () => {
 
     it('should handle different arguments', () => {
       const fn = jest.fn((x: number) => x * 2)
-      const memoized = memoize(fn)
+      const memoized = memoize(fn as (...args: unknown[]) => unknown)
 
       memoized(5)
       memoized(10)
@@ -127,7 +127,7 @@ describe('performanceUtils', () => {
 
     it('should cache function results', () => {
       const fn = jest.fn((x: number) => x * 2)
-      const cached = withCache(fn, 5000)
+      const cached = withCache(fn as (...args: unknown[]) => unknown, 5000)
 
       const result1 = cached(5)
       const result2 = cached(5)
@@ -139,7 +139,7 @@ describe('performanceUtils', () => {
 
     it('should refresh cache after TTL', () => {
       const fn = jest.fn((x: number) => x * 2)
-      const cached = withCache(fn, 5000)
+      const cached = withCache(fn as (...args: unknown[]) => unknown, 5000)
 
       cached(5)
       jest.advanceTimersByTime(6000)
@@ -161,7 +161,7 @@ describe('performanceUtils', () => {
 
     it('should succeed on first try', async () => {
       const fn = jest.fn().mockResolvedValue('success')
-      const retried = withRetry(fn, 3, 1000)
+      const retried = withRetry(fn as (...args: unknown[]) => Promise<unknown>, 3, 1000)
 
       const result = await retried()
 
@@ -175,7 +175,7 @@ describe('performanceUtils', () => {
         .mockRejectedValueOnce(new Error('Failed'))
         .mockResolvedValue('success')
 
-      const retried = withRetry(fn, 3, 1000)
+      const retried = withRetry(fn as (...args: unknown[]) => Promise<unknown>, 3, 1000)
       const promise = retried()
 
       jest.advanceTimersByTime(3000)
@@ -199,7 +199,7 @@ describe('performanceUtils', () => {
 
     it('should debounce function calls', () => {
       const fn = jest.fn()
-      const debounced = withDebounce(fn, 1000)
+      const debounced = withDebounce(fn as (...args: unknown[]) => unknown, 1000)
 
       debounced()
       debounced()
@@ -225,7 +225,7 @@ describe('performanceUtils', () => {
 
     it('should throttle function calls', () => {
       const fn = jest.fn()
-      const throttled = withThrottle(fn, 1000)
+      const throttled = withThrottle(fn as (...args: unknown[]) => unknown, 1000)
 
       throttled()
       throttled()
@@ -248,7 +248,7 @@ describe('performanceUtils', () => {
   describe('withPerformanceMeasurement', () => {
     it('should measure function performance', () => {
       const fn = jest.fn(() => 'result')
-      const measured = withPerformanceMeasurement(fn, 'test')
+      const measured = withPerformanceMeasurement(fn as (...args: unknown[]) => unknown, 'test')
 
       const result = measured()
 
@@ -260,7 +260,7 @@ describe('performanceUtils', () => {
   describe('withAsyncPerformanceMeasurement', () => {
     it('should measure async function performance', async () => {
       const fn = jest.fn().mockResolvedValue('result')
-      const measured = withAsyncPerformanceMeasurement(fn, 'test')
+      const measured = withAsyncPerformanceMeasurement(fn as (...args: unknown[]) => Promise<unknown>, 'test')
 
       const result = await measured()
 

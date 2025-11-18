@@ -35,7 +35,10 @@ describe('useVideoStats', () => {
   })
 
   it('should recalculate when videos change', () => {
-    const { result, rerender } = renderHook(
+    const { result, rerender } = renderHook<
+      ReturnType<typeof useVideoStats>,
+      { videos: Array<{ status: 'completed' | 'pending' | 'processing' | 'error' }> }
+    >(
       ({ videos }) => useVideoStats(videos),
       {
         initialProps: {
