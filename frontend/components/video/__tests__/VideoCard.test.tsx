@@ -72,5 +72,54 @@ describe('VideoCard', () => {
     const card = container.querySelector('.custom-class')
     expect(card).toBeInTheDocument()
   })
+
+  it('should play video on mouse enter', () => {
+    const { container } = render(<VideoCard video={mockVideo} />)
+    
+    const video = container.querySelector('video')
+    if (video) {
+      const playSpy = jest.spyOn(video, 'play').mockResolvedValue(undefined)
+      
+      fireEvent.mouseEnter(video)
+      
+      expect(playSpy).toHaveBeenCalled()
+      playSpy.mockRestore()
+    }
+  })
+
+  it('should pause video and reset time on mouse leave', () => {
+    const { container } = render(<VideoCard video={mockVideo} />)
+    
+    const video = container.querySelector('video')
+    if (video) {
+      const pauseSpy = jest.spyOn(video, 'pause').mockImplementation(() => {})
+      Object.defineProperty(video, 'currentTime', {
+        writable: true,
+        value: 0,
+      })
+      
+      fireEvent.mouseLeave(video)
+      
+      expect(pauseSpy).toHaveBeenCalled()
+      expect(video.currentTime).toBe(0)
+      pauseSpy.mockRestore()
+    }
+  })
+
+  it('should handle video play error gracefully', () => {
+    const { container } = render(<VideoCard video={mockVideo} />)
+    
+    const video = container.querySelector('video')
+    if (video) {
+      const playSpy = jest.spyOn(video, 'play').mockRejectedValue(new Error('Play failed'))
+      
+      // Should not throw
+      expect(() => {
+        fireEvent.mouseEnter(video)
+      }).not.toThrow()
+      
+      playSpy.mockRestore()
+    }
+  })
 })
 

@@ -120,7 +120,22 @@ describe('useAsyncState', () => {
     expect(result.current.error).toBe('manual error')
   })
 
-  it('should use mutate with confirmation', async () => {
+  it('should use mutate with confirmation when user confirms', async () => {
+    window.confirm = jest.fn(() => true)
+    const { result } = renderHook(() => useAsyncState({ confirmMessage: 'Confirm?' }))
+    
+    await act(async () => {
+      const mutateResult = await result.current.mutate(async () => 'success')
+      expect(mutateResult).toBe('success')
+    })
+
+    expect(window.confirm).toHaveBeenCalledWith('Confirm?')
+    await waitFor(() => {
+      expect(result.current.data).toBe('success')
+    })
+  })
+
+  it('should use mutate with confirmation when user cancels', async () => {
     window.confirm = jest.fn(() => false)
     const { result } = renderHook(() => useAsyncState({ confirmMessage: 'Confirm?' }))
     
@@ -130,6 +145,91 @@ describe('useAsyncState', () => {
     })
 
     expect(window.confirm).toHaveBeenCalledWith('Confirm?')
+    expect(result.current.data).toBeNull()
+  })
+
+  it('should handle non-Error exceptions in execute', async () => {
+    const { result } = renderHook(() => useAsyncState<string>())
+    
+    await act(async () => {
+      try {
+        await result.current.execute(async () => {
+          throw 'String error'
+        })
+      } catch {
+        // Expected to throw
+      }
+    })
+
+    await waitFor(() => {
+      expect(result.current.error).toBe('操作に失敗しました')
+      expect(result.current.isLoading).toBe(false)
+    })
+  })
+
+  it('should handle non-Error exceptions in mutate', async () => {
+    window.confirm = jest.fn(() => true)
+    const { result } = renderHook(() => useAsyncState({ confirmMessage: 'Confirm?' }))
+    
+    await act(async () => {
+      try {
+        await result.current.mutate(async () => {
+          throw 'String error'
+        })
+      } catch {
+        // Expected to throw
+      }
+    })
+
+    await waitFor(() => {
+      expect(result.current.error).toBe('操作に失敗しました')
+      expect(result.current.isLoading).toBe(false)
+    })
+  })
+
+  it('should call onError with Error object when non-Error is thrown in execute', async () => {
+    const onError = jest.fn()
+    const { result } = renderHook(() => useAsyncState({ onError }))
+    
+    await act(async () => {
+      try {
+        await result.current.execute(async () => {
+          throw 'String error'
+        })
+      } catch {
+        // Expected to throw
+      }
+    })
+
+    await waitFor(() => {
+      expect(onError).toHaveBeenCalled()
+      const errorArg = onError.mock.calls[0][0]
+      expect(errorArg).toBeInstanceOf(Error)
+      expect(errorArg.message).toBe('操作に失敗しました')
+    })
+  })
+
+  it('should call onError with Error object when non-Error is thrown in mutate', async () => {
+    window.confirm = jest.fn(() => true)
+    const onError = jest.fn()
+    const { result } = renderHook(() => useAsyncState({ onError, confirmMessage: 'Confirm?' }))
+    
+    await act(async () => {
+      try {
+        await result.current.mutate(async () => {
+          throw 'String error'
+        })
+      } catch {
+        // Expected to throw
+      }
+    })
+
+    await waitFor(() => {
+      expect(onError).toHaveBeenCalled()
+      const errorArg = onError.mock.calls[0][0]
+      expect(errorArg).toBeInstanceOf(Error)
+      expect(errorArg.message).toBe('操作に失敗しました')
+    })
   })
 })
 

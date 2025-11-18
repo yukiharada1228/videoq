@@ -443,5 +443,167 @@ describe('ChatPanel', () => {
 
     expect(screen.getByText(/chat.historyLoading/)).toBeInTheDocument()
   })
+
+  it('should handle getChatHistory error', async () => {
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+    ;(apiClient.getChatHistory as jest.Mock).mockRejectedValue(new Error('Failed to load history'))
+    
+    render(<ChatPanel hasApiKey={true} groupId={1} />)
+    
+    const historyButton = screen.getByText(/chat.history/)
+    
+    await act(async () => {
+      fireEvent.click(historyButton)
+    })
+
+    await waitFor(() => {
+      expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to load history', expect.any(Error))
+    })
+
+    consoleErrorSpy.mockRestore()
+  })
+
+  it('should handle exportChatHistoryCsv error', async () => {
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+    const mockHistory = [
+      {
+        id: 1,
+        group: 1,
+        question: 'Test question',
+        answer: 'Test answer',
+        related_videos: [],
+        is_shared_origin: false,
+        created_at: '2024-01-15T10:00:00Z',
+        feedback: null,
+      },
+    ]
+    ;(apiClient.getChatHistory as jest.Mock).mockResolvedValue(mockHistory)
+    ;(apiClient.exportChatHistoryCsv as jest.Mock).mockRejectedValue(new Error('Failed to export CSV'))
+    
+    render(<ChatPanel hasApiKey={true} groupId={1} />)
+    
+    const historyButton = screen.getByText(/chat.history/)
+    
+    await act(async () => {
+      fireEvent.click(historyButton)
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('Test question')).toBeInTheDocument()
+    })
+
+    const exportButtons = screen.getAllByText(/chat.exportCsv/)
+    const exportButton = exportButtons[0].closest('button')
+    
+    if (exportButton) {
+      await act(async () => {
+        fireEvent.click(exportButton)
+      })
+    }
+
+    await waitFor(() => {
+      expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to export CSV', expect.any(Error))
+    })
+
+    consoleErrorSpy.mockRestore()
+  })
+
+  it('should handle setChatFeedback error', async () => {
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+    ;(apiClient.chat as jest.Mock).mockResolvedValue({
+      role: 'assistant',
+      content: 'Response',
+      related_videos: [],
+      chat_log_id: 1,
+      feedback: null,
+    })
+    ;(apiClient.setChatFeedback as jest.Mock).mockRejectedValue(new Error('Failed to update feedback'))
+
+    render(<ChatPanel hasApiKey={true} />)
+    
+    const input = screen.getByPlaceholderText(/chat.placeholder/)
+    const sendButton = screen.getByText(/common.actions.send/)
+
+    await act(async () => {
+      fireEvent.change(input, { target: { value: 'Test' } })
+      fireEvent.click(sendButton)
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText(/chat.feedbackGood/)).toBeInTheDocument()
+    })
+
+    const goodButton = screen.getByText(/chat.feedbackGood/)
+    await act(async () => {
+      fireEvent.click(goodButton)
+    })
+
+    await waitFor(() => {
+      expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to update feedback', expect.any(Error))
+    })
+
+    consoleErrorSpy.mockRestore()
+  })
+
+  it('should not send message when Enter key is pressed during composition', async () => {
+    render(<ChatPanel hasApiKey={true} />)
+    
+    const input = screen.getByPlaceholderText(/chat.placeholder/)
+
+    await act(async () => {
+      fireEvent.change(input, { target: { value: 'Test message' } })
+      // Simulate composition event
+      const compositionEvent = new KeyboardEvent('keydown', {
+        key: 'Enter',
+        isComposing: true,
+      })
+      Object.defineProperty(compositionEvent, 'nativeEvent', {
+        value: { isComposing: true },
+      })
+      input.dispatchEvent(compositionEvent)
+    })
+
+    // Should not call chat API during composition
+    expect(apiClient.chat).not.toHaveBeenCalled()
+  })
+
+  it('should display related videos in history', async () => {
+    const mockHistory = [
+      {
+        id: 1,
+        group: 1,
+        question: 'Test question',
+        answer: 'Test answer',
+        related_videos: [
+          {
+            video_id: 1,
+            title: 'History Video',
+            start_time: '00:02:00',
+          },
+        ],
+        is_shared_origin: false,
+        created_at: '2024-01-15T10:00:00Z',
+        feedback: null,
+      },
+    ]
+    ;(apiClient.getChatHistory as jest.Mock).mockResolvedValue(mockHistory)
+    
+    render(<ChatPanel hasApiKey={true} groupId={1} />)
+    
+    const historyButton = screen.getByText(/chat.history/)
+    
+    await act(async () => {
+      fireEvent.click(historyButton)
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('Test question')).toBeInTheDocument()
+    })
+
+    // Check for related video content (title and time are in the same element)
+    const relatedVideoElement = screen.getByText(/History Video/)
+    expect(relatedVideoElement).toBeInTheDocument()
+    expect(relatedVideoElement.textContent).toContain('00:02:00')
+  })
 })
 
