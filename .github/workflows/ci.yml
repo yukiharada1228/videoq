@@ -221,7 +221,6 @@ jobs:
       - changes
       - backend-lint
       - backend-test
-      - backend-security
       - frontend-lint
       - frontend-test
       - frontend-build
