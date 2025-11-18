@@ -1061,12 +1061,14 @@ describe('apiClient', () => {
   describe('uploadVideo error handling', () => {
     it('should log error and rethrow on upload failure', async () => {
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
-      const formData = new FormData()
-      formData.append('file', new Blob(['test']), 'test.mp4')
+      const file = new File(['test'], 'test.mp4', { type: 'video/mp4' })
 
       ;(fetch as jest.Mock).mockRejectedValueOnce(new Error('Upload failed'))
 
-      await expect(apiClient.uploadVideo(formData)).rejects.toThrow('Upload failed')
+      await expect(apiClient.uploadVideo({
+        file,
+        title: 'Test Video',
+      })).rejects.toThrow('Upload failed')
       expect(consoleErrorSpy).toHaveBeenCalled()
 
       consoleErrorSpy.mockRestore()
