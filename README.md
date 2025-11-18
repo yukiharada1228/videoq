@@ -70,7 +70,6 @@ ask-video/
 │   │   └── ui/                  # UI components (shadcn/ui)
 │   ├── hooks/                   # Custom hooks (useAuth, useVideos, useAsyncState, etc.)
 │   ├── lib/                     # Libraries/utilities (api, errorUtils, etc.)
-│   ├── e2e/                     # Playwright E2E tests
 │   ├── package.json             # Node.js dependencies
 │   ├── package-lock.json        # npm lockfile
 │   ├── Dockerfile               # Frontend Docker image
@@ -161,9 +160,6 @@ ask-video/
 
 #### Utilities
 - **date-fns** (^4.1.0) - Date utilities
-
-#### Testing
-- **@playwright/test** (^1.56.1) - E2E testing framework
 
 #### Dev Tools
 - **ESLint** (^9) - Linting
@@ -668,12 +664,6 @@ docker-compose logs -f backend celery-worker
 ```bash
 # Build the frontend
 docker-compose exec frontend npm run build
-
-# Run E2E tests
-docker-compose exec frontend npm run test:e2e
-
-# E2E tests (UI mode)
-docker-compose exec frontend npm run test:e2e:ui
 
 # Tail frontend logs
 docker-compose logs -f frontend
