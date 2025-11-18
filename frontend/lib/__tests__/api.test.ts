@@ -927,5 +927,150 @@ describe('apiClient', () => {
       expect(url).toContain('share_token=token123')
     })
   })
+
+  describe('logout', () => {
+    it('should handle logout errors silently', async () => {
+      ;(fetch as jest.Mock).mockRejectedValueOnce(new Error('Network error'))
+      
+      // Should not throw
+      await expect(apiClient.logout()).resolves.toBeUndefined()
+    })
+  })
+
+  describe('error handling', () => {
+    it('should handle error response with detail field', async () => {
+      ;(fetch as jest.Mock).mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        json: async () => ({ detail: 'Error detail message' }),
+        headers: new Headers({ 'content-type': 'application/json' }),
+      })
+
+      await expect(apiClient.getMe()).rejects.toThrow('Error detail message')
+    })
+
+    it('should handle error response with message field', async () => {
+      ;(fetch as jest.Mock).mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        json: async () => ({ message: 'Error message' }),
+        headers: new Headers({ 'content-type': 'application/json' }),
+      })
+
+      await expect(apiClient.getMe()).rejects.toThrow('Error message')
+    })
+
+    it('should handle error response without detail or message', async () => {
+      ;(fetch as jest.Mock).mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        json: async () => ({}),
+        headers: new Headers({ 'content-type': 'application/json' }),
+      })
+
+      await expect(apiClient.getMe()).rejects.toThrow('HTTP error! status: 500')
+    })
+  })
+
+  describe('parseJsonResponse edge cases', () => {
+    it('should return empty object when content-length is 0', async () => {
+      ;(fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: new Headers({ 'content-length': '0' }),
+      })
+
+      const result = await apiClient.getMe()
+      expect(result).toEqual({})
+    })
+
+    it('should return empty object when response is not JSON and has no content-length', async () => {
+      ;(fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: new Headers({ 'content-type': 'text/plain' }),
+        text: async () => '',
+      })
+
+      const result = await apiClient.getMe()
+      expect(result).toEqual({})
+    })
+
+    it('should return empty object when text is empty', async () => {
+      ;(fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        text: async () => '',
+      })
+
+      const result = await apiClient.getMe()
+      expect(result).toEqual({})
+    })
+
+    it('should return empty object when JSON parse fails', async () => {
+      ;(fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        text: async () => 'invalid json',
+      })
+
+      const result = await apiClient.getMe()
+      expect(result).toEqual({})
+    })
+  })
+
+  describe('exportChatHistoryCsv error handling', () => {
+    it('should handle 401 error with refresh token failure', async () => {
+      // First call returns 401
+      ;(fetch as jest.Mock).mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+      })
+
+      // Refresh token call fails
+      ;(fetch as jest.Mock).mockRejectedValueOnce(new Error('Refresh failed'))
+
+      await expect(apiClient.exportChatHistoryCsv(1)).rejects.toThrow()
+    })
+
+    it('should handle non-ok response with error message', async () => {
+      ;(fetch as jest.Mock).mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        statusText: 'Internal Server Error',
+        text: async () => 'Server error message',
+      })
+
+      await expect(apiClient.exportChatHistoryCsv(1)).rejects.toThrow('Server error message')
+    })
+
+    it('should handle non-ok response without error message', async () => {
+      ;(fetch as jest.Mock).mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        statusText: 'Internal Server Error',
+        text: async () => '',
+      })
+
+      await expect(apiClient.exportChatHistoryCsv(1)).rejects.toThrow('Failed to export CSV: Internal Server Error')
+    })
+  })
+
+  describe('uploadVideo error handling', () => {
+    it('should log error and rethrow on upload failure', async () => {
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+      const formData = new FormData()
+      formData.append('file', new Blob(['test']), 'test.mp4')
+
+      ;(fetch as jest.Mock).mockRejectedValueOnce(new Error('Upload failed'))
+
+      await expect(apiClient.uploadVideo(formData)).rejects.toThrow('Upload failed')
+      expect(consoleErrorSpy).toHaveBeenCalled()
+
+      consoleErrorSpy.mockRestore()
+    })
+  })
 })
 

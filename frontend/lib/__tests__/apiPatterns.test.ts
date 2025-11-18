@@ -149,6 +149,22 @@ describe('apiPatterns', () => {
       await expect(retryApiCall(apiCall, 2, 10)).rejects.toThrow('Failed')
       expect(apiCall).toHaveBeenCalledTimes(3) // 初回 + 2回のリトライ
     })
+
+    it('should wrap and throw non-Error exceptions while preserving the message', async () => {
+      // This test verifies that if a non-Error value (e.g., a string) is thrown
+      // during an API call, it is properly wrapped in an Error object,
+      // and its original message is preserved.
+      const apiCall = jest.fn().mockImplementation(() => {
+        throw 'string error';
+      });
+
+      // Call with 0 retries to test the immediate catch-and-throw logic.
+      // The assertion now specifically checks for the preserved error message.
+      await expect(retryApiCall(apiCall, 0, 10)).rejects.toThrow('string error');
+      
+      // Ensure the API was called exactly once.
+      expect(apiCall).toHaveBeenCalledTimes(1);
+    });
   })
 
   describe('batchApiCall', () => {
@@ -256,6 +272,41 @@ describe('apiPatterns', () => {
 
       expect(results).toEqual(['data', 'data', 'data'])
       expect(apiCall).toHaveBeenCalledTimes(1)
+      
+      jest.useRealTimers()
+    }, 15000)
+
+    it('should reject all pending promises on error', async () => {
+      jest.useFakeTimers()
+      
+      let callCount = 0
+      const apiCall = jest.fn(async () => {
+        callCount++
+        return Promise.reject(new Error('API failed'))
+      })
+      const debounced = debouncedApiCall(apiCall, 1000)
+
+      const promise1 = debounced()
+      const promise2 = debounced()
+      const promise3 = debounced()
+
+      // Run timers to trigger the debounced call
+      const timerPromise = jest.runAllTimersAsync()
+      
+      // Wait for promises to settle
+      const results = await Promise.allSettled([promise1, promise2, promise3, timerPromise])
+      
+      // All promises should reject with the same error
+      expect(results[0].status).toBe('rejected')
+      expect(results[1].status).toBe('rejected')
+      expect(results[2].status).toBe('rejected')
+      if (results[0].status === 'rejected') {
+        expect(results[0].reason).toBeInstanceOf(Error)
+        expect((results[0].reason as Error).message).toBe('API failed')
+      }
+      
+      // API should only be called once
+      expect(callCount).toBe(1)
       
       jest.useRealTimers()
     }, 15000)
