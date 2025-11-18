@@ -13,10 +13,22 @@ jest.mock('@/lib/api', () => ({
 }))
 
 const mockPush = jest.fn()
+const mockReplace = jest.fn()
+const mockPrefetch = jest.fn()
+const mockBack = jest.fn()
+
 jest.mock('next/navigation', () => ({
   useRouter: () => ({
     push: mockPush,
+    replace: mockReplace,
+    prefetch: mockPrefetch,
+    back: mockBack,
+    pathname: '/',
+    query: {},
+    asPath: '/',
   }),
+  usePathname: () => '/',
+  useSearchParams: () => new URLSearchParams(),
 }))
 
 describe('Header', () => {
