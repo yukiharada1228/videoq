@@ -3,7 +3,7 @@ import { VideoList } from '../VideoList'
 
 // Mock VideoCard
 jest.mock('../VideoCard', () => ({
-  VideoCard: ({ video }: { video: any }) => (
+  VideoCard: ({ video }: { video: { id: number; title: string } }) => (
     <div data-testid={`video-card-${video.id}`}>{video.title}</div>
   ),
 }))

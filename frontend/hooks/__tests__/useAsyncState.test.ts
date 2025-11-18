@@ -34,14 +34,13 @@ describe('useAsyncState', () => {
 
   it('should handle errors', async () => {
     const { result } = renderHook(() => useAsyncState<string>())
-    const onError = jest.fn()
     
     await act(async () => {
       try {
         await result.current.execute(async () => {
           throw new Error('Test error')
         })
-      } catch (e) {
+      } catch {
         // Expected to throw
       }
     })
@@ -74,7 +73,7 @@ describe('useAsyncState', () => {
         await result.current.execute(async () => {
           throw new Error('Test error')
         })
-      } catch (e) {
+      } catch {
         // Expected to throw
       }
     })

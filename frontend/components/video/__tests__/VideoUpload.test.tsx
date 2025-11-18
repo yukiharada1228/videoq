@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
+import { render, screen, waitFor, act } from '@testing-library/react'
 import { VideoUpload } from '../VideoUpload'
 import { useVideoUpload } from '@/hooks/useVideoUpload'
 
@@ -9,7 +9,15 @@ jest.mock('@/hooks/useVideoUpload', () => ({
 
 // Mock VideoUploadFormFields
 jest.mock('../VideoUploadFormFields', () => ({
-  VideoUploadFormFields: ({ title, description, isUploading, error, onFileChange, onTitleChange, onDescriptionChange }: any) => (
+  VideoUploadFormFields: ({ title, description, isUploading, error, onFileChange, onTitleChange, onDescriptionChange }: {
+    title: string
+    description: string
+    isUploading: boolean
+    error: string | null
+    onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void
+    onTitleChange: (value: string) => void
+    onDescriptionChange: (value: string) => void
+  }) => (
     <div>
       <input
         type="file"

@@ -4,6 +4,7 @@ import { apiClient } from '../api'
 global.fetch = jest.fn()
 
 // Mock ReadableStream
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 global.ReadableStream = class ReadableStream {} as any
 
 // Mock i18n
@@ -26,7 +27,7 @@ Object.defineProperty(window, 'location', {
 global.URL = class URL {
   searchParams: URLSearchParams
   href: string
-  constructor(public input: string, base?: string) {
+  constructor(public input: string) {
     this.href = input
     this.searchParams = new URLSearchParams()
     if (input.includes('?')) {
@@ -41,6 +42,7 @@ global.URL = class URL {
     }
     return this.href
   }
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 } as any
 
 // Mock document methods
@@ -67,7 +69,7 @@ Object.defineProperty(document.body, 'removeChild', {
 const MockURL = class URL {
   searchParams: URLSearchParams
   href: string
-  constructor(public input: string, base?: string) {
+  constructor(public input: string) {
     this.href = input
     this.searchParams = new URLSearchParams()
     if (input.includes('?')) {
@@ -84,6 +86,7 @@ const MockURL = class URL {
   }
   static createObjectURL = jest.fn(() => 'blob:url')
   static revokeObjectURL = jest.fn()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 } as any
 
 Object.defineProperty(window, 'URL', {

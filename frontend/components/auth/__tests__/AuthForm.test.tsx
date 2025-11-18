@@ -3,7 +3,7 @@ import { AuthForm } from '../AuthForm'
 
 // Mock child components
 jest.mock('../FormField', () => ({
-  FormField: ({ name, label, value, onChange }: any) => (
+  FormField: ({ name, label, value, onChange }: { name: string; label: string; value: string; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void }) => (
     <div>
       <label htmlFor={name}>{label}</label>
       <input
@@ -23,7 +23,7 @@ jest.mock('../ErrorMessage', () => ({
 }))
 
 jest.mock('../AuthFormFooter', () => ({
-  AuthFormFooter: ({ questionText, linkText, href }: any) => (
+  AuthFormFooter: ({ questionText, linkText, href }: { questionText: string; linkText: string; href: string }) => (
     <div>
       <span>{questionText}</span>
       <a href={href}>{linkText}</a>
