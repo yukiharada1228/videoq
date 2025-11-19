@@ -12,7 +12,7 @@ classDiagram
         +int id
         +string username
         +string email
-        +int video_limit
+        +string plan
         +datetime date_joined
         +bool is_active
         +bool is_staff

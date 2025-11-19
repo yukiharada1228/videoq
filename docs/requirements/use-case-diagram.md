@@ -61,7 +61,6 @@ graph TB
     
     subgraph Settings["Settings"]
         UC31[View User Info]
-        UC32[Set OpenAI API Key]
         UC33[Update User Info]
     end
     
@@ -96,7 +95,6 @@ graph TB
     User --> UC29
     User --> UC30
     User --> UC31
-    User --> UC32
     User --> UC33
     
     Guest --> UC29
@@ -155,5 +153,6 @@ graph TB
 
 ### Settings
 - **UC31 View User Info**: Display current user information
-- **UC32 Set OpenAI API Key**: Set OpenAI API key (encrypted storage)
 - **UC33 Update User Info**: Update user information
+
+**Note:** OpenAI API key is managed at the system level (via `OPENAI_API_KEY` environment variable), not by individual users.

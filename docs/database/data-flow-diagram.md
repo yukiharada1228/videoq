@@ -50,10 +50,9 @@ flowchart TD
     
     API --> Auth{Authentication Check}
     Auth -->|Failed| Error1[Authentication Error]
-    Auth -->|Success| GetUser[(Database<br/>Get User)]
+    Auth -->|Success| GetAPIKey[Get System<br/>OpenAI API Key]
     
-    GetUser --> Decrypt[Decrypt API Key]
-    Decrypt --> GetGroup[(Database<br/>Get VideoGroup)]
+    GetAPIKey --> GetGroup[(Database<br/>Get VideoGroup)]
     
     GetGroup --> VectorSearch[PGVector<br/>Vector Search]
     VectorSearch --> RelatedScenes[Get Related Scenes]
@@ -139,8 +138,8 @@ flowchart TD
     Guest --> Chat[Send Chat]
     Chat --> API3[POST /api/chat/?share_token=<token>]
     API3 --> ValidateToken2[(Database<br/>Verify Token)]
-    ValidateToken2 --> GetOwner[(Database<br/>Get Owner's API Key)]
-    GetOwner --> RAG[RAG Processing]
+    ValidateToken2 --> GetAPIKey[Get System<br/>OpenAI API Key]
+    GetAPIKey --> RAG[RAG Processing]
     RAG --> SaveLog[(Database<br/>Save ChatLog<br/>is_shared_origin: True)]
     SaveLog --> ReturnAnswer[Return Answer]
     ReturnAnswer --> Frontend

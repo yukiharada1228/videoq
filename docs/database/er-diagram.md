@@ -20,7 +20,7 @@ erDiagram
         string username UK
         string email UK
         string password
-        int video_limit
+        string plan
         datetime date_joined
         datetime last_login
         bool is_active
@@ -130,7 +130,7 @@ erDiagram
 ### Check Constraints
 - `Video.status`: Must be one of 'pending', 'processing', 'completed', 'error'
 - `ChatLog.feedback`: Must be 'good', 'bad', or NULL
-- `User.video_limit`: Must be a positive integer
+- `User.plan`: Must be 'FREE' or 'PRO'
 
 ## Indexes
 
