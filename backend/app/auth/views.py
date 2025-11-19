@@ -1,3 +1,4 @@
+from app.utils.mixins import AuthenticatedViewMixin, PublicViewMixin
 from django.contrib.auth import get_user_model
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics, status
@@ -5,15 +6,12 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.exceptions import InvalidToken
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from app.utils.mixins import AuthenticatedViewMixin, PublicViewMixin
-
 from .serializers import (EmailVerificationSerializer, LoginResponseSerializer,
                           LoginSerializer, MessageResponseSerializer,
                           PasswordResetConfirmSerializer,
                           PasswordResetRequestSerializer,
                           RefreshResponseSerializer, RefreshSerializer,
-                          UserSerializer, UserSignupSerializer,
-                          UserUpdateSerializer)
+                          UserSerializer, UserSignupSerializer)
 
 User = get_user_model()
 
@@ -221,13 +219,10 @@ class PasswordResetConfirmView(PublicAPIView):
         )
 
 
-class MeView(AuthenticatedAPIView, generics.RetrieveUpdateAPIView):
-    """Current user information retrieval and update view"""
+class MeView(AuthenticatedAPIView, generics.RetrieveAPIView):
+    """Current user information retrieval view"""
 
-    def get_serializer_class(self):
-        if self.request.method == "PUT" or self.request.method == "PATCH":
-            return UserUpdateSerializer
-        return UserSerializer
+    serializer_class = UserSerializer
 
     def get_object(self):
         return self.request.user

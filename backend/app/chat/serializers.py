@@ -1,6 +1,5 @@
-from rest_framework import serializers
-
 from app.models import ChatLog
+from rest_framework import serializers
 
 
 class MessageSerializer(serializers.Serializer):

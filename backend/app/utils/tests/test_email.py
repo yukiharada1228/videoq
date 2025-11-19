@@ -4,14 +4,13 @@ Tests for email utilities
 
 from unittest.mock import patch
 
-from django.contrib.auth import get_user_model
-from django.core import mail
-from django.test import TestCase, override_settings
-
 from app.utils.email import (build_email_verification_link,
                              build_password_reset_link,
                              send_email_verification,
                              send_password_reset_email)
+from django.contrib.auth import get_user_model
+from django.core import mail
+from django.test import TestCase, override_settings
 
 User = get_user_model()
 

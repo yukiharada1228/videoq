@@ -1,17 +1,15 @@
 from functools import wraps
 
-from rest_framework import status
-
 from app.common.responses import create_error_response
+from rest_framework import status
 
 
 def authenticated_api_view(methods):
     """Decorator for authenticated API views"""
 
     def decorator(view_func):
-        from rest_framework.decorators import api_view, permission_classes
-
         from app.utils.mixins import AuthenticatedViewMixin
+        from rest_framework.decorators import api_view, permission_classes
 
         return permission_classes(AuthenticatedViewMixin.permission_classes)(
             api_view(methods)(view_func)

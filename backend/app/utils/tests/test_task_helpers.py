@@ -5,14 +5,12 @@ Tests for task_helpers module
 import os
 from unittest.mock import Mock, patch
 
+from app.models import Video
+from app.utils.task_helpers import (BatchProcessor, ErrorHandler,
+                                    TemporaryFileManager, VideoTaskManager)
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
-
-from app.models import Video
-from app.utils.encryption import encrypt_api_key
-from app.utils.task_helpers import (BatchProcessor, ErrorHandler,
-                                    TemporaryFileManager, VideoTaskManager)
 
 User = get_user_model()
 
@@ -102,8 +100,6 @@ class VideoTaskManagerTests(TestCase):
             file=video_file,
             status="pending",
         )
-        video.user.encrypted_openai_api_key = encrypt_api_key("sk-test123")
-        video.user.save()
 
         is_valid, error = VideoTaskManager.validate_video_for_processing(video)
 
@@ -124,23 +120,6 @@ class VideoTaskManagerTests(TestCase):
         self.assertIsNotNone(error)
         self.assertIn("file", error.lower())
 
-    def test_validate_video_for_processing_no_api_key(self):
-        """Test validate_video_for_processing without API key"""
-        video_file = SimpleUploadedFile(
-            "test_video.mp4", b"file content", content_type="video/mp4"
-        )
-        video = Video.objects.create(
-            user=self.user,
-            title="Test Video",
-            file=video_file,
-            status="pending",
-        )
-
-        is_valid, error = VideoTaskManager.validate_video_for_processing(video)
-
-        self.assertFalse(is_valid)
-        self.assertIsNotNone(error)
-        self.assertIn("API key", error)
 
 
 class TemporaryFileManagerTests(TestCase):

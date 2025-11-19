@@ -2,15 +2,14 @@ from dataclasses import dataclass
 from operator import itemgetter
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, cast
 
+from app.chat.prompts import build_system_prompt
+from app.utils.vector_manager import PGVectorManager
+from django.conf import settings
 from langchain_core.messages import AIMessage
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnableLambda, RunnableParallel
 from langchain_openai import OpenAIEmbeddings
 from langchain_postgres import PGVector
-
-from app.chat.prompts import build_system_prompt
-from app.utils.encryption import decrypt_api_key
-from app.utils.vector_manager import PGVectorManager
 
 if TYPE_CHECKING:  # pragma: no cover - Used only for type checking
     from app.models import VideoGroup
@@ -184,7 +183,10 @@ class RagChatService:
         }
 
     def _create_vector_store(self) -> PGVector:
-        api_key = decrypt_api_key(self.user.encrypted_openai_api_key)
+        # Use system OpenAI API key from environment variable
+        api_key = settings.OPENAI_API_KEY
+        if not api_key:
+            raise ValueError("OpenAI API key is not configured")
         embeddings = OpenAIEmbeddings(model="text-embedding-3-small", api_key=api_key)
         config = PGVectorManager.get_config()
         connection_str = PGVectorManager.get_psycopg_connection_string()

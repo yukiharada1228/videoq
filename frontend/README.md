@@ -180,7 +180,6 @@ This frontend communicates with a Django REST Framework backend API.
 - `POST /api/auth/logout/` - Logout
 - `POST /api/auth/refresh/` - Token refresh
 - `GET /api/auth/me/` - Current user info
-- `PATCH /api/auth/me/` - Update user info (save OpenAI API key)
 - `POST /api/auth/password-reset/` - Request password reset
 - `POST /api/auth/password-reset/confirm/` - Confirm password reset
 

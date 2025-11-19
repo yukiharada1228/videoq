@@ -1,5 +1,6 @@
 import logging
 
+from app.utils.email import send_email_verification, send_password_reset_email
 from django.contrib.auth import authenticate, get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.tokens import default_token_generator
@@ -7,9 +8,6 @@ from django.utils.encoding import force_str
 from django.utils.http import urlsafe_base64_decode
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken
-
-from app.utils.email import send_email_verification, send_password_reset_email
-from app.utils.encryption import encrypt_api_key, is_encrypted
 
 logger = logging.getLogger(__name__)
 
@@ -83,36 +81,7 @@ class LoginSerializer(serializers.Serializer, CredentialsSerializerMixin):
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ["id", "username", "email", "encrypted_openai_api_key"]
-
-
-class UserUpdateSerializer(serializers.ModelSerializer):
-    """Serializer for updating user information"""
-
-    class Meta:
-        model = User
-        fields = ["encrypted_openai_api_key"]
-
-    def update(self, instance, validated_data):
-        encrypted_api_key = validated_data.get("encrypted_openai_api_key")
-
-        if encrypted_api_key:
-            # Check if API key is already encrypted
-            # Only encrypt if it's plain text
-            if not is_encrypted(encrypted_api_key):
-                try:
-                    encrypted_api_key = encrypt_api_key(encrypted_api_key)
-                except Exception as e:
-                    raise serializers.ValidationError(
-                        f"Failed to encrypt API key: {str(e)}"
-                    )
-
-            validated_data["encrypted_openai_api_key"] = encrypted_api_key
-        else:
-            # Don't encrypt if null
-            validated_data["encrypted_openai_api_key"] = None
-
-        return super().update(instance, validated_data)
+        fields = ["id", "username", "email"]
 
 
 class RefreshSerializer(serializers.Serializer):

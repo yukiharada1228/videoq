@@ -1,19 +1,19 @@
 import csv
 import json
 
-from django.db.models import Prefetch
-from django.http import HttpResponse
-from drf_spectacular.utils import extend_schema
-from rest_framework import generics, status
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
-from rest_framework.views import APIView
-
 from app.common.authentication import CookieJWTAuthentication
 from app.common.permissions import (IsAuthenticatedOrSharedAccess,
                                     ShareTokenAuthentication)
 from app.common.responses import create_error_response
 from app.models import ChatLog, VideoGroup, VideoGroupMember
+from django.db.models import Prefetch, Q
+from django.http import HttpResponse
+from django.utils import timezone
+from drf_spectacular.utils import extend_schema
+from rest_framework import generics, status
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from .serializers import (ChatFeedbackRequestSerializer,
                           ChatFeedbackResponseSerializer, ChatLogSerializer,
@@ -101,6 +101,25 @@ class ChatView(generics.CreateAPIView):
         else:
             # Normal authenticated user
             user = request.user
+
+        # Check monthly chat limit (3,000 per user, including shared chats)
+        now = timezone.now()
+        first_day_of_month = now.replace(
+            day=1, hour=0, minute=0, second=0, microsecond=0
+        )
+
+        # Count chat logs for this user in the current month
+        # Include both direct chats and shared chats (where user is the group owner)
+        monthly_chat_count = ChatLog.objects.filter(
+            Q(user=user) | Q(group__user=user, is_shared_origin=True),
+            created_at__gte=first_day_of_month,
+        ).count()
+
+        if monthly_chat_count >= 3000:
+            return create_error_response(
+                "Monthly chat limit reached (3,000 chats per month). Please try again next month.",
+                status.HTTP_429_TOO_MANY_REQUESTS,
+            )
 
         # Get LangChain LLM
         llm, error_response = get_langchain_llm(user)
