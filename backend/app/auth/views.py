@@ -1,4 +1,9 @@
 from app.utils.mixins import AuthenticatedViewMixin, PublicViewMixin
+from app.utils.plan_limits import (
+    get_chat_limit,
+    get_video_limit,
+    get_whisper_minutes_limit,
+)
 from django.contrib.auth import get_user_model
 from django.db.models import Q, Sum
 from django.utils import timezone
@@ -12,9 +17,9 @@ from .serializers import (EmailVerificationSerializer, LoginResponseSerializer,
                           LoginSerializer, MessageResponseSerializer,
                           PasswordResetConfirmSerializer,
                           PasswordResetRequestSerializer,
-                          RefreshResponseSerializer, RefreshSerializer,
-                          UsageStatsResponseSerializer, UserSerializer,
-                          UserSignupSerializer)
+                          PlanUpdateSerializer, RefreshResponseSerializer,
+                          RefreshSerializer, UsageStatsResponseSerializer,
+                          UserSerializer, UserSignupSerializer)
 
 User = get_user_model()
 
@@ -250,7 +255,7 @@ class UsageStatsView(AuthenticatedAPIView):
 
         # Calculate video count
         video_count = Video.objects.filter(user=user).count()
-        video_limit = user.video_limit
+        video_limit = get_video_limit(user)
 
         # Calculate monthly Whisper usage (in minutes)
         monthly_whisper_usage = (
@@ -261,14 +266,14 @@ class UsageStatsView(AuthenticatedAPIView):
             ).aggregate(total_minutes=Sum("duration_minutes"))["total_minutes"]
             or 0.0
         )
-        whisper_limit = 1200.0  # 20 hours = 1200 minutes
+        whisper_limit = get_whisper_minutes_limit(user)
 
         # Calculate monthly chat count
         monthly_chat_count = ChatLog.objects.filter(
             Q(user=user) | Q(group__user=user, is_shared_origin=True),
             created_at__gte=first_day_of_month,
         ).count()
-        chat_limit = 3000
+        chat_limit = get_chat_limit(user)
 
         return Response(
             {
@@ -276,4 +281,32 @@ class UsageStatsView(AuthenticatedAPIView):
                 "whisper_minutes": {"used": monthly_whisper_usage, "limit": whisper_limit},
                 "chats": {"used": monthly_chat_count, "limit": chat_limit},
             }
+        )
+
+
+class PlanUpdateView(AuthenticatedAPIView):
+    """Plan update view"""
+
+    serializer_class = PlanUpdateSerializer
+
+    @extend_schema(
+        request=PlanUpdateSerializer,
+        responses={200: MessageResponseSerializer},
+        summary="Update user plan",
+        description="Update the user's plan (FREE or PRO).",
+    )
+    def patch(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        user = request.user
+        new_plan = serializer.validated_data["plan"]
+
+        # Update user plan
+        user.plan = new_plan
+        user.save(update_fields=["plan"])
+
+        return Response(
+            {"detail": f"Plan updated to {new_plan} successfully."},
+            status=status.HTTP_200_OK,
         )

@@ -6,6 +6,7 @@ import tempfile
 
 from app.models import Video, VideoGroup
 from app.tasks import transcribe_video
+from app.utils.plan_limits import get_video_limit, get_whisper_minutes_limit
 from django.db.models import Sum
 from django.utils import timezone
 from rest_framework import serializers
@@ -61,12 +62,14 @@ class VideoCreateSerializer(UserOwnedSerializerMixin, serializers.ModelSerialize
         request = self.context.get("request")
         user = getattr(request, "user", None)
 
-        if user and getattr(user, "video_limit", None) is not None:
+        if user:
+            # Check video limit based on user's plan
+            video_limit = get_video_limit(user)
             current_count = Video.objects.filter(user=user).count()
-            if current_count >= user.video_limit:
+            if current_count >= video_limit:
                 raise serializers.ValidationError(
                     {
-                        "detail": "Video limit reached. Please delete unnecessary videos or contact an administrator to change the limit."
+                        "detail": f"Video limit reached ({video_limit} videos). Please delete unnecessary videos or upgrade your plan."
                     }
                 )
 
@@ -116,13 +119,15 @@ class VideoCreateSerializer(UserOwnedSerializerMixin, serializers.ModelSerialize
                 or 0.0
             )
 
-            # Check if adding this video would exceed the limit
-            if monthly_whisper_usage + video_duration_minutes > 1200:
+            # Check if adding this video would exceed the limit (based on user's plan)
+            whisper_limit = get_whisper_minutes_limit(user)
+            if monthly_whisper_usage + video_duration_minutes > whisper_limit:
                 # Delete the video record if limit exceeded
                 video.delete()
+                whisper_limit_hours = whisper_limit / 60.0
                 raise serializers.ValidationError(
                     {
-                        "detail": f"Monthly Whisper usage limit reached (20 hours = 1,200 minutes per month). Current usage: {monthly_whisper_usage:.1f} minutes. This video would add {video_duration_minutes:.1f} minutes. Please try again next month."
+                        "detail": f"Monthly Whisper usage limit reached ({whisper_limit_hours:.1f} hours = {whisper_limit:.1f} minutes per month). Current usage: {monthly_whisper_usage:.1f} minutes. This video would add {video_duration_minutes:.1f} minutes. Please try again next month or upgrade your plan."
                     }
                 )
 

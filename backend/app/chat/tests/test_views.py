@@ -524,7 +524,7 @@ class ChatHistoryExportViewTests(APITestCase):
 
 
 class ChatMonthlyLimitTestCase(APITestCase):
-    """Tests for chat monthly limit (3,000 chats per month)"""
+    """Tests for chat monthly limit (based on plan)"""
 
     def setUp(self):
         self.user = User.objects.create_user(
@@ -532,6 +532,9 @@ class ChatMonthlyLimitTestCase(APITestCase):
             email="chatlimituser@example.com",
             password="testpass123",
         )
+        # Set to PRO plan (limit: 3000 chats)
+        self.user.plan = User.PlanChoices.PRO
+        self.user.save(update_fields=["plan"])
         self.client = APIClient()
         self.client.force_authenticate(user=self.user)
 
