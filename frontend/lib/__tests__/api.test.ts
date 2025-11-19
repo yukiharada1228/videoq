@@ -97,7 +97,7 @@ Object.defineProperty(window, 'URL', {
 describe('apiClient', () => {
   beforeEach(() => {
     jest.clearAllMocks()
-    ;(fetch as jest.Mock).mockClear()
+    ;(fetch as jest.Mock).mockReset()
   })
 
   describe('isAuthenticated', () => {
@@ -783,6 +783,7 @@ describe('apiClient', () => {
         ok: true,
         status: 200,
         json: async () => mockGroup,
+        headers: new Headers({ 'content-type': 'application/json' }),
       })
 
       const result = await apiClient.getSharedGroup('token123')
@@ -793,10 +794,12 @@ describe('apiClient', () => {
       ;(fetch as jest.Mock).mockResolvedValueOnce({
         ok: false,
         status: 404,
+        statusText: 'Not Found',
         text: async () => 'Not found',
+        headers: new Headers(),
       })
 
-      await expect(apiClient.getSharedGroup('invalid-token')).rejects.toThrow()
+      await expect(apiClient.getSharedGroup('invalid-token')).rejects.toThrow('Not found')
     })
   })
 
@@ -978,6 +981,7 @@ describe('apiClient', () => {
         ok: true,
         status: 200,
         headers: new Headers({ 'content-length': '0' }),
+        text: async () => '',
       })
 
       const result = await apiClient.getMe()
@@ -1041,6 +1045,7 @@ describe('apiClient', () => {
         status: 500,
         statusText: 'Internal Server Error',
         text: async () => 'Server error message',
+        headers: new Headers(),
       })
 
       await expect(apiClient.exportChatHistoryCsv(1)).rejects.toThrow('Server error message')

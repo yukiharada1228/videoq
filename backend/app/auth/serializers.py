@@ -89,9 +89,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = (
-            []
-        )  # No user-configurable fields (OpenAI API key is managed by the system)
+        fields: tuple[str, ...] = ()  # No user-configurable fields (OpenAI API key is managed by the system)
 
     def update(self, instance, validated_data):
         # No fields to update (OpenAI API key is managed by the system)
