@@ -16,14 +16,13 @@ interface Message {
 }
 
 interface ChatPanelProps {
-  hasApiKey: boolean;
   groupId?: number;
   onVideoPlay?: (videoId: number, startTime: string) => void;
   shareToken?: string;
   className?: string;
 }
 
-export function ChatPanel({ hasApiKey, groupId, onVideoPlay, shareToken, className }: ChatPanelProps) {
+export function ChatPanel({ groupId, onVideoPlay, shareToken, className }: ChatPanelProps) {
   const { t } = useTranslation();
   const [messages, setMessages] = useState<Message[]>(() => [
     {
@@ -87,7 +86,7 @@ export function ChatPanel({ hasApiKey, groupId, onVideoPlay, shareToken, classNa
   };
 
   const handleSend = async () => {
-    if (!input.trim() || loading || !hasApiKey) return;
+    if (!input.trim() || loading) return;
 
     const userMessage: Message = { role: 'user', content: input };
     setMessages((prev) => [...prev, userMessage]);
@@ -181,20 +180,6 @@ export function ChatPanel({ hasApiKey, groupId, onVideoPlay, shareToken, classNa
   );
 
   const cardClassName = cn('flex flex-col', className ?? 'h-[500px] lg:h-[600px]');
-
-  if (!hasApiKey) {
-    return (
-      <Card className={cardClassName}>
-        <ChatHeader />
-        <CardContent className="flex-1 flex items-center justify-center">
-          <div className="text-center text-gray-500">
-            <p className="mb-2">{t('common.messages.noApiKey')}</p>
-            <p className="text-sm">{t('common.messages.setApiKeyPrompt')}</p>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
 
   return (
     <>

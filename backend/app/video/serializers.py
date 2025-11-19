@@ -219,7 +219,6 @@ class VideoGroupDetailSerializer(serializers.ModelSerializer):
 
     video_count = serializers.IntegerField(read_only=True)
     videos = serializers.SerializerMethodField()
-    owner_has_api_key = serializers.SerializerMethodField()
 
     class Meta:
         model = VideoGroup
@@ -232,7 +231,6 @@ class VideoGroupDetailSerializer(serializers.ModelSerializer):
             "video_count",
             "videos",
             "share_token",
-            "owner_has_api_key",
         ]
         read_only_fields = [
             "id",
@@ -240,7 +238,6 @@ class VideoGroupDetailSerializer(serializers.ModelSerializer):
             "updated_at",
             "video_count",
             "share_token",
-            "owner_has_api_key",
         ]
 
     def get_videos(self, obj):
@@ -267,14 +264,6 @@ class VideoGroupDetailSerializer(serializers.ModelSerializer):
             {**video_data, "order": member.order}
             for member, video_data in zip(members, video_data_list)
         ]
-
-    def get_owner_has_api_key(self, obj):
-        """Return whether group owner has API key"""
-        user = obj.user
-        if not user:
-            return False
-
-        return bool(user.encrypted_openai_api_key)
 
 
 class VideoGroupCreateSerializer(UserOwnedSerializerMixin, BaseVideoGroupSerializer):
