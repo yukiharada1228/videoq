@@ -2,6 +2,7 @@ import logging
 import secrets
 
 from django.db.models import Max, Q
+from drf_spectacular.utils import extend_schema
 from rest_framework import generics, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
@@ -13,7 +14,11 @@ from app.utils.decorators import authenticated_view_with_error_handling
 from app.utils.mixins import AuthenticatedViewMixin, DynamicSerializerMixin
 from app.utils.query_optimizer import QueryOptimizer
 
-from .serializers import (VideoCreateSerializer, VideoGroupCreateSerializer,
+from .serializers import (AddVideosToGroupRequestSerializer,
+                          AddVideosToGroupResponseSerializer,
+                          MessageResponseSerializer,
+                          ReorderVideosRequestSerializer,
+                          VideoCreateSerializer, VideoGroupCreateSerializer,
                           VideoGroupDetailSerializer, VideoGroupListSerializer,
                           VideoGroupUpdateSerializer, VideoListSerializer,
                           VideoSerializer, VideoUpdateSerializer)
@@ -357,6 +362,12 @@ def add_video_to_group(request, group_id, video_id):
     )
 
 
+@extend_schema(
+    request=AddVideosToGroupRequestSerializer,
+    responses={201: AddVideosToGroupResponseSerializer},
+    summary="Add multiple videos to group",
+    description="Add multiple videos to a group. Videos already in the group will be skipped.",
+)
 @authenticated_view_with_error_handling(["POST"])
 def add_videos_to_group(request, group_id):
     """Add multiple videos to group"""
@@ -443,6 +454,12 @@ def remove_video_from_group(request, group_id, video_id):
     return Response({"message": "Video removed from group"}, status=status.HTTP_200_OK)
 
 
+@extend_schema(
+    request=ReorderVideosRequestSerializer,
+    responses={200: MessageResponseSerializer},
+    summary="Reorder videos in group",
+    description="Update the order of videos in a group by providing video IDs in the desired order.",
+)
 @authenticated_view_with_error_handling(["PATCH"])
 def reorder_videos_in_group(request, group_id):
     """Update video order in group"""
