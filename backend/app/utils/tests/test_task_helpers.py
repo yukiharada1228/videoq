@@ -5,14 +5,13 @@ Tests for task_helpers module
 import os
 from unittest.mock import Mock, patch
 
-from django.contrib.auth import get_user_model
-from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase
-
 from app.models import Video
 from app.utils.encryption import encrypt_api_key
 from app.utils.task_helpers import (BatchProcessor, ErrorHandler,
                                     TemporaryFileManager, VideoTaskManager)
+from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import TestCase
 
 User = get_user_model()
 

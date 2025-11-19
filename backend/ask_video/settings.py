@@ -53,6 +53,9 @@ class DefaultSettings:
     EMAIL_HOST_PASSWORD = ""
     EMAIL_USE_TLS = True
 
+    # OpenAI
+    OPENAI_API_KEY = None  # System default OpenAI API key (for operations)
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -272,3 +275,6 @@ else:
         os.environ.get("EMAIL_USE_TLS", str(DefaultSettings.EMAIL_USE_TLS)).lower()
         == "true"
     )
+
+# OpenAI API key configuration
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", DefaultSettings.OPENAI_API_KEY)

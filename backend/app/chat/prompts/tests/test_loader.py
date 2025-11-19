@@ -7,10 +7,9 @@ import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
-from django.test import TestCase
-
 from app.chat.prompts.loader import (PromptConfigurationError,
                                      build_system_prompt)
+from django.test import TestCase
 
 
 class PromptLoaderTests(TestCase):

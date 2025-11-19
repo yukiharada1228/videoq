@@ -9,15 +9,14 @@ import subprocess
 import tempfile
 from concurrent.futures import ThreadPoolExecutor
 
-from celery import shared_task
-from langchain_openai import OpenAIEmbeddings
-from langchain_postgres import PGVector
-from openai import OpenAI
-
-from app.utils.encryption import decrypt_api_key
 from app.utils.task_helpers import (ErrorHandler, TemporaryFileManager,
                                     VideoTaskManager)
 from app.utils.vector_manager import PGVectorManager
+from celery import shared_task
+from django.conf import settings
+from langchain_openai import OpenAIEmbeddings
+from langchain_postgres import PGVector
+from openai import OpenAI
 
 from .scene_otsu import SceneSplitter, SubtitleParser
 
@@ -87,12 +86,17 @@ def _parse_srt_scenes(srt_content):
     return SubtitleParser.parse_srt_scenes(srt_content)
 
 
-def _index_scenes_to_vectorstore(scene_docs, video, api_key):
+def _index_scenes_to_vectorstore(scene_docs, video, api_key=None):
     """
     Create vector index using LangChain + pgvector
     scene_docs: [{text, metadata}]
     """
     try:
+        # Use system OpenAI API key from environment variable if not provided
+        if api_key is None:
+            api_key = settings.OPENAI_API_KEY
+            if not api_key:
+                raise ValueError("OpenAI API key is not configured")
         embeddings = OpenAIEmbeddings(model="text-embedding-3-small", api_key=api_key)
         config = PGVectorManager.get_config()
 
@@ -316,11 +320,16 @@ def _process_audio_segments_parallel(client, audio_segments):
     return all_segments
 
 
-def _apply_scene_splitting(srt_content, api_key, original_segment_count):
+def _apply_scene_splitting(srt_content, api_key=None, original_segment_count=None):
     """
     Apply scene splitting
     """
     try:
+        # Use system OpenAI API key from environment variable if not provided
+        if api_key is None:
+            api_key = settings.OPENAI_API_KEY
+            if not api_key:
+                raise ValueError("OpenAI API key is not configured")
         splitter = SceneSplitter(api_key=api_key)
         scene_split_srt = splitter.process(srt_content, max_tokens=512)
         scene_count = _count_scenes(scene_split_srt)
@@ -350,11 +359,16 @@ def _handle_transcription_error(video, error_msg):
     VideoTaskManager.update_video_status(video, "error", error_msg)
 
 
-def _index_scenes_batch(scene_split_srt, video, api_key):
+def _index_scenes_batch(scene_split_srt, video, api_key=None):
     """
     Batch index scenes to pgvector
     """
     try:
+        # Use system OpenAI API key from environment variable if not provided
+        if api_key is None:
+            api_key = settings.OPENAI_API_KEY
+            if not api_key:
+                raise ValueError("OpenAI API key is not configured")
         logger.info("Starting scene indexing to pgvector...")
         scenes = _parse_srt_scenes(scene_split_srt)
         logger.info(f"Parsed {len(scenes)} scenes from SRT")
@@ -428,8 +442,10 @@ def transcribe_video(self, video_id):
             # Update status to processing
             VideoTaskManager.update_video_status(video, "processing")
 
-            # Decrypt API key
-            api_key = decrypt_api_key(video.user.encrypted_openai_api_key)
+            # Use system OpenAI API key from environment variable
+            api_key = settings.OPENAI_API_KEY
+            if not api_key:
+                raise ValueError("OpenAI API key is not configured")
 
             # Initialize OpenAI client
             client = OpenAI(api_key=api_key)
@@ -471,6 +487,34 @@ def transcribe_video(self, video_id):
                 _handle_transcription_error(video, "Failed to extract audio from video")
                 return
 
+            # Get video duration and save to Video model if not already set
+            if video.duration_minutes is None:
+                try:
+                    # Get video duration from ffprobe (already done in extract_and_split_audio)
+                    # We need to get it again or extract from the audio_segments
+                    probe_result = subprocess.run(
+                        [
+                            "ffprobe",
+                            "-v",
+                            "quiet",
+                            "-print_format",
+                            "json",
+                            "-show_format",
+                            video_file_path,
+                        ],
+                        capture_output=True,
+                        text=True,
+                        check=True,
+                    )
+                    probe = json.loads(probe_result.stdout)
+                    duration_seconds = float(probe["format"]["duration"])
+                    duration_minutes = duration_seconds / 60.0
+                    video.duration_minutes = duration_minutes
+                    video.save(update_fields=["duration_minutes"])
+                    logger.info(f"Saved video duration: {duration_minutes:.2f} minutes")
+                except Exception as e:
+                    logger.warning(f"Failed to save video duration: {e}")
+
             # Process segments in parallel for better performance (N+1 prevention)
             all_segments = _process_audio_segments_parallel(client, audio_segments)
 
@@ -493,6 +537,7 @@ def transcribe_video(self, video_id):
             _save_transcription_result(video, scene_split_srt)
 
             # Index scenes to vector store for RAG (N+1 prevention)
+            # api_key is already set from environment variable above
             _index_scenes_batch(scene_split_srt, video, api_key)
 
             logger.info(f"Successfully processed video {video_id}")

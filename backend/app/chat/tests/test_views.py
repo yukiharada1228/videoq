@@ -5,12 +5,11 @@ Tests for chat views
 import secrets
 from unittest.mock import MagicMock, patch
 
+from app.models import ChatLog, Video, VideoGroup, VideoGroupMember
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
-
-from app.models import ChatLog, Video, VideoGroup, VideoGroupMember
 
 User = get_user_model()
 
