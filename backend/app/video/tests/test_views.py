@@ -665,14 +665,16 @@ class WhisperUsageLimitTestCase(APITestCase):
         last_month = timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0) - timedelta(days=1)
         last_month_first_day = last_month.replace(day=1)
 
-        Video.objects.create(
+        last_month_video = Video.objects.create(
             user=self.user,
             title="Last Month Video",
             description="Test",
             status="completed",
             duration_minutes=1200.0,  # This should not count
-            uploaded_at=last_month_first_day + timedelta(days=1),
         )
+        # Update uploaded_at after creation to bypass auto_now_add
+        last_month_video.uploaded_at = last_month_first_day + timedelta(days=1)
+        last_month_video.save(update_fields=["uploaded_at"])
 
         # Upload a video with 100 minutes (should succeed because last month's video doesn't count)
         file_content = b"dummy video content"
