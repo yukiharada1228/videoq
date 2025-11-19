@@ -117,6 +117,21 @@
     "account": {
       "username": "Username",
       "serviceReady": "✓ Service Ready"
+    },
+    "usage": {
+      "title": "Usage Statistics",
+      "description": "Current usage and limits",
+      "loading": "Loading...",
+      "videos": {
+        "label": "Videos Stored (Total)"
+      },
+      "whisper": {
+        "label": "Transcription Time (This Month)",
+        "unit": "min"
+      },
+      "chats": {
+        "label": "Chat Count (This Month)"
+      }
     }
   },
   "videos": {
@@ -347,14 +362,8 @@
   },
   "settings": {
     "title": "Settings",
-    "description": "Service settings and usage limits",
-    "info": "OpenAI API key is managed by the system. You can use the service with confidence.",
-    "usageLimits": {
-      "title": "Usage Limits",
-      "videos": "Video storage: Maximum 50 videos",
-      "whisper": "Whisper processing time: 20 hours (1,200 minutes) per month",
-      "chat": "Chat messages: 3,000 messages per month"
-    }
+    "description": "Account settings",
+    "noSettings": "No configurable settings available at this time."
   },
   "chat": {
     "title": "Chat",
