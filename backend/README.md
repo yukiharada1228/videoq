@@ -384,12 +384,13 @@ docker-compose logs -f celery-worker
 ### Transcription task fails
 
 1. **Ensure OpenAI API key is configured (system administrator):**
-   - Set `OPENAI_API_KEY` environment variable in your deployment configuration
+   - Set `OPENAI_API_KEY` environment variable in your deployment configuration (e.g., in `.env` file or Docker Compose environment)
    - This is a system-level setting, not user-configurable
+   - The API key is used for both Whisper transcription and ChatGPT API calls
 
 2. **Validate API key:**
    - Test the API key directly with OpenAI API
-   - Ensure it has access to Whisper API
+   - Ensure it has access to Whisper API and ChatGPT API
 
 3. **Check video file exists:**
 ```bash

@@ -10,7 +10,7 @@ This frontend provides:
 - Video group management with drag-and-drop reordering
 - AI chat interface (RAG-enabled)
 - Share link functionality
-- User settings (OpenAI API key management)
+- User settings
 - Internationalization (English/Japanese)
 
 ## Setup
@@ -65,7 +65,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 - Video group management (`/videos/groups`)
 - AI chat (RAG-enabled)
 - Share links (`/share/[token]`)
-- User settings (`/settings`)
+- User settings (`/settings`) - View and update user information
 - Session management via JWT
 - Responsive design
 

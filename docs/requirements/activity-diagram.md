@@ -46,13 +46,11 @@ flowchart TD
     Auth -->|Authenticated| GetGroup{Group Specified?}
     
     GetGroup -->|Yes| ValidateGroup[Validate Group Existence]
-    GetGroup -->|No| GetAPIKey[Get User's<br/>OpenAI API Key]
+    GetGroup -->|No| GetAPIKey[Get System<br/>OpenAI API Key]
     ValidateGroup --> GetAPIKey
-    GetAPIKey --> CheckKey{API Key<br/>Set?}
-    CheckKey -->|Not Set| Error2[API Key Not Set Error]
-    CheckKey -->|Set| Decrypt[Decrypt API Key]
-    
-    Decrypt --> ParseQuery[Parse Question Text]
+    GetAPIKey --> CheckKey{API Key<br/>Configured?}
+    CheckKey -->|Not Configured| Error2[API Key Not Configured Error]
+    CheckKey -->|Configured| ParseQuery[Parse Question Text]
     ParseQuery --> VectorSearch{Group Specified?}
     
     VectorSearch -->|Yes| SearchVectors[Search Related Scenes<br/>with PGVector]

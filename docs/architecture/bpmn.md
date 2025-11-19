@@ -70,10 +70,10 @@ flowchart TD
     ValidateQuestion -->|Valid| CheckAuth{Authentication Check}
     CheckAuth -->|Unauthenticated| RequireAuth[Require Authentication]
     RequireAuth --> End([End])
-    CheckAuth -->|Authenticated| CheckAPIKey{API Key<br/>Setting Check}
-    CheckAPIKey -->|Not Set| RequireAPIKey[Require API Key Setting]
+    CheckAuth -->|Authenticated| CheckAPIKey{System API Key<br/>Configuration Check}
+    CheckAPIKey -->|Not Configured| RequireAPIKey[System API Key Not Configured]
     RequireAPIKey --> End
-    CheckAPIKey -->|Set| CheckGroup{Group Specified}
+    CheckAPIKey -->|Configured| CheckGroup{Group Specified}
     
     CheckGroup -->|Specified| GetGroup[Get Group]
     GetGroup --> SearchVector[Vector Search]

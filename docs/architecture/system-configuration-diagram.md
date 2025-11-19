@@ -195,7 +195,6 @@ graph TB
         end
         
         subgraph Encryption["Encryption"]
-            APIKeyEncryption[API Key Encryption<br/>- Encrypt on Save<br/>- Decrypt on Use]
             HTTPS[HTTPS Communication<br/>- TLS/SSL<br/>- Data Encryption]
         end
         
@@ -208,7 +207,6 @@ graph TB
     
     JWT --> Permissions
     ShareToken --> Permissions
-    APIKeyEncryption --> Permissions
     HTTPS --> Protection
     CSRF --> Protection
     CORS --> Protection

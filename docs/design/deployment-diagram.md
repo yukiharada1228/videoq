@@ -213,7 +213,8 @@ graph TB
         E10[FRONTEND_URL]
         E11[USE_S3_STORAGE]
         E12[AWS_*]
-        E13[NEXT_PUBLIC_API_URL]
+        E13[OPENAI_API_KEY]
+        E14[NEXT_PUBLIC_API_URL]
     end
     
     subgraph Containers["Containers"]
@@ -236,7 +237,9 @@ graph TB
     E10 --> C2
     E11 --> C2
     E12 --> C2
-    E13 --> C4
+    E13 --> C2
+    E13 --> C3
+    E14 --> C4
 ```
 
 ## Scaling Configuration

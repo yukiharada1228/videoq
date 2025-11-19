@@ -15,6 +15,7 @@ This application offers video upload, automatic transcription, and AI chat. When
 - **Video Group Management**: Organize multiple videos into groups
 - **Sharing**: Share video groups via share tokens
 - **Protected Media Delivery**: Secure media delivery via authentication
+- **Plan-based Limits**: FREE and PRO plans with different limits for videos, Whisper processing, and chat
 
 ## Project Structure
 
@@ -222,8 +223,8 @@ Required variables:
 - `AWS_STORAGE_BUCKET_NAME` - S3 bucket name (required if `USE_S3_STORAGE=true`)
 - `AWS_ACCESS_KEY_ID` - AWS access key ID (required if `USE_S3_STORAGE=true`)
 - `AWS_SECRET_ACCESS_KEY` - AWS secret access key (required if `USE_S3_STORAGE=true`)
+- `OPENAI_API_KEY` - OpenAI API key for Whisper transcription and ChatGPT (system-level, required)
 - `NEXT_PUBLIC_API_URL` - API URL for Next.js
-- Other variables required by the application (e.g., OpenAI API key)
 
 #### 2. Start all services
 
@@ -548,7 +549,7 @@ curl -X POST "$BASE_URL/api/chat/feedback/" \
 
 Notes:
 - If you pass `group_id`, vector search (RAG) is limited to videos in that group.
-- OpenAI API key is managed by the system (not user-configurable).
+- OpenAI API key is managed at the system level via the `OPENAI_API_KEY` environment variable (not user-configurable).
 - Chat is also available with a share token (use the `share_token` query parameter).
 - Do not send a `system` message; the backend constructs the system prompt internally. Only the latest `user` message in `messages` is used.
 
@@ -621,11 +622,11 @@ All services communicate within the `ask-video-network` Docker network.
 
 ### Main Models
 
-- **User**: User info (extends Django AbstractUser; includes encrypted OpenAI API key and email verification state)
-- **Video**: Video info (title, description, file, transcript, status, external upload flag, restrictions, etc.)
+- **User**: User info (extends Django AbstractUser; includes plan (FREE/PRO) and email verification state)
+- **Video**: Video info (title, description, file, transcript, status, external upload flag, duration, etc.)
 - **VideoGroup**: Video groups (name, description, share token, etc.)
 - **VideoGroupMember**: Association between videos and groups (ordering support)
-- **ChatLog**: Chat logs (question, answer, related videos, shared-from flag, etc.)
+- **ChatLog**: Chat logs (question, answer, related videos, shared-from flag, feedback, etc.)
 
 ## Development
 

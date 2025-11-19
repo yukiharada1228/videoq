@@ -57,11 +57,9 @@ flowchart TD
     Validate1 -->|Valid| Send[Send API Request]
     Send --> Auth{Authentication Check}
     Auth -->|Failed| Error2[Authentication Error]
-    Auth -->|Success| GetUser[(Database<br/>Get User)]
-    GetUser --> CheckAPIKey{API Key<br/>Set?}
-    CheckAPIKey -->|Not Set| Error3[API Key Not Set Error]
-    CheckAPIKey -->|Set| Decrypt[Decrypt API Key]
-    Decrypt --> CheckGroup{Group Specified?}
+    Auth -->|Success| CheckAPIKey{System API Key<br/>Configured?}
+    CheckAPIKey -->|Not Configured| Error3[API Key Not Configured Error]
+    CheckAPIKey -->|Configured| CheckGroup{Group Specified?}
     CheckGroup -->|No| NoContext[No Context]
     CheckGroup -->|Yes| GetGroup[(Database<br/>Get VideoGroup)]
     GetGroup --> ValidateGroup{Group Exists<br/>Check}
