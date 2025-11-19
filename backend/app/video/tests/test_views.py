@@ -1,5 +1,4 @@
-import subprocess
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from app.models import Video, VideoGroup, VideoGroupMember
 from django.contrib.auth import get_user_model
@@ -569,17 +568,11 @@ class WhisperUsageLimitTestCase(APITestCase):
         self.client.force_authenticate(user=self.user)
         self.url = reverse("video-list")
 
-    @patch("app.video.serializers.subprocess.run")
-    def test_whisper_usage_limit_enforced(self, mock_subprocess_run):
+    @patch("app.video.serializers.VideoCreateSerializer._get_video_duration_minutes")
+    def test_whisper_usage_limit_enforced(self, mock_get_duration):
         """Test that Whisper usage limit is enforced when uploading videos"""
-        # Mock ffprobe to return a video duration of 601 minutes (to exceed limit)
-        mock_result = MagicMock()
-        mock_result.stdout = '{"format":{"duration":"36060.0"}}'  # 601 minutes = 36060 seconds
-        mock_result.returncode = 0
-        # Configure check_returncode to not raise an exception (for check=True)
-        mock_result.check_returncode = MagicMock()
-        # Configure mock to return the result when called
-        mock_subprocess_run.return_value = mock_result
+        # Mock _get_video_duration_minutes to return 601 minutes (to exceed limit)
+        mock_get_duration.return_value = 601.0  # 601 minutes
 
         # Create a video with 600 minutes already used this month
         from django.utils import timezone
@@ -621,15 +614,11 @@ class WhisperUsageLimitTestCase(APITestCase):
         # Video should be deleted
         self.assertFalse(Video.objects.filter(title="New Video").exists())
 
-    @patch("app.video.serializers.subprocess.run")
-    def test_whisper_usage_limit_within_limit(self, mock_subprocess_run):
+    @patch("app.video.serializers.VideoCreateSerializer._get_video_duration_minutes")
+    def test_whisper_usage_limit_within_limit(self, mock_get_duration):
         """Test that video upload succeeds when within Whisper usage limit"""
-        # Mock ffprobe to return a video duration of 100 minutes
-        mock_result = MagicMock()
-        mock_result.stdout = '{"format":{"duration":"6000.0"}}'  # 100 minutes = 6000 seconds
-        mock_result.returncode = 0
-        mock_result.check_returncode = MagicMock()  # For check=True parameter
-        mock_subprocess_run.return_value = mock_result
+        # Mock _get_video_duration_minutes to return 100 minutes
+        mock_get_duration.return_value = 100.0  # 100 minutes
 
         # Create a video with 500 minutes already used this month
         from django.utils import timezone
@@ -665,15 +654,11 @@ class WhisperUsageLimitTestCase(APITestCase):
         # Should succeed
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
-    @patch("app.video.serializers.subprocess.run")
-    def test_whisper_usage_limit_only_counts_current_month(self, mock_subprocess_run):
+    @patch("app.video.serializers.VideoCreateSerializer._get_video_duration_minutes")
+    def test_whisper_usage_limit_only_counts_current_month(self, mock_get_duration):
         """Test that only videos from current month are counted"""
-        # Mock ffprobe to return a video duration of 100 minutes
-        mock_result = MagicMock()
-        mock_result.stdout = '{"format":{"duration":"6000.0"}}'  # 100 minutes = 6000 seconds
-        mock_result.returncode = 0
-        mock_result.check_returncode = MagicMock()  # For check=True parameter
-        mock_subprocess_run.return_value = mock_result
+        # Mock _get_video_duration_minutes to return 100 minutes
+        mock_get_duration.return_value = 100.0  # 100 minutes
 
         from django.utils import timezone
         from datetime import timedelta
@@ -709,11 +694,11 @@ class WhisperUsageLimitTestCase(APITestCase):
         # Should succeed because last month's usage doesn't count
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
-    @patch("app.video.serializers.subprocess.run")
-    def test_get_video_duration_handles_ffprobe_error(self, mock_subprocess_run):
+    @patch("app.video.serializers.VideoCreateSerializer._get_video_duration_minutes")
+    def test_get_video_duration_handles_ffprobe_error(self, mock_get_duration):
         """Test that video upload continues even if duration check fails"""
-        # Mock ffprobe to raise an error
-        mock_subprocess_run.side_effect = subprocess.CalledProcessError(1, "ffprobe")
+        # Mock _get_video_duration_minutes to return None (simulating error)
+        mock_get_duration.return_value = None
 
         file_content = b"dummy video content"
         upload_file = SimpleUploadedFile(
