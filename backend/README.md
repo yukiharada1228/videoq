@@ -383,9 +383,8 @@ docker-compose logs -f celery-worker
 
 ### Transcription task fails
 
-1. **Ensure user's OpenAI API key is set:**
+1. **Ensure OpenAI API key is configured:**
    - OpenAI API key is managed by the system (not user-configurable)
-   - Check in Django shell: `User.objects.get(username='...').encrypted_openai_api_key`
 
 2. **Validate API key:**
    - Test the API key directly with OpenAI API

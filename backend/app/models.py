@@ -13,9 +13,6 @@ from storages.backends.s3boto3 import S3Boto3Storage
 
 class User(AbstractUser):
     email = models.EmailField("email address", unique=True)
-    encrypted_openai_api_key = models.TextField(
-        blank=True, null=True, help_text="Encrypted OpenAI API key"
-    )
     video_limit = models.PositiveIntegerField(
         default=50,
         help_text="Maximum number of videos a user can keep. Can be changed from the admin panel if needed.",
