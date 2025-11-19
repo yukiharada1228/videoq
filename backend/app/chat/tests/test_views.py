@@ -681,7 +681,6 @@ class ChatMonthlyLimitTestCase(APITestCase):
         last_month_first_day = last_month.replace(day=1)
 
         # Create chat logs and update created_at after creation to bypass auto_now_add
-        chat_logs = []
         for i in range(3000):
             chat_log = ChatLog.objects.create(
                 user=self.user,
