@@ -18,11 +18,6 @@ export interface RefreshResponse {
 export interface User {
   id: number;
   username: string;
-  encrypted_openai_api_key?: string | null;
-}
-
-export interface UpdateUserRequest {
-  encrypted_openai_api_key?: string | null;
 }
 
 export interface SignupRequest {
@@ -128,7 +123,6 @@ export interface VideoGroup {
   video_count: number;
   videos?: VideoInGroup[];
   share_token?: string | null;
-  owner_has_api_key?: boolean;
 }
 
 export interface VideoInGroup {
@@ -424,13 +418,6 @@ class ApiClient {
 
   async getMe(): Promise<User> {
     return this.request<User>('/auth/me');
-  }
-
-  async updateMe(data: UpdateUserRequest): Promise<User> {
-    return this.request<User>('/auth/me', {
-      method: 'PUT',
-      body: data,
-    });
   }
 
   async chat(data: ChatRequest): Promise<ChatMessage> {

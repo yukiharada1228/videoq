@@ -150,17 +150,7 @@ export default function Home() {
                 <p className="text-lg font-semibold text-gray-900">{user.username}</p>
               </div>
               <div className="text-right">
-                {user.encrypted_openai_api_key ? (
-                  <span className="text-sm text-green-600">{t('home.account.apiKeySet')}</span>
-                ) : (
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    onClick={() => router.push('/settings')}
-                  >
-                    {t('home.account.apiKeyMissing')}
-                  </Button>
-                )}
+                <span className="text-sm text-green-600">{t('home.account.serviceReady')}</span>
               </div>
             </div>
           </CardContent>

@@ -280,7 +280,6 @@ export default function SharedGroupPage() {
             {/* 右側：チャット */}
             <div className={`flex-col min-h-0 ${mobileTab === 'chat' ? 'flex' : 'hidden lg:flex'}`}>
               <ChatPanel
-                hasApiKey={!!group.owner_has_api_key}
                 groupId={group.id}
                 onVideoPlay={handleVideoPlayFromTime}
                 shareToken={shareToken}
