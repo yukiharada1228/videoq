@@ -521,3 +521,253 @@ class ChatHistoryExportViewTests(APITestCase):
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+
+class ChatMonthlyLimitTestCase(APITestCase):
+    """Tests for chat monthly limit (3,000 chats per month)"""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="chatlimituser",
+            email="chatlimituser@example.com",
+            password="testpass123",
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+
+        # Create a video and group for testing
+        self.video = Video.objects.create(
+            user=self.user,
+            title="Test Video",
+            description="Test Description",
+            status="completed",
+        )
+        self.group = VideoGroup.objects.create(
+            user=self.user,
+            name="Test Group",
+            description="Test",
+        )
+        VideoGroupMember.objects.create(group=self.group, video=self.video, order=0)
+
+        self.url = reverse("chat")
+
+    @patch("app.chat.views.get_langchain_llm")
+    @patch("app.chat.views.RagChatService")
+    def test_chat_monthly_limit_enforced(self, mock_service_class, mock_get_llm):
+        """Test that chat monthly limit is enforced when limit is reached"""
+        from django.utils import timezone
+        from datetime import timedelta
+
+        mock_llm = MagicMock()
+        mock_get_llm.return_value = (mock_llm, None)
+
+        mock_service = MagicMock()
+        mock_result = MagicMock()
+        mock_result.llm_response.content = "Test response"
+        mock_result.query_text = "Test question"
+        mock_result.related_videos = None
+        mock_service.run.return_value = mock_result
+        mock_service_class.return_value = mock_service
+
+        # Create 3,000 chat logs in the current month
+        now = timezone.now()
+        first_day_of_month = now.replace(
+            day=1, hour=0, minute=0, second=0, microsecond=0
+        )
+
+        # Create chat logs in bulk for better performance
+        chat_logs = []
+        for i in range(3000):
+            chat_logs.append(
+                ChatLog(
+                    user=self.user,
+                    group=self.group,
+                    question=f"Question {i}",
+                    answer=f"Answer {i}",
+                    created_at=first_day_of_month + timedelta(hours=i % 24),
+                )
+            )
+        ChatLog.objects.bulk_create(chat_logs)
+
+        # Try to send another chat (should fail with 429)
+        data = {
+            "messages": [{"role": "user", "content": "Test question"}],
+            "group_id": self.group.id,
+        }
+
+        response = self.client.post(self.url, data, format="json")
+
+        # Should fail with rate limit error
+        self.assertEqual(response.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+        self.assertIn("error", response.data)
+        self.assertIn("Monthly chat limit reached", str(response.data["error"]))
+
+    @patch("app.chat.views.get_langchain_llm")
+    @patch("app.chat.views.RagChatService")
+    def test_chat_monthly_limit_within_limit(self, mock_service_class, mock_get_llm):
+        """Test that chat succeeds when within monthly limit"""
+        from django.utils import timezone
+        from datetime import timedelta
+
+        mock_llm = MagicMock()
+        mock_get_llm.return_value = (mock_llm, None)
+
+        mock_service = MagicMock()
+        mock_result = MagicMock()
+        mock_result.llm_response.content = "Test response"
+        mock_result.query_text = "Test question"
+        mock_result.related_videos = None
+        mock_service.run.return_value = mock_result
+        mock_service_class.return_value = mock_service
+
+        # Create 2,999 chat logs (one below the limit)
+        now = timezone.now()
+        first_day_of_month = now.replace(
+            day=1, hour=0, minute=0, second=0, microsecond=0
+        )
+
+        chat_logs = []
+        for i in range(2999):
+            chat_logs.append(
+                ChatLog(
+                    user=self.user,
+                    group=self.group,
+                    question=f"Question {i}",
+                    answer=f"Answer {i}",
+                    created_at=first_day_of_month + timedelta(hours=i % 24),
+                )
+            )
+        ChatLog.objects.bulk_create(chat_logs)
+
+        # Send chat (should succeed)
+        data = {
+            "messages": [{"role": "user", "content": "Test question"}],
+            "group_id": self.group.id,
+        }
+
+        response = self.client.post(self.url, data, format="json")
+
+        # Should succeed
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["role"], "assistant")
+        self.assertEqual(response.data["content"], "Test response")
+
+    @patch("app.chat.views.get_langchain_llm")
+    @patch("app.chat.views.RagChatService")
+    def test_chat_monthly_limit_only_counts_current_month(
+        self, mock_service_class, mock_get_llm
+    ):
+        """Test that only chats from current month are counted"""
+        from django.utils import timezone
+        from datetime import timedelta
+
+        mock_llm = MagicMock()
+        mock_get_llm.return_value = (mock_llm, None)
+
+        mock_service = MagicMock()
+        mock_result = MagicMock()
+        mock_result.llm_response.content = "Test response"
+        mock_result.query_text = "Test question"
+        mock_result.related_videos = None
+        mock_service.run.return_value = mock_result
+        mock_service_class.return_value = mock_service
+
+        # Create 3,000 chat logs from last month (should not be counted)
+        last_month = (
+            timezone.now()
+            .replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            - timedelta(days=1)
+        )
+        last_month_first_day = last_month.replace(day=1)
+
+        # Create chat logs and update created_at after creation to bypass auto_now_add
+        chat_logs = []
+        for i in range(3000):
+            chat_log = ChatLog.objects.create(
+                user=self.user,
+                group=self.group,
+                question=f"Last month question {i}",
+                answer=f"Last month answer {i}",
+            )
+            chat_log.created_at = last_month_first_day + timedelta(hours=i % 24)
+            chat_log.save(update_fields=["created_at"])
+
+        # Send chat (should succeed because last month's chats don't count)
+        data = {
+            "messages": [{"role": "user", "content": "Test question"}],
+            "group_id": self.group.id,
+        }
+
+        response = self.client.post(self.url, data, format="json")
+
+        # Should succeed because last month's chats don't count
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    @patch("app.chat.views.get_langchain_llm")
+    @patch("app.chat.views.RagChatService")
+    def test_chat_monthly_limit_includes_shared_chats(
+        self, mock_service_class, mock_get_llm
+    ):
+        """Test that shared chats are counted towards owner's limit"""
+        from django.utils import timezone
+        from datetime import timedelta
+
+        mock_llm = MagicMock()
+        mock_get_llm.return_value = (mock_llm, None)
+
+        mock_service = MagicMock()
+        mock_result = MagicMock()
+        mock_result.llm_response.content = "Test response"
+        mock_result.query_text = "Test question"
+        mock_result.related_videos = None
+        mock_service.run.return_value = mock_result
+        mock_service_class.return_value = mock_service
+
+        # Create 2,500 regular chats
+        now = timezone.now()
+        first_day_of_month = now.replace(
+            day=1, hour=0, minute=0, second=0, microsecond=0
+        )
+
+        regular_chats = []
+        for i in range(2500):
+            regular_chats.append(
+                ChatLog(
+                    user=self.user,
+                    group=self.group,
+                    question=f"Question {i}",
+                    answer=f"Answer {i}",
+                    is_shared_origin=False,
+                    created_at=first_day_of_month + timedelta(hours=i % 24),
+                )
+            )
+        ChatLog.objects.bulk_create(regular_chats)
+
+        # Create 500 shared chats (via share link)
+        shared_chats = []
+        for i in range(500):
+            shared_chats.append(
+                ChatLog(
+                    user=self.user,  # Group owner
+                    group=self.group,
+                    question=f"Shared question {i}",
+                    answer=f"Shared answer {i}",
+                    is_shared_origin=True,
+                    created_at=first_day_of_month + timedelta(hours=i % 24),
+                )
+            )
+        ChatLog.objects.bulk_create(shared_chats)
+
+        # Total: 2,500 + 500 = 3,000 chats
+        # Try to send another chat (should fail)
+        data = {
+            "messages": [{"role": "user", "content": "Test question"}],
+            "group_id": self.group.id,
+        }
+
+        response = self.client.post(self.url, data, format="json")
+
+        # Should fail because shared chats count towards the limit
+        self.assertEqual(response.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+        self.assertIn("error", response.data)
+        self.assertIn("Monthly chat limit reached", str(response.data["error"]))
