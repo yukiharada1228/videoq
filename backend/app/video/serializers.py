@@ -120,6 +120,9 @@ class VideoCreateSerializer(UserOwnedSerializerMixin, serializers.ModelSerialize
                 # Save duration to video record
                 video.duration_minutes = video_duration_minutes
                 video.save(update_fields=["duration_minutes"])
+        except serializers.ValidationError:
+            # Re-raise ValidationError so it's properly handled by the serializer
+            raise
         except Exception as e:
             logger.warning(f"Failed to check video duration or Whisper limit: {e}")
             # Continue with transcription even if duration check fails
