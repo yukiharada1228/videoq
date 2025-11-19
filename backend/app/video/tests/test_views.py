@@ -284,7 +284,8 @@ class VideoUploadLimitTestCase(APITestCase):
         }
         return self.client.post(self.url, data, format="multipart")
 
-    def test_video_creation_respects_limit(self):
+    @patch("app.video.serializers.VideoCreateSerializer._get_video_duration_minutes", return_value=1.0)
+    def test_video_creation_respects_limit(self, mock_get_duration):
         first_response = self._upload_video(title="Video 1")
         self.assertEqual(first_response.status_code, status.HTTP_201_CREATED)
 
@@ -654,12 +655,9 @@ class WhisperUsageLimitTestCase(APITestCase):
         # Should succeed
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
-    @patch("app.video.serializers.VideoCreateSerializer._get_video_duration_minutes")
+    @patch("app.video.serializers.VideoCreateSerializer._get_video_duration_minutes", return_value=100.0)
     def test_whisper_usage_limit_only_counts_current_month(self, mock_get_duration):
         """Test that only videos from current month are counted"""
-        # Mock _get_video_duration_minutes to return 100 minutes
-        mock_get_duration.return_value = 100.0  # 100 minutes
-
         from django.utils import timezone
         from datetime import timedelta
 
