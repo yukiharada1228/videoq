@@ -1,5 +1,7 @@
 from app.utils.mixins import AuthenticatedViewMixin, PublicViewMixin
 from django.contrib.auth import get_user_model
+from django.db.models import Q, Sum
+from django.utils import timezone
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics, status
 from rest_framework.response import Response
@@ -11,7 +13,8 @@ from .serializers import (EmailVerificationSerializer, LoginResponseSerializer,
                           PasswordResetConfirmSerializer,
                           PasswordResetRequestSerializer,
                           RefreshResponseSerializer, RefreshSerializer,
-                          UserSerializer, UserSignupSerializer)
+                          UsageStatsResponseSerializer, UserSerializer,
+                          UserSignupSerializer)
 
 User = get_user_model()
 
@@ -226,3 +229,51 @@ class MeView(AuthenticatedAPIView, generics.RetrieveAPIView):
 
     def get_object(self):
         return self.request.user
+
+
+class UsageStatsView(AuthenticatedAPIView):
+    """Usage statistics retrieval view"""
+
+    @extend_schema(
+        responses={200: UsageStatsResponseSerializer},
+        summary="Get usage statistics",
+        description="Retrieve current usage statistics for videos, Whisper processing time, and chats.",
+    )
+    def get(self, request):
+        from app.models import ChatLog, Video
+
+        user = request.user
+        now = timezone.now()
+        first_day_of_month = now.replace(
+            day=1, hour=0, minute=0, second=0, microsecond=0
+        )
+
+        # Calculate video count
+        video_count = Video.objects.filter(user=user).count()
+        video_limit = user.video_limit
+
+        # Calculate monthly Whisper usage (in minutes)
+        monthly_whisper_usage = (
+            Video.objects.filter(
+                user=user,
+                uploaded_at__gte=first_day_of_month,
+                duration_minutes__isnull=False,
+            ).aggregate(total_minutes=Sum("duration_minutes"))["total_minutes"]
+            or 0.0
+        )
+        whisper_limit = 1200.0  # 20 hours = 1200 minutes
+
+        # Calculate monthly chat count
+        monthly_chat_count = ChatLog.objects.filter(
+            Q(user=user) | Q(group__user=user, is_shared_origin=True),
+            created_at__gte=first_day_of_month,
+        ).count()
+        chat_limit = 3000
+
+        return Response(
+            {
+                "videos": {"used": video_count, "limit": video_limit},
+                "whisper_minutes": {"used": monthly_whisper_usage, "limit": whisper_limit},
+                "chats": {"used": monthly_chat_count, "limit": chat_limit},
+            }
+        )
