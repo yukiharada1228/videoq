@@ -383,8 +383,9 @@ docker-compose logs -f celery-worker
 
 ### Transcription task fails
 
-1. **Ensure OpenAI API key is configured:**
-   - OpenAI API key is managed by the system (not user-configurable)
+1. **Ensure OpenAI API key is configured (system administrator):**
+   - Set `OPENAI_API_KEY` environment variable in your deployment configuration
+   - This is a system-level setting, not user-configurable
 
 2. **Validate API key:**
    - Test the API key directly with OpenAI API
