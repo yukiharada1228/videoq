@@ -344,3 +344,146 @@ class UsageStatsViewTests(APITestCase):
         self.assertEqual(response.data["videos"]["used"], 0)
         self.assertEqual(response.data["whisper_minutes"]["used"], 0.0)
         self.assertEqual(response.data["chats"]["used"], 0)
+
+    def test_get_usage_stats_with_shared_origin_chat(self):
+        """Test getting usage statistics including shared origin chats"""
+        from app.models import ChatLog, VideoGroup
+
+        # Create another user who will access via share
+        other_user = User.objects.create_user(
+            username="otheruser",
+            email="other@example.com",
+            password="testpass123",
+        )
+
+        # Create a chat log with is_shared_origin=True (other user accessing via share)
+        ChatLog.objects.create(
+            user=other_user,  # The user who accessed via share
+            group=self.group,  # Group owned by self.user
+            question="Shared question",
+            answer="Shared answer",
+            is_shared_origin=True,
+        )
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # Should include the shared origin chat (3 total: 2 regular + 1 shared)
+        self.assertEqual(response.data["chats"]["used"], 3)
+
+    def test_get_usage_stats_with_null_duration_video(self):
+        """Test getting usage statistics with video that has null duration_minutes"""
+        from app.models import Video
+
+        # Create a video with null duration_minutes
+        Video.objects.create(
+            user=self.user,
+            title="Video without duration",
+            description="Test",
+            duration_minutes=None,
+        )
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # Video count should include all videos (4 total)
+        self.assertEqual(response.data["videos"]["used"], 4)
+        # Whisper minutes should only count videos with duration_minutes (still 15.5)
+        self.assertEqual(response.data["whisper_minutes"]["used"], 15.5)
+
+    def test_get_usage_stats_excludes_other_users_data(self):
+        """Test that usage statistics only include current user's data"""
+        from app.models import ChatLog, Video, VideoGroup
+
+        # Create another user
+        other_user = User.objects.create_user(
+            username="otheruser",
+            email="other@example.com",
+            password="testpass123",
+        )
+
+        # Create data for other user
+        other_video = Video.objects.create(
+            user=other_user,
+            title="Other User Video",
+            description="Test",
+            duration_minutes=30.0,
+        )
+        other_group = VideoGroup.objects.create(
+            user=other_user,
+            name="Other Group",
+            description="Test",
+        )
+        other_chat = ChatLog.objects.create(
+            user=other_user,
+            group=other_group,
+            question="Other question",
+            answer="Other answer",
+        )
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # Should only count self.user's data
+        self.assertEqual(response.data["videos"]["used"], 3)  # Only self.user's videos
+        self.assertEqual(response.data["whisper_minutes"]["used"], 15.5)  # Only self.user's videos
+        self.assertEqual(response.data["chats"]["used"], 2)  # Only self.user's chats
+
+    def test_get_usage_stats_with_shared_origin_chat_other_user_group(self):
+        """Test that user's own chats are counted even if in other user's group"""
+        from app.models import ChatLog, VideoGroup
+
+        # Create another user
+        other_user = User.objects.create_user(
+            username="otheruser",
+            email="other@example.com",
+            password="testpass123",
+        )
+
+        # Create a group owned by other_user
+        other_group = VideoGroup.objects.create(
+            user=other_user,
+            name="Other User Group",
+            description="Test",
+        )
+
+        # Create a chat log with is_shared_origin=True but for other user's group
+        # This SHOULD be counted for self.user because user=self.user matches
+        ChatLog.objects.create(
+            user=self.user,  # self.user accessing
+            group=other_group,  # But group owned by other_user
+            question="Question",
+            answer="Answer",
+            is_shared_origin=True,
+        )
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # Should count this chat since user=self.user (3 total: 2 regular + 1 shared)
+        self.assertEqual(response.data["chats"]["used"], 3)
+
+    def test_get_usage_stats_excludes_previous_month_chats(self):
+        """Test that only current month's chats are counted"""
+        from app.models import ChatLog
+        from django.utils import timezone
+        from datetime import timedelta
+
+        # Create a chat log from previous month
+        last_month = timezone.now() - timedelta(days=35)
+        ChatLog.objects.create(
+            user=self.user,
+            group=self.group,
+            question="Old question",
+            answer="Old answer",
+        )
+        # Update created_at after creation (since it's auto_now_add)
+        ChatLog.objects.filter(
+            user=self.user, question="Old question"
+        ).update(created_at=last_month)
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # Should only count this month's chats (2 from setUp, not the old one)
+        self.assertEqual(response.data["chats"]["used"], 2)
