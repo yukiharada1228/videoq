@@ -584,3 +584,73 @@ class UsageStatsViewTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         # Should include video at the start of the month (15.5 + 7.5 = 23.0)
         self.assertEqual(response.data["whisper_minutes"]["used"], 23.0)
+
+
+class PlanUpdateViewTests(APITestCase):
+    """Tests for PlanUpdateView"""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="testuser",
+            email="test@example.com",
+            password="testpass123",
+        )
+        # Set initial plan to FREE
+        self.user.plan = User.PlanChoices.FREE
+        self.user.save(update_fields=["plan"])
+        self.client.force_authenticate(user=self.user)
+        self.url = reverse("auth-plan-update")
+
+    def test_update_plan_to_pro_success(self):
+        """Test successfully updating plan to PRO"""
+        data = {"plan": User.PlanChoices.PRO}
+        response = self.client.patch(self.url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("detail", response.data)
+        self.assertIn("PRO", response.data["detail"])
+
+        # Verify plan was updated in database
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.plan, User.PlanChoices.PRO)
+
+    def test_update_plan_to_free_success(self):
+        """Test successfully updating plan to FREE"""
+        # Set initial plan to PRO
+        self.user.plan = User.PlanChoices.PRO
+        self.user.save(update_fields=["plan"])
+
+        data = {"plan": User.PlanChoices.FREE}
+        response = self.client.patch(self.url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("detail", response.data)
+        self.assertIn("FREE", response.data["detail"])
+
+        # Verify plan was updated in database
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.plan, User.PlanChoices.FREE)
+
+    def test_update_plan_unauthenticated(self):
+        """Test updating plan without authentication"""
+        self.client.force_authenticate(user=None)
+        data = {"plan": User.PlanChoices.PRO}
+        response = self.client.patch(self.url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_update_plan_invalid_plan_value(self):
+        """Test updating plan with invalid plan value"""
+        data = {"plan": "INVALID"}
+        response = self.client.patch(self.url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("plan", response.data)
+
+    def test_update_plan_missing_plan_field(self):
+        """Test updating plan without plan field"""
+        data = {}
+        response = self.client.patch(self.url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("plan", response.data)
