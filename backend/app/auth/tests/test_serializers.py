@@ -8,8 +8,8 @@ from app.auth.serializers import (CredentialsSerializerMixin,
                                   EmailVerificationSerializer, LoginSerializer,
                                   PasswordResetConfirmSerializer,
                                   PasswordResetRequestSerializer,
-                                  RefreshSerializer, UserSerializer,
-                                  UserSignupSerializer)
+                                  PlanUpdateSerializer, RefreshSerializer,
+                                  UserSerializer, UserSignupSerializer)
 from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import default_token_generator
 from django.core import mail
@@ -166,6 +166,16 @@ class UserSerializerTests(APITestCase):
         self.assertEqual(serializer.data["username"], "testuser")
         self.assertEqual(serializer.data["email"], "test@example.com")
         self.assertIn("id", serializer.data)
+        self.assertIn("plan", serializer.data)
+        # Default plan should be FREE
+        self.assertEqual(serializer.data["plan"], User.PlanChoices.FREE)
+
+    def test_serialize_user_with_pro_plan(self):
+        """Test serializing user with PRO plan"""
+        self.user.plan = User.PlanChoices.PRO
+        self.user.save(update_fields=["plan"])
+        serializer = UserSerializer(self.user)
+        self.assertEqual(serializer.data["plan"], User.PlanChoices.PRO)
 
 
 class RefreshSerializerTests(APITestCase):
@@ -386,3 +396,44 @@ class CredentialsSerializerMixinTests(APITestCase):
 
         with self.assertRaises(serializers.ValidationError):
             mixin.validate_credentials("testuser", "")
+
+
+class PlanUpdateSerializerTests(APITestCase):
+    """Tests for PlanUpdateSerializer"""
+
+    def test_validate_plan_free_success(self):
+        """Test validation with FREE plan"""
+        data = {"plan": User.PlanChoices.FREE}
+        serializer = PlanUpdateSerializer(data=data)
+        self.assertTrue(serializer.is_valid())
+        self.assertEqual(serializer.validated_data["plan"], User.PlanChoices.FREE)
+
+    def test_validate_plan_pro_success(self):
+        """Test validation with PRO plan"""
+        data = {"plan": User.PlanChoices.PRO}
+        serializer = PlanUpdateSerializer(data=data)
+        self.assertTrue(serializer.is_valid())
+        self.assertEqual(serializer.validated_data["plan"], User.PlanChoices.PRO)
+
+    def test_validate_plan_invalid_value(self):
+        """Test validation with invalid plan value"""
+        data = {"plan": "INVALID"}
+        serializer = PlanUpdateSerializer(data=data)
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("plan", serializer.errors)
+
+    def test_validate_plan_missing_field(self):
+        """Test validation with missing plan field"""
+        data = {}
+        serializer = PlanUpdateSerializer(data=data)
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("plan", serializer.errors)
+
+    def test_validate_plan_custom_validation(self):
+        """Test custom validate_plan method"""
+        # This tests the validate_plan method that checks if value is in valid choices
+        data = {"plan": "INVALID_PLAN"}
+        serializer = PlanUpdateSerializer(data=data)
+        self.assertFalse(serializer.is_valid())
+        # The validate_plan method should raise ValidationError
+        self.assertIn("plan", serializer.errors)

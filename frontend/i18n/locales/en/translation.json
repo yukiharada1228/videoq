@@ -122,6 +122,14 @@
       "title": "Usage Statistics",
       "description": "Current usage and limits",
       "loading": "Loading...",
+      "plan": {
+        "label": "Plan",
+        "free": "Free Plan",
+        "pro": "Pro Plan",
+        "change": "Change Plan",
+        "changing": "Changing...",
+        "success": "Plan updated successfully"
+      },
       "videos": {
         "label": "Videos Stored (Total)"
       },

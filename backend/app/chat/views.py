@@ -6,6 +6,7 @@ from app.common.permissions import (IsAuthenticatedOrSharedAccess,
                                     ShareTokenAuthentication)
 from app.common.responses import create_error_response
 from app.models import ChatLog, VideoGroup, VideoGroupMember
+from app.utils.plan_limits import get_chat_limit
 from django.db.models import Prefetch, Q
 from django.http import HttpResponse
 from django.utils import timezone
@@ -102,7 +103,7 @@ class ChatView(generics.CreateAPIView):
             # Normal authenticated user
             user = request.user
 
-        # Check monthly chat limit (3,000 per user, including shared chats)
+        # Check monthly chat limit (based on user's plan, including shared chats)
         now = timezone.now()
         first_day_of_month = now.replace(
             day=1, hour=0, minute=0, second=0, microsecond=0
@@ -115,9 +116,10 @@ class ChatView(generics.CreateAPIView):
             created_at__gte=first_day_of_month,
         ).count()
 
-        if monthly_chat_count >= 3000:
+        chat_limit = get_chat_limit(user)
+        if monthly_chat_count >= chat_limit:
             return create_error_response(
-                "Monthly chat limit reached (3,000 chats per month). Please try again next month.",
+                f"Monthly chat limit reached ({chat_limit} chats per month). Please try again next month or upgrade your plan.",
                 status.HTTP_429_TOO_MANY_REQUESTS,
             )
 
