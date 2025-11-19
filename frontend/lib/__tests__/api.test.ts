@@ -187,6 +187,26 @@ describe('apiClient', () => {
     })
   })
 
+  describe('getUsageStats', () => {
+    it('should get usage statistics', async () => {
+      const mockUsageStats = {
+        videos: { used: 10, limit: 50 },
+        whisper_minutes: { used: 100.5, limit: 1200 },
+        chats: { used: 50, limit: 3000 },
+      }
+      ;(fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        text: async () => JSON.stringify(mockUsageStats),
+        json: async () => mockUsageStats,
+        headers: new Headers({ 'content-type': 'application/json' }),
+      })
+
+      const result = await apiClient.getUsageStats()
+      expect(result).toEqual(mockUsageStats)
+    })
+  })
+
   describe('getVideos', () => {
     it('should get videos list', async () => {
       const mockVideos = [

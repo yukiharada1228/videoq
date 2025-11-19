@@ -117,6 +117,21 @@
     "account": {
       "username": "ユーザー名",
       "serviceReady": "✓ サービス利用可能"
+    },
+    "usage": {
+      "title": "使用状況",
+      "description": "現在の使用量と制限",
+      "loading": "読み込み中...",
+      "videos": {
+        "label": "動画保存数（全期間）"
+      },
+      "whisper": {
+        "label": "文字起こし時間（今月）",
+        "unit": "分"
+      },
+      "chats": {
+        "label": "チャット回数（今月）"
+      }
     }
   },
   "videos": {
@@ -347,14 +362,8 @@
   },
   "settings": {
     "title": "設定",
-    "description": "サービス設定と使用量制限",
-    "info": "OpenAI APIキーは運営側で管理されています。安心してお使いいただけます。",
-    "usageLimits": {
-      "title": "使用量制限",
-      "videos": "動画の保存数: 最大50本",
-      "whisper": "Whisper処理時間: 月間20時間（1,200分）",
-      "chat": "チャット回数: 月間3,000回"
-    }
+    "description": "アカウント設定",
+    "noSettings": "現在、変更可能な設定項目はありません。"
   },
   "chat": {
     "title": "チャット",

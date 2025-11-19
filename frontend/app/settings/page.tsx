@@ -24,18 +24,10 @@ export default function Settings() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="rounded-lg bg-blue-50 p-4">
-                <p className="text-sm text-blue-800">
-                  {t('settings.info')}
+              <div className="rounded-lg bg-gray-50 p-6 text-center">
+                <p className="text-gray-600">
+                  {t('settings.noSettings')}
                 </p>
-              </div>
-              <div className="space-y-2">
-                <h3 className="text-sm font-semibold">{t('settings.usageLimits.title')}</h3>
-                <ul className="list-disc list-inside space-y-1 text-sm text-gray-600">
-                  <li>{t('settings.usageLimits.videos')}</li>
-                  <li>{t('settings.usageLimits.whisper')}</li>
-                  <li>{t('settings.usageLimits.chat')}</li>
-                </ul>
               </div>
             </div>
           </CardContent>
