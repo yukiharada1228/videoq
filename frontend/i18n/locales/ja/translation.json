@@ -70,7 +70,7 @@
       "videoFileMissing": "動画ファイルがありません",
       "copyFailed": "コピーに失敗しました。手動でコピーしてください。",
       "noHistory": "履歴はありません",
-      "loadingHistory": "読込中...",
+      "loadingHistory": "読込中..."
     }
   },
   "navigation": {
