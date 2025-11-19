@@ -240,3 +240,107 @@ class MeViewTests(APITestCase):
         response = self.client.get(self.url)
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+class UsageStatsViewTests(APITestCase):
+    """Tests for UsageStatsView"""
+
+    def setUp(self):
+        from app.models import ChatLog, Video, VideoGroup
+
+        self.user = User.objects.create_user(
+            username="testuser",
+            email="test@example.com",
+            password="testpass123",
+            video_limit=50,
+        )
+        self.client.force_authenticate(user=self.user)
+        self.url = reverse("auth-usage-stats")
+
+        # Create test data
+        self.video1 = Video.objects.create(
+            user=self.user,
+            title="Test Video 1",
+            description="Test",
+            duration_minutes=10.5,
+        )
+        self.video2 = Video.objects.create(
+            user=self.user,
+            title="Test Video 2",
+            description="Test",
+            duration_minutes=5.0,
+        )
+        # Video from previous month (should not be counted)
+        from django.utils import timezone
+        from datetime import timedelta
+
+        last_month = timezone.now() - timedelta(days=35)
+        self.old_video = Video.objects.create(
+            user=self.user,
+            title="Old Video",
+            description="Test",
+            duration_minutes=20.0,
+        )
+        # Update uploaded_at after creation (since it's auto_now_add)
+        Video.objects.filter(pk=self.old_video.pk).update(uploaded_at=last_month)
+
+        self.group = VideoGroup.objects.create(
+            user=self.user,
+            name="Test Group",
+            description="Test",
+        )
+        self.chat_log1 = ChatLog.objects.create(
+            user=self.user,
+            group=self.group,
+            question="Test question",
+            answer="Test answer",
+        )
+        self.chat_log2 = ChatLog.objects.create(
+            user=self.user,
+            group=self.group,
+            question="Test question 2",
+            answer="Test answer 2",
+        )
+
+    def test_get_usage_stats_success(self):
+        """Test getting usage statistics successfully"""
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("videos", response.data)
+        self.assertIn("whisper_minutes", response.data)
+        self.assertIn("chats", response.data)
+
+        # Check video count (all videos, not just this month)
+        self.assertEqual(response.data["videos"]["used"], 3)
+        self.assertEqual(response.data["videos"]["limit"], 50)
+
+        # Check Whisper minutes (only this month's videos)
+        self.assertEqual(response.data["whisper_minutes"]["used"], 15.5)  # 10.5 + 5.0
+        self.assertEqual(response.data["whisper_minutes"]["limit"], 1200.0)
+
+        # Check chat count (this month)
+        self.assertEqual(response.data["chats"]["used"], 2)
+        self.assertEqual(response.data["chats"]["limit"], 3000)
+
+    def test_get_usage_stats_unauthenticated(self):
+        """Test getting usage statistics without authentication"""
+        self.client.force_authenticate(user=None)
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_get_usage_stats_empty_data(self):
+        """Test getting usage statistics with no data"""
+        from app.models import ChatLog, Video
+
+        # Delete all data
+        Video.objects.filter(user=self.user).delete()
+        ChatLog.objects.filter(user=self.user).delete()
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["videos"]["used"], 0)
+        self.assertEqual(response.data["whisper_minutes"]["used"], 0.0)
+        self.assertEqual(response.data["chats"]["used"], 0)
