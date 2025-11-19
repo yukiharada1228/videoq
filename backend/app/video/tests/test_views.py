@@ -696,7 +696,7 @@ class WhisperUsageLimitTestCase(APITestCase):
 
     @patch("app.video.serializers.VideoCreateSerializer._get_video_duration_minutes")
     def test_get_video_duration_handles_ffprobe_error(self, mock_get_duration):
-        """Test that video upload continues even if duration check fails"""
+        """Test that video upload is rejected if duration cannot be determined"""
         # Mock _get_video_duration_minutes to return None (simulating error)
         mock_get_duration.return_value = None
 
@@ -714,7 +714,9 @@ class WhisperUsageLimitTestCase(APITestCase):
 
         response = self.client.post(self.url, data, format="multipart")
 
-        # Should still succeed (duration check failure is logged but doesn't block upload)
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        video = Video.objects.get(title="New Video")
-        self.assertIsNone(video.duration_minutes)  # Duration should be None if check failed
+        # Should fail because we cannot check the Whisper usage limit without duration
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("detail", response.data)
+        self.assertIn("Failed to determine video duration", str(response.data["detail"]))
+        # Video should be deleted
+        self.assertFalse(Video.objects.filter(title="New Video").exists())

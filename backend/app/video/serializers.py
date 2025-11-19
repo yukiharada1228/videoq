@@ -87,46 +87,60 @@ class VideoCreateSerializer(UserOwnedSerializerMixin, serializers.ModelSerialize
         # Check Whisper monthly usage limit (1,200 minutes = 20 hours)
         try:
             video_duration_minutes = self._get_video_duration_minutes(video)
-            if video_duration_minutes is not None:
-                # Check monthly Whisper usage limit
-                now = timezone.now()
-                first_day_of_month = now.replace(
-                    day=1, hour=0, minute=0, second=0, microsecond=0
+            if video_duration_minutes is None:
+                # If we cannot determine video duration, we cannot check the limit
+                # Delete the video record and reject the upload to prevent bypassing the limit
+                video.delete()
+                raise serializers.ValidationError(
+                    {
+                        "detail": "Failed to determine video duration. Please ensure the video file is valid and try again. If the problem persists, contact support."
+                    }
                 )
 
-                # Sum duration_minutes for all videos (pending, processing, completed) in current month
-                # This includes videos that are being processed or already completed
-                monthly_whisper_usage = (
-                    Video.objects.filter(
-                        user=user,
-                        uploaded_at__gte=first_day_of_month,
-                        duration_minutes__isnull=False,
-                    )
-                    .exclude(id=video.id)
-                    .aggregate(total_minutes=Sum("duration_minutes"))["total_minutes"]
-                    or 0.0
+            # Check monthly Whisper usage limit
+            now = timezone.now()
+            first_day_of_month = now.replace(
+                day=1, hour=0, minute=0, second=0, microsecond=0
+            )
+
+            # Sum duration_minutes for all videos (pending, processing, completed) in current month
+            # This includes videos that are being processed or already completed
+            monthly_whisper_usage = (
+                Video.objects.filter(
+                    user=user,
+                    uploaded_at__gte=first_day_of_month,
+                    duration_minutes__isnull=False,
+                )
+                .exclude(id=video.id)
+                .aggregate(total_minutes=Sum("duration_minutes"))["total_minutes"]
+                or 0.0
+            )
+
+            # Check if adding this video would exceed the limit
+            if monthly_whisper_usage + video_duration_minutes > 1200:
+                # Delete the video record if limit exceeded
+                video.delete()
+                raise serializers.ValidationError(
+                    {
+                        "detail": f"Monthly Whisper usage limit reached (20 hours = 1,200 minutes per month). Current usage: {monthly_whisper_usage:.1f} minutes. This video would add {video_duration_minutes:.1f} minutes. Please try again next month."
+                    }
                 )
 
-                # Check if adding this video would exceed the limit
-                if monthly_whisper_usage + video_duration_minutes > 1200:
-                    # Delete the video record if limit exceeded
-                    video.delete()
-                    raise serializers.ValidationError(
-                        {
-                            "detail": f"Monthly Whisper usage limit reached (20 hours = 1,200 minutes per month). Current usage: {monthly_whisper_usage:.1f} minutes. This video would add {video_duration_minutes:.1f} minutes. Please try again next month."
-                        }
-                    )
-
-                # Save duration to video record
-                video.duration_minutes = video_duration_minutes
-                video.save(update_fields=["duration_minutes"])
+            # Save duration to video record
+            video.duration_minutes = video_duration_minutes
+            video.save(update_fields=["duration_minutes"])
         except serializers.ValidationError:
             # Re-raise ValidationError so it's properly handled by the serializer
             raise
         except Exception as e:
-            logger.warning(f"Failed to check video duration or Whisper limit: {e}")
-            # Continue with transcription even if duration check fails
-            # Duration will be saved in the transcription task
+            # For other exceptions (e.g., database errors), log and reject upload
+            logger.error(f"Failed to check video duration or Whisper limit: {e}", exc_info=True)
+            video.delete()
+            raise serializers.ValidationError(
+                {
+                    "detail": "An error occurred while processing your video. Please try again later."
+                }
+            )
 
         # Execute Celery task asynchronously
         logger.info(f"Starting transcription task for video ID: {video.id}")
