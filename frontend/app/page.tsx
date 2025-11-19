@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageLayout } from '@/components/layout/PageLayout';
@@ -31,8 +31,25 @@ export default function Home() {
     initialData: null,
   });
 
+  const [isChangingPlan, setIsChangingPlan] = useState(false);
   const videoStats = useVideoStats(rawData?.videos || []);
   const hasVideos = (rawData?.videos?.length ?? 0) > 0;
+
+  const handlePlanChange = async (newPlan: 'FREE' | 'PRO') => {
+    if (isChangingPlan || !user) return;
+    
+    setIsChangingPlan(true);
+    try {
+      await apiClient.updatePlan(newPlan);
+      // Reload user data to get updated plan
+      window.location.reload();
+    } catch (error) {
+      console.error('Failed to update plan:', error);
+      alert(t('home.usage.plan.change') + ' failed');
+    } finally {
+      setIsChangingPlan(false);
+    }
+  };
 
   useEffect(() => {
     if (user && !isLoadingStats && !hasVideos) {
@@ -161,8 +178,26 @@ export default function Home() {
         {/* 使用状況 */}
         <Card className="bg-gray-50">
           <CardHeader>
-            <CardTitle>{t('home.usage.title')}</CardTitle>
-            <CardDescription>{t('home.usage.description')}</CardDescription>
+            <div className="flex justify-between items-center">
+              <div>
+                <CardTitle>{t('home.usage.title')}</CardTitle>
+                <CardDescription>{t('home.usage.description')}</CardDescription>
+              </div>
+              {user && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-600">{t('home.usage.plan.label')}:</span>
+                  <select
+                    value={user.plan}
+                    onChange={(e) => handlePlanChange(e.target.value as 'FREE' | 'PRO')}
+                    disabled={isChangingPlan}
+                    className="px-3 py-2 border border-gray-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <option value="FREE">{t('home.usage.plan.free')}</option>
+                    <option value="PRO">{t('home.usage.plan.pro')}</option>
+                  </select>
+                </div>
+              )}
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
             {usageStats ? (

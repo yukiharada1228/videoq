@@ -252,8 +252,10 @@ class UsageStatsViewTests(APITestCase):
             username="testuser",
             email="test@example.com",
             password="testpass123",
-            video_limit=50,
         )
+        # Set to PRO plan (limit: 50 videos, 1200 minutes, 3000 chats)
+        self.user.plan = User.PlanChoices.PRO
+        self.user.save(update_fields=["plan"])
         self.client.force_authenticate(user=self.user)
         self.url = reverse("auth-usage-stats")
 
