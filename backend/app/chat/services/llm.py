@@ -2,12 +2,13 @@
 
 from typing import Tuple
 
-from app.common.responses import create_error_response
-from app.utils.encryption import decrypt_api_key
 from django.contrib.auth import get_user_model
 from langchain_openai import ChatOpenAI
 from rest_framework import status
 from rest_framework.response import Response
+
+from app.common.responses import create_error_response
+from app.utils.encryption import decrypt_api_key
 
 User = get_user_model()
 

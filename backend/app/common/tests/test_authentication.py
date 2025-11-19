@@ -1,12 +1,13 @@
 """
 Tests for common authentication module
 """
+
 from django.contrib.auth import get_user_model
 from django.test import RequestFactory
 from rest_framework.test import APITestCase
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from app.common.authentication import CookieJWTAuthentication
-from rest_framework_simplejwt.tokens import RefreshToken
 
 User = get_user_model()
 
@@ -90,4 +91,3 @@ class CookieJWTAuthenticationTests(APITestCase):
         self.assertIsNotNone(result)
         user, token = result
         self.assertEqual(user, self.user)
-

@@ -1,17 +1,18 @@
 import csv
 import json
 
-from app.common.authentication import CookieJWTAuthentication
-from app.common.permissions import (IsAuthenticatedOrSharedAccess,
-                                    ShareTokenAuthentication)
-from app.common.responses import create_error_response
-from app.models import ChatLog, VideoGroup, VideoGroupMember
 from django.db.models import Prefetch
 from django.http import HttpResponse
 from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+from app.common.authentication import CookieJWTAuthentication
+from app.common.permissions import (IsAuthenticatedOrSharedAccess,
+                                    ShareTokenAuthentication)
+from app.common.responses import create_error_response
+from app.models import ChatLog, VideoGroup, VideoGroupMember
 
 from .serializers import ChatLogSerializer
 from .services import (RagChatService, get_langchain_llm,

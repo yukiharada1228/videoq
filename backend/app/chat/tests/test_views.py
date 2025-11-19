@@ -1,6 +1,7 @@
 """
 Tests for chat views
 """
+
 import secrets
 from unittest.mock import MagicMock, patch
 
@@ -38,7 +39,10 @@ class ChatViewTests(APITestCase):
         # Generate share_token for testing
         share_token = secrets.token_urlsafe(32)
         self.group = VideoGroup.objects.create(
-            user=self.user, name="Test Group", description="Test", share_token=share_token
+            user=self.user,
+            name="Test Group",
+            description="Test",
+            share_token=share_token,
         )
         VideoGroupMember.objects.create(group=self.group, video=self.video, order=0)
 
@@ -240,7 +244,10 @@ class ChatFeedbackViewTests(APITestCase):
         # Generate share_token for testing
         share_token = secrets.token_urlsafe(32)
         self.group = VideoGroup.objects.create(
-            user=self.user, name="Test Group", description="Test", share_token=share_token
+            user=self.user,
+            name="Test Group",
+            description="Test",
+            share_token=share_token,
         )
         self.chat_log = ChatLog.objects.create(
             user=self.user,
@@ -352,7 +359,10 @@ class ChatFeedbackViewTests(APITestCase):
         """Test updating feedback with wrong share token"""
         other_share_token = secrets.token_urlsafe(32)
         VideoGroup.objects.create(
-            user=self.user, name="Other Group", description="Test", share_token=other_share_token
+            user=self.user,
+            name="Other Group",
+            description="Test",
+            share_token=other_share_token,
         )
 
         url = reverse("chat-feedback")
@@ -517,4 +527,3 @@ class ChatHistoryExportViewTests(APITestCase):
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-

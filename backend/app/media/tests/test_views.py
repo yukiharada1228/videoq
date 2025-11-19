@@ -1,6 +1,7 @@
 """
 Tests for media views
 """
+
 import os
 import tempfile
 from unittest.mock import patch
@@ -65,7 +66,10 @@ class ProtectedMediaViewTests(APITestCase):
 
         share_token = secrets.token_urlsafe(32)
         group = VideoGroup.objects.create(
-            user=self.user, name="Test Group", description="Test", share_token=share_token
+            user=self.user,
+            name="Test Group",
+            description="Test",
+            share_token=share_token,
         )
         VideoGroupMember.objects.create(group=group, video=self.video, order=0)
 
@@ -111,7 +115,10 @@ class ProtectedMediaViewTests(APITestCase):
         share_token = secrets.token_urlsafe(32)
         # Create group but don't add video to it
         VideoGroup.objects.create(
-            user=self.user, name="Test Group", description="Test", share_token=share_token
+            user=self.user,
+            name="Test Group",
+            description="Test",
+            share_token=share_token,
         )
 
         # Don't force authenticate - use share token instead
@@ -166,4 +173,3 @@ class ProtectedMediaViewTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response["Content-Type"], "video/mp4")
-
