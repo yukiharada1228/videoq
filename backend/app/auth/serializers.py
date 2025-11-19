@@ -217,3 +217,17 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
         user.set_password(new_password)
         user.save(update_fields=["password"])
         return user
+
+
+# Response serializers for API documentation
+class LoginResponseSerializer(serializers.Serializer):
+    access = serializers.CharField(help_text="Access token")
+    refresh = serializers.CharField(help_text="Refresh token")
+
+
+class RefreshResponseSerializer(serializers.Serializer):
+    access = serializers.CharField(help_text="New access token")
+
+
+class MessageResponseSerializer(serializers.Serializer):
+    detail = serializers.CharField(help_text="Response message")
