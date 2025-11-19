@@ -3,6 +3,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.admin import UserAdmin
 from django.db.models import Count
 
+from app.utils.plan_limits import get_video_limit
 from .models import Video, VideoGroup, VideoGroupMember
 
 User = get_user_model()
@@ -34,7 +35,7 @@ class CustomUserAdmin(UserAdmin):
     list_display = (
         "username",
         "plan",
-        "video_limit",
+        "get_plan_video_limit",
         "date_joined",
         "last_login",
         "is_active",
@@ -57,6 +58,7 @@ class CustomUserAdmin(UserAdmin):
             "Video Settings",
             {
                 "fields": ("video_limit",),
+                "description": "Note: Video limit is now determined by plan. This field is kept for backward compatibility.",
             },
         ),
     )
@@ -73,9 +75,15 @@ class CustomUserAdmin(UserAdmin):
             {
                 "classes": ("wide",),
                 "fields": ("video_limit",),
+                "description": "Note: Video limit is now determined by plan. This field is kept for backward compatibility.",
             },
         ),
     )
+
+    @admin.display(description="Video limit", ordering="plan")
+    def get_plan_video_limit(self, obj):
+        """Display video limit based on user's plan"""
+        return get_video_limit(obj)
 
 
 @admin.register(Video)
