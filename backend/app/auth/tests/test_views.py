@@ -487,3 +487,58 @@ class UsageStatsViewTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         # Should only count this month's chats (2 from setUp, not the old one)
         self.assertEqual(response.data["chats"]["used"], 2)
+
+    def test_get_usage_stats_with_different_video_limit(self):
+        """Test getting usage statistics with different video_limit"""
+        # Update user's video_limit
+        self.user.video_limit = 100
+        self.user.save()
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["videos"]["limit"], 100)
+
+    def test_get_usage_stats_whisper_usage_none_aggregate(self):
+        """Test Whisper usage when aggregate returns None (no videos this month with duration)"""
+        from app.models import Video
+
+        # Delete all videos from this month
+        Video.objects.filter(user=self.user).delete()
+
+        # Create a video from this month but with null duration_minutes
+        Video.objects.create(
+            user=self.user,
+            title="Video without duration this month",
+            description="Test",
+            duration_minutes=None,
+        )
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # aggregate should return None, so or 0.0 should be used
+        self.assertEqual(response.data["whisper_minutes"]["used"], 0.0)
+
+    def test_get_usage_stats_excludes_previous_month_videos(self):
+        """Test that only current month's videos are counted for Whisper usage"""
+        from app.models import Video
+        from django.utils import timezone
+        from datetime import timedelta
+
+        # Create a video from previous month with duration
+        last_month = timezone.now() - timedelta(days=35)
+        old_video = Video.objects.create(
+            user=self.user,
+            title="Old Video with Duration",
+            description="Test",
+            duration_minutes=50.0,
+        )
+        # Update uploaded_at after creation
+        Video.objects.filter(pk=old_video.pk).update(uploaded_at=last_month)
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # Should only count this month's videos (15.5, not including the old 50.0)
+        self.assertEqual(response.data["whisper_minutes"]["used"], 15.5)
