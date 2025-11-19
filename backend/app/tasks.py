@@ -18,6 +18,7 @@ from app.utils.encryption import decrypt_api_key
 from app.utils.task_helpers import (ErrorHandler, TemporaryFileManager,
                                     VideoTaskManager)
 from app.utils.vector_manager import PGVectorManager
+from app.utils.youtube import extract_youtube_video_id
 
 from .scene_otsu import SceneSplitter, SubtitleParser
 
@@ -516,3 +517,144 @@ def transcribe_video(self, video_id):
         except Exception as e:
             # Common error handling
             ErrorHandler.handle_task_error(e, video_id, self, max_retries=3)
+
+
+@shared_task(bind=True, max_retries=3)
+def transcribe_youtube_video(self, video_id):
+    """
+    Execute YouTube video transcription using youtube-transcript-api
+
+    Args:
+        video_id: ID of the Video instance to transcribe
+
+    Returns:
+        str: Transcribed text in SRT format
+    """
+    logger.info(f"YouTube transcription task started for video ID: {video_id}")
+
+    try:
+        # Get Video instance (N+1 prevention)
+        video, error = VideoTaskManager.get_video_with_user(video_id)
+        if error:
+            raise Exception(error)
+
+        logger.info(f"Video found: {video.title}")
+
+        # Validate YouTube URL
+        if not video.youtube_url:
+            error_msg = "YouTube URL is not set"
+            _handle_transcription_error(video, error_msg)
+            raise ValueError(error_msg)
+
+        # Extract video ID from URL
+        youtube_video_id = extract_youtube_video_id(video.youtube_url)
+        if not youtube_video_id:
+            error_msg = f"Could not extract video ID from YouTube URL: {video.youtube_url}"
+            _handle_transcription_error(video, error_msg)
+            raise ValueError(error_msg)
+
+        logger.info(f"Extracted YouTube video ID: {youtube_video_id}")
+
+        # Validate video processability
+        is_valid, validation_error = VideoTaskManager.validate_video_for_processing(
+            video
+        )
+        if not is_valid:
+            raise ValueError(validation_error)
+
+        # Update status to processing
+        VideoTaskManager.update_video_status(video, "processing")
+
+        # Decrypt API key (needed for scene splitting)
+        api_key = decrypt_api_key(video.user.encrypted_openai_api_key)
+
+        # Get transcript from YouTube
+        logger.info(f"Fetching transcript from YouTube for video ID: {youtube_video_id}")
+        try:
+            from youtube_transcript_api import YouTubeTranscriptApi
+
+            # Try to get transcript in Japanese first, then English, then any available language
+            transcript_list = YouTubeTranscriptApi.list_transcripts(youtube_video_id)
+            transcript = None
+
+            # Try to get Japanese transcript
+            try:
+                transcript = transcript_list.find_transcript(["ja", "ja-JP"])
+                logger.info("Found Japanese transcript")
+            except Exception:
+                # Try English
+                try:
+                    transcript = transcript_list.find_transcript(["en", "en-US", "en-GB"])
+                    logger.info("Found English transcript")
+                except Exception:
+                    # Get any available transcript
+                    transcript = transcript_list.fetch()
+                    logger.info(f"Using available transcript: {transcript.language_code}")
+
+            # Fetch transcript data
+            transcript_data = transcript.fetch()
+
+        except Exception as e:
+            error_msg = f"Failed to fetch YouTube transcript: {str(e)}"
+            logger.error(error_msg)
+            _handle_transcription_error(video, error_msg)
+            raise ValueError(error_msg)
+
+        if not transcript_data:
+            error_msg = "No transcript data received from YouTube"
+            _handle_transcription_error(video, error_msg)
+            raise ValueError(error_msg)
+
+        logger.info(f"Received {len(transcript_data)} transcript segments")
+
+        # Convert transcript data to SRT format
+        srt_content = _convert_youtube_transcript_to_srt(transcript_data)
+
+        # Apply scene splitting using SceneSplitter
+        logger.info("Applying scene splitting...")
+        scene_split_srt, scene_count = _apply_scene_splitting(
+            srt_content, api_key, len(transcript_data)
+        )
+
+        # Save processed SRT
+        _save_transcription_result(video, scene_split_srt)
+
+        # Index scenes to vector store for RAG (N+1 prevention)
+        _index_scenes_batch(scene_split_srt, video, api_key)
+
+        logger.info(f"Successfully processed YouTube video {video_id}")
+
+        return scene_split_srt
+
+    except Exception as e:
+        # Common error handling
+        ErrorHandler.handle_task_error(e, video_id, self, max_retries=3)
+
+
+def _convert_youtube_transcript_to_srt(transcript_data):
+    """
+    Convert YouTube transcript data to SRT format
+
+    Args:
+        transcript_data: List of transcript segments from YouTube API
+            Each segment has: {"text": str, "start": float, "duration": float}
+
+    Returns:
+        str: SRT formatted content
+    """
+    srt_lines = []
+    for i, segment in enumerate(transcript_data, 1):
+        start_time = segment["start"]
+        end_time = start_time + segment.get("duration", 0)
+        text = segment["text"].strip()
+
+        # Format as SRT
+        start_srt = format_time_for_srt(start_time)
+        end_srt = format_time_for_srt(end_time)
+
+        srt_lines.append(f"{i}")
+        srt_lines.append(f"{start_srt} --> {end_srt}")
+        srt_lines.append(text)
+        srt_lines.append("")  # Separate with empty line
+
+    return "\n".join(srt_lines)

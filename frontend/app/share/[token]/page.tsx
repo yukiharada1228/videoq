@@ -11,6 +11,7 @@ import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { getStatusBadgeClassName, getStatusLabel, timeStringToSeconds } from '@/lib/utils/video';
 import { convertVideoInGroupToSelectedVideo, SelectedVideo } from '@/lib/utils/videoConversion';
+import { getYouTubeEmbedUrl } from '@/lib/utils/youtube';
 import { useTranslation } from 'react-i18next';
 
 // Video item component for shared page (no drag & drop)
@@ -252,7 +253,26 @@ export default function SharedGroupPage() {
                 </CardHeader>
                 <CardContent className="flex-1 flex items-center justify-center overflow-hidden">
                   {selectedVideo ? (
-                    selectedVideo.file ? (
+                    selectedVideo.youtube_url ? (
+                      (() => {
+                        const embedUrl = getYouTubeEmbedUrl(selectedVideo.youtube_url);
+                        return embedUrl ? (
+                          <div className="w-full aspect-video max-h-[400px] lg:max-h-[500px] rounded overflow-hidden">
+                            <iframe
+                              src={embedUrl}
+                              className="w-full h-full"
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                              allowFullScreen
+                              title={selectedVideo.title}
+                            />
+                          </div>
+                        ) : (
+                          <p className="text-gray-500 text-sm">
+                            {t('common.messages.invalidYoutubeUrl', { defaultValue: '無効なYouTube URLです' })}
+                          </p>
+                        );
+                      })()
+                    ) : selectedVideo.file ? (
                       <video
                         ref={videoRef}
                         key={selectedVideo.id}

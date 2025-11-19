@@ -1,11 +1,14 @@
 'use client';
 
+import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { MessageAlert } from '@/components/common/MessageAlert';
 import { Button } from '@/components/ui/button';
 import { VideoUploadButton } from './VideoUploadButton';
 import { useTranslation } from 'react-i18next';
+
+type UploadType = 'file' | 'youtube';
 
 interface VideoUploadFormFieldsProps {
   title: string;
@@ -17,6 +20,8 @@ interface VideoUploadFormFieldsProps {
   setDescription: (description: string) => void;
   handleFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   file?: File | null;
+  youtubeUrl?: string;
+  setYoutubeUrl?: (url: string) => void;
   showCancelButton?: boolean;
   onCancel?: () => void;
   cancelButtonClassName?: string;
@@ -34,6 +39,8 @@ export function VideoUploadFormFields({
   setDescription,
   handleFileChange,
   file,
+  youtubeUrl = '',
+  setYoutubeUrl,
   showCancelButton = false,
   onCancel,
   cancelButtonClassName,
@@ -41,6 +48,7 @@ export function VideoUploadFormFields({
   renderButtons,
 }: VideoUploadFormFieldsProps) {
   const { t } = useTranslation();
+  const [uploadType, setUploadType] = useState<UploadType>(file ? 'file' : 'youtube');
 
   // Dynamically generate placeholder
   const getTitlePlaceholder = () => {
@@ -51,19 +59,72 @@ export function VideoUploadFormFields({
     return t('videos.upload.titleEmptyPlaceholder');
   };
 
+  const handleYoutubeUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (setYoutubeUrl) {
+      setYoutubeUrl(e.target.value);
+    }
+  };
+
   return (
     <>
+      {/* Upload type selector */}
       <div className="space-y-2">
-        <Label htmlFor="file">{t('videos.upload.fileLabel')}</Label>
-        <Input
-          id="file"
-          type="file"
-          accept="video/*"
-          onChange={handleFileChange}
-          disabled={isUploading}
-          required
-        />
+        <Label>{t('videos.upload.uploadTypeLabel', { defaultValue: 'アップロード方法' })}</Label>
+        <div className="flex gap-4">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="radio"
+              name="uploadType"
+              value="file"
+              checked={uploadType === 'file'}
+              onChange={() => setUploadType('file')}
+              disabled={isUploading}
+              className="w-4 h-4"
+            />
+            <span className="text-sm">{t('videos.upload.uploadTypeFile', { defaultValue: 'ファイル' })}</span>
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="radio"
+              name="uploadType"
+              value="youtube"
+              checked={uploadType === 'youtube'}
+              onChange={() => setUploadType('youtube')}
+              disabled={isUploading}
+              className="w-4 h-4"
+            />
+            <span className="text-sm">{t('videos.upload.uploadTypeYoutube', { defaultValue: 'YouTube URL' })}</span>
+          </label>
+        </div>
       </div>
+
+      {/* File upload or YouTube URL input */}
+      {uploadType === 'file' ? (
+        <div className="space-y-2">
+          <Label htmlFor="file">{t('videos.upload.fileLabel')}</Label>
+          <Input
+            id="file"
+            type="file"
+            accept="video/*"
+            onChange={handleFileChange}
+            disabled={isUploading}
+            required={uploadType === 'file'}
+          />
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <Label htmlFor="youtube_url">{t('videos.upload.youtubeUrlLabel', { defaultValue: 'YouTube URL' })}</Label>
+          <Input
+            id="youtube_url"
+            type="url"
+            value={youtubeUrl}
+            onChange={handleYoutubeUrlChange}
+            placeholder={t('videos.upload.youtubeUrlPlaceholder', { defaultValue: 'https://www.youtube.com/watch?v=...' })}
+            disabled={isUploading}
+            required={uploadType === 'youtube'}
+          />
+        </div>
+      )}
 
       <div className="space-y-2">
         <Label htmlFor="title">{t('videos.upload.titleLabel')}</Label>

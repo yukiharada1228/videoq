@@ -16,6 +16,7 @@ import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { MessageAlert } from '@/components/common/MessageAlert';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
 import { getStatusBadgeClassName, getStatusLabel, formatDate } from '@/lib/utils/video';
+import { getYouTubeEmbedUrl } from '@/lib/utils/youtube';
 
 export default function VideoDetailPage() {
   const params = useParams();
@@ -240,7 +241,24 @@ export default function VideoDetailPage() {
               <CardTitle>{t('videos.detail.video')}</CardTitle>
             </CardHeader>
             <CardContent>
-              {video.file ? (
+              {video.youtube_url ? (
+                (() => {
+                  const embedUrl = getYouTubeEmbedUrl(video.youtube_url);
+                  return embedUrl ? (
+                    <div className="w-full aspect-video rounded overflow-hidden">
+                      <iframe
+                        src={embedUrl}
+                        className="w-full h-full"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                        title={video.title}
+                      />
+                    </div>
+                  ) : (
+                    <p className="text-gray-500">{t('common.messages.invalidYoutubeUrl', { defaultValue: '無効なYouTube URLです' })}</p>
+                  );
+                })()
+              ) : video.file ? (
                 <video
                   ref={videoRef}
                   controls

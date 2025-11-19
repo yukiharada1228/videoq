@@ -60,25 +60,40 @@ class VideoTaskManager:
     def validate_video_for_processing(video: Video) -> Tuple[bool, Optional[str]]:
         """
         Validate video processability
+        Supports both file uploads and YouTube URLs
 
         Returns:
             (is_valid, error_message)
         """
-        if not video.file:
-            return False, "Video file is not available"
+        # Check if video has either file or YouTube URL
+        has_file = bool(video.file)
+        has_youtube_url = bool(video.youtube_url)
 
-        # S3 support: Check file existence
-        try:
-            # Local filesystem case
-            if not os.path.exists(video.file.path):
-                return False, f"Video file not found: {video.file.path}"
-        except (NotImplementedError, AttributeError):
-            # Remote storage like S3 case
-            # Check if file object exists
+        if not has_file and not has_youtube_url:
+            return False, "Either video file or YouTube URL must be provided"
+
+        # Validate file if present
+        if has_file:
+            # S3 support: Check file existence
             try:
-                video.file.open("rb").close()
-            except Exception as e:
-                return False, f"Video file not accessible: {e}"
+                # Local filesystem case
+                if not os.path.exists(video.file.path):
+                    return False, f"Video file not found: {video.file.path}"
+            except (NotImplementedError, AttributeError):
+                # Remote storage like S3 case
+                # Check if file object exists
+                try:
+                    video.file.open("rb").close()
+                except Exception as e:
+                    return False, f"Video file not accessible: {e}"
+
+        # Validate YouTube URL if present
+        if has_youtube_url:
+            from app.utils.youtube import validate_youtube_url
+
+            is_valid, error_msg = validate_youtube_url(video.youtube_url)
+            if not is_valid:
+                return False, f"Invalid YouTube URL: {error_msg}"
 
         if not video.user.encrypted_openai_api_key:
             return False, "OpenAI API key is not configured"

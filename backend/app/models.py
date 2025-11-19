@@ -122,6 +122,14 @@ class Video(models.Model):
     file = models.FileField(
         upload_to=user_directory_path,
         storage=get_default_storage(),
+        blank=True,
+        null=True,
+    )
+    youtube_url = models.CharField(
+        max_length=500,
+        blank=True,
+        null=True,
+        help_text="YouTube video URL",
     )
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True)

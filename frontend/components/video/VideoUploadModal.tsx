@@ -17,6 +17,7 @@ interface VideoUploadModalProps {
 export function VideoUploadModal({ isOpen, onClose, onUploadSuccess }: VideoUploadModalProps) {
   const {
     file,
+    youtubeUrl,
     title,
     description,
     isUploading,
@@ -24,6 +25,7 @@ export function VideoUploadModal({ isOpen, onClose, onUploadSuccess }: VideoUplo
     success,
     setTitle,
     setDescription,
+    setYoutubeUrl,
     handleFileChange,
     handleSubmit,
     reset,
@@ -72,6 +74,8 @@ export function VideoUploadModal({ isOpen, onClose, onUploadSuccess }: VideoUplo
             setDescription={setDescription}
             handleFileChange={handleFileChange}
             file={file}
+            youtubeUrl={youtubeUrl}
+            setYoutubeUrl={setYoutubeUrl}
             hideButtons={true}
           />
           <DialogFooter>

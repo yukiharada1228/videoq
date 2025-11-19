@@ -91,6 +91,7 @@ export interface Video {
   id: number;
   user: number;
   file: string;
+  youtube_url?: string;
   title: string;
   description: string;
   uploaded_at: string;
@@ -102,6 +103,7 @@ export interface Video {
 export interface VideoList {
   id: number;
   file: string;
+  youtube_url?: string;
   title: string;
   description: string;
   uploaded_at: string;
@@ -109,7 +111,8 @@ export interface VideoList {
 }
 
 export interface VideoUploadRequest {
-  file: File;
+  file?: File;
+  youtube_url?: string;
   title: string;
   description?: string;
 }
@@ -136,6 +139,7 @@ export interface VideoInGroup {
   title: string;
   description: string;
   file: string;
+  youtube_url?: string;
   uploaded_at: string;
   status: 'pending' | 'processing' | 'completed' | 'error';
   order: number;
@@ -528,7 +532,17 @@ class ApiClient {
 
   async uploadVideo(data: VideoUploadRequest): Promise<Video> {
     const formData = new FormData();
-    formData.append('file', data.file);
+    
+    // Add file if provided
+    if (data.file) {
+      formData.append('file', data.file);
+    }
+    
+    // Add YouTube URL if provided
+    if (data.youtube_url) {
+      formData.append('youtube_url', data.youtube_url);
+    }
+    
     formData.append('title', data.title);
     if (data.description) {
       formData.append('description', data.description);

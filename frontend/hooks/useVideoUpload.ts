@@ -5,6 +5,7 @@ import { useAsyncState } from './useAsyncState';
 
 interface UseVideoUploadReturn {
   file: File | null;
+  youtubeUrl: string;
   title: string;
   description: string;
   isUploading: boolean;
@@ -12,6 +13,7 @@ interface UseVideoUploadReturn {
   success: boolean;
   setTitle: (title: string) => void;
   setDescription: (description: string) => void;
+  setYoutubeUrl: (url: string) => void;
   handleFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleSubmit: (e: React.FormEvent, onSuccess?: () => void) => Promise<void>;
   reset: () => void;
@@ -27,12 +29,27 @@ interface ValidationResult {
  */
 const i18n = initI18n();
 
-function validateVideoUpload(file: File | null, title: string): ValidationResult {
-  if (!file) {
-    return { isValid: false, error: i18n.t('videos.upload.validation.noFile') };
+function validateVideoUpload(file: File | null, youtubeUrl: string, title: string): ValidationResult {
+  // Either file or YouTube URL must be provided
+  if (!file && !youtubeUrl.trim()) {
+    return { isValid: false, error: i18n.t('videos.upload.validation.noFileOrUrl', { defaultValue: 'ファイルまたはYouTube URLを入力してください' }) };
   }
-  // File is OK if title is empty since filename will be used
-  const finalTitle = title.trim() || file.name.replace(/\.[^/.]+$/, '');
+
+  // Cannot provide both
+  if (file && youtubeUrl.trim()) {
+    return { isValid: false, error: i18n.t('videos.upload.validation.bothProvided', { defaultValue: 'ファイルとYouTube URLの両方を指定することはできません' }) };
+  }
+
+  // Validate YouTube URL format if provided
+  if (youtubeUrl.trim() && !file) {
+    const urlPattern = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+/;
+    if (!urlPattern.test(youtubeUrl.trim())) {
+      return { isValid: false, error: i18n.t('videos.upload.validation.invalidYoutubeUrl', { defaultValue: '有効なYouTube URLを入力してください' }) };
+    }
+  }
+
+  // Title validation
+  const finalTitle = title.trim() || (file ? file.name.replace(/\.[^/.]+$/, '') : '');
   if (!finalTitle) {
     return { isValid: false, error: i18n.t('videos.upload.validation.noTitle') };
   }
@@ -41,6 +58,7 @@ function validateVideoUpload(file: File | null, title: string): ValidationResult
 
 export function useVideoUpload(): UseVideoUploadReturn {
   const [file, setFile] = useState<File | null>(null);
+  const [youtubeUrl, setYoutubeUrl] = useState('');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [success, setSuccess] = useState(false);
@@ -55,14 +73,17 @@ export function useVideoUpload(): UseVideoUploadReturn {
     if (e.target.files && e.target.files[0]) {
       const selectedFile = e.target.files[0];
       setFile(selectedFile);
+      // Clear YouTube URL when file is selected
+      setYoutubeUrl('');
       // Automatically set filename (without extension) as title
       const fileNameWithoutExt = selectedFile.name.replace(/\.[^/.]+$/, '');
       setTitle(fileNameWithoutExt);
     }
-  }, [setTitle]);
+  }, []);
 
   const reset = useCallback(() => {
     setFile(null);
+    setYoutubeUrl('');
     setTitle('');
     setDescription('');
     setSuccess(false);
@@ -72,7 +93,7 @@ export function useVideoUpload(): UseVideoUploadReturn {
   const handleSubmit = useCallback(async (e: React.FormEvent, onSuccess?: () => void) => {
     e.preventDefault();
     
-    const validation = validateVideoUpload(file, title);
+    const validation = validateVideoUpload(file, youtubeUrl, title);
     if (!validation.isValid) {
       setError(validation.error || i18n.t('videos.upload.validation.generic'));
       return;
@@ -83,7 +104,8 @@ export function useVideoUpload(): UseVideoUploadReturn {
       const finalTitle = title.trim() || (file ? file.name.replace(/\.[^/.]+$/, '') : '');
       
       const request: VideoUploadRequest = {
-        file: file!,
+        file: file || undefined,
+        youtube_url: youtubeUrl.trim() || undefined,
         title: finalTitle,
         description: description.trim() || undefined,
       };
@@ -95,10 +117,11 @@ export function useVideoUpload(): UseVideoUploadReturn {
     if (onSuccess) {
       onSuccess();
     }
-  }, [uploadVideo, file, title, description, setError]);
+  }, [uploadVideo, file, youtubeUrl, title, description, setError]);
 
   return {
     file,
+    youtubeUrl,
     title,
     description,
     isUploading: isLoading,
@@ -106,6 +129,7 @@ export function useVideoUpload(): UseVideoUploadReturn {
     success,
     setTitle,
     setDescription,
+    setYoutubeUrl,
     handleFileChange,
     handleSubmit,
     reset,

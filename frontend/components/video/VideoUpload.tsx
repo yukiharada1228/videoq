@@ -13,6 +13,7 @@ interface VideoUploadProps {
 export function VideoUpload({ onUploadSuccess }: VideoUploadProps) {
   const {
     file,
+    youtubeUrl,
     title,
     description,
     isUploading,
@@ -20,6 +21,7 @@ export function VideoUpload({ onUploadSuccess }: VideoUploadProps) {
     success,
     setTitle,
     setDescription,
+    setYoutubeUrl,
     handleFileChange,
     handleSubmit,
     reset,
@@ -53,6 +55,8 @@ export function VideoUpload({ onUploadSuccess }: VideoUploadProps) {
             setDescription={setDescription}
             handleFileChange={handleFileChange}
             file={file}
+            youtubeUrl={youtubeUrl}
+            setYoutubeUrl={setYoutubeUrl}
           />
         </form>
       </CardContent>

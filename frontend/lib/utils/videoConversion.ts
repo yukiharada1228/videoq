@@ -5,6 +5,7 @@ export interface SelectedVideo {
   title: string;
   description: string;
   file: string;
+  youtube_url?: string;
   status: string;
 }
 
@@ -17,6 +18,7 @@ export function convertVideoInGroupToSelectedVideo(video: VideoInGroup): Selecte
     title: video.title,
     description: video.description,
     file: video.file,
+    youtube_url: video.youtube_url,
     status: video.status,
   };
 }
@@ -30,6 +32,7 @@ export function convertVideoListToSelectedVideo(video: VideoList): SelectedVideo
     title: video.title,
     description: video.description,
     file: video.file,
+    youtube_url: video.youtube_url,
     status: video.status,
   };
 }

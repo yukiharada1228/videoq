@@ -3,7 +3,8 @@ import logging
 from rest_framework import serializers
 
 from app.models import Video, VideoGroup
-from app.tasks import transcribe_video
+from app.tasks import transcribe_video, transcribe_youtube_video
+from app.utils.youtube import validate_youtube_url
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +35,7 @@ class VideoSerializer(serializers.ModelSerializer):
             "id",
             "user",
             "file",
+            "youtube_url",
             "title",
             "description",
             "uploaded_at",
@@ -49,7 +51,30 @@ class VideoCreateSerializer(UserOwnedSerializerMixin, serializers.ModelSerialize
 
     class Meta:
         model = Video
-        fields = ["file", "title", "description"]
+        fields = ["file", "youtube_url", "title", "description"]
+
+    def validate(self, data):
+        """Validate that either file or youtube_url is provided"""
+        file = data.get("file")
+        youtube_url = data.get("youtube_url")
+
+        if not file and not youtube_url:
+            raise serializers.ValidationError(
+                "Either 'file' or 'youtube_url' must be provided"
+            )
+
+        if file and youtube_url:
+            raise serializers.ValidationError(
+                "Cannot provide both 'file' and 'youtube_url'. Please provide only one."
+            )
+
+        # Validate YouTube URL if provided
+        if youtube_url:
+            is_valid, error_msg = validate_youtube_url(youtube_url)
+            if not is_valid:
+                raise serializers.ValidationError({"youtube_url": error_msg})
+
+        return data
 
     def create(self, validated_data):
         """Start transcription task when Video is created"""
@@ -82,7 +107,11 @@ class VideoCreateSerializer(UserOwnedSerializerMixin, serializers.ModelSerialize
         # Execute Celery task asynchronously
         logger.info(f"Starting transcription task for video ID: {video.id}")
         try:
-            task = transcribe_video.delay(video.id)
+            # Use appropriate task based on whether it's a YouTube URL or file
+            if video.youtube_url:
+                task = transcribe_youtube_video.delay(video.id)
+            else:
+                task = transcribe_video.delay(video.id)
             logger.info(f"Transcription task created with ID: {task.id}")
         except Exception as e:
             logger.error(f"Failed to start transcription task: {e}")
@@ -106,7 +135,7 @@ class VideoListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Video
-        fields = ["id", "file", "title", "description", "uploaded_at", "status"]
+        fields = ["id", "file", "youtube_url", "title", "description", "uploaded_at", "status"]
         read_only_fields = ["id", "uploaded_at"]
 
 

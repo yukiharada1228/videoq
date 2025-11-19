@@ -131,8 +131,8 @@ class VideoDetailView(
         instance = self.get_object()
         video_id = instance.id
 
-        # Delete file if it exists
-        if instance.file:
+        # Delete file if it exists (skip for YouTube URLs)
+        if instance.file and not instance.youtube_url:
             instance.file.delete(save=False)
 
         from app.utils.vector_manager import delete_video_vectors
