@@ -1,6 +1,7 @@
 """
 Tests for task_helpers module
 """
+
 import os
 from unittest.mock import Mock, patch
 
@@ -10,12 +11,8 @@ from django.test import TestCase
 
 from app.models import Video
 from app.utils.encryption import encrypt_api_key
-from app.utils.task_helpers import (
-    BatchProcessor,
-    ErrorHandler,
-    TemporaryFileManager,
-    VideoTaskManager,
-)
+from app.utils.task_helpers import (BatchProcessor, ErrorHandler,
+                                    TemporaryFileManager, VideoTaskManager)
 
 User = get_user_model()
 
@@ -77,9 +74,7 @@ class VideoTaskManagerTests(TestCase):
 
     def test_update_video_status_with_error_message(self):
         """Test update_video_status with error message"""
-        result = VideoTaskManager.update_video_status(
-            self.video, "error", "Test error"
-        )
+        result = VideoTaskManager.update_video_status(self.video, "error", "Test error")
 
         self.assertTrue(result)
         self.video.refresh_from_db()
@@ -209,7 +204,9 @@ class BatchProcessorTests(TestCase):
         def process_func(batch):
             return [x * 2 for x in batch]
 
-        results = BatchProcessor.process_in_batches(items, batch_size=3, process_func=process_func)
+        results = BatchProcessor.process_in_batches(
+            items, batch_size=3, process_func=process_func
+        )
 
         self.assertEqual(results, [2, 4, 6, 8, 10, 12, 14])
 
@@ -284,7 +281,9 @@ class ErrorHandlerTests(TestCase):
         task_instance.request.retries = 0
 
         with self.assertRaises(ValueError):
-            ErrorHandler.handle_task_error(error, self.video.id, task_instance, max_retries=3)
+            ErrorHandler.handle_task_error(
+                error, self.video.id, task_instance, max_retries=3
+            )
 
         task_instance.retry.assert_called_once()
 
@@ -296,12 +295,15 @@ class ErrorHandlerTests(TestCase):
         task_instance.request.retries = 3
 
         with self.assertRaises(ValueError):
-            ErrorHandler.handle_task_error(error, self.video.id, task_instance, max_retries=3)
+            ErrorHandler.handle_task_error(
+                error, self.video.id, task_instance, max_retries=3
+            )
 
         task_instance.retry.assert_not_called()
 
     def test_safe_execute_success(self):
         """Test safe_execute with success"""
+
         def test_func(x, y):
             return x + y
 
@@ -312,6 +314,7 @@ class ErrorHandlerTests(TestCase):
 
     def test_safe_execute_error(self):
         """Test safe_execute with error"""
+
         def test_func():
             raise ValueError("Test error")
 
@@ -362,4 +365,3 @@ class ErrorHandlerTests(TestCase):
         self.assertFalse(is_valid)
         self.assertIn("field1", error)
         self.assertIn("field2", error)
-

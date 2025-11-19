@@ -1,8 +1,9 @@
 import logging
 
+from rest_framework import serializers
+
 from app.models import Video, VideoGroup
 from app.tasks import transcribe_video
-from rest_framework import serializers
 
 logger = logging.getLogger(__name__)
 
@@ -193,3 +194,37 @@ class VideoGroupUpdateSerializer(BaseVideoGroupSerializer):
     """Serializer for VideoGroup update"""
 
     pass
+
+
+class AddVideosToGroupRequestSerializer(serializers.Serializer):
+    """Request serializer for adding videos to group"""
+
+    video_ids = serializers.ListField(
+        child=serializers.IntegerField(),
+        help_text="List of video IDs to add to the group",
+    )
+
+
+class AddVideosToGroupResponseSerializer(serializers.Serializer):
+    """Response serializer for adding videos to group"""
+
+    message = serializers.CharField(help_text="Success message")
+    added_count = serializers.IntegerField(help_text="Number of videos added")
+    skipped_count = serializers.IntegerField(
+        help_text="Number of videos skipped (already in group)"
+    )
+
+
+class ReorderVideosRequestSerializer(serializers.Serializer):
+    """Request serializer for reordering videos in group"""
+
+    video_ids = serializers.ListField(
+        child=serializers.IntegerField(),
+        help_text="List of video IDs in the desired order",
+    )
+
+
+class MessageResponseSerializer(serializers.Serializer):
+    """Generic message response serializer"""
+
+    message = serializers.CharField(help_text="Response message")

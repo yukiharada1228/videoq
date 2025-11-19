@@ -1,15 +1,13 @@
 """
 Tests for query_optimizer module
 """
+
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 
 from app.models import Video, VideoGroup, VideoGroupMember
-from app.utils.query_optimizer import (
-    BatchProcessor,
-    CacheOptimizer,
-    QueryOptimizer,
-)
+from app.utils.query_optimizer import (BatchProcessor, CacheOptimizer,
+                                       QueryOptimizer)
 
 User = get_user_model()
 
@@ -33,9 +31,7 @@ class QueryOptimizerTests(TestCase):
     def test_optimize_video_queryset_with_user(self):
         """Test optimize_video_queryset with user"""
         queryset = Video.objects.all()
-        optimized = QueryOptimizer.optimize_video_queryset(
-            queryset, include_user=True
-        )
+        optimized = QueryOptimizer.optimize_video_queryset(queryset, include_user=True)
 
         video = optimized.first()
         self.assertIsNotNone(video)
@@ -46,9 +42,7 @@ class QueryOptimizerTests(TestCase):
     def test_optimize_video_queryset_without_user(self):
         """Test optimize_video_queryset without user"""
         queryset = Video.objects.all()
-        optimized = QueryOptimizer.optimize_video_queryset(
-            queryset, include_user=False
-        )
+        optimized = QueryOptimizer.optimize_video_queryset(queryset, include_user=False)
 
         video = optimized.first()
         self.assertIsNotNone(video)
@@ -377,4 +371,3 @@ class CacheOptimizerTests(TestCase):
 
         self.assertIsNotNone(queryset)
         self.assertEqual(queryset.count(), 1)
-

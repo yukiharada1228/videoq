@@ -1,19 +1,23 @@
 import csv
 import json
 
-from app.common.authentication import CookieJWTAuthentication
-from app.common.permissions import (IsAuthenticatedOrSharedAccess,
-                                    ShareTokenAuthentication)
-from app.common.responses import create_error_response
-from app.models import ChatLog, VideoGroup, VideoGroupMember
 from django.db.models import Prefetch
 from django.http import HttpResponse
+from drf_spectacular.utils import extend_schema
 from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .serializers import ChatLogSerializer
+from app.common.authentication import CookieJWTAuthentication
+from app.common.permissions import (IsAuthenticatedOrSharedAccess,
+                                    ShareTokenAuthentication)
+from app.common.responses import create_error_response
+from app.models import ChatLog, VideoGroup, VideoGroupMember
+
+from .serializers import (ChatFeedbackRequestSerializer,
+                          ChatFeedbackResponseSerializer, ChatLogSerializer,
+                          ChatRequestSerializer, ChatResponseSerializer)
 from .services import (RagChatService, get_langchain_llm,
                        handle_langchain_exception)
 
@@ -63,9 +67,16 @@ def _get_video_group_with_members(group_id, user_id=None, share_token=None):
 class ChatView(generics.CreateAPIView):
     """Chat view (using LangChain, supports share token)"""
 
+    serializer_class = ChatRequestSerializer
     authentication_classes = [CookieJWTAuthentication, ShareTokenAuthentication]
     permission_classes = [IsAuthenticatedOrSharedAccess]
 
+    @extend_schema(
+        request=ChatRequestSerializer,
+        responses={200: ChatResponseSerializer},
+        summary="Send chat message",
+        description="Send a chat message and get AI response. Supports RAG when group_id is provided.",
+    )
     def post(self, request):
         # Shared token authentication case
         share_token = request.query_params.get("share_token")
@@ -157,6 +168,12 @@ class ChatFeedbackView(APIView):
     authentication_classes = [CookieJWTAuthentication, ShareTokenAuthentication]
     permission_classes = [IsAuthenticatedOrSharedAccess]
 
+    @extend_schema(
+        request=ChatFeedbackRequestSerializer,
+        responses={200: ChatFeedbackResponseSerializer},
+        summary="Submit chat feedback",
+        description="Submit feedback (good/bad) for a chat log. Supports share token authentication.",
+    )
     def post(self, request):
         share_token = request.query_params.get("share_token")
         chat_log_id = request.data.get("chat_log_id")
