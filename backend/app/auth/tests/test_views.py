@@ -542,3 +542,43 @@ class UsageStatsViewTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         # Should only count this month's videos (15.5, not including the old 50.0)
         self.assertEqual(response.data["whisper_minutes"]["used"], 15.5)
+
+    def test_get_usage_stats_response_structure(self):
+        """Test that response structure matches UsageStatsResponseSerializer"""
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # Verify response structure
+        self.assertIn("videos", response.data)
+        self.assertIn("used", response.data["videos"])
+        self.assertIn("limit", response.data["videos"])
+        self.assertIn("whisper_minutes", response.data)
+        self.assertIn("used", response.data["whisper_minutes"])
+        self.assertIn("limit", response.data["whisper_minutes"])
+        self.assertIn("chats", response.data)
+        self.assertIn("used", response.data["chats"])
+        self.assertIn("limit", response.data["chats"])
+
+    def test_get_usage_stats_first_day_of_month_calculation(self):
+        """Test that first_day_of_month calculation works correctly"""
+        from app.models import Video
+        from django.utils import timezone
+
+        # Create a video exactly at the start of the current month
+        now = timezone.now()
+        first_day = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        
+        # Create a video at the start of the month
+        video_at_start = Video.objects.create(
+            user=self.user,
+            title="Video at month start",
+            description="Test",
+            duration_minutes=7.5,
+        )
+        Video.objects.filter(pk=video_at_start.pk).update(uploaded_at=first_day)
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # Should include video at the start of the month (15.5 + 7.5 = 23.0)
+        self.assertEqual(response.data["whisper_minutes"]["used"], 23.0)
