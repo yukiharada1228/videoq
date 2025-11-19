@@ -43,6 +43,9 @@ class DefaultSettings:
     # Storage
     USE_S3_STORAGE = False
 
+    # Video settings
+    MAX_VIDEO_DURATION_MINUTES = 120  # Maximum video duration in minutes
+
     # Email
     FRONTEND_URL = "http://localhost:3000"
     DEFAULT_FROM_EMAIL = "noreply@askvideo.local"
@@ -236,6 +239,14 @@ CELERY_TASK_SOFT_TIME_LIMIT = 25 * 60  # 25 minutes
 
 # Feature flags
 ENABLE_SIGNUP = os.environ.get("ENABLE_SIGNUP", "true").lower() == "true"
+
+# Video settings
+MAX_VIDEO_DURATION_MINUTES = int(
+    os.environ.get(
+        "MAX_VIDEO_DURATION_MINUTES", DefaultSettings.MAX_VIDEO_DURATION_MINUTES
+    )
+)
+MAX_VIDEO_DURATION_SECONDS = MAX_VIDEO_DURATION_MINUTES * 60
 
 # Storage configuration
 USE_S3_STORAGE = (

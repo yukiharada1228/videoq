@@ -159,7 +159,8 @@
       "validation": {
         "noFile": "ファイルを選択してください",
         "noTitle": "タイトルを入力してください",
-        "generic": "バリデーションエラー"
+        "generic": "バリデーションエラー",
+        "maxDurationExceeded": "動画の長さが上限を超えています。最大 {{max}} 分までアップロードできますが、この動画は {{actual}} 分です。"
       }
     },
     "detail": {

@@ -4,6 +4,7 @@ from rest_framework import serializers
 
 from app.models import Video, VideoGroup
 from app.tasks import transcribe_video
+from app.utils.video_validator import validate_video_duration
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +51,13 @@ class VideoCreateSerializer(UserOwnedSerializerMixin, serializers.ModelSerialize
     class Meta:
         model = Video
         fields = ["file", "title", "description"]
+
+    def validate_file(self, value):
+        """Validate video file duration"""
+        is_valid, error_message = validate_video_duration(value)
+        if not is_valid:
+            raise serializers.ValidationError(error_message)
+        return value
 
     def create(self, validated_data):
         """Start transcription task when Video is created"""

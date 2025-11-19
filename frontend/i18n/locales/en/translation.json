@@ -159,7 +159,8 @@
       "validation": {
         "noFile": "Please select a file",
         "noTitle": "Please enter a title",
-        "generic": "Validation error"
+        "generic": "Validation error",
+        "maxDurationExceeded": "Video duration exceeds the limit. Maximum {{max}} minutes allowed, but this video is {{actual}} minutes."
       }
     },
     "detail": {

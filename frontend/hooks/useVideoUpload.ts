@@ -23,11 +23,38 @@ interface ValidationResult {
 }
 
 /**
- * バリデーションロジック
+ * Get video duration in seconds
+ */
+async function getVideoDuration(file: File): Promise<number | null> {
+  return new Promise((resolve) => {
+    const video = document.createElement('video');
+    video.preload = 'metadata';
+    
+    video.onloadedmetadata = () => {
+      window.URL.revokeObjectURL(video.src);
+      resolve(video.duration);
+    };
+    
+    video.onerror = () => {
+      window.URL.revokeObjectURL(video.src);
+      resolve(null);
+    };
+    
+    video.src = URL.createObjectURL(file);
+  });
+}
+
+/**
+ * Validation logic
  */
 const i18n = initI18n();
 
-function validateVideoUpload(file: File | null, title: string): ValidationResult {
+const MAX_VIDEO_DURATION_MINUTES = 120; // Must match backend settings
+
+async function validateVideoUpload(
+  file: File | null,
+  title: string
+): Promise<ValidationResult> {
   if (!file) {
     return { isValid: false, error: i18n.t('videos.upload.validation.noFile') };
   }
@@ -36,6 +63,23 @@ function validateVideoUpload(file: File | null, title: string): ValidationResult
   if (!finalTitle) {
     return { isValid: false, error: i18n.t('videos.upload.validation.noTitle') };
   }
+
+  // Check video duration
+  const duration = await getVideoDuration(file);
+  if (duration !== null) {
+    const maxDurationSeconds = MAX_VIDEO_DURATION_MINUTES * 60;
+    if (duration > maxDurationSeconds) {
+      const durationMinutes = Math.round((duration / 60) * 10) / 10;
+      return {
+        isValid: false,
+        error: i18n.t('videos.upload.validation.maxDurationExceeded', {
+          max: MAX_VIDEO_DURATION_MINUTES,
+          actual: durationMinutes,
+        }),
+      };
+    }
+  }
+
   return { isValid: true };
 }
 
@@ -72,7 +116,7 @@ export function useVideoUpload(): UseVideoUploadReturn {
   const handleSubmit = useCallback(async (e: React.FormEvent, onSuccess?: () => void) => {
     e.preventDefault();
     
-    const validation = validateVideoUpload(file, title);
+    const validation = await validateVideoUpload(file, title);
     if (!validation.isValid) {
       setError(validation.error || i18n.t('videos.upload.validation.generic'));
       return;
