@@ -1,18 +1,17 @@
 import logging
 import secrets
 
+from app.common.responses import create_error_response
+from app.models import Video, VideoGroup, VideoGroupMember
+from app.utils.decorators import authenticated_view_with_error_handling
+from app.utils.mixins import AuthenticatedViewMixin, DynamicSerializerMixin
+from app.utils.query_optimizer import QueryOptimizer
 from django.db.models import Max, Q
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-
-from app.common.responses import create_error_response
-from app.models import Video, VideoGroup, VideoGroupMember
-from app.utils.decorators import authenticated_view_with_error_handling
-from app.utils.mixins import AuthenticatedViewMixin, DynamicSerializerMixin
-from app.utils.query_optimizer import QueryOptimizer
 
 from .serializers import (AddVideosToGroupRequestSerializer,
                           AddVideosToGroupResponseSerializer,

@@ -8,9 +8,8 @@ import tempfile
 from contextlib import contextmanager
 from typing import Any, List, Optional, Tuple
 
-from django.db import transaction
-
 from app.models import Video
+from django.db import transaction
 
 logger = logging.getLogger(__name__)
 
@@ -79,9 +78,6 @@ class VideoTaskManager:
                 video.file.open("rb").close()
             except Exception as e:
                 return False, f"Video file not accessible: {e}"
-
-        if not video.user.encrypted_openai_api_key:
-            return False, "OpenAI API key is not configured"
 
         return True, None
 

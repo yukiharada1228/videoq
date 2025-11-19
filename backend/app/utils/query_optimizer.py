@@ -4,9 +4,8 @@ Database query optimization utilities (N+1 prevention)
 
 from typing import Any, Dict, List, Optional
 
-from django.db.models import Count, Prefetch, QuerySet
-
 from app.models import Video, VideoGroup, VideoGroupMember
+from django.db.models import Count, Prefetch, QuerySet
 
 
 class QueryOptimizer:

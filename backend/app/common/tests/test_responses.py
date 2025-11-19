@@ -2,13 +2,12 @@
 Tests for common responses module
 """
 
-from django.test import TestCase
-from rest_framework import status
-
 from app.common.responses import (create_created_response,
                                   create_error_response,
                                   create_no_content_response,
                                   create_success_response)
+from django.test import TestCase
+from rest_framework import status
 
 
 class ResponseHelpersTests(TestCase):
