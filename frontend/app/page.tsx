@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { Button } from '@/components/ui/button';
-import { apiClient, type VideoGroupList, type VideoList } from '@/lib/api';
+import { apiClient, type UsageStats, type VideoGroupList, type VideoList } from '@/lib/api';
 import { useAsyncState } from '@/hooks/useAsyncState';
 import { useVideoStats } from '@/hooks/useVideoStats';
 
@@ -16,7 +16,7 @@ export default function Home() {
   const router = useRouter();
   const { user, loading } = useAuth();
   const { t } = useTranslation();
-  
+
   const { data: rawData, isLoading: isLoadingStats, execute: loadStats } = useAsyncState<{
     videos: VideoList[];
     groups: VideoGroupList[];
@@ -25,6 +25,10 @@ export default function Home() {
       videos: [],
       groups: [],
     }
+  });
+
+  const { data: usageStats, isLoading: isLoadingUsage, execute: loadUsageStats } = useAsyncState<UsageStats | null>({
+    initialData: null,
   });
 
   const videoStats = useVideoStats(rawData?.videos || []);
@@ -49,10 +53,23 @@ export default function Home() {
           console.error('Failed to load stats:', error);
         }
       };
-      
+
       loadData();
     }
   }, [user, isLoadingStats, hasVideos, loadStats]);
+
+  useEffect(() => {
+    if (user && !isLoadingUsage && !usageStats) {
+      loadUsageStats(async () => {
+        try {
+          return await apiClient.getUsageStats();
+        } catch (error) {
+          console.error('Failed to load usage stats:', error);
+          return null;
+        }
+      });
+    }
+  }, [user, isLoadingUsage, usageStats, loadUsageStats]);
 
   const handleUploadClick = () => {
     router.push('/videos?upload=true');
@@ -141,18 +158,66 @@ export default function Home() {
           </Card>
         </div>
 
-        {/* アカウント情報（簡潔） */}
+        {/* 使用状況 */}
         <Card className="bg-gray-50">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">{t('home.account.username')}</p>
-                <p className="text-lg font-semibold text-gray-900">{user.username}</p>
-              </div>
-              <div className="text-right">
-                <span className="text-sm text-green-600">{t('home.account.serviceReady')}</span>
-              </div>
-            </div>
+          <CardHeader>
+            <CardTitle>{t('home.usage.title')}</CardTitle>
+            <CardDescription>{t('home.usage.description')}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {usageStats ? (
+              <>
+                {/* 動画保存数 */}
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-sm font-medium">{t('home.usage.videos.label')}</span>
+                    <span className="text-sm text-gray-600">
+                      {usageStats.videos.used} / {usageStats.videos.limit}
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2.5">
+                    <div
+                      className="bg-blue-600 h-2.5 rounded-full"
+                      style={{ width: `${Math.min((usageStats.videos.used / usageStats.videos.limit) * 100, 100)}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Whisper処理時間 */}
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-sm font-medium">{t('home.usage.whisper.label')}</span>
+                    <span className="text-sm text-gray-600">
+                      {Math.round(usageStats.whisper_minutes.used)} / {usageStats.whisper_minutes.limit} {t('home.usage.whisper.unit')}
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2.5">
+                    <div
+                      className="bg-green-600 h-2.5 rounded-full"
+                      style={{ width: `${Math.min((usageStats.whisper_minutes.used / usageStats.whisper_minutes.limit) * 100, 100)}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* チャット回数 */}
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-sm font-medium">{t('home.usage.chats.label')}</span>
+                    <span className="text-sm text-gray-600">
+                      {usageStats.chats.used} / {usageStats.chats.limit}
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2.5">
+                    <div
+                      className="bg-purple-600 h-2.5 rounded-full"
+                      style={{ width: `${Math.min((usageStats.chats.used / usageStats.chats.limit) * 100, 100)}%` }}
+                    />
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="text-center text-gray-500">{t('home.usage.loading')}</div>
+            )}
           </CardContent>
         </Card>
       </div>
