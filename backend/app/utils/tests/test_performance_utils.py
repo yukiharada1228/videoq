@@ -1,17 +1,15 @@
 """
 Tests for performance_utils module
 """
+
 import time
 
 from django.core.cache import cache
 from django.test import TestCase
 
 from app.models import User
-from app.utils.performance_utils import (
-    CacheManager,
-    MemoryOptimizer,
-    PerformanceOptimizer,
-)
+from app.utils.performance_utils import (CacheManager, MemoryOptimizer,
+                                         PerformanceOptimizer)
 
 
 class PerformanceOptimizerTests(TestCase):
@@ -23,6 +21,7 @@ class PerformanceOptimizerTests(TestCase):
 
     def test_measure_time_decorator(self):
         """Test measure_time decorator"""
+
         @PerformanceOptimizer.measure_time
         def test_function():
             time.sleep(0.01)
@@ -45,6 +44,7 @@ class PerformanceOptimizerTests(TestCase):
 
     def test_count_queries_decorator(self):
         """Test count_queries decorator"""
+
         @PerformanceOptimizer.count_queries
         def test_function():
             User.objects.create_user(
@@ -67,6 +67,7 @@ class CacheManagerTests(TestCase):
 
     def test_get_or_set_with_cache_miss(self):
         """Test get_or_set when cache is empty"""
+
         def default_func():
             return "cached_value"
 
@@ -90,10 +91,13 @@ class CacheManagerTests(TestCase):
 
     def test_get_or_set_async_with_cache_miss(self):
         """Test get_or_set_async when cache is empty"""
+
         def default_func():
             return "async_cached_value"
 
-        result = CacheManager.get_or_set_async("test_key_async", default_func, timeout=300)
+        result = CacheManager.get_or_set_async(
+            "test_key_async", default_func, timeout=300
+        )
         self.assertEqual(result, "async_cached_value")
         self.assertEqual(cache.get("test_key_async"), "async_cached_value")
 
@@ -107,7 +111,9 @@ class CacheManagerTests(TestCase):
             call_count[0] += 1
             return "new_async_value"
 
-        result = CacheManager.get_or_set_async("test_key_async", default_func, timeout=300)
+        result = CacheManager.get_or_set_async(
+            "test_key_async", default_func, timeout=300
+        )
         self.assertEqual(result, "existing_async_value")
         self.assertEqual(call_count[0], 0)  # default_func should not be called
 
@@ -154,6 +160,7 @@ class MemoryOptimizerTests(TestCase):
 
     def test_memory_efficient_map(self):
         """Test memory_efficient_map"""
+
         def mapper(x):
             return x * 2
 
@@ -163,6 +170,7 @@ class MemoryOptimizerTests(TestCase):
 
     def test_memory_efficient_map_with_empty_list(self):
         """Test memory_efficient_map with empty list"""
+
         def mapper(x):
             return x * 2
 
@@ -172,10 +180,10 @@ class MemoryOptimizerTests(TestCase):
 
     def test_memory_efficient_map_with_single_chunk(self):
         """Test memory_efficient_map with items fitting in one chunk"""
+
         def mapper(x):
             return x * 2
 
         items = [1, 2]
         result = MemoryOptimizer.memory_efficient_map(items, mapper, chunk_size=10)
         self.assertEqual(result, [2, 4])
-

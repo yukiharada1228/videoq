@@ -1,9 +1,10 @@
-from app.utils.mixins import AuthenticatedViewMixin, PublicViewMixin
 from django.contrib.auth import get_user_model
 from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework_simplejwt.exceptions import InvalidToken
 from rest_framework_simplejwt.tokens import RefreshToken
+
+from app.utils.mixins import AuthenticatedViewMixin, PublicViewMixin
 
 from .serializers import (EmailVerificationSerializer, LoginSerializer,
                           PasswordResetConfirmSerializer,
@@ -156,9 +157,7 @@ class PasswordResetRequestView(PublicAPIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(
-            {
-                "detail": "Password reset email sent. Please check your email."
-            }
+            {"detail": "Password reset email sent. Please check your email."}
         )
 
 

@@ -1,8 +1,9 @@
 import logging
 
+from rest_framework import serializers
+
 from app.models import Video, VideoGroup
 from app.tasks import transcribe_video
-from rest_framework import serializers
 
 logger = logging.getLogger(__name__)
 

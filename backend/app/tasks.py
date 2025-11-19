@@ -9,14 +9,15 @@ import subprocess
 import tempfile
 from concurrent.futures import ThreadPoolExecutor
 
-from app.utils.encryption import decrypt_api_key
-from app.utils.task_helpers import (ErrorHandler, TemporaryFileManager,
-                                    VideoTaskManager)
-from app.utils.vector_manager import PGVectorManager
 from celery import shared_task
 from langchain_openai import OpenAIEmbeddings
 from langchain_postgres import PGVector
 from openai import OpenAI
+
+from app.utils.encryption import decrypt_api_key
+from app.utils.task_helpers import (ErrorHandler, TemporaryFileManager,
+                                    VideoTaskManager)
+from app.utils.vector_manager import PGVectorManager
 
 from .scene_otsu import SceneSplitter, SubtitleParser
 

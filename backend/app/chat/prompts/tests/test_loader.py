@@ -1,6 +1,7 @@
 """
 Tests for prompts/loader module
 """
+
 import json
 import tempfile
 from pathlib import Path
@@ -8,10 +9,8 @@ from unittest.mock import patch
 
 from django.test import TestCase
 
-from app.chat.prompts.loader import (
-    PromptConfigurationError,
-    build_system_prompt,
-)
+from app.chat.prompts.loader import (PromptConfigurationError,
+                                     build_system_prompt)
 
 
 class PromptLoaderTests(TestCase):
@@ -58,6 +57,7 @@ class PromptLoaderTests(TestCase):
             self._write_config(self.valid_config)
             # Clear cache
             from app.chat.prompts.loader import _load_prompt_config
+
             _load_prompt_config.cache_clear()
 
             prompt = build_system_prompt()
@@ -75,6 +75,7 @@ class PromptLoaderTests(TestCase):
         with patch("app.chat.prompts.loader.PROMPTS_PATH", self.prompts_path):
             self._write_config(self.valid_config)
             from app.chat.prompts.loader import _load_prompt_config
+
             _load_prompt_config.cache_clear()
 
             references = ["Reference 1", "Reference 2"]
@@ -90,6 +91,7 @@ class PromptLoaderTests(TestCase):
         with patch("app.chat.prompts.loader.PROMPTS_PATH", self.prompts_path):
             self._write_config(self.valid_config)
             from app.chat.prompts.loader import _load_prompt_config
+
             _load_prompt_config.cache_clear()
 
             prompt = build_system_prompt(references=None)
@@ -101,6 +103,7 @@ class PromptLoaderTests(TestCase):
         with patch("app.chat.prompts.loader.PROMPTS_PATH", self.prompts_path):
             self._write_config(self.valid_config)
             from app.chat.prompts.loader import _load_prompt_config
+
             _load_prompt_config.cache_clear()
 
             prompt = build_system_prompt(references=[])
@@ -121,6 +124,7 @@ class PromptLoaderTests(TestCase):
         with patch("app.chat.prompts.loader.PROMPTS_PATH", self.prompts_path):
             self._write_config(config)
             from app.chat.prompts.loader import _load_prompt_config
+
             _load_prompt_config.cache_clear()
 
             prompt = build_system_prompt(locale="ja")
@@ -129,8 +133,11 @@ class PromptLoaderTests(TestCase):
 
     def test_build_system_prompt_missing_file(self):
         """Test build_system_prompt when prompts.json is missing"""
-        with patch("app.chat.prompts.loader.PROMPTS_PATH", Path("/nonexistent/prompts.json")):
+        with patch(
+            "app.chat.prompts.loader.PROMPTS_PATH", Path("/nonexistent/prompts.json")
+        ):
             from app.chat.prompts.loader import _load_prompt_config
+
             _load_prompt_config.cache_clear()
 
             with self.assertRaises(PromptConfigurationError):
@@ -143,6 +150,7 @@ class PromptLoaderTests(TestCase):
         with patch("app.chat.prompts.loader.PROMPTS_PATH", self.prompts_path):
             self._write_config(config)
             from app.chat.prompts.loader import _load_prompt_config
+
             _load_prompt_config.cache_clear()
 
             with self.assertRaises(PromptConfigurationError):
@@ -162,6 +170,7 @@ class PromptLoaderTests(TestCase):
         with patch("app.chat.prompts.loader.PROMPTS_PATH", self.prompts_path):
             self._write_config(config)
             from app.chat.prompts.loader import _load_prompt_config
+
             _load_prompt_config.cache_clear()
 
             with self.assertRaises(PromptConfigurationError):
@@ -181,6 +190,7 @@ class PromptLoaderTests(TestCase):
         with patch("app.chat.prompts.loader.PROMPTS_PATH", self.prompts_path):
             self._write_config(config)
             from app.chat.prompts.loader import _load_prompt_config
+
             _load_prompt_config.cache_clear()
 
             with self.assertRaises(PromptConfigurationError):
@@ -200,9 +210,9 @@ class PromptLoaderTests(TestCase):
         with patch("app.chat.prompts.loader.PROMPTS_PATH", self.prompts_path):
             self._write_config(config)
             from app.chat.prompts.loader import _load_prompt_config
+
             _load_prompt_config.cache_clear()
 
             prompt = build_system_prompt()
             # Should use default rule
             self.assertIn("1. Follow common-sense safety best practices.", prompt)
-
