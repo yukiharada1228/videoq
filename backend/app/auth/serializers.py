@@ -84,18 +84,6 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ["id", "username", "email"]
 
 
-class UserUpdateSerializer(serializers.ModelSerializer):
-    """Serializer for updating user information"""
-
-    class Meta:
-        model = User
-        fields: tuple[str, ...] = ()  # No user-configurable fields (OpenAI API key is managed by the system)
-
-    def update(self, instance, validated_data):
-        # No fields to update (OpenAI API key is managed by the system)
-        return instance
-
-
 class RefreshSerializer(serializers.Serializer):
     refresh = serializers.CharField()
 

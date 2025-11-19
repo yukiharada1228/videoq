@@ -70,7 +70,7 @@
       "videoFileMissing": "Video file is unavailable",
       "copyFailed": "Copy failed. Please copy it manually.",
       "noHistory": "No history available",
-      "loadingHistory": "Loading...",
+      "loadingHistory": "Loading..."
     }
   },
   "navigation": {
