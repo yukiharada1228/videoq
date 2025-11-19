@@ -9,8 +9,7 @@ from app.auth.serializers import (CredentialsSerializerMixin,
                                   PasswordResetConfirmSerializer,
                                   PasswordResetRequestSerializer,
                                   RefreshSerializer, UserSerializer,
-                                  UserSignupSerializer, UserUpdateSerializer)
-from app.utils.encryption import encrypt_api_key, is_encrypted
+                                  UserSignupSerializer)
 from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import default_token_generator
 from django.core import mail
@@ -167,70 +166,6 @@ class UserSerializerTests(APITestCase):
         self.assertEqual(serializer.data["username"], "testuser")
         self.assertEqual(serializer.data["email"], "test@example.com")
         self.assertIn("id", serializer.data)
-
-
-class UserUpdateSerializerTests(APITestCase):
-    """Tests for UserUpdateSerializer"""
-
-    def setUp(self):
-        self.user = User.objects.create_user(
-            username="testuser",
-            email="test@example.com",
-            password="testpass123",
-        )
-
-    def test_update_with_plain_api_key(self):
-        """Test updating with plain text API key"""
-        plain_key = "sk-test123"
-        serializer = UserUpdateSerializer(
-            self.user, data={"encrypted_openai_api_key": plain_key}
-        )
-        self.assertTrue(serializer.is_valid())
-        serializer.save()
-
-        self.user.refresh_from_db()
-        self.assertTrue(is_encrypted(self.user.encrypted_openai_api_key))
-
-    def test_update_with_encrypted_api_key(self):
-        """Test updating with already encrypted API key"""
-        encrypted_key = encrypt_api_key("sk-test123")
-        serializer = UserUpdateSerializer(
-            self.user, data={"encrypted_openai_api_key": encrypted_key}
-        )
-        self.assertTrue(serializer.is_valid())
-        serializer.save()
-
-        self.user.refresh_from_db()
-        self.assertEqual(self.user.encrypted_openai_api_key, encrypted_key)
-
-    def test_update_with_null(self):
-        """Test updating with null API key"""
-        self.user.encrypted_openai_api_key = encrypt_api_key("sk-test123")
-        self.user.save()
-
-        serializer = UserUpdateSerializer(
-            self.user, data={"encrypted_openai_api_key": None}
-        )
-        self.assertTrue(serializer.is_valid())
-        serializer.save()
-
-        self.user.refresh_from_db()
-        self.assertIsNone(self.user.encrypted_openai_api_key)
-
-    @patch("app.auth.serializers.encrypt_api_key")
-    def test_update_encryption_error(self, mock_encrypt):
-        """Test updating with encryption error"""
-        mock_encrypt.side_effect = Exception("Encryption failed")
-
-        serializer = UserUpdateSerializer(
-            self.user, data={"encrypted_openai_api_key": "sk-test123"}
-        )
-        self.assertTrue(serializer.is_valid())
-
-        with self.assertRaises(serializers.ValidationError) as cm:
-            serializer.save()
-
-        self.assertIn("Failed to encrypt API key", str(cm.exception))
 
 
 class RefreshSerializerTests(APITestCase):

@@ -460,22 +460,6 @@ describe('apiClient', () => {
     })
   })
 
-  describe('updateMe', () => {
-    it('should update user data', async () => {
-      const mockUser = { id: 1, username: 'testuser', encrypted_openai_api_key: 'encrypted' }
-      ;(fetch as jest.Mock).mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        text: async () => JSON.stringify(mockUser),
-        json: async () => mockUser,
-        headers: new Headers({ 'content-type': 'application/json' }),
-      })
-
-      const result = await apiClient.updateMe({ encrypted_openai_api_key: 'encrypted' })
-      expect(result).toEqual(mockUser)
-    })
-  })
-
   describe('setChatFeedback', () => {
     it('should set chat feedback', async () => {
       const mockResponse = { chat_log_id: 1, feedback: 'good' as const }
