@@ -263,8 +263,9 @@ class VideoUploadLimitTestCase(APITestCase):
             email="limituser@example.com",
             password="testpass123",
         )
-        self.user.video_limit = 1
-        self.user.save(update_fields=["video_limit"])
+        # Set to FREE plan (limit: 3 videos)
+        self.user.plan = User.PlanChoices.FREE
+        self.user.save(update_fields=["plan"])
 
         self.client = APIClient()
         self.client.force_authenticate(user=self.user)
@@ -286,13 +287,21 @@ class VideoUploadLimitTestCase(APITestCase):
 
     @patch("app.video.serializers.VideoCreateSerializer._get_video_duration_minutes", return_value=1.0)
     def test_video_creation_respects_limit(self, mock_get_duration):
+        # FREE plan allows 3 videos
         first_response = self._upload_video(title="Video 1")
         self.assertEqual(first_response.status_code, status.HTTP_201_CREATED)
 
         second_response = self._upload_video(title="Video 2")
-        self.assertEqual(second_response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("detail", second_response.data)
-        self.assertEqual(Video.objects.filter(user=self.user).count(), 1)
+        self.assertEqual(second_response.status_code, status.HTTP_201_CREATED)
+
+        third_response = self._upload_video(title="Video 3")
+        self.assertEqual(third_response.status_code, status.HTTP_201_CREATED)
+
+        # Fourth video should fail (FREE plan limit is 3)
+        fourth_response = self._upload_video(title="Video 4")
+        self.assertEqual(fourth_response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("detail", fourth_response.data)
+        self.assertEqual(Video.objects.filter(user=self.user).count(), 3)
 
 
 class VideoListViewTests(APITestCase):
@@ -557,7 +566,7 @@ class ReorderVideosTests(APITestCase):
 
 
 class WhisperUsageLimitTestCase(APITestCase):
-    """Tests for Whisper monthly usage limit (1,200 minutes = 20 hours)"""
+    """Tests for Whisper monthly usage limit (based on plan)"""
 
     def setUp(self):
         self.user = User.objects.create_user(
@@ -565,6 +574,9 @@ class WhisperUsageLimitTestCase(APITestCase):
             email="whisperuser@example.com",
             password="testpass123",
         )
+        # Set to PRO plan (limit: 1200 minutes)
+        self.user.plan = User.PlanChoices.PRO
+        self.user.save(update_fields=["plan"])
         self.client = APIClient()
         self.client.force_authenticate(user=self.user)
         self.url = reverse("video-list")

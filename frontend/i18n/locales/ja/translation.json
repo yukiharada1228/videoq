@@ -122,6 +122,14 @@
       "title": "使用状況",
       "description": "現在の使用量と制限",
       "loading": "読み込み中...",
+      "plan": {
+        "label": "プラン",
+        "free": "フリープラン",
+        "pro": "プロプラン",
+        "change": "プランを変更",
+        "changing": "変更中...",
+        "success": "プランを変更しました"
+      },
       "videos": {
         "label": "動画保存数（全期間）"
       },
