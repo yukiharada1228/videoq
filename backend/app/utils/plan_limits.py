@@ -4,11 +4,19 @@ Plan limit utilities
 This module provides functions to get plan-specific limits for users.
 """
 
+from typing import Any, Dict, TypedDict
+
 from app.models import User
 
 
+class PlanLimitDict(TypedDict):
+    video_limit: int
+    whisper_minutes_limit: float
+    chat_limit: int
+
+
 # Plan limit definitions
-PLAN_LIMITS = {
+PLAN_LIMITS: Dict[Any, PlanLimitDict] = {
     User.PlanChoices.FREE: {
         "video_limit": 3,  # Maximum number of videos (all time)
         "whisper_minutes_limit": 10.0,  # Maximum Whisper processing time per month (minutes)
