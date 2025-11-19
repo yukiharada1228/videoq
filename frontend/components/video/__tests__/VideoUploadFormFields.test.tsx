@@ -11,6 +11,8 @@ describe('VideoUploadFormFields', () => {
     setTitle: jest.fn(),
     setDescription: jest.fn(),
     handleFileChange: jest.fn(),
+    youtubeUrl: '',
+    setYoutubeUrl: jest.fn(),
   }
 
   beforeEach(() => {
@@ -18,7 +20,11 @@ describe('VideoUploadFormFields', () => {
   })
 
   it('should render form fields', () => {
-    render(<VideoUploadFormFields {...defaultProps} />)
+    render(<VideoUploadFormFields {...defaultProps} file={new File(['content'], 'test.mp4', { type: 'video/mp4' })} />)
+    
+    // Switch to file mode by clicking the file radio button
+    const fileRadio = screen.getByLabelText(/videos.upload.uploadTypeFile/)
+    fireEvent.click(fileRadio)
     
     expect(screen.getByLabelText(/videos.upload.fileLabel/)).toBeInTheDocument()
     expect(screen.getByLabelText(/videos.upload.titleLabel/)).toBeInTheDocument()
@@ -46,6 +52,10 @@ describe('VideoUploadFormFields', () => {
   it('should call handleFileChange when file changes', () => {
     render(<VideoUploadFormFields {...defaultProps} />)
     
+    // Switch to file mode by clicking the file radio button
+    const fileRadio = screen.getByLabelText(/videos.upload.uploadTypeFile/)
+    fireEvent.click(fileRadio)
+    
     const fileInput = screen.getByLabelText(/videos.upload.fileLabel/)
     const file = new File(['content'], 'test.mp4', { type: 'video/mp4' })
     fireEvent.change(fileInput, { target: { files: [file] } })
@@ -66,7 +76,11 @@ describe('VideoUploadFormFields', () => {
   })
 
   it('should disable inputs when uploading', () => {
-    render(<VideoUploadFormFields {...defaultProps} isUploading={true} />)
+    render(<VideoUploadFormFields {...defaultProps} isUploading={true} file={new File(['content'], 'test.mp4', { type: 'video/mp4' })} />)
+    
+    // Switch to file mode by clicking the file radio button
+    const fileRadio = screen.getByLabelText(/videos.upload.uploadTypeFile/)
+    fireEvent.click(fileRadio)
     
     const fileInput = screen.getByLabelText(/videos.upload.fileLabel/)
     const titleInput = screen.getByLabelText(/videos.upload.titleLabel/)
@@ -109,7 +123,9 @@ describe('VideoUploadFormFields', () => {
   it('should hide buttons when hideButtons is true', () => {
     render(<VideoUploadFormFields {...defaultProps} hideButtons={true} />)
     
-    expect(screen.queryByText(/videos.upload.upload/)).not.toBeInTheDocument()
+    // Check for upload button specifically (not the uploadTypeLabel)
+    const uploadButton = screen.queryByRole('button', { name: /videos.upload.upload/ })
+    expect(uploadButton).not.toBeInTheDocument()
   })
 })
 
