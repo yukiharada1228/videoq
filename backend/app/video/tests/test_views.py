@@ -1,4 +1,5 @@
-from unittest.mock import patch
+import subprocess
+from unittest.mock import MagicMock, patch
 
 from app.models import Video, VideoGroup, VideoGroupMember
 from django.contrib.auth import get_user_model
@@ -553,3 +554,186 @@ class ReorderVideosTests(APITestCase):
         self.assertEqual(member1.order, 1)
         self.assertEqual(member2.order, 2)
         self.assertEqual(member3.order, 0)
+
+
+class WhisperUsageLimitTestCase(APITestCase):
+    """Tests for Whisper monthly usage limit (1,200 minutes = 20 hours)"""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="whisperuser",
+            email="whisperuser@example.com",
+            password="testpass123",
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+        self.url = reverse("video-list")
+
+    @patch("app.video.serializers.subprocess.run")
+    @patch("app.video.serializers.os.path.exists")
+    def test_whisper_usage_limit_enforced(self, mock_exists, mock_subprocess):
+        """Test that Whisper usage limit is enforced when uploading videos"""
+        # Mock ffprobe to return a video duration of 601 minutes (to exceed limit)
+        mock_exists.return_value = True
+        mock_result = MagicMock()
+        mock_result.stdout = '{"format":{"duration":"36060.0"}}'  # 601 minutes = 36060 seconds
+        mock_result.returncode = 0
+        mock_result.check_returncode = MagicMock()  # For check=True parameter
+        mock_subprocess.return_value = mock_result
+
+        # Create a video with 600 minutes already used this month
+        from django.utils import timezone
+        from datetime import timedelta
+
+        now = timezone.now()
+        first_day_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+        # Create a video with 600 minutes duration
+        existing_video = Video.objects.create(
+            user=self.user,
+            title="Existing Video",
+            description="Test",
+            status="completed",
+            duration_minutes=600.0,
+            uploaded_at=first_day_of_month + timedelta(days=1),
+        )
+
+        # Try to upload a video that would exceed the limit (600 + 601 = 1201 > 1200)
+        file_content = b"dummy video content"
+        upload_file = SimpleUploadedFile(
+            "test_video.mp4",
+            file_content,
+            content_type="video/mp4",
+        )
+        data = {
+            "file": upload_file,
+            "title": "New Video",
+            "description": "Test description",
+        }
+
+        response = self.client.post(self.url, data, format="multipart")
+
+        # Should fail with validation error
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("detail", response.data)
+        self.assertIn("Monthly Whisper usage limit", str(response.data["detail"]))
+
+        # Video should be deleted
+        self.assertFalse(Video.objects.filter(title="New Video").exists())
+
+    @patch("app.video.serializers.subprocess.run")
+    @patch("app.video.serializers.os.path.exists")
+    def test_whisper_usage_limit_within_limit(self, mock_exists, mock_subprocess):
+        """Test that video upload succeeds when within Whisper usage limit"""
+        # Mock ffprobe to return a video duration of 100 minutes
+        mock_exists.return_value = True
+        mock_result = MagicMock()
+        mock_result.stdout = '{"format":{"duration":"6000.0"}}'  # 100 minutes = 6000 seconds
+        mock_result.returncode = 0
+        mock_result.check_returncode = MagicMock()  # For check=True parameter
+        mock_subprocess.return_value = mock_result
+
+        # Create a video with 500 minutes already used this month
+        from django.utils import timezone
+        from datetime import timedelta
+
+        now = timezone.now()
+        first_day_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+        existing_video = Video.objects.create(
+            user=self.user,
+            title="Existing Video",
+            description="Test",
+            status="completed",
+            duration_minutes=500.0,
+            uploaded_at=first_day_of_month + timedelta(days=1),
+        )
+
+        # Upload a video with 100 minutes (500 + 100 = 600, which is < 1200)
+        file_content = b"dummy video content"
+        upload_file = SimpleUploadedFile(
+            "test_video.mp4",
+            file_content,
+            content_type="video/mp4",
+        )
+        data = {
+            "file": upload_file,
+            "title": "New Video",
+            "description": "Test description",
+        }
+
+        response = self.client.post(self.url, data, format="multipart")
+
+        # Should succeed
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    @patch("app.video.serializers.subprocess.run")
+    @patch("app.video.serializers.os.path.exists")
+    def test_whisper_usage_limit_only_counts_current_month(self, mock_exists, mock_subprocess):
+        """Test that only videos from current month are counted"""
+        # Mock ffprobe to return a video duration of 100 minutes
+        mock_exists.return_value = True
+        mock_result = MagicMock()
+        mock_result.stdout = '{"format":{"duration":"6000.0"}}'  # 100 minutes = 6000 seconds
+        mock_result.returncode = 0
+        mock_result.check_returncode = MagicMock()  # For check=True parameter
+        mock_subprocess.return_value = mock_result
+
+        from django.utils import timezone
+        from datetime import timedelta
+
+        # Create a video from last month (should not be counted)
+        last_month = timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0) - timedelta(days=1)
+        last_month_first_day = last_month.replace(day=1)
+
+        existing_video = Video.objects.create(
+            user=self.user,
+            title="Last Month Video",
+            description="Test",
+            status="completed",
+            duration_minutes=1200.0,  # This should not count
+            uploaded_at=last_month_first_day + timedelta(days=1),
+        )
+
+        # Upload a video with 100 minutes (should succeed because last month's video doesn't count)
+        file_content = b"dummy video content"
+        upload_file = SimpleUploadedFile(
+            "test_video.mp4",
+            file_content,
+            content_type="video/mp4",
+        )
+        data = {
+            "file": upload_file,
+            "title": "New Video",
+            "description": "Test description",
+        }
+
+        response = self.client.post(self.url, data, format="multipart")
+
+        # Should succeed because last month's usage doesn't count
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    @patch("app.video.serializers.subprocess.run")
+    def test_get_video_duration_handles_ffprobe_error(self, mock_subprocess):
+        """Test that video upload continues even if duration check fails"""
+        # Mock ffprobe to raise an error
+        mock_subprocess.side_effect = subprocess.CalledProcessError(1, "ffprobe")
+
+        file_content = b"dummy video content"
+        upload_file = SimpleUploadedFile(
+            "test_video.mp4",
+            file_content,
+            content_type="video/mp4",
+        )
+        data = {
+            "file": upload_file,
+            "title": "New Video",
+            "description": "Test description",
+        }
+
+        response = self.client.post(self.url, data, format="multipart")
+
+        # Should still succeed (duration check failure is logged but doesn't block upload)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        video = Video.objects.get(title="New Video")
+        self.assertIsNone(video.duration_minutes)  # Duration should be None if check failed
