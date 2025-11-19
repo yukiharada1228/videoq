@@ -17,10 +17,6 @@ class User(AbstractUser):
         PRO = "PRO", "Pro"
 
     email = models.EmailField("email address", unique=True)
-    video_limit = models.PositiveIntegerField(
-        default=50,
-        help_text="Maximum number of videos a user can keep. Can be changed from the admin panel if needed.",
-    )
     plan = models.CharField(
         max_length=10,
         choices=PlanChoices.choices,
