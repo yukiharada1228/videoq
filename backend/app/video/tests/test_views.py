@@ -589,7 +589,7 @@ class WhisperUsageLimitTestCase(APITestCase):
         first_day_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
         # Create a video with 600 minutes duration
-        existing_video = Video.objects.create(
+        Video.objects.create(
             user=self.user,
             title="Existing Video",
             description="Test",
@@ -640,7 +640,7 @@ class WhisperUsageLimitTestCase(APITestCase):
         now = timezone.now()
         first_day_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
-        existing_video = Video.objects.create(
+        Video.objects.create(
             user=self.user,
             title="Existing Video",
             description="Test",
@@ -686,7 +686,7 @@ class WhisperUsageLimitTestCase(APITestCase):
         last_month = timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0) - timedelta(days=1)
         last_month_first_day = last_month.replace(day=1)
 
-        existing_video = Video.objects.create(
+        Video.objects.create(
             user=self.user,
             title="Last Month Video",
             description="Test",
