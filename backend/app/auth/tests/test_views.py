@@ -491,15 +491,15 @@ class UsageStatsViewTests(APITestCase):
         self.assertEqual(response.data["chats"]["used"], 2)
 
     def test_get_usage_stats_with_different_video_limit(self):
-        """Test getting usage statistics with different video_limit"""
-        # Update user's video_limit
-        self.user.video_limit = 100
+        """Test getting usage statistics with different plan (Pro plan has different video_limit)"""
+        # Update user's plan to Pro (which has video_limit of 50)
+        self.user.plan = User.PlanChoices.PRO
         self.user.save()
 
         response = self.client.get(self.url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["videos"]["limit"], 100)
+        self.assertEqual(response.data["videos"]["limit"], 50)  # Pro plan has 50 video limit
 
     def test_get_usage_stats_whisper_usage_none_aggregate(self):
         """Test Whisper usage when aggregate returns None (no videos this month with duration)"""
