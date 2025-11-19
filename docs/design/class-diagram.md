@@ -12,7 +12,6 @@ classDiagram
         +int id
         +string username
         +string email
-        +string encrypted_openai_api_key
         +int video_limit
         +datetime date_joined
         +bool is_active
@@ -30,6 +29,7 @@ classDiagram
         +string transcript
         +string status
         +string error_message
+        +float duration_minutes
         +bool is_external_upload
         +__str__()
     }
@@ -160,7 +160,6 @@ classDiagram
     }
     
     class ChatPanel {
-        +bool hasApiKey
         +int groupId
         +function onVideoPlay
         +string shareToken

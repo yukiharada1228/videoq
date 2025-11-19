@@ -20,8 +20,7 @@ Table that stores user information for the system.
 | username | VARCHAR(150) | UNIQUE, NOT NULL | - | Username |
 | email | VARCHAR(255) | UNIQUE, NOT NULL | - | Email address |
 | password | VARCHAR(128) | NOT NULL | - | Hashed password |
-| encrypted_openai_api_key | TEXT | NULL | NULL | Encrypted OpenAI API key |
-| video_limit | INTEGER | NOT NULL | 10 | Maximum number of videos a user can keep |
+| video_limit | INTEGER | NOT NULL | 50 | Maximum number of videos a user can keep |
 | date_joined | DATETIME | NOT NULL | now() | Registration date and time |
 | last_login | DATETIME | NULL | NULL | Last login date and time |
 | is_active | BOOLEAN | NOT NULL | False | Active status (email verified or not) |
@@ -63,6 +62,7 @@ Table that stores information about uploaded videos.
 | transcript | TEXT | NOT NULL | '' | Transcription result (SRT format) |
 | status | VARCHAR(20) | NOT NULL | 'pending' | Processing status |
 | error_message | TEXT | NOT NULL | '' | Error message (when error occurs) |
+| duration_minutes | FLOAT | NULL | NULL | Video duration in minutes (for Whisper usage tracking) |
 | is_external_upload | BOOLEAN | NOT NULL | False | Whether uploaded via external API |
 
 ### status Values
