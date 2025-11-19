@@ -347,7 +347,7 @@ class UsageStatsViewTests(APITestCase):
 
     def test_get_usage_stats_with_shared_origin_chat(self):
         """Test getting usage statistics including shared origin chats"""
-        from app.models import ChatLog, VideoGroup
+        from app.models import ChatLog
 
         # Create another user who will access via share
         other_user = User.objects.create_user(
@@ -403,7 +403,7 @@ class UsageStatsViewTests(APITestCase):
         )
 
         # Create data for other user
-        other_video = Video.objects.create(
+        Video.objects.create(
             user=other_user,
             title="Other User Video",
             description="Test",
@@ -414,7 +414,7 @@ class UsageStatsViewTests(APITestCase):
             name="Other Group",
             description="Test",
         )
-        other_chat = ChatLog.objects.create(
+        ChatLog.objects.create(
             user=other_user,
             group=other_group,
             question="Other question",
