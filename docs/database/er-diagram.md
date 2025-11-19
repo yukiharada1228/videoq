@@ -20,7 +20,6 @@ erDiagram
         string username UK
         string email UK
         string password
-        string encrypted_openai_api_key
         int video_limit
         datetime date_joined
         datetime last_login
@@ -41,6 +40,7 @@ erDiagram
         text transcript
         string status
         text error_message
+        float duration_minutes
         bool is_external_upload
     }
     

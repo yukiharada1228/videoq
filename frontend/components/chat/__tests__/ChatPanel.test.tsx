@@ -29,19 +29,13 @@ describe('ChatPanel', () => {
   })
 
   it('should render greeting message', () => {
-    render(<ChatPanel hasApiKey={true} />)
+    render(<ChatPanel />)
     
     expect(screen.getByText(/chat.assistantGreeting/)).toBeInTheDocument()
   })
 
-  it('should display no API key message when hasApiKey is false', () => {
-    render(<ChatPanel hasApiKey={false} />)
-    
-    expect(screen.getByText(/common.messages.noApiKey/)).toBeInTheDocument()
-  })
-
   it('should send message when form is submitted', async () => {
-    render(<ChatPanel hasApiKey={true} />)
+    render(<ChatPanel />)
     
     const input = screen.getByPlaceholderText(/chat.placeholder/)
     const sendButton = screen.getByText(/common.actions.send/)
@@ -57,7 +51,7 @@ describe('ChatPanel', () => {
   })
 
   it('should not send message when input is empty', async () => {
-    render(<ChatPanel hasApiKey={true} />)
+    render(<ChatPanel />)
     
     const sendButton = screen.getByText(/common.actions.send/)
 
@@ -71,7 +65,7 @@ describe('ChatPanel', () => {
   it('should open history when history button is clicked', async () => {
     ;(apiClient.getChatHistory as jest.Mock).mockResolvedValue([])
     
-    render(<ChatPanel hasApiKey={true} groupId={1} />)
+    render(<ChatPanel groupId={1} />)
     
     const historyButton = screen.getByText(/chat.history/)
     
@@ -85,7 +79,7 @@ describe('ChatPanel', () => {
   })
 
   it('should not show history button when shareToken is provided', () => {
-    render(<ChatPanel hasApiKey={true} groupId={1} shareToken="token123" />)
+    render(<ChatPanel groupId={1} shareToken="token123" />)
     
     expect(screen.queryByText(/chat.history/)).not.toBeInTheDocument()
   })
@@ -106,7 +100,7 @@ describe('ChatPanel', () => {
       feedback: null,
     })
 
-    render(<ChatPanel hasApiKey={true} onVideoPlay={onVideoPlay} />)
+    render(<ChatPanel  onVideoPlay={onVideoPlay} />)
     
     const input = screen.getByPlaceholderText(/chat.placeholder/)
     const sendButton = screen.getByText(/common.actions.send/)
@@ -144,7 +138,7 @@ describe('ChatPanel', () => {
       feedback: null,
     })
 
-    render(<ChatPanel hasApiKey={true} />)
+    render(<ChatPanel  />)
     
     const input = screen.getByPlaceholderText(/chat.placeholder/)
     const sendButton = screen.getByText(/common.actions.send/)
@@ -168,7 +162,7 @@ describe('ChatPanel', () => {
   })
 
   it('should send message when Enter key is pressed', async () => {
-    render(<ChatPanel hasApiKey={true} />)
+    render(<ChatPanel  />)
     
     const input = screen.getByPlaceholderText(/chat.placeholder/)
 
@@ -183,7 +177,7 @@ describe('ChatPanel', () => {
   })
 
   it('should not send message when Shift+Enter is pressed', async () => {
-    render(<ChatPanel hasApiKey={true} />)
+    render(<ChatPanel  />)
     
     const input = screen.getByPlaceholderText(/chat.placeholder/)
 
@@ -208,7 +202,7 @@ describe('ChatPanel', () => {
       feedback: 'good',
     })
 
-    render(<ChatPanel hasApiKey={true} />)
+    render(<ChatPanel  />)
     
     const input = screen.getByPlaceholderText(/chat.placeholder/)
     const sendButton = screen.getByText(/common.actions.send/)
@@ -245,7 +239,7 @@ describe('ChatPanel', () => {
       feedback: 'bad',
     })
 
-    render(<ChatPanel hasApiKey={true} />)
+    render(<ChatPanel  />)
     
     const input = screen.getByPlaceholderText(/chat.placeholder/)
     const sendButton = screen.getByText(/common.actions.send/)
@@ -282,7 +276,7 @@ describe('ChatPanel', () => {
       feedback: null,
     })
 
-    render(<ChatPanel hasApiKey={true} />)
+    render(<ChatPanel  />)
     
     const input = screen.getByPlaceholderText(/chat.placeholder/)
     const sendButton = screen.getByText(/common.actions.send/)
@@ -321,7 +315,7 @@ describe('ChatPanel', () => {
     ]
     ;(apiClient.getChatHistory as jest.Mock).mockResolvedValue(mockHistory)
     
-    render(<ChatPanel hasApiKey={true} groupId={1} />)
+    render(<ChatPanel  groupId={1} />)
     
     const historyButton = screen.getByText(/chat.history/)
     
@@ -338,7 +332,7 @@ describe('ChatPanel', () => {
   it('should close history when close button is clicked', async () => {
     ;(apiClient.getChatHistory as jest.Mock).mockResolvedValue([])
     
-    render(<ChatPanel hasApiKey={true} groupId={1} />)
+    render(<ChatPanel  groupId={1} />)
     
     const historyButton = screen.getByText(/chat.history/)
     
@@ -376,7 +370,7 @@ describe('ChatPanel', () => {
     ;(apiClient.getChatHistory as jest.Mock).mockResolvedValue(mockHistory)
     ;(apiClient.exportChatHistoryCsv as jest.Mock).mockResolvedValue(undefined)
     
-    render(<ChatPanel hasApiKey={true} groupId={1} />)
+    render(<ChatPanel  groupId={1} />)
     
     const historyButton = screen.getByText(/chat.history/)
     
@@ -413,7 +407,7 @@ describe('ChatPanel', () => {
   it('should display error message when chat fails', async () => {
     ;(apiClient.chat as jest.Mock).mockRejectedValue(new Error('Chat failed'))
 
-    render(<ChatPanel hasApiKey={true} />)
+    render(<ChatPanel  />)
     
     const input = screen.getByPlaceholderText(/chat.placeholder/)
     const sendButton = screen.getByText(/common.actions.send/)
@@ -433,7 +427,7 @@ describe('ChatPanel', () => {
       () => new Promise(resolve => setTimeout(() => resolve([]), 100))
     )
     
-    render(<ChatPanel hasApiKey={true} groupId={1} />)
+    render(<ChatPanel  groupId={1} />)
     
     const historyButton = screen.getByText(/chat.history/)
     
@@ -448,7 +442,7 @@ describe('ChatPanel', () => {
     const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
     ;(apiClient.getChatHistory as jest.Mock).mockRejectedValue(new Error('Failed to load history'))
     
-    render(<ChatPanel hasApiKey={true} groupId={1} />)
+    render(<ChatPanel  groupId={1} />)
     
     const historyButton = screen.getByText(/chat.history/)
     
@@ -480,7 +474,7 @@ describe('ChatPanel', () => {
     ;(apiClient.getChatHistory as jest.Mock).mockResolvedValue(mockHistory)
     ;(apiClient.exportChatHistoryCsv as jest.Mock).mockRejectedValue(new Error('Failed to export CSV'))
     
-    render(<ChatPanel hasApiKey={true} groupId={1} />)
+    render(<ChatPanel  groupId={1} />)
     
     const historyButton = screen.getByText(/chat.history/)
     
@@ -519,7 +513,7 @@ describe('ChatPanel', () => {
     })
     ;(apiClient.setChatFeedback as jest.Mock).mockRejectedValue(new Error('Failed to update feedback'))
 
-    render(<ChatPanel hasApiKey={true} />)
+    render(<ChatPanel  />)
     
     const input = screen.getByPlaceholderText(/chat.placeholder/)
     const sendButton = screen.getByText(/common.actions.send/)
@@ -546,7 +540,7 @@ describe('ChatPanel', () => {
   })
 
   it('should not send message when Enter key is pressed during composition', async () => {
-    render(<ChatPanel hasApiKey={true} />)
+    render(<ChatPanel  />)
     
     const input = screen.getByPlaceholderText(/chat.placeholder/)
 
@@ -588,7 +582,7 @@ describe('ChatPanel', () => {
     ]
     ;(apiClient.getChatHistory as jest.Mock).mockResolvedValue(mockHistory)
     
-    render(<ChatPanel hasApiKey={true} groupId={1} />)
+    render(<ChatPanel  groupId={1} />)
     
     const historyButton = screen.getByText(/chat.history/)
     

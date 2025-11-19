@@ -13,11 +13,8 @@ from storages.backends.s3boto3 import S3Boto3Storage
 
 class User(AbstractUser):
     email = models.EmailField("email address", unique=True)
-    encrypted_openai_api_key = models.TextField(
-        blank=True, null=True, help_text="Encrypted OpenAI API key"
-    )
     video_limit = models.PositiveIntegerField(
-        default=10,
+        default=50,
         help_text="Maximum number of videos a user can keep. Can be changed from the admin panel if needed.",
     )
 
@@ -129,6 +126,11 @@ class Video(models.Model):
     transcript = models.TextField(blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
     error_message = models.TextField(blank=True)
+    duration_minutes = models.FloatField(
+        null=True,
+        blank=True,
+        help_text="Video duration in minutes (for Whisper usage tracking)",
+    )
     is_external_upload = models.BooleanField(
         default=False,
         help_text="Whether this is an upload from an external API client (file will be deleted after processing)",

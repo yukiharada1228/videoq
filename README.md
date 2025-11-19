@@ -342,7 +342,6 @@ docker-compose exec postgres psql -U $POSTGRES_USER -d $POSTGRES_DB
 - `POST /api/auth/logout/` - Logout
 - `POST /api/auth/refresh/` - Token refresh
 - `GET /api/auth/me/` - Current user info
-- `PATCH /api/auth/me/` - Update user info (save OpenAI API key)
 - `POST /api/auth/password-reset/` - Request password reset
 - `POST /api/auth/password-reset/confirm/` - Confirm password reset
 
@@ -425,12 +424,6 @@ curl -X POST "$BASE_URL/api/auth/refresh/" \
 
 # Get current user
 curl -H "Authorization: Bearer $ACCESS" "$BASE_URL/api/auth/me/"
-
-# Update user (save OpenAI key, stored encrypted)
-curl -X PATCH "$BASE_URL/api/auth/me/" \
-  -H "Authorization: Bearer $ACCESS" \
-  -H "Content-Type: application/json" \
-  -d '{"encrypted_openai_api_key":"sk-xxxx"}'
 
 # Request password reset
 curl -X POST "$BASE_URL/api/auth/password-reset/" \
@@ -555,7 +548,7 @@ curl -X POST "$BASE_URL/api/chat/feedback/" \
 
 Notes:
 - If you pass `group_id`, vector search (RAG) is limited to videos in that group.
-- Save your OpenAI API key via a `PATCH` request to `/api/auth/me/` (`encrypted_openai_api_key`).
+- OpenAI API key is managed by the system (not user-configurable).
 - Chat is also available with a share token (use the `share_token` query parameter).
 - Do not send a `system` message; the backend constructs the system prompt internally. Only the latest `user` message in `messages` is used.
 

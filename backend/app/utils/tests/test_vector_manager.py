@@ -5,11 +5,10 @@ Tests for vector_manager module
 import os
 from unittest.mock import MagicMock, patch
 
-from django.test import TestCase
-
 from app.utils.vector_manager import (PGVectorManager, delete_video_vectors,
                                       delete_video_vectors_batch,
                                       update_video_title_in_vectors)
+from django.test import TestCase
 
 
 class PGVectorManagerTests(TestCase):

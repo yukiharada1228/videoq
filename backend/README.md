@@ -127,13 +127,10 @@ POST /api/auth/login/
 }
 ```
 
-4. **Set OpenAI API key** (stored encrypted):
+4. **Get current user info:**
 ```bash
-PATCH /api/auth/me/
+GET /api/auth/me/
 Authorization: Bearer <access_token>
-{
-  "encrypted_openai_api_key": "sk-xxxx"
-}
 ```
 
 ### Video Management
@@ -386,9 +383,9 @@ docker-compose logs -f celery-worker
 
 ### Transcription task fails
 
-1. **Ensure user's OpenAI API key is set:**
-   - User must set `encrypted_openai_api_key` via `PATCH /api/auth/me/`
-   - Check in Django shell: `User.objects.get(username='...').encrypted_openai_api_key`
+1. **Ensure OpenAI API key is configured (system administrator):**
+   - Set `OPENAI_API_KEY` environment variable in your deployment configuration
+   - This is a system-level setting, not user-configurable
 
 2. **Validate API key:**
    - Test the API key directly with OpenAI API

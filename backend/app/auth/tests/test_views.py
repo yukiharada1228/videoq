@@ -234,39 +234,9 @@ class MeViewTests(APITestCase):
         self.assertEqual(response.data["username"], "testuser")
         self.assertEqual(response.data["email"], "test@example.com")
 
-    def test_update_current_user_api_key(self):
-        """Test updating current user API key"""
-        plain_key = "sk-test123"
-        data = {"encrypted_openai_api_key": plain_key}
-        response = self.client.patch(self.url, data, format="json")
-
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.user.refresh_from_db()
-        self.assertIsNotNone(self.user.encrypted_openai_api_key)
-
-    def test_update_current_user_put(self):
-        """Test updating current user with PUT method"""
-        plain_key = "sk-test123"
-        data = {"encrypted_openai_api_key": plain_key}
-        response = self.client.put(self.url, data, format="json")
-
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.user.refresh_from_db()
-        self.assertIsNotNone(self.user.encrypted_openai_api_key)
-
     def test_get_current_user_unauthenticated(self):
         """Test getting current user without authentication"""
         self.client.force_authenticate(user=None)
         response = self.client.get(self.url)
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-
-    def test_update_current_user_patch(self):
-        """Test updating current user with PATCH method"""
-        data = {"encrypted_openai_api_key": "sk-test123"}
-
-        response = self.client.patch(self.url, data, format="json")
-
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.user.refresh_from_db()
-        self.assertIsNotNone(self.user.encrypted_openai_api_key)

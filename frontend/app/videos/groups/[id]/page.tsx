@@ -907,7 +907,6 @@ export default function VideoGroupDetailPage() {
           {/* 右側：チャット */}
           <div className={`flex-col min-h-0 ${mobileTab === 'chat' ? 'flex' : 'hidden lg:flex'}`}>
             <ChatPanel
-              hasApiKey={!!user?.encrypted_openai_api_key}
               groupId={groupId ?? undefined}
               onVideoPlay={handleVideoPlayFromTime}
               className="h-[500px] lg:h-[600px]"

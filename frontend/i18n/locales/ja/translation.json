@@ -17,7 +17,6 @@
       "uploading": "アップロード中...",
       "send": "送信",
       "sending": "送信中...",
-      "setApiKey": "API キーを設定",
       "generate": "生成",
       "generating": "生成中...",
       "disable": "無効化",
@@ -36,7 +35,6 @@
       "email": "メールアドレス",
       "password": "パスワード",
       "passwordConfirmation": "パスワード（確認）",
-      "apiKey": "OpenAI API キー",
       "description": "説明",
       "status": "ステータス",
       "uploadedAt": "アップロード日時",
@@ -61,8 +59,6 @@
       "transcriptionUnavailable": "文字起こしはまだ利用できません。",
       "transcriptionError": "文字起こしの処理中にエラーが発生しました。",
       "browserNoVideoSupport": "お使いのブラウザは動画タグをサポートしていません。",
-      "apiKeyConfigured": "API キー設定済み",
-      "apiKeyMissing": "API キーを設定",
       "noVideos": "動画がありません",
       "addVideosHint": "上部の「動画をアップロード」ボタンから動画を追加できます。",
       "noGroups": "チャットグループがありません",
@@ -74,9 +70,7 @@
       "videoFileMissing": "動画ファイルがありません",
       "copyFailed": "コピーに失敗しました。手動でコピーしてください。",
       "noHistory": "履歴はありません",
-      "loadingHistory": "読込中...",
-      "noApiKey": "API キーが設定されていません",
-      "setApiKeyPrompt": "設定ページで API キーを設定してください。"
+      "loadingHistory": "読込中..."
     }
   },
   "navigation": {
@@ -122,8 +116,7 @@
     },
     "account": {
       "username": "ユーザー名",
-      "apiKeySet": "✓ API キー設定済み",
-      "apiKeyMissing": "API キーを設定"
+      "serviceReady": "✓ サービス利用可能"
     }
   },
   "videos": {
@@ -354,13 +347,14 @@
   },
   "settings": {
     "title": "設定",
-    "description": "OpenAI APIキーを設定します。",
-    "label": "OpenAI API キー",
-    "helper": "OpenAI APIキーを入力してください。この情報は暗号化して保存されます。",
-    "success": "設定を保存しました。",
-    "error": "設定の保存に失敗しました。",
-    "submit": "保存",
-    "submitting": "保存中..."
+    "description": "サービス設定と使用量制限",
+    "info": "OpenAI APIキーは運営側で管理されています。安心してお使いいただけます。",
+    "usageLimits": {
+      "title": "使用量制限",
+      "videos": "動画の保存数: 最大50本",
+      "whisper": "Whisper処理時間: 月間20時間（1,200分）",
+      "chat": "チャット回数: 月間3,000回"
+    }
   },
   "chat": {
     "title": "チャット",

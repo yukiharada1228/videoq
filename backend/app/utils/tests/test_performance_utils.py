@@ -4,12 +4,11 @@ Tests for performance_utils module
 
 import time
 
-from django.core.cache import cache
-from django.test import TestCase
-
 from app.models import User
 from app.utils.performance_utils import (CacheManager, MemoryOptimizer,
                                          PerformanceOptimizer)
+from django.core.cache import cache
+from django.test import TestCase
 
 
 class PerformanceOptimizerTests(TestCase):
