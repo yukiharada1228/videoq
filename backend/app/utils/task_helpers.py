@@ -8,8 +8,9 @@ import tempfile
 from contextlib import contextmanager
 from typing import Any, List, Optional, Tuple
 
-from app.models import Video
 from django.db import transaction
+
+from app.models import Video
 
 logger = logging.getLogger(__name__)
 

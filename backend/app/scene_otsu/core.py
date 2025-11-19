@@ -23,7 +23,9 @@ class OpenAIEmbedder:
 
     def get_embeddings(self, texts: List[str], max_tokens: int = 200) -> np.ndarray:
         all_embeddings = []
-        for i in tqdm(range(0, len(texts), self.batch_size), desc="Generating embeddings"):
+        for i in tqdm(
+            range(0, len(texts), self.batch_size), desc="Generating embeddings"
+        ):
             batch = texts[i : i + self.batch_size]
             response = self.client.embeddings.create(
                 model=self.model,

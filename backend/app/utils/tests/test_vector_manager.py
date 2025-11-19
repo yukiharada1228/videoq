@@ -1,17 +1,15 @@
 """
 Tests for vector_manager module
 """
+
 import os
 from unittest.mock import MagicMock, patch
 
 from django.test import TestCase
 
-from app.utils.vector_manager import (
-    PGVectorManager,
-    delete_video_vectors,
-    delete_video_vectors_batch,
-    update_video_title_in_vectors,
-)
+from app.utils.vector_manager import (PGVectorManager, delete_video_vectors,
+                                      delete_video_vectors_batch,
+                                      update_video_title_in_vectors)
 
 
 class PGVectorManagerTests(TestCase):
@@ -26,7 +24,9 @@ class PGVectorManagerTests(TestCase):
         """Clean up"""
         PGVectorManager.close_connection()
 
-    @patch.dict(os.environ, {"DATABASE_URL": "postgresql://test:test@localhost:5432/test"})
+    @patch.dict(
+        os.environ, {"DATABASE_URL": "postgresql://test:test@localhost:5432/test"}
+    )
     def test_get_config(self):
         """Test get_config"""
         config = PGVectorManager.get_config()
@@ -34,7 +34,9 @@ class PGVectorManagerTests(TestCase):
         self.assertIsNotNone(config)
         self.assertIn("database_url", config)
         self.assertIn("collection_name", config)
-        self.assertEqual(config["database_url"], "postgresql://test:test@localhost:5432/test")
+        self.assertEqual(
+            config["database_url"], "postgresql://test:test@localhost:5432/test"
+        )
 
     @patch.dict(os.environ, {}, clear=True)
     def test_get_config_default(self):
@@ -175,7 +177,9 @@ class VectorOperationsTests(TestCase):
     @patch("app.utils.vector_manager.PGVectorManager.execute_with_connection")
     @patch("app.utils.vector_manager.PGVectorManager.get_config")
     @patch("app.utils.vector_manager.logger")
-    def test_delete_video_vectors_no_results(self, mock_logger, mock_config, mock_execute):
+    def test_delete_video_vectors_no_results(
+        self, mock_logger, mock_config, mock_execute
+    ):
         """Test delete_video_vectors with no results"""
         mock_config.return_value = {"collection_name": "test_collection"}
         mock_execute.return_value = 0
@@ -249,4 +253,3 @@ class VectorOperationsTests(TestCase):
 
         self.assertEqual(result, 0)
         mock_logger.warning.assert_called()
-

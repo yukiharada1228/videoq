@@ -1,17 +1,16 @@
 """
 Tests for common permissions module
 """
+
 import secrets
 
 from django.contrib.auth import get_user_model
 from django.test import RequestFactory
 from rest_framework.request import Request
-from rest_framework.test import APITestCase, APIRequestFactory
+from rest_framework.test import APIRequestFactory, APITestCase
 
-from app.common.permissions import (
-    IsAuthenticatedOrSharedAccess,
-    ShareTokenAuthentication,
-)
+from app.common.permissions import (IsAuthenticatedOrSharedAccess,
+                                    ShareTokenAuthentication)
 from app.models import VideoGroup
 
 User = get_user_model()
@@ -29,7 +28,10 @@ class ShareTokenAuthenticationTests(APITestCase):
         # Generate share_token for testing
         share_token = secrets.token_urlsafe(32)
         self.group = VideoGroup.objects.create(
-            user=self.user, name="Test Group", description="Test", share_token=share_token
+            user=self.user,
+            name="Test Group",
+            description="Test",
+            share_token=share_token,
         )
         self.auth = ShareTokenAuthentication()
         self.factory = APIRequestFactory()
@@ -119,4 +121,3 @@ class IsAuthenticatedOrSharedAccessTests(APITestCase):
         result = self.permission.has_permission(request, None)
 
         self.assertFalse(result)
-

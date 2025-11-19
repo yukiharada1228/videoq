@@ -1,6 +1,7 @@
 """
 Tests for auth serializers
 """
+
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
@@ -12,17 +13,12 @@ from django.utils.http import urlsafe_base64_encode
 from rest_framework import serializers
 from rest_framework.test import APITestCase
 
-from app.auth.serializers import (
-    CredentialsSerializerMixin,
-    EmailVerificationSerializer,
-    LoginSerializer,
-    PasswordResetConfirmSerializer,
-    PasswordResetRequestSerializer,
-    RefreshSerializer,
-    UserSerializer,
-    UserSignupSerializer,
-    UserUpdateSerializer,
-)
+from app.auth.serializers import (CredentialsSerializerMixin,
+                                  EmailVerificationSerializer, LoginSerializer,
+                                  PasswordResetConfirmSerializer,
+                                  PasswordResetRequestSerializer,
+                                  RefreshSerializer, UserSerializer,
+                                  UserSignupSerializer, UserUpdateSerializer)
 from app.utils.encryption import encrypt_api_key, is_encrypted
 
 User = get_user_model()
@@ -456,4 +452,3 @@ class CredentialsSerializerMixinTests(APITestCase):
 
         with self.assertRaises(serializers.ValidationError):
             mixin.validate_credentials("testuser", "")
-

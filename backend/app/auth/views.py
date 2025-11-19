@@ -1,13 +1,17 @@
-from app.utils.mixins import AuthenticatedViewMixin, PublicViewMixin
 from django.contrib.auth import get_user_model
+from drf_spectacular.utils import extend_schema
 from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework_simplejwt.exceptions import InvalidToken
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .serializers import (EmailVerificationSerializer, LoginSerializer,
+from app.utils.mixins import AuthenticatedViewMixin, PublicViewMixin
+
+from .serializers import (EmailVerificationSerializer, LoginResponseSerializer,
+                          LoginSerializer, MessageResponseSerializer,
                           PasswordResetConfirmSerializer,
-                          PasswordResetRequestSerializer, RefreshSerializer,
+                          PasswordResetRequestSerializer,
+                          RefreshResponseSerializer, RefreshSerializer,
                           UserSerializer, UserSignupSerializer,
                           UserUpdateSerializer)
 
@@ -29,6 +33,12 @@ class UserSignupView(generics.CreateAPIView):
     serializer_class = UserSignupSerializer
     permission_classes = PublicViewMixin.permission_classes
 
+    @extend_schema(
+        request=UserSignupSerializer,
+        responses={201: MessageResponseSerializer},
+        summary="User signup",
+        description="Register a new user. Verification email will be sent.",
+    )
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -46,6 +56,12 @@ class LoginView(PublicAPIView):
 
     serializer_class = LoginSerializer
 
+    @extend_schema(
+        request=LoginSerializer,
+        responses={200: LoginResponseSerializer},
+        summary="User login",
+        description="Authenticate user and return JWT tokens. Tokens are also set in HttpOnly cookies.",
+    )
     def post(self, request):
         serializer = self.get_serializer(
             data=request.data, context={"request": request}
@@ -82,9 +98,14 @@ class LoginView(PublicAPIView):
 class LogoutView(AuthenticatedAPIView):
     """Logout view"""
 
+    @extend_schema(
+        responses={200: MessageResponseSerializer},
+        summary="User logout",
+        description="Logout by deleting HttpOnly cookies.",
+    )
     def post(self, request):
         """Logout by deleting HttpOnly Cookie"""
-        response = Response({"message": "Logged out successfully"})
+        response = Response({"detail": "Logged out successfully"})
 
         # Delete HttpOnly Cookie
         response.delete_cookie("access_token")
@@ -98,6 +119,12 @@ class RefreshView(PublicAPIView):
 
     serializer_class = RefreshSerializer
 
+    @extend_schema(
+        request=RefreshSerializer,
+        responses={200: RefreshResponseSerializer, 401: MessageResponseSerializer},
+        summary="Refresh access token",
+        description="Refresh access token using refresh token from cookie or request body.",
+    )
     def post(self, request):
         # Get refresh token from Cookie (priority)
         refresh_token = request.COOKIES.get("refresh_token")
@@ -139,6 +166,12 @@ class EmailVerificationView(PublicAPIView):
 
     serializer_class = EmailVerificationSerializer
 
+    @extend_schema(
+        request=EmailVerificationSerializer,
+        responses={200: MessageResponseSerializer},
+        summary="Verify email",
+        description="Complete email verification using uid and token from verification link.",
+    )
     def post(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -151,14 +184,18 @@ class PasswordResetRequestView(PublicAPIView):
 
     serializer_class = PasswordResetRequestSerializer
 
+    @extend_schema(
+        request=PasswordResetRequestSerializer,
+        responses={200: MessageResponseSerializer},
+        summary="Request password reset",
+        description="Send password reset email to the specified email address.",
+    )
     def post(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(
-            {
-                "detail": "Password reset email sent. Please check your email."
-            }
+            {"detail": "Password reset email sent. Please check your email."}
         )
 
 
@@ -167,6 +204,12 @@ class PasswordResetConfirmView(PublicAPIView):
 
     serializer_class = PasswordResetConfirmSerializer
 
+    @extend_schema(
+        request=PasswordResetConfirmSerializer,
+        responses={200: MessageResponseSerializer},
+        summary="Confirm password reset",
+        description="Reset password using uid, token, and new password from reset link.",
+    )
     def post(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)

@@ -1,13 +1,14 @@
 import mimetypes
 import os
 
+from django.conf import settings
+from django.http import Http404, HttpResponse
+from rest_framework.views import APIView
+
 from app.common.authentication import CookieJWTAuthentication
 from app.common.permissions import (IsAuthenticatedOrSharedAccess,
                                     ShareTokenAuthentication)
 from app.models import Video, VideoGroupMember
-from django.conf import settings
-from django.http import Http404, HttpResponse
-from rest_framework.views import APIView
 
 
 class ProtectedMediaView(APIView):

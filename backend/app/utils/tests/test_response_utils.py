@@ -1,15 +1,13 @@
 """
 Tests for response_utils module
 """
+
 from django.test import TestCase
 from rest_framework import status
 from rest_framework.response import Response
 
-from app.utils.response_utils import (
-    CacheHelper,
-    ResponseBuilder,
-    ValidationHelper,
-)
+from app.utils.response_utils import (CacheHelper, ResponseBuilder,
+                                      ValidationHelper)
 
 
 class ResponseBuilderTests(TestCase):
@@ -170,9 +168,7 @@ class ValidationHelperTests(TestCase):
     def test_validate_field_length_too_short(self):
         """Test validate_field_length when too short"""
         data = {"field": "ab"}
-        error = ValidationHelper.validate_field_length(
-            data, "field", min_length=3
-        )
+        error = ValidationHelper.validate_field_length(data, "field", min_length=3)
 
         self.assertIsNotNone(error)
         self.assertIn("at least 3 characters", error)
@@ -180,9 +176,7 @@ class ValidationHelperTests(TestCase):
     def test_validate_field_length_too_long(self):
         """Test validate_field_length when too long"""
         data = {"field": "very long string"}
-        error = ValidationHelper.validate_field_length(
-            data, "field", max_length=5
-        )
+        error = ValidationHelper.validate_field_length(data, "field", max_length=5)
 
         self.assertIsNotNone(error)
         self.assertIn("at most 5 characters", error)
@@ -190,9 +184,7 @@ class ValidationHelperTests(TestCase):
     def test_validate_field_length_missing_field(self):
         """Test validate_field_length when field is missing"""
         data = {}
-        error = ValidationHelper.validate_field_length(
-            data, "field", min_length=3
-        )
+        error = ValidationHelper.validate_field_length(data, "field", min_length=3)
 
         self.assertIsNone(error)
 
@@ -248,4 +240,3 @@ class CacheHelperTests(TestCase):
         """Test get_resource_cache_key"""
         key = CacheHelper.get_resource_cache_key("video", 456)
         self.assertEqual(key, "resource:video:456")
-
