@@ -23,8 +23,6 @@ class ChatViewTests(APITestCase):
             email="test@example.com",
             password="testpass123",
         )
-        self.user.encrypted_openai_api_key = "encrypted_key"
-        self.user.save()
 
         self.client = APIClient()
         self.client.force_authenticate(user=self.user)
@@ -163,9 +161,6 @@ class ChatViewTests(APITestCase):
     @patch("app.chat.views.RagChatService")
     def test_chat_with_share_token(self, mock_service_class, mock_get_llm):
         """Test chat with share token"""
-        # Ensure group owner has API key for LLM
-        self.user.encrypted_openai_api_key = "encrypted_key"
-        self.user.save()
 
         # Use group owner's user for LLM
         mock_llm = MagicMock()
