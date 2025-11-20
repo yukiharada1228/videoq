@@ -75,7 +75,7 @@ ask-video/
 │   ├── package-lock.json        # npm lockfile
 │   ├── Dockerfile               # Frontend Docker image
 │   └── README.md                # Frontend README
-├── docker-compose.yml           # Docker Compose config
+├── docker compose.yml           # Docker Compose config
 ├── nginx.conf                   # Nginx config
 └── README.md                    # This file
 ```
@@ -230,7 +230,7 @@ Required variables:
 
 ```bash
 # Build and start all services (redis, postgres, backend, celery-worker, frontend, nginx)
-docker-compose up --build -d
+docker compose up --build -d
 ```
 
 This starts:
@@ -245,10 +245,10 @@ This starts:
 
 ```bash
 # Run database migrations
-docker-compose exec backend uv run python manage.py migrate
+docker compose exec backend uv run python manage.py migrate
 
 # Create admin user (first time only)
-docker-compose exec backend uv run python manage.py createsuperuser
+docker compose exec backend uv run python manage.py createsuperuser
 ```
 
 #### 4. Verify startup
@@ -263,33 +263,33 @@ After all services are up, you can access:
 
 ```bash
 # Check status of all containers
-docker-compose ps
+docker compose ps
 
 # Tail logs for all services
-docker-compose logs -f
+docker compose logs -f
 
 # Tail logs for specific services
-docker-compose logs -f backend
-docker-compose logs -f celery-worker
-docker-compose logs -f frontend
+docker compose logs -f backend
+docker compose logs -f celery-worker
+docker compose logs -f frontend
 
 # Stop containers
-docker-compose stop
+docker compose stop
 
 # Stop and remove containers (keep volumes)
-docker-compose down
+docker compose down
 
 # Stop and remove containers (remove volumes too)
-docker-compose down -v
+docker compose down -v
 
 # Restart a specific service
-docker-compose restart backend
+docker compose restart backend
 
 # Restart all services
-docker-compose restart
+docker compose restart
 
 # Connect to the database
-docker-compose exec postgres psql -U $POSTGRES_USER -d $POSTGRES_DB
+docker compose exec postgres psql -U $POSTGRES_USER -d $POSTGRES_DB
 ```
 
 ## Feature Details
@@ -636,19 +636,19 @@ This project uses `uv` for Python package management.
 
 ```bash
 # Run tests
-docker-compose exec backend uv run python manage.py test
+docker compose exec backend uv run python manage.py test
 
 # Create migrations
-docker-compose exec backend uv run python manage.py makemigrations
+docker compose exec backend uv run python manage.py makemigrations
 
 # Apply migrations
-docker-compose exec backend uv run python manage.py migrate
+docker compose exec backend uv run python manage.py migrate
 
 # Open Django shell
-docker-compose exec backend uv run python manage.py shell
+docker compose exec backend uv run python manage.py shell
 
 # Tail logs (live)
-docker-compose logs -f backend celery-worker
+docker compose logs -f backend celery-worker
 ```
 
 **Note:** In Docker, run all Python commands via `uv run`.
@@ -657,10 +657,10 @@ docker-compose logs -f backend celery-worker
 
 ```bash
 # Build the frontend
-docker-compose exec frontend npm run build
+docker compose exec frontend npm run build
 
 # Tail frontend logs
-docker-compose logs -f frontend
+docker compose logs -f frontend
 ```
 
 ## Production Deployment
@@ -680,42 +680,42 @@ Pay attention to the following in production:
 
 1. Check Docker Compose status
 ```bash
-docker-compose ps
+docker compose ps
 ```
 
 2. Inspect logs for errors
 ```bash
-docker-compose logs
+docker compose logs
 ```
 
 3. Rebuild containers
 ```bash
-docker-compose down
-docker-compose up --build -d
+docker compose down
+docker compose up --build -d
 ```
 
 ### Celery tasks do not run
 
 1. Check the Celery worker container is running
 ```bash
-docker-compose ps celery-worker
+docker compose ps celery-worker
 ```
 
 2. Check Celery worker logs
 ```bash
-docker-compose logs celery-worker
+docker compose logs celery-worker
 ```
 
 3. Verify Redis is running
 ```bash
-docker-compose ps redis
+docker compose ps redis
 # Or
-docker-compose exec redis redis-cli ping  # Expect PONG
+docker compose exec redis redis-cli ping  # Expect PONG
 ```
 
 4. Check registered Celery tasks
 ```bash
-docker-compose exec backend uv run python -c "from app.celery_config import app; print(app.tasks.keys())"
+docker compose exec backend uv run python -c "from app.celery_config import app; print(app.tasks.keys())"
 ```
 
 ### Transcription fails
@@ -724,7 +724,7 @@ docker-compose exec backend uv run python -c "from app.celery_config import app;
 2. Verify the API key is valid
 3. Ensure the video file exists
 ```bash
-docker-compose exec backend uv run python manage.py shell
+docker compose exec backend uv run python manage.py shell
 >>> from app.models import Video
 >>> video = Video.objects.first()
 >>> print(video.error_message)  # Inspect error message
@@ -734,29 +734,29 @@ docker-compose exec backend uv run python manage.py shell
 
 1. Ensure the PostgreSQL container is running
 ```bash
-docker-compose ps postgres
+docker compose ps postgres
 ```
 
 2. Check DB connection
 ```bash
-docker-compose exec backend uv run python manage.py dbshell
+docker compose exec backend uv run python manage.py dbshell
 ```
 
 ### Frontend does not render
 
 1. Ensure the frontend container is running
 ```bash
-docker-compose ps frontend
+docker compose ps frontend
 ```
 
 2. Check frontend logs
 ```bash
-docker-compose logs frontend
+docker compose logs frontend
 ```
 
 3. Ensure Nginx is healthy
 ```bash
-docker-compose logs nginx
+docker compose logs nginx
 ```
 
 4. Review Nginx config (`nginx.conf`)
@@ -765,13 +765,13 @@ docker-compose logs nginx
 
 ```bash
 # Stop all containers
-docker-compose down
+docker compose down
 
 # Rebuild images and start
-docker-compose up --build -d
+docker compose up --build -d
 
 # Re-apply migrations
-docker-compose exec backend uv run python manage.py migrate
+docker compose exec backend uv run python manage.py migrate
 ```
 
 ### Volume issues
@@ -780,8 +780,8 @@ To completely reset data:
 
 ```bash
 # Warning: this removes all data
-docker-compose down -v
-docker-compose up --build -d
-docker-compose exec backend uv run python manage.py migrate
-docker-compose exec backend uv run python manage.py createsuperuser
+docker compose down -v
+docker compose up --build -d
+docker compose exec backend uv run python manage.py migrate
+docker compose exec backend uv run python manage.py createsuperuser
 ```
