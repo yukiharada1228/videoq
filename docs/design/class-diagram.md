@@ -2,7 +2,7 @@
 
 ## Overview
 
-This diagram shows the backend models and frontend components of the Ask Video system.
+This diagram shows the backend models and frontend components of the TalkVid system.
 
 ## Backend Models (Django)
 

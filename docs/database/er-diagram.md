@@ -2,7 +2,7 @@
 
 ## Overview
 
-This diagram represents the database entities and relationships of the Ask Video system.
+This diagram represents the database entities and relationships of the TalkVid system.
 
 ## ER Diagram
 

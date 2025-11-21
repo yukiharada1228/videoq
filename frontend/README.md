@@ -1,4 +1,4 @@
-# Ask Video Frontend
+# TalkVid Frontend
 
 A frontend application built with Next.js, TypeScript, Tailwind CSS, and shadcn/ui.
 

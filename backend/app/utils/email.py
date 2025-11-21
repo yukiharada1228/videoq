@@ -22,16 +22,16 @@ def send_email_verification(user: AbstractBaseUser) -> None:
     """
     Send an email verification mail to the specified user.
     """
-    subject = "[Ask Video] Temporary Registration Complete"
+    subject = "[TalkVid] Temporary Registration Complete"
     verification_link = build_email_verification_link(user)
     message_lines: Sequence[str] = [
-        "Thank you for registering with Ask Video.",
+        "Thank you for registering with TalkVid.",
         "Please click the following URL to complete your registration.",
         "",
         verification_link,
     ]
     message = "\n".join(message_lines)
-    from_email = getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@askvideo.local")
+    from_email = getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@talkvideo.local")
     recipient_list = [user.email]
     try:
         send_mail(subject, message, from_email, recipient_list, fail_silently=False)
@@ -48,10 +48,10 @@ def build_password_reset_link(user: AbstractBaseUser) -> str:
 
 
 def send_password_reset_email(user: AbstractBaseUser) -> None:
-    subject = "[Ask Video] Password Reset Instructions"
+    subject = "[TalkVid] Password Reset Instructions"
     reset_link = build_password_reset_link(user)
     message_lines: Sequence[str] = [
-        "We have received a password reset request for Ask Video.",
+        "We have received a password reset request for TalkVid.",
         "Please set a new password from the following URL within 24 hours.",
         "",
         reset_link,
@@ -59,7 +59,7 @@ def send_password_reset_email(user: AbstractBaseUser) -> None:
         "If you did not request this, please ignore this email.",
     ]
     message = "\n".join(message_lines)
-    from_email = getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@askvideo.local")
+    from_email = getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@talkvideo.local")
     recipient_list = [user.email]
     try:
         send_mail(subject, message, from_email, recipient_list, fail_silently=False)

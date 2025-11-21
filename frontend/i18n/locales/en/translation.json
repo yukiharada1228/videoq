@@ -1,6 +1,6 @@
 {
   "common": {
-    "appName": "Ask Video",
+    "appName": "TalkVid",
     "loading": "Loading...",
     "notProvided": "Not provided",
     "actions": {
@@ -74,7 +74,7 @@
     }
   },
   "navigation": {
-    "brand": "Ask Video",
+    "brand": "TalkVid",
     "videos": "Videos",
     "videoGroups": "Chat groups",
     "settings": "Settings",
@@ -84,7 +84,7 @@
   },
   "layout": {
     "footer": {
-      "copyright": "© {{year}} Ask Video. All rights reserved."
+      "copyright": "© {{year}} TalkVid. All rights reserved."
     }
   },
   "home": {

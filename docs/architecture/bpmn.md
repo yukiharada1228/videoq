@@ -2,7 +2,7 @@
 
 ## Overview
 
-This diagram represents the business processes of the Ask Video system using BPMN (Business Process Model and Notation).
+This diagram represents the business processes of the TalkVid system using BPMN (Business Process Model and Notation).
 
 ## 1. User Registration Process
 

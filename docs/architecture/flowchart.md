@@ -2,7 +2,7 @@
 
 ## Overview
 
-This flowchart represents the main processing flows of the Ask Video system.
+This flowchart represents the main processing flows of the TalkVid system.
 
 ## 1. Video Upload Processing Flow
 

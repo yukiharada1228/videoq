@@ -2,14 +2,14 @@
 
 ## Overview
 
-This diagram represents the deployment configuration of the Ask Video system. It uses a container-based configuration with Docker Compose.
+This diagram represents the deployment configuration of the TalkVid system. It uses a container-based configuration with Docker Compose.
 
 ## Docker Compose Configuration
 
 ```mermaid
 graph TB
     subgraph DockerHost["Docker Host"]
-        subgraph Network["ask-video-network"]
+        subgraph Network["talk-video-network"]
             subgraph FrontendContainer["frontend (Next.js)"]
                 NextJS[Next.js App<br/>Port: 3000]
             end
@@ -102,7 +102,7 @@ graph LR
 
 ```mermaid
 graph TB
-    subgraph Network["ask-video-network (bridge)"]
+    subgraph Network["talk-video-network (bridge)"]
         N1[nginx]
         N2[frontend]
         N3[backend]
