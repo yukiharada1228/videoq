@@ -15,4 +15,4 @@ COPY . .
 
 EXPOSE 8000
 
-CMD [ "uv", "run", "gunicorn", "ask_video.asgi:application", "-k", "uvicorn_worker.UvicornWorker", "--bind", "0.0.0.0:8000"]
+CMD [ "uv", "run", "gunicorn", "talk_video.asgi:application", "-k", "uvicorn_worker.UvicornWorker", "--bind", "0.0.0.0:8000"]

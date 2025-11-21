@@ -2,7 +2,7 @@
 
 ## Overview
 
-This diagram represents the frontend screen transitions of the Ask Video application.
+This diagram represents the frontend screen transitions of the TalkVid application.
 
 ## Screen Transition Diagram
 

@@ -2,7 +2,7 @@
 
 ## Overview
 
-This diagram represents the main processing flows of the Ask Video system.
+This diagram represents the main processing flows of the TalkVid system.
 
 ## 1. Video Upload and Transcription Processing
 

@@ -1,23 +1,23 @@
 services:
   redis:
     image: redis:alpine
-    container_name: ask-video-redis
+    container_name: talk-video-redis
     networks:
-      - ask-video-network
+      - talk-video-network
 
   postgres:
     image: pgvector/pgvector:pg17
-    container_name: ask-video-postgres
+    container_name: talk-video-postgres
     env_file:
       - .env
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
-      - ask-video-network
+      - talk-video-network
 
   backend:
     build: ./backend
-    container_name: ask-video-backend
+    container_name: talk-video-backend
     ports:
       - "8000:8000"
     env_file:
@@ -30,12 +30,12 @@ services:
       - postgres
       - redis
     networks:
-      - ask-video-network
+      - talk-video-network
 
   celery-worker:
     build: ./backend
-    container_name: ask-video-celery-worker
-    command: uv run celery -A ask_video worker --loglevel=info
+    container_name: talk-video-celery-worker
+    command: uv run celery -A talk_video worker --loglevel=info
     env_file:
       - .env
     volumes:
@@ -43,24 +43,24 @@ services:
     depends_on:
       - redis
     networks:
-      - ask-video-network
+      - talk-video-network
 
   frontend:
     build:
       context: ./frontend
       args:
         - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
-    container_name: ask-video-frontend
+    container_name: talk-video-frontend
     env_file:
       - .env
     depends_on:
       - backend
     networks:
-      - ask-video-network
+      - talk-video-network
 
   nginx:
     image: nginx:alpine
-    container_name: ask-video-nginx
+    container_name: talk-video-nginx
     ports:
       - "80:80"
     volumes:
@@ -71,12 +71,12 @@ services:
       - backend
       - frontend
     networks:
-      - ask-video-network
+      - talk-video-network
 
 volumes:
   staticfiles:
   postgres_data:
 
 networks:
-  ask-video-network:
+  talk-video-network:
     driver: bridge
