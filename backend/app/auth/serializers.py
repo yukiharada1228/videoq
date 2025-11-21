@@ -81,7 +81,7 @@ class LoginSerializer(serializers.Serializer, CredentialsSerializerMixin):
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ["id", "username", "email", "plan"]
+        fields = ["id", "username", "email"]
 
 
 class RefreshSerializer(serializers.Serializer):
@@ -213,14 +213,3 @@ class UsageStatsResponseSerializer(serializers.Serializer):
     chats = UsageItemSerializer(help_text="Chat count usage")
 
 
-class PlanUpdateSerializer(serializers.Serializer):
-    plan = serializers.ChoiceField(
-        choices=User.PlanChoices.choices,
-        help_text="Plan to change to (FREE or PRO)",
-    )
-
-    def validate_plan(self, value):
-        """Validate plan value"""
-        if value not in [User.PlanChoices.FREE, User.PlanChoices.PRO]:
-            raise serializers.ValidationError("Invalid plan. Must be FREE or PRO.")
-        return value

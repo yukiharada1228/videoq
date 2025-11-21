@@ -33,13 +33,11 @@ class BaseAdminMixin:
 class CustomUserAdmin(UserAdmin):
     list_display = (
         "username",
-        "plan",
         "date_joined",
         "last_login",
         "is_active",
     )
     list_filter = (
-        "plan",
         "is_staff",
         "is_active",
     )
@@ -47,18 +45,18 @@ class CustomUserAdmin(UserAdmin):
     ordering = ("-date_joined",)
     fieldsets = UserAdmin.fieldsets + (
         (
-            "Plan Settings",
+            "Limit Settings",
             {
-                "fields": ("plan",),
+                "fields": ("video_limit", "whisper_minutes_limit", "chat_limit"),
             },
         ),
     )
     add_fieldsets = UserAdmin.add_fieldsets + (
         (
-            "Plan Settings",
+            "Limit Settings",
             {
                 "classes": ("wide",),
-                "fields": ("plan",),
+                "fields": ("video_limit", "whisper_minutes_limit", "chat_limit"),
             },
         ),
     )
