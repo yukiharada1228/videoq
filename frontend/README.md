@@ -21,7 +21,7 @@ This frontend provides:
 
 ```bash
 # From project root
-docker-compose up --build -d
+docker compose up --build -d
 
 # Access frontend
 # http://localhost (via Nginx reverse proxy)
@@ -236,22 +236,22 @@ CORS_ALLOW_CREDENTIALS = True
 
 ```bash
 # Build the frontend
-docker-compose exec frontend npm run build
+docker compose exec frontend npm run build
 
 # View logs
-docker-compose logs -f frontend
+docker compose logs -f frontend
 
 # Run linter
-docker-compose exec frontend npm run lint
+docker compose exec frontend npm run lint
 
 # Type check
-docker-compose exec frontend npm run typecheck
+docker compose exec frontend npm run typecheck
 
 # Run unit tests
-docker-compose exec frontend npm run test
+docker compose exec frontend npm run test
 
 # Run tests with coverage
-docker-compose exec frontend npm run test:coverage
+docker compose exec frontend npm run test:coverage
 ```
 
 ### Local Development
@@ -290,7 +290,7 @@ NEXT_PUBLIC_API_URL=https://api.example.com/api
 
 2. Build and start:
 ```bash
-docker-compose up --build -d
+docker compose up --build -d
 ```
 
 ### Standalone Deployment
