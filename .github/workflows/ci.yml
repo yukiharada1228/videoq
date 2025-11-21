@@ -54,12 +54,12 @@ jobs:
         run: uv sync --frozen
       - name: Run Ruff
         working-directory: backend
-        run: uvx ruff check app ask_video
+        run: uvx ruff check app talk_video
       - name: Run mypy
         working-directory: backend
         env:
-          DJANGO_SETTINGS_MODULE: ask_video.settings
-        run: uvx mypy --config-file mypy.ini app ask_video
+          DJANGO_SETTINGS_MODULE: talk_video.settings
+        run: uvx mypy --config-file mypy.ini app talk_video
 
   backend-test:
     name: Backend Tests
@@ -70,13 +70,13 @@ jobs:
       postgres:
         image: ankane/pgvector:latest
         env:
-          POSTGRES_DB: ask_video
+          POSTGRES_DB: talk_video
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
         ports:
           - 5432:5432
         options: >-
-          --health-cmd="pg_isready -U postgres -d ask_video"
+          --health-cmd="pg_isready -U postgres -d talk_video"
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
@@ -107,16 +107,16 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y postgresql-client
-          PGPASSWORD=postgres psql -h localhost -U postgres -d ask_video -c "CREATE EXTENSION IF NOT EXISTS vector;"
+          PGPASSWORD=postgres psql -h localhost -U postgres -d talk_video -c "CREATE EXTENSION IF NOT EXISTS vector;"
       - name: Apply migrations
         working-directory: backend
         env:
-          DATABASE_URL: postgres://postgres:postgres@localhost:5432/ask_video
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/talk_video
         run: uv run python manage.py migrate --noinput
       - name: Run tests with coverage
         working-directory: backend
         env:
-          DATABASE_URL: postgres://postgres:postgres@localhost:5432/ask_video
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/talk_video
           REDIS_URL: redis://localhost:6379/0
           DJANGO_SECRET_KEY: test-secret
           OPENAI_API_KEY: test-key
