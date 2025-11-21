@@ -10,10 +10,10 @@ from celery import Celery
 logger = logging.getLogger(__name__)
 
 # Load Django settings
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "ask_video.settings")
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "talk_video.settings")
 
 # Create Celery application
-app = Celery("ask_video")
+app = Celery("talk_video")
 
 # Load Celery settings from Django settings
 app.config_from_object("django.conf:settings", namespace="CELERY")

@@ -2,7 +2,7 @@
 
 ## Overview
 
-This diagram represents the main use cases of the Ask Video system.
+This diagram represents the main use cases of the TalkVid system.
 
 ## Use Case Diagram
 

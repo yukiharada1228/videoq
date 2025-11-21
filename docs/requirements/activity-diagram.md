@@ -2,7 +2,7 @@
 
 ## Overview
 
-This diagram represents the main business flows of the Ask Video system.
+This diagram represents the main business flows of the TalkVid system.
 
 ## 1. Flow from Video Upload to Transcription Completion
 
