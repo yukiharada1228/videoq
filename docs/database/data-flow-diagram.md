@@ -2,7 +2,7 @@
 
 ## Overview
 
-This diagram represents the data flow in the Ask Video system.
+This diagram represents the data flow in the TalkVid system.
 
 ## 1. Data Flow from Video Upload to Transcription
 

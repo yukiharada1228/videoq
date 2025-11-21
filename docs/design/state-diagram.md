@@ -2,7 +2,7 @@
 
 ## Overview
 
-This diagram represents the state transitions of the main objects in the Ask Video system.
+This diagram represents the state transitions of the main objects in the TalkVid system.
 
 ## Video State Transition
 

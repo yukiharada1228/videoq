@@ -1,4 +1,4 @@
-# Ask Video
+# TalkVid
 
 A web application that provides video transcription and AI chat features.
 
@@ -20,7 +20,7 @@ This application offers video upload, automatic transcription, and AI chat. When
 ## Project Structure
 
 ```
-ask-video/
+talk-video/
 ├── backend/                    # Django REST Framework backend
 │   ├── app/                     # Main application
 │   │   ├── auth/                # Auth features (views, serializers, urls, tests)
@@ -34,7 +34,7 @@ ask-video/
 │   │   ├── models.py            # Data models (User, Video, VideoGroup, ChatLog, etc.)
 │   │   ├── tasks.py             # Celery tasks (transcription, etc.)
 │   │   └── celery_config.py     # Celery configuration
-│   ├── ask_video/               # Django project settings
+│   ├── talk_video/               # Django project settings
 │   │   ├── settings.py          # Django settings
 │   │   ├── urls.py              # URL settings
 │   │   ├── wsgi.py              # WSGI
@@ -616,7 +616,7 @@ This project consists of the following services:
 
 ### Network
 
-All services communicate within the `ask-video-network` Docker network.
+All services communicate within the `talk-video-network` Docker network.
 
 ## Database Schema
 
