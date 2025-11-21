@@ -75,7 +75,7 @@ ask-video/
 │   ├── package-lock.json        # npm lockfile
 │   ├── Dockerfile               # Frontend Docker image
 │   └── README.md                # Frontend README
-├── docker compose.yml           # Docker Compose config
+├── docker-compose.yml           # Docker Compose config
 ├── nginx.conf                   # Nginx config
 └── README.md                    # This file
 ```

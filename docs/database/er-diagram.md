@@ -32,6 +32,8 @@ erDiagram
         string last_name
     }
     
+    Note: User limits (video_limit, whisper_minutes_limit, chat_limit) are configurable via admin panel
+    
     Video {
         int id PK
         int user_id FK

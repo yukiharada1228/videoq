@@ -31,13 +31,13 @@ This backend provides:
 
 ```bash
 # From project root
-docker-compose up --build -d
+docker compose up --build -d
 
 # Run migrations
-docker-compose exec backend uv run python manage.py migrate
+docker compose exec backend uv run python manage.py migrate
 
 # Create superuser (first time only)
-docker-compose exec backend uv run python manage.py createsuperuser
+docker compose exec backend uv run python manage.py createsuperuser
 ```
 
 ### Local Development (Optional)
@@ -254,10 +254,10 @@ CELERY_TASK_SOFT_TIME_LIMIT=1500 # 25 minutes (soft limit)
 **In Docker Compose** (recommended):
 ```bash
 # Celery worker runs automatically as a service
-docker-compose up celery-worker
+docker compose up celery-worker
 
 # Check logs
-docker-compose logs -f celery-worker
+docker compose logs -f celery-worker
 ```
 
 **Locally:**
@@ -305,19 +305,19 @@ backend/
 
 ```bash
 # Run tests
-docker-compose exec backend uv run python manage.py test
+docker compose exec backend uv run python manage.py test
 
 # Create migrations
-docker-compose exec backend uv run python manage.py makemigrations
+docker compose exec backend uv run python manage.py makemigrations
 
 # Apply migrations
-docker-compose exec backend uv run python manage.py migrate
+docker compose exec backend uv run python manage.py migrate
 
 # Open Django shell
-docker-compose exec backend uv run python manage.py shell
+docker compose exec backend uv run python manage.py shell
 
 # View logs
-docker-compose logs -f backend celery-worker
+docker compose logs -f backend celery-worker
 ```
 
 **Note:** In Docker, always run Python commands via `uv run`.
@@ -346,8 +346,8 @@ uv run python manage.py shell
 1. **Check Redis is running:**
 ```bash
 # In Docker
-docker-compose ps redis
-docker-compose exec redis redis-cli ping  # Should return PONG
+docker compose ps redis
+docker compose exec redis redis-cli ping  # Should return PONG
 
 # Locally
 redis-cli ping
@@ -356,8 +356,8 @@ redis-cli ping
 2. **Check Celery worker is running:**
 ```bash
 # In Docker
-docker-compose ps celery-worker
-docker-compose logs celery-worker
+docker compose ps celery-worker
+docker compose logs celery-worker
 
 # Locally
 ps aux | grep celery
@@ -366,7 +366,7 @@ ps aux | grep celery
 3. **Verify registered tasks:**
 ```bash
 # In Docker
-docker-compose exec backend uv run celery -A ask_video inspect registered
+docker compose exec backend uv run celery -A ask_video inspect registered
 
 # Locally
 uv run celery -A ask_video inspect registered
@@ -375,7 +375,7 @@ uv run celery -A ask_video inspect registered
 4. **Check logs for errors:**
 ```bash
 # In Docker
-docker-compose logs -f celery-worker
+docker compose logs -f celery-worker
 
 # Locally
 # Check terminal output where Celery worker is running
@@ -412,12 +412,12 @@ print(video.error_message) # Error details
 
 1. **Check PostgreSQL is running:**
 ```bash
-docker-compose ps postgres
+docker compose ps postgres
 ```
 
 2. **Test database connection:**
 ```bash
-docker-compose exec backend uv run python manage.py dbshell
+docker compose exec backend uv run python manage.py dbshell
 ```
 
 3. **Check environment variables:**
