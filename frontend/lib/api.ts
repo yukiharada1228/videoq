@@ -18,7 +18,6 @@ export interface RefreshResponse {
 export interface User {
   id: number;
   username: string;
-  plan: 'FREE' | 'PRO';
 }
 
 export interface UsageItem {
@@ -434,13 +433,6 @@ class ApiClient {
 
   async getUsageStats(): Promise<UsageStats> {
     return this.request<UsageStats>('/auth/usage-stats/');
-  }
-
-  async updatePlan(plan: 'FREE' | 'PRO'): Promise<{ detail: string }> {
-    return this.request<{ detail: string }>('/auth/plan/', {
-      method: 'PATCH',
-      body: { plan },
-    });
   }
 
   async chat(data: ChatRequest): Promise<ChatMessage> {
