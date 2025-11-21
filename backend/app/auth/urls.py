@@ -3,7 +3,7 @@ from django.urls import path
 
 from .views import (EmailVerificationView, LoginView, LogoutView, MeView,
                     PasswordResetConfirmView, PasswordResetRequestView,
-                    PlanUpdateView, RefreshView, UsageStatsView,
+                    RefreshView, UsageStatsView,
                     UserSignupView)
 
 urlpatterns = [
@@ -12,7 +12,6 @@ urlpatterns = [
     path("refresh/", RefreshView.as_view(), name="auth-refresh"),
     path("me/", MeView.as_view(), name="auth-me"),
     path("usage-stats/", UsageStatsView.as_view(), name="auth-usage-stats"),
-    path("plan/", PlanUpdateView.as_view(), name="auth-plan-update"),
     path("verify-email/", EmailVerificationView.as_view(), name="auth-verify-email"),
     path(
         "password-reset/",

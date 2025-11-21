@@ -17,7 +17,7 @@ from .serializers import (EmailVerificationSerializer, LoginResponseSerializer,
                           LoginSerializer, MessageResponseSerializer,
                           PasswordResetConfirmSerializer,
                           PasswordResetRequestSerializer,
-                          PlanUpdateSerializer, RefreshResponseSerializer,
+                          RefreshResponseSerializer,
                           RefreshSerializer, UsageStatsResponseSerializer,
                           UserSerializer, UserSignupSerializer)
 
@@ -281,32 +281,4 @@ class UsageStatsView(AuthenticatedAPIView):
                 "whisper_minutes": {"used": monthly_whisper_usage, "limit": whisper_limit},
                 "chats": {"used": monthly_chat_count, "limit": chat_limit},
             }
-        )
-
-
-class PlanUpdateView(AuthenticatedAPIView):
-    """Plan update view"""
-
-    serializer_class = PlanUpdateSerializer
-
-    @extend_schema(
-        request=PlanUpdateSerializer,
-        responses={200: MessageResponseSerializer},
-        summary="Update user plan",
-        description="Update the user's plan (FREE or PRO).",
-    )
-    def patch(self, request):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        user = request.user
-        new_plan = serializer.validated_data["plan"]
-
-        # Update user plan
-        user.plan = new_plan
-        user.save(update_fields=["plan"])
-
-        return Response(
-            {"detail": f"Plan updated to {new_plan} successfully."},
-            status=status.HTTP_200_OK,
         )

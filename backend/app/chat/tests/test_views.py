@@ -532,9 +532,9 @@ class ChatMonthlyLimitTestCase(APITestCase):
             email="chatlimituser@example.com",
             password="testpass123",
         )
-        # Set to PRO plan (limit: 3000 chats)
-        self.user.plan = User.PlanChoices.PRO
-        self.user.save(update_fields=["plan"])
+        # Set chat limit to 3000
+        self.user.chat_limit = 3000
+        self.user.save(update_fields=["chat_limit"])
         self.client = APIClient()
         self.client.force_authenticate(user=self.user)
 
