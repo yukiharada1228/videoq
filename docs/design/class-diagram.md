@@ -12,7 +12,9 @@ classDiagram
         +int id
         +string username
         +string email
-        +string plan
+        +int video_limit
+        +float whisper_minutes_limit
+        +int chat_limit
         +datetime date_joined
         +bool is_active
         +bool is_staff

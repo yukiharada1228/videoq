@@ -20,7 +20,9 @@ Table that stores user information for the system.
 | username | VARCHAR(150) | UNIQUE, NOT NULL | - | Username |
 | email | VARCHAR(255) | UNIQUE, NOT NULL | - | Email address |
 | password | VARCHAR(128) | NOT NULL | - | Hashed password |
-| plan | VARCHAR(10) | NOT NULL | 'FREE' | User plan (FREE or PRO) |
+| video_limit | INTEGER | NOT NULL | 0 | Maximum number of videos (all time) |
+| whisper_minutes_limit | FLOAT | NOT NULL | 0.0 | Maximum Whisper processing time per month (minutes) |
+| chat_limit | INTEGER | NOT NULL | 0 | Maximum chat count per month |
 | date_joined | DATETIME | NOT NULL | now() | Registration date and time |
 | last_login | DATETIME | NULL | NULL | Last login date and time |
 | is_active | BOOLEAN | NOT NULL | False | Active status (email verified or not) |
@@ -265,4 +267,3 @@ All foreign keys have `ON DELETE CASCADE` set, so child records are automaticall
 ### Check Constraints
 - `Video.status`: Only specified values allowed
 - `ChatLog.feedback`: Only specified values or NULL allowed
-- `User.plan`: Must be 'FREE' or 'PRO'

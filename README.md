@@ -15,7 +15,7 @@ This application offers video upload, automatic transcription, and AI chat. When
 - **Video Group Management**: Organize multiple videos into groups
 - **Sharing**: Share video groups via share tokens
 - **Protected Media Delivery**: Secure media delivery via authentication
-- **Plan-based Limits**: FREE and PRO plans with different limits for videos, Whisper processing, and chat
+- **User-specific Limits**: Per-user limits for videos, Whisper processing, and chat (configurable via admin panel)
 
 ## Project Structure
 
@@ -622,7 +622,7 @@ All services communicate within the `ask-video-network` Docker network.
 
 ### Main Models
 
-- **User**: User info (extends Django AbstractUser; includes plan (FREE/PRO) and email verification state)
+- **User**: User info (extends Django AbstractUser; includes per-user limits for videos, Whisper processing, and chat, configurable via admin panel)
 - **Video**: Video info (title, description, file, transcript, status, external upload flag, duration, etc.)
 - **VideoGroup**: Video groups (name, description, share token, etc.)
 - **VideoGroupMember**: Association between videos and groups (ordering support)
