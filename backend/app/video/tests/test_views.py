@@ -265,7 +265,9 @@ class VideoUploadLimitTestCase(APITestCase):
         )
         # Set video limit to 3
         self.user.video_limit = 3
-        self.user.save(update_fields=["video_limit"])
+        # Set whisper minutes limit to a high value to avoid Whisper limit errors in tests
+        self.user.whisper_minutes_limit = 10000.0
+        self.user.save(update_fields=["video_limit", "whisper_minutes_limit"])
 
         self.client = APIClient()
         self.client.force_authenticate(user=self.user)
