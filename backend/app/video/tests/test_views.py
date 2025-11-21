@@ -263,9 +263,11 @@ class VideoUploadLimitTestCase(APITestCase):
             email="limituser@example.com",
             password="testpass123",
         )
-        # Set to FREE plan (limit: 3 videos)
-        self.user.plan = User.PlanChoices.FREE
-        self.user.save(update_fields=["plan"])
+        # Set video limit to 3
+        self.user.video_limit = 3
+        # Set whisper minutes limit to a high value to avoid Whisper limit errors in tests
+        self.user.whisper_minutes_limit = 10000.0
+        self.user.save(update_fields=["video_limit", "whisper_minutes_limit"])
 
         self.client = APIClient()
         self.client.force_authenticate(user=self.user)
@@ -574,9 +576,11 @@ class WhisperUsageLimitTestCase(APITestCase):
             email="whisperuser@example.com",
             password="testpass123",
         )
-        # Set to PRO plan (limit: 1200 minutes)
-        self.user.plan = User.PlanChoices.PRO
-        self.user.save(update_fields=["plan"])
+        # Set whisper minutes limit to 1200
+        self.user.whisper_minutes_limit = 1200.0
+        # Set video limit to a high value to avoid video limit errors in tests
+        self.user.video_limit = 10000
+        self.user.save(update_fields=["whisper_minutes_limit", "video_limit"])
         self.client = APIClient()
         self.client.force_authenticate(user=self.user)
         self.url = reverse("video-list")

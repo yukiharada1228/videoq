@@ -12,16 +12,18 @@ from storages.backends.s3boto3 import S3Boto3Storage
 
 
 class User(AbstractUser):
-    class PlanChoices(models.TextChoices):
-        FREE = "FREE", "Free"
-        PRO = "PRO", "Pro"
-
     email = models.EmailField("email address", unique=True)
-    plan = models.CharField(
-        max_length=10,
-        choices=PlanChoices.choices,
-        default=PlanChoices.FREE,
-        help_text="User plan (FREE or PRO)",
+    video_limit = models.IntegerField(
+        default=0,
+        help_text="Maximum number of videos (all time)",
+    )
+    whisper_minutes_limit = models.FloatField(
+        default=0.0,
+        help_text="Maximum Whisper processing time per month (minutes)",
+    )
+    chat_limit = models.IntegerField(
+        default=0,
+        help_text="Maximum chat count per month",
     )
 
 
