@@ -23,6 +23,9 @@ class ChatViewTests(APITestCase):
             email="test@example.com",
             password="testpass123",
         )
+        # Set chat limit to a high value to avoid rate limiting in tests
+        self.user.chat_limit = 10000
+        self.user.save(update_fields=["chat_limit"])
 
         self.client = APIClient()
         self.client.force_authenticate(user=self.user)

@@ -103,26 +103,6 @@ class ChatView(generics.CreateAPIView):
             # Normal authenticated user
             user = request.user
 
-        # Check monthly chat limit (based on user's plan, including shared chats)
-        now = timezone.now()
-        first_day_of_month = now.replace(
-            day=1, hour=0, minute=0, second=0, microsecond=0
-        )
-
-        # Count chat logs for this user in the current month
-        # Include both direct chats and shared chats (where user is the group owner)
-        monthly_chat_count = ChatLog.objects.filter(
-            Q(user=user) | Q(group__user=user, is_shared_origin=True),
-            created_at__gte=first_day_of_month,
-        ).count()
-
-        chat_limit = get_chat_limit(user)
-        if monthly_chat_count >= chat_limit:
-            return create_error_response(
-                f"Monthly chat limit reached ({chat_limit} chats per month). Please try again next month or upgrade your plan.",
-                status.HTTP_429_TOO_MANY_REQUESTS,
-            )
-
         # Get LangChain LLM
         llm, error_response = get_langchain_llm(user)
         if error_response:
@@ -144,6 +124,27 @@ class ChatView(generics.CreateAPIView):
                     return create_error_response(
                         "Specified group not found", status.HTTP_404_NOT_FOUND
                     )
+
+            # Check monthly chat limit (based on user's plan, including shared chats)
+            # This check is done after basic validation to ensure proper error messages
+            now = timezone.now()
+            first_day_of_month = now.replace(
+                day=1, hour=0, minute=0, second=0, microsecond=0
+            )
+
+            # Count chat logs for this user in the current month
+            # Include both direct chats and shared chats (where user is the group owner)
+            monthly_chat_count = ChatLog.objects.filter(
+                Q(user=user) | Q(group__user=user, is_shared_origin=True),
+                created_at__gte=first_day_of_month,
+            ).count()
+
+            chat_limit = get_chat_limit(user)
+            if monthly_chat_count >= chat_limit:
+                return create_error_response(
+                    f"Monthly chat limit reached ({chat_limit} chats per month). Please try again next month or upgrade your plan.",
+                    status.HTTP_429_TOO_MANY_REQUESTS,
+                )
 
             service = RagChatService(user=user, llm=llm)
             accept_language = request.headers.get("Accept-Language", "")
