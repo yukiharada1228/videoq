@@ -456,6 +456,27 @@ class VideoDetailViewTests(APITestCase):
         # Video should not be accessible via normal queries (excludes deleted videos)
         self.assertFalse(Video.objects.filter(pk=self.video.pk, deleted_at__isnull=True).exists())
 
+    @patch("app.utils.vector_manager.delete_video_vectors")
+    def test_delete_video_removes_from_groups(self, mock_delete):
+        """Test that deleting video removes it from all groups"""
+        # Create groups and add video to them
+        group1 = VideoGroup.objects.create(user=self.user, name="Group 1")
+        group2 = VideoGroup.objects.create(user=self.user, name="Group 2")
+        VideoGroupMember.objects.create(group=group1, video=self.video)
+        VideoGroupMember.objects.create(group=group2, video=self.video)
+
+        # Verify video is in both groups
+        self.assertEqual(VideoGroupMember.objects.filter(video=self.video).count(), 2)
+
+        url = reverse("video-detail", kwargs={"pk": self.video.pk})
+        response = self.client.delete(url)
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        # Video should be removed from all groups
+        self.assertEqual(VideoGroupMember.objects.filter(video=self.video).count(), 0)
+        # Groups should still exist
+        self.assertEqual(VideoGroup.objects.filter(pk__in=[group1.pk, group2.pk]).count(), 2)
+
 
 class ShareLinkTests(APITestCase):
     """Tests for share link functionality"""
