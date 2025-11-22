@@ -64,8 +64,9 @@ class VideoCreateSerializer(UserOwnedSerializerMixin, serializers.ModelSerialize
 
         if user:
             # Check video limit based on user's plan
+            # Exclude deleted videos from count
             video_limit = get_video_limit(user)
-            current_count = Video.objects.filter(user=user).count()
+            current_count = Video.objects.filter(user=user, deleted_at__isnull=True).count()
             if current_count >= video_limit:
                 raise serializers.ValidationError(
                     {
@@ -108,6 +109,7 @@ class VideoCreateSerializer(UserOwnedSerializerMixin, serializers.ModelSerialize
 
             # Sum duration_minutes for all videos (pending, processing, completed) in current month
             # This includes videos that are being processed or already completed
+            # Include deleted videos in limit check (they count for usage tracking)
             monthly_whisper_usage = (
                 Video.objects.filter(
                     user=user,

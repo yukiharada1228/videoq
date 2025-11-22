@@ -424,31 +424,37 @@ class VideoDetailViewTests(APITestCase):
 
     @patch("app.utils.vector_manager.delete_video_vectors")
     def test_delete_video_deletes_vectors(self, mock_delete):
-        """Test that deleting video deletes vectors"""
+        """Test that deleting video deletes vectors and performs soft delete"""
         url = reverse("video-detail", kwargs={"pk": self.video.pk})
         video_id = self.video.id
 
         response = self.client.delete(url)
 
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-        self.assertFalse(Video.objects.filter(pk=self.video.pk).exists())
-        # delete_video_vectors is called twice: once in destroy() and once in post_delete signal
-        self.assertEqual(mock_delete.call_count, 2)
-        # Both calls should be with the same video_id
+        # Video should be soft deleted (deleted_at is set, but record exists)
+        self.video.refresh_from_db()
+        self.assertIsNotNone(self.video.deleted_at)
+        # Video should not be accessible via normal queries (excludes deleted videos)
+        self.assertFalse(Video.objects.filter(pk=self.video.pk, deleted_at__isnull=True).exists())
+        # delete_video_vectors is called once in destroy() (post_delete signal doesn't fire for soft delete)
+        self.assertEqual(mock_delete.call_count, 1)
         self.assertEqual(mock_delete.call_args_list[0][0][0], video_id)
-        self.assertEqual(mock_delete.call_args_list[1][0][0], video_id)
 
     @patch("app.utils.vector_manager.delete_video_vectors")
     def test_delete_video_vector_error_handling(self, mock_delete):
-        """Test that vector deletion error doesn't prevent video deletion"""
+        """Test that vector deletion error doesn't prevent video soft delete"""
         mock_delete.side_effect = Exception("Vector deletion failed")
         url = reverse("video-detail", kwargs={"pk": self.video.pk})
 
         response = self.client.delete(url)
 
-        # Video should still be deleted even if vector deletion fails
+        # Video should still be soft deleted even if vector deletion fails
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-        self.assertFalse(Video.objects.filter(pk=self.video.pk).exists())
+        # Video should be soft deleted (deleted_at is set, but record exists)
+        self.video.refresh_from_db()
+        self.assertIsNotNone(self.video.deleted_at)
+        # Video should not be accessible via normal queries (excludes deleted videos)
+        self.assertFalse(Video.objects.filter(pk=self.video.pk, deleted_at__isnull=True).exists())
 
 
 class ShareLinkTests(APITestCase):

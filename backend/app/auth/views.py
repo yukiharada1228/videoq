@@ -253,8 +253,8 @@ class UsageStatsView(AuthenticatedAPIView):
             day=1, hour=0, minute=0, second=0, microsecond=0
         )
 
-        # Calculate video count
-        video_count = Video.objects.filter(user=user).count()
+        # Calculate video count (exclude deleted videos)
+        video_count = Video.objects.filter(user=user, deleted_at__isnull=True).count()
         video_limit = get_video_limit(user)
 
         # Calculate monthly Whisper usage (in minutes)

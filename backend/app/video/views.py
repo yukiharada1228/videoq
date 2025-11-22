@@ -126,11 +126,11 @@ class VideoDetailView(
         update_video_title_in_vectors(video_id, new_title)
 
     def destroy(self, request, *args, **kwargs):
-        """Delete file and vector data when Video is deleted"""
+        """Delete file and vector data when Video is deleted (soft delete for usage tracking)"""
         instance = self.get_object()
         video_id = instance.id
 
-        # Delete file if it exists
+        # Delete file if it exists (actual file deletion)
         if instance.file:
             instance.file.delete(save=False)
 
@@ -141,7 +141,14 @@ class VideoDetailView(
         except Exception as e:
             logger.warning(f"Failed to delete vectors for video {video_id}: {e}")
 
-        return super().destroy(request, *args, **kwargs)
+        # Soft delete: set deleted_at and clear file field
+        # This preserves the record for monthly usage tracking while removing file reference
+        from django.utils import timezone
+        instance.deleted_at = timezone.now()
+        instance.file = None  # Clear file field after deletion
+        instance.save(update_fields=["deleted_at", "file"])
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class BaseVideoGroupView(AuthenticatedViewMixin):
@@ -382,7 +389,8 @@ def add_videos_to_group(request, group_id):
 
     # Bulk fetch videos (N+1 prevention)
     # select_related not needed here (user data already validated)
-    videos = list(Video.objects.filter(user=request.user, id__in=video_ids))
+    # Exclude deleted videos
+    videos = list(Video.objects.filter(user=request.user, id__in=video_ids, deleted_at__isnull=True))
 
     error = _validate_videos_count(videos, video_ids)
     if error:
