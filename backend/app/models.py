@@ -1,6 +1,5 @@
 import os
 import time
-import uuid
 
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
@@ -31,10 +30,9 @@ def user_directory_path(instance, filename):
     return f"videos/{instance.user.id}/{filename}"
 
 
-class SafeStorageMixin:
+class SafeFileSystemStorage(FileSystemStorage):
     """
-    Mixin for safe file storage processing
-    Provides common functionality for filename sanitization
+    Safe file storage for local use with timestamp-based filename conversion
     """
 
     def get_available_name(self, name, max_length=None):
@@ -67,50 +65,78 @@ class SafeStorageMixin:
         # Generate timestamp-based filename
         timestamp = int(time.time() * 1000)  # Timestamp in milliseconds
 
-        # Generate safe filename with UUID for better uniqueness
-        safe_name = f"video_{timestamp}_{str(uuid.uuid4())[:8]}{ext}"
+        # Generate safe filename
+        safe_name = f"video_{timestamp}{ext}"
 
         return safe_name
 
 
-class SafeFileSystemStorage(SafeStorageMixin, FileSystemStorage):
+class SafeS3Boto3Storage(S3Boto3Storage):
     """
-    Safe file storage for local use
-    """
-
-    pass
-
-
-class SafeS3Boto3Storage(SafeStorageMixin, S3Boto3Storage):
-    """
-    Custom S3 storage with safe processing
+    Custom S3 storage with safe processing and timestamp-based filename conversion
     """
 
-    def __init__(self, *args, **kwargs):
-        # Add S3 configuration
-        kwargs.update(
-            {
-                "bucket_name": os.environ.get("AWS_STORAGE_BUCKET_NAME"),
-                "access_key": os.environ.get("AWS_ACCESS_KEY_ID"),
-                "secret_key": os.environ.get("AWS_SECRET_ACCESS_KEY"),
-                "location": "media",  # Directory in S3
-                "default_acl": "private",
-                "custom_domain": False,
-                "querystring_auth": True,
-                "querystring_expire": 3600,
-                "file_overwrite": False,  # Prevent file overwriting
-            }
+    def get_available_name(self, name, max_length=None):
+        """
+        Convert filename to safe format and avoid duplicates
+        """
+        # Convert absolute path to relative path
+        if os.path.isabs(name):
+            name = os.path.basename(name)
+
+        # Split into directory and filename parts
+        dir_name = os.path.dirname(name)
+        base_name = os.path.basename(name)
+        safe_base_name = self._get_safe_filename(base_name)
+        # Join if directory exists, otherwise filename only
+        safe_name = (
+            os.path.join(dir_name, safe_base_name) if dir_name else safe_base_name
         )
-        super().__init__(*args, **kwargs)
+
+        # Call original get_available_name method for duplicate check
+        return super().get_available_name(safe_name, max_length)
+
+    def _get_safe_filename(self, filename):
+        """
+        Convert filename to timestamp-based safe format
+        """
+        # Get file extension
+        _, ext = os.path.splitext(filename)
+
+        # Generate timestamp-based filename
+        timestamp = int(time.time() * 1000)  # Timestamp in milliseconds
+
+        # Generate safe filename
+        safe_name = f"video_{timestamp}{ext}"
+
+        return safe_name
+
+    def _normalize_name(self, name):
+        """
+        Normalize filename (for S3)
+        """
+        # Convert absolute path to relative path
+        if os.path.isabs(name):
+            name = os.path.basename(name)
+
+        # Normalize slashes
+        name = name.replace("\\", "/")
+
+        # Remove leading slash
+        if name.startswith("/"):
+            name = name[1:]
+
+        # Call parent's _normalize_name to apply location prefix
+        return super()._normalize_name(name)
 
 
 def get_default_storage():
     """
-    Get default storage based on settings.USE_S3_STORAGE
+    Get default storage based on settings.
+    Uses Django's default_storage which is configured via STORAGES setting.
     """
-    if settings.USE_S3_STORAGE:
-        return SafeS3Boto3Storage()
-    return SafeFileSystemStorage()
+    from django.core.files.storage import default_storage
+    return default_storage
 
 
 class Video(models.Model):

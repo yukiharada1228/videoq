@@ -86,6 +86,7 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt",
     "drf_spectacular",
     "corsheaders",
+    "storages",
     "app",
     "anymail",
 ]
@@ -164,12 +165,8 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = "static/"
+# Always set STATIC_ROOT (required for collectstatic command)
 STATIC_ROOT = BASE_DIR / "staticfiles"
-
-# Media files (Uploaded files)
-MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR / "media"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -245,6 +242,65 @@ USE_S3_STORAGE = (
     os.environ.get("USE_S3_STORAGE", str(DefaultSettings.USE_S3_STORAGE)).lower()
     == "true"
 )
+
+if USE_S3_STORAGE:
+    # AWS S3 basic settings
+    AWS_ACCESS_KEY_ID = os.environ.get("AWS_ACCESS_KEY_ID")
+    AWS_SECRET_ACCESS_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY")
+    AWS_STORAGE_BUCKET_NAME = os.environ.get("AWS_STORAGE_BUCKET_NAME")
+    AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com"
+    AWS_S3_REGION_NAME = os.environ.get("AWS_S3_REGION_NAME", "ap-northeast-1")
+    # Enable presigned URLs (default True)
+    AWS_QUERYSTRING_AUTH = True
+    # Presigned URL expiration (seconds, default 3600)
+    AWS_QUERYSTRING_EXPIRE = 3600
+    # All-region compatible signature version
+    AWS_S3_SIGNATURE_VERSION = "s3v4"
+
+    # Configure storage using Django 4.2+ method
+    STORAGES = {
+        "staticfiles": {  # Static file storage
+            "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+            "OPTIONS": {
+                "bucket_name": AWS_STORAGE_BUCKET_NAME,
+                "access_key": AWS_ACCESS_KEY_ID,
+                "secret_key": AWS_SECRET_ACCESS_KEY,
+                "location": "static",  # Directory in S3
+                "default_acl": "private",  # Change ACL to private
+                "custom_domain": False,
+                "querystring_auth": True,  # Enable presigned URLs
+                "querystring_expire": 3600,  # Override URL expiration
+                "object_parameters": {"CacheControl": "max-age=86400"},
+            },
+        },
+        "default": {  # Media file storage
+            "BACKEND": "app.models.SafeS3Boto3Storage",
+            "OPTIONS": {
+                "bucket_name": AWS_STORAGE_BUCKET_NAME,
+                "access_key": AWS_ACCESS_KEY_ID,
+                "secret_key": AWS_SECRET_ACCESS_KEY,
+                "location": "media",  # Directory in S3
+                "default_acl": "private",  # Change ACL to private
+                "file_overwrite": False,
+                "custom_domain": False,
+                "querystring_auth": True,  # Enable presigned URLs
+                "querystring_expire": 3600,  # Override URL expiration
+            },
+        },
+    }
+else:
+    # Local development settings
+    STATIC_URL = "/static/"
+    STATIC_ROOT = BASE_DIR / "staticfiles"
+    MEDIA_URL = "/media/"
+    MEDIA_ROOT = BASE_DIR / "media"
+    
+    # Use custom storage for media files (with timestamp-based filename conversion)
+    STORAGES = {
+        "default": {
+            "BACKEND": "app.models.SafeFileSystemStorage",
+        },
+    }
 
 FRONTEND_URL = os.environ.get("FRONTEND_URL", DefaultSettings.FRONTEND_URL)
 DEFAULT_FROM_EMAIL = os.environ.get(
