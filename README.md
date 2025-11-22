@@ -20,7 +20,7 @@ This application offers video upload, automatic transcription, and AI chat. When
 ## Project Structure
 
 ```
-talk-video/
+talk-vid/
 ├── backend/                    # Django REST Framework backend
 │   ├── app/                     # Main application
 │   │   ├── auth/                # Auth features (views, serializers, urls, tests)
@@ -71,6 +71,7 @@ talk-video/
 │   │   └── ui/                  # UI components (shadcn/ui)
 │   ├── hooks/                   # Custom hooks (useAuth, useVideos, useAsyncState, etc.)
 │   ├── lib/                     # Libraries/utilities (api, errorUtils, etc.)
+│   ├── i18n/                    # Internationalization (i18next config and locales)
 │   ├── package.json             # Node.js dependencies
 │   ├── package-lock.json        # npm lockfile
 │   ├── Dockerfile               # Frontend Docker image
@@ -90,6 +91,7 @@ talk-video/
 - **django-rest-framework-simplejwt** (>=5.5.1) - JWT auth
 - **django-cors-headers** (>=4.9.0) - CORS settings
 - **django-anymail** (>=13.1) - Email sending (verification, password reset)
+- **drf-spectacular** (>=0.29.0) - API documentation (OpenAPI/Swagger)
 
 #### Servers / WSGI
 - **Gunicorn** (>=23.0.0) - WSGI server
@@ -119,7 +121,7 @@ talk-video/
 
 #### Storage
 - **django-storages** (>=1.14.6) - Django storage backends (S3)
-+- **boto3** (>=1.40.64) - AWS SDK for Python (S3, etc.)
+- **boto3** (>=1.40.64) - AWS SDK for Python (S3, etc.)
 
 #### Security / Encryption
 - **cryptography** (>=46.0.3) - Encryption library (API key encryption)
@@ -158,6 +160,11 @@ talk-video/
 - **@dnd-kit/core** (^6.3.1) - DnD core
 - **@dnd-kit/sortable** (^10.0.0) - Sortable lists
 - **@dnd-kit/utilities** (^3.2.2) - DnD utilities
+
+#### Internationalization
+- **i18next** (^24.2.1) - Internationalization framework
+- **react-i18next** (^15.1.0) - React integration for i18next
+- **i18next-browser-languagedetector** (^8.0.0) - Language detection
 
 #### Utilities
 - **date-fns** (^4.1.0) - Date utilities
@@ -616,7 +623,7 @@ This project consists of the following services:
 
 ### Network
 
-All services communicate within the `talk-video-network` Docker network.
+All services communicate within the `talk-video-network` Docker network (defined in docker-compose.yml).
 
 ## Database Schema
 

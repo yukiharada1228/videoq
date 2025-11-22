@@ -46,6 +46,7 @@ erDiagram
         text error_message
         float duration_minutes
         bool is_external_upload
+        datetime deleted_at
     }
     
     VideoGroup {
