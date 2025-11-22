@@ -66,6 +66,7 @@ Table that stores information about uploaded videos.
 | error_message | TEXT | NOT NULL | '' | Error message (when error occurs) |
 | duration_minutes | FLOAT | NULL | NULL | Video duration in minutes (for Whisper usage tracking) |
 | is_external_upload | BOOLEAN | NOT NULL | False | Whether uploaded via external API |
+| deleted_at | DATETIME | NULL | NULL | Timestamp when video was deleted (soft delete for monthly usage tracking) |
 
 ### status Values
 - `pending`: Waiting for processing
@@ -81,6 +82,9 @@ Table that stores information about uploaded videos.
 ### Relations
 - `user`: Many-to-one relationship with User table
 - `groups`: Many-to-many relationship through VideoGroupMember table
+
+### Notes
+- `deleted_at` is used for soft delete functionality, allowing monthly usage tracking even after video deletion
 
 ---
 

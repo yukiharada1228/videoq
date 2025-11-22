@@ -33,6 +33,7 @@ classDiagram
         +string error_message
         +float duration_minutes
         +bool is_external_upload
+        +datetime deleted_at
         +__str__()
     }
     
@@ -68,6 +69,8 @@ classDiagram
         +string feedback
         +datetime created_at
     }
+    
+    Note: ChatLog.feedback uses FeedbackChoices (good/bad)
     
     class SafeStorageMixin {
         +get_available_name()
