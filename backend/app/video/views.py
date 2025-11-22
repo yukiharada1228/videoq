@@ -141,6 +141,10 @@ class VideoDetailView(
         except Exception as e:
             logger.warning(f"Failed to delete vectors for video {video_id}: {e}")
 
+        # Delete VideoGroupMember relationships (remove video from all groups)
+        # This is necessary because we use soft delete, so CASCADE won't trigger
+        VideoGroupMember.objects.filter(video=instance).delete()
+
         # Soft delete: set deleted_at and clear file field
         # This preserves the record for monthly usage tracking while removing file reference
         from django.utils import timezone
