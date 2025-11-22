@@ -108,6 +108,7 @@ class QueryOptimizer:
     ) -> QuerySet:
         """
         Get videos with metadata (N+1 prevention)
+        Excludes deleted videos from normal queries
 
         Args:
             user_id: User ID
@@ -119,9 +120,9 @@ class QueryOptimizer:
             Optimized video queryset
         """
         if user_id is not None:
-            queryset = Video.objects.filter(user_id=user_id)
+            queryset = Video.objects.filter(user_id=user_id, deleted_at__isnull=True)
         else:
-            queryset = Video.objects.all()
+            queryset = Video.objects.filter(deleted_at__isnull=True)
 
         if status_filter:
             queryset = queryset.filter(status=status_filter)
