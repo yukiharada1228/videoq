@@ -109,13 +109,12 @@ class VideoCreateSerializer(UserOwnedSerializerMixin, serializers.ModelSerialize
 
             # Sum duration_minutes for all videos (pending, processing, completed) in current month
             # This includes videos that are being processed or already completed
-            # Exclude deleted videos from limit check (they still count for usage tracking)
+            # Include deleted videos in limit check (they count for usage tracking)
             monthly_whisper_usage = (
                 Video.objects.filter(
                     user=user,
                     uploaded_at__gte=first_day_of_month,
                     duration_minutes__isnull=False,
-                    deleted_at__isnull=True,  # Exclude deleted videos from limit check
                 )
                 .exclude(id=video.id)
                 .aggregate(total_minutes=Sum("duration_minutes"))["total_minutes"]
