@@ -300,6 +300,9 @@ else:
         "default": {
             "BACKEND": "app.models.SafeFileSystemStorage",
         },
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        },
     }
 
 FRONTEND_URL = os.environ.get("FRONTEND_URL", DefaultSettings.FRONTEND_URL)
