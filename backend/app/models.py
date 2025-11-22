@@ -169,6 +169,11 @@ class Video(models.Model):
         default=False,
         help_text="Whether this is an upload from an external API client (file will be deleted after processing)",
     )
+    deleted_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Timestamp when video was deleted (soft delete for monthly usage tracking)",
+    )
 
     class Meta:
         ordering = ["-uploaded_at"]
