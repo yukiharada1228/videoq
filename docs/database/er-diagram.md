@@ -32,8 +32,6 @@ erDiagram
         string last_name
     }
     
-    Note: User limits (video_limit, whisper_minutes_limit, chat_limit) are configurable via admin panel
-    
     Video {
         int id PK
         int user_id FK
@@ -81,6 +79,8 @@ erDiagram
 ```
 
 ## Relationship Details
+
+**Note:** User limits (`video_limit`, `whisper_minutes_limit`, `chat_limit`) are configurable via admin panel.
 
 ### User - Video (1:N)
 - **Relationship**: One user owns multiple videos
