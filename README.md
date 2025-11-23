@@ -299,35 +299,6 @@ docker compose restart
 docker compose exec postgres psql -U $POSTGRES_USER -d $POSTGRES_DB
 ```
 
-## Performance Optimization
-
-This project implements several performance optimizations to ensure efficient database queries and maintainable code:
-
-### N+1 Problem Prevention
-
-- **Query Optimization**: Uses `select_related()` and `prefetch_related()` to minimize database queries
-  - `QueryOptimizer` class provides optimized querysets for videos and video groups
-  - Video group detail views prefetch members with related videos
-  - Chat history queries use `select_related("user")` to avoid additional queries
-- **Batch Operations**: Uses `bulk_create()` and `bulk_update()` for multiple record operations
-- **Common Utility Functions**: Monthly usage calculations use optimized queries with proper `select_related` to prevent N+1 issues
-
-### DRY Principle
-
-- **Common Utility Functions**: Shared logic is centralized in utility modules
-  - `plan_limits.py`: Common functions for monthly limit calculations (`get_monthly_chat_count()`, `get_monthly_whisper_usage()`, `get_first_day_of_month()`)
-  - `query_optimizer.py`: Reusable query optimization functions
-  - `response_utils.py`: Common validation and response building utilities
-- **Code Reuse**: Views and serializers use common helper functions to avoid duplication
-- **Consistent Patterns**: Error handling and validation follow consistent patterns across the codebase
-
-### Key Optimization Areas
-
-- **Video Queries**: Optimized with `select_related("user")` and conditional `prefetch_related("groups")`
-- **Video Group Queries**: Use `Prefetch` with `select_related("video")` for members
-- **Chat Queries**: Monthly chat count uses `select_related("group", "group__user")` to prevent N+1
-- **Usage Statistics**: Monthly usage calculations are centralized and optimized
-
 ## Feature Details
 
 ### Authentication

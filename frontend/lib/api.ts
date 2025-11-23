@@ -316,7 +316,7 @@ class ApiClient {
   }
 
   /**
-   * Common fetch execution logic (following DRY principle)
+   * Common fetch execution logic
    * Basic fetch processing without retry logic
    * 401 errors don't throw exceptions, allowing special handling by caller
    */

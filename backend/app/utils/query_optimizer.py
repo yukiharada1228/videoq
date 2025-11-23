@@ -1,5 +1,5 @@
 """
-Database query optimization utilities (N+1 prevention)
+Database query optimization utilities
 """
 
 from typing import Any, Dict, List, Optional
@@ -9,7 +9,7 @@ from django.db.models import Count, Prefetch, QuerySet
 
 
 class QueryOptimizer:
-    """Database query optimization class (N+1 prevention)"""
+    """Database query optimization class"""
 
     @staticmethod
     def optimize_video_queryset(
@@ -19,7 +19,7 @@ class QueryOptimizer:
         include_groups: bool = False,
     ) -> QuerySet:
         """
-        Optimize video queryset (N+1 prevention)
+        Optimize video queryset
 
         Args:
             queryset: Base queryset
@@ -70,7 +70,7 @@ class QueryOptimizer:
         annotate_video_count: bool = True,
     ) -> QuerySet:
         """
-        Optimize video group queryset (N+1 prevention)
+        Optimize video group queryset
 
         Args:
             queryset: Base queryset
@@ -107,7 +107,7 @@ class QueryOptimizer:
         include_groups: bool = False,
     ) -> QuerySet:
         """
-        Get videos with metadata (N+1 prevention)
+        Get videos with metadata
         Excludes deleted videos from normal queries
 
         Args:
@@ -143,7 +143,7 @@ class QueryOptimizer:
         annotate_video_count: bool = True,
     ) -> QuerySet:
         """
-        Get groups with videos (N+1 prevention)
+        Get groups with videos
 
         Args:
             user_id: User ID
@@ -162,12 +162,12 @@ class QueryOptimizer:
 
 
 class BatchProcessor:
-    """Batch processing optimization class (N+1 prevention)"""
+    """Batch processing optimization class"""
 
     @staticmethod
     def bulk_update_videos(videos: List[Video], fields: List[str]) -> int:
         """
-        Batch update videos (N+1 prevention)
+        Batch update videos
 
         Args:
             videos: List of videos to update
@@ -186,7 +186,7 @@ class BatchProcessor:
         group_id: int, video_ids: List[int], orders: Optional[List[int]] = None
     ) -> List[VideoGroupMember]:
         """
-        Batch create video group members (N+1 prevention)
+        Batch create video group members
 
         Args:
             group_id: Group ID
@@ -212,7 +212,7 @@ class BatchProcessor:
     @staticmethod
     def bulk_delete_video_group_members(group_id: int, video_ids: List[int]) -> int:
         """
-        Batch delete video group members (N+1 prevention)
+        Batch delete video group members
 
         Args:
             group_id: Group ID
@@ -231,12 +231,12 @@ class BatchProcessor:
 
 
 class CacheOptimizer:
-    """Cache optimization class (N+1 prevention)"""
+    """Cache optimization class"""
 
     @staticmethod
     def get_cached_video_data(video_ids: List[int]) -> Dict[int, Dict[str, Any]]:
         """
-        Get video data from cache (N+1 prevention)
+        Get video data from cache
 
         Args:
             video_ids: List of video IDs
@@ -247,7 +247,6 @@ class CacheOptimizer:
         if not video_ids:
             return {}
 
-        # N+1 prevention: Get required data in a single query
         videos = (
             QueryOptimizer.get_videos_with_metadata(
                 user_id=None, include_transcript=False
@@ -269,7 +268,7 @@ class CacheOptimizer:
     @staticmethod
     def get_cached_video_group_data(group_ids: List[int]) -> Dict[int, Dict[str, Any]]:
         """
-        Get video group data from cache (N+1 prevention)
+        Get video group data from cache
 
         Args:
             group_ids: List of group IDs
@@ -280,7 +279,6 @@ class CacheOptimizer:
         if not group_ids:
             return {}
 
-        # N+1 prevention: Get required data in a single query
         # Note: video_count is an annotation, so we can't use only()
         groups = (
             VideoGroup.objects.filter(id__in=group_ids)
@@ -304,7 +302,7 @@ class CacheOptimizer:
         queryset: QuerySet, related_fields: List[str]
     ) -> QuerySet:
         """
-        Prefetch related data (N+1 prevention)
+        Prefetch related data
 
         Args:
             queryset: Base queryset
@@ -321,7 +319,7 @@ class CacheOptimizer:
     @staticmethod
     def optimize_bulk_operations(queryset: QuerySet, operation_type: str) -> QuerySet:
         """
-        Optimize queryset for bulk operations (N+1 prevention)
+        Optimize queryset for bulk operations
 
         Args:
             queryset: Base queryset
@@ -347,7 +345,7 @@ class CacheOptimizer:
         model_class, filters: Optional[Dict[str, Any]] = None
     ) -> QuerySet:
         """
-        Get optimized queryset for counting (N+1 prevention)
+        Get optimized queryset for counting
 
         Args:
             model_class: Model class

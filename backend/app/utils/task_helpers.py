@@ -20,7 +20,7 @@ class VideoTaskManager:
     @staticmethod
     def get_video_with_user(video_id: int) -> Tuple[Optional[Video], Optional[str]]:
         """
-        Get video and user information at once (N+1 prevention)
+        Get video and user information at once
 
         Returns:
             (video, error_message)
@@ -116,14 +116,14 @@ class TemporaryFileManager:
 
 
 class BatchProcessor:
-    """Common batch processing class (N+1 prevention)"""
+    """Common batch processing class"""
 
     @staticmethod
     def process_in_batches(
         items: List[Any], batch_size: int, process_func, *args, **kwargs
     ) -> List[Any]:
         """
-        Process items in batches (N+1 prevention)
+        Process items in batches
 
         Args:
             items: List of items to process
@@ -171,7 +171,6 @@ class ErrorHandler:
         """
         logger.error(f"Error in task for video {video_id}: {error}", exc_info=True)
 
-        # N+1 prevention: Update video status to error (select_related not needed)
         try:
             video = Video.objects.only("id").get(id=video_id)
             VideoTaskManager.update_video_status(video, "error", str(error))
@@ -221,7 +220,7 @@ class ErrorHandler:
     @staticmethod
     def validate_required_fields(data: dict, required_fields: list) -> tuple[bool, str]:
         """
-        Validate required fields (DRY: Uses ValidationHelper internally)
+        Validate required fields
 
         Returns:
             (is_valid, error_message)
