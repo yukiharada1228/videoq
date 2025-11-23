@@ -136,6 +136,7 @@ def get_default_storage():
     Uses Django's default_storage which is configured via STORAGES setting.
     """
     from django.core.files.storage import default_storage
+
     return default_storage
 
 

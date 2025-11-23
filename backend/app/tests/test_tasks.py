@@ -5,11 +5,12 @@ Tests for Celery tasks
 from datetime import timedelta
 from unittest.mock import Mock, patch
 
-from app.models import Video
-from app.tasks import cleanup_soft_deleted_videos
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.utils import timezone
+
+from app.models import Video
+from app.tasks import cleanup_soft_deleted_videos
 
 User = get_user_model()
 
@@ -32,7 +33,9 @@ class CleanupSoftDeletedVideosTaskTests(TestCase):
         # Create videos deleted in previous month
         now = timezone.now()
         previous_month = now.replace(day=1) - timedelta(days=1)
-        previous_month_start = previous_month.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        previous_month_start = previous_month.replace(
+            day=1, hour=0, minute=0, second=0, microsecond=0
+        )
 
         # Video deleted in previous month (should be deleted)
         old_deleted_video = Video.objects.create(
@@ -42,7 +45,9 @@ class CleanupSoftDeletedVideosTaskTests(TestCase):
         )
 
         # Video deleted in current month (should NOT be deleted)
-        current_month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        current_month_start = now.replace(
+            day=1, hour=0, minute=0, second=0, microsecond=0
+        )
         current_deleted_video = Video.objects.create(
             user=self.user,
             title="Current Month Deleted Video",
@@ -88,7 +93,9 @@ class CleanupSoftDeletedVideosTaskTests(TestCase):
         # Create 250 videos deleted in previous month (more than batch size of 100)
         now = timezone.now()
         previous_month = now.replace(day=1) - timedelta(days=1)
-        previous_month_start = previous_month.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        previous_month_start = previous_month.replace(
+            day=1, hour=0, minute=0, second=0, microsecond=0
+        )
 
         videos = []
         for i in range(250):
@@ -104,7 +111,9 @@ class CleanupSoftDeletedVideosTaskTests(TestCase):
 
         # Check results
         self.assertEqual(result, 250)
-        self.assertEqual(Video.objects.filter(deleted_at__lt=now.replace(day=1)).count(), 0)
+        self.assertEqual(
+            Video.objects.filter(deleted_at__lt=now.replace(day=1)).count(), 0
+        )
 
     def test_cleanup_no_videos_to_delete(self):
         """Test cleanup when there are no videos to delete"""
@@ -130,7 +139,9 @@ class CleanupSoftDeletedVideosTaskTests(TestCase):
     def test_cleanup_only_deletes_before_current_month(self):
         """Test that cleanup only deletes videos deleted before current month start"""
         now = timezone.now()
-        current_month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        current_month_start = now.replace(
+            day=1, hour=0, minute=0, second=0, microsecond=0
+        )
 
         # Video deleted exactly at current month start (should NOT be deleted)
         video_at_month_start = Video.objects.create(
@@ -159,7 +170,9 @@ class CleanupSoftDeletedVideosTaskTests(TestCase):
         """Test that cleanup continues even if individual video deletion fails"""
         now = timezone.now()
         previous_month = now.replace(day=1) - timedelta(days=1)
-        previous_month_start = previous_month.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        previous_month_start = previous_month.replace(
+            day=1, hour=0, minute=0, second=0, microsecond=0
+        )
 
         # Create videos to delete
         video1 = Video.objects.create(
@@ -188,7 +201,9 @@ class CleanupSoftDeletedVideosTaskTests(TestCase):
     def test_cleanup_handles_general_errors(self, mock_logger):
         """Test that cleanup raises exception on general errors for Celery retry"""
         # Mock Video.objects.filter to raise exception
-        with patch.object(Video.objects, "filter", side_effect=Exception("Database error")):
+        with patch.object(
+            Video.objects, "filter", side_effect=Exception("Database error")
+        ):
             with self.assertRaises(Exception):
                 cleanup_soft_deleted_videos(self.task_instance)
 
@@ -204,7 +219,9 @@ class CleanupSoftDeletedVideosTaskTests(TestCase):
 
         now = timezone.now()
         previous_month = now.replace(day=1) - timedelta(days=1)
-        previous_month_start = previous_month.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        previous_month_start = previous_month.replace(
+            day=1, hour=0, minute=0, second=0, microsecond=0
+        )
 
         # Create deleted videos for both users
         video1 = Video.objects.create(
@@ -225,4 +242,3 @@ class CleanupSoftDeletedVideosTaskTests(TestCase):
         self.assertEqual(result, 2)
         self.assertFalse(Video.objects.filter(id=video1.id).exists())
         self.assertFalse(Video.objects.filter(id=video2.id).exists())
-

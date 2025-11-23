@@ -257,7 +257,9 @@ class UsageStatsViewTests(APITestCase):
         self.user.video_limit = 50
         self.user.whisper_minutes_limit = 1200.0
         self.user.chat_limit = 3000
-        self.user.save(update_fields=["video_limit", "whisper_minutes_limit", "chat_limit"])
+        self.user.save(
+            update_fields=["video_limit", "whisper_minutes_limit", "chat_limit"]
+        )
         self.client.force_authenticate(user=self.user)
         self.url = reverse("auth-usage-stats")
 
@@ -275,8 +277,9 @@ class UsageStatsViewTests(APITestCase):
             duration_minutes=5.0,
         )
         # Video from previous month (should not be counted)
-        from django.utils import timezone
         from datetime import timedelta
+
+        from django.utils import timezone
 
         last_month = timezone.now() - timedelta(days=35)
         self.old_video = Video.objects.create(
@@ -430,7 +433,9 @@ class UsageStatsViewTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         # Should only count self.user's data
         self.assertEqual(response.data["videos"]["used"], 3)  # Only self.user's videos
-        self.assertEqual(response.data["whisper_minutes"]["used"], 15.5)  # Only self.user's videos
+        self.assertEqual(
+            response.data["whisper_minutes"]["used"], 15.5
+        )  # Only self.user's videos
         self.assertEqual(response.data["chats"]["used"], 2)  # Only self.user's chats
 
     def test_get_usage_stats_with_shared_origin_chat_other_user_group(self):
@@ -469,9 +474,11 @@ class UsageStatsViewTests(APITestCase):
 
     def test_get_usage_stats_excludes_previous_month_chats(self):
         """Test that only current month's chats are counted"""
-        from app.models import ChatLog
-        from django.utils import timezone
         from datetime import timedelta
+
+        from django.utils import timezone
+
+        from app.models import ChatLog
 
         # Create a chat log from previous month
         last_month = timezone.now() - timedelta(days=35)
@@ -482,9 +489,9 @@ class UsageStatsViewTests(APITestCase):
             answer="Old answer",
         )
         # Update created_at after creation (since it's auto_now_add)
-        ChatLog.objects.filter(
-            user=self.user, question="Old question"
-        ).update(created_at=last_month)
+        ChatLog.objects.filter(user=self.user, question="Old question").update(
+            created_at=last_month
+        )
 
         response = self.client.get(self.url)
 
@@ -501,7 +508,9 @@ class UsageStatsViewTests(APITestCase):
         response = self.client.get(self.url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["videos"]["limit"], 50)  # Pro plan has 50 video limit
+        self.assertEqual(
+            response.data["videos"]["limit"], 50
+        )  # Pro plan has 50 video limit
 
     def test_get_usage_stats_whisper_usage_none_aggregate(self):
         """Test Whisper usage when aggregate returns None (no videos this month with duration)"""
@@ -526,9 +535,11 @@ class UsageStatsViewTests(APITestCase):
 
     def test_get_usage_stats_excludes_previous_month_videos(self):
         """Test that only current month's videos are counted for Whisper usage"""
-        from app.models import Video
-        from django.utils import timezone
         from datetime import timedelta
+
+        from django.utils import timezone
+
+        from app.models import Video
 
         # Create a video from previous month with duration
         last_month = timezone.now() - timedelta(days=35)
@@ -565,13 +576,14 @@ class UsageStatsViewTests(APITestCase):
 
     def test_get_usage_stats_first_day_of_month_calculation(self):
         """Test that first_day_of_month calculation works correctly"""
-        from app.models import Video
         from django.utils import timezone
+
+        from app.models import Video
 
         # Create a video exactly at the start of the current month
         now = timezone.now()
         first_day = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        
+
         # Create a video at the start of the month
         video_at_start = Video.objects.create(
             user=self.user,
@@ -586,5 +598,3 @@ class UsageStatsViewTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         # Should include video at the start of the month (15.5 + 7.5 = 23.0)
         self.assertEqual(response.data["whisper_minutes"]["used"], 23.0)
-
-

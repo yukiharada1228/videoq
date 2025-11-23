@@ -5,12 +5,13 @@ Tests for task_helpers module
 import os
 from unittest.mock import Mock, patch
 
-from app.models import Video
-from app.utils.task_helpers import (BatchProcessor, ErrorHandler,
-                                    TemporaryFileManager, VideoTaskManager)
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
+
+from app.models import Video
+from app.utils.task_helpers import (BatchProcessor, ErrorHandler,
+                                    TemporaryFileManager, VideoTaskManager)
 
 User = get_user_model()
 
@@ -119,7 +120,6 @@ class VideoTaskManagerTests(TestCase):
         self.assertFalse(is_valid)
         self.assertIsNotNone(error)
         self.assertIn("file", error.lower())
-
 
 
 class TemporaryFileManagerTests(TestCase):
