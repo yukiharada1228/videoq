@@ -61,7 +61,11 @@ interface SortableVideoItemProps {
   onRemove: (videoId: number) => void;
 }
 
-function SortableVideoItem({ video, isSelected, onSelect, onRemove }: SortableVideoItemProps) {
+interface SortableVideoItemPropsWithMobile extends SortableVideoItemProps {
+  isMobile?: boolean;
+}
+
+function SortableVideoItem({ video, isSelected, onSelect, onRemove, isMobile = false }: SortableVideoItemPropsWithMobile) {
   const { t, i18n } = useTranslation();
   const {
     attributes,
@@ -70,23 +74,25 @@ function SortableVideoItem({ video, isSelected, onSelect, onRemove }: SortableVi
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: video.id });
+  } = useSortable({ id: video.id, disabled: isMobile });
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
-    touchAction: 'none',
+    touchAction: isMobile ? 'auto' : 'none',
   };
 
   return (
     <div
       ref={setNodeRef}
       style={style}
-      {...attributes}
-      {...listeners}
+      {...(isMobile ? {} : attributes)}
+      {...(isMobile ? {} : listeners)}
       onClick={() => onSelect(video.id)}
-      className={`p-3 border rounded cursor-pointer hover:bg-gray-50 cursor-grab active:cursor-grabbing ${
+      className={`p-3 border rounded cursor-pointer hover:bg-gray-50 ${
+        isMobile ? '' : 'cursor-grab active:cursor-grabbing'
+      } ${
         isSelected ? 'bg-blue-50 border-blue-300' : ''
       } ${isDragging ? 'shadow-lg' : ''}`}
     >
@@ -160,6 +166,20 @@ export default function VideoGroupDetailPage() {
 
   // Mobile tab state
   const [mobileTab, setMobileTab] = useState<'videos' | 'player' | 'chat'>('player');
+  
+  // Mobile detection state
+  const [isMobile, setIsMobile] = useState(false);
+  
+  // Detect mobile on mount and window resize
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const handleOrderingChange = useCallback((event: React.ChangeEvent<HTMLSelectElement>) => {
     const value = event.target.value as OrderingOption;
@@ -826,32 +846,47 @@ export default function VideoGroupDetailPage() {
               <CardContent className="flex-1 flex flex-col overflow-hidden">
                 <div className="flex-1 overflow-y-auto space-y-2">
                   {group.videos && group.videos.length > 0 ? (
-                    <DndContext
-                      sensors={sensors}
-                      collisionDetection={closestCenter}
-                      onDragEnd={handleDragEnd}
-                    >
-                      <SortableContext
-                        items={group.videos.map(video => video.id)}
-                        strategy={verticalListSortingStrategy}
+                    isMobile ? (
+                      // Mobile: No drag and drop, just render items
+                      group.videos.map((video) => (
+                        <SortableVideoItem
+                          key={video.id}
+                          video={video}
+                          isSelected={selectedVideo?.id === video.id}
+                          isMobile={true}
+                          onSelect={(videoId) => {
+                            handleVideoSelect(videoId);
+                            setMobileTab('player');
+                          }}
+                          onRemove={handleRemoveVideo}
+                        />
+                      ))
+                    ) : (
+                      // Desktop: With drag and drop
+                      <DndContext
+                        sensors={sensors}
+                        collisionDetection={closestCenter}
+                        onDragEnd={handleDragEnd}
                       >
-                        {group.videos.map((video) => (
-                          <SortableVideoItem
-                            key={video.id}
-                            video={video}
-                            isSelected={selectedVideo?.id === video.id}
-                            onSelect={(videoId) => {
-                              handleVideoSelect(videoId);
-                              // Switch to player tab when video is selected on mobile
-                              if (window.innerWidth < 1024) {
-                                setMobileTab('player');
-                              }
-                            }}
-                            onRemove={handleRemoveVideo}
-                          />
-                        ))}
-                      </SortableContext>
-                    </DndContext>
+                        <SortableContext
+                          items={group.videos.map(video => video.id)}
+                          strategy={verticalListSortingStrategy}
+                        >
+                          {group.videos.map((video) => (
+                            <SortableVideoItem
+                              key={video.id}
+                              video={video}
+                              isSelected={selectedVideo?.id === video.id}
+                              isMobile={false}
+                              onSelect={(videoId) => {
+                                handleVideoSelect(videoId);
+                              }}
+                              onRemove={handleRemoveVideo}
+                            />
+                          ))}
+                        </SortableContext>
+                      </DndContext>
+                    )
                   ) : (
                     <p className="text-center text-gray-500 py-4 text-sm">
                       {t('videos.groupDetail.videoListEmpty')}
