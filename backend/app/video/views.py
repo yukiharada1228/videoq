@@ -44,12 +44,7 @@ class BaseVideoView(AuthenticatedViewMixin):
 
 
 class VideoListView(DynamicSerializerMixin, BaseVideoView, generics.ListCreateAPIView):
-    """Video list retrieval and creation view
-
-    N+1 prevention:
-    - select_related not needed since VideoListSerializer doesn't include user
-    - Can override get_queryset() if additional related data is needed in the future
-    """
+    """Video list retrieval and creation view"""
 
     serializer_map = {
         "GET": VideoListSerializer,
@@ -170,7 +165,7 @@ class BaseVideoGroupView(AuthenticatedViewMixin):
 class VideoGroupListView(
     DynamicSerializerMixin, BaseVideoGroupView, generics.ListCreateAPIView
 ):
-    """VideoGroup list retrieval and creation view (N+1 prevention)"""
+    """VideoGroup list retrieval and creation view"""
 
     serializer_map = {
         "GET": VideoGroupListSerializer,
@@ -178,14 +173,14 @@ class VideoGroupListView(
     }
 
     def get_queryset(self):
-        """Return only current user's VideoGroups (N+1 prevention)"""
+        """Return only current user's VideoGroups"""
         return self._get_filtered_queryset(annotate_only=True)
 
 
 class VideoGroupDetailView(
     DynamicSerializerMixin, BaseVideoGroupView, generics.RetrieveUpdateDestroyAPIView
 ):
-    """VideoGroup detail, update, and delete view (N+1 prevention)"""
+    """VideoGroup detail, update, and delete view"""
 
     serializer_map = {
         "GET": VideoGroupDetailSerializer,
@@ -194,7 +189,7 @@ class VideoGroupDetailView(
     }
 
     def get_queryset(self):
-        """Return only current user's VideoGroups (N+1 prevention)"""
+        """Return only current user's VideoGroups"""
         return self._get_filtered_queryset(annotate_only=False)
 
 
@@ -211,11 +206,8 @@ def _validate_and_get_resource(
     user, model_class, resource_id, entity_name: str, select_related_fields=None
 ):
     """Common resource retrieval and validation logic"""
-    # N+1 prevention: Use filter().first() to return None (don't raise exception)
-    # Ownership check is automatic since we filter by user
     queryset = model_class.objects.filter(user=user, id=resource_id)
 
-    # N+1 prevention: Add select_related if needed
     if select_related_fields:
         queryset = queryset.select_related(*select_related_fields)
 
@@ -231,7 +223,6 @@ def _validate_and_get_resource(
 
 def _get_group_and_video(user, group_id, video_id, select_related_fields=None):
     """Common group and video retrieval logic"""
-    # N+1 prevention: Apply select_related if needed
     group, error = _validate_and_get_resource(
         user, VideoGroup, group_id, "Group", select_related_fields
     )
@@ -308,7 +299,6 @@ def _get_member_queryset(group, video=None, select_related=False):
     if video:
         queryset = queryset.filter(video=video)
 
-    # N+1 prevention: Apply select_related only when video or group data is needed
     if select_related:
         queryset = queryset.select_related("video", "group")
 
@@ -391,8 +381,6 @@ def add_videos_to_group(request, group_id):
     if error:
         return error
 
-    # Bulk fetch videos (N+1 prevention)
-    # select_related not needed here (user data already validated)
     # Exclude deleted videos
     videos = list(Video.objects.filter(user=request.user, id__in=video_ids, deleted_at__isnull=True))
 
@@ -400,8 +388,6 @@ def add_videos_to_group(request, group_id):
     if error:
         return error
 
-    # Check for already added videos (N+1 prevention)
-    # Bulk fetch video_ids and use Set for O(1) lookup
     video_ids_list = [v.id for v in videos]
     existing_members = set(
         _get_member_queryset(group)
@@ -409,7 +395,6 @@ def add_videos_to_group(request, group_id):
         .values_list("video_id", flat=True)
     )
 
-    # Filter only addable videos in selection order (N+1 prevention)
     video_map = {video.id: video for video in videos}
     videos_to_add = [
         video_map[video_id]
@@ -492,9 +477,6 @@ def reorder_videos_in_group(request, group_id):
             "Failed to parse request body", status.HTTP_400_BAD_REQUEST
         )
 
-    # Get video members in group (N+1 prevention)
-    # Pre-fetch video data with select_related
-    # Use list() to evaluate and completely avoid N+1 problem
     members = list(VideoGroupMember.objects.filter(group=group).select_related("video"))
 
     # Check if specified video_ids match videos in group
@@ -506,7 +488,6 @@ def reorder_videos_in_group(request, group_id):
             status.HTTP_400_BAD_REQUEST,
         )
 
-    # Update order (N+1 prevention)
     # Use bulk_update for batch update
     member_dict = {member.video_id: member for member in members}
     members_to_update = []
@@ -516,7 +497,6 @@ def reorder_videos_in_group(request, group_id):
         member.order = index
         members_to_update.append(member)
 
-    # Solve N+1 problem with batch update
     VideoGroupMember.objects.bulk_update(members_to_update, ["order"])
 
     return Response({"message": "Video order updated"}, status=status.HTTP_200_OK)
@@ -590,11 +570,8 @@ def get_shared_group(request, share_token):
 
     Public group accessible by anyone
     """
-    # Get group by share_token (N+1 prevention)
-    # Filter only by share_token, not by user_id
     queryset = VideoGroup.objects.filter(share_token=share_token)
 
-    # Use QueryOptimizer to solve N+1 problem
     group = QueryOptimizer.optimize_video_group_queryset(
         queryset,
         include_videos=True,

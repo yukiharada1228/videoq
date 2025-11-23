@@ -83,7 +83,6 @@ def _count_scenes(srt_content):
 
 
 def _parse_srt_scenes(srt_content):
-    # Use common parser to follow DRY principle
     return SubtitleParser.parse_srt_scenes(srt_content)
 
 
@@ -286,7 +285,7 @@ def transcribe_audio_segment(client, segment_info):
 
 def _process_audio_segments_parallel(client, audio_segments):
     """
-    Process audio segments in parallel (N+1 prevention)
+    Process audio segments in parallel
     """
     all_segments = []
 
@@ -374,7 +373,6 @@ def _index_scenes_batch(scene_split_srt, video, api_key=None):
         scenes = _parse_srt_scenes(scene_split_srt)
         logger.info(f"Parsed {len(scenes)} scenes from SRT")
 
-        # N+1 prevention: Prepare scene documents in batch (optimized with list comprehension)
         scene_docs = [
             {
                 "text": sc["text"],
@@ -423,7 +421,6 @@ def transcribe_video(self, video_id):
     # Initialize temporary file management
     with TemporaryFileManager() as temp_manager:
         try:
-            # Get Video instance (N+1 prevention)
             video, error = VideoTaskManager.get_video_with_user(video_id)
             if error:
                 raise Exception(error)
@@ -516,7 +513,7 @@ def transcribe_video(self, video_id):
                 except Exception as e:
                     logger.warning(f"Failed to save video duration: {e}")
 
-            # Process segments in parallel for better performance (N+1 prevention)
+            # Process segments in parallel for better performance
             all_segments = _process_audio_segments_parallel(client, audio_segments)
 
             if not all_segments:
@@ -537,8 +534,7 @@ def transcribe_video(self, video_id):
             # Save processed SRT
             _save_transcription_result(video, scene_split_srt)
 
-            # Index scenes to vector store for RAG (N+1 prevention)
-            # api_key is already set from environment variable above
+            # Index scenes to vector store for RAG
             _index_scenes_batch(scene_split_srt, video, api_key)
 
             logger.info(f"Successfully processed video {video_id}")

@@ -17,9 +17,8 @@ from pathlib import Path
 import dj_database_url
 
 
-# DRY principle: Centralized management of environment variable defaults
 class DefaultSettings:
-    """Centralized management of default settings (DRY principle)"""
+    """Centralized management of default settings"""
 
     # Database
     DATABASE_URL = "postgres://postgres:postgres@localhost:5432/postgres"

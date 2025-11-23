@@ -126,7 +126,6 @@ class ChatView(generics.CreateAPIView):
 
             # Check monthly chat limit (based on user's plan, including shared chats)
             # This check is done after basic validation to ensure proper error messages
-            # N+1 prevention: Use common utility function
             monthly_chat_count = get_monthly_chat_count(user)
 
             chat_limit = get_chat_limit(user)

@@ -179,7 +179,6 @@ class Video(models.Model):
         ordering = ["-uploaded_at"]
 
     def __str__(self):
-        # N+1 prevention: Use id if user is not loaded
         try:
             username = self.user.username
         except AttributeError:
@@ -228,7 +227,6 @@ class VideoGroup(models.Model):
         ordering = ["-created_at"]
 
     def __str__(self):
-        # N+1 prevention: Use id if user is not loaded
         try:
             username = self.user.username
         except AttributeError:
@@ -252,7 +250,6 @@ class VideoGroupMember(models.Model):
         ]  # Cannot add the same video to the same group multiple times
 
     def __str__(self):
-        # N+1 prevention: Use id if video and group are not loaded
         try:
             video_title = self.video.title
         except AttributeError:

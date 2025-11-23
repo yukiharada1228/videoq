@@ -104,7 +104,6 @@ class VideoCreateSerializer(UserOwnedSerializerMixin, serializers.ModelSerialize
                 )
 
             # Check monthly Whisper usage limit
-            # N+1 prevention: Use common utility function
             monthly_whisper_usage = get_monthly_whisper_usage(user, exclude_video_id=video.id)
 
             # Check if adding this video would exceed the limit (based on user's plan)
@@ -202,10 +201,7 @@ class VideoUpdateSerializer(serializers.ModelSerializer):
 
 
 class VideoListSerializer(serializers.ModelSerializer):
-    """Serializer for Video list
-    Note: select_related('user') not needed in VideoListView for N+1 prevention
-    since user field is not included
-    """
+    """Serializer for Video list"""
 
     class Meta:
         model = Video
@@ -252,8 +248,6 @@ class VideoGroupDetailSerializer(serializers.ModelSerializer):
 
     def get_videos(self, obj):
         """Get video detailed information"""
-        # N+1 prevention: Use members already fetched with prefetch_related (no additional query)
-        # Use list() to evaluate (avoid lazy evaluation)
         members = list(obj.members.all())
 
         if not members:
@@ -269,7 +263,7 @@ class VideoGroupDetailSerializer(serializers.ModelSerializer):
             videos, many=True, context=self.context
         ).data
 
-        # Add order information and return (N+1 prevention: O(n) lookup)
+        # Add order information and return
         return [
             {**video_data, "order": member.order}
             for member, video_data in zip(members, video_data_list)
