@@ -27,6 +27,7 @@ graph TB
         
         subgraph Worker["Worker"]
             Celery[Celery Worker<br/>- Asynchronous Task Processing<br/>- Transcription Processing]
+            CeleryBeat[Celery Beat<br/>- Periodic Task Scheduler<br/>- Scheduled Cleanup Tasks]
         end
     end
     
@@ -60,6 +61,8 @@ graph TB
     Celery --> LocalFS
     Celery --> S3
     Celery --> OpenAI
+    CeleryBeat --> Redis
+    CeleryBeat --> PostgreSQL
 ```
 
 ## Layer-by-Layer Detailed Configuration
@@ -186,7 +189,7 @@ graph TB
 graph TB
     subgraph Security["Security Layer"]
         subgraph Authentication["Authentication"]
-            JWT[JWT Authentication<br/>- Access Token<br/>- Refresh Token<br/>- HttpOnly Cookie]
+            JWT[JWT Authentication<br/>- HttpOnly Cookie-based<br/>- Access Token (10 min)<br/>- Refresh Token (14 days)<br/>- Automatic Refresh]
             ShareToken[Share Token Authentication<br/>- Temporary Access<br/>- Guest Access]
         end
         
