@@ -6,9 +6,11 @@ import tempfile
 
 from app.models import Video, VideoGroup
 from app.tasks import transcribe_video
-from app.utils.plan_limits import get_video_limit, get_whisper_minutes_limit
-from django.db.models import Sum
-from django.utils import timezone
+from app.utils.plan_limits import (
+    get_monthly_whisper_usage,
+    get_video_limit,
+    get_whisper_minutes_limit,
+)
 from rest_framework import serializers
 
 logger = logging.getLogger(__name__)
@@ -102,24 +104,8 @@ class VideoCreateSerializer(UserOwnedSerializerMixin, serializers.ModelSerialize
                 )
 
             # Check monthly Whisper usage limit
-            now = timezone.now()
-            first_day_of_month = now.replace(
-                day=1, hour=0, minute=0, second=0, microsecond=0
-            )
-
-            # Sum duration_minutes for all videos (pending, processing, completed) in current month
-            # This includes videos that are being processed or already completed
-            # Include deleted videos in limit check (they count for usage tracking)
-            monthly_whisper_usage = (
-                Video.objects.filter(
-                    user=user,
-                    uploaded_at__gte=first_day_of_month,
-                    duration_minutes__isnull=False,
-                )
-                .exclude(id=video.id)
-                .aggregate(total_minutes=Sum("duration_minutes"))["total_minutes"]
-                or 0.0
-            )
+            # N+1 prevention: Use common utility function
+            monthly_whisper_usage = get_monthly_whisper_usage(user, exclude_video_id=video.id)
 
             # Check if adding this video would exceed the limit (based on user's plan)
             whisper_limit = get_whisper_minutes_limit(user)
