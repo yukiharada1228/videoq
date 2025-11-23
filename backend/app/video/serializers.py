@@ -4,14 +4,12 @@ import os
 import subprocess
 import tempfile
 
+from rest_framework import serializers
+
 from app.models import Video, VideoGroup
 from app.tasks import transcribe_video
-from app.utils.plan_limits import (
-    get_monthly_whisper_usage,
-    get_video_limit,
-    get_whisper_minutes_limit,
-)
-from rest_framework import serializers
+from app.utils.plan_limits import (get_monthly_whisper_usage, get_video_limit,
+                                   get_whisper_minutes_limit)
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +66,9 @@ class VideoCreateSerializer(UserOwnedSerializerMixin, serializers.ModelSerialize
             # Check video limit based on user's plan
             # Exclude deleted videos from count
             video_limit = get_video_limit(user)
-            current_count = Video.objects.filter(user=user, deleted_at__isnull=True).count()
+            current_count = Video.objects.filter(
+                user=user, deleted_at__isnull=True
+            ).count()
             if current_count >= video_limit:
                 raise serializers.ValidationError(
                     {
@@ -104,7 +104,9 @@ class VideoCreateSerializer(UserOwnedSerializerMixin, serializers.ModelSerialize
                 )
 
             # Check monthly Whisper usage limit
-            monthly_whisper_usage = get_monthly_whisper_usage(user, exclude_video_id=video.id)
+            monthly_whisper_usage = get_monthly_whisper_usage(
+                user, exclude_video_id=video.id
+            )
 
             # Check if adding this video would exceed the limit (based on user's plan)
             whisper_limit = get_whisper_minutes_limit(user)
@@ -126,7 +128,9 @@ class VideoCreateSerializer(UserOwnedSerializerMixin, serializers.ModelSerialize
             raise
         except Exception as e:
             # For other exceptions (e.g., database errors), log and reject upload
-            logger.error(f"Failed to check video duration or Whisper limit: {e}", exc_info=True)
+            logger.error(
+                f"Failed to check video duration or Whisper limit: {e}", exc_info=True
+            )
             video.delete()
             raise serializers.ValidationError(
                 {

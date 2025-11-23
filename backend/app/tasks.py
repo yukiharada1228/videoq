@@ -9,15 +9,16 @@ import subprocess
 import tempfile
 from concurrent.futures import ThreadPoolExecutor
 
-from app.utils.task_helpers import (ErrorHandler, TemporaryFileManager,
-                                    VideoTaskManager)
-from app.utils.vector_manager import PGVectorManager
 from celery import shared_task
 from django.conf import settings
 from django.utils import timezone
 from langchain_openai import OpenAIEmbeddings
 from langchain_postgres import PGVector
 from openai import OpenAI
+
+from app.utils.task_helpers import (ErrorHandler, TemporaryFileManager,
+                                    VideoTaskManager)
+from app.utils.vector_manager import PGVectorManager
 
 from .scene_otsu import SceneSplitter, SubtitleParser
 
@@ -565,38 +566,39 @@ def cleanup_soft_deleted_videos(self):
     """
     Cleanup soft-deleted video records that were deleted before the current month.
     This ensures monthly usage tracking is not affected.
-    
+
     Deletes videos where deleted_at < (current month's first day).
     Example: If run on Feb 15, deletes videos deleted before Feb 1.
     """
     from app.models import Video
-    
+
     try:
         # Calculate the first day of the current month at 00:00:00
         now = timezone.now()
-        current_month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        
+        current_month_start = now.replace(
+            day=1, hour=0, minute=0, second=0, microsecond=0
+        )
+
         logger.info(
             f"Starting cleanup of soft-deleted videos deleted before {current_month_start.isoformat()}"
         )
-        
+
         # Get videos that were soft-deleted before the current month
         # Batch processing to avoid memory issues
         batch_size = 100
         total_deleted = 0
-        
+
         while True:
             # Get a batch of videos to delete
             videos_to_delete = Video.objects.filter(
-                deleted_at__isnull=False,
-                deleted_at__lt=current_month_start
+                deleted_at__isnull=False, deleted_at__lt=current_month_start
             )[:batch_size]
-            
+
             if not videos_to_delete.exists():
                 break
-            
+
             deleted_count = 0
-            
+
             # Delete each video (this will trigger post_delete signal for hard delete)
             for video in videos_to_delete:
                 try:
@@ -607,31 +609,27 @@ def cleanup_soft_deleted_videos(self):
                     total_deleted += 1
                 except Exception as e:
                     logger.warning(
-                        f"Failed to delete video {video_id}: {e}",
-                        exc_info=True
+                        f"Failed to delete video {video_id}: {e}", exc_info=True
                     )
-            
+
             logger.info(
                 f"Deleted {deleted_count} videos in this batch (total: {total_deleted})"
             )
-            
+
             # If we got fewer than batch_size, we're done
             if deleted_count < batch_size:
                 break
-        
+
         if total_deleted > 0:
             logger.info(
                 f"Successfully cleaned up {total_deleted} soft-deleted video records"
             )
         else:
             logger.info("No soft-deleted videos found to cleanup")
-        
+
         return total_deleted
-        
+
     except Exception as e:
-        logger.error(
-            f"Error during cleanup of soft-deleted videos: {e}",
-            exc_info=True
-        )
+        logger.error(f"Error during cleanup of soft-deleted videos: {e}", exc_info=True)
         # Re-raise to trigger Celery retry mechanism
         raise

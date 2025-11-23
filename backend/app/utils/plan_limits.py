@@ -7,9 +7,10 @@ and check monthly usage limits.
 
 from typing import Optional
 
-from app.models import ChatLog, User, Video
 from django.db.models import Q, Sum
 from django.utils import timezone
+
+from app.models import ChatLog, User, Video
 
 
 def get_video_limit(user: User) -> int:
@@ -112,4 +113,3 @@ def get_monthly_whisper_usage(user: User, exclude_video_id: Optional[int] = None
 
     result = queryset.aggregate(total_minutes=Sum("duration_minutes"))["total_minutes"]
     return result or 0.0
-

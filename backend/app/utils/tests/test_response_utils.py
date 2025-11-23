@@ -2,11 +2,12 @@
 Tests for response_utils module
 """
 
-from app.utils.response_utils import (CacheHelper, ResponseBuilder,
-                                      ValidationHelper)
 from django.test import TestCase
 from rest_framework import status
 from rest_framework.response import Response
+
+from app.utils.response_utils import (CacheHelper, ResponseBuilder,
+                                      ValidationHelper)
 
 
 class ResponseBuilderTests(TestCase):
