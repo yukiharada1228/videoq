@@ -1,12 +1,6 @@
 import csv
 import json
 
-from app.common.authentication import CookieJWTAuthentication
-from app.common.permissions import (IsAuthenticatedOrSharedAccess,
-                                    ShareTokenAuthentication)
-from app.common.responses import create_error_response
-from app.models import ChatLog, VideoGroup, VideoGroupMember
-from app.utils.plan_limits import get_chat_limit, get_monthly_chat_count
 from django.db.models import Prefetch
 from django.http import HttpResponse
 from drf_spectacular.utils import extend_schema
@@ -14,6 +8,13 @@ from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+from app.common.authentication import CookieJWTAuthentication
+from app.common.permissions import (IsAuthenticatedOrSharedAccess,
+                                    ShareTokenAuthentication)
+from app.common.responses import create_error_response
+from app.models import ChatLog, VideoGroup, VideoGroupMember
+from app.utils.plan_limits import get_chat_limit, get_monthly_chat_count
 
 from .serializers import (ChatFeedbackRequestSerializer,
                           ChatFeedbackResponseSerializer, ChatLogSerializer,

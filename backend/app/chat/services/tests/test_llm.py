@@ -4,10 +4,11 @@ Tests for llm module
 
 from unittest.mock import patch
 
-from app.chat.services.llm import get_langchain_llm, handle_langchain_exception
 from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
 from rest_framework import status
+
+from app.chat.services.llm import get_langchain_llm, handle_langchain_exception
 
 User = get_user_model()
 
@@ -43,7 +44,9 @@ class GetLangchainLLMTests(TestCase):
 
         self.assertIsNone(llm)
         self.assertIsNotNone(error_response)
-        self.assertEqual(error_response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        self.assertEqual(
+            error_response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
         self.assertIn("OpenAI API key is not configured", str(error_response.data))
 
     @override_settings(OPENAI_API_KEY="")
@@ -53,7 +56,9 @@ class GetLangchainLLMTests(TestCase):
 
         self.assertIsNone(llm)
         self.assertIsNotNone(error_response)
-        self.assertEqual(error_response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        self.assertEqual(
+            error_response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
         self.assertIn("OpenAI API key is not configured", str(error_response.data))
 
 
@@ -91,4 +96,3 @@ class HandleLangchainExceptionTests(TestCase):
 
         self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
         self.assertIn("OpenAI API error", str(response.data))
-

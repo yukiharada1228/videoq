@@ -1,17 +1,18 @@
 import logging
 import secrets
 
-from app.common.responses import create_error_response
-from app.models import Video, VideoGroup, VideoGroupMember
-from app.utils.decorators import authenticated_view_with_error_handling
-from app.utils.mixins import AuthenticatedViewMixin, DynamicSerializerMixin
-from app.utils.query_optimizer import QueryOptimizer
 from django.db.models import Max, Q
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
+
+from app.common.responses import create_error_response
+from app.models import Video, VideoGroup, VideoGroupMember
+from app.utils.decorators import authenticated_view_with_error_handling
+from app.utils.mixins import AuthenticatedViewMixin, DynamicSerializerMixin
+from app.utils.query_optimizer import QueryOptimizer
 
 from .serializers import (AddVideosToGroupRequestSerializer,
                           AddVideosToGroupResponseSerializer,
@@ -143,6 +144,7 @@ class VideoDetailView(
         # Soft delete: set deleted_at and clear file field
         # This preserves the record for monthly usage tracking while removing file reference
         from django.utils import timezone
+
         instance.deleted_at = timezone.now()
         instance.file = None  # Clear file field after deletion
         instance.save(update_fields=["deleted_at", "file"])
@@ -382,7 +384,11 @@ def add_videos_to_group(request, group_id):
         return error
 
     # Exclude deleted videos
-    videos = list(Video.objects.filter(user=request.user, id__in=video_ids, deleted_at__isnull=True))
+    videos = list(
+        Video.objects.filter(
+            user=request.user, id__in=video_ids, deleted_at__isnull=True
+        )
+    )
 
     error = _validate_videos_count(videos, video_ids)
     if error:

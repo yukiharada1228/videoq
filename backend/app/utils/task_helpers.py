@@ -8,8 +8,9 @@ import tempfile
 from contextlib import contextmanager
 from typing import Any, List, Optional, Tuple
 
-from app.models import Video
 from django.db import transaction
+
+from app.models import Video
 
 logger = logging.getLogger(__name__)
 
@@ -227,7 +228,9 @@ class ErrorHandler:
         """
         from app.utils.response_utils import ValidationHelper
 
-        is_valid, errors = ValidationHelper.validate_required_fields(data, required_fields)
+        is_valid, errors = ValidationHelper.validate_required_fields(
+            data, required_fields
+        )
         if not is_valid and errors:
             # Convert dict format to string format for backward compatibility
             missing_fields = list(errors.keys())

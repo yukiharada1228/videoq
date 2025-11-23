@@ -1,9 +1,10 @@
 """Common permissions and authentication helper module"""
 
-from app.models import VideoGroup
 from rest_framework.authentication import BaseAuthentication
 from rest_framework.permissions import BasePermission
 from rest_framework.request import Request
+
+from app.models import VideoGroup
 
 
 class ShareTokenAuthentication(BaseAuthentication):
