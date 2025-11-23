@@ -8,7 +8,6 @@ import os
 import subprocess
 import tempfile
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime
 
 from app.utils.task_helpers import (ErrorHandler, TemporaryFileManager,
                                     VideoTaskManager)

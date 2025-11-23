@@ -2,7 +2,7 @@
 Tests for Celery tasks
 """
 
-from datetime import datetime, timedelta
+from datetime import timedelta
 from unittest.mock import Mock, patch
 
 from app.models import Video
