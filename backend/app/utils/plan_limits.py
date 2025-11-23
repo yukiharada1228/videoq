@@ -5,6 +5,8 @@ This module provides functions to get user-specific limits from the database
 and check monthly usage limits.
 """
 
+from typing import Optional
+
 from app.models import ChatLog, User, Video
 from django.db.models import Q, Sum
 from django.utils import timezone
@@ -60,7 +62,7 @@ def get_first_day_of_month():
     return now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
 
-def get_monthly_chat_count(user: User, exclude_chat_log_id: int = None):
+def get_monthly_chat_count(user: User, exclude_chat_log_id: Optional[int] = None):
     """
     Get monthly chat count for a user (N+1 prevention).
 
@@ -87,7 +89,7 @@ def get_monthly_chat_count(user: User, exclude_chat_log_id: int = None):
     return queryset.count()
 
 
-def get_monthly_whisper_usage(user: User, exclude_video_id: int = None):
+def get_monthly_whisper_usage(user: User, exclude_video_id: Optional[int] = None):
     """
     Get monthly Whisper usage in minutes for a user (N+1 prevention).
 
