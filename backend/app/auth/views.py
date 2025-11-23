@@ -1,14 +1,12 @@
 from app.utils.mixins import AuthenticatedViewMixin, PublicViewMixin
 from app.utils.plan_limits import (
     get_chat_limit,
-    get_first_day_of_month,
     get_monthly_chat_count,
     get_monthly_whisper_usage,
     get_video_limit,
     get_whisper_minutes_limit,
 )
 from django.contrib.auth import get_user_model
-from django.db.models import Q
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics, status
 from rest_framework.response import Response
