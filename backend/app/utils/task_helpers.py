@@ -221,14 +221,16 @@ class ErrorHandler:
     @staticmethod
     def validate_required_fields(data: dict, required_fields: list) -> tuple[bool, str]:
         """
-        Validate required fields
+        Validate required fields (DRY: Uses ValidationHelper internally)
 
         Returns:
             (is_valid, error_message)
         """
-        missing_fields = [
-            field for field in required_fields if field not in data or not data[field]
-        ]
-        if missing_fields:
+        from app.utils.response_utils import ValidationHelper
+
+        is_valid, errors = ValidationHelper.validate_required_fields(data, required_fields)
+        if not is_valid and errors:
+            # Convert dict format to string format for backward compatibility
+            missing_fields = list(errors.keys())
             return False, f"Missing required fields: {', '.join(missing_fields)}"
         return True, ""

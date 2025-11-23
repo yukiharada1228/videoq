@@ -1,12 +1,14 @@
 from app.utils.mixins import AuthenticatedViewMixin, PublicViewMixin
 from app.utils.plan_limits import (
     get_chat_limit,
+    get_first_day_of_month,
+    get_monthly_chat_count,
+    get_monthly_whisper_usage,
     get_video_limit,
     get_whisper_minutes_limit,
 )
 from django.contrib.auth import get_user_model
-from django.db.models import Q, Sum
-from django.utils import timezone
+from django.db.models import Q
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics, status
 from rest_framework.response import Response
@@ -245,34 +247,22 @@ class UsageStatsView(AuthenticatedAPIView):
         description="Retrieve current usage statistics for videos, Whisper processing time, and chats.",
     )
     def get(self, request):
-        from app.models import ChatLog, Video
+        from app.models import Video
 
         user = request.user
-        now = timezone.now()
-        first_day_of_month = now.replace(
-            day=1, hour=0, minute=0, second=0, microsecond=0
-        )
 
         # Calculate video count (exclude deleted videos)
         video_count = Video.objects.filter(user=user, deleted_at__isnull=True).count()
         video_limit = get_video_limit(user)
 
         # Calculate monthly Whisper usage (in minutes)
-        monthly_whisper_usage = (
-            Video.objects.filter(
-                user=user,
-                uploaded_at__gte=first_day_of_month,
-                duration_minutes__isnull=False,
-            ).aggregate(total_minutes=Sum("duration_minutes"))["total_minutes"]
-            or 0.0
-        )
+        # N+1 prevention: Use common utility function
+        monthly_whisper_usage = get_monthly_whisper_usage(user)
         whisper_limit = get_whisper_minutes_limit(user)
 
         # Calculate monthly chat count
-        monthly_chat_count = ChatLog.objects.filter(
-            Q(user=user) | Q(group__user=user, is_shared_origin=True),
-            created_at__gte=first_day_of_month,
-        ).count()
+        # N+1 prevention: Use common utility function
+        monthly_chat_count = get_monthly_chat_count(user)
         chat_limit = get_chat_limit(user)
 
         return Response(
