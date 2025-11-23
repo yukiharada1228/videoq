@@ -111,8 +111,8 @@ flowchart TD
     Login --> InputLogin[Input Login Information]
     InputLogin --> ValidateLogin{Credential Verification}
     ValidateLogin -->|Invalid| ErrorLogin[Authentication Error]
-    ValidateLogin -->|Valid| GenerateJWT[Generate JWT Token]
-    GenerateJWT --> SetCookie[Set HttpOnly Cookie]
+    ValidateLogin -->|Valid| GenerateJWT[Generate JWT Tokens<br/>Access & Refresh]
+    GenerateJWT --> SetCookie[Set HttpOnly Cookies<br/>Access & Refresh Tokens]
     SetCookie --> RedirectHome[Redirect to Home Page]
     RedirectHome --> End([Authentication Complete])
     

@@ -103,8 +103,8 @@ sequenceDiagram
     Frontend->>Backend: POST /api/auth/login/
     Backend->>DB: Verify Credentials
     DB-->>Backend: User Information
-    Backend->>Backend: Generate JWT Token
-    Backend-->>Frontend: Token(Set in Cookie)
+    Backend->>Backend: Generate JWT Tokens<br/>(Access & Refresh)
+    Backend-->>Frontend: Set HttpOnly Cookies<br/>(Access & Refresh Tokens)
     Frontend-->>User: Redirect to Home Page
 ```
 

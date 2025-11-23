@@ -170,15 +170,15 @@ flowchart TD
     API2 --> Validate2{Credential Verification}
     Validate2 -->|Invalid| Error2[Authentication Error]
     Validate2 -->|Valid| GetUser[(Database<br/>Get User)]
-    GetUser --> GenerateJWT[Generate JWT Token]
-    GenerateJWT --> SetCookie[Set HttpOnly Cookie]
-    SetCookie --> Response2[Return Token]
+    GetUser --> GenerateJWT[Generate JWT Tokens<br/>Access & Refresh]
+    GenerateJWT --> SetCookie[Set HttpOnly Cookies<br/>Access & Refresh Tokens]
+    SetCookie --> Response2[Success Response]
     
-    API3 --> ValidateToken{Refresh Token Verification}
+    API3 --> ValidateToken{Refresh Token Verification<br/>from HttpOnly Cookie}
     ValidateToken -->|Invalid| Error3[Token Error]
     ValidateToken -->|Valid| GenerateAccess[Generate New Access Token]
-    GenerateAccess --> SetCookie2[Update HttpOnly Cookie]
-    SetCookie2 --> Response3[Return New Token]
+    GenerateAccess --> SetCookie2[Update HttpOnly Cookie<br/>New Access Token]
+    SetCookie2 --> Response3[Success Response]
     
     Response1 --> Frontend
     Response2 --> Frontend

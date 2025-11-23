@@ -8,7 +8,7 @@ This application offers video upload, automatic transcription, and AI chat. When
 
 ### Key Features
 
-- **User Authentication**: JWT-based auth (email verification and password reset supported)
+- **User Authentication**: HttpOnly Cookie-based JWT authentication (email verification and password reset supported)
 - **Video Upload**: Supports multiple video formats
 - **Automatic Transcription**: Whisper API with Celery background processing
 - **AI Chat**: Q&A about video content using the OpenAI API (RAG-enabled)
@@ -16,6 +16,7 @@ This application offers video upload, automatic transcription, and AI chat. When
 - **Sharing**: Share video groups via share tokens
 - **Protected Media Delivery**: Secure media delivery via authentication
 - **User-specific Limits**: Per-user limits for videos, Whisper processing, and chat (configurable via admin panel)
+- **Usage Statistics**: View current usage statistics for videos, Whisper processing time, and chats
 
 ## Project Structure
 
@@ -100,6 +101,7 @@ talk-vid/
 
 #### Background Processing
 - **Celery** (>=5.5.3) - Background task processing
+- **Celery Beat** - Periodic task scheduler
 - **Redis** (>=7.0.0) - Celery broker and queue management
 
 #### Database
@@ -245,6 +247,7 @@ This starts:
 - **postgres**: PostgreSQL database (17 with pgvector)
 - **backend**: Django REST API (internal port 8000)
 - **celery-worker**: Celery worker (background tasks)
+- **celery-beat**: Celery beat scheduler (periodic tasks)
 - **frontend**: Next.js frontend (internal port 3000)
 - **nginx**: Reverse proxy (port 80)
 
@@ -278,6 +281,7 @@ docker compose logs -f
 # Tail logs for specific services
 docker compose logs -f backend
 docker compose logs -f celery-worker
+docker compose logs -f celery-beat
 docker compose logs -f frontend
 
 # Stop containers
@@ -291,6 +295,8 @@ docker compose down -v
 
 # Restart a specific service
 docker compose restart backend
+docker compose restart celery-worker
+docker compose restart celery-beat
 
 # Restart all services
 docker compose restart
@@ -305,10 +311,11 @@ docker compose exec postgres psql -U $POSTGRES_USER -d $POSTGRES_DB
 
 - User registration (with email verification)
 - Email verification (post sign-up)
-- Login (JWT)
-- Token refresh
+- Login (HttpOnly Cookie-based JWT)
+- Token refresh (automatic via HttpOnly Cookie)
 - Logout
 - Password reset (via email)
+- Usage statistics retrieval
 
 ### Video Management
 
@@ -374,6 +381,7 @@ Scene splitting improves search accuracy in AI chat and enables more appropriate
 - `POST /api/auth/logout/` - Logout
 - `POST /api/auth/refresh/` - Token refresh
 - `GET /api/auth/me/` - Current user info
+- `GET /api/auth/usage-stats/` - Get usage statistics
 - `POST /api/auth/password-reset/` - Request password reset
 - `POST /api/auth/password-reset/confirm/` - Confirm password reset
 
@@ -418,7 +426,9 @@ This section summarizes practical usage from external clients.
 
 - **Base URL**: `http://localhost` (default in Docker setup)
 - **API path**: `/api`
-- **Auth**: `Authorization: Bearer <access_token>` (use Bearer auth for external clients)
+- **Auth**: 
+  - **External clients**: `Authorization: Bearer <access_token>` (use Bearer auth)
+  - **Internal browser app**: HttpOnly Cookie-based authentication (automatic token refresh)
 - **Token TTL**: Access 10 minutes, Refresh 14 days
 
 Environment variable examples:
@@ -456,6 +466,9 @@ curl -X POST "$BASE_URL/api/auth/refresh/" \
 
 # Get current user
 curl -H "Authorization: Bearer $ACCESS" "$BASE_URL/api/auth/me/"
+
+# Get usage statistics
+curl -H "Authorization: Bearer $ACCESS" "$BASE_URL/api/auth/usage-stats/"
 
 # Request password reset
 curl -X POST "$BASE_URL/api/auth/password-reset/" \
@@ -626,7 +639,7 @@ Common error responses:
 **For external clients, always use the `Authorization` header (Bearer). Do not use cookie-based auth, as it can cause uploaded files to remain stored.**
 
 - **External clients**: Use the `Authorization` header (Bearer) only
-- **Internal browser app**: HttpOnly cookies (easy automatic refresh)
+- **Internal browser app**: HttpOnly Cookie-based authentication (automatic token refresh, XSS protection)
 
 ## Docker Compose Architecture
 
@@ -636,6 +649,7 @@ This project consists of the following services:
 - **postgres**: PostgreSQL database (17 with pgvector)
 - **backend**: Django REST API (internal port 8000)
 - **celery-worker**: Celery worker (background tasks)
+- **celery-beat**: Celery beat scheduler (periodic tasks)
 - **frontend**: Next.js frontend (internal port 3000)
 - **nginx**: Reverse proxy (port 80)
 
@@ -649,12 +663,25 @@ This project consists of the following services:
 
 All services communicate within the `talk-video-network` Docker network (defined in docker-compose.yml).
 
+## Periodic Tasks (Celery Beat)
+
+The system uses Celery Beat to schedule periodic tasks:
+
+### Scheduled Tasks
+
+- **cleanup-soft-deleted-videos**: 
+  - **Schedule**: Daily at 2:00 AM
+  - **Task**: `app.tasks.cleanup_soft_deleted_videos`
+  - **Purpose**: Permanently deletes soft-deleted video records that were deleted before the current month
+  - **Details**: This ensures monthly usage tracking is not affected while cleaning up old deleted records
+  - **Example**: If run on February 15, it deletes videos that were soft-deleted before February 1
+
 ## Database Schema
 
 ### Main Models
 
 - **User**: User info (extends Django AbstractUser; includes per-user limits for videos, Whisper processing, and chat, configurable via admin panel)
-- **Video**: Video info (title, description, file, transcript, status, external upload flag, duration, etc.)
+- **Video**: Video info (title, description, file, transcript, status, external upload flag, duration, deleted_at for soft delete and monthly usage tracking, etc.)
 - **VideoGroup**: Video groups (name, description, share token, etc.)
 - **VideoGroupMember**: Association between videos and groups (ordering support)
 - **ChatLog**: Chat logs (question, answer, related videos, shared-from flag, feedback, etc.)
@@ -679,7 +706,7 @@ docker compose exec backend uv run python manage.py migrate
 docker compose exec backend uv run python manage.py shell
 
 # Tail logs (live)
-docker compose logs -f backend celery-worker
+docker compose logs -f backend celery-worker celery-beat
 ```
 
 **Note:** In Docker, run all Python commands via `uv run`.
@@ -747,6 +774,28 @@ docker compose exec redis redis-cli ping  # Expect PONG
 4. Check registered Celery tasks
 ```bash
 docker compose exec backend uv run python -c "from app.celery_config import app; print(app.tasks.keys())"
+```
+
+### Celery Beat periodic tasks do not run
+
+1. Check the Celery Beat container is running
+```bash
+docker compose ps celery-beat
+```
+
+2. Check Celery Beat logs
+```bash
+docker compose logs celery-beat
+```
+
+3. Verify Redis is running (Celery Beat also uses Redis)
+```bash
+docker compose ps redis
+```
+
+4. Check scheduled tasks
+```bash
+docker compose exec backend uv run python -c "from app.celery_config import app; print(app.conf.beat_schedule)"
 ```
 
 ### Transcription fails
