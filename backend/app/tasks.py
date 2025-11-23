@@ -603,6 +603,31 @@ def cleanup_soft_deleted_videos(self):
             for video in videos_to_delete:
                 try:
                     video_id = video.id
+                    
+                    # Delete file if it exists (in case it wasn't deleted during soft delete)
+                    if video.file:
+                        file_path = video.file.name
+                        storage = video.file.storage
+                        try:
+                            if storage.exists(file_path):
+                                storage.delete(file_path)
+                                logger.info(f"Deleted file for video {video_id}: {file_path}")
+                        except Exception as e:
+                            logger.warning(
+                                f"Failed to delete file for video {video_id} ({file_path}): {e}",
+                                exc_info=True,
+                            )
+                    
+                    # Delete vectors if they exist (in case they weren't deleted during soft delete)
+                    from app.utils.vector_manager import delete_video_vectors
+                    try:
+                        delete_video_vectors(video_id)
+                    except Exception as e:
+                        logger.warning(
+                            f"Failed to delete vectors for video {video_id}: {e}",
+                            exc_info=True,
+                        )
+                    
                     # Hard delete (this will trigger post_delete signal)
                     video.delete()
                     deleted_count += 1

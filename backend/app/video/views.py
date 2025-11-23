@@ -127,8 +127,23 @@ class VideoDetailView(
         video_id = instance.id
 
         # Delete file if it exists (actual file deletion)
+        # Save file path before deletion to ensure we can delete it even if file field is cleared
+        file_path = None
         if instance.file:
-            instance.file.delete(save=False)
+            file_path = instance.file.name
+            storage = instance.file.storage
+            try:
+                # Delete file using storage directly to ensure it's deleted
+                if storage.exists(file_path):
+                    storage.delete(file_path)
+                    logger.info(f"Successfully deleted file for video {video_id}: {file_path}")
+                else:
+                    logger.warning(f"File does not exist for video {video_id}: {file_path}")
+            except Exception as e:
+                logger.error(
+                    f"Failed to delete file for video {video_id} ({file_path}): {e}",
+                    exc_info=True,
+                )
 
         from app.utils.vector_manager import delete_video_vectors
 
