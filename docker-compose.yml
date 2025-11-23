@@ -45,6 +45,19 @@ services:
     networks:
       - talk-video-network
 
+  celery-beat:
+    build: ./backend
+    container_name: talk-video-celery-beat
+    command: uv run celery -A talk_video beat --loglevel=info
+    env_file:
+      - .env
+    volumes:
+      - ./backend/media:/app/media
+    depends_on:
+      - redis
+    networks:
+      - talk-video-network
+
   frontend:
     build:
       context: ./frontend
