@@ -6,10 +6,9 @@ from app.common.permissions import (IsAuthenticatedOrSharedAccess,
                                     ShareTokenAuthentication)
 from app.common.responses import create_error_response
 from app.models import ChatLog, VideoGroup, VideoGroupMember
-from app.utils.plan_limits import get_chat_limit
-from django.db.models import Prefetch, Q
+from app.utils.plan_limits import get_chat_limit, get_monthly_chat_count
+from django.db.models import Prefetch
 from django.http import HttpResponse
-from django.utils import timezone
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
@@ -127,17 +126,8 @@ class ChatView(generics.CreateAPIView):
 
             # Check monthly chat limit (based on user's plan, including shared chats)
             # This check is done after basic validation to ensure proper error messages
-            now = timezone.now()
-            first_day_of_month = now.replace(
-                day=1, hour=0, minute=0, second=0, microsecond=0
-            )
-
-            # Count chat logs for this user in the current month
-            # Include both direct chats and shared chats (where user is the group owner)
-            monthly_chat_count = ChatLog.objects.filter(
-                Q(user=user) | Q(group__user=user, is_shared_origin=True),
-                created_at__gte=first_day_of_month,
-            ).count()
+            # N+1 prevention: Use common utility function
+            monthly_chat_count = get_monthly_chat_count(user)
 
             chat_limit = get_chat_limit(user)
             if monthly_chat_count >= chat_limit:
