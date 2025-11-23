@@ -5,11 +5,12 @@ Tests for chat views
 import secrets
 from unittest.mock import MagicMock, patch
 
-from app.models import ChatLog, Video, VideoGroup, VideoGroupMember
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
+
+from app.models import ChatLog, Video, VideoGroup, VideoGroupMember
 
 User = get_user_model()
 
@@ -561,8 +562,9 @@ class ChatMonthlyLimitTestCase(APITestCase):
     @patch("app.chat.views.RagChatService")
     def test_chat_monthly_limit_enforced(self, mock_service_class, mock_get_llm):
         """Test that chat monthly limit is enforced when limit is reached"""
-        from django.utils import timezone
         from datetime import timedelta
+
+        from django.utils import timezone
 
         mock_llm = MagicMock()
         mock_get_llm.return_value = (mock_llm, None)
@@ -612,8 +614,9 @@ class ChatMonthlyLimitTestCase(APITestCase):
     @patch("app.chat.views.RagChatService")
     def test_chat_monthly_limit_within_limit(self, mock_service_class, mock_get_llm):
         """Test that chat succeeds when within monthly limit"""
-        from django.utils import timezone
         from datetime import timedelta
+
+        from django.utils import timezone
 
         mock_llm = MagicMock()
         mock_get_llm.return_value = (mock_llm, None)
@@ -664,8 +667,9 @@ class ChatMonthlyLimitTestCase(APITestCase):
         self, mock_service_class, mock_get_llm
     ):
         """Test that only chats from current month are counted"""
-        from django.utils import timezone
         from datetime import timedelta
+
+        from django.utils import timezone
 
         mock_llm = MagicMock()
         mock_get_llm.return_value = (mock_llm, None)
@@ -679,11 +683,9 @@ class ChatMonthlyLimitTestCase(APITestCase):
         mock_service_class.return_value = mock_service
 
         # Create 3,000 chat logs from last month (should not be counted)
-        last_month = (
-            timezone.now()
-            .replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-            - timedelta(days=1)
-        )
+        last_month = timezone.now().replace(
+            day=1, hour=0, minute=0, second=0, microsecond=0
+        ) - timedelta(days=1)
         last_month_first_day = last_month.replace(day=1)
 
         # Create chat logs and update created_at after creation to bypass auto_now_add
@@ -714,8 +716,9 @@ class ChatMonthlyLimitTestCase(APITestCase):
         self, mock_service_class, mock_get_llm
     ):
         """Test that shared chats are counted towards owner's limit"""
-        from django.utils import timezone
         from datetime import timedelta
+
+        from django.utils import timezone
 
         mock_llm = MagicMock()
         mock_get_llm.return_value = (mock_llm, None)

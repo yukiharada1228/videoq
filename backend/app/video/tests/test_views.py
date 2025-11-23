@@ -1,11 +1,12 @@
 from unittest.mock import patch
 
-from app.models import Video, VideoGroup, VideoGroupMember
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
+
+from app.models import Video, VideoGroup, VideoGroupMember
 
 User = get_user_model()
 
@@ -287,7 +288,10 @@ class VideoUploadLimitTestCase(APITestCase):
         }
         return self.client.post(self.url, data, format="multipart")
 
-    @patch("app.video.serializers.VideoCreateSerializer._get_video_duration_minutes", return_value=1.0)
+    @patch(
+        "app.video.serializers.VideoCreateSerializer._get_video_duration_minutes",
+        return_value=1.0,
+    )
     def test_video_creation_respects_limit(self, mock_get_duration):
         # FREE plan allows 3 videos
         first_response = self._upload_video(title="Video 1")
@@ -435,7 +439,9 @@ class VideoDetailViewTests(APITestCase):
         self.video.refresh_from_db()
         self.assertIsNotNone(self.video.deleted_at)
         # Video should not be accessible via normal queries (excludes deleted videos)
-        self.assertFalse(Video.objects.filter(pk=self.video.pk, deleted_at__isnull=True).exists())
+        self.assertFalse(
+            Video.objects.filter(pk=self.video.pk, deleted_at__isnull=True).exists()
+        )
         # delete_video_vectors is called once in destroy() (post_delete signal doesn't fire for soft delete)
         self.assertEqual(mock_delete.call_count, 1)
         self.assertEqual(mock_delete.call_args_list[0][0][0], video_id)
@@ -454,7 +460,9 @@ class VideoDetailViewTests(APITestCase):
         self.video.refresh_from_db()
         self.assertIsNotNone(self.video.deleted_at)
         # Video should not be accessible via normal queries (excludes deleted videos)
-        self.assertFalse(Video.objects.filter(pk=self.video.pk, deleted_at__isnull=True).exists())
+        self.assertFalse(
+            Video.objects.filter(pk=self.video.pk, deleted_at__isnull=True).exists()
+        )
 
     @patch("app.utils.vector_manager.delete_video_vectors")
     def test_delete_video_removes_from_groups(self, mock_delete):
@@ -475,7 +483,9 @@ class VideoDetailViewTests(APITestCase):
         # Video should be removed from all groups
         self.assertEqual(VideoGroupMember.objects.filter(video=self.video).count(), 0)
         # Groups should still exist
-        self.assertEqual(VideoGroup.objects.filter(pk__in=[group1.pk, group2.pk]).count(), 2)
+        self.assertEqual(
+            VideoGroup.objects.filter(pk__in=[group1.pk, group2.pk]).count(), 2
+        )
 
 
 class ShareLinkTests(APITestCase):
@@ -619,11 +629,14 @@ class WhisperUsageLimitTestCase(APITestCase):
         mock_get_duration.return_value = 601.0  # 601 minutes
 
         # Create a video with 600 minutes already used this month
-        from django.utils import timezone
         from datetime import timedelta
 
+        from django.utils import timezone
+
         now = timezone.now()
-        first_day_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        first_day_of_month = now.replace(
+            day=1, hour=0, minute=0, second=0, microsecond=0
+        )
 
         # Create a video with 600 minutes duration
         Video.objects.create(
@@ -665,11 +678,14 @@ class WhisperUsageLimitTestCase(APITestCase):
         mock_get_duration.return_value = 100.0  # 100 minutes
 
         # Create a video with 500 minutes already used this month
-        from django.utils import timezone
         from datetime import timedelta
 
+        from django.utils import timezone
+
         now = timezone.now()
-        first_day_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        first_day_of_month = now.replace(
+            day=1, hour=0, minute=0, second=0, microsecond=0
+        )
 
         Video.objects.create(
             user=self.user,
@@ -698,14 +714,20 @@ class WhisperUsageLimitTestCase(APITestCase):
         # Should succeed
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
-    @patch("app.video.serializers.VideoCreateSerializer._get_video_duration_minutes", return_value=100.0)
+    @patch(
+        "app.video.serializers.VideoCreateSerializer._get_video_duration_minutes",
+        return_value=100.0,
+    )
     def test_whisper_usage_limit_only_counts_current_month(self, mock_get_duration):
         """Test that only videos from current month are counted"""
-        from django.utils import timezone
         from datetime import timedelta
 
+        from django.utils import timezone
+
         # Create a video from last month (should not be counted)
-        last_month = timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0) - timedelta(days=1)
+        last_month = timezone.now().replace(
+            day=1, hour=0, minute=0, second=0, microsecond=0
+        ) - timedelta(days=1)
         last_month_first_day = last_month.replace(day=1)
 
         last_month_video = Video.objects.create(
@@ -760,6 +782,8 @@ class WhisperUsageLimitTestCase(APITestCase):
         # Should fail because we cannot check the Whisper usage limit without duration
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("detail", response.data)
-        self.assertIn("Failed to determine video duration", str(response.data["detail"]))
+        self.assertIn(
+            "Failed to determine video duration", str(response.data["detail"])
+        )
         # Video should be deleted
         self.assertFalse(Video.objects.filter(title="New Video").exists())

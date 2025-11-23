@@ -4,12 +4,6 @@ Tests for auth serializers
 
 from unittest.mock import patch
 
-from app.auth.serializers import (CredentialsSerializerMixin,
-                                  EmailVerificationSerializer, LoginSerializer,
-                                  PasswordResetConfirmSerializer,
-                                  PasswordResetRequestSerializer,
-                                  RefreshSerializer,
-                                  UserSerializer, UserSignupSerializer)
 from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import default_token_generator
 from django.core import mail
@@ -18,6 +12,13 @@ from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 from rest_framework import serializers
 from rest_framework.test import APITestCase
+
+from app.auth.serializers import (CredentialsSerializerMixin,
+                                  EmailVerificationSerializer, LoginSerializer,
+                                  PasswordResetConfirmSerializer,
+                                  PasswordResetRequestSerializer,
+                                  RefreshSerializer, UserSerializer,
+                                  UserSignupSerializer)
 
 User = get_user_model()
 
@@ -386,5 +387,3 @@ class CredentialsSerializerMixinTests(APITestCase):
 
         with self.assertRaises(serializers.ValidationError):
             mixin.validate_credentials("testuser", "")
-
-

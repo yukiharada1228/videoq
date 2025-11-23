@@ -4,10 +4,11 @@ Tests for rag_chat module
 
 from unittest.mock import MagicMock, patch
 
-from app.chat.services.rag_chat import RagChatService
-from app.models import Video, VideoGroup
 from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
+
+from app.chat.services.rag_chat import RagChatService
+from app.models import Video, VideoGroup
 
 User = get_user_model()
 
@@ -38,12 +39,16 @@ class RagChatServiceTests(TestCase):
     @patch("app.chat.services.rag_chat.PGVector.from_existing_index")
     @patch("app.chat.services.rag_chat.PGVectorManager")
     @patch("app.chat.services.rag_chat.OpenAIEmbeddings")
-    def test_create_vector_store_with_api_key(self, mock_embeddings, mock_pgvector_manager, mock_pgvector):
+    def test_create_vector_store_with_api_key(
+        self, mock_embeddings, mock_pgvector_manager, mock_pgvector
+    ):
         """Test _create_vector_store when API key is configured"""
         mock_pgvector_manager.get_config.return_value = {
             "collection_name": "test_collection"
         }
-        mock_pgvector_manager.get_psycopg_connection_string.return_value = "postgresql://test"
+        mock_pgvector_manager.get_psycopg_connection_string.return_value = (
+            "postgresql://test"
+        )
 
         service = RagChatService(user=self.user, llm=MagicMock())
         vector_store = service._create_vector_store()
@@ -73,4 +78,3 @@ class RagChatServiceTests(TestCase):
             service._create_vector_store()
 
         self.assertIn("OpenAI API key is not configured", str(context.exception))
-
