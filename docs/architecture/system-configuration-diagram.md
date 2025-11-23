@@ -189,22 +189,22 @@ graph TB
 graph TB
     subgraph Security["Security Layer"]
         subgraph Authentication["Authentication"]
-            JWT[JWT Authentication<br/>- HttpOnly Cookie-based<br/>- Access Token (10 min)<br/>- Refresh Token (14 days)<br/>- Automatic Refresh]
-            ShareToken[Share Token Authentication<br/>- Temporary Access<br/>- Guest Access]
+            JWT["JWT Authentication<br/>HttpOnly Cookie-based<br/>Access Token: 10 min<br/>Refresh Token: 14 days<br/>Automatic Refresh"]
+            ShareToken["Share Token Authentication<br/>Temporary Access<br/>Guest Access"]
         end
         
         subgraph Authorization["Authorization"]
-            Permissions[Permission Management<br/>- Ownership Check<br/>- Resource Access Control]
+            Permissions["Permission Management<br/>Ownership Check<br/>Resource Access Control"]
         end
         
         subgraph Encryption["Encryption"]
-            HTTPS[HTTPS Communication<br/>- TLS/SSL<br/>- Data Encryption]
+            HTTPS["HTTPS Communication<br/>TLS/SSL<br/>Data Encryption"]
         end
         
         subgraph Protection["Protection"]
-            CSRF[CSRF Protection<br/>- SameSite Cookie]
-            CORS[CORS Settings<br/>- Allowed Origin Restrictions]
-            RateLimit[Rate Limiting<br/>- API Call Restrictions]
+            CSRF["CSRF Protection<br/>SameSite Cookie"]
+            CORS["CORS Settings<br/>Allowed Origin Restrictions"]
+            RateLimit["Rate Limiting<br/>API Call Restrictions"]
         end
     end
     
