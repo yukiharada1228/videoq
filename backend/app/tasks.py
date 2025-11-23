@@ -561,3 +561,21 @@ def transcribe_video(self, video_id):
         except Exception as e:
             # Common error handling
             ErrorHandler.handle_task_error(e, video_id, self, max_retries=3)
+
+
+@shared_task(bind=True, ignore_result=True)
+def cleanup_old_deleted_videos_task(self):
+    """
+    Periodic task to cleanup old soft-deleted video records.
+    This task should be scheduled to run monthly (e.g., on the 1st of each month)
+    after monthly usage tracking is complete.
+    """
+    from django.core.management import call_command
+
+    logger.info("Starting cleanup of old deleted video records...")
+    try:
+        call_command("cleanup_old_deleted_videos")
+        logger.info("Successfully completed cleanup of old deleted video records")
+    except Exception as e:
+        logger.error(f"Failed to cleanup old deleted video records: {e}", exc_info=True)
+        raise

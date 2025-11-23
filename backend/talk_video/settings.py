@@ -234,6 +234,17 @@ CELERY_TASK_TRACK_STARTED = True
 CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutes
 CELERY_TASK_SOFT_TIME_LIMIT = 25 * 60  # 25 minutes
 
+# Celery Beat Schedule (periodic tasks)
+from celery.schedules import crontab
+
+CELERY_BEAT_SCHEDULE = {
+    # Cleanup old deleted videos on the 1st of each month at 2:00 AM
+    "cleanup-old-deleted-videos": {
+        "task": "app.tasks.cleanup_old_deleted_videos_task",
+        "schedule": crontab(hour=2, minute=0, day_of_month=1),  # 1st of each month at 2 AM
+    },
+}
+
 # Feature flags
 ENABLE_SIGNUP = os.environ.get("ENABLE_SIGNUP", "true").lower() == "true"
 
