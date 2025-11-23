@@ -64,7 +64,7 @@ def get_first_day_of_month():
 
 def get_monthly_chat_count(user: User, exclude_chat_log_id: Optional[int] = None):
     """
-    Get monthly chat count for a user (N+1 prevention).
+    Get monthly chat count for a user.
 
     Includes both direct chats and shared chats (where user is the group owner).
 
@@ -77,7 +77,6 @@ def get_monthly_chat_count(user: User, exclude_chat_log_id: Optional[int] = None
     """
     first_day_of_month = get_first_day_of_month()
 
-    # N+1 prevention: Use select_related to avoid additional queries for group.user
     queryset = ChatLog.objects.filter(
         Q(user=user) | Q(group__user=user, is_shared_origin=True),
         created_at__gte=first_day_of_month,
@@ -91,7 +90,7 @@ def get_monthly_chat_count(user: User, exclude_chat_log_id: Optional[int] = None
 
 def get_monthly_whisper_usage(user: User, exclude_video_id: Optional[int] = None):
     """
-    Get monthly Whisper usage in minutes for a user (N+1 prevention).
+    Get monthly Whisper usage in minutes for a user.
 
     Args:
         user: User instance

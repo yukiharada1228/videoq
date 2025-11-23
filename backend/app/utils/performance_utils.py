@@ -68,7 +68,7 @@ class PerformanceOptimizer:
     @staticmethod
     def count_queries(func: Callable) -> Callable:
         """
-        Decorator to measure database query count (N+1 prevention)
+        Decorator to measure database query count
 
         Args:
             func: Function to measure

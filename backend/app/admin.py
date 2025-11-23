@@ -70,7 +70,7 @@ class VideoAdmin(admin.ModelAdmin):
     readonly_fields = ("uploaded_at",)
 
     def get_queryset(self, request):
-        """N+1 prevention: Preload user relation"""
+        """Preload user relation"""
         return BaseAdminMixin.get_optimized_queryset(
             request, Video, select_related_fields=["user"]
         )
@@ -84,7 +84,7 @@ class VideoGroupAdmin(admin.ModelAdmin):
     readonly_fields = ("created_at", "updated_at", "get_video_count")
 
     def get_queryset(self, request):
-        """N+1 prevention: Preload user relation and video_count"""
+        """Preload user relation and video_count"""
         return BaseAdminMixin.get_optimized_queryset(
             request,
             VideoGroup,
@@ -106,7 +106,7 @@ class VideoGroupMemberAdmin(admin.ModelAdmin):
     readonly_fields = ("added_at",)
 
     def get_queryset(self, request):
-        """N+1 prevention: Preload group and video relations"""
+        """Preload group and video relations"""
         return BaseAdminMixin.get_optimized_queryset(
             request, VideoGroupMember, select_related_fields=["group", "video"]
         )

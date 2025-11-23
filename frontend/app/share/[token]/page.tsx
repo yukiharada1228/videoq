@@ -108,7 +108,7 @@ export default function SharedGroupPage() {
 
   // Function to select video from chat and play from specified time
   const handleVideoPlayFromTime = (videoId: number, startTime: string) => {
-    // Convert time string to seconds using common utility (DRY)
+    // Convert time string to seconds using common utility
     const seconds = timeStringToSeconds(startTime);
 
     // Automatically switch to player tab on mobile
