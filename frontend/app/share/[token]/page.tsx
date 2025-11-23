@@ -9,6 +9,7 @@ import { MessageAlert } from '@/components/common/MessageAlert';
 import { ChatPanel } from '@/components/chat/ChatPanel';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
+import { VideoPlayer, VideoPlayerHandle } from '@/components/video/VideoPlayer';
 import { getStatusBadgeClassName, getStatusLabel, timeStringToSeconds } from '@/lib/utils/video';
 import { convertVideoInGroupToSelectedVideo, SelectedVideo } from '@/lib/utils/videoConversion';
 import { useTranslation } from 'react-i18next';
@@ -55,7 +56,7 @@ export default function SharedGroupPage() {
   const [selectedVideo, setSelectedVideo] = useState<SelectedVideo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const videoRef = useRef<VideoPlayerHandle>(null);
   const pendingStartTimeRef = useRef<number | null>(null);
 
   // Mobile tab state
@@ -98,9 +99,9 @@ export default function SharedGroupPage() {
     }
   };
 
-  const handleVideoCanPlay = () => {
+  const handleVideoCanPlay = (event: React.SyntheticEvent<HTMLVideoElement>) => {
     if (pendingStartTimeRef.current !== null && videoRef.current) {
-      videoRef.current.currentTime = pendingStartTimeRef.current;
+      videoRef.current.setCurrentTime(pendingStartTimeRef.current);
       videoRef.current.play();
       pendingStartTimeRef.current = null;
     }
@@ -118,7 +119,7 @@ export default function SharedGroupPage() {
 
     // Set time immediately if same video is already selected
     if (selectedVideo?.id === videoId && videoRef.current) {
-      videoRef.current.currentTime = seconds;
+      videoRef.current.setCurrentTime(seconds);
       videoRef.current.play();
     } else {
       // Save start time when selecting different video
@@ -253,16 +254,13 @@ export default function SharedGroupPage() {
                 <CardContent className="flex-1 flex items-center justify-center overflow-hidden">
                   {selectedVideo ? (
                     selectedVideo.file ? (
-                      <video
+                      <VideoPlayer
                         ref={videoRef}
                         key={selectedVideo.id}
-                        controls
-                        className="w-full h-full max-h-[400px] lg:max-h-[500px] rounded object-contain"
                         src={apiClient.getSharedVideoUrl(selectedVideo.file, shareToken)}
                         onCanPlay={handleVideoCanPlay}
-                      >
-                        {t('common.messages.browserNoVideoSupport')}
-                      </video>
+                        className="w-full h-full max-h-[400px] lg:max-h-[500px]"
+                      />
                     ) : (
                       <p className="text-gray-500 text-sm">
                         {t('videos.shared.videoNoFile')}

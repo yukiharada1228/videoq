@@ -16,13 +16,14 @@ import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { MessageAlert } from '@/components/common/MessageAlert';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
 import { getStatusBadgeClassName, getStatusLabel, formatDate } from '@/lib/utils/video';
+import { VideoPlayer, VideoPlayerHandle } from '@/components/video/VideoPlayer';
 
 export default function VideoDetailPage() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
   const videoId = params?.id ? parseInt(params.id as string) : null;
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const videoRef = useRef<VideoPlayerHandle>(null);
   const startTime = searchParams.get('t');
   const { t, i18n } = useTranslation();
 
@@ -40,11 +41,11 @@ export default function VideoDetailPage() {
   }, [videoId, loadVideo]);
 
   // Play from specified time when video is loaded
-  const handleVideoLoaded = () => {
+  const handleVideoLoaded = (event: React.SyntheticEvent<HTMLVideoElement>) => {
     if (videoRef.current && startTime) {
       const seconds = parseInt(startTime, 10);
       if (!isNaN(seconds)) {
-        videoRef.current.currentTime = seconds;
+        videoRef.current.setCurrentTime(seconds);
         videoRef.current.play();
       }
     }
@@ -241,15 +242,12 @@ export default function VideoDetailPage() {
             </CardHeader>
             <CardContent>
               {video.file ? (
-                <video
+                <VideoPlayer
                   ref={videoRef}
-                  controls
-                  className="w-full rounded"
                   src={video.file}
                   onLoadedMetadata={handleVideoLoaded}
-                >
-                  {t('common.messages.browserNoVideoSupport')}
-                </video>
+                  className="w-full rounded"
+                />
               ) : (
                 <p className="text-gray-500">{t('common.messages.videoFileMissing')}</p>
               )}

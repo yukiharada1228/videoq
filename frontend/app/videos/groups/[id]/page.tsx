@@ -21,6 +21,7 @@ import { ChatPanel } from '@/components/chat/ChatPanel';
 import { useAuth } from '@/hooks/useAuth';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
+import { VideoPlayer, VideoPlayerHandle } from '@/components/video/VideoPlayer';
 import { handleAsyncError } from '@/lib/utils/errorHandling';
 import { useAsyncState } from '@/hooks/useAsyncState';
 import { useTranslation } from 'react-i18next';
@@ -156,7 +157,7 @@ export default function VideoGroupDetailPage() {
   const [shareLink, setShareLink] = useState<string | null>(null);
   const [isGeneratingLink, setIsGeneratingLink] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const videoRef = useRef<VideoPlayerHandle>(null);
   const pendingStartTimeRef = useRef<number | null>(null);
 
   // Edit mode state management
@@ -409,7 +410,7 @@ export default function VideoGroupDetailPage() {
 
     // Set time immediately if same video is already selected
     if (selectedVideo?.id === videoId && videoRef.current) {
-      videoRef.current.currentTime = seconds;
+      videoRef.current.setCurrentTime(seconds);
       videoRef.current.play();
     } else {
       // Save start time when selecting different video
@@ -420,10 +421,9 @@ export default function VideoGroupDetailPage() {
 
   // Play from specified time when video is loaded and ready
   const handleVideoCanPlay = (event: React.SyntheticEvent<HTMLVideoElement>) => {
-    if (pendingStartTimeRef.current !== null) {
-      const videoElement = event.currentTarget;
-      videoElement.currentTime = pendingStartTimeRef.current;
-      videoElement.play();
+    if (pendingStartTimeRef.current !== null && videoRef.current) {
+      videoRef.current.setCurrentTime(pendingStartTimeRef.current);
+      videoRef.current.play();
       pendingStartTimeRef.current = null;
     }
   };
@@ -913,16 +913,13 @@ export default function VideoGroupDetailPage() {
               <CardContent className="flex-1 flex items-center justify-center overflow-hidden">
                 {selectedVideo ? (
                   selectedVideo.file ? (
-                    <video
+                    <VideoPlayer
                       ref={videoRef}
                       key={selectedVideo.id}
-                      controls
-                      className="w-full h-full max-h-[400px] lg:max-h-[500px] rounded object-contain"
                       src={selectedVideo.file}
                       onCanPlay={handleVideoCanPlay}
-                    >
-                      {t('common.messages.browserNoVideoSupport')}
-                    </video>
+                      className="w-full h-full max-h-[400px] lg:max-h-[500px]"
+                    />
                   ) : (
                     <p className="text-gray-500 text-sm">
                       {t('videos.groupDetail.videoNoFile')}
