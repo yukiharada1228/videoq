@@ -130,7 +130,6 @@ export default function VideoGroupDetailPage() {
   const { user } = useAuth();
   const { t } = useTranslation();
 
-  // DRY principle: Use useAsyncState to unify state management
   const { data: group, isLoading, error, execute: loadGroup, setData: setGroup } = useAsyncState<VideoGroup>({
     initialData: null,
   });
@@ -349,7 +348,6 @@ export default function VideoGroupDetailPage() {
   }, [group]);
 
   const handleVideoSelect = (videoId: number) => {
-    // Get video data directly from chat group info (solves N+1 problem)
     // Use data already fetched with prefetch_related
     const video = group?.videos?.find(v => v.id === videoId);
     if (video) {
@@ -381,7 +379,7 @@ export default function VideoGroupDetailPage() {
 
   // Function to select video from chat and play from specified time
   const handleVideoPlayFromTime = (videoId: number, startTime: string) => {
-    // Convert time string to seconds using common utility (DRY)
+    // Convert time string to seconds using common utility
     const seconds = timeStringToSeconds(startTime);
 
     // Automatically switch to player tab on mobile

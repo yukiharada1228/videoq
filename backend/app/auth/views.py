@@ -254,12 +254,10 @@ class UsageStatsView(AuthenticatedAPIView):
         video_limit = get_video_limit(user)
 
         # Calculate monthly Whisper usage (in minutes)
-        # N+1 prevention: Use common utility function
         monthly_whisper_usage = get_monthly_whisper_usage(user)
         whisper_limit = get_whisper_minutes_limit(user)
 
         # Calculate monthly chat count
-        # N+1 prevention: Use common utility function
         monthly_chat_count = get_monthly_chat_count(user)
         chat_limit = get_chat_limit(user)
 

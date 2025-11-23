@@ -82,8 +82,6 @@ flowchart TD
     Error3 --> End
     Error4 --> End
     Error5 --> End
-    
-    Note: Monthly limit checks use optimized queries with select_related to prevent N+1 problems
 ```
 
 ## 3. User Authentication Flow

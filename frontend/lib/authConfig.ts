@@ -1,6 +1,6 @@
 /**
  * Common configuration for authentication forms
- * Centralized management of duplicate field definitions following DRY principle
+ * Centralized management of duplicate field definitions
  */
 
 export interface FormFieldConfig {

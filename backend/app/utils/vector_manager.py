@@ -124,7 +124,7 @@ def delete_video_vectors(video_id):
 
 def delete_video_vectors_batch(video_ids):
     """
-    Batch delete vector data related to multiple video IDs (N+1 prevention)
+    Batch delete vector data related to multiple video IDs
     """
     if not video_ids:
         return
@@ -136,7 +136,7 @@ def delete_video_vectors_batch(video_ids):
         )
 
         def batch_delete_operation(cursor):
-            # Delete multiple video_ids at once (N+1 prevention)
+            # Delete multiple video_ids at once
             video_id_strs = [str(vid) for vid in video_ids]
             placeholders = ",".join(["%s"] * len(video_id_strs))
 
