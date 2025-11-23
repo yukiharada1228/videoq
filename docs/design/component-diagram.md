@@ -129,6 +129,9 @@ graph TB
             EncryptionUtils[Encryption Utils]
             EmailUtils[Email Utils]
             TaskHelpers[Task Helpers]
+            QueryOptimizer[Query Optimizer]
+            PlanLimits[Plan Limits]
+            ResponseUtils[Response Utils]
         end
         
         subgraph Tasks["Background Tasks"]
@@ -148,7 +151,13 @@ graph TB
     Tasks --> Services
     Models --> Storage
     Services --> VectorManager
+    Services --> QueryOptimizer
+    Services --> PlanLimits
+    Services --> ResponseUtils
     ChatAPI --> ChatServices
+    VideoAPI --> QueryOptimizer
+    VideoAPI --> PlanLimits
+    AuthAPI --> PlanLimits
 ```
 
 ## System-Wide Component Structure

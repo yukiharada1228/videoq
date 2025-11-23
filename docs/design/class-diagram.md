@@ -96,6 +96,41 @@ classDiagram
     SafeS3Boto3Storage --|> SafeStorageMixin : extends
     Video --> SafeFileSystemStorage : uses
     Video --> SafeS3Boto3Storage : uses
+    
+    class QueryOptimizer {
+        +optimize_video_queryset()
+        +optimize_video_group_queryset()
+        +get_videos_with_metadata()
+        +get_video_groups_with_videos()
+    }
+    
+    class PlanLimits {
+        +get_video_limit()
+        +get_whisper_minutes_limit()
+        +get_chat_limit()
+        +get_first_day_of_month()
+        +get_monthly_chat_count()
+        +get_monthly_whisper_usage()
+    }
+    
+    class ValidationHelper {
+        +validate_required_fields()
+        +validate_field_length()
+        +validate_email_format()
+    }
+    
+    class ErrorHandler {
+        +handle_task_error()
+        +validate_required_fields()
+        +safe_execute()
+    }
+    
+    QueryOptimizer --> Video : optimizes
+    QueryOptimizer --> VideoGroup : optimizes
+    PlanLimits --> User : checks limits
+    PlanLimits --> ChatLog : counts
+    PlanLimits --> Video : calculates usage
+    ErrorHandler --> ValidationHelper : uses
 ```
 
 ## Frontend Components (React/TypeScript)
