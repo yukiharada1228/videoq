@@ -228,6 +228,7 @@ Authorization: Bearer <access_token>
 - Only the latest `user` message in `messages` is used
 - Do not send `system` messages; the backend constructs the system prompt internally
 - Chat is also available with share tokens (use `share_token` query parameter)
+- Prompt engineering: The system uses structured prompts defined in `app/chat/prompts/prompts.json`. See [Prompt Engineering Documentation](../../docs/architecture/prompt-engineering.md) for details
 
 For complete API documentation, see the root [README.md](../README.md).
 

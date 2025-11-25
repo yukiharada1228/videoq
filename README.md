@@ -367,6 +367,8 @@ Scene splitting improves search accuracy in AI chat and enables more appropriate
 - Ask questions about video content
 - Conversational integration with the OpenAI API
 - Answers grounded in transcription data
+- RAG (Retrieval-Augmented Generation) with prompt engineering
+  - See [Prompt Engineering Documentation](docs/architecture/prompt-engineering.md) for details
 
 ### Sharing
 
@@ -599,6 +601,7 @@ Notes:
 - OpenAI API key is managed at the system level via the `OPENAI_API_KEY` environment variable (not user-configurable).
 - Chat is also available with a share token (use the `share_token` query parameter).
 - Do not send a `system` message; the backend constructs the system prompt internally. Only the latest `user` message in `messages` is used.
+- The system uses prompt engineering for RAG. See [Prompt Engineering Documentation](docs/architecture/prompt-engineering.md) for details on how prompts are constructed and customized.
 
 #### 5. Share links
 
