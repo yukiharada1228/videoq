@@ -18,6 +18,23 @@ This application offers video upload, automatic transcription, and AI chat. When
 - **User-specific Limits**: Per-user limits for videos, Whisper processing, and chat (configurable via admin panel)
 - **Usage Statistics**: View current usage statistics for videos, Whisper processing time, and chats
 
+## Screenshots
+
+### Login Page
+![Login Page](.playwright-mcp/screenshots/login.png)
+
+### Home Page
+![Home Page](.playwright-mcp/screenshots/home.png)
+
+### Video List Page
+![Video List Page](.playwright-mcp/screenshots/videos-list.png)
+
+### Video Detail Page
+![Video Detail Page](.playwright-mcp/screenshots/video-detail.png)
+
+### Chat Groups Page
+![Chat Groups Page](.playwright-mcp/screenshots/chat-groups.png)
+
 ## Project Structure
 
 ```
