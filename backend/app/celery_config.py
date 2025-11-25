@@ -11,10 +11,10 @@ from celery.schedules import crontab
 logger = logging.getLogger(__name__)
 
 # Load Django settings
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "talk_video.settings")
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "videoq.settings")
 
 # Create Celery application
-app = Celery("talk_video")
+app = Celery("videoq")
 
 # Load Celery settings from Django settings
 app.config_from_object("django.conf:settings", namespace="CELERY")

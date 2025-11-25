@@ -2,7 +2,7 @@
 
 ## Overview
 
-This diagram represents the main use cases of the TalkVid system.
+This diagram represents the main use cases of the VideoQ system.
 
 ## Use Case Diagram
 

@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "TalkVid",
-  description: "TalkVid Application",
+  title: "VideoQ",
+  description: "VideoQ Application",
 };
 
 export default function RootLayout({

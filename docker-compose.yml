@@ -1,23 +1,23 @@
 services:
   redis:
     image: redis:alpine
-    container_name: talk-video-redis
+    container_name: videoq-redis
     networks:
-      - talk-video-network
+      - videoq-network
 
   postgres:
     image: pgvector/pgvector:pg17
-    container_name: talk-video-postgres
+    container_name: videoq-postgres
     env_file:
       - .env
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
-      - talk-video-network
+      - videoq-network
 
   backend:
     build: ./backend
-    container_name: talk-video-backend
+    container_name: videoq-backend
     ports:
       - "8000:8000"
     env_file:
@@ -30,12 +30,12 @@ services:
       - postgres
       - redis
     networks:
-      - talk-video-network
+      - videoq-network
 
   celery-worker:
     build: ./backend
-    container_name: talk-video-celery-worker
-    command: uv run celery -A talk_video worker --loglevel=info
+    container_name: videoq-celery-worker
+    command: uv run celery -A videoq worker --loglevel=info
     env_file:
       - .env
     volumes:
@@ -43,12 +43,12 @@ services:
     depends_on:
       - redis
     networks:
-      - talk-video-network
+      - videoq-network
 
   celery-beat:
     build: ./backend
-    container_name: talk-video-celery-beat
-    command: uv run celery -A talk_video beat --loglevel=info
+    container_name: videoq-celery-beat
+    command: uv run celery -A videoq beat --loglevel=info
     env_file:
       - .env
     volumes:
@@ -56,24 +56,24 @@ services:
     depends_on:
       - redis
     networks:
-      - talk-video-network
+      - videoq-network
 
   frontend:
     build:
       context: ./frontend
       args:
         - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
-    container_name: talk-video-frontend
+    container_name: videoq-frontend
     env_file:
       - .env
     depends_on:
       - backend
     networks:
-      - talk-video-network
+      - videoq-network
 
   nginx:
     image: nginx:alpine
-    container_name: talk-video-nginx
+    container_name: videoq-nginx
     ports:
       - "80:80"
     volumes:
@@ -84,12 +84,12 @@ services:
       - backend
       - frontend
     networks:
-      - talk-video-network
+      - videoq-network
 
 volumes:
   staticfiles:
   postgres_data:
 
 networks:
-  talk-video-network:
+  videoq-network:
     driver: bridge
