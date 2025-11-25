@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document provides detailed definitions of database tables and columns for the TalkVid system.
+This document provides detailed definitions of database tables and columns for the VideoQ system.
 
 ## User Table
 

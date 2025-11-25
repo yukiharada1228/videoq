@@ -2142,7 +2142,7 @@ wheels = [
 ]
 
 [[package]]
-name = "talk-video-backend"
+name = "videoq-backend"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [

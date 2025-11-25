@@ -1,4 +1,4 @@
-# TalkVid
+# VideoQ
 
 A web application that provides video transcription and AI chat features.
 
@@ -21,7 +21,7 @@ This application offers video upload, automatic transcription, and AI chat. When
 ## Project Structure
 
 ```
-talk-vid/
+videoq/
 ├── backend/                    # Django REST Framework backend
 │   ├── app/                     # Main application
 │   │   ├── auth/                # Auth features (views, serializers, urls, tests)
@@ -35,7 +35,7 @@ talk-vid/
 │   │   ├── models.py            # Data models (User, Video, VideoGroup, ChatLog, etc.)
 │   │   ├── tasks.py             # Celery tasks (transcription, etc.)
 │   │   └── celery_config.py     # Celery configuration
-│   ├── talk_video/               # Django project settings
+│   ├── videoq/               # Django project settings
 │   │   ├── settings.py          # Django settings
 │   │   ├── urls.py              # URL settings
 │   │   ├── wsgi.py              # WSGI
@@ -661,7 +661,7 @@ This project consists of the following services:
 
 ### Network
 
-All services communicate within the `talk-video-network` Docker network (defined in docker-compose.yml).
+All services communicate within the `videoq-network` Docker network (defined in docker-compose.yml).
 
 ## Periodic Tasks (Celery Beat)
 

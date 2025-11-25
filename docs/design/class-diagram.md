@@ -2,7 +2,7 @@
 
 ## Overview
 
-This diagram shows the backend models and frontend components of the TalkVid system.
+This diagram shows the backend models and frontend components of the VideoQ system.
 
 ## Backend Models (Django)
 

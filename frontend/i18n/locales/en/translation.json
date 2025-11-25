@@ -1,6 +1,6 @@
 {
   "common": {
-    "appName": "TalkVid",
+    "appName": "VideoQ",
     "loading": "Loading...",
     "notProvided": "Not provided",
     "actions": {
@@ -74,7 +74,7 @@
     }
   },
   "navigation": {
-    "brand": "TalkVid",
+    "brand": "VideoQ",
     "videos": "Videos",
     "videoGroups": "Chat groups",
     "settings": "Settings",
@@ -84,7 +84,7 @@
   },
   "layout": {
     "footer": {
-      "copyright": "© {{year}} TalkVid. All rights reserved."
+      "copyright": "© {{year}} VideoQ. All rights reserved."
     }
   },
   "home": {

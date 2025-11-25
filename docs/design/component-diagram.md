@@ -2,7 +2,7 @@
 
 ## Overview
 
-This diagram represents the frontend and backend component structure of the TalkVid system.
+This diagram represents the frontend and backend component structure of the VideoQ system.
 
 ## Frontend Component Structure
 
