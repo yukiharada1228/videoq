@@ -23,6 +23,10 @@ graph TB
                 CeleryWorker[Celery Worker]
             end
             
+            subgraph CeleryBeatContainer["celery-beat"]
+                CeleryBeat[Celery Beat<br/>Periodic Task Scheduler]
+            end
+            
             subgraph NginxContainer["nginx"]
                 Nginx[Nginx Reverse Proxy<br/>Port: 80]
             end
@@ -59,6 +63,8 @@ graph TB
     CeleryWorker --> PostgreSQL
     CeleryWorker --> MediaFiles
     CeleryWorker -->|API Call| OpenAI
+    CeleryBeat --> Redis
+    CeleryBeat --> PostgreSQL
     Django -->|API Call| OpenAI
     Django -->|SMTP| EmailService
     
@@ -76,17 +82,19 @@ graph LR
         S2[postgres<br/>pgvector/pgvector:pg17]
         S3[backend<br/>Django + Gunicorn]
         S4[celery-worker<br/>Celery Worker]
-        S5[frontend<br/>Next.js]
-        S6[nginx<br/>nginx:alpine]
+        S5[celery-beat<br/>Celery Beat]
+        S6[frontend<br/>Next.js]
+        S7[nginx<br/>nginx:alpine]
     end
     
     subgraph Dependencies["Dependencies"]
         S3 --> S2
         S3 --> S1
         S4 --> S1
-        S5 --> S3
+        S5 --> S1
         S6 --> S3
-        S6 --> S5
+        S7 --> S3
+        S7 --> S6
     end
     
     subgraph Ports["Port Mapping"]
@@ -94,7 +102,7 @@ graph LR
         P2[8000:8000<br/>backend]
     end
     
-    S6 --> P1
+    S7 --> P1
     S3 --> P2
 ```
 
@@ -107,16 +115,19 @@ graph TB
         N2[frontend]
         N3[backend]
         N4[celery-worker]
-        N5[postgres]
-        N6[redis]
+        N5[celery-beat]
+        N6[postgres]
+        N7[redis]
     end
     
     N1 -.->|HTTP| N2
     N1 -.->|HTTP| N3
-    N3 -.->|PostgreSQL| N5
-    N3 -.->|Redis| N6
-    N4 -.->|Redis| N6
-    N4 -.->|PostgreSQL| N5
+    N3 -.->|PostgreSQL| N6
+    N3 -.->|Redis| N7
+    N4 -.->|Redis| N7
+    N4 -.->|PostgreSQL| N6
+    N5 -.->|Redis| N7
+    N5 -.->|PostgreSQL| N6
     N3 -.->|File Access| Media
     N4 -.->|File Access| Media
     
@@ -146,7 +157,8 @@ graph TB
         C1[postgres]
         C2[backend]
         C3[celery-worker]
-        C4[nginx]
+        C4[celery-beat]
+        C5[nginx]
     end
     
     C1 --> V1
@@ -154,9 +166,10 @@ graph TB
     C2 --> V3
     C2 --> V4
     C3 --> V3
-    C4 --> V2
     C4 --> V3
-    C4 --> V5
+    C5 --> V2
+    C5 --> V3
+    C5 --> V5
 ```
 
 ## Deployment Flow
@@ -182,10 +195,12 @@ sequenceDiagram
     par Dependent Services Startup
         Containers->>Services: Start backend
         Containers->>Services: Start celery-worker
+        Containers->>Services: Start celery-beat
     end
     
     Services->>Services: backend Ready
     Services->>Services: celery-worker Ready
+    Services->>Services: celery-beat Ready
     
     Containers->>Services: Start frontend
     Services->>Services: frontend Ready
@@ -221,7 +236,8 @@ graph TB
         C1[postgres]
         C2[backend]
         C3[celery-worker]
-        C4[frontend]
+        C4[celery-beat]
+        C5[frontend]
     end
     
     E1 --> C1
@@ -231,6 +247,7 @@ graph TB
     E5 --> C2
     E6 --> C2
     E6 --> C3
+    E6 --> C4
     E7 --> C2
     E8 --> C2
     E9 --> C2
@@ -239,7 +256,7 @@ graph TB
     E12 --> C2
     E13 --> C2
     E13 --> C3
-    E14 --> C4
+    E14 --> C5
 ```
 
 ## Scaling Configuration
