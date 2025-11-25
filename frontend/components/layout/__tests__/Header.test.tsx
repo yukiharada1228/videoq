@@ -56,7 +56,6 @@ describe('Header', () => {
     
     expect(screen.getByText('navigation.videos')).toBeInTheDocument()
     expect(screen.getByText('navigation.videoGroups')).toBeInTheDocument()
-    expect(screen.getByText('navigation.settings')).toBeInTheDocument()
     expect(screen.getByText('navigation.logout')).toBeInTheDocument()
   })
 
@@ -66,7 +65,6 @@ describe('Header', () => {
     render(<Header />)
     
     expect(screen.queryByText('navigation.videos')).not.toBeInTheDocument()
-    expect(screen.queryByText('navigation.settings')).not.toBeInTheDocument()
   })
 
   it('should navigate to videos page when videos link is clicked', async () => {
@@ -95,20 +93,6 @@ describe('Header', () => {
     await user.click(groupsButton)
     
     expect(mockPush).toHaveBeenCalledWith('/videos/groups')
-  })
-
-  it('should navigate to settings page when settings link is clicked', async () => {
-    (useAuth as jest.Mock).mockReturnValue({
-      user: { username: 'testuser' },
-    })
-    const user = userEvent.setup()
-    
-    render(<Header />)
-    
-    const settingsButton = screen.getByText('navigation.settings')
-    await user.click(settingsButton)
-    
-    expect(mockPush).toHaveBeenCalledWith('/settings')
   })
 
   it('should logout and navigate to login when logout is clicked', async () => {
@@ -210,25 +194,6 @@ describe('Header', () => {
     
     await user.click(mobileGroupsButton)
     expect(mockPush).toHaveBeenCalledWith('/videos/groups')
-  })
-
-  it('should close mobile menu when settings button is clicked', async () => {
-    (useAuth as jest.Mock).mockReturnValue({
-      user: { username: 'testuser' },
-    })
-    const user = userEvent.setup()
-    
-    render(<Header />)
-    
-    const menuButton = screen.getByLabelText('common.actions.openMenu')
-    await user.click(menuButton)
-    
-    // Find mobile menu settings button
-    const settingsButtons = screen.getAllByText('navigation.settings')
-    const mobileSettingsButton = settingsButtons.length > 1 ? settingsButtons[1] : settingsButtons[0]
-    
-    await user.click(mobileSettingsButton)
-    expect(mockPush).toHaveBeenCalledWith('/settings')
   })
 
   it('should close mobile menu when logout button is clicked', async () => {
