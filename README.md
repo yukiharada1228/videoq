@@ -257,6 +257,9 @@ This starts:
 # Run database migrations
 docker compose exec backend uv run python manage.py migrate
 
+# Collect static files
+docker compose exec backend uv run python manage.py collectstatic
+
 # Create admin user (first time only)
 docker compose exec backend uv run python manage.py createsuperuser
 ```
