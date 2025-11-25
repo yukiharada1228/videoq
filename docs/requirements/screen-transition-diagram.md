@@ -2,7 +2,7 @@
 
 ## Overview
 
-This diagram represents the frontend screen transitions of the TalkVid application.
+This diagram represents the frontend screen transitions of the VideoQ application.
 
 ## Screen Transition Diagram
 

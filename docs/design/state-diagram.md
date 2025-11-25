@@ -2,7 +2,7 @@
 
 ## Overview
 
-This diagram represents the state transitions of the main objects in the TalkVid system.
+This diagram represents the state transitions of the main objects in the VideoQ system.
 
 ## Video State Transition
 
