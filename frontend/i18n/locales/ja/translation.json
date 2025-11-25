@@ -77,7 +77,6 @@
     "brand": "VideoQ",
     "videos": "動画一覧",
     "videoGroups": "チャットグループ",
-    "settings": "設定",
     "logout": "ログアウト",
     "welcome": "ようこそ、{{username}}さん",
     "openMenu": "メニューを開く"
@@ -367,11 +366,6 @@
         "placeholder": "パスワードを再入力"
       }
     }
-  },
-  "settings": {
-    "title": "設定",
-    "description": "アカウント設定",
-    "noSettings": "現在、変更可能な設定項目はありません。"
   },
   "chat": {
     "title": "チャット",

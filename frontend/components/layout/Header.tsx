@@ -66,13 +66,6 @@ export function Header({ children }: HeaderProps) {
               </span>
               <span className="text-gray-300">|</span>
               <button
-                onClick={() => router.push('/settings')}
-                className="text-gray-600 hover:text-gray-900 transition-colors"
-              >
-                {t('navigation.settings')}
-              </button>
-              <span className="text-gray-300">|</span>
-              <button
                 onClick={handleLogout}
                 className="text-gray-600 hover:text-gray-900 transition-colors"
               >
@@ -143,15 +136,6 @@ export function Header({ children }: HeaderProps) {
                 className="block w-full text-left px-2 py-2 text-gray-600 hover:bg-gray-50 rounded transition-colors"
               >
                 {t('navigation.videoGroups')}
-              </button>
-              <button
-                onClick={() => {
-                  router.push('/settings');
-                  closeMobileMenu();
-                }}
-                className="block w-full text-left px-2 py-2 text-gray-600 hover:bg-gray-50 rounded transition-colors"
-              >
-                {t('navigation.settings')}
               </button>
               <button
                 onClick={() => {
