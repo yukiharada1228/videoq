@@ -2,7 +2,7 @@
 
 ## Overview
 
-This diagram represents the overall architecture and system configuration of the TalkVid system.
+This diagram represents the overall architecture and system configuration of the VideoQ system.
 
 ## Overall System Configuration
 
@@ -137,7 +137,7 @@ graph TB
         LB[Load Balancer<br/>Nginx]
     end
     
-    subgraph AppNetwork["Application Network<br/>talk-video-network"]
+    subgraph AppNetwork["Application Network<br/>videoq-network"]
         subgraph WebTier["Web Tier"]
             Web1[Frontend-1]
             Web2[Frontend-2]

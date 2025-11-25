@@ -1,5 +1,5 @@
 [project]
-name = "talk-video-backend"
+name = "videoq-backend"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"

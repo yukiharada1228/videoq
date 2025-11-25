@@ -1,4 +1,4 @@
-# TalkVid Backend
+# VideoQ Backend
 
 Django REST API application providing video transcription and chat features.
 
@@ -73,7 +73,7 @@ redis-server
 4. **Configure environment variables** (create `.env` file):
 ```bash
 SECRET_KEY=your-secret-key
-DATABASE_URL=postgresql://user:password@localhost:5432/talk_video
+DATABASE_URL=postgresql://user:password@localhost:5432/videoq
 CELERY_BROKER_URL=redis://localhost:6379/0
 CELERY_RESULT_BACKEND=redis://localhost:6379/0
 # ... other required variables (see root README)
@@ -87,7 +87,7 @@ uv run python manage.py migrate
 6. **Start services**:
 ```bash
 # Terminal 1 - Celery worker
-uv run celery -A talk_video worker --loglevel=info
+uv run celery -A videoq worker --loglevel=info
 
 # Terminal 2 - Django dev server
 uv run python manage.py runserver
@@ -262,7 +262,7 @@ docker compose logs -f celery-worker
 
 **Locally:**
 ```bash
-uv run celery -A talk_video worker --loglevel=info
+uv run celery -A videoq worker --loglevel=info
 ```
 
 ### Tasks
@@ -287,7 +287,7 @@ backend/
 │   ├── scene_otsu/       # Scene detection
 │   ├── utils/            # Utilities (encryption, vector_manager, task_helpers, email, etc.)
 │   └── migrations/       # Database migrations
-├── talk_video/
+├── videoq/
 │   ├── settings.py       # Django settings (incl. Celery)
 │   ├── urls.py           # URL configuration
 │   ├── wsgi.py           # WSGI
@@ -366,10 +366,10 @@ ps aux | grep celery
 3. **Verify registered tasks:**
 ```bash
 # In Docker
-docker compose exec backend uv run celery -A talk_video inspect registered
+docker compose exec backend uv run celery -A videoq inspect registered
 
 # Locally
-uv run celery -A talk_video inspect registered
+uv run celery -A videoq inspect registered
 ```
 
 4. **Check logs for errors:**

@@ -31,7 +31,7 @@ class PGVectorManager:
                     "postgresql://postgres:postgres@postgres:5432/postgres",
                 ),
                 "collection_name": os.getenv(
-                    "PGVECTOR_COLLECTION_NAME", "talk_video_scenes"
+                    "PGVECTOR_COLLECTION_NAME", "videoq_scenes"
                 ),
             }
         return cls._config
