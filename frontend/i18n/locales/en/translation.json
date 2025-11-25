@@ -77,7 +77,6 @@
     "brand": "VideoQ",
     "videos": "Videos",
     "videoGroups": "Chat groups",
-    "settings": "Settings",
     "logout": "Log out",
     "welcome": "Welcome, {{username}}",
     "openMenu": "Open menu"
@@ -367,11 +366,6 @@
         "placeholder": "Re-enter your password"
       }
     }
-  },
-  "settings": {
-    "title": "Settings",
-    "description": "Account settings",
-    "noSettings": "No configurable settings available at this time."
   },
   "chat": {
     "title": "Chat",
