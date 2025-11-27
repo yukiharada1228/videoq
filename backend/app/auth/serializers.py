@@ -201,16 +201,3 @@ class RefreshResponseSerializer(serializers.Serializer):
 
 class MessageResponseSerializer(serializers.Serializer):
     detail = serializers.CharField(help_text="Response message")
-
-
-class UsageItemSerializer(serializers.Serializer):
-    used = serializers.FloatField(help_text="Current usage")
-    limit = serializers.FloatField(help_text="Maximum limit")
-
-
-class UsageStatsResponseSerializer(serializers.Serializer):
-    videos = UsageItemSerializer(help_text="Video count usage")
-    whisper_minutes = UsageItemSerializer(
-        help_text="Whisper processing time in minutes"
-    )
-    chats = UsageItemSerializer(help_text="Chat count usage")
