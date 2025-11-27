@@ -11,7 +11,6 @@ from concurrent.futures import ThreadPoolExecutor
 
 from celery import shared_task
 from django.conf import settings
-from django.utils import timezone
 from langchain_openai import OpenAIEmbeddings
 from langchain_postgres import PGVector
 from openai import OpenAI

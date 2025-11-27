@@ -54,7 +54,6 @@ class VideoCreateSerializer(UserOwnedSerializerMixin, serializers.ModelSerialize
     def create(self, validated_data):
         """Start transcription task when Video is created"""
         request = self.context.get("request")
-        user = getattr(request, "user", None)
 
         # Check if Authorization header exists (determine external API client)
         is_external_client = request and request.META.get("HTTP_AUTHORIZATION")
