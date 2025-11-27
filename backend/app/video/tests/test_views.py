@@ -257,59 +257,6 @@ class VideoGroupPermissionTestCase(APITestCase):
         self.assertEqual(VideoGroup.objects.count(), 1)
 
 
-class VideoUploadLimitTestCase(APITestCase):
-    def setUp(self):
-        self.user = User.objects.create_user(
-            username="limituser",
-            email="limituser@example.com",
-            password="testpass123",
-        )
-        # Set video limit to 3
-        self.user.video_limit = 3
-        # Set whisper minutes limit to a high value to avoid Whisper limit errors in tests
-        self.user.whisper_minutes_limit = 10000.0
-        self.user.save(update_fields=["video_limit", "whisper_minutes_limit"])
-
-        self.client = APIClient()
-        self.client.force_authenticate(user=self.user)
-        self.url = reverse("video-list")
-
-    def _upload_video(self, title="Test Video"):
-        file_content = b"dummy video content"
-        upload_file = SimpleUploadedFile(
-            "test_video.mp4",
-            file_content,
-            content_type="video/mp4",
-        )
-        data = {
-            "file": upload_file,
-            "title": title,
-            "description": "Test description",
-        }
-        return self.client.post(self.url, data, format="multipart")
-
-    @patch(
-        "app.video.serializers.VideoCreateSerializer._get_video_duration_minutes",
-        return_value=1.0,
-    )
-    def test_video_creation_respects_limit(self, mock_get_duration):
-        # FREE plan allows 3 videos
-        first_response = self._upload_video(title="Video 1")
-        self.assertEqual(first_response.status_code, status.HTTP_201_CREATED)
-
-        second_response = self._upload_video(title="Video 2")
-        self.assertEqual(second_response.status_code, status.HTTP_201_CREATED)
-
-        third_response = self._upload_video(title="Video 3")
-        self.assertEqual(third_response.status_code, status.HTTP_201_CREATED)
-
-        # Fourth video should fail (FREE plan limit is 3)
-        fourth_response = self._upload_video(title="Video 4")
-        self.assertEqual(fourth_response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("detail", fourth_response.data)
-        self.assertEqual(Video.objects.filter(user=self.user).count(), 3)
-
-
 class VideoListViewTests(APITestCase):
     """Tests for VideoListView search, filter, and ordering"""
 
@@ -428,41 +375,31 @@ class VideoDetailViewTests(APITestCase):
 
     @patch("app.utils.vector_manager.delete_video_vectors")
     def test_delete_video_deletes_vectors(self, mock_delete):
-        """Test that deleting video deletes vectors and performs soft delete"""
+        """Test that deleting video deletes vectors and performs hard delete"""
         url = reverse("video-detail", kwargs={"pk": self.video.pk})
         video_id = self.video.id
 
         response = self.client.delete(url)
 
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-        # Video should be soft deleted (deleted_at is set, but record exists)
-        self.video.refresh_from_db()
-        self.assertIsNotNone(self.video.deleted_at)
-        # Video should not be accessible via normal queries (excludes deleted videos)
-        self.assertFalse(
-            Video.objects.filter(pk=self.video.pk, deleted_at__isnull=True).exists()
-        )
-        # delete_video_vectors is called once in destroy() (post_delete signal doesn't fire for soft delete)
+        # Video should be hard deleted (record no longer exists)
+        self.assertFalse(Video.objects.filter(pk=self.video.pk).exists())
+        # delete_video_vectors is called once via post_delete signal
         self.assertEqual(mock_delete.call_count, 1)
         self.assertEqual(mock_delete.call_args_list[0][0][0], video_id)
 
     @patch("app.utils.vector_manager.delete_video_vectors")
     def test_delete_video_vector_error_handling(self, mock_delete):
-        """Test that vector deletion error doesn't prevent video soft delete"""
+        """Test that vector deletion error doesn't prevent video hard delete"""
         mock_delete.side_effect = Exception("Vector deletion failed")
         url = reverse("video-detail", kwargs={"pk": self.video.pk})
 
         response = self.client.delete(url)
 
-        # Video should still be soft deleted even if vector deletion fails
+        # Video should still be hard deleted even if vector deletion fails
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-        # Video should be soft deleted (deleted_at is set, but record exists)
-        self.video.refresh_from_db()
-        self.assertIsNotNone(self.video.deleted_at)
-        # Video should not be accessible via normal queries (excludes deleted videos)
-        self.assertFalse(
-            Video.objects.filter(pk=self.video.pk, deleted_at__isnull=True).exists()
-        )
+        # Video should be hard deleted (record no longer exists)
+        self.assertFalse(Video.objects.filter(pk=self.video.pk).exists())
 
     @patch("app.utils.vector_manager.delete_video_vectors")
     def test_delete_video_removes_from_groups(self, mock_delete):
@@ -604,186 +541,3 @@ class ReorderVideosTests(APITestCase):
         self.assertEqual(member3.order, 0)
 
 
-class WhisperUsageLimitTestCase(APITestCase):
-    """Tests for Whisper monthly usage limit (based on plan)"""
-
-    def setUp(self):
-        self.user = User.objects.create_user(
-            username="whisperuser",
-            email="whisperuser@example.com",
-            password="testpass123",
-        )
-        # Set whisper minutes limit to 1200
-        self.user.whisper_minutes_limit = 1200.0
-        # Set video limit to a high value to avoid video limit errors in tests
-        self.user.video_limit = 10000
-        self.user.save(update_fields=["whisper_minutes_limit", "video_limit"])
-        self.client = APIClient()
-        self.client.force_authenticate(user=self.user)
-        self.url = reverse("video-list")
-
-    @patch("app.video.serializers.VideoCreateSerializer._get_video_duration_minutes")
-    def test_whisper_usage_limit_enforced(self, mock_get_duration):
-        """Test that Whisper usage limit is enforced when uploading videos"""
-        # Mock _get_video_duration_minutes to return 601 minutes (to exceed limit)
-        mock_get_duration.return_value = 601.0  # 601 minutes
-
-        # Create a video with 600 minutes already used this month
-        from datetime import timedelta
-
-        from django.utils import timezone
-
-        now = timezone.now()
-        first_day_of_month = now.replace(
-            day=1, hour=0, minute=0, second=0, microsecond=0
-        )
-
-        # Create a video with 600 minutes duration
-        Video.objects.create(
-            user=self.user,
-            title="Existing Video",
-            description="Test",
-            status="completed",
-            duration_minutes=600.0,
-            uploaded_at=first_day_of_month + timedelta(days=1),
-        )
-
-        # Try to upload a video that would exceed the limit (600 + 601 = 1201 > 1200)
-        file_content = b"dummy video content"
-        upload_file = SimpleUploadedFile(
-            "test_video.mp4",
-            file_content,
-            content_type="video/mp4",
-        )
-        data = {
-            "file": upload_file,
-            "title": "New Video",
-            "description": "Test description",
-        }
-
-        response = self.client.post(self.url, data, format="multipart")
-
-        # Should fail with validation error
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("detail", response.data)
-        self.assertIn("Monthly Whisper usage limit", str(response.data["detail"]))
-
-        # Video should be deleted
-        self.assertFalse(Video.objects.filter(title="New Video").exists())
-
-    @patch("app.video.serializers.VideoCreateSerializer._get_video_duration_minutes")
-    def test_whisper_usage_limit_within_limit(self, mock_get_duration):
-        """Test that video upload succeeds when within Whisper usage limit"""
-        # Mock _get_video_duration_minutes to return 100 minutes
-        mock_get_duration.return_value = 100.0  # 100 minutes
-
-        # Create a video with 500 minutes already used this month
-        from datetime import timedelta
-
-        from django.utils import timezone
-
-        now = timezone.now()
-        first_day_of_month = now.replace(
-            day=1, hour=0, minute=0, second=0, microsecond=0
-        )
-
-        Video.objects.create(
-            user=self.user,
-            title="Existing Video",
-            description="Test",
-            status="completed",
-            duration_minutes=500.0,
-            uploaded_at=first_day_of_month + timedelta(days=1),
-        )
-
-        # Upload a video with 100 minutes (500 + 100 = 600, which is < 1200)
-        file_content = b"dummy video content"
-        upload_file = SimpleUploadedFile(
-            "test_video.mp4",
-            file_content,
-            content_type="video/mp4",
-        )
-        data = {
-            "file": upload_file,
-            "title": "New Video",
-            "description": "Test description",
-        }
-
-        response = self.client.post(self.url, data, format="multipart")
-
-        # Should succeed
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-
-    @patch(
-        "app.video.serializers.VideoCreateSerializer._get_video_duration_minutes",
-        return_value=100.0,
-    )
-    def test_whisper_usage_limit_only_counts_current_month(self, mock_get_duration):
-        """Test that only videos from current month are counted"""
-        from datetime import timedelta
-
-        from django.utils import timezone
-
-        # Create a video from last month (should not be counted)
-        last_month = timezone.now().replace(
-            day=1, hour=0, minute=0, second=0, microsecond=0
-        ) - timedelta(days=1)
-        last_month_first_day = last_month.replace(day=1)
-
-        last_month_video = Video.objects.create(
-            user=self.user,
-            title="Last Month Video",
-            description="Test",
-            status="completed",
-            duration_minutes=1200.0,  # This should not count
-        )
-        # Update uploaded_at after creation to bypass auto_now_add
-        last_month_video.uploaded_at = last_month_first_day + timedelta(days=1)
-        last_month_video.save(update_fields=["uploaded_at"])
-
-        # Upload a video with 100 minutes (should succeed because last month's video doesn't count)
-        file_content = b"dummy video content"
-        upload_file = SimpleUploadedFile(
-            "test_video.mp4",
-            file_content,
-            content_type="video/mp4",
-        )
-        data = {
-            "file": upload_file,
-            "title": "New Video",
-            "description": "Test description",
-        }
-
-        response = self.client.post(self.url, data, format="multipart")
-
-        # Should succeed because last month's usage doesn't count
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-
-    @patch("app.video.serializers.VideoCreateSerializer._get_video_duration_minutes")
-    def test_get_video_duration_handles_ffprobe_error(self, mock_get_duration):
-        """Test that video upload is rejected if duration cannot be determined"""
-        # Mock _get_video_duration_minutes to return None (simulating error)
-        mock_get_duration.return_value = None
-
-        file_content = b"dummy video content"
-        upload_file = SimpleUploadedFile(
-            "test_video.mp4",
-            file_content,
-            content_type="video/mp4",
-        )
-        data = {
-            "file": upload_file,
-            "title": "New Video",
-            "description": "Test description",
-        }
-
-        response = self.client.post(self.url, data, format="multipart")
-
-        # Should fail because we cannot check the Whisper usage limit without duration
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("detail", response.data)
-        self.assertIn(
-            "Failed to determine video duration", str(response.data["detail"])
-        )
-        # Video should be deleted
-        self.assertFalse(Video.objects.filter(title="New Video").exists())

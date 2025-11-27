@@ -14,7 +14,6 @@ from app.common.permissions import (IsAuthenticatedOrSharedAccess,
                                     ShareTokenAuthentication)
 from app.common.responses import create_error_response
 from app.models import ChatLog, VideoGroup, VideoGroupMember
-from app.utils.plan_limits import get_chat_limit, get_monthly_chat_count
 
 from .serializers import (ChatFeedbackRequestSerializer,
                           ChatFeedbackResponseSerializer, ChatLogSerializer,
@@ -124,17 +123,6 @@ class ChatView(generics.CreateAPIView):
                     return create_error_response(
                         "Specified group not found", status.HTTP_404_NOT_FOUND
                     )
-
-            # Check monthly chat limit (based on user's plan, including shared chats)
-            # This check is done after basic validation to ensure proper error messages
-            monthly_chat_count = get_monthly_chat_count(user)
-
-            chat_limit = get_chat_limit(user)
-            if monthly_chat_count >= chat_limit:
-                return create_error_response(
-                    f"Monthly chat limit reached ({chat_limit} chats per month). Please try again next month or upgrade your plan.",
-                    status.HTTP_429_TOO_MANY_REQUESTS,
-                )
 
             service = RagChatService(user=user, llm=llm)
             accept_language = request.headers.get("Accept-Language", "")
