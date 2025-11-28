@@ -29,6 +29,7 @@ class DefaultSettings:
 
     # Security
     SECRET_KEY = "django-insecure-644978l%$qgjwpo$w!5i7l#y(m&h)e$u#3en_a%ln^4!js$-*+"
+    SECURE_COOKIES = False  # Set to True in production with HTTPS
 
     # CORS
     CORS_ALLOWED_ORIGINS = [
@@ -235,6 +236,12 @@ CELERY_TASK_SOFT_TIME_LIMIT = 25 * 60  # 25 minutes
 
 # Feature flags
 ENABLE_SIGNUP = os.environ.get("ENABLE_SIGNUP", "true").lower() == "true"
+
+# Security: Cookie secure flag (set to True in production with HTTPS)
+SECURE_COOKIES = (
+    os.environ.get("SECURE_COOKIES", str(DefaultSettings.SECURE_COOKIES)).lower()
+    == "true"
+)
 
 # Storage configuration
 USE_S3_STORAGE = (
