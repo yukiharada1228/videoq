@@ -114,6 +114,26 @@ class SubtitleParser:
         return seconds
 
 
+class TimestampConverter:
+    """Handles timestamp conversions between seconds and SRT format"""
+
+    @staticmethod
+    def seconds_to_timestamp(seconds: float) -> str:
+        """Convert seconds to timestamp in HH:MM:SS,mmm format"""
+        hours = int(seconds // 3600)
+        minutes = int((seconds % 3600) // 60)
+        secs = int(seconds % 60)
+        milliseconds = int((seconds % 1) * 1000)
+        return f"{hours:02d}:{minutes:02d}:{secs:02d},{milliseconds:03d}"
+
+    @staticmethod
+    def calculate_duration(start_timestamp: str, end_timestamp: str) -> float:
+        """Calculate duration in seconds between two timestamps"""
+        start_sec = SubtitleParser.parse_timestamp(start_timestamp)
+        end_sec = SubtitleParser.parse_timestamp(end_timestamp)
+        return end_sec - start_sec
+
+
 class SceneSplitter:
     """
     Scene splitter for SRT subtitles using Otsu method
@@ -131,14 +151,17 @@ class SceneSplitter:
             batch_size: Batch size for embedding generation
         """
         self.embedder = OpenAIEmbedder(api_key, model, batch_size)
+        self.timestamp_converter = TimestampConverter()
 
-    def _seconds_to_timestamp(self, seconds: float) -> str:
-        """Convert seconds to timestamp in HH:MM:SS,mmm format"""
-        hours = int(seconds // 3600)
-        minutes = int((seconds % 3600) // 60)
-        secs = int(seconds % 60)
-        milliseconds = int((seconds % 1) * 1000)
-        return f"{hours:02d}:{minutes:02d}:{secs:02d},{milliseconds:03d}"
+    def _create_chunk_scene(
+        self, chunk_text: str, start_sec: float, end_sec: float
+    ) -> Dict[str, Any]:
+        """Create a scene dictionary from chunk information"""
+        return {
+            "start_time": self.timestamp_converter.seconds_to_timestamp(start_sec),
+            "end_time": self.timestamp_converter.seconds_to_timestamp(end_sec),
+            "subtitles": [chunk_text],
+        }
 
     def _split_long_text(
         self, text: str, start_timestamp: str, end_timestamp: str, max_tokens: int
@@ -167,36 +190,25 @@ class SceneSplitter:
                 }
             ]
 
-        # Convert timestamps to seconds
+        # Calculate duration and prepare for chunking
         start_sec = SubtitleParser.parse_timestamp(start_timestamp)
-        end_sec = SubtitleParser.parse_timestamp(end_timestamp)
-        duration = end_sec - start_sec
+        duration = self.timestamp_converter.calculate_duration(
+            start_timestamp, end_timestamp
+        )
+        num_chunks = (total_tokens + max_tokens - 1) // max_tokens
 
         scenes = []
-        num_chunks = (total_tokens + max_tokens - 1) // max_tokens  # Round up
-
         for i in range(num_chunks):
             chunk_start = i * max_tokens
             chunk_end = min((i + 1) * max_tokens, total_tokens)
-            chunk_tokens = encoded[chunk_start:chunk_end]
-            chunk_text = self.embedder.encoding.decode(chunk_tokens)
+            chunk_text = self.embedder.encoding.decode(encoded[chunk_start:chunk_end])
 
-            # Linearly interpolate timestamps
-            chunk_start_ratio = chunk_start / total_tokens
-            chunk_end_ratio = chunk_end / total_tokens
-            chunk_start_sec = start_sec + duration * chunk_start_ratio
-            chunk_end_sec = start_sec + duration * chunk_end_ratio
-
-            # Convert seconds to timestamp string
-            chunk_start_ts = self._seconds_to_timestamp(chunk_start_sec)
-            chunk_end_ts = self._seconds_to_timestamp(chunk_end_sec)
+            # Interpolate timestamps based on token position
+            chunk_start_sec = start_sec + duration * (chunk_start / total_tokens)
+            chunk_end_sec = start_sec + duration * (chunk_end / total_tokens)
 
             scenes.append(
-                {
-                    "start_time": chunk_start_ts,
-                    "end_time": chunk_end_ts,
-                    "subtitles": [chunk_text],
-                }
+                self._create_chunk_scene(chunk_text, chunk_start_sec, chunk_end_sec)
             )
 
         return scenes
@@ -221,6 +233,78 @@ class SceneSplitter:
                 best_tau = tau
         return best_tau
 
+    def _calculate_token_prefix_sum(self, texts: List[str]) -> List[int]:
+        """Pre-calculate cumulative token counts"""
+        token_counts = [self.embedder.count_tokens(t) for t in texts]
+        token_prefix = [0]
+        for c in token_counts:
+            token_prefix.append(token_prefix[-1] + c)
+        return token_prefix
+
+    def _get_range_token_count(
+        self, token_prefix: List[int], start: int, end: int
+    ) -> int:
+        """Get token count for range [start, end] (both inclusive)"""
+        return token_prefix[end + 1] - token_prefix[start]
+
+    def _split_scene_recursive(
+        self,
+        embeddings: np.ndarray,
+        texts: List[str],
+        start_timestamps: List[str],
+        end_timestamps: List[str],
+        token_prefix: List[int],
+        max_tokens: int,
+        start: int,
+        end: int,
+    ) -> List[Dict[str, Any]]:
+        """Recursively split a scene range"""
+        token_count = self._get_range_token_count(token_prefix, start, end)
+
+        # Force split if single subtitle exceeds max_tokens
+        if start == end and token_count > max_tokens:
+            return self._split_long_text(
+                texts[start], start_timestamps[start], end_timestamps[end], max_tokens
+            )
+
+        # Termination: within token limit or cannot split further
+        if token_count <= max_tokens or start == end:
+            return [
+                {
+                    "start_time": start_timestamps[start],
+                    "end_time": end_timestamps[end],
+                    "subtitles": texts[start : end + 1],
+                }
+            ]
+
+        # Find optimal split point and recurse
+        segment = embeddings[start : end + 1]
+        tau = self._find_otsu_threshold(segment)
+        split_idx = start + tau
+
+        left_scenes = self._split_scene_recursive(
+            embeddings,
+            texts,
+            start_timestamps,
+            end_timestamps,
+            token_prefix,
+            max_tokens,
+            start,
+            split_idx - 1,
+        )
+        right_scenes = self._split_scene_recursive(
+            embeddings,
+            texts,
+            start_timestamps,
+            end_timestamps,
+            token_prefix,
+            max_tokens,
+            split_idx,
+            end,
+        )
+
+        return left_scenes + right_scenes
+
     def _apply_otsu_recursive_split(
         self,
         embeddings: np.ndarray,
@@ -235,45 +319,19 @@ class SceneSplitter:
         Returns:
             List of scene information
         """
-
-        # Pre-calculate token counts and cumulative sums for each subtitle
-        token_counts = [self.embedder.count_tokens(t) for t in texts]
-        token_prefix = [0]
-        for c in token_counts:
-            token_prefix.append(token_prefix[-1] + c)
-
-        def range_tokens(s: int, e: int) -> int:
-            # Return token count for [s, e] (both ends inclusive)
-            return token_prefix[e + 1] - token_prefix[s]
-
-        def split_scene(start, end):
-            token_count = range_tokens(start, end)
-
-            # Force split if single subtitle exceeds max_tokens
-            if start == end and token_count > max_tokens:
-                return self._split_long_text(
-                    texts[start],
-                    start_timestamps[start],
-                    end_timestamps[end],
-                    max_tokens,
-                )
-
-            # Termination condition: chunk total tokens within threshold, or cannot split (and within max_tokens)
-            if token_count <= max_tokens or start == end:
-                return [
-                    {
-                        "start_time": start_timestamps[start],
-                        "end_time": end_timestamps[end],
-                        "subtitles": texts[start : end + 1],
-                    }
-                ]
-            segment = embeddings[start : end + 1]
-            tau = self._find_otsu_threshold(segment)
-            split_idx = start + tau
-            return split_scene(start, split_idx - 1) + split_scene(split_idx, end)
-
+        token_prefix = self._calculate_token_prefix_sum(texts)
         embeddings = normalize(embeddings)
-        return split_scene(0, len(embeddings) - 1)
+
+        return self._split_scene_recursive(
+            embeddings,
+            texts,
+            start_timestamps,
+            end_timestamps,
+            token_prefix,
+            max_tokens,
+            0,
+            len(embeddings) - 1,
+        )
 
     def process(self, srt_string: str, max_tokens: int = 200) -> str:
         """
