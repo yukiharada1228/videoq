@@ -270,9 +270,9 @@ class CacheOptimizerTests(TestCase):
             user=self.user, name="Group 2", description="Description 2"
         )
 
-    def test_get_cached_video_data(self):
-        """Test get_cached_video_data"""
-        data = CacheOptimizer.get_cached_video_data([self.video1.id, self.video2.id])
+    def test_get_video_data_by_ids(self):
+        """Test get_video_data_by_ids"""
+        data = CacheOptimizer.get_video_data_by_ids([self.video1.id, self.video2.id])
 
         self.assertEqual(len(data), 2)
         self.assertIn(self.video1.id, data)
@@ -280,20 +280,18 @@ class CacheOptimizerTests(TestCase):
         self.assertEqual(data[self.video1.id]["title"], "Video 1")
         self.assertEqual(data[self.video2.id]["title"], "Video 2")
 
-    def test_get_cached_video_data_empty_list(self):
-        """Test get_cached_video_data with empty list"""
-        data = CacheOptimizer.get_cached_video_data([])
+    def test_get_video_data_by_ids_empty_list(self):
+        """Test get_video_data_by_ids with empty list"""
+        data = CacheOptimizer.get_video_data_by_ids([])
 
         self.assertEqual(data, {})
 
-    def test_get_cached_video_group_data(self):
-        """Test get_cached_video_group_data"""
+    def test_get_group_data_by_ids(self):
+        """Test get_group_data_by_ids"""
         VideoGroupMember.objects.create(group=self.group1, video=self.video1, order=0)
         VideoGroupMember.objects.create(group=self.group2, video=self.video2, order=0)
 
-        data = CacheOptimizer.get_cached_video_group_data(
-            [self.group1.id, self.group2.id]
-        )
+        data = CacheOptimizer.get_group_data_by_ids([self.group1.id, self.group2.id])
 
         self.assertEqual(len(data), 2)
         self.assertIn(self.group1.id, data)
@@ -302,72 +300,9 @@ class CacheOptimizerTests(TestCase):
         self.assertEqual(data[self.group2.id]["name"], "Group 2")
         self.assertEqual(data[self.group1.id]["video_count"], 1)
 
-    def test_get_cached_video_group_data_empty_list(self):
-        """Test get_cached_video_group_data with empty list"""
-        data = CacheOptimizer.get_cached_video_group_data([])
+    def test_get_group_data_by_ids_empty_list(self):
+        """Test get_group_data_by_ids with empty list"""
+        data = CacheOptimizer.get_group_data_by_ids([])
 
         self.assertEqual(data, {})
 
-    def test_prefetch_related_data(self):
-        """Test prefetch_related_data"""
-        queryset = Video.objects.all()
-        optimized = CacheOptimizer.prefetch_related_data(queryset, ["user"])
-
-        video = optimized.first()
-        self.assertIsNotNone(video)
-        # Should not cause additional query when accessing user
-        with self.assertNumQueries(0):
-            _ = video.user
-
-    def test_prefetch_related_data_empty_fields(self):
-        """Test prefetch_related_data with empty fields"""
-        queryset = Video.objects.all()
-        optimized = CacheOptimizer.prefetch_related_data(queryset, [])
-
-        self.assertEqual(optimized.count(), queryset.count())
-
-    def test_optimize_bulk_operations_update(self):
-        """Test optimize_bulk_operations for update"""
-        queryset = Video.objects.all()
-        optimized = CacheOptimizer.optimize_bulk_operations(queryset, "update")
-
-        video = optimized.first()
-        self.assertIsNotNone(video)
-
-    def test_optimize_bulk_operations_delete(self):
-        """Test optimize_bulk_operations for delete"""
-        queryset = Video.objects.all()
-        optimized = CacheOptimizer.optimize_bulk_operations(queryset, "delete")
-
-        video = optimized.first()
-        self.assertIsNotNone(video)
-
-    def test_optimize_bulk_operations_create(self):
-        """Test optimize_bulk_operations for create"""
-        queryset = Video.objects.all()
-        optimized = CacheOptimizer.optimize_bulk_operations(queryset, "create")
-
-        self.assertEqual(optimized.count(), queryset.count())
-
-    def test_optimize_bulk_operations_invalid(self):
-        """Test optimize_bulk_operations with invalid operation"""
-        queryset = Video.objects.all()
-        optimized = CacheOptimizer.optimize_bulk_operations(queryset, "invalid")
-
-        self.assertEqual(optimized.count(), queryset.count())
-
-    def test_get_optimized_count_queryset(self):
-        """Test get_optimized_count_queryset"""
-        queryset = CacheOptimizer.get_optimized_count_queryset(Video)
-
-        self.assertIsNotNone(queryset)
-        self.assertGreaterEqual(queryset.count(), 0)
-
-    def test_get_optimized_count_queryset_with_filters(self):
-        """Test get_optimized_count_queryset with filters"""
-        queryset = CacheOptimizer.get_optimized_count_queryset(
-            Video, filters={"status": "completed"}
-        )
-
-        self.assertIsNotNone(queryset)
-        self.assertEqual(queryset.count(), 1)
