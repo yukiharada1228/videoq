@@ -136,6 +136,121 @@ def _index_scenes_to_vectorstore(scene_docs, video, api_key=None):
         logger.warning(f"Indexing to pgvector failed: {e}", exc_info=True)
 
 
+def _get_video_duration(input_path):
+    """
+    Get video duration using ffprobe
+    Returns: duration in seconds
+    """
+    probe_result = subprocess.run(
+        [
+            "ffprobe",
+            "-v",
+            "quiet",
+            "-print_format",
+            "json",
+            "-show_format",
+            input_path,
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    probe = json.loads(probe_result.stdout)
+    duration = float(probe["format"]["duration"])
+    logger.info(f"Video duration: {duration:.2f} seconds")
+    return duration
+
+
+def _extract_full_audio(input_path, temp_dir):
+    """
+    Extract full audio from video as MP3
+    Returns: (audio_path, audio_size_mb)
+    """
+    temp_audio_path = os.path.join(
+        temp_dir, f"temp_audio_{os.path.basename(input_path)}.mp3"
+    )
+
+    subprocess.run(
+        [
+            "ffmpeg",
+            "-i",
+            input_path,
+            "-acodec",
+            "mp3",
+            "-ab",
+            "128k",
+            "-y",
+            temp_audio_path,
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    audio_size_mb = os.path.getsize(temp_audio_path) / (1024 * 1024)
+    logger.debug(f"Extracted audio size: {audio_size_mb:.2f} MB")
+    return temp_audio_path, audio_size_mb
+
+
+def _extract_audio_segment(input_path, start_time, end_time, segment_index, temp_dir):
+    """
+    Extract a specific audio segment from video
+    Returns: audio segment info dict
+    """
+    segment_duration = end_time - start_time
+    audio_path = os.path.join(
+        temp_dir, f"audio_segment_{segment_index}_{os.path.basename(input_path)}.mp3"
+    )
+
+    subprocess.run(
+        [
+            "ffmpeg",
+            "-i",
+            input_path,
+            "-ss",
+            str(start_time),
+            "-t",
+            str(segment_duration),
+            "-acodec",
+            "mp3",
+            "-ab",
+            "128k",
+            "-y",
+            audio_path,
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    return {"path": audio_path, "start_time": start_time, "end_time": end_time}
+
+
+def _split_audio_into_segments(
+    input_path, duration, audio_size_mb, max_size_mb, temp_dir
+):
+    """
+    Split audio into multiple segments based on size
+    Returns: list of audio segment info dicts
+    """
+    safe_size_mb = max_size_mb * 0.8  # 20% margin
+    num_segments = int(audio_size_mb / safe_size_mb) + 1
+    segment_duration = duration / num_segments
+
+    logger.info(
+        f"Splitting into {num_segments} segments of ~{segment_duration:.2f} seconds each"
+    )
+
+    audio_segments = []
+    for i in range(num_segments):
+        start_time = i * segment_duration
+        end_time = min((i + 1) * segment_duration, duration)
+        segment = _extract_audio_segment(input_path, start_time, end_time, i, temp_dir)
+        audio_segments.append(segment)
+
+    return audio_segments
+
+
 def extract_and_split_audio(input_path, max_size_mb=24, temp_manager=None):
     """
     Extract audio from video and split appropriately based on file size
@@ -143,114 +258,26 @@ def extract_and_split_audio(input_path, max_size_mb=24, temp_manager=None):
     temp_manager: TemporaryFileManager instance for cleanup
     """
     try:
-        # Get video information using ffprobe
-        probe_result = subprocess.run(
-            [
-                "ffprobe",
-                "-v",
-                "quiet",
-                "-print_format",
-                "json",
-                "-show_format",
-                input_path,
-            ],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        probe = json.loads(probe_result.stdout)
-        duration = float(probe["format"]["duration"])
-
-        logger.info(f"Video duration: {duration:.2f} seconds")
-
-        # Create temporary directory
+        duration = _get_video_duration(input_path)
         temp_dir = tempfile.gettempdir()
-        audio_segments = []
 
-        # First extract entire audio and check size
-        temp_audio_path = os.path.join(
-            temp_dir, f"temp_audio_{os.path.basename(input_path)}.mp3"
-        )
-
-        # Extract audio using ffmpeg
-        subprocess.run(
-            [
-                "ffmpeg",
-                "-i",
-                input_path,
-                "-acodec",
-                "mp3",
-                "-ab",
-                "128k",
-                "-y",  # overwrite output
-                temp_audio_path,
-            ],
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-
-        # Check audio file size
-        audio_size_mb = os.path.getsize(temp_audio_path) / (1024 * 1024)
-        logger.debug(f"Extracted audio size: {audio_size_mb:.2f} MB")
+        # Extract audio and check size
+        temp_audio_path, audio_size_mb = _extract_full_audio(input_path, temp_dir)
 
         if audio_size_mb <= max_size_mb:
-            # No splitting needed if size is within limit
-            audio_segments.append(
+            # No splitting needed
+            audio_segments = [
                 {"path": temp_audio_path, "start_time": 0, "end_time": duration}
-            )
+            ]
             logger.debug("Audio is within size limit, no splitting needed")
-
         else:
-            # Splitting needed if size is large
-            # Delete audio file and split video by time
+            # Split into segments
             os.remove(temp_audio_path)
-
-            # Calculate number of segments (with some margin)
-            safe_size_mb = max_size_mb * 0.8  # 20% margin
-            num_segments = int(audio_size_mb / safe_size_mb) + 1
-            segment_duration = duration / num_segments
-
-            logger.info(
-                f"Splitting into {num_segments} segments of ~{segment_duration:.2f} seconds each"
+            audio_segments = _split_audio_into_segments(
+                input_path, duration, audio_size_mb, max_size_mb, temp_dir
             )
 
-            for i in range(num_segments):
-                start_time = i * segment_duration
-                end_time = min((i + 1) * segment_duration, duration)
-                segment_duration_actual = end_time - start_time
-
-                audio_path = os.path.join(
-                    temp_dir, f"audio_segment_{i}_{os.path.basename(input_path)}.mp3"
-                )
-
-                # Extract audio segment using ffmpeg
-                subprocess.run(
-                    [
-                        "ffmpeg",
-                        "-i",
-                        input_path,
-                        "-ss",
-                        str(start_time),
-                        "-t",
-                        str(segment_duration_actual),
-                        "-acodec",
-                        "mp3",
-                        "-ab",
-                        "128k",
-                        "-y",  # overwrite output
-                        audio_path,
-                    ],
-                    check=True,
-                    capture_output=True,
-                    text=True,
-                )
-
-                audio_segments.append(
-                    {"path": audio_path, "start_time": start_time, "end_time": end_time}
-                )
-
-        # Register temporary files for cleanup if manager is provided
+        # Register temporary files for cleanup
         if temp_manager:
             for segment in audio_segments:
                 temp_manager.temp_files.append(segment["path"])
@@ -404,6 +431,94 @@ def _create_scene_metadata(video, scene):
     }
 
 
+def _download_video_from_storage(video, video_id, temp_manager):
+    """
+    Download video from remote storage (S3) to local temporary file
+    Returns: (video_file_path, video_file)
+    """
+    video_file = video.file
+
+    # Try to get local file path
+    try:
+        return video.file.path, video_file
+    except (NotImplementedError, AttributeError):
+        # Remote storage like S3 - download to temporary file
+        temp_video_path = os.path.join(
+            tempfile.gettempdir(),
+            f"video_{video_id}_{os.path.basename(video_file.name)}",
+        )
+        logger.info(f"Downloading video from S3 to {temp_video_path}")
+
+        with video_file.open("rb") as remote_file:
+            with open(temp_video_path, "wb") as local_file:
+                local_file.write(remote_file.read())
+
+        temp_manager.temp_files.append(temp_video_path)
+        logger.info(f"Video downloaded successfully to {temp_video_path}")
+        return temp_video_path, video_file
+
+
+def _save_video_duration(video, video_file_path):
+    """
+    Get video duration from ffprobe and save to Video model
+    """
+    if video.duration_minutes is not None:
+        return
+
+    try:
+        probe_result = subprocess.run(
+            [
+                "ffprobe",
+                "-v",
+                "quiet",
+                "-print_format",
+                "json",
+                "-show_format",
+                video_file_path,
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        probe = json.loads(probe_result.stdout)
+        duration_seconds = float(probe["format"]["duration"])
+        duration_minutes = duration_seconds / 60.0
+        video.duration_minutes = duration_minutes
+        video.save(update_fields=["duration_minutes"])
+        logger.info(f"Saved video duration: {duration_minutes:.2f} minutes")
+    except Exception as e:
+        logger.warning(f"Failed to save video duration: {e}")
+
+
+def _cleanup_external_upload(video_file, video_id):
+    """
+    Delete video file after processing for external API uploads
+    """
+    try:
+        if video_file:
+            video_file.delete(save=False)
+            logger.info(
+                f"Deleted video file for external upload (video ID: {video_id})"
+            )
+    except Exception as e:
+        logger.warning(
+            f"Failed to delete video file for external upload (video ID: {video_id}): {e}"
+        )
+
+
+def _transcribe_and_create_srt(client, audio_segments):
+    """
+    Transcribe audio segments and create SRT content
+    Returns: srt_content or None if failed
+    """
+    all_segments = _process_audio_segments_parallel(client, audio_segments)
+
+    if not all_segments:
+        return None
+
+    return create_srt_content(all_segments)
+
+
 @shared_task(bind=True, max_retries=3)
 def transcribe_video(self, video_id):
     """
@@ -418,143 +533,70 @@ def transcribe_video(self, video_id):
     """
     logger.info(f"Transcription task started for video ID: {video_id}")
 
-    # Initialize temporary file management
     with TemporaryFileManager() as temp_manager:
         try:
+            # Validate and prepare video
             video, error = VideoTaskManager.get_video_with_user(video_id)
             if error:
                 raise Exception(error)
 
             logger.info(f"Video found: {video.title}")
-
-            # Keep track of whether this is an upload from external API client
             is_external_upload = video.is_external_upload
 
-            # Validate video processability
             is_valid, validation_error = VideoTaskManager.validate_video_for_processing(
                 video
             )
             if not is_valid:
                 raise ValueError(validation_error)
 
-            # Update status to processing
             VideoTaskManager.update_video_status(video, "processing")
 
-            # Use system OpenAI API key from environment variable
+            # Initialize OpenAI client
             api_key = settings.OPENAI_API_KEY
             if not api_key:
                 raise ValueError("OpenAI API key is not configured")
-
-            # Initialize OpenAI client
             client = OpenAI(api_key=api_key)
 
-            # Process video file (S3 support)
-            video_file = video.file  # Also keep file object
-
-            # Download temporarily to local if S3
-            try:
-                # Local filesystem case
-                video_file_path = video.file.path
-            except (NotImplementedError, AttributeError):
-                # Remote storage like S3 case
-                # Download to temporary file
-                temp_video_path = os.path.join(
-                    tempfile.gettempdir(),
-                    f"video_{video_id}_{os.path.basename(video_file.name)}",
-                )
-                logger.info(f"Downloading video from S3 to {temp_video_path}")
-
-                # Download file from S3
-                with video_file.open("rb") as remote_file:
-                    with open(temp_video_path, "wb") as local_file:
-                        local_file.write(remote_file.read())
-
-                video_file_path = temp_video_path
-                # Register as temporary file (to be deleted after processing)
-                temp_manager.temp_files.append(temp_video_path)
-                logger.info(f"Video downloaded successfully to {temp_video_path}")
-
+            # Download video from storage (S3 or local)
+            video_file_path, video_file = _download_video_from_storage(
+                video, video_id, temp_manager
+            )
             logger.info(f"Starting transcription for video {video_id}")
 
-            # Extract and split audio (with temporary file management)
+            # Extract audio and transcribe
             audio_segments = extract_and_split_audio(
                 video_file_path, temp_manager=temp_manager
             )
-
             if not audio_segments:
                 _handle_transcription_error(video, "Failed to extract audio from video")
                 return
 
-            # Get video duration and save to Video model if not already set
-            if video.duration_minutes is None:
-                try:
-                    # Get video duration from ffprobe (already done in extract_and_split_audio)
-                    # We need to get it again or extract from the audio_segments
-                    probe_result = subprocess.run(
-                        [
-                            "ffprobe",
-                            "-v",
-                            "quiet",
-                            "-print_format",
-                            "json",
-                            "-show_format",
-                            video_file_path,
-                        ],
-                        capture_output=True,
-                        text=True,
-                        check=True,
-                    )
-                    probe = json.loads(probe_result.stdout)
-                    duration_seconds = float(probe["format"]["duration"])
-                    duration_minutes = duration_seconds / 60.0
-                    video.duration_minutes = duration_minutes
-                    video.save(update_fields=["duration_minutes"])
-                    logger.info(f"Saved video duration: {duration_minutes:.2f} minutes")
-                except Exception as e:
-                    logger.warning(f"Failed to save video duration: {e}")
+            _save_video_duration(video, video_file_path)
 
-            # Process segments in parallel for better performance
-            all_segments = _process_audio_segments_parallel(client, audio_segments)
-
-            if not all_segments:
+            srt_content = _transcribe_and_create_srt(client, audio_segments)
+            if not srt_content:
                 _handle_transcription_error(
                     video, "Failed to transcribe any audio segments"
                 )
                 return
 
-            # Create SRT content
-            srt_content = create_srt_content(all_segments)
-
-            # Apply scene splitting using SceneSplitter
+            # Apply scene splitting and save
             logger.info("Applying scene splitting...")
-            scene_split_srt, scene_count = _apply_scene_splitting(
-                srt_content, api_key, len(all_segments)
+            scene_split_srt, _ = _apply_scene_splitting(
+                srt_content, api_key, len(audio_segments)
             )
-
-            # Save processed SRT
             _save_transcription_result(video, scene_split_srt)
 
-            # Index scenes to vector store for RAG
+            # Index scenes for RAG
             _index_scenes_batch(scene_split_srt, video, api_key)
 
             logger.info(f"Successfully processed video {video_id}")
 
-            # Delete file after processing if uploaded from external API client
+            # Cleanup external uploads
             if is_external_upload:
-                try:
-                    # Delete file
-                    if video_file:
-                        video_file.delete(save=False)
-                        logger.info(
-                            f"Deleted video file for external upload (video ID: {video_id})"
-                        )
-                except Exception as e:
-                    logger.warning(
-                        f"Failed to delete video file for external upload (video ID: {video_id}): {e}"
-                    )
+                _cleanup_external_upload(video_file, video_id)
 
             return scene_split_srt
 
         except Exception as e:
-            # Common error handling
             ErrorHandler.handle_task_error(e, video_id, self, max_retries=3)
