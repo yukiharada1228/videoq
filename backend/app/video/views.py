@@ -26,6 +26,132 @@ from .serializers import (AddVideosToGroupRequestSerializer,
 logger = logging.getLogger(__name__)
 
 
+class ResourceValidator:
+    """Handles validation and resource retrieval logic"""
+
+    @staticmethod
+    def validate_and_get_resource(
+        user, model_class, resource_id, entity_name, select_related_fields=None
+    ):
+        """Common resource retrieval and validation logic"""
+        queryset = model_class.objects.filter(user=user, id=resource_id)
+
+        if select_related_fields:
+            queryset = queryset.select_related(*select_related_fields)
+
+        resource = queryset.first()
+
+        if not resource:
+            return None, create_error_response(
+                f"{entity_name} not found", status.HTTP_404_NOT_FOUND
+            )
+
+        return resource, None
+
+    @staticmethod
+    def get_group_and_video(user, group_id, video_id, select_related_fields=None):
+        """Common group and video retrieval logic"""
+        group, error = ResourceValidator.validate_and_get_resource(
+            user, VideoGroup, group_id, "Group", select_related_fields
+        )
+        if error:
+            return None, None, error
+
+        video, error = ResourceValidator.validate_and_get_resource(
+            user, Video, video_id, "Video", select_related_fields
+        )
+        if error:
+            return None, None, error
+
+        return group, video, None
+
+    @staticmethod
+    def validate_video_ids(request, entity_name):
+        """Validate video_ids from request"""
+        video_ids = request.data.get("video_ids", [])
+        if not video_ids:
+            return None, create_error_response(
+                f"{entity_name} ID not specified", status.HTTP_400_BAD_REQUEST
+            )
+        return video_ids, None
+
+    @staticmethod
+    def validate_videos_count(videos, video_ids):
+        """Check video count matches"""
+        if len(videos) != len(video_ids):
+            return create_error_response(
+                "Some videos not found", status.HTTP_404_NOT_FOUND
+            )
+        return None
+
+
+class VideoGroupMemberService:
+    """Handles VideoGroupMember operations"""
+
+    @staticmethod
+    def get_member_queryset(group, video=None, select_related=False):
+        """Get VideoGroupMember queryset"""
+        queryset = VideoGroupMember.objects.filter(group=group)
+        if video:
+            queryset = queryset.filter(video=video)
+        if select_related:
+            queryset = queryset.select_related("video", "group")
+        return queryset
+
+    @staticmethod
+    def member_exists(group, video):
+        """Check if member exists"""
+        return VideoGroupMemberService.get_member_queryset(group, video).exists()
+
+    @staticmethod
+    def check_and_get_member(
+        group, video, error_message, status_code=status.HTTP_404_NOT_FOUND
+    ):
+        """Check member existence and retrieve"""
+        member = VideoGroupMemberService.get_member_queryset(group, video).first()
+        if not member:
+            return None, create_error_response(error_message, status_code)
+        return member, None
+
+    @staticmethod
+    def get_next_order(group):
+        """Get next order value for new member"""
+        max_order = (
+            VideoGroupMemberService.get_member_queryset(group)
+            .aggregate(max_order=Max("order"))
+            .get("max_order")
+        )
+        return (max_order if max_order is not None else -1) + 1
+
+    @staticmethod
+    def add_video_to_group(group, video):
+        """Add video to group operation"""
+        if VideoGroupMemberService.get_member_queryset(group, video).first():
+            return create_error_response(
+                "This video is already added to the group", status.HTTP_400_BAD_REQUEST
+            )
+
+        next_order = VideoGroupMemberService.get_next_order(group)
+        member = VideoGroupMember.objects.create(
+            group=group, video=video, order=next_order
+        )
+
+        return Response(
+            {"message": "Video added to group", "id": member.id},
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class ShareLinkService:
+    """Handles share link operations"""
+
+    @staticmethod
+    def update_share_token(group, token_value):
+        """Update share token for group"""
+        group.share_token = token_value
+        group.save(update_fields=["share_token"])
+
+
 class BaseVideoView(AuthenticatedViewMixin):
     """Common base Video view class"""
 
@@ -180,173 +306,16 @@ class VideoGroupDetailView(
         return self._get_filtered_queryset(annotate_only=False)
 
 
-def _handle_validation_error(value, entity_name: str):
-    """Common validation check"""
-    if not value:
-        return create_error_response(
-            f"{entity_name} not found", status.HTTP_404_NOT_FOUND
-        )
-    return None
-
-
-def _validate_and_get_resource(
-    user, model_class, resource_id, entity_name: str, select_related_fields=None
-):
-    """Common resource retrieval and validation logic"""
-    queryset = model_class.objects.filter(user=user, id=resource_id)
-
-    if select_related_fields:
-        queryset = queryset.select_related(*select_related_fields)
-
-    resource = queryset.first()
-
-    # Resource not found (doesn't exist or user doesn't own it)
-    error = _handle_validation_error(resource, entity_name)
-    if error:
-        return None, error
-
-    return resource, None
-
-
-def _get_group_and_video(user, group_id, video_id, select_related_fields=None):
-    """Common group and video retrieval logic"""
-    group, error = _validate_and_get_resource(
-        user, VideoGroup, group_id, "Group", select_related_fields
-    )
-    if error:
-        return None, None, error
-
-    video, error = _validate_and_get_resource(
-        user, Video, video_id, "Video", select_related_fields
-    )
-    if error:
-        return None, None, error
-
-    return group, video, None
-
-
-def _validate_video_ids(request, entity_name: str):
-    """Validate video_ids"""
-    video_ids = request.data.get("video_ids", [])
-    if not video_ids:
-        return None, create_error_response(
-            f"{entity_name} ID not specified", status.HTTP_400_BAD_REQUEST
-        )
-    return video_ids, None
-
-
-def _validate_videos_count(videos, video_ids):
-    """Check video count"""
-    if len(videos) != len(video_ids):
-        return create_error_response("Some videos not found", status.HTTP_404_NOT_FOUND)
-    return None
-
-
-def _handle_group_video_operation(
-    request,
-    group_id,
-    video_id,
-    operation_func,
-    success_message,
-    success_status=status.HTTP_200_OK,
-):
-    """
-    Common handler for group and video operations
-
-    Args:
-        request: HTTP request
-        group_id: Group ID
-        video_id: Video ID
-        operation_func: Function to execute the operation
-        success_message: Success message
-        success_status: Success status code
-
-    Returns:
-        Response: Operation result
-    """
-    group, video, error = _get_group_and_video(request.user, group_id, video_id)
-
-    if error:
-        return error
-
-    # Execute operation
-    result = operation_func(group, video)
-    if isinstance(result, Response):
-        return result
-
-    return Response(
-        {"message": success_message},
-        status=success_status,
-    )
-
-
-def _get_member_queryset(group, video=None, select_related=False):
-    """Common member query"""
-    queryset = VideoGroupMember.objects.filter(group=group)
-    if video:
-        queryset = queryset.filter(video=video)
-
-    if select_related:
-        queryset = queryset.select_related("video", "group")
-
-    return queryset
-
-
-def _member_exists(group, video):
-    """Check if member exists"""
-    return _get_member_queryset(group, video).exists()
-
-
-def _check_and_get_member(
-    group, video, error_message, status_code=status.HTTP_404_NOT_FOUND
-):
-    """Check member existence and retrieve"""
-    member = _get_member_queryset(group, video).first()
-    if not member:
-        return None, create_error_response(error_message, status_code)
-    return member, None
-
-
-# Common decorators are already imported from app.utils.decorators
-
-
-def _add_video_to_group_operation(group, video):
-    """Operation to add video to group"""
-    # Check if already added
-    member = _get_member_queryset(group, video).first()
-    if member:
-        return create_error_response(
-            "This video is already added to the group", status.HTTP_400_BAD_REQUEST
-        )
-
-    # Assign order to place at the end of the group
-    max_order = (
-        _get_member_queryset(group).aggregate(max_order=Max("order")).get("max_order")
-    )
-    next_order = (max_order if max_order is not None else -1) + 1
-
-    member = VideoGroupMember.objects.create(
-        group=group,
-        video=video,
-        order=next_order,
-    )
-    return Response(
-        {"message": "Video added to group", "id": member.id},
-        status=status.HTTP_201_CREATED,
-    )
-
-
 @authenticated_view_with_error_handling(["POST"])
 def add_video_to_group(request, group_id, video_id):
     """Add video to group"""
-    return _handle_group_video_operation(
-        request,
-        group_id,
-        video_id,
-        _add_video_to_group_operation,
-        "Video added to group",
-        status.HTTP_201_CREATED,
+    group, video, error = ResourceValidator.get_group_and_video(
+        request.user, group_id, video_id
     )
+    if error:
+        return error
+
+    return VideoGroupMemberService.add_video_to_group(group, video)
 
 
 @extend_schema(
@@ -358,30 +327,26 @@ def add_video_to_group(request, group_id, video_id):
 @authenticated_view_with_error_handling(["POST"])
 def add_videos_to_group(request, group_id):
     """Add multiple videos to group"""
-    group, error = _validate_and_get_resource(
+    group, error = ResourceValidator.validate_and_get_resource(
         request.user, VideoGroup, group_id, "Group"
     )
     if error:
         return error
 
-    video_ids, error = _validate_video_ids(request, "Video")
+    video_ids, error = ResourceValidator.validate_video_ids(request, "Video")
     if error:
         return error
 
-    # Get videos
-    videos = list(
-        Video.objects.filter(
-            user=request.user, id__in=video_ids
-        )
-    )
+    videos = list(Video.objects.filter(user=request.user, id__in=video_ids))
 
-    error = _validate_videos_count(videos, video_ids)
+    error = ResourceValidator.validate_videos_count(videos, video_ids)
     if error:
         return error
 
+    # Identify videos to add (exclude existing members)
     video_ids_list = [v.id for v in videos]
     existing_members = set(
-        _get_member_queryset(group)
+        VideoGroupMemberService.get_member_queryset(group)
         .filter(video_id__in=video_ids_list)
         .values_list("video_id", flat=True)
     )
@@ -393,17 +358,10 @@ def add_videos_to_group(request, group_id):
         if video_id in video_map and video_id not in existing_members
     ]
 
-    # Add in batch
-    current_max_order = (
-        _get_member_queryset(group).aggregate(max_order=Max("order")).get("max_order")
-    )
-    base_order = current_max_order if current_max_order is not None else -1
+    # Bulk create members
+    base_order = VideoGroupMemberService.get_next_order(group) - 1
     members_to_create = [
-        VideoGroupMember(
-            group=group,
-            video=video,
-            order=base_order + index,
-        )
+        VideoGroupMember(group=group, video=video, order=base_order + index)
         for index, video in enumerate(videos_to_add, start=1)
     ]
     VideoGroupMember.objects.bulk_create(members_to_create)
@@ -424,20 +382,19 @@ def add_videos_to_group(request, group_id):
 @authenticated_view_with_error_handling(["DELETE"])
 def remove_video_from_group(request, group_id, video_id):
     """Remove video from group"""
-    group, video, error = _get_group_and_video(request.user, group_id, video_id)
-
+    group, video, error = ResourceValidator.get_group_and_video(
+        request.user, group_id, video_id
+    )
     if error:
         return error
 
-    # Delete group member
-    member, error = _check_and_get_member(
+    member, error = VideoGroupMemberService.check_and_get_member(
         group, video, "This video is not added to the group"
     )
     if error:
         return error
 
     member.delete()
-
     return Response({"message": "Video removed from group"}, status=status.HTTP_200_OK)
 
 
@@ -450,13 +407,12 @@ def remove_video_from_group(request, group_id, video_id):
 @authenticated_view_with_error_handling(["PATCH"])
 def reorder_videos_in_group(request, group_id):
     """Update video order in group"""
-    group, error = _validate_and_get_resource(
+    group, error = ResourceValidator.validate_and_get_resource(
         request.user, VideoGroup, group_id, "Group"
     )
     if error:
         return error
 
-    # Get video_ids array from request body
     try:
         video_ids = request.data.get("video_ids", [])
         if not isinstance(video_ids, list):
@@ -470,8 +426,7 @@ def reorder_videos_in_group(request, group_id):
 
     members = list(VideoGroupMember.objects.filter(group=group).select_related("video"))
 
-    # Check if specified video_ids match videos in group
-    # Use Set for O(1) lookup
+    # Validate video_ids match group members
     group_video_ids = set(member.video_id for member in members)
     if set(video_ids) != group_video_ids:
         return create_error_response(
@@ -479,7 +434,7 @@ def reorder_videos_in_group(request, group_id):
             status.HTTP_400_BAD_REQUEST,
         )
 
-    # Use bulk_update for batch update
+    # Bulk update order
     member_dict = {member.video_id: member for member in members}
     members_to_update = []
 
@@ -489,37 +444,20 @@ def reorder_videos_in_group(request, group_id):
         members_to_update.append(member)
 
     VideoGroupMember.objects.bulk_update(members_to_update, ["order"])
-
     return Response({"message": "Video order updated"}, status=status.HTTP_200_OK)
-
-
-def _update_share_token(group, token_value):
-    """
-    Common handler to update share token
-
-    Args:
-        group: VideoGroup instance
-        token_value: Token value to set (None to delete)
-
-    Returns:
-        None
-    """
-    group.share_token = token_value
-    group.save(update_fields=["share_token"])
 
 
 @authenticated_view_with_error_handling(["POST"])
 def create_share_link(request, group_id):
     """Generate share link for group"""
-    # Get and validate group
-    group, error = _validate_and_get_resource(
+    group, error = ResourceValidator.validate_and_get_resource(
         request.user, VideoGroup, group_id, "Group"
     )
     if error:
         return error
 
     share_token = secrets.token_urlsafe(32)
-    _update_share_token(group, share_token)
+    ShareLinkService.update_share_token(group, share_token)
 
     return Response(
         {
@@ -533,8 +471,7 @@ def create_share_link(request, group_id):
 @authenticated_view_with_error_handling(["DELETE"])
 def delete_share_link(request, group_id):
     """Disable share link for group"""
-    # Get and validate group
-    group, error = _validate_and_get_resource(
+    group, error = ResourceValidator.validate_and_get_resource(
         request.user, VideoGroup, group_id, "Group"
     )
     if error:
@@ -545,12 +482,8 @@ def delete_share_link(request, group_id):
             "Share link is not configured", status.HTTP_404_NOT_FOUND
         )
 
-    _update_share_token(group, None)
-
-    return Response(
-        {"message": "Share link disabled"},
-        status=status.HTTP_200_OK,
-    )
+    ShareLinkService.update_share_token(group, None)
+    return Response({"message": "Share link disabled"}, status=status.HTTP_200_OK)
 
 
 @api_view(["GET"])
