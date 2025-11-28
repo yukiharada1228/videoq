@@ -210,11 +210,12 @@ graph TB
         E7[ENABLE_SIGNUP]
         E8[ALLOWED_HOSTS]
         E9[CORS_ALLOWED_ORIGINS]
-        E10[FRONTEND_URL]
-        E11[USE_S3_STORAGE]
-        E12[AWS_*]
-        E13[OPENAI_API_KEY]
-        E14[NEXT_PUBLIC_API_URL]
+        E10[SECURE_COOKIES]
+        E11[FRONTEND_URL]
+        E12[USE_S3_STORAGE]
+        E13[AWS_*]
+        E14[OPENAI_API_KEY]
+        E15[NEXT_PUBLIC_API_URL]
     end
     
     subgraph Containers["Containers"]
@@ -238,8 +239,9 @@ graph TB
     E11 --> C2
     E12 --> C2
     E13 --> C2
-    E13 --> C3
-    E14 --> C4
+    E14 --> C2
+    E14 --> C3
+    E15 --> C4
 ```
 
 ## Scaling Configuration
