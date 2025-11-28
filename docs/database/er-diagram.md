@@ -20,9 +20,6 @@ erDiagram
         string username UK
         string email UK
         string password
-        int video_limit
-        float whisper_minutes_limit
-        int chat_limit
         datetime date_joined
         datetime last_login
         bool is_active
@@ -44,7 +41,6 @@ erDiagram
         text error_message
         float duration_minutes
         bool is_external_upload
-        datetime deleted_at
     }
     
     VideoGroup {
@@ -79,8 +75,6 @@ erDiagram
 ```
 
 ## Relationship Details
-
-**Note:** User limits (`video_limit`, `whisper_minutes_limit`, `chat_limit`) are configurable via admin panel.
 
 ### User - Video (1:N)
 - **Relationship**: One user owns multiple videos
