@@ -538,5 +538,3 @@ class ReorderVideosTests(APITestCase):
         self.assertEqual(member1.order, 1)
         self.assertEqual(member2.order, 2)
         self.assertEqual(member3.order, 0)
-
-

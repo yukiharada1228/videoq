@@ -13,6 +13,20 @@ class QueryOptimizer:
     """Database query optimization class"""
 
     @staticmethod
+    def _apply_select_related(queryset: QuerySet, fields: List[str]) -> QuerySet:
+        """Apply select_related if fields are provided"""
+        return queryset.select_related(*fields) if fields else queryset
+
+    @staticmethod
+    def _apply_prefetch_related(queryset: QuerySet, prefetch_objects: List) -> QuerySet:
+        """Apply prefetch_related if objects are provided"""
+        return (
+            queryset.prefetch_related(*prefetch_objects)
+            if prefetch_objects
+            else queryset
+        )
+
+    @staticmethod
     def optimize_video_queryset(
         queryset: QuerySet,
         include_user: bool = True,
@@ -31,35 +45,25 @@ class QueryOptimizer:
         Returns:
             Optimized queryset
         """
-        select_related_fields = []
-        if include_user:
-            select_related_fields.append("user")
+        # Select related fields
+        select_fields = ["user"] if include_user else []
+        queryset = QueryOptimizer._apply_select_related(queryset, select_fields)
 
-        if select_related_fields:
-            queryset = queryset.select_related(*select_related_fields)
-
-        prefetch_fields = []
+        # Prefetch related fields
+        prefetch_objects = []
         if include_groups:
-            prefetch_fields.append(
+            prefetch_objects.append(
                 Prefetch(
-                    "groups",
-                    queryset=VideoGroupMember.objects.select_related("group"),
+                    "groups", queryset=VideoGroupMember.objects.select_related("group")
                 )
             )
+        queryset = QueryOptimizer._apply_prefetch_related(queryset, prefetch_objects)
 
+        # Optimize field selection
         if include_transcript:
             queryset = queryset.only(
-                "id",
-                "title",
-                "file",
-                "status",
-                "transcript",
-                "uploaded_at",
-                "user_id",
+                "id", "title", "file", "status", "transcript", "uploaded_at", "user_id"
             )
-
-        if prefetch_fields:
-            queryset = queryset.prefetch_related(*prefetch_fields)
 
         return queryset
 
@@ -82,17 +86,19 @@ class QueryOptimizer:
         Returns:
             Optimized queryset
         """
+        # Select related user
         if include_user:
             queryset = queryset.select_related("user")
 
+        # Prefetch related videos
         if include_videos:
             queryset = queryset.prefetch_related(
                 Prefetch(
-                    "members",
-                    queryset=VideoGroupMember.objects.select_related("video"),
+                    "members", queryset=VideoGroupMember.objects.select_related("video")
                 )
             )
 
+        # Annotate video count
         if annotate_video_count:
             queryset = queryset.annotate(
                 video_count=Count("members__video", distinct=True)
@@ -232,12 +238,12 @@ class BatchProcessor:
 
 
 class CacheOptimizer:
-    """Cache optimization class"""
+    """Utilities for optimized data retrieval"""
 
     @staticmethod
-    def get_cached_video_data(video_ids: List[int]) -> Dict[int, Dict[str, Any]]:
+    def get_video_data_by_ids(video_ids: List[int]) -> Dict[int, Dict[str, Any]]:
         """
-        Get video data from cache
+        Get optimized video data by IDs
 
         Args:
             video_ids: List of video IDs
@@ -248,12 +254,8 @@ class CacheOptimizer:
         if not video_ids:
             return {}
 
-        videos = (
-            QueryOptimizer.get_videos_with_metadata(
-                user_id=None, include_transcript=False
-            )
-            .filter(id__in=video_ids)
-            .only("id", "title", "status", "uploaded_at", "user_id")
+        videos = Video.objects.filter(id__in=video_ids).only(
+            "id", "title", "status", "uploaded_at", "user_id"
         )
 
         return {
@@ -267,9 +269,9 @@ class CacheOptimizer:
         }
 
     @staticmethod
-    def get_cached_video_group_data(group_ids: List[int]) -> Dict[int, Dict[str, Any]]:
+    def get_group_data_by_ids(group_ids: List[int]) -> Dict[int, Dict[str, Any]]:
         """
-        Get video group data from cache
+        Get optimized video group data by IDs
 
         Args:
             group_ids: List of group IDs
@@ -280,7 +282,6 @@ class CacheOptimizer:
         if not group_ids:
             return {}
 
-        # Note: video_count is an annotation, so we can't use only()
         groups = (
             VideoGroup.objects.filter(id__in=group_ids)
             .select_related("user")
@@ -297,65 +298,3 @@ class CacheOptimizer:
             }
             for group in groups
         }
-
-    @staticmethod
-    def prefetch_related_data(
-        queryset: QuerySet, related_fields: List[str]
-    ) -> QuerySet:
-        """
-        Prefetch related data
-
-        Args:
-            queryset: Base queryset
-            related_fields: List of related fields to prefetch
-
-        Returns:
-            Optimized queryset
-        """
-        if not related_fields:
-            return queryset
-
-        return queryset.prefetch_related(*related_fields)
-
-    @staticmethod
-    def optimize_bulk_operations(queryset: QuerySet, operation_type: str) -> QuerySet:
-        """
-        Optimize queryset for bulk operations
-
-        Args:
-            queryset: Base queryset
-            operation_type: Operation type ('update', 'delete', 'create')
-
-        Returns:
-            Optimized queryset
-        """
-        if operation_type == "update":
-            # Select only necessary fields for update operations
-            return queryset.only("id")
-        elif operation_type == "delete":
-            # Select only ID for delete operations
-            return queryset.only("id")
-        elif operation_type == "create":
-            # Keep default for create operations
-            return queryset
-        else:
-            return queryset
-
-    @staticmethod
-    def get_optimized_count_queryset(
-        model_class, filters: Optional[Dict[str, Any]] = None
-    ) -> QuerySet:
-        """
-        Get optimized queryset for counting
-
-        Args:
-            model_class: Model class
-            filters: Filter conditions
-
-        Returns:
-            Optimized queryset
-        """
-        queryset = model_class.objects.only("id")
-        if filters:
-            queryset = queryset.filter(**filters)
-        return queryset
