@@ -12,9 +12,6 @@ classDiagram
         +int id
         +string username
         +string email
-        +int video_limit
-        +float whisper_minutes_limit
-        +int chat_limit
         +datetime date_joined
         +bool is_active
         +bool is_staff
@@ -33,7 +30,6 @@ classDiagram
         +string error_message
         +float duration_minutes
         +bool is_external_upload
-        +datetime deleted_at
         +__str__()
     }
     
@@ -104,15 +100,6 @@ classDiagram
         +get_video_groups_with_videos()
     }
     
-    class PlanLimits {
-        +get_video_limit()
-        +get_whisper_minutes_limit()
-        +get_chat_limit()
-        +get_first_day_of_month()
-        +get_monthly_chat_count()
-        +get_monthly_whisper_usage()
-    }
-    
     class ValidationHelper {
         +validate_required_fields()
         +validate_field_length()
@@ -127,9 +114,6 @@ classDiagram
     
     QueryOptimizer --> Video : optimizes
     QueryOptimizer --> VideoGroup : optimizes
-    PlanLimits --> User : checks limits
-    PlanLimits --> ChatLog : counts
-    PlanLimits --> Video : calculates usage
     ErrorHandler --> ValidationHelper : uses
 ```
 

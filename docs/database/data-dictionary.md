@@ -20,9 +20,6 @@ Table that stores user information for the system.
 | username | VARCHAR(150) | UNIQUE, NOT NULL | - | Username |
 | email | VARCHAR(255) | UNIQUE, NOT NULL | - | Email address |
 | password | VARCHAR(128) | NOT NULL | - | Hashed password |
-| video_limit | INTEGER | NOT NULL | 0 | Maximum number of videos (all time) (configurable via admin panel) |
-| whisper_minutes_limit | FLOAT | NOT NULL | 0.0 | Maximum Whisper processing time per month (minutes) (configurable via admin panel) |
-| chat_limit | INTEGER | NOT NULL | 0 | Maximum chat count per month (configurable via admin panel) |
 | date_joined | DATETIME | NOT NULL | now() | Registration date and time |
 | last_login | DATETIME | NULL | NULL | Last login date and time |
 | is_active | BOOLEAN | NOT NULL | False | Active status (email verified or not) |
@@ -66,7 +63,6 @@ Table that stores information about uploaded videos.
 | error_message | TEXT | NOT NULL | '' | Error message (when error occurs) |
 | duration_minutes | FLOAT | NULL | NULL | Video duration in minutes (for Whisper usage tracking) |
 | is_external_upload | BOOLEAN | NOT NULL | False | Whether uploaded via external API |
-| deleted_at | DATETIME | NULL | NULL | Timestamp when video was deleted (soft delete for monthly usage tracking) |
 
 ### status Values
 - `pending`: Waiting for processing
@@ -82,9 +78,6 @@ Table that stores information about uploaded videos.
 ### Relations
 - `user`: Many-to-one relationship with User table
 - `groups`: Many-to-many relationship through VideoGroupMember table
-
-### Notes
-- `deleted_at` is used for soft delete functionality, allowing monthly usage tracking even after video deletion
 
 ---
 
