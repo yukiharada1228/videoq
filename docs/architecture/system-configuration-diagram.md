@@ -189,7 +189,7 @@ graph TB
 graph TB
     subgraph Security["Security Layer"]
         subgraph Authentication["Authentication"]
-            JWT["JWT Authentication<br/>HttpOnly Cookie-based<br/>Access Token: 10 min<br/>Refresh Token: 14 days<br/>Automatic Refresh"]
+            JWT["JWT Authentication<br/>HttpOnly Cookie-based<br/>Access Token: 10 min<br/>Refresh Token: 14 days<br/>Automatic Refresh<br/>Secure Cookie Flag (env configurable)"]
             ShareToken["Share Token Authentication<br/>Temporary Access<br/>Guest Access"]
         end
         

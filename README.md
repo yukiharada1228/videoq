@@ -224,6 +224,7 @@ Required variables:
 - `ENABLE_SIGNUP` - Enable/disable sign-up (default: "True")
 - `ALLOWED_HOSTS` - Allowed hostnames (comma-separated)
 - `CORS_ALLOWED_ORIGINS` - CORS allowed origins (comma-separated)
+- `SECURE_COOKIES` - Set to "true" in production with HTTPS to enable secure cookie flag (default: "false")
 - `ANYMAIL_*` - Email sending config (for email verification and password reset)
 - `FRONTEND_URL` - Frontend URL (used for links in emails)
 - `USE_S3_STORAGE` - Use S3 storage if "true" (default: "false")
@@ -715,6 +716,7 @@ Pay attention to the following in production:
 4. **Media files**: Configure storage appropriately
 5. **CORS**: Set allowed origins
 6. **SSL/TLS**: Configure HTTPS
+7. **Secure Cookies**: Set `SECURE_COOKIES=true` when using HTTPS to ensure cookies are only sent over secure connections
 
 ## Troubleshooting
 
