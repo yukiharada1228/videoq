@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics, status
@@ -78,7 +79,7 @@ class LoginView(PublicAPIView):
             key="access_token",
             value=str(refresh.access_token),
             httponly=True,
-            secure=False,  # False in development, True in production
+            secure=settings.SECURE_COOKIES,  # Controlled by SECURE_COOKIES env var
             samesite="Lax",
             max_age=60 * 10,  # 10 minutes (same as ACCESS_TOKEN_LIFETIME)
         )
@@ -86,7 +87,7 @@ class LoginView(PublicAPIView):
             key="refresh_token",
             value=str(refresh),
             httponly=True,
-            secure=False,  # False in development, True in production
+            secure=settings.SECURE_COOKIES,  # Controlled by SECURE_COOKIES env var
             samesite="Lax",
             max_age=60 * 60 * 24 * 14,  # 14 days (same as REFRESH_TOKEN_LIFETIME)
         )
@@ -152,7 +153,7 @@ class RefreshView(PublicAPIView):
             key="access_token",
             value=str(access),
             httponly=True,
-            secure=False,  # False in development, True in production
+            secure=settings.SECURE_COOKIES,  # Controlled by SECURE_COOKIES env var
             samesite="Lax",
             max_age=60 * 10,  # 10 minutes (same as ACCESS_TOKEN_LIFETIME)
         )
