@@ -121,9 +121,9 @@ class QueryOptimizer:
             Optimized video queryset
         """
         if user_id is not None:
-            queryset = Video.objects.filter(user_id=user_id, deleted_at__isnull=True)
+            queryset = Video.objects.filter(user_id=user_id)
         else:
-            queryset = Video.objects.filter(deleted_at__isnull=True)
+            queryset = Video.objects.all()
 
         if status_filter:
             queryset = queryset.filter(status=status_filter)

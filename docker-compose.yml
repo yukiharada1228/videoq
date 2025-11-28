@@ -43,19 +43,6 @@ services:
     networks:
       - videoq-network
 
-  celery-beat:
-    build: ./backend
-    container_name: videoq-celery-beat
-    command: uv run celery -A videoq beat --loglevel=info
-    env_file:
-      - .env
-    volumes:
-      - ./backend/media:/app/media
-    depends_on:
-      - redis
-    networks:
-      - videoq-network
-
   frontend:
     build:
       context: ./frontend

@@ -12,18 +12,6 @@ from storages.backends.s3boto3 import S3Boto3Storage
 
 class User(AbstractUser):
     email = models.EmailField("email address", unique=True)
-    video_limit = models.IntegerField(
-        default=0,
-        help_text="Maximum number of videos (all time)",
-    )
-    whisper_minutes_limit = models.FloatField(
-        default=0.0,
-        help_text="Maximum Whisper processing time per month (minutes)",
-    )
-    chat_limit = models.IntegerField(
-        default=0,
-        help_text="Maximum chat count per month",
-    )
 
 
 def user_directory_path(instance, filename):
@@ -169,11 +157,6 @@ class Video(models.Model):
     is_external_upload = models.BooleanField(
         default=False,
         help_text="Whether this is an upload from an external API client (file will be deleted after processing)",
-    )
-    deleted_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text="Timestamp when video was deleted (soft delete for monthly usage tracking)",
     )
 
     class Meta:

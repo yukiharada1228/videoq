@@ -20,17 +20,6 @@ export interface User {
   username: string;
 }
 
-export interface UsageItem {
-  used: number;
-  limit: number;
-}
-
-export interface UsageStats {
-  videos: UsageItem;
-  whisper_minutes: UsageItem;
-  chats: UsageItem;
-}
-
 export interface SignupRequest {
   username: string;
   email: string;
@@ -429,10 +418,6 @@ class ApiClient {
 
   async getMe(): Promise<User> {
     return this.request<User>('/auth/me');
-  }
-
-  async getUsageStats(): Promise<UsageStats> {
-    return this.request<UsageStats>('/auth/usage-stats/');
   }
 
   async chat(data: ChatRequest): Promise<ChatMessage> {

@@ -6,17 +6,13 @@ from rest_framework_simplejwt.exceptions import InvalidToken
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from app.utils.mixins import AuthenticatedViewMixin, PublicViewMixin
-from app.utils.plan_limits import (get_chat_limit, get_monthly_chat_count,
-                                   get_monthly_whisper_usage, get_video_limit,
-                                   get_whisper_minutes_limit)
 
 from .serializers import (EmailVerificationSerializer, LoginResponseSerializer,
                           LoginSerializer, MessageResponseSerializer,
                           PasswordResetConfirmSerializer,
                           PasswordResetRequestSerializer,
                           RefreshResponseSerializer, RefreshSerializer,
-                          UsageStatsResponseSerializer, UserSerializer,
-                          UserSignupSerializer)
+                          UserSerializer, UserSignupSerializer)
 
 User = get_user_model()
 
@@ -231,40 +227,3 @@ class MeView(AuthenticatedAPIView, generics.RetrieveAPIView):
 
     def get_object(self):
         return self.request.user
-
-
-class UsageStatsView(AuthenticatedAPIView):
-    """Usage statistics retrieval view"""
-
-    @extend_schema(
-        responses={200: UsageStatsResponseSerializer},
-        summary="Get usage statistics",
-        description="Retrieve current usage statistics for videos, Whisper processing time, and chats.",
-    )
-    def get(self, request):
-        from app.models import Video
-
-        user = request.user
-
-        # Calculate video count (exclude deleted videos)
-        video_count = Video.objects.filter(user=user, deleted_at__isnull=True).count()
-        video_limit = get_video_limit(user)
-
-        # Calculate monthly Whisper usage (in minutes)
-        monthly_whisper_usage = get_monthly_whisper_usage(user)
-        whisper_limit = get_whisper_minutes_limit(user)
-
-        # Calculate monthly chat count
-        monthly_chat_count = get_monthly_chat_count(user)
-        chat_limit = get_chat_limit(user)
-
-        return Response(
-            {
-                "videos": {"used": video_count, "limit": video_limit},
-                "whisper_minutes": {
-                    "used": monthly_whisper_usage,
-                    "limit": whisper_limit,
-                },
-                "chats": {"used": monthly_chat_count, "limit": chat_limit},
-            }
-        )
