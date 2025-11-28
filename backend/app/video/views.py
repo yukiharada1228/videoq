@@ -122,32 +122,17 @@ class VideoDetailView(
         update_video_title_in_vectors(video_id, new_title)
 
     def destroy(self, request, *args, **kwargs):
-        """Delete file and vector data when Video is deleted (soft delete for usage tracking)"""
+        """Delete file and vector data when Video is deleted (hard delete)"""
         instance = self.get_object()
-        video_id = instance.id
 
         # Delete file if it exists (actual file deletion)
         if instance.file:
             instance.file.delete(save=False)
 
-        from app.utils.vector_manager import delete_video_vectors
-
-        try:
-            delete_video_vectors(video_id)
-        except Exception as e:
-            logger.warning(f"Failed to delete vectors for video {video_id}: {e}")
-
-        # Delete VideoGroupMember relationships (remove video from all groups)
-        # This is necessary because we use soft delete, so CASCADE won't trigger
-        VideoGroupMember.objects.filter(video=instance).delete()
-
-        # Soft delete: set deleted_at and clear file field
-        # This preserves the record for monthly usage tracking while removing file reference
-        from django.utils import timezone
-
-        instance.deleted_at = timezone.now()
-        instance.file = None  # Clear file field after deletion
-        instance.save(update_fields=["deleted_at", "file"])
+        # Hard delete: delete the video record
+        # CASCADE will handle VideoGroupMember
+        # post_delete signal will handle vector deletion
+        instance.delete()
 
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -383,10 +368,10 @@ def add_videos_to_group(request, group_id):
     if error:
         return error
 
-    # Exclude deleted videos
+    # Get videos
     videos = list(
         Video.objects.filter(
-            user=request.user, id__in=video_ids, deleted_at__isnull=True
+            user=request.user, id__in=video_ids
         )
     )
 

@@ -3,14 +3,13 @@ from django.urls import path
 
 from .views import (EmailVerificationView, LoginView, LogoutView, MeView,
                     PasswordResetConfirmView, PasswordResetRequestView,
-                    RefreshView, UsageStatsView, UserSignupView)
+                    RefreshView, UserSignupView)
 
 urlpatterns = [
     path("login/", LoginView.as_view(), name="auth-login"),
     path("logout/", LogoutView.as_view(), name="auth-logout"),
     path("refresh/", RefreshView.as_view(), name="auth-refresh"),
     path("me/", MeView.as_view(), name="auth-me"),
-    path("usage-stats/", UsageStatsView.as_view(), name="auth-usage-stats"),
     path("verify-email/", EmailVerificationView.as_view(), name="auth-verify-email"),
     path(
         "password-reset/",
