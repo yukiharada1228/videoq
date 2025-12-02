@@ -31,7 +31,11 @@ videoq/
 │   │   ├── utils/               # Utilities (encryption, vector_manager, task_helpers, email, plan_limits, query_optimizer, etc.)
 │   │   ├── migrations/          # Database migrations
 │   │   ├── models.py            # Data models (User, Video, VideoGroup, ChatLog, etc.)
-│   │   ├── tasks.py             # Celery tasks (transcription, etc.)
+│   │   ├── tasks/               # Celery tasks
+│   │   │   ├── transcription.py    # Main transcription task
+│   │   │   ├── audio_processing.py # Audio extraction and processing
+│   │   │   ├── srt_processing.py    # SRT subtitle processing
+│   │   │   └── vector_indexing.py   # Vector indexing for RAG
 │   │   └── celery_config.py     # Celery configuration
 │   ├── videoq/               # Django project settings
 │   │   ├── settings.py          # Django settings
@@ -246,7 +250,6 @@ This starts:
 - **postgres**: PostgreSQL database (17 with pgvector)
 - **backend**: Django REST API (internal port 8000)
 - **celery-worker**: Celery worker (background tasks)
-- **celery-beat**: Celery beat scheduler (periodic tasks)
 - **frontend**: Next.js frontend (internal port 3000)
 - **nginx**: Reverse proxy (port 80)
 
@@ -327,6 +330,33 @@ docker compose exec postgres psql -U $POSTGRES_USER -d $POSTGRES_DB
 #### Supported File Formats
 - Audio: `.flac`, `.m4a`, `.mp3`, `.mpga`, `.oga`, `.ogg`, `.wav`, `.webm`
 - Video: `.mp4`, `.mpeg`, `.webm`, `.mov` (auto-converted to MP3 via ffmpeg)
+
+#### Automatic Transcription Process
+
+The automatic transcription process is handled by Celery background tasks, organized into modular components:
+
+**Task Modules:**
+- `app.tasks.transcription`: Main orchestration task that coordinates the entire transcription process
+- `app.tasks.audio_processing`: Audio extraction from video files and segmentation for large files
+- `app.tasks.srt_processing`: SRT subtitle generation and scene splitting
+- `app.tasks.vector_indexing`: Vector indexing of scenes for RAG search
+
+**Processing Steps:**
+1. Video file is uploaded and saved to storage (local filesystem or S3)
+2. Celery task `transcribe_video` is triggered automatically
+3. Audio is extracted from video using ffmpeg
+4. Large audio files are split into segments (max 24MB per segment for Whisper API)
+5. Audio segments are transcribed in parallel using Whisper API
+6. Transcription results are merged and converted to SRT format
+7. Scene splitting is applied to create semantically coherent scenes
+8. Scenes are indexed into pgvector for RAG search
+9. Final transcript and status are saved to the database
+
+**Technical Details:**
+- Audio extraction: Uses ffmpeg to convert video to MP3 format
+- Parallel processing: Multiple audio segments are transcribed concurrently using asyncio
+- Error handling: Comprehensive error handling with retry logic (max 3 retries)
+- External uploads: Video files uploaded via external API are automatically deleted after processing
 
 #### Scene Detection (scene_otsu)
 
