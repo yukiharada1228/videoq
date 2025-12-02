@@ -18,86 +18,59 @@ def user_directory_path(instance, filename):
     return f"videos/{instance.user.id}/{filename}"
 
 
-class SafeFileSystemStorage(FileSystemStorage):
+class SafeFilenameMixin:
+    """
+    Mixin class that provides safe filename handling with timestamp-based conversion
+    """
+
+    def get_available_name(self, name, max_length=None):
+        """
+        Convert filename to safe format and avoid duplicates
+        """
+        # Convert absolute path to relative path
+        if os.path.isabs(name):
+            name = os.path.basename(name)
+
+        # Split into directory and filename parts
+        dir_name = os.path.dirname(name)
+        base_name = os.path.basename(name)
+        safe_base_name = self._get_safe_filename(base_name)
+        # Join if directory exists, otherwise filename only
+        safe_name = (
+            os.path.join(dir_name, safe_base_name) if dir_name else safe_base_name
+        )
+
+        # Call original get_available_name method for duplicate check
+        return super().get_available_name(safe_name, max_length)
+
+    def _get_safe_filename(self, filename):
+        """
+        Convert filename to timestamp-based safe format
+        """
+        # Get file extension
+        _, ext = os.path.splitext(filename)
+
+        # Generate timestamp-based filename
+        timestamp = int(time.time() * 1000)  # Timestamp in milliseconds
+
+        # Generate safe filename
+        safe_name = f"video_{timestamp}{ext}"
+
+        return safe_name
+
+
+class SafeFileSystemStorage(SafeFilenameMixin, FileSystemStorage):
     """
     Safe file storage for local use with timestamp-based filename conversion
     """
 
-    def get_available_name(self, name, max_length=None):
-        """
-        Convert filename to safe format and avoid duplicates
-        """
-        # Convert absolute path to relative path
-        if os.path.isabs(name):
-            name = os.path.basename(name)
-
-        # Split into directory and filename parts
-        dir_name = os.path.dirname(name)
-        base_name = os.path.basename(name)
-        safe_base_name = self._get_safe_filename(base_name)
-        # Join if directory exists, otherwise filename only
-        safe_name = (
-            os.path.join(dir_name, safe_base_name) if dir_name else safe_base_name
-        )
-
-        # Call original get_available_name method for duplicate check
-        return super().get_available_name(safe_name, max_length)
-
-    def _get_safe_filename(self, filename):
-        """
-        Convert filename to timestamp-based safe format
-        """
-        # Get file extension
-        _, ext = os.path.splitext(filename)
-
-        # Generate timestamp-based filename
-        timestamp = int(time.time() * 1000)  # Timestamp in milliseconds
-
-        # Generate safe filename
-        safe_name = f"video_{timestamp}{ext}"
-
-        return safe_name
+    pass
 
 
-class SafeS3Boto3Storage(S3Boto3Storage):
+class SafeS3Boto3Storage(SafeFilenameMixin, S3Boto3Storage):
     """
     Custom S3 storage with safe processing and timestamp-based filename conversion
     """
-
-    def get_available_name(self, name, max_length=None):
-        """
-        Convert filename to safe format and avoid duplicates
-        """
-        # Convert absolute path to relative path
-        if os.path.isabs(name):
-            name = os.path.basename(name)
-
-        # Split into directory and filename parts
-        dir_name = os.path.dirname(name)
-        base_name = os.path.basename(name)
-        safe_base_name = self._get_safe_filename(base_name)
-        # Join if directory exists, otherwise filename only
-        safe_name = (
-            os.path.join(dir_name, safe_base_name) if dir_name else safe_base_name
-        )
-
-        # Call original get_available_name method for duplicate check
-        return super().get_available_name(safe_name, max_length)
-
-    def _get_safe_filename(self, filename):
-        """
-        Convert filename to timestamp-based safe format
-        """
-        # Get file extension
-        _, ext = os.path.splitext(filename)
-
-        # Generate timestamp-based filename
-        timestamp = int(time.time() * 1000)  # Timestamp in milliseconds
-
-        # Generate safe filename
-        safe_name = f"video_{timestamp}{ext}"
-
-        return safe_name
 
     def _normalize_name(self, name):
         """
