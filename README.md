@@ -20,68 +20,68 @@ This application offers video upload, automatic transcription, and AI chat. When
 
 ```
 videoq/
-├── backend/                    # Django REST Framework backend
-│   ├── app/                     # Main application
-│   │   ├── auth/                # Auth features (views, serializers, urls, tests)
-│   │   ├── video/               # Video management (views, serializers, urls, tests)
-│   │   ├── chat/                # Chat (views, serializers, urls, services)
-│   │   ├── common/              # Common (authentication, permissions, responses)
-│   │   ├── media/               # Media delivery (views)
-│   │   ├── scene_otsu/          # Scene detection
-│   │   ├── utils/               # Utilities (encryption, vector_manager, task_helpers, email, plan_limits, query_optimizer, etc.)
-│   │   ├── migrations/          # Database migrations
-│   │   ├── models.py            # Data models (User, Video, VideoGroup, ChatLog, etc.)
-│   │   ├── tasks/               # Celery tasks
+├── backend/                        # Django REST Framework backend
+│   ├── app/                        # Main application
+│   │   ├── auth/                   # Auth features (views, serializers, urls, tests)
+│   │   ├── video/                  # Video management (views, serializers, urls, tests)
+│   │   ├── chat/                   # Chat (views, serializers, urls, services)
+│   │   ├── common/                 # Common (authentication, permissions, responses)
+│   │   ├── media/                  # Media delivery (views)
+│   │   ├── scene_otsu/             # Scene detection
+│   │   ├── utils/                  # Utilities (encryption, vector_manager, task_helpers, email, plan_limits, query_optimizer, etc.)
+│   │   ├── migrations/             # Database migrations
+│   │   ├── models.py               # Data models (User, Video, VideoGroup, ChatLog, etc.)
+│   │   ├── tasks/                  # Celery tasks
 │   │   │   ├── transcription.py    # Main transcription task
 │   │   │   ├── audio_processing.py # Audio extraction and processing
-│   │   │   ├── srt_processing.py    # SRT subtitle processing
-│   │   │   └── vector_indexing.py   # Vector indexing for RAG
-│   │   └── celery_config.py     # Celery configuration
-│   ├── videoq/               # Django project settings
-│   │   ├── settings.py          # Django settings
-│   │   ├── urls.py              # URL settings
-│   │   ├── wsgi.py              # WSGI
-│   │   └── asgi.py              # ASGI
-│   ├── media/                   # Uploaded media files
-│   ├── pyproject.toml           # Python dependencies (uv)
-│   ├── uv.lock                  # uv dependency lock file
-│   ├── manage.py                # Django management script
-│   ├── Dockerfile               # Backend Docker image
-│   └── README.md                # Backend README
-├── frontend/                    # Next.js + TypeScript frontend
-│   ├── app/                     # Next.js App Router
-│   │   ├── page.tsx             # Home page
-│   │   ├── login/               # Login page
-│   │   ├── signup/              # Sign-up page
-│   │   │   └── check-email/      # Waiting for email confirmation page
-│   │   ├── verify-email/         # Email verification page
-│   │   ├── forgot-password/     # Password reset request page
-│   │   ├── reset-password/       # Password reset page
-│   │   ├── settings/            # Settings page
-│   │   ├── videos/              # Video pages
-│   │   │   ├── page.tsx         # Video list page
-│   │   │   ├── [id]/            # Video detail page
-│   │   │   └── groups/          # Video group pages
-│   │   │       └── [id]/        # Video group detail page
-│   │   └── share/               # Share pages
-│   │       └── [token]/         # Share token page
-│   ├── components/              # React components
-│   │   ├── auth/                # Auth components
-│   │   ├── video/               # Video components
-│   │   ├── chat/                # Chat components
-│   │   ├── layout/              # Layout components
-│   │   ├── common/              # Common components
-│   │   └── ui/                  # UI components (shadcn/ui)
-│   ├── hooks/                   # Custom hooks (useAuth, useVideos, useAsyncState, etc.)
-│   ├── lib/                     # Libraries/utilities (api, errorUtils, etc.)
-│   ├── i18n/                    # Internationalization (i18next config and locales)
-│   ├── package.json             # Node.js dependencies
-│   ├── package-lock.json        # npm lockfile
-│   ├── Dockerfile               # Frontend Docker image
-│   └── README.md                # Frontend README
-├── docker-compose.yml           # Docker Compose config
-├── nginx.conf                   # Nginx config
-└── README.md                    # This file
+│   │   │   ├── srt_processing.py   # SRT subtitle processing
+│   │   │   └── vector_indexing.py  # Vector indexing for RAG
+│   │   └── celery_config.py        # Celery configuration
+│   ├── videoq/                     # Django project settings
+│   │   ├── settings.py             # Django settings
+│   │   ├── urls.py                 # URL settings
+│   │   ├── wsgi.py                 # WSGI
+│   │   └── asgi.py                 # ASGI
+│   ├── media/                      # Uploaded media files
+│   ├── pyproject.toml              # Python dependencies (uv)
+│   ├── uv.lock                     # uv dependency lock file
+│   ├── manage.py                   # Django management script
+│   ├── Dockerfile                  # Backend Docker image
+│   └── README.md                   # Backend README
+├── frontend/                       # Next.js + TypeScript frontend
+│   ├── app/                        # Next.js App Router
+│   │   ├── page.tsx                # Home page
+│   │   ├── login/                  # Login page
+│   │   ├── signup/                 # Sign-up page
+│   │   │   └── check-email/        # Waiting for email confirmation page
+│   │   ├── verify-email/           # Email verification page
+│   │   ├── forgot-password/        # Password reset request page
+│   │   ├── reset-password/         # Password reset page
+│   │   ├── settings/               # Settings page
+│   │   ├── videos/                 # Video pages
+│   │   │   ├── page.tsx            # Video list page
+│   │   │   ├── [id]/               # Video detail page
+│   │   │   └── groups/             # Video group pages
+│   │   │       └── [id]/           # Video group detail page
+│   │   └── share/                  # Share pages
+│   │       └── [token]/            # Share token page
+│   ├── components/                 # React components
+│   │   ├── auth/                   # Auth components
+│   │   ├── video/                  # Video components
+│   │   ├── chat/                   # Chat components
+│   │   ├── layout/                 # Layout components
+│   │   ├── common/                 # Common components
+│   │   └── ui/                     # UI components (shadcn/ui)
+│   ├── hooks/                      # Custom hooks (useAuth, useVideos, useAsyncState, etc.)
+│   ├── lib/                        # Libraries/utilities (api, errorUtils, etc.)
+│   ├── i18n/                       # Internationalization (i18next config and locales)
+│   ├── package.json                # Node.js dependencies
+│   ├── package-lock.json           # npm lockfile
+│   ├── Dockerfile                  # Frontend Docker image
+│   └── README.md                   # Frontend README
+├── docker-compose.yml              # Docker Compose config
+├── nginx.conf                      # Nginx config
+└── README.md                       # This file
 ```
 
 ## Tech Stack
