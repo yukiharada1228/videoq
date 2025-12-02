@@ -27,7 +27,6 @@ graph TB
         
         subgraph Worker["Worker"]
             Celery[Celery Worker<br/>- Asynchronous Task Processing<br/>- Transcription Processing]
-            CeleryBeat[Celery Beat<br/>- Periodic Task Scheduler<br/>- Scheduled Cleanup Tasks]
         end
     end
     
@@ -61,8 +60,6 @@ graph TB
     Celery --> LocalFS
     Celery --> S3
     Celery --> OpenAI
-    CeleryBeat --> Redis
-    CeleryBeat --> PostgreSQL
 ```
 
 ## Layer-by-Layer Detailed Configuration

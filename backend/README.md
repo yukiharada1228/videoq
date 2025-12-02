@@ -269,15 +269,25 @@ uv run celery -A videoq worker --loglevel=info
 ### Tasks
 
 Main Celery tasks:
-- `app.tasks.transcribe_video`: Transcribes video using Whisper API
+- `app.tasks.transcription.transcribe_video`: Main transcription task that orchestrates the entire process
 - Tasks are automatically triggered when videos are uploaded
+
+Task modules:
+- `app.tasks.transcription`: Main transcription orchestration
+- `app.tasks.audio_processing`: Audio extraction and segmentation
+- `app.tasks.srt_processing`: SRT subtitle generation and scene splitting
+- `app.tasks.vector_indexing`: Vector indexing for RAG
 
 ## Directory Structure
 
 ```
 backend/
 ├── app/
-│   ├── tasks.py          # Celery tasks (transcription)
+│   ├── tasks/            # Celery tasks
+│   │   ├── transcription.py    # Main transcription task
+│   │   ├── audio_processing.py # Audio extraction and processing
+│   │   ├── srt_processing.py   # SRT subtitle processing
+│   │   └── vector_indexing.py  # Vector indexing for RAG
 │   ├── celery_config.py  # Celery app configuration
 │   ├── models.py         # Data models
 │   ├── auth/             # Auth (views, serializers, urls, tests)
