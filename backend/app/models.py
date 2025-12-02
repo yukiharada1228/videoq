@@ -74,16 +74,12 @@ class SafeS3Boto3Storage(SafeFilenameMixin, S3Boto3Storage):
 
     def _normalize_name(self, name):
         """
-        Normalize filename (for S3)
+        Normalize filename for S3 (handle Windows paths and ensure proper S3 key format)
         """
-        # Convert absolute path to relative path
-        if os.path.isabs(name):
-            name = os.path.basename(name)
-
-        # Normalize slashes
+        # Normalize slashes (Windows backslash to Unix slash)
         name = name.replace("\\", "/")
 
-        # Remove leading slash
+        # Remove leading slash (S3 object keys should not start with /)
         if name.startswith("/"):
             name = name[1:]
 
