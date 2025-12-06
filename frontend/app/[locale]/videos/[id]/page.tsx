@@ -1,9 +1,10 @@
 'use client';
 
-import Link from 'next/link';
-import { useRouter, useParams, useSearchParams } from 'next/navigation';
+import { Link } from '@/i18n/routing';
+import { useParams, useSearchParams } from 'next/navigation';
+import { useRouter } from '@/i18n/routing';
 import { useEffect, useRef, useState } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useTranslations, useLocale } from 'next-intl';
 import { useVideo } from '@/hooks/useVideos';
 import { useAsyncState } from '@/hooks/useAsyncState';
 import { apiClient } from '@/lib/api';
@@ -24,7 +25,8 @@ export default function VideoDetailPage() {
   const videoId = params?.id ? parseInt(params.id as string) : null;
   const videoRef = useRef<HTMLVideoElement>(null);
   const startTime = searchParams.get('t');
-  const { t, i18n } = useTranslation();
+  const t = useTranslations();
+  const locale = useLocale();
 
   const { video, isLoading, error, loadVideo } = useVideo(videoId);
 
@@ -223,13 +225,13 @@ export default function VideoDetailPage() {
               <div>
                 <p className="text-sm font-medium text-gray-600">{t('videos.detail.labels.status')}</p>
                 <span className={getStatusBadgeClassName(video.status, 'md')}>
-                  {getStatusLabel(video.status, i18n.language)}
+                  {t(getStatusLabel(video.status))}
                 </span>
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-600">{t('videos.detail.labels.uploadedAt')}</p>
                 <p className="text-gray-900">
-                  {formatDate(video.uploaded_at, 'full', i18n.language)}
+                  {formatDate(video.uploaded_at, 'full', locale)}
                 </p>
               </div>
             </CardContent>

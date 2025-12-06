@@ -1,10 +1,6 @@
-import { initI18n } from "@/i18n/config";
-
 /**
  * Common form processing utilities
  */
-
-const i18n = initI18n();
 
 /**
  * Common form validation function
@@ -35,6 +31,7 @@ export function validateForm<T>(
 
 /**
  * Common validation functions for form fields
+ * Note: These return translation keys, not translated strings
  */
 export const formValidators = {
   required: (value: unknown): string | null => {
@@ -43,51 +40,49 @@ export const formValidators = {
       value === undefined ||
       (typeof value === 'string' && value.trim() === '')
     ) {
-      return i18n.t("validation.required");
+      return "validation.required";
     }
     return null;
   },
-  
+
   email: (value: string): string | null => {
     if (!value) return null;
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(value)) {
-      return i18n.t("validation.email");
+      return "validation.email";
     }
     return null;
   },
-  
+
   minLength: (min: number) => (value: string): string | null => {
     if (!value) return null;
     if (value.length < min) {
-      return i18n.t("validation.minLength", { min });
+      return "validation.minLength";
     }
     return null;
   },
-  
+
   maxLength: (max: number) => (value: string): string | null => {
     if (!value) return null;
     if (value.length > max) {
-      return i18n.t("validation.maxLength", { max });
+      return "validation.maxLength";
     }
     return null;
   },
-  
+
   fileSize: (maxSizeMB: number) => (file?: File | null): string | null => {
     if (!file) return null;
     const maxSizeBytes = maxSizeMB * 1024 * 1024;
     if (file.size > maxSizeBytes) {
-      return i18n.t("validation.fileSize", { max: maxSizeMB });
+      return "validation.fileSize";
     }
     return null;
   },
-  
+
   fileType: (allowedTypes: string[]) => (file?: File | null): string | null => {
     if (!file) return null;
     if (!allowedTypes.includes(file.type)) {
-      return i18n.t("validation.fileType", {
-        types: allowedTypes.join(", "),
-      });
+      return "validation.fileType";
     }
     return null;
   },

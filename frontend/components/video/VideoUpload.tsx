@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useTranslations } from 'next-intl';
 import { useVideoUpload } from '@/hooks/useVideoUpload';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { VideoUploadFormFields } from './VideoUploadFormFields';
@@ -24,7 +24,7 @@ export function VideoUpload({ onUploadSuccess }: VideoUploadProps) {
     handleSubmit,
     reset,
   } = useVideoUpload();
-  const { t } = useTranslation();
+  const t = useTranslations();
 
   useEffect(() => {
     if (success && onUploadSuccess) {

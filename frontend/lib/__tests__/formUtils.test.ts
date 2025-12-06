@@ -7,18 +7,6 @@ import {
   getFormDataChanges,
 } from '../formUtils'
 
-// Mock i18n
-jest.mock('@/i18n/config', () => ({
-  initI18n: () => ({
-    t: (key: string, options?: Record<string, unknown>) => {
-      if (options) {
-        return `${key} ${JSON.stringify(options)}`
-      }
-      return key
-    },
-  }),
-}))
-
 describe('formUtils', () => {
   describe('validateForm', () => {
     it('should validate form with valid data', () => {
@@ -67,7 +55,7 @@ describe('formUtils', () => {
       it('should validate minimum length', () => {
         const validator = formValidators.minLength(5)
         expect(validator('hello')).toBeNull()
-        expect(validator('hi')).toBe('validation.minLength {"min":5}')
+        expect(validator('hi')).toBe('validation.minLength')
         expect(validator('')).toBeNull()
       })
     })
@@ -76,7 +64,7 @@ describe('formUtils', () => {
       it('should validate maximum length', () => {
         const validator = formValidators.maxLength(5)
         expect(validator('hello')).toBeNull()
-        expect(validator('too long')).toBe('validation.maxLength {"max":5}')
+        expect(validator('too long')).toBe('validation.maxLength')
         expect(validator('')).toBeNull()
       })
     })
@@ -91,7 +79,7 @@ describe('formUtils', () => {
         Object.defineProperty(largeFile, 'size', { value: 2 * 1024 * 1024 }) // 2MB
 
         expect(validator(smallFile)).toBeNull()
-        expect(validator(largeFile)).toBe('validation.fileSize {"max":1}')
+        expect(validator(largeFile)).toBe('validation.fileSize')
         expect(validator(null)).toBeNull()
       })
     })

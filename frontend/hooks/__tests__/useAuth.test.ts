@@ -23,12 +23,6 @@ jest.mock('next/navigation', () => ({
 describe('useAuth', () => {
   beforeEach(() => {
     jest.clearAllMocks()
-    // Reset window.location.pathname
-    delete (window as { location?: { pathname?: string } }).location
-    Object.defineProperty(window, 'location', {
-      value: { pathname: '/' },
-      writable: true,
-    })
   })
 
   it('should initialize with loading state', () => {
@@ -73,10 +67,6 @@ describe('useAuth', () => {
 
   it('should redirect to login on authentication error', async () => {
     ;(apiClient.getMe as jest.Mock).mockRejectedValue(new Error('Unauthorized'))
-    Object.defineProperty(window, 'location', {
-      value: { pathname: '/protected' },
-      writable: true,
-    })
 
     const { result } = renderHook(() => useAuth({ redirectToLogin: true }))
 
@@ -89,10 +79,6 @@ describe('useAuth', () => {
 
   it('should not redirect when redirectToLogin is false', async () => {
     ;(apiClient.getMe as jest.Mock).mockRejectedValue(new Error('Unauthorized'))
-    Object.defineProperty(window, 'location', {
-      value: { pathname: '/protected' },
-      writable: true,
-    })
 
     const { result } = renderHook(() => useAuth({ redirectToLogin: false }))
 

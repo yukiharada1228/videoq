@@ -17,18 +17,17 @@ const mockReplace = jest.fn()
 const mockPrefetch = jest.fn()
 const mockBack = jest.fn()
 
-jest.mock('next/navigation', () => ({
+jest.mock('@/i18n/routing', () => ({
   useRouter: () => ({
     push: mockPush,
     replace: mockReplace,
     prefetch: mockPrefetch,
     back: mockBack,
-    pathname: '/',
-    query: {},
-    asPath: '/',
   }),
-  usePathname: () => '/',
-  useSearchParams: () => new URLSearchParams(),
+  Link: ({ children, href, ...props }: any) => {
+    const React = require('react')
+    return React.createElement('a', { href, ...props }, children)
+  },
 }))
 
 describe('Header', () => {

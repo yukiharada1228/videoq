@@ -3,8 +3,8 @@
 import { VideoList as VideoListType, VideoInGroup } from '@/lib/api';
 import { Card, CardContent } from '@/components/ui/card';
 import { getStatusBadgeClassName, getStatusLabel, formatDate } from '@/lib/utils/video';
-import Link from 'next/link';
-import { useTranslation } from 'react-i18next';
+import { Link } from '@/i18n/routing';
+import { useLocale, useTranslations } from 'next-intl';
 
 interface VideoCardProps {
   video: VideoListType | VideoInGroup;
@@ -14,7 +14,8 @@ interface VideoCardProps {
 }
 
 export function VideoCard({ video, showLink = true, className = '', onClick }: VideoCardProps) {
-  const { i18n } = useTranslation();
+  const locale = useLocale();
+  const t = useTranslations();
 
   const cardContent = (
     <Card className={`h-full flex flex-col hover:shadow-md transition-all duration-200 cursor-pointer border-0 shadow-sm hover:shadow-lg overflow-hidden group ${className}`}>
@@ -51,7 +52,7 @@ export function VideoCard({ video, showLink = true, className = '', onClick }: V
         {/* ステータスバッジ（上に表示） */}
         <div className="absolute top-2 right-2 z-10">
           <span className={getStatusBadgeClassName(video.status, 'xs')}>
-            {getStatusLabel(video.status, i18n.language)}
+            {t(getStatusLabel(video.status))}
           </span>
         </div>
       </div>
@@ -69,7 +70,7 @@ export function VideoCard({ video, showLink = true, className = '', onClick }: V
           <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          {formatDate(video.uploaded_at, 'full', i18n.language)}
+          {formatDate(video.uploaded_at, 'full', locale)}
         </div>
       </CardContent>
     </Card>

@@ -1,10 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useTranslations } from 'next-intl';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageLayout } from '@/components/layout/PageLayout';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/i18n/routing';
 import { useAuth } from '@/hooks/useAuth';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { Button } from '@/components/ui/button';
@@ -15,7 +15,7 @@ import { useVideoStats } from '@/hooks/useVideoStats';
 export default function Home() {
   const router = useRouter();
   const { user, loading } = useAuth();
-  const { t } = useTranslation();
+  const t = useTranslations();
 
   const { data: rawData, isLoading: isLoadingStats, execute: loadStats } = useAsyncState<{
     videos: VideoList[];

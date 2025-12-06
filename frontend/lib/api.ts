@@ -1,8 +1,4 @@
-import { initI18n } from '@/i18n/config';
-
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
-
-const i18n = initI18n();
 
 type RequestBody = BodyInit | object | null | undefined;
 
@@ -252,7 +248,7 @@ class ApiClient {
     // With HttpOnly Cookie-based authentication, delegate logout to backend
     await this.logout();
     window.location.href = '/login';
-    throw new Error(i18n.t("errors.authFailed"));
+    throw new Error("Authentication failed");
   }
 
   // Common method to output error logs
@@ -469,7 +465,7 @@ class ApiClient {
         response = await doFetch();
       } catch {
         await this.logout();
-        throw new Error(i18n.t("errors.authFailed"));
+        throw new Error("Authentication failed");
       }
     }
 

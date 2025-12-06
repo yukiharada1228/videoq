@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import { MessageAlert } from '@/components/common/MessageAlert';
 import { Button } from '@/components/ui/button';
 import { VideoUploadButton } from './VideoUploadButton';
-import { useTranslation } from 'react-i18next';
+import { useTranslations } from 'next-intl';
 
 interface VideoUploadFormFieldsProps {
   title: string;
@@ -40,7 +40,7 @@ export function VideoUploadFormFields({
   hideButtons = false,
   renderButtons,
 }: VideoUploadFormFieldsProps) {
-  const { t } = useTranslation();
+  const t = useTranslations();
 
   // Dynamically generate placeholder
   const getTitlePlaceholder = () => {
