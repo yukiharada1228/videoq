@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { apiClient, RelatedVideo, ChatHistoryItem } from '@/lib/api';
 import { timeStringToSeconds } from '@/lib/utils/video';
 import { cn } from '@/lib/utils';
-import { useTranslation } from 'react-i18next';
+import { useTranslations } from 'next-intl';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -23,7 +23,7 @@ interface ChatPanelProps {
 }
 
 export function ChatPanel({ groupId, onVideoPlay, shareToken, className }: ChatPanelProps) {
-  const { t } = useTranslation();
+  const t = useTranslations();
   const [messages, setMessages] = useState<Message[]>(() => [
     {
       role: 'assistant',

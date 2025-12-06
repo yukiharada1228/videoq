@@ -1,14 +1,10 @@
-import { initI18n } from '@/i18n/config';
-
 interface LoadingSpinnerProps {
   message?: string;
   fullScreen?: boolean;
 }
 
-const i18n = initI18n();
-
 export function LoadingSpinner({
-  message = i18n.t('common.loading'),
+  message = 'Loading...',
   fullScreen = true,
 }: LoadingSpinnerProps) {
   if (fullScreen) {

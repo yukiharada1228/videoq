@@ -9,13 +9,6 @@ jest.mock('@/lib/api', () => ({
   },
 }))
 
-// Mock i18n
-jest.mock('@/i18n/config', () => ({
-  initI18n: () => ({
-    t: (key: string) => key,
-  }),
-}))
-
 describe('useVideoUpload', () => {
   beforeEach(() => {
     jest.clearAllMocks()

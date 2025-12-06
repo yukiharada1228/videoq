@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter, usePathname } from '@/i18n/routing';
 import { apiClient, User } from '@/lib/api';
+import { routing } from '@/i18n/routing';
 
 interface UseAuthReturn {
   user: User | null;
@@ -53,6 +54,15 @@ export function useAuth(options: UseAuthOptions = {}): UseAuthReturn {
   }, [redirectToLogin, router]);
 
   useEffect(() => {
+    const stripLocale = (path: string) => {
+      const locale = routing.locales.find(
+        (loc) => path === `/${loc}` || path.startsWith(`/${loc}/`)
+      );
+      if (!locale) return path;
+      const trimmed = path.slice(locale.length + 1);
+      return trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+    };
+
     const publicPaths = [
       '/login',
       '/signup',
@@ -62,7 +72,10 @@ export function useAuth(options: UseAuthOptions = {}): UseAuthReturn {
       '/verify-email',
       '/share',
     ];
-    const authRequired = !publicPaths.some((path) => pathname.startsWith(path));
+    const normalizedPath = stripLocale(pathname);
+    const authRequired = !publicPaths.some((path) =>
+      normalizedPath.startsWith(path)
+    );
 
     if (authRequired) {
       checkAuth();

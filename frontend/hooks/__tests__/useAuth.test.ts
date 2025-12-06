@@ -9,26 +9,22 @@ jest.mock('@/lib/api', () => ({
   },
 }))
 
-// Mock next/navigation
+// Mock i18n routing used by the hook
 const mockPush = jest.fn()
-const mockPathname = '/'
+let mockPathname = '/'
 
-jest.mock('next/navigation', () => ({
+jest.mock('@/i18n/routing', () => ({
   useRouter: () => ({
     push: mockPush,
   }),
   usePathname: () => mockPathname,
+  routing: { locales: ['en', 'ja'] },
 }))
 
 describe('useAuth', () => {
   beforeEach(() => {
     jest.clearAllMocks()
-    // Reset window.location.pathname
-    delete (window as { location?: { pathname?: string } }).location
-    Object.defineProperty(window, 'location', {
-      value: { pathname: '/' },
-      writable: true,
-    })
+    mockPathname = '/'
   })
 
   it('should initialize with loading state', () => {
@@ -53,13 +49,7 @@ describe('useAuth', () => {
   })
 
   it('should not load user data for public routes', async () => {
-    // Mock usePathname to return /login
-    jest.doMock('next/navigation', () => ({
-      useRouter: () => ({
-        push: mockPush,
-      }),
-      usePathname: () => '/login',
-    }))
+    mockPathname = '/login'
 
     const { result } = renderHook(() => useAuth())
 
@@ -73,10 +63,6 @@ describe('useAuth', () => {
 
   it('should redirect to login on authentication error', async () => {
     ;(apiClient.getMe as jest.Mock).mockRejectedValue(new Error('Unauthorized'))
-    Object.defineProperty(window, 'location', {
-      value: { pathname: '/protected' },
-      writable: true,
-    })
 
     const { result } = renderHook(() => useAuth({ redirectToLogin: true }))
 
@@ -89,10 +75,6 @@ describe('useAuth', () => {
 
   it('should not redirect when redirectToLogin is false', async () => {
     ;(apiClient.getMe as jest.Mock).mockRejectedValue(new Error('Unauthorized'))
-    Object.defineProperty(window, 'location', {
-      value: { pathname: '/protected' },
-      writable: true,
-    })
 
     const { result } = renderHook(() => useAuth({ redirectToLogin: false }))
 

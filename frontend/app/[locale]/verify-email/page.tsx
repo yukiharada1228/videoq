@@ -1,11 +1,11 @@
 'use client';
 
 import { Suspense, useEffect, useState } from 'react';
-import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { Trans, useTranslation } from 'react-i18next';
+import { Link } from '@/i18n/routing';
+import { useSearchParams } from 'next/navigation';
+import { useRouter } from '@/i18n/routing';
+import { useTranslations } from 'next-intl';
 
-import { initI18n } from '@/i18n/config';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
 import { MessageAlert } from '@/components/common/MessageAlert';
@@ -19,7 +19,7 @@ function VerifyEmailContent() {
   const uid = searchParams.get('uid');
   const token = searchParams.get('token');
   const isInvalidLink = !uid || !token;
-  const { t } = useTranslation();
+  const t = useTranslations();
   const [state, setState] = useState<VerificationState>(() =>
     isInvalidLink ? 'error' : 'loading'
   );
@@ -78,27 +78,25 @@ function VerifyEmailContent() {
         <MessageAlert message={message} type={type} />
         {state === 'success' ? (
           <p className="text-center text-sm text-gray-600">
-            <Trans
-              i18nKey="auth.verifyEmail.redirect"
-              components={{
-                link: (
-                  <Link href="/login" className="text-blue-600 hover:underline" />
-                ),
-              }}
-            />
+            {t.rich('auth.verifyEmail.redirect', {
+              link: (chunks) => (
+                <Link href="/login" className="text-blue-600 hover:underline">
+                  {chunks}
+                </Link>
+              ),
+            })}
           </p>
         ) : (
           <div className="space-y-2 text-sm text-gray-600">
             <p>{t('auth.verifyEmail.retry')}</p>
             <p>
-              <Trans
-                i18nKey="auth.verifyEmail.backToLogin"
-                components={{
-                  link: (
-                    <Link href="/login" className="text-blue-600 hover:underline" />
-                  ),
-                }}
-              />
+              {t.rich('auth.verifyEmail.backToLogin', {
+                link: (chunks) => (
+                  <Link href="/login" className="text-blue-600 hover:underline">
+                    {chunks}
+                  </Link>
+                ),
+              })}
             </p>
           </div>
         )}
@@ -122,16 +120,14 @@ function VerifyEmailContent() {
 }
 
 function VerifyEmailFallback() {
-  const i18n = initI18n();
-
   return (
     <PageLayout centered>
       <div className="w-full max-w-md space-y-6 rounded-lg bg-white p-8 shadow">
         <div className="space-y-2 text-center">
-          <h1 className="text-2xl font-semibold">{i18n.t('auth.verifyEmail.fallbackTitle')}</h1>
+          <h1 className="text-2xl font-semibold">Email verification</h1>
           <div className="flex items-center justify-center space-x-3">
             <InlineSpinner />
-            <span className="text-sm text-gray-600">{i18n.t('auth.verifyEmail.fallbackLoading')}</span>
+            <span className="text-sm text-gray-600">Checking your email verification...</span>
           </div>
         </div>
       </div>

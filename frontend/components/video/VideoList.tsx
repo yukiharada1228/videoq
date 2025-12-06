@@ -3,14 +3,14 @@
 import { VideoList as VideoListType } from '@/lib/api';
 import { Card, CardContent } from '@/components/ui/card';
 import { VideoCard } from './VideoCard';
-import { useTranslation } from 'react-i18next';
+import { useTranslations } from 'next-intl';
 
 interface VideoListProps {
   videos: VideoListType[];
 }
 
 export function VideoList({ videos }: VideoListProps) {
-  const { t } = useTranslation();
+  const t = useTranslations();
 
   if (videos.length === 0) {
     return (

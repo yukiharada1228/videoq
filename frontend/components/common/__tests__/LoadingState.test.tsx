@@ -1,13 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { LoadingState } from '../LoadingState'
 
-// Mock i18n
-jest.mock('@/i18n/config', () => ({
-  initI18n: () => ({
-    t: (key: string) => key,
-  }),
-}))
-
 describe('LoadingState', () => {
   it('should render loading spinner when isLoading is true', () => {
     const { container } = render(

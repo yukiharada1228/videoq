@@ -1,10 +1,6 @@
-import { initI18n } from "@/i18n/config";
-
 /**
  * Common error handling utilities
  */
-
-const i18n = initI18n();
 
 /**
  * Common function to handle async errors
@@ -25,23 +21,23 @@ export function handleAsyncError(
 /**
  * Common function to handle API error responses
  * @param response - Response object
- * @returns Error message or null
+ * @returns Translation key for error message or null
  */
 export function handleApiError(response: Response): string | null {
   if (!response.ok) {
     switch (response.status) {
       case 400:
-        return i18n.t("errors.badRequest");
+        return "errors.badRequest";
       case 401:
-        return i18n.t("errors.unauthorized");
+        return "errors.unauthorized";
       case 403:
-        return i18n.t("errors.forbidden");
+        return "errors.forbidden";
       case 404:
-        return i18n.t("errors.notFound");
+        return "errors.notFound";
       case 500:
-        return i18n.t("errors.server");
+        return "errors.server";
       default:
-        return i18n.t("errors.generic", { status: response.status });
+        return "errors.generic";
     }
   }
   return null;
@@ -50,10 +46,10 @@ export function handleApiError(response: Response): string | null {
 /**
  * Common function to handle validation errors
  * @param errors - Array of validation errors
- * @returns Error message
+ * @returns Joined error messages
  */
 export function handleValidationErrors(errors: string[]): string {
   if (errors.length === 0) return "";
   if (errors.length === 1) return errors[0];
-  return i18n.t("errors.multiple", { errors: errors.join(", ") });
+  return errors.join(", ");
 }

@@ -2,7 +2,8 @@
 
 import React from 'react';
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useParams } from 'next/navigation';
+import { useRouter } from '@/i18n/routing';
 import { apiClient, VideoGroup, VideoList, VideoInGroup } from '@/lib/api';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,18 +13,17 @@ import { Textarea } from '@/components/ui/textarea';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { MessageAlert } from '@/components/common/MessageAlert';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
-import Link from 'next/link';
+import { Link } from '@/i18n/routing';
 import { getStatusBadgeClassName, getStatusLabel, timeStringToSeconds } from '@/lib/utils/video';
 import { convertVideoInGroupToSelectedVideo, createVideoIdSet, SelectedVideo } from '@/lib/utils/videoConversion';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ChatPanel } from '@/components/chat/ChatPanel';
-import { useAuth } from '@/hooks/useAuth';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { handleAsyncError } from '@/lib/utils/errorHandling';
 import { useAsyncState } from '@/hooks/useAsyncState';
-import { useTranslation } from 'react-i18next';
+import { useTranslations } from 'next-intl';
 import {
   DndContext,
   closestCenter,
@@ -66,7 +66,7 @@ interface SortableVideoItemPropsWithMobile extends SortableVideoItemProps {
 }
 
 function SortableVideoItem({ video, isSelected, onSelect, onRemove, isMobile = false }: SortableVideoItemPropsWithMobile) {
-  const { t, i18n } = useTranslation();
+  const t = useTranslations();
   const {
     attributes,
     listeners,
@@ -104,7 +104,7 @@ function SortableVideoItem({ video, isSelected, onSelect, onRemove, isMobile = f
           </p>
           <div className="flex items-center gap-2 mt-2">
             <span className={getStatusBadgeClassName(video.status, 'sm')}>
-              {getStatusLabel(video.status, i18n.language)}
+              {t(getStatusLabel(video.status))}
             </span>
           </div>
         </div>
@@ -133,8 +133,7 @@ export default function VideoGroupDetailPage() {
   const params = useParams();
   const router = useRouter();
   const groupId = params?.id ? parseInt(params.id as string) : null;
-  const { user } = useAuth();
-  const { t } = useTranslation();
+  const t = useTranslations();
 
   const { data: group, isLoading, error, execute: loadGroup, setData: setGroup } = useAsyncState<VideoGroup>({
     initialData: null,
