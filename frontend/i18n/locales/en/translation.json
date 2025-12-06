@@ -78,18 +78,18 @@
     "videos": "Videos",
     "videoGroups": "Chat groups",
     "logout": "Log out",
-    "welcome": "Welcome, {{username}}",
+    "welcome": "Welcome, {username}",
     "openMenu": "Open menu"
   },
   "layout": {
     "footer": {
-      "copyright": "© {{year}} VideoQ. All rights reserved."
+      "copyright": "© {year} VideoQ. All rights reserved."
     }
   },
   "home": {
     "welcome": {
       "title": "Welcome back!",
-      "subtitle": "Welcome back, {{username}}!"
+      "subtitle": "Welcome back, {username}!"
     },
     "actions": {
       "upload": {
@@ -98,13 +98,11 @@
       },
       "library": {
         "title": "Video library",
-        "description_one": "{{count}} video",
-        "description_other": "{{count}} videos"
+        "description": "{count, plural, one {# video} other {# videos}}"
       },
       "groups": {
         "title": "Chat groups",
-        "description_one": "{{count}} group",
-        "description_other": "{{count}} groups"
+        "description": "{count, plural, one {# group} other {# groups}}"
       }
     },
     "stats": {
@@ -144,8 +142,7 @@
   "videos": {
     "list": {
       "title": "Video library",
-      "subtitle_one": "{{count}} video",
-      "subtitle_other": "{{count}} videos",
+      "subtitle": "{count, plural, one {# video} other {# videos}}",
       "emptySubtitle": "Upload a video to get started",
       "uploadButton": "Upload video",
       "stats": {
@@ -164,7 +161,7 @@
       "fileLabel": "File",
       "titleLabel": "Title *",
       "descriptionLabel": "Description",
-      "titlePlaceholder": "{{fileName}} (default)",
+      "titlePlaceholder": "{fileName} (default)",
       "titleEmptyPlaceholder": "Enter a video title",
       "descriptionPlaceholder": "Optional video description",
       "success": "Upload succeeded!",
@@ -213,8 +210,7 @@
       "createError": "Failed to create chat group",
       "loadError": "Failed to load chat groups",
       "empty": "No chat groups yet",
-      "videoCount_one": "{{count}} video",
-      "videoCount_other": "{{count}} videos"
+      "videoCount": "{count, plural, one {# video} other {# videos}}"
     },
     "groupDetail": {
       "edit": "Edit",
@@ -258,7 +254,7 @@
       "noAvailableVideos": "No videos available to add",
       "add": "Add",
       "adding": "Adding...",
-      "addResult": "{{added}} videos added ({{skipped}} already existed).",
+      "addResult": "{added} videos added ({skipped} already existed).",
       "orderUpdateError": "Failed to update video order",
       "mobileTabs": {
         "videos": "Videos",
@@ -398,17 +394,17 @@
     "forbidden": "Access denied",
     "notFound": "Resource not found",
     "server": "A server error occurred",
-    "generic": "An error occurred ({{status}})",
-    "multiple": "Multiple errors: {{errors}}",
+    "generic": "An error occurred ({status})",
+    "multiple": "Multiple errors: {errors}",
     "authFailed": "Authentication failed. Please sign in again."
   },
   "validation": {
     "required": "This field is required",
     "email": "Please enter a valid email address",
-    "minLength": "Please enter at least {{min}} characters",
-    "maxLength": "Please enter {{max}} characters or fewer",
-    "fileSize": "File size must be {{max}} MB or less",
-    "fileType": "Unsupported file type. Allowed: {{types}}"
+    "minLength": "Please enter at least {min} characters",
+    "maxLength": "Please enter {max} characters or fewer",
+    "fileSize": "File size must be {max} MB or less",
+    "fileType": "Unsupported file type. Allowed: {types}"
   },
   "confirmations": {
     "deleteVideo": "Are you sure you want to delete this video?",
