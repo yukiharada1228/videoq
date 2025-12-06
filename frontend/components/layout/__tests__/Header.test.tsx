@@ -1,3 +1,4 @@
+import React from 'react'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Header } from '../Header'
@@ -24,10 +25,12 @@ jest.mock('@/i18n/routing', () => ({
     prefetch: mockPrefetch,
     back: mockBack,
   }),
-  Link: ({ children, href, ...props }: any) => {
-    const React = require('react')
-    return React.createElement('a', { href, ...props }, children)
-  },
+  Link: ({
+    children,
+    href,
+    ...props
+  }: React.PropsWithChildren<React.AnchorHTMLAttributes<HTMLAnchorElement>>) =>
+    React.createElement('a', { href, ...props }, children),
 }))
 
 describe('Header', () => {

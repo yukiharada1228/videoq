@@ -19,12 +19,11 @@ import { convertVideoInGroupToSelectedVideo, createVideoIdSet, SelectedVideo } f
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ChatPanel } from '@/components/chat/ChatPanel';
-import { useAuth } from '@/hooks/useAuth';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { handleAsyncError } from '@/lib/utils/errorHandling';
 import { useAsyncState } from '@/hooks/useAsyncState';
-import { useTranslations, useLocale } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import {
   DndContext,
   closestCenter,
@@ -68,7 +67,6 @@ interface SortableVideoItemPropsWithMobile extends SortableVideoItemProps {
 
 function SortableVideoItem({ video, isSelected, onSelect, onRemove, isMobile = false }: SortableVideoItemPropsWithMobile) {
   const t = useTranslations();
-  const locale = useLocale();
   const {
     attributes,
     listeners,
@@ -135,7 +133,6 @@ export default function VideoGroupDetailPage() {
   const params = useParams();
   const router = useRouter();
   const groupId = params?.id ? parseInt(params.id as string) : null;
-  const { user } = useAuth();
   const t = useTranslations();
 
   const { data: group, isLoading, error, execute: loadGroup, setData: setGroup } = useAsyncState<VideoGroup>({
