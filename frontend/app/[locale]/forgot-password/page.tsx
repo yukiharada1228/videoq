@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
-import { useTranslation } from 'react-i18next';
+import { Link } from '@/i18n/routing';
+import { useTranslations } from 'next-intl';
 import { PageLayout } from '@/components/layout/PageLayout';
 import {
   Card,
@@ -22,7 +22,7 @@ import { useAsyncState } from '@/hooks/useAsyncState';
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [success, setSuccess] = useState(false);
-  const { t } = useTranslation();
+  const t = useTranslations();
   const { isLoading, error, execute, setError } = useAsyncState<void>({
     onSuccess: () => setSuccess(true),
   });

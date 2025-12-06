@@ -4,18 +4,6 @@ import {
   handleValidationErrors,
 } from '../errorUtils'
 
-// Mock i18n
-jest.mock('@/i18n/config', () => ({
-  initI18n: () => ({
-    t: (key: string, options?: Record<string, unknown>) => {
-      if (options) {
-        return `${key} ${JSON.stringify(options)}`
-      }
-      return key
-    },
-  }),
-}))
-
 describe('errorUtils', () => {
   describe('handleAsyncError', () => {
     it('should handle Error object', () => {
@@ -78,7 +66,7 @@ describe('errorUtils', () => {
     it('should handle unknown status code', () => {
       const response = { ok: false, status: 418 } as Response
       const result = handleApiError(response)
-      expect(result).toBe('errors.generic {"status":418}')
+      expect(result).toBe('errors.generic')
     })
 
     it('should return null for successful response', () => {

@@ -2,7 +2,7 @@
 
 import { Button } from '@/components/ui/button';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
-import { useTranslation } from 'react-i18next';
+import { useTranslations } from 'next-intl';
 
 interface VideoUploadButtonProps {
   isUploading: boolean;
@@ -17,7 +17,7 @@ export function VideoUploadButton({
   variant = 'default',
   fullWidth = false
 }: VideoUploadButtonProps) {
-  const { t } = useTranslation();
+  const t = useTranslations();
 
   return (
     <Button 

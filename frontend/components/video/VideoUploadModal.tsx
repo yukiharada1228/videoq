@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useTranslations } from 'next-intl';
 import { useVideoUpload } from '@/hooks/useVideoUpload';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -28,7 +28,7 @@ export function VideoUploadModal({ isOpen, onClose, onUploadSuccess }: VideoUplo
     handleSubmit,
     reset,
   } = useVideoUpload();
-  const { t } = useTranslation();
+  const t = useTranslations();
 
   const handleClose = useCallback(() => {
     if (!isUploading) {

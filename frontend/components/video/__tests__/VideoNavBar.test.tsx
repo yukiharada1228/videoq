@@ -1,9 +1,9 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import { VideoNavBar } from '../VideoNavBar'
 
-// Mock next/navigation
+// Mock @/i18n/routing
 const mockPush = jest.fn()
-jest.mock('next/navigation', () => ({
+jest.mock('@/i18n/routing', () => ({
   useRouter: () => ({
     push: mockPush,
   }),

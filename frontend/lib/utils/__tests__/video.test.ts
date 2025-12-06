@@ -5,20 +5,6 @@ import {
   timeStringToSeconds,
 } from '../video'
 
-// Mock i18n
-jest.mock('@/i18n/config', () => ({
-  initI18n: () => ({
-    t: (key: string, options?: Record<string, unknown>) => {
-      if (options) {
-        return `${key} ${JSON.stringify(options)}`
-      }
-      return key === key ? 'Status Label' : key
-    },
-    language: 'en',
-    changeLanguage: jest.fn(),
-  }),
-}))
-
 describe('video utils', () => {
   describe('getStatusBadgeClassName', () => {
     it('should return correct class for pending status', () => {

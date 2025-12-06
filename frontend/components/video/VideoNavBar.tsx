@@ -1,7 +1,7 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
-import { useTranslation } from 'react-i18next';
+import { useRouter } from '@/i18n/routing';
+import { useTranslations } from 'next-intl';
 
 interface VideoNavBarProps {
   onUploadClick: () => void;
@@ -9,7 +9,7 @@ interface VideoNavBarProps {
 
 export function VideoNavBar({ onUploadClick }: VideoNavBarProps) {
   const router = useRouter();
-  const { t } = useTranslation();
+  const t = useTranslations();
 
   return (
     <div className="bg-white border-b">

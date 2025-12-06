@@ -1,12 +1,12 @@
 'use client';
 
-import Link from 'next/link';
-import { useTranslation } from 'react-i18next';
+import { Link } from '@/i18n/routing';
+import { useTranslations } from 'next-intl';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { MessageAlert } from '@/components/common/MessageAlert';
 
 export default function SignupCheckEmailPage() {
-  const { t } = useTranslation();
+  const t = useTranslations();
 
   return (
     <PageLayout centered>
