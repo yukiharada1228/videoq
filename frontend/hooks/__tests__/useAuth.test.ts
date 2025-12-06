@@ -9,20 +9,22 @@ jest.mock('@/lib/api', () => ({
   },
 }))
 
-// Mock next/navigation
+// Mock i18n routing used by the hook
 const mockPush = jest.fn()
-const mockPathname = '/'
+let mockPathname = '/'
 
-jest.mock('next/navigation', () => ({
+jest.mock('@/i18n/routing', () => ({
   useRouter: () => ({
     push: mockPush,
   }),
   usePathname: () => mockPathname,
+  routing: { locales: ['en', 'ja'] },
 }))
 
 describe('useAuth', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    mockPathname = '/'
   })
 
   it('should initialize with loading state', () => {
@@ -47,13 +49,7 @@ describe('useAuth', () => {
   })
 
   it('should not load user data for public routes', async () => {
-    // Mock usePathname to return /login
-    jest.doMock('next/navigation', () => ({
-      useRouter: () => ({
-        push: mockPush,
-      }),
-      usePathname: () => '/login',
-    }))
+    mockPathname = '/login'
 
     const { result } = renderHook(() => useAuth())
 
