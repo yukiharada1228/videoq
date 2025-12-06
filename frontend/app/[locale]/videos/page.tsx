@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect, Suspense, useMemo } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { useTranslation } from 'react-i18next';
-import { initI18n } from '@/i18n/config';
+import { useSearchParams } from 'next/navigation';
+import { useRouter } from '@/i18n/routing';
+import { useTranslations } from 'next-intl';
 import { useVideos } from '@/hooks/useVideos';
 import { useVideoStats } from '@/hooks/useVideoStats';
 import { VideoUploadModal } from '@/components/video/VideoUploadModal';
@@ -18,7 +18,7 @@ function VideosContent() {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { t } = useTranslation();
+  const t = useTranslations();
 
   const shouldOpenModalFromQuery = useMemo(
     () => searchParams?.get('upload') === 'true',
@@ -113,14 +113,9 @@ function VideosContent() {
 
 export default function VideosPage() {
   return (
-    <Suspense fallback={<div>{initTranslationFallback()}</div>}>
+    <Suspense fallback={<div>Loading...</div>}>
       <VideosContent />
     </Suspense>
   );
-}
-
-function initTranslationFallback() {
-  const i18n = initI18n();
-  return i18n.t('common.loading');
 }
 

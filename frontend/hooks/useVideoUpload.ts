@@ -1,6 +1,5 @@
 import { useState, useCallback } from 'react';
 import { apiClient, VideoUploadRequest } from '@/lib/api';
-import { initI18n } from '@/i18n/config';
 import { useAsyncState } from './useAsyncState';
 
 interface UseVideoUploadReturn {
@@ -24,17 +23,16 @@ interface ValidationResult {
 
 /**
  * バリデーションロジック
+ * Returns translation keys for errors
  */
-const i18n = initI18n();
-
 function validateVideoUpload(file: File | null, title: string): ValidationResult {
   if (!file) {
-    return { isValid: false, error: i18n.t('videos.upload.validation.noFile') };
+    return { isValid: false, error: 'videos.upload.validation.noFile' };
   }
   // File is OK if title is empty since filename will be used
   const finalTitle = title.trim() || file.name.replace(/\.[^/.]+$/, '');
   if (!finalTitle) {
-    return { isValid: false, error: i18n.t('videos.upload.validation.noTitle') };
+    return { isValid: false, error: 'videos.upload.validation.noTitle' };
   }
   return { isValid: true };
 }
@@ -71,17 +69,17 @@ export function useVideoUpload(): UseVideoUploadReturn {
 
   const handleSubmit = useCallback(async (e: React.FormEvent, onSuccess?: () => void) => {
     e.preventDefault();
-    
+
     const validation = validateVideoUpload(file, title);
     if (!validation.isValid) {
-      setError(validation.error || i18n.t('videos.upload.validation.generic'));
+      setError(validation.error || 'videos.upload.validation.generic');
       return;
     }
 
     await uploadVideo(async () => {
       // Use filename (without extension) if title is empty
       const finalTitle = title.trim() || (file ? file.name.replace(/\.[^/.]+$/, '') : '');
-      
+
       const request: VideoUploadRequest = {
         file: file!,
         title: finalTitle,

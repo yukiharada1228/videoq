@@ -11,7 +11,7 @@ import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { getStatusBadgeClassName, getStatusLabel, timeStringToSeconds } from '@/lib/utils/video';
 import { convertVideoInGroupToSelectedVideo, SelectedVideo } from '@/lib/utils/videoConversion';
-import { useTranslation } from 'react-i18next';
+import { useTranslations } from 'next-intl';
 
 // Video item component for shared page (no drag & drop)
 interface VideoItemProps {
@@ -21,7 +21,7 @@ interface VideoItemProps {
 }
 
 function VideoItem({ video, isSelected, onSelect }: VideoItemProps) {
-  const { t, i18n } = useTranslation();
+  const t = useTranslations();
   return (
     <div
       onClick={() => onSelect(video.id)}
@@ -37,7 +37,7 @@ function VideoItem({ video, isSelected, onSelect }: VideoItemProps) {
           </p>
           <div className="flex items-center gap-2 mt-2">
             <span className={getStatusBadgeClassName(video.status, 'sm')}>
-              {getStatusLabel(video.status, i18n.language)}
+              {t(getStatusLabel(video.status))}
             </span>
           </div>
         </div>
@@ -49,7 +49,7 @@ function VideoItem({ video, isSelected, onSelect }: VideoItemProps) {
 export default function SharedGroupPage() {
   const params = useParams();
   const shareToken = params?.token as string;
-  const { t } = useTranslation();
+  const t = useTranslations();
 
   const [group, setGroup] = useState<VideoGroup | null>(null);
   const [selectedVideo, setSelectedVideo] = useState<SelectedVideo | null>(null);

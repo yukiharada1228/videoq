@@ -1,8 +1,8 @@
 'use client';
 
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useTranslation } from 'react-i18next';
+import { Link } from '@/i18n/routing';
+import { useRouter } from '@/i18n/routing';
+import { useTranslations } from 'next-intl';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { AuthForm } from '@/components/auth/AuthForm';
 import { useAuthForm } from '@/hooks/useAuthForm';
@@ -11,7 +11,7 @@ import { AUTH_FIELDS } from '@/lib/authConfig';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { t } = useTranslation();
+  const t = useTranslations();
 
   const { formData, error, loading, handleChange, handleSubmit } = useAuthForm({
     onSubmit: async (data) => {

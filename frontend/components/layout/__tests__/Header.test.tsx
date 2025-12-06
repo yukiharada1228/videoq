@@ -1,3 +1,4 @@
+import React from 'react'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Header } from '../Header'
@@ -17,18 +18,19 @@ const mockReplace = jest.fn()
 const mockPrefetch = jest.fn()
 const mockBack = jest.fn()
 
-jest.mock('next/navigation', () => ({
+jest.mock('@/i18n/routing', () => ({
   useRouter: () => ({
     push: mockPush,
     replace: mockReplace,
     prefetch: mockPrefetch,
     back: mockBack,
-    pathname: '/',
-    query: {},
-    asPath: '/',
   }),
-  usePathname: () => '/',
-  useSearchParams: () => new URLSearchParams(),
+  Link: ({
+    children,
+    href,
+    ...props
+  }: React.PropsWithChildren<React.AnchorHTMLAttributes<HTMLAnchorElement>>) =>
+    React.createElement('a', { href, ...props }, children),
 }))
 
 describe('Header', () => {

@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
-import { useTranslation } from 'react-i18next';
+import { useRouter } from '@/i18n/routing';
+import { useTranslations } from 'next-intl';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { MessageAlert } from '@/components/common/MessageAlert';
@@ -26,7 +26,7 @@ export default function VideoGroupsPage() {
   const [newGroupName, setNewGroupName] = useState('');
   const [newGroupDescription, setNewGroupDescription] = useState('');
   const [loadedUserId, setLoadedUserId] = useState<number | null>(null);
-  const { t } = useTranslation();
+  const t = useTranslations();
 
   const loadGroups = useCallback(async () => {
     try {

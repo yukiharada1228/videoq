@@ -1,10 +1,6 @@
-import { initI18n } from '@/i18n/config';
-
 /**
  * Utility functions related to video status
  */
-
-const i18n = initI18n();
 
 export type VideoStatus = 'pending' | 'processing' | 'completed' | 'error';
 
@@ -34,18 +30,17 @@ export function getStatusBadgeClassName(
 }
 
 /**
- * Get status label
+ * Get status label translation key
  */
-export function getStatusLabel(status: string, locale?: string): string {
-  const key = `common.status.${status}`;
-  const label = i18n.t(key, locale ? { lng: locale } : undefined);
-  return label === key ? status : label;
+export function getStatusLabel(status: string): string {
+  return `common.status.${status}`;
 }
 
 /**
  * Format date in locale format
  * @param date ISO date string or Date object
  * @param format 'full' | 'short' - Detail level of datetime format
+ * @param locale Optional locale (defaults to browser locale or 'en-US')
  * @returns Formatted date string
  */
 export function formatDate(
@@ -57,9 +52,8 @@ export function formatDate(
   const resolvedLocale =
     locale ||
     (typeof navigator !== 'undefined' && navigator.language) ||
-    i18n.language ||
     'en-US';
-  
+
   if (format === 'short') {
     return dateObj.toLocaleDateString(resolvedLocale, {
       year: 'numeric',
@@ -67,7 +61,7 @@ export function formatDate(
       day: '2-digit',
     });
   }
-  
+
   return dateObj.toLocaleString(resolvedLocale, {
     year: 'numeric',
     month: '2-digit',

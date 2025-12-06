@@ -1,11 +1,11 @@
 'use client';
 
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { Link } from '@/i18n/routing';
+import { useRouter } from '@/i18n/routing';
 import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/lib/api';
 import { useState } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useTranslations } from 'next-intl';
 
 interface HeaderProps {
   children?: React.ReactNode;
@@ -15,7 +15,7 @@ export function Header({ children }: HeaderProps) {
   const router = useRouter();
   const { user } = useAuth({ redirectToLogin: false });
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { t } = useTranslation();
+  const t = useTranslations();
 
   const handleLogout = () => {
     apiClient.logout();

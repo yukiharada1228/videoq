@@ -1,4 +1,5 @@
 // Learn more: https://github.com/testing-library/jest-dom
+import React from 'react'
 import '@testing-library/jest-dom'
 
 // Mock Next.js router
@@ -22,37 +23,42 @@ jest.mock('next/navigation', () => ({
   },
 }))
 
-// Mock i18next
-jest.mock('react-i18next', () => ({
-  useTranslation: () => ({
-    t: (key, options) => {
+// Mock next-intl
+jest.mock('next-intl', () => ({
+  useTranslations: () => {
+    const t = (key, options) => {
       if (options) {
         return `${key} ${JSON.stringify(options)}`
       }
       return key
-    },
-    i18n: {
-      changeLanguage: jest.fn(),
-      language: 'en',
-    },
-  }),
-  initReactI18next: {
-    type: '3rdParty',
-    init: jest.fn(),
+    }
+    t.rich = (key, options) => {
+      if (options) {
+        return `${key} ${JSON.stringify(options)}`
+      }
+      return key
+    }
+    return t
   },
+  useLocale: () => 'en',
+  NextIntlClientProvider: ({ children }) => children,
 }))
 
-// Mock i18n config
-jest.mock('@/i18n/config', () => ({
-  initI18n: () => ({
-    t: (key, options) => {
-      if (options) {
-        return `${key} ${JSON.stringify(options)}`
-      }
-      return key
-    },
-    language: 'en',
-    changeLanguage: jest.fn(),
+// Mock next-intl routing
+jest.mock('@/i18n/routing', () => ({
+  Link: ({ children, href, ...props }) =>
+    React.createElement('a', { href, ...props }, children),
+  useRouter: () => ({
+    push: jest.fn(),
+    replace: jest.fn(),
+    prefetch: jest.fn(),
+    back: jest.fn(),
   }),
+  usePathname: () => '/',
+  redirect: jest.fn(),
+  routing: {
+    locales: ['en', 'ja'],
+    defaultLocale: 'en',
+  },
 }))
 

@@ -1,7 +1,7 @@
-import { useTranslation } from 'react-i18next';
+import { useTranslations } from 'next-intl';
 
 export function Footer() {
-  const { t } = useTranslation();
+  const t = useTranslations();
   return (
     <footer className="border-t bg-white py-8">
       <div className="container mx-auto px-4 text-center text-gray-600">

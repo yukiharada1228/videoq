@@ -1,13 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { LoadingSpinner } from '../LoadingSpinner'
 
-// Mock i18n
-jest.mock('@/i18n/config', () => ({
-  initI18n: () => ({
-    t: (key: string) => key,
-  }),
-}))
-
 describe('LoadingSpinner', () => {
   it('should render full screen spinner by default', () => {
     const { container } = render(<LoadingSpinner />)
@@ -32,8 +25,8 @@ describe('LoadingSpinner', () => {
 
   it('should display default message', () => {
     render(<LoadingSpinner />)
-    
-    expect(screen.getByText('common.loading')).toBeInTheDocument()
+
+    expect(screen.getByText('Loading...')).toBeInTheDocument()
   })
 })
 

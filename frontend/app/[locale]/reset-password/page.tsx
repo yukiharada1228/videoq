@@ -1,9 +1,9 @@
  'use client';
  
  import { Suspense, useState } from 'react';
- import Link from 'next/link';
+ import { Link } from '@/i18n/routing';
  import { useSearchParams } from 'next/navigation';
- import { useTranslation } from 'react-i18next';
+ import { useTranslations } from 'next-intl';
  import { PageLayout } from '@/components/layout/PageLayout';
  import {
    Card,
@@ -25,7 +25,7 @@ function ResetPasswordContent() {
   const searchParams = useSearchParams();
   const uid = searchParams.get('uid') ?? '';
   const token = searchParams.get('token') ?? '';
-  const { t } = useTranslation();
+  const t = useTranslations();
 
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');

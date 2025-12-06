@@ -7,22 +7,6 @@ global.fetch = jest.fn()
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 global.ReadableStream = class ReadableStream {} as any
 
-// Mock i18n
-jest.mock('@/i18n/config', () => ({
-  initI18n: () => ({
-    t: (key: string) => key,
-  }),
-}))
-
-// Mock window.location
-Object.defineProperty(window, 'location', {
-  value: {
-    href: '',
-    origin: 'http://localhost:3000',
-  },
-  writable: true,
-})
-
 // Mock URL
 global.URL = class URL {
   searchParams: URLSearchParams
