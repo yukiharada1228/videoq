@@ -1,4 +1,5 @@
 // Learn more: https://github.com/testing-library/jest-dom
+import React from 'react'
 import '@testing-library/jest-dom'
 
 // Mock Next.js router
@@ -45,10 +46,8 @@ jest.mock('next-intl', () => ({
 
 // Mock next-intl routing
 jest.mock('@/i18n/routing', () => ({
-  Link: ({ children, href, ...props }) => {
-    const React = require('react')
-    return React.createElement('a', { href, ...props }, children)
-  },
+  Link: ({ children, href, ...props }) =>
+    React.createElement('a', { href, ...props }, children),
   useRouter: () => ({
     push: jest.fn(),
     replace: jest.fn(),

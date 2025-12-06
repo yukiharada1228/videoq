@@ -11,7 +11,7 @@ import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { getStatusBadgeClassName, getStatusLabel, timeStringToSeconds } from '@/lib/utils/video';
 import { convertVideoInGroupToSelectedVideo, SelectedVideo } from '@/lib/utils/videoConversion';
-import { useTranslations, useLocale } from 'next-intl';
+import { useTranslations } from 'next-intl';
 
 // Video item component for shared page (no drag & drop)
 interface VideoItemProps {
@@ -22,7 +22,6 @@ interface VideoItemProps {
 
 function VideoItem({ video, isSelected, onSelect }: VideoItemProps) {
   const t = useTranslations();
-  const locale = useLocale();
   return (
     <div
       onClick={() => onSelect(video.id)}
