@@ -78,18 +78,18 @@
     "videos": "動画一覧",
     "videoGroups": "チャットグループ",
     "logout": "ログアウト",
-    "welcome": "ようこそ、{{username}}さん",
+    "welcome": "ようこそ、{username}さん",
     "openMenu": "メニューを開く"
   },
   "layout": {
     "footer": {
-      "copyright": "© {{year}} VideoQ. All rights reserved."
+      "copyright": "© {year} VideoQ. All rights reserved."
     }
   },
   "home": {
     "welcome": {
       "title": "Welcome back!",
-      "subtitle": "{{username}}さん、おかえりなさい！"
+      "subtitle": "{username}さん、おかえりなさい！"
     },
     "actions": {
       "upload": {
@@ -98,13 +98,11 @@
       },
       "library": {
         "title": "動画一覧",
-        "description_one": "{{count}}本の動画",
-        "description_other": "{{count}}本の動画"
+        "description": "{count, plural, one {#本の動画} other {#本の動画}}"
       },
       "groups": {
         "title": "チャットグループ",
-        "description_one": "{{count}}個のグループ",
-        "description_other": "{{count}}個のグループ"
+        "description": "{count, plural, one {#個のグループ} other {#個のグループ}}"
       }
     },
     "stats": {
@@ -144,8 +142,7 @@
   "videos": {
     "list": {
       "title": "動画一覧",
-      "subtitle_one": "{{count}}本の動画",
-      "subtitle_other": "{{count}}本の動画",
+      "subtitle": "{count, plural, one {#本の動画} other {#本の動画}}",
       "emptySubtitle": "動画をアップロードして管理を始めましょう",
       "uploadButton": "動画をアップロード",
       "stats": {
@@ -164,7 +161,7 @@
       "fileLabel": "ファイル",
       "titleLabel": "タイトル *",
       "descriptionLabel": "説明",
-      "titlePlaceholder": "{{fileName}}（デフォルト）",
+      "titlePlaceholder": "{fileName}（デフォルト）",
       "titleEmptyPlaceholder": "動画のタイトルを入力",
       "descriptionPlaceholder": "動画の説明（任意）",
       "success": "アップロード成功！",
@@ -213,8 +210,7 @@
       "createError": "チャットグループの作成に失敗しました",
       "loadError": "チャットグループの読み込みに失敗しました",
       "empty": "チャットグループがありません",
-      "videoCount_one": "{{count}}個の動画",
-      "videoCount_other": "{{count}}個の動画"
+      "videoCount": "{count, plural, one {#個の動画} other {#個の動画}}"
     },
     "groupDetail": {
       "edit": "編集",
@@ -258,7 +254,7 @@
       "noAvailableVideos": "追加可能な動画がありません",
       "add": "追加",
       "adding": "追加中...",
-      "addResult": "{{added}}個の動画を追加しました（{{skipped}}個は既に追加済みでした）",
+      "addResult": "{added}個の動画を追加しました（{skipped}個は既に追加済みでした）",
       "orderUpdateError": "動画の順序更新に失敗しました",
       "mobileTabs": {
         "videos": "動画一覧",
@@ -398,17 +394,17 @@
     "forbidden": "アクセスが拒否されました",
     "notFound": "リソースが見つかりません",
     "server": "サーバーエラーが発生しました",
-    "generic": "エラーが発生しました ({{status}})",
-    "multiple": "複数のエラーがあります: {{errors}}",
+    "generic": "エラーが発生しました ({status})",
+    "multiple": "複数のエラーがあります: {errors}",
     "authFailed": "認証に失敗しました。再度ログインしてください。"
   },
   "validation": {
     "required": "この項目は必須です",
     "email": "有効なメールアドレスを入力してください",
-    "minLength": "{{min}}文字以上で入力してください",
-    "maxLength": "{{max}}文字以下で入力してください",
-    "fileSize": "ファイルサイズは{{max}}MB以下にしてください",
-    "fileType": "対応していないファイル形式です。許可されている形式: {{types}}"
+    "minLength": "{min}文字以上で入力してください",
+    "maxLength": "{max}文字以下で入力してください",
+    "fileSize": "ファイルサイズは{max}MB以下にしてください",
+    "fileType": "対応していないファイル形式です。許可されている形式: {types}"
   },
   "confirmations": {
     "deleteVideo": "この動画を削除しますか？",
