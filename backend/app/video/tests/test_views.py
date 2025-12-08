@@ -538,3 +538,99 @@ class ReorderVideosTests(APITestCase):
         self.assertEqual(member1.order, 1)
         self.assertEqual(member2.order, 2)
         self.assertEqual(member3.order, 0)
+
+
+class VideoUploadDeleteAfterProcessingTests(APITestCase):
+    """Tests for delete_after_processing flag in video upload"""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="testuser",
+            email="test@example.com",
+            password="testpass123",
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+
+    @patch("app.video.serializers.transcribe_video.delay")
+    def test_upload_without_delete_flag(self, mock_task):
+        """Test video upload without delete_after_processing flag (default)"""
+        from io import BytesIO
+
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        video_file = SimpleUploadedFile(
+            "test_video.mp4",
+            BytesIO(b"fake video content").read(),
+            content_type="video/mp4",
+        )
+
+        url = reverse("video-list")
+        data = {
+            "file": video_file,
+            "title": "Test Video",
+            "description": "Test Description",
+        }
+
+        response = self.client.post(url, data, format="multipart")
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(Video.objects.count(), 1)
+
+        video = Video.objects.first()
+        self.assertEqual(video.title, "Test Video")
+        self.assertFalse(video.is_external_upload)  # Should be False by default
+
+    @patch("app.video.serializers.transcribe_video.delay")
+    def test_upload_with_delete_flag_false(self, mock_task):
+        """Test video upload with delete_after_processing=false"""
+        from io import BytesIO
+
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        video_file = SimpleUploadedFile(
+            "test_video.mp4",
+            BytesIO(b"fake video content").read(),
+            content_type="video/mp4",
+        )
+
+        url = reverse("video-list")
+        data = {
+            "file": video_file,
+            "title": "Test Video",
+            "description": "Test Description",
+            "delete_after_processing": False,
+        }
+
+        response = self.client.post(url, data, format="multipart")
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        video = Video.objects.first()
+        self.assertFalse(video.is_external_upload)
+
+    @patch("app.video.serializers.transcribe_video.delay")
+    def test_upload_with_delete_flag_true(self, mock_task):
+        """Test video upload with delete_after_processing=true"""
+        from io import BytesIO
+
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        video_file = SimpleUploadedFile(
+            "test_video.mp4",
+            BytesIO(b"fake video content").read(),
+            content_type="video/mp4",
+        )
+
+        url = reverse("video-list")
+        data = {
+            "file": video_file,
+            "title": "Test Video",
+            "description": "Test Description",
+            "delete_after_processing": True,
+        }
+
+        response = self.client.post(url, data, format="multipart")
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        video = Video.objects.first()
+        self.assertTrue(video.is_external_upload)  # Should be True when flag is set

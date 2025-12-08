@@ -47,26 +47,31 @@ class VideoSerializer(serializers.ModelSerializer):
 class VideoCreateSerializer(UserOwnedSerializerMixin, serializers.ModelSerializer):
     """Serializer for Video creation"""
 
+    delete_after_processing = serializers.BooleanField(
+        default=False,
+        required=False,
+        write_only=True,
+        help_text="If true, delete video file after transcription is complete. Only transcript will be kept.",
+    )
+
     class Meta:
         model = Video
-        fields = ["file", "title", "description"]
+        fields = ["file", "title", "description", "delete_after_processing"]
 
     def create(self, validated_data):
         """Start transcription task when Video is created"""
-        request = self.context.get("request")
-
-        # Check if Authorization header exists (determine external API client)
-        is_external_client = request and request.META.get("HTTP_AUTHORIZATION")
+        # Extract delete_after_processing flag (not saved to model)
+        delete_after_processing = validated_data.pop("delete_after_processing", False)
 
         # Create Video instance
         video = super().create(validated_data)
 
-        # Set flag if from external API client
-        if is_external_client:
+        # Set flag if user requested file deletion after processing
+        if delete_after_processing:
             video.is_external_upload = True
             video.save(update_fields=["is_external_upload"])
             logger.info(
-                f"External API client upload detected for video ID: {video.id}. File will be deleted after processing."
+                f"Video ID {video.id} will be deleted after processing (delete_after_processing=true)."
             )
 
         # Execute Celery task asynchronously

@@ -13,9 +13,11 @@ from django.conf import settings
 from openai import OpenAI
 
 from app.tasks.audio_processing import extract_and_split_audio
-from app.tasks.srt_processing import apply_scene_splitting, transcribe_and_create_srt
+from app.tasks.srt_processing import (apply_scene_splitting,
+                                      transcribe_and_create_srt)
 from app.tasks.vector_indexing import index_scenes_batch
-from app.utils.task_helpers import ErrorHandler, TemporaryFileManager, VideoTaskManager
+from app.utils.task_helpers import (ErrorHandler, TemporaryFileManager,
+                                    VideoTaskManager)
 
 logger = logging.getLogger(__name__)
 
@@ -81,17 +83,15 @@ def save_video_duration(video, video_file_path):
 
 def cleanup_external_upload(video_file, video_id):
     """
-    Delete video file after processing for external API uploads
+    Delete video file after processing when delete_after_processing flag is set
     """
     try:
         if video_file:
             video_file.delete(save=False)
-            logger.info(
-                f"Deleted video file for external upload (video ID: {video_id})"
-            )
+            logger.info(f"Deleted video file after processing (video ID: {video_id})")
     except Exception as e:
         logger.warning(
-            f"Failed to delete video file for external upload (video ID: {video_id}): {e}"
+            f"Failed to delete video file after processing (video ID: {video_id}): {e}"
         )
 
 
