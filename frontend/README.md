@@ -83,7 +83,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ## Internationalization (i18n)
 
-This frontend supports multiple languages using [i18next](https://www.i18next.com/) and `react-i18next`.
+This frontend supports multiple languages using [next-intl](https://next-intl-docs.vercel.app/).
 
 ### Supported Languages
 - English (`en`) - Default
@@ -91,30 +91,37 @@ This frontend supports multiple languages using [i18next](https://www.i18next.co
 
 ### Language Detection
 
-Language is auto-detected in this order:
-1. `lang` query parameter (e.g., `?lang=ja`)
-2. Cookie (`i18next` cookie)
-3. localStorage (`i18nextLng`)
-4. Browser settings (navigator language)
+Language is auto-detected based on:
+1. URL path prefix (e.g., `/ja/videos`, `/en/videos`)
+2. Browser settings (Accept-Language header)
+3. Default locale (`en`) if none of the above match
 
-### Usage in React Components
+The routing is configured with `localePrefix: "as-needed"`, which means:
+- Default locale (`en`) URLs don't include the locale prefix: `/videos`
+- Other locales include the prefix: `/ja/videos`
+
+### Usage in React Server Components
 
 ```typescript
-import { useTranslation } from 'react-i18next';
+import { useTranslations } from 'next-intl';
 
 function MyComponent() {
-  const { t } = useTranslation();
+  const t = useTranslations();
   return <div>{t('translation.key')}</div>;
 }
 ```
 
-### Usage in Non-React Code
+### Usage in Client Components
 
 ```typescript
-import { initI18n } from '@/i18n/config';
+'use client';
 
-const i18n = initI18n();
-const text = i18n.t('translation.key');
+import { useTranslations } from 'next-intl';
+
+function MyComponent() {
+  const t = useTranslations();
+  return <div>{t('translation.key')}</div>;
+}
 ```
 
 ### Translation Files
@@ -127,31 +134,31 @@ Translation strings are defined in:
 
 ### Configuration
 
-The root layout wraps the app with `I18nProvider`, which:
-- Initializes i18next on the client
-- Updates `document.documentElement.lang` based on detected language
-- Provides translation context to all components
+- **Routing**: `frontend/i18n/routing.ts` - Defines supported locales and routing configuration
+- **Request**: `frontend/i18n/request.ts` - Loads translation messages based on the current locale
+- **Layout**: The root layout (`app/[locale]/layout.tsx`) provides translations to all pages
 
 ## Directory structure
 
 ```
 frontend/
 ├── app/                      # Next.js App Router
-│   ├── page.tsx              # Home page
-│   ├── login/                # Login page
-│   ├── signup/               # Sign-up page
-│   │   └── check-email/      # Waiting-for-confirmation page
-│   ├── verify-email/         # Email verification page
-│   ├── forgot-password/      # Password reset request page
-│   ├── reset-password/       # Password reset page
-│   ├── settings/             # Settings page
-│   ├── videos/               # Video pages
-│   │   ├── page.tsx          # Video list page
-│   │   ├── [id]/             # Video detail page
-│   │   └── groups/           # Video group pages
-│   │       └── [id]/         # Video group detail page
-│   └── share/                # Share pages
-│       └── [token]/          # Share token page
+│   └── [locale]/             # Locale-based routing
+│       ├── page.tsx          # Home page
+│       ├── login/            # Login page
+│       ├── signup/           # Sign-up page
+│       │   └── check-email/  # Waiting-for-confirmation page
+│       ├── verify-email/     # Email verification page
+│       ├── forgot-password/  # Password reset request page
+│       ├── reset-password/   # Password reset page
+│       ├── settings/         # Settings page
+│       ├── videos/           # Video pages
+│       │   ├── page.tsx      # Video list page
+│       │   ├── [id]/         # Video detail page
+│       │   └── groups/       # Video group pages
+│       │       └── [id]/     # Video group detail page
+│       └── share/            # Share pages
+│           └── [token]/      # Share token page
 ├── components/               # React components
 │   ├── auth/                 # Auth components
 │   ├── video/                # Video components
@@ -161,6 +168,12 @@ frontend/
 │   └── ui/                   # UI components (shadcn/ui)
 ├── hooks/                    # Custom hooks (useAuth, useVideos, useAsyncState, etc.)
 ├── lib/                      # Libraries and utilities (api, errorUtils, etc.)
+├── i18n/                     # Internationalization (next-intl config and locales)
+│   ├── locales/              # Translation files
+│   │   ├── en/               # English translations
+│   │   └── ja/               # Japanese translations
+│   ├── routing.ts            # Routing configuration
+│   └── request.ts            # Request configuration
 ├── public/                   # Static assets
 ├── package.json              # Node.js dependencies
 ├── Dockerfile                # Frontend Docker image
