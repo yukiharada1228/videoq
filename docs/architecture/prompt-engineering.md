@@ -247,5 +247,5 @@ print(prompt_ja)
 ## Related Documentation
 
 - [System Configuration Diagram](system-configuration-diagram.md)
-- [Scene Splitting](../README.md#scene-detection-scene_otsu) (README.md)
+- [Scene Splitting](../../README.md#scene-detection-scene_otsu) (project root README)
 - [Vector Management](../../backend/app/utils/vector_manager.py)
