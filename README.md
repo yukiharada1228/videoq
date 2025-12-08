@@ -50,21 +50,22 @@ videoq/
 │   └── README.md                   # Backend README
 ├── frontend/                       # Next.js + TypeScript frontend
 │   ├── app/                        # Next.js App Router
-│   │   ├── page.tsx                # Home page
-│   │   ├── login/                  # Login page
-│   │   ├── signup/                 # Sign-up page
-│   │   │   └── check-email/        # Waiting for email confirmation page
-│   │   ├── verify-email/           # Email verification page
-│   │   ├── forgot-password/        # Password reset request page
-│   │   ├── reset-password/         # Password reset page
-│   │   ├── settings/               # Settings page
-│   │   ├── videos/                 # Video pages
-│   │   │   ├── page.tsx            # Video list page
-│   │   │   ├── [id]/               # Video detail page
-│   │   │   └── groups/             # Video group pages
-│   │   │       └── [id]/           # Video group detail page
-│   │   └── share/                  # Share pages
-│   │       └── [token]/            # Share token page
+│   │   └── [locale]/               # Locale-based routing
+│   │       ├── page.tsx            # Home page
+│   │       ├── login/              # Login page
+│   │       ├── signup/             # Sign-up page
+│   │       │   └── check-email/    # Waiting for email confirmation page
+│   │       ├── verify-email/       # Email verification page
+│   │       ├── forgot-password/    # Password reset request page
+│   │       ├── reset-password/     # Password reset page
+│   │       ├── settings/           # Settings page
+│   │       ├── videos/             # Video pages
+│   │       │   ├── page.tsx        # Video list page
+│   │       │   ├── [id]/           # Video detail page
+│   │       │   └── groups/         # Video group pages
+│   │       │       └── [id]/       # Video group detail page
+│   │       └── share/              # Share pages
+│   │           └── [token]/        # Share token page
 │   ├── components/                 # React components
 │   │   ├── auth/                   # Auth components
 │   │   ├── video/                  # Video components
@@ -74,7 +75,7 @@ videoq/
 │   │   └── ui/                     # UI components (shadcn/ui)
 │   ├── hooks/                      # Custom hooks (useAuth, useVideos, useAsyncState, etc.)
 │   ├── lib/                        # Libraries/utilities (api, errorUtils, etc.)
-│   ├── i18n/                       # Internationalization (i18next config and locales)
+│   ├── i18n/                       # Internationalization (next-intl config and locales)
 │   ├── package.json                # Node.js dependencies
 │   ├── package-lock.json           # npm lockfile
 │   ├── Dockerfile                  # Frontend Docker image
@@ -166,9 +167,7 @@ videoq/
 - **@dnd-kit/utilities** (^3.2.2) - DnD utilities
 
 #### Internationalization
-- **i18next** (^24.2.1) - Internationalization framework
-- **react-i18next** (^15.1.0) - React integration for i18next
-- **i18next-browser-languagedetector** (^8.0.0) - Language detection
+- **next-intl** (^4.5.8) - Internationalization framework for Next.js
 
 #### Utilities
 - **date-fns** (^4.1.0) - Date utilities
