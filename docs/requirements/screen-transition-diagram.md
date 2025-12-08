@@ -77,27 +77,31 @@ stateDiagram-v2
 ## Screen List
 
 ### Authentication Related
-- **Home** (`/`): Home page
-- **Login** (`/login`): Login page
-- **Signup** (`/signup`): Sign up page
-- **CheckEmail** (`/signup/check-email`): Email confirmation waiting page
-- **VerifyEmail** (`/verify-email`): Email verification page
-- **ForgotPassword** (`/forgot-password`): Password reset request page
-- **ResetPassword** (`/reset-password`): Password reset page
+- **Home** (`/` or `/[locale]`): Home page (e.g., `/`, `/en`, `/ja`)
+- **Login** (`/[locale]/login`): Login page (e.g., `/login`, `/en/login`, `/ja/login`)
+- **Signup** (`/[locale]/signup`): Sign up page
+- **CheckEmail** (`/[locale]/signup/check-email`): Email confirmation waiting page
+- **VerifyEmail** (`/[locale]/verify-email`): Email verification page
+- **ForgotPassword** (`/[locale]/forgot-password`): Password reset request page
+- **ResetPassword** (`/[locale]/reset-password`): Password reset page
 
 ### Video Management
-- **VideoList** (`/videos`): Video list page
-- **VideoDetail** (`/videos/[id]`): Video detail page
+- **VideoList** (`/[locale]/videos`): Video list page
+- **VideoDetail** (`/[locale]/videos/[id]`): Video detail page
 
 ### Group Management
-- **VideoGroupList** (`/videos/groups`): Group list page
-- **VideoGroupDetail** (`/videos/groups/[id]`): Group detail page
+- **VideoGroupList** (`/[locale]/videos/groups`): Group list page
+- **VideoGroupDetail** (`/[locale]/videos/groups/[id]`): Group detail page
 
 ### Sharing
-- **SharePage** (`/share/[token]`): Share page (no authentication required)
+- **SharePage** (`/[locale]/share/[token]`): Share page (no authentication required)
 
 ### Settings
-- **Settings** (`/settings`): Settings page
+- **Settings** (`/[locale]/settings`): Settings page
+
+**Note**: The application uses next-intl with `localePrefix: "as-needed"` configuration:
+- Default locale (`en`) URLs don't include the locale prefix: `/videos`
+- Other locales include the prefix: `/ja/videos`
 
 ## Transition Conditions
 
