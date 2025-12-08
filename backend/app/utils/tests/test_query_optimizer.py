@@ -305,4 +305,3 @@ class CacheOptimizerTests(TestCase):
         data = CacheOptimizer.get_group_data_by_ids([])
 
         self.assertEqual(data, {})
-
