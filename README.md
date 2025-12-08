@@ -28,7 +28,7 @@ videoq/
 │   │   ├── common/                 # Common (authentication, permissions, responses)
 │   │   ├── media/                  # Media delivery (views)
 │   │   ├── scene_otsu/             # Scene detection
-│   │   ├── utils/                  # Utilities (encryption, vector_manager, task_helpers, email, plan_limits, query_optimizer, etc.)
+│   │   ├── utils/                  # Utilities (email, task_helpers, query_optimizer, performance_utils, response_utils, vector_manager, etc.)
 │   │   ├── migrations/             # Database migrations
 │   │   ├── models.py               # Data models (User, Video, VideoGroup, ChatLog, etc.)
 │   │   ├── tasks/                  # Celery tasks
@@ -137,9 +137,9 @@ videoq/
 ### Frontend
 
 #### Frameworks / Runtime
-- **Next.js** (16.0.0) - React framework
-- **React** (19.2.0) - UI library
-- **React DOM** (19.2.0) - React DOM renderer
+- **Next.js** (16.0.7) - React framework
+- **React** (19.2.1) - UI library
+- **React DOM** (19.2.1) - React DOM renderer
 - **TypeScript** (^5) - Type safety
 
 #### UI Components / Styling
@@ -151,7 +151,7 @@ videoq/
   - **@radix-ui/react-dialog** (^1.1.15) - Dialog
   - **@radix-ui/react-label** (^2.1.7) - Label
   - **@radix-ui/react-slot** (^1.2.3) - Slot
-- **lucide-react** (^0.548.0) - Icon library
+- **lucide-react** (^0.556.0) - Icon library
 - **class-variance-authority** (^0.7.1) - Component variants
 - **clsx** (^2.1.1) - Classname utility
 - **tailwind-merge** (^3.3.1) - Tailwind class merge
@@ -317,7 +317,6 @@ docker compose exec postgres psql -U $POSTGRES_USER -d $POSTGRES_DB
 - Token refresh (automatic via HttpOnly Cookie)
 - Logout
 - Password reset (via email)
-- Usage statistics retrieval
 
 ### Video Management
 
