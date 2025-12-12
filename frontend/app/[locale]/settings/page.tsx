@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiClient } from '@/lib/api';
 import { OpenAIApiKeySettings } from '@/components/settings/OpenAIApiKeySettings';
@@ -14,7 +14,7 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [hasApiKey, setHasApiKey] = useState(false);
 
-  const fetchApiKeyStatus = async () => {
+  const fetchApiKeyStatus = useCallback(async () => {
     try {
       const isAuth = await apiClient.isAuthenticated();
       if (!isAuth) {
@@ -29,11 +29,11 @@ export default function SettingsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [router]);
 
   useEffect(() => {
     fetchApiKeyStatus();
-  }, []);
+  }, [fetchApiKeyStatus]);
 
   const handleApiKeyChange = () => {
     fetchApiKeyStatus();

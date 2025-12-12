@@ -89,6 +89,24 @@ describe('apiPatterns', () => {
       expect(apiCall).toHaveBeenCalledTimes(1)
     })
 
+    it('should work with default maxRetries/delay', async () => {
+      jest.useFakeTimers()
+
+      const apiCall = jest.fn()
+        .mockRejectedValueOnce(new Error('Failed'))
+        .mockRejectedValueOnce(new Error('Failed'))
+        .mockResolvedValue('success')
+
+      const promise = retryApiCall(apiCall)
+      await jest.runAllTimersAsync()
+      const result = await promise
+
+      expect(result).toBe('success')
+      expect(apiCall).toHaveBeenCalledTimes(3)
+
+      jest.useRealTimers()
+    }, 10000)
+
     it('should retry on failure then succeed', async () => {
       jest.useFakeTimers()
       
@@ -221,6 +239,18 @@ describe('apiPatterns', () => {
       expect(apiCall).toHaveBeenCalledTimes(1)
     })
 
+    it('should cache API call result with default TTL', async () => {
+      const apiCall = jest.fn().mockResolvedValue('data')
+      const cached = cachedApiCall('key-default-ttl', apiCall)
+
+      const result1 = await cached()
+      const result2 = await cached()
+
+      expect(result1).toBe('data')
+      expect(result2).toBe('data')
+      expect(apiCall).toHaveBeenCalledTimes(1)
+    })
+
     it('should refresh cache after TTL', async () => {
       jest.useFakeTimers()
       
@@ -273,6 +303,31 @@ describe('apiPatterns', () => {
       expect(results).toEqual(['data', 'data', 'data'])
       expect(apiCall).toHaveBeenCalledTimes(1)
       
+      jest.useRealTimers()
+    }, 15000)
+
+    it('should reuse pending promise between debounce windows', async () => {
+      jest.useFakeTimers()
+
+      let resolveFn: ((value: string) => void) | null = null
+      const apiCall = jest.fn(() => new Promise<string>((resolve) => {
+        resolveFn = resolve
+      }))
+
+      const debounced = debouncedApiCall(apiCall, 1000)
+
+      const promise1 = debounced()
+      jest.advanceTimersByTime(1000)
+      expect(apiCall).toHaveBeenCalledTimes(1)
+
+      const promise2 = debounced()
+      jest.advanceTimersByTime(1000)
+      expect(apiCall).toHaveBeenCalledTimes(1)
+
+      resolveFn?.('data')
+
+      await expect(Promise.all([promise1, promise2])).resolves.toEqual(['data', 'data'])
+
       jest.useRealTimers()
     }, 15000)
 
