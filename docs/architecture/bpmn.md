@@ -70,8 +70,8 @@ flowchart TD
     ValidateQuestion -->|Valid| CheckAuth{Authentication Check}
     CheckAuth -->|Unauthenticated| RequireAuth[Require Authentication]
     RequireAuth --> End([End])
-    CheckAuth -->|Authenticated| CheckAPIKey{System API Key<br/>Configuration Check}
-    CheckAPIKey -->|Not Configured| RequireAPIKey[System API Key Not Configured]
+    CheckAuth -->|Authenticated| CheckAPIKey{OpenAI API Key<br/>Configuration Check<br/>(User / Group Owner when shared)}
+    CheckAPIKey -->|Not Configured| RequireAPIKey[OpenAI API Key Not Configured]
     RequireAPIKey --> End
     CheckAPIKey -->|Configured| CheckGroup{Group Specified}
     

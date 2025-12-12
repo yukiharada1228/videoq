@@ -57,7 +57,7 @@ flowchart TD
     Validate1 -->|Valid| Send[Send API Request]
     Send --> Auth{Authentication Check}
     Auth -->|Failed| Error2[Authentication Error]
-    Auth -->|Success| CheckAPIKey{System API Key<br/>Configured?}
+    Auth -->|Success| CheckAPIKey{OpenAI API Key Configured?<br/>(User / Group Owner when shared)}
     CheckAPIKey -->|Not Configured| Error3[API Key Not Configured Error]
     CheckAPIKey -->|Configured| CheckGroup{Group Specified?}
     CheckGroup -->|No| NoContext[No Context]

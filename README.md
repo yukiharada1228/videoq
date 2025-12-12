@@ -228,13 +228,23 @@ Required variables:
 - `ALLOWED_HOSTS` - Allowed hostnames (comma-separated)
 - `CORS_ALLOWED_ORIGINS` - CORS allowed origins (comma-separated)
 - `SECURE_COOKIES` - Set to "true" in production with HTTPS to enable secure cookie flag (default: "false")
-- `ANYMAIL_*` - Email sending config (for email verification and password reset)
+- Email sending config (for email verification and password reset)
+  - `USE_MAILGUN` - Use Mailgun if "true" (default: "false")
+  - If `USE_MAILGUN=true`
+    - `MAILGUN_API_KEY`
+    - `MAILGUN_SENDER_DOMAIN`
+  - Else (SMTP / custom backend)
+    - `EMAIL_BACKEND` - Django email backend (default: console backend)
+    - `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_USE_TLS`
+    - `DEFAULT_FROM_EMAIL`
 - `FRONTEND_URL` - Frontend URL (used for links in emails)
 - `USE_S3_STORAGE` - Use S3 storage if "true" (default: "false")
 - `AWS_STORAGE_BUCKET_NAME` - S3 bucket name (required if `USE_S3_STORAGE=true`)
 - `AWS_ACCESS_KEY_ID` - AWS access key ID (required if `USE_S3_STORAGE=true`)
 - `AWS_SECRET_ACCESS_KEY` - AWS secret access key (required if `USE_S3_STORAGE=true`)
 - `NEXT_PUBLIC_API_URL` - API URL for Next.js
+
+Tip: When using the default Docker Compose + Nginx setup, `NEXT_PUBLIC_API_URL` should typically be `http://localhost/api`.
 
 #### 2. Start all services
 
@@ -637,8 +647,9 @@ curl -X POST "$BASE_URL/api/chat/feedback/" \
 
 Notes:
 - If you pass `group_id`, vector search (RAG) is limited to videos in that group.
-- **Each user must set their own OpenAI API key in the settings page.** The system no longer uses a shared `OPENAI_API_KEY` environment variable. All OpenAI-related features (transcription, chat) require a user-configured API key.
-- Chat is also available with a share token (use the `share_token` query parameter).
+- **Each user must set their own OpenAI API key in the settings page** (stored encrypted in the DB).
+- Chat is also available with a share token (use the `share_token` query parameter). **In this case, the backend uses the group owner's OpenAI API key.**
+- `OPENAI_API_KEY` is an optional environment variable and is not used in the standard user flow.
 - Do not send a `system` message; the backend constructs the system prompt internally. Only the latest `user` message in `messages` is used.
 - The system uses prompt engineering for RAG. See [Prompt Engineering Documentation](docs/architecture/prompt-engineering.md) for details on how prompts are constructed and customized.
 
