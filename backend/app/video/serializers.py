@@ -58,6 +58,29 @@ class VideoCreateSerializer(UserOwnedSerializerMixin, serializers.ModelSerialize
         model = Video
         fields = ["file", "title", "description", "delete_after_processing"]
 
+    def validate(self, attrs):
+        """Validate video upload limit"""
+        user = self.context["request"].user
+
+        # Check video limit
+        video_limit = user.video_limit
+
+        # If video_limit is None, unlimited uploads are allowed
+        if video_limit is None:
+            return attrs
+
+        # Get current video count for the user
+        current_video_count = Video.objects.filter(user=user).count()
+
+        # If video_limit is 0, no uploads are allowed
+        # If video_limit is > 0, check if user has reached the limit
+        if current_video_count >= video_limit:
+            raise serializers.ValidationError(
+                f"Video upload limit reached. You can upload up to {video_limit} video(s)."
+            )
+
+        return attrs
+
     def create(self, validated_data):
         """Start transcription task when Video is created"""
         # Extract delete_after_processing flag (not saved to model)
