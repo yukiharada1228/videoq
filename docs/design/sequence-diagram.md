@@ -56,8 +56,8 @@ sequenceDiagram
     participant OpenAI as OpenAI API
 
     User->>Frontend: Input Question
-    Frontend->>Backend: POST /api/chat/?group_id=123
-    Backend->>Backend: Get System OpenAI API Key
+    Frontend->>Backend: POST /api/chat/ (body: group_id=123)
+    Backend->>Backend: Get OpenAI API Key (User)
     Backend->>DB: Get VideoGroup
     DB-->>Backend: VideoGroup Information
     Backend->>PGVector: Search Related Scenes(Vector Search)
@@ -137,10 +137,10 @@ sequenceDiagram
     Frontend-->>Guest: Display Group Information
     
     Guest->>Frontend: Send Chat
-    Frontend->>Backend: POST /api/chat/?share_token={token}
-    Backend->>DB: Search Group by share_token
+    Frontend->>Backend: POST /api/chat/?share_token={token} (body: group_id={id})
+    Backend->>DB: Get VideoGroup by id + share_token
     DB-->>Backend: VideoGroup Information
-    Backend->>Backend: Get System OpenAI API Key
+    Backend->>Backend: Get OpenAI API Key (Group Owner)
     Backend->>Backend: Execute RAG Processing
     Backend->>DB: Save ChatLog(is_shared_origin: True)
     Backend-->>Frontend: Answer
