@@ -5,10 +5,11 @@ Tests for llm module
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase, override_settings
+from django.test import TestCase
 from rest_framework import status
 
 from app.chat.services.llm import get_langchain_llm, handle_langchain_exception
+from app.utils.encryption import encrypt_api_key
 
 User = get_user_model()
 
@@ -23,10 +24,12 @@ class GetLangchainLLMTests(TestCase):
             password="testpass123",
         )
 
-    @override_settings(OPENAI_API_KEY="test-api-key")
     @patch("app.chat.services.llm.ChatOpenAI")
     def test_get_langchain_llm_with_api_key(self, mock_chat_openai):
         """Test get_langchain_llm when API key is configured"""
+        self.user.openai_api_key_encrypted = encrypt_api_key("test-api-key")
+        self.user.save(update_fields=["openai_api_key_encrypted"])
+
         llm, error_response = get_langchain_llm(self.user)
 
         self.assertIsNotNone(llm)
@@ -37,27 +40,32 @@ class GetLangchainLLMTests(TestCase):
             temperature=0.7,
         )
 
-    @override_settings(OPENAI_API_KEY=None)
     def test_get_langchain_llm_without_api_key(self):
         """Test get_langchain_llm when API key is not configured"""
+        self.user.openai_api_key_encrypted = None
+        self.user.save(update_fields=["openai_api_key_encrypted"])
+
         llm, error_response = get_langchain_llm(self.user)
 
         self.assertIsNone(llm)
         self.assertIsNotNone(error_response)
         self.assertEqual(
-            error_response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR
+            error_response.status_code, status.HTTP_400_BAD_REQUEST
         )
         self.assertIn("OpenAI API key is not configured", str(error_response.data))
 
-    @override_settings(OPENAI_API_KEY="")
     def test_get_langchain_llm_with_empty_api_key(self):
         """Test get_langchain_llm when API key is empty string"""
+        # Empty API keys are treated as "not configured".
+        self.user.openai_api_key_encrypted = None
+        self.user.save(update_fields=["openai_api_key_encrypted"])
+
         llm, error_response = get_langchain_llm(self.user)
 
         self.assertIsNone(llm)
         self.assertIsNotNone(error_response)
         self.assertEqual(
-            error_response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR
+            error_response.status_code, status.HTTP_400_BAD_REQUEST
         )
         self.assertIn("OpenAI API key is not configured", str(error_response.data))
 
