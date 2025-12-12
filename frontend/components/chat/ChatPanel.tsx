@@ -7,7 +7,6 @@ import { timeStringToSeconds } from '@/lib/utils/video';
 import { cn } from '@/lib/utils';
 import { useTranslations } from 'next-intl';
 import { useOpenAIApiKeyStatus } from '@/hooks/useOpenAIApiKeyStatus';
-import { OpenAIApiKeyRequiredBanner } from '@/components/common/OpenAIApiKeyRequiredBanner';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -192,12 +191,6 @@ export function ChatPanel({ groupId, onVideoPlay, shareToken, className }: ChatP
       <Card className={cardClassName}>
         <ChatHeader />
         <CardContent className="flex-1 flex flex-col overflow-hidden min-h-0">
-          {apiKeyRequiredAndMissing && (
-            <div className="mb-4">
-              <OpenAIApiKeyRequiredBanner />
-            </div>
-          )}
-
           <div ref={messagesContainerRef} className="flex-1 overflow-y-auto space-y-4 mb-4">
             {messages.map((message, index) => (
               <div
