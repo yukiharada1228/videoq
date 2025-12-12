@@ -80,9 +80,15 @@ class LoginSerializer(serializers.Serializer, CredentialsSerializerMixin):
 
 
 class UserSerializer(serializers.ModelSerializer):
+    video_count = serializers.SerializerMethodField()
+
     class Meta:
         model = User
-        fields = ["id", "username", "email"]
+        fields = ["id", "username", "email", "video_limit", "video_count"]
+
+    def get_video_count(self, obj):
+        """現在のユーザーの動画数を返す"""
+        return obj.videos.count()
 
 
 class RefreshSerializer(serializers.Serializer):
