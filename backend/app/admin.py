@@ -36,6 +36,7 @@ class CustomUserAdmin(UserAdmin):
         "date_joined",
         "last_login",
         "is_active",
+        "video_limit",
     )
     list_filter = (
         "is_staff",
@@ -43,7 +44,10 @@ class CustomUserAdmin(UserAdmin):
     )
     search_fields = ("username",)
     ordering = ("-date_joined",)
-    fieldsets = UserAdmin.fieldsets
+
+    fieldsets = UserAdmin.fieldsets + (
+        ("Video Settings", {"fields": ("video_limit",)}),
+    )
     add_fieldsets = UserAdmin.add_fieldsets
 
 
