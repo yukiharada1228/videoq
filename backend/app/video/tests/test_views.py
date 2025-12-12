@@ -634,3 +634,190 @@ class VideoUploadDeleteAfterProcessingTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         video = Video.objects.first()
         self.assertTrue(video.is_external_upload)  # Should be True when flag is set
+
+
+class VideoLimitTests(APITestCase):
+    """Tests for video upload limit functionality"""
+
+    def setUp(self):
+        self.client = APIClient()
+
+    def _create_video_file(self):
+        """Helper method to create a test video file"""
+        from io import BytesIO
+
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        return SimpleUploadedFile(
+            "test_video.mp4",
+            BytesIO(b"fake video content").read(),
+            content_type="video/mp4",
+        )
+
+    @patch("app.video.serializers.transcribe_video.delay")
+    def test_upload_with_unlimited_video_limit(self, mock_task):
+        """Test video upload when video_limit is None (unlimited)"""
+        user = User.objects.create_user(
+            username="testuser",
+            email="test@example.com",
+            password="testpass123",
+            video_limit=None,  # Unlimited
+        )
+        self.client.force_authenticate(user=user)
+
+        # Create 3 videos
+        for i in range(3):
+            url = reverse("video-list")
+            data = {
+                "file": self._create_video_file(),
+                "title": f"Test Video {i}",
+                "description": "Test Description",
+            }
+            response = self.client.post(url, data, format="multipart")
+            self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        self.assertEqual(Video.objects.filter(user=user).count(), 3)
+
+    @patch("app.video.serializers.transcribe_video.delay")
+    def test_upload_with_zero_video_limit(self, mock_task):
+        """Test video upload when video_limit is 0 (no uploads allowed)"""
+        user = User.objects.create_user(
+            username="testuser",
+            email="test@example.com",
+            password="testpass123",
+            video_limit=0,  # No uploads allowed
+        )
+        self.client.force_authenticate(user=user)
+
+        url = reverse("video-list")
+        data = {
+            "file": self._create_video_file(),
+            "title": "Test Video",
+            "description": "Test Description",
+        }
+        response = self.client.post(url, data, format="multipart")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("Video upload limit reached", str(response.data))
+        self.assertEqual(Video.objects.filter(user=user).count(), 0)
+
+    @patch("app.video.serializers.transcribe_video.delay")
+    def test_upload_within_video_limit(self, mock_task):
+        """Test video upload within the limit"""
+        user = User.objects.create_user(
+            username="testuser",
+            email="test@example.com",
+            password="testpass123",
+            video_limit=3,
+        )
+        self.client.force_authenticate(user=user)
+
+        # Upload 2 videos (within limit of 3)
+        for i in range(2):
+            url = reverse("video-list")
+            data = {
+                "file": self._create_video_file(),
+                "title": f"Test Video {i}",
+                "description": "Test Description",
+            }
+            response = self.client.post(url, data, format="multipart")
+            self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        self.assertEqual(Video.objects.filter(user=user).count(), 2)
+
+    @patch("app.video.serializers.transcribe_video.delay")
+    def test_upload_at_exact_video_limit(self, mock_task):
+        """Test video upload at exact limit"""
+        user = User.objects.create_user(
+            username="testuser",
+            email="test@example.com",
+            password="testpass123",
+            video_limit=2,
+        )
+        self.client.force_authenticate(user=user)
+
+        # Upload exactly 2 videos (the limit)
+        for i in range(2):
+            url = reverse("video-list")
+            data = {
+                "file": self._create_video_file(),
+                "title": f"Test Video {i}",
+                "description": "Test Description",
+            }
+            response = self.client.post(url, data, format="multipart")
+            self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        self.assertEqual(Video.objects.filter(user=user).count(), 2)
+
+    @patch("app.video.serializers.transcribe_video.delay")
+    def test_upload_exceeds_video_limit(self, mock_task):
+        """Test video upload when limit is exceeded"""
+        user = User.objects.create_user(
+            username="testuser",
+            email="test@example.com",
+            password="testpass123",
+            video_limit=2,
+        )
+        self.client.force_authenticate(user=user)
+
+        # Upload 2 videos successfully
+        for i in range(2):
+            url = reverse("video-list")
+            data = {
+                "file": self._create_video_file(),
+                "title": f"Test Video {i}",
+                "description": "Test Description",
+            }
+            response = self.client.post(url, data, format="multipart")
+            self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        # Try to upload the 3rd video (should fail)
+        url = reverse("video-list")
+        data = {
+            "file": self._create_video_file(),
+            "title": "Test Video 3",
+            "description": "Test Description",
+        }
+        response = self.client.post(url, data, format="multipart")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("Video upload limit reached", str(response.data))
+        self.assertEqual(Video.objects.filter(user=user).count(), 2)
+
+    @patch("app.video.serializers.transcribe_video.delay")
+    def test_upload_after_deleting_video_within_limit(self, mock_task):
+        """Test video upload after deleting a video to free up space"""
+        user = User.objects.create_user(
+            username="testuser",
+            email="test@example.com",
+            password="testpass123",
+            video_limit=2,
+        )
+        self.client.force_authenticate(user=user)
+
+        # Upload 2 videos
+        for i in range(2):
+            url = reverse("video-list")
+            data = {
+                "file": self._create_video_file(),
+                "title": f"Test Video {i}",
+                "description": "Test Description",
+            }
+            response = self.client.post(url, data, format="multipart")
+            self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        # Delete one video
+        video = Video.objects.filter(user=user).first()
+        video.delete()
+        self.assertEqual(Video.objects.filter(user=user).count(), 1)
+
+        # Now upload should succeed
+        url = reverse("video-list")
+        data = {
+            "file": self._create_video_file(),
+            "title": "Test Video 3",
+            "description": "Test Description",
+        }
+        response = self.client.post(url, data, format="multipart")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(Video.objects.filter(user=user).count(), 2)
