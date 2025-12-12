@@ -2,7 +2,6 @@
 
 from typing import Tuple
 
-from django.conf import settings
 from django.contrib.auth import get_user_model
 from langchain_openai import ChatOpenAI
 from rest_framework import status

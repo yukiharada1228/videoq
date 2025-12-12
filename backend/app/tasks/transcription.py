@@ -9,7 +9,6 @@ import subprocess
 import tempfile
 
 from celery import shared_task
-from django.conf import settings
 from openai import OpenAI
 
 from app.tasks.audio_processing import extract_and_split_audio

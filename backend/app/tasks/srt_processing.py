@@ -4,8 +4,6 @@ SRT subtitle processing utilities
 
 import logging
 
-from django.conf import settings
-
 from app.scene_otsu import SceneSplitter, SubtitleParser
 from app.tasks.audio_processing import process_audio_segments_parallel
 
