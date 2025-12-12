@@ -201,3 +201,41 @@ class RefreshResponseSerializer(serializers.Serializer):
 
 class MessageResponseSerializer(serializers.Serializer):
     detail = serializers.CharField(help_text="Response message")
+
+
+# OpenAI API Key serializers
+class OpenAIApiKeySetSerializer(serializers.Serializer):
+    api_key = serializers.CharField(
+        write_only=True,
+        style={"input_type": "password"},
+        help_text="OpenAI API key (starts with sk-)",
+        min_length=20,
+        max_length=200,
+    )
+
+    def validate_api_key(self, value):
+        """Validate OpenAI API key format"""
+        if not value.startswith("sk-"):
+            raise serializers.ValidationError(
+                "Invalid API key format. OpenAI API keys should start with 'sk-'."
+            )
+        return value
+
+    def save(self, user):
+        """Save encrypted API key to user"""
+        from app.utils.encryption import encrypt_api_key
+
+        api_key = self.validated_data["api_key"]
+        user.openai_api_key_encrypted = encrypt_api_key(api_key)
+        user.save(update_fields=["openai_api_key_encrypted"])
+        return user
+
+
+class OpenAIApiKeyStatusSerializer(serializers.Serializer):
+    has_api_key = serializers.BooleanField(
+        help_text="Whether the user has set an OpenAI API key"
+    )
+
+
+class OpenAIApiKeyMessageSerializer(serializers.Serializer):
+    message = serializers.CharField(help_text="Response message")

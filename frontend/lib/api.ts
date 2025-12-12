@@ -149,6 +149,18 @@ export interface VideoGroupList {
   video_count: number;
 }
 
+export interface OpenAIApiKeySetRequest {
+  api_key: string;
+}
+
+export interface OpenAIApiKeyStatusResponse {
+  has_api_key: boolean;
+}
+
+export interface OpenAIApiKeyMessageResponse {
+  message: string;
+}
+
 class ApiClient {
   private baseUrl: string;
 
@@ -640,6 +652,24 @@ class ApiClient {
     const url = new URL(videoFile, window.location.origin);
     url.searchParams.set('share_token', shareToken);
     return url.toString();
+  }
+
+  // OpenAI API Key management methods
+  async setOpenAIApiKey(data: OpenAIApiKeySetRequest): Promise<OpenAIApiKeyMessageResponse> {
+    return this.request<OpenAIApiKeyMessageResponse>('/auth/me/openai-api-key/', {
+      method: 'POST',
+      body: data,
+    });
+  }
+
+  async getOpenAIApiKeyStatus(): Promise<OpenAIApiKeyStatusResponse> {
+    return this.request<OpenAIApiKeyStatusResponse>('/auth/me/openai-api-key/status/');
+  }
+
+  async deleteOpenAIApiKey(): Promise<OpenAIApiKeyMessageResponse> {
+    return this.request<OpenAIApiKeyMessageResponse>('/auth/me/openai-api-key/delete/', {
+      method: 'DELETE',
+    });
   }
 
 }

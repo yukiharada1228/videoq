@@ -11,6 +11,7 @@ import { VideoList } from '@/components/video/VideoList';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { LoadingState } from '@/components/common/LoadingState';
 import { Button } from '@/components/ui/button';
+import { useOpenAIApiKeyStatus } from '@/hooks/useOpenAIApiKeyStatus';
 
 function VideosContent() {
   const { videos, isLoading, error, loadVideos } = useVideos();
@@ -19,6 +20,7 @@ function VideosContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const t = useTranslations();
+  const { hasApiKey, isChecking: checkingApiKey } = useOpenAIApiKeyStatus();
 
   const shouldOpenModalFromQuery = useMemo(
     () => searchParams?.get('upload') === 'true',
@@ -29,6 +31,13 @@ function VideosContent() {
     // Load video list on page load
     loadVideos();
   }, [loadVideos]);
+
+  // If opened via query (?upload=true) but API key is missing, do not open modal.
+  useEffect(() => {
+    if (shouldOpenModalFromQuery && !checkingApiKey && hasApiKey === false) {
+      router.replace('/videos', { scroll: false });
+    }
+  }, [shouldOpenModalFromQuery, checkingApiKey, hasApiKey, router]);
 
   const handleUploadSuccess = () => {
     loadVideos();
@@ -61,12 +70,18 @@ function VideosContent() {
                   : t('videos.list.emptySubtitle')}
               </p>
             </div>
-            <Button onClick={handleUploadClick} className="flex items-center gap-2 w-full lg:w-auto" size="sm">
+            <Button
+              onClick={handleUploadClick}
+              disabled={hasApiKey !== true || checkingApiKey}
+              className="flex items-center gap-2 w-full lg:w-auto"
+              size="sm"
+            >
               <span>＋</span>
               <span>{t('videos.list.uploadButton')}</span>
             </Button>
           </div>
 
+          {/* API key warning */}
           {/* 統計情報 */}
           {stats.total > 0 && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

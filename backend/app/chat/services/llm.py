@@ -2,24 +2,28 @@
 
 from typing import Tuple
 
-from django.conf import settings
 from django.contrib.auth import get_user_model
 from langchain_openai import ChatOpenAI
 from rest_framework import status
 from rest_framework.response import Response
 
 from app.common.responses import create_error_response
+from app.utils.openai_utils import OpenAIApiKeyNotConfiguredError, get_openai_api_key
 
 User = get_user_model()
 
 
 def get_langchain_llm(user) -> Tuple[ChatOpenAI, Response]:
-    # Use system OpenAI API key from environment variable
-    api_key = settings.OPENAI_API_KEY
-    if not api_key:
-        return None, create_error_response(
-            "OpenAI API key is not configured", status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
+    # Use user's OpenAI API key
+    try:
+        api_key = get_openai_api_key(user)
+        if not api_key:
+            return None, create_error_response(
+                "OpenAI API key is not configured. Please set your API key in settings.",
+                status.HTTP_400_BAD_REQUEST,
+            )
+    except OpenAIApiKeyNotConfiguredError as e:
+        return None, create_error_response(str(e), status.HTTP_400_BAD_REQUEST)
 
     return (
         ChatOpenAI(

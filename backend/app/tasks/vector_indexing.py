@@ -14,17 +14,15 @@ from app.utils.vector_manager import PGVectorManager
 logger = logging.getLogger(__name__)
 
 
-def index_scenes_to_vectorstore(scene_docs, video, api_key=None):
+def index_scenes_to_vectorstore(scene_docs, video, api_key):
     """
     Create vector index using LangChain + pgvector
     scene_docs: [{text, metadata}]
+    api_key: OpenAI API key (required)
     """
     try:
-        # Use system OpenAI API key from environment variable if not provided
-        if api_key is None:
-            api_key = settings.OPENAI_API_KEY
-            if not api_key:
-                raise ValueError("OpenAI API key is not configured")
+        if not api_key:
+            raise ValueError("OpenAI API key is required")
         embeddings = OpenAIEmbeddings(model="text-embedding-3-small", api_key=api_key)
         config = PGVectorManager.get_config()
 
