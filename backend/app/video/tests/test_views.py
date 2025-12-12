@@ -548,6 +548,7 @@ class VideoUploadDeleteAfterProcessingTests(APITestCase):
             username="testuser",
             email="test@example.com",
             password="testpass123",
+            video_limit=None,
         )
         self.client = APIClient()
         self.client.force_authenticate(user=self.user)
