@@ -74,6 +74,18 @@ describe('performanceUtils', () => {
       expect(result).toBe('data')
       expect(loader).toHaveBeenCalledTimes(1)
     })
+
+    it('should use default cache when not provided', async () => {
+      const loader = jest.fn().mockResolvedValue('data')
+      const lazy = lazyLoad(loader)
+
+      const result1 = await lazy()
+      const result2 = await lazy()
+
+      expect(result1).toBe('data')
+      expect(result2).toBe('data')
+      expect(loader).toHaveBeenCalledTimes(1)
+    })
   })
 
   describe('batchProcess', () => {
@@ -87,6 +99,18 @@ describe('performanceUtils', () => {
 
       expect(results).toEqual([2, 4, 6, 8, 10])
       expect(processor).toHaveBeenCalledTimes(3)
+    })
+
+    it('should use default batch size when not provided', async () => {
+      const items = [1, 2, 3]
+      const processor = jest.fn().mockImplementation((batch: number[]) =>
+        Promise.resolve(batch.map(x => x * 2))
+      )
+
+      const results = await batchProcess(items, processor)
+
+      expect(results).toEqual([2, 4, 6])
+      expect(processor).toHaveBeenCalledTimes(1)
     })
 
     it('should handle empty array', async () => {
@@ -111,6 +135,18 @@ describe('performanceUtils', () => {
       expect(processor).toHaveBeenCalledTimes(5)
     })
 
+    it('should use default concurrency when not provided', async () => {
+      const items = [1, 2, 3, 4, 5, 6]
+      const processor = jest.fn().mockImplementation((item: number) =>
+        Promise.resolve(item * 2)
+      )
+
+      const results = await parallelProcess(items, processor)
+
+      expect(results).toEqual([2, 4, 6, 8, 10, 12])
+      expect(processor).toHaveBeenCalledTimes(6)
+    })
+
     it('should handle empty array', async () => {
       const processor = jest.fn().mockResolvedValue(0)
       const results = await parallelProcess([], processor, 2)
@@ -128,6 +164,18 @@ describe('performanceUtils', () => {
     it('should cache function results', () => {
       const fn = jest.fn((x: number) => x * 2)
       const cached = withCache(fn as (...args: unknown[]) => unknown, 5000)
+
+      const result1 = cached(5)
+      const result2 = cached(5)
+
+      expect(result1).toBe(10)
+      expect(result2).toBe(10)
+      expect(fn).toHaveBeenCalledTimes(1)
+    })
+
+    it('should cache function results with default TTL', () => {
+      const fn = jest.fn((x: number) => x * 2)
+      const cached = withCache(fn as (...args: unknown[]) => unknown)
 
       const result1 = cached(5)
       const result2 = cached(5)
@@ -186,6 +234,49 @@ describe('performanceUtils', () => {
       expect(fn).toHaveBeenCalledTimes(3)
     }, 10000)
 
+    it('should throw last error after exhausting retries', async () => {
+      const fn = jest.fn().mockRejectedValue(new Error('Failed'))
+      const retried = withRetry(fn as (...args: unknown[]) => Promise<unknown>, 2, 10)
+      const promise = retried()
+
+      const expectation = expect(promise).rejects.toThrow('Failed')
+      await jest.runAllTimersAsync()
+      await expectation
+      expect(fn).toHaveBeenCalledTimes(3) // initial + 2 retries
+    })
+
+    it('should work with default retry settings', async () => {
+      const fn = jest.fn()
+        .mockRejectedValueOnce(new Error('Failed'))
+        .mockRejectedValueOnce(new Error('Failed'))
+        .mockResolvedValue('success')
+
+      const retried = withRetry(fn as (...args: unknown[]) => Promise<unknown>)
+      const promise = retried()
+
+      const expectation = expect(promise).resolves.toBe('success')
+      await jest.runAllTimersAsync()
+      await expectation
+
+      expect(fn).toHaveBeenCalledTimes(3)
+    })
+
+    it('should wrap non-Error rejections as Operation failed', async () => {
+      const fn = jest.fn().mockRejectedValue('nope')
+      const retried = withRetry(fn as (...args: unknown[]) => Promise<unknown>, 0, 10)
+
+      await expect(retried()).rejects.toThrow('Operation failed')
+      expect(fn).toHaveBeenCalledTimes(1)
+    })
+
+    it('should throw generic error when maxRetries is negative', async () => {
+      const fn = jest.fn().mockResolvedValue('success')
+      const retried = withRetry(fn as (...args: unknown[]) => Promise<unknown>, -1, 10)
+
+      await expect(retried()).rejects.toThrow('Operation failed')
+      expect(fn).not.toHaveBeenCalled()
+    })
+
     afterEach(() => {
       jest.runOnlyPendingTimers()
       jest.useRealTimers()
@@ -208,6 +299,21 @@ describe('performanceUtils', () => {
       expect(fn).not.toHaveBeenCalled()
 
       jest.advanceTimersByTime(1000)
+
+      expect(fn).toHaveBeenCalledTimes(1)
+    })
+
+    it('should use default debounce delay when not provided', () => {
+      const fn = jest.fn()
+      const debounced = withDebounce(fn as (...args: unknown[]) => unknown)
+
+      debounced()
+      debounced()
+      debounced()
+
+      expect(fn).not.toHaveBeenCalled()
+
+      jest.advanceTimersByTime(300)
 
       expect(fn).toHaveBeenCalledTimes(1)
     })
@@ -239,6 +345,19 @@ describe('performanceUtils', () => {
       expect(fn).toHaveBeenCalledTimes(2)
     })
 
+    it('should use default throttle delay when not provided', () => {
+      const fn = jest.fn()
+      const throttled = withThrottle(fn as (...args: unknown[]) => unknown)
+
+      throttled()
+      throttled()
+      expect(fn).toHaveBeenCalledTimes(1)
+
+      jest.advanceTimersByTime(100)
+      throttled()
+      expect(fn).toHaveBeenCalledTimes(2)
+    })
+
     afterEach(() => {
       jest.runOnlyPendingTimers()
       jest.useRealTimers()
@@ -247,6 +366,7 @@ describe('performanceUtils', () => {
 
   describe('withPerformanceMeasurement', () => {
     it('should measure function performance', () => {
+      const debugSpy = jest.spyOn(console, 'debug').mockImplementation(() => {})
       const fn = jest.fn(() => 'result')
       const measured = withPerformanceMeasurement(fn as (...args: unknown[]) => unknown, 'test')
 
@@ -254,11 +374,13 @@ describe('performanceUtils', () => {
 
       expect(result).toBe('result')
       expect(fn).toHaveBeenCalled()
+      debugSpy.mockRestore()
     })
   })
 
   describe('withAsyncPerformanceMeasurement', () => {
     it('should measure async function performance', async () => {
+      const debugSpy = jest.spyOn(console, 'debug').mockImplementation(() => {})
       const fn = jest.fn().mockResolvedValue('result')
       const measured = withAsyncPerformanceMeasurement(fn as (...args: unknown[]) => Promise<unknown>, 'test')
 
@@ -266,6 +388,7 @@ describe('performanceUtils', () => {
 
       expect(result).toBe('result')
       expect(fn).toHaveBeenCalled()
+      debugSpy.mockRestore()
     })
   })
 })
