@@ -16,6 +16,7 @@ from app.tasks.audio_processing import extract_and_split_audio
 from app.tasks.srt_processing import (apply_scene_splitting,
                                       transcribe_and_create_srt)
 from app.tasks.vector_indexing import index_scenes_batch
+from app.utils.openai_utils import require_openai_api_key
 from app.utils.task_helpers import (ErrorHandler, TemporaryFileManager,
                                     VideoTaskManager)
 
@@ -144,10 +145,8 @@ def transcribe_video(self, video_id):
 
             VideoTaskManager.update_video_status(video, "processing")
 
-            # Initialize OpenAI client
-            api_key = settings.OPENAI_API_KEY
-            if not api_key:
-                raise ValueError("OpenAI API key is not configured")
+            # Initialize OpenAI client with user's API key
+            api_key = require_openai_api_key(video.user)
             client = OpenAI(api_key=api_key)
 
             # Download video from storage (S3 or local)

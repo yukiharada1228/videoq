@@ -12,6 +12,11 @@ from storages.backends.s3boto3 import S3Boto3Storage
 
 class User(AbstractUser):
     email = models.EmailField("email address", unique=True)
+    openai_api_key_encrypted = models.BinaryField(
+        null=True,
+        blank=True,
+        help_text="Encrypted OpenAI API key"
+    )
 
 
 def user_directory_path(instance, filename):

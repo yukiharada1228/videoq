@@ -6,6 +6,8 @@ import { apiClient, RelatedVideo, ChatHistoryItem } from '@/lib/api';
 import { timeStringToSeconds } from '@/lib/utils/video';
 import { cn } from '@/lib/utils';
 import { useTranslations } from 'next-intl';
+import { useOpenAIApiKeyStatus } from '@/hooks/useOpenAIApiKeyStatus';
+import { OpenAIApiKeyRequiredBanner } from '@/components/common/OpenAIApiKeyRequiredBanner';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -24,6 +26,9 @@ interface ChatPanelProps {
 
 export function ChatPanel({ groupId, onVideoPlay, shareToken, className }: ChatPanelProps) {
   const t = useTranslations();
+  const { hasApiKey, isChecking: checkingApiKey } = useOpenAIApiKeyStatus({ enabled: !shareToken });
+  const apiKeyRequiredAndMissing = !shareToken && !checkingApiKey && hasApiKey === false;
+  const canSend = !!shareToken || (!checkingApiKey && hasApiKey === true);
   const [messages, setMessages] = useState<Message[]>(() => [
     {
       role: 'assistant',
@@ -87,6 +92,7 @@ export function ChatPanel({ groupId, onVideoPlay, shareToken, className }: ChatP
 
   const handleSend = async () => {
     if (!input.trim() || loading) return;
+    if (!canSend) return;
 
     const userMessage: Message = { role: 'user', content: input };
     setMessages((prev) => [...prev, userMessage]);
@@ -186,6 +192,12 @@ export function ChatPanel({ groupId, onVideoPlay, shareToken, className }: ChatP
       <Card className={cardClassName}>
         <ChatHeader />
         <CardContent className="flex-1 flex flex-col overflow-hidden min-h-0">
+          {apiKeyRequiredAndMissing && (
+            <div className="mb-4">
+              <OpenAIApiKeyRequiredBanner />
+            </div>
+          )}
+
           <div ref={messagesContainerRef} className="flex-1 overflow-y-auto space-y-4 mb-4">
             {messages.map((message, index) => (
               <div
@@ -250,10 +262,13 @@ export function ChatPanel({ groupId, onVideoPlay, shareToken, className }: ChatP
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyPress}
               placeholder={t('chat.placeholder') as string}
-              disabled={loading}
+              disabled={loading || apiKeyRequiredAndMissing || (!shareToken && checkingApiKey)}
               className="flex-1"
             />
-            <Button onClick={handleSend} disabled={loading || !input.trim()}>
+            <Button
+              onClick={handleSend}
+              disabled={loading || !input.trim() || apiKeyRequiredAndMissing || (!shareToken && checkingApiKey)}
+            >
             {loading ? t('common.actions.sending') : t('common.actions.send')}
             </Button>
           </div>
