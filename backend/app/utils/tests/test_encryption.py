@@ -50,10 +50,8 @@ class EncryptionUtilsTestCase(TestCase):
     def test_encrypt_empty_string(self):
         """Test encrypting an empty string"""
         api_key = ""
-        encrypted = encrypt_api_key(api_key)
-        decrypted = decrypt_api_key(encrypted)
-
-        self.assertEqual(decrypted, api_key)
+        with self.assertRaises(ValueError):
+            encrypt_api_key(api_key)
 
     def test_encrypt_special_characters(self):
         """Test encrypting API key with special characters"""
