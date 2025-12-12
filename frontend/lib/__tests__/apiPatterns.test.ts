@@ -309,7 +309,8 @@ describe('apiPatterns', () => {
     it('should reuse pending promise between debounce windows', async () => {
       jest.useFakeTimers()
 
-      let resolveFn: ((value: string) => void) | null = null
+      // Assigned when the debounced timer triggers and apiCall runs.
+      let resolveFn!: (value: string | PromiseLike<string>) => void
       const apiCall = jest.fn(() => new Promise<string>((resolve) => {
         resolveFn = resolve
       }))
@@ -324,7 +325,7 @@ describe('apiPatterns', () => {
       jest.advanceTimersByTime(1000)
       expect(apiCall).toHaveBeenCalledTimes(1)
 
-      resolveFn?.('data')
+      resolveFn('data')
 
       await expect(Promise.all([promise1, promise2])).resolves.toEqual(['data', 'data'])
 
