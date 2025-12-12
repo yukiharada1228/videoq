@@ -4,9 +4,11 @@ import userEvent from '@testing-library/user-event'
 import { Header } from '../Header'
 import { useAuth } from '@/hooks/useAuth'
 import { apiClient } from '@/lib/api'
+import { useOpenAIApiKeyStatus } from '@/hooks/useOpenAIApiKeyStatus'
 
 // Mock dependencies
 jest.mock('@/hooks/useAuth')
+jest.mock('@/hooks/useOpenAIApiKeyStatus')
 jest.mock('@/lib/api', () => ({
   apiClient: {
     logout: jest.fn(),
@@ -25,6 +27,7 @@ jest.mock('@/i18n/routing', () => ({
     prefetch: mockPrefetch,
     back: mockBack,
   }),
+  usePathname: () => '/',
   Link: ({
     children,
     href,
@@ -36,6 +39,12 @@ jest.mock('@/i18n/routing', () => ({
 describe('Header', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    ;(useOpenAIApiKeyStatus as jest.Mock).mockReturnValue({
+      hasApiKey: true,
+      isChecking: false,
+      error: null,
+      refresh: jest.fn(),
+    })
   })
 
   it('should render brand link', () => {

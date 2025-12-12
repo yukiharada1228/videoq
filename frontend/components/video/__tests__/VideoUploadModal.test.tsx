@@ -1,11 +1,14 @@
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { VideoUploadModal } from '../VideoUploadModal'
 import { useVideoUpload } from '@/hooks/useVideoUpload'
+import { useOpenAIApiKeyStatus } from '@/hooks/useOpenAIApiKeyStatus'
 
 // Mock useVideoUpload
 jest.mock('@/hooks/useVideoUpload', () => ({
   useVideoUpload: jest.fn(),
 }))
+
+jest.mock('@/hooks/useOpenAIApiKeyStatus')
 
 // Mock VideoUploadFormFields
 jest.mock('../VideoUploadFormFields', () => ({
@@ -61,6 +64,12 @@ describe('VideoUploadModal', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     ;(useVideoUpload as jest.Mock).mockReturnValue(mockUseVideoUpload)
+    ;(useOpenAIApiKeyStatus as jest.Mock).mockReturnValue({
+      hasApiKey: true,
+      isChecking: false,
+      error: null,
+      refresh: jest.fn(),
+    })
   })
 
   it('should render modal when isOpen is true', () => {

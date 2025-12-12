@@ -234,7 +234,6 @@ Required variables:
 - `AWS_STORAGE_BUCKET_NAME` - S3 bucket name (required if `USE_S3_STORAGE=true`)
 - `AWS_ACCESS_KEY_ID` - AWS access key ID (required if `USE_S3_STORAGE=true`)
 - `AWS_SECRET_ACCESS_KEY` - AWS secret access key (required if `USE_S3_STORAGE=true`)
-- `OPENAI_API_KEY` - OpenAI API key for Whisper transcription and ChatGPT (system-level, required)
 - `NEXT_PUBLIC_API_URL` - API URL for Next.js
 
 #### 2. Start all services
@@ -413,6 +412,9 @@ Scene splitting improves search accuracy in AI chat and enables more appropriate
 - `GET /api/auth/me/` - Current user info
 - `POST /api/auth/password-reset/` - Request password reset
 - `POST /api/auth/password-reset/confirm/` - Confirm password reset
+- `POST /api/auth/me/openai-api-key/` - Set OpenAI API key
+- `GET /api/auth/me/openai-api-key/status/` - Get API key status
+- `DELETE /api/auth/me/openai-api-key/delete/` - Delete API key
 
 ### Video Management
 
@@ -509,7 +511,23 @@ curl -X POST "$BASE_URL/api/auth/password-reset/confirm/" \
 # Logout
 curl -X POST "$BASE_URL/api/auth/logout/" \
   -H "Authorization: Bearer $ACCESS"
+
+# Set OpenAI API key
+curl -X POST "$BASE_URL/api/auth/me/openai-api-key/" \
+  -H "Authorization: Bearer $ACCESS" \
+  -H "Content-Type: application/json" \
+  -d '{"api_key":"sk-proj-..."}'
+
+# Get API key status
+curl -H "Authorization: Bearer $ACCESS" \
+  "$BASE_URL/api/auth/me/openai-api-key/status/"
+
+# Delete API key
+curl -X DELETE "$BASE_URL/api/auth/me/openai-api-key/delete/" \
+  -H "Authorization: Bearer $ACCESS"
 ```
+
+**Note:** Users must set their own OpenAI API key before using transcription or chat features. Without a configured API key, these features will return an error.
 
 #### 2. Upload a video and check status
 
@@ -619,7 +637,7 @@ curl -X POST "$BASE_URL/api/chat/feedback/" \
 
 Notes:
 - If you pass `group_id`, vector search (RAG) is limited to videos in that group.
-- OpenAI API key is managed at the system level via the `OPENAI_API_KEY` environment variable (not user-configurable).
+- **Each user must set their own OpenAI API key in the settings page.** The system no longer uses a shared `OPENAI_API_KEY` environment variable. All OpenAI-related features (transcription, chat) require a user-configured API key.
 - Chat is also available with a share token (use the `share_token` query parameter).
 - Do not send a `system` message; the backend constructs the system prompt internally. Only the latest `user` message in `messages` is used.
 - The system uses prompt engineering for RAG. See [Prompt Engineering Documentation](docs/architecture/prompt-engineering.md) for details on how prompts are constructed and customized.

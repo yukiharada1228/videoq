@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 
 interface VideoUploadButtonProps {
   isUploading: boolean;
+  disabled?: boolean;
   className?: string;
   variant?: 'default' | 'outline';
   fullWidth?: boolean;
@@ -13,6 +14,7 @@ interface VideoUploadButtonProps {
 
 export function VideoUploadButton({ 
   isUploading, 
+  disabled = false,
   className,
   variant = 'default',
   fullWidth = false
@@ -22,7 +24,7 @@ export function VideoUploadButton({
   return (
     <Button 
       type="submit" 
-      disabled={isUploading} 
+      disabled={isUploading || disabled} 
       className={fullWidth ? `w-full ${className || ''}` : className}
       variant={variant}
     >

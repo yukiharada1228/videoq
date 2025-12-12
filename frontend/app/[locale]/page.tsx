@@ -10,11 +10,14 @@ import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { apiClient, type VideoGroupList, type VideoList } from '@/lib/api';
 import { useAsyncState } from '@/hooks/useAsyncState';
 import { useVideoStats } from '@/hooks/useVideoStats';
+import { useOpenAIApiKeyStatus } from '@/hooks/useOpenAIApiKeyStatus';
+import { OpenAIApiKeyRequiredBanner } from '@/components/common/OpenAIApiKeyRequiredBanner';
 
 export default function Home() {
   const router = useRouter();
   const { user, loading } = useAuth();
   const t = useTranslations();
+  const { hasApiKey, isChecking: checkingApiKey } = useOpenAIApiKeyStatus({ enabled: !!user });
 
   const { data: rawData, isLoading: isLoadingStats, execute: loadStats } = useAsyncState<{
     videos: VideoList[];
@@ -54,6 +57,10 @@ export default function Home() {
   }, [user, isLoadingStats, hasVideos, loadStats]);
 
   const handleUploadClick = () => {
+    if (!checkingApiKey && hasApiKey === false) {
+      router.push('/settings');
+      return;
+    }
     router.push('/videos?upload=true');
   };
 
@@ -68,6 +75,8 @@ export default function Home() {
   return (
     <PageLayout>
       <div className="max-w-4xl mx-auto space-y-8">
+        {!checkingApiKey && hasApiKey === false && <OpenAIApiKeyRequiredBanner />}
+
         {/* ウェルカムセクション */}
         <div className="text-center space-y-4">
           <h1 className="text-5xl font-bold text-gray-900">
@@ -80,7 +89,15 @@ export default function Home() {
 
         {/* メインアクション */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="hover:shadow-xl transition-all cursor-pointer border-2 hover:border-blue-300" onClick={handleUploadClick}>
+          <Card
+            className={[
+              "transition-all border-2",
+              (!checkingApiKey && hasApiKey === false)
+                ? "cursor-not-allowed opacity-60 border-gray-200"
+                : "hover:shadow-xl cursor-pointer hover:border-blue-300",
+            ].join(' ')}
+            onClick={handleUploadClick}
+          >
             <CardHeader>
               <div className="text-4xl mb-2">📹</div>
               <CardTitle className="text-xl">{t('home.actions.upload.title')}</CardTitle>

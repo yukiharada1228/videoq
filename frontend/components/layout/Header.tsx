@@ -2,10 +2,13 @@
 
 import { Link } from '@/i18n/routing';
 import { useRouter } from '@/i18n/routing';
+import { usePathname } from '@/i18n/routing';
 import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/lib/api';
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { useOpenAIApiKeyStatus } from '@/hooks/useOpenAIApiKeyStatus';
+import { OpenAIApiKeyRequiredBanner } from '@/components/common/OpenAIApiKeyRequiredBanner';
 
 interface HeaderProps {
   children?: React.ReactNode;
@@ -13,9 +16,11 @@ interface HeaderProps {
 
 export function Header({ children }: HeaderProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const { user } = useAuth({ redirectToLogin: false });
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const t = useTranslations();
+  const { hasApiKey, isChecking } = useOpenAIApiKeyStatus({ enabled: !!user });
 
   const handleLogout = () => {
     apiClient.logout();
@@ -64,6 +69,13 @@ export function Header({ children }: HeaderProps) {
               <span className="text-gray-600">
                 {t('navigation.welcome', { username: user.username })}
               </span>
+              <span className="text-gray-300">|</span>
+              <button
+                onClick={() => router.push('/settings')}
+                className="text-gray-600 hover:text-gray-900 transition-colors"
+              >
+                {t('navigation.settings')}
+              </button>
               <span className="text-gray-300">|</span>
               <button
                 onClick={handleLogout}
@@ -139,6 +151,15 @@ export function Header({ children }: HeaderProps) {
               </button>
               <button
                 onClick={() => {
+                  router.push('/settings');
+                  closeMobileMenu();
+                }}
+                className="block w-full text-left px-2 py-2 text-gray-600 hover:bg-gray-50 rounded transition-colors"
+              >
+                {t('navigation.settings')}
+              </button>
+              <button
+                onClick={() => {
                   handleLogout();
                   closeMobileMenu();
                 }}
@@ -150,6 +171,13 @@ export function Header({ children }: HeaderProps) {
           )}
         </nav>
       </div>
+
+      {/* Global OpenAI API key warning (authenticated users only) */}
+      {user && !isChecking && hasApiKey === false && !pathname.endsWith('/settings') && (
+        <div className="px-4 pb-4">
+          <OpenAIApiKeyRequiredBanner />
+        </div>
+      )}
     </header>
   );
 }
