@@ -152,4 +152,4 @@ graph TB
 ### Settings
 - **UC31 View User Info**: Display current user information
 
-**Note:** OpenAI API key is managed at the system level (via `OPENAI_API_KEY` environment variable), not by individual users.
+**Note:** OpenAI API key is managed per user (stored encrypted). For share-link chat, the group owner's API key is used.

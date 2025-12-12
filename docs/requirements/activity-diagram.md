@@ -46,7 +46,7 @@ flowchart TD
     Auth -->|Authenticated| GetGroup{Group Specified?}
     
     GetGroup -->|Yes| ValidateGroup[Validate Group Existence]
-    GetGroup -->|No| GetAPIKey[Get System<br/>OpenAI API Key]
+    GetGroup -->|No| GetAPIKey[Get OpenAI API Key<br/>(User / Group Owner when shared)]
     ValidateGroup --> GetAPIKey
     GetAPIKey --> CheckKey{API Key<br/>Configured?}
     CheckKey -->|Not Configured| Error2[API Key Not Configured Error]

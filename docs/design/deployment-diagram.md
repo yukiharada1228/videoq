@@ -91,11 +91,9 @@ graph LR
     
     subgraph Ports["Port Mapping"]
         P1[80:80<br/>nginx]
-        P2[8000:8000<br/>backend]
     end
     
     S6 --> P1
-    S3 --> P2
 ```
 
 ## Network Configuration
@@ -214,7 +212,7 @@ graph TB
         E11[FRONTEND_URL]
         E12[USE_S3_STORAGE]
         E13[AWS_*]
-        E14[OPENAI_API_KEY]
+        E14[OPENAI_API_KEY<br/>(optional / not used in standard flow)]
         E15[NEXT_PUBLIC_API_URL]
     end
     
