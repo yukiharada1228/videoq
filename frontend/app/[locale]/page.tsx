@@ -11,7 +11,6 @@ import { apiClient, type VideoGroupList, type VideoList } from '@/lib/api';
 import { useAsyncState } from '@/hooks/useAsyncState';
 import { useVideoStats } from '@/hooks/useVideoStats';
 import { useOpenAIApiKeyStatus } from '@/hooks/useOpenAIApiKeyStatus';
-import { OpenAIApiKeyRequiredBanner } from '@/components/common/OpenAIApiKeyRequiredBanner';
 
 export default function Home() {
   const router = useRouter();
@@ -75,8 +74,6 @@ export default function Home() {
   return (
     <PageLayout>
       <div className="max-w-4xl mx-auto space-y-8">
-        {!checkingApiKey && hasApiKey === false && <OpenAIApiKeyRequiredBanner />}
-
         {/* ウェルカムセクション */}
         <div className="text-center space-y-4">
           <h1 className="text-5xl font-bold text-gray-900">

@@ -6,6 +6,7 @@ import { apiClient } from '@/lib/api';
 import { OpenAIApiKeySettings } from '@/components/settings/OpenAIApiKeySettings';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { useTranslations } from 'next-intl';
+import { PageLayout } from '@/components/layout/PageLayout';
 
 export default function SettingsPage() {
   const t = useTranslations('settings');
@@ -38,16 +39,18 @@ export default function SettingsPage() {
     fetchApiKeyStatus();
   };
 
-  if (loading) {
-    return <LoadingSpinner />;
-  }
-
   return (
-    <div className="container mx-auto py-8 px-4 max-w-4xl">
-      <h1 className="text-3xl font-bold mb-8">{t('title')}</h1>
-      <div className="space-y-6">
-        <OpenAIApiKeySettings hasApiKey={hasApiKey} onApiKeyChange={handleApiKeyChange} />
-      </div>
-    </div>
+    <PageLayout>
+      {loading ? (
+        <LoadingSpinner />
+      ) : (
+        <div className="mx-auto w-full max-w-4xl">
+          <h1 className="text-3xl font-bold mb-8">{t('title')}</h1>
+          <div className="space-y-6">
+            <OpenAIApiKeySettings hasApiKey={hasApiKey} onApiKeyChange={handleApiKeyChange} />
+          </div>
+        </div>
+      )}
+    </PageLayout>
   );
 }

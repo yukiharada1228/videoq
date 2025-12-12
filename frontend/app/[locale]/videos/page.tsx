@@ -12,7 +12,6 @@ import { PageLayout } from '@/components/layout/PageLayout';
 import { LoadingState } from '@/components/common/LoadingState';
 import { Button } from '@/components/ui/button';
 import { useOpenAIApiKeyStatus } from '@/hooks/useOpenAIApiKeyStatus';
-import { OpenAIApiKeyRequiredBanner } from '@/components/common/OpenAIApiKeyRequiredBanner';
 
 function VideosContent() {
   const { videos, isLoading, error, loadVideos } = useVideos();
@@ -83,8 +82,6 @@ function VideosContent() {
           </div>
 
           {/* API key warning */}
-          {!checkingApiKey && hasApiKey === false && <OpenAIApiKeyRequiredBanner />}
-
           {/* 統計情報 */}
           {stats.total > 0 && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

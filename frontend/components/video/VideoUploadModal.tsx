@@ -8,7 +8,6 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { VideoUploadFormFields } from './VideoUploadFormFields';
 import { VideoUploadButton } from './VideoUploadButton';
 import { useOpenAIApiKeyStatus } from '@/hooks/useOpenAIApiKeyStatus';
-import { OpenAIApiKeyRequiredBanner } from '@/components/common/OpenAIApiKeyRequiredBanner';
 
 interface VideoUploadModalProps {
   isOpen: boolean;
@@ -63,11 +62,6 @@ export function VideoUploadModal({ isOpen, onClose, onUploadSuccess }: VideoUplo
             {t('videos.upload.description')}
           </DialogDescription>
         </DialogHeader>
-        {apiKeyMissing && (
-          <div className="mt-2">
-            <OpenAIApiKeyRequiredBanner />
-          </div>
-        )}
         <form 
           onSubmit={(e) => {
             if (apiKeyMissing || checkingApiKey) {
