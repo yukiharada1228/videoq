@@ -43,23 +43,8 @@ class CustomUserAdmin(UserAdmin):
     )
     search_fields = ("username",)
     ordering = ("-date_joined",)
-    fieldsets = UserAdmin.fieldsets + (
-        (
-            "Limit Settings",
-            {
-                "fields": ("video_limit", "whisper_minutes_limit", "chat_limit"),
-            },
-        ),
-    )
-    add_fieldsets = UserAdmin.add_fieldsets + (
-        (
-            "Limit Settings",
-            {
-                "classes": ("wide",),
-                "fields": ("video_limit", "whisper_minutes_limit", "chat_limit"),
-            },
-        ),
-    )
+    fieldsets = UserAdmin.fieldsets
+    add_fieldsets = UserAdmin.add_fieldsets
 
 
 @admin.register(Video)
