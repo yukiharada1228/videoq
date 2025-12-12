@@ -2,13 +2,14 @@
 Utility functions for managing OpenAI API keys.
 """
 
-from typing import Optional
-
-from django.contrib.auth import get_user_model
+from typing import Optional, Protocol
 
 from app.utils.encryption import decrypt_api_key
 
-User = get_user_model()
+class UserWithOpenAIApiKeyEncrypted(Protocol):
+    """User-like object that has encrypted OpenAI API key field."""
+
+    openai_api_key_encrypted: Optional[bytes]
 
 
 class OpenAIApiKeyNotConfiguredError(Exception):
@@ -17,7 +18,7 @@ class OpenAIApiKeyNotConfiguredError(Exception):
     pass
 
 
-def get_openai_api_key(user: User) -> Optional[str]:
+def get_openai_api_key(user: UserWithOpenAIApiKeyEncrypted) -> Optional[str]:
     """
     Get OpenAI API key for a user (no fallback to environment variable).
 
@@ -37,7 +38,7 @@ def get_openai_api_key(user: User) -> Optional[str]:
     return None
 
 
-def require_openai_api_key(user: User) -> str:
+def require_openai_api_key(user: UserWithOpenAIApiKeyEncrypted) -> str:
     """
     Require OpenAI API key (raise exception if not set).
 
