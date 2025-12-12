@@ -11,6 +11,7 @@ interface VideoUploadFormFieldsProps {
   title: string;
   description: string;
   isUploading: boolean;
+  disabled?: boolean;
   error: string | null;
   success: boolean;
   setTitle: (title: string) => void;
@@ -28,6 +29,7 @@ export function VideoUploadFormFields({
   title,
   description,
   isUploading,
+  disabled = false,
   error,
   success,
   setTitle,
@@ -60,7 +62,7 @@ export function VideoUploadFormFields({
           type="file"
           accept="video/*"
           onChange={handleFileChange}
-          disabled={isUploading}
+          disabled={isUploading || disabled}
           required
         />
       </div>
@@ -73,7 +75,7 @@ export function VideoUploadFormFields({
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder={getTitlePlaceholder()}
-          disabled={isUploading}
+          disabled={isUploading || disabled}
           required
         />
       </div>
@@ -85,7 +87,7 @@ export function VideoUploadFormFields({
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder={t('videos.upload.descriptionPlaceholder')}
-          disabled={isUploading}
+          disabled={isUploading || disabled}
           className="w-full min-h-[100px] px-3 py-2 border border-gray-300 rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
       </div>
@@ -102,15 +104,15 @@ export function VideoUploadFormFields({
               type="button" 
               variant="outline" 
               onClick={onCancel} 
-              disabled={isUploading} 
+              disabled={isUploading || disabled} 
               className={cancelButtonClassName}
             >
               {t('common.actions.cancel')}
             </Button>
-            <VideoUploadButton isUploading={isUploading} fullWidth className="flex-1" />
+            <VideoUploadButton isUploading={isUploading} disabled={disabled} fullWidth className="flex-1" />
           </div>
         ) : (
-          <VideoUploadButton isUploading={isUploading} fullWidth />
+          <VideoUploadButton isUploading={isUploading} disabled={disabled} fullWidth />
         )
       )}
     </>

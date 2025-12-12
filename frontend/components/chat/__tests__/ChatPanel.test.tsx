@@ -9,6 +9,7 @@ jest.mock('@/lib/api', () => ({
     getChatHistory: jest.fn(),
     exportChatHistoryCsv: jest.fn(),
     setChatFeedback: jest.fn(),
+    getOpenAIApiKeyStatus: jest.fn(),
   },
 }))
 
@@ -26,6 +27,7 @@ describe('ChatPanel', () => {
       chat_log_id: 1,
       feedback: null,
     })
+    ;(apiClient.getOpenAIApiKeyStatus as jest.Mock).mockResolvedValue({ has_api_key: true })
   })
 
   it('should render greeting message', () => {

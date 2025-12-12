@@ -4,8 +4,6 @@ SRT subtitle processing utilities
 
 import logging
 
-from django.conf import settings
-
 from app.scene_otsu import SceneSplitter, SubtitleParser
 from app.tasks.audio_processing import process_audio_segments_parallel
 
@@ -63,16 +61,14 @@ def parse_srt_scenes(srt_content):
     return SubtitleParser.parse_srt_scenes(srt_content)
 
 
-def apply_scene_splitting(srt_content, api_key=None, original_segment_count=None):
+def apply_scene_splitting(srt_content, api_key, original_segment_count=None):
     """
     Apply scene splitting using Otsu method
+    api_key: OpenAI API key (required)
     """
     try:
-        # Use system OpenAI API key from environment variable if not provided
-        if api_key is None:
-            api_key = settings.OPENAI_API_KEY
-            if not api_key:
-                raise ValueError("OpenAI API key is not configured")
+        if not api_key:
+            raise ValueError("OpenAI API key is required")
         splitter = SceneSplitter(api_key=api_key)
         scene_split_srt = splitter.process(srt_content, max_tokens=512)
         scene_count = count_scenes(scene_split_srt)

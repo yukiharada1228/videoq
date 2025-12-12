@@ -77,6 +77,7 @@
     "brand": "VideoQ",
     "videos": "動画一覧",
     "videoGroups": "チャットグループ",
+    "settings": "設定",
     "logout": "ログアウト",
     "welcome": "ようこそ、{username}さん",
     "openMenu": "メニューを開く"
@@ -153,7 +154,12 @@
       },
       "noVideos": "動画がありません",
       "noVideosHint": "上部の「動画をアップロード」ボタンから動画を追加できます。",
-      "loading": "読み込み中..."
+      "loading": "読み込み中...",
+      "apiKeyWarning": {
+        "title": "OpenAI APIキーが必要です",
+        "message": "動画をアップロードして文字起こしを行うには、OpenAI APIキーを設定する必要があります。",
+        "settingsLink": "設定画面へ"
+      }
     },
     "upload": {
       "title": "動画をアップロード",
@@ -411,5 +417,34 @@
     "deleteGroup": "このチャットグループを削除しますか？",
     "removeGroupVideo": "この動画をチャットグループから削除しますか？",
     "disableShareLink": "共有リンクを無効化しますか？"
+  },
+  "settings": {
+    "title": "設定",
+    "openaiApiKey": {
+      "title": "OpenAI APIキー",
+      "description": "文字起こしとチャット機能を使用するには、OpenAI APIキーを設定してください。",
+      "apiKeyLabel": "APIキー",
+      "hasApiKeyMessage": "既にAPIキーが設定されています。新しいキーを入力すると更新されます。",
+      "noApiKeyMessage": "動画の文字起こしとチャット機能を使用するには、OpenAI APIキーを設定する必要があります。",
+      "getApiKeyMessage": "APIキーは",
+      "openaiPlatform": "OpenAI Platform",
+      "save": "保存",
+      "saving": "保存中...",
+      "delete": "削除",
+      "deleting": "削除中...",
+      "confirmDelete": "APIキーを削除してもよろしいですか？",
+      "errorEmpty": "APIキーを入力してください",
+      "errorSaving": "APIキーの保存に失敗しました",
+      "errorDeleting": "APIキーの削除に失敗しました",
+      "successSaved": "APIキーを保存しました",
+      "successDeleted": "APIキーを削除しました"
+    }
+  },
+  "openaiApiKey": {
+    "banner": {
+      "title": "OpenAI APIキーが必要です",
+      "message": "文字起こし・チャット機能を利用するには、設定画面でOpenAI APIキーを設定してください。",
+      "settingsLink": "設定画面へ"
+    }
   }
 }

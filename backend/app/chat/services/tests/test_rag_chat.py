@@ -5,10 +5,12 @@ Tests for rag_chat module
 from unittest.mock import MagicMock, patch
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase, override_settings
+from django.test import TestCase
 
 from app.chat.services.rag_chat import RagChatService
 from app.models import Video, VideoGroup
+from app.utils.encryption import encrypt_api_key
+from app.utils.openai_utils import OpenAIApiKeyNotConfiguredError
 
 User = get_user_model()
 
@@ -35,7 +37,6 @@ class RagChatServiceTests(TestCase):
             description="Test",
         )
 
-    @override_settings(OPENAI_API_KEY="test-api-key")
     @patch("app.chat.services.rag_chat.PGVector.from_existing_index")
     @patch("app.chat.services.rag_chat.PGVectorManager")
     @patch("app.chat.services.rag_chat.OpenAIEmbeddings")
@@ -43,6 +44,9 @@ class RagChatServiceTests(TestCase):
         self, mock_embeddings, mock_pgvector_manager, mock_pgvector
     ):
         """Test _create_vector_store when API key is configured"""
+        self.user.openai_api_key_encrypted = encrypt_api_key("test-api-key")
+        self.user.save(update_fields=["openai_api_key_encrypted"])
+
         mock_pgvector_manager.get_config.return_value = {
             "collection_name": "test_collection"
         }
@@ -59,22 +63,20 @@ class RagChatServiceTests(TestCase):
             api_key="test-api-key",
         )
 
-    @override_settings(OPENAI_API_KEY=None)
     def test_create_vector_store_without_api_key(self):
         """Test _create_vector_store when API key is not configured"""
         service = RagChatService(user=self.user, llm=MagicMock())
 
-        with self.assertRaises(ValueError) as context:
+        with self.assertRaises(OpenAIApiKeyNotConfiguredError) as context:
             service._create_vector_store()
 
         self.assertIn("OpenAI API key is not configured", str(context.exception))
 
-    @override_settings(OPENAI_API_KEY="")
     def test_create_vector_store_with_empty_api_key(self):
         """Test _create_vector_store when API key is empty string"""
         service = RagChatService(user=self.user, llm=MagicMock())
 
-        with self.assertRaises(ValueError) as context:
+        with self.assertRaises(OpenAIApiKeyNotConfiguredError) as context:
             service._create_vector_store()
 
         self.assertIn("OpenAI API key is not configured", str(context.exception))

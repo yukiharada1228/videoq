@@ -10,6 +10,8 @@ from app.utils.mixins import AuthenticatedViewMixin, PublicViewMixin
 
 from .serializers import (EmailVerificationSerializer, LoginResponseSerializer,
                           LoginSerializer, MessageResponseSerializer,
+                          OpenAIApiKeyMessageSerializer, OpenAIApiKeySetSerializer,
+                          OpenAIApiKeyStatusSerializer,
                           PasswordResetConfirmSerializer,
                           PasswordResetRequestSerializer,
                           RefreshResponseSerializer, RefreshSerializer,
@@ -228,3 +230,59 @@ class MeView(AuthenticatedAPIView, generics.RetrieveAPIView):
 
     def get_object(self):
         return self.request.user
+
+
+class SetOpenAIApiKeyView(AuthenticatedAPIView):
+    """Set OpenAI API key for the authenticated user"""
+
+    serializer_class = OpenAIApiKeySetSerializer
+
+    @extend_schema(
+        request=OpenAIApiKeySetSerializer,
+        responses={200: OpenAIApiKeyMessageSerializer},
+        summary="Set OpenAI API key",
+        description="Set or update the user's OpenAI API key. The key will be encrypted before storage.",
+    )
+    def post(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(user=request.user)
+        return Response(
+            {"message": "API key saved successfully"},
+            status=status.HTTP_200_OK,
+        )
+
+
+class GetOpenAIApiKeyStatusView(AuthenticatedAPIView):
+    """Get OpenAI API key status for the authenticated user"""
+
+    serializer_class = OpenAIApiKeyStatusSerializer
+
+    @extend_schema(
+        responses={200: OpenAIApiKeyStatusSerializer},
+        summary="Get OpenAI API key status",
+        description="Check whether the user has set an OpenAI API key. Does not return the actual key.",
+    )
+    def get(self, request):
+        has_api_key = bool(request.user.openai_api_key_encrypted)
+        return Response(
+            {"has_api_key": has_api_key},
+            status=status.HTTP_200_OK,
+        )
+
+
+class DeleteOpenAIApiKeyView(AuthenticatedAPIView):
+    """Delete OpenAI API key for the authenticated user"""
+
+    @extend_schema(
+        responses={200: OpenAIApiKeyMessageSerializer},
+        summary="Delete OpenAI API key",
+        description="Delete the user's OpenAI API key from the database.",
+    )
+    def delete(self, request):
+        request.user.openai_api_key_encrypted = None
+        request.user.save(update_fields=["openai_api_key_encrypted"])
+        return Response(
+            {"message": "API key deleted successfully"},
+            status=status.HTTP_200_OK,
+        )
