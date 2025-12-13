@@ -12,6 +12,7 @@ import { PageLayout } from '@/components/layout/PageLayout';
 import { LoadingState } from '@/components/common/LoadingState';
 import { Button } from '@/components/ui/button';
 import { useOpenAIApiKeyStatus } from '@/hooks/useOpenAIApiKeyStatus';
+import { useAuth } from '@/hooks/useAuth';
 
 function VideosContent() {
   const { videos, isLoading, error, loadVideos } = useVideos();
@@ -21,6 +22,7 @@ function VideosContent() {
   const router = useRouter();
   const t = useTranslations();
   const { hasApiKey, isChecking: checkingApiKey } = useOpenAIApiKeyStatus();
+  const { user, loading: userLoading, refetch: refetchUser } = useAuth();
 
   const shouldOpenModalFromQuery = useMemo(
     () => searchParams?.get('upload') === 'true',
@@ -41,6 +43,7 @@ function VideosContent() {
 
   const handleUploadSuccess = () => {
     loadVideos();
+    refetchUser(); // ユーザー情報を再取得してvideo_countを更新
   };
 
   const handleUploadClick = () => {
@@ -53,6 +56,24 @@ function VideosContent() {
       router.replace('/videos', { scroll: false });
     }
   };
+
+  // アップロード制限チェック
+  const isUploadDisabled = useMemo(() => {
+    if (!user || userLoading) return true;
+    if (hasApiKey !== true || checkingApiKey) return true;
+
+    // video_limit が null なら無制限
+    if (user.video_limit === null) return false;
+
+    // 制限に達しているかチェック
+    return user.video_count >= user.video_limit;
+  }, [user, userLoading, hasApiKey, checkingApiKey]);
+
+  // アップロード制限に達しているか
+  const hasReachedLimit = useMemo(() => {
+    if (!user || user.video_limit === null) return false;
+    return user.video_count >= user.video_limit;
+  }, [user]);
 
   return (
     <>
@@ -72,7 +93,7 @@ function VideosContent() {
             </div>
             <Button
               onClick={handleUploadClick}
-              disabled={hasApiKey !== true || checkingApiKey}
+              disabled={isUploadDisabled}
               className="flex items-center gap-2 w-full lg:w-auto"
               size="sm"
             >
@@ -82,6 +103,15 @@ function VideosContent() {
           </div>
 
           {/* API key warning */}
+          {/* アップロード制限警告 */}
+          {hasReachedLimit && user && user.video_limit !== null && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <p className="text-yellow-800 text-sm">
+                {t('videos.list.uploadLimitWarning.message', { limit: user.video_limit })}
+              </p>
+            </div>
+          )}
+
           {/* 統計情報 */}
           {stats.total > 0 && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

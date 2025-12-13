@@ -159,6 +159,9 @@
         "title": "OpenAI APIキーが必要です",
         "message": "動画をアップロードして文字起こしを行うには、OpenAI APIキーを設定する必要があります。",
         "settingsLink": "設定画面へ"
+      },
+      "uploadLimitWarning": {
+        "message": "動画のアップロード上限（{limit}本）に達しました。新しい動画をアップロードするには、既存の動画を削除してください。"
       }
     },
     "upload": {
