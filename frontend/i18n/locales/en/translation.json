@@ -159,6 +159,9 @@
         "title": "OpenAI API Key Required",
         "message": "You need to set your OpenAI API key to upload and transcribe videos.",
         "settingsLink": "Go to Settings"
+      },
+      "uploadLimitWarning": {
+        "message": "You have reached the video upload limit ({limit} videos). To upload new videos, please delete existing ones."
       }
     },
     "upload": {
