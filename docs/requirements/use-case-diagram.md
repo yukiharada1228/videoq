@@ -61,6 +61,8 @@ graph TB
     
     subgraph Settings["Settings"]
         UC31[View User Info]
+        UC32[Set OpenAI API Key]
+        UC33[Delete OpenAI API Key]
     end
     
     User --> UC1
@@ -94,6 +96,8 @@ graph TB
     User --> UC29
     User --> UC30
     User --> UC31
+    User --> UC32
+    User --> UC33
     
     Guest --> UC29
     Guest --> UC30
@@ -151,5 +155,7 @@ graph TB
 
 ### Settings
 - **UC31 View User Info**: Display current user information
+- **UC32 Set OpenAI API Key**: Save user's OpenAI API key (encrypted)
+- **UC33 Delete OpenAI API Key**: Delete user's stored OpenAI API key
 
 **Note:** OpenAI API key is managed per user (stored encrypted). For share-link chat, the group owner's API key is used.

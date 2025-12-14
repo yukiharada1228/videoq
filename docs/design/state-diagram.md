@@ -14,9 +14,6 @@ stateDiagram-v2
     Processing --> Completed: Transcription Success
     Processing --> Error: Transcription Failure
     
-    Completed --> Processing: Reprocess(Manual)
-    Error --> Processing: Reprocess(Manual)
-    
     Completed --> [*]: Video Deleted
     Error --> [*]: Video Deleted
     Pending --> [*]: Video Deleted
@@ -45,7 +42,7 @@ stateDiagram-v2
         Error
         - Processing Failed
         - Error Message Saved
-        - Reprocess Possible
+        - Re-upload is required to retry (no dedicated reprocess endpoint)
     end note
 ```
 
