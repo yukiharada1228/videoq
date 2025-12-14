@@ -9,7 +9,7 @@ This diagram represents the main business flows of the VideoQ system.
 ```mermaid
 flowchart TD
     Start([User Uploads Video]) --> Upload[Upload Video File]
-    Upload --> Validate{File Format<br/>Validation}
+    Upload --> Validate{"File Format<br>Validation"}
     Validate -->|Invalid| Error1[Error Display]
     Validate -->|Valid| Save[Save to Database<br/>status: pending]
     Save --> Queue[Add Celery Task to Queue]
@@ -18,7 +18,7 @@ flowchart TD
     Queue --> Worker[Celery Worker<br/>Receives Task]
     Worker --> UpdateStatus1[Update status: processing]
     UpdateStatus1 --> Extract[Extract Audio with ffmpeg]
-    Extract --> CheckSize{File Size<br/>Check}
+    Extract --> CheckSize{"File Size<br>Check"}
     CheckSize -->|24MB or less| Transcribe1[Execute Transcription<br/>with Whisper API]
     CheckSize -->|Over 24MB| Split[Split Audio]
     Split --> Transcribe2[Transcribe Each Segment<br/>in Parallel]
@@ -48,7 +48,7 @@ flowchart TD
     GetGroup -->|Yes| ValidateGroup[Validate Group Existence]
     GetGroup -->|No| GetAPIKey[Get OpenAI API Key<br/>(User / Group Owner when shared)]
     ValidateGroup --> GetAPIKey
-    GetAPIKey --> CheckKey{API Key<br/>Configured?}
+    GetAPIKey --> CheckKey{"API Key<br>Configured?"}
     CheckKey -->|Not Configured| Error2[API Key Not Configured Error]
     CheckKey -->|Configured| ParseQuery[Parse Question Text]
     ParseQuery --> VectorSearch{Group Specified?}
@@ -130,7 +130,7 @@ flowchart TD
 flowchart TD
     Start([User Creates Group]) --> CreateGroup[Create Group]
     CreateGroup --> AddVideos[Add Videos]
-    AddVideos --> ValidateVideos{Video Ownership<br/>Verification}
+    AddVideos --> ValidateVideos{"Video Ownership<br>Verification"}
     ValidateVideos -->|Invalid| Error1[Error Display]
     ValidateVideos -->|Valid| CheckDuplicate{Already Added?}
     CheckDuplicate -->|Yes| Skip[Skip]
@@ -145,7 +145,7 @@ flowchart TD
     
     subgraph Reorder[Reorder]
         ReorderStart([Reorder Request]) --> GetVideos[Get Videos in Group]
-        GetVideos --> ValidateOrder{Order Array<br/>Validation}
+        GetVideos --> ValidateOrder{"Order Array<br>Validation"}
         ValidateOrder -->|Invalid| Error2[Error]
         ValidateOrder -->|Valid| UpdateOrder[Bulk Update]
         UpdateOrder --> ReorderEnd([Complete])
