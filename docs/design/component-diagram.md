@@ -130,15 +130,15 @@ graph TB
             EmailUtils[Email Utils]
             TaskHelpers[Task Helpers]
             QueryOptimizer[Query Optimizer]
-            VideoLimits[Video Limits (User.video_limit)]
+            VideoLimits["Video Limits (User.video_limit)"]
             ResponseUtils[Response Utils]
         end
         
         subgraph Tasks["Background Tasks"]
-            TranscriptionTask[Transcription Task<br/>app.tasks.transcription]
-            AudioProcessing[Audio Processing<br/>app.tasks.audio_processing]
-            SRTProcessing[SRT Processing<br/>app.tasks.srt_processing]
-            VectorIndexing[Vector Indexing<br/>app.tasks.vector_indexing]
+            TranscriptionTask["Transcription Task<br/>app.tasks.transcription"]
+            AudioProcessing["Audio Processing<br/>app.tasks.audio_processing"]
+            SRTProcessing["SRT Processing<br/>app.tasks.srt_processing"]
+            VectorIndexing["Vector Indexing<br/>app.tasks.vector_indexing"]
         end
         
         subgraph Storage["Storage"]
