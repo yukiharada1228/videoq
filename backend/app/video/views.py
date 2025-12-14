@@ -182,6 +182,7 @@ class VideoListView(DynamicSerializerMixin, BaseVideoView, generics.ListCreateAP
         queryset = super().get_queryset()
         q = self.request.query_params.get("q", "").strip()
         status_value = self.request.query_params.get("status", "").strip()
+        external_id = self.request.query_params.get("external_id", "").strip()
         ordering = self.request.query_params.get("ordering", "").strip()
 
         if q:
@@ -191,6 +192,9 @@ class VideoListView(DynamicSerializerMixin, BaseVideoView, generics.ListCreateAP
 
         if status_value:
             queryset = queryset.filter(status=status_value)
+
+        if external_id:
+            queryset = queryset.filter(external_id=external_id)
 
         ordering_map = {
             "uploaded_at_desc": "-uploaded_at",

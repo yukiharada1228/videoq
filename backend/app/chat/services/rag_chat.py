@@ -154,14 +154,19 @@ class RagChatService:
         related_videos: List[Dict[str, str]] = []
         for doc in docs:
             metadata = getattr(doc, "metadata", {}) or {}
-            related_videos.append(
-                {
-                    "video_id": metadata.get("video_id", ""),
-                    "title": metadata.get("video_title", ""),
-                    "start_time": metadata.get("start_time", ""),
-                    "end_time": metadata.get("end_time", ""),
-                }
-            )
+            video_info = {
+                "video_id": metadata.get("video_id", ""),
+                "title": metadata.get("video_title", ""),
+                "start_time": metadata.get("start_time", ""),
+                "end_time": metadata.get("end_time", ""),
+            }
+
+            # Add external_id if it exists in metadata
+            external_id = metadata.get("external_id")
+            if external_id:
+                video_info["external_id"] = external_id
+
+            related_videos.append(video_info)
 
         return related_videos
 
