@@ -1,3 +1,4 @@
+import time
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
@@ -822,3 +823,186 @@ class VideoLimitTests(APITestCase):
         response = self.client.post(url, data, format="multipart")
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(Video.objects.filter(user=user).count(), 2)
+
+
+class VideoLimitReductionTests(APITestCase):
+    """Tests for automatic video deletion when video_limit is reduced"""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="testuser",
+            email="test@example.com",
+            password="testpass123",
+            video_limit=None,  # Start with unlimited
+        )
+        # Create 5 test videos with staggered timestamps
+        self.videos = []
+        for i in range(5):
+            video = Video.objects.create(
+                user=self.user,
+                title=f"Test Video {i}",
+                status="completed",
+            )
+            self.videos.append(video)
+            # Ensure different uploaded_at timestamps
+            if i < 4:  # Don't sleep after the last video
+                time.sleep(0.01)  # 10ms delay to ensure different timestamps
+
+    def test_reduce_from_unlimited_to_limited(self):
+        """Test reducing from unlimited (None) to specific limit"""
+        # Verify initial state
+        self.assertEqual(Video.objects.filter(user=self.user).count(), 5)
+
+        # Reduce from unlimited to 3
+        self.user.video_limit = 3
+        self.user.save()
+
+        # Should keep 3 newest, delete 2 oldest
+        remaining_videos = Video.objects.filter(user=self.user).order_by("uploaded_at")
+        self.assertEqual(remaining_videos.count(), 3)
+
+        # Verify correct videos were kept (newest 3)
+        remaining_ids = list(remaining_videos.values_list("id", flat=True))
+        self.assertIn(self.videos[2].id, remaining_ids)
+        self.assertIn(self.videos[3].id, remaining_ids)
+        self.assertIn(self.videos[4].id, remaining_ids)
+
+        # Verify correct videos were deleted (oldest 2)
+        self.assertFalse(Video.objects.filter(id=self.videos[0].id).exists())
+        self.assertFalse(Video.objects.filter(id=self.videos[1].id).exists())
+
+    def test_reduce_from_limited_to_more_limited(self):
+        """Test reducing from one limit to a lower limit"""
+        # Set initial limit to 5
+        self.user.video_limit = 5
+        self.user.save()
+        self.assertEqual(Video.objects.filter(user=self.user).count(), 5)
+
+        # Reduce to 2
+        self.user.video_limit = 2
+        self.user.save()
+
+        # Should keep 2 newest, delete 3 oldest
+        self.assertEqual(Video.objects.filter(user=self.user).count(), 2)
+
+        # Verify correct videos were kept (newest 2)
+        remaining_videos = Video.objects.filter(user=self.user).order_by("uploaded_at")
+        remaining_ids = list(remaining_videos.values_list("id", flat=True))
+        self.assertIn(self.videos[3].id, remaining_ids)
+        self.assertIn(self.videos[4].id, remaining_ids)
+
+    def test_reduce_to_zero_deletes_all(self):
+        """Test reducing to 0 deletes all videos"""
+        self.user.video_limit = 5
+        self.user.save()
+
+        # Reduce to 0
+        self.user.video_limit = 0
+        self.user.save()
+
+        # All videos should be deleted
+        self.assertEqual(Video.objects.filter(user=self.user).count(), 0)
+
+    def test_increase_limit_does_not_delete(self):
+        """Test increasing limit doesn't delete videos"""
+        self.user.video_limit = 3
+        self.user.save()
+        self.assertEqual(Video.objects.filter(user=self.user).count(), 3)
+
+        # Increase to 10
+        self.user.video_limit = 10
+        self.user.save()
+
+        # Should still have 3 videos
+        self.assertEqual(Video.objects.filter(user=self.user).count(), 3)
+
+    def test_change_to_unlimited_does_not_delete(self):
+        """Test changing to unlimited doesn't delete videos"""
+        self.user.video_limit = 3
+        self.user.save()
+        self.assertEqual(Video.objects.filter(user=self.user).count(), 3)
+
+        # Change to unlimited
+        self.user.video_limit = None
+        self.user.save()
+
+        # Should still have 3 videos
+        self.assertEqual(Video.objects.filter(user=self.user).count(), 3)
+
+    def test_same_limit_does_not_delete(self):
+        """Test setting same limit doesn't delete videos"""
+        self.user.video_limit = 5
+        self.user.save()
+
+        # Set to same value
+        self.user.video_limit = 5
+        self.user.save()
+
+        # Should still have 5 videos
+        self.assertEqual(Video.objects.filter(user=self.user).count(), 5)
+
+    @patch("app.utils.vector_manager.delete_video_vectors")
+    def test_deletion_triggers_vector_cleanup(self, mock_delete):
+        """Test that automatic deletion triggers vector cleanup"""
+        # Reduce from unlimited to 2
+        self.user.video_limit = 2
+        self.user.save()
+
+        # Should have called delete_video_vectors for 3 deleted videos
+        self.assertEqual(mock_delete.call_count, 3)
+
+    def test_deletion_removes_from_groups(self):
+        """Test that automatic deletion removes videos from groups"""
+        # Create a group and add all videos
+        group = VideoGroup.objects.create(user=self.user, name="Test Group")
+        for video in self.videos:
+            VideoGroupMember.objects.create(group=group, video=video)
+
+        self.assertEqual(VideoGroupMember.objects.filter(group=group).count(), 5)
+
+        # Reduce limit to 2
+        self.user.video_limit = 2
+        self.user.save()
+
+        # Should only have 2 videos in group now
+        self.assertEqual(VideoGroupMember.objects.filter(group=group).count(), 2)
+        # Group should still exist
+        self.assertTrue(VideoGroup.objects.filter(pk=group.pk).exists())
+
+    def test_oldest_videos_deleted_first(self):
+        """Test that oldest videos are deleted first"""
+        # Get IDs of newest 2 videos (that should be kept)
+        newest_video_ids = [self.videos[3].id, self.videos[4].id]
+
+        # Reduce to 2
+        self.user.video_limit = 2
+        self.user.save()
+
+        # Oldest 3 should be deleted
+        self.assertFalse(Video.objects.filter(id=self.videos[0].id).exists())
+        self.assertFalse(Video.objects.filter(id=self.videos[1].id).exists())
+        self.assertFalse(Video.objects.filter(id=self.videos[2].id).exists())
+
+        # Newest 2 should remain
+        for video_id in newest_video_ids:
+            self.assertTrue(Video.objects.filter(id=video_id).exists())
+
+    def test_deletion_via_admin_interface(self):
+        """Test that deletion works when limit is changed via admin"""
+        # Simulate admin update (direct model save)
+        user = User.objects.get(pk=self.user.pk)
+        user.video_limit = 2
+        user.save()
+
+        self.assertEqual(Video.objects.filter(user=user).count(), 2)
+
+    def test_new_user_creation_does_not_error(self):
+        """Test that creating new user doesn't trigger deletion logic"""
+        # Should not raise any errors
+        new_user = User.objects.create_user(
+            username="newuser",
+            email="new@example.com",
+            password="testpass123",
+            video_limit=5,
+        )
+        self.assertEqual(new_user.video_limit, 5)

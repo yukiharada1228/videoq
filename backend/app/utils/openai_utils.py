@@ -6,6 +6,7 @@ from typing import Optional, Protocol
 
 from app.utils.encryption import decrypt_api_key
 
+
 class UserWithOpenAIApiKeyEncrypted(Protocol):
     """User-like object that has encrypted OpenAI API key field."""
 
