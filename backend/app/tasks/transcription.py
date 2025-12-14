@@ -2,10 +2,8 @@
 Main transcription task using Celery
 """
 
-import json
 import logging
 import os
-import subprocess
 import tempfile
 
 from celery import shared_task
@@ -47,38 +45,6 @@ def download_video_from_storage(video, video_id, temp_manager):
         temp_manager.temp_files.append(temp_video_path)
         logger.info(f"Video downloaded successfully to {temp_video_path}")
         return temp_video_path, video_file
-
-
-def save_video_duration(video, video_file_path):
-    """
-    Get video duration from ffprobe and save to Video model
-    """
-    if video.duration_minutes is not None:
-        return
-
-    try:
-        probe_result = subprocess.run(
-            [
-                "ffprobe",
-                "-v",
-                "quiet",
-                "-print_format",
-                "json",
-                "-show_format",
-                video_file_path,
-            ],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        probe = json.loads(probe_result.stdout)
-        duration_seconds = float(probe["format"]["duration"])
-        duration_minutes = duration_seconds / 60.0
-        video.duration_minutes = duration_minutes
-        video.save(update_fields=["duration_minutes"])
-        logger.info(f"Saved video duration: {duration_minutes:.2f} minutes")
-    except Exception as e:
-        logger.warning(f"Failed to save video duration: {e}")
 
 
 def cleanup_external_upload(video_file, video_id):
@@ -161,8 +127,6 @@ def transcribe_video(self, video_id):
             if not audio_segments:
                 handle_transcription_error(video, "Failed to extract audio from video")
                 return
-
-            save_video_duration(video, video_file_path)
 
             srt_content = transcribe_and_create_srt(client, audio_segments)
             if not srt_content:
