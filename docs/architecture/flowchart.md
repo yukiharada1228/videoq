@@ -9,11 +9,11 @@ This flowchart represents the main processing flows of the VideoQ system.
 ```mermaid
 flowchart TD
     Start([Video Upload Start]) --> Input[User Selects File]
-    Input --> Validate1{File Format<br/>Validation}
+    Input --> Validate1{"File Format<br>Validation"}
     Validate1 -->|Invalid| Error1[Error Display<br/>Unsupported Format]
-    Validate1 -->|Valid| Validate2{File Size<br/>Check}
+    Validate1 -->|Valid| Validate2{"File Size<br>Check"}
     Validate2 -->|Exceeds| Error2[Error Display<br/>Size Exceeded]
-    Validate2 -->|OK| Validate3{Video Upload Limit<br/>Check (User.video_limit)}
+    Validate2 -->|OK| Validate3{"Video Upload Limit<br>Check (User.video_limit)"}
     Validate3 -->|Exceeded| Error4[Error Display<br/>Upload Limit Reached]
     Validate3 -->|OK| Upload[Start File Upload]
     Upload --> SaveDB[(Database<br/>Save Video<br/>status: pending)]
@@ -25,12 +25,12 @@ flowchart TD
     Queue --> Worker[Celery Worker<br/>Receives Task]
     Worker --> UpdateStatus[Update status: processing]
     UpdateStatus --> SaveDB2[(Database Update)]
-    SaveDB2 --> CheckAPIKey{OpenAI API Key<br/>Configured? (Video Owner)}
+    SaveDB2 --> CheckAPIKey{"OpenAI API Key<br>Configured? (Video Owner)"}
     CheckAPIKey -->|Not Configured| Error5[Error Processing<br/>status: error]
-    CheckAPIKey -->|Configured| CheckFile{File Exists<br/>Check}
+    CheckAPIKey -->|Configured| CheckFile{"File Exists<br>Check"}
     CheckFile -->|Not Exists| Error3[Error Processing]
     CheckFile -->|Exists| Extract[Extract Audio<br/>with ffmpeg]
-    Extract --> CheckSize{File Size<br/>24MB or less?}
+    Extract --> CheckSize{"File Size<br>24MB or less?"}
     CheckSize -->|Yes| Transcribe1[Whisper API<br/>Transcription]
     CheckSize -->|No| Split[Split Audio]
     Split --> Transcribe2[Transcribe Each Segment<br/>in Parallel]
@@ -63,19 +63,19 @@ flowchart TD
     Validate1 -->|Valid| Send[Send API Request]
     Send --> Auth{Authentication Check}
     Auth -->|Failed| Error2[Authentication Error]
-    Auth -->|Success| CheckAPIKey{OpenAI API Key Configured?<br/>(User / Group Owner when shared)}
+    Auth -->|Success| CheckAPIKey{"OpenAI API Key Configured?<br>(User / Group Owner when shared)"}
     CheckAPIKey -->|Not Configured| Error3[API Key Not Configured Error]
     CheckAPIKey -->|Configured| CheckGroup{Group Specified?}
     CheckGroup -->|No| NoContext[No Context]
     CheckGroup -->|Yes| GetGroup[(Database<br/>Get VideoGroup)]
-    GetGroup --> ValidateGroup{Group Exists<br/>Check}
+    GetGroup --> ValidateGroup{"Group Exists<br>Check"}
     ValidateGroup -->|Not Exists| Error4[Group Not Found Error]
     ValidateGroup -->|Exists| VectorSearch[PGVector<br/>Vector Search]
     VectorSearch --> GetScenes[Get Related Scenes]
     GetScenes --> BuildContext[Build Context]
     BuildContext --> CallLLM[OpenAI LLM<br/>API Call]
     NoContext --> CallLLM
-    CallLLM --> CheckResponse{Response<br/>Success?}
+    CallLLM --> CheckResponse{"Response<br>Success?"}
     CheckResponse -->|Failed| Error5[LLM Error]
     CheckResponse -->|Success| ParseAnswer[Parse Answer]
     ParseAnswer --> SaveLog[(Database<br/>Save ChatLog)]
@@ -123,7 +123,7 @@ flowchart TD
     RedirectHome --> End([Authentication Complete])
     
     Reset --> InputEmail[Input Email Address]
-    InputEmail --> ValidateEmail{Email Address<br/>Exists Check}
+    InputEmail --> ValidateEmail{"Email Address<br>Exists Check"}
     ValidateEmail -->|Not Exists| ErrorEmail[Error Display]
     ValidateEmail -->|Exists| GenerateResetToken[Generate Reset Token]
     GenerateResetToken --> SendResetEmail[Send Reset Email]
@@ -223,7 +223,7 @@ flowchart TD
     Delete --> SelectGroup2[Select Group]
     SelectGroup2 --> ValidateOwner2{Ownership Verification}
     ValidateOwner2 -->|Invalid| ErrorOwner2[Ownership Error]
-    ValidateOwner2 -->|Valid| CheckToken{Token Exists<br/>Check}
+    ValidateOwner2 -->|Valid| CheckToken{"Token Exists<br>Check"}
     CheckToken -->|Not Exists| ErrorNoToken[Token Not Set Error]
     CheckToken -->|Exists| DeleteToken[(Database<br/>Delete share_token)]
     DeleteToken --> SuccessDelete[Delete Success]

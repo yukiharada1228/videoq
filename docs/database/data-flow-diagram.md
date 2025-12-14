@@ -12,7 +12,7 @@ flowchart TD
     Upload --> Frontend[Frontend]
     Frontend --> API[Backend API]
     
-    API --> Validate{Validation<br/>- File<br/>- User.video_limit}
+    API --> Validate{"Validation<br>- File<br>- User.video_limit"}
     Validate -->|Invalid| Error[Error Response]
     Validate -->|Valid| SaveDB[(Database<br/>Save Video)]
     
@@ -24,7 +24,7 @@ flowchart TD
     ReadDB --> UpdateStatus[Update status: processing]
     UpdateStatus --> SaveDB2[(Database<br/>Update)]
     
-    SaveDB2 --> CheckAPIKey{OpenAI API Key Configured?<br/>(Video Owner)}
+    SaveDB2 --> CheckAPIKey{"OpenAI API Key Configured?<br>(Video Owner)"}
     CheckAPIKey -->|Not Configured| Error2[Update status: error<br/>Save Error Message]
     CheckAPIKey -->|Configured| ReadFile[File Storage<br/>Read Video File]
     
@@ -179,7 +179,7 @@ flowchart TD
     GenerateJWT --> SetCookie[Set HttpOnly Cookies<br/>Access & Refresh Tokens]
     SetCookie --> Response2[Success Response]
     
-    API3 --> ValidateToken{Refresh Token Verification<br/>from HttpOnly Cookie}
+    API3 --> ValidateToken{"Refresh Token Verification<br>from HttpOnly Cookie"}
     ValidateToken -->|Invalid| Error3[Token Error]
     ValidateToken -->|Valid| GenerateAccess[Generate New Access Token]
     GenerateAccess --> SetCookie2[Update HttpOnly Cookie<br/>New Access Token]

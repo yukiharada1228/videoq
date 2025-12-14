@@ -14,7 +14,7 @@ flowchart TD
     ShowError --> UserInput
     Validate -->|Valid| CreateAccount[Create Account]
     CreateAccount --> SendEmail[Send Verification Email]
-    SendEmail --> WaitEmail{User Checks<br/>Email}
+    SendEmail --> WaitEmail{"User Checks<br>Email"}
     WaitEmail -->|Not Checked| Timeout{Timeout}
     Timeout -->|Timeout| Expire[Token Expired]
     Expire --> Resend[Resend Possible]
@@ -33,7 +33,7 @@ flowchart TD
 ```mermaid
 flowchart TD
     Start([Start]) --> Upload[Upload Video File]
-    Upload --> ValidateFile{Validation<br/>- File<br/>- User.video_limit}
+    Upload --> ValidateFile{"Validation<br>- File<br>- User.video_limit"}
     ValidateFile -->|Invalid| Reject[Reject Upload]
     Reject --> ShowError[Error Display]
     ShowError --> End([End])
@@ -44,7 +44,7 @@ flowchart TD
     NotifyUser --> ProcessTask[Start Background Processing]
     
     ProcessTask --> ExtractAudio[Extract Audio]
-    ExtractAudio --> CheckAPIKey{OpenAI API Key Configured?<br/>(Video Owner)}
+    ExtractAudio --> CheckAPIKey{"OpenAI API Key Configured?<br>(Video Owner)"}
     CheckAPIKey -->|Not Configured| HandleError[Error Processing]
     CheckAPIKey -->|Configured| Transcribe[Execute Transcription]
     Transcribe --> CheckResult{Processing Result}
@@ -72,7 +72,7 @@ flowchart TD
     ValidateQuestion -->|Valid| CheckAuth{Authentication Check}
     CheckAuth -->|Unauthenticated| RequireAuth[Require Authentication]
     RequireAuth --> End([End])
-    CheckAuth -->|Authenticated| CheckAPIKey{OpenAI API Key<br/>Configuration Check<br/>(User / Group Owner when shared)}
+    CheckAuth -->|Authenticated| CheckAPIKey{"OpenAI API Key<br>Configuration Check<br>(User / Group Owner when shared)"}
     CheckAPIKey -->|Not Configured| RequireAPIKey[OpenAI API Key Not Configured]
     RequireAPIKey --> End
     CheckAPIKey -->|Configured| CheckGroup{Group Specified}
@@ -82,7 +82,7 @@ flowchart TD
     SearchVector --> GetContext[Get Context]
     GetContext --> BuildPrompt[Build Prompt]
     
-    CheckGroup -->|Not Specified| BuildPrompt2[Build Prompt<br/>No Context]
+    CheckGroup -->|Not Specified| BuildPrompt2[Build Prompt<br>No Context]
     
     BuildPrompt --> CallLLM[LLM API Call]
     BuildPrompt2 --> CallLLM
@@ -194,12 +194,12 @@ flowchart TD
 flowchart TD
     Start([Start]) --> RequestReset[Request Password Reset]
     RequestReset --> InputEmail[Input Email Address]
-    InputEmail --> ValidateEmail{Email Address<br/>Existence Check}
+    InputEmail --> ValidateEmail{"Email Address<br>Existence Check"}
     ValidateEmail -->|Not Exists| ShowError[Error Display<br/>For Security, Show Success<br/>Even if Not Exists]
     ValidateEmail -->|Exists| GenerateToken[Generate Reset Token]
     GenerateToken --> SendEmail[Send Reset Email]
     SendEmail --> ShowMessage[Email Sent Message]
-    ShowMessage --> WaitEmail{User Checks<br/>Email}
+    ShowMessage --> WaitEmail{"User Checks<br>Email"}
     WaitEmail -->|Not Checked| Timeout{Timeout}
     Timeout -->|Timeout| Expire[Token Expired]
     Expire --> Resend[Resend Possible]
