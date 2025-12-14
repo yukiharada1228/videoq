@@ -212,7 +212,7 @@ graph TB
         E11[FRONTEND_URL]
         E12[USE_S3_STORAGE]
         E13[AWS_*]
-        E14[OPENAI_API_KEY<br/>(optional / not used in standard flow)]
+        E14["OPENAI_API_KEY<br/>(optional / not used in standard flow)"]
         E15[NEXT_PUBLIC_API_URL]
     end
     
