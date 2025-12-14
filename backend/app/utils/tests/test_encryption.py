@@ -1,6 +1,7 @@
 """
 Tests for encryption utilities.
 """
+
 from django.test import TestCase
 
 from app.utils.encryption import decrypt_api_key, encrypt_api_key

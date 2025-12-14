@@ -5,6 +5,7 @@ Uses Fernet symmetric encryption with a key derived from Django's SECRET_KEY.
 """
 
 import base64
+
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
@@ -22,7 +23,7 @@ def _get_fernet_key() -> bytes:
     kdf = PBKDF2HMAC(
         algorithm=hashes.SHA256(),
         length=32,
-        salt=b'videoq-openai-api-key-salt',  # Static salt for consistency
+        salt=b"videoq-openai-api-key-salt",  # Static salt for consistency
         iterations=100000,
     )
     key = base64.urlsafe_b64encode(kdf.derive(settings.SECRET_KEY.encode()))

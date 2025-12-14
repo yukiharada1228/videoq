@@ -7,7 +7,7 @@ This document provides detailed definitions of database tables and columns for t
 ## User Table
 
 ### Table Name
-`auth_user` (inherits from Django's AbstractUser)
+`app_user` (custom user model, inherits from Django's `AbstractUser`)
 
 ### Description
 Table that stores user information for the system.
@@ -22,11 +22,13 @@ Table that stores user information for the system.
 | password | VARCHAR(128) | NOT NULL | - | Hashed password |
 | date_joined | DATETIME | NOT NULL | now() | Registration date and time |
 | last_login | DATETIME | NULL | NULL | Last login date and time |
-| is_active | BOOLEAN | NOT NULL | False | Active status (email verified or not) |
+| is_active | BOOLEAN | NOT NULL | True | Active status (the signup flow sets this to `False` until email verification) |
 | is_staff | BOOLEAN | NOT NULL | False | Staff permissions |
 | is_superuser | BOOLEAN | NOT NULL | False | Superuser permissions |
 | first_name | VARCHAR(150) | NOT NULL | '' | First name |
 | last_name | VARCHAR(150) | NOT NULL | '' | Last name |
+| openai_api_key_encrypted | BYTEA | NULL | NULL | Encrypted OpenAI API key (stored per user) |
+| video_limit | INTEGER | NULL | 0 | Max number of videos the user can upload (`NULL` = unlimited, `0` = uploads disabled) |
 
 ### Indexes
 - PRIMARY KEY: `id`
@@ -72,7 +74,7 @@ Table that stores information about uploaded videos.
 
 ### Indexes
 - PRIMARY KEY: `id`
-- FOREIGN KEY: `user_id` → `auth_user.id` (CASCADE)
+- FOREIGN KEY: `user_id` → `app_user.id` (CASCADE)
 - INDEX: `uploaded_at` (for descending sort)
 
 ### Relations
@@ -103,7 +105,7 @@ Table for grouping videos.
 
 ### Indexes
 - PRIMARY KEY: `id`
-- FOREIGN KEY: `user_id` → `auth_user.id` (CASCADE)
+- FOREIGN KEY: `user_id` → `app_user.id` (CASCADE)
 - UNIQUE: `share_token` (NULL allowed)
 - INDEX: `created_at` (for descending sort)
 
@@ -174,7 +176,7 @@ Table that stores chat history.
 
 ### Indexes
 - PRIMARY KEY: `id`
-- FOREIGN KEY: `user_id` → `auth_user.id` (CASCADE)
+- FOREIGN KEY: `user_id` → `app_user.id` (CASCADE)
 - FOREIGN KEY: `group_id` → `app_videogroup.id` (CASCADE)
 - INDEX: `created_at` (for descending sort)
 
