@@ -10,7 +10,8 @@ from app.utils.mixins import AuthenticatedViewMixin, PublicViewMixin
 
 from .serializers import (EmailVerificationSerializer, LoginResponseSerializer,
                           LoginSerializer, MessageResponseSerializer,
-                          OpenAIApiKeyMessageSerializer, OpenAIApiKeySetSerializer,
+                          OpenAIApiKeyMessageSerializer,
+                          OpenAIApiKeySetSerializer,
                           OpenAIApiKeyStatusSerializer,
                           PasswordResetConfirmSerializer,
                           PasswordResetRequestSerializer,

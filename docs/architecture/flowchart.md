@@ -13,7 +13,9 @@ flowchart TD
     Validate1 -->|Invalid| Error1[Error Display<br/>Unsupported Format]
     Validate1 -->|Valid| Validate2{File Size<br/>Check}
     Validate2 -->|Exceeds| Error2[Error Display<br/>Size Exceeded]
-    Validate2 -->|OK| Upload[Start File Upload]
+    Validate2 -->|OK| Validate3{Video Upload Limit<br/>Check (User.video_limit)}
+    Validate3 -->|Exceeded| Error4[Error Display<br/>Upload Limit Reached]
+    Validate3 -->|OK| Upload[Start File Upload]
     Upload --> SaveDB[(Database<br/>Save Video<br/>status: pending)]
     SaveDB --> Queue[Redis Queue<br/>Add Task]
     Queue --> Response[Success Response]
@@ -23,7 +25,9 @@ flowchart TD
     Queue --> Worker[Celery Worker<br/>Receives Task]
     Worker --> UpdateStatus[Update status: processing]
     UpdateStatus --> SaveDB2[(Database Update)]
-    SaveDB2 --> CheckFile{File Exists<br/>Check}
+    SaveDB2 --> CheckAPIKey{OpenAI API Key<br/>Configured? (Video Owner)}
+    CheckAPIKey -->|Not Configured| Error5[Error Processing<br/>status: error]
+    CheckAPIKey -->|Configured| CheckFile{File Exists<br/>Check}
     CheckFile -->|Not Exists| Error3[Error Processing]
     CheckFile -->|Exists| Extract[Extract Audio<br/>with ffmpeg]
     Extract --> CheckSize{File Size<br/>24MB or less?}
@@ -43,7 +47,9 @@ flowchart TD
     
     Error1 --> End
     Error2 --> End
+    Error4 --> End
     Error3 --> ErrorHandle[Update status: error<br/>Save Error Message]
+    Error5 --> ErrorHandle
     ErrorHandle --> End
 ```
 

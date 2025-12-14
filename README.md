@@ -10,6 +10,7 @@ This application offers video upload, automatic transcription, and AI chat. When
 
 - **User Authentication**: HttpOnly Cookie-based JWT authentication (email verification and password reset supported)
 - **Video Upload**: Supports multiple video formats
+- **Video Upload Limits**: Per-user upload limit via `User.video_limit` (`NULL` = unlimited, `0` = disabled)
 - **Automatic Transcription**: Whisper API with Celery background processing
 - **AI Chat**: Q&A about video content using the OpenAI API (RAG-enabled)
 - **Video Group Management**: Organize multiple videos into groups
@@ -216,17 +217,19 @@ cp .env.example .env
 vim .env
 ```
 
-Required variables:
+Required variables (Docker Compose):
 - `POSTGRES_DB` - PostgreSQL database name
 - `POSTGRES_USER` - PostgreSQL user
 - `POSTGRES_PASSWORD` - PostgreSQL password
 - `SECRET_KEY` - Django secret key
-- `DATABASE_URL` - PostgreSQL connection URL (optional)
-- `CELERY_BROKER_URL` - Redis connection URL (optional)
-- `CELERY_RESULT_BACKEND` - Celery result backend URL (optional)
-- `ENABLE_SIGNUP` - Enable/disable sign-up (default: "True")
-- `ALLOWED_HOSTS` - Allowed hostnames (comma-separated)
-- `CORS_ALLOWED_ORIGINS` - CORS allowed origins (comma-separated)
+- `DATABASE_URL` - PostgreSQL connection URL (required inside containers; example: `postgres://POSTGRES_USER:POSTGRES_PASSWORD@postgres:5432/POSTGRES_DB`)
+- `CELERY_BROKER_URL` - Redis connection URL (required in containers; example: `redis://redis:6379/0`)
+- `CELERY_RESULT_BACKEND` - Celery result backend URL (required in containers; example: `redis://redis:6379/0`)
+
+Common variables:
+- `ENABLE_SIGNUP` - Enable/disable sign-up (default: "true")
+- `ALLOWED_HOSTS` - Allowed hostnames (comma-separated, default includes `localhost,127.0.0.1`)
+- `CORS_ALLOWED_ORIGINS` - CORS allowed origins (comma-separated; typically needed only when frontend/backend are served from different origins)
 - `SECURE_COOKIES` - Set to "true" in production with HTTPS to enable secure cookie flag (default: "false")
 - Email sending config (for email verification and password reset)
   - `USE_MAILGUN` - Use Mailgun if "true" (default: "false")
@@ -237,14 +240,15 @@ Required variables:
     - `EMAIL_BACKEND` - Django email backend (default: console backend)
     - `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_USE_TLS`
     - `DEFAULT_FROM_EMAIL`
-- `FRONTEND_URL` - Frontend URL (used for links in emails)
+- `FRONTEND_URL` - Frontend URL (used for links in emails). In the default Nginx setup this is typically `http://localhost`.
 - `USE_S3_STORAGE` - Use S3 storage if "true" (default: "false")
 - `AWS_STORAGE_BUCKET_NAME` - S3 bucket name (required if `USE_S3_STORAGE=true`)
 - `AWS_ACCESS_KEY_ID` - AWS access key ID (required if `USE_S3_STORAGE=true`)
 - `AWS_SECRET_ACCESS_KEY` - AWS secret access key (required if `USE_S3_STORAGE=true`)
-- `NEXT_PUBLIC_API_URL` - API URL for Next.js
+- `NEXT_PUBLIC_API_URL` - API URL for Next.js (**build-time** for the Docker image)
 
 Tip: When using the default Docker Compose + Nginx setup, `NEXT_PUBLIC_API_URL` should typically be `http://localhost/api`.
+Note: If you change `NEXT_PUBLIC_API_URL`, rebuild the frontend image (`docker compose up --build -d frontend nginx`).
 
 #### 2. Start all services
 
@@ -333,6 +337,16 @@ docker compose exec postgres psql -U $POSTGRES_USER -d $POSTGRES_DB
 - Automatic transcription (Whisper API)
 - Update and delete video information
 - Get video list
+
+### Video Upload Limits (User.video_limit)
+
+- `video_limit = NULL`: Unlimited uploads allowed
+- `video_limit = 0`: Uploads disabled
+- `video_limit > 0`: Max number of videos a user can have
+
+Notes:
+- Upload is validated at `POST /api/videos/` and returns a validation error when the limit is reached.
+- If an admin reduces `video_limit`, the system automatically deletes the oldest videos until the user is within the new limit (and associated pgvector data is cleaned up via a delete signal).
 
 #### Supported File Formats
 - Audio: `.flac`, `.m4a`, `.mp3`, `.mpga`, `.oga`, `.ogg`, `.wav`, `.webm`
@@ -547,7 +561,8 @@ curl -X POST "$BASE_URL/api/videos/" \
   -H "Authorization: Bearer $ACCESS" \
   -F "file=@/path/to/movie.mp4" \
   -F "title=Demo Video" \
-  -F "description=Description"
+  -F "description=Description" \
+  -F "delete_after_processing=false"
 
 # List
 curl -H "Authorization: Bearer $ACCESS" "$BASE_URL/api/videos/"

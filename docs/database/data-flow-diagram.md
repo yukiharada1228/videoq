@@ -12,7 +12,7 @@ flowchart TD
     Upload --> Frontend[Frontend]
     Frontend --> API[Backend API]
     
-    API --> Validate{File Validation}
+    API --> Validate{Validation<br/>- File<br/>- User.video_limit}
     Validate -->|Invalid| Error[Error Response]
     Validate -->|Valid| SaveDB[(Database<br/>Save Video)]
     
@@ -23,6 +23,10 @@ flowchart TD
     Worker --> ReadDB[(Database<br/>Read Video)]
     ReadDB --> UpdateStatus[Update status: processing]
     UpdateStatus --> SaveDB2[(Database<br/>Update)]
+    
+    SaveDB2 --> CheckAPIKey{OpenAI API Key Configured?<br/>(Video Owner)}
+    CheckAPIKey -->|Not Configured| Error2[Update status: error<br/>Save Error Message]
+    CheckAPIKey -->|Configured| ReadFile[File Storage<br/>Read Video File]
     
     Worker --> ReadFile[File Storage<br/>Read Video File]
     ReadFile --> Extract[Extract Audio<br/>ffmpeg]
@@ -36,6 +40,7 @@ flowchart TD
     UpdateComplete --> SaveDB3[(Database<br/>Final Update)]
     
     Error --> Frontend
+    Error2 --> Frontend
     SaveDB3 --> Frontend
     Frontend --> End([User])
 ```

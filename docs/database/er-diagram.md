@@ -27,6 +27,8 @@ erDiagram
         bool is_superuser
         string first_name
         string last_name
+        bytes openai_api_key_encrypted
+        int video_limit
     }
     
     Video {

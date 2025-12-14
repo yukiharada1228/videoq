@@ -8,7 +8,8 @@ from rest_framework import status
 from rest_framework.response import Response
 
 from app.common.responses import create_error_response
-from app.utils.openai_utils import OpenAIApiKeyNotConfiguredError, get_openai_api_key
+from app.utils.openai_utils import (OpenAIApiKeyNotConfiguredError,
+                                    get_openai_api_key)
 
 User = get_user_model()
 
