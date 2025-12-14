@@ -16,6 +16,8 @@ classDiagram
         +bool is_active
         +bool is_staff
         +bool is_superuser
+        +bytes openai_api_key_encrypted
+        +int video_limit (nullable)
     }
     
     class Video {
@@ -68,7 +70,7 @@ classDiagram
     
     Note: ChatLog.feedback uses FeedbackChoices (good/bad)
     
-    class SafeStorageMixin {
+    class SafeFilenameMixin {
         +get_available_name()
         +_get_safe_filename()
     }
@@ -78,7 +80,7 @@ classDiagram
     }
     
     class SafeS3Boto3Storage {
-        +__init__()
+        +_normalize_name()
         +get_available_name()
     }
     
@@ -88,10 +90,10 @@ classDiagram
     VideoGroup "1" --> "*" VideoGroupMember : contains
     Video "1" --> "*" VideoGroupMember : belongs_to
     VideoGroup "1" --> "*" ChatLog : has
-    SafeFileSystemStorage --|> SafeStorageMixin : extends
-    SafeS3Boto3Storage --|> SafeStorageMixin : extends
-    Video --> SafeFileSystemStorage : uses
-    Video --> SafeS3Boto3Storage : uses
+    SafeFileSystemStorage --|> SafeFilenameMixin : extends
+    SafeS3Boto3Storage --|> SafeFilenameMixin : extends
+    Video --> SafeFileSystemStorage : uses (local)
+    Video --> SafeS3Boto3Storage : uses (S3)
     
     class QueryOptimizer {
         +optimize_video_queryset()

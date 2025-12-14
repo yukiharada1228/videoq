@@ -130,7 +130,7 @@ graph TB
             EmailUtils[Email Utils]
             TaskHelpers[Task Helpers]
             QueryOptimizer[Query Optimizer]
-            PlanLimits[Plan Limits]
+            VideoLimits[Video Limits (User.video_limit)]
             ResponseUtils[Response Utils]
         end
         
@@ -154,12 +154,12 @@ graph TB
     Models --> Storage
     Services --> VectorManager
     Services --> QueryOptimizer
-    Services --> PlanLimits
+    Services --> VideoLimits
     Services --> ResponseUtils
     ChatAPI --> ChatServices
     VideoAPI --> QueryOptimizer
-    VideoAPI --> PlanLimits
-    AuthAPI --> PlanLimits
+    VideoAPI --> VideoLimits
+    AuthAPI --> VideoLimits
 ```
 
 ## System-Wide Component Structure

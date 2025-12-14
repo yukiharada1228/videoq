@@ -33,7 +33,7 @@ flowchart TD
 ```mermaid
 flowchart TD
     Start([Start]) --> Upload[Upload Video File]
-    Upload --> ValidateFile{File Validation}
+    Upload --> ValidateFile{Validation<br/>- File<br/>- User.video_limit}
     ValidateFile -->|Invalid| Reject[Reject Upload]
     Reject --> ShowError[Error Display]
     ShowError --> End([End])
@@ -44,7 +44,9 @@ flowchart TD
     NotifyUser --> ProcessTask[Start Background Processing]
     
     ProcessTask --> ExtractAudio[Extract Audio]
-    ExtractAudio --> Transcribe[Execute Transcription]
+    ExtractAudio --> CheckAPIKey{OpenAI API Key Configured?<br/>(Video Owner)}
+    CheckAPIKey -->|Not Configured| HandleError[Error Processing]
+    CheckAPIKey -->|Configured| Transcribe[Execute Transcription]
     Transcribe --> CheckResult{Processing Result}
     CheckResult -->|Success| CreateTranscript[Save Transcription]
     CheckResult -->|Failure| HandleError[Error Processing]

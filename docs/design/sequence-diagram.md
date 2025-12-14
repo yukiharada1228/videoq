@@ -18,6 +18,7 @@ sequenceDiagram
 
     User->>Frontend: Upload Video File
     Frontend->>Backend: POST /api/videos/
+    Backend->>Backend: Validate request (file, User.video_limit)
     Backend->>DB: Create Video(status: pending)
     DB-->>Backend: Video Saved
     Backend->>Celery: transcribe_video.delay(video_id)
@@ -28,13 +29,18 @@ sequenceDiagram
     DB-->>Celery: Video Information
     Celery->>DB: Update status(processing)
     Celery->>Celery: Extract Audio with ffmpeg
-    Celery->>Whisper: Send Audio File
-    Whisper-->>Celery: Transcription Result
-    Celery->>Celery: Convert to SRT Format
-    Celery->>Celery: Scene Splitting Process
-    Celery->>DB: Save transcript
-    Celery->>PGVector: Vectorize and Save
-    Celery->>DB: Update status(completed)
+    Celery->>Celery: Get OpenAI API Key (Video Owner)
+    alt OpenAI API key not configured
+        Celery->>DB: Update status(error) + Save Error Message
+    else OpenAI API key configured
+        Celery->>Whisper: Send Audio File
+        Whisper-->>Celery: Transcription Result
+        Celery->>Celery: Convert to SRT Format
+        Celery->>Celery: Scene Splitting Process
+        Celery->>DB: Save transcript
+        Celery->>PGVector: Vectorize and Save
+        Celery->>DB: Update status(completed)
+    end
     
     User->>Frontend: Reload Video Detail Page
     Frontend->>Backend: GET /api/videos/{id}/
