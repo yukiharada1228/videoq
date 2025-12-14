@@ -1,4 +1,4 @@
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.admin import UserAdmin
 from django.db.models import Count
@@ -49,6 +49,37 @@ class CustomUserAdmin(UserAdmin):
         ("Video Settings", {"fields": ("video_limit",)}),
     )
     add_fieldsets = UserAdmin.add_fieldsets
+
+    def save_model(self, request, obj, form, change):
+        """Override to show warning when reducing video_limit"""
+        if change and "video_limit" in form.changed_data:
+            old_user = User.objects.get(pk=obj.pk)
+            old_limit = old_user.video_limit
+            new_limit = obj.video_limit
+
+            # Check if reduction will trigger deletions
+            if self._will_delete_videos(old_limit, new_limit, obj):
+                current_count = Video.objects.filter(user=obj).count()
+                videos_to_delete = current_count - (
+                    new_limit if new_limit is not None else 0
+                )
+
+                messages.warning(
+                    request,
+                    f"Warning: Reducing video_limit will automatically delete "
+                    f"{videos_to_delete} oldest video(s) for user {obj.username}.",
+                )
+
+        super().save_model(request, obj, form, change)
+
+    def _will_delete_videos(self, old_limit, new_limit, user):
+        """Check if limit reduction will trigger deletions"""
+        if old_limit == new_limit or new_limit is None:
+            return False
+        if old_limit is None or new_limit < old_limit:
+            current_count = Video.objects.filter(user=user).count()
+            return current_count > (new_limit if new_limit is not None else 0)
+        return False
 
 
 @admin.register(Video)

@@ -11,9 +11,21 @@ urlpatterns = [
     path("logout/", LogoutView.as_view(), name="auth-logout"),
     path("refresh/", RefreshView.as_view(), name="auth-refresh"),
     path("me/", MeView.as_view(), name="auth-me"),
-    path("me/openai-api-key/", SetOpenAIApiKeyView.as_view(), name="auth-set-openai-api-key"),
-    path("me/openai-api-key/status/", GetOpenAIApiKeyStatusView.as_view(), name="auth-get-openai-api-key-status"),
-    path("me/openai-api-key/delete/", DeleteOpenAIApiKeyView.as_view(), name="auth-delete-openai-api-key"),
+    path(
+        "me/openai-api-key/",
+        SetOpenAIApiKeyView.as_view(),
+        name="auth-set-openai-api-key",
+    ),
+    path(
+        "me/openai-api-key/status/",
+        GetOpenAIApiKeyStatusView.as_view(),
+        name="auth-get-openai-api-key-status",
+    ),
+    path(
+        "me/openai-api-key/delete/",
+        DeleteOpenAIApiKeyView.as_view(),
+        name="auth-delete-openai-api-key",
+    ),
     path("verify-email/", EmailVerificationView.as_view(), name="auth-verify-email"),
     path(
         "password-reset/",
