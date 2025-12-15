@@ -610,12 +610,12 @@ export default function VideoGroupDetailPage() {
                 <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
                   <DialogTrigger asChild>
                     <Button size="sm" className="lg:size-default">
-                      {t('videos.groupDetail.add')}
+                      {t('videos.groupDetail.addVideos')}
                     </Button>
                   </DialogTrigger>
                 <DialogContent className="max-w-[95vw] lg:max-w-2xl max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
-                    <DialogTitle>{t('videos.groupDetail.add')}</DialogTitle>
+                    <DialogTitle>{t('videos.groupDetail.addVideos')}</DialogTitle>
                     <DialogDescription>
                       {t('videos.groupDetail.addDescription')}
                     </DialogDescription>

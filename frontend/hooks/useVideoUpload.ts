@@ -98,7 +98,7 @@ export function useVideoUpload(): UseVideoUploadReturn {
     if (onSuccess) {
       onSuccess();
     }
-  }, [uploadVideo, file, title, description, setError]);
+  }, [uploadVideo, file, title, description, externalId, setError]);
 
   return {
     file,

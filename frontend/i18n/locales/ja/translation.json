@@ -199,7 +199,8 @@
         "title": "タイトル",
         "description": "説明",
         "status": "ステータス",
-        "uploadedAt": "アップロード日時"
+        "uploadedAt": "アップロード日時",
+        "externalId": "external_id"
       },
       "editTitleLabel": "タイトル",
       "editDescriptionLabel": "説明",
@@ -226,7 +227,7 @@
     },
     "groupDetail": {
       "edit": "編集",
-      "add": "動画を追加",
+      "addVideos": "動画を追加",
       "addDescription": "チャットグループに追加する動画を選択してください",
       "back": "一覧に戻る",
       "delete": "削除",

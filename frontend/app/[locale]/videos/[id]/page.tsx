@@ -234,6 +234,12 @@ export default function VideoDetailPage() {
                   {formatDate(video.uploaded_at, 'full', locale)}
                 </p>
               </div>
+              <div>
+                <p className="text-sm font-medium text-gray-600">{t('videos.detail.labels.externalId')}</p>
+                <p className="text-gray-900 break-all">
+                  {video.external_id ? video.external_id : t('common.notProvided')}
+                </p>
+              </div>
             </CardContent>
           </Card>
 
