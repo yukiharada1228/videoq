@@ -15,11 +15,13 @@ export function VideoUpload({ onUploadSuccess }: VideoUploadProps) {
     file,
     title,
     description,
+    externalId,
     isUploading,
     error,
     success,
     setTitle,
     setDescription,
+    setExternalId,
     handleFileChange,
     handleSubmit,
     reset,
@@ -46,11 +48,13 @@ export function VideoUpload({ onUploadSuccess }: VideoUploadProps) {
           <VideoUploadFormFields
             title={title}
             description={description}
+            externalId={externalId}
             isUploading={isUploading}
             error={error}
             success={success}
             setTitle={setTitle}
             setDescription={setDescription}
+            setExternalId={setExternalId}
             handleFileChange={handleFileChange}
             file={file}
           />
