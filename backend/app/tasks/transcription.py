@@ -49,12 +49,16 @@ def download_video_from_storage(video, video_id, temp_manager):
 
 def cleanup_external_upload(video_file, video_id):
     """
-    Delete video file after processing when delete_after_processing flag is set
+    Delete original video file after processing when external_id is specified.
+    Also clears the DB field so the frontend doesn't try to preview a missing file.
     """
     try:
         if video_file:
+            # Delete actual file object from storage
             video_file.delete(save=False)
-            logger.info(f"Deleted video file after processing (video ID: {video_id})")
+            logger.info(
+                f"Deleted original video file after processing (video ID: {video_id})"
+            )
     except Exception as e:
         logger.warning(
             f"Failed to delete video file after processing (video ID: {video_id}): {e}"
@@ -100,7 +104,7 @@ def transcribe_video(self, video_id):
                 raise Exception(error)
 
             logger.info(f"Video found: {video.title}")
-            is_external_upload = video.is_external_upload
+            should_delete_original_video = bool(video.external_id)
 
             is_valid, validation_error = VideoTaskManager.validate_video_for_processing(
                 video
@@ -147,9 +151,17 @@ def transcribe_video(self, video_id):
 
             logger.info(f"Successfully processed video {video_id}")
 
-            # Cleanup external uploads
-            if is_external_upload:
+            # Cleanup original video file if this is an external_id-based upload
+            if should_delete_original_video:
                 cleanup_external_upload(video_file, video_id)
+                # Persist clearing the file field so API won't return a broken URL
+                try:
+                    video.file = ""
+                    video.save(update_fields=["file"])
+                except Exception as e:
+                    logger.warning(
+                        f"Failed to clear video.file after deletion (video ID: {video_id}): {e}"
+                    )
 
             return scene_split_srt
 
