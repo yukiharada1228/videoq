@@ -63,8 +63,8 @@ Table that stores information about uploaded videos.
 | transcript | TEXT | NOT NULL | '' | Transcription result (SRT format) |
 | status | VARCHAR(20) | NOT NULL | 'pending' | Processing status |
 | error_message | TEXT | NOT NULL | '' | Error message (when error occurs) |
-| duration_minutes | FLOAT | NULL | NULL | Video duration in minutes (for Whisper usage tracking) |
 | is_external_upload | BOOLEAN | NOT NULL | False | Whether uploaded via external API |
+| external_id | VARCHAR(255) | UNIQUE, NULL | NULL | ID from external LMS (e.g., Moodle cm_id, Canvas content_id) |
 
 ### status Values
 - `pending`: Waiting for processing
@@ -75,6 +75,7 @@ Table that stores information about uploaded videos.
 ### Indexes
 - PRIMARY KEY: `id`
 - FOREIGN KEY: `user_id` → `app_user.id` (CASCADE)
+- UNIQUE: `external_id` (NULL allowed)
 - INDEX: `uploaded_at` (for descending sort)
 
 ### Relations
@@ -213,9 +214,12 @@ Collection that stores vectorized video scenes.
   "end_time": "00:01:45,789",
   "start_sec": 83.456,
   "end_sec": 105.789,
-  "scene_index": 5
+  "scene_index": 5,
+  "external_id": "moodle_cm_12345"
 }
 ```
+
+**Note**: The `external_id` field is optional and only included when the video has an associated external LMS identifier.
 
 ### Indexes
 - PRIMARY KEY: `id`
@@ -260,6 +264,7 @@ All foreign keys have `ON DELETE CASCADE` set, so child records are automaticall
 ### Unique Constraints
 - `User.username`: Username is unique
 - `User.email`: Email address is unique
+- `Video.external_id`: External LMS ID is unique (NULL allowed)
 - `VideoGroup.share_token`: Share token is unique (NULL allowed)
 - `VideoGroupMember(group_id, video_id)`: Cannot add the same video to the same group multiple times
 

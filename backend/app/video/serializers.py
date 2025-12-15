@@ -40,6 +40,7 @@ class VideoSerializer(serializers.ModelSerializer):
             "transcript",
             "status",
             "error_message",
+            "external_id",
         ]
         read_only_fields = ["id", "user", "uploaded_at"]
 
@@ -56,7 +57,7 @@ class VideoCreateSerializer(UserOwnedSerializerMixin, serializers.ModelSerialize
 
     class Meta:
         model = Video
-        fields = ["file", "title", "description", "delete_after_processing"]
+        fields = ["file", "title", "description", "delete_after_processing", "external_id"]
 
     def validate(self, attrs):
         """Validate video upload limit"""
@@ -121,7 +122,7 @@ class VideoListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Video
-        fields = ["id", "file", "title", "description", "uploaded_at", "status"]
+        fields = ["id", "file", "title", "description", "uploaded_at", "status", "external_id"]
         read_only_fields = ["id", "uploaded_at"]
 
 
