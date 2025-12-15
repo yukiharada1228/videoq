@@ -132,12 +132,12 @@ graph TB
     end
 
     subgraph AppNetwork["Docker Compose Network<br/>videoq-network"]
-        Nginx[Nginx<br/>:80]
-        Frontend[frontend (Next.js)<br/>:3000]
-        Backend[backend (Django)<br/>:8000]
-        Worker[celery-worker<br/>Celery]
-        DB[(postgres (pg17 + pgvector)<br/>:5432)]
-        Cache[(redis<br/>:6379)]
+        Nginx["nginx<br/>:80"]
+        Frontend["frontend<br/>Next.js<br/>:3000"]
+        Backend["backend<br/>Django<br/>:8000"]
+        Worker["celery-worker<br/>Celery"]
+        DB[("postgres<br/>pg17 + pgvector<br/>:5432")]
+        Cache[("redis<br/>:6379")]
     end
 
     Users -->|HTTP:80| Nginx
