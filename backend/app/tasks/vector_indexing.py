@@ -66,7 +66,7 @@ def create_scene_metadata(video, scene):
     """
     Create scene metadata
     """
-    return {
+    metadata = {
         "video_id": video.id,
         "user_id": video.user_id,
         "video_title": video.title,
@@ -76,6 +76,12 @@ def create_scene_metadata(video, scene):
         "end_sec": scene["end_sec"],
         "scene_index": scene["index"],
     }
+
+    # Add external_id if it exists
+    if video.external_id:
+        metadata["external_id"] = video.external_id
+
+    return metadata
 
 
 def index_scenes_batch(scene_split_srt, video, api_key=None):

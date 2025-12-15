@@ -127,14 +127,16 @@ class Video(models.Model):
     transcript = models.TextField(blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
     error_message = models.TextField(blank=True)
-    duration_minutes = models.FloatField(
-        null=True,
-        blank=True,
-        help_text="Video duration in minutes (for Whisper usage tracking)",
-    )
     is_external_upload = models.BooleanField(
         default=False,
         help_text="Whether this is an upload from an external API client (file will be deleted after processing)",
+    )
+    external_id = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        unique=True,
+        help_text="ID from external LMS (e.g., Moodle cm_id, Canvas content_id)",
     )
 
     class Meta:
