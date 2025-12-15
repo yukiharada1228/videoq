@@ -217,20 +217,20 @@ cp .env.example .env
 vim .env
 ```
 
-Required variables (Docker Compose):
-- `POSTGRES_DB` - PostgreSQL database name
-- `POSTGRES_USER` - PostgreSQL user
-- `POSTGRES_PASSWORD` - PostgreSQL password
-- `SECRET_KEY` - Django secret key
-- `DATABASE_URL` - PostgreSQL connection URL (required inside containers; example: `postgres://POSTGRES_USER:POSTGRES_PASSWORD@postgres:5432/POSTGRES_DB`)
-- `CELERY_BROKER_URL` - Redis connection URL (required in containers; example: `redis://redis:6379/0`)
-- `CELERY_RESULT_BACKEND` - Celery result backend URL (required in containers; example: `redis://redis:6379/0`)
+Required variables (Docker Compose / minimal `.env.example`):
+- `ENABLE_SIGNUP` - Enable/disable sign-up (example uses `True` / `False`)
+- `DATABASE_URL` - PostgreSQL connection URL used by the backend (example: `postgresql://POSTGRES_USER:POSTGRES_PASSWORD@postgres:5432/POSTGRES_DB`)
+- `POSTGRES_DB` - PostgreSQL database name (used by the `postgres` container)
+- `POSTGRES_USER` - PostgreSQL user (used by the `postgres` container)
+- `POSTGRES_PASSWORD` - PostgreSQL password (used by the `postgres` container)
+- `CELERY_BROKER_URL` - Redis connection URL (example: `redis://redis:6379/0`)
+- `CELERY_RESULT_BACKEND` - Celery result backend URL (example: `redis://redis:6379/0`)
 
 Common variables:
-- `ENABLE_SIGNUP` - Enable/disable sign-up (default: "true")
 - `ALLOWED_HOSTS` - Allowed hostnames (comma-separated, default includes `localhost,127.0.0.1`)
 - `CORS_ALLOWED_ORIGINS` - CORS allowed origins (comma-separated; typically needed only when frontend/backend are served from different origins)
 - `SECURE_COOKIES` - Set to "true" in production with HTTPS to enable secure cookie flag (default: "false")
+- `SECRET_KEY` - Django secret key (**recommended**; if unset, the backend falls back to a development key in `backend/videoq/settings.py`)
 - Email sending config (for email verification and password reset)
   - `USE_MAILGUN` - Use Mailgun if "true" (default: "false")
   - If `USE_MAILGUN=true`
@@ -245,9 +245,12 @@ Common variables:
 - `AWS_STORAGE_BUCKET_NAME` - S3 bucket name (required if `USE_S3_STORAGE=true`)
 - `AWS_ACCESS_KEY_ID` - AWS access key ID (required if `USE_S3_STORAGE=true`)
 - `AWS_SECRET_ACCESS_KEY` - AWS secret access key (required if `USE_S3_STORAGE=true`)
+- `AWS_S3_REGION_NAME` - S3 region (optional; default in backend is `ap-northeast-1`)
 - `NEXT_PUBLIC_API_URL` - API URL for Next.js (**build-time** for the Docker image)
 
-Tip: When using the default Docker Compose + Nginx setup, `NEXT_PUBLIC_API_URL` should typically be `http://localhost/api`.
+Tip:
+- With the default Docker Compose + Nginx setup, `NEXT_PUBLIC_API_URL` should typically be `http://localhost/api`.
+- If you run the frontend without Nginx (e.g. `next dev`), you may want `http://localhost:8000/api`.
 Note: If you change `NEXT_PUBLIC_API_URL`, rebuild the frontend image (`docker compose up --build -d frontend nginx`).
 
 #### 2. Start all services

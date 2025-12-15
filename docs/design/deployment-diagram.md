@@ -202,9 +202,10 @@ graph TB
         E1[POSTGRES_DB]
         E2[POSTGRES_USER]
         E3[POSTGRES_PASSWORD]
-        E4[SECRET_KEY]
+        E4["SECRET_KEY<br/>(recommended; required for production)"]
         E5[DATABASE_URL]
         E6[CELERY_BROKER_URL]
+        E6b[CELERY_RESULT_BACKEND]
         E7[ENABLE_SIGNUP]
         E8[ALLOWED_HOSTS]
         E9[CORS_ALLOWED_ORIGINS]
@@ -229,7 +230,9 @@ graph TB
     E4 --> C2
     E5 --> C2
     E6 --> C2
+    E6b --> C2
     E6 --> C3
+    E6b --> C3
     E7 --> C2
     E8 --> C2
     E9 --> C2
@@ -242,7 +245,10 @@ graph TB
     E15 --> C4
 ```
 
-## Scaling Configuration
+## Optional: Scaling Configuration (production example)
+
+> Note: The default `docker-compose.yml` runs a single instance per service.
+> The diagram below is an example of how you might scale in production.
 
 ```mermaid
 graph TB

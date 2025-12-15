@@ -126,59 +126,32 @@ graph TB
 
 ```mermaid
 graph TB
+    %% Default (Docker Compose) topology
     subgraph Internet["Internet"]
         Users[Users]
     end
-    
-    subgraph DMZ["DMZ"]
-        LB[Load Balancer<br/>Nginx]
+
+    subgraph AppNetwork["Docker Compose Network<br/>videoq-network"]
+        Nginx[Nginx<br/>:80]
+        Frontend[frontend (Next.js)<br/>:3000]
+        Backend[backend (Django)<br/>:8000]
+        Worker[celery-worker<br/>Celery]
+        DB[(postgres (pg17 + pgvector)<br/>:5432)]
+        Cache[(redis<br/>:6379)]
     end
-    
-    subgraph AppNetwork["Application Network<br/>videoq-network"]
-        subgraph WebTier["Web Tier"]
-            Web1[Frontend-1]
-            Web2[Frontend-2]
-        end
-        
-        subgraph AppTier["Application Tier"]
-            App1[Backend-1]
-            App2[Backend-2]
-        end
-        
-        subgraph WorkerTier["Worker Tier"]
-            Worker1[Celery-Worker-1]
-            Worker2[Celery-Worker-2]
-        end
-    end
-    
-    subgraph DataNetwork["Data Network"]
-        subgraph DatabaseTier["Database Tier"]
-            DB1[(PostgreSQL<br/>Primary)]
-            DB2[(PostgreSQL<br/>Replica)]
-        end
-        
-        subgraph CacheTier["Cache Tier"]
-            Cache1[(Redis<br/>Master)]
-            Cache2[(Redis<br/>Replica)]
-        end
-    end
-    
-    Users -->|HTTPS:443| LB
-    LB -->|HTTP:3000| Web1
-    LB -->|HTTP:3000| Web2
-    Web1 -->|HTTP:8000| App1
-    Web2 -->|HTTP:8000| App2
-    App1 -->|PostgreSQL:5432| DB1
-    App2 -->|PostgreSQL:5432| DB1
-    App1 -->|Redis:6379| Cache1
-    App2 -->|Redis:6379| Cache1
-    Worker1 -->|Redis:6379| Cache1
-    Worker2 -->|Redis:6379| Cache1
-    Worker1 -->|PostgreSQL:5432| DB1
-    Worker2 -->|PostgreSQL:5432| DB1
-    DB1 -.->|Replication| DB2
-    Cache1 -.->|Replication| Cache2
+
+    Users -->|HTTP:80| Nginx
+    Nginx -->|Proxy| Frontend
+    Nginx -->|Proxy| Backend
+    Frontend -->|API| Backend
+    Backend -->|PostgreSQL| DB
+    Backend -->|Redis| Cache
+    Worker -->|Redis| Cache
+    Worker -->|PostgreSQL| DB
 ```
+
+> Note: The diagram above matches the default `docker-compose.yml` (single instance per service).
+> If you need horizontal scaling (multiple frontend/backend/worker instances, DB replicas, etc.), treat it as a production architecture concern.
 
 ## Security Configuration
 
