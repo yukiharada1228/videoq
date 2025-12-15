@@ -199,7 +199,8 @@
         "title": "Title",
         "description": "Description",
         "status": "Status",
-        "uploadedAt": "Uploaded at"
+        "uploadedAt": "Uploaded at",
+        "externalId": "external_id"
       },
       "editTitleLabel": "Title",
       "editDescriptionLabel": "Description",
@@ -226,7 +227,7 @@
     },
     "groupDetail": {
       "edit": "Edit",
-      "add": "Add videos",
+      "addVideos": "Add videos",
       "addDescription": "Select the videos to add to this chat group",
       "back": "Back to list",
       "delete": "Delete",
