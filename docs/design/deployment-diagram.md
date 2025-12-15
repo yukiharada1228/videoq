@@ -166,7 +166,7 @@ sequenceDiagram
     participant Containers as Container Group
     participant Services as Services
 
-    Dev->>Docker: docker-compose up -d
+    Dev->>Docker: docker compose up -d
     Docker->>Containers: Start Containers
     
     par Parallel Startup

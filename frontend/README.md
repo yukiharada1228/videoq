@@ -211,7 +211,7 @@ This frontend communicates with a Django REST Framework backend API.
 - `DELETE /api/videos/groups/<id>/` - Delete group
 - `POST /api/videos/groups/<id>/videos/` - Add videos to group
 - `DELETE /api/videos/groups/<id>/videos/<video_id>/remove/` - Remove video from group
-- `POST /api/videos/groups/<id>/reorder/` - Reorder videos in group
+- `PATCH /api/videos/groups/<id>/reorder/` - Reorder videos in group
 - `POST /api/videos/groups/<id>/share/` - Create share link
 - `DELETE /api/videos/groups/<id>/share/delete/` - Delete share link
 - `GET /api/videos/groups/shared/<token>/` - Get shared group info

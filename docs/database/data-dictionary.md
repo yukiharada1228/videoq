@@ -2,7 +2,12 @@
 
 ## Overview
 
-This document provides detailed definitions of database tables and columns for the VideoQ system.
+This document provides definitions of database tables and columns for the VideoQ system.
+
+**Notes**
+- This project uses **PostgreSQL** and Django's `BigAutoField` by default, so primary keys are typically `BIGINT`.
+- Django `DateTimeField` values are stored as `TIMESTAMPTZ` (timestamp with time zone) in PostgreSQL when time zones are enabled.
+- The most up-to-date reference is the code: `backend/app/models.py` and `backend/app/migrations/`.
 
 ## User Table
 
@@ -16,19 +21,19 @@ Table that stores user information for the system.
 
 | Column Name | Data Type | Constraints | Default Value | Description |
 |------------|-----------|-------------|---------------|-------------|
-| id | INTEGER | PRIMARY KEY, AUTO_INCREMENT | - | User ID |
+| id | BIGINT | PRIMARY KEY, AUTO_INCREMENT | - | User ID |
 | username | VARCHAR(150) | UNIQUE, NOT NULL | - | Username |
 | email | VARCHAR(255) | UNIQUE, NOT NULL | - | Email address |
 | password | VARCHAR(128) | NOT NULL | - | Hashed password |
-| date_joined | DATETIME | NOT NULL | now() | Registration date and time |
-| last_login | DATETIME | NULL | NULL | Last login date and time |
+| date_joined | TIMESTAMPTZ | NOT NULL | now() | Registration date and time |
+| last_login | TIMESTAMPTZ | NULL | NULL | Last login date and time |
 | is_active | BOOLEAN | NOT NULL | True | Active status (the signup flow sets this to `False` until email verification) |
 | is_staff | BOOLEAN | NOT NULL | False | Staff permissions |
 | is_superuser | BOOLEAN | NOT NULL | False | Superuser permissions |
 | first_name | VARCHAR(150) | NOT NULL | '' | First name |
 | last_name | VARCHAR(150) | NOT NULL | '' | Last name |
 | openai_api_key_encrypted | BYTEA | NULL | NULL | Encrypted OpenAI API key (stored per user) |
-| video_limit | INTEGER | NULL | 0 | Max number of videos the user can upload (`NULL` = unlimited, `0` = uploads disabled) |
+| video_limit | INTEGER | NULL, CHECK (video_limit >= 0) | 0 | Max number of videos the user can upload (`NULL` = unlimited, `0` = uploads disabled) |
 
 ### Indexes
 - PRIMARY KEY: `id`
@@ -54,12 +59,12 @@ Table that stores information about uploaded videos.
 
 | Column Name | Data Type | Constraints | Default Value | Description |
 |------------|-----------|-------------|---------------|-------------|
-| id | INTEGER | PRIMARY KEY, AUTO_INCREMENT | - | Video ID |
-| user_id | INTEGER | FOREIGN KEY, NOT NULL | - | Owner's user ID |
-| file | VARCHAR(100) | NOT NULL | - | Video file path |
+| id | BIGINT | PRIMARY KEY, AUTO_INCREMENT | - | Video ID |
+| user_id | BIGINT | FOREIGN KEY, NOT NULL | - | Owner's user ID |
+| file | VARCHAR(100) | NOT NULL | - | Video file path (Django `FileField`, default `max_length=100`) |
 | title | VARCHAR(255) | NOT NULL | - | Video title |
 | description | TEXT | NOT NULL | '' | Video description |
-| uploaded_at | DATETIME | NOT NULL | now() | Upload date and time |
+| uploaded_at | TIMESTAMPTZ | NOT NULL | now() | Upload date and time |
 | transcript | TEXT | NOT NULL | '' | Transcription result (SRT format) |
 | status | VARCHAR(20) | NOT NULL | 'pending' | Processing status |
 | error_message | TEXT | NOT NULL | '' | Error message (when error occurs) |
@@ -96,12 +101,12 @@ Table for grouping videos.
 
 | Column Name | Data Type | Constraints | Default Value | Description |
 |------------|-----------|-------------|---------------|-------------|
-| id | INTEGER | PRIMARY KEY, AUTO_INCREMENT | - | Group ID |
-| user_id | INTEGER | FOREIGN KEY, NOT NULL | - | Owner's user ID |
+| id | BIGINT | PRIMARY KEY, AUTO_INCREMENT | - | Group ID |
+| user_id | BIGINT | FOREIGN KEY, NOT NULL | - | Owner's user ID |
 | name | VARCHAR(255) | NOT NULL | - | Group name |
 | description | TEXT | NOT NULL | '' | Group description |
-| created_at | DATETIME | NOT NULL | now() | Creation date and time |
-| updated_at | DATETIME | NOT NULL | now() | Update date and time |
+| created_at | TIMESTAMPTZ | NOT NULL | now() | Creation date and time |
+| updated_at | TIMESTAMPTZ | NOT NULL | now() | Update date and time |
 | share_token | VARCHAR(64) | UNIQUE, NULL | NULL | Share token |
 
 ### Indexes
@@ -129,10 +134,10 @@ Intermediate table that manages the relationship between videos and groups.
 
 | Column Name | Data Type | Constraints | Default Value | Description |
 |------------|-----------|-------------|---------------|-------------|
-| id | INTEGER | PRIMARY KEY, AUTO_INCREMENT | - | Member ID |
-| group_id | INTEGER | FOREIGN KEY, NOT NULL | - | Group ID |
-| video_id | INTEGER | FOREIGN KEY, NOT NULL | - | Video ID |
-| added_at | DATETIME | NOT NULL | now() | Addition date and time |
+| id | BIGINT | PRIMARY KEY, AUTO_INCREMENT | - | Member ID |
+| group_id | BIGINT | FOREIGN KEY, NOT NULL | - | Group ID |
+| video_id | BIGINT | FOREIGN KEY, NOT NULL | - | Video ID |
+| added_at | TIMESTAMPTZ | NOT NULL | now() | Addition date and time |
 | order | INTEGER | NOT NULL | 0 | Order within group |
 
 ### Indexes
@@ -160,15 +165,15 @@ Table that stores chat history.
 
 | Column Name | Data Type | Constraints | Default Value | Description |
 |------------|-----------|-------------|---------------|-------------|
-| id | INTEGER | PRIMARY KEY, AUTO_INCREMENT | - | Chat log ID |
-| user_id | INTEGER | FOREIGN KEY, NOT NULL | - | User ID (owner or owner when accessed via share) |
-| group_id | INTEGER | FOREIGN KEY, NOT NULL | - | Group ID |
+| id | BIGINT | PRIMARY KEY, AUTO_INCREMENT | - | Chat log ID |
+| user_id | BIGINT | FOREIGN KEY, NOT NULL | - | User ID (owner or owner when accessed via share) |
+| group_id | BIGINT | FOREIGN KEY, NOT NULL | - | Group ID |
 | question | TEXT | NOT NULL | - | Question text |
 | answer | TEXT | NOT NULL | - | Answer text |
-| related_videos | JSON | NOT NULL | [] | List of related video IDs |
+| related_videos | JSONB | NOT NULL | [] | List of related video IDs |
 | is_shared_origin | BOOLEAN | NOT NULL | False | Whether chat was via share link |
 | feedback | VARCHAR(4) | NULL | NULL | Feedback ('good', 'bad', NULL) |
-| created_at | DATETIME | NOT NULL | now() | Creation date and time |
+| created_at | TIMESTAMPTZ | NOT NULL | now() | Creation date and time |
 
 ### feedback Values
 - `good`: Good rating
@@ -239,10 +244,11 @@ Collection that stores vectorized video scenes.
 
 ### Numeric Types
 - `INTEGER`: 32-bit integer
+- `BIGINT`: 64-bit integer
 - `BOOLEAN`: Boolean value
 
 ### DateTime Types
-- `DATETIME`: Date and time (no timezone information)
+- `TIMESTAMPTZ`: Timestamp with time zone (PostgreSQL)
 
 ### JSON Types
 - `JSON`: JSON data (PostgreSQL 9.2+)

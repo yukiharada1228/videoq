@@ -138,9 +138,9 @@ videoq/
 ### Frontend
 
 #### Frameworks / Runtime
-- **Next.js** (16.0.7) - React framework
-- **React** (19.2.1) - UI library
-- **React DOM** (19.2.1) - React DOM renderer
+- **Next.js** (^16.0.7) - React framework
+- **React** (^19.2.3) - UI library
+- **React DOM** (^19.2.3) - React DOM renderer
 - **TypeScript** (^5) - Type safety
 
 #### UI Components / Styling
@@ -457,7 +457,7 @@ Scene splitting improves search accuracy in AI chat and enables more appropriate
 - `DELETE /api/videos/groups/<id>/` - Delete group
 - `POST /api/videos/groups/<id>/videos/` - Add videos to group
 - `DELETE /api/videos/groups/<id>/videos/<video_id>/remove/` - Remove video from group
-- `POST /api/videos/groups/<id>/reorder/` - Reorder videos in group
+- `PATCH /api/videos/groups/<id>/reorder/` - Reorder videos in group
 - `POST /api/videos/groups/<id>/share/` - Create share link
 - `DELETE /api/videos/groups/<id>/share/delete/` - Delete share link
 - `GET /api/videos/groups/shared/<token>/` - Get shared group info
