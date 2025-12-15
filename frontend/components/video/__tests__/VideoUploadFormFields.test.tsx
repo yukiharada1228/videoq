@@ -5,11 +5,13 @@ describe('VideoUploadFormFields', () => {
   const defaultProps = {
     title: '',
     description: '',
+    externalId: '',
     isUploading: false,
     error: null,
     success: false,
     setTitle: jest.fn(),
     setDescription: jest.fn(),
+    setExternalId: jest.fn(),
     handleFileChange: jest.fn(),
   }
 
@@ -23,6 +25,7 @@ describe('VideoUploadFormFields', () => {
     expect(screen.getByLabelText(/videos.upload.fileLabel/)).toBeInTheDocument()
     expect(screen.getByLabelText(/videos.upload.titleLabel/)).toBeInTheDocument()
     expect(screen.getByLabelText(/videos.upload.descriptionLabel/)).toBeInTheDocument()
+    expect(screen.getByLabelText(/videos.upload.externalIdLabel/)).toBeInTheDocument()
   })
 
   it('should call setTitle when title changes', () => {
@@ -41,6 +44,15 @@ describe('VideoUploadFormFields', () => {
     fireEvent.change(descriptionInput, { target: { value: 'New Description' } })
     
     expect(defaultProps.setDescription).toHaveBeenCalledWith('New Description')
+  })
+
+  it('should call setExternalId when external_id changes', () => {
+    render(<VideoUploadFormFields {...defaultProps} />)
+    
+    const externalIdInput = screen.getByLabelText(/videos.upload.externalIdLabel/)
+    fireEvent.change(externalIdInput, { target: { value: 'ext-123' } })
+    
+    expect(defaultProps.setExternalId).toHaveBeenCalledWith('ext-123')
   })
 
   it('should call handleFileChange when file changes', () => {
@@ -71,10 +83,12 @@ describe('VideoUploadFormFields', () => {
     const fileInput = screen.getByLabelText(/videos.upload.fileLabel/)
     const titleInput = screen.getByLabelText(/videos.upload.titleLabel/)
     const descriptionInput = screen.getByLabelText(/videos.upload.descriptionLabel/)
+    const externalIdInput = screen.getByLabelText(/videos.upload.externalIdLabel/)
     
     expect(fileInput).toBeDisabled()
     expect(titleInput).toBeDisabled()
     expect(descriptionInput).toBeDisabled()
+    expect(externalIdInput).toBeDisabled()
   })
 
   it('should show cancel button when showCancelButton is true', () => {

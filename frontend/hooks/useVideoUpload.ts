@@ -6,11 +6,13 @@ interface UseVideoUploadReturn {
   file: File | null;
   title: string;
   description: string;
+  externalId: string;
   isUploading: boolean;
   error: string | null;
   success: boolean;
   setTitle: (title: string) => void;
   setDescription: (description: string) => void;
+  setExternalId: (externalId: string) => void;
   handleFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleSubmit: (e: React.FormEvent, onSuccess?: () => void) => Promise<void>;
   reset: () => void;
@@ -41,6 +43,7 @@ export function useVideoUpload(): UseVideoUploadReturn {
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [externalId, setExternalId] = useState('');
   const [success, setSuccess] = useState(false);
 
   const { isLoading, error, execute: uploadVideo, setError } = useAsyncState({
@@ -63,6 +66,7 @@ export function useVideoUpload(): UseVideoUploadReturn {
     setFile(null);
     setTitle('');
     setDescription('');
+    setExternalId('');
     setSuccess(false);
     setError(null);
   }, [setError]);
@@ -84,6 +88,7 @@ export function useVideoUpload(): UseVideoUploadReturn {
         file: file!,
         title: finalTitle,
         description: description.trim() || undefined,
+        external_id: externalId.trim() || undefined,
       };
 
       await apiClient.uploadVideo(request);
@@ -93,17 +98,19 @@ export function useVideoUpload(): UseVideoUploadReturn {
     if (onSuccess) {
       onSuccess();
     }
-  }, [uploadVideo, file, title, description, setError]);
+  }, [uploadVideo, file, title, description, externalId, setError]);
 
   return {
     file,
     title,
     description,
+    externalId,
     isUploading: isLoading,
     error,
     success,
     setTitle,
     setDescription,
+    setExternalId,
     handleFileChange,
     handleSubmit,
     reset,

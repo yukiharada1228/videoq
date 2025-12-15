@@ -84,28 +84,31 @@ export interface ChatRequest {
 export interface Video {
   id: number;
   user: number;
-  file: string;
+  file: string | null;
   title: string;
   description: string;
   uploaded_at: string;
   transcript?: string;
   status: 'pending' | 'processing' | 'completed' | 'error';
   error_message?: string;
+  external_id?: string | null;
 }
 
 export interface VideoList {
   id: number;
-  file: string;
+  file: string | null;
   title: string;
   description: string;
   uploaded_at: string;
   status: 'pending' | 'processing' | 'completed' | 'error';
+  external_id?: string | null;
 }
 
 export interface VideoUploadRequest {
   file: File;
   title: string;
   description?: string;
+  external_id?: string;
 }
 
 export interface VideoUpdateRequest {
@@ -128,10 +131,11 @@ export interface VideoInGroup {
   id: number;
   title: string;
   description: string;
-  file: string;
+  file: string | null;
   uploaded_at: string;
   status: 'pending' | 'processing' | 'completed' | 'error';
   order: number;
+  external_id?: string | null;
 }
 
 export interface VideoGroupCreateRequest {
@@ -550,6 +554,9 @@ class ApiClient {
     formData.append('title', data.title);
     if (data.description) {
       formData.append('description', data.description);
+    }
+    if (data.external_id) {
+      formData.append('external_id', data.external_id);
     }
 
     const url = this.buildUrl('/videos/');
