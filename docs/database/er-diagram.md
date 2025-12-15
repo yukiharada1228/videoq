@@ -41,8 +41,8 @@ erDiagram
         text transcript
         string status
         text error_message
-        float duration_minutes
         bool is_external_upload
+        string external_id UK
     }
     
     VideoGroup {
