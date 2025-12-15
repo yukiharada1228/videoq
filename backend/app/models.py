@@ -127,10 +127,6 @@ class Video(models.Model):
     transcript = models.TextField(blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
     error_message = models.TextField(blank=True)
-    is_external_upload = models.BooleanField(
-        default=False,
-        help_text="Whether this is an upload from an external API client (file will be deleted after processing)",
-    )
     external_id = models.CharField(
         max_length=255,
         null=True,

@@ -10,12 +10,14 @@ import { useTranslations } from 'next-intl';
 interface VideoUploadFormFieldsProps {
   title: string;
   description: string;
+  externalId: string;
   isUploading: boolean;
   disabled?: boolean;
   error: string | null;
   success: boolean;
   setTitle: (title: string) => void;
   setDescription: (description: string) => void;
+  setExternalId: (externalId: string) => void;
   handleFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   file?: File | null;
   showCancelButton?: boolean;
@@ -28,12 +30,14 @@ interface VideoUploadFormFieldsProps {
 export function VideoUploadFormFields({
   title,
   description,
+  externalId,
   isUploading,
   disabled = false,
   error,
   success,
   setTitle,
   setDescription,
+  setExternalId,
   handleFileChange,
   file,
   showCancelButton = false,
@@ -90,6 +94,21 @@ export function VideoUploadFormFields({
           disabled={isUploading || disabled}
           className="w-full min-h-[100px] px-3 py-2 border border-gray-300 rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="external_id">{t('videos.upload.externalIdLabel')}</Label>
+        <Input
+          id="external_id"
+          type="text"
+          value={externalId}
+          onChange={(e) => setExternalId(e.target.value)}
+          placeholder={t('videos.upload.externalIdPlaceholder')}
+          disabled={isUploading || disabled}
+        />
+        <p className="text-xs text-gray-500">
+          {t('videos.upload.externalIdHelp')}
+        </p>
       </div>
 
       {error && <MessageAlert type="error" message={error} />}
