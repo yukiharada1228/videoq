@@ -39,8 +39,8 @@ export function VideoUploadModal({ isOpen, onClose, onUploadSuccess }: VideoUplo
   } = useVideoUpload();
   const t = useTranslations();
 
-  // Load groups when modal opens
-  const groups = useVideoGroups(isOpen);
+  // Load groups when modal opens (refetches when modal reopens)
+  const { groups } = useVideoGroups(isOpen);
 
   const handleClose = useCallback(() => {
     if (!isUploading) {
