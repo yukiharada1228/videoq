@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useVideoUpload } from '@/hooks/useVideoUpload';
 import { Button } from '@/components/ui/button';
@@ -8,6 +8,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { VideoUploadFormFields } from './VideoUploadFormFields';
 import { VideoUploadButton } from './VideoUploadButton';
 import { useOpenAIApiKeyStatus } from '@/hooks/useOpenAIApiKeyStatus';
+import { apiClient, VideoGroupList } from '@/lib/api';
+import { useAuth } from '@/hooks/useAuth';
 
 interface VideoUploadModalProps {
   isOpen: boolean;
@@ -16,6 +18,7 @@ interface VideoUploadModalProps {
 }
 
 export function VideoUploadModal({ isOpen, onClose, onUploadSuccess }: VideoUploadModalProps) {
+  const { user } = useAuth();
   const { hasApiKey, isChecking: checkingApiKey } = useOpenAIApiKeyStatus();
   const apiKeyMissing = !checkingApiKey && hasApiKey === false;
 
@@ -24,17 +27,22 @@ export function VideoUploadModal({ isOpen, onClose, onUploadSuccess }: VideoUplo
     title,
     description,
     externalId,
+    groupId,
     isUploading,
     error,
     success,
     setTitle,
     setDescription,
     setExternalId,
+    setGroupId,
     handleFileChange,
     handleSubmit,
     reset,
   } = useVideoUpload();
   const t = useTranslations();
+
+  const [groups, setGroups] = useState<VideoGroupList[]>([]);
+  const [loadedUserId, setLoadedUserId] = useState<number | null>(null);
 
   const handleClose = useCallback(() => {
     if (!isUploading) {
@@ -42,6 +50,19 @@ export function VideoUploadModal({ isOpen, onClose, onUploadSuccess }: VideoUplo
       onClose();
     }
   }, [isUploading, onClose, reset]);
+
+  // Load groups when modal opens
+  useEffect(() => {
+    if (isOpen && user?.id && loadedUserId !== user.id) {
+      setLoadedUserId(user.id);
+      apiClient.getVideoGroups()
+        .then((data) => setGroups(data))
+        .catch(() => {
+          // Silently fail - groups list will remain empty
+          setGroups([]);
+        });
+    }
+  }, [isOpen, user?.id, loadedUserId]);
 
   useEffect(() => {
     if (success) {
@@ -78,6 +99,7 @@ export function VideoUploadModal({ isOpen, onClose, onUploadSuccess }: VideoUplo
             title={title}
             description={description}
             externalId={externalId}
+            groupId={groupId}
             isUploading={isUploading}
             disabled={apiKeyMissing || checkingApiKey}
             error={error}
@@ -85,8 +107,10 @@ export function VideoUploadModal({ isOpen, onClose, onUploadSuccess }: VideoUplo
             setTitle={setTitle}
             setDescription={setDescription}
             setExternalId={setExternalId}
+            setGroupId={setGroupId}
             handleFileChange={handleFileChange}
             file={file}
+            groups={groups}
             hideButtons={true}
           />
           <DialogFooter>
