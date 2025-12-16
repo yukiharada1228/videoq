@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useVideoUpload } from '@/hooks/useVideoUpload';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -34,12 +34,12 @@ export function VideoUpload({ onUploadSuccess }: VideoUploadProps) {
   const t = useTranslations();
 
   const [groups, setGroups] = useState<VideoGroupList[]>([]);
-  const [loadedUserId, setLoadedUserId] = useState<number | null>(null);
+  const loadedUserIdRef = useRef<number | null>(null);
 
   // Load groups on mount
   useEffect(() => {
-    if (user?.id && loadedUserId !== user.id) {
-      setLoadedUserId(user.id);
+    if (user?.id && loadedUserIdRef.current !== user.id) {
+      loadedUserIdRef.current = user.id;
       apiClient.getVideoGroups()
         .then((data) => setGroups(data))
         .catch(() => {
@@ -47,7 +47,7 @@ export function VideoUpload({ onUploadSuccess }: VideoUploadProps) {
           setGroups([]);
         });
     }
-  }, [user?.id, loadedUserId]);
+  }, [user?.id]);
 
   useEffect(() => {
     if (success && onUploadSuccess) {

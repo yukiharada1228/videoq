@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useVideoUpload } from '@/hooks/useVideoUpload';
 import { Button } from '@/components/ui/button';
@@ -42,7 +42,7 @@ export function VideoUploadModal({ isOpen, onClose, onUploadSuccess }: VideoUplo
   const t = useTranslations();
 
   const [groups, setGroups] = useState<VideoGroupList[]>([]);
-  const [loadedUserId, setLoadedUserId] = useState<number | null>(null);
+  const loadedUserIdRef = useRef<number | null>(null);
 
   const handleClose = useCallback(() => {
     if (!isUploading) {
@@ -53,8 +53,8 @@ export function VideoUploadModal({ isOpen, onClose, onUploadSuccess }: VideoUplo
 
   // Load groups when modal opens
   useEffect(() => {
-    if (isOpen && user?.id && loadedUserId !== user.id) {
-      setLoadedUserId(user.id);
+    if (isOpen && user?.id && loadedUserIdRef.current !== user.id) {
+      loadedUserIdRef.current = user.id;
       apiClient.getVideoGroups()
         .then((data) => setGroups(data))
         .catch(() => {
@@ -62,7 +62,7 @@ export function VideoUploadModal({ isOpen, onClose, onUploadSuccess }: VideoUplo
           setGroups([]);
         });
     }
-  }, [isOpen, user?.id, loadedUserId]);
+  }, [isOpen, user?.id]);
 
   useEffect(() => {
     if (success) {
