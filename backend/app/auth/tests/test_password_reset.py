@@ -28,7 +28,7 @@ class PasswordResetRequestTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(
             response.data["detail"],
-            "パスワードリセット用のメールを送信しました。メールをご確認ください。",
+            "Password reset email sent. Please check your email.",
         )
         self.assertEqual(len(mail.outbox), 1)
         self.assertIn("/reset-password", mail.outbox[0].body)
@@ -65,7 +65,7 @@ class PasswordResetConfirmTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(
             response.data["detail"],
-            "パスワードをリセットしました。新しいパスワードでログインしてください。",
+            "Password reset successfully. Please sign in with your new password.",
         )
         self.user.refresh_from_db()
         self.assertTrue(self.user.check_password("NewSecret456"))
@@ -79,4 +79,4 @@ class PasswordResetConfirmTests(APITestCase):
         response = self.client.post(self.url, payload, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("トークンが無効", response.data["non_field_errors"][0])
+        self.assertIn("Token is invalid", response.data["non_field_errors"][0])

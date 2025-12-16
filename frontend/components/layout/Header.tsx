@@ -38,7 +38,7 @@ export function Header({ children }: HeaderProps) {
   return (
     <header className="border-b bg-white">
       <div className="px-4 py-3">
-        {/* デスクトップナビゲーション */}
+        {/* Desktop navigation */}
         <nav className="hidden md:flex items-center justify-between">
           <div className="flex items-center gap-6">
             <Link href="/" className="text-xl font-bold text-gray-900">
@@ -87,7 +87,7 @@ export function Header({ children }: HeaderProps) {
           )}
         </nav>
 
-        {/* モバイルナビゲーション */}
+        {/* Mobile navigation */}
         <nav className="md:hidden">
           <div className="flex items-center justify-between">
             <Link href="/" className="text-xl font-bold text-gray-900">
@@ -125,7 +125,7 @@ export function Header({ children }: HeaderProps) {
             )}
           </div>
 
-          {/* モバイルメニュー */}
+          {/* Mobile menu */}
           {isMobileMenuOpen && user && (
             <div className="mt-3 pt-3 border-t border-gray-200 space-y-2">
               <div className="px-2 py-2 text-sm text-gray-600 border-b border-gray-100">

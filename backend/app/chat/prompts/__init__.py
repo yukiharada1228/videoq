@@ -1,4 +1,4 @@
-"""プロンプト管理モジュール."""
+"""Prompt management module."""
 
 from .loader import build_system_prompt
 

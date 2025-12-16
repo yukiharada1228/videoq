@@ -87,7 +87,7 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ["id", "username", "email", "video_limit", "video_count"]
 
     def get_video_count(self, obj):
-        """現在のユーザーの動画数を返す"""
+        """Return the current user's video count"""
         return obj.videos.count()
 
 

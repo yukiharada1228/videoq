@@ -162,7 +162,7 @@ describe('useAsyncState', () => {
     })
 
     await waitFor(() => {
-      expect(result.current.error).toBe('操作に失敗しました')
+      expect(result.current.error).toBe('Operation failed')
       expect(result.current.isLoading).toBe(false)
     })
   })
@@ -182,7 +182,7 @@ describe('useAsyncState', () => {
     })
 
     await waitFor(() => {
-      expect(result.current.error).toBe('操作に失敗しました')
+      expect(result.current.error).toBe('Operation failed')
       expect(result.current.isLoading).toBe(false)
     })
   })
@@ -205,7 +205,7 @@ describe('useAsyncState', () => {
       expect(onError).toHaveBeenCalled()
       const errorArg = onError.mock.calls[0][0]
       expect(errorArg).toBeInstanceOf(Error)
-      expect(errorArg.message).toBe('操作に失敗しました')
+      expect(errorArg.message).toBe('Operation failed')
     })
   })
 
@@ -228,7 +228,7 @@ describe('useAsyncState', () => {
       expect(onError).toHaveBeenCalled()
       const errorArg = onError.mock.calls[0][0]
       expect(errorArg).toBeInstanceOf(Error)
-      expect(errorArg.message).toBe('操作に失敗しました')
+      expect(errorArg.message).toBe('Operation failed')
     })
   })
 })

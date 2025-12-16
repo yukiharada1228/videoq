@@ -61,7 +61,7 @@ describe('apiPatterns', () => {
   })
 
   describe('retryApiCall', () => {
-    // 各テストで完全にクリーンな状態にする
+    // Ensure completely clean state for each test
     beforeAll(() => {
       jest.useRealTimers()
     })
@@ -150,22 +150,22 @@ describe('apiPatterns', () => {
       
       expect(result).toBe('success')
       expect(apiCall).toHaveBeenCalledTimes(3)
-      
-      // 指数バックオフの確認: 1000ms, 2000ms
+
+      // Verify exponential backoff: 1000ms, 2000ms
       expect(delays).toHaveLength(2)
-      expect(delays[0]).toBe(1000)  // 1回目のリトライは1000ms後
-      expect(delays[1]).toBe(2000)  // 2回目のリトライは2000ms後（指数バックオフ）
-      
+      expect(delays[0]).toBe(1000)  // First retry after 1000ms
+      expect(delays[1]).toBe(2000)  // Second retry after 2000ms (exponential backoff)
+
       jest.useRealTimers()
     }, 10000)
 
     it('should throw after max retries', async () => {
-      // Real timersを使用し、短いdelayで実行
-      // テストの目的は「maxRetries回リトライした後に失敗する」ことの確認
+      // Use real timers and execute with short delay
+      // Test purpose: verify it fails after maxRetries attempts
       const apiCall = jest.fn().mockRejectedValue(new Error('Failed'))
 
       await expect(retryApiCall(apiCall, 2, 10)).rejects.toThrow('Failed')
-      expect(apiCall).toHaveBeenCalledTimes(3) // 初回 + 2回のリトライ
+      expect(apiCall).toHaveBeenCalledTimes(3) // Initial + 2 retries
     })
 
     it('should wrap and throw non-Error exceptions while preserving the message', async () => {

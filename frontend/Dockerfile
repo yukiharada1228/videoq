@@ -2,7 +2,7 @@ FROM node:22.11.0-slim AS base
 
 WORKDIR /var/www/app
 
-# ビルド時に必要な環境変数を受け取る
+# Receive environment variables needed at build time
 ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 

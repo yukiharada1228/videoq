@@ -15,9 +15,9 @@ export interface VideoStats {
 }
 
 /**
- * 動画の統計情報を計算するカスタムフック
- * @param videos - 動画の配列
- * @returns 統計情報オブジェクト
+ * Custom hook to calculate video statistics
+ * @param videos - Array of videos
+ * @returns Statistics object
  */
 export function useVideoStats<T extends VideoLike>(videos: T[]): VideoStats {
   return useMemo(() => {
