@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, startTransition } from 'react';
 import { apiClient, VideoGroupList } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -34,7 +34,10 @@ export function useVideoGroups(trigger: boolean = true): UseVideoGroupsReturn {
 
     if (shouldFetch && !isFetchingRef.current) {
       isFetchingRef.current = true;
-      setIsLoading(true);
+      // startTransitionを使用してsetStateを非同期処理として扱う
+      startTransition(() => {
+        setIsLoading(true);
+      });
 
       apiClient
         .getVideoGroups()
@@ -90,7 +93,7 @@ export function useVideoGroups(trigger: boolean = true): UseVideoGroupsReturn {
         isFetchingRef.current = false;
         // Don't set loadedUserIdRef so retry is possible
       });
-  }, [user?.id]);
+  }, [user]);
 
   return { groups, isLoading, refetch };
 }
