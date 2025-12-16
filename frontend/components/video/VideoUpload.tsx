@@ -32,7 +32,7 @@ export function VideoUpload({ onUploadSuccess }: VideoUploadProps) {
   const t = useTranslations();
 
   // Load groups when user changes
-  const groups = useVideoGroups();
+  const { groups } = useVideoGroups();
 
   useEffect(() => {
     if (success && onUploadSuccess) {
