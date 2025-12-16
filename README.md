@@ -105,7 +105,6 @@ videoq/
 
 #### Background Processing
 - **Celery** (>=5.5.3) - Background task processing
-- **Celery Beat** - Periodic task scheduler
 - **Redis** (>=7.0.0) - Celery broker and queue management
 
 #### Database
