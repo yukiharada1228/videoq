@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, startTransition } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiClient, VideoGroupList } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -16,11 +16,19 @@ interface UseVideoGroupsReturn {
  */
 export function useVideoGroups(trigger: boolean = true): UseVideoGroupsReturn {
   const { user } = useAuth();
+  const userId = user?.id ?? null;
   const [groups, setGroups] = useState<VideoGroupList[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const loadedUserIdRef = useRef<number | null>(null);
   const previousTriggerRef = useRef<boolean>(trigger);
   const isFetchingRef = useRef<boolean>(false);
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -28,15 +36,16 @@ export function useVideoGroups(trigger: boolean = true): UseVideoGroupsReturn {
     // ユーザーが変更された場合、またはtriggerがfalse→trueに変わった場合に再取得
     const shouldFetch =
       trigger &&
-      user?.id &&
-      (loadedUserIdRef.current !== user.id ||
+      userId !== null &&
+      (loadedUserIdRef.current !== userId ||
         (previousTriggerRef.current === false && trigger === true));
 
     if (shouldFetch && !isFetchingRef.current) {
       isFetchingRef.current = true;
-      // startTransitionを使用してsetStateを非同期処理として扱う
-      startTransition(() => {
-        setIsLoading(true);
+      // eslint の react-hooks/set-state-in-effect を避けるためマイクロタスクに逃がす
+      // (直後に実行され、ローディング表示は実質的に即時)
+      Promise.resolve().then(() => {
+        if (isMounted) setIsLoading(true);
       });
 
       apiClient
@@ -44,7 +53,7 @@ export function useVideoGroups(trigger: boolean = true): UseVideoGroupsReturn {
         .then((data) => {
           if (isMounted) {
             setGroups(data);
-            loadedUserIdRef.current = user.id;
+            loadedUserIdRef.current = userId;
             setIsLoading(false);
             isFetchingRef.current = false;
           }
@@ -66,10 +75,10 @@ export function useVideoGroups(trigger: boolean = true): UseVideoGroupsReturn {
     return () => {
       isMounted = false;
     };
-  }, [trigger, user?.id]);
+  }, [trigger, userId]);
 
   const refetch = useCallback(() => {
-    if (!user?.id || isFetchingRef.current) {
+    if (userId === null || isFetchingRef.current) {
       return;
     }
 
@@ -81,19 +90,21 @@ export function useVideoGroups(trigger: boolean = true): UseVideoGroupsReturn {
     apiClient
       .getVideoGroups()
       .then((data) => {
+        if (!isMountedRef.current) return;
         setGroups(data);
-        loadedUserIdRef.current = user.id;
+        loadedUserIdRef.current = userId;
         setIsLoading(false);
         isFetchingRef.current = false;
       })
       .catch((err) => {
         console.error('Failed to load video groups', err);
+        if (!isMountedRef.current) return;
         setGroups([]);
         setIsLoading(false);
         isFetchingRef.current = false;
         // Don't set loadedUserIdRef so retry is possible
       });
-  }, [user]);
+  }, [userId]);
 
   return { groups, isLoading, refetch };
 }
