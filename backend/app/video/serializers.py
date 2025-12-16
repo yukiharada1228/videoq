@@ -50,7 +50,8 @@ class VideoCreateSerializer(UserOwnedSerializerMixin, serializers.ModelSerialize
 
     class Meta:
         model = Video
-        fields = ["file", "title", "description", "external_id"]
+        fields = ["id", "file", "title", "description", "external_id"]
+        read_only_fields = ["id"]
 
     def validate_external_id(self, value):
         """
@@ -114,7 +115,15 @@ class VideoListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Video
-        fields = ["id", "file", "title", "description", "uploaded_at", "status", "external_id"]
+        fields = [
+            "id",
+            "file",
+            "title",
+            "description",
+            "uploaded_at",
+            "status",
+            "external_id",
+        ]
         read_only_fields = ["id", "uploaded_at"]
 
 
