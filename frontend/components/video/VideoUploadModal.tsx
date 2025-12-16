@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { VideoUploadFormFields } from './VideoUploadFormFields';
 import { VideoUploadButton } from './VideoUploadButton';
 import { useOpenAIApiKeyStatus } from '@/hooks/useOpenAIApiKeyStatus';
+import { useVideoGroups } from '@/hooks/useVideoGroups';
 
 interface VideoUploadModalProps {
   isOpen: boolean;
@@ -24,17 +25,22 @@ export function VideoUploadModal({ isOpen, onClose, onUploadSuccess }: VideoUplo
     title,
     description,
     externalId,
+    groupId,
     isUploading,
     error,
     success,
     setTitle,
     setDescription,
     setExternalId,
+    setGroupId,
     handleFileChange,
     handleSubmit,
     reset,
   } = useVideoUpload();
   const t = useTranslations();
+
+  // Load groups when modal opens (refetches when modal reopens)
+  const { groups } = useVideoGroups(isOpen);
 
   const handleClose = useCallback(() => {
     if (!isUploading) {
@@ -78,6 +84,7 @@ export function VideoUploadModal({ isOpen, onClose, onUploadSuccess }: VideoUplo
             title={title}
             description={description}
             externalId={externalId}
+            groupId={groupId}
             isUploading={isUploading}
             disabled={apiKeyMissing || checkingApiKey}
             error={error}
@@ -85,8 +92,10 @@ export function VideoUploadModal({ isOpen, onClose, onUploadSuccess }: VideoUplo
             setTitle={setTitle}
             setDescription={setDescription}
             setExternalId={setExternalId}
+            setGroupId={setGroupId}
             handleFileChange={handleFileChange}
             file={file}
+            groups={groups}
             hideButtons={true}
           />
           <DialogFooter>

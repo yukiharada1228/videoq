@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useVideoUpload } from '@/hooks/useVideoUpload';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { VideoUploadFormFields } from './VideoUploadFormFields';
+import { useVideoGroups } from '@/hooks/useVideoGroups';
 
 interface VideoUploadProps {
   onUploadSuccess?: () => void;
@@ -16,17 +17,22 @@ export function VideoUpload({ onUploadSuccess }: VideoUploadProps) {
     title,
     description,
     externalId,
+    groupId,
     isUploading,
     error,
     success,
     setTitle,
     setDescription,
     setExternalId,
+    setGroupId,
     handleFileChange,
     handleSubmit,
     reset,
   } = useVideoUpload();
   const t = useTranslations();
+
+  // Load groups when user changes
+  const { groups } = useVideoGroups();
 
   useEffect(() => {
     if (success && onUploadSuccess) {
@@ -49,14 +55,17 @@ export function VideoUpload({ onUploadSuccess }: VideoUploadProps) {
             title={title}
             description={description}
             externalId={externalId}
+            groupId={groupId}
             isUploading={isUploading}
             error={error}
             success={success}
             setTitle={setTitle}
             setDescription={setDescription}
             setExternalId={setExternalId}
+            setGroupId={setGroupId}
             handleFileChange={handleFileChange}
             file={file}
+            groups={groups}
           />
         </form>
       </CardContent>
