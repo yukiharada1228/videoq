@@ -6,11 +6,13 @@ import { MessageAlert } from '@/components/common/MessageAlert';
 import { Button } from '@/components/ui/button';
 import { VideoUploadButton } from './VideoUploadButton';
 import { useTranslations } from 'next-intl';
+import { VideoGroupList } from '@/lib/api';
 
 interface VideoUploadFormFieldsProps {
   title: string;
   description: string;
   externalId: string;
+  groupId?: number | null;
   isUploading: boolean;
   disabled?: boolean;
   error: string | null;
@@ -18,8 +20,10 @@ interface VideoUploadFormFieldsProps {
   setTitle: (title: string) => void;
   setDescription: (description: string) => void;
   setExternalId: (externalId: string) => void;
+  setGroupId?: (groupId: number | null) => void;
   handleFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   file?: File | null;
+  groups?: VideoGroupList[];
   showCancelButton?: boolean;
   onCancel?: () => void;
   cancelButtonClassName?: string;
@@ -31,6 +35,7 @@ export function VideoUploadFormFields({
   title,
   description,
   externalId,
+  groupId,
   isUploading,
   disabled = false,
   error,
@@ -38,8 +43,10 @@ export function VideoUploadFormFields({
   setTitle,
   setDescription,
   setExternalId,
+  setGroupId,
   handleFileChange,
   file,
+  groups,
   showCancelButton = false,
   onCancel,
   cancelButtonClassName,
@@ -110,6 +117,29 @@ export function VideoUploadFormFields({
           {t('videos.upload.externalIdHelp')}
         </p>
       </div>
+
+      {groups && groups.length > 0 && setGroupId && (
+        <div className="space-y-2">
+          <Label htmlFor="group">{t('videos.upload.groupLabel')}</Label>
+          <select
+            id="group"
+            value={groupId ?? ''}
+            onChange={(e) => setGroupId(e.target.value ? Number(e.target.value) : null)}
+            disabled={isUploading || disabled}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">{t('videos.upload.groupNone')}</option>
+            {groups.map((group) => (
+              <option key={group.id} value={group.id}>
+                {group.name}
+              </option>
+            ))}
+          </select>
+          <p className="text-xs text-gray-500">
+            {t('videos.upload.groupHelp')}
+          </p>
+        </div>
+      )}
 
       {error && <MessageAlert type="error" message={error} />}
       {success && <MessageAlert type="success" message={t('videos.upload.success')} />}

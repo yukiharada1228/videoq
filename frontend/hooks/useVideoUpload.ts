@@ -7,12 +7,14 @@ interface UseVideoUploadReturn {
   title: string;
   description: string;
   externalId: string;
+  groupId: number | null;
   isUploading: boolean;
   error: string | null;
   success: boolean;
   setTitle: (title: string) => void;
   setDescription: (description: string) => void;
   setExternalId: (externalId: string) => void;
+  setGroupId: (groupId: number | null) => void;
   handleFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleSubmit: (e: React.FormEvent, onSuccess?: () => void) => Promise<void>;
   reset: () => void;
@@ -44,6 +46,7 @@ export function useVideoUpload(): UseVideoUploadReturn {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [externalId, setExternalId] = useState('');
+  const [groupId, setGroupId] = useState<number | null>(null);
   const [success, setSuccess] = useState(false);
 
   const { isLoading, error, execute: uploadVideo, setError } = useAsyncState({
@@ -67,6 +70,7 @@ export function useVideoUpload(): UseVideoUploadReturn {
     setTitle('');
     setDescription('');
     setExternalId('');
+    setGroupId(null);
     setSuccess(false);
     setError(null);
   }, [setError]);
@@ -91,26 +95,39 @@ export function useVideoUpload(): UseVideoUploadReturn {
         external_id: externalId.trim() || undefined,
       };
 
-      await apiClient.uploadVideo(request);
-      return request;
+      const uploadedVideo = await apiClient.uploadVideo(request);
+
+      // Add to group if selected
+      if (groupId !== null) {
+        try {
+          await apiClient.addVideoToGroup(groupId, uploadedVideo.id);
+        } catch {
+          // Silently fail if group addition fails
+          // The video upload itself was successful
+        }
+      }
+
+      return uploadedVideo;
     });
 
     if (onSuccess) {
       onSuccess();
     }
-  }, [uploadVideo, file, title, description, externalId, setError]);
+  }, [uploadVideo, file, title, description, externalId, groupId, setError]);
 
   return {
     file,
     title,
     description,
     externalId,
+    groupId,
     isUploading: isLoading,
     error,
     success,
     setTitle,
     setDescription,
     setExternalId,
+    setGroupId,
     handleFileChange,
     handleSubmit,
     reset,
