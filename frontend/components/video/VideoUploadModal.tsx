@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { useVideoUpload } from '@/hooks/useVideoUpload';
 import { Button } from '@/components/ui/button';
@@ -8,8 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { VideoUploadFormFields } from './VideoUploadFormFields';
 import { VideoUploadButton } from './VideoUploadButton';
 import { useOpenAIApiKeyStatus } from '@/hooks/useOpenAIApiKeyStatus';
-import { apiClient, VideoGroupList } from '@/lib/api';
-import { useAuth } from '@/hooks/useAuth';
+import { useVideoGroups } from '@/hooks/useVideoGroups';
 
 interface VideoUploadModalProps {
   isOpen: boolean;
@@ -18,7 +17,6 @@ interface VideoUploadModalProps {
 }
 
 export function VideoUploadModal({ isOpen, onClose, onUploadSuccess }: VideoUploadModalProps) {
-  const { user } = useAuth();
   const { hasApiKey, isChecking: checkingApiKey } = useOpenAIApiKeyStatus();
   const apiKeyMissing = !checkingApiKey && hasApiKey === false;
 
@@ -41,8 +39,8 @@ export function VideoUploadModal({ isOpen, onClose, onUploadSuccess }: VideoUplo
   } = useVideoUpload();
   const t = useTranslations();
 
-  const [groups, setGroups] = useState<VideoGroupList[]>([]);
-  const loadedUserIdRef = useRef<number | null>(null);
+  // Load groups when modal opens
+  const groups = useVideoGroups(isOpen);
 
   const handleClose = useCallback(() => {
     if (!isUploading) {
@@ -50,19 +48,6 @@ export function VideoUploadModal({ isOpen, onClose, onUploadSuccess }: VideoUplo
       onClose();
     }
   }, [isUploading, onClose, reset]);
-
-  // Load groups when modal opens
-  useEffect(() => {
-    if (isOpen && user?.id && loadedUserIdRef.current !== user.id) {
-      loadedUserIdRef.current = user.id;
-      apiClient.getVideoGroups()
-        .then((data) => setGroups(data))
-        .catch(() => {
-          // Silently fail - groups list will remain empty
-          setGroups([]);
-        });
-    }
-  }, [isOpen, user?.id]);
 
   useEffect(() => {
     if (success) {
