@@ -1,19 +1,17 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { useVideoUpload } from '@/hooks/useVideoUpload';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { VideoUploadFormFields } from './VideoUploadFormFields';
-import { apiClient, VideoGroupList } from '@/lib/api';
-import { useAuth } from '@/hooks/useAuth';
+import { useVideoGroups } from '@/hooks/useVideoGroups';
 
 interface VideoUploadProps {
   onUploadSuccess?: () => void;
 }
 
 export function VideoUpload({ onUploadSuccess }: VideoUploadProps) {
-  const { user } = useAuth();
   const {
     file,
     title,
@@ -33,21 +31,8 @@ export function VideoUpload({ onUploadSuccess }: VideoUploadProps) {
   } = useVideoUpload();
   const t = useTranslations();
 
-  const [groups, setGroups] = useState<VideoGroupList[]>([]);
-  const loadedUserIdRef = useRef<number | null>(null);
-
-  // Load groups on mount
-  useEffect(() => {
-    if (user?.id && loadedUserIdRef.current !== user.id) {
-      loadedUserIdRef.current = user.id;
-      apiClient.getVideoGroups()
-        .then((data) => setGroups(data))
-        .catch(() => {
-          // Silently fail - groups list will remain empty
-          setGroups([]);
-        });
-    }
-  }, [user?.id]);
+  // Load groups when user changes
+  const groups = useVideoGroups();
 
   useEffect(() => {
     if (success && onUploadSuccess) {
