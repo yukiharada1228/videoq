@@ -4,8 +4,8 @@ interface InlineSpinnerProps {
 }
 
 /**
- * インラインで使用する小さなスピナー
- * 主にボタン内で使用
+ * Small spinner used inline
+ * Primarily used inside buttons
  */
 export function InlineSpinner({ className, color = 'blue' }: InlineSpinnerProps) {
   const colorClasses = color === 'red' 

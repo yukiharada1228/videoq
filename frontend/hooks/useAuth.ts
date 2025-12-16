@@ -15,7 +15,7 @@ interface UseAuthOptions {
 }
 
 /**
- * 認証状態を管理するカスタムフック
+ * Custom hook to manage authentication state
  */
 export function useAuth(options: UseAuthOptions = {}): UseAuthReturn {
   const { redirectToLogin = true, onAuthError } = options;
@@ -24,7 +24,7 @@ export function useAuth(options: UseAuthOptions = {}): UseAuthReturn {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // useRefでコールバックを保持し、無限ループを防ぐ
+  // Hold callback with useRef to prevent infinite loops
   const onAuthErrorRef = useRef(onAuthError);
   onAuthErrorRef.current = onAuthError;
 
@@ -33,14 +33,13 @@ export function useAuth(options: UseAuthOptions = {}): UseAuthReturn {
       const userData = await apiClient.getMe();
       setUser(userData);
     } catch (error) {
-      // apiClient.getMe()内で401エラーが処理され、
-      // トークンリフレッシュが試みられます。
-      // リフレッシュにも失敗した場合は、apiClient内で/loginにリダイレクトされます。
-      // ここでは、認証失敗時の追加処理や、
-      // ネットワークエラーなど他の原因でgetMeが失敗した場合のハンドリングを行います。
+      // 401 errors are handled in apiClient.getMe(), and token refresh is attempted.
+      // If refresh also fails, apiClient redirects to /login.
+      // Here we handle additional processing on auth failure,
+      // or handle cases where getMe fails due to other causes like network errors.
       console.error('Authentication check failed:', error);
       if (redirectToLogin) {
-        // apiClientがリダイレクトを処理しなかった場合に備える
+        // Fallback in case apiClient didn't handle the redirect
         if (window.location.pathname !== '/login') {
           router.push('/login');
         }

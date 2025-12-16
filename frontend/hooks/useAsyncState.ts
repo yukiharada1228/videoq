@@ -1,13 +1,13 @@
 import { useState, useCallback, useRef } from 'react';
 
 /**
- * 非同期操作の状態管理を統一するカスタムフック
- * ローディング、エラー、データの状態を一元管理
- * 
- * このフックは以下の機能を統合しています：
- * - useApiCall: API呼び出しの状態管理
- * - useMutation: ミューテーション操作の状態管理
- * - useAsyncState: 汎用的な非同期操作の状態管理
+ * Custom hook to unify state management for async operations
+ * Centrally manage loading, error, and data state
+ *
+ * This hook integrates the following functionality:
+ * - useApiCall: State management for API calls
+ * - useMutation: State management for mutation operations
+ * - useAsyncState: Generic state management for async operations
  */
 interface UseAsyncStateOptions<T> {
   initialData?: T | null;
@@ -56,7 +56,7 @@ export function useAsyncState<T = unknown>(
       
       return result;
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : '操作に失敗しました';
+      const errorMessage = err instanceof Error ? err.message : 'Operation failed';
       setError(errorMessage);
       
       if (onErrorRef.current) {
@@ -89,7 +89,7 @@ export function useAsyncState<T = unknown>(
       
       return result;
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : '操作に失敗しました';
+      const errorMessage = err instanceof Error ? err.message : 'Operation failed';
       setError(errorMessage);
       
       if (onErrorRef.current) {

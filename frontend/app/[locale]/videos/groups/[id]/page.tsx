@@ -747,7 +747,7 @@ export default function VideoGroupDetailPage() {
 
           {(error || updateError) && <MessageAlert type="error" message={error || updateError || ''} />}
 
-          {/* 共有リンクセクション */}
+          {/* Share link section */}
           <div className="bg-white border border-gray-200 rounded-lg p-4">
             <h3 className="text-sm font-semibold text-gray-900 mb-2">
               {t('videos.groupDetail.share.title')}
@@ -800,7 +800,7 @@ export default function VideoGroupDetailPage() {
             )}
           </div>
 
-          {/* モバイル用タブナビゲーション */}
+          {/* Mobile tab navigation */}
           <div className="lg:hidden flex border-b border-gray-200 bg-white rounded-t-lg">
             <button
               onClick={() => setMobileTab('videos')}
@@ -834,9 +834,9 @@ export default function VideoGroupDetailPage() {
             </button>
           </div>
 
-          {/* レスポンシブレイアウト: モバイルはタブ切り替え、PCは3カラム */}
+          {/* Responsive layout: Tab switching on mobile, 3-column on PC */}
           <div className="flex flex-col lg:grid flex-1 min-h-0 gap-4 lg:gap-6 lg:grid-cols-[320px_minmax(0,1fr)_360px]">
-          {/* 左側：動画一覧 */}
+          {/* Left: Video list */}
           <div className={`flex-col min-h-0 ${mobileTab === 'videos' ? 'flex' : 'hidden lg:flex'}`}>
             <Card className="h-[500px] lg:h-[600px] flex flex-col">
               <CardHeader>
@@ -896,7 +896,7 @@ export default function VideoGroupDetailPage() {
             </Card>
           </div>
 
-          {/* 中央：動画プレイヤー */}
+          {/* Center: Video player */}
           <div className={`flex-col min-h-0 ${mobileTab === 'player' ? 'flex' : 'hidden lg:flex'}`}>
             <Card className="h-[500px] lg:h-[600px] flex flex-col">
               <CardHeader>
@@ -936,7 +936,7 @@ export default function VideoGroupDetailPage() {
             </Card>
           </div>
 
-          {/* 右側：チャット */}
+          {/* Right: Chat */}
           <div className={`flex-col min-h-0 ${mobileTab === 'chat' ? 'flex' : 'hidden lg:flex'}`}>
             <ChatPanel
               groupId={groupId ?? undefined}
