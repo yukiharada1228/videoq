@@ -44,7 +44,7 @@ export function useVideoGroups(trigger: boolean = true): UseVideoGroupsReturn {
       isFetchingRef.current = true;
       // Defer to microtask to avoid eslint react-hooks/set-state-in-effect
       // (Executes immediately after, loading display is effectively instant)
-      Promise.resolve().then(() => {
+      queueMicrotask(() => {
         if (isMounted) setIsLoading(true);
       });
 

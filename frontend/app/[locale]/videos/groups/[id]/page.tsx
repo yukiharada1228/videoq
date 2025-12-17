@@ -44,6 +44,9 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
+// Empty sensors array for mobile to prevent unnecessary re-renders
+const MOBILE_SENSORS: any[] = [];
+
 const ORDERING_OPTIONS = [
   'uploaded_at_desc',
   'uploaded_at_asc',
@@ -846,7 +849,7 @@ export default function VideoGroupDetailPage() {
                 <div className="flex-1 overflow-y-auto space-y-2">
                   {group.videos && group.videos.length > 0 ? (
                     <DndContext
-                      sensors={isMobile ? [] : sensors}
+                      sensors={isMobile ? MOBILE_SENSORS : sensors}
                       collisionDetection={closestCenter}
                       onDragEnd={handleDragEnd}
                     >
