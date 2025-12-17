@@ -41,7 +41,6 @@ erDiagram
         text transcript
         string status
         text error_message
-        bool is_external_upload
         string external_id UK
     }
     

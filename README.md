@@ -381,7 +381,6 @@ The automatic transcription process is handled by Celery background tasks, organ
 - Audio extraction: Uses ffmpeg to convert video to MP3 format
 - Parallel processing: Multiple audio segments are transcribed concurrently using asyncio
 - Error handling: Comprehensive error handling with retry logic (max 3 retries)
-- External uploads: Video files uploaded via external API are automatically deleted after processing
 
 #### Scene Detection (scene_otsu)
 
@@ -565,8 +564,7 @@ curl -X POST "$BASE_URL/api/videos/" \
   -H "Authorization: Bearer $ACCESS" \
   -F "file=@/path/to/movie.mp4" \
   -F "title=Demo Video" \
-  -F "description=Description" \
-  -F "delete_after_processing=false"
+  -F "description=Description"
 
 # List
 curl -H "Authorization: Bearer $ACCESS" "$BASE_URL/api/videos/"
@@ -698,7 +696,6 @@ curl -X DELETE -H "Authorization: Bearer $ACCESS" \
 ```
 
 Notes:
-- For videos uploaded via external API clients, the source files are deleted after processing. Protected media delivery is not available for those files; only transcripts and metadata can be retrieved.
 
 ### Error Responses
 
@@ -710,8 +707,6 @@ Common error responses:
 - **404**: Resource not found (e.g., `"Share link not found"`, `"Group not found"`)
 
 ### Authentication Modes
-
-**For external clients, always use the `Authorization` header (Bearer). Do not use cookie-based auth, as it can cause uploaded files to remain stored.**
 
 - **External clients**: Use the `Authorization` header (Bearer) only
 - **Internal browser app**: HttpOnly Cookie-based authentication (automatic token refresh, XSS protection)
@@ -742,7 +737,7 @@ All services communicate within the `videoq-network` Docker network (defined in 
 ### Main Models
 
 - **User**: User info (extends Django AbstractUser)
-- **Video**: Video info (title, description, file, transcript, status, external upload flag, duration, etc.)
+- **Video**: Video info (title, description, file, transcript, status, external_id, etc.)
 - **VideoGroup**: Video groups (name, description, share token, etc.)
 - **VideoGroupMember**: Association between videos and groups (ordering support)
 - **ChatLog**: Chat logs (question, answer, related videos, shared-from flag, feedback, etc.)
