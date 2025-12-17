@@ -68,7 +68,6 @@ Table that stores information about uploaded videos.
 | transcript | TEXT | NOT NULL | '' | Transcription result (SRT format) |
 | status | VARCHAR(20) | NOT NULL | 'pending' | Processing status |
 | error_message | TEXT | NOT NULL | '' | Error message (when error occurs) |
-| is_external_upload | BOOLEAN | NOT NULL | False | Whether uploaded via external API |
 | external_id | VARCHAR(255) | UNIQUE, NULL | NULL | ID from external LMS (e.g., Moodle cm_id, Canvas content_id) |
 
 ### status Values
