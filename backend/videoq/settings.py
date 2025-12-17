@@ -296,9 +296,9 @@ if USE_S3_STORAGE:
     }
 else:
     # Local development settings
-    STATIC_URL = "/static/"
+    STATIC_URL = "/api/static/"
     STATIC_ROOT = BASE_DIR / "staticfiles"
-    MEDIA_URL = "/media/"
+    MEDIA_URL = "/api/media/"
     MEDIA_ROOT = BASE_DIR / "media"
 
     # Use custom storage for media files (with timestamp-based filename conversion)
