@@ -28,22 +28,22 @@ class EmailVerificationTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(
             response.data["detail"],
-            "確認メールを送信しました。メールをご確認ください。",
+            "Verification email sent. Please check your email.",
         )
 
         user = User.objects.get(username="newuser")
         self.assertFalse(user.is_active)
         self.assertEqual(len(mail.outbox), 1)
 
-        # メール本文からUIDとトークンを抽出
+        # Extract UID and token from email body
         email_body = mail.outbox[0].body
         self.assertIn("/verify-email", email_body)
 
-        # URLは最後の行に含まれている想定
+        # Assume URL is in the last line
         verification_url = email_body.strip().splitlines()[-1]
         self.assertTrue(verification_url.startswith("http"))
 
-        # APIエンドポイント用にuidとtokenを抽出
+        # Extract uid and token for API endpoint
         try:
             parsed = urlparse(verification_url)
             query = parse_qs(parsed.query)
@@ -57,7 +57,7 @@ class EmailVerificationTests(APITestCase):
         self.assertEqual(verify_response.status_code, status.HTTP_200_OK)
         self.assertEqual(
             verify_response.data["detail"],
-            "メール認証が完了しました。ログインしてください。",
+            "Email verification completed. Please sign in.",
         )
 
         user.refresh_from_db()

@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useAsyncState } from './useAsyncState';
 
 /**
- * 動画一覧を取得するフック
+ * Hook to fetch video list
  */
 interface UseVideosReturn {
   videos: VideoListType[];
@@ -17,7 +17,7 @@ export function useVideos(): UseVideosReturn {
   const { data: videos, isLoading, error, execute: loadVideos } = useAsyncState<VideoListType[]>({
     initialData: [],
     onError: (error) => {
-      console.error('動画の読み込みに失敗しました:', error);
+      console.error('Failed to load video:', error);
     },
   });
 
@@ -36,7 +36,7 @@ export function useVideos(): UseVideosReturn {
 }
 
 /**
- * 単一動画を取得するフック
+ * Hook to fetch a single video
  */
 interface UseVideoReturn {
   video: Video | null;
@@ -51,7 +51,7 @@ export function useVideo(videoId: number | null): UseVideoReturn {
   const { data: video, isLoading, error, execute: loadVideo } = useAsyncState<Video>({
     initialData: null,
     onError: (error) => {
-      console.error('動画の読み込みに失敗しました:', error);
+      console.error('Failed to load video:', error);
     },
   });
 
@@ -61,7 +61,7 @@ export function useVideo(videoId: number | null): UseVideoReturn {
     await loadVideo(async () => {
       if (!apiClient.isAuthenticated()) {
         router.push('/login');
-        throw new Error('認証が必要です');
+        throw new Error('Authentication required');
       }
       return await apiClient.getVideo(videoId);
     });
