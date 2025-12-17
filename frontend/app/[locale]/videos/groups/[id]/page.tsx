@@ -32,6 +32,7 @@ import {
   useSensor,
   useSensors,
   DragEndEvent,
+  SensorDescriptor,
 } from '@dnd-kit/core';
 import {
   arrayMove,
@@ -45,7 +46,8 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 
 // Empty sensors array for mobile to prevent unnecessary re-renders
-const MOBILE_SENSORS: any[] = [];
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const MOBILE_SENSORS: SensorDescriptor<any>[] = [];
 
 const ORDERING_OPTIONS = [
   'uploaded_at_desc',
