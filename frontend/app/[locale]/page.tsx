@@ -74,7 +74,7 @@ export default function Home() {
   return (
     <PageLayout>
       <div className="max-w-4xl mx-auto space-y-8">
-        {/* ウェルカムセクション */}
+        {/* Welcome section */}
         <div className="text-center space-y-4">
           <h1 className="text-5xl font-bold text-gray-900">
             {t('home.welcome.title')}
@@ -84,7 +84,7 @@ export default function Home() {
           </p>
         </div>
 
-        {/* メインアクション */}
+        {/* Main actions */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Card
             className={[
@@ -123,7 +123,7 @@ export default function Home() {
           </Card>
         </div>
 
-        {/* 統計情報 */}
+        {/* Statistics */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card>
             <CardContent className="pt-6 text-center">

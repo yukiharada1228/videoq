@@ -26,7 +26,7 @@ interface ValidationResult {
 }
 
 /**
- * バリデーションロジック
+ * Validation logic
  * Returns translation keys for errors
  */
 function validateVideoUpload(file: File | null, title: string): ValidationResult {

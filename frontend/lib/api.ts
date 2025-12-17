@@ -275,7 +275,7 @@ class ApiClient {
       for (const key in errorData as Record<string, unknown>) {
         const value = (errorData as Record<string, unknown>)[key];
         if (Array.isArray(value) && value.length > 0 && typeof value[0] === 'string') {
-          throw new Error(value[0]); // フィールド名を省略してメッセージのみ表示
+          throw new Error(value[0]); // Omit field name and display message only
         }
       }
     }

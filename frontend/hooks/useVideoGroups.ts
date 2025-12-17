@@ -9,10 +9,10 @@ interface UseVideoGroupsReturn {
 }
 
 /**
- * 動画グループ一覧を取得する。
- * - user の変更（user?.id）に追従して読み込む
- * - triggerがtrueになったときに再取得する（モーダルが開かれたときなど）
- * - コンポーネントのアンマウント/非表示（trigger=false）後に setState しない
+ * Fetch the list of video groups.
+ * - Reload following user changes (user?.id)
+ * - Refetch when trigger becomes true (e.g., when modal is opened)
+ * - Don't setState after component unmount/hide (trigger=false)
  */
 export function useVideoGroups(trigger: boolean = true): UseVideoGroupsReturn {
   const { user } = useAuth();
@@ -33,7 +33,7 @@ export function useVideoGroups(trigger: boolean = true): UseVideoGroupsReturn {
   useEffect(() => {
     let isMounted = true;
 
-    // ユーザーが変更された場合、またはtriggerがfalse→trueに変わった場合に再取得
+    // Refetch when user changes, or when trigger changes from false to true
     const shouldFetch =
       trigger &&
       userId !== null &&
@@ -42,9 +42,9 @@ export function useVideoGroups(trigger: boolean = true): UseVideoGroupsReturn {
 
     if (shouldFetch && !isFetchingRef.current) {
       isFetchingRef.current = true;
-      // eslint の react-hooks/set-state-in-effect を避けるためマイクロタスクに逃がす
-      // (直後に実行され、ローディング表示は実質的に即時)
-      Promise.resolve().then(() => {
+      // Defer to microtask to avoid eslint react-hooks/set-state-in-effect
+      // (Executes immediately after, loading display is effectively instant)
+      queueMicrotask(() => {
         if (isMounted) setIsLoading(true);
       });
 
@@ -82,7 +82,7 @@ export function useVideoGroups(trigger: boolean = true): UseVideoGroupsReturn {
       return;
     }
 
-    // 強制的に再取得するためにrefをクリア
+    // Clear ref to force refetch
     loadedUserIdRef.current = null;
     isFetchingRef.current = true;
     setIsLoading(true);

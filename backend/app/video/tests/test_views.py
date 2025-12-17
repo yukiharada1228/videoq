@@ -12,10 +12,10 @@ User = get_user_model()
 
 
 class VideoGroupAPITestCase(APITestCase):
-    """VideoGroup APIのテスト"""
+    """VideoGroup API tests"""
 
     def setUp(self):
-        """テスト用のデータを準備"""
+        """Prepare test data"""
         self.user = User.objects.create_user(
             username="testuser",
             email="testuser@example.com",
@@ -25,7 +25,7 @@ class VideoGroupAPITestCase(APITestCase):
         self.client.force_authenticate(user=self.user)
 
     def test_create_video_group(self):
-        """グループ作成のテスト"""
+        """Test group creation"""
         url = reverse("video-group-list")
         data = {"name": "Test Group", "description": "Test Description"}
         response = self.client.post(url, data, format="json")
@@ -37,7 +37,7 @@ class VideoGroupAPITestCase(APITestCase):
         self.assertEqual(group.user, self.user)
 
     def test_list_video_groups(self):
-        """グループ一覧取得のテスト"""
+        """Test retrieving group list"""
         VideoGroup.objects.create(user=self.user, name="Group 1")
         VideoGroup.objects.create(user=self.user, name="Group 2")
 
@@ -46,11 +46,11 @@ class VideoGroupAPITestCase(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 2)
-        # video_countが含まれていることを確認
+        # Verify video_count is included
         self.assertIn("video_count", response.data[0])
 
     def test_get_video_group_detail(self):
-        """グループ詳細取得のテスト"""
+        """Test retrieving group details"""
         group = VideoGroup.objects.create(user=self.user, name="Test Group")
 
         url = reverse("video-group-detail", kwargs={"pk": group.pk})
@@ -62,7 +62,7 @@ class VideoGroupAPITestCase(APITestCase):
         self.assertIn("videos", response.data)
 
     def test_update_video_group(self):
-        """グループ更新のテスト"""
+        """Test group update"""
         group = VideoGroup.objects.create(user=self.user, name="Test Group")
 
         url = reverse("video-group-detail", kwargs={"pk": group.pk})
@@ -75,7 +75,7 @@ class VideoGroupAPITestCase(APITestCase):
         self.assertEqual(group.description, "Updated Description")
 
     def test_delete_video_group(self):
-        """グループ削除のテスト"""
+        """Test group deletion"""
         group = VideoGroup.objects.create(user=self.user, name="Test Group")
 
         url = reverse("video-group-detail", kwargs={"pk": group.pk})
@@ -85,17 +85,17 @@ class VideoGroupAPITestCase(APITestCase):
         self.assertEqual(VideoGroup.objects.count(), 0)
 
     def test_404_error_on_invalid_group_id(self):
-        """存在しないグループIDで404エラーが返されることを確認"""
+        """Verify 404 error is returned for non-existent group ID"""
         url = reverse("video-group-detail", kwargs={"pk": 99999})
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
 
 class VideoGroupMemberAPITestCase(APITestCase):
-    """VideoGroupMember APIのテスト"""
+    """VideoGroupMember API tests"""
 
     def setUp(self):
-        """テスト用のデータを準備"""
+        """Prepare test data"""
         self.user = User.objects.create_user(
             username="testuser",
             email="member@example.com",
@@ -104,7 +104,7 @@ class VideoGroupMemberAPITestCase(APITestCase):
         self.client = APIClient()
         self.client.force_authenticate(user=self.user)
 
-        # テスト用の動画とグループを作成
+        # Create test video and group
         self.video = Video.objects.create(
             user=self.user,
             title="Test Video",
@@ -116,7 +116,7 @@ class VideoGroupMemberAPITestCase(APITestCase):
         )
 
     def test_add_video_to_group(self):
-        """動画をグループに追加するテスト"""
+        """Test adding video to group"""
         url = reverse(
             "add-video-to-group",
             kwargs={"group_id": self.group.pk, "video_id": self.video.pk},
@@ -130,7 +130,7 @@ class VideoGroupMemberAPITestCase(APITestCase):
         self.assertEqual(member.video, self.video)
 
     def test_add_video_to_group_duplicate(self):
-        """同じ動画を複数回追加しようとした場合のエラーテスト"""
+        """Test error when trying to add the same video multiple times"""
         VideoGroupMember.objects.create(group=self.group, video=self.video)
 
         url = reverse(
@@ -143,7 +143,7 @@ class VideoGroupMemberAPITestCase(APITestCase):
         self.assertEqual(VideoGroupMember.objects.count(), 1)
 
     def test_add_multiple_videos_to_group(self):
-        """複数の動画を一括追加するテスト"""
+        """Test adding multiple videos in bulk"""
         video2 = Video.objects.create(
             user=self.user,
             title="Test Video 2",
@@ -167,7 +167,7 @@ class VideoGroupMemberAPITestCase(APITestCase):
         self.assertEqual(response.data["skipped_count"], 0)
 
     def test_remove_video_from_group(self):
-        """動画をグループから削除するテスト"""
+        """Test removing video from group"""
         VideoGroupMember.objects.create(group=self.group, video=self.video)
 
         url = reverse(
@@ -180,7 +180,7 @@ class VideoGroupMemberAPITestCase(APITestCase):
         self.assertEqual(VideoGroupMember.objects.count(), 0)
 
     def test_remove_video_from_group_not_member(self):
-        """グループに追加されていない動画を削除しようとした場合のエラーテスト"""
+        """Test error when trying to remove video not in the group"""
         url = reverse(
             "remove-video-from-group",
             kwargs={"group_id": self.group.pk, "video_id": self.video.pk},
@@ -191,7 +191,7 @@ class VideoGroupMemberAPITestCase(APITestCase):
         self.assertEqual(VideoGroupMember.objects.count(), 0)
 
     def test_video_group_detail_with_members(self):
-        """動画を含むグループ詳細のテスト"""
+        """Test group details with videos"""
         VideoGroupMember.objects.create(group=self.group, video=self.video, order=0)
 
         url = reverse("video-group-detail", kwargs={"pk": self.group.pk})
@@ -204,10 +204,10 @@ class VideoGroupMemberAPITestCase(APITestCase):
 
 
 class VideoGroupPermissionTestCase(APITestCase):
-    """VideoGroupの権限制限のテスト"""
+    """VideoGroup permission restriction tests"""
 
     def setUp(self):
-        """テスト用のデータを準備"""
+        """Prepare test data"""
         self.user1 = User.objects.create_user(
             username="user1", email="user1@example.com", password="testpass123"
         )
@@ -215,7 +215,7 @@ class VideoGroupPermissionTestCase(APITestCase):
             username="user2", email="user2@example.com", password="testpass123"
         )
 
-        # user1のグループを作成
+        # Create user1's group
         self.group = VideoGroup.objects.create(
             user=self.user1, name="User1 Group", description="Test Description"
         )
@@ -227,9 +227,9 @@ class VideoGroupPermissionTestCase(APITestCase):
         self.client2.force_authenticate(user=self.user2)
 
     def test_user_can_only_see_own_groups(self):
-        """ユーザーは自分のグループのみを確認できる"""
-        # user1のグループが1つ
-        # user2は別のグループを作成
+        """Users can only see their own groups"""
+        # user1 has one group
+        # user2 creates a separate group
         VideoGroup.objects.create(user=self.user2, name="User2 Group")
 
         url = reverse("video-group-list")
@@ -240,19 +240,19 @@ class VideoGroupPermissionTestCase(APITestCase):
         self.assertEqual(response.data[0]["name"], "User1 Group")
 
     def test_user_cannot_access_other_user_group(self):
-        """他のユーザーのグループにアクセスできない"""
+        """Users cannot access other users' groups"""
         url = reverse("video-group-detail", kwargs={"pk": self.group.pk})
         response = self.client2.get(url)
 
-        # 所有権がないので404を返す
+        # Returns 404 due to lack of ownership
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_user_cannot_delete_other_user_group(self):
-        """他のユーザーのグループを削除できない"""
+        """Users cannot delete other users' groups"""
         url = reverse("video-group-detail", kwargs={"pk": self.group.pk})
         response = self.client2.delete(url)
 
-        # 所有権がないので404を返す
+        # Returns 404 due to lack of ownership
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         self.assertEqual(VideoGroup.objects.count(), 1)
 

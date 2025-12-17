@@ -11,7 +11,7 @@ interface LoadingStateProps {
 }
 
 /**
- * ローディング状態とエラー状態を統一管理するコンポーネント
+ * Component to manage loading and error states in a unified way
  */
 export function LoadingState({
   isLoading,
