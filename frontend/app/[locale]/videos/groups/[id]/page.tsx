@@ -845,47 +845,32 @@ export default function VideoGroupDetailPage() {
               <CardContent className="flex-1 flex flex-col overflow-hidden">
                 <div className="flex-1 overflow-y-auto space-y-2">
                   {group.videos && group.videos.length > 0 ? (
-                    isMobile ? (
-                      // Mobile: No drag and drop, just render items
-                      group.videos.map((video) => (
-                        <SortableVideoItem
-                          key={video.id}
-                          video={video}
-                          isSelected={selectedVideo?.id === video.id}
-                          isMobile={true}
-                          onSelect={(videoId) => {
-                            handleVideoSelect(videoId);
-                            setMobileTab('player');
-                          }}
-                          onRemove={handleRemoveVideo}
-                        />
-                      ))
-                    ) : (
-                      // Desktop: With drag and drop
-                      <DndContext
-                        sensors={sensors}
-                        collisionDetection={closestCenter}
-                        onDragEnd={handleDragEnd}
+                    <DndContext
+                      sensors={isMobile ? [] : sensors}
+                      collisionDetection={closestCenter}
+                      onDragEnd={handleDragEnd}
+                    >
+                      <SortableContext
+                        items={group.videos.map(video => video.id)}
+                        strategy={verticalListSortingStrategy}
                       >
-                        <SortableContext
-                          items={group.videos.map(video => video.id)}
-                          strategy={verticalListSortingStrategy}
-                        >
-                          {group.videos.map((video) => (
-                            <SortableVideoItem
-                              key={video.id}
-                              video={video}
-                              isSelected={selectedVideo?.id === video.id}
-                              isMobile={false}
-                              onSelect={(videoId) => {
-                                handleVideoSelect(videoId);
-                              }}
-                              onRemove={handleRemoveVideo}
-                            />
-                          ))}
-                        </SortableContext>
-                      </DndContext>
-                    )
+                        {group.videos.map((video) => (
+                          <SortableVideoItem
+                            key={video.id}
+                            video={video}
+                            isSelected={selectedVideo?.id === video.id}
+                            isMobile={isMobile}
+                            onSelect={(videoId) => {
+                              handleVideoSelect(videoId);
+                              if (isMobile) {
+                                setMobileTab('player');
+                              }
+                            }}
+                            onRemove={handleRemoveVideo}
+                          />
+                        ))}
+                      </SortableContext>
+                    </DndContext>
                   ) : (
                     <p className="text-center text-gray-500 py-4 text-sm">
                       {t('videos.groupDetail.videoListEmpty')}
