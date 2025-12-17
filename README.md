@@ -286,7 +286,7 @@ After all services are up, you can access:
 
 - **Frontend**: http://localhost
 - **Backend API**: http://localhost/api
-- **Admin**: http://localhost/admin
+- **Admin**: http://localhost/api/admin
 - **API Documentation (Swagger)**: http://localhost/api/docs/
 - **API Documentation (ReDoc)**: http://localhost/api/redoc/
 
