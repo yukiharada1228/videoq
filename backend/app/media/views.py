@@ -45,6 +45,6 @@ class ProtectedMediaView(APIView):
         content_type, _ = mimetypes.guess_type(file_path)
         if content_type:
             response["Content-Type"] = content_type
-        response["X-Accel-Redirect"] = f"/protected_media/{path}"
+        response["X-Accel-Redirect"] = f"/api/protected_media/{path}"
 
         return response

@@ -23,7 +23,7 @@ from drf_spectacular.views import (SpectacularAPIView, SpectacularRedocView,
                                    SpectacularSwaggerView)
 
 urlpatterns = [
-    path("admin/", admin.site.urls),
+    path("api/admin/", admin.site.urls),
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path(
         "api/docs/",
@@ -34,7 +34,7 @@ urlpatterns = [
     path("api/auth/", include("app.auth.urls")),
     path("api/chat/", include("app.chat.urls")),
     path("api/videos/", include("app.video.urls")),
-    path("", include("app.urls")),
+    path("api/", include("app.urls")),
 ]
 
 # Serve MEDIA files only in development environment
