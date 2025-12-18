@@ -134,6 +134,15 @@ function SortableVideoItem({ video, isSelected, onSelect, onRemove, isMobile = f
   );
 }
 
+/**
+ * Renders the Video Group Detail page with video list, player, and chat for a single video group.
+ *
+ * Displays group metadata (with inline edit), manages loading and reordering videos, adding/removing videos,
+ * generating and copying share links, and provides a responsive layout that switches between tabs on mobile
+ * and a three-column layout on larger screens.
+ *
+ * @returns The rendered Video Group Detail page component.
+ */
 export default function VideoGroupDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -840,9 +849,9 @@ export default function VideoGroupDetailPage() {
           </div>
 
           {/* Responsive layout: Tab switching on mobile, 3-column on PC */}
-          <div className="flex flex-col lg:grid flex-1 min-h-0 gap-4 lg:gap-6 lg:grid-cols-[320px_minmax(0,1fr)_360px]">
+          <div className="flex flex-col lg:grid flex-1 min-h-0 gap-4 lg:gap-6 lg:grid-cols-[1fr_2fr_1fr]">
           {/* Left: Video list */}
-          <div className={`flex-col min-h-0 ${mobileTab === 'videos' ? 'flex' : 'hidden lg:flex'}`}>
+          <div className={`flex-col min-h-0 min-w-0 ${mobileTab === 'videos' ? 'flex' : 'hidden lg:flex'}`}>
             <Card className="h-[500px] lg:h-[600px] flex flex-col">
               <CardHeader>
                 <CardTitle>{t('videos.groupDetail.videoListTitle')}</CardTitle>
@@ -887,7 +896,7 @@ export default function VideoGroupDetailPage() {
           </div>
 
           {/* Center: Video player */}
-          <div className={`flex-col min-h-0 ${mobileTab === 'player' ? 'flex' : 'hidden lg:flex'}`}>
+          <div className={`flex-col min-h-0 min-w-0 ${mobileTab === 'player' ? 'flex' : 'hidden lg:flex'}`}>
             <Card className="h-[500px] lg:h-[600px] flex flex-col">
               <CardHeader>
                 <CardTitle className="text-base lg:text-lg">
@@ -927,7 +936,7 @@ export default function VideoGroupDetailPage() {
           </div>
 
           {/* Right: Chat */}
-          <div className={`flex-col min-h-0 ${mobileTab === 'chat' ? 'flex' : 'hidden lg:flex'}`}>
+          <div className={`flex-col min-h-0 min-w-0 ${mobileTab === 'chat' ? 'flex' : 'hidden lg:flex'}`}>
             <ChatPanel
               groupId={groupId ?? undefined}
               onVideoPlay={handleVideoPlayFromTime}
@@ -941,4 +950,3 @@ export default function VideoGroupDetailPage() {
     </div>
   );
 }
-
