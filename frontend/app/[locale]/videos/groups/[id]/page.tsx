@@ -840,7 +840,7 @@ export default function VideoGroupDetailPage() {
           </div>
 
           {/* Responsive layout: Tab switching on mobile, 3-column on PC */}
-          <div className="flex flex-col lg:grid flex-1 min-h-0 gap-4 lg:gap-6 lg:grid-cols-[320px_minmax(0,1fr)_360px]">
+          <div className="flex flex-col lg:grid flex-1 min-h-0 gap-4 lg:gap-6 lg:grid-cols-[360px_minmax(0,1fr)_360px]">
           {/* Left: Video list */}
           <div className={`flex-col min-h-0 ${mobileTab === 'videos' ? 'flex' : 'hidden lg:flex'}`}>
             <Card className="h-[500px] lg:h-[600px] flex flex-col">
