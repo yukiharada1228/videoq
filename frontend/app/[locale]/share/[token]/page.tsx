@@ -209,9 +209,9 @@ export default function SharedGroupPage() {
           </div>
 
           {/* Responsive layout: Tab switching on mobile, 3-column on PC */}
-          <div className="flex flex-col lg:grid flex-1 min-h-0 gap-4 lg:gap-6 lg:grid-cols-[320px_minmax(0,1fr)_360px]">
+          <div className="flex flex-col lg:grid flex-1 min-h-0 gap-4 lg:gap-6 lg:grid-cols-[1fr_2fr_1fr]">
             {/* Left: Video list */}
-            <div className={`flex-col min-h-0 ${mobileTab === 'videos' ? 'flex' : 'hidden lg:flex'}`}>
+            <div className={`flex-col min-h-0 min-w-0 ${mobileTab === 'videos' ? 'flex' : 'hidden lg:flex'}`}>
               <Card className="h-[500px] lg:h-[600px] flex flex-col">
                 <CardHeader>
                   <CardTitle>{t('videos.shared.tabs.videos')}</CardTitle>
@@ -238,7 +238,7 @@ export default function SharedGroupPage() {
             </div>
 
             {/* Center: Video player */}
-            <div className={`flex-col min-h-0 ${mobileTab === 'player' ? 'flex' : 'hidden lg:flex'}`}>
+            <div className={`flex-col min-h-0 min-w-0 ${mobileTab === 'player' ? 'flex' : 'hidden lg:flex'}`}>
               <Card className="h-[500px] lg:h-[600px] flex flex-col">
                 <CardHeader>
                   <CardTitle className="text-base lg:text-lg">
@@ -278,7 +278,7 @@ export default function SharedGroupPage() {
             </div>
 
             {/* Right: Chat */}
-            <div className={`flex-col min-h-0 ${mobileTab === 'chat' ? 'flex' : 'hidden lg:flex'}`}>
+            <div className={`flex-col min-h-0 min-w-0 ${mobileTab === 'chat' ? 'flex' : 'hidden lg:flex'}`}>
               <ChatPanel
                 groupId={group.id}
                 onVideoPlay={handleVideoPlayFromTime}
