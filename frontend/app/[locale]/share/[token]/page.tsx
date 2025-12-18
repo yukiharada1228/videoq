@@ -46,6 +46,11 @@ function VideoItem({ video, isSelected, onSelect }: VideoItemProps) {
   );
 }
 
+/**
+ * Renders the shared group page showing a list of videos, a central video player, and chat, handling loading, errors, mobile tab navigation, video selection, and play-from-time requests.
+ *
+ * @returns The React element representing the shared video group page.
+ */
 export default function SharedGroupPage() {
   const params = useParams();
   const shareToken = params?.token as string;

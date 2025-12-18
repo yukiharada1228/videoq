@@ -134,6 +134,15 @@ function SortableVideoItem({ video, isSelected, onSelect, onRemove, isMobile = f
   );
 }
 
+/**
+ * Renders the Video Group Detail page with video list, player, and chat for a single video group.
+ *
+ * Displays group metadata (with inline edit), manages loading and reordering videos, adding/removing videos,
+ * generating and copying share links, and provides a responsive layout that switches between tabs on mobile
+ * and a three-column layout on larger screens.
+ *
+ * @returns The rendered Video Group Detail page component.
+ */
 export default function VideoGroupDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -941,4 +950,3 @@ export default function VideoGroupDetailPage() {
     </div>
   );
 }
-
