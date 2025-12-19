@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from operator import itemgetter
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, cast
+from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Sequence, Tuple, cast
 
 from langchain_core.messages import AIMessage
 from langchain_core.prompts import ChatPromptTemplate
@@ -89,6 +89,81 @@ class RagChatService:
             query_text=query_text,
             related_videos=related_videos,
         )
+
+    def run_stream(
+        self,
+        messages: Sequence[Dict[str, str]],
+        group: Optional["VideoGroup"] = None,
+        locale: Optional[str] = None,
+    ) -> Iterator[Tuple[str, Any]]:
+        """
+        Execute RAG chain with streaming support.
+
+        Yields:
+            Tuple[str, Any]: Event type and data
+                - ("token", str): LLM token chunk
+                - ("done", dict): Completion metadata with related_videos and query_text
+        """
+        query_text = self._extract_latest_user_query(messages)
+
+        # Get retriever (only if group exists)
+        retriever = self._get_retriever(group)
+
+        # Build RAG chain following same pattern as run()
+        if retriever is not None:
+            # RAG chain with retriever
+            rag_chain = (
+                RunnableParallel(
+                    {
+                        "query_text": itemgetter("query_text"),
+                        "locale": itemgetter("locale"),
+                        "docs": itemgetter("query_text") | retriever,
+                    }
+                )
+                | RunnableLambda(self._build_prompt_payload)
+                | RunnableParallel(
+                    {
+                        "llm_response": itemgetter("prompt_input")
+                        | self.prompt
+                        | self.llm,
+                        "related_videos": itemgetter("related_videos"),
+                    }
+                )
+            )
+        else:
+            # When retriever is not available (no group)
+            rag_chain = RunnableLambda(self._build_prompt_payload) | RunnableParallel(
+                {
+                    "llm_response": itemgetter("prompt_input") | self.prompt | self.llm,
+                    "related_videos": itemgetter("related_videos"),
+                }
+            )
+
+        # Stream chain execution
+        related_videos = None
+        full_content = ""
+
+        for chunk in rag_chain.stream({"query_text": query_text, "locale": locale}):
+            # Extract related_videos from first chunk (available after retrieval)
+            if "related_videos" in chunk and related_videos is None:
+                related_videos = chunk["related_videos"]
+
+            # Extract LLM response chunks
+            if "llm_response" in chunk:
+                llm_chunk = chunk["llm_response"]
+
+                # Handle AIMessageChunk content
+                if hasattr(llm_chunk, "content") and llm_chunk.content:
+                    content = llm_chunk.content
+                    full_content += content
+                    yield ("token", content)
+
+        # Yield completion event with metadata
+        yield ("done", {
+            "related_videos": related_videos,
+            "query_text": query_text,
+            "full_content": full_content,
+        })
 
     def _extract_latest_user_query(self, messages: Sequence[Dict[str, str]]) -> str:
         for msg in reversed(messages):

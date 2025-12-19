@@ -2,7 +2,7 @@ import csv
 import json
 
 from django.db.models import Prefetch
-from django.http import HttpResponse
+from django.http import HttpResponse, StreamingHttpResponse
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
@@ -162,6 +162,150 @@ class ChatView(generics.CreateAPIView):
 
         except Exception as e:
             return handle_langchain_exception(e)
+
+
+class ChatStreamView(APIView):
+    """Chat streaming view using Server-Sent Events (SSE)"""
+
+    authentication_classes = [CookieJWTAuthentication, ShareTokenAuthentication]
+    permission_classes = [IsAuthenticatedOrSharedAccess]
+
+    @extend_schema(
+        request=ChatRequestSerializer,
+        responses={200: None},
+        summary="Stream chat message",
+        description="Stream a chat message and get AI response in real-time using SSE. Supports RAG when group_id is provided.",
+    )
+    def post(self, request):
+        # Shared token authentication case
+        share_token = request.query_params.get("share_token")
+        is_shared = share_token is not None
+        group = None
+
+        if is_shared:
+            # Get group by share token
+            group_id = request.data.get("group_id")
+            if not group_id:
+                return self._create_error_stream("Group ID not specified")
+
+            try:
+                group = _get_video_group_with_members(group_id, share_token=share_token)
+                user = group.user  # Group owner's user
+            except VideoGroup.DoesNotExist:
+                return self._create_error_stream("Shared group not found")
+        else:
+            # Normal authenticated user
+            user = request.user
+
+        # Get LangChain LLM
+        llm, error_response = get_langchain_llm(user)
+        if error_response:
+            return self._create_error_stream(str(error_response.data.get("error", "LLM initialization failed")))
+
+        # Validate messages
+        messages = request.data.get("messages", [])
+        if not messages:
+            return self._create_error_stream("Messages are empty")
+
+        group_id = request.data.get("group_id")
+
+        # Get group if group_id is specified and not already fetched
+        if group_id is not None and not is_shared:
+            try:
+                group = _get_video_group_with_members(group_id, user_id=user.id)
+            except VideoGroup.DoesNotExist:
+                return self._create_error_stream("Specified group not found")
+
+        # Get request locale
+        accept_language = request.headers.get("Accept-Language", "")
+        request_locale = (
+            accept_language.split(",")[0].split(";")[0].strip()
+            if accept_language
+            else ""
+        ) or None
+
+        # Create streaming response
+        async def event_stream():
+            try:
+                from asgiref.sync import sync_to_async
+
+                service = RagChatService(user=user, llm=llm)
+                full_content = ""
+                related_videos = None
+                query_text = ""
+
+                # Stream events from service
+                for event_type, data in service.run_stream(
+                    messages=messages,
+                    group=group if group_id is not None else None,
+                    locale=request_locale,
+                ):
+                    if event_type == "token":
+                        # Stream LLM tokens
+                        full_content += data
+                        yield self._format_sse_event({
+                            "type": "token",
+                            "content": data,
+                        })
+                    elif event_type == "done":
+                        # Completion metadata
+                        related_videos = data.get("related_videos")
+                        query_text = data.get("query_text", "")
+                        full_content = data.get("full_content", full_content)
+
+                # Save chat log after streaming completes
+                response_data = {}
+                if group_id is not None and related_videos:
+                    response_data["related_videos"] = related_videos
+
+                if group_id is not None and group is not None:
+                    # Use sync_to_async for database operations in ASGI mode
+                    chat_log = await sync_to_async(ChatLog.objects.create)(
+                        user=(group.user if is_shared else user),
+                        group=group,
+                        question=query_text,
+                        answer=full_content,
+                        related_videos=related_videos or [],
+                        is_shared_origin=is_shared,
+                    )
+                    response_data["chat_log_id"] = chat_log.id
+                    response_data["feedback"] = chat_log.feedback
+
+                # Send completion event
+                yield self._format_sse_event({
+                    "type": "done",
+                    **response_data,
+                })
+
+            except Exception as e:
+                # Send error event
+                error_message = str(e)
+                yield self._format_sse_event({
+                    "type": "error",
+                    "message": error_message,
+                })
+
+        response = StreamingHttpResponse(event_stream(), content_type="text/event-stream")
+        response["Cache-Control"] = "no-cache"
+        response["X-Accel-Buffering"] = "no"
+        return response
+
+    def _format_sse_event(self, data: dict) -> str:
+        """Format data as SSE event"""
+        return f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+    def _create_error_stream(self, message: str):
+        """Create an error event stream"""
+        async def error_stream():
+            yield self._format_sse_event({
+                "type": "error",
+                "message": message,
+            })
+
+        response = StreamingHttpResponse(error_stream(), content_type="text/event-stream")
+        response["Cache-Control"] = "no-cache"
+        response["X-Accel-Buffering"] = "no"
+        return response
 
 
 class ChatFeedbackView(APIView):

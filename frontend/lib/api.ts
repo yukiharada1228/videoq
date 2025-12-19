@@ -465,6 +465,114 @@ class ApiClient {
     });
   }
 
+  async chatStream(
+    data: ChatRequest,
+    onToken: (content: string) => void,
+    onDone: (metadata: { related_videos?: RelatedVideo[]; chat_log_id?: number; feedback?: 'good' | 'bad' | null }) => void,
+    onError: (error: Error) => void
+  ): Promise<void> {
+    const { share_token, ...bodyData } = data;
+    const endpoint = share_token ? `/chat/stream/?share_token=${share_token}` : '/chat/stream/';
+    const url = this.buildUrl(endpoint);
+
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: this.buildHeaders(),
+        body: JSON.stringify(bodyData),
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          // Try to refresh token and retry once
+          try {
+            await this.refreshToken();
+            // Retry the request
+            const retryResponse = await fetch(url, {
+              method: 'POST',
+              headers: this.buildHeaders(),
+              body: JSON.stringify(bodyData),
+              credentials: 'include',
+            });
+
+            if (!retryResponse.ok) {
+              throw new Error(`HTTP ${retryResponse.status}: ${retryResponse.statusText}`);
+            }
+
+            // Process the retry response
+            await this.processStreamResponse(retryResponse, onToken, onDone, onError);
+            return;
+          } catch (refreshError) {
+            await this.handleAuthError();
+            return;
+          }
+        }
+
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      // Process the stream
+      await this.processStreamResponse(response, onToken, onDone, onError);
+    } catch (error) {
+      this.logError('Chat stream error:', error);
+      onError(error instanceof Error ? error : new Error('Unknown error'));
+    }
+  }
+
+  private async processStreamResponse(
+    response: Response,
+    onToken: (content: string) => void,
+    onDone: (metadata: { related_videos?: RelatedVideo[]; chat_log_id?: number; feedback?: 'good' | 'bad' | null }) => void,
+    onError: (error: Error) => void
+  ): Promise<void> {
+    const reader = response.body?.getReader();
+    if (!reader) {
+      throw new Error('Response body is not readable');
+    }
+
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+
+              if (data.type === 'token') {
+                onToken(data.content);
+              } else if (data.type === 'done') {
+                onDone({
+                  related_videos: data.related_videos,
+                  chat_log_id: data.chat_log_id,
+                  feedback: data.feedback,
+                });
+                return;
+              } else if (data.type === 'error') {
+                onError(new Error(data.message || 'Unknown server error'));
+                return;
+              }
+            } catch (parseError) {
+              this.logError('Failed to parse SSE event:', parseError);
+            }
+          }
+        }
+      }
+    } catch (error) {
+      this.logError('Stream reading error:', error);
+      throw error;
+    }
+  }
+
   async setChatFeedback(
     chatLogId: number,
     feedback: 'good' | 'bad' | null,

@@ -14,6 +14,7 @@ interface Message {
   related_videos?: RelatedVideo[];
   chatLogId?: number;
   feedback?: 'good' | 'bad' | null;
+  isStreaming?: boolean;
 }
 
 interface ChatPanelProps {
@@ -98,33 +99,107 @@ export function ChatPanel({ groupId, onVideoPlay, shareToken, className }: ChatP
     setInput('');
     setLoading(true);
 
-    try {
-      const response = await apiClient.chat({
-        // Send minimal data since backend only references latest user message
-        messages: [userMessage],
-        ...(groupId ? { group_id: groupId } : {}),
-        ...(shareToken ? { share_token: shareToken } : {}),
-      });
+    // Add placeholder for streaming message
+    const streamingMessageIndex = messages.length + 1;
+    setMessages((prev) => [
+      ...prev,
+      { role: 'assistant', content: '', isStreaming: true },
+    ]);
 
-      setMessages((prev) => [
-        ...prev,
+    let streamingFailed = false;
+
+    try {
+      let streamedContent = '';
+
+      await apiClient.chatStream(
         {
-          role: response.role,
-          content: response.content,
-          related_videos: response.related_videos,
-          chatLogId: response.chat_log_id,
-          feedback: response.feedback ?? null,
+          messages: [userMessage],
+          ...(groupId ? { group_id: groupId } : {}),
+          ...(shareToken ? { share_token: shareToken } : {}),
         },
-      ]);
-    } catch (error) {
-      console.error('Chat error:', error);
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: 'assistant',
-          content: t('chat.error'),
+        // onToken callback
+        (content: string) => {
+          streamedContent += content;
+          setMessages((prev) => {
+            const newMessages = [...prev];
+            newMessages[streamingMessageIndex] = {
+              role: 'assistant',
+              content: streamedContent,
+              isStreaming: true,
+            };
+            return newMessages;
+          });
         },
-      ]);
+        // onDone callback
+        (metadata) => {
+          setMessages((prev) => {
+            const newMessages = [...prev];
+            newMessages[streamingMessageIndex] = {
+              role: 'assistant',
+              content: streamedContent,
+              related_videos: metadata.related_videos,
+              chatLogId: metadata.chat_log_id,
+              feedback: metadata.feedback ?? null,
+              isStreaming: false,
+            };
+            return newMessages;
+          });
+        },
+        // onError callback
+        (error) => {
+          console.error('Streaming error:', error);
+          streamingFailed = true;
+          throw error; // Re-throw to trigger fallback
+        }
+      );
+    } catch (streamingError) {
+      if (streamingFailed) {
+        console.warn('Streaming failed, falling back to regular chat:', streamingError);
+
+        // Fallback to non-streaming
+        try {
+          const response = await apiClient.chat({
+            messages: [userMessage],
+            ...(groupId ? { group_id: groupId } : {}),
+            ...(shareToken ? { share_token: shareToken } : {}),
+          });
+
+          setMessages((prev) => {
+            const newMessages = [...prev];
+            newMessages[streamingMessageIndex] = {
+              role: response.role,
+              content: response.content,
+              related_videos: response.related_videos,
+              chatLogId: response.chat_log_id,
+              feedback: response.feedback ?? null,
+              isStreaming: false,
+            };
+            return newMessages;
+          });
+        } catch (fallbackError) {
+          console.error('Fallback chat also failed:', fallbackError);
+          setMessages((prev) => {
+            const newMessages = [...prev];
+            newMessages[streamingMessageIndex] = {
+              role: 'assistant',
+              content: t('chat.error'),
+              isStreaming: false,
+            };
+            return newMessages;
+          });
+        }
+      } else {
+        console.error('Chat error:', streamingError);
+        setMessages((prev) => {
+          const newMessages = [...prev];
+          newMessages[streamingMessageIndex] = {
+            role: 'assistant',
+            content: t('chat.error'),
+            isStreaming: false,
+          };
+          return newMessages;
+        });
+      }
     } finally {
       setLoading(false);
     }
