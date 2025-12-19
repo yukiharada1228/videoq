@@ -6,6 +6,7 @@ import { apiClient } from '@/lib/api'
 jest.mock('@/lib/api', () => ({
   apiClient: {
     chat: jest.fn(),
+    chatStream: jest.fn(),
     getChatHistory: jest.fn(),
     exportChatHistoryCsv: jest.fn(),
     setChatFeedback: jest.fn(),
@@ -27,6 +28,19 @@ describe('ChatPanel', () => {
       chat_log_id: 1,
       feedback: null,
     })
+    ;(apiClient.chatStream as jest.Mock).mockImplementation(
+      async (data, onToken, onDone, onError) => {
+        // Simulate streaming tokens
+        onToken('Test ')
+        onToken('response')
+        // Call onDone with metadata
+        onDone({
+          related_videos: [],
+          chat_log_id: 1,
+          feedback: null,
+        })
+      }
+    )
     ;(apiClient.getOpenAIApiKeyStatus as jest.Mock).mockResolvedValue({ has_api_key: true })
   })
 
@@ -38,7 +52,7 @@ describe('ChatPanel', () => {
 
   it('should send message when form is submitted', async () => {
     render(<ChatPanel />)
-    
+
     const input = screen.getByPlaceholderText(/chat.placeholder/)
     const sendButton = screen.getByText(/common.actions.send/)
 
@@ -48,20 +62,20 @@ describe('ChatPanel', () => {
     })
 
     await waitFor(() => {
-      expect(apiClient.chat).toHaveBeenCalled()
+      expect(apiClient.chatStream).toHaveBeenCalled()
     })
   })
 
   it('should not send message when input is empty', async () => {
     render(<ChatPanel />)
-    
+
     const sendButton = screen.getByText(/common.actions.send/)
 
     await act(async () => {
       fireEvent.click(sendButton)
     })
 
-    expect(apiClient.chat).not.toHaveBeenCalled()
+    expect(apiClient.chatStream).not.toHaveBeenCalled()
   })
 
   it('should open history when history button is clicked', async () => {
@@ -88,19 +102,22 @@ describe('ChatPanel', () => {
 
   it('should handle video navigation', async () => {
     const onVideoPlay = jest.fn()
-    ;(apiClient.chat as jest.Mock).mockResolvedValue({
-      role: 'assistant',
-      content: 'Response',
-      related_videos: [
-        {
-          video_id: 1,
-          title: 'Test Video',
-          start_time: '00:01:30',
-        },
-      ],
-      chat_log_id: 1,
-      feedback: null,
-    })
+    ;(apiClient.chatStream as jest.Mock).mockImplementation(
+      async (data, onToken, onDone, onError) => {
+        onToken('Response')
+        onDone({
+          related_videos: [
+            {
+              video_id: 1,
+              title: 'Test Video',
+              start_time: '00:01:30',
+            },
+          ],
+          chat_log_id: 1,
+          feedback: null,
+        })
+      }
+    )
 
     render(<ChatPanel  onVideoPlay={onVideoPlay} />)
     
@@ -126,19 +143,22 @@ describe('ChatPanel', () => {
   })
 
   it('should open video in new tab when onVideoPlay is not provided', async () => {
-    ;(apiClient.chat as jest.Mock).mockResolvedValue({
-      role: 'assistant',
-      content: 'Response',
-      related_videos: [
-        {
-          video_id: 1,
-          title: 'Test Video',
-          start_time: '00:01:30',
-        },
-      ],
-      chat_log_id: 1,
-      feedback: null,
-    })
+    ;(apiClient.chatStream as jest.Mock).mockImplementation(
+      async (data, onToken, onDone, onError) => {
+        onToken('Response')
+        onDone({
+          related_videos: [
+            {
+              video_id: 1,
+              title: 'Test Video',
+              start_time: '00:01:30',
+            },
+          ],
+          chat_log_id: 1,
+          feedback: null,
+        })
+      }
+    )
 
     render(<ChatPanel  />)
     
@@ -165,7 +185,7 @@ describe('ChatPanel', () => {
 
   it('should send message when Enter key is pressed', async () => {
     render(<ChatPanel  />)
-    
+
     const input = screen.getByPlaceholderText(/chat.placeholder/)
 
     await act(async () => {
@@ -174,13 +194,13 @@ describe('ChatPanel', () => {
     })
 
     await waitFor(() => {
-      expect(apiClient.chat).toHaveBeenCalled()
+      expect(apiClient.chatStream).toHaveBeenCalled()
     })
   })
 
   it('should not send message when Shift+Enter is pressed', async () => {
     render(<ChatPanel  />)
-    
+
     const input = screen.getByPlaceholderText(/chat.placeholder/)
 
     await act(async () => {
@@ -188,17 +208,20 @@ describe('ChatPanel', () => {
       fireEvent.keyDown(input, { key: 'Enter', shiftKey: true })
     })
 
-    expect(apiClient.chat).not.toHaveBeenCalled()
+    expect(apiClient.chatStream).not.toHaveBeenCalled()
   })
 
   it('should handle feedback good button click', async () => {
-    ;(apiClient.chat as jest.Mock).mockResolvedValue({
-      role: 'assistant',
-      content: 'Response',
-      related_videos: [],
-      chat_log_id: 1,
-      feedback: null,
-    })
+    ;(apiClient.chatStream as jest.Mock).mockImplementation(
+      async (data, onToken, onDone, onError) => {
+        onToken('Response')
+        onDone({
+          related_videos: [],
+          chat_log_id: 1,
+          feedback: null,
+        })
+      }
+    )
     ;(apiClient.setChatFeedback as jest.Mock).mockResolvedValue({
       chat_log_id: 1,
       feedback: 'good',
@@ -229,13 +252,16 @@ describe('ChatPanel', () => {
   })
 
   it('should handle feedback bad button click', async () => {
-    ;(apiClient.chat as jest.Mock).mockResolvedValue({
-      role: 'assistant',
-      content: 'Response',
-      related_videos: [],
-      chat_log_id: 1,
-      feedback: null,
-    })
+    ;(apiClient.chatStream as jest.Mock).mockImplementation(
+      async (data, onToken, onDone, onError) => {
+        onToken('Response')
+        onDone({
+          related_videos: [],
+          chat_log_id: 1,
+          feedback: null,
+        })
+      }
+    )
     ;(apiClient.setChatFeedback as jest.Mock).mockResolvedValue({
       chat_log_id: 1,
       feedback: 'bad',
@@ -266,13 +292,16 @@ describe('ChatPanel', () => {
   })
 
   it('should toggle feedback when clicking same button', async () => {
-    ;(apiClient.chat as jest.Mock).mockResolvedValue({
-      role: 'assistant',
-      content: 'Response',
-      related_videos: [],
-      chat_log_id: 1,
-      feedback: 'good',
-    })
+    ;(apiClient.chatStream as jest.Mock).mockImplementation(
+      async (data, onToken, onDone, onError) => {
+        onToken('Response')
+        onDone({
+          related_videos: [],
+          chat_log_id: 1,
+          feedback: 'good',
+        })
+      }
+    )
     ;(apiClient.setChatFeedback as jest.Mock).mockResolvedValue({
       chat_log_id: 1,
       feedback: null,
@@ -407,6 +436,13 @@ describe('ChatPanel', () => {
   })
 
   it('should display error message when chat fails', async () => {
+    ;(apiClient.chatStream as jest.Mock).mockImplementation(
+      async (data, onToken, onDone, onError) => {
+        const error = new Error('Chat failed')
+        onError(error)
+        throw error
+      }
+    )
     ;(apiClient.chat as jest.Mock).mockRejectedValue(new Error('Chat failed'))
 
     render(<ChatPanel  />)
@@ -506,13 +542,16 @@ describe('ChatPanel', () => {
 
   it('should handle setChatFeedback error', async () => {
     const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
-    ;(apiClient.chat as jest.Mock).mockResolvedValue({
-      role: 'assistant',
-      content: 'Response',
-      related_videos: [],
-      chat_log_id: 1,
-      feedback: null,
-    })
+    ;(apiClient.chatStream as jest.Mock).mockImplementation(
+      async (data, onToken, onDone, onError) => {
+        onToken('Response')
+        onDone({
+          related_videos: [],
+          chat_log_id: 1,
+          feedback: null,
+        })
+      }
+    )
     ;(apiClient.setChatFeedback as jest.Mock).mockRejectedValue(new Error('Failed to update feedback'))
 
     render(<ChatPanel  />)
@@ -543,7 +582,7 @@ describe('ChatPanel', () => {
 
   it('should not send message when Enter key is pressed during composition', async () => {
     render(<ChatPanel  />)
-    
+
     const input = screen.getByPlaceholderText(/chat.placeholder/)
 
     await act(async () => {
@@ -560,7 +599,7 @@ describe('ChatPanel', () => {
     })
 
     // Should not call chat API during composition
-    expect(apiClient.chat).not.toHaveBeenCalled()
+    expect(apiClient.chatStream).not.toHaveBeenCalled()
   })
 
   it('should display related videos in history', async () => {
