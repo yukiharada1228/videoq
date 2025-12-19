@@ -3,6 +3,28 @@ import { apiClient } from '../api'
 // Mock fetch
 global.fetch = jest.fn()
 
+beforeAll(() => {
+  // Ensure TextEncoder/TextDecoder exist in Jest environment
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const g = global as any
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const util = (() => {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      return require('util')
+    } catch {
+      return null
+    }
+  })()
+
+  if (typeof TextEncoder === 'undefined' && util?.TextEncoder) {
+    g.TextEncoder = util.TextEncoder
+  }
+  if (typeof TextDecoder === 'undefined' && util?.TextDecoder) {
+    g.TextDecoder = util.TextDecoder
+  }
+})
+
 // Mock ReadableStream
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 global.ReadableStream = class ReadableStream {} as any
@@ -80,9 +102,39 @@ Object.defineProperty(window, 'URL', {
 
 describe('apiClient', () => {
   beforeEach(() => {
+    // Important: clear calls + restore spyOn() implementations between tests
+    // (clearAllMocks alone does not restore mockImplementation)
+    jest.restoreAllMocks()
     jest.clearAllMocks()
     ;(fetch as jest.Mock).mockReset()
   })
+
+  const createSseResponse = (chunks: string[], init?: { ok?: boolean; status?: number; statusText?: string }) => {
+    const ok = init?.ok ?? true
+    const status = init?.status ?? 200
+    const statusText = init?.statusText ?? 'OK'
+    const encoder = new TextEncoder()
+    const encoded = chunks.map((c) => encoder.encode(c))
+    let idx = 0
+    const reader = {
+      read: jest.fn(async () => {
+        if (idx >= encoded.length) {
+          return { done: true, value: undefined }
+        }
+        const value = encoded[idx++]
+        return { done: false, value }
+      }),
+    }
+
+    return {
+      ok,
+      status,
+      statusText,
+      body: {
+        getReader: () => reader,
+      },
+    } as unknown as Response
+  }
 
   describe('isAuthenticated', () => {
     it('should return true when authenticated', async () => {
@@ -798,6 +850,181 @@ describe('apiClient', () => {
     })
   })
 
+  describe('chatStream', () => {
+    it('should stream token and done events', async () => {
+      const onToken = jest.fn()
+      const onDone = jest.fn()
+      const onError = jest.fn()
+
+      const related_videos = [{ video_id: 1, title: 't', start_time: '0', end_time: '1' }]
+
+      // Split across chunks to exercise buffer logic
+      const response = createSseResponse([
+        'data: {"type":"token","content":"Hel"}\n\n',
+        'data: {"type":"token","content":"lo"}\n\n',
+        `data: {"type":"done","related_videos":${JSON.stringify(related_videos)},"chat_log_id":123,"feedback":null}\n\n`,
+      ])
+
+      ;(fetch as jest.Mock).mockResolvedValueOnce(response)
+
+      await apiClient.chatStream(
+        { messages: [{ role: 'user', content: 'Hello' }], group_id: 1 },
+        onToken,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        onDone as any,
+        onError
+      )
+
+      expect(onToken).toHaveBeenCalledTimes(2)
+      expect(onToken).toHaveBeenNthCalledWith(1, 'Hel')
+      expect(onToken).toHaveBeenNthCalledWith(2, 'lo')
+
+      expect(onDone).toHaveBeenCalledTimes(1)
+      expect(onDone).toHaveBeenCalledWith({
+        related_videos,
+        chat_log_id: 123,
+        feedback: null,
+      })
+      expect(onError).not.toHaveBeenCalled()
+    })
+
+    it('should call onError for server error event (fallback message)', async () => {
+      const onToken = jest.fn()
+      const onDone = jest.fn()
+      const onError = jest.fn()
+
+      const response = createSseResponse([
+        'data: {"type":"error"}\n\n',
+      ])
+      ;(fetch as jest.Mock).mockResolvedValueOnce(response)
+
+      await apiClient.chatStream(
+        { messages: [{ role: 'user', content: 'Hello' }], group_id: 1 },
+        onToken,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        onDone as any,
+        onError
+      )
+
+      expect(onError).toHaveBeenCalledTimes(1)
+      expect(onError.mock.calls[0][0]).toBeInstanceOf(Error)
+      expect((onError.mock.calls[0][0] as Error).message).toBe('Unknown server error')
+    })
+
+    it('should log and continue on malformed SSE JSON', async () => {
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+      const onToken = jest.fn()
+      const onDone = jest.fn()
+      const onError = jest.fn()
+
+      const response = createSseResponse([
+        'data: not-json\n\n',
+        'data: {"type":"done"}\n\n',
+      ])
+      ;(fetch as jest.Mock).mockResolvedValueOnce(response)
+
+      await apiClient.chatStream(
+        { messages: [{ role: 'user', content: 'Hello' }], group_id: 1 },
+        onToken,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        onDone as any,
+        onError
+      )
+
+      expect(consoleErrorSpy).toHaveBeenCalled()
+      expect(onDone).toHaveBeenCalledTimes(1)
+      consoleErrorSpy.mockRestore()
+    })
+
+    it('should call onError with Unknown error when fetch throws non-Error', async () => {
+      const onToken = jest.fn()
+      const onDone = jest.fn()
+      const onError = jest.fn()
+
+      ;(fetch as jest.Mock).mockRejectedValueOnce('boom')
+
+      await apiClient.chatStream(
+        { messages: [{ role: 'user', content: 'Hello' }], group_id: 1 },
+        onToken,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        onDone as any,
+        onError
+      )
+
+      expect(onError).toHaveBeenCalledTimes(1)
+      expect(onError.mock.calls[0][0]).toBeInstanceOf(Error)
+      expect((onError.mock.calls[0][0] as Error).message).toBe('Unknown error')
+    })
+
+    it('should retry once on 401 and then stream', async () => {
+      const onToken = jest.fn()
+      const onDone = jest.fn()
+      const onError = jest.fn()
+
+      // Avoid invoking real refresh flow (which calls this.request -> fetch)
+      jest.spyOn(apiClient, 'refreshToken').mockResolvedValue({ access: 'new-token' })
+
+      const first401 = { ok: false, status: 401, statusText: 'Unauthorized' }
+      const retryOk = createSseResponse(['data: {"type":"done"}\n\n'])
+
+      ;(fetch as jest.Mock).mockResolvedValueOnce(first401).mockResolvedValueOnce(retryOk)
+
+      await apiClient.chatStream(
+        { messages: [{ role: 'user', content: 'Hello' }], group_id: 1 },
+        onToken,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        onDone as any,
+        onError
+      )
+
+      expect(fetch).toHaveBeenCalledTimes(2)
+      expect(onDone).toHaveBeenCalledTimes(1)
+      expect(onError).not.toHaveBeenCalled()
+    })
+
+    it('should trigger auth handling when 401 retry fails', async () => {
+      const onToken = jest.fn()
+      const onDone = jest.fn()
+      const onError = jest.fn()
+
+      jest.spyOn(apiClient, 'refreshToken').mockResolvedValue({ access: 'new-token' })
+      // jsdom throws on real navigation; stub auth handler instead
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const handleAuthErrorSpy = jest.spyOn(apiClient as any, 'handleAuthError').mockImplementation(async () => {
+        throw new Error('Authentication failed')
+      })
+
+      const first401 = { ok: false, status: 401, statusText: 'Unauthorized' }
+      const retryForbidden = { ok: false, status: 403, statusText: 'Forbidden' }
+      ;(fetch as jest.Mock).mockResolvedValueOnce(first401).mockResolvedValueOnce(retryForbidden)
+
+      await apiClient.chatStream(
+        { messages: [{ role: 'user', content: 'Hello' }], group_id: 1 },
+        onToken,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        onDone as any,
+        onError
+      )
+
+      expect(onError).toHaveBeenCalledTimes(1)
+      expect(handleAuthErrorSpy).toHaveBeenCalledTimes(1)
+      expect((onError.mock.calls[0][0] as Error).message).toBe('Authentication failed')
+      handleAuthErrorSpy.mockRestore()
+    })
+
+    it('processStreamResponse should throw when body is not readable', async () => {
+      const onToken = jest.fn()
+      const onDone = jest.fn()
+      const onError = jest.fn()
+
+      const response = { ok: true, status: 200, statusText: 'OK', body: undefined } as unknown as Response
+      await expect(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (apiClient as any).processStreamResponse(response, onToken, onDone, onError)
+      ).rejects.toThrow('Response body is not readable')
+    })
+  })
+
   describe('exportChatHistoryCsv', () => {
     it('should export chat history as CSV', async () => {
       const mockBlob = new Blob(['csv content'], { type: 'text/csv' })
@@ -940,6 +1167,48 @@ describe('apiClient', () => {
       })
 
       await expect(apiClient.getMe()).rejects.toThrow('HTTP error! status: 500')
+    })
+
+    it('should handle non_field_errors array (DRF validation errors)', async () => {
+      ;(fetch as jest.Mock).mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        json: async () => ({ non_field_errors: ['Invalid credentials'] }),
+        headers: new Headers({ 'content-type': 'application/json' }),
+      })
+
+      await expect(apiClient.getMe()).rejects.toThrow('Invalid credentials')
+    })
+
+    it('should handle field-specific errors (first message only)', async () => {
+      ;(fetch as jest.Mock).mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        json: async () => ({ username: ['Username is required'] }),
+        headers: new Headers({ 'content-type': 'application/json' }),
+      })
+
+      await expect(apiClient.getMe()).rejects.toThrow('Username is required')
+    })
+  })
+
+  describe('401 handling (second 401 triggers auth failure)', () => {
+    it('should redirect to login when repeated 401 occurs after retry', async () => {
+      jest.spyOn(apiClient, 'refreshToken').mockResolvedValue({ access: 'new-token' })
+      // jsdom throws on real navigation; stub auth handler instead
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const handleAuthErrorSpy = jest.spyOn(apiClient as any, 'handleAuthError').mockImplementation(async () => {
+        throw new Error('Authentication failed')
+      })
+
+      ;(fetch as jest.Mock)
+        .mockResolvedValueOnce({ ok: false, status: 401, statusText: 'Unauthorized', headers: new Headers(), text: async () => '' })
+        .mockResolvedValueOnce({ ok: false, status: 401, statusText: 'Unauthorized', headers: new Headers(), text: async () => '' })
+
+      await expect(apiClient.getMe()).rejects.toThrow('Authentication failed')
+      // Called twice due to handle401Error retry wrapper + second 401 branch
+      expect(handleAuthErrorSpy).toHaveBeenCalledTimes(2)
+      handleAuthErrorSpy.mockRestore()
     })
   })
 
