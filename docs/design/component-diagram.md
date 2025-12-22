@@ -1,8 +1,8 @@
-# コンポーネント図（Component Diagram）
+# Component Diagram
 
 ## Overview
 
-VideoQのフロントエンド/バックエンドの主要コンポーネント構成を表します。
+This diagram shows the major components of VideoQ's frontend and backend.
 
 ## Frontend Component Structure
 

@@ -1,8 +1,8 @@
-# システム構成図（System Configuration Diagram）
+# System Configuration Diagram
 
 ## Overview
 
-VideoQの全体アーキテクチャと、デフォルト構成（Docker Compose）を表します。
+This diagram shows VideoQ's overall architecture and the default (Docker Compose) configuration.
 
 ## Overall System Configuration
 

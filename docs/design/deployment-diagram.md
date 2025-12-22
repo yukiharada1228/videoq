@@ -1,8 +1,8 @@
-# 配置図（Deployment Diagram）
+# Deployment Diagram
 
 ## Overview
 
-VideoQのデフォルト配置（Docker Compose）を表します。
+This diagram shows VideoQ's default deployment (Docker Compose).
 
 ## Docker Compose Configuration
 
