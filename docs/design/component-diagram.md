@@ -1,15 +1,15 @@
-# Component Diagram
+# コンポーネント図（Component Diagram）
 
 ## Overview
 
-This diagram represents the frontend and backend component structure of the VideoQ system.
+VideoQのフロントエンド/バックエンドの主要コンポーネント構成を表します。
 
 ## Frontend Component Structure
 
 ```mermaid
 graph TB
-    subgraph Frontend["Frontend (Next.js)"]
-        subgraph Pages["Pages (App Router)"]
+    subgraph Frontend["Frontend (Vite + React SPA)"]
+        subgraph Pages["Pages (React Router Routes)"]
             Home[Home Page]
             Login[Login Page]
             Signup[Signup Page]
@@ -171,7 +171,7 @@ graph TB
     end
     
     subgraph Frontend["Frontend"]
-        NextJS[Next.js App]
+        FrontendSPA[Vite + React SPA]
         ReactComponents[React Components]
     end
     
@@ -196,9 +196,9 @@ graph TB
     end
     
     Browser --> Nginx
-    Nginx --> NextJS
+    Nginx --> FrontendSPA
     Nginx --> DjangoAPI
-    NextJS --> DjangoAPI
+    FrontendSPA --> DjangoAPI
     DjangoAPI --> PostgreSQL
     DjangoAPI --> Redis
     DjangoAPI --> FileStorage

@@ -1,8 +1,8 @@
-# Deployment Diagram
+# 配置図（Deployment Diagram）
 
 ## Overview
 
-This diagram represents the deployment configuration of the VideoQ system. It uses a container-based configuration with Docker Compose.
+VideoQのデフォルト配置（Docker Compose）を表します。
 
 ## Docker Compose Configuration
 
@@ -10,8 +10,8 @@ This diagram represents the deployment configuration of the VideoQ system. It us
 graph TB
     subgraph DockerHost["Docker Host"]
         subgraph Network["videoq-network"]
-            subgraph FrontendContainer["frontend (Next.js)"]
-                NextJS[Next.js App<br/>Port: 3000]
+            subgraph FrontendContainer["frontend (Vite SPA)"]
+                FrontendSPA[Static React SPA<br/>Port: 80]
             end
             
             subgraph BackendContainer["backend (Django)"]
@@ -50,7 +50,7 @@ graph TB
     end
     
     User -->|HTTP/HTTPS| Nginx
-    Nginx -->|Proxy| NextJS
+    Nginx -->|Proxy| FrontendSPA
     Nginx -->|Proxy| Django
     Django --> PostgreSQL
     Django --> Redis
@@ -76,7 +76,7 @@ graph LR
         S2[postgres<br/>pgvector/pgvector:pg17]
         S3[backend<br/>Django + Gunicorn]
         S4[celery-worker<br/>Celery Worker]
-        S5[frontend<br/>Next.js]
+        S5[frontend<br/>Vite SPA (static)]
         S6[nginx<br/>nginx:alpine]
     end
     
@@ -214,7 +214,7 @@ graph TB
         E12[USE_S3_STORAGE]
         E13[AWS_*]
         E14["OPENAI_API_KEY<br/>(optional / not used in standard flow)"]
-        E15[NEXT_PUBLIC_API_URL]
+        E15[VITE_API_URL]
     end
     
     subgraph Containers["Containers"]

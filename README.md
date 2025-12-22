@@ -1,902 +1,124 @@
 # VideoQ
 
-A web application that provides video transcription and AI chat features.
+動画の文字起こし（Whisper）と、文字起こし内容に対するAIチャット（RAG）を提供するWebアプリです。
 
-## Overview
+## 概要
 
-This application offers video upload, automatic transcription, and AI chat. When a user uploads a video, transcription runs automatically in the background, and the user can ask questions about the content via AI chat.
+ユーザーが動画をアップロードすると、バックグラウンドで自動的に文字起こしが走り、完了後に動画（/シーン）を根拠として質問応答できます。
 
-### Key Features
+## 主な機能
 
-- **User Authentication**: HttpOnly Cookie-based JWT authentication (email verification and password reset supported)
-- **Video Upload**: Supports multiple video formats
-- **Video Upload Limits**: Per-user upload limit via `User.video_limit` (`NULL` = unlimited, `0` = disabled)
-- **Automatic Transcription**: Whisper API with Celery background processing
-- **AI Chat**: Q&A about video content using the OpenAI API (RAG-enabled)
-- **Video Group Management**: Organize multiple videos into groups
-- **Sharing**: Share video groups via share tokens
-- **Protected Media Delivery**: Secure media delivery via authentication
+- **認証**: HttpOnly CookieベースのJWT（メール認証・パスワードリセット対応）
+- **動画アップロード**: 複数形式に対応
+- **アップロード上限**: `User.video_limit` によるユーザー単位の上限（`NULL`=無制限 / `0`=禁止）
+- **自動文字起こし**: Celeryで非同期実行（Whisper API）
+- **AIチャット**: pgvectorを使ったRAG（OpenAI API）
+- **グループ管理**: 複数動画をグループ化・並べ替え
+- **共有**: 共有トークンでグループ共有（ゲスト閲覧/チャット）
+- **保護されたメディア配信**: 認証/共有トークン前提で配信
 
-## Project Structure
+## アーキテクチャ（Docker Compose）
+
+ローカルのデフォルト構成は以下です（`docker-compose.yml`）:
+
+- **nginx**: 入口（`80`）/ `/api` をbackendへ、それ以外をfrontendへ
+- **frontend**: ViteでビルドされたReact SPA（コンテナ内 `80`）
+- **backend**: Django REST API（コンテナ内 `8000`）
+- **celery-worker**: 文字起こし/ベクトル化などの非同期処理
+- **postgres**: PostgreSQL 17 + pgvector
+- **redis**: Celery broker / result backend
+
+## ディレクトリ構成（抜粋）
 
 ```
 videoq/
-├── backend/                        # Django REST Framework backend
-│   ├── app/                        # Main application
-│   │   ├── auth/                   # Auth features (views, serializers, urls, tests)
-│   │   ├── video/                  # Video management (views, serializers, urls, tests)
-│   │   ├── chat/                   # Chat (views, serializers, urls, services)
-│   │   ├── common/                 # Common (authentication, permissions, responses)
-│   │   ├── media/                  # Media delivery (views)
-│   │   ├── scene_otsu/             # Scene detection
-│   │   ├── utils/                  # Utilities (email, task_helpers, query_optimizer, performance_utils, response_utils, vector_manager, etc.)
-│   │   ├── migrations/             # Database migrations
-│   │   ├── models.py               # Data models (User, Video, VideoGroup, ChatLog, etc.)
-│   │   ├── tasks/                  # Celery tasks
-│   │   │   ├── transcription.py    # Main transcription task
-│   │   │   ├── audio_processing.py # Audio extraction and processing
-│   │   │   ├── srt_processing.py   # SRT subtitle processing
-│   │   │   └── vector_indexing.py  # Vector indexing for RAG
-│   │   └── celery_config.py        # Celery configuration
-│   ├── videoq/                     # Django project settings
-│   │   ├── settings.py             # Django settings
-│   │   ├── urls.py                 # URL settings
-│   │   ├── wsgi.py                 # WSGI
-│   │   └── asgi.py                 # ASGI
-│   ├── media/                      # Uploaded media files
-│   ├── pyproject.toml              # Python dependencies (uv)
-│   ├── uv.lock                     # uv dependency lock file
-│   ├── manage.py                   # Django management script
-│   ├── Dockerfile                  # Backend Docker image
-│   └── README.md                   # Backend README
-├── frontend/                       # Next.js + TypeScript frontend
-│   ├── app/                        # Next.js App Router
-│   │   └── [locale]/               # Locale-based routing
-│   │       ├── page.tsx            # Home page
-│   │       ├── login/              # Login page
-│   │       ├── signup/             # Sign-up page
-│   │       │   └── check-email/    # Waiting for email confirmation page
-│   │       ├── verify-email/       # Email verification page
-│   │       ├── forgot-password/    # Password reset request page
-│   │       ├── reset-password/     # Password reset page
-│   │       ├── settings/           # Settings page
-│   │       ├── videos/             # Video pages
-│   │       │   ├── page.tsx        # Video list page
-│   │       │   ├── [id]/           # Video detail page
-│   │       │   └── groups/         # Video group pages
-│   │       │       └── [id]/       # Video group detail page
-│   │       └── share/              # Share pages
-│   │           └── [token]/        # Share token page
-│   ├── components/                 # React components
-│   │   ├── auth/                   # Auth components
-│   │   ├── video/                  # Video components
-│   │   ├── chat/                   # Chat components
-│   │   ├── layout/                 # Layout components
-│   │   ├── common/                 # Common components
-│   │   └── ui/                     # UI components (shadcn/ui)
-│   ├── hooks/                      # Custom hooks (useAuth, useVideos, useAsyncState, etc.)
-│   ├── lib/                        # Libraries/utilities (api, errorUtils, etc.)
-│   ├── i18n/                       # Internationalization (next-intl config and locales)
-│   ├── package.json                # Node.js dependencies
-│   ├── package-lock.json           # npm lockfile
-│   ├── Dockerfile                  # Frontend Docker image
-│   └── README.md                   # Frontend README
-├── docker-compose.yml              # Docker Compose config
-├── nginx.conf                      # Nginx config
-└── README.md                       # This file
+├── backend/          # Django / DRF / Celery
+├── frontend/         # Vite + React + React Router
+├── docs/             # 設計資料（Mermaid図）
+├── docker-compose.yml
+└── nginx.conf
 ```
 
-## Tech Stack
+## 技術スタック（現状）
 
 ### Backend
 
-#### Frameworks / APIs
-- **Django** (>=5.2.7) - Web framework
-- **Django REST Framework** (>=3.16.1) - REST API
-- **django-rest-framework-simplejwt** (>=5.5.1) - JWT auth
-- **django-cors-headers** (>=4.9.0) - CORS settings
-- **django-anymail** (>=13.1) - Email sending (verification, password reset)
-- **drf-spectacular** (>=0.29.0) - API documentation (OpenAPI/Swagger)
-
-#### Servers / WSGI
-- **Gunicorn** (>=23.0.0) - WSGI server
-- **Uvicorn** (>=0.38.0) - ASGI server
-- **uvicorn-worker** (>=0.4.0) - Uvicorn worker
-
-#### Background Processing
-- **Celery** (>=5.5.3) - Background task processing
-- **Redis** (>=7.0.0) - Celery broker and queue management
-
-#### Database
-- **PostgreSQL** (17 with pgvector) - Relational database
-- **psycopg2-binary** (>=2.9.11) - PostgreSQL adapter
-- **dj-database-url** (>=3.0.1) - Database URL parser
-- **pgvector** (>=0.3.0) - PostgreSQL extension (vector database)
-
-#### AI / ML
-- **OpenAI** (>=2.6.1) - OpenAI API client (Whisper API, ChatGPT)
-- **LangChain** (>=1.0.2) - LLM app framework
-- **langchain-openai** (>=1.0.1) - LangChain OpenAI integration
-- **langchain-postgres** (>=0.0.16) - LangChain PostgreSQL integration
-- **numpy** (>=2.0.0) - Numerical computing library
-- **scikit-learn** (>=1.7.2) - Machine learning library
-
-#### Video / Audio Processing
-- **ffmpeg** - Media conversion tool (installed at system/Docker level)
-
-#### Storage
-- **django-storages** (>=1.14.6) - Django storage backends (S3)
-- **boto3** (>=1.40.64) - AWS SDK for Python (S3, etc.)
-
-#### Security / Encryption
-- **cryptography** (>=46.0.3) - Encryption library (API key encryption)
-
-#### Package Management
-- **uv** - Fast Python package manager
+- Django / Django REST Framework
+- Celery + Redis
+- PostgreSQL 17 + pgvector
+- OpenAI API（Whisper / Chat / Embeddings）
+- ストレージ: ローカル（`backend/media`）またはS3（任意）
+- 依存管理: `uv`（`backend/pyproject.toml`）
 
 ### Frontend
 
-#### Frameworks / Runtime
-- **Next.js** (^16.0.7) - React framework
-- **React** (^19.2.3) - UI library
-- **React DOM** (^19.2.3) - React DOM renderer
-- **TypeScript** (^5) - Type safety
+- Vite + React + TypeScript
+- React Router（SPA）
+- i18n: i18next + react-i18next（`/:locale/...` のルートも提供）
+- Tailwind CSS / Radix UI / react-hook-form / zod など
 
-#### UI Components / Styling
-- **Tailwind CSS** (^4) - Utility-first CSS framework
-- **@tailwindcss/postcss** (^4) - Tailwind CSS PostCSS plugin
-- **tw-animate-css** (^1.4.0) - Tailwind CSS animations
-- **Radix UI** - Accessible UI primitives
-  - **@radix-ui/react-checkbox** (^1.3.3) - Checkbox
-  - **@radix-ui/react-dialog** (^1.1.15) - Dialog
-  - **@radix-ui/react-label** (^2.1.7) - Label
-  - **@radix-ui/react-slot** (^1.2.3) - Slot
-- **lucide-react** (^0.556.0) - Icon library
-- **class-variance-authority** (^0.7.1) - Component variants
-- **clsx** (^2.1.1) - Classname utility
-- **tailwind-merge** (^3.3.1) - Tailwind class merge
+## 起動（Docker Compose）
 
-#### Forms
-- **react-hook-form** (^7.65.0) - Form state management
-- **@hookform/resolvers** (^5.2.2) - Validation resolvers
-- **zod** (^4.1.12) - Schema validation
+### 1) 環境変数
 
-#### Drag & Drop
-- **@dnd-kit/core** (^6.3.1) - DnD core
-- **@dnd-kit/sortable** (^10.0.0) - Sortable lists
-- **@dnd-kit/utilities** (^3.2.2) - DnD utilities
-
-#### Internationalization
-- **next-intl** (^4.5.8) - Internationalization framework for Next.js
-
-#### Utilities
-- **date-fns** (^4.1.0) - Date utilities
-
-#### Dev Tools
-- **ESLint** (^9) - Linting
-- **eslint-config-next** (16.0.0) - Next.js ESLint config
-- **@types/node** (^20) - Node.js type definitions
-- **@types/react** (^19) - React type definitions
-- **@types/react-dom** (^19) - React DOM type definitions
-
-### Infrastructure
-- **Docker & Docker Compose** - Containerization
-- **Nginx** - Reverse proxy / load balancer
-- **PostgreSQL** (17 with pgvector) - Database
-- **Redis** - Cache / message broker
-
-## Setup
-
-### Prerequisites
-
-This project is designed to run with **Docker Compose**.
-
-**Required:**
-- Docker Desktop or Docker Engine (20.10+)
-- Docker Compose (2.0+, typically bundled with Docker Desktop)
-
-**Recommended Environment:**
-- macOS, Linux, or Windows (WSL2 recommended)
-- At least 4GB RAM
-- At least 10GB free disk space
-
-### Setup with Docker Compose
-
-All services (frontend, backend, database, Redis, Celery, Nginx) are managed by Docker Compose.
-
-#### 1. Configure environment variables
-
-Create a `.env` file in the project root and set the required variables.
+`/.env.example` をコピーして `/.env` を作成します。
 
 ```bash
-# Copy .env.example to .env
 cp .env.example .env
-
-# Edit variables as needed
-vim .env
 ```
 
-Required variables (Docker Compose / minimal `.env.example`):
-- `ENABLE_SIGNUP` - Enable/disable sign-up (example uses `True` / `False`)
-- `DATABASE_URL` - PostgreSQL connection URL used by the backend (example: `postgresql://POSTGRES_USER:POSTGRES_PASSWORD@postgres:5432/POSTGRES_DB`)
-- `POSTGRES_DB` - PostgreSQL database name (used by the `postgres` container)
-- `POSTGRES_USER` - PostgreSQL user (used by the `postgres` container)
-- `POSTGRES_PASSWORD` - PostgreSQL password (used by the `postgres` container)
-- `CELERY_BROKER_URL` - Redis connection URL (example: `redis://redis:6379/0`)
-- `CELERY_RESULT_BACKEND` - Celery result backend URL (example: `redis://redis:6379/0`)
+重要な変数（最低限）:
 
-Common variables:
-- `ALLOWED_HOSTS` - Allowed hostnames (comma-separated, default includes `localhost,127.0.0.1`)
-- `CORS_ALLOWED_ORIGINS` - CORS allowed origins (comma-separated; typically needed only when frontend/backend are served from different origins)
-- `SECURE_COOKIES` - Set to "true" in production with HTTPS to enable secure cookie flag (default: "false")
-- `SECRET_KEY` - Django secret key (**recommended**; if unset, the backend falls back to a development key in `backend/videoq/settings.py`)
-- Email sending config (for email verification and password reset)
-  - `USE_MAILGUN` - Use Mailgun if "true" (default: "false")
-  - If `USE_MAILGUN=true`
-    - `MAILGUN_API_KEY`
-    - `MAILGUN_SENDER_DOMAIN`
-  - Else (SMTP / custom backend)
-    - `EMAIL_BACKEND` - Django email backend (default: console backend)
-    - `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_USE_TLS`
-    - `DEFAULT_FROM_EMAIL`
-- `FRONTEND_URL` - Frontend URL (used for links in emails). In the default Nginx setup this is typically `http://localhost`.
-- `USE_S3_STORAGE` - Use S3 storage if "true" (default: "false")
-- `AWS_STORAGE_BUCKET_NAME` - S3 bucket name (required if `USE_S3_STORAGE=true`)
-- `AWS_ACCESS_KEY_ID` - AWS access key ID (required if `USE_S3_STORAGE=true`)
-- `AWS_SECRET_ACCESS_KEY` - AWS secret access key (required if `USE_S3_STORAGE=true`)
-- `AWS_S3_REGION_NAME` - S3 region (optional; default in backend is `ap-northeast-1`)
-- `NEXT_PUBLIC_API_URL` - API URL for Next.js (**build-time** for the Docker image)
+- `DATABASE_URL`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`
+- `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND`
+- `ENABLE_SIGNUP`
+- `FRONTEND_URL`（メール内リンクに使用。デフォルトは `http://localhost`）
+- `VITE_API_URL`（**frontendビルド時に使用**。デフォルトのNginx構成では `/api` 推奨）
 
-Tip:
-- With the default Docker Compose + Nginx setup, `NEXT_PUBLIC_API_URL` should typically be `http://localhost/api`.
-- If you run the frontend without Nginx (e.g. `next dev`), you may want `http://localhost:8000/api`.
-Note: If you change `NEXT_PUBLIC_API_URL`, rebuild the frontend image (`docker compose up --build -d frontend nginx`).
-
-#### 2. Start all services
+### 2) 起動
 
 ```bash
-# Build and start all services (redis, postgres, backend, celery-worker, frontend, nginx)
 docker compose up --build -d
 ```
 
-This starts:
-- **redis**: Redis (Celery broker)
-- **postgres**: PostgreSQL database (17 with pgvector)
-- **backend**: Django REST API (internal port 8000)
-- **celery-worker**: Celery worker (background tasks)
-- **frontend**: Next.js frontend (internal port 3000)
-- **nginx**: Reverse proxy (port 80)
-
-#### 3. First-time setup
+### 3) 初回セットアップ
 
 ```bash
-# Run database migrations
 docker compose exec backend uv run python manage.py migrate
-
-# Collect static files
 docker compose exec backend uv run python manage.py collectstatic
-
-# Create admin user (first time only)
 docker compose exec backend uv run python manage.py createsuperuser
 ```
 
-#### 4. Verify startup
+### 4) 動作確認URL
 
-After all services are up, you can access:
+- **Frontend**: `http://localhost`
+- **Backend API**: `http://localhost/api`
+- **Admin**: `http://localhost/api/admin`
+- **Swagger**: `http://localhost/api/docs/`
+- **ReDoc**: `http://localhost/api/redoc/`
 
-- **Frontend**: http://localhost
-- **Backend API**: http://localhost/api
-- **Admin**: http://localhost/api/admin
-- **API Documentation (Swagger)**: http://localhost/api/docs/
-- **API Documentation (ReDoc)**: http://localhost/api/redoc/
+## 重要な注意（OpenAI API Key）
 
-#### Other useful commands
+このアプリは「ユーザーごとにOpenAI API Keyを設定する」前提です。
+
+- **通常利用**: 各ユーザーが設定画面からAPI Keyを登録（DBに暗号化して保存）
+- **共有リンクでのチャット**: **グループ所有者のAPI Key** を使用
+
+関連: `docs/architecture/prompt-engineering.md`
+
+## 開発メモ（任意）
+
+### ローカルでフロントだけ `vite dev` を使う場合
+
+`frontend/vite.config.ts` は `/api` を `VITE_API_URL`（未指定なら `http://localhost:8000`）へプロキシします。
+
+### よく使うコマンド
 
 ```bash
-# Check status of all containers
 docker compose ps
-
-# Tail logs for all services
 docker compose logs -f
-
-# Tail logs for specific services
-docker compose logs -f backend
-docker compose logs -f celery-worker
-docker compose logs -f frontend
-
-# Stop containers
-docker compose stop
-
-# Stop and remove containers (keep volumes)
+docker compose logs -f backend celery-worker frontend nginx
 docker compose down
-
-# Stop and remove containers (remove volumes too)
-docker compose down -v
-
-# Restart a specific service
-docker compose restart backend
-docker compose restart celery-worker
-
-# Restart all services
-docker compose restart
-
-# Connect to the database
-docker compose exec postgres psql -U $POSTGRES_USER -d $POSTGRES_DB
+docker compose down -v  # 全データ削除（注意）
 ```
 
-## Feature Details
-
-### Authentication
-
-- User registration (with email verification)
-- Email verification (post sign-up)
-- Login (HttpOnly Cookie-based JWT)
-- Token refresh (automatic via HttpOnly Cookie)
-- Logout
-- Password reset (via email)
-
-### Video Management
-
-- Upload videos (MP4, MOV, WEBM, etc.)
-- Automatic transcription (Whisper API)
-- Update and delete video information
-- Get video list
-
-### Video Upload Limits (User.video_limit)
-
-- `video_limit = NULL`: Unlimited uploads allowed
-- `video_limit = 0`: Uploads disabled
-- `video_limit > 0`: Max number of videos a user can have
-
-Notes:
-- Upload is validated at `POST /api/videos/` and returns a validation error when the limit is reached.
-- If an admin reduces `video_limit`, the system automatically deletes the oldest videos until the user is within the new limit (and associated pgvector data is cleaned up via a delete signal).
-
-#### Supported File Formats
-- Audio: `.flac`, `.m4a`, `.mp3`, `.mpga`, `.oga`, `.ogg`, `.wav`, `.webm`
-- Video: `.mp4`, `.mpeg`, `.webm`, `.mov` (auto-converted to MP3 via ffmpeg)
-
-#### Automatic Transcription Process
-
-The automatic transcription process is handled by Celery background tasks, organized into modular components:
-
-**Task Modules:**
-- `app.tasks.transcription`: Main orchestration task that coordinates the entire transcription process
-- `app.tasks.audio_processing`: Audio extraction from video files and segmentation for large files
-- `app.tasks.srt_processing`: SRT subtitle generation and scene splitting
-- `app.tasks.vector_indexing`: Vector indexing of scenes for RAG search
-
-**Processing Steps:**
-1. Video file is uploaded and saved to storage (local filesystem or S3)
-2. Celery task `transcribe_video` is triggered automatically
-3. Audio is extracted from video using ffmpeg
-4. Large audio files are split into segments (max 24MB per segment for Whisper API)
-5. Audio segments are transcribed in parallel using Whisper API
-6. Transcription results are merged and converted to SRT format
-7. Scene splitting is applied to create semantically coherent scenes
-8. Scenes are indexed into pgvector for RAG search
-9. Final transcript and status are saved to the database
-
-**Technical Details:**
-- Audio extraction: Uses ffmpeg to convert video to MP3 format
-- Parallel processing: Multiple audio segments are transcribed concurrently using asyncio
-- Error handling: Comprehensive error handling with retry logic (max 3 retries)
-
-#### Scene Detection (scene_otsu)
-
-The automatic transcription process includes functionality to split generated SRT subtitle files into semantic scenes.
-
-**Overview:**
-- **Scene Splitting**: Splits subtitles generated by Whisper API into semantically coherent scene units
-- **Otsu Method**: Recursively applies multi-dimensional Otsu method to automatically detect optimal split points
-- **Embedding-based**: Uses OpenAI Embedding API (`text-embedding-3-small`) to calculate semantic similarity of subtitles
-- **Token Limit Support**: Automatically adjusts so that each scene stays within a maximum of 512 tokens
-
-**Processing Flow:**
-1. Parse SRT subtitles generated by Whisper API
-2. Generate OpenAI Embeddings for each subtitle segment
-3. Recursively apply multi-dimensional Otsu method to split into semantically coherent scenes
-4. Index the split scenes into vector store (pgvector) for RAG search
-
-**Technical Details:**
-- Implementation: `backend/app/scene_otsu/` module
-- Model used: OpenAI `text-embedding-3-small`
-- Default max tokens: 512 tokens per scene
-- Processing runs as part of automatic transcription tasks (Celery)
-
-Scene splitting improves search accuracy in AI chat and enables more appropriate context for generating answers.
-
-### Video Groups
-
-- Create, edit, and delete groups
-- Add multiple videos to a group
-- Reorder videos within a group
-- Share groups with share tokens
-
-### AI Chat
-
-- Ask questions about video content
-- Conversational integration with the OpenAI API
-- Answers grounded in transcription data
-- RAG (Retrieval-Augmented Generation) with prompt engineering
-  - See [Prompt Engineering Documentation](docs/architecture/prompt-engineering.md) for details
-
-### Sharing
-
-- Generate share tokens
-- View videos via shared links
-- Access shared videos without authentication
-
-## API Endpoints
-
-### Authentication
-
-- `POST /api/auth/signup/` - Sign up (requires email verification)
-- `POST /api/auth/verify-email/` - Email verification
-- `POST /api/auth/login/` - Login
-- `POST /api/auth/logout/` - Logout
-- `POST /api/auth/refresh/` - Token refresh
-- `GET /api/auth/me/` - Current user info
-- `POST /api/auth/password-reset/` - Request password reset
-- `POST /api/auth/password-reset/confirm/` - Confirm password reset
-- `POST /api/auth/me/openai-api-key/` - Set OpenAI API key
-- `GET /api/auth/me/openai-api-key/status/` - Get API key status
-- `DELETE /api/auth/me/openai-api-key/delete/` - Delete API key
-
-### Video Management
-
-- `GET /api/videos/` - List videos
-- `POST /api/videos/` - Upload video
-- `GET /api/videos/<id>/` - Get video detail
-- `PATCH /api/videos/<id>/` - Update video
-- `DELETE /api/videos/<id>/` - Delete video
-
-### Video Groups
-
-- `GET /api/videos/groups/` - List groups
-- `POST /api/videos/groups/` - Create group
-- `GET /api/videos/groups/<id>/` - Group detail
-- `PATCH /api/videos/groups/<id>/` - Update group
-- `DELETE /api/videos/groups/<id>/` - Delete group
-- `POST /api/videos/groups/<id>/videos/` - Add videos to group
-- `DELETE /api/videos/groups/<id>/videos/<video_id>/remove/` - Remove video from group
-- `PATCH /api/videos/groups/<id>/reorder/` - Reorder videos in group
-- `POST /api/videos/groups/<id>/share/` - Create share link
-- `DELETE /api/videos/groups/<id>/share/delete/` - Delete share link
-- `GET /api/videos/groups/shared/<token>/` - Get shared group info
-
-### Chat
-
-- `POST /api/chat/` - Send chat
-- `GET /api/chat/history/` - Get chat history (requires `group_id` query param)
-- `GET /api/chat/history/export/` - Export chat history (CSV)
-- `POST /api/chat/feedback/` - Submit chat feedback
-
-### Media Delivery
-
-- `GET /media/<path>` - Serve protected media (requires JWT or share token)
-
-## API Guide for External Clients
-
-This section summarizes practical usage from external clients.
-
-### Basics
-
-- **Base URL**: `http://localhost` (default in Docker setup)
-- **API path**: `/api`
-- **Auth**: 
-  - **External clients**: `Authorization: Bearer <access_token>` (use Bearer auth)
-  - **Internal browser app**: HttpOnly Cookie-based authentication (automatic token refresh)
-- **Token TTL**: Access 10 minutes, Refresh 14 days
-
-Environment variable examples:
-```bash
-BASE_URL="http://localhost"
-ACCESS="<JWT_ACCESS_TOKEN>"
-TOKEN="<SHARE_TOKEN>"
-```
-
-### Quickstart
-
-#### 1. Authentication (Sign-up / Login)
-
-```bash
-# Sign up (email verification required)
-curl -X POST "$BASE_URL/api/auth/signup/" \
-  -H "Content-Type: application/json" \
-  -d '{"username":"alice","email":"alice@example.com","password":"pass1234"}'
-
-# Email verification (use token sent via email after sign-up)
-curl -X POST "$BASE_URL/api/auth/verify-email/" \
-  -H "Content-Type: application/json" \
-  -d '{"uid":"<USER_ID>","token":"<VERIFICATION_TOKEN>"}'
-
-# Login (get access/refresh)
-curl -X POST "$BASE_URL/api/auth/login/" \
-  -H "Content-Type: application/json" \
-  -d '{"username":"alice","password":"pass1234"}'
-# Use the access token for subsequent Authorization headers
-
-# Refresh access token
-curl -X POST "$BASE_URL/api/auth/refresh/" \
-  -H "Content-Type: application/json" \
-  -d '{"refresh":"<JWT_REFRESH_TOKEN>"}'
-
-# Get current user
-curl -H "Authorization: Bearer $ACCESS" "$BASE_URL/api/auth/me/"
-
-# Request password reset
-curl -X POST "$BASE_URL/api/auth/password-reset/" \
-  -H "Content-Type: application/json" \
-  -d '{"email":"alice@example.com"}'
-
-# Confirm password reset (use token sent via email)
-curl -X POST "$BASE_URL/api/auth/password-reset/confirm/" \
-  -H "Content-Type: application/json" \
-  -d '{"uid":"<USER_ID>","token":"<RESET_TOKEN>","new_password":"newpass1234"}'
-
-# Logout
-curl -X POST "$BASE_URL/api/auth/logout/" \
-  -H "Authorization: Bearer $ACCESS"
-
-# Set OpenAI API key
-curl -X POST "$BASE_URL/api/auth/me/openai-api-key/" \
-  -H "Authorization: Bearer $ACCESS" \
-  -H "Content-Type: application/json" \
-  -d '{"api_key":"sk-proj-..."}'
-
-# Get API key status
-curl -H "Authorization: Bearer $ACCESS" \
-  "$BASE_URL/api/auth/me/openai-api-key/status/"
-
-# Delete API key
-curl -X DELETE "$BASE_URL/api/auth/me/openai-api-key/delete/" \
-  -H "Authorization: Bearer $ACCESS"
-```
-
-**Note:** Users must set their own OpenAI API key before using transcription or chat features. Without a configured API key, these features will return an error.
-
-#### 2. Upload a video and check status
-
-```bash
-# Upload (multipart)
-curl -X POST "$BASE_URL/api/videos/" \
-  -H "Authorization: Bearer $ACCESS" \
-  -F "file=@/path/to/movie.mp4" \
-  -F "title=Demo Video" \
-  -F "description=Description"
-
-# List
-curl -H "Authorization: Bearer $ACCESS" "$BASE_URL/api/videos/"
-
-# Detail (check transcript/status/error_message)
-curl -H "Authorization: Bearer $ACCESS" "$BASE_URL/api/videos/123/"
-
-# Update
-curl -X PATCH "$BASE_URL/api/videos/123/" \
-  -H "Authorization: Bearer $ACCESS" \
-  -H "Content-Type: application/json" \
-  -d '{"title":"New title"}'
-
-# Delete
-curl -X DELETE -H "Authorization: Bearer $ACCESS" \
-  "$BASE_URL/api/videos/123/"
-```
-
-#### 3. Create a video group and add videos
-
-```bash
-# Create group
-curl -X POST "$BASE_URL/api/videos/groups/" \
-  -H "Authorization: Bearer $ACCESS" \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Project A","description":"Related videos"}'
-
-# List groups
-curl -H "Authorization: Bearer $ACCESS" "$BASE_URL/api/videos/groups/"
-
-# Group detail
-curl -H "Authorization: Bearer $ACCESS" "$BASE_URL/api/videos/groups/10/"
-
-# Add a single video to group
-curl -X POST -H "Authorization: Bearer $ACCESS" \
-  "$BASE_URL/api/videos/groups/10/videos/123/"
-
-# Add multiple videos to group
-curl -X POST "$BASE_URL/api/videos/groups/10/videos/" \
-  -H "Authorization: Bearer $ACCESS" \
-  -H "Content-Type: application/json" \
-  -d '{"video_ids":[101,102,103]}'
-
-# Remove a video from group
-curl -X DELETE -H "Authorization: Bearer $ACCESS" \
-  "$BASE_URL/api/videos/groups/10/videos/123/remove/"
-
-# Reorder videos within group
-curl -X PATCH "$BASE_URL/api/videos/groups/10/reorder/" \
-  -H "Authorization: Bearer $ACCESS" \
-  -H "Content-Type: application/json" \
-  -d '{"video_ids":[103,101,102]}'
-
-# Update group
-curl -X PATCH "$BASE_URL/api/videos/groups/10/" \
-  -H "Authorization: Bearer $ACCESS" \
-  -H "Content-Type: application/json" \
-  -d '{"name":"New name"}'
-
-# Delete group
-curl -X DELETE -H "Authorization: Bearer $ACCESS" \
-  "$BASE_URL/api/videos/groups/10/"
-```
-
-#### 4. Chat (RAG-enabled)
-
-```bash
-# Use with JWT (Bearer)
-curl -X POST "$BASE_URL/api/chat/" \
-  -H "Authorization: Bearer $ACCESS" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "group_id": 10,
-    "messages": [
-      {"role":"user","content":"Summarize the key points."}
-    ]
-  }'
-
-# Get chat history
-curl -H "Authorization: Bearer $ACCESS" \
-  "$BASE_URL/api/chat/history/?group_id=10"
-
-# Export chat history (CSV)
-curl -H "Authorization: Bearer $ACCESS" \
-  "$BASE_URL/api/chat/history/export/?group_id=10" \
-  -o chat_history.csv
-
-# Send chat feedback
-curl -X POST "$BASE_URL/api/chat/feedback/" \
-  -H "Authorization: Bearer $ACCESS" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "chat_log_id": 123,
-    "feedback": "helpful"
-  }'
-```
-
-Notes:
-- If you pass `group_id`, vector search (RAG) is limited to videos in that group.
-- **Each user must set their own OpenAI API key in the settings page** (stored encrypted in the DB).
-- Chat is also available with a share token (use the `share_token` query parameter). **In this case, the backend uses the group owner's OpenAI API key.**
-- `OPENAI_API_KEY` is an optional environment variable and is not used in the standard user flow.
-- Do not send a `system` message; the backend constructs the system prompt internally. Only the latest `user` message in `messages` is used.
-- The system uses prompt engineering for RAG. See [Prompt Engineering Documentation](docs/architecture/prompt-engineering.md) for details on how prompts are constructed and customized.
-
-#### 5. Share links
-
-```bash
-# Issue a share link (get share_token)
-curl -X POST -H "Authorization: Bearer $ACCESS" \
-  "$BASE_URL/api/videos/groups/10/share/"
-
-# View shared group (no auth required)
-curl "$BASE_URL/api/videos/groups/shared/$TOKEN/"
-
-# Chat with share token (body requires group_id)
-curl -X POST "$BASE_URL/api/chat/?share_token=$TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "group_id": 10,
-    "messages": [
-      {"role":"user","content":"What is the overview of these videos?"}
-    ]
-  }'
-
-# Disable share link
-curl -X DELETE -H "Authorization: Bearer $ACCESS" \
-  "$BASE_URL/api/videos/groups/10/share/delete/"
-```
-
-Notes:
-
-### Error Responses
-
-Common error responses:
-
-- **400**: Validation error (e.g., `"video_ids must be an array"`)
-- **401**: Authentication error (e.g., `"Invalid refresh token"`)
-- **403**: Permission denied
-- **404**: Resource not found (e.g., `"Share link not found"`, `"Group not found"`)
-
-### Authentication Modes
-
-- **External clients**: Use the `Authorization` header (Bearer) only
-- **Internal browser app**: HttpOnly Cookie-based authentication (automatic token refresh, XSS protection)
-
-## Docker Compose Architecture
-
-This project consists of the following services:
-
-- **redis**: Redis (Celery broker and result backend)
-- **postgres**: PostgreSQL database (17 with pgvector)
-- **backend**: Django REST API (internal port 8000)
-- **celery-worker**: Celery worker (background tasks)
-- **frontend**: Next.js frontend (internal port 3000)
-- **nginx**: Reverse proxy (port 80)
-
-### Volume Mounts
-
-- `postgres_data`: Persist PostgreSQL data
-- `staticfiles`: Django static files
-- `./backend/media`: Uploaded media files
-
-### Network
-
-All services communicate within the `videoq-network` Docker network (defined in docker-compose.yml).
-
-## Database Schema
-
-### Main Models
-
-- **User**: User info (extends Django AbstractUser)
-- **Video**: Video info (title, description, file, transcript, status, external_id, etc.)
-- **VideoGroup**: Video groups (name, description, share token, etc.)
-- **VideoGroupMember**: Association between videos and groups (ordering support)
-- **ChatLog**: Chat logs (question, answer, related videos, shared-from flag, feedback, etc.)
-
-## Development
-
-### Backend (Docker environment)
-
-This project uses `uv` for Python package management.
-
-```bash
-# Run tests
-docker compose exec backend uv run python manage.py test
-
-# Create migrations
-docker compose exec backend uv run python manage.py makemigrations
-
-# Apply migrations
-docker compose exec backend uv run python manage.py migrate
-
-# Open Django shell
-docker compose exec backend uv run python manage.py shell
-
-# Tail logs (live)
-docker compose logs -f backend celery-worker
-```
-
-**Note:** In Docker, run all Python commands via `uv run`.
-
-### Frontend (Docker environment)
-
-```bash
-# Build the frontend
-docker compose exec frontend npm run build
-
-# Tail frontend logs
-docker compose logs -f frontend
-```
-
-## Production Deployment
-
-Pay attention to the following in production:
-
-1. **Environment variables**: Set appropriate values in `.env`
-2. **Security**: Keep `SECRET_KEY` safe
-3. **Database**: Configure PostgreSQL properly
-4. **Media files**: Configure storage appropriately
-5. **CORS**: Set allowed origins
-6. **SSL/TLS**: Configure HTTPS
-7. **Secure Cookies**: Set `SECURE_COOKIES=true` when using HTTPS to ensure cookies are only sent over secure connections
-
-## Troubleshooting
-
-### All services fail to start
-
-1. Check Docker Compose status
-```bash
-docker compose ps
-```
-
-2. Inspect logs for errors
-```bash
-docker compose logs
-```
-
-3. Rebuild containers
-```bash
-docker compose down
-docker compose up --build -d
-```
-
-### Celery tasks do not run
-
-1. Check the Celery worker container is running
-```bash
-docker compose ps celery-worker
-```
-
-2. Check Celery worker logs
-```bash
-docker compose logs celery-worker
-```
-
-3. Verify Redis is running
-```bash
-docker compose ps redis
-# Or
-docker compose exec redis redis-cli ping  # Expect PONG
-```
-
-4. Check registered Celery tasks
-```bash
-docker compose exec backend uv run python -c "from app.celery_config import app; print(app.tasks.keys())"
-```
-
-### Transcription fails
-
-1. Ensure the user's OpenAI API key is set
-2. Verify the API key is valid
-3. Ensure the video file exists
-```bash
-docker compose exec backend uv run python manage.py shell
->>> from app.models import Video
->>> video = Video.objects.first()
->>> print(video.error_message)  # Inspect error message
-```
-
-### Database connection errors
-
-1. Ensure the PostgreSQL container is running
-```bash
-docker compose ps postgres
-```
-
-2. Check DB connection
-```bash
-docker compose exec backend uv run python manage.py dbshell
-```
-
-### Frontend does not render
-
-1. Ensure the frontend container is running
-```bash
-docker compose ps frontend
-```
-
-2. Check frontend logs
-```bash
-docker compose logs frontend
-```
-
-3. Ensure Nginx is healthy
-```bash
-docker compose logs nginx
-```
-
-4. Review Nginx config (`nginx.conf`)
-
-### When a rebuild is needed
-
-```bash
-# Stop all containers
-docker compose down
-
-# Rebuild images and start
-docker compose up --build -d
-
-# Re-apply migrations
-docker compose exec backend uv run python manage.py migrate
-```
-
-### Volume issues
-
-To completely reset data:
-
-```bash
-# Warning: this removes all data
-docker compose down -v
-docker compose up --build -d
-docker compose exec backend uv run python manage.py migrate
-docker compose exec backend uv run python manage.py createsuperuser
-```
