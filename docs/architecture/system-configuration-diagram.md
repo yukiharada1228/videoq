@@ -1,8 +1,8 @@
-# System Configuration Diagram
+# システム構成図（System Configuration Diagram）
 
 ## Overview
 
-This diagram represents the overall architecture and system configuration of the VideoQ system.
+VideoQの全体アーキテクチャと、デフォルト構成（Docker Compose）を表します。
 
 ## Overall System Configuration
 
@@ -18,7 +18,7 @@ graph TB
     
     subgraph Application["Application Layer"]
         subgraph Frontend["Frontend"]
-            NextJS[Next.js Application<br/>Port: 3000<br/>- React<br/>- TypeScript<br/>- App Router]
+            FrontendSPA[Vite + React SPA<br/>Port: 80 (container)<br/>- React<br/>- TypeScript<br/>- React Router]
         end
         
         subgraph Backend["Backend"]
@@ -46,9 +46,9 @@ graph TB
     end
     
     Browser -->|HTTP/HTTPS| Nginx
-    Nginx -->|Proxy| NextJS
+    Nginx -->|Proxy| FrontendSPA
     Nginx -->|Proxy| Django
-    NextJS -->|API Calls| Django
+    FrontendSPA -->|API Calls| Django
     Django --> PostgreSQL
     Django --> Redis
     Django --> LocalFS
@@ -68,7 +68,7 @@ graph TB
 graph TB
     subgraph Presentation["Presentation Layer"]
         P1[React Components]
-        P2[Next.js Pages]
+        P2[React Router Routes]
         P3[UI Components]
         P4[Custom Hooks]
     end
@@ -133,7 +133,7 @@ graph TB
 
     subgraph AppNetwork["Docker Compose Network<br/>videoq-network"]
         Nginx["nginx<br/>:80"]
-        Frontend["frontend<br/>Next.js<br/>:3000"]
+        Frontend["frontend<br/>Vite SPA (static)<br/>:80"]
         Backend["backend<br/>Django<br/>:8000"]
         Worker["celery-worker<br/>Celery"]
         DB[("postgres<br/>pg17 + pgvector<br/>:5432")]

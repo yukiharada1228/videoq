@@ -77,31 +77,32 @@ stateDiagram-v2
 ## Screen List
 
 ### Authentication Related
-- **Home** (`/` or `/[locale]`): Home page (e.g., `/`, `/en`, `/ja`)
-- **Login** (`/[locale]/login`): Login page (e.g., `/login`, `/en/login`, `/ja/login`)
-- **Signup** (`/[locale]/signup`): Sign up page
-- **CheckEmail** (`/[locale]/signup/check-email`): Email confirmation waiting page
-- **VerifyEmail** (`/[locale]/verify-email`): Email verification page
-- **ForgotPassword** (`/[locale]/forgot-password`): Password reset request page
-- **ResetPassword** (`/[locale]/reset-password`): Password reset page
+- **Home** (`/` or `/:locale`): Home page (e.g., `/`, `/en`, `/ja`)
+- **Login** (`/login` or `/:locale/login`): Login page
+- **Signup** (`/signup` or `/:locale/signup`): Sign up page
+- **CheckEmail** (`/signup/check-email` or `/:locale/signup/check-email`): Email confirmation waiting page
+- **VerifyEmail** (`/verify-email` or `/:locale/verify-email`): Email verification page
+- **ForgotPassword** (`/forgot-password` or `/:locale/forgot-password`): Password reset request page
+- **ResetPassword** (`/reset-password` or `/:locale/reset-password`): Password reset page
 
 ### Video Management
-- **VideoList** (`/[locale]/videos`): Video list page
-- **VideoDetail** (`/[locale]/videos/[id]`): Video detail page
+- **VideoList** (`/videos` or `/:locale/videos`): Video list page
+- **VideoDetail** (`/videos/:id` or `/:locale/videos/:id`): Video detail page
 
 ### Group Management
-- **VideoGroupList** (`/[locale]/videos/groups`): Group list page
-- **VideoGroupDetail** (`/[locale]/videos/groups/[id]`): Group detail page
+- **VideoGroupList** (`/videos/groups` or `/:locale/videos/groups`): Group list page
+- **VideoGroupDetail** (`/videos/groups/:id` or `/:locale/videos/groups/:id`): Group detail page
 
 ### Sharing
-- **SharePage** (`/[locale]/share/[token]`): Share page (no authentication required)
+- **SharePage** (`/share/:token` or `/:locale/share/:token`): Share page (no authentication required)
 
 ### Settings
-- **Settings** (`/[locale]/settings`): Settings page
+- **Settings** (`/settings` or `/:locale/settings`): Settings page
 
-**Note**: The application uses next-intl with `localePrefix: "as-needed"` configuration:
-- Default locale (`en`) URLs don't include the locale prefix: `/videos`
-- Other locales include the prefix: `/ja/videos`
+**Note**: 本プロジェクトは Next.js / next-intl ではなく、React Router + react-i18next でロケール付きルーティングを実装しています（`frontend/src/App.tsx`）。
+- デフォルトロケール（`en`）はプレフィックスなし: `/videos`
+- それ以外のロケールは `/:locale` 付き: `/ja/videos`
+- `/:locale` が無い場合、ユーザーの優先ロケールがデフォルト以外なら自動的に `/:locale/...` にリダイレクトします
 
 ## Transition Conditions
 
