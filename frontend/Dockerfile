@@ -1,24 +1,23 @@
-FROM node:22.11.0-slim AS base
+FROM node:22.12.0-alpine AS build
 
-WORKDIR /var/www/app
+WORKDIR /app
 
-# Receive environment variables needed at build time
-ARG NEXT_PUBLIC_API_URL
-ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+# Build-time env for Vite (embedded into bundle)
+ARG VITE_API_URL=/api
+ENV VITE_API_URL=${VITE_API_URL}
 
-COPY package*.json ./
-RUN npm install
+COPY package.json package-lock.json ./
+RUN npm ci
 
-COPY . ./
+COPY . .
 RUN npm run build
 
-FROM node:22.11.0-slim AS release
 
-WORKDIR /var/www/app
+FROM nginx:alpine AS runtime
 
-COPY --from=base /var/www/app/.next/standalone ./
-COPY --from=base /var/www/app/.next/static ./.next/static
-COPY --from=base /var/www/app/public ./public
+# SPA routing (React Router) fallback + sensible caching
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-EXPOSE 3000
-CMD ["node", "server.js"]
+COPY --from=build /app/dist /usr/share/nginx/html
+
+EXPOSE 80
