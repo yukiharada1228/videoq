@@ -508,7 +508,7 @@ export default function VideoGroupDetailPage() {
                       disabled={isUpdating}
                     />
                   </div>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-col sm:flex-row flex-wrap gap-2">
                     <Button
                       onClick={() =>
                         void handleUpdate(async () => {
@@ -520,6 +520,7 @@ export default function VideoGroupDetailPage() {
                         })
                       }
                       disabled={isUpdating || !editedName.trim()}
+                      className="w-full sm:w-auto"
                     >
                       {isUpdating ? (
                         <span className="flex items-center">
@@ -530,9 +531,19 @@ export default function VideoGroupDetailPage() {
                         t('common.actions.save')
                       )}
                     </Button>
-                    <Button variant="outline" onClick={handleCancelEdit} disabled={isUpdating}>
+                    <Button
+                      variant="outline"
+                      onClick={handleCancelEdit}
+                      disabled={isUpdating}
+                      className="w-full sm:w-auto"
+                    >
                       {t('common.actions.cancel')}
                     </Button>
+                    <Link href="/videos/groups" className="w-full sm:w-auto sm:ml-auto">
+                      <Button variant="outline" className="w-full">
+                        {t('common.actions.backToList')}
+                      </Button>
+                    </Link>
                   </div>
                 </div>
               ) : (
@@ -665,13 +676,15 @@ export default function VideoGroupDetailPage() {
                   </DialogContent>
                 </Dialog>
               )}
- 
-              <Link href="/videos/groups">
-                <Button variant="outline" size="sm" className="lg:size-default">
-                  {t('common.actions.backToList')}
-                </Button>
-              </Link>
- 
+
+              {!isEditing && (
+                <Link href="/videos/groups">
+                  <Button variant="outline" size="sm" className="lg:size-default">
+                    {t('common.actions.backToList')}
+                  </Button>
+                </Link>
+              )}
+
               {!isEditing && (
                 <Button
                   variant="destructive"
