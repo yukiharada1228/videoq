@@ -119,6 +119,6 @@ docker compose ps
 docker compose logs -f
 docker compose logs -f backend celery-worker frontend nginx
 docker compose down
- docker compose down -v  # Deletes all data (caution)
+docker compose down -v  # Deletes all data (caution)
 ```
 
