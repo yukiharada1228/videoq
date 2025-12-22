@@ -99,10 +99,10 @@ stateDiagram-v2
 ### Settings
 - **Settings** (`/settings` or `/:locale/settings`): Settings page
 
-**Note**: 本プロジェクトは Next.js / next-intl ではなく、React Router + react-i18next でロケール付きルーティングを実装しています（`frontend/src/App.tsx`）。
-- デフォルトロケール（`en`）はプレフィックスなし: `/videos`
-- それ以外のロケールは `/:locale` 付き: `/ja/videos`
-- `/:locale` が無い場合、ユーザーの優先ロケールがデフォルト以外なら自動的に `/:locale/...` にリダイレクトします
+**Note**: This project implements locale-aware routing with React Router + react-i18next (not Next.js / next-intl) (`frontend/src/App.tsx`).
+- The default locale (`en`) has no prefix: `/videos`
+- Other locales use the `/:locale` prefix: `/ja/videos`
+- If `/:locale` is missing and the user's preferred locale is not the default, the app automatically redirects to `/:locale/...`
 
 ## Transition Conditions
 
