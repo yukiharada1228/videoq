@@ -280,12 +280,12 @@ uv run isort .            # Sort imports
 ### Common Docker Commands
 
 ```bash
-docker compose ps                                      # List services
-docker compose logs -f                                 # Follow all logs
-docker compose logs -f backend celery-worker           # Follow specific services
+docker compose ps                                          # List services
+docker compose logs -f                                     # Follow all logs
+docker compose logs -f backend celery-worker               # Follow specific services
 docker compose exec backend uv run python manage.py shell  # Django shell
-docker compose down                                    # Stop services
-docker compose down -v                                 # Stop and delete volumes (CAUTION: deletes data)
+docker compose down                                        # Stop services
+docker compose down -v                                     # Stop and delete volumes (CAUTION: deletes data)
 ```
 
 ## Scalability
