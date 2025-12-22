@@ -24,7 +24,7 @@ When a user uploads a video, transcription runs automatically in the background.
 
 The default local setup (see `docker-compose.yml`) is:
 
-```
+```text
 nginx (port 80)
   ├─ /api      → backend (Django REST API)
   ├─ /media    → protected media files
@@ -49,7 +49,7 @@ nginx (port 80)
 
 ### Directory Structure
 
-```
+```text
 videoq/
 ├── backend/              # Django / DRF / Celery
 │   ├── app/             # Main Django app
