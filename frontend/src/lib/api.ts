@@ -515,7 +515,7 @@ class ApiClient {
 
     const blob = await response.blob();
     const disposition = response.headers.get('Content-Disposition') || response.headers.get('content-disposition') || '';
-    const match = disposition.match(/filename=\"?([^\";]+)\"?/i);
+    const match = disposition.match(/filename="?([^";]+)"?/i);
     const filename = match?.[1] || `chat_history_group_${groupId}.csv`;
 
     const link = document.createElement('a');
