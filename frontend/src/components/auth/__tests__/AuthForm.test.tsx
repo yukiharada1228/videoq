@@ -2,7 +2,7 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { AuthForm } from '../AuthForm'
 
 // Mock child components
-jest.mock('../FormField', () => ({
+vi.mock('../FormField', () => ({
   FormField: ({ name, label, value, onChange }: { name: string; label: string; value: string; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void }) => (
     <div>
       <label htmlFor={name}>{label}</label>
@@ -17,12 +17,12 @@ jest.mock('../FormField', () => ({
   ),
 }))
 
-jest.mock('../ErrorMessage', () => ({
+vi.mock('../ErrorMessage', () => ({
   ErrorMessage: ({ message }: { message: string | null }) =>
     message ? <div data-testid="error-message">{message}</div> : null,
 }))
 
-jest.mock('../AuthFormFooter', () => ({
+vi.mock('../AuthFormFooter', () => ({
   AuthFormFooter: ({ questionText, linkText, href }: { questionText: string; linkText: string; href: string }) => (
     <div>
       <span>{questionText}</span>
@@ -56,12 +56,12 @@ describe('AuthForm', () => {
     loading: false,
     submitButtonText: 'Submit',
     loadingButtonText: 'Submitting...',
-    onChange: jest.fn(),
-    onSubmit: jest.fn(),
+    onChange: vi.fn(),
+    onSubmit: vi.fn(),
   }
 
   beforeEach(() => {
-    jest.clearAllMocks()
+    vi.clearAllMocks()
   })
 
   it('should render form with title and description', () => {
@@ -85,7 +85,7 @@ describe('AuthForm', () => {
   })
 
   it('should call onChange when input changes', () => {
-    const onChange = jest.fn()
+    const onChange = vi.fn()
     render(<AuthForm {...defaultProps} onChange={onChange} />)
     
     const usernameInput = screen.getByTestId('input-username')
@@ -95,7 +95,7 @@ describe('AuthForm', () => {
   })
 
   it('should call onSubmit when form is submitted', () => {
-    const onSubmit = jest.fn((e) => e.preventDefault())
+    const onSubmit = vi.fn((e) => e.preventDefault())
     render(<AuthForm {...defaultProps} onSubmit={onSubmit} />)
     
     const submitButton = screen.getByText('Submit')

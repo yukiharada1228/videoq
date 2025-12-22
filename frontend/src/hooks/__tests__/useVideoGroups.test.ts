@@ -3,14 +3,14 @@ import { useVideoGroups } from '../useVideoGroups'
 import { apiClient } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
 
-jest.mock('@/lib/api', () => ({
+vi.mock('@/lib/api', () => ({
   apiClient: {
-    getVideoGroups: jest.fn(),
+    getVideoGroups: vi.fn(),
   },
 }))
 
-jest.mock('@/hooks/useAuth', () => ({
-  useAuth: jest.fn(),
+vi.mock('@/hooks/useAuth', () => ({
+  useAuth: vi.fn(),
 }))
 
 function createDeferred<T>() {
@@ -25,12 +25,12 @@ function createDeferred<T>() {
 
 describe('useVideoGroups', () => {
   beforeEach(() => {
-    jest.clearAllMocks()
-    ;(useAuth as jest.Mock).mockReturnValue({ user: { id: 1 } })
+    vi.clearAllMocks()
+    ;(useAuth as any).mockReturnValue({ user: { id: 1 } })
   })
 
   it('does not fetch when trigger is false', async () => {
-    ;(apiClient.getVideoGroups as jest.Mock).mockResolvedValue([])
+    ;(apiClient.getVideoGroups as any).mockResolvedValue([])
 
     const { result } = renderHook(({ trigger }) => useVideoGroups(trigger), {
       initialProps: { trigger: false },
@@ -41,8 +41,8 @@ describe('useVideoGroups', () => {
   })
 
   it('does not fetch when user is not available', async () => {
-    ;(useAuth as jest.Mock).mockReturnValue({ user: null })
-    ;(apiClient.getVideoGroups as jest.Mock).mockResolvedValue([])
+    ;(useAuth as any).mockReturnValue({ user: null })
+    ;(apiClient.getVideoGroups as any).mockResolvedValue([])
 
     const { result } = renderHook(() => useVideoGroups(true))
 
@@ -58,7 +58,7 @@ describe('useVideoGroups', () => {
 
   it('fetches when trigger is true and user exists', async () => {
     const mockGroups = [{ id: 1, name: 'g1' }]
-    ;(apiClient.getVideoGroups as jest.Mock).mockResolvedValue(mockGroups)
+    ;(apiClient.getVideoGroups as any).mockResolvedValue(mockGroups)
 
     const { result } = renderHook(() => useVideoGroups(true))
 
@@ -72,7 +72,7 @@ describe('useVideoGroups', () => {
   it('refetches when trigger toggles false -> true (modal reopen)', async () => {
     const mockGroups1 = [{ id: 1, name: 'g1' }]
     const mockGroups2 = [{ id: 2, name: 'g2' }]
-    ;(apiClient.getVideoGroups as jest.Mock)
+    ;(apiClient.getVideoGroups as any)
       .mockResolvedValueOnce(mockGroups1)
       .mockResolvedValueOnce(mockGroups2)
 
@@ -100,7 +100,7 @@ describe('useVideoGroups', () => {
 
   it('allows retry after an error (does not cache failed user)', async () => {
     const mockGroups = [{ id: 1, name: 'g1' }]
-    ;(apiClient.getVideoGroups as jest.Mock)
+    ;(apiClient.getVideoGroups as any)
       .mockRejectedValueOnce(new Error('fail'))
       .mockResolvedValueOnce(mockGroups)
 
@@ -126,7 +126,7 @@ describe('useVideoGroups', () => {
 
   it('does not set state after unmount (then path)', async () => {
     const d = createDeferred<unknown[]>()
-    ;(apiClient.getVideoGroups as jest.Mock).mockReturnValue(d.promise)
+    ;(apiClient.getVideoGroups as any).mockReturnValue(d.promise)
 
     const { unmount } = renderHook(() => useVideoGroups(true))
 
@@ -140,7 +140,7 @@ describe('useVideoGroups', () => {
 
   it('does not set state after unmount (catch path)', async () => {
     const d = createDeferred<unknown[]>()
-    ;(apiClient.getVideoGroups as jest.Mock).mockReturnValue(d.promise)
+    ;(apiClient.getVideoGroups as any).mockReturnValue(d.promise)
 
     const { unmount } = renderHook(() => useVideoGroups(true))
 
@@ -159,7 +159,7 @@ describe('useVideoGroups', () => {
   it('refetch() triggers another request', async () => {
     const mockGroups1 = [{ id: 1, name: 'g1' }]
     const mockGroups2 = [{ id: 2, name: 'g2' }]
-    ;(apiClient.getVideoGroups as jest.Mock)
+    ;(apiClient.getVideoGroups as any)
       .mockResolvedValueOnce(mockGroups1)
       .mockResolvedValueOnce(mockGroups2)
 

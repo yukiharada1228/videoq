@@ -25,7 +25,7 @@ describe('Checkbox', () => {
   })
 
   it('should call onChange when clicked', async () => {
-    const handleChange = jest.fn()
+    const handleChange = vi.fn()
     const user = userEvent.setup()
     
     render(<Checkbox onCheckedChange={handleChange} />)

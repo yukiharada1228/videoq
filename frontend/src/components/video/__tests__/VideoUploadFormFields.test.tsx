@@ -9,14 +9,14 @@ describe('VideoUploadFormFields', () => {
     isUploading: false,
     error: null,
     success: false,
-    setTitle: jest.fn(),
-    setDescription: jest.fn(),
-    setExternalId: jest.fn(),
-    handleFileChange: jest.fn(),
+    setTitle: vi.fn(),
+    setDescription: vi.fn(),
+    setExternalId: vi.fn(),
+    handleFileChange: vi.fn(),
   }
 
   beforeEach(() => {
-    jest.clearAllMocks()
+    vi.clearAllMocks()
   })
 
   it('should render form fields', () => {
@@ -92,7 +92,7 @@ describe('VideoUploadFormFields', () => {
   })
 
   it('should show cancel button when showCancelButton is true', () => {
-    const onCancel = jest.fn()
+    const onCancel = vi.fn()
     render(
       <VideoUploadFormFields
         {...defaultProps}
@@ -105,7 +105,7 @@ describe('VideoUploadFormFields', () => {
   })
 
   it('should call onCancel when cancel button is clicked', () => {
-    const onCancel = jest.fn()
+    const onCancel = vi.fn()
     render(
       <VideoUploadFormFields
         {...defaultProps}

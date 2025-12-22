@@ -1,21 +1,16 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import { VideoNavBar } from '../VideoNavBar'
-
-// Mock @/i18n/routing
-const mockPush = jest.fn()
-jest.mock('@/i18n/routing', () => ({
-  useRouter: () => ({
-    push: mockPush,
-  }),
-}))
+import { useI18nNavigate } from '@/lib/i18n'
 
 describe('VideoNavBar', () => {
   beforeEach(() => {
-    jest.clearAllMocks()
+    vi.clearAllMocks()
+    ;(globalThis as any).__setMockPathname?.('/')
+    window.history.pushState({}, '', '/')
   })
 
   it('should render navigation buttons', () => {
-    const onUploadClick = jest.fn()
+    const onUploadClick = vi.fn()
     render(<VideoNavBar onUploadClick={onUploadClick} />)
     
     expect(screen.getByText(/common.actions.backToHome/)).toBeInTheDocument()
@@ -23,7 +18,7 @@ describe('VideoNavBar', () => {
   })
 
   it('should call onUploadClick when upload button is clicked', () => {
-    const onUploadClick = jest.fn()
+    const onUploadClick = vi.fn()
     render(<VideoNavBar onUploadClick={onUploadClick} />)
     
     const uploadButton = screen.getByText(/videos.list.uploadButton/)
@@ -33,13 +28,14 @@ describe('VideoNavBar', () => {
   })
 
   it('should navigate to home when back button is clicked', () => {
-    const onUploadClick = jest.fn()
+    const onUploadClick = vi.fn()
     render(<VideoNavBar onUploadClick={onUploadClick} />)
     
     const backButton = screen.getByText(/common.actions.backToHome/)
     fireEvent.click(backButton)
     
-    expect(mockPush).toHaveBeenCalledWith('/')
+    const navigate = useI18nNavigate()
+    expect(navigate).toHaveBeenCalledWith('/')
   })
 })
 

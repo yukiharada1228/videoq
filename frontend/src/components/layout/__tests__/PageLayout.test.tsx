@@ -2,13 +2,13 @@ import { render, screen } from '@testing-library/react'
 import { PageLayout } from '../PageLayout'
 
 // Mock Header and Footer
-jest.mock('../Header', () => ({
+vi.mock('../Header', () => ({
   Header: ({ children }: { children?: React.ReactNode }) => (
     <header data-testid="header">{children}</header>
   ),
 }))
 
-jest.mock('../Footer', () => ({
+vi.mock('../Footer', () => ({
   Footer: () => <footer data-testid="footer" />,
 }))
 

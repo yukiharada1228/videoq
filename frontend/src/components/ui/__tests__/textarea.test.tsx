@@ -25,7 +25,7 @@ describe('Textarea', () => {
   })
 
   it('should call onChange when text is entered', async () => {
-    const handleChange = jest.fn()
+    const handleChange = vi.fn()
     const user = userEvent.setup()
     
     render(<Textarea onChange={handleChange} />)

@@ -2,16 +2,22 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { VideoUploadModal } from '../VideoUploadModal'
 import { useVideoUpload } from '@/hooks/useVideoUpload'
 import { useOpenAIApiKeyStatus } from '@/hooks/useOpenAIApiKeyStatus'
+import { useVideoGroups } from '@/hooks/useVideoGroups'
 
 // Mock useVideoUpload
-jest.mock('@/hooks/useVideoUpload', () => ({
-  useVideoUpload: jest.fn(),
+vi.mock('@/hooks/useVideoUpload', () => ({
+  useVideoUpload: vi.fn(),
 }))
 
-jest.mock('@/hooks/useOpenAIApiKeyStatus')
+vi.mock('@/hooks/useOpenAIApiKeyStatus')
+
+// Mock useVideoGroups (avoid real API calls)
+vi.mock('@/hooks/useVideoGroups', () => ({
+  useVideoGroups: vi.fn(),
+}))
 
 // Mock VideoUploadFormFields
-jest.mock('../VideoUploadFormFields', () => ({
+vi.mock('../VideoUploadFormFields', () => ({
   VideoUploadFormFields: ({ title, description, isUploading, error, success, setTitle, setDescription, handleFileChange }: {
     title: string
     description: string
@@ -54,38 +60,39 @@ describe('VideoUploadModal', () => {
     isUploading: false,
     error: null,
     success: false,
-    setTitle: jest.fn(),
-    setDescription: jest.fn(),
-    handleFileChange: jest.fn(),
-    handleSubmit: jest.fn((e) => e.preventDefault()),
-    reset: jest.fn(),
+    setTitle: vi.fn(),
+    setDescription: vi.fn(),
+    handleFileChange: vi.fn(),
+    handleSubmit: vi.fn((e) => e.preventDefault()),
+    reset: vi.fn(),
   }
 
   beforeEach(() => {
-    jest.clearAllMocks()
-    ;(useVideoUpload as jest.Mock).mockReturnValue(mockUseVideoUpload)
-    ;(useOpenAIApiKeyStatus as jest.Mock).mockReturnValue({
+    vi.clearAllMocks()
+    ;(useVideoUpload as any).mockReturnValue(mockUseVideoUpload)
+    ;(useOpenAIApiKeyStatus as any).mockReturnValue({
       hasApiKey: true,
       isChecking: false,
       error: null,
-      refresh: jest.fn(),
+      refresh: vi.fn(),
     })
+    ;(useVideoGroups as any).mockReturnValue({ groups: [], isLoading: false, error: null, refetch: vi.fn() })
   })
 
   it('should render modal when isOpen is true', () => {
-    render(<VideoUploadModal isOpen={true} onClose={jest.fn()} />)
+    render(<VideoUploadModal isOpen={true} onClose={vi.fn()} />)
     
     expect(screen.getByText(/videos.upload.title/)).toBeInTheDocument()
   })
 
   it('should not render modal when isOpen is false', () => {
-    render(<VideoUploadModal isOpen={false} onClose={jest.fn()} />)
+    render(<VideoUploadModal isOpen={false} onClose={vi.fn()} />)
     
     expect(screen.queryByText(/videos.upload.title/)).not.toBeInTheDocument()
   })
 
   it('should call onClose when cancel button is clicked', () => {
-    const onClose = jest.fn()
+    const onClose = vi.fn()
     render(<VideoUploadModal isOpen={true} onClose={onClose} />)
     
     const cancelButton = screen.getByText(/common.actions.cancel/)
@@ -96,8 +103,8 @@ describe('VideoUploadModal', () => {
   })
 
   it('should not close when uploading', () => {
-    const onClose = jest.fn()
-    ;(useVideoUpload as jest.Mock).mockReturnValue({
+    const onClose = vi.fn()
+    ;(useVideoUpload as any).mockReturnValue({
       ...mockUseVideoUpload,
       isUploading: true,
     })
@@ -109,27 +116,26 @@ describe('VideoUploadModal', () => {
   })
 
   it('should call onUploadSuccess and close when upload succeeds', async () => {
-    jest.useFakeTimers()
-    const onClose = jest.fn()
-    const onUploadSuccess = jest.fn()
+    vi.useFakeTimers()
+    const onClose = vi.fn()
+    const onUploadSuccess = vi.fn()
     
-    ;(useVideoUpload as jest.Mock).mockReturnValue({
+    ;(useVideoUpload as any).mockReturnValue({
       ...mockUseVideoUpload,
       success: true,
     })
 
     render(<VideoUploadModal isOpen={true} onClose={onClose} onUploadSuccess={onUploadSuccess} />)
 
-    act(() => {
-      jest.advanceTimersByTime(2000)
+    // Flush effects, then advance timers for the delayed close
+    await act(async () => {})
+    expect(onUploadSuccess).toHaveBeenCalled()
+    await act(async () => {
+      vi.advanceTimersByTime(2000)
     })
+    expect(onClose).toHaveBeenCalled()
 
-    await waitFor(() => {
-      expect(onUploadSuccess).toHaveBeenCalled()
-      expect(onClose).toHaveBeenCalled()
-    })
-
-    jest.useRealTimers()
+    vi.useRealTimers()
   })
 })
 

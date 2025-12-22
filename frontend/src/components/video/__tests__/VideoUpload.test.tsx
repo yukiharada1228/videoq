@@ -1,14 +1,20 @@
 import { render, screen, waitFor, act } from '@testing-library/react'
 import { VideoUpload } from '../VideoUpload'
 import { useVideoUpload } from '@/hooks/useVideoUpload'
+import { useVideoGroups } from '@/hooks/useVideoGroups'
 
 // Mock useVideoUpload
-jest.mock('@/hooks/useVideoUpload', () => ({
-  useVideoUpload: jest.fn(),
+vi.mock('@/hooks/useVideoUpload', () => ({
+  useVideoUpload: vi.fn(),
+}))
+
+// Mock useVideoGroups (avoid real API calls)
+vi.mock('@/hooks/useVideoGroups', () => ({
+  useVideoGroups: vi.fn(),
 }))
 
 // Mock VideoUploadFormFields
-jest.mock('../VideoUploadFormFields', () => ({
+vi.mock('../VideoUploadFormFields', () => ({
   VideoUploadFormFields: ({ title, description, isUploading, error, onFileChange, onTitleChange, onDescriptionChange }: {
     title: string
     description: string
@@ -50,16 +56,17 @@ describe('VideoUpload', () => {
     isUploading: false,
     error: null,
     success: false,
-    setTitle: jest.fn(),
-    setDescription: jest.fn(),
-    handleFileChange: jest.fn(),
-    handleSubmit: jest.fn(),
-    reset: jest.fn(),
+    setTitle: vi.fn(),
+    setDescription: vi.fn(),
+    handleFileChange: vi.fn(),
+    handleSubmit: vi.fn(),
+    reset: vi.fn(),
   }
 
   beforeEach(() => {
-    jest.clearAllMocks()
-    ;(useVideoUpload as jest.Mock).mockReturnValue(mockUseVideoUpload)
+    vi.clearAllMocks()
+    ;(useVideoGroups as any).mockReturnValue({ groups: [], isLoading: false, error: null, refetch: vi.fn() })
+    ;(useVideoUpload as any).mockReturnValue(mockUseVideoUpload)
   })
 
   it('should render upload form', () => {
@@ -71,30 +78,30 @@ describe('VideoUpload', () => {
   })
 
   it('should call onUploadSuccess when upload succeeds', async () => {
-    jest.useFakeTimers()
-    const onUploadSuccess = jest.fn()
+    vi.useFakeTimers()
+    const onUploadSuccess = vi.fn()
     
-    ;(useVideoUpload as jest.Mock).mockReturnValue({
+    ;(useVideoUpload as any).mockReturnValue({
       ...mockUseVideoUpload,
       success: true,
     })
 
     render(<VideoUpload onUploadSuccess={onUploadSuccess} />)
 
-    act(() => {
-      jest.advanceTimersByTime(2000)
+    // Flush effects that schedule the timeout, then advance timers
+    await act(async () => {})
+    await act(async () => {
+      vi.advanceTimersByTime(2000)
     })
 
-    await waitFor(() => {
-      expect(mockUseVideoUpload.reset).toHaveBeenCalled()
-      expect(onUploadSuccess).toHaveBeenCalled()
-    })
+    expect(mockUseVideoUpload.reset).toHaveBeenCalled()
+    expect(onUploadSuccess).toHaveBeenCalled()
 
-    jest.useRealTimers()
+    vi.useRealTimers()
   })
 
   it('should display error when error occurs', () => {
-    ;(useVideoUpload as jest.Mock).mockReturnValue({
+    ;(useVideoUpload as any).mockReturnValue({
       ...mockUseVideoUpload,
       error: 'Upload failed',
     })
@@ -105,7 +112,7 @@ describe('VideoUpload', () => {
   })
 
   it('should display uploading state', () => {
-    ;(useVideoUpload as jest.Mock).mockReturnValue({
+    ;(useVideoUpload as any).mockReturnValue({
       ...mockUseVideoUpload,
       isUploading: true,
     })

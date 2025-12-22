@@ -2,7 +2,7 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { VideoCard } from '../VideoCard'
 
 // Mock next/link
-jest.mock('next/link', () => {
+vi.mock('next/link', () => {
   const MockLink = ({ children, href }: { children: React.ReactNode; href: string }) => (
     <a href={href}>{children}</a>
   )
@@ -11,10 +11,10 @@ jest.mock('next/link', () => {
 })
 
 // Mock video utils
-jest.mock('@/lib/utils/video', () => ({
-  getStatusBadgeClassName: jest.fn(() => 'badge-class'),
-  getStatusLabel: jest.fn(() => 'Status Label'),
-  formatDate: jest.fn(() => '2024-01-15'),
+vi.mock('@/lib/utils/video', () => ({
+  getStatusBadgeClassName: vi.fn(() => 'badge-class'),
+  getStatusLabel: vi.fn(() => 'Status Label'),
+  formatDate: vi.fn(() => '2024-01-15'),
 }))
 
 describe('VideoCard', () => {
@@ -50,7 +50,7 @@ describe('VideoCard', () => {
   })
 
   it('should call onClick when provided', () => {
-    const onClick = jest.fn()
+    const onClick = vi.fn()
     const { container } = render(<VideoCard video={mockVideo} onClick={onClick} showLink={false} />)
     
     const card = container.querySelector('[onclick]') || container.firstChild
@@ -87,7 +87,7 @@ describe('VideoCard', () => {
     
     const video = container.querySelector('video')
     if (video) {
-      const playSpy = jest.spyOn(video, 'play').mockResolvedValue(undefined)
+      const playSpy = vi.spyOn(video, 'play').mockResolvedValue(undefined)
       
       fireEvent.mouseEnter(video)
       
@@ -101,7 +101,7 @@ describe('VideoCard', () => {
     
     const video = container.querySelector('video')
     if (video) {
-      const pauseSpy = jest.spyOn(video, 'pause').mockImplementation(() => {})
+      const pauseSpy = vi.spyOn(video, 'pause').mockImplementation(() => {})
       Object.defineProperty(video, 'currentTime', {
         writable: true,
         value: 0,
@@ -120,7 +120,7 @@ describe('VideoCard', () => {
     
     const video = container.querySelector('video')
     if (video) {
-      const playSpy = jest.spyOn(video, 'play').mockRejectedValue(new Error('Play failed'))
+      const playSpy = vi.spyOn(video, 'play').mockRejectedValue(new Error('Play failed'))
       
       // Should not throw
       expect(() => {

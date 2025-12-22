@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react'
 import { VideoList } from '../VideoList'
 
 // Mock VideoCard
-jest.mock('../VideoCard', () => ({
+vi.mock('../VideoCard', () => ({
   VideoCard: ({ video }: { video: { id: number; title: string } }) => (
     <div data-testid={`video-card-${video.id}`}>{video.title}</div>
   ),

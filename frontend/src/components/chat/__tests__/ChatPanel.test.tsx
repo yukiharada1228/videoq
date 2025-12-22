@@ -3,31 +3,31 @@ import { ChatPanel } from '../ChatPanel'
 import { apiClient } from '@/lib/api'
 
 // Mock apiClient
-jest.mock('@/lib/api', () => ({
+vi.mock('@/lib/api', () => ({
   apiClient: {
-    chat: jest.fn(),
-    getChatHistory: jest.fn(),
-    exportChatHistoryCsv: jest.fn(),
-    setChatFeedback: jest.fn(),
-    getOpenAIApiKeyStatus: jest.fn(),
+    chat: vi.fn(),
+    getChatHistory: vi.fn(),
+    exportChatHistoryCsv: vi.fn(),
+    setChatFeedback: vi.fn(),
+    getOpenAIApiKeyStatus: vi.fn(),
   },
 }))
 
 // Mock window.open
-const mockOpen = jest.fn()
+const mockOpen = vi.fn()
 window.open = mockOpen
 
 describe('ChatPanel', () => {
   beforeEach(() => {
-    jest.clearAllMocks()
-    ;(apiClient.chat as jest.Mock).mockResolvedValue({
+    vi.clearAllMocks()
+    ;(apiClient.chat as any).mockResolvedValue({
       role: 'assistant',
       content: 'Test response',
       related_videos: [],
       chat_log_id: 1,
       feedback: null,
     })
-    ;(apiClient.getOpenAIApiKeyStatus as jest.Mock).mockResolvedValue({ has_api_key: true })
+    ;(apiClient.getOpenAIApiKeyStatus as any).mockResolvedValue({ has_api_key: true })
   })
 
   it('should render greeting message', () => {
@@ -65,7 +65,7 @@ describe('ChatPanel', () => {
   })
 
   it('should open history when history button is clicked', async () => {
-    ;(apiClient.getChatHistory as jest.Mock).mockResolvedValue([])
+    ;(apiClient.getChatHistory as any).mockResolvedValue([])
     
     render(<ChatPanel groupId={1} />)
     
@@ -87,8 +87,8 @@ describe('ChatPanel', () => {
   })
 
   it('should handle video navigation', async () => {
-    const onVideoPlay = jest.fn()
-    ;(apiClient.chat as jest.Mock).mockResolvedValue({
+    const onVideoPlay = vi.fn()
+    ;(apiClient.chat as any).mockResolvedValue({
       role: 'assistant',
       content: 'Response',
       related_videos: [
@@ -126,7 +126,7 @@ describe('ChatPanel', () => {
   })
 
   it('should open video in new tab when onVideoPlay is not provided', async () => {
-    ;(apiClient.chat as jest.Mock).mockResolvedValue({
+    ;(apiClient.chat as any).mockResolvedValue({
       role: 'assistant',
       content: 'Response',
       related_videos: [
@@ -192,14 +192,14 @@ describe('ChatPanel', () => {
   })
 
   it('should handle feedback good button click', async () => {
-    ;(apiClient.chat as jest.Mock).mockResolvedValue({
+    ;(apiClient.chat as any).mockResolvedValue({
       role: 'assistant',
       content: 'Response',
       related_videos: [],
       chat_log_id: 1,
       feedback: null,
     })
-    ;(apiClient.setChatFeedback as jest.Mock).mockResolvedValue({
+    ;(apiClient.setChatFeedback as any).mockResolvedValue({
       chat_log_id: 1,
       feedback: 'good',
     })
@@ -229,14 +229,14 @@ describe('ChatPanel', () => {
   })
 
   it('should handle feedback bad button click', async () => {
-    ;(apiClient.chat as jest.Mock).mockResolvedValue({
+    ;(apiClient.chat as any).mockResolvedValue({
       role: 'assistant',
       content: 'Response',
       related_videos: [],
       chat_log_id: 1,
       feedback: null,
     })
-    ;(apiClient.setChatFeedback as jest.Mock).mockResolvedValue({
+    ;(apiClient.setChatFeedback as any).mockResolvedValue({
       chat_log_id: 1,
       feedback: 'bad',
     })
@@ -266,14 +266,14 @@ describe('ChatPanel', () => {
   })
 
   it('should toggle feedback when clicking same button', async () => {
-    ;(apiClient.chat as jest.Mock).mockResolvedValue({
+    ;(apiClient.chat as any).mockResolvedValue({
       role: 'assistant',
       content: 'Response',
       related_videos: [],
       chat_log_id: 1,
       feedback: 'good',
     })
-    ;(apiClient.setChatFeedback as jest.Mock).mockResolvedValue({
+    ;(apiClient.setChatFeedback as any).mockResolvedValue({
       chat_log_id: 1,
       feedback: null,
     })
@@ -315,7 +315,7 @@ describe('ChatPanel', () => {
         feedback: null,
       },
     ]
-    ;(apiClient.getChatHistory as jest.Mock).mockResolvedValue(mockHistory)
+    ;(apiClient.getChatHistory as any).mockResolvedValue(mockHistory)
     
     render(<ChatPanel  groupId={1} />)
     
@@ -332,7 +332,7 @@ describe('ChatPanel', () => {
   })
 
   it('should close history when close button is clicked', async () => {
-    ;(apiClient.getChatHistory as jest.Mock).mockResolvedValue([])
+    ;(apiClient.getChatHistory as any).mockResolvedValue([])
     
     render(<ChatPanel  groupId={1} />)
     
@@ -369,8 +369,8 @@ describe('ChatPanel', () => {
         feedback: null,
       },
     ]
-    ;(apiClient.getChatHistory as jest.Mock).mockResolvedValue(mockHistory)
-    ;(apiClient.exportChatHistoryCsv as jest.Mock).mockResolvedValue(undefined)
+    ;(apiClient.getChatHistory as any).mockResolvedValue(mockHistory)
+    ;(apiClient.exportChatHistoryCsv as any).mockResolvedValue(undefined)
     
     render(<ChatPanel  groupId={1} />)
     
@@ -407,7 +407,7 @@ describe('ChatPanel', () => {
   })
 
   it('should display error message when chat fails', async () => {
-    ;(apiClient.chat as jest.Mock).mockRejectedValue(new Error('Chat failed'))
+    ;(apiClient.chat as any).mockRejectedValue(new Error('Chat failed'))
 
     render(<ChatPanel  />)
     
@@ -425,7 +425,7 @@ describe('ChatPanel', () => {
   })
 
   it('should handle history loading state', async () => {
-    ;(apiClient.getChatHistory as jest.Mock).mockImplementation(
+    ;(apiClient.getChatHistory as any).mockImplementation(
       () => new Promise(resolve => setTimeout(() => resolve([]), 100))
     )
     
@@ -441,8 +441,8 @@ describe('ChatPanel', () => {
   })
 
   it('should handle getChatHistory error', async () => {
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
-    ;(apiClient.getChatHistory as jest.Mock).mockRejectedValue(new Error('Failed to load history'))
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    ;(apiClient.getChatHistory as any).mockRejectedValue(new Error('Failed to load history'))
     
     render(<ChatPanel  groupId={1} />)
     
@@ -460,7 +460,7 @@ describe('ChatPanel', () => {
   })
 
   it('should handle exportChatHistoryCsv error', async () => {
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     const mockHistory = [
       {
         id: 1,
@@ -473,8 +473,8 @@ describe('ChatPanel', () => {
         feedback: null,
       },
     ]
-    ;(apiClient.getChatHistory as jest.Mock).mockResolvedValue(mockHistory)
-    ;(apiClient.exportChatHistoryCsv as jest.Mock).mockRejectedValue(new Error('Failed to export CSV'))
+    ;(apiClient.getChatHistory as any).mockResolvedValue(mockHistory)
+    ;(apiClient.exportChatHistoryCsv as any).mockRejectedValue(new Error('Failed to export CSV'))
     
     render(<ChatPanel  groupId={1} />)
     
@@ -505,15 +505,15 @@ describe('ChatPanel', () => {
   })
 
   it('should handle setChatFeedback error', async () => {
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
-    ;(apiClient.chat as jest.Mock).mockResolvedValue({
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    ;(apiClient.chat as any).mockResolvedValue({
       role: 'assistant',
       content: 'Response',
       related_videos: [],
       chat_log_id: 1,
       feedback: null,
     })
-    ;(apiClient.setChatFeedback as jest.Mock).mockRejectedValue(new Error('Failed to update feedback'))
+    ;(apiClient.setChatFeedback as any).mockRejectedValue(new Error('Failed to update feedback'))
 
     render(<ChatPanel  />)
     
@@ -582,7 +582,7 @@ describe('ChatPanel', () => {
         feedback: null,
       },
     ]
-    ;(apiClient.getChatHistory as jest.Mock).mockResolvedValue(mockHistory)
+    ;(apiClient.getChatHistory as any).mockResolvedValue(mockHistory)
     
     render(<ChatPanel  groupId={1} />)
     

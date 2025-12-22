@@ -3,15 +3,15 @@ import { useVideoUpload } from '../useVideoUpload'
 import { apiClient } from '@/lib/api'
 
 // Mock apiClient
-jest.mock('@/lib/api', () => ({
+vi.mock('@/lib/api', () => ({
   apiClient: {
-    uploadVideo: jest.fn(),
+    uploadVideo: vi.fn(),
   },
 }))
 
 describe('useVideoUpload', () => {
   beforeEach(() => {
-    jest.clearAllMocks()
+    vi.clearAllMocks()
   })
 
   it('should initialize with default values', () => {
@@ -62,7 +62,7 @@ describe('useVideoUpload', () => {
   it('should validate and upload video', async () => {
     const { result } = renderHook(() => useVideoUpload())
     const file = new File(['content'], 'test-video.mp4', { type: 'video/mp4' })
-    ;(apiClient.uploadVideo as jest.Mock).mockResolvedValue(undefined)
+    ;(apiClient.uploadVideo as any).mockResolvedValue(undefined)
 
     act(() => {
       result.current.handleFileChange({
@@ -76,7 +76,7 @@ describe('useVideoUpload', () => {
 
     await act(async () => {
       await result.current.handleSubmit({
-        preventDefault: jest.fn(),
+        preventDefault: vi.fn(),
       } as unknown as React.FormEvent)
     })
 
@@ -95,7 +95,7 @@ describe('useVideoUpload', () => {
 
     await act(async () => {
       await result.current.handleSubmit({
-        preventDefault: jest.fn(),
+        preventDefault: vi.fn(),
       } as unknown as React.FormEvent)
     })
 
@@ -107,7 +107,7 @@ describe('useVideoUpload', () => {
   it('should use filename as title if title is empty', async () => {
     const { result } = renderHook(() => useVideoUpload())
     const file = new File(['content'], 'my-video.mp4', { type: 'video/mp4' })
-    ;(apiClient.uploadVideo as jest.Mock).mockResolvedValue(undefined)
+    ;(apiClient.uploadVideo as any).mockResolvedValue(undefined)
 
     act(() => {
       result.current.handleFileChange({
@@ -121,7 +121,7 @@ describe('useVideoUpload', () => {
 
     await act(async () => {
       await result.current.handleSubmit({
-        preventDefault: jest.fn(),
+        preventDefault: vi.fn(),
       } as unknown as React.FormEvent)
     })
 
@@ -137,8 +137,8 @@ describe('useVideoUpload', () => {
   it('should call onSuccess callback', async () => {
     const { result } = renderHook(() => useVideoUpload())
     const file = new File(['content'], 'test-video.mp4', { type: 'video/mp4' })
-    const onSuccess = jest.fn()
-    ;(apiClient.uploadVideo as jest.Mock).mockResolvedValue(undefined)
+    const onSuccess = vi.fn()
+    ;(apiClient.uploadVideo as any).mockResolvedValue(undefined)
 
     act(() => {
       result.current.handleFileChange({
@@ -149,7 +149,7 @@ describe('useVideoUpload', () => {
     await act(async () => {
       await result.current.handleSubmit(
         {
-          preventDefault: jest.fn(),
+          preventDefault: vi.fn(),
         } as unknown as React.FormEvent,
         onSuccess
       )
@@ -183,7 +183,7 @@ describe('useVideoUpload', () => {
     const { result } = renderHook(() => useVideoUpload())
     const file = new File(['content'], 'test-video.mp4', { type: 'video/mp4' })
     const error = new Error('Upload failed')
-    ;(apiClient.uploadVideo as jest.Mock).mockRejectedValue(error)
+    ;(apiClient.uploadVideo as any).mockRejectedValue(error)
 
     act(() => {
       result.current.handleFileChange({
@@ -194,7 +194,7 @@ describe('useVideoUpload', () => {
     await act(async () => {
       try {
         await result.current.handleSubmit({
-          preventDefault: jest.fn(),
+          preventDefault: vi.fn(),
         } as unknown as React.FormEvent)
       } catch {
         // Expected to throw

@@ -3,7 +3,7 @@ import { useAuthForm } from '../useAuthForm'
 
 describe('useAuthForm', () => {
   const initialData = { username: '', password: '' }
-  const mockOnSubmit = jest.fn()
+  const mockOnSubmit = vi.fn()
 
   beforeEach(() => {
     mockOnSubmit.mockClear()
@@ -56,7 +56,7 @@ describe('useAuthForm', () => {
 
     await act(async () => {
       await result.current.handleSubmit({
-        preventDefault: jest.fn(),
+        preventDefault: vi.fn(),
       } as unknown as React.FormEvent)
     })
 
@@ -67,7 +67,7 @@ describe('useAuthForm', () => {
 
   it('should call onSuccessRedirect on successful submission', async () => {
     mockOnSubmit.mockResolvedValue(undefined)
-    const onSuccessRedirect = jest.fn()
+    const onSuccessRedirect = vi.fn()
     const { result } = renderHook(() =>
       useAuthForm({
         onSubmit: mockOnSubmit,
@@ -78,7 +78,7 @@ describe('useAuthForm', () => {
 
     await act(async () => {
       await result.current.handleSubmit({
-        preventDefault: jest.fn(),
+        preventDefault: vi.fn(),
       } as unknown as React.FormEvent)
     })
 
@@ -100,7 +100,7 @@ describe('useAuthForm', () => {
     await act(async () => {
       try {
         await result.current.handleSubmit({
-          preventDefault: jest.fn(),
+          preventDefault: vi.fn(),
         } as unknown as React.FormEvent)
       } catch {
         // Expected to throw

@@ -1,27 +1,22 @@
 import { renderHook, act, waitFor } from '@testing-library/react'
 import { useVideos, useVideo } from '../useVideos'
 import { apiClient } from '@/lib/api'
+import { useI18nNavigate } from '@/lib/i18n'
 
 // Mock apiClient
-jest.mock('@/lib/api', () => ({
+vi.mock('@/lib/api', () => ({
   apiClient: {
-    getVideos: jest.fn(),
-    getVideo: jest.fn(),
-    isAuthenticated: jest.fn(),
+    getVideos: vi.fn(),
+    getVideo: vi.fn(),
+    isAuthenticated: vi.fn(),
   },
-}))
-
-// Mock next/navigation
-const mockPush = jest.fn()
-jest.mock('next/navigation', () => ({
-  useRouter: () => ({
-    push: mockPush,
-  }),
 }))
 
 describe('useVideos', () => {
   beforeEach(() => {
-    jest.clearAllMocks()
+    vi.clearAllMocks()
+    ;(globalThis as any).__setMockPathname?.('/')
+    window.history.pushState({}, '', '/')
   })
 
   it('should initialize with empty videos array', () => {
@@ -37,7 +32,7 @@ describe('useVideos', () => {
       { id: 1, title: 'Video 1', user: 1, file: '', uploaded_at: '', status: 'completed' as const },
       { id: 2, title: 'Video 2', user: 1, file: '', uploaded_at: '', status: 'completed' as const },
     ]
-    ;(apiClient.getVideos as jest.Mock).mockResolvedValue(mockVideos)
+    ;(apiClient.getVideos as any).mockResolvedValue(mockVideos)
 
     const { result } = renderHook(() => useVideos())
 
@@ -53,7 +48,7 @@ describe('useVideos', () => {
 
   it('should handle loading errors', async () => {
     const error = new Error('Failed to load')
-    ;(apiClient.getVideos as jest.Mock).mockRejectedValue(error)
+    ;(apiClient.getVideos as any).mockRejectedValue(error)
 
     const { result } = renderHook(() => useVideos())
 
@@ -74,7 +69,9 @@ describe('useVideos', () => {
 
 describe('useVideo', () => {
   beforeEach(() => {
-    jest.clearAllMocks()
+    vi.clearAllMocks()
+    ;(globalThis as any).__setMockPathname?.('/')
+    window.history.pushState({}, '', '/')
   })
 
   it('should initialize with null video', () => {
@@ -104,8 +101,8 @@ describe('useVideo', () => {
       uploaded_at: '',
       status: 'completed' as const,
     }
-    ;(apiClient.isAuthenticated as jest.Mock).mockReturnValue(true)
-    ;(apiClient.getVideo as jest.Mock).mockResolvedValue(mockVideo)
+    ;(apiClient.isAuthenticated as any).mockReturnValue(true)
+    ;(apiClient.getVideo as any).mockResolvedValue(mockVideo)
 
     const { result } = renderHook(() => useVideo(1))
 
@@ -120,7 +117,7 @@ describe('useVideo', () => {
   })
 
   it('should redirect to login if not authenticated', async () => {
-    ;(apiClient.isAuthenticated as jest.Mock).mockReturnValue(false)
+    ;(apiClient.isAuthenticated as any).mockReturnValue(false)
 
     const { result } = renderHook(() => useVideo(1))
 
@@ -132,12 +129,13 @@ describe('useVideo', () => {
       }
     })
 
-    expect(mockPush).toHaveBeenCalledWith('/login')
+    const navigate = useI18nNavigate()
+    expect(navigate).toHaveBeenCalledWith('/login')
   })
 
   it('should handle loading errors', async () => {
-    ;(apiClient.isAuthenticated as jest.Mock).mockReturnValue(true)
-    ;(apiClient.getVideo as jest.Mock).mockRejectedValue(new Error('Failed to load'))
+    ;(apiClient.isAuthenticated as any).mockReturnValue(true)
+    ;(apiClient.getVideo as any).mockRejectedValue(new Error('Failed to load'))
 
     const { result } = renderHook(() => useVideo(1))
 

@@ -52,7 +52,7 @@ describe('useAsyncState', () => {
   })
 
   it('should call onSuccess callback', async () => {
-    const onSuccess = jest.fn()
+    const onSuccess = vi.fn()
     const { result } = renderHook(() => useAsyncState({ onSuccess }))
     
     await act(async () => {
@@ -65,7 +65,7 @@ describe('useAsyncState', () => {
   })
 
   it('should call onError callback', async () => {
-    const onError = jest.fn()
+    const onError = vi.fn()
     const { result } = renderHook(() => useAsyncState({ onError }))
     
     await act(async () => {
@@ -121,7 +121,7 @@ describe('useAsyncState', () => {
   })
 
   it('should use mutate with confirmation when user confirms', async () => {
-    window.confirm = jest.fn(() => true)
+    window.confirm = vi.fn(() => true)
     const { result } = renderHook(() => useAsyncState({ confirmMessage: 'Confirm?' }))
     
     await act(async () => {
@@ -136,7 +136,7 @@ describe('useAsyncState', () => {
   })
 
   it('should use mutate with confirmation when user cancels', async () => {
-    window.confirm = jest.fn(() => false)
+    window.confirm = vi.fn(() => false)
     const { result } = renderHook(() => useAsyncState({ confirmMessage: 'Confirm?' }))
     
     await act(async () => {
@@ -168,7 +168,7 @@ describe('useAsyncState', () => {
   })
 
   it('should handle non-Error exceptions in mutate', async () => {
-    window.confirm = jest.fn(() => true)
+    window.confirm = vi.fn(() => true)
     const { result } = renderHook(() => useAsyncState({ confirmMessage: 'Confirm?' }))
     
     await act(async () => {
@@ -188,7 +188,7 @@ describe('useAsyncState', () => {
   })
 
   it('should call onError with Error object when non-Error is thrown in execute', async () => {
-    const onError = jest.fn()
+    const onError = vi.fn()
     const { result } = renderHook(() => useAsyncState({ onError }))
     
     await act(async () => {
@@ -210,8 +210,8 @@ describe('useAsyncState', () => {
   })
 
   it('should call onError with Error object when non-Error is thrown in mutate', async () => {
-    window.confirm = jest.fn(() => true)
-    const onError = jest.fn()
+    window.confirm = vi.fn(() => true)
+    const onError = vi.fn()
     const { result } = renderHook(() => useAsyncState({ onError, confirmMessage: 'Confirm?' }))
     
     await act(async () => {
