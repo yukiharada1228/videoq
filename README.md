@@ -4,7 +4,7 @@ VideoQ is a web application that provides video transcription (Whisper) and AI c
 
 ## Overview
 
-When a user uploads a video, transcription runs automatically in the background. Once completed, the user can ask questions grounded in the video (and its scenes).
+When a user uploads a video, transcription runs automatically in the background. Once completed, the user can ask questions grounded in the video (and its scenes) using Retrieval-Augmented Generation (RAG) powered by vector similarity search.
 
 ## Key Features
 
@@ -13,49 +13,161 @@ When a user uploads a video, transcription runs automatically in the background.
 - **Upload limit**: per-user limit via `User.video_limit` (`NULL` = unlimited, `0` = disabled)
 - **Automatic transcription**: async processing via Celery (Whisper API)
 - **AI chat**: RAG using pgvector (OpenAI API)
-- **Group management**: group multiple videos and reorder them
+- **Group management**: group multiple videos and reorder them with drag-and-drop
 - **Sharing**: share groups via share token (guest viewing/chat)
 - **Protected media delivery**: served only with auth/share token
+- **Internationalization**: Multi-language support with i18next
 
-## Architecture (Docker Compose)
+## Architecture
+
+### System Overview (Docker Compose)
 
 The default local setup (see `docker-compose.yml`) is:
 
-- **nginx**: entry point (`80`) / routes `/api` to backend and everything else to frontend
+```
+nginx (port 80)
+  ├─ /api      → backend (Django REST API)
+  ├─ /media    → protected media files
+  └─ /         → frontend (React SPA)
+```
+
+**Services:**
+
+- **nginx**: reverse proxy and entry point (port `80`)
 - **frontend**: Vite-built React SPA (container port `80`)
 - **backend**: Django REST API (container port `8000`)
-- **celery-worker**: async jobs (transcription, vector indexing, etc.)
-- **postgres**: PostgreSQL 17 + pgvector
-- **redis**: Celery broker / result backend
+- **celery-worker**: async task processor (transcription, vector indexing)
+- **postgres**: PostgreSQL 17 with pgvector extension
+- **redis**: Celery broker and result backend
 
-## Directory Structure (Excerpt)
+### Data Flow
+
+1. **Video Upload**: User uploads video → Django saves to storage (local/S3)
+2. **Transcription**: Celery task → Whisper API → save transcript to PostgreSQL
+3. **Vectorization**: Transcript chunked → OpenAI Embeddings → stored in pgvector
+4. **Chat**: User question → embedded → similarity search → context + query → OpenAI Chat API → response
+
+### Directory Structure
 
 ```
 videoq/
-├── backend/          # Django / DRF / Celery
-├── frontend/         # Vite + React + React Router
-├── docs/             # Design docs (Mermaid diagrams)
+├── backend/              # Django / DRF / Celery
+│   ├── app/             # Main Django app
+│   ├── videoq/          # Project settings
+│   ├── media/           # Uploaded videos (local storage)
+│   └── pyproject.toml   # Python dependencies (uv)
+├── frontend/            # Vite + React + TypeScript
+│   ├── src/
+│   │   ├── components/  # React components
+│   │   ├── pages/       # Route pages
+│   │   ├── hooks/       # Custom React hooks
+│   │   ├── lib/         # Utilities
+│   │   └── i18n/        # Internationalization
+│   └── package.json     # Node dependencies
+├── docs/                # Design docs (Mermaid diagrams)
 ├── docker-compose.yml
 └── nginx.conf
 ```
 
-## Tech Stack (Current)
+## Tech Stack
 
 ### Backend
 
-- Django / Django REST Framework
-- Celery + Redis
-- PostgreSQL 17 + pgvector
-- OpenAI API (Whisper / Chat / Embeddings)
-- Storage: local (`backend/media`) or S3 (optional)
-- Dependency management: `uv` (`backend/pyproject.toml`)
+#### Framework & API
+- **Django 5.2+**: Web framework
+- **Django REST Framework**: RESTful API
+- **djangorestframework-simplejwt**: JWT authentication
+- **drf-spectacular**: OpenAPI/Swagger schema generation
+- **gunicorn** + **uvicorn-worker**: ASGI production server
+
+#### Async Task Processing
+- **Celery 5.5+**: Distributed task queue
+- **Redis**: Message broker and result backend
+
+#### Database & Vector Search
+- **PostgreSQL 17**: Primary database
+- **pgvector**: Vector similarity search extension
+- **psycopg2-binary**: PostgreSQL adapter
+- **LangChain** + **langchain-postgres**: RAG pipeline orchestration
+- **langchain-openai**: OpenAI integration for LangChain
+
+#### AI/ML
+- **OpenAI API**: Whisper (transcription), Chat (dialogue), Embeddings (vectorization)
+- **scikit-learn**: ML utilities
+- **numpy**: Numerical computing
+
+#### Storage & Security
+- **django-storages** + **boto3**: S3-compatible storage (optional)
+- **cryptography**: Encrypt user API keys in database
+- **django-cors-headers**: CORS policy management
+
+#### Email & Communication
+- **django-anymail**: Email service integration (verification, password reset)
+
+#### Development Tools
+- **uv**: Fast Python package manager
+- **black**: Code formatter
+- **isort**: Import statement organizer
+- **dj-database-url**: Database URL parser
 
 ### Frontend
 
-- Vite + React + TypeScript
-- React Router (SPA)
-- i18n: i18next + react-i18next (also provides `/:locale/...` routes)
-- Tailwind CSS / Radix UI / react-hook-form / zod, etc.
+#### Core Framework
+- **React 19.2**: UI library (latest version)
+- **TypeScript 5.9**: Type safety
+- **Vite 7.2**: Fast build tool with HMR
+- **@vitejs/plugin-react-swc**: SWC-based fast compiler
+
+#### Routing & State
+- **React Router 7.1**: SPA routing with `/:locale/...` support
+- **react-hook-form 7.65**: High-performance form management
+- **@hookform/resolvers**: Validation integration
+- **zod 4.1**: Schema validation
+
+#### UI/UX
+- **Tailwind CSS 4.1**: Utility-first CSS framework
+- **@tailwindcss/postcss**: PostCSS integration
+- **Radix UI**: Accessible, unstyled UI primitives (Dialog, Checkbox, Label, Slot)
+- **lucide-react**: Icon library
+- **class-variance-authority**: Variant-based styling
+- **clsx** + **tailwind-merge**: Class name utilities
+
+#### Drag & Drop
+- **@dnd-kit/core** + **@dnd-kit/sortable** + **@dnd-kit/utilities**: Drag-and-drop for video group reordering
+
+#### Internationalization
+- **i18next** + **react-i18next**: Multi-language support
+
+#### Utilities
+- **date-fns**: Date manipulation
+
+#### Testing & Development
+- **Vitest 3.2**: Fast unit testing framework
+- **@testing-library/react**: React component testing
+- **@testing-library/user-event**: User interaction simulation
+- **@vitest/coverage-v8**: Code coverage reports
+- **jsdom**: DOM mocking
+- **ESLint 9**: Linting with react-hooks and react-refresh plugins
+
+## Security
+
+### Authentication & Authorization
+- **JWT tokens** stored in HttpOnly cookies (XSS protection)
+- Email verification required for signup
+- Password reset flow via email
+
+### API Key Management
+- User API keys encrypted at rest using `cryptography` library
+- Per-user API key storage (not shared)
+- Shared group chats use the group owner's API key
+
+### Media Protection
+- All media files require authentication or valid share token
+- nginx validates auth before serving files
+
+### CORS Policy
+- Configurable allowed origins
+- Development defaults: `localhost:3000`, `127.0.0.1:3000`
 
 ## Running (Docker Compose)
 
@@ -71,7 +183,7 @@ Important variables (minimum):
 
 - `DATABASE_URL`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`
 - `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND`
-- `ENABLE_SIGNUP`
+- `ENABLE_SIGNUP` (set to `True` or `False`)
 - `FRONTEND_URL` (used in email links; default is `http://localhost`)
 - `VITE_API_URL` (**used at frontend build time**; with the default Nginx setup, `/api` is recommended)
 
@@ -89,7 +201,7 @@ docker compose exec backend uv run python manage.py collectstatic
 docker compose exec backend uv run python manage.py createsuperuser
 ```
 
-### 4) URLs
+### 4) Access URLs
 
 - **Frontend**: `http://localhost`
 - **Backend API**: `http://localhost/api`
@@ -106,19 +218,84 @@ This app assumes **OpenAI API keys are configured per user**.
 
 Related: `docs/architecture/prompt-engineering.md`
 
-## Development Notes (Optional)
+## Development
 
-### Using `vite dev` for frontend-only local development
+### Frontend-only Development
 
-`frontend/vite.config.ts` proxies `/api` to `VITE_API_URL` (or `http://localhost:8000` when unspecified).
+For faster frontend development without Docker:
 
-### Common commands
+1. Ensure backend is running (via Docker Compose or locally)
+2. Run frontend dev server:
 
 ```bash
-docker compose ps
-docker compose logs -f
-docker compose logs -f backend celery-worker frontend nginx
-docker compose down
-docker compose down -v  # Deletes all data (caution)
+cd frontend
+npm install
+npm run dev
 ```
 
+The dev server runs at `http://localhost:3000` and proxies `/api` requests to `VITE_API_URL` (default: `http://localhost:8000`).
+
+Configuration: `frontend/vite.config.ts`
+
+### Backend Development
+
+```bash
+cd backend
+uv sync
+uv run python manage.py runserver
+```
+
+### Running Tests
+
+**Frontend:**
+```bash
+cd frontend
+npm run test              # Run tests once
+npm run test:watch        # Watch mode
+npm run test:coverage     # With coverage report
+npm run typecheck         # TypeScript check
+```
+
+**Backend:**
+```bash
+cd backend
+uv run python manage.py test
+uv run coverage run --source='.' manage.py test
+uv run coverage report
+```
+
+### Code Quality
+
+**Frontend:**
+```bash
+npm run lint              # ESLint
+```
+
+**Backend:**
+```bash
+uv run black .            # Format code
+uv run isort .            # Sort imports
+```
+
+### Common Docker Commands
+
+```bash
+docker compose ps                                      # List services
+docker compose logs -f                                 # Follow all logs
+docker compose logs -f backend celery-worker           # Follow specific services
+docker compose exec backend uv run python manage.py shell  # Django shell
+docker compose down                                    # Stop services
+docker compose down -v                                 # Stop and delete volumes (CAUTION: deletes data)
+```
+
+## Scalability
+
+- **Celery workers**: Horizontally scalable for parallel transcription tasks
+- **S3 storage**: Offload media storage from application servers
+- **pgvector**: Efficient vector similarity search with indexing
+- **Redis**: In-memory caching and task queue
+- **Stateless backend**: Easy to scale behind a load balancer
+
+## License
+
+See [LICENSE](LICENSE) file for details.
