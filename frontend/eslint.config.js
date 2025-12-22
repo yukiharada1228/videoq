@@ -21,6 +21,13 @@ export default defineConfig([
     },
   },
   {
+    // UI utility modules often export helpers/constants alongside components
+    files: ['src/components/ui/**/*.{ts,tsx}'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+    },
+  },
+  {
     files: [
       '**/__tests__/**/*.{ts,tsx}',
       '**/*.{test,spec}.{ts,tsx}',
@@ -39,6 +46,15 @@ export default defineConfig([
         afterAll: 'readonly',
         afterEach: 'readonly',
       },
+    },
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+    },
+  },
+  {
+    files: ['vitest.setup.ts'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
     },
   },
 ])

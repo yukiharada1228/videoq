@@ -21,6 +21,9 @@ function LocaleGate() {
   const location = useLocation();
   const locale = params.locale;
 
+  // Must be called unconditionally (rules-of-hooks)
+  useLocaleSync();
+
   if (locale && !locales.includes(locale as Locale)) {
     return <Navigate to="/" replace />;
   }
@@ -34,7 +37,6 @@ function LocaleGate() {
     }
   }
 
-  useLocaleSync();
   return <Outlet />;
 }
 

@@ -196,7 +196,7 @@ export default function VideoGroupDetailPage() {
       const currentVideoIdSet = createVideoIdSet(currentVideoIds);
       return videos.filter((v) => !currentVideoIdSet.has(v.id));
     });
-  }, [group?.videos, loadAvailableVideos, videoSearch, statusFilter, ordering, group]);
+  }, [group, loadAvailableVideos, videoSearch, statusFilter, ordering]);
  
   useEffect(() => {
     if (groupId) {
