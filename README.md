@@ -1,87 +1,87 @@
 # VideoQ
 
-動画の文字起こし（Whisper）と、文字起こし内容に対するAIチャット（RAG）を提供するWebアプリです。
+VideoQ is a web application that provides video transcription (Whisper) and AI chat (RAG) over those transcripts.
 
-## 概要
+## Overview
 
-ユーザーが動画をアップロードすると、バックグラウンドで自動的に文字起こしが走り、完了後に動画（/シーン）を根拠として質問応答できます。
+When a user uploads a video, transcription runs automatically in the background. Once completed, the user can ask questions grounded in the video (and its scenes).
 
-## 主な機能
+## Key Features
 
-- **認証**: HttpOnly CookieベースのJWT（メール認証・パスワードリセット対応）
-- **動画アップロード**: 複数形式に対応
-- **アップロード上限**: `User.video_limit` によるユーザー単位の上限（`NULL`=無制限 / `0`=禁止）
-- **自動文字起こし**: Celeryで非同期実行（Whisper API）
-- **AIチャット**: pgvectorを使ったRAG（OpenAI API）
-- **グループ管理**: 複数動画をグループ化・並べ替え
-- **共有**: 共有トークンでグループ共有（ゲスト閲覧/チャット）
-- **保護されたメディア配信**: 認証/共有トークン前提で配信
+- **Authentication**: JWT via HttpOnly cookies (email verification + password reset)
+- **Video upload**: supports multiple formats
+- **Upload limit**: per-user limit via `User.video_limit` (`NULL` = unlimited, `0` = disabled)
+- **Automatic transcription**: async processing via Celery (Whisper API)
+- **AI chat**: RAG using pgvector (OpenAI API)
+- **Group management**: group multiple videos and reorder them
+- **Sharing**: share groups via share token (guest viewing/chat)
+- **Protected media delivery**: served only with auth/share token
 
-## アーキテクチャ（Docker Compose）
+## Architecture (Docker Compose)
 
-ローカルのデフォルト構成は以下です（`docker-compose.yml`）:
+The default local setup (see `docker-compose.yml`) is:
 
-- **nginx**: 入口（`80`）/ `/api` をbackendへ、それ以外をfrontendへ
-- **frontend**: ViteでビルドされたReact SPA（コンテナ内 `80`）
-- **backend**: Django REST API（コンテナ内 `8000`）
-- **celery-worker**: 文字起こし/ベクトル化などの非同期処理
+- **nginx**: entry point (`80`) / routes `/api` to backend and everything else to frontend
+- **frontend**: Vite-built React SPA (container port `80`)
+- **backend**: Django REST API (container port `8000`)
+- **celery-worker**: async jobs (transcription, vector indexing, etc.)
 - **postgres**: PostgreSQL 17 + pgvector
 - **redis**: Celery broker / result backend
 
-## ディレクトリ構成（抜粋）
+## Directory Structure (Excerpt)
 
 ```
 videoq/
 ├── backend/          # Django / DRF / Celery
 ├── frontend/         # Vite + React + React Router
-├── docs/             # 設計資料（Mermaid図）
+├── docs/             # Design docs (Mermaid diagrams)
 ├── docker-compose.yml
 └── nginx.conf
 ```
 
-## 技術スタック（現状）
+## Tech Stack (Current)
 
 ### Backend
 
 - Django / Django REST Framework
 - Celery + Redis
 - PostgreSQL 17 + pgvector
-- OpenAI API（Whisper / Chat / Embeddings）
-- ストレージ: ローカル（`backend/media`）またはS3（任意）
-- 依存管理: `uv`（`backend/pyproject.toml`）
+- OpenAI API (Whisper / Chat / Embeddings)
+- Storage: local (`backend/media`) or S3 (optional)
+- Dependency management: `uv` (`backend/pyproject.toml`)
 
 ### Frontend
 
 - Vite + React + TypeScript
-- React Router（SPA）
-- i18n: i18next + react-i18next（`/:locale/...` のルートも提供）
-- Tailwind CSS / Radix UI / react-hook-form / zod など
+- React Router (SPA)
+- i18n: i18next + react-i18next (also provides `/:locale/...` routes)
+- Tailwind CSS / Radix UI / react-hook-form / zod, etc.
 
-## 起動（Docker Compose）
+## Running (Docker Compose)
 
-### 1) 環境変数
+### 1) Environment variables
 
-`/.env.example` をコピーして `/.env` を作成します。
+Copy `/.env.example` to create `/.env`.
 
 ```bash
 cp .env.example .env
 ```
 
-重要な変数（最低限）:
+Important variables (minimum):
 
 - `DATABASE_URL`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`
 - `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND`
 - `ENABLE_SIGNUP`
-- `FRONTEND_URL`（メール内リンクに使用。デフォルトは `http://localhost`）
-- `VITE_API_URL`（**frontendビルド時に使用**。デフォルトのNginx構成では `/api` 推奨）
+- `FRONTEND_URL` (used in email links; default is `http://localhost`)
+- `VITE_API_URL` (**used at frontend build time**; with the default Nginx setup, `/api` is recommended)
 
-### 2) 起動
+### 2) Start
 
 ```bash
 docker compose up --build -d
 ```
 
-### 3) 初回セットアップ
+### 3) First-time setup
 
 ```bash
 docker compose exec backend uv run python manage.py migrate
@@ -89,7 +89,7 @@ docker compose exec backend uv run python manage.py collectstatic
 docker compose exec backend uv run python manage.py createsuperuser
 ```
 
-### 4) 動作確認URL
+### 4) URLs
 
 - **Frontend**: `http://localhost`
 - **Backend API**: `http://localhost/api`
@@ -97,28 +97,28 @@ docker compose exec backend uv run python manage.py createsuperuser
 - **Swagger**: `http://localhost/api/docs/`
 - **ReDoc**: `http://localhost/api/redoc/`
 
-## 重要な注意（OpenAI API Key）
+## Important Note (OpenAI API Key)
 
-このアプリは「ユーザーごとにOpenAI API Keyを設定する」前提です。
+This app assumes **OpenAI API keys are configured per user**.
 
-- **通常利用**: 各ユーザーが設定画面からAPI Keyを登録（DBに暗号化して保存）
-- **共有リンクでのチャット**: **グループ所有者のAPI Key** を使用
+- **Normal usage**: each user registers their API key in Settings (saved encrypted in DB)
+- **Chat via shared link**: uses the **group owner's API key**
 
-関連: `docs/architecture/prompt-engineering.md`
+Related: `docs/architecture/prompt-engineering.md`
 
-## 開発メモ（任意）
+## Development Notes (Optional)
 
-### ローカルでフロントだけ `vite dev` を使う場合
+### Using `vite dev` for frontend-only local development
 
-`frontend/vite.config.ts` は `/api` を `VITE_API_URL`（未指定なら `http://localhost:8000`）へプロキシします。
+`frontend/vite.config.ts` proxies `/api` to `VITE_API_URL` (or `http://localhost:8000` when unspecified).
 
-### よく使うコマンド
+### Common commands
 
 ```bash
 docker compose ps
 docker compose logs -f
 docker compose logs -f backend celery-worker frontend nginx
 docker compose down
-docker compose down -v  # 全データ削除（注意）
+ docker compose down -v  # Deletes all data (caution)
 ```
 
