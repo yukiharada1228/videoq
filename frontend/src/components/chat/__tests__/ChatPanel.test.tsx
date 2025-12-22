@@ -1,0 +1,605 @@
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
+import { ChatPanel } from '../ChatPanel'
+import { apiClient } from '@/lib/api'
+
+// Mock apiClient
+vi.mock('@/lib/api', () => ({
+  apiClient: {
+    chat: vi.fn(),
+    getChatHistory: vi.fn(),
+    exportChatHistoryCsv: vi.fn(),
+    setChatFeedback: vi.fn(),
+    getOpenAIApiKeyStatus: vi.fn(),
+  },
+}))
+
+// Mock window.open
+const mockOpen = vi.fn()
+window.open = mockOpen
+
+describe('ChatPanel', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    ;(apiClient.chat as any).mockResolvedValue({
+      role: 'assistant',
+      content: 'Test response',
+      related_videos: [],
+      chat_log_id: 1,
+      feedback: null,
+    })
+    ;(apiClient.getOpenAIApiKeyStatus as any).mockResolvedValue({ has_api_key: true })
+  })
+
+  it('should render greeting message', () => {
+    render(<ChatPanel />)
+    
+    expect(screen.getByText(/chat.assistantGreeting/)).toBeInTheDocument()
+  })
+
+  it('should send message when form is submitted', async () => {
+    render(<ChatPanel />)
+    
+    const input = screen.getByPlaceholderText(/chat.placeholder/)
+    const sendButton = screen.getByText(/common.actions.send/)
+
+    await act(async () => {
+      fireEvent.change(input, { target: { value: 'Test message' } })
+      fireEvent.click(sendButton)
+    })
+
+    await waitFor(() => {
+      expect(apiClient.chat).toHaveBeenCalled()
+    })
+  })
+
+  it('should not send message when input is empty', async () => {
+    render(<ChatPanel />)
+    
+    const sendButton = screen.getByText(/common.actions.send/)
+
+    await act(async () => {
+      fireEvent.click(sendButton)
+    })
+
+    expect(apiClient.chat).not.toHaveBeenCalled()
+  })
+
+  it('should open history when history button is clicked', async () => {
+    ;(apiClient.getChatHistory as any).mockResolvedValue([])
+    
+    render(<ChatPanel groupId={1} />)
+    
+    const historyButton = screen.getByText(/chat.history/)
+    
+    await act(async () => {
+      fireEvent.click(historyButton)
+    })
+
+    await waitFor(() => {
+      expect(apiClient.getChatHistory).toHaveBeenCalledWith(1)
+    })
+  })
+
+  it('should not show history button when shareToken is provided', () => {
+    render(<ChatPanel groupId={1} shareToken="token123" />)
+    
+    expect(screen.queryByText(/chat.history/)).not.toBeInTheDocument()
+  })
+
+  it('should handle video navigation', async () => {
+    const onVideoPlay = vi.fn()
+    ;(apiClient.chat as any).mockResolvedValue({
+      role: 'assistant',
+      content: 'Response',
+      related_videos: [
+        {
+          video_id: 1,
+          title: 'Test Video',
+          start_time: '00:01:30',
+        },
+      ],
+      chat_log_id: 1,
+      feedback: null,
+    })
+
+    render(<ChatPanel  onVideoPlay={onVideoPlay} />)
+    
+    const input = screen.getByPlaceholderText(/chat.placeholder/)
+    const sendButton = screen.getByText(/common.actions.send/)
+
+    await act(async () => {
+      fireEvent.change(input, { target: { value: 'Test' } })
+      fireEvent.click(sendButton)
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('Test Video')).toBeInTheDocument()
+    })
+
+    const videoCard = screen.getByText('Test Video').closest('div')
+    if (videoCard) {
+      await act(async () => {
+        fireEvent.click(videoCard)
+      })
+      expect(onVideoPlay).toHaveBeenCalledWith(1, '00:01:30')
+    }
+  })
+
+  it('should open video in new tab when onVideoPlay is not provided', async () => {
+    ;(apiClient.chat as any).mockResolvedValue({
+      role: 'assistant',
+      content: 'Response',
+      related_videos: [
+        {
+          video_id: 1,
+          title: 'Test Video',
+          start_time: '00:01:30',
+        },
+      ],
+      chat_log_id: 1,
+      feedback: null,
+    })
+
+    render(<ChatPanel  />)
+    
+    const input = screen.getByPlaceholderText(/chat.placeholder/)
+    const sendButton = screen.getByText(/common.actions.send/)
+
+    await act(async () => {
+      fireEvent.change(input, { target: { value: 'Test' } })
+      fireEvent.click(sendButton)
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('Test Video')).toBeInTheDocument()
+    })
+
+    const videoCard = screen.getByText('Test Video').closest('div')
+    if (videoCard) {
+      await act(async () => {
+        fireEvent.click(videoCard)
+      })
+      expect(mockOpen).toHaveBeenCalledWith('/videos/1?t=90', '_blank')
+    }
+  })
+
+  it('should send message when Enter key is pressed', async () => {
+    render(<ChatPanel  />)
+    
+    const input = screen.getByPlaceholderText(/chat.placeholder/)
+
+    await act(async () => {
+      fireEvent.change(input, { target: { value: 'Test message' } })
+      fireEvent.keyDown(input, { key: 'Enter', shiftKey: false })
+    })
+
+    await waitFor(() => {
+      expect(apiClient.chat).toHaveBeenCalled()
+    })
+  })
+
+  it('should not send message when Shift+Enter is pressed', async () => {
+    render(<ChatPanel  />)
+    
+    const input = screen.getByPlaceholderText(/chat.placeholder/)
+
+    await act(async () => {
+      fireEvent.change(input, { target: { value: 'Test message' } })
+      fireEvent.keyDown(input, { key: 'Enter', shiftKey: true })
+    })
+
+    expect(apiClient.chat).not.toHaveBeenCalled()
+  })
+
+  it('should handle feedback good button click', async () => {
+    ;(apiClient.chat as any).mockResolvedValue({
+      role: 'assistant',
+      content: 'Response',
+      related_videos: [],
+      chat_log_id: 1,
+      feedback: null,
+    })
+    ;(apiClient.setChatFeedback as any).mockResolvedValue({
+      chat_log_id: 1,
+      feedback: 'good',
+    })
+
+    render(<ChatPanel  />)
+    
+    const input = screen.getByPlaceholderText(/chat.placeholder/)
+    const sendButton = screen.getByText(/common.actions.send/)
+
+    await act(async () => {
+      fireEvent.change(input, { target: { value: 'Test' } })
+      fireEvent.click(sendButton)
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText(/chat.feedbackGood/)).toBeInTheDocument()
+    })
+
+    const goodButton = screen.getByText(/chat.feedbackGood/)
+    await act(async () => {
+      fireEvent.click(goodButton)
+    })
+
+    await waitFor(() => {
+      expect(apiClient.setChatFeedback).toHaveBeenCalledWith(1, 'good', undefined)
+    })
+  })
+
+  it('should handle feedback bad button click', async () => {
+    ;(apiClient.chat as any).mockResolvedValue({
+      role: 'assistant',
+      content: 'Response',
+      related_videos: [],
+      chat_log_id: 1,
+      feedback: null,
+    })
+    ;(apiClient.setChatFeedback as any).mockResolvedValue({
+      chat_log_id: 1,
+      feedback: 'bad',
+    })
+
+    render(<ChatPanel  />)
+    
+    const input = screen.getByPlaceholderText(/chat.placeholder/)
+    const sendButton = screen.getByText(/common.actions.send/)
+
+    await act(async () => {
+      fireEvent.change(input, { target: { value: 'Test' } })
+      fireEvent.click(sendButton)
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText(/chat.feedbackBad/)).toBeInTheDocument()
+    })
+
+    const badButton = screen.getByText(/chat.feedbackBad/)
+    await act(async () => {
+      fireEvent.click(badButton)
+    })
+
+    await waitFor(() => {
+      expect(apiClient.setChatFeedback).toHaveBeenCalledWith(1, 'bad', undefined)
+    })
+  })
+
+  it('should toggle feedback when clicking same button', async () => {
+    ;(apiClient.chat as any).mockResolvedValue({
+      role: 'assistant',
+      content: 'Response',
+      related_videos: [],
+      chat_log_id: 1,
+      feedback: 'good',
+    })
+    ;(apiClient.setChatFeedback as any).mockResolvedValue({
+      chat_log_id: 1,
+      feedback: null,
+    })
+
+    render(<ChatPanel  />)
+    
+    const input = screen.getByPlaceholderText(/chat.placeholder/)
+    const sendButton = screen.getByText(/common.actions.send/)
+
+    await act(async () => {
+      fireEvent.change(input, { target: { value: 'Test' } })
+      fireEvent.click(sendButton)
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText(/chat.feedbackGood/)).toBeInTheDocument()
+    })
+
+    const goodButton = screen.getByText(/chat.feedbackGood/)
+    await act(async () => {
+      fireEvent.click(goodButton)
+    })
+
+    await waitFor(() => {
+      expect(apiClient.setChatFeedback).toHaveBeenCalledWith(1, null, undefined)
+    })
+  })
+
+  it('should display history when opened', async () => {
+    const mockHistory = [
+      {
+        id: 1,
+        group: 1,
+        question: 'Test question',
+        answer: 'Test answer',
+        related_videos: [],
+        is_shared_origin: false,
+        created_at: '2024-01-15T10:00:00Z',
+        feedback: null,
+      },
+    ]
+    ;(apiClient.getChatHistory as any).mockResolvedValue(mockHistory)
+    
+    render(<ChatPanel  groupId={1} />)
+    
+    const historyButton = screen.getByText(/chat.history/)
+    
+    await act(async () => {
+      fireEvent.click(historyButton)
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('Test question')).toBeInTheDocument()
+      expect(screen.getByText('Test answer')).toBeInTheDocument()
+    })
+  })
+
+  it('should close history when close button is clicked', async () => {
+    ;(apiClient.getChatHistory as any).mockResolvedValue([])
+    
+    render(<ChatPanel  groupId={1} />)
+    
+    const historyButton = screen.getByText(/chat.history/)
+    
+    await act(async () => {
+      fireEvent.click(historyButton)
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText(/chat.close/)).toBeInTheDocument()
+    })
+
+    const closeButton = screen.getByText(/chat.close/)
+    await act(async () => {
+      fireEvent.click(closeButton)
+    })
+
+    await waitFor(() => {
+      expect(screen.queryByText(/chat.close/)).not.toBeInTheDocument()
+    })
+  })
+
+  it('should export CSV when export button is clicked', async () => {
+    const mockHistory = [
+      {
+        id: 1,
+        group: 1,
+        question: 'Test question',
+        answer: 'Test answer',
+        related_videos: [],
+        is_shared_origin: false,
+        created_at: '2024-01-15T10:00:00Z',
+        feedback: null,
+      },
+    ]
+    ;(apiClient.getChatHistory as any).mockResolvedValue(mockHistory)
+    ;(apiClient.exportChatHistoryCsv as any).mockResolvedValue(undefined)
+    
+    render(<ChatPanel  groupId={1} />)
+    
+    const historyButton = screen.getByText(/chat.history/)
+    
+    await act(async () => {
+      fireEvent.click(historyButton)
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('Test question')).toBeInTheDocument()
+    })
+
+    // Wait for history to load and export button to appear
+    // The button contains both chat.exportCsv and chat.exportCsvShort spans
+    await waitFor(() => {
+      const buttons = screen.getAllByText(/chat.exportCsv/)
+      expect(buttons.length).toBeGreaterThan(0)
+    })
+
+    // Get the button element (parent of the span)
+    const exportButtons = screen.getAllByText(/chat.exportCsv/)
+    const exportButton = exportButtons[0].closest('button')
+    
+    if (exportButton) {
+      await act(async () => {
+        fireEvent.click(exportButton)
+      })
+    }
+
+    await waitFor(() => {
+      expect(apiClient.exportChatHistoryCsv).toHaveBeenCalledWith(1)
+    })
+  })
+
+  it('should display error message when chat fails', async () => {
+    ;(apiClient.chat as any).mockRejectedValue(new Error('Chat failed'))
+
+    render(<ChatPanel  />)
+    
+    const input = screen.getByPlaceholderText(/chat.placeholder/)
+    const sendButton = screen.getByText(/common.actions.send/)
+
+    await act(async () => {
+      fireEvent.change(input, { target: { value: 'Test message' } })
+      fireEvent.click(sendButton)
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText(/chat.error/)).toBeInTheDocument()
+    })
+  })
+
+  it('should handle history loading state', async () => {
+    ;(apiClient.getChatHistory as any).mockImplementation(
+      () => new Promise(resolve => setTimeout(() => resolve([]), 100))
+    )
+    
+    render(<ChatPanel  groupId={1} />)
+    
+    const historyButton = screen.getByText(/chat.history/)
+    
+    await act(async () => {
+      fireEvent.click(historyButton)
+    })
+
+    expect(screen.getByText(/chat.historyLoading/)).toBeInTheDocument()
+  })
+
+  it('should handle getChatHistory error', async () => {
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    ;(apiClient.getChatHistory as any).mockRejectedValue(new Error('Failed to load history'))
+    
+    render(<ChatPanel  groupId={1} />)
+    
+    const historyButton = screen.getByText(/chat.history/)
+    
+    await act(async () => {
+      fireEvent.click(historyButton)
+    })
+
+    await waitFor(() => {
+      expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to load history', expect.any(Error))
+    })
+
+    consoleErrorSpy.mockRestore()
+  })
+
+  it('should handle exportChatHistoryCsv error', async () => {
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const mockHistory = [
+      {
+        id: 1,
+        group: 1,
+        question: 'Test question',
+        answer: 'Test answer',
+        related_videos: [],
+        is_shared_origin: false,
+        created_at: '2024-01-15T10:00:00Z',
+        feedback: null,
+      },
+    ]
+    ;(apiClient.getChatHistory as any).mockResolvedValue(mockHistory)
+    ;(apiClient.exportChatHistoryCsv as any).mockRejectedValue(new Error('Failed to export CSV'))
+    
+    render(<ChatPanel  groupId={1} />)
+    
+    const historyButton = screen.getByText(/chat.history/)
+    
+    await act(async () => {
+      fireEvent.click(historyButton)
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('Test question')).toBeInTheDocument()
+    })
+
+    const exportButtons = screen.getAllByText(/chat.exportCsv/)
+    const exportButton = exportButtons[0].closest('button')
+    
+    if (exportButton) {
+      await act(async () => {
+        fireEvent.click(exportButton)
+      })
+    }
+
+    await waitFor(() => {
+      expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to export CSV', expect.any(Error))
+    })
+
+    consoleErrorSpy.mockRestore()
+  })
+
+  it('should handle setChatFeedback error', async () => {
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    ;(apiClient.chat as any).mockResolvedValue({
+      role: 'assistant',
+      content: 'Response',
+      related_videos: [],
+      chat_log_id: 1,
+      feedback: null,
+    })
+    ;(apiClient.setChatFeedback as any).mockRejectedValue(new Error('Failed to update feedback'))
+
+    render(<ChatPanel  />)
+    
+    const input = screen.getByPlaceholderText(/chat.placeholder/)
+    const sendButton = screen.getByText(/common.actions.send/)
+
+    await act(async () => {
+      fireEvent.change(input, { target: { value: 'Test' } })
+      fireEvent.click(sendButton)
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText(/chat.feedbackGood/)).toBeInTheDocument()
+    })
+
+    const goodButton = screen.getByText(/chat.feedbackGood/)
+    await act(async () => {
+      fireEvent.click(goodButton)
+    })
+
+    await waitFor(() => {
+      expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to update feedback', expect.any(Error))
+    })
+
+    consoleErrorSpy.mockRestore()
+  })
+
+  it('should not send message when Enter key is pressed during composition', async () => {
+    render(<ChatPanel  />)
+    
+    const input = screen.getByPlaceholderText(/chat.placeholder/)
+
+    await act(async () => {
+      fireEvent.change(input, { target: { value: 'Test message' } })
+      // Simulate composition event
+      const compositionEvent = new KeyboardEvent('keydown', {
+        key: 'Enter',
+        isComposing: true,
+      })
+      Object.defineProperty(compositionEvent, 'nativeEvent', {
+        value: { isComposing: true },
+      })
+      input.dispatchEvent(compositionEvent)
+    })
+
+    // Should not call chat API during composition
+    expect(apiClient.chat).not.toHaveBeenCalled()
+  })
+
+  it('should display related videos in history', async () => {
+    const mockHistory = [
+      {
+        id: 1,
+        group: 1,
+        question: 'Test question',
+        answer: 'Test answer',
+        related_videos: [
+          {
+            video_id: 1,
+            title: 'History Video',
+            start_time: '00:02:00',
+          },
+        ],
+        is_shared_origin: false,
+        created_at: '2024-01-15T10:00:00Z',
+        feedback: null,
+      },
+    ]
+    ;(apiClient.getChatHistory as any).mockResolvedValue(mockHistory)
+    
+    render(<ChatPanel  groupId={1} />)
+    
+    const historyButton = screen.getByText(/chat.history/)
+    
+    await act(async () => {
+      fireEvent.click(historyButton)
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('Test question')).toBeInTheDocument()
+    })
+
+    // Check for related video content (title and time are in the same element)
+    const relatedVideoElement = screen.getByText(/History Video/)
+    expect(relatedVideoElement).toBeInTheDocument()
+    expect(relatedVideoElement.textContent).toContain('00:02:00')
+  })
+})
+
