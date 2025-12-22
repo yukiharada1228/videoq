@@ -9,11 +9,11 @@ describe('FormField', () => {
     type: 'text',
     placeholder: 'Enter username',
     value: '',
-    onChange: jest.fn(),
+    onChange: vi.fn(),
   }
 
   beforeEach(() => {
-    jest.clearAllMocks()
+    vi.clearAllMocks()
   })
 
   it('should render label and input', () => {
@@ -24,7 +24,7 @@ describe('FormField', () => {
   })
 
   it('should call onChange when input changes', () => {
-    const onChange = jest.fn()
+    const onChange = vi.fn()
     render(<FormField {...defaultProps} onChange={onChange} />)
     
     const input = screen.getByPlaceholderText('Enter username')

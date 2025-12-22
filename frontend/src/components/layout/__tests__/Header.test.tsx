@@ -5,50 +5,32 @@ import { Header } from '../Header'
 import { useAuth } from '@/hooks/useAuth'
 import { apiClient } from '@/lib/api'
 import { useOpenAIApiKeyStatus } from '@/hooks/useOpenAIApiKeyStatus'
+import { useI18nNavigate } from '@/lib/i18n'
 
 // Mock dependencies
-jest.mock('@/hooks/useAuth')
-jest.mock('@/hooks/useOpenAIApiKeyStatus')
-jest.mock('@/lib/api', () => ({
+vi.mock('@/hooks/useAuth')
+vi.mock('@/hooks/useOpenAIApiKeyStatus')
+vi.mock('@/lib/api', () => ({
   apiClient: {
-    logout: jest.fn(),
+    logout: vi.fn(),
   },
-}))
-
-const mockPush = jest.fn()
-const mockReplace = jest.fn()
-const mockPrefetch = jest.fn()
-const mockBack = jest.fn()
-
-jest.mock('@/i18n/routing', () => ({
-  useRouter: () => ({
-    push: mockPush,
-    replace: mockReplace,
-    prefetch: mockPrefetch,
-    back: mockBack,
-  }),
-  usePathname: () => '/',
-  Link: ({
-    children,
-    href,
-    ...props
-  }: React.PropsWithChildren<React.AnchorHTMLAttributes<HTMLAnchorElement>>) =>
-    React.createElement('a', { href, ...props }, children),
 }))
 
 describe('Header', () => {
   beforeEach(() => {
-    jest.clearAllMocks()
-    ;(useOpenAIApiKeyStatus as jest.Mock).mockReturnValue({
+    vi.clearAllMocks()
+    ;(globalThis as any).__setMockPathname?.('/')
+    window.history.pushState({}, '', '/')
+    ;(useOpenAIApiKeyStatus as any).mockReturnValue({
       hasApiKey: true,
       isChecking: false,
       error: null,
-      refresh: jest.fn(),
+      refresh: vi.fn(),
     })
   })
 
   it('should render brand link', () => {
-    (useAuth as jest.Mock).mockReturnValue({ user: null })
+    ;(useAuth as any).mockReturnValue({ user: null })
     
     render(<Header />)
     
@@ -59,7 +41,7 @@ describe('Header', () => {
   })
 
   it('should render navigation links when user is logged in', () => {
-    (useAuth as jest.Mock).mockReturnValue({
+    ;(useAuth as any).mockReturnValue({
       user: { username: 'testuser' },
     })
     
@@ -71,7 +53,7 @@ describe('Header', () => {
   })
 
   it('should not render navigation links when user is not logged in', () => {
-    (useAuth as jest.Mock).mockReturnValue({ user: null })
+    ;(useAuth as any).mockReturnValue({ user: null })
     
     render(<Header />)
     
@@ -79,7 +61,7 @@ describe('Header', () => {
   })
 
   it('should navigate to videos page when videos link is clicked', async () => {
-    (useAuth as jest.Mock).mockReturnValue({
+    ;(useAuth as any).mockReturnValue({
       user: { username: 'testuser' },
     })
     const user = userEvent.setup()
@@ -89,11 +71,12 @@ describe('Header', () => {
     const videosButton = screen.getByText('navigation.videos')
     await user.click(videosButton)
     
-    expect(mockPush).toHaveBeenCalledWith('/videos')
+    const navigate = useI18nNavigate()
+    expect(navigate).toHaveBeenCalledWith('/videos')
   })
 
   it('should navigate to video groups page when groups link is clicked', async () => {
-    (useAuth as jest.Mock).mockReturnValue({
+    ;(useAuth as any).mockReturnValue({
       user: { username: 'testuser' },
     })
     const user = userEvent.setup()
@@ -103,11 +86,12 @@ describe('Header', () => {
     const groupsButton = screen.getByText('navigation.videoGroups')
     await user.click(groupsButton)
     
-    expect(mockPush).toHaveBeenCalledWith('/videos/groups')
+    const navigate = useI18nNavigate()
+    expect(navigate).toHaveBeenCalledWith('/videos/groups')
   })
 
   it('should logout and navigate to login when logout is clicked', async () => {
-    (useAuth as jest.Mock).mockReturnValue({
+    ;(useAuth as any).mockReturnValue({
       user: { username: 'testuser' },
     })
     const user = userEvent.setup()
@@ -118,11 +102,12 @@ describe('Header', () => {
     await user.click(logoutButton)
     
     expect(apiClient.logout).toHaveBeenCalled()
-    expect(mockPush).toHaveBeenCalledWith('/login')
+    const navigate = useI18nNavigate()
+    expect(navigate).toHaveBeenCalledWith('/login')
   })
 
   it('should render children when provided', () => {
-    (useAuth as jest.Mock).mockReturnValue({ user: null })
+    ;(useAuth as any).mockReturnValue({ user: null })
     
     render(
       <Header>
@@ -134,7 +119,7 @@ describe('Header', () => {
   })
 
   it('should toggle mobile menu when menu button is clicked', async () => {
-    (useAuth as jest.Mock).mockReturnValue({
+    ;(useAuth as any).mockReturnValue({
       user: { username: 'testuser' },
     })
     const user = userEvent.setup()
@@ -150,7 +135,7 @@ describe('Header', () => {
   })
 
   it('should toggle mobile menu when menu button is clicked multiple times', async () => {
-    (useAuth as jest.Mock).mockReturnValue({
+    ;(useAuth as any).mockReturnValue({
       user: { username: 'testuser' },
     })
     const user = userEvent.setup()
@@ -170,7 +155,7 @@ describe('Header', () => {
   })
 
   it('should close mobile menu when videos button is clicked', async () => {
-    (useAuth as jest.Mock).mockReturnValue({
+    ;(useAuth as any).mockReturnValue({
       user: { username: 'testuser' },
     })
     const user = userEvent.setup()
@@ -185,11 +170,12 @@ describe('Header', () => {
     const mobileVideosButton = videosButtons.length > 1 ? videosButtons[1] : videosButtons[0]
     
     await user.click(mobileVideosButton)
-    expect(mockPush).toHaveBeenCalledWith('/videos')
+    const navigate = useI18nNavigate()
+    expect(navigate).toHaveBeenCalledWith('/videos')
   })
 
   it('should close mobile menu when video groups button is clicked', async () => {
-    (useAuth as jest.Mock).mockReturnValue({
+    ;(useAuth as any).mockReturnValue({
       user: { username: 'testuser' },
     })
     const user = userEvent.setup()
@@ -204,11 +190,12 @@ describe('Header', () => {
     const mobileGroupsButton = groupsButtons.length > 1 ? groupsButtons[1] : groupsButtons[0]
     
     await user.click(mobileGroupsButton)
-    expect(mockPush).toHaveBeenCalledWith('/videos/groups')
+    const navigate = useI18nNavigate()
+    expect(navigate).toHaveBeenCalledWith('/videos/groups')
   })
 
   it('should close mobile menu when logout button is clicked', async () => {
-    (useAuth as jest.Mock).mockReturnValue({
+    ;(useAuth as any).mockReturnValue({
       user: { username: 'testuser' },
     })
     const user = userEvent.setup()
@@ -224,7 +211,8 @@ describe('Header', () => {
     
     await user.click(mobileLogoutButton)
     expect(apiClient.logout).toHaveBeenCalled()
-    expect(mockPush).toHaveBeenCalledWith('/login')
+    const navigate = useI18nNavigate()
+    expect(navigate).toHaveBeenCalledWith('/login')
   })
 })
 

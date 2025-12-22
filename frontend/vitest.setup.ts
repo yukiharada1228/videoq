@@ -12,6 +12,11 @@ afterEach(() => {
 const mockNavigate = vi.fn()
 const mockLocation = { pathname: '/', search: '', hash: '', state: null, key: 'default' }
 
+// Allow tests to control the (de-localized) pathname returned by useLocation/useI18nLocation
+;(globalThis as any).__setMockPathname = (pathname: string) => {
+  mockLocation.pathname = pathname
+}
+
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom')
   return {
@@ -47,6 +52,7 @@ vi.mock('react-i18next', () => ({
 vi.mock('@/lib/i18n', () => ({
   useI18nNavigate: () => mockNavigate,
   useI18nLocation: () => mockLocation,
+  removeLocalePrefix: (pathname: string) => pathname,
   useLocale: () => 'en',
   Link: ({ children, to, ...props }: any) =>
     React.createElement('a', { href: typeof to === 'string' ? to : '', ...props }, children),

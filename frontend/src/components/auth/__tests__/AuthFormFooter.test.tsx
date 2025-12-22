@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react'
 import { AuthFormFooter } from '../AuthFormFooter'
 
 // Mock next/link
-jest.mock('next/link', () => {
+vi.mock('next/link', () => {
   const MockLink = ({ children, href }: { children: React.ReactNode; href: string }) => (
     <a href={href}>{children}</a>
   )
