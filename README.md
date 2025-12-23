@@ -51,7 +51,7 @@ nginx (port 80)
 
 ```text
 videoq/
-├── backend/              # Django / DRF / Celery
+├── backend/             # Django / DRF / Celery
 │   ├── app/             # Main Django app
 │   ├── videoq/          # Project settings
 │   ├── media/           # Uploaded videos (local storage)
