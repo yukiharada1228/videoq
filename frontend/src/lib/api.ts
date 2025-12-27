@@ -17,6 +17,8 @@ export interface User {
   email: string;
   video_limit: number | null;
   video_count: number;
+  preferred_llm_model: string;
+  preferred_llm_temperature: number;
 }
 
 export interface SignupRequest {
@@ -166,6 +168,20 @@ export interface OpenAIApiKeyStatusResponse {
 
 export interface OpenAIApiKeyMessageResponse {
   message: string;
+}
+
+export interface LLMSettings {
+  preferred_llm_model: string;
+  preferred_llm_temperature: number;
+}
+
+export interface LLMSettingsUpdateRequest {
+  preferred_llm_model?: string;
+  preferred_llm_temperature?: number;
+}
+
+export interface AvailableModelsResponse {
+  models: string[];
 }
 
 class ApiClient {
@@ -700,6 +716,22 @@ class ApiClient {
     return this.request<OpenAIApiKeyMessageResponse>('/auth/me/openai-api-key/delete/', {
       method: 'DELETE',
     });
+  }
+
+  // LLM Settings methods
+  async getLLMSettings(): Promise<LLMSettings> {
+    return this.request<LLMSettings>('/auth/me/llm-settings/');
+  }
+
+  async updateLLMSettings(data: LLMSettingsUpdateRequest): Promise<LLMSettings> {
+    return this.request<LLMSettings>('/auth/me/llm-settings/update/', {
+      method: 'PATCH',
+      body: data,
+    });
+  }
+
+  async getAvailableModels(): Promise<AvailableModelsResponse> {
+    return this.request<AvailableModelsResponse>('/auth/me/llm-settings/available-models/');
   }
 
 }

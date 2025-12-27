@@ -26,11 +26,17 @@ def get_langchain_llm(user) -> Tuple[ChatOpenAI, Response]:
     except OpenAIApiKeyNotConfiguredError as e:
         return None, create_error_response(str(e), status.HTTP_400_BAD_REQUEST)
 
+    # Use user's preferred settings with fallback to defaults
+    model = getattr(user, "preferred_llm_model", "gpt-4o-mini") or "gpt-4o-mini"
+    temperature = getattr(user, "preferred_llm_temperature", 0.7)
+    if temperature is None:
+        temperature = 0.7
+
     return (
         ChatOpenAI(
-            model="gpt-4o-mini",
+            model=model,
             api_key=api_key,
-            temperature=0.7,
+            temperature=temperature,
         ),
         None,
     )
