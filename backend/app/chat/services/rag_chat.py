@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from operator import itemgetter
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, cast
 
+from django.conf import settings
 from langchain_core.messages import AIMessage
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnableLambda, RunnableParallel
@@ -191,7 +192,7 @@ class RagChatService:
     def _create_vector_store(self) -> PGVector:
         # Use user's OpenAI API key
         api_key = require_openai_api_key(self.user)
-        embeddings = OpenAIEmbeddings(model="text-embedding-3-small", api_key=api_key)
+        embeddings = OpenAIEmbeddings(model=settings.EMBEDDING_MODEL, api_key=api_key)
         config = PGVectorManager.get_config()
         connection_str = PGVectorManager.get_psycopg_connection_string()
 

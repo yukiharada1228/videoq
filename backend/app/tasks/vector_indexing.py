@@ -23,7 +23,7 @@ def index_scenes_to_vectorstore(scene_docs, video, api_key):
     try:
         if not api_key:
             raise ValueError("OpenAI API key is required")
-        embeddings = OpenAIEmbeddings(model="text-embedding-3-small", api_key=api_key)
+        embeddings = OpenAIEmbeddings(model=settings.EMBEDDING_MODEL, api_key=api_key)
         config = PGVectorManager.get_config()
 
         valid_docs = [d for d in scene_docs if d.get("text")]
@@ -89,11 +89,8 @@ def index_scenes_batch(scene_split_srt, video, api_key=None):
     Batch index scenes to pgvector
     """
     try:
-        # Use system OpenAI API key from environment variable if not provided
-        if api_key is None:
-            api_key = settings.OPENAI_API_KEY
-            if not api_key:
-                raise ValueError("OpenAI API key is not configured")
+        if not api_key:
+            raise ValueError("OpenAI API key is required")
         logger.info("Starting scene indexing to pgvector...")
         scenes = parse_srt_scenes(scene_split_srt)
         logger.info(f"Parsed {len(scenes)} scenes from SRT")

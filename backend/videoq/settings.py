@@ -54,7 +54,7 @@ class DefaultSettings:
     EMAIL_USE_TLS = True
 
     # OpenAI
-    OPENAI_API_KEY = None  # System default OpenAI API key (for operations)
+    EMBEDDING_MODEL = "text-embedding-3-small"  # Default embedding model
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -341,5 +341,5 @@ else:
         == "true"
     )
 
-# OpenAI API key configuration
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", DefaultSettings.OPENAI_API_KEY)
+# OpenAI configuration
+EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL", DefaultSettings.EMBEDDING_MODEL)
