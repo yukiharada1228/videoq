@@ -453,6 +453,20 @@
       "errorDeleting": "Failed to delete API key",
       "successSaved": "API key saved successfully",
       "successDeleted": "API key deleted successfully"
+    },
+    "llm": {
+      "title": "LLM Settings",
+      "description": "Configure your preferred language model and temperature for chat responses.",
+      "modelLabel": "Model",
+      "selectModel": "Select a model",
+      "modelDescription": "Choose which LLM model to use for chat responses. Different models have different capabilities and costs.",
+      "temperatureLabel": "Temperature",
+      "temperatureDescription": "Higher values (e.g., 1.5-2.0) make the output more random and creative. Lower values (e.g., 0.0-0.5) make it more focused and deterministic.",
+      "save": "Save Settings",
+      "saving": "Saving...",
+      "successSaved": "LLM settings saved successfully",
+      "errorSaving": "Failed to save LLM settings",
+      "errorLoadingModels": "Failed to load available models"
     }
   },
   "openaiApiKey": {

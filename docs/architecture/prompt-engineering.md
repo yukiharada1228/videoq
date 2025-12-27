@@ -4,6 +4,21 @@
 
 VideoQ's AI chat feature uses RAG (Retrieval-Augmented Generation) architecture to generate answers based on video transcription data. This document describes the design and implementation of prompt engineering used in RAG.
 
+## User-Configurable LLM Settings
+
+Each user can customize their LLM preferences via the Settings page:
+
+- **LLM Model**: The chat model used for generating responses (e.g., `gpt-4o-mini`, `gpt-4o`, `gpt-4-turbo`)
+  - Default: `gpt-4o-mini`
+  - Stored in `User.preferred_llm_model`
+- **Temperature**: Controls randomness/creativity of responses (range: 0.0 to 2.0)
+  - Default: `0.7`
+  - Stored in `User.preferred_llm_temperature`
+  - Lower values produce more focused, deterministic outputs
+  - Higher values produce more creative, varied outputs
+
+These settings are applied when generating chat responses using the `get_langchain_llm` function in `backend/app/chat/services/llm.py`.
+
 ## Architecture
 
 ### Prompt Components
@@ -144,7 +159,7 @@ The backend extracts the first locale from this header and uses the correspondin
 
 - **Search Count (k)**: Retrieves up to 6 related scenes
 - **Filter**: Filtered by user ID and video IDs within the video group
-- **Embedding Model**: OpenAI `text-embedding-3-small`
+- **Embedding Model**: Configurable via `EMBEDDING_MODEL` environment variable (default: `text-embedding-3-small`)
 
 ### Processing Search Results
 

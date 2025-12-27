@@ -93,6 +93,8 @@ videoq/
 
 #### AI/ML
 - **OpenAI API**: Whisper (transcription), Chat (dialogue), Embeddings (vectorization)
+  - Chat model and temperature are user-configurable (see Per-User LLM Settings)
+  - Embedding model is configurable via `EMBEDDING_MODEL` environment variable
 - **scikit-learn**: ML utilities
 - **numpy**: Numerical computing
 
@@ -186,6 +188,7 @@ Important variables (minimum):
 - `ENABLE_SIGNUP` (set to `True` or `False`)
 - `FRONTEND_URL` (used in email links; default is `http://localhost`)
 - `VITE_API_URL` (**used at frontend build time**; with the default Nginx setup, `/api` is recommended)
+- `EMBEDDING_MODEL` (OpenAI embedding model for vector search; default: `text-embedding-3-small`)
 
 ### 2) Start
 
@@ -215,6 +218,21 @@ This app assumes **OpenAI API keys are configured per user**.
 
 - **Normal usage**: each user registers their API key in Settings (saved encrypted in DB)
 - **Chat via shared link**: uses the **group owner's API key**
+
+### Per-User LLM Settings
+
+Users can customize their AI chat experience through the Settings page:
+
+- **Preferred LLM Model**: Choose from GPT models (e.g., gpt-4o-mini, gpt-4o, gpt-4-turbo)
+  - Default: `gpt-4o-mini`
+  - Stored in `User.preferred_llm_model`
+- **LLM Temperature**: Control response randomness (0.0 to 2.0)
+  - Default: `0.7`
+  - Stored in `User.preferred_llm_temperature`
+  - Lower values (e.g., 0.0) produce more focused responses
+  - Higher values (e.g., 1.5) produce more creative responses
+
+These settings apply to all chat sessions for that user, including RAG-based chat on video groups.
 
 Related: `docs/architecture/prompt-engineering.md`
 

@@ -84,7 +84,15 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ["id", "username", "email", "video_limit", "video_count"]
+        fields = [
+            "id",
+            "username",
+            "email",
+            "video_limit",
+            "video_count",
+            "preferred_llm_model",
+            "preferred_llm_temperature",
+        ]
 
     def get_video_count(self, obj):
         """Return the current user's video count"""
@@ -245,3 +253,49 @@ class OpenAIApiKeyStatusSerializer(serializers.Serializer):
 
 class OpenAIApiKeyMessageSerializer(serializers.Serializer):
     message = serializers.CharField(help_text="Response message")
+
+
+# LLM Settings serializers
+class LLMSettingsSerializer(serializers.Serializer):
+    preferred_llm_model = serializers.CharField(max_length=100)
+    preferred_llm_temperature = serializers.FloatField(min_value=0.0, max_value=2.0)
+
+
+class LLMSettingsUpdateSerializer(serializers.Serializer):
+    preferred_llm_model = serializers.CharField(
+        max_length=100,
+        required=False,
+        help_text="LLM model to use (e.g., gpt-4o-mini, gpt-4o, gpt-4-turbo)",
+    )
+    preferred_llm_temperature = serializers.FloatField(
+        min_value=0.0,
+        max_value=2.0,
+        required=False,
+        help_text="Temperature for LLM responses (0.0 to 2.0)",
+    )
+
+    def save(self, user):
+        """Save LLM settings to user"""
+        update_fields = []
+
+        if "preferred_llm_model" in self.validated_data:
+            user.preferred_llm_model = self.validated_data["preferred_llm_model"]
+            update_fields.append("preferred_llm_model")
+
+        if "preferred_llm_temperature" in self.validated_data:
+            user.preferred_llm_temperature = self.validated_data[
+                "preferred_llm_temperature"
+            ]
+            update_fields.append("preferred_llm_temperature")
+
+        if update_fields:
+            user.save(update_fields=update_fields)
+
+        return user
+
+
+class AvailableModelsSerializer(serializers.Serializer):
+    models = serializers.ListField(
+        child=serializers.CharField(),
+        help_text="List of available chat model IDs",
+    )
