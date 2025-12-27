@@ -2,9 +2,11 @@ from django.conf import settings
 from django.urls import path
 
 from .views import (DeleteOpenAIApiKeyView, EmailVerificationView,
-                    GetOpenAIApiKeyStatusView, LoginView, LogoutView, MeView,
+                    GetLLMSettingsView, GetOpenAIApiKeyStatusView,
+                    ListAvailableModelsView, LoginView, LogoutView, MeView,
                     PasswordResetConfirmView, PasswordResetRequestView,
-                    RefreshView, SetOpenAIApiKeyView, UserSignupView)
+                    RefreshView, SetOpenAIApiKeyView, UpdateLLMSettingsView,
+                    UserSignupView)
 
 urlpatterns = [
     path("login/", LoginView.as_view(), name="auth-login"),
@@ -25,6 +27,21 @@ urlpatterns = [
         "me/openai-api-key/delete/",
         DeleteOpenAIApiKeyView.as_view(),
         name="auth-delete-openai-api-key",
+    ),
+    path(
+        "me/llm-settings/",
+        GetLLMSettingsView.as_view(),
+        name="auth-get-llm-settings",
+    ),
+    path(
+        "me/llm-settings/update/",
+        UpdateLLMSettingsView.as_view(),
+        name="auth-update-llm-settings",
+    ),
+    path(
+        "me/llm-settings/available-models/",
+        ListAvailableModelsView.as_view(),
+        name="auth-list-available-models",
     ),
     path("verify-email/", EmailVerificationView.as_view(), name="auth-verify-email"),
     path(

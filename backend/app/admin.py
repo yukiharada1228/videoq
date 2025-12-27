@@ -37,6 +37,8 @@ class CustomUserAdmin(UserAdmin):
         "last_login",
         "is_active",
         "video_limit",
+        "preferred_llm_model",
+        "preferred_llm_temperature",
     )
     list_filter = (
         "is_staff",
@@ -47,6 +49,10 @@ class CustomUserAdmin(UserAdmin):
 
     fieldsets = UserAdmin.fieldsets + (
         ("Video Settings", {"fields": ("video_limit",)}),
+        (
+            "LLM Settings",
+            {"fields": ("preferred_llm_model", "preferred_llm_temperature")},
+        ),
     )
     add_fieldsets = UserAdmin.add_fieldsets
 

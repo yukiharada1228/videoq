@@ -453,6 +453,20 @@
       "errorDeleting": "APIキーの削除に失敗しました",
       "successSaved": "APIキーを保存しました",
       "successDeleted": "APIキーを削除しました"
+    },
+    "llm": {
+      "title": "LLM設定",
+      "description": "チャット応答に使用する言語モデルとtemperatureを設定します。",
+      "modelLabel": "モデル",
+      "selectModel": "モデルを選択",
+      "modelDescription": "チャット応答に使用するLLMモデルを選択します。モデルによって機能とコストが異なります。",
+      "temperatureLabel": "Temperature",
+      "temperatureDescription": "値が高い（1.5-2.0など）とランダムで創造的な出力になり、低い（0.0-0.5など）と集中的で決定論的になります。",
+      "save": "設定を保存",
+      "saving": "保存中...",
+      "successSaved": "LLM設定を保存しました",
+      "errorSaving": "LLM設定の保存に失敗しました",
+      "errorLoadingModels": "利用可能なモデルの読み込みに失敗しました"
     }
   },
   "openaiApiKey": {
