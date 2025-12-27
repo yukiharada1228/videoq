@@ -23,10 +23,21 @@ export function LLMSettings({ initialSettings, onSettingsChange }: LLMSettingsPr
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // Fetch available models on mount
+  // Fetch available models on mount (only if API key is set)
   useEffect(() => {
     const fetchModels = async () => {
       try {
+        // First check if API key is set
+        const apiKeyStatus = await apiClient.getOpenAIApiKeyStatus();
+
+        if (!apiKeyStatus.has_api_key) {
+          // If no API key, skip fetching models and show a warning
+          setError(t('settings.openaiApiKey.noApiKeyMessage'));
+          setModelsLoading(false);
+          return;
+        }
+
+        // Fetch available models only if API key exists
         const response = await apiClient.getAvailableModels();
         setAvailableModels(response.models);
       } catch (err) {
