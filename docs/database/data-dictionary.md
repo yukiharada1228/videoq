@@ -34,6 +34,8 @@ Table that stores user information for the system.
 | last_name | VARCHAR(150) | NOT NULL | '' | Last name |
 | openai_api_key_encrypted | BYTEA | NULL | NULL | Encrypted OpenAI API key (stored per user) |
 | video_limit | INTEGER | NULL, CHECK (video_limit >= 0) | 0 | Max number of videos the user can upload (`NULL` = unlimited, `0` = uploads disabled) |
+| preferred_llm_model | VARCHAR(100) | NOT NULL | 'gpt-4o-mini' | Preferred LLM model for chat (e.g., gpt-4o-mini, gpt-4o, gpt-4-turbo) |
+| preferred_llm_temperature | REAL | NOT NULL, CHECK (0.0 <= preferred_llm_temperature <= 2.0) | 0.7 | Temperature for LLM responses (0.0 to 2.0) |
 
 ### Indexes
 - PRIMARY KEY: `id`
@@ -204,7 +206,7 @@ Collection that stores vectorized video scenes.
 | Column Name | Data Type | Description |
 |------------|-----------|-------------|
 | id | UUID | Vector ID |
-| embedding | vector(1536) | Text embedding vector (text-embedding-3-small) |
+| embedding | vector(1536) | Text embedding vector (configurable via `EMBEDDING_MODEL` env var, default: text-embedding-3-small) |
 | document | TEXT | Scene text content |
 | metadata | JSONB | Metadata |
 
