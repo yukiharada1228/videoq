@@ -135,7 +135,7 @@ class RagChatService:
 
         reference_entries: List[str] = []
 
-        for idx, doc in enumerate(docs, start=1):
+        for doc in docs:
             metadata = getattr(doc, "metadata", {}) or {}
             title = metadata.get("video_title", "")
             start_time = metadata.get("start_time", "")
@@ -143,7 +143,7 @@ class RagChatService:
             page_content = getattr(doc, "page_content", "")
 
             reference_entries.append(
-                f"[{idx}] {title} {start_time} - {end_time}\n{page_content}"
+                f"{title} {start_time} - {end_time}\n{page_content}"
             )
 
         return reference_entries
