@@ -18,6 +18,8 @@ classDiagram
         +bool is_superuser
         +bytes openai_api_key_encrypted
         +int video_limit (nullable)
+        +string preferred_llm_model
+        +float preferred_llm_temperature
     }
     
     class Video {
