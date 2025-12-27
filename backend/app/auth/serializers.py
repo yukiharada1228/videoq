@@ -96,7 +96,8 @@ class UserSerializer(serializers.ModelSerializer):
 
     def get_video_count(self, obj):
         """Return the current user's video count"""
-        return obj.videos.count()
+        # Use annotated video_count if available (to avoid N+1 query)
+        return getattr(obj, "video_count", obj.videos.count())
 
 
 class RefreshSerializer(serializers.Serializer):
