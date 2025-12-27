@@ -232,7 +232,11 @@ class MeView(AuthenticatedAPIView, generics.RetrieveAPIView):
     serializer_class = UserSerializer
 
     def get_object(self):
-        return self.request.user
+        from django.db.models import Count
+
+        return User.objects.annotate(video_count=Count("videos")).get(
+            pk=self.request.user.pk
+        )
 
 
 class SetOpenAIApiKeyView(AuthenticatedAPIView):
