@@ -41,7 +41,7 @@ graph TB
     end
     
     subgraph External["External Services"]
-        OpenAI[OpenAI API<br/>- Whisper API<br/>- GPT API<br/>- Embeddings API]
+        OpenAI[OpenAI API<br/>- Whisper API<br/>- GPT API (user-configurable model/temp)<br/>- Embeddings API (env-configurable)]
         Email[Email Service<br/>- SMTP<br/>- Email Sending]
     end
     

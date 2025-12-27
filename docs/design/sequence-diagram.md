@@ -64,12 +64,13 @@ sequenceDiagram
     User->>Frontend: Input Question
     Frontend->>Backend: POST /api/chat/ (body: group_id=123)
     Backend->>Backend: Get OpenAI API Key (User)
+    Backend->>Backend: Get User LLM Settings<br/>(model, temperature)
     Backend->>DB: Get VideoGroup
     DB-->>Backend: VideoGroup Information
     Backend->>PGVector: Search Related Scenes(Vector Search)
     PGVector-->>Backend: Related Scenes List
     Backend->>Backend: Build Context
-    Backend->>OpenAI: Send Chat Request
+    Backend->>OpenAI: Send Chat Request<br/>(with user's model/temp)
     OpenAI-->>Backend: LLM Answer
     Backend->>DB: Save ChatLog
     DB-->>Backend: ChatLog Saved
@@ -147,6 +148,7 @@ sequenceDiagram
     Backend->>DB: Get VideoGroup by id + share_token
     DB-->>Backend: VideoGroup Information
     Backend->>Backend: Get OpenAI API Key (Group Owner)
+    Backend->>Backend: Get Owner's LLM Settings<br/>(model, temperature)
     Backend->>Backend: Execute RAG Processing
     Backend->>DB: Save ChatLog(is_shared_origin: True)
     Backend-->>Frontend: Answer

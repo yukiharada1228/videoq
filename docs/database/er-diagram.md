@@ -29,6 +29,8 @@ erDiagram
         string last_name
         bytes openai_api_key_encrypted
         int video_limit
+        string preferred_llm_model
+        float preferred_llm_temperature
     }
     
     Video {
@@ -130,6 +132,7 @@ erDiagram
 ### Check Constraints
 - `Video.status`: Must be one of 'pending', 'processing', 'completed', 'error'
 - `ChatLog.feedback`: Must be 'good', 'bad', or NULL
+- `User.preferred_llm_temperature`: Must be between 0.0 and 2.0
 
 ## Indexes
 
