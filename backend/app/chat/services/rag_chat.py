@@ -106,8 +106,11 @@ class RagChatService:
         if group is None:
             return None
 
-        members = list(group.members.all())
-        group_video_ids = [str(member.video_id) for member in members]
+        # Efficiently get video IDs without loading full member objects
+        group_video_ids = [
+            str(video_id)
+            for video_id in group.members.values_list("video_id", flat=True)
+        ]
 
         if not group_video_ids:
             return None
