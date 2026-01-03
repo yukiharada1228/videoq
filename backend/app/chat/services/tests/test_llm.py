@@ -37,7 +37,7 @@ class GetLangchainLLMTests(TestCase):
         mock_chat_openai.assert_called_once_with(
             model="gpt-4o-mini",
             api_key="test-api-key",
-            temperature=0.7,
+            temperature=0,
         )
 
     def test_get_langchain_llm_without_api_key(self):

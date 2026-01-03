@@ -28,7 +28,7 @@ class User(AbstractUser):
         help_text="Preferred LLM model for chat (e.g., gpt-4o-mini, gpt-4o, gpt-4-turbo)",
     )
     preferred_llm_temperature = models.FloatField(
-        default=0.7,
+        default=0.0,
         validators=[MinValueValidator(0.0), MaxValueValidator(2.0)],
         help_text="Temperature for LLM responses (0.0 to 2.0)",
     )

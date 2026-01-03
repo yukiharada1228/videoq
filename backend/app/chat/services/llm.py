@@ -28,9 +28,9 @@ def get_langchain_llm(user) -> Tuple[ChatOpenAI, Response]:
 
     # Use user's preferred settings with fallback to defaults
     model = getattr(user, "preferred_llm_model", "gpt-4o-mini") or "gpt-4o-mini"
-    temperature = getattr(user, "preferred_llm_temperature", 0.7)
+    temperature = getattr(user, "preferred_llm_temperature", 0)
     if temperature is None:
-        temperature = 0.7
+        temperature = 0
 
     return (
         ChatOpenAI(
