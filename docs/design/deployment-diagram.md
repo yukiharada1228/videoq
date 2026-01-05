@@ -72,14 +72,20 @@ graph TB
 ```mermaid
 graph LR
     subgraph Services["Docker Compose Services"]
-        S1[redis<br/>redis:alpine]
-        S2[postgres<br/>pgvector/pgvector:pg17]
-        S3[backend<br/>Django + Gunicorn]
-        S4[celery-worker<br/>Celery Worker]
-        S5[frontend<br/>Vite SPA (static)]
-        S6[nginx<br/>nginx:alpine]
+        S1["redis
+        redis:alpine"]
+        S2["postgres
+        pgvector/pgvector:pg17"]
+        S3["backend
+        Django + Gunicorn"]
+        S4["celery-worker
+        Celery Worker"]
+        S5["frontend
+        Vite SPA static"]
+        S6["nginx
+        nginx:alpine"]
     end
-    
+
     subgraph Dependencies["Dependencies"]
         S3 --> S2
         S3 --> S1
@@ -88,11 +94,12 @@ graph LR
         S6 --> S3
         S6 --> S5
     end
-    
+
     subgraph Ports["Port Mapping"]
-        P1[80:80<br/>nginx]
+        P1["80:80
+        nginx"]
     end
-    
+
     S6 --> P1
 ```
 
