@@ -9,42 +9,73 @@ This diagram shows VideoQ's overall architecture and the default (Docker Compose
 ```mermaid
 graph TB
     subgraph Client["Client Layer"]
-        Browser[Web Browser<br/>Chrome, Firefox, Safari, etc.]
+        Browser["Web Browser
+        Chrome, Firefox, Safari, etc."]
     end
-    
+
     subgraph Gateway["Gateway Layer"]
-        Nginx[Nginx Reverse Proxy<br/>Port: 80<br/>- Reverse Proxy<br/>- Static File Delivery<br/>- Load Balancing]
+        Nginx["Nginx Reverse Proxy
+        Port: 80
+        - Reverse Proxy
+        - Static File Delivery
+        - Load Balancing"]
     end
-    
+
     subgraph Application["Application Layer"]
         subgraph Frontend["Frontend"]
-            FrontendSPA[Vite + React SPA<br/>Port: 80 (container)<br/>- React<br/>- TypeScript<br/>- React Router]
+            FrontendSPA["Vite + React SPA
+            Port: 80 (container)
+            - React
+            - TypeScript
+            - React Router"]
         end
-        
+
         subgraph Backend["Backend"]
-            Django[Django REST API<br/>Port: 8000<br/>- Django 5.2.7+<br/>- DRF<br/>- Gunicorn]
+            Django["Django REST API
+            Port: 8000
+            - Django 5.2.7+
+            - DRF
+            - Gunicorn"]
         end
-        
+
         subgraph Worker["Worker"]
-            Celery[Celery Worker<br/>- Asynchronous Task Processing<br/>- Transcription Processing]
+            Celery["Celery Worker
+            - Asynchronous Task Processing
+            - Transcription Processing"]
         end
     end
-    
+
     subgraph Data["Data Layer"]
-        PostgreSQL[(PostgreSQL 17<br/>+ pgvector<br/>- Structured Data<br/>- Vector Data)]
-        Redis[(Redis Alpine<br/>- Task Queue<br/>- Cache)]
+        PostgreSQL[("PostgreSQL 17
+        + pgvector
+        - Structured Data
+        - Vector Data")]
+        Redis[("Redis Alpine
+        - Task Queue
+        - Cache")]
     end
-    
+
     subgraph Storage["Storage Layer"]
-        LocalFS[Local File System<br/>/backend/media<br/>- Video Files<br/>- Static Files]
-        S3[AWS S3<br/>Optional<br/>- Video Files<br/>- Scalable Storage]
+        LocalFS["Local File System
+        /backend/media
+        - Video Files
+        - Static Files"]
+        S3["AWS S3
+        Optional
+        - Video Files
+        - Scalable Storage"]
     end
-    
+
     subgraph External["External Services"]
-        OpenAI[OpenAI API<br/>- Whisper API<br/>- GPT API (user-configurable model/temp)<br/>- Embeddings API (env-configurable)]
-        Email[Email Service<br/>- SMTP<br/>- Email Sending]
+        OpenAI["OpenAI API
+        - Whisper API
+        - GPT API (user-configurable model/temp)
+        - Embeddings API (env-configurable)"]
+        Email["Email Service
+        - SMTP
+        - Email Sending"]
     end
-    
+
     Browser -->|HTTP/HTTPS| Nginx
     Nginx -->|Proxy| FrontendSPA
     Nginx -->|Proxy| Django
@@ -131,13 +162,23 @@ graph TB
         Users[Users]
     end
 
-    subgraph AppNetwork["Docker Compose Network<br/>videoq-network"]
-        Nginx["nginx<br/>:80"]
-        Frontend["frontend<br/>Vite SPA (static)<br/>:80"]
-        Backend["backend<br/>Django<br/>:8000"]
-        Worker["celery-worker<br/>Celery"]
-        DB[("postgres<br/>pg17 + pgvector<br/>:5432")]
-        Cache[("redis<br/>:6379")]
+    subgraph AppNetwork["Docker Compose Network
+    videoq-network"]
+        Nginx["nginx
+        :80"]
+        Frontend["frontend
+        Vite SPA (static)
+        :80"]
+        Backend["backend
+        Django
+        :8000"]
+        Worker["celery-worker
+        Celery"]
+        DB[("postgres
+        pg17 + pgvector
+        :5432")]
+        Cache[("redis
+        :6379")]
     end
 
     Users -->|HTTP:80| Nginx
@@ -159,25 +200,39 @@ graph TB
 graph TB
     subgraph Security["Security Layer"]
         subgraph Authentication["Authentication"]
-            JWT["JWT Authentication<br/>HttpOnly Cookie-based<br/>Access Token: 10 min<br/>Refresh Token: 14 days<br/>Automatic Refresh<br/>Secure Cookie Flag (env configurable)"]
-            ShareToken["Share Token Authentication<br/>Temporary Access<br/>Guest Access"]
+            JWT["JWT Authentication
+            HttpOnly Cookie-based
+            Access Token: 10 min
+            Refresh Token: 14 days
+            Automatic Refresh
+            Secure Cookie Flag (env configurable)"]
+            ShareToken["Share Token Authentication
+            Temporary Access
+            Guest Access"]
         end
-        
+
         subgraph Authorization["Authorization"]
-            Permissions["Permission Management<br/>Ownership Check<br/>Resource Access Control"]
+            Permissions["Permission Management
+            Ownership Check
+            Resource Access Control"]
         end
-        
+
         subgraph Encryption["Encryption"]
-            HTTPS["HTTPS Communication<br/>TLS/SSL<br/>Data Encryption"]
+            HTTPS["HTTPS Communication
+            TLS/SSL
+            Data Encryption"]
         end
-        
+
         subgraph Protection["Protection"]
-            CSRF["CSRF Protection<br/>SameSite Cookie"]
-            CORS["CORS Settings<br/>Allowed Origin Restrictions"]
-            RateLimit["Rate Limiting<br/>API Call Restrictions"]
+            CSRF["CSRF Protection
+            SameSite Cookie"]
+            CORS["CORS Settings
+            Allowed Origin Restrictions"]
+            RateLimit["Rate Limiting
+            API Call Restrictions"]
         end
     end
-    
+
     JWT --> Permissions
     ShareToken --> Permissions
     HTTPS --> Protection
@@ -191,26 +246,35 @@ graph TB
 ```mermaid
 graph TB
     subgraph Horizontal["Horizontal Scaling"]
-        H1[Frontend<br/>Multiple Instances]
-        H2[Backend<br/>Multiple Instances]
-        H3[Celery Worker<br/>Multiple Workers]
+        H1["Frontend
+        Multiple Instances"]
+        H2["Backend
+        Multiple Instances"]
+        H3["Celery Worker
+        Multiple Workers"]
     end
-    
+
     subgraph Vertical["Vertical Scaling"]
-        V1[Database<br/>Resource Enhancement]
-        V2[Cache<br/>Memory Enhancement]
+        V1["Database
+        Resource Enhancement"]
+        V2["Cache
+        Memory Enhancement"]
     end
-    
+
     subgraph LoadBalancing["Load Balancing"]
-        LB1[Nginx<br/>Request Distribution]
-        LB2[Redis<br/>Task Distribution]
+        LB1["Nginx
+        Request Distribution"]
+        LB2["Redis
+        Task Distribution"]
     end
-    
+
     subgraph Caching["Caching"]
-        C1[Redis Cache<br/>Session Management]
-        C2[Static Files<br/>CDN Support]
+        C1["Redis Cache
+        Session Management"]
+        C2["Static Files
+        CDN Support"]
     end
-    
+
     H1 --> LB1
     H2 --> LB1
     H3 --> LB2
@@ -225,25 +289,29 @@ graph TB
 ```mermaid
 graph TB
     subgraph Monitoring["Monitoring"]
-        M1[Application Logs<br/>Django Logging]
-        M2[Access Logs<br/>Nginx Logs]
-        M3[Performance Monitoring<br/>Response Time]
-        M4[Error Tracking<br/>Exception Handling]
+        M1["Application Logs
+        Django Logging"]
+        M2["Access Logs
+        Nginx Logs"]
+        M3["Performance Monitoring
+        Response Time"]
+        M4["Error Tracking
+        Exception Handling"]
     end
-    
+
     subgraph Metrics["Metrics"]
         Met1[Request Count]
         Met2[Response Time]
         Met3[Error Rate]
         Met4[Task Processing Count]
     end
-    
+
     subgraph Alerts["Alerts"]
         A1[Error Alerts]
         A2[Performance Alerts]
         A3[Resource Usage Alerts]
     end
-    
+
     M1 --> Met1
     M2 --> Met2
     M3 --> Met3
@@ -259,27 +327,33 @@ graph TB
 ```mermaid
 graph TB
     subgraph Development["Development Environment"]
-        Dev1[Local Development<br/>Docker Compose]
-        Dev2[Hot Reload<br/>Development Server]
+        Dev1["Local Development
+        Docker Compose"]
+        Dev2["Hot Reload
+        Development Server"]
     end
-    
+
     subgraph Staging["Staging Environment"]
-        Stage1[Staging Server<br/>Test Environment]
-        Stage2[CI/CD Pipeline<br/>Auto Deployment]
+        Stage1["Staging Server
+        Test Environment"]
+        Stage2["CI/CD Pipeline
+        Auto Deployment"]
     end
-    
+
     subgraph Production["Production Environment"]
-        Prod1[Production Server<br/>Production Environment]
-        Prod2[Blue-Green Deployment<br/>Zero Downtime]
+        Prod1["Production Server
+        Production Environment"]
+        Prod2["Blue-Green Deployment
+        Zero Downtime"]
     end
-    
+
     subgraph CI_CD["CI/CD"]
         CI1[Git Push]
         CI2[Automated Tests]
         CI3[Build]
         CI4[Deploy]
     end
-    
+
     Dev1 --> Stage1
     Dev2 --> Stage1
     Stage1 --> Stage2
