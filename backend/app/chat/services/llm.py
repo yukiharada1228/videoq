@@ -1,9 +1,10 @@
 """LangChain helper functions"""
 
-from typing import Tuple
+from typing import Optional, Tuple
 
 from django.contrib.auth import get_user_model
 from langchain_openai import ChatOpenAI
+from pydantic import SecretStr
 from rest_framework import status
 from rest_framework.response import Response
 
@@ -14,7 +15,7 @@ from app.utils.openai_utils import (OpenAIApiKeyNotConfiguredError,
 User = get_user_model()
 
 
-def get_langchain_llm(user) -> Tuple[ChatOpenAI, Response]:
+def get_langchain_llm(user) -> Tuple[Optional[ChatOpenAI], Optional[Response]]:
     # Use user's OpenAI API key
     try:
         api_key = get_openai_api_key(user)
@@ -35,7 +36,7 @@ def get_langchain_llm(user) -> Tuple[ChatOpenAI, Response]:
     return (
         ChatOpenAI(
             model=model,
-            api_key=api_key,
+            api_key=SecretStr(api_key),
             temperature=temperature,
         ),
         None,

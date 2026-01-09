@@ -8,6 +8,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnableLambda, RunnableParallel
 from langchain_openai import OpenAIEmbeddings
 from langchain_postgres import PGVector
+from pydantic import SecretStr
 
 from app.chat.prompts import build_system_prompt
 from app.utils.openai_utils import require_openai_api_key
@@ -82,7 +83,7 @@ class RagChatService:
 
         # Execute chain
         result = rag_chain.invoke({"query_text": query_text, "locale": locale})
-        llm_response = result.get("llm_response")
+        llm_response = cast(AIMessage, result.get("llm_response"))
         related_videos = result.get("related_videos")
 
         return RagChatResult(
@@ -195,7 +196,9 @@ class RagChatService:
     def _create_vector_store(self) -> PGVector:
         # Use user's OpenAI API key
         api_key = require_openai_api_key(self.user)
-        embeddings = OpenAIEmbeddings(model=settings.EMBEDDING_MODEL, api_key=api_key)
+        embeddings = OpenAIEmbeddings(
+            model=settings.EMBEDDING_MODEL, api_key=SecretStr(api_key)
+        )
         config = PGVectorManager.get_config()
         connection_str = PGVectorManager.get_psycopg_connection_string()
 
