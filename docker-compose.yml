@@ -33,7 +33,7 @@ services:
   celery-worker:
     build: ./backend
     container_name: videoq-celery-worker
-    command: uv run celery -A videoq worker --loglevel=info
+    command: celery -A videoq worker --loglevel=info
     env_file:
       - .env
     volumes:
