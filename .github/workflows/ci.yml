@@ -43,23 +43,21 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - uses: astral-sh/setup-uv@v3
-        with:
-          enable-cache: true
-          cache-dependency-glob: "backend/**/pyproject.toml"
-        continue-on-error: true
-        id: setup-uv
+          cache: 'pip'
+          cache-dependency-path: 'backend/requirements.txt'
       - name: Install dependencies
         working-directory: backend
-        run: uv sync --frozen
+        run: |
+          pip install -r requirements.txt
+          pip install ruff mypy
       - name: Run Ruff
         working-directory: backend
-        run: uvx ruff check app videoq
+        run: ruff check app videoq
       - name: Run mypy
         working-directory: backend
         env:
           DJANGO_SETTINGS_MODULE: videoq.settings
-        run: uvx mypy --config-file mypy.ini app videoq
+        run: mypy --config-file mypy.ini app videoq
 
   backend-test:
     name: Backend Tests
@@ -94,15 +92,13 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - uses: astral-sh/setup-uv@v3
-        with:
-          enable-cache: true
-          cache-dependency-glob: "backend/**/pyproject.toml"
-        continue-on-error: true
-        id: setup-uv
+          cache: 'pip'
+          cache-dependency-path: 'backend/requirements.txt'
       - name: Install dependencies
         working-directory: backend
-        run: uv sync --frozen
+        run: |
+          pip install -r requirements.txt
+          pip install coverage
       - name: Create pgvector extension
         run: |
           sudo apt-get update
@@ -112,7 +108,7 @@ jobs:
         working-directory: backend
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/videoq
-        run: uv run python manage.py migrate --noinput
+        run: python manage.py migrate --noinput
       - name: Run tests with coverage
         working-directory: backend
         env:
@@ -121,9 +117,9 @@ jobs:
           DJANGO_SECRET_KEY: test-secret
           OPENAI_API_KEY: test-key
         run: |
-          uv run coverage run --source='.' manage.py test
-          uv run coverage report
-          uv run coverage xml
+          coverage run --source='.' manage.py test
+          coverage report
+          coverage xml
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
