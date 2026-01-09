@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
+from pydantic import SecretStr
 
 from app.chat.services.rag_chat import RagChatService
 from app.models import Video, VideoGroup
@@ -60,7 +61,7 @@ class RagChatServiceTests(TestCase):
         self.assertIsNotNone(vector_store)
         mock_embeddings.assert_called_once_with(
             model="text-embedding-3-small",
-            api_key="test-api-key",
+            api_key=SecretStr("test-api-key"),
         )
 
     def test_create_vector_store_without_api_key(self):

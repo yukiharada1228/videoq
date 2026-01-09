@@ -6,6 +6,7 @@ from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
+from pydantic import SecretStr
 from rest_framework import status
 
 from app.chat.services.llm import get_langchain_llm, handle_langchain_exception
@@ -36,7 +37,7 @@ class GetLangchainLLMTests(TestCase):
         self.assertIsNone(error_response)
         mock_chat_openai.assert_called_once_with(
             model="gpt-4o-mini",
-            api_key="test-api-key",
+            api_key=SecretStr("test-api-key"),
             temperature=0,
         )
 
