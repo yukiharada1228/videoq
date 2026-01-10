@@ -19,7 +19,7 @@ class WhisperConfig:
     def __init__(self):
         self.backend = os.getenv("WHISPER_BACKEND", self.BACKEND_OPENAI).lower()
         self.local_url = os.getenv(
-            "WHISPER_LOCAL_URL", "http://host.docker.internal:8080"
+            "WHISPER_LOCAL_URL", "http://host.docker.internal:8080/v1"
         )
 
         logger.info(f"Whisper backend configured: {self.backend}")
@@ -56,7 +56,7 @@ def create_whisper_client(api_key, config=None):
         return OpenAI(
             api_key=api_key
             or "dummy-key-for-local",  # whisper.cpp doesn't validate key
-            base_url=config.local_url + "/v1",  # OpenAI-compatible endpoint
+            base_url=config.local_url,  # OpenAI-compatible endpoint
         )
     else:
         # Use OpenAI Whisper API
@@ -84,7 +84,7 @@ def create_async_whisper_client(api_key, config=None):
         return AsyncOpenAI(
             api_key=api_key
             or "dummy-key-for-local",  # whisper.cpp doesn't validate key
-            base_url=config.local_url + "/v1",  # OpenAI-compatible endpoint
+            base_url=config.local_url,  # OpenAI-compatible endpoint
         )
     else:
         # Use OpenAI Whisper API

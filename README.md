@@ -283,7 +283,7 @@ Update your `.env` file in the VideoQ root directory:
 
 ```bash
 WHISPER_BACKEND=local
-WHISPER_LOCAL_URL=http://host.docker.internal:8080
+WHISPER_LOCAL_URL=http://host.docker.internal:8080/v1
 ```
 
 **Note:** Use `host.docker.internal` to access the host machine from Docker containers on Mac.
