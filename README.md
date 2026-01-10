@@ -219,6 +219,98 @@ This app assumes **OpenAI API keys are configured per user**.
 - **Normal usage**: each user registers their API key in Settings (saved encrypted in DB)
 - **Chat via shared link**: uses the **group owner's API key**
 
+## Local Whisper Transcription (Optional)
+
+VideoQ supports using a local whisper.cpp server for GPU-accelerated transcription on Mac (with Metal support), providing faster and cost-free transcription.
+
+### Setup Steps
+
+#### 1. Initialize Submodule (if not already done)
+
+If you're setting up the project for the first time, initialize the whisper.cpp submodule:
+
+```bash
+# From VideoQ project root
+git submodule update --init --recursive
+```
+
+#### 2. Build whisper.cpp with Metal Support
+
+```bash
+# Navigate to whisper.cpp directory
+cd whisper.cpp
+
+# Build with Metal GPU acceleration (Mac only)
+make
+```
+
+**Requirements:**
+- macOS with Apple Silicon (M1/M2/M3) or Intel Mac with Metal support
+- Xcode Command Line Tools installed
+
+#### 3. Download Whisper Model
+
+Download the `large-v3-turbo` model
+
+```bash
+# From whisper.cpp directory
+bash ./models/download-ggml-model.sh large-v3-turbo
+```
+
+#### 4. Start Whisper Server
+
+Start the whisper.cpp server with OpenAI-compatible endpoint:
+
+```bash
+# From whisper.cpp directory
+cd whisper.cpp
+./build/bin/whisper-server -m models/ggml-large-v3-turbo.bin --host 0.0.0.0 --port 8080 -t 8 --inference-path /v1/audio/transcriptions
+```
+
+**Important options:**
+- `--inference-path /v1/audio/transcriptions`: Enables OpenAI-compatible API endpoint (required for VideoQ integration)
+- `-t 8`: Number of threads (adjust based on your CPU cores)
+- `--host 0.0.0.0`: Listen on all interfaces (required for Docker access)
+- `--port 8080`: Server port
+
+The server will start and listen on `http://localhost:8080`.
+
+**Note:** Keep this terminal window open while using VideoQ transcription.
+
+#### 5. Configure VideoQ
+
+Update your `.env` file in the VideoQ root directory:
+
+```bash
+WHISPER_BACKEND=local
+WHISPER_LOCAL_URL=http://host.docker.internal:8080
+```
+
+**Note:** Use `host.docker.internal` to access the host machine from Docker containers on Mac.
+
+#### 6. Restart VideoQ Services
+
+Restart the backend and celery worker to apply the new configuration:
+
+```bash
+# From VideoQ project root
+docker compose restart backend celery-worker
+```
+
+#### 7. Test Transcription
+
+1. Upload a video through the VideoQ web interface
+2. Check the celery-worker logs to confirm it's using the local whisper server:
+
+```bash
+docker compose logs -f celery-worker
+```
+
+You should see logs like:
+```
+Using Whisper backend: local, model: whisper-local
+```
+
 ### Per-User LLM Settings
 
 Users can customize their AI chat experience through the Settings page:

@@ -184,14 +184,22 @@ def extract_and_split_audio(input_path, max_size_mb=24, temp_manager=None):
         return []
 
 
-async def transcribe_audio_segment_async(client, segment_info, segment_index):
+async def transcribe_audio_segment_async(
+    client, segment_info, segment_index, model="whisper-1"
+):
     """
     Transcribe a single audio segment asynchronously
+
+    Args:
+        client: AsyncOpenAI client instance
+        segment_info: Audio segment information dict
+        segment_index: Index of the segment
+        model: Whisper model name (default: "whisper-1")
     """
     try:
         with open(segment_info["path"], "rb") as audio_file:
             transcription = await client.audio.transcriptions.create(
-                model="whisper-1",
+                model=model,
                 file=audio_file,
                 response_format="verbose_json",
                 timestamp_granularities=["segment"],
@@ -202,14 +210,19 @@ async def transcribe_audio_segment_async(client, segment_info, segment_index):
         return None, e, segment_index
 
 
-async def process_audio_segments_async(client, audio_segments):
+async def process_audio_segments_async(client, audio_segments, model="whisper-1"):
     """
     Process audio segments asynchronously with asyncio
     This is more efficient than ThreadPoolExecutor for I/O-bound operations
+
+    Args:
+        client: AsyncOpenAI client instance
+        audio_segments: List of audio segment info dicts
+        model: Whisper model name (default: "whisper-1")
     """
     # Create tasks for all segments
     tasks = [
-        transcribe_audio_segment_async(client, segment_info, i)
+        transcribe_audio_segment_async(client, segment_info, i, model)
         for i, segment_info in enumerate(audio_segments)
     ]
 
@@ -248,13 +261,26 @@ async def process_audio_segments_async(client, audio_segments):
     return all_segments
 
 
-def process_audio_segments_parallel(client, audio_segments):
+def process_audio_segments_parallel(client, audio_segments, model="whisper-1"):
     """
     Process audio segments in parallel using asyncio
     Wrapper function to run async code in sync context
+
+    Args:
+        client: OpenAI client instance (sync)
+        audio_segments: List of audio segment info dicts
+        model: Whisper model name (default: "whisper-1")
     """
     # Create async client from sync client
-    async_client = AsyncOpenAI(api_key=client.api_key)
+    # Preserve base_url if using local whisper server
+    if hasattr(client, "_base_url") and client._base_url:
+        async_client = AsyncOpenAI(
+            api_key=client.api_key, base_url=str(client._base_url)
+        )
+    else:
+        async_client = AsyncOpenAI(api_key=client.api_key)
 
     # Run async processing
-    return asyncio.run(process_audio_segments_async(async_client, audio_segments))
+    return asyncio.run(
+        process_audio_segments_async(async_client, audio_segments, model)
+    )

@@ -81,12 +81,19 @@ def apply_scene_splitting(srt_content, api_key, original_segment_count=None):
         return srt_content, original_segment_count
 
 
-def transcribe_and_create_srt(client, audio_segments):
+def transcribe_and_create_srt(client, audio_segments, model="whisper-1"):
     """
     Transcribe audio segments and create SRT content
-    Returns: srt_content or None if failed
+
+    Args:
+        client: OpenAI client instance
+        audio_segments: List of audio segment info dicts
+        model: Whisper model name (default: "whisper-1")
+
+    Returns:
+        srt_content or None if failed
     """
-    all_segments = process_audio_segments_parallel(client, audio_segments)
+    all_segments = process_audio_segments_parallel(client, audio_segments, model)
 
     if not all_segments:
         return None

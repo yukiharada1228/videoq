@@ -7,7 +7,6 @@ import os
 import tempfile
 
 from celery import shared_task
-from openai import OpenAI
 
 from app.tasks.audio_processing import extract_and_split_audio
 from app.tasks.srt_processing import (apply_scene_splitting,
@@ -16,6 +15,8 @@ from app.tasks.vector_indexing import index_scenes_batch
 from app.utils.openai_utils import require_openai_api_key
 from app.utils.task_helpers import (ErrorHandler, TemporaryFileManager,
                                     VideoTaskManager)
+from app.utils.whisper_client import (WhisperConfig, create_whisper_client,
+                                      get_whisper_model_name)
 
 logger = logging.getLogger(__name__)
 
@@ -114,9 +115,16 @@ def transcribe_video(self, video_id):
 
             VideoTaskManager.update_video_status(video, "processing")
 
-            # Initialize OpenAI client with user's API key
+            # Initialize OpenAI API key (required for OpenAI Whisper API, embeddings, and chat)
             api_key = require_openai_api_key(video.user)
-            client = OpenAI(api_key=api_key)
+
+            # Initialize Whisper client (OpenAI API or local whisper.cpp server)
+            whisper_config = WhisperConfig()
+            client = create_whisper_client(api_key, whisper_config)
+            whisper_model = get_whisper_model_name(whisper_config)
+            logger.info(
+                f"Using Whisper backend: {whisper_config.backend}, model: {whisper_model}"
+            )
 
             # Download video from storage (S3 or local)
             video_file_path, video_file = download_video_from_storage(
@@ -132,7 +140,9 @@ def transcribe_video(self, video_id):
                 handle_transcription_error(video, "Failed to extract audio from video")
                 return
 
-            srt_content = transcribe_and_create_srt(client, audio_segments)
+            srt_content = transcribe_and_create_srt(
+                client, audio_segments, whisper_model
+            )
             if not srt_content:
                 handle_transcription_error(
                     video, "Failed to transcribe any audio segments"
