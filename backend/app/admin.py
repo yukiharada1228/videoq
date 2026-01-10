@@ -134,5 +134,7 @@ class VideoGroupMemberAdmin(admin.ModelAdmin):
     def get_queryset(self, request):
         """Preload group and video relations"""
         return BaseAdminMixin.get_optimized_queryset(
-            request, VideoGroupMember, select_related_fields=["group", "video"]
+            request,
+            VideoGroupMember,
+            select_related_fields=["group", "video", "group__user", "video__user"],
         )
