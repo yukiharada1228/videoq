@@ -264,7 +264,7 @@ Start the whisper.cpp server with OpenAI-compatible endpoint:
 ```bash
 # From whisper.cpp directory
 cd whisper.cpp
-./build/bin/whisper-server -m models/ggml-large-v3-turbo.bin -l ja --inference-path /audio/transcriptions
+./build/bin/whisper-server -m models/ggml-large-v3-turbo.bin --inference-path /audio/transcriptions
 ```
 
 #### 5. Configure VideoQ
