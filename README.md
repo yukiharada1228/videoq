@@ -307,7 +307,7 @@ Users can customize their AI chat experience through the Settings page:
   - Default: `gpt-4o-mini`
   - Stored in `User.preferred_llm_model`
 - **LLM Temperature**: Control response randomness (0.0 to 2.0)
-  - Default: `0.7`
+  - Default: `0.0`
   - Stored in `User.preferred_llm_temperature`
   - Lower values (e.g., 0.0) produce more focused responses
   - Higher values (e.g., 1.5) produce more creative responses

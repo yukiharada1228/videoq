@@ -24,13 +24,17 @@ flowchart TD
     ReadDB --> UpdateStatus[Update status: processing]
     UpdateStatus --> SaveDB2[(Database<br/>Update)]
     
-    SaveDB2 --> CheckAPIKey{"OpenAI API Key Configured?<br>(Video Owner)"}
+    SaveDB2 --> CheckBackend{"WHISPER_BACKEND<br>Setting Check"}
+    CheckBackend -->|local| ReadFile2[File Storage<br/>Read Video File]
+    CheckBackend -->|openai| CheckAPIKey{"OpenAI API Key Configured?<br>(Video Owner)"}
     CheckAPIKey -->|Not Configured| Error2[Update status: error<br/>Save Error Message]
     CheckAPIKey -->|Configured| ReadFile[File Storage<br/>Read Video File]
-    
+
     Worker --> ReadFile[File Storage<br/>Read Video File]
+    Worker --> ReadFile2
     ReadFile --> Extract[Extract Audio<br/>ffmpeg]
-    Extract --> Transcribe[Whisper API<br/>Transcription]
+    ReadFile2 --> Extract
+    Extract --> Transcribe[Whisper API / Local Server<br/>Transcription]
     Transcribe --> SRT[Convert to SRT Format]
     SRT --> SceneSplit[Scene Splitting]
     

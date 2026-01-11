@@ -48,7 +48,11 @@ graph TB
         OpenAI[OpenAI API]
         EmailService[Email Service]
     end
-    
+
+    subgraph LocalServices["Optional Local Services"]
+        WhisperLocal[whisper.cpp Server<br/>Local GPU-accelerated]
+    end
+
     User -->|HTTP/HTTPS| Nginx
     Nginx -->|Proxy| FrontendSPA
     Nginx -->|Proxy| Django
@@ -59,6 +63,7 @@ graph TB
     CeleryWorker --> PostgreSQL
     CeleryWorker --> MediaFiles
     CeleryWorker -->|API Call| OpenAI
+    CeleryWorker -.->|Optional| WhisperLocal
     Django -->|API Call| OpenAI
     Django -->|SMTP| EmailService
     
@@ -222,6 +227,9 @@ graph TB
         E13[AWS_*]
         E14["OPENAI_API_KEY<br/>(optional / not used in standard flow)"]
         E15[VITE_API_URL]
+        E16["WHISPER_BACKEND<br/>(openai or local)"]
+        E17["WHISPER_LOCAL_URL<br/>(local whisper.cpp server URL)"]
+        E18["EMBEDDING_MODEL<br/>(OpenAI embedding model)"]
     end
     
     subgraph Containers["Containers"]
@@ -250,6 +258,10 @@ graph TB
     E14 --> C2
     E14 --> C3
     E15 --> C4
+    E16 --> C3
+    E17 --> C3
+    E18 --> C2
+    E18 --> C3
 ```
 
 ## Optional: Scaling Configuration (production example)
