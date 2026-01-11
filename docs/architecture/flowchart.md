@@ -25,11 +25,15 @@ flowchart TD
     Queue --> Worker[Celery Worker<br/>Receives Task]
     Worker --> UpdateStatus[Update status: processing]
     UpdateStatus --> SaveDB2[(Database Update)]
-    SaveDB2 --> CheckAPIKey{"OpenAI API Key<br>Configured? (Video Owner)"}
+    SaveDB2 --> CheckBackend{"WHISPER_BACKEND<br>Setting Check"}
+    CheckBackend -->|local| CheckFile2{"File Exists<br>Check"}
+    CheckBackend -->|openai| CheckAPIKey{"OpenAI API Key<br>Configured? (Video Owner)"}
     CheckAPIKey -->|Not Configured| Error5[Error Processing<br/>status: error]
     CheckAPIKey -->|Configured| CheckFile{"File Exists<br>Check"}
     CheckFile -->|Not Exists| Error3[Error Processing]
     CheckFile -->|Exists| Extract[Extract Audio<br/>with ffmpeg]
+    CheckFile2 -->|Not Exists| Error3
+    CheckFile2 -->|Exists| Extract
     Extract --> CheckSize{"File Size<br>24MB or less?"}
     CheckSize -->|Yes| Transcribe1[Whisper API<br/>Transcription]
     CheckSize -->|No| Split[Split Audio]

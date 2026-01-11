@@ -13,7 +13,7 @@ sequenceDiagram
     participant Backend as Backend API
     participant DB as Database
     participant Celery as Celery Worker
-    participant Whisper as Whisper API
+    participant Whisper as Whisper API / Local Server
     participant PGVector as PGVector
 
     User->>Frontend: Upload Video File
@@ -24,22 +24,34 @@ sequenceDiagram
     Backend->>Celery: transcribe_video.delay(video_id)
     Backend-->>Frontend: 201 Created
     Frontend-->>User: Upload Success Display
-    
+
     Celery->>DB: Get Video
     DB-->>Celery: Video Information
     Celery->>DB: Update status(processing)
     Celery->>Celery: Extract Audio with ffmpeg
-    Celery->>Celery: Get OpenAI API Key (Video Owner)
-    alt OpenAI API key not configured
-        Celery->>DB: Update status(error) + Save Error Message
-    else OpenAI API key configured
-        Celery->>Whisper: Send Audio File
+    Celery->>Celery: Check WHISPER_BACKEND setting
+    alt WHISPER_BACKEND=local
+        Note over Celery,Whisper: Local whisper.cpp server (no API key needed)
+        Celery->>Whisper: Send Audio File (local server)
         Whisper-->>Celery: Transcription Result
         Celery->>Celery: Convert to SRT Format
         Celery->>Celery: Scene Splitting Process
         Celery->>DB: Save transcript
         Celery->>PGVector: Vectorize and Save
         Celery->>DB: Update status(completed)
+    else WHISPER_BACKEND=openai (default)
+        Celery->>Celery: Get OpenAI API Key (Video Owner)
+        alt OpenAI API key not configured
+            Celery->>DB: Update status(error) + Save Error Message
+        else OpenAI API key configured
+            Celery->>Whisper: Send Audio File (OpenAI API)
+            Whisper-->>Celery: Transcription Result
+            Celery->>Celery: Convert to SRT Format
+            Celery->>Celery: Scene Splitting Process
+            Celery->>DB: Save transcript
+            Celery->>PGVector: Vectorize and Save
+            Celery->>DB: Update status(completed)
+        end
     end
     
     User->>Frontend: Reload Video Detail Page

@@ -35,7 +35,7 @@ Table that stores user information for the system.
 | openai_api_key_encrypted | BYTEA | NULL | NULL | Encrypted OpenAI API key (stored per user) |
 | video_limit | INTEGER | NULL, CHECK (video_limit >= 0) | 0 | Max number of videos the user can upload (`NULL` = unlimited, `0` = uploads disabled) |
 | preferred_llm_model | VARCHAR(100) | NOT NULL | 'gpt-4o-mini' | Preferred LLM model for chat (e.g., gpt-4o-mini, gpt-4o, gpt-4-turbo) |
-| preferred_llm_temperature | REAL | NOT NULL, CHECK (0.0 <= preferred_llm_temperature <= 2.0) | 0.7 | Temperature for LLM responses (0.0 to 2.0) |
+| preferred_llm_temperature | REAL | NOT NULL, CHECK (0.0 <= preferred_llm_temperature <= 2.0) | 0.0 | Temperature for LLM responses (0.0 to 2.0) |
 
 ### Indexes
 - PRIMARY KEY: `id`

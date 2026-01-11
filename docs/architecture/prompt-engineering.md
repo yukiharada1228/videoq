@@ -12,7 +12,7 @@ Each user can customize their LLM preferences via the Settings page:
   - Default: `gpt-4o-mini`
   - Stored in `User.preferred_llm_model`
 - **Temperature**: Controls randomness/creativity of responses (range: 0.0 to 2.0)
-  - Default: `0.7`
+  - Default: `0.0`
   - Stored in `User.preferred_llm_temperature`
   - Lower values produce more focused, deterministic outputs
   - Higher values produce more creative, varied outputs

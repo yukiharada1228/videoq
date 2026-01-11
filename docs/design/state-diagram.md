@@ -27,7 +27,7 @@ stateDiagram-v2
     note right of Processing
         Processing
         - Extracting Audio
-        - Running Whisper API
+        - Running Transcription (Whisper API or local server)
         - Vectorizing
     end note
     

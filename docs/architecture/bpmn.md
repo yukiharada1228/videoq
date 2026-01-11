@@ -44,10 +44,13 @@ flowchart TD
     NotifyUser --> ProcessTask[Start Background Processing]
     
     ProcessTask --> ExtractAudio[Extract Audio]
-    ExtractAudio --> CheckAPIKey{"OpenAI API Key Configured?<br>(Video Owner)"}
+    ExtractAudio --> CheckBackend{"WHISPER_BACKEND<br>Setting Check"}
+    CheckBackend -->|local| Transcribe[Execute Transcription<br>Local whisper.cpp]
+    CheckBackend -->|openai| CheckAPIKey{"OpenAI API Key Configured?<br>(Video Owner)"}
     CheckAPIKey -->|Not Configured| HandleError[Error Processing]
-    CheckAPIKey -->|Configured| Transcribe[Execute Transcription]
+    CheckAPIKey -->|Configured| TranscribeAPI[Execute Transcription<br>OpenAI API]
     Transcribe --> CheckResult{Processing Result}
+    TranscribeAPI --> CheckResult
     CheckResult -->|Success| CreateTranscript[Save Transcription]
     CheckResult -->|Failure| HandleError[Error Processing]
     HandleError --> UpdateErrorStatus[Update Error Status]

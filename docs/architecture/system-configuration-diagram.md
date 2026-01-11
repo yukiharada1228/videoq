@@ -68,9 +68,14 @@ graph TB
 
     subgraph External["External Services"]
         OpenAI["OpenAI API
-        - Whisper API
+        - Whisper API (or local whisper.cpp)
         - GPT API (user-configurable model/temp)
         - Embeddings API (env-configurable)"]
+        WhisperLocal["Local whisper.cpp Server
+        Optional
+        - GPU-accelerated transcription
+        - Metal support (Mac)
+        - OpenAI-compatible endpoint"]
         Email["Email Service
         - SMTP
         - Email Sending"]
@@ -91,6 +96,7 @@ graph TB
     Celery --> LocalFS
     Celery --> S3
     Celery --> OpenAI
+    Celery -.->|Optional| WhisperLocal
 ```
 
 ## Layer-by-Layer Detailed Configuration
