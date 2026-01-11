@@ -264,18 +264,8 @@ Start the whisper.cpp server with OpenAI-compatible endpoint:
 ```bash
 # From whisper.cpp directory
 cd whisper.cpp
-./build/bin/whisper-server -m models/ggml-large-v3-turbo.bin --host 0.0.0.0 --port 8080 -t 8 --inference-path /v1/audio/transcriptions
+./build/bin/whisper-server -m models/ggml-large-v3-turbo.bin -l ja --inference-path /audio/transcriptions
 ```
-
-**Important options:**
-- `--inference-path /v1/audio/transcriptions`: Enables OpenAI-compatible API endpoint (required for VideoQ integration)
-- `-t 8`: Number of threads (adjust based on your CPU cores)
-- `--host 0.0.0.0`: Listen on all interfaces (required for Docker access)
-- `--port 8080`: Server port
-
-The server will start and listen on `http://localhost:8080`.
-
-**Note:** Keep this terminal window open while using VideoQ transcription.
 
 #### 5. Configure VideoQ
 
@@ -283,10 +273,8 @@ Update your `.env` file in the VideoQ root directory:
 
 ```bash
 WHISPER_BACKEND=local
-WHISPER_LOCAL_URL=http://host.docker.internal:8080/v1
+WHISPER_LOCAL_URL=http://host.docker.internal:8080
 ```
-
-**Note:** Use `host.docker.internal` to access the host machine from Docker containers on Mac.
 
 #### 6. Restart VideoQ Services
 
