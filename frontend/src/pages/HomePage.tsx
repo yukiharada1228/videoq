@@ -8,14 +8,12 @@ import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { apiClient, type VideoGroupList, type VideoList } from '@/lib/api';
 import { useAsyncState } from '@/hooks/useAsyncState';
 import { useVideoStats } from '@/hooks/useVideoStats';
-import { useOpenAIApiKeyStatus } from '@/hooks/useOpenAIApiKeyStatus';
- 
+
 export default function HomePage() {
   const navigate = useI18nNavigate();
   const { user, loading } = useAuth();
   const { t } = useTranslation();
-  const { hasApiKey, isChecking: checkingApiKey } = useOpenAIApiKeyStatus({ enabled: !!user });
- 
+
   const { data: rawData, isLoading: isLoadingStats, execute: loadStats } = useAsyncState<{
     videos: VideoList[];
     groups: VideoGroupList[];
@@ -25,10 +23,10 @@ export default function HomePage() {
       groups: [],
     },
   });
- 
+
   const videoStats = useVideoStats(rawData?.videos || []);
   const hasVideos = (rawData?.videos?.length ?? 0) > 0;
- 
+
   useEffect(() => {
     if (user && !isLoadingStats && !hasVideos) {
       const loadData = async () => {
@@ -37,7 +35,7 @@ export default function HomePage() {
             apiClient.getVideos().catch(() => []),
             apiClient.getVideoGroups().catch(() => []),
           ]);
- 
+
           await loadStats(async () => ({
             videos,
             groups,
@@ -46,19 +44,15 @@ export default function HomePage() {
           console.error('Failed to load stats:', error);
         }
       };
- 
+
       void loadData();
     }
   }, [user, isLoadingStats, hasVideos, loadStats]);
- 
+
   const handleUploadClick = () => {
-    if (!checkingApiKey && hasApiKey === false) {
-      navigate('/settings');
-      return;
-    }
     navigate('/videos?upload=true');
   };
- 
+
   if (loading || !user || isLoadingStats) {
     return (
       <PageLayout>
@@ -66,7 +60,7 @@ export default function HomePage() {
       </PageLayout>
     );
   }
- 
+
   return (
     <PageLayout>
       <div className="max-w-4xl mx-auto space-y-8">
@@ -78,15 +72,10 @@ export default function HomePage() {
             {t('home.welcome.subtitle', { username: user.username })}
           </p>
         </div>
- 
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Card
-            className={[
-              'transition-all border-2',
-              (!checkingApiKey && hasApiKey === false)
-                ? 'cursor-not-allowed opacity-60 border-gray-200'
-                : 'hover:shadow-xl cursor-pointer hover:border-blue-300',
-            ].join(' ')}
+            className="hover:shadow-xl transition-all cursor-pointer border-2 hover:border-blue-300"
             onClick={handleUploadClick}
           >
             <CardHeader>
@@ -95,7 +84,7 @@ export default function HomePage() {
               <CardDescription>{t('home.actions.upload.description')}</CardDescription>
             </CardHeader>
           </Card>
- 
+
           <Card
             className="hover:shadow-xl transition-all cursor-pointer border-2 hover:border-green-300"
             onClick={() => navigate('/videos')}
@@ -108,7 +97,7 @@ export default function HomePage() {
               </CardDescription>
             </CardHeader>
           </Card>
- 
+
           <Card
             className="hover:shadow-xl transition-all cursor-pointer border-2 hover:border-purple-300"
             onClick={() => navigate('/videos/groups')}
@@ -122,7 +111,7 @@ export default function HomePage() {
             </CardHeader>
           </Card>
         </div>
- 
+
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card>
             <CardContent className="pt-6 text-center">
@@ -130,21 +119,21 @@ export default function HomePage() {
               <p className="text-sm text-gray-600 mt-2">{t('home.stats.completed')}</p>
             </CardContent>
           </Card>
- 
+
           <Card>
             <CardContent className="pt-6 text-center">
               <div className="text-4xl font-bold text-blue-600">{videoStats.pending}</div>
               <p className="text-sm text-gray-600 mt-2">{t('home.stats.pending')}</p>
             </CardContent>
           </Card>
- 
+
           <Card>
             <CardContent className="pt-6 text-center">
               <div className="text-4xl font-bold text-yellow-600">{videoStats.processing}</div>
               <p className="text-sm text-gray-600 mt-2">{t('home.stats.processing')}</p>
             </CardContent>
           </Card>
- 
+
           <Card>
             <CardContent className="pt-6 text-center">
               <div className="text-4xl font-bold text-red-600">{videoStats.error}</div>

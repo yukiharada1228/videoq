@@ -7,12 +7,12 @@ import os
 import tempfile
 
 from celery import shared_task
+from django.conf import settings
 
 from app.tasks.audio_processing import extract_and_split_audio
 from app.tasks.srt_processing import (apply_scene_splitting,
                                       transcribe_and_create_srt)
 from app.tasks.vector_indexing import index_scenes_batch
-from app.utils.openai_utils import require_openai_api_key
 from app.utils.task_helpers import (ErrorHandler, TemporaryFileManager,
                                     VideoTaskManager)
 from app.utils.whisper_client import (WhisperConfig, create_whisper_client,
@@ -115,8 +115,8 @@ def transcribe_video(self, video_id):
 
             VideoTaskManager.update_video_status(video, "processing")
 
-            # Initialize OpenAI API key (required for OpenAI Whisper API, embeddings, and chat)
-            api_key = require_openai_api_key(video.user)
+            # Get OpenAI API key from environment variable
+            api_key = settings.OPENAI_API_KEY
 
             # Initialize Whisper client (OpenAI API or local whisper.cpp server)
             whisper_config = WhisperConfig()

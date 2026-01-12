@@ -17,8 +17,6 @@ export interface User {
   email: string;
   video_limit: number | null;
   video_count: number;
-  preferred_llm_model: string;
-  preferred_llm_temperature: number;
 }
 
 export interface SignupRequest {
@@ -160,31 +158,7 @@ export interface VideoGroupList {
   video_count: number;
 }
 
-export interface OpenAIApiKeySetRequest {
-  api_key: string;
-}
 
-export interface OpenAIApiKeyStatusResponse {
-  has_api_key: boolean;
-}
-
-export interface OpenAIApiKeyMessageResponse {
-  message: string;
-}
-
-export interface LLMSettings {
-  preferred_llm_model: string;
-  preferred_llm_temperature: number;
-}
-
-export interface LLMSettingsUpdateRequest {
-  preferred_llm_model?: string;
-  preferred_llm_temperature?: number;
-}
-
-export interface AvailableModelsResponse {
-  models: string[];
-}
 
 export interface Tag {
   id: number;
@@ -217,7 +191,7 @@ class ApiClient {
 
   // HttpOnly Cookie-based authentication (security enhancement)
   // Use HttpOnly Cookie instead of localStorage to prevent XSS attacks
-  
+
   async isAuthenticated(): Promise<boolean> {
     try {
       const response = await fetch(`${this.baseUrl}/auth/me/`, {
@@ -339,18 +313,18 @@ class ApiClient {
   private async parseJsonResponse<T>(response: Response): Promise<T> {
     const contentType = response.headers.get('content-type');
     const isJson = contentType && contentType.includes('application/json');
-    
+
     // Check Content-Length or Transfer-Encoding header
     const contentLength = response.headers.get('content-length');
     if (contentLength === '0' || (!isJson && !contentLength)) {
       return {} as T;
     }
-    
+
     const text = await response.text();
     if (!text || text.trim() === '') {
       return {} as T;
     }
-    
+
     try {
       return JSON.parse(text) as T;
     } catch {
@@ -370,12 +344,12 @@ class ApiClient {
       }
       return null;
     }
-    
+
     if (response.status === 401) {
       await this.handleAuthError();
       return null;
     }
-    
+
     return null;
   }
 
@@ -389,7 +363,7 @@ class ApiClient {
     config: RequestInit
   ): Promise<Response> {
     const response = await fetch(url, config);
-    
+
     // Process errors other than 401 immediately
     if (!response.ok && response.status !== 401) {
       await this.handleError(response);
@@ -420,10 +394,10 @@ class ApiClient {
     try {
       // Use common fetch execution logic
       const response = await this.executeRequest(url, config);
-      
+
       // Use common method to handle 401 errors
       const retryResult = await this.handle401Error<T>(response, retryCount, () => this.request(endpoint, options, retryCount + 1));
-      
+
       // Return recursively called result if retried
       if (retryResult !== null && retryResult !== undefined) {
         return retryResult as T;
@@ -457,10 +431,10 @@ class ApiClient {
       method: 'POST',
       body: data,
     });
-    
+
     // With HttpOnly Cookie-based authentication, backend sets Cookie
     // No need to store tokens on frontend
-    
+
     return response;
   }
 
@@ -482,12 +456,12 @@ class ApiClient {
     // With HttpOnly Cookie-based authentication, backend automatically updates Cookie
     // No need to manage refresh tokens on frontend
     // Call backend refresh endpoint as needed
-    
+
     const response = await this.request<RefreshResponse>('/auth/refresh/', {
       method: 'POST',
       body: {}, // Backend gets refresh token from Cookie
     });
-    
+
     return response;
   }
 
@@ -603,7 +577,7 @@ class ApiClient {
     }
 
     const url = this.buildUrl('/videos/');
-    
+
     // Authorization header not needed with HttpOnly Cookie-based authentication
     const headers: Record<string, string> = {};
 
@@ -768,40 +742,6 @@ class ApiClient {
     return this.request<void>(`/videos/${videoId}/tags/${tagId}/remove/`, {
       method: 'DELETE',
     });
-  }
-
-  // OpenAI API Key management methods
-  async setOpenAIApiKey(data: OpenAIApiKeySetRequest): Promise<OpenAIApiKeyMessageResponse> {
-    return this.request<OpenAIApiKeyMessageResponse>('/auth/me/openai-api-key/', {
-      method: 'POST',
-      body: data,
-    });
-  }
-
-  async getOpenAIApiKeyStatus(): Promise<OpenAIApiKeyStatusResponse> {
-    return this.request<OpenAIApiKeyStatusResponse>('/auth/me/openai-api-key/status/');
-  }
-
-  async deleteOpenAIApiKey(): Promise<OpenAIApiKeyMessageResponse> {
-    return this.request<OpenAIApiKeyMessageResponse>('/auth/me/openai-api-key/delete/', {
-      method: 'DELETE',
-    });
-  }
-
-  // LLM Settings methods
-  async getLLMSettings(): Promise<LLMSettings> {
-    return this.request<LLMSettings>('/auth/me/llm-settings/');
-  }
-
-  async updateLLMSettings(data: LLMSettingsUpdateRequest): Promise<LLMSettings> {
-    return this.request<LLMSettings>('/auth/me/llm-settings/update/', {
-      method: 'PATCH',
-      body: data,
-    });
-  }
-
-  async getAvailableModels(): Promise<AvailableModelsResponse> {
-    return this.request<AvailableModelsResponse>('/auth/me/llm-settings/available-models/');
   }
 
 }
