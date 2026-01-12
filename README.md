@@ -385,27 +385,6 @@ OLLAMA_BASE_URL=http://host.docker.internal:11434
 docker compose restart backend celery-worker
 ```
 
-**Note**: When using Ollama for LLM, per-user LLM settings (model and temperature) from the Settings page will be ignored. The system-wide `LLM_MODEL` will be used instead.
-
-### Per-User LLM Settings (OpenAI only)
-
-When using OpenAI as the LLM provider (`LLM_PROVIDER=openai`), users can customize their AI chat experience through the Settings page:
-
-- **Preferred LLM Model**: Choose from GPT models (e.g., gpt-4o-mini, gpt-4o, gpt-4-turbo)
-  - Default: `gpt-4o-mini`
-  - Stored in `User.preferred_llm_model`
-- **LLM Temperature**: Control response randomness (0.0 to 2.0)
-  - Default: `0.0`
-  - Stored in `User.preferred_llm_temperature`
-  - Lower values (e.g., 0.0) produce more focused responses
-  - Higher values (e.g., 1.5) produce more creative responses
-
-These settings apply to all chat sessions for that user, including RAG-based chat on video groups.
-
-**Note**: When `LLM_PROVIDER=ollama`, the system-wide `LLM_MODEL` setting is used for all users, and per-user preferences are ignored.
-
-Related: `docs/architecture/prompt-engineering.md`
-
 ## Development
 
 ### Frontend-only Development
