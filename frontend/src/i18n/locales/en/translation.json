@@ -7,6 +7,7 @@
       "backToHome": "Back to home",
       "backToList": "Back to list",
       "create": "Create",
+      "creating": "Creating...",
       "save": "Save",
       "saving": "Saving...",
       "cancel": "Cancel",
@@ -22,6 +23,7 @@
       "disable": "Disable",
       "copy": "Copy",
       "copied": "Copied ✓",
+      "confirm": "Confirm",
       "close": "Close",
       "exportCsv": "Export CSV",
       "selectAll": "Select all",
@@ -71,6 +73,38 @@
       "copyFailed": "Copy failed. Please copy it manually.",
       "noHistory": "No history available",
       "loadingHistory": "Loading..."
+    }
+  },
+  "tags": {
+    "filter": {
+      "title": "Filter by tags",
+      "clear": "Clear",
+      "selected": "{{count}} tags selected"
+    },
+    "management": {
+      "title": "Manage Tags",
+      "create": "Create New",
+      "edit": "Edit",
+      "delete": "Delete",
+      "nameLabel": "Tag Name",
+      "colorLabel": "Color",
+      "createTitle": "Create Tag",
+      "editTitle": "Edit Tag",
+      "deleteConfirm": "Are you sure you want to delete this tag?"
+    },
+    "selector": {
+      "label": "Tags",
+      "createNew": "Create new tag",
+      "noTags": "No available tags"
+    },
+    "create": {
+      "title": "Create New Tag",
+      "description": "Create a new tag to organize your videos.",
+      "nameLabel": "Tag Name",
+      "namePlaceholder": "Enter tag name",
+      "colorLabel": "Tag Color",
+      "preview": "Preview",
+      "previewPlaceholder": "Tag preview"
     }
   },
   "navigation": {

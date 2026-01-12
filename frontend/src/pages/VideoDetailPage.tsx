@@ -14,6 +14,7 @@ import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { MessageAlert } from '@/components/common/MessageAlert';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
 import { getStatusBadgeClassName, getStatusLabel, formatDate } from '@/lib/utils/video';
+import { TagBadge } from '@/components/video/TagBadge';
  
 export default function VideoDetailPage() {
   const params = useParams<{ id: string }>();
@@ -235,6 +236,16 @@ export default function VideoDetailPage() {
                   {video.external_id ? video.external_id : t('common.notProvided')}
                 </p>
               </div>
+              {!isEditing && video.tags && video.tags.length > 0 && (
+                <div>
+                  <p className="text-sm font-medium text-gray-600 mb-2">{t('videos.detail.labels.tags', 'Tags')}</p>
+                  <div className="flex flex-wrap gap-2">
+                    {video.tags.map((tag) => (
+                      <TagBadge key={tag.id} tag={tag} size="md" />
+                    ))}
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
  

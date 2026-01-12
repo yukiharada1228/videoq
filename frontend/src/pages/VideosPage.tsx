@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useVideos } from '@/hooks/useVideos';
@@ -11,60 +11,82 @@ import { Button } from '@/components/ui/button';
 import { useOpenAIApiKeyStatus } from '@/hooks/useOpenAIApiKeyStatus';
 import { useAuth } from '@/hooks/useAuth';
 import { useI18nNavigate } from '@/lib/i18n';
- 
+import { useTags } from '@/hooks/useTags';
+
+import { TagFilterPanel } from '@/components/video/TagFilterPanel';
+import { TagManagementModal } from '@/components/video/TagManagementModal';
+
+
 export default function VideosPage() {
   const { videos, isLoading, error, loadVideos } = useVideos();
   const stats = useVideoStats(videos);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+
+  const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
+  const [isTagManagementOpen, setIsTagManagementOpen] = useState(false);
   const [searchParams] = useSearchParams();
   const navigate = useI18nNavigate();
   const { t } = useTranslation();
   const { hasApiKey, isChecking: checkingApiKey } = useOpenAIApiKeyStatus();
   const { user, loading: userLoading, refetch: refetchUser } = useAuth();
- 
+  const { tags } = useTags();
+
+
   const shouldOpenModalFromQuery = useMemo(
     () => searchParams?.get('upload') === 'true',
     [searchParams],
   );
- 
+
   useEffect(() => {
-    void loadVideos();
-  }, [loadVideos]);
- 
+    void loadVideos(selectedTagIds.length > 0 ? selectedTagIds : undefined);
+  }, [loadVideos, selectedTagIds]);
+
+  const handleTagToggle = useCallback((tagId: number) => {
+    setSelectedTagIds((prev: number[]) =>
+      prev.includes(tagId) ? prev.filter((id: number) => id !== tagId) : [...prev, tagId]
+    );
+  }, []);
+
+  const handleTagClear = useCallback(() => {
+    setSelectedTagIds([]);
+  }, []);
+
+
+
   useEffect(() => {
     if (shouldOpenModalFromQuery && !checkingApiKey && hasApiKey === false) {
       navigate('/videos', { replace: true });
     }
   }, [shouldOpenModalFromQuery, checkingApiKey, hasApiKey, navigate]);
- 
+
   const handleUploadSuccess = () => {
     void loadVideos();
     void refetchUser(); // Update video_count
   };
- 
+
   const handleUploadClick = () => {
     setIsUploadModalOpen(true);
   };
- 
+
   const handleCloseModal = () => {
     setIsUploadModalOpen(false);
     if (shouldOpenModalFromQuery) {
       navigate('/videos', { replace: true });
     }
   };
- 
+
   const isUploadDisabled = useMemo(() => {
     if (!user || userLoading) return true;
     if (hasApiKey !== true || checkingApiKey) return true;
     if (user.video_limit === null) return false;
     return user.video_count >= user.video_limit;
   }, [user, userLoading, hasApiKey, checkingApiKey]);
- 
+
   const hasReachedLimit = useMemo(() => {
     if (!user || user.video_limit === null) return false;
     return user.video_count >= user.video_limit;
   }, [user]);
- 
+
   return (
     <>
       <PageLayout fullWidth>
@@ -90,7 +112,7 @@ export default function VideosPage() {
               <span>{t('videos.list.uploadButton')}</span>
             </Button>
           </div>
- 
+
           {hasReachedLimit && user && user.video_limit !== null && (
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
               <p className="text-yellow-800 text-sm">
@@ -98,7 +120,18 @@ export default function VideosPage() {
               </p>
             </div>
           )}
- 
+
+          <TagFilterPanel
+            tags={tags}
+            selectedTagIds={selectedTagIds}
+            onToggle={handleTagToggle}
+            onClear={handleTagClear}
+            onManageTags={() => setIsTagManagementOpen(true)}
+            disabled={isLoading}
+          />
+
+
+
           {stats.total > 0 && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="bg-blue-50 rounded-lg p-4 border border-blue-100">
@@ -119,7 +152,7 @@ export default function VideosPage() {
               </div>
             </div>
           )}
- 
+
           <LoadingState
             isLoading={isLoading}
             error={error}
@@ -131,11 +164,16 @@ export default function VideosPage() {
           </LoadingState>
         </div>
       </PageLayout>
- 
+
       <VideoUploadModal
         isOpen={shouldOpenModalFromQuery || isUploadModalOpen}
         onClose={handleCloseModal}
         onUploadSuccess={handleUploadSuccess}
+      />
+
+      <TagManagementModal
+        isOpen={isTagManagementOpen}
+        onClose={() => setIsTagManagementOpen(false)}
       />
     </>
   );
