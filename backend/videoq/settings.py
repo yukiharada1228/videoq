@@ -59,6 +59,10 @@ class DefaultSettings:
     OLLAMA_BASE_URL = "http://localhost:11434"  # Ollama server URL
     OLLAMA_EMBEDDING_MODEL = "qwen3-embedding:0.6b"  # Ollama embedding model
 
+    # LLM configuration
+    OPENAI_API_KEY = ""  # OpenAI API key (from environment variable)
+    LLM_MODEL = "gpt-4o-mini"  # Default LLM model
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -353,3 +357,7 @@ OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", DefaultSettings.OLLAMA_BASE_
 OLLAMA_EMBEDDING_MODEL = os.environ.get(
     "OLLAMA_EMBEDDING_MODEL", DefaultSettings.OLLAMA_EMBEDDING_MODEL
 )
+
+# LLM configuration
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", DefaultSettings.OPENAI_API_KEY)
+LLM_MODEL = os.environ.get("LLM_MODEL", DefaultSettings.LLM_MODEL)

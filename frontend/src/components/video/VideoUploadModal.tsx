@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { VideoUploadFormFields } from './VideoUploadFormFields';
 import { VideoUploadButton } from './VideoUploadButton';
-import { useOpenAIApiKeyStatus } from '@/hooks/useOpenAIApiKeyStatus';
 import { useTags } from '@/hooks/useTags';
 import { TagSelector } from './TagSelector';
 import { TagCreateDialog } from './TagCreateDialog';
@@ -20,9 +19,6 @@ interface VideoUploadModalProps {
 }
 
 export function VideoUploadModal({ isOpen, onClose, onUploadSuccess }: VideoUploadModalProps) {
-  const { hasApiKey, isChecking: checkingApiKey } = useOpenAIApiKeyStatus();
-  const apiKeyMissing = !checkingApiKey && hasApiKey === false;
-
   const {
     file,
     title,
@@ -84,14 +80,10 @@ export function VideoUploadModal({ isOpen, onClose, onUploadSuccess }: VideoUplo
             {t('videos.upload.description')}
           </DialogDescription>
         </DialogHeader>
-        <form 
+        <form
           onSubmit={(e) => {
-            if (apiKeyMissing || checkingApiKey) {
-              e.preventDefault();
-              return;
-            }
             handleSubmit(e, onUploadSuccess);
-          }} 
+          }}
           className="space-y-4"
         >
           <VideoUploadFormFields
@@ -99,7 +91,7 @@ export function VideoUploadModal({ isOpen, onClose, onUploadSuccess }: VideoUplo
             description={description}
             externalId={externalId}
             isUploading={isUploading}
-            disabled={apiKeyMissing || checkingApiKey}
+            disabled={false}
             error={error}
             success={success}
             setTitle={setTitle}
@@ -115,13 +107,13 @@ export function VideoUploadModal({ isOpen, onClose, onUploadSuccess }: VideoUplo
             selectedTagIds={tagIds}
             onToggle={handleTagToggle}
             onCreateNew={() => setIsCreateDialogOpen(true)}
-            disabled={apiKeyMissing || checkingApiKey || isUploading}
+            disabled={isUploading}
           />
           <DialogFooter>
             <Button type="button" variant="outline" onClick={handleClose} disabled={isUploading}>
               {t('common.actions.cancel')}
             </Button>
-            <VideoUploadButton isUploading={isUploading} disabled={apiKeyMissing || checkingApiKey} />
+            <VideoUploadButton isUploading={isUploading} disabled={false} />
           </DialogFooter>
         </form>
 

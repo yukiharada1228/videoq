@@ -9,7 +9,6 @@ import SignupCheckEmailPage from '@/pages/SignupCheckEmailPage';
 import ForgotPasswordPage from '@/pages/ForgotPasswordPage';
 import ResetPasswordPage from '@/pages/ResetPasswordPage';
 import VerifyEmailPage from '@/pages/VerifyEmailPage';
-import SettingsPage from '@/pages/SettingsPage';
 import VideosPage from '@/pages/VideosPage';
 import VideoDetailPage from '@/pages/VideoDetailPage';
 import VideoGroupsPage from '@/pages/VideoGroupsPage';
@@ -49,7 +48,6 @@ const routeChildren = (
     <Route path="forgot-password" element={<ForgotPasswordPage />} />
     <Route path="reset-password" element={<ResetPasswordPage />} />
     <Route path="verify-email" element={<VerifyEmailPage />} />
-    <Route path="settings" element={<SettingsPage />} />
     <Route path="videos" element={<VideosPage />} />
     <Route path="videos/:id" element={<VideoDetailPage />} />
     <Route path="videos/groups" element={<VideoGroupsPage />} />
