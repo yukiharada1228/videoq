@@ -8,7 +8,10 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { VideoUploadFormFields } from './VideoUploadFormFields';
 import { VideoUploadButton } from './VideoUploadButton';
 import { useOpenAIApiKeyStatus } from '@/hooks/useOpenAIApiKeyStatus';
-import { useVideoGroups } from '@/hooks/useVideoGroups';
+import { useTags } from '@/hooks/useTags';
+import { TagSelector } from './TagSelector';
+import { TagCreateDialog } from './TagCreateDialog';
+import { useState } from 'react';
 
 interface VideoUploadModalProps {
   isOpen: boolean;
@@ -25,22 +28,33 @@ export function VideoUploadModal({ isOpen, onClose, onUploadSuccess }: VideoUplo
     title,
     description,
     externalId,
-    groupId,
+    tagIds,
     isUploading,
     error,
     success,
     setTitle,
     setDescription,
     setExternalId,
-    setGroupId,
+    setTagIds,
     handleFileChange,
     handleSubmit,
     reset,
   } = useVideoUpload();
   const { t } = useTranslation();
 
-  // Load groups when modal opens (refetches when modal reopens)
-  const { groups } = useVideoGroups(isOpen);
+  // Load tags
+  const { tags, createTag } = useTags();
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+
+  const handleTagToggle = useCallback((tagId: number) => {
+    setTagIds((prev: number[]) =>
+      prev.includes(tagId) ? prev.filter((id: number) => id !== tagId) : [...prev, tagId]
+    );
+  }, [setTagIds]);
+
+  const handleCreateTag = useCallback(async (name: string, color: string) => {
+    await createTag(name, color);
+  }, [createTag]);
 
   const handleClose = useCallback(() => {
     if (!isUploading) {
@@ -84,7 +98,6 @@ export function VideoUploadModal({ isOpen, onClose, onUploadSuccess }: VideoUplo
             title={title}
             description={description}
             externalId={externalId}
-            groupId={groupId}
             isUploading={isUploading}
             disabled={apiKeyMissing || checkingApiKey}
             error={error}
@@ -92,11 +105,17 @@ export function VideoUploadModal({ isOpen, onClose, onUploadSuccess }: VideoUplo
             setTitle={setTitle}
             setDescription={setDescription}
             setExternalId={setExternalId}
-            setGroupId={setGroupId}
             handleFileChange={handleFileChange}
             file={file}
-            groups={groups}
             hideButtons={true}
+          />
+
+          <TagSelector
+            tags={tags}
+            selectedTagIds={tagIds}
+            onToggle={handleTagToggle}
+            onCreateNew={() => setIsCreateDialogOpen(true)}
+            disabled={apiKeyMissing || checkingApiKey || isUploading}
           />
           <DialogFooter>
             <Button type="button" variant="outline" onClick={handleClose} disabled={isUploading}>
@@ -105,6 +124,12 @@ export function VideoUploadModal({ isOpen, onClose, onUploadSuccess }: VideoUplo
             <VideoUploadButton isUploading={isUploading} disabled={apiKeyMissing || checkingApiKey} />
           </DialogFooter>
         </form>
+
+        <TagCreateDialog
+          isOpen={isCreateDialogOpen}
+          onClose={() => setIsCreateDialogOpen(false)}
+          onCreate={handleCreateTag}
+        />
       </DialogContent>
     </Dialog>
   );

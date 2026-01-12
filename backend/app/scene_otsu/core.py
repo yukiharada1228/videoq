@@ -432,7 +432,9 @@ def scenes_to_srt_string(scenes: List[Dict[str, Any]]) -> str:
     return "\n".join(lines)
 
 
-def create_embedder(api_key: Optional[str] = None, batch_size: int = 16) -> BaseEmbedder:
+def create_embedder(
+    api_key: Optional[str] = None, batch_size: int = 16
+) -> BaseEmbedder:
     """
     Create embedder based on EMBEDDING_PROVIDER setting
 

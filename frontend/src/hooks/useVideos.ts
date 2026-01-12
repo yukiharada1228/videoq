@@ -10,7 +10,7 @@ interface UseVideosReturn {
   videos: VideoListType[];
   isLoading: boolean;
   error: string | null;
-  loadVideos: () => Promise<void>;
+  loadVideos: (tagIds?: number[]) => Promise<void>;
 }
 
 export function useVideos(): UseVideosReturn {
@@ -21,9 +21,9 @@ export function useVideos(): UseVideosReturn {
     },
   });
 
-  const handleLoadVideos = useCallback(async () => {
+  const handleLoadVideos = useCallback(async (tagIds?: number[]) => {
     await loadVideos(async () => {
-      return await apiClient.getVideos();
+      return await apiClient.getVideos({ tags: tagIds });
     });
   }, [loadVideos]);
 

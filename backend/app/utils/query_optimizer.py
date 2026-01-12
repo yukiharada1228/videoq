@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional
 
 from django.db.models import Count, Prefetch, QuerySet
 
-from app.models import Video, VideoGroup, VideoGroupMember
+from app.models import Video, VideoGroup, VideoGroupMember, VideoTag
 
 
 class QueryOptimizer:
@@ -32,6 +32,7 @@ class QueryOptimizer:
         include_user: bool = True,
         include_transcript: bool = False,
         include_groups: bool = False,
+        include_tags: bool = True,
     ) -> QuerySet:
         """
         Optimize video queryset
@@ -57,6 +58,12 @@ class QueryOptimizer:
                     "groups", queryset=VideoGroupMember.objects.select_related("group")
                 )
             )
+
+        if include_tags:
+            prefetch_objects.append(
+                Prefetch("video_tags", queryset=VideoTag.objects.select_related("tag"))
+            )
+
         queryset = QueryOptimizer._apply_prefetch_related(queryset, prefetch_objects)
 
         # Optimize field selection
@@ -94,7 +101,15 @@ class QueryOptimizer:
         if include_videos:
             queryset = queryset.prefetch_related(
                 Prefetch(
-                    "members", queryset=VideoGroupMember.objects.select_related("video")
+                    "members",
+                    queryset=VideoGroupMember.objects.select_related(
+                        "video"
+                    ).prefetch_related(
+                        Prefetch(
+                            "video__video_tags",
+                            queryset=VideoTag.objects.select_related("tag"),
+                        )
+                    ),
                 )
             )
 
@@ -112,6 +127,7 @@ class QueryOptimizer:
         include_transcript: bool = False,
         status_filter: Optional[str] = None,
         include_groups: bool = False,
+        include_tags: bool = True,
     ) -> QuerySet:
         """
         Get videos with metadata
@@ -139,6 +155,7 @@ class QueryOptimizer:
             include_user=True,
             include_transcript=include_transcript,
             include_groups=include_groups,
+            include_tags=include_tags,
         )
 
         return queryset.order_by("-uploaded_at")
