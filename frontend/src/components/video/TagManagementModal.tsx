@@ -69,6 +69,7 @@ export function TagManagementModal({ isOpen, onClose }: TagManagementModalProps)
                                                 size="sm"
                                                 className="h-7 px-2"
                                                 onClick={() => handleDelete(tag.id)}
+                                                data-testid={`confirm-delete-${tag.id}`}
                                             >
                                                 {t('common.actions.delete', 'Delete')}
                                             </Button>
@@ -77,6 +78,7 @@ export function TagManagementModal({ isOpen, onClose }: TagManagementModalProps)
                                                 size="sm"
                                                 className="h-7 px-2"
                                                 onClick={() => setDeleteConfirmId(null)}
+                                                data-testid={`cancel-delete-${tag.id}`}
                                             >
                                                 {t('common.actions.cancel', 'Cancel')}
                                             </Button>
@@ -87,6 +89,7 @@ export function TagManagementModal({ isOpen, onClose }: TagManagementModalProps)
                                             size="icon"
                                             className="h-8 w-8 text-gray-400 hover:text-red-500"
                                             onClick={() => setDeleteConfirmId(tag.id)}
+                                            data-testid={`delete-tag-${tag.id}`}
                                         >
                                             <Trash2 className="h-4 w-4" />
                                         </Button>

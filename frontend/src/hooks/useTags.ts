@@ -50,7 +50,9 @@ export function useTags() {
 
   // Load tags on mount
   useEffect(() => {
-    void loadTags();
+    loadTags().catch(() => {
+      // Error is handled by useAsyncState
+    });
   }, [loadTags]);
 
   return {
