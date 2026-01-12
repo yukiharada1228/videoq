@@ -19,7 +19,7 @@ class WhisperConfig:
     def __init__(self):
         self.backend = os.getenv("WHISPER_BACKEND", self.BACKEND_OPENAI).lower()
         self.local_url = os.getenv(
-            "WHISPER_LOCAL_URL", "http://host.docker.internal:8080/v1"
+            "WHISPER_LOCAL_URL", "http://host.docker.internal:8080"
         )
 
         logger.info(f"Whisper backend configured: {self.backend}")
