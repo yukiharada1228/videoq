@@ -1,7 +1,7 @@
 """LangChain helper functions"""
 
 import os
-from typing import Optional, Tuple, Union
+from typing import Optional, Tuple
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
