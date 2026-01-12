@@ -46,6 +46,7 @@ Table that stores user information for the system.
 - `videos`: One-to-many relationship with Video table
 - `video_groups`: One-to-many relationship with VideoGroup table
 - `chat_logs`: One-to-many relationship with ChatLog table
+- `tags`: One-to-many relationship with Tag table
 
 ---
 
@@ -87,6 +88,8 @@ Table that stores information about uploaded videos.
 ### Relations
 - `user`: Many-to-one relationship with User table
 - `groups`: Many-to-many relationship through VideoGroupMember table
+- `video_tags`: One-to-many relationship with VideoTag table
+- `tags`: Many-to-many relationship through VideoTag table
 
 ---
 
@@ -151,6 +154,67 @@ Intermediate table that manages the relationship between videos and groups.
 ### Relations
 - `group`: Many-to-one relationship with VideoGroup table
 - `video`: Many-to-one relationship with Video table
+
+---
+
+## Tag Table
+
+### Table Name
+`app_tag`
+
+### Description
+Table that stores user-defined tags for organizing videos.
+
+### Column Definitions
+
+| Column Name | Data Type | Constraints | Default Value | Description |
+|------------|-----------|-------------|---------------|-------------|
+| id | BIGINT | PRIMARY KEY, AUTO_INCREMENT | - | Tag ID |
+| user_id | BIGINT | FOREIGN KEY, NOT NULL | - | Owner's user ID |
+| name | VARCHAR(50) | NOT NULL | - | Tag name |
+| color | VARCHAR(7) | NOT NULL | '#3B82F6' | Tag color in hex format (#RRGGBB) |
+| created_at | TIMESTAMPTZ | NOT NULL | now() | Creation date and time |
+
+### Indexes
+- PRIMARY KEY: `id`
+- FOREIGN KEY: `user_id` → `app_user.id` (CASCADE)
+- UNIQUE: `(user_id, name)` (per-user unique tag names)
+- INDEX: `name` (for ordering)
+
+### Relations
+- `user`: Many-to-one relationship with User table
+- `video_tags`: One-to-many relationship with VideoTag table
+- `videos_through`: Many-to-many relationship through VideoTag table
+
+---
+
+## VideoTag Table
+
+### Table Name
+`app_videotag`
+
+### Description
+Intermediate table for many-to-many relationship between Video and Tag.
+
+### Column Definitions
+
+| Column Name | Data Type | Constraints | Default Value | Description |
+|------------|-----------|-------------|---------------|-------------|
+| id | BIGINT | PRIMARY KEY, AUTO_INCREMENT | - | VideoTag ID |
+| video_id | BIGINT | FOREIGN KEY, NOT NULL | - | Video ID |
+| tag_id | BIGINT | FOREIGN KEY, NOT NULL | - | Tag ID |
+| added_at | TIMESTAMPTZ | NOT NULL | now() | Tag assignment date and time |
+
+### Indexes
+- PRIMARY KEY: `id`
+- FOREIGN KEY: `video_id` → `app_video.id` (CASCADE)
+- FOREIGN KEY: `tag_id` → `app_tag.id` (CASCADE)
+- UNIQUE: `(video_id, tag_id)` (prevent duplicate tag assignments)
+- INDEX: `tag__name` (for ordering by tag name)
+
+### Relations
+- `video`: Many-to-one relationship with Video table
+- `tag`: Many-to-one relationship with Tag table
 
 ---
 

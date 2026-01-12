@@ -13,6 +13,7 @@ When a user uploads a video, transcription runs automatically in the background.
 - **Upload limit**: per-user limit via `User.video_limit` (`NULL` = unlimited, `0` = disabled)
 - **Automatic transcription**: async processing via Celery (Whisper API)
 - **AI chat**: RAG using pgvector (OpenAI API)
+- **Tag management**: organize videos with custom tags (name + color)
 - **Group management**: group multiple videos and reorder them with drag-and-drop
 - **Sharing**: share groups via share token (guest viewing/chat)
 - **Protected media delivery**: served only with auth/share token
