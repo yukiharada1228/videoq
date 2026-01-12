@@ -14,15 +14,13 @@ from app.utils.vector_manager import PGVectorManager
 logger = logging.getLogger(__name__)
 
 
-def index_scenes_to_vectorstore(scene_docs, video, api_key):
+def index_scenes_to_vectorstore(scene_docs, video, api_key=None):
     """
     Create vector index using LangChain + pgvector
     scene_docs: [{text, metadata}]
-    api_key: API key for OpenAI (required when using OpenAI provider)
+    api_key: Optional API key for OpenAI (uses environment variable if not provided)
     """
     try:
-        if settings.EMBEDDING_PROVIDER == "openai" and not api_key:
-            raise ValueError("OpenAI API key is required when using OpenAI embeddings")
         embeddings = get_embeddings(api_key)
         config = PGVectorManager.get_config()
 
@@ -87,10 +85,9 @@ def create_scene_metadata(video, scene):
 def index_scenes_batch(scene_split_srt, video, api_key=None):
     """
     Batch index scenes to pgvector
+    api_key: Optional API key for OpenAI (uses environment variable if not provided)
     """
     try:
-        if settings.EMBEDDING_PROVIDER == "openai" and not api_key:
-            raise ValueError("OpenAI API key is required when using OpenAI embeddings")
         logger.info("Starting scene indexing to pgvector...")
         scenes = parse_srt_scenes(scene_split_srt)
         logger.info(f"Parsed {len(scenes)} scenes from SRT")
@@ -108,3 +105,4 @@ def index_scenes_batch(scene_split_srt, video, api_key=None):
 
     except Exception as e:
         logger.warning(f"Failed to prepare scenes for indexing: {e}", exc_info=True)
+        raise  # Re-raise exception for caller to handle
