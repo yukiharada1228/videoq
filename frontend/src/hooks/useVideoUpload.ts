@@ -7,14 +7,14 @@ interface UseVideoUploadReturn {
   title: string;
   description: string;
   externalId: string;
-  groupId: number | null;
+  tagIds: number[];
   isUploading: boolean;
   error: string | null;
   success: boolean;
   setTitle: (title: string) => void;
   setDescription: (description: string) => void;
   setExternalId: (externalId: string) => void;
-  setGroupId: (groupId: number | null) => void;
+  setTagIds: React.Dispatch<React.SetStateAction<number[]>>;
   handleFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleSubmit: (e: React.FormEvent, onSuccess?: () => void) => Promise<void>;
   reset: () => void;
@@ -46,7 +46,7 @@ export function useVideoUpload(): UseVideoUploadReturn {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [externalId, setExternalId] = useState('');
-  const [groupId, setGroupId] = useState<number | null>(null);
+  const [tagIds, setTagIds] = useState<number[]>([]);
   const [success, setSuccess] = useState(false);
 
   const { isLoading, error, execute: uploadVideo, setError } = useAsyncState({
@@ -70,7 +70,7 @@ export function useVideoUpload(): UseVideoUploadReturn {
     setTitle('');
     setDescription('');
     setExternalId('');
-    setGroupId(null);
+    setTagIds([]);
     setSuccess(false);
     setError(null);
   }, [setError]);
@@ -97,12 +97,12 @@ export function useVideoUpload(): UseVideoUploadReturn {
 
       const uploadedVideo = await apiClient.uploadVideo(request);
 
-      // Add to group if selected
-      if (groupId !== null) {
+      // Add tags if selected
+      if (tagIds.length > 0) {
         try {
-          await apiClient.addVideoToGroup(groupId, uploadedVideo.id);
+          await apiClient.addTagsToVideo(uploadedVideo.id, tagIds);
         } catch {
-          // Silently fail if group addition fails
+          // Silently fail if tag addition fails
           // The video upload itself was successful
         }
       }
@@ -113,21 +113,21 @@ export function useVideoUpload(): UseVideoUploadReturn {
     if (onSuccess) {
       onSuccess();
     }
-  }, [uploadVideo, file, title, description, externalId, groupId, setError]);
+  }, [uploadVideo, file, title, description, externalId, tagIds, setError]);
 
   return {
     file,
     title,
     description,
     externalId,
-    groupId,
+    tagIds,
     isUploading: isLoading,
     error,
     success,
     setTitle,
     setDescription,
     setExternalId,
-    setGroupId,
+    setTagIds,
     handleFileChange,
     handleSubmit,
     reset,

@@ -1,11 +1,13 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useVideoUpload } from '@/hooks/useVideoUpload';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { VideoUploadFormFields } from './VideoUploadFormFields';
-import { useVideoGroups } from '@/hooks/useVideoGroups';
+import { useTags } from '@/hooks/useTags';
+import { TagSelector } from './TagSelector';
+import { TagCreateDialog } from './TagCreateDialog';
 
 interface VideoUploadProps {
   onUploadSuccess?: () => void;
@@ -17,22 +19,33 @@ export function VideoUpload({ onUploadSuccess }: VideoUploadProps) {
     title,
     description,
     externalId,
-    groupId,
+    tagIds,
     isUploading,
     error,
     success,
     setTitle,
     setDescription,
     setExternalId,
-    setGroupId,
+    setTagIds,
     handleFileChange,
     handleSubmit,
     reset,
   } = useVideoUpload();
   const { t } = useTranslation();
 
-  // Load groups when user changes
-  const { groups } = useVideoGroups();
+  // Load tags
+  const { tags, createTag } = useTags();
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+
+  const handleTagToggle = useCallback((tagId: number) => {
+    setTagIds((prev: number[]) =>
+      prev.includes(tagId) ? prev.filter((id: number) => id !== tagId) : [...prev, tagId]
+    );
+  }, [setTagIds]);
+
+  const handleCreateTag = useCallback(async (name: string, color: string) => {
+    await createTag(name, color);
+  }, [createTag]);
 
   useEffect(() => {
     if (success && onUploadSuccess) {
@@ -55,19 +68,30 @@ export function VideoUpload({ onUploadSuccess }: VideoUploadProps) {
             title={title}
             description={description}
             externalId={externalId}
-            groupId={groupId}
             isUploading={isUploading}
             error={error}
             success={success}
             setTitle={setTitle}
             setDescription={setDescription}
             setExternalId={setExternalId}
-            setGroupId={setGroupId}
             handleFileChange={handleFileChange}
             file={file}
-            groups={groups}
+          />
+
+          <TagSelector
+            tags={tags}
+            selectedTagIds={tagIds}
+            onToggle={handleTagToggle}
+            onCreateNew={() => setIsCreateDialogOpen(true)}
+            disabled={isUploading}
           />
         </form>
+
+        <TagCreateDialog
+          isOpen={isCreateDialogOpen}
+          onClose={() => setIsCreateDialogOpen(false)}
+          onCreate={handleCreateTag}
+        />
       </CardContent>
     </Card>
   );

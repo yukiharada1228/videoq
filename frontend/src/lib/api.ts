@@ -94,6 +94,7 @@ export interface Video {
   status: 'pending' | 'processing' | 'completed' | 'error';
   error_message?: string;
   external_id?: string | null;
+  tags?: { id: number; name: string; color: string }[];
 }
 
 export interface VideoList {
@@ -104,6 +105,7 @@ export interface VideoList {
   uploaded_at: string;
   status: 'pending' | 'processing' | 'completed' | 'error';
   external_id?: string | null;
+  tags?: { id: number; name: string; color: string }[];
 }
 
 export interface VideoUploadRequest {
@@ -182,6 +184,28 @@ export interface LLMSettingsUpdateRequest {
 
 export interface AvailableModelsResponse {
   models: string[];
+}
+
+export interface Tag {
+  id: number;
+  name: string;
+  color: string;
+  created_at: string;
+  video_count?: number;
+}
+
+export interface TagDetail extends Tag {
+  videos?: VideoList[];
+}
+
+export interface TagCreateRequest {
+  name: string;
+  color?: string;
+}
+
+export interface TagUpdateRequest {
+  name?: string;
+  color?: string;
 }
 
 class ApiClient {
@@ -547,11 +571,14 @@ class ApiClient {
 
 
   // Video-related methods
-  async getVideos(params?: { q?: string; status?: string; ordering?: 'uploaded_at_desc' | 'uploaded_at_asc' | 'title_asc' | 'title_desc' }): Promise<VideoList[]> {
+  async getVideos(params?: { q?: string; status?: string; ordering?: 'uploaded_at_desc' | 'uploaded_at_asc' | 'title_asc' | 'title_desc'; tags?: number[] }): Promise<VideoList[]> {
     const queryParams: Record<string, string> = {};
     if (params?.q && params.q.trim() !== '') queryParams.q = params.q.trim();
     if (params?.status && params.status.trim() !== '') queryParams.status = params.status.trim();
     if (params?.ordering) queryParams.ordering = params.ordering;
+    if (params?.tags && params.tags.length > 0) {
+      queryParams.tags = params.tags.join(',');
+    }
 
     const query = Object.keys(queryParams).length
       ? `?${new URLSearchParams(queryParams).toString()}`
@@ -698,6 +725,49 @@ class ApiClient {
     const url = new URL(videoFile, window.location.origin);
     url.searchParams.set('share_token', shareToken);
     return url.toString();
+  }
+
+  // Tag management methods
+  async getTags(): Promise<Tag[]> {
+    return this.request<Tag[]>('/videos/tags/');
+  }
+
+  async getTag(id: number): Promise<TagDetail> {
+    return this.request<TagDetail>(`/videos/tags/${id}/`);
+  }
+
+  async createTag(data: TagCreateRequest): Promise<Tag> {
+    return this.request<Tag>('/videos/tags/', {
+      method: 'POST',
+      body: data,
+    });
+  }
+
+  async updateTag(id: number, data: TagUpdateRequest): Promise<Tag> {
+    return this.request<Tag>(`/videos/tags/${id}/`, {
+      method: 'PATCH',
+      body: data,
+    });
+  }
+
+  async deleteTag(id: number): Promise<void> {
+    return this.request<void>(`/videos/tags/${id}/`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Video-Tag relationship methods
+  async addTagsToVideo(videoId: number, tagIds: number[]): Promise<{ message: string; added_count: number; skipped_count: number }> {
+    return this.request<{ message: string; added_count: number; skipped_count: number }>(`/videos/${videoId}/tags/`, {
+      method: 'POST',
+      body: { tag_ids: tagIds },
+    });
+  }
+
+  async removeTagFromVideo(videoId: number, tagId: number): Promise<void> {
+    return this.request<void>(`/videos/${videoId}/tags/${tagId}/remove/`, {
+      method: 'DELETE',
+    });
   }
 
   // OpenAI API Key management methods

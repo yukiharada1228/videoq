@@ -7,6 +7,7 @@
       "backToHome": "ホームに戻る",
       "backToList": "一覧に戻る",
       "create": "作成",
+      "creating": "作成中...",
       "save": "保存",
       "saving": "保存中...",
       "cancel": "キャンセル",
@@ -22,6 +23,7 @@
       "disable": "無効化",
       "copy": "コピー",
       "copied": "コピー済み ✓",
+      "confirm": "確認",
       "close": "閉じる",
       "exportCsv": "CSVエクスポート",
       "selectAll": "全選択",
@@ -42,7 +44,8 @@
       "title": "タイトル",
       "file": "ファイル",
       "player": "プレイヤー",
-      "chat": "チャット"
+      "chat": "チャット",
+      "tag": "タグ"
     },
     "status": {
       "pending": "待機中",
@@ -70,7 +73,44 @@
       "videoFileMissing": "動画ファイルがありません",
       "copyFailed": "コピーに失敗しました。手動でコピーしてください。",
       "noHistory": "履歴はありません",
-      "loadingHistory": "読込中..."
+      "loadingHistory": "読込中...",
+      "noTags": "タグがありません",
+      "tagExists": "すでに存在するタグです",
+      "tagCreated": "タグを作成しました",
+      "tagUpdated": "タグを更新しました",
+      "tagDeleted": "タグを削除しました"
+    }
+  },
+  "tags": {
+    "filter": {
+      "title": "タグで絞り込み",
+      "clear": "クリア",
+      "selected": "{{count}}個のタグを選択中"
+    },
+    "management": {
+      "title": "タグ管理",
+      "create": "新規作成",
+      "edit": "編集",
+      "delete": "削除",
+      "nameLabel": "タグ名",
+      "colorLabel": "色",
+      "createTitle": "タグを作成",
+      "editTitle": "タグを編集",
+      "deleteConfirm": "このタグを削除してもよろしいですか？"
+    },
+    "selector": {
+      "label": "タグ",
+      "createNew": "新規タグ作成",
+      "noTags": "利用可能なタグがありません"
+    },
+    "create": {
+      "title": "新規タグ作成",
+      "description": "動画を整理するための新しいタグを作成します。",
+      "nameLabel": "タグ名",
+      "namePlaceholder": "タグ名を入力",
+      "colorLabel": "タグの色",
+      "preview": "プレビュー",
+      "previewPlaceholder": "タグプレビュー"
     }
   },
   "navigation": {
