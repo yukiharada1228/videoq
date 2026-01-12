@@ -4,7 +4,7 @@ import { useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useVideo } from '@/hooks/useVideos';
 import { useAsyncState } from '@/hooks/useAsyncState';
-import { apiClient } from '@/lib/api';
+import { apiClient, type Tag } from '@/lib/api';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,7 +15,9 @@ import { MessageAlert } from '@/components/common/MessageAlert';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
 import { getStatusBadgeClassName, getStatusLabel, formatDate } from '@/lib/utils/video';
 import { TagBadge } from '@/components/video/TagBadge';
- 
+import { TagSelector } from '@/components/video/TagSelector';
+import { useTags } from '@/hooks/useTags';
+
 export default function VideoDetailPage() {
   const params = useParams<{ id: string }>();
   const navigate = useI18nNavigate();
@@ -25,19 +27,38 @@ export default function VideoDetailPage() {
   const startTime = searchParams.get('t');
   const { t } = useTranslation();
   const locale = useLocale();
- 
+
   const { video, isLoading, error, loadVideo } = useVideo(videoId);
- 
+
   const [isEditing, setIsEditing] = useState(false);
   const [editedTitle, setEditedTitle] = useState('');
   const [editedDescription, setEditedDescription] = useState('');
- 
+  const [editedTagIds, setEditedTagIds] = useState<number[]>([]);
+
+  const { tags, createTag } = useTags();
+
+  // Create new tag handler
+  const handleCreateTag = async () => {
+    const tagName = prompt(t('tags.create.prompt', 'Enter new tag name:'));
+    if (tagName && tagName.trim()) {
+      try {
+        const newTag = (await createTag(tagName.trim())) as Tag;
+        if (newTag) {
+          setEditedTagIds(prev => [...prev, newTag.id]);
+        }
+      } catch (error) {
+        console.error('Failed to create tag:', error);
+        alert(t('tags.create.error', 'Failed to create tag'));
+      }
+    }
+  };
+
   useEffect(() => {
     if (videoId) {
       void loadVideo();
     }
   }, [videoId, loadVideo]);
- 
+
   const handleVideoLoaded = () => {
     if (videoRef.current && startTime) {
       const seconds = Number.parseInt(startTime, 10);
@@ -47,19 +68,55 @@ export default function VideoDetailPage() {
       }
     }
   };
- 
+
   const { isLoading: isDeleting, error: deleteError, mutate: handleDelete } = useAsyncState<void>({
     onSuccess: () => navigate('/videos'),
     confirmMessage: t('confirmations.deleteVideo'),
   });
- 
+
   const { isLoading: isUpdating, error: updateError, mutate: handleUpdate } = useAsyncState<void>({
     onSuccess: () => {
       setIsEditing(false);
       void loadVideo();
     },
   });
- 
+
+  const handleUpdateVideo = async () => {
+    if (!videoId || !video) return;
+
+    // 1. Update title and description
+    await apiClient.updateVideo(videoId, {
+      title: editedTitle,
+      description: editedDescription,
+    });
+
+    // 2. Calculate tag diffs
+    const currentTagIds = video.tags?.map(t => t.id) || [];
+    const tagsToAdd = editedTagIds.filter(id => !currentTagIds.includes(id));
+    const tagsToRemove = currentTagIds.filter(id => !editedTagIds.includes(id));
+
+    // 3. Add new tags
+    if (tagsToAdd.length > 0) {
+      await apiClient.addTagsToVideo(videoId, tagsToAdd);
+    }
+
+    // 4. Remove deleted tags
+    if (tagsToRemove.length > 0) {
+      await Promise.all(tagsToRemove.map(tagId =>
+        apiClient.removeTagFromVideo(videoId, tagId)
+      ));
+    }
+  };
+
+  const startEditing = () => {
+    if (video) {
+      setEditedTitle(video.title);
+      setEditedDescription(video.description || '');
+      setEditedTagIds(video.tags?.map(t => t.id) || []);
+      setIsEditing(true);
+    }
+  };
+
   const handleCancelEdit = () => {
     setIsEditing(false);
     if (video) {
@@ -67,7 +124,7 @@ export default function VideoDetailPage() {
       setEditedDescription(video.description || '');
     }
   };
- 
+
   if (isLoading) {
     return (
       <PageLayout fullWidth>
@@ -77,7 +134,7 @@ export default function VideoDetailPage() {
       </PageLayout>
     );
   }
- 
+
   if (error && !video) {
     return (
       <PageLayout fullWidth>
@@ -90,7 +147,7 @@ export default function VideoDetailPage() {
       </PageLayout>
     );
   }
- 
+
   if (!video) {
     return (
       <PageLayout fullWidth>
@@ -98,7 +155,7 @@ export default function VideoDetailPage() {
       </PageLayout>
     );
   }
- 
+
   return (
     <PageLayout fullWidth>
       <div className="space-y-6">
@@ -108,11 +165,7 @@ export default function VideoDetailPage() {
             {!isEditing && (
               <Button
                 variant="outline"
-                onClick={() => {
-                  setEditedTitle(video.title);
-                  setEditedDescription(video.description || '');
-                  setIsEditing(true);
-                }}
+                onClick={startEditing}
                 size="sm"
                 className="lg:size-default"
               >
@@ -147,11 +200,11 @@ export default function VideoDetailPage() {
             )}
           </div>
         </div>
- 
+
         {(error || deleteError || updateError) && (
           <MessageAlert type="error" message={error || deleteError || updateError || ''} />
         )}
- 
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card>
             <CardHeader>
@@ -183,15 +236,24 @@ export default function VideoDetailPage() {
                       disabled={isUpdating}
                     />
                   </div>
+                  <div>
+                    <TagSelector
+                      tags={tags}
+                      selectedTagIds={editedTagIds}
+                      onToggle={(tagId) => {
+                        setEditedTagIds(prev =>
+                          prev.includes(tagId)
+                            ? prev.filter(id => id !== tagId)
+                            : [...prev, tagId]
+                        );
+                      }}
+                      onCreateNew={handleCreateTag}
+                      disabled={isUpdating}
+                    />
+                  </div>
                   <div className="flex gap-2 pt-2">
                     <Button
-                      onClick={() => void handleUpdate(async () => {
-                        if (!videoId) return;
-                        await apiClient.updateVideo(videoId, {
-                          title: editedTitle,
-                          description: editedDescription,
-                        });
-                      })}
+                      onClick={() => void handleUpdate(handleUpdateVideo)}
                       disabled={isUpdating || !editedTitle.trim()}
                     >
                       {isUpdating ? (
@@ -248,7 +310,7 @@ export default function VideoDetailPage() {
               )}
             </CardContent>
           </Card>
- 
+
           <Card>
             <CardHeader>
               <CardTitle>{t('videos.detail.video')}</CardTitle>
@@ -269,7 +331,7 @@ export default function VideoDetailPage() {
               )}
             </CardContent>
           </Card>
- 
+
           {video.transcript && video.transcript.trim() ? (
             <Card className="lg:col-span-2">
               <CardHeader>
@@ -300,7 +362,7 @@ export default function VideoDetailPage() {
               </CardContent>
             </Card>
           )}
- 
+
           {video.error_message && (
             <Card className="lg:col-span-2">
               <CardHeader>
