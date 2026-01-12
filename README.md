@@ -278,6 +278,79 @@ cmake --build build -j --config Release
 - CUDA: NVIDIA GPU + CUDA Toolkit
 - Vulkan: GPU with Vulkan drivers
 
+## Local Embedding Models with Ollama (Optional)
+
+VideoQ supports local embedding generation using Ollama, eliminating the need for OpenAI API keys for embeddings.
+
+### About qwen3-embedding:0.6b
+
+VideoQ uses the [qwen3-embedding:0.6b](https://ollama.com/library/qwen3-embedding:0.6b) model for local embeddings:
+
+- **Size**: 0.6 billion parameters (639MB)
+- **Languages**: 100+ languages supported
+- **Use cases**: Text retrieval, code retrieval, text classification, clustering
+- **Benefits**: No API costs, privacy-focused, works offline
+
+### Quick Setup
+
+**1. Install Ollama**
+
+Download and install from [ollama.com](https://ollama.com) (macOS, Linux, or Windows).
+
+**2. Pull the embedding model**
+
+```bash
+ollama pull qwen3-embedding:0.6b
+```
+
+**3. Verify Ollama is running**
+
+```bash
+curl http://localhost:11434/api/tags
+```
+
+**4. Configure VideoQ**
+
+Update `.env`:
+
+```bash
+EMBEDDING_PROVIDER=ollama
+OLLAMA_BASE_URL=http://host.docker.internal:11434
+OLLAMA_EMBEDDING_MODEL=qwen3-embedding:0.6b
+```
+
+**5. Restart services**
+
+```bash
+docker compose restart backend celery-worker
+```
+
+### What Uses Local Embeddings?
+
+When `EMBEDDING_PROVIDER=ollama`:
+
+1. **Vector Indexing**: Video transcripts embedded and stored in pgvector
+2. **Scene Splitting**: Otsu method uses embeddings for semantic scene detection
+3. **RAG Chat**: User queries embedded for similarity search
+
+All embedding operations run locally without OpenAI API calls.
+
+### Switching Providers
+
+Change `EMBEDDING_PROVIDER` in `.env`:
+
+```bash
+# OpenAI (requires API key)
+EMBEDDING_PROVIDER=openai
+EMBEDDING_MODEL=text-embedding-3-small
+
+# Ollama (local, no API key)
+EMBEDDING_PROVIDER=ollama
+OLLAMA_EMBEDDING_MODEL=qwen3-embedding:0.6b
+```
+
+**Important**: Different embedding models produce incompatible vectors. After switching providers, re-index existing videos for consistent search results.
+
 ### Per-User LLM Settings
 
 Users can customize their AI chat experience through the Settings page:
