@@ -258,20 +258,22 @@ docker compose restart backend celery-worker
 
 ### GPU Acceleration (Optional)
 
-For better performance, build with GPU support:
+**macOS:** GPU acceleration via Metal is enabled by default (no additional setup needed).
+
+**Windows/Linux:** For better performance, rebuild with GPU support:
 
 ```bash
 # NVIDIA GPU
 cmake -B build -DGGML_CUDA=1
 cmake --build build -j --config Release
 
-# Other GPU (Vulkan - Windows/Linux only)
+# Other GPU (Vulkan)
 cmake -B build -DGGML_VULKAN=1
 cmake --build build -j --config Release
 ```
 
 **Requirements:**
-- macOS: Xcode Command Line Tools (`xcode-select --install`)
+- macOS: Xcode Command Line Tools (`xcode-select --install`) - Metal enabled automatically
 - Windows: CMake + Visual Studio Build Tools
 - CUDA: NVIDIA GPU + CUDA Toolkit
 - Vulkan: GPU with Vulkan drivers
