@@ -4,7 +4,6 @@ import time
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.core.files.storage import FileSystemStorage
-from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models, transaction
 from django.db.models.signals import post_delete, pre_save
 from django.dispatch import receiver
@@ -13,24 +12,11 @@ from storages.backends.s3boto3 import S3Boto3Storage
 
 class User(AbstractUser):
     email = models.EmailField("email address", unique=True)
-    openai_api_key_encrypted = models.BinaryField(
-        null=True, blank=True, help_text="Encrypted OpenAI API key"
-    )
     video_limit = models.PositiveIntegerField(
         null=True,
         blank=True,
         default=0,
         help_text="Maximum number of videos user can upload. 0 means no uploads allowed, null means unlimited.",
-    )
-    preferred_llm_model = models.CharField(
-        max_length=100,
-        default="gpt-4o-mini",
-        help_text="Preferred LLM model for chat (e.g., gpt-4o-mini, gpt-4o, gpt-4-turbo)",
-    )
-    preferred_llm_temperature = models.FloatField(
-        default=0.0,
-        validators=[MinValueValidator(0.0), MaxValueValidator(2.0)],
-        help_text="Temperature for LLM responses (0.0 to 2.0)",
     )
 
 

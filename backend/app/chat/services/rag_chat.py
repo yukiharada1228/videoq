@@ -10,7 +10,6 @@ from langchain_postgres import PGVector
 
 from app.chat.prompts import build_system_prompt
 from app.utils.embeddings import get_embeddings
-from app.utils.openai_utils import require_openai_api_key
 from app.utils.vector_manager import PGVectorManager
 
 if TYPE_CHECKING:  # pragma: no cover - Used only for type checking
@@ -193,7 +192,7 @@ class RagChatService:
         # Get API key if using OpenAI provider
         api_key = None
         if settings.EMBEDDING_PROVIDER == "openai":
-            api_key = require_openai_api_key(self.user)
+            api_key = settings.OPENAI_API_KEY
         embeddings = get_embeddings(api_key)
         config = PGVectorManager.get_config()
         connection_str = PGVectorManager.get_psycopg_connection_string()

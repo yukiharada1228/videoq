@@ -5,12 +5,11 @@ Tests for llm module
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from pydantic import SecretStr
 from rest_framework import status
 
 from app.chat.services.llm import get_langchain_llm, handle_langchain_exception
-from app.utils.encryption import encrypt_api_key
 
 User = get_user_model()
 
@@ -26,11 +25,9 @@ class GetLangchainLLMTests(TestCase):
         )
 
     @patch("app.chat.services.llm.ChatOpenAI")
+    @override_settings(OPENAI_API_KEY="test-api-key", LLM_MODEL="gpt-4o-mini")
     def test_get_langchain_llm_with_api_key(self, mock_chat_openai):
-        """Test get_langchain_llm when API key is configured"""
-        self.user.openai_api_key_encrypted = encrypt_api_key("test-api-key")
-        self.user.save(update_fields=["openai_api_key_encrypted"])
-
+        """Test get_langchain_llm when API key is configured via environment"""
         llm, error_response = get_langchain_llm(self.user)
 
         self.assertIsNotNone(llm)
@@ -38,33 +35,44 @@ class GetLangchainLLMTests(TestCase):
         mock_chat_openai.assert_called_once_with(
             model="gpt-4o-mini",
             api_key=SecretStr("test-api-key"),
-            temperature=0,
+            temperature=0.0,
         )
 
+    @patch("app.chat.services.llm.ChatOpenAI")
+    @override_settings(OPENAI_API_KEY="test-api-key", LLM_MODEL="gpt-4o")
+    def test_get_langchain_llm_with_custom_model(self, mock_chat_openai):
+        """Test get_langchain_llm with custom LLM model from environment"""
+        llm, error_response = get_langchain_llm(self.user)
+
+        self.assertIsNotNone(llm)
+        self.assertIsNone(error_response)
+        mock_chat_openai.assert_called_once_with(
+            model="gpt-4o",
+            api_key=SecretStr("test-api-key"),
+            temperature=0.0,
+        )
+
+    @override_settings(OPENAI_API_KEY="", LLM_MODEL="gpt-4o-mini")
+    @patch.dict("os.environ", {"OPENAI_API_KEY": ""}, clear=False)
     def test_get_langchain_llm_without_api_key(self):
         """Test get_langchain_llm when API key is not configured"""
-        self.user.openai_api_key_encrypted = None
-        self.user.save(update_fields=["openai_api_key_encrypted"])
-
         llm, error_response = get_langchain_llm(self.user)
 
         self.assertIsNone(llm)
         self.assertIsNotNone(error_response)
         self.assertEqual(error_response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("OpenAI API key is not configured", str(error_response.data))
+        self.assertIn("OPENAI_API_KEY", str(error_response.data))
 
-    def test_get_langchain_llm_with_empty_api_key(self):
-        """Test get_langchain_llm when API key is empty string"""
-        # Empty API keys are treated as "not configured".
-        self.user.openai_api_key_encrypted = None
-        self.user.save(update_fields=["openai_api_key_encrypted"])
-
+    @override_settings(OPENAI_API_KEY=None, LLM_MODEL="gpt-4o-mini")
+    @patch.dict("os.environ", {"OPENAI_API_KEY": ""}, clear=False)
+    def test_get_langchain_llm_with_none_api_key(self):
+        """Test get_langchain_llm when API key is None"""
         llm, error_response = get_langchain_llm(self.user)
 
         self.assertIsNone(llm)
         self.assertIsNotNone(error_response)
         self.assertEqual(error_response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("OpenAI API key is not configured", str(error_response.data))
+        self.assertIn("OPENAI_API_KEY", str(error_response.data))
 
 
 class HandleLangchainExceptionTests(TestCase):

@@ -8,7 +8,6 @@ import { VideoList } from '@/components/video/VideoList';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { LoadingState } from '@/components/common/LoadingState';
 import { Button } from '@/components/ui/button';
-import { useOpenAIApiKeyStatus } from '@/hooks/useOpenAIApiKeyStatus';
 import { useAuth } from '@/hooks/useAuth';
 import { useI18nNavigate } from '@/lib/i18n';
 import { useTags } from '@/hooks/useTags';
@@ -27,7 +26,6 @@ export default function VideosPage() {
   const [searchParams] = useSearchParams();
   const navigate = useI18nNavigate();
   const { t } = useTranslation();
-  const { hasApiKey, isChecking: checkingApiKey } = useOpenAIApiKeyStatus();
   const { user, loading: userLoading, refetch: refetchUser } = useAuth();
   const { tags } = useTags();
 
@@ -51,14 +49,6 @@ export default function VideosPage() {
     setSelectedTagIds([]);
   }, []);
 
-
-
-  useEffect(() => {
-    if (shouldOpenModalFromQuery && !checkingApiKey && hasApiKey === false) {
-      navigate('/videos', { replace: true });
-    }
-  }, [shouldOpenModalFromQuery, checkingApiKey, hasApiKey, navigate]);
-
   const handleUploadSuccess = () => {
     void loadVideos();
     void refetchUser(); // Update video_count
@@ -77,10 +67,9 @@ export default function VideosPage() {
 
   const isUploadDisabled = useMemo(() => {
     if (!user || userLoading) return true;
-    if (hasApiKey !== true || checkingApiKey) return true;
     if (user.video_limit === null) return false;
     return user.video_count >= user.video_limit;
-  }, [user, userLoading, hasApiKey, checkingApiKey]);
+  }, [user, userLoading]);
 
   const hasReachedLimit = useMemo(() => {
     if (!user || user.video_limit === null) return false;
