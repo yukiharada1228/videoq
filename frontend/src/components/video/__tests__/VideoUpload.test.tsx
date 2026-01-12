@@ -3,6 +3,20 @@ import { VideoUpload } from '../VideoUpload'
 import { useVideoUpload } from '@/hooks/useVideoUpload'
 import { useVideoGroups } from '@/hooks/useVideoGroups'
 
+// Mock useTags
+vi.mock('@/hooks/useTags', () => ({
+  useTags: vi.fn(() => ({
+    tags: [],
+    isLoading: false,
+    error: null,
+    loadTags: vi.fn(),
+    refetchTags: vi.fn(),
+    createTag: vi.fn(),
+    updateTag: vi.fn(),
+    deleteTag: vi.fn(),
+  })),
+}))
+
 // Mock useVideoUpload
 vi.mock('@/hooks/useVideoUpload', () => ({
   useVideoUpload: vi.fn(),
@@ -65,13 +79,13 @@ describe('VideoUpload', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    ;(useVideoGroups as any).mockReturnValue({ groups: [], isLoading: false, error: null, refetch: vi.fn() })
-    ;(useVideoUpload as any).mockReturnValue(mockUseVideoUpload)
+      ; (useVideoGroups as any).mockReturnValue({ groups: [], isLoading: false, error: null, refetch: vi.fn() })
+      ; (useVideoUpload as any).mockReturnValue(mockUseVideoUpload)
   })
 
   it('should render upload form', () => {
     render(<VideoUpload />)
-    
+
     expect(screen.getByTestId('file-input')).toBeInTheDocument()
     expect(screen.getByTestId('title-input')).toBeInTheDocument()
     expect(screen.getByTestId('description-input')).toBeInTheDocument()
@@ -80,16 +94,16 @@ describe('VideoUpload', () => {
   it('should call onUploadSuccess when upload succeeds', async () => {
     vi.useFakeTimers()
     const onUploadSuccess = vi.fn()
-    
-    ;(useVideoUpload as any).mockReturnValue({
-      ...mockUseVideoUpload,
-      success: true,
-    })
+
+      ; (useVideoUpload as any).mockReturnValue({
+        ...mockUseVideoUpload,
+        success: true,
+      })
 
     render(<VideoUpload onUploadSuccess={onUploadSuccess} />)
 
     // Flush effects that schedule the timeout, then advance timers
-    await act(async () => {})
+    await act(async () => { })
     await act(async () => {
       vi.advanceTimersByTime(2000)
     })
@@ -101,24 +115,24 @@ describe('VideoUpload', () => {
   })
 
   it('should display error when error occurs', () => {
-    ;(useVideoUpload as any).mockReturnValue({
+    ; (useVideoUpload as any).mockReturnValue({
       ...mockUseVideoUpload,
       error: 'Upload failed',
     })
 
     render(<VideoUpload />)
-    
+
     expect(screen.getByTestId('error')).toHaveTextContent('Upload failed')
   })
 
   it('should display uploading state', () => {
-    ;(useVideoUpload as any).mockReturnValue({
+    ; (useVideoUpload as any).mockReturnValue({
       ...mockUseVideoUpload,
       isUploading: true,
     })
 
     render(<VideoUpload />)
-    
+
     expect(screen.getByTestId('uploading')).toBeInTheDocument()
   })
 })

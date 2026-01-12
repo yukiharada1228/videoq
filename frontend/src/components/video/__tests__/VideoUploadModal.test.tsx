@@ -4,6 +4,20 @@ import { useVideoUpload } from '@/hooks/useVideoUpload'
 import { useOpenAIApiKeyStatus } from '@/hooks/useOpenAIApiKeyStatus'
 import { useVideoGroups } from '@/hooks/useVideoGroups'
 
+// Mock useTags
+vi.mock('@/hooks/useTags', () => ({
+  useTags: vi.fn(() => ({
+    tags: [],
+    isLoading: false,
+    error: null,
+    loadTags: vi.fn(),
+    refetchTags: vi.fn(),
+    createTag: vi.fn(),
+    updateTag: vi.fn(),
+    deleteTag: vi.fn(),
+  })),
+}))
+
 // Mock useVideoUpload
 vi.mock('@/hooks/useVideoUpload', () => ({
   useVideoUpload: vi.fn(),
@@ -69,48 +83,48 @@ describe('VideoUploadModal', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    ;(useVideoUpload as any).mockReturnValue(mockUseVideoUpload)
-    ;(useOpenAIApiKeyStatus as any).mockReturnValue({
-      hasApiKey: true,
-      isChecking: false,
-      error: null,
-      refresh: vi.fn(),
-    })
-    ;(useVideoGroups as any).mockReturnValue({ groups: [], isLoading: false, error: null, refetch: vi.fn() })
+      ; (useVideoUpload as any).mockReturnValue(mockUseVideoUpload)
+      ; (useOpenAIApiKeyStatus as any).mockReturnValue({
+        hasApiKey: true,
+        isChecking: false,
+        error: null,
+        refresh: vi.fn(),
+      })
+      ; (useVideoGroups as any).mockReturnValue({ groups: [], isLoading: false, error: null, refetch: vi.fn() })
   })
 
   it('should render modal when isOpen is true', () => {
     render(<VideoUploadModal isOpen={true} onClose={vi.fn()} />)
-    
+
     expect(screen.getByText(/videos.upload.title/)).toBeInTheDocument()
   })
 
   it('should not render modal when isOpen is false', () => {
     render(<VideoUploadModal isOpen={false} onClose={vi.fn()} />)
-    
+
     expect(screen.queryByText(/videos.upload.title/)).not.toBeInTheDocument()
   })
 
   it('should call onClose when cancel button is clicked', () => {
     const onClose = vi.fn()
     render(<VideoUploadModal isOpen={true} onClose={onClose} />)
-    
+
     const cancelButton = screen.getByText(/common.actions.cancel/)
     fireEvent.click(cancelButton)
-    
+
     expect(onClose).toHaveBeenCalled()
     expect(mockUseVideoUpload.reset).toHaveBeenCalled()
   })
 
   it('should not close when uploading', () => {
     const onClose = vi.fn()
-    ;(useVideoUpload as any).mockReturnValue({
-      ...mockUseVideoUpload,
-      isUploading: true,
-    })
+      ; (useVideoUpload as any).mockReturnValue({
+        ...mockUseVideoUpload,
+        isUploading: true,
+      })
 
     render(<VideoUploadModal isOpen={true} onClose={onClose} />)
-    
+
     const cancelButton = screen.getByText(/common.actions.cancel/)
     expect(cancelButton).toBeDisabled()
   })
@@ -119,16 +133,16 @@ describe('VideoUploadModal', () => {
     vi.useFakeTimers()
     const onClose = vi.fn()
     const onUploadSuccess = vi.fn()
-    
-    ;(useVideoUpload as any).mockReturnValue({
-      ...mockUseVideoUpload,
-      success: true,
-    })
+
+      ; (useVideoUpload as any).mockReturnValue({
+        ...mockUseVideoUpload,
+        success: true,
+      })
 
     render(<VideoUploadModal isOpen={true} onClose={onClose} onUploadSuccess={onUploadSuccess} />)
 
     // Flush effects, then advance timers for the delayed close
-    await act(async () => {})
+    await act(async () => { })
     expect(onUploadSuccess).toHaveBeenCalled()
     await act(async () => {
       vi.advanceTimersByTime(2000)
