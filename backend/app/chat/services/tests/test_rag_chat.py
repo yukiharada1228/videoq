@@ -40,9 +40,9 @@ class RagChatServiceTests(TestCase):
 
     @patch("app.chat.services.rag_chat.PGVector.from_existing_index")
     @patch("app.chat.services.rag_chat.PGVectorManager")
-    @patch("app.chat.services.rag_chat.OpenAIEmbeddings")
+    @patch("app.chat.services.rag_chat.get_embeddings")
     def test_create_vector_store_with_api_key(
-        self, mock_embeddings, mock_pgvector_manager, mock_pgvector
+        self, mock_get_embeddings, mock_pgvector_manager, mock_pgvector
     ):
         """Test _create_vector_store when API key is configured"""
         self.user.openai_api_key_encrypted = encrypt_api_key("test-api-key")
@@ -59,10 +59,7 @@ class RagChatServiceTests(TestCase):
         vector_store = service._create_vector_store()
 
         self.assertIsNotNone(vector_store)
-        mock_embeddings.assert_called_once_with(
-            model="text-embedding-3-small",
-            api_key=SecretStr("test-api-key"),
-        )
+        mock_get_embeddings.assert_called_once_with("test-api-key")
 
     def test_create_vector_store_without_api_key(self):
         """Test _create_vector_store when API key is not configured"""
