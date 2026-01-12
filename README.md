@@ -55,7 +55,7 @@ videoq/
 │   ├── app/             # Main Django app
 │   ├── videoq/          # Project settings
 │   ├── media/           # Uploaded videos (local storage)
-│   └── pyproject.toml   # Python dependencies (uv)
+│   └── requirements.txt # Python dependencies
 ├── frontend/            # Vite + React + TypeScript
 │   ├── src/
 │   │   ├── components/  # React components
@@ -107,7 +107,6 @@ videoq/
 - **django-anymail**: Email service integration (verification, password reset)
 
 #### Development Tools
-- **uv**: Fast Python package manager
 - **black**: Code formatter
 - **isort**: Import statement organizer
 - **dj-database-url**: Database URL parser
@@ -199,9 +198,9 @@ docker compose up --build -d
 ### 3) First-time setup
 
 ```bash
-docker compose exec backend uv run python manage.py migrate
-docker compose exec backend uv run python manage.py collectstatic
-docker compose exec backend uv run python manage.py createsuperuser
+docker compose exec backend python manage.py migrate
+docker compose exec backend python manage.py collectstatic
+docker compose exec backend python manage.py createsuperuser
 ```
 
 ### 4) Access URLs
@@ -339,8 +338,8 @@ Configuration: `frontend/vite.config.ts`
 
 ```bash
 cd backend
-uv sync
-uv run python manage.py runserver
+pip install -r requirements.txt
+python manage.py runserver
 ```
 
 ### Running Tests
@@ -357,9 +356,9 @@ npm run typecheck         # TypeScript check
 **Backend:**
 ```bash
 cd backend
-uv run python manage.py test
-uv run coverage run --source='.' manage.py test
-uv run coverage report
+python manage.py test
+coverage run --source='.' manage.py test
+coverage report
 ```
 
 ### Code Quality
@@ -371,8 +370,8 @@ npm run lint              # ESLint
 
 **Backend:**
 ```bash
-uv run black .            # Format code
-uv run isort .            # Sort imports
+black .            # Format code
+isort .            # Sort imports
 ```
 
 ### Common Docker Commands
@@ -381,7 +380,7 @@ uv run isort .            # Sort imports
 docker compose ps                                          # List services
 docker compose logs -f                                     # Follow all logs
 docker compose logs -f backend celery-worker               # Follow specific services
-docker compose exec backend uv run python manage.py shell  # Django shell
+docker compose exec backend python manage.py shell         # Django shell
 docker compose down                                        # Stop services
 docker compose down -v                                     # Stop and delete volumes (CAUTION: deletes data)
 ```
