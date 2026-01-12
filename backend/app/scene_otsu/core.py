@@ -1,21 +1,49 @@
+from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import tiktoken
+from django.conf import settings
+from langchain_ollama import OllamaEmbeddings
 from openai import OpenAI
 from sklearn.preprocessing import normalize
 from tqdm import tqdm
 
 
-class OpenAIEmbedder:
+class BaseEmbedder(ABC):
+    """Abstract base class for embedding generation"""
+
+    @abstractmethod
+    def count_tokens(self, text: str) -> int:
+        """Count tokens in text"""
+        pass
+
+    @abstractmethod
+    def get_embeddings(self, texts: List[str], max_tokens: int = 200) -> np.ndarray:
+        """Generate embeddings for texts"""
+        pass
+
+    @property
+    @abstractmethod
+    def encoding(self):
+        """Get the token encoding"""
+        pass
+
+
+class OpenAIEmbedder(BaseEmbedder):
     def __init__(
         self, api_key: str, model: str = "text-embedding-3-small", batch_size: int = 16
     ):
         self.client = OpenAI(api_key=api_key)
         self.model = model
         self.batch_size = batch_size
-        self.encoding = tiktoken.encoding_for_model(model)
+        self._encoding = tiktoken.encoding_for_model(model)
+
+    @property
+    def encoding(self):
+        """Get the token encoding"""
+        return self._encoding
 
     def count_tokens(self, text: str) -> int:
         """Accurately count tokens"""
@@ -32,6 +60,44 @@ class OpenAIEmbedder:
                 input=batch,
             )
             batch_embeds = [d.embedding for d in response.data]
+            all_embeddings.append(np.array(batch_embeds))
+        return np.vstack(all_embeddings)
+
+
+class OllamaEmbedder(BaseEmbedder):
+    """Ollama-based embedder using LangChain"""
+
+    def __init__(
+        self,
+        model: str = "qwen3-embedding:0.6b",
+        base_url: str = "http://localhost:11434",
+        batch_size: int = 16,
+    ):
+        self.model = model
+        self.base_url = base_url
+        self.batch_size = batch_size
+        self.embeddings = OllamaEmbeddings(model=model, base_url=base_url)
+        # Use cl100k_base as approximation for token counting
+        self._encoding = tiktoken.get_encoding("cl100k_base")
+
+    @property
+    def encoding(self):
+        """Get the token encoding"""
+        return self._encoding
+
+    def count_tokens(self, text: str) -> int:
+        """Count tokens using cl100k_base encoding as approximation"""
+        return len(self._encoding.encode(text))
+
+    def get_embeddings(self, texts: List[str], max_tokens: int = 200) -> np.ndarray:
+        """Generate embeddings using Ollama"""
+        all_embeddings = []
+        for i in tqdm(
+            range(0, len(texts), self.batch_size), desc="Generating embeddings (Ollama)"
+        ):
+            batch = texts[i : i + self.batch_size]
+            # LangChain's OllamaEmbeddings.embed_documents returns List[List[float]]
+            batch_embeds = self.embeddings.embed_documents(batch)
             all_embeddings.append(np.array(batch_embeds))
         return np.vstack(all_embeddings)
 
@@ -141,16 +207,13 @@ class SceneSplitter:
     Recursively applies multi-dimensional Otsu method to split subtitle files into semantic scenes.
     """
 
-    def __init__(
-        self, api_key: str, model: str = "text-embedding-3-small", batch_size: int = 16
-    ):
+    def __init__(self, api_key: Optional[str] = None, batch_size: int = 16):
         """
         Args:
-            api_key: OpenAI API key
-            model: OpenAI embedding model to use
+            api_key: API key for OpenAI (required when using OpenAI provider)
             batch_size: Batch size for embedding generation
         """
-        self.embedder = OpenAIEmbedder(api_key, model, batch_size)
+        self.embedder = create_embedder(api_key=api_key, batch_size=batch_size)
         self.timestamp_converter = TimestampConverter()
 
     def _create_chunk_scene(
@@ -367,3 +430,37 @@ def scenes_to_srt_string(scenes: List[Dict[str, Any]]) -> str:
         lines.append("")
         subtitle_index += 1
     return "\n".join(lines)
+
+
+def create_embedder(api_key: Optional[str] = None, batch_size: int = 16) -> BaseEmbedder:
+    """
+    Create embedder based on EMBEDDING_PROVIDER setting
+
+    Args:
+        api_key: OpenAI API key (required when using OpenAI provider)
+        batch_size: Batch size for embedding generation
+
+    Returns:
+        BaseEmbedder instance
+
+    Raises:
+        ValueError: If provider is invalid or required credentials are missing
+    """
+    provider = settings.EMBEDDING_PROVIDER
+
+    if provider == "openai":
+        if not api_key:
+            raise ValueError("OpenAI API key is required when using OpenAI embeddings")
+        return OpenAIEmbedder(
+            api_key=api_key, model=settings.EMBEDDING_MODEL, batch_size=batch_size
+        )
+    elif provider == "ollama":
+        return OllamaEmbedder(
+            model=settings.OLLAMA_EMBEDDING_MODEL,
+            base_url=settings.OLLAMA_BASE_URL,
+            batch_size=batch_size,
+        )
+    else:
+        raise ValueError(
+            f"Invalid EMBEDDING_PROVIDER: {provider}. Must be 'openai' or 'ollama'."
+        )
