@@ -179,7 +179,7 @@ def update_video_title_in_vectors(video_id, new_title):
 
         def update_operation(cursor):
             update_query = """
-                UPDATE langchain_pg_embedding 
+                UPDATE langchain_pg_embedding
                 SET cmetadata = jsonb_set(
                     cmetadata::jsonb,
                     '{video_title}',
@@ -207,3 +207,47 @@ def update_video_title_in_vectors(video_id, new_title):
             exc_info=True,
         )
         return 0
+
+
+def delete_all_vectors():
+    """
+    Delete all vector data from PGVector collection
+    Used when re-indexing all videos with a new embedding model
+
+    Returns:
+        int: Number of documents deleted
+    """
+    try:
+        config = PGVectorManager.get_config()
+        logger.info(
+            f"Deleting all vectors from collection: {config['collection_name']}"
+        )
+
+        def delete_all_operation(cursor):
+            delete_query = """
+                DELETE FROM langchain_pg_embedding
+                WHERE collection_id IN (
+                    SELECT uuid FROM langchain_pg_collection WHERE name = %s
+                )
+            """
+            cursor.execute(delete_query, (config["collection_name"],))
+            return cursor.rowcount
+
+        deleted_count = PGVectorManager.execute_with_connection(delete_all_operation)
+
+        if deleted_count > 0:
+            logger.info(
+                f"Successfully deleted {deleted_count} vector documents from collection: {config['collection_name']}"
+            )
+        else:
+            logger.info(
+                f"No vector documents found in collection: {config['collection_name']}"
+            )
+
+        return deleted_count
+
+    except Exception as e:
+        logger.error(
+            f"Failed to delete all vectors from collection: {e}", exc_info=True
+        )
+        raise
