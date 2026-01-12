@@ -59,7 +59,11 @@ class RagChatServiceTests(TestCase):
     @patch("app.chat.services.rag_chat.PGVector.from_existing_index")
     @patch("app.chat.services.rag_chat.PGVectorManager")
     @patch("app.chat.services.rag_chat.get_embeddings")
-    @override_settings(EMBEDDING_PROVIDER="ollama", OPENAI_API_KEY="")
+    @override_settings(
+        EMBEDDING_PROVIDER="ollama",
+        EMBEDDING_MODEL="qwen3-embedding:0.6b",
+        OPENAI_API_KEY="",
+    )
     def test_create_vector_store_with_ollama(
         self, mock_get_embeddings, mock_pgvector_manager, mock_pgvector
     ):

@@ -315,8 +315,8 @@ Update `.env`:
 
 ```bash
 EMBEDDING_PROVIDER=ollama
+EMBEDDING_MODEL=qwen3-embedding:0.6b
 OLLAMA_BASE_URL=http://host.docker.internal:11434
-OLLAMA_EMBEDDING_MODEL=qwen3-embedding:0.6b
 ```
 
 **5. Restart services**
@@ -337,7 +337,7 @@ All embedding operations run locally without OpenAI API calls.
 
 ### Switching Providers
 
-Change `EMBEDDING_PROVIDER` in `.env`:
+Change `EMBEDDING_PROVIDER` and `EMBEDDING_MODEL` in `.env`:
 
 ```bash
 # OpenAI (requires API key)
@@ -346,7 +346,8 @@ EMBEDDING_MODEL=text-embedding-3-small
 
 # Ollama (local, no API key)
 EMBEDDING_PROVIDER=ollama
-OLLAMA_EMBEDDING_MODEL=qwen3-embedding:0.6b
+EMBEDDING_MODEL=qwen3-embedding:0.6b
+OLLAMA_BASE_URL=http://host.docker.internal:11434
 ```
 
 **Important**: Different embedding models produce incompatible vectors. After switching providers, re-index existing videos for consistent search results.

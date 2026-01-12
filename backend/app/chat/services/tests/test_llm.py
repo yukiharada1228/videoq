@@ -74,6 +74,24 @@ class GetLangchainLLMTests(TestCase):
         self.assertEqual(error_response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("OPENAI_API_KEY", str(error_response.data))
 
+    @patch("app.chat.services.llm.ChatOllama")
+    @override_settings(
+        LLM_PROVIDER="ollama",
+        LLM_MODEL="qwen3:8b",
+        OLLAMA_BASE_URL="http://localhost:11434",
+    )
+    def test_get_langchain_llm_with_ollama_provider(self, mock_chat_ollama):
+        """Test get_langchain_llm with Ollama provider using LLM_MODEL"""
+        llm, error_response = get_langchain_llm(self.user)
+
+        self.assertIsNotNone(llm)
+        self.assertIsNone(error_response)
+        mock_chat_ollama.assert_called_once_with(
+            model="qwen3:8b",
+            base_url="http://localhost:11434",
+            temperature=0.0,
+        )
+
 
 class HandleLangchainExceptionTests(TestCase):
     """Tests for handle_langchain_exception function"""

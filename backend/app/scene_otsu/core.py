@@ -458,7 +458,7 @@ def create_embedder(
         )
     elif provider == "ollama":
         return OllamaEmbedder(
-            model=settings.OLLAMA_EMBEDDING_MODEL,
+            model=settings.EMBEDDING_MODEL,
             base_url=settings.OLLAMA_BASE_URL,
             batch_size=batch_size,
         )
