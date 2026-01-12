@@ -229,7 +229,11 @@ graph TB
         E15[VITE_API_URL]
         E16["WHISPER_BACKEND<br/>(openai or local)"]
         E17["WHISPER_LOCAL_URL<br/>(local whisper.cpp server URL)"]
-        E18["EMBEDDING_MODEL<br/>(OpenAI embedding model)"]
+        E18["EMBEDDING_PROVIDER<br/>(openai or ollama)"]
+        E19["EMBEDDING_MODEL<br/>(embedding model for selected provider)"]
+        E20["LLM_PROVIDER<br/>(openai or ollama)"]
+        E21["LLM_MODEL<br/>(LLM model for selected provider)"]
+        E22["OLLAMA_BASE_URL<br/>(Ollama server URL)"]
     end
     
     subgraph Containers["Containers"]
@@ -262,6 +266,12 @@ graph TB
     E17 --> C3
     E18 --> C2
     E18 --> C3
+    E19 --> C2
+    E19 --> C3
+    E20 --> C2
+    E21 --> C2
+    E22 --> C2
+    E22 --> C3
 ```
 
 ## Optional: Scaling Configuration (production example)

@@ -70,7 +70,12 @@ graph TB
         OpenAI["OpenAI API
         - Whisper API (or local whisper.cpp)
         - GPT API (user-configurable model/temp)
-        - Embeddings API (env-configurable)"]
+        - Embeddings API (EMBEDDING_PROVIDER=openai)"]
+        Ollama["Ollama Server
+        Optional (Local)
+        - Local LLM (LLM_PROVIDER=ollama)
+        - Local Embeddings (EMBEDDING_PROVIDER=ollama)
+        - No API key required"]
         WhisperLocal["Local whisper.cpp Server
         Optional
         - GPU-accelerated transcription
@@ -90,12 +95,14 @@ graph TB
     Django --> LocalFS
     Django --> S3
     Django --> OpenAI
+    Django -.->|Optional| Ollama
     Django --> Email
     Celery --> Redis
     Celery --> PostgreSQL
     Celery --> LocalFS
     Celery --> S3
     Celery --> OpenAI
+    Celery -.->|Optional| Ollama
     Celery -.->|Optional| WhisperLocal
 ```
 

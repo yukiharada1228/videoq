@@ -94,7 +94,9 @@ videoq/
 #### AI/ML
 - **OpenAI API**: Whisper (transcription), Chat (dialogue), Embeddings (vectorization)
   - Chat model and temperature are user-configurable (see Per-User LLM Settings)
-  - Embedding model is configurable via `EMBEDDING_MODEL` environment variable
+  - Embedding and LLM providers are configurable (OpenAI or Ollama)
+  - Model selection via `EMBEDDING_MODEL` and `LLM_MODEL` environment variables
+- **Ollama** (optional): Local LLM and embedding models without API keys
 - **scikit-learn**: ML utilities
 - **numpy**: Numerical computing
 
@@ -187,7 +189,10 @@ Important variables (minimum):
 - `ENABLE_SIGNUP` (set to `True` or `False`)
 - `FRONTEND_URL` (used in email links; default is `http://localhost`)
 - `VITE_API_URL` (**used at frontend build time**; with the default Nginx setup, `/api` is recommended)
-- `EMBEDDING_MODEL` (OpenAI embedding model for vector search; default: `text-embedding-3-small`)
+- `EMBEDDING_PROVIDER` (openai or ollama; default: `openai`)
+- `EMBEDDING_MODEL` (embedding model for selected provider; default: `text-embedding-3-small`)
+- `LLM_PROVIDER` (openai or ollama; default: `openai`)
+- `LLM_MODEL` (LLM model for selected provider; default: `gpt-4o-mini`)
 
 ### 2) Start
 
@@ -352,9 +357,38 @@ OLLAMA_BASE_URL=http://host.docker.internal:11434
 
 **Important**: Different embedding models produce incompatible vectors. After switching providers, re-index existing videos for consistent search results.
 
-### Per-User LLM Settings
+### Local LLM with Ollama (Optional)
 
-Users can customize their AI chat experience through the Settings page:
+VideoQ also supports local LLM models using Ollama for chat functionality:
+
+**1. Pull an LLM model**
+
+```bash
+ollama pull qwen3:8b
+# or other models: llama3:8b, mistral:7b, etc.
+```
+
+**2. Configure VideoQ**
+
+Update `.env`:
+
+```bash
+LLM_PROVIDER=ollama
+LLM_MODEL=qwen3:8b
+OLLAMA_BASE_URL=http://host.docker.internal:11434
+```
+
+**3. Restart services**
+
+```bash
+docker compose restart backend celery-worker
+```
+
+**Note**: When using Ollama for LLM, per-user LLM settings (model and temperature) from the Settings page will be ignored. The system-wide `LLM_MODEL` will be used instead.
+
+### Per-User LLM Settings (OpenAI only)
+
+When using OpenAI as the LLM provider (`LLM_PROVIDER=openai`), users can customize their AI chat experience through the Settings page:
 
 - **Preferred LLM Model**: Choose from GPT models (e.g., gpt-4o-mini, gpt-4o, gpt-4-turbo)
   - Default: `gpt-4o-mini`
@@ -366,6 +400,8 @@ Users can customize their AI chat experience through the Settings page:
   - Higher values (e.g., 1.5) produce more creative responses
 
 These settings apply to all chat sessions for that user, including RAG-based chat on video groups.
+
+**Note**: When `LLM_PROVIDER=ollama`, the system-wide `LLM_MODEL` setting is used for all users, and per-user preferences are ignored.
 
 Related: `docs/architecture/prompt-engineering.md`
 
