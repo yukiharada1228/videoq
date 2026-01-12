@@ -5,10 +5,10 @@ Vector indexing utilities for RAG
 import logging
 
 from django.conf import settings
-from langchain_openai import OpenAIEmbeddings
 from langchain_postgres import PGVector
 
 from app.tasks.srt_processing import parse_srt_scenes
+from app.utils.embeddings import get_embeddings
 from app.utils.vector_manager import PGVectorManager
 
 logger = logging.getLogger(__name__)
@@ -18,12 +18,12 @@ def index_scenes_to_vectorstore(scene_docs, video, api_key):
     """
     Create vector index using LangChain + pgvector
     scene_docs: [{text, metadata}]
-    api_key: OpenAI API key (required)
+    api_key: API key for OpenAI (required when using OpenAI provider)
     """
     try:
-        if not api_key:
-            raise ValueError("OpenAI API key is required")
-        embeddings = OpenAIEmbeddings(model=settings.EMBEDDING_MODEL, api_key=api_key)
+        if settings.EMBEDDING_PROVIDER == "openai" and not api_key:
+            raise ValueError("OpenAI API key is required when using OpenAI embeddings")
+        embeddings = get_embeddings(api_key)
         config = PGVectorManager.get_config()
 
         valid_docs = [d for d in scene_docs if d.get("text")]
@@ -89,8 +89,8 @@ def index_scenes_batch(scene_split_srt, video, api_key=None):
     Batch index scenes to pgvector
     """
     try:
-        if not api_key:
-            raise ValueError("OpenAI API key is required")
+        if settings.EMBEDDING_PROVIDER == "openai" and not api_key:
+            raise ValueError("OpenAI API key is required when using OpenAI embeddings")
         logger.info("Starting scene indexing to pgvector...")
         scenes = parse_srt_scenes(scene_split_srt)
         logger.info(f"Parsed {len(scenes)} scenes from SRT")
