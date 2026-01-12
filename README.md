@@ -365,7 +365,7 @@ VideoQ also supports local LLM models using Ollama for chat functionality:
 **1. Pull an LLM model**
 
 ```bash
-ollama pull qwen3:8b
+ollama pull qwen3:0.6b
 # or other models: llama3:8b, mistral:7b, etc.
 ```
 
@@ -375,7 +375,7 @@ Update `.env`:
 
 ```bash
 LLM_PROVIDER=ollama
-LLM_MODEL=qwen3:8b
+LLM_MODEL=qwen3:0.6b
 OLLAMA_BASE_URL=http://host.docker.internal:11434
 ```
 
