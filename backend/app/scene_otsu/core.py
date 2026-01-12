@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import tiktoken
@@ -207,7 +207,7 @@ class SceneSplitter:
     Recursively applies multi-dimensional Otsu method to split subtitle files into semantic scenes.
     """
 
-    def __init__(self, api_key: str = None, batch_size: int = 16):
+    def __init__(self, api_key: Optional[str] = None, batch_size: int = 16):
         """
         Args:
             api_key: API key for OpenAI (required when using OpenAI provider)
@@ -432,7 +432,7 @@ def scenes_to_srt_string(scenes: List[Dict[str, Any]]) -> str:
     return "\n".join(lines)
 
 
-def create_embedder(api_key: str = None, batch_size: int = 16) -> BaseEmbedder:
+def create_embedder(api_key: Optional[str] = None, batch_size: int = 16) -> BaseEmbedder:
     """
     Create embedder based on EMBEDDING_PROVIDER setting
 
