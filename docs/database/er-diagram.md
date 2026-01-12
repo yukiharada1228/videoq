@@ -11,8 +11,11 @@ erDiagram
     User ||--o{ Video : owns
     User ||--o{ VideoGroup : owns
     User ||--o{ ChatLog : creates
+    User ||--o{ Tag : owns
     VideoGroup ||--o{ VideoGroupMember : contains
     Video ||--o{ VideoGroupMember : belongs_to
+    Video ||--o{ VideoTag : has
+    Tag ||--o{ VideoTag : used_in
     VideoGroup ||--o{ ChatLog : has
     
     User {
@@ -75,6 +78,21 @@ erDiagram
         string feedback
         datetime created_at
     }
+
+    Tag {
+        int id PK
+        int user_id FK
+        string name
+        string color
+        datetime created_at
+    }
+
+    VideoTag {
+        int id PK
+        int video_id FK
+        int tag_id FK
+        datetime added_at
+    }
 ```
 
 ## Relationship Details
@@ -93,6 +111,21 @@ erDiagram
 - **Relationship**: One user creates multiple chat logs
 - **Foreign Key**: `ChatLog.user_id` → `User.id`
 - **Delete Action**: CASCADE (chat logs are deleted when user is deleted)
+
+### User - Tag (1:N)
+- **Relationship**: One user owns multiple tags
+- **Foreign Key**: `Tag.user_id` → `User.id`
+- **Delete Action**: CASCADE (tags are deleted when user is deleted)
+
+### Video - VideoTag (1:N)
+- **Relationship**: One video can have multiple tags
+- **Foreign Key**: `VideoTag.video_id` → `Video.id`
+- **Delete Action**: CASCADE (video tags are deleted when video is deleted)
+
+### Tag - VideoTag (1:N)
+- **Relationship**: One tag can be assigned to multiple videos
+- **Foreign Key**: `VideoTag.tag_id` → `Tag.id`
+- **Delete Action**: CASCADE (video tags are deleted when tag is deleted)
 
 ### VideoGroup - VideoGroupMember (1:N)
 - **Relationship**: One group has multiple members
@@ -114,6 +147,11 @@ erDiagram
 - **Intermediate Table**: `VideoGroupMember`
 - **Additional Attributes**: `order` (order within group)
 
+### Video - Tag (N:M through VideoTag)
+- **Relationship**: Many-to-many relationship (via intermediate table)
+- **Intermediate Table**: `VideoTag`
+- **Additional Attributes**: `added_at` (timestamp of tag assignment)
+
 ## Constraints
 
 ### Primary Key
@@ -124,6 +162,8 @@ erDiagram
 - `User.email`: Email address is unique
 - `VideoGroup.share_token`: Share token is unique (NULL allowed)
 - `VideoGroupMember(group_id, video_id)`: Cannot add the same video to the same group multiple times
+- `Tag(user_id, name)`: Tag names are unique per user
+- `VideoTag(video_id, tag_id)`: Cannot assign the same tag to the same video multiple times
 
 ### Foreign Key Constraints
 - All foreign keys have CASCADE delete set
@@ -146,6 +186,8 @@ erDiagram
 - `VideoGroup.created_at`: For descending sort (Meta.ordering)
 - `ChatLog.created_at`: For descending sort (Meta.ordering)
 - `VideoGroupMember(order, added_at)`: For order sorting (Meta.ordering)
+- `Tag.name`: For alphabetical ordering (Meta.ordering)
+- `VideoTag.tag__name`: For ordering by tag name (Meta.ordering)
 
 ## pgvector Extension
 
