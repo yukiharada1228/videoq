@@ -34,7 +34,7 @@ def get_embeddings(api_key: Optional[str] = None) -> Embeddings:
 
     elif provider == "ollama":
         return OllamaEmbeddings(
-            model=settings.OLLAMA_EMBEDDING_MODEL, base_url=settings.OLLAMA_BASE_URL
+            model=settings.EMBEDDING_MODEL, base_url=settings.OLLAMA_BASE_URL
         )
 
     else:

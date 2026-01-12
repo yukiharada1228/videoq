@@ -55,13 +55,13 @@ class DefaultSettings:
 
     # Embedding configuration
     EMBEDDING_PROVIDER = "openai"  # openai or ollama
-    EMBEDDING_MODEL = "text-embedding-3-small"  # Default embedding model for OpenAI
+    EMBEDDING_MODEL = "text-embedding-3-small"  # Default embedding model (provider-agnostic)
     OLLAMA_BASE_URL = "http://localhost:11434"  # Ollama server URL
-    OLLAMA_EMBEDDING_MODEL = "qwen3-embedding:0.6b"  # Ollama embedding model
 
     # LLM configuration
+    LLM_PROVIDER = "openai"  # openai or ollama
     OPENAI_API_KEY = ""  # OpenAI API key (from environment variable)
-    LLM_MODEL = "gpt-4o-mini"  # Default LLM model
+    LLM_MODEL = "gpt-4o-mini"  # Default LLM model (provider-agnostic)
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -354,10 +354,10 @@ EMBEDDING_PROVIDER = os.environ.get(
 ).lower()
 EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL", DefaultSettings.EMBEDDING_MODEL)
 OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", DefaultSettings.OLLAMA_BASE_URL)
-OLLAMA_EMBEDDING_MODEL = os.environ.get(
-    "OLLAMA_EMBEDDING_MODEL", DefaultSettings.OLLAMA_EMBEDDING_MODEL
-)
 
 # LLM configuration
+LLM_PROVIDER = os.environ.get(
+    "LLM_PROVIDER", DefaultSettings.LLM_PROVIDER
+).lower()
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", DefaultSettings.OPENAI_API_KEY)
 LLM_MODEL = os.environ.get("LLM_MODEL", DefaultSettings.LLM_MODEL)
