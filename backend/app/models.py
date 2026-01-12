@@ -145,6 +145,9 @@ class Video(models.Model):
         unique=True,
         help_text="ID from external LMS (e.g., Moodle cm_id, Canvas content_id)",
     )
+    tags = models.ManyToManyField(
+        "Tag", through="VideoTag", related_name="videos_through"
+    )
 
     class Meta:
         ordering = ["-uploaded_at"]
@@ -275,6 +278,55 @@ def handle_video_limit_reduction(sender, instance, **kwargs):
         logger.error(f"Failed to delete excess videos for user {instance.pk}: {e}")
         # Re-raise to prevent save if deletion fails
         raise
+
+
+class Tag(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="tags"
+    )
+    name = models.CharField(max_length=50, help_text="Tag name")
+    color = models.CharField(
+        max_length=7,
+        default="#3B82F6",
+        help_text="Tag color in hex format (#RRGGBB)",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["name"]
+        unique_together = ["user", "name"]
+
+    def __str__(self):
+        try:
+            username = self.user.username
+        except AttributeError:
+            username = f"user_{self.user_id}"
+        return f"{self.name} (by {username})"
+
+
+class VideoTag(models.Model):
+    video = models.ForeignKey(
+        "Video", on_delete=models.CASCADE, related_name="video_tags"
+    )
+    tag = models.ForeignKey(Tag, on_delete=models.CASCADE, related_name="video_tags")
+    added_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["tag__name"]
+        unique_together = ["video", "tag"]
+
+    def __str__(self):
+        try:
+            tag_name = self.tag.name
+        except AttributeError:
+            tag_name = f"tag_{self.tag_id}"
+
+        try:
+            video_title = self.video.title
+        except AttributeError:
+            video_title = f"video_{self.video_id}"
+
+        return f"{tag_name} on {video_title}"
 
 
 class VideoGroup(models.Model):

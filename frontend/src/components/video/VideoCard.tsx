@@ -6,6 +6,7 @@ import { getStatusBadgeClassName, getStatusLabel, formatDate } from '@/lib/utils
 import { Link } from '@/lib/i18n';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
+import { TagBadge } from './TagBadge';
 
 interface VideoCardProps {
   video: VideoListType | VideoInGroup;
@@ -82,6 +83,15 @@ export function VideoCard({ video, showLink = true, className = '', onClick }: V
           </svg>
           {formatDate(video.uploaded_at, 'full', locale || 'en')}
         </div>
+
+        {/* Tags */}
+        {'tags' in video && video.tags && video.tags.length > 0 && (
+          <div className="flex flex-wrap gap-1 pt-1">
+            {video.tags.map((tag) => (
+              <TagBadge key={tag.id} tag={tag} size="sm" />
+            ))}
+          </div>
+        )}
       </CardContent>
     </Card>
   );

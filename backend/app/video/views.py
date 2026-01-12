@@ -1,7 +1,7 @@
 import logging
 import secrets
 
-from django.db.models import Max, Q
+from django.db.models import Max, Prefetch, Q
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics, status
 from rest_framework.decorators import api_view, permission_classes
@@ -9,16 +9,20 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 from app.common.responses import create_error_response
-from app.models import Video, VideoGroup, VideoGroupMember
+from app.models import Tag, Video, VideoGroup, VideoGroupMember, VideoTag
 from app.utils.decorators import authenticated_view_with_error_handling
 from app.utils.mixins import AuthenticatedViewMixin, DynamicSerializerMixin
 from app.utils.query_optimizer import QueryOptimizer
 
-from .serializers import (AddVideosToGroupRequestSerializer,
+from .serializers import (AddTagsToVideoRequestSerializer,
+                          AddTagsToVideoResponseSerializer,
+                          AddVideosToGroupRequestSerializer,
                           AddVideosToGroupResponseSerializer,
                           MessageResponseSerializer,
-                          ReorderVideosRequestSerializer,
-                          VideoCreateSerializer, VideoGroupCreateSerializer,
+                          ReorderVideosRequestSerializer, TagCreateSerializer,
+                          TagDetailSerializer, TagListSerializer,
+                          TagUpdateSerializer, VideoCreateSerializer,
+                          VideoGroupCreateSerializer,
                           VideoGroupDetailSerializer, VideoGroupListSerializer,
                           VideoGroupUpdateSerializer, VideoListSerializer,
                           VideoSerializer, VideoUpdateSerializer)
@@ -184,6 +188,7 @@ class VideoListView(DynamicSerializerMixin, BaseVideoView, generics.ListCreateAP
         status_value = self.request.query_params.get("status", "").strip()
         external_id = self.request.query_params.get("external_id", "").strip()
         ordering = self.request.query_params.get("ordering", "").strip()
+        tag_ids = self.request.query_params.get("tags", "").strip()
 
         if q:
             queryset = queryset.filter(
@@ -195,6 +200,16 @@ class VideoListView(DynamicSerializerMixin, BaseVideoView, generics.ListCreateAP
 
         if external_id:
             queryset = queryset.filter(external_id=external_id)
+
+        # Filter by tags (AND condition)
+        if tag_ids:
+            try:
+                tag_id_list = [int(tid) for tid in tag_ids.split(",") if tid]
+                if tag_id_list:
+                    for tag_id in tag_id_list:
+                        queryset = queryset.filter(tags__id=tag_id)
+            except ValueError:
+                pass  # Ignore invalid tag IDs
 
         ordering_map = {
             "uploaded_at_desc": "-uploaded_at",
@@ -513,3 +528,133 @@ def get_shared_group(request, share_token):
     # Generate response using serializer
     serializer = VideoGroupDetailSerializer(group)
     return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+# ====================
+# Tag Views
+# ====================
+
+
+class BaseTagView(AuthenticatedViewMixin):
+    """Common base view for Tag operations"""
+
+    def get_queryset(self):
+        from django.db.models import Count
+
+        return Tag.objects.filter(user=self.request.user).annotate(
+            video_count=Count("video_tags")
+        )
+
+
+class TagListView(DynamicSerializerMixin, BaseTagView, generics.ListCreateAPIView):
+    """Tag list retrieval and creation view"""
+
+    serializer_map = {
+        "GET": TagListSerializer,
+        "POST": TagCreateSerializer,
+    }
+
+
+class TagDetailView(
+    DynamicSerializerMixin, BaseTagView, generics.RetrieveUpdateDestroyAPIView
+):
+    """Tag detail, update, and delete view"""
+
+    serializer_map = {
+        "GET": TagDetailSerializer,
+        "PUT": TagUpdateSerializer,
+        "PATCH": TagUpdateSerializer,
+    }
+
+    def get_queryset(self):
+        from django.db.models import Count
+
+        return (
+            Tag.objects.filter(user=self.request.user)
+            .annotate(video_count=Count("video_tags"))
+            .prefetch_related(
+                Prefetch(
+                    "video_tags",
+                    queryset=VideoTag.objects.select_related("video").prefetch_related(
+                        Prefetch(
+                            "video__video_tags",
+                            queryset=VideoTag.objects.select_related("tag"),
+                        )
+                    ),
+                )
+            )
+        )
+
+
+@extend_schema(
+    request=AddTagsToVideoRequestSerializer,
+    responses={201: AddTagsToVideoResponseSerializer},
+)
+@authenticated_view_with_error_handling(["POST"])
+def add_tags_to_video(request, video_id):
+    """Add multiple tags to video"""
+    video, error = ResourceValidator.validate_and_get_resource(
+        request.user, Video, video_id, "Video"
+    )
+    if error:
+        return error
+
+    tag_ids = request.data.get("tag_ids", [])
+    if not tag_ids:
+        return create_error_response(
+            "Tag IDs not specified", status.HTTP_400_BAD_REQUEST
+        )
+
+    tags = list(Tag.objects.filter(user=request.user, id__in=tag_ids))
+    if len(tags) != len(tag_ids):
+        return create_error_response("Some tags not found", status.HTTP_404_NOT_FOUND)
+
+    # Get existing tags
+    existing_tags = set(
+        VideoTag.objects.filter(video=video, tag_id__in=tag_ids).values_list(
+            "tag_id", flat=True
+        )
+    )
+
+    tags_to_add = [tag for tag in tags if tag.id not in existing_tags]
+
+    # Bulk create
+    video_tags = [VideoTag(video=video, tag=tag) for tag in tags_to_add]
+    VideoTag.objects.bulk_create(video_tags)
+
+    added_count = len(tags_to_add)
+    skipped_count = len(tag_ids) - added_count
+
+    return Response(
+        {
+            "message": f"Added {added_count} tags to video",
+            "added_count": added_count,
+            "skipped_count": skipped_count,
+        },
+        status=status.HTTP_201_CREATED,
+    )
+
+
+@authenticated_view_with_error_handling(["DELETE"])
+def remove_tag_from_video(request, video_id, tag_id):
+    """Remove tag from video"""
+    video, error = ResourceValidator.validate_and_get_resource(
+        request.user, Video, video_id, "Video"
+    )
+    if error:
+        return error
+
+    tag, error = ResourceValidator.validate_and_get_resource(
+        request.user, Tag, tag_id, "Tag"
+    )
+    if error:
+        return error
+
+    video_tag = VideoTag.objects.filter(video=video, tag=tag).first()
+    if not video_tag:
+        return create_error_response(
+            "This tag is not attached to the video", status.HTTP_404_NOT_FOUND
+        )
+
+    video_tag.delete()
+    return Response({"message": "Tag removed from video"}, status=status.HTTP_200_OK)
