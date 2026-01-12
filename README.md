@@ -220,83 +220,61 @@ This app assumes **OpenAI API keys are configured per user**.
 
 ## Local Whisper Transcription (Optional)
 
-VideoQ supports using a local whisper.cpp server for GPU-accelerated transcription on Mac (with Metal support), providing faster and cost-free transcription.
+Use a local whisper.cpp server for faster, cost-free GPU-accelerated transcription.
 
-### Setup Steps
-
-#### 1. Initialize Submodule (if not already done)
-
-If you're setting up the project for the first time, initialize the whisper.cpp submodule:
+### Quick Setup
 
 ```bash
-# From VideoQ project root
+# 1. Initialize submodule (from VideoQ root)
 git submodule update --init --recursive
-```
-
-#### 2. Build whisper.cpp with Metal Support
-
-```bash
-# Navigate to whisper.cpp directory
 cd whisper.cpp
 
-# Build with Metal GPU acceleration (Mac only)
-make
-```
+# 2. Build whisper.cpp
+cmake -B build
+cmake --build build -j --config Release
 
-**Requirements:**
-- macOS with Apple Silicon (M1/M2/M3) or Intel Mac with Metal support
-- Xcode Command Line Tools installed
-
-#### 3. Download Whisper Model
-
-Download the `large-v3-turbo` model
-
-```bash
-# From whisper.cpp directory
+# 3. Download model
 bash ./models/download-ggml-model.sh large-v3-turbo
-```
 
-#### 4. Start Whisper Server
-
-Start the whisper.cpp server with OpenAI-compatible endpoint:
-
-```bash
-# From whisper.cpp directory
-cd whisper.cpp
+# 4. Start server (macOS/Linux)
 ./build/bin/whisper-server -m models/ggml-large-v3-turbo.bin --inference-path /audio/transcriptions
+
+# 4. Start server (Windows - use Git Bash or adjust paths for PowerShell)
+./build/bin/Release/whisper-server.exe -m models/ggml-large-v3-turbo.bin --inference-path /audio/transcriptions
 ```
 
-#### 5. Configure VideoQ
+### Configure VideoQ
 
-Update your `.env` file in the VideoQ root directory:
-
+Update `.env` in VideoQ root:
 ```bash
 WHISPER_BACKEND=local
 WHISPER_LOCAL_URL=http://host.docker.internal:8080
 ```
 
-#### 6. Restart VideoQ Services
-
-Restart the backend and celery worker to apply the new configuration:
-
+Restart services:
 ```bash
-# From VideoQ project root
 docker compose restart backend celery-worker
 ```
 
-#### 7. Test Transcription
+### GPU Acceleration (Optional)
 
-1. Upload a video through the VideoQ web interface
-2. Check the celery-worker logs to confirm it's using the local whisper server:
+For better performance, build with GPU support:
 
 ```bash
-docker compose logs -f celery-worker
+# NVIDIA GPU
+cmake -B build -DGGML_CUDA=1
+cmake --build build -j --config Release
+
+# Other GPU (Vulkan - Windows/Linux only)
+cmake -B build -DGGML_VULKAN=1
+cmake --build build -j --config Release
 ```
 
-You should see logs like:
-```
-Using Whisper backend: local, model: whisper-local
-```
+**Requirements:**
+- macOS: Xcode Command Line Tools (`xcode-select --install`)
+- Windows: CMake + Visual Studio Build Tools
+- CUDA: NVIDIA GPU + CUDA Toolkit
+- Vulkan: GPU with Vulkan drivers
 
 ### Per-User LLM Settings
 
