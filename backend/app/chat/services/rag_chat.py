@@ -6,11 +6,10 @@ from django.conf import settings
 from langchain_core.messages import AIMessage
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnableLambda, RunnableParallel
-from langchain_openai import OpenAIEmbeddings
 from langchain_postgres import PGVector
-from pydantic import SecretStr
 
 from app.chat.prompts import build_system_prompt
+from app.utils.embeddings import get_embeddings
 from app.utils.openai_utils import require_openai_api_key
 from app.utils.vector_manager import PGVectorManager
 
@@ -194,11 +193,11 @@ class RagChatService:
         }
 
     def _create_vector_store(self) -> PGVector:
-        # Use user's OpenAI API key
-        api_key = require_openai_api_key(self.user)
-        embeddings = OpenAIEmbeddings(
-            model=settings.EMBEDDING_MODEL, api_key=SecretStr(api_key)
-        )
+        # Get API key if using OpenAI provider
+        api_key = None
+        if settings.EMBEDDING_PROVIDER == "openai":
+            api_key = require_openai_api_key(self.user)
+        embeddings = get_embeddings(api_key)
         config = PGVectorManager.get_config()
         connection_str = PGVectorManager.get_psycopg_connection_string()
 
