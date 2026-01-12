@@ -55,8 +55,10 @@ class DefaultSettings:
 
     # Embedding configuration
     EMBEDDING_PROVIDER = "openai"  # openai or ollama
-    EMBEDDING_MODEL = "text-embedding-3-small"  # Default embedding model (provider-agnostic)
-    OLLAMA_BASE_URL = "http://localhost:11434"  # Ollama server URL
+    EMBEDDING_MODEL = (
+        "text-embedding-3-small"  # Default embedding model (provider-agnostic)
+    )
+    OLLAMA_BASE_URL = "http://host.docker.internal:11434"  # Ollama server URL
 
     # LLM configuration
     LLM_PROVIDER = "openai"  # openai or ollama
@@ -356,8 +358,6 @@ EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL", DefaultSettings.EMBEDDING_MO
 OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", DefaultSettings.OLLAMA_BASE_URL)
 
 # LLM configuration
-LLM_PROVIDER = os.environ.get(
-    "LLM_PROVIDER", DefaultSettings.LLM_PROVIDER
-).lower()
+LLM_PROVIDER = os.environ.get("LLM_PROVIDER", DefaultSettings.LLM_PROVIDER).lower()
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", DefaultSettings.OPENAI_API_KEY)
 LLM_MODEL = os.environ.get("LLM_MODEL", DefaultSettings.LLM_MODEL)

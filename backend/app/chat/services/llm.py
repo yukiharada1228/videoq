@@ -59,8 +59,10 @@ def get_langchain_llm(user) -> Tuple[Optional[BaseChatModel], Optional[Response]
 
     elif provider == "ollama":
         # Use Ollama LLM
-        base_url = getattr(settings, "OLLAMA_BASE_URL", "http://host.docker.internal:11434")
-        model = getattr(settings, "LLM_MODEL", "qwen3:8b")
+        base_url = getattr(
+            settings, "OLLAMA_BASE_URL", "http://host.docker.internal:11434"
+        )
+        model = getattr(settings, "LLM_MODEL", "qwen3:0.6b")
 
         return (
             ChatOllama(
