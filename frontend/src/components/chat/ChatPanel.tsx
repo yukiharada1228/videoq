@@ -6,7 +6,6 @@ import { apiClient, type RelatedVideo, type ChatHistoryItem } from '@/lib/api';
 import { timeStringToSeconds } from '@/lib/utils/video';
 import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
-import { useOpenAIApiKeyStatus } from '@/hooks/useOpenAIApiKeyStatus';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -25,9 +24,6 @@ interface ChatPanelProps {
 
 export function ChatPanel({ groupId, onVideoPlay, shareToken, className }: ChatPanelProps) {
   const { t } = useTranslation();
-  const { hasApiKey, isChecking: checkingApiKey } = useOpenAIApiKeyStatus({ enabled: !shareToken });
-  const apiKeyRequiredAndMissing = !shareToken && !checkingApiKey && hasApiKey === false;
-  const canSend = !!shareToken || (!checkingApiKey && hasApiKey === true);
   const [messages, setMessages] = useState<Message[]>(() => [
     {
       role: 'assistant',
@@ -91,7 +87,6 @@ export function ChatPanel({ groupId, onVideoPlay, shareToken, className }: ChatP
 
   const handleSend = async () => {
     if (!input.trim() || loading) return;
-    if (!canSend) return;
 
     const userMessage: Message = { role: 'user', content: input };
     setMessages((prev) => [...prev, userMessage]);
@@ -152,8 +147,8 @@ export function ChatPanel({ groupId, onVideoPlay, shareToken, className }: ChatP
       setHistory((prev) =>
         prev
           ? prev.map((item) =>
-              item.id === chatLogId ? { ...item, feedback: normalizedFeedback } : item,
-            )
+            item.id === chatLogId ? { ...item, feedback: normalizedFeedback } : item,
+          )
           : prev,
       );
     } catch (error) {
@@ -195,16 +190,14 @@ export function ChatPanel({ groupId, onVideoPlay, shareToken, className }: ChatP
             {messages.map((message, index) => (
               <div
                 key={index}
-                className={`flex ${
-                  message.role === 'user' ? 'justify-end' : 'justify-start'
-                }`}
+                className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'
+                  }`}
               >
                 <div
-                  className={`max-w-[80%] rounded-lg px-4 py-2 ${
-                    message.role === 'user'
+                  className={`max-w-[80%] rounded-lg px-4 py-2 ${message.role === 'user'
                       ? 'bg-blue-500 text-white'
                       : 'bg-gray-100 text-gray-800'
-                  }`}
+                    }`}
                 >
                   <p className="text-sm whitespace-pre-wrap">{message.content}</p>
                   {message.related_videos && message.related_videos.length > 0 && (
@@ -212,8 +205,8 @@ export function ChatPanel({ groupId, onVideoPlay, shareToken, className }: ChatP
                       <p className="text-xs text-gray-600 mb-2">{t('chat.relatedVideos')}:</p>
                       <div className="flex gap-2 overflow-x-auto pb-1">
                         {message.related_videos.map((video, videoIndex) => (
-                          <div 
-                            key={videoIndex} 
+                          <div
+                            key={videoIndex}
                             className="flex-shrink-0 bg-white border border-gray-200 rounded p-2 hover:bg-gray-50 cursor-pointer"
                             onClick={() => navigateToVideo(video.video_id, video.start_time)}
                           >
@@ -255,14 +248,14 @@ export function ChatPanel({ groupId, onVideoPlay, shareToken, className }: ChatP
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyPress}
               placeholder={t('chat.placeholder') as string}
-              disabled={loading || apiKeyRequiredAndMissing || (!shareToken && checkingApiKey)}
+              disabled={loading}
               className="flex-1"
             />
             <Button
               onClick={handleSend}
-              disabled={loading || !input.trim() || apiKeyRequiredAndMissing || (!shareToken && checkingApiKey)}
+              disabled={loading || !input.trim()}
             >
-            {loading ? t('common.actions.sending') : t('common.actions.send')}
+              {loading ? t('common.actions.sending') : t('common.actions.send')}
             </Button>
           </div>
         </CardContent>
@@ -323,8 +316,8 @@ export function ChatPanel({ groupId, onVideoPlay, shareToken, className }: ChatP
                         {item.feedback === 'good'
                           ? t('chat.feedbackGood')
                           : item.feedback === 'bad'
-                          ? t('chat.feedbackBad')
-                          : t('chat.feedbackNone')}
+                            ? t('chat.feedbackBad')
+                            : t('chat.feedbackNone')}
                       </div>
                     </div>
                   ))}

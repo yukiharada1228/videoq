@@ -90,8 +90,6 @@ class UserSerializer(serializers.ModelSerializer):
             "email",
             "video_limit",
             "video_count",
-            "preferred_llm_model",
-            "preferred_llm_temperature",
         ]
 
     def get_video_count(self, obj):
@@ -216,87 +214,3 @@ class RefreshResponseSerializer(serializers.Serializer):
 
 class MessageResponseSerializer(serializers.Serializer):
     detail = serializers.CharField(help_text="Response message")
-
-
-# OpenAI API Key serializers
-class OpenAIApiKeySetSerializer(serializers.Serializer):
-    api_key = serializers.CharField(
-        write_only=True,
-        style={"input_type": "password"},
-        help_text="OpenAI API key (starts with sk-)",
-        min_length=20,
-        max_length=200,
-    )
-
-    def validate_api_key(self, value):
-        """Validate OpenAI API key format"""
-        if not value.startswith("sk-"):
-            raise serializers.ValidationError(
-                "Invalid API key format. OpenAI API keys should start with 'sk-'."
-            )
-        return value
-
-    def save(self, user):
-        """Save encrypted API key to user"""
-        from app.utils.encryption import encrypt_api_key
-
-        api_key = self.validated_data["api_key"]
-        user.openai_api_key_encrypted = encrypt_api_key(api_key)
-        user.save(update_fields=["openai_api_key_encrypted"])
-        return user
-
-
-class OpenAIApiKeyStatusSerializer(serializers.Serializer):
-    has_api_key = serializers.BooleanField(
-        help_text="Whether the user has set an OpenAI API key"
-    )
-
-
-class OpenAIApiKeyMessageSerializer(serializers.Serializer):
-    message = serializers.CharField(help_text="Response message")
-
-
-# LLM Settings serializers
-class LLMSettingsSerializer(serializers.Serializer):
-    preferred_llm_model = serializers.CharField(max_length=100)
-    preferred_llm_temperature = serializers.FloatField(min_value=0.0, max_value=2.0)
-
-
-class LLMSettingsUpdateSerializer(serializers.Serializer):
-    preferred_llm_model = serializers.CharField(
-        max_length=100,
-        required=False,
-        help_text="LLM model to use (e.g., gpt-4o-mini, gpt-4o, gpt-4-turbo)",
-    )
-    preferred_llm_temperature = serializers.FloatField(
-        min_value=0.0,
-        max_value=2.0,
-        required=False,
-        help_text="Temperature for LLM responses (0.0 to 2.0)",
-    )
-
-    def save(self, user):
-        """Save LLM settings to user"""
-        update_fields = []
-
-        if "preferred_llm_model" in self.validated_data:
-            user.preferred_llm_model = self.validated_data["preferred_llm_model"]
-            update_fields.append("preferred_llm_model")
-
-        if "preferred_llm_temperature" in self.validated_data:
-            user.preferred_llm_temperature = self.validated_data[
-                "preferred_llm_temperature"
-            ]
-            update_fields.append("preferred_llm_temperature")
-
-        if update_fields:
-            user.save(update_fields=update_fields)
-
-        return user
-
-
-class AvailableModelsSerializer(serializers.Serializer):
-    models = serializers.ListField(
-        child=serializers.CharField(),
-        help_text="List of available chat model IDs",
-    )

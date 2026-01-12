@@ -1,7 +1,9 @@
 """LangChain helper functions"""
 
+import os
 from typing import Optional, Tuple
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from langchain_openai import ChatOpenAI
 from pydantic import SecretStr
@@ -9,29 +11,28 @@ from rest_framework import status
 from rest_framework.response import Response
 
 from app.common.responses import create_error_response
-from app.utils.openai_utils import (OpenAIApiKeyNotConfiguredError,
-                                    get_openai_api_key)
 
 User = get_user_model()
 
 
 def get_langchain_llm(user) -> Tuple[Optional[ChatOpenAI], Optional[Response]]:
-    # Use user's OpenAI API key
-    try:
-        api_key = get_openai_api_key(user)
-        if not api_key:
-            return None, create_error_response(
-                "OpenAI API key is not configured. Please set your API key in settings.",
-                status.HTTP_400_BAD_REQUEST,
-            )
-    except OpenAIApiKeyNotConfiguredError as e:
-        return None, create_error_response(str(e), status.HTTP_400_BAD_REQUEST)
+    # Use OpenAI API key from environment variable
+    api_key = getattr(settings, "OPENAI_API_KEY", None) or os.environ.get(
+        "OPENAI_API_KEY"
+    )
+    if not api_key:
+        return None, create_error_response(
+            "OpenAI API key is not configured. Please set OPENAI_API_KEY environment variable.",
+            status.HTTP_400_BAD_REQUEST,
+        )
 
-    # Use user's preferred settings with fallback to defaults
-    model = getattr(user, "preferred_llm_model", "gpt-4o-mini") or "gpt-4o-mini"
-    temperature = getattr(user, "preferred_llm_temperature", 0)
-    if temperature is None:
-        temperature = 0
+    # Use LLM model from environment variable with fallback to default
+    model = getattr(settings, "LLM_MODEL", None) or os.environ.get(
+        "LLM_MODEL", "gpt-4o-mini"
+    )
+
+    # Temperature is fixed at 0.0
+    temperature = 0.0
 
     return (
         ChatOpenAI(
