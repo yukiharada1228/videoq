@@ -53,8 +53,11 @@ class DefaultSettings:
     EMAIL_HOST_PASSWORD = ""
     EMAIL_USE_TLS = True
 
-    # OpenAI
-    EMBEDDING_MODEL = "text-embedding-3-small"  # Default embedding model
+    # Embedding configuration
+    EMBEDDING_PROVIDER = "openai"  # openai or ollama
+    EMBEDDING_MODEL = "text-embedding-3-small"  # Default embedding model for OpenAI
+    OLLAMA_BASE_URL = "http://localhost:11434"  # Ollama server URL
+    OLLAMA_EMBEDDING_MODEL = "qwen3-embedding:0.6b"  # Ollama embedding model
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -341,5 +344,12 @@ else:
         == "true"
     )
 
-# OpenAI configuration
+# Embedding configuration
+EMBEDDING_PROVIDER = os.environ.get(
+    "EMBEDDING_PROVIDER", DefaultSettings.EMBEDDING_PROVIDER
+).lower()
 EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL", DefaultSettings.EMBEDDING_MODEL)
+OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", DefaultSettings.OLLAMA_BASE_URL)
+OLLAMA_EMBEDDING_MODEL = os.environ.get(
+    "OLLAMA_EMBEDDING_MODEL", DefaultSettings.OLLAMA_EMBEDDING_MODEL
+)
