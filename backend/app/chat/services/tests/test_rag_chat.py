@@ -6,7 +6,6 @@ from unittest.mock import MagicMock, patch
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
-from pydantic import SecretStr
 
 from app.chat.services.rag_chat import RagChatService
 from app.models import Video, VideoGroup
