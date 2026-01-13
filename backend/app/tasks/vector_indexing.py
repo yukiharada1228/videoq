@@ -4,7 +4,6 @@ Vector indexing utilities for RAG
 
 import logging
 
-from django.conf import settings
 from langchain_postgres import PGVector
 
 from app.tasks.srt_processing import parse_srt_scenes
