@@ -94,7 +94,6 @@ videoq/
 
 #### AI/ML
 - **OpenAI API**: Whisper (transcription), Chat (dialogue), Embeddings (vectorization)
-  - Chat model and temperature are user-configurable (see Per-User LLM Settings)
   - Embedding and LLM providers are configurable (OpenAI or Ollama)
   - Model selection via `EMBEDDING_MODEL` and `LLM_MODEL` environment variables
 - **Ollama** (optional): Local LLM and embedding models without API keys
