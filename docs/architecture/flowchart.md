@@ -27,9 +27,7 @@ flowchart TD
     UpdateStatus --> SaveDB2[(Database Update)]
     SaveDB2 --> CheckBackend{"WHISPER_BACKEND<br>Setting Check"}
     CheckBackend -->|local| CheckFile2{"File Exists<br>Check"}
-    CheckBackend -->|openai| CheckAPIKey{"OpenAI API Key<br>Configured? (Video Owner)"}
-    CheckAPIKey -->|Not Configured| Error5[Error Processing<br/>status: error]
-    CheckAPIKey -->|Configured| CheckFile{"File Exists<br>Check"}
+    CheckBackend -->|openai| CheckFile{"File Exists<br>Check"}
     CheckFile -->|Not Exists| Error3[Error Processing]
     CheckFile -->|Exists| Extract[Extract Audio<br/>with ffmpeg]
     CheckFile2 -->|Not Exists| Error3
@@ -67,9 +65,7 @@ flowchart TD
     Validate1 -->|Valid| Send[Send API Request]
     Send --> Auth{Authentication Check}
     Auth -->|Failed| Error2[Authentication Error]
-    Auth -->|Success| CheckAPIKey{"OpenAI API Key Configured?<br>(User / Group Owner when shared)"}
-    CheckAPIKey -->|Not Configured| Error3[API Key Not Configured Error]
-    CheckAPIKey -->|Configured| CheckGroup{Group Specified?}
+    Auth -->|Success| CheckGroup{Group Specified?}
     CheckGroup -->|No| NoContext[No Context]
     CheckGroup -->|Yes| GetGroup[(Database<br/>Get VideoGroup)]
     GetGroup --> ValidateGroup{"Group Exists<br>Check"}

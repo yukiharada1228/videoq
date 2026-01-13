@@ -102,7 +102,6 @@ videoq/
 
 #### Storage & Security
 - **django-storages** + **boto3**: S3-compatible storage (optional)
-- **cryptography**: Encrypt user API keys in database
 - **django-cors-headers**: CORS policy management
 
 #### Email & Communication
@@ -159,10 +158,11 @@ videoq/
 - Email verification required for signup
 - Password reset flow via email
 
-### API Key Management
-- User API keys encrypted at rest using `cryptography` library
-- Per-user API key storage (not shared)
-- Shared group chats use the group owner's API key
+### LLM and Embedding Configuration
+- LLM and embedding providers are configured globally via environment variables
+- Supports both OpenAI API and local Ollama models
+- When using OpenAI, the global `OPENAI_API_KEY` environment variable is used
+- When using Ollama, no API key is required
 
 ### Media Protection
 - All media files require authentication or valid share token
@@ -215,13 +215,6 @@ docker compose exec backend python manage.py createsuperuser
 - **Admin**: `http://localhost/api/admin`
 - **Swagger**: `http://localhost/api/docs/`
 - **ReDoc**: `http://localhost/api/redoc/`
-
-## Important Note (OpenAI API Key)
-
-This app assumes **OpenAI API keys are configured per user**.
-
-- **Normal usage**: each user registers their API key in Settings (saved encrypted in DB)
-- **Chat via shared link**: uses the **group owner's API key**
 
 ## Local Whisper Transcription (Optional)
 

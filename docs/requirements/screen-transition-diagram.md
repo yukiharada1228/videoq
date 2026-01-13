@@ -27,7 +27,6 @@ stateDiagram-v2
     Home --> VideoList: Logged In
     VideoList --> VideoDetail: Select Video
     VideoList --> VideoGroupList: Group List
-    VideoList --> Settings: Settings
     
     VideoDetail --> VideoList: Back
     VideoDetail --> VideoGroupDetail: Select Group
@@ -40,9 +39,7 @@ stateDiagram-v2
     VideoGroupDetail --> SharePage: Generate Share Link
     
     SharePage --> VideoGroupDetail: Back
-    
-    Settings --> VideoList: Back
-    
+
     Home --> SharePage: Share Token URL
     SharePage --> SharePage: Chat with Shared Group
     
@@ -95,9 +92,6 @@ stateDiagram-v2
 
 ### Sharing
 - **SharePage** (`/share/:token` or `/:locale/share/:token`): Share page (no authentication required)
-
-### Settings
-- **Settings** (`/settings` or `/:locale/settings`): Settings page
 
 **Note**: This project implements locale-aware routing with React Router + react-i18next (not Next.js / next-intl) (`frontend/src/App.tsx`).
 - The default locale (`en`) has no prefix: `/videos`

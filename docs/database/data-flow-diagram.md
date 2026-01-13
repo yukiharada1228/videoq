@@ -26,9 +26,7 @@ flowchart TD
     
     SaveDB2 --> CheckBackend{"WHISPER_BACKEND<br>Setting Check"}
     CheckBackend -->|local| ReadFile2[File Storage<br/>Read Video File]
-    CheckBackend -->|openai| CheckAPIKey{"OpenAI API Key Configured?<br>(Video Owner)"}
-    CheckAPIKey -->|Not Configured| Error2[Update status: error<br/>Save Error Message]
-    CheckAPIKey -->|Configured| ReadFile[File Storage<br/>Read Video File]
+    CheckBackend -->|openai| ReadFile[File Storage<br/>Read Video File]
 
     Worker --> ReadFile[File Storage<br/>Read Video File]
     Worker --> ReadFile2
@@ -44,7 +42,6 @@ flowchart TD
     UpdateComplete --> SaveDB3[(Database<br/>Final Update)]
     
     Error --> Frontend
-    Error2 --> Frontend
     SaveDB3 --> Frontend
     Frontend --> End([User])
 ```
@@ -59,9 +56,7 @@ flowchart TD
     
     API --> Auth{Authentication Check}
     Auth -->|Failed| Error1[Authentication Error]
-    Auth -->|Success| GetAPIKey["Get OpenAI API Key<br/>(User)"]
-    
-    GetAPIKey --> GetGroup[(Database<br/>Get VideoGroup)]
+    Auth -->|Success| GetGroup[(Database<br/>Get VideoGroup)]
     
     GetGroup --> VectorSearch[PGVector<br/>Vector Search]
     VectorSearch --> RelatedScenes[Get Related Scenes]
@@ -147,8 +142,7 @@ flowchart TD
     Guest --> Chat[Send Chat]
     Chat --> API3[POST /api/chat/?share_token=<token>]
     API3 --> ValidateToken2[(Database<br/>Verify Token)]
-    ValidateToken2 --> GetAPIKey["Get OpenAI API Key<br/>(Group Owner)"]
-    GetAPIKey --> RAG[RAG Processing]
+    ValidateToken2 --> RAG[RAG Processing]
     RAG --> SaveLog[(Database<br/>Save ChatLog<br/>is_shared_origin: True)]
     SaveLog --> ReturnAnswer[Return Answer]
     ReturnAnswer --> Frontend

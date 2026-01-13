@@ -46,9 +46,7 @@ flowchart TD
     ProcessTask --> ExtractAudio[Extract Audio]
     ExtractAudio --> CheckBackend{"WHISPER_BACKEND<br>Setting Check"}
     CheckBackend -->|local| Transcribe[Execute Transcription<br>Local whisper.cpp]
-    CheckBackend -->|openai| CheckAPIKey{"OpenAI API Key Configured?<br>(Video Owner)"}
-    CheckAPIKey -->|Not Configured| HandleError[Error Processing]
-    CheckAPIKey -->|Configured| TranscribeAPI[Execute Transcription<br>OpenAI API]
+    CheckBackend -->|openai| TranscribeAPI[Execute Transcription<br>OpenAI API]
     Transcribe --> CheckResult{Processing Result}
     TranscribeAPI --> CheckResult
     CheckResult -->|Success| CreateTranscript[Save Transcription]
@@ -75,10 +73,7 @@ flowchart TD
     ValidateQuestion -->|Valid| CheckAuth{Authentication Check}
     CheckAuth -->|Unauthenticated| RequireAuth[Require Authentication]
     RequireAuth --> End([End])
-    CheckAuth -->|Authenticated| CheckAPIKey{"OpenAI API Key<br>Configuration Check<br>(User / Group Owner when shared)"}
-    CheckAPIKey -->|Not Configured| RequireAPIKey[OpenAI API Key Not Configured]
-    RequireAPIKey --> End
-    CheckAPIKey -->|Configured| CheckGroup{Group Specified}
+    CheckAuth -->|Authenticated| CheckGroup{Group Specified}
     
     CheckGroup -->|Specified| GetGroup[Get Group]
     GetGroup --> SearchVector[Vector Search]
