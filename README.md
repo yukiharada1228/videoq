@@ -356,7 +356,7 @@ EMBEDDING_MODEL=qwen3-embedding:0.6b
 OLLAMA_BASE_URL=http://host.docker.internal:11434
 ```
 
-**Important**: Different embedding models produce incompatible vectors. After switching providers, re-index existing videos for consistent search results.
+**Important**: Different embedding models produce incompatible vectors. After switching providers, you must re-index existing videos for consistent search results (see [Re-indexing Video Embeddings](#re-indexing-video-embeddings)).
 
 ### Local LLM with Ollama (Optional)
 
@@ -383,6 +383,72 @@ OLLAMA_BASE_URL=http://host.docker.internal:11434
 
 ```bash
 docker compose restart backend celery-worker
+```
+
+## Re-indexing Video Embeddings
+
+When switching embedding providers or models, existing video embeddings become incompatible with the new model. VideoQ provides an admin feature to re-index all videos with the new embedding model.
+
+### When to Re-index
+
+Re-indexing is required when:
+
+- **Switching embedding providers**: OpenAI ↔ Ollama
+- **Changing embedding models**: e.g., `text-embedding-3-small` → `text-embedding-3-large`
+- **After model configuration changes**: Any change to `EMBEDDING_PROVIDER` or `EMBEDDING_MODEL`
+
+### How to Re-index
+
+1. **Update environment variables** in `.env`:
+   ```bash
+   EMBEDDING_PROVIDER=ollama
+   EMBEDDING_MODEL=qwen3-embedding:0.6b
+   ```
+
+2. **Restart services**:
+   ```bash
+   docker compose restart backend celery-worker
+   ```
+
+3. **Access Django Admin**:
+   - Navigate to `http://localhost/api/admin`
+   - Login with superuser credentials
+
+4. **Run re-indexing**:
+   - Click on **Videos** in the admin panel
+   - Select any video (selection is ignored - all videos will be re-indexed)
+   - Choose **"Re-index video embeddings"** from the Actions dropdown
+   - Click **"Go"**
+
+5. **Monitor progress**:
+   ```bash
+   docker compose logs -f celery-worker
+   ```
+
+### What Happens During Re-indexing
+
+1. **Delete old vectors**: All existing embeddings are removed from pgvector
+2. **Re-generate embeddings**: Each video's transcript is processed with the new model
+3. **Error handling**: Failed videos are logged; re-indexing continues for other videos
+4. **No re-transcription**: Uses existing transcripts (Whisper is not re-run)
+
+### Important Notes
+
+- **Superuser only**: Re-indexing is restricted to superusers
+- **Background processing**: Runs asynchronously via Celery (non-blocking)
+- **Search downtime**: Search may return incomplete results during re-indexing
+- **Uses environment variables**: Global `OPENAI_API_KEY` is used (not per-user API keys)
+- **Time estimate**: Depends on number of videos and embedding provider speed
+
+### Example Log Output
+
+```
+[2026-01-12 17:57:02] Starting re-indexing: 10 videos
+[2026-01-12 17:57:02] Deleted 150 vectors
+[2026-01-12 17:57:05] [1/10] Successfully re-indexed video 45
+[2026-01-12 17:57:08] [2/10] Successfully re-indexed video 46
+...
+[2026-01-12 17:58:30] Re-indexing completed: Re-indexed 10/10 videos
 ```
 
 ## Development
