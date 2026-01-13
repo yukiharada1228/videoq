@@ -230,3 +230,64 @@ sequenceDiagram
     Backend-->>Frontend: Reset Success
     Frontend-->>User: Redirect to Login Page
 ```
+
+## 7. Re-indexing Video Embeddings (Admin)
+
+```mermaid
+sequenceDiagram
+    participant Admin as Administrator
+    participant DjangoAdmin as Django Admin
+    participant Backend as Backend API
+    participant Celery as Celery Worker
+    participant DB as Database
+    participant PGVector as PGVector
+    participant Embeddings as Embedding Provider<br/>(OpenAI / Ollama)
+
+    Admin->>DjangoAdmin: Login as Superuser
+    DjangoAdmin-->>Admin: Display Admin Panel
+
+    Admin->>DjangoAdmin: Navigate to Videos
+    Admin->>DjangoAdmin: Select Action: "Re-index video embeddings"
+    DjangoAdmin->>Backend: Check Superuser Permission
+    Backend-->>DjangoAdmin: Permission Granted
+
+    DjangoAdmin->>Celery: reindex_all_videos_embeddings.delay()
+    DjangoAdmin-->>Admin: Success Message + Task ID
+
+    Note over Celery: Background Processing (Async)
+
+    Celery->>DB: Get All Completed Videos
+    DB-->>Celery: Video List (with transcripts)
+
+    Celery->>PGVector: DELETE FROM langchain_pg_embedding
+    PGVector-->>Celery: Deleted Count
+
+    loop For Each Video
+        Celery->>Celery: Parse Transcript to Scenes
+        Celery->>Celery: Check EMBEDDING_PROVIDER
+
+        alt EMBEDDING_PROVIDER=openai
+            Celery->>Celery: Get OPENAI_API_KEY (env var)
+            Celery->>Embeddings: Generate Embeddings (OpenAI API)
+        else EMBEDDING_PROVIDER=ollama
+            Celery->>Embeddings: Generate Embeddings (Local Ollama)
+        end
+
+        Embeddings-->>Celery: Embedding Vectors
+        Celery->>PGVector: Insert Vectors + Metadata
+        PGVector-->>Celery: Inserted
+
+        alt Success
+            Celery->>Celery: Increment Success Count
+        else Error
+            Celery->>Celery: Log Error + Add to Failed List
+        end
+    end
+
+    Celery->>Celery: Build Result Summary
+    Note over Celery: Result: {status, total_videos,<br/>successful_count, failed_count,<br/>failed_videos[]}
+
+    Admin->>DjangoAdmin: Check Celery Logs
+    Note over Admin,DjangoAdmin: docker compose logs -f celery-worker
+    DjangoAdmin-->>Admin: Display Progress Logs
+```
