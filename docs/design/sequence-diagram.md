@@ -40,18 +40,14 @@ sequenceDiagram
         Celery->>PGVector: Vectorize and Save
         Celery->>DB: Update status(completed)
     else WHISPER_BACKEND=openai (default)
-        Celery->>Celery: Get OpenAI API Key (Video Owner)
-        alt OpenAI API key not configured
-            Celery->>DB: Update status(error) + Save Error Message
-        else OpenAI API key configured
-            Celery->>Whisper: Send Audio File (OpenAI API)
-            Whisper-->>Celery: Transcription Result
-            Celery->>Celery: Convert to SRT Format
-            Celery->>Celery: Scene Splitting Process
-            Celery->>DB: Save transcript
-            Celery->>PGVector: Vectorize and Save
-            Celery->>DB: Update status(completed)
-        end
+        Note over Celery: Uses global OPENAI_API_KEY env var
+        Celery->>Whisper: Send Audio File (OpenAI API)
+        Whisper-->>Celery: Transcription Result
+        Celery->>Celery: Convert to SRT Format
+        Celery->>Celery: Scene Splitting Process
+        Celery->>DB: Save transcript
+        Celery->>PGVector: Vectorize and Save
+        Celery->>DB: Update status(completed)
     end
     
     User->>Frontend: Reload Video Detail Page
@@ -75,7 +71,7 @@ sequenceDiagram
 
     User->>Frontend: Input Question
     Frontend->>Backend: POST /api/chat/ (body: group_id=123)
-    Backend->>Backend: Get OpenAI API Key (User)
+    Note over Backend: Uses global LLM_PROVIDER and EMBEDDING_PROVIDER settings
     Backend->>DB: Get VideoGroup
     DB-->>Backend: VideoGroup Information
     Backend->>PGVector: Search Related Scenes(Vector Search)
@@ -158,7 +154,7 @@ sequenceDiagram
     Frontend->>Backend: POST /api/chat/?share_token={token} (body: group_id={id})
     Backend->>DB: Get VideoGroup by id + share_token
     DB-->>Backend: VideoGroup Information
-    Backend->>Backend: Get OpenAI API Key (Group Owner)
+    Note over Backend: Uses global LLM_PROVIDER and EMBEDDING_PROVIDER settings
     Backend->>Backend: Execute RAG Processing
     Backend->>DB: Save ChatLog(is_shared_origin: True)
     Backend-->>Frontend: Answer

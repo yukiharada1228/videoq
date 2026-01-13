@@ -65,8 +65,25 @@ classDiagram
         +string feedback
         +datetime created_at
     }
-    
+
     Note: ChatLog.feedback uses FeedbackChoices (good/bad)
+
+    class Tag {
+        +int id
+        +ForeignKey user
+        +string name
+        +string color
+        +datetime created_at
+        +__str__()
+    }
+
+    class VideoTag {
+        +int id
+        +ForeignKey video
+        +ForeignKey tag
+        +datetime added_at
+        +__str__()
+    }
     
     class SafeFilenameMixin {
         +get_available_name()
@@ -85,8 +102,11 @@ classDiagram
     User "1" --> "*" Video : owns
     User "1" --> "*" VideoGroup : owns
     User "1" --> "*" ChatLog : creates
+    User "1" --> "*" Tag : owns
     VideoGroup "1" --> "*" VideoGroupMember : contains
     Video "1" --> "*" VideoGroupMember : belongs_to
+    Video "1" --> "*" VideoTag : has
+    Tag "1" --> "*" VideoTag : used_in
     VideoGroup "1" --> "*" ChatLog : has
     SafeFileSystemStorage --|> SafeFilenameMixin : extends
     SafeS3Boto3Storage --|> SafeFilenameMixin : extends
@@ -189,6 +209,32 @@ classDiagram
         +string shareToken
         +string className
         +handleSend()
+        +render()
+    }
+
+    class TagBadge {
+        +Tag tag
+        +bool showRemove
+        +function onRemove
+        +render()
+    }
+
+    class TagSelector {
+        +Tag[] selectedTags
+        +function onTagsChange
+        +render()
+    }
+
+    class TagCreateDialog {
+        +bool open
+        +function onOpenChange
+        +function onTagCreated
+        +render()
+    }
+
+    class TagFilterPanel {
+        +Tag[] selectedTags
+        +function onFilterChange
         +render()
     }
     

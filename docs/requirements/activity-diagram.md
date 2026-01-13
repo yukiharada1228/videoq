@@ -19,9 +19,7 @@ flowchart TD
     Worker --> UpdateStatus1[Update status: processing]
     UpdateStatus1 --> CheckBackend{"WHISPER_BACKEND<br>Setting Check"}
     CheckBackend -->|local| Extract[Extract Audio with ffmpeg]
-    CheckBackend -->|openai| CheckAPIKey{"OpenAI API Key<br>Configured? (Video Owner)"}
-    CheckAPIKey -->|Not Configured| UpdateError
-    CheckAPIKey -->|Configured| Extract
+    CheckBackend -->|openai| Extract[Extract Audio with ffmpeg]
     Extract --> CheckSize{"File Size<br>Check"}
     CheckSize -->|24MB or less| Transcribe1[Execute Transcription<br/>with Whisper API]
     CheckSize -->|Over 24MB| Split[Split Audio]
@@ -50,11 +48,8 @@ flowchart TD
     Auth -->|Authenticated| GetGroup{Group Specified?}
     
     GetGroup -->|Yes| ValidateGroup[Validate Group Existence]
-    GetGroup -->|No| GetAPIKey["Get OpenAI API Key<br/>(User / Group Owner when shared)"]
-    ValidateGroup --> GetAPIKey
-    GetAPIKey --> CheckKey{"API Key<br>Configured?"}
-    CheckKey -->|Not Configured| Error2[API Key Not Configured Error]
-    CheckKey -->|Configured| ParseQuery[Parse Question Text]
+    GetGroup -->|No| ParseQuery[Parse Question Text]
+    ValidateGroup --> ParseQuery
     ParseQuery --> VectorSearch{Group Specified?}
     
     VectorSearch -->|Yes| SearchVectors[Search Related Scenes<br/>with PGVector]
@@ -67,11 +62,10 @@ flowchart TD
     CallLLM --> SaveLog[Save Chat Log<br/>to Database]
     SaveLog --> ReturnAnswer[Return Answer]
     ReturnAnswer --> End([Complete])
-    
+
     Error1 --> End
+    CallLLM -->|Error| Error2[Error Response]
     Error2 --> End
-    CallLLM -->|Error| Error3[Error Response]
-    Error3 --> End
 ```
 
 ## 3. User Registration Flow

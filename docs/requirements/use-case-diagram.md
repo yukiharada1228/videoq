@@ -62,9 +62,6 @@ graph TB
 
     subgraph Settings["Settings"]
         UC31[View User Info]
-        UC32[Set OpenAI API Key]
-        UC33[Delete OpenAI API Key]
-        UC34[Configure LLM Settings]
     end
 
     subgraph Administration["Administration"]
@@ -103,9 +100,6 @@ graph TB
     User --> UC29
     User --> UC30
     User --> UC31
-    User --> UC32
-    User --> UC33
-    User --> UC34
     
     Guest --> UC29
     Guest --> UC30
@@ -167,15 +161,12 @@ graph TB
 
 ### Settings
 - **UC31 View User Info**: Display current user information
-- **UC32 Set OpenAI API Key**: Save user's OpenAI API key (encrypted)
-- **UC33 Delete OpenAI API Key**: Delete user's stored OpenAI API key
-- **UC34 Configure LLM Settings**: Configure preferred LLM model and temperature (0.0-2.0)
 
 ### Administration
 - **UC35 Re-index Video Embeddings**: Re-generate all video embeddings with new model (superuser only)
 - **UC36 Monitor Re-indexing Progress**: Monitor re-indexing task progress via Celery logs
 
 **Note:**
-- OpenAI API key is managed per user (stored encrypted). For share-link chat, the group owner's API key is used.
+- LLM and embedding configuration is managed globally via environment variables (`LLM_PROVIDER`, `LLM_MODEL`, `EMBEDDING_PROVIDER`, `EMBEDDING_MODEL`).
 - When using local whisper.cpp server (WHISPER_BACKEND=local), OpenAI API key is not required for transcription.
-- Re-indexing uses the global `OPENAI_API_KEY` environment variable and is required when switching embedding providers (OpenAI ↔ Ollama) or models.
+- Re-indexing uses the global `OPENAI_API_KEY` or `OLLAMA_BASE_URL` environment variable (depending on `EMBEDDING_PROVIDER`) and is required when switching embedding providers (OpenAI ↔ Ollama) or models.

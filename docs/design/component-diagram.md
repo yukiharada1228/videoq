@@ -33,6 +33,15 @@ graph TB
                 VideoCard[VideoCard]
                 VideoUpload[VideoUpload]
                 VideoUploadModal[VideoUploadModal]
+                VideoNavBar[VideoNavBar]
+            end
+
+            subgraph Tag["Tag Components"]
+                TagBadge[TagBadge]
+                TagSelector[TagSelector]
+                TagCreateDialog[TagCreateDialog]
+                TagFilterPanel[TagFilterPanel]
+                TagManagementModal[TagManagementModal]
             end
             
             subgraph Chat["Chat Components"]
@@ -64,6 +73,7 @@ graph TB
             useAuth[useAuth]
             useVideos[useVideos]
             useVideoUpload[useVideoUpload]
+            useTags[useTags]
             useAsyncState[useAsyncState]
         end
         
@@ -114,6 +124,12 @@ graph TB
             subgraph MediaAPI["Media API"]
                 MediaViews[Media Views]
             end
+
+            subgraph TagAPI["Tag API"]
+                TagViews[Tag Views]
+                TagSerializers[Tag Serializers]
+                TagURLs[Tag URLs]
+            end
         end
         
         subgraph Models["Models Layer"]
@@ -122,6 +138,8 @@ graph TB
             VideoGroupModel[VideoGroup Model]
             VideoGroupMemberModel[VideoGroupMember Model]
             ChatLogModel[ChatLog Model]
+            TagModel[Tag Model]
+            VideoTagModel[VideoTag Model]
         end
         
         subgraph Services["Services Layer"]

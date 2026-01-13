@@ -225,7 +225,7 @@ graph TB
         E11[FRONTEND_URL]
         E12[USE_S3_STORAGE]
         E13[AWS_*]
-        E14["OPENAI_API_KEY<br/>(optional / not used in standard flow)"]
+        E14["OPENAI_API_KEY<br/>(required when using OpenAI services)"]
         E15[VITE_API_URL]
         E16["WHISPER_BACKEND<br/>(openai or local)"]
         E17["WHISPER_LOCAL_URL<br/>(local whisper.cpp server URL)"]
