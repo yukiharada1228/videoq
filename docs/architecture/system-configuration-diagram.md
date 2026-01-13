@@ -69,7 +69,7 @@ graph TB
     subgraph External["External Services"]
         OpenAI["OpenAI API
         - Whisper API (or local whisper.cpp)
-        - GPT API (user-configurable model/temp)
+        - GPT API
         - Embeddings API (EMBEDDING_PROVIDER=openai)"]
         Ollama["Ollama Server
         Optional (Local)
