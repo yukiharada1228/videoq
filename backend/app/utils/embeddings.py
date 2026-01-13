@@ -15,7 +15,7 @@ def get_embeddings(api_key: Optional[str] = None) -> Embeddings:
     Get the configured embedding model based on EMBEDDING_PROVIDER setting.
 
     Args:
-        api_key: Optional API key for OpenAI. Required when using OpenAI provider.
+        api_key: Optional API key for OpenAI. If not provided, uses OPENAI_API_KEY environment variable.
 
     Returns:
         Embeddings: An instance of the configured embedding model.
@@ -26,10 +26,15 @@ def get_embeddings(api_key: Optional[str] = None) -> Embeddings:
     provider = settings.EMBEDDING_PROVIDER
 
     if provider == "openai":
-        if not api_key:
-            raise ValueError("OpenAI API key is required when using OpenAI embeddings")
+        # Use provided api_key or fall back to environment variable
+        openai_key = api_key or settings.OPENAI_API_KEY
+        if not openai_key:
+            raise ValueError(
+                "OpenAI API key is required when using OpenAI embeddings. "
+                "Provide api_key parameter or set OPENAI_API_KEY environment variable."
+            )
         return OpenAIEmbeddings(
-            model=settings.EMBEDDING_MODEL, api_key=SecretStr(api_key)
+            model=settings.EMBEDDING_MODEL, api_key=SecretStr(openai_key)
         )
 
     elif provider == "ollama":

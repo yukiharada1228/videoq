@@ -88,11 +88,34 @@ class VideoAdmin(admin.ModelAdmin):
     list_filter = ("status", "uploaded_at")
     search_fields = ("title", "user__username")
     readonly_fields = ("uploaded_at",)
+    actions = ["reindex_all_embeddings"]
 
     def get_queryset(self, request):
         """Preload user relation"""
         return BaseAdminMixin.get_optimized_queryset(
             request, Video, select_related_fields=["user"]
+        )
+
+    @admin.action(description="Re-index video embeddings")
+    def reindex_all_embeddings(self, request, queryset):
+        """
+        Regenerate embedding vectors for all videos (superuser only)
+        Note: queryset selection is ignored - all videos will be re-indexed
+        """
+        if not request.user.is_superuser:
+            messages.error(request, "This action is only available to superusers.")
+            return
+
+        # Start Celery task
+        from app.tasks.reindexing import reindex_all_videos_embeddings
+
+        task = reindex_all_videos_embeddings.delay()
+
+        messages.success(
+            request,
+            f"Started re-indexing video embeddings. "
+            f"Task ID: {task.id}. "
+            f"This may take some time. Check Celery worker logs for progress.",
         )
 
 

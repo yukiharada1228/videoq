@@ -10,7 +10,8 @@ This diagram represents the main use cases of the VideoQ system.
 graph TB
     User[User]
     Guest[Guest User]
-    
+    Admin[Administrator]
+
     subgraph Authentication["Authentication"]
         UC1[Sign Up]
         UC2[Email Verification]
@@ -19,7 +20,7 @@ graph TB
         UC5[Password Reset]
         UC6[Token Refresh]
     end
-    
+
     subgraph VideoManagement["Video Management"]
         UC7[Upload Video]
         UC8[List Videos]
@@ -28,12 +29,12 @@ graph TB
         UC11[Delete Video]
         UC12[View Transcript]
     end
-    
+
     subgraph Transcription["Transcription Processing"]
         UC13[Auto Transcription]
         UC14[Check Transcription Status]
     end
-    
+
     subgraph GroupManagement["Group Management"]
         UC15[Create Group]
         UC16[List Groups]
@@ -44,26 +45,31 @@ graph TB
         UC21[Remove Video from Group]
         UC22[Reorder Videos in Group]
     end
-    
+
     subgraph Chat["Chat Features"]
         UC23[Send Chat]
         UC24[View Chat History]
         UC25[Export Chat History]
         UC26[Send Feedback]
     end
-    
+
     subgraph Sharing["Sharing Features"]
         UC27[Generate Share Link]
         UC28[Delete Share Link]
         UC29[View Shared Group]
         UC30[Chat with Shared Group]
     end
-    
+
     subgraph Settings["Settings"]
         UC31[View User Info]
         UC32[Set OpenAI API Key]
         UC33[Delete OpenAI API Key]
         UC34[Configure LLM Settings]
+    end
+
+    subgraph Administration["Administration"]
+        UC35[Re-index Video Embeddings]
+        UC36[Monitor Re-indexing Progress]
     end
     
     User --> UC1
@@ -103,9 +109,13 @@ graph TB
     
     Guest --> UC29
     Guest --> UC30
-    
+
+    Admin --> UC35
+    Admin --> UC36
+
     UC7 -.->|Auto Execute| UC13
     UC13 -.->|Completion Notification| UC14
+    UC13 -.->|Creates Embeddings| UC35
     UC20 --> UC23
     UC27 --> UC29
     UC29 --> UC30
@@ -161,4 +171,11 @@ graph TB
 - **UC33 Delete OpenAI API Key**: Delete user's stored OpenAI API key
 - **UC34 Configure LLM Settings**: Configure preferred LLM model and temperature (0.0-2.0)
 
-**Note:** OpenAI API key is managed per user (stored encrypted). For share-link chat, the group owner's API key is used. When using local whisper.cpp server (WHISPER_BACKEND=local), OpenAI API key is not required for transcription.
+### Administration
+- **UC35 Re-index Video Embeddings**: Re-generate all video embeddings with new model (superuser only)
+- **UC36 Monitor Re-indexing Progress**: Monitor re-indexing task progress via Celery logs
+
+**Note:**
+- OpenAI API key is managed per user (stored encrypted). For share-link chat, the group owner's API key is used.
+- When using local whisper.cpp server (WHISPER_BACKEND=local), OpenAI API key is not required for transcription.
+- Re-indexing uses the global `OPENAI_API_KEY` environment variable and is required when switching embedding providers (OpenAI ↔ Ollama) or models.
