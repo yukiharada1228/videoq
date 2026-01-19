@@ -14,7 +14,7 @@ class WhisperConfig:
     """Configuration for Whisper backend selection"""
 
     BACKEND_OPENAI = "openai"
-    BACKEND_LOCAL = "local"
+    BACKEND_LOCAL = "whisper.cpp"
 
     def __init__(self):
         self.backend = os.getenv("WHISPER_BACKEND", self.BACKEND_OPENAI).lower()

@@ -93,7 +93,7 @@ bash ./models/download-ggml-model.sh large-v3-turbo
 Update `.env` in VideoQ root:
 
 ```bash
-WHISPER_BACKEND=local
+WHISPER_BACKEND=whisper.cpp
 WHISPER_LOCAL_URL=http://host.docker.internal:8080
 ```
 
