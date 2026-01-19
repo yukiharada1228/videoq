@@ -26,7 +26,7 @@ flowchart TD
     Worker --> UpdateStatus[Update status: processing]
     UpdateStatus --> SaveDB2[(Database Update)]
     SaveDB2 --> CheckBackend{"WHISPER_BACKEND<br>Setting Check"}
-    CheckBackend -->|local| CheckFile2{"File Exists<br>Check"}
+    CheckBackend -->|whisper.cpp| CheckFile2{"File Exists<br>Check"}
     CheckBackend -->|openai| CheckFile{"File Exists<br>Check"}
     CheckFile -->|Not Exists| Error3[Error Processing]
     CheckFile -->|Exists| Extract[Extract Audio<br/>with ffmpeg]

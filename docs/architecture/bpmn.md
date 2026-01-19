@@ -45,7 +45,7 @@ flowchart TD
     
     ProcessTask --> ExtractAudio[Extract Audio]
     ExtractAudio --> CheckBackend{"WHISPER_BACKEND<br>Setting Check"}
-    CheckBackend -->|local| Transcribe[Execute Transcription<br>Local whisper.cpp]
+    CheckBackend -->|whisper.cpp| Transcribe[Execute Transcription<br>Local whisper.cpp]
     CheckBackend -->|openai| TranscribeAPI[Execute Transcription<br>OpenAI API]
     Transcribe --> CheckResult{Processing Result}
     TranscribeAPI --> CheckResult

@@ -30,7 +30,7 @@ sequenceDiagram
     Celery->>DB: Update status(processing)
     Celery->>Celery: Extract Audio with ffmpeg
     Celery->>Celery: Check WHISPER_BACKEND setting
-    alt WHISPER_BACKEND=local
+    alt WHISPER_BACKEND=whisper.cpp
         Note over Celery,Whisper: Local whisper.cpp server (no API key needed)
         Celery->>Whisper: Send Audio File (local server)
         Whisper-->>Celery: Transcription Result
