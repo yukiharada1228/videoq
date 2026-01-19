@@ -18,7 +18,7 @@ flowchart TD
     Queue --> Worker[Celery Worker<br/>Receives Task]
     Worker --> UpdateStatus1[Update status: processing]
     UpdateStatus1 --> CheckBackend{"WHISPER_BACKEND<br>Setting Check"}
-    CheckBackend -->|local| Extract[Extract Audio with ffmpeg]
+    CheckBackend -->|whisper.cpp| Extract[Extract Audio with ffmpeg]
     CheckBackend -->|openai| Extract[Extract Audio with ffmpeg]
     Extract --> CheckSize{"File Size<br>Check"}
     CheckSize -->|24MB or less| Transcribe1[Execute Transcription<br/>with Whisper API]

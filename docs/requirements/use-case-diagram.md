@@ -168,5 +168,5 @@ graph TB
 
 **Note:**
 - LLM and embedding configuration is managed globally via environment variables (`LLM_PROVIDER`, `LLM_MODEL`, `EMBEDDING_PROVIDER`, `EMBEDDING_MODEL`).
-- When using local whisper.cpp server (WHISPER_BACKEND=local), OpenAI API key is not required for transcription.
+- When using local whisper.cpp server (WHISPER_BACKEND=whisper.cpp), OpenAI API key is not required for transcription.
 - Re-indexing uses the global `OPENAI_API_KEY` or `OLLAMA_BASE_URL` environment variable (depending on `EMBEDDING_PROVIDER`) and is required when switching embedding providers (OpenAI ↔ Ollama) or models.

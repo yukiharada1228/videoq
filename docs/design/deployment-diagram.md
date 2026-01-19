@@ -227,7 +227,7 @@ graph TB
         E13[AWS_*]
         E14["OPENAI_API_KEY<br/>(required when using OpenAI services)"]
         E15[VITE_API_URL]
-        E16["WHISPER_BACKEND<br/>(openai or local)"]
+        E16["WHISPER_BACKEND<br/>(openai or whisper.cpp)"]
         E17["WHISPER_LOCAL_URL<br/>(local whisper.cpp server URL)"]
         E18["EMBEDDING_PROVIDER<br/>(openai or ollama)"]
         E19["EMBEDDING_MODEL<br/>(embedding model for selected provider)"]

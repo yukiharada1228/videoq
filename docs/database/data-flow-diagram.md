@@ -25,7 +25,7 @@ flowchart TD
     UpdateStatus --> SaveDB2[(Database<br/>Update)]
     
     SaveDB2 --> CheckBackend{"WHISPER_BACKEND<br>Setting Check"}
-    CheckBackend -->|local| ReadFile2[File Storage<br/>Read Video File]
+    CheckBackend -->|whisper.cpp| ReadFile2[File Storage<br/>Read Video File]
     CheckBackend -->|openai| ReadFile[File Storage<br/>Read Video File]
 
     Worker --> ReadFile[File Storage<br/>Read Video File]
