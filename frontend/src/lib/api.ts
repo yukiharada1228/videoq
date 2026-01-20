@@ -272,35 +272,6 @@ class ApiClient {
           throw new Error(errorObj.message);
         }
       }
-
-      // Legacy fallback: Handle non_field_errors array (DRF validation errors)
-      const nonFieldErrors = (errorData as { non_field_errors?: unknown }).non_field_errors;
-      if (Array.isArray(nonFieldErrors) && nonFieldErrors.length > 0) {
-        const firstError = nonFieldErrors[0];
-        if (typeof firstError === 'string') {
-          throw new Error(firstError);
-        }
-      }
-
-      // Legacy fallback: Handle detail string
-      const maybeDetail = (errorData as { detail?: unknown }).detail;
-      if (typeof maybeDetail === 'string') {
-        throw new Error(maybeDetail);
-      }
-
-      // Legacy fallback: Handle message string
-      const maybeMessage = (errorData as { message?: unknown }).message;
-      if (typeof maybeMessage === 'string') {
-        throw new Error(maybeMessage);
-      }
-
-      // Legacy fallback: Handle field-specific errors
-      for (const key in errorData as Record<string, unknown>) {
-        const value = (errorData as Record<string, unknown>)[key];
-        if (Array.isArray(value) && value.length > 0 && typeof value[0] === 'string') {
-          throw new Error(value[0]); // Omit field name and display message only
-        }
-      }
     }
 
     throw new Error(`HTTP error! status: ${response.status}`);

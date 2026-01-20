@@ -1,5 +1,6 @@
 """Common response helpers"""
 
+from typing import Any
 from rest_framework import status
 from rest_framework.response import Response
 
@@ -22,7 +23,7 @@ def create_error_response(
         }
     }
     """
-    error_data = {
+    error_data: dict[str, Any] = {
         "code": code,
         "message": message,
     }
