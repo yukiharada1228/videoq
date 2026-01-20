@@ -6,6 +6,8 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.exceptions import InvalidToken
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from app.common.exceptions import ErrorCode
+from app.common.responses import create_error_response, create_success_response
 from app.utils.mixins import AuthenticatedViewMixin, PublicViewMixin
 
 from .serializers import (EmailVerificationSerializer, LoginResponseSerializer,
@@ -43,11 +45,9 @@ class UserSignupView(generics.CreateAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
-        headers = self.get_success_headers(serializer.data)
-        return Response(
-            {"detail": "Verification email sent. Please check your email."},
-            status=status.HTTP_201_CREATED,
-            headers=headers,
+        return create_success_response(
+            message="Verification email sent. Please check your email.",
+            status_code=status.HTTP_201_CREATED,
         )
 
 
@@ -105,7 +105,7 @@ class LogoutView(AuthenticatedAPIView):
     )
     def post(self, request):
         """Logout by deleting HttpOnly Cookie"""
-        response = Response({"detail": "Logged out successfully"})
+        response = create_success_response(message="Logged out successfully")
 
         # Delete HttpOnly Cookie
         response.delete_cookie("access_token")
@@ -139,9 +139,10 @@ class RefreshView(PublicAPIView):
             try:
                 refresh = RefreshToken(refresh_token)
             except InvalidToken:
-                return Response(
-                    {"detail": "Invalid refresh token"},
-                    status=status.HTTP_401_UNAUTHORIZED,
+                return create_error_response(
+                    message="Invalid refresh token",
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    code=ErrorCode.AUTHENTICATION_FAILED,
                 )
 
         access = refresh.access_token
@@ -176,7 +177,9 @@ class EmailVerificationView(PublicAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return Response({"detail": "Email verification completed. Please sign in."})
+        return create_success_response(
+            message="Email verification completed. Please sign in."
+        )
 
 
 class PasswordResetRequestView(PublicAPIView):
@@ -194,8 +197,8 @@ class PasswordResetRequestView(PublicAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return Response(
-            {"detail": "Password reset email sent. Please check your email."}
+        return create_success_response(
+            message="Password reset email sent. Please check your email."
         )
 
 
@@ -214,10 +217,8 @@ class PasswordResetConfirmView(PublicAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return Response(
-            {
-                "detail": "Password reset successfully. Please sign in with your new password."
-            }
+        return create_success_response(
+            message="Password reset successfully. Please sign in with your new password."
         )
 
 
