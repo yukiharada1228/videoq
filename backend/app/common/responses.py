@@ -28,7 +28,7 @@ def create_error_response(
         "message": message,
     }
 
-    if fields:
+    if fields is not None:
         error_data["fields"] = fields
 
     return Response({"error": error_data}, status=status_code)
