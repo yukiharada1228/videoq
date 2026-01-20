@@ -15,18 +15,35 @@ class ResponseHelpersTests(TestCase):
     """Tests for response helper functions"""
 
     def test_create_error_response(self):
-        """Test create_error_response"""
-        response = create_error_response("Error message", status.HTTP_400_BAD_REQUEST)
+        """Test create_error_response with unified format"""
+        response = create_error_response(
+            "Error message", status.HTTP_400_BAD_REQUEST, code="VALIDATION_ERROR"
+        )
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(response.data["error"], "Error message")
+        self.assertEqual(response.data["error"]["code"], "VALIDATION_ERROR")
+        self.assertEqual(response.data["error"]["message"], "Error message")
 
     def test_create_error_response_default_status(self):
         """Test create_error_response with default status code"""
         response = create_error_response("Error message")
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(response.data["error"], "Error message")
+        self.assertEqual(response.data["error"]["code"], "VALIDATION_ERROR")
+        self.assertEqual(response.data["error"]["message"], "Error message")
+
+    def test_create_error_response_with_fields(self):
+        """Test create_error_response with field errors"""
+        response = create_error_response(
+            "Validation failed",
+            code="VALIDATION_ERROR",
+            fields={"email": ["Invalid email format"]},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["error"]["code"], "VALIDATION_ERROR")
+        self.assertEqual(response.data["error"]["message"], "Validation failed")
+        self.assertEqual(response.data["error"]["fields"]["email"], ["Invalid email format"])
 
     def test_create_success_response_with_data(self):
         """Test create_success_response with data"""

@@ -264,7 +264,16 @@ class ApiClient {
     }))) as unknown;
 
     if (errorData && typeof errorData === 'object') {
-      // Handle non_field_errors array (DRF validation errors)
+      // Handle unified error format: { error: { code, message, fields } }
+      const maybeError = (errorData as { error?: unknown }).error;
+      if (maybeError && typeof maybeError === 'object') {
+        const errorObj = maybeError as { code?: string; message?: string; fields?: Record<string, string[]> };
+        if (typeof errorObj.message === 'string') {
+          throw new Error(errorObj.message);
+        }
+      }
+
+      // Legacy fallback: Handle non_field_errors array (DRF validation errors)
       const nonFieldErrors = (errorData as { non_field_errors?: unknown }).non_field_errors;
       if (Array.isArray(nonFieldErrors) && nonFieldErrors.length > 0) {
         const firstError = nonFieldErrors[0];
@@ -273,19 +282,19 @@ class ApiClient {
         }
       }
 
-      // Handle detail string
+      // Legacy fallback: Handle detail string
       const maybeDetail = (errorData as { detail?: unknown }).detail;
       if (typeof maybeDetail === 'string') {
         throw new Error(maybeDetail);
       }
 
-      // Handle message string
+      // Legacy fallback: Handle message string
       const maybeMessage = (errorData as { message?: unknown }).message;
       if (typeof maybeMessage === 'string') {
         throw new Error(maybeMessage);
       }
 
-      // Handle field-specific errors
+      // Legacy fallback: Handle field-specific errors
       for (const key in errorData as Record<string, unknown>) {
         const value = (errorData as Record<string, unknown>)[key];
         if (Array.isArray(value) && value.length > 0 && typeof value[0] === 'string') {
