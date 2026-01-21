@@ -38,8 +38,15 @@ export function useAuth(options: UseAuthOptions = {}): UseAuthReturn {
       // Here we handle additional processing on auth failure,
       // or handle cases where getMe fails due to other causes like network errors.
       console.error('Authentication check failed:', error);
-      if (redirectToLogin) {
-        // Fallback in case apiClient didn't handle the redirect
+
+      // Determine if it's a definitive authentication error (401/403)
+      const isAuthError = (error as { status?: number })?.status === 401 ||
+        (error as { status?: number })?.status === 403 ||
+        (error as Error).message.includes('401') ||
+        (error as Error).message.includes('403');
+
+      if (redirectToLogin && isAuthError) {
+        // Only redirect on definitive authentication failure
         const currentPath = removeLocalePrefix(window.location.pathname);
         if (currentPath !== '/login') {
           navigate('/login');
