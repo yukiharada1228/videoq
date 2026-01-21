@@ -6,13 +6,73 @@ import logging
 import os
 import tempfile
 from contextlib import contextmanager
-from typing import Any, List, Optional, Tuple
+from enum import Enum
+from typing import Any, Callable, List, Optional, Tuple
 
 from django.db import transaction
 
 from app.models import Video
 
 logger = logging.getLogger(__name__)
+
+
+class TaskStatus(Enum):
+    """Task processing status"""
+
+    PENDING = "pending"
+    DOWNLOADING = "downloading"
+    EXTRACTING_AUDIO = "extracting_audio"
+    TRANSCRIBING = "transcribing"
+    INDEXING = "indexing"
+    COMPLETED = "completed"
+    ERROR = "error"
+
+
+class TransactionRollbackManager:
+    """
+    Manages rollback operations for task processing.
+    Allows registering cleanup functions that will be called on error.
+    """
+
+    def __init__(self):
+        self._rollback_functions: List[Callable[[], None]] = []
+
+    def register_rollback(self, rollback_fn: Callable[[], None]) -> None:
+        """
+        Register a rollback function to be called on error.
+
+        Args:
+            rollback_fn: Callable that performs the rollback operation
+        """
+        self._rollback_functions.append(rollback_fn)
+
+    def execute_rollbacks(self) -> List[Exception]:
+        """
+        Execute all registered rollback functions in reverse order.
+        Returns a list of exceptions that occurred during rollback.
+
+        Returns:
+            List of exceptions encountered during rollback
+        """
+        errors: List[Exception] = []
+
+        for rollback_fn in reversed(self._rollback_functions):
+            try:
+                rollback_fn()
+                logger.info(f"Rollback executed: {rollback_fn.__name__}")
+            except Exception as e:
+                logger.error(f"Rollback failed for {rollback_fn.__name__}: {e}")
+                errors.append(e)
+
+        return errors
+
+    def clear(self) -> None:
+        """Clear all registered rollback functions (called on success)."""
+        self._rollback_functions.clear()
+
+    def __len__(self) -> int:
+        """Return the number of registered rollback functions."""
+        return len(self._rollback_functions)
 
 
 class VideoTaskManager:

@@ -1,10 +1,12 @@
 import { useCallback } from 'react';
 import { apiClient, type Video, type VideoList as VideoListType } from '@/lib/api';
 import { useI18nNavigate } from '@/lib/i18n';
+import { useVideosStore } from '@/stores';
 import { useAsyncState } from './useAsyncState';
 
 /**
  * Hook to fetch video list
+ * Wraps Zustand store for backward compatibility
  */
 interface UseVideosReturn {
   videos: VideoListType[];
@@ -14,21 +16,14 @@ interface UseVideosReturn {
 }
 
 export function useVideos(): UseVideosReturn {
-  const { data: videos, isLoading, error, execute: loadVideos } = useAsyncState<VideoListType[]>({
-    initialData: [],
-    onError: (error) => {
-      console.error('Failed to load video:', error);
-    },
-  });
+  const { videos, isLoading, error, loadVideos } = useVideosStore();
 
   const handleLoadVideos = useCallback(async (tagIds?: number[]) => {
-    await loadVideos(async () => {
-      return await apiClient.getVideos({ tags: tagIds });
-    });
+    await loadVideos(tagIds);
   }, [loadVideos]);
 
   return {
-    videos: videos || [],
+    videos,
     isLoading,
     error,
     loadVideos: handleLoadVideos,
@@ -47,28 +42,22 @@ interface UseVideoReturn {
 
 export function useVideo(videoId: number | null): UseVideoReturn {
   const navigate = useI18nNavigate();
-
-  const { data: video, isLoading, error, execute: loadVideo } = useAsyncState<Video>({
-    initialData: null,
-    onError: (error) => {
-      console.error('Failed to load video:', error);
-    },
-  });
+  const { currentVideo, isLoading, error, loadVideo } = useVideosStore();
 
   const handleLoadVideo = useCallback(async () => {
     if (!videoId) return;
 
-    await loadVideo(async () => {
-      if (!apiClient.isAuthenticated()) {
-        navigate('/login');
-        throw new Error('Authentication required');
-      }
-      return await apiClient.getVideo(videoId);
-    });
+    const isAuthenticated = await apiClient.isAuthenticated();
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+
+    await loadVideo(videoId);
   }, [videoId, loadVideo, navigate]);
 
   return {
-    video: video || null,
+    video: currentVideo,
     isLoading,
     error,
     loadVideo: handleLoadVideo,

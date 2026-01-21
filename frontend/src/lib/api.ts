@@ -1,6 +1,11 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
-
 type RequestBody = BodyInit | object | null | undefined;
+
+interface ApiClientOptions {
+  baseUrl?: string;
+  fetchImpl?: typeof fetch;
+}
+
+const DEFAULT_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
 export interface LoginResponse {
   access: string;
@@ -184,9 +189,11 @@ export interface TagUpdateRequest {
 
 class ApiClient {
   private baseUrl: string;
+  private fetchImpl: typeof fetch;
 
-  constructor() {
-    this.baseUrl = API_URL;
+  constructor(options: ApiClientOptions = {}) {
+    this.baseUrl = options.baseUrl ?? DEFAULT_API_URL;
+    this.fetchImpl = options.fetchImpl ?? fetch;
   }
 
   // HttpOnly Cookie-based authentication (security enhancement)
@@ -194,7 +201,7 @@ class ApiClient {
 
   async isAuthenticated(): Promise<boolean> {
     try {
-      const response = await fetch(`${this.baseUrl}/auth/me/`, {
+      const response = await this.fetchImpl(`${this.baseUrl}/auth/me/`, {
         method: 'GET',
         credentials: 'include', // Send HttpOnly Cookie
         headers: {
@@ -209,7 +216,7 @@ class ApiClient {
 
   async logout(): Promise<void> {
     try {
-      await fetch(`${this.baseUrl}/auth/logout/`, {
+      await this.fetchImpl(`${this.baseUrl}/auth/logout/`, {
         method: 'POST',
         credentials: 'include', // Send HttpOnly Cookie
         headers: {
@@ -342,7 +349,7 @@ class ApiClient {
     url: string,
     config: RequestInit
   ): Promise<Response> {
-    const response = await fetch(url, config);
+    const response = await this.fetchImpl(url, config);
 
     // Process errors other than 401 immediately
     if (!response.ok && response.status !== 401) {
@@ -484,7 +491,7 @@ class ApiClient {
     const url = this.buildUrl(`/chat/history/export/?group_id=${groupId}`);
 
     const doFetch = async (): Promise<Response> => {
-      return fetch(url, {
+      return this.fetchImpl(url, {
         method: 'GET',
         credentials: 'include',
         headers: {},
@@ -664,7 +671,7 @@ class ApiClient {
   async getSharedGroup(shareToken: string): Promise<VideoGroup> {
     // Shared groups don't require authentication, so don't include credentials
     const url = this.buildUrl(`/videos/groups/shared/${shareToken}/`);
-    const response = await fetch(url);
+    const response = await this.fetchImpl(url);
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -726,5 +733,16 @@ class ApiClient {
 
 }
 
-export const apiClient = new ApiClient();
+/**
+ * Factory function to create ApiClient instances with custom options.
+ * Useful for testing and custom configurations.
+ */
+export function createApiClient(options?: ApiClientOptions): ApiClient {
+  return new ApiClient(options);
+}
 
+// Export ApiClient class for type references
+export { ApiClient };
+
+// Default client instance (backward compatible)
+export const apiClient = createApiClient();

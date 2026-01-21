@@ -9,6 +9,7 @@ from langchain_core.runnables import RunnableLambda, RunnableParallel
 from langchain_postgres import PGVector
 
 from app.chat.prompts import build_system_prompt
+from app.core.config import AppConfig
 from app.utils.embeddings import get_embeddings
 from app.utils.vector_manager import PGVectorManager
 
@@ -28,9 +29,18 @@ class RagChatResult:
 class RagChatService:
     """Service class that handles RAG logic for chat"""
 
-    def __init__(self, user, llm):
+    def __init__(self, user, llm, config: Optional[AppConfig] = None):
+        """
+        Initialize RAG chat service.
+
+        Args:
+            user: User instance
+            llm: LLM instance
+            config: Optional AppConfig for dependency injection. If None, uses settings.
+        """
         self.user = user
         self.llm = llm
+        self.config = config
         self.prompt = ChatPromptTemplate.from_messages(
             [
                 ("system", "{system_prompt}"),
@@ -190,9 +200,14 @@ class RagChatService:
 
     def _create_vector_store(self) -> PGVector:
         # Get API key if using OpenAI provider
-        api_key = None
-        if settings.EMBEDDING_PROVIDER == "openai":
-            api_key = settings.OPENAI_API_KEY
+        # Use injected config if available, otherwise fall back to settings
+        if self.config:
+            api_key = self.config.openai_api_key
+            embedding_provider = self.config.embedding_provider
+        else:
+            embedding_provider = settings.EMBEDDING_PROVIDER
+            api_key = settings.OPENAI_API_KEY if embedding_provider == "openai" else None
+
         embeddings = get_embeddings(api_key)
         config = PGVectorManager.get_config()
         connection_str = PGVectorManager.get_psycopg_connection_string()

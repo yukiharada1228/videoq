@@ -4,6 +4,7 @@ Unified management of PGVector operations
 
 import logging
 import os
+from typing import Any, Callable, Optional
 
 import psycopg2
 from pgvector.psycopg2 import register_vector
@@ -13,27 +14,53 @@ logger = logging.getLogger(__name__)
 
 class PGVectorManager:
     """
-    Unified management class for PGVector operations
+    Unified management class for PGVector operations.
+    Supports dependency injection for configuration and connection.
     """
 
     _config = None
     _connection = None
+    _config_provider: Optional[Callable[[], dict]] = None
+
+    @classmethod
+    def set_config_provider(cls, provider: Callable[[], dict]) -> None:
+        """
+        Set a custom configuration provider for dependency injection.
+
+        Args:
+            provider: Callable that returns a config dict with 'database_url' and 'collection_name'
+        """
+        cls._config_provider = provider
+        cls._config = None  # Reset config to use new provider
+
+    @classmethod
+    def reset(cls) -> None:
+        """
+        Reset manager state. Useful for testing.
+        """
+        cls._config = None
+        cls._connection = None
+        cls._config_provider = None
 
     @classmethod
     def get_config(cls):
         """
         Get PGVector configuration (singleton pattern)
+        Supports custom config provider for DI
         """
         if cls._config is None:
-            cls._config = {
-                "database_url": os.getenv(
-                    "DATABASE_URL",
-                    "postgresql://postgres:postgres@postgres:5432/postgres",
-                ),
-                "collection_name": os.getenv(
-                    "PGVECTOR_COLLECTION_NAME", "videoq_scenes"
-                ),
-            }
+            if cls._config_provider is not None:
+                cls._config = cls._config_provider()
+            else:
+                cls._config = {
+                    "database_url": os.getenv(
+                        "DATABASE_URL",
+                        "postgresql://postgres:postgres@postgres:5432/postgres",
+                    ),
+                    "collection_name": os.getenv(
+                        "PGVECTOR_COLLECTION_NAME", "videoq_scenes"
+                    ),
+                }
         return cls._config
 
     @classmethod

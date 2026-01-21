@@ -2,6 +2,7 @@ import { renderHook, act, waitFor } from '@testing-library/react'
 import { useVideos, useVideo } from '../useVideos'
 import { apiClient } from '@/lib/api'
 import { useI18nNavigate } from '@/lib/i18n'
+import { useVideosStore } from '@/stores'
 
 // Mock apiClient
 vi.mock('@/lib/api', () => ({
@@ -15,6 +16,8 @@ vi.mock('@/lib/api', () => ({
 describe('useVideos', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    // Reset Zustand store state
+    useVideosStore.getState().reset()
     ;(globalThis as any).__setMockPathname?.('/')
     window.history.pushState({}, '', '/')
   })
@@ -70,6 +73,8 @@ describe('useVideos', () => {
 describe('useVideo', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    // Reset Zustand store state
+    useVideosStore.getState().reset()
     ;(globalThis as any).__setMockPathname?.('/')
     window.history.pushState({}, '', '/')
   })

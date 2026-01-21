@@ -1,9 +1,9 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import { useI18nNavigate, useI18nLocation, removeLocalePrefix } from '@/lib/i18n';
-import { apiClient, type User } from '@/lib/api';
+import { useAuthStore } from '@/stores';
 
 interface UseAuthReturn {
-  user: User | null;
+  user: ReturnType<typeof useAuthStore>['user'];
   loading: boolean;
   refetch: () => Promise<void>;
 }
@@ -15,31 +15,30 @@ interface UseAuthOptions {
 
 /**
  * Custom hook to manage authentication state
+ * Wraps Zustand store for backward compatibility
  */
 export function useAuth(options: UseAuthOptions = {}): UseAuthReturn {
   const { redirectToLogin = true, onAuthError } = options;
   const navigate = useI18nNavigate();
   const location = useI18nLocation();
   const pathname = location.pathname;
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+
+  // Use Zustand store
+  const { user, isLoading, error, checkAuth, setLoading } = useAuthStore();
 
   // Hold callback with useRef to prevent infinite loops
   const onAuthErrorRef = useRef(onAuthError);
   onAuthErrorRef.current = onAuthError;
 
-  const checkAuth = useCallback(async () => {
-    try {
-      const userData = await apiClient.getMe();
-      setUser(userData);
-    } catch (error) {
-      // 401 errors are handled in apiClient.getMe(), and token refresh is attempted.
-      // If refresh also fails, apiClient redirects to /login.
-      // Here we handle additional processing on auth failure,
-      // or handle cases where getMe fails due to other causes like network errors.
+  const handleCheckAuth = useCallback(async () => {
+    await checkAuth();
+  }, [checkAuth]);
+
+  // Handle errors from store
+  useEffect(() => {
+    if (error && !isLoading) {
       console.error('Authentication check failed:', error);
       if (redirectToLogin) {
-        // Fallback in case apiClient didn't handle the redirect
         const currentPath = removeLocalePrefix(window.location.pathname);
         if (currentPath !== '/login') {
           navigate('/login');
@@ -48,10 +47,8 @@ export function useAuth(options: UseAuthOptions = {}): UseAuthReturn {
       if (onAuthErrorRef.current) {
         onAuthErrorRef.current();
       }
-    } finally {
-      setLoading(false);
     }
-  }, [redirectToLogin, navigate]);
+  }, [error, isLoading, redirectToLogin, navigate]);
 
   useEffect(() => {
     const publicPaths = [
@@ -68,16 +65,16 @@ export function useAuth(options: UseAuthOptions = {}): UseAuthReturn {
     );
 
     if (authRequired) {
-      checkAuth();
+      handleCheckAuth();
     } else {
       setLoading(false);
     }
-  }, [checkAuth, pathname]);
+  }, [handleCheckAuth, pathname, setLoading]);
 
   return {
     user,
-    loading,
-    refetch: checkAuth,
+    loading: isLoading,
+    refetch: handleCheckAuth,
   };
 }
 

@@ -1,7 +1,7 @@
 import logging
 import secrets
 
-from django.db.models import Max, Prefetch, Q
+from django.db.models import Prefetch, Q
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics, status
 from rest_framework.decorators import api_view, permission_classes
@@ -26,134 +26,9 @@ from .serializers import (AddTagsToVideoRequestSerializer,
                           VideoGroupDetailSerializer, VideoGroupListSerializer,
                           VideoGroupUpdateSerializer, VideoListSerializer,
                           VideoSerializer, VideoUpdateSerializer)
+from .services import ResourceValidator, ShareLinkService, VideoGroupMemberService
 
 logger = logging.getLogger(__name__)
-
-
-class ResourceValidator:
-    """Handles validation and resource retrieval logic"""
-
-    @staticmethod
-    def validate_and_get_resource(
-        user, model_class, resource_id, entity_name, select_related_fields=None
-    ):
-        """Common resource retrieval and validation logic"""
-        queryset = model_class.objects.filter(user=user, id=resource_id)
-
-        if select_related_fields:
-            queryset = queryset.select_related(*select_related_fields)
-
-        resource = queryset.first()
-
-        if not resource:
-            return None, create_error_response(
-                f"{entity_name} not found", status.HTTP_404_NOT_FOUND
-            )
-
-        return resource, None
-
-    @staticmethod
-    def get_group_and_video(user, group_id, video_id, select_related_fields=None):
-        """Common group and video retrieval logic"""
-        group, error = ResourceValidator.validate_and_get_resource(
-            user, VideoGroup, group_id, "Group", select_related_fields
-        )
-        if error:
-            return None, None, error
-
-        video, error = ResourceValidator.validate_and_get_resource(
-            user, Video, video_id, "Video", select_related_fields
-        )
-        if error:
-            return None, None, error
-
-        return group, video, None
-
-    @staticmethod
-    def validate_video_ids(request, entity_name):
-        """Validate video_ids from request"""
-        video_ids = request.data.get("video_ids", [])
-        if not video_ids:
-            return None, create_error_response(
-                f"{entity_name} ID not specified", status.HTTP_400_BAD_REQUEST
-            )
-        return video_ids, None
-
-    @staticmethod
-    def validate_videos_count(videos, video_ids):
-        """Check video count matches"""
-        if len(videos) != len(video_ids):
-            return create_error_response(
-                "Some videos not found", status.HTTP_404_NOT_FOUND
-            )
-        return None
-
-
-class VideoGroupMemberService:
-    """Handles VideoGroupMember operations"""
-
-    @staticmethod
-    def get_member_queryset(group, video=None, select_related=False):
-        """Get VideoGroupMember queryset"""
-        queryset = VideoGroupMember.objects.filter(group=group)
-        if video:
-            queryset = queryset.filter(video=video)
-        if select_related:
-            queryset = queryset.select_related("video", "group")
-        return queryset
-
-    @staticmethod
-    def member_exists(group, video):
-        """Check if member exists"""
-        return VideoGroupMemberService.get_member_queryset(group, video).exists()
-
-    @staticmethod
-    def check_and_get_member(
-        group, video, error_message, status_code=status.HTTP_404_NOT_FOUND
-    ):
-        """Check member existence and retrieve"""
-        member = VideoGroupMemberService.get_member_queryset(group, video).first()
-        if not member:
-            return None, create_error_response(error_message, status_code)
-        return member, None
-
-    @staticmethod
-    def get_next_order(group):
-        """Get next order value for new member"""
-        max_order = (
-            VideoGroupMemberService.get_member_queryset(group)
-            .aggregate(max_order=Max("order"))
-            .get("max_order")
-        )
-        return (max_order if max_order is not None else -1) + 1
-
-    @staticmethod
-    def add_video_to_group(group, video):
-        """Add video to group operation"""
-        if VideoGroupMemberService.get_member_queryset(group, video).first():
-            return create_error_response(
-                "This video is already added to the group", status.HTTP_400_BAD_REQUEST
-            )
-
-        next_order = VideoGroupMemberService.get_next_order(group)
-        member = VideoGroupMember.objects.create(
-            group=group, video=video, order=next_order
-        )
-
-        return Response(
-            {"message": "Video added to group", "id": member.id},
-            status=status.HTTP_201_CREATED,
-        )
-
-
-class ShareLinkService:
-    """Handles share link operations"""
-
-    @staticmethod
-    def update_share_token(group, token_value):
-        """Update share token for group"""
-        group.share_token = token_value
-        group.save(update_fields=["share_token"])
 
 
 class BaseVideoView(AuthenticatedViewMixin):

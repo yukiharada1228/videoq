@@ -13,6 +13,12 @@ from openai import AsyncOpenAI
 
 logger = logging.getLogger(__name__)
 
+
+class AudioExtractionError(Exception):
+    """Exception raised when audio extraction fails."""
+
+    pass
+
 # Formats supported by Whisper API
 SUPPORTED_FORMATS = {
     ".flac",
@@ -148,6 +154,9 @@ def extract_and_split_audio(input_path, max_size_mb=24, temp_manager=None):
     Extract audio from video and split appropriately based on file size
     max_size_mb: Maximum size of each segment (MB)
     temp_manager: TemporaryFileManager instance for cleanup
+
+    Raises:
+        AudioExtractionError: If audio extraction or splitting fails
     """
     try:
         duration = _get_video_duration(input_path)
@@ -177,11 +186,15 @@ def extract_and_split_audio(input_path, max_size_mb=24, temp_manager=None):
         return audio_segments
 
     except subprocess.CalledProcessError as e:
-        logger.error(f"Error running ffmpeg/ffprobe: {e.stderr}")
-        return []
+        error_msg = f"Error running ffmpeg/ffprobe: {e.stderr}"
+        logger.error(error_msg)
+        raise AudioExtractionError(error_msg) from e
+    except AudioExtractionError:
+        raise
     except Exception as e:
-        logger.error(f"Error extracting/splitting audio: {e}")
-        return []
+        error_msg = f"Error extracting/splitting audio: {e}"
+        logger.error(error_msg)
+        raise AudioExtractionError(error_msg) from e
 
 
 async def transcribe_audio_segment_async(

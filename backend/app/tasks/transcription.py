@@ -9,12 +9,14 @@ import tempfile
 from celery import shared_task
 from django.conf import settings
 
-from app.tasks.audio_processing import extract_and_split_audio
+from app.tasks.audio_processing import AudioExtractionError, extract_and_split_audio
 from app.tasks.srt_processing import (apply_scene_splitting,
                                       transcribe_and_create_srt)
 from app.tasks.vector_indexing import index_scenes_batch
 from app.utils.task_helpers import (ErrorHandler, TemporaryFileManager,
+                                    TransactionRollbackManager,
                                     VideoTaskManager)
+from app.utils.vector_manager import delete_video_vectors
 from app.utils.whisper_client import (WhisperConfig, create_whisper_client,
                                       get_whisper_model_name)
 
@@ -97,6 +99,8 @@ def transcribe_video(self, video_id):
     """
     logger.info(f"Transcription task started for video ID: {video_id}")
 
+    rollback_manager = TransactionRollbackManager()
+
     with TemporaryFileManager() as temp_manager:
         try:
             # Validate and prepare video
@@ -113,7 +117,15 @@ def transcribe_video(self, video_id):
             if not is_valid:
                 raise ValueError(validation_error)
 
+            # Store original status for rollback
+            original_status = video.status
             VideoTaskManager.update_video_status(video, "processing")
+
+            # Register rollback to restore original status
+            def rollback_status():
+                VideoTaskManager.update_video_status(video, original_status)
+
+            rollback_manager.register_rollback(rollback_status)
 
             # Get OpenAI API key from environment variable
             api_key = settings.OPENAI_API_KEY
@@ -133,12 +145,14 @@ def transcribe_video(self, video_id):
             logger.info(f"Starting transcription for video {video_id}")
 
             # Extract audio and transcribe
-            audio_segments = extract_and_split_audio(
-                video_file_path, temp_manager=temp_manager
-            )
-            if not audio_segments:
-                handle_transcription_error(video, "Failed to extract audio from video")
-                return
+            try:
+                audio_segments = extract_and_split_audio(
+                    video_file_path, temp_manager=temp_manager
+                )
+            except AudioExtractionError as e:
+                handle_transcription_error(video, str(e))
+                rollback_manager.clear()  # Don't rollback status since we set error
+                raise
 
             srt_content = transcribe_and_create_srt(
                 client, audio_segments, whisper_model
@@ -147,7 +161,8 @@ def transcribe_video(self, video_id):
                 handle_transcription_error(
                     video, "Failed to transcribe any audio segments"
                 )
-                return
+                rollback_manager.clear()  # Don't rollback status since we set error
+                raise ValueError("Failed to transcribe any audio segments")
 
             # Apply scene splitting and save
             logger.info("Applying scene splitting...")
@@ -157,6 +172,12 @@ def transcribe_video(self, video_id):
             save_transcription_result(video, scene_split_srt)
 
             # Index scenes for RAG
+            # Register rollback to delete vectors if indexing fails
+            def rollback_vectors():
+                delete_video_vectors(video_id)
+
+            rollback_manager.register_rollback(rollback_vectors)
+
             index_scenes_batch(scene_split_srt, video, api_key)
 
             logger.info(f"Successfully processed video {video_id}")
@@ -173,7 +194,14 @@ def transcribe_video(self, video_id):
                         f"Failed to clear video.file after deletion (video ID: {video_id}): {e}"
                     )
 
+            # Success - clear rollback functions
+            rollback_manager.clear()
             return scene_split_srt
 
         except Exception as e:
+            # Execute rollbacks on error
+            rollback_errors = rollback_manager.execute_rollbacks()
+            if rollback_errors:
+                logger.warning(f"Rollback errors occurred: {rollback_errors}")
+
             ErrorHandler.handle_task_error(e, video_id, self, max_retries=3)

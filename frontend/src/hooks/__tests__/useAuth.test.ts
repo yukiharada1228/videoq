@@ -2,6 +2,7 @@ import { renderHook, waitFor } from '@testing-library/react'
 import { useAuth } from '../useAuth'
 import { apiClient } from '@/lib/api'
 import { useI18nNavigate } from '@/lib/i18n'
+import { useAuthStore } from '@/stores'
 
 // Mock apiClient
 vi.mock('@/lib/api', () => ({
@@ -13,6 +14,8 @@ vi.mock('@/lib/api', () => ({
 describe('useAuth', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    // Reset Zustand store state
+    useAuthStore.getState().reset()
     ;(globalThis as any).__setMockPathname?.('/')
     window.history.pushState({}, '', '/')
   })

@@ -1,66 +1,62 @@
-import { useState, useCallback, useEffect } from 'react';
-import { apiClient, type Tag } from '@/lib/api';
-import { useAsyncState } from './useAsyncState';
+import { useCallback, useEffect } from 'react';
+import { useTagsStore } from '@/stores';
+import type { Tag } from '@/lib/api';
 
+/**
+ * Hook to manage tags
+ * Wraps Zustand store for backward compatibility
+ */
 export function useTags() {
-  const [tags, setTags] = useState<Tag[]>([]);
-  const { isLoading, error, execute } = useAsyncState();
+  const {
+    tags,
+    isLoading,
+    error,
+    loadTags,
+    createTag: storeCreateTag,
+    updateTag: storeUpdateTag,
+    deleteTag: storeDeleteTag,
+  } = useTagsStore();
 
-  const loadTags = useCallback(async () => {
-    await execute(async () => {
-      const data = await apiClient.getTags();
-      setTags(data);
-      return data;
-    });
-  }, [execute]);
+  const handleLoadTags = useCallback(async () => {
+    await loadTags();
+  }, [loadTags]);
 
   const createTag = useCallback(
-    async (name: string, color?: string) => {
-      return execute(async () => {
-        const newTag = await apiClient.createTag({ name, color });
-        setTags((prev) => [...prev, newTag]);
-        return newTag;
-      });
+    async (name: string, color?: string): Promise<Tag | undefined> => {
+      const result = await storeCreateTag(name, color);
+      return result ?? undefined;
     },
-    [execute]
+    [storeCreateTag]
   );
 
   const updateTag = useCallback(
-    async (id: number, name?: string, color?: string) => {
-      return execute(async () => {
-        const updatedTag = await apiClient.updateTag(id, { name, color });
-        setTags((prev) =>
-          prev.map((tag) => (tag.id === id ? updatedTag : tag))
-        );
-        return updatedTag;
-      });
+    async (id: number, name?: string, color?: string): Promise<Tag | undefined> => {
+      const result = await storeUpdateTag(id, name, color);
+      return result ?? undefined;
     },
-    [execute]
+    [storeUpdateTag]
   );
 
   const deleteTag = useCallback(
-    async (id: number) => {
-      await execute(async () => {
-        await apiClient.deleteTag(id);
-        setTags((prev) => prev.filter((tag) => tag.id !== id));
-      });
+    async (id: number): Promise<void> => {
+      await storeDeleteTag(id);
     },
-    [execute]
+    [storeDeleteTag]
   );
 
   // Load tags on mount
   useEffect(() => {
-    loadTags().catch(() => {
-      // Error is handled by useAsyncState
+    handleLoadTags().catch(() => {
+      // Error is handled by store
     });
-  }, [loadTags]);
+  }, [handleLoadTags]);
 
   return {
     tags,
     isLoading,
     error,
-    loadTags,
-    refetchTags: loadTags,
+    loadTags: handleLoadTags,
+    refetchTags: handleLoadTags,
     createTag,
     updateTag,
     deleteTag,
