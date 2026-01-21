@@ -18,50 +18,12 @@ from app.models import ChatLog, VideoGroup, VideoGroupMember
 from .serializers import (ChatFeedbackRequestSerializer,
                           ChatFeedbackResponseSerializer, ChatLogSerializer,
                           ChatRequestSerializer, ChatResponseSerializer)
-from .services import (RagChatService, get_langchain_llm,
+from .services import (ChatService, RagChatService, get_langchain_llm,
                        handle_langchain_exception)
+from app.video.services import VideoGroupService
 
 
-def _get_chat_logs_queryset(group, ascending=True):
-    """
-    Get chat log queryset
 
-    Args:
-        group: VideoGroup instance
-        ascending: Whether to sort ascending (True: ascending, False: descending)
-
-    Returns:
-        QuerySet: Chat log queryset
-    """
-    order_field = "created_at" if ascending else "-created_at"
-    return group.chat_logs.select_related("user").order_by(order_field)
-
-
-def _get_video_group_with_members(group_id, user_id=None, share_token=None):
-    """
-    Get group and member information
-
-    Args:
-        group_id: Group ID
-        user_id: User ID (optional)
-        share_token: Share token (optional)
-
-    Returns:
-        VideoGroup: Group object
-    """
-    queryset = VideoGroup.objects.select_related("user").prefetch_related(
-        Prefetch(
-            "members",
-            queryset=VideoGroupMember.objects.select_related("video"),
-        )
-    )
-
-    if share_token:
-        return queryset.get(id=group_id, share_token=share_token)
-    elif user_id:
-        return queryset.get(id=group_id, user_id=user_id)
-    else:
-        return queryset.get(id=group_id)
 
 
 class ChatView(generics.CreateAPIView):
@@ -92,7 +54,9 @@ class ChatView(generics.CreateAPIView):
                 )
 
             try:
-                group = _get_video_group_with_members(group_id, share_token=share_token)
+                group = VideoGroupService.get_video_group_with_members(
+                    group_id, share_token=share_token
+                )
                 user = group.user  # Group owner's user
             except VideoGroup.DoesNotExist:
                 return create_error_response(
@@ -118,7 +82,9 @@ class ChatView(generics.CreateAPIView):
         try:
             if group_id is not None and not is_shared:
                 try:
-                    group = _get_video_group_with_members(group_id, user_id=user.id)
+                    group = VideoGroupService.get_video_group_with_members(
+                        group_id, user_id=user.id
+                    )
                 except VideoGroup.DoesNotExist:
                     return create_error_response(
                         "Specified group not found", status.HTTP_404_NOT_FOUND
@@ -244,13 +210,13 @@ class ChatHistoryView(generics.ListAPIView):
             return ChatLog.objects.none()
 
         try:
-            group = _get_video_group_with_members(
+            group = VideoGroupService.get_video_group_with_members(
                 group_id, user_id=self.request.user.id
             )
         except VideoGroup.DoesNotExist:
             return ChatLog.objects.none()
 
-        return _get_chat_logs_queryset(group, ascending=False)
+        return ChatService.get_chat_logs_queryset(group, ascending=False)
 
 
 class ChatHistoryExportView(APIView):
@@ -271,13 +237,15 @@ class ChatHistoryExportView(APIView):
             )
 
         try:
-            group = _get_video_group_with_members(group_id, user_id=request.user.id)
+            group = VideoGroupService.get_video_group_with_members(
+                group_id, user_id=request.user.id
+            )
         except VideoGroup.DoesNotExist:
             return create_error_response(
                 "Specified group not found", status.HTTP_404_NOT_FOUND
             )
 
-        queryset = _get_chat_logs_queryset(group, ascending=True)
+        queryset = ChatService.get_chat_logs_queryset(group, ascending=True)
 
         response = HttpResponse(content_type="text/csv; charset=utf-8")
         filename = f"chat_history_group_{group.id}.csv"
