@@ -29,6 +29,18 @@ class AppConfig:
         default_factory=lambda: os.getenv("PGVECTOR_COLLECTION_NAME", "videoq_scenes")
     )
 
+    def validate(self):
+        """
+        Validate configuration for consistency.
+        Raises ImproperlyConfigured if configuration is invalid.
+        """
+        from django.core.exceptions import ImproperlyConfigured
+
+        if self.embedding_provider == "openai" and not self.openai_api_key:
+            raise ImproperlyConfigured(
+                "OPENAI_API_KEY must be set when EMBEDDING_PROVIDER is 'openai'"
+            )
+
     @classmethod
     def from_env(cls) -> "AppConfig":
         """
@@ -37,7 +49,9 @@ class AppConfig:
         Returns:
             AppConfig instance with values from environment
         """
-        return cls()
+        config = cls()
+        config.validate()
+        return config
 
     @classmethod
     def for_testing(cls, **overrides) -> "AppConfig":
