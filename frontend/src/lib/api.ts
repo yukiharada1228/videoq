@@ -313,24 +313,16 @@ class ApiClient {
   }
 
   // Common method to handle 401 errors
-  private async handle401Error<T>(response: Response, retryCount: number, retryCallback: () => Promise<T>, endpoint: string): Promise<T | null> {
-    // Prevent infinite loop if refreshToken request itself fails with 401
-    const isRefreshRequest = endpoint.includes('/auth/refresh/');
-
-    if (response.status === 401 && retryCount === 0 && !isRefreshRequest) {
+  private async handle401Error<T>(response: Response, retryCount: number, retryCallback: () => Promise<T>): Promise<T | null> {
+    if (response.status === 401 && retryCount === 0) {
       try {
         await this.refreshToken();
         const result = await retryCallback();
         return result;
-      } catch (error) {
-        // If it's a 401 during refresh, or a different error, handle exit
-        const isAuthError = (error as { status?: number })?.status === 401 || (error as Error).message.includes('401');
-        if (isAuthError || isRefreshRequest) {
-          await this.handleAuthError();
-        }
-        // Do not logout on network errors during refresh - just let the original request fail
-        throw error;
+      } catch {
+        await this.handleAuthError();
       }
+      return null;
     }
 
     if (response.status === 401) {
@@ -384,7 +376,7 @@ class ApiClient {
       const response = await this.executeRequest(url, config);
 
       // Use common method to handle 401 errors
-      const retryResult = await this.handle401Error<T>(response, retryCount, () => this.request(endpoint, options, retryCount + 1), endpoint);
+      const retryResult = await this.handle401Error<T>(response, retryCount, () => this.request(endpoint, options, retryCount + 1));
 
       // Return recursively called result if retried
       if (retryResult !== null && retryResult !== undefined) {
@@ -566,29 +558,16 @@ class ApiClient {
 
     const url = this.buildUrl('/videos/');
 
-    // Helper for actual upload fetch
-    const doUpload = async () => {
-      return await this.executeRequest(url, {
+    // Authorization header not needed with HttpOnly Cookie-based authentication
+    const headers: Record<string, string> = {};
+
+    try {
+      const response = await this.executeRequest(url, {
         method: 'POST',
-        headers: {},
+        headers,
         body: formData,
         credentials: 'include',
       });
-    };
-
-    try {
-      let response = await doUpload();
-
-      // Handle 401 specifically for upload (which uses FormData, so it's not using the common .request method)
-      if (response.status === 401) {
-        try {
-          await this.refreshToken();
-          response = await doUpload();
-        } catch (error) {
-          await this.handleAuthError();
-          throw error;
-        }
-      }
 
       return await this.parseJsonResponse<Video>(response);
     } catch (error) {
