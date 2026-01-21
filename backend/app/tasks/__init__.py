@@ -4,11 +4,9 @@ Celery tasks package for video transcription
 
 from app.tasks.reindexing import reindex_all_videos_embeddings
 from .audio_processing import extract_audio
-from .cleanup import cleanup_orphaned_vectors
 from .reindexing import reindex_all_videos_embeddings
 
 __all__ = [
     "extract_audio",
     "reindex_all_videos_embeddings",
-    "cleanup_orphaned_vectors",
 ]
