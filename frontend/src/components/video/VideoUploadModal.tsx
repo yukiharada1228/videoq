@@ -18,6 +18,19 @@ interface VideoUploadModalProps {
   onUploadSuccess?: () => void;
 }
 
+/**
+ * Render a modal dialog for uploading a video with title, description, external ID, file selection,
+ * tag selection, and tag creation.
+ *
+ * The modal disables closing while an upload is in progress and automatically closes 2 seconds
+ * after a successful upload. Submitting the form delegates to the upload hook and passes the
+ * optional `onUploadSuccess` callback.
+ *
+ * @param isOpen - Whether the modal is visible
+ * @param onClose - Callback invoked when the modal is closed (not called while uploading)
+ * @param onUploadSuccess - Optional callback invoked after a successful upload (passed to the submit handler)
+ * @returns The video upload modal element
+ */
 export function VideoUploadModal({ isOpen, onClose, onUploadSuccess }: VideoUploadModalProps) {
   const {
     file,
@@ -61,15 +74,12 @@ export function VideoUploadModal({ isOpen, onClose, onUploadSuccess }: VideoUplo
 
   useEffect(() => {
     if (success) {
-      if (onUploadSuccess) {
-        onUploadSuccess();
-      }
       const timer = setTimeout(() => {
         handleClose();
       }, 2000);
       return () => clearTimeout(timer);
     }
-  }, [success, onUploadSuccess, handleClose]);
+  }, [success, handleClose]);
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && !isUploading && handleClose()}>
@@ -126,4 +136,3 @@ export function VideoUploadModal({ isOpen, onClose, onUploadSuccess }: VideoUplo
     </Dialog>
   );
 }
-
