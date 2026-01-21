@@ -196,8 +196,8 @@ def extract_and_split_audio(input_path, max_size_mb=24, temp_manager=None):
         logger.error(error_msg)
         raise AudioExtractionError(error_msg) from e
 
-
-async def transcribe_audio_segment_async(
+# Alias for cleaner imports
+extract_audio = extract_and_split_audio
     client, segment_info, segment_index, model="whisper-1"
 ):
     """
