@@ -64,9 +64,9 @@ def _reindex_video_batch(videos: list, rollback_manager: TransactionRollbackMana
         rollback_manager: TransactionRollbackManager for rollback registration
 
     Returns:
-        Tuple of (successful_count, failed_videos)
+        Tuple of (successful_video_ids, failed_videos)
     """
-    successful_count = 0
+    successful_video_ids = []
     failed_videos = []
 
     for video in videos:
@@ -86,7 +86,7 @@ def _reindex_video_batch(videos: list, rollback_manager: TransactionRollbackMana
 
             # Re-index scenes
             index_scenes_batch(video.transcript, video)
-            successful_count += 1
+            successful_video_ids.append(video.id)
 
             logger.info(f"Successfully re-indexed video {video.id} ({video.title})")
 
@@ -98,7 +98,7 @@ def _reindex_video_batch(videos: list, rollback_manager: TransactionRollbackMana
                 {"video_id": video.id, "title": video.title, "error": str(e)}
             )
 
-    return successful_count, failed_videos
+    return successful_video_ids, failed_videos
 
 
 @shared_task(bind=True)
@@ -143,19 +143,22 @@ def reindex_all_videos_embeddings(self):
 
             logger.info(f"Processing batch {batch_num}/{total_batches}")
 
-            # Create rollback manager for this batch
+    # Create rollback manager for this batch
             rollback_manager = TransactionRollbackManager()
+            batch_success_ids = []
 
             try:
                 # Backup vector counts before batch processing
                 video_ids = [v.id for v in batch_videos]
-                _backup_video_ids(video_ids)
+                backup_records = _backup_video_ids(video_ids)
+                if backup_records:
+                    logger.info(f"Backed up vector metadata for {len(backup_records)} videos")
 
                 # Re-index batch
-                batch_success, batch_failed = _reindex_video_batch(
+                batch_success_ids, batch_failed = _reindex_video_batch(
                     batch_videos, rollback_manager
                 )
-                successful_count += batch_success
+                successful_count += len(batch_success_ids)
                 failed_videos.extend(batch_failed)
 
                 # Batch succeeded - clear rollbacks
@@ -163,7 +166,7 @@ def reindex_all_videos_embeddings(self):
 
                 logger.info(
                     f"Batch {batch_num}/{total_batches} completed: "
-                    f"{batch_success} success, {len(batch_failed)} failed"
+                    f"{len(batch_success_ids)} success, {len(batch_failed)} failed"
                 )
 
             except Exception as e:
@@ -174,8 +177,11 @@ def reindex_all_videos_embeddings(self):
                     logger.warning(f"Batch rollback errors: {rollback_errors}")
 
                 # Continue with next batch instead of failing completely
+                # Only mark videos as failed if they weren't already successfully processed
                 for video in batch_videos:
-                    if not any(f["video_id"] == video.id for f in failed_videos):
+                    if video.id not in batch_success_ids and not any(
+                        f["video_id"] == video.id for f in failed_videos
+                    ):
                         failed_videos.append(
                             {
                                 "video_id": video.id,
