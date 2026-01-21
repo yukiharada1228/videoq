@@ -37,11 +37,11 @@ class ChatView(generics.CreateAPIView):
         request=ChatRequestSerializer,
         responses={200: ChatResponseSerializer},
         summary="Send chat message",
-        description="Send a chat message and get AI response. Supports RAG when group_id is provided.",
+        description="Send a chat message and get AI response. Supports RAG when group_id is provided. Share token should be provided in the request body for shared access.",
     )
     def post(self, request):
         # Shared token authentication case
-        share_token = request.query_params.get("share_token")
+        share_token = request.data.get("share_token")
         is_shared = share_token is not None
         group = None
 
@@ -138,10 +138,10 @@ class ChatFeedbackView(APIView):
         request=ChatFeedbackRequestSerializer,
         responses={200: ChatFeedbackResponseSerializer},
         summary="Submit chat feedback",
-        description="Submit feedback (good/bad) for a chat log. Supports share token authentication.",
+        description="Submit feedback (good/bad) for a chat log. Share token should be provided in the request body for shared access.",
     )
     def post(self, request):
-        share_token = request.query_params.get("share_token")
+        share_token = request.data.get("share_token")
         chat_log_id = request.data.get("chat_log_id")
         feedback = request.data.get("feedback")
 

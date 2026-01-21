@@ -19,6 +19,9 @@ class ChatRequestSerializer(serializers.Serializer):
     group_id = serializers.IntegerField(
         required=False, allow_null=True, help_text="Optional group ID for RAG context"
     )
+    share_token = serializers.CharField(
+        required=False, allow_null=True, help_text="Optional share token for access"
+    )
 
 
 class ChatResponseSerializer(serializers.Serializer):
@@ -55,6 +58,9 @@ class ChatFeedbackRequestSerializer(serializers.Serializer):
         required=False,
         allow_null=True,
         help_text="Feedback value: 'good', 'bad', or null (unspecified)",
+    )
+    share_token = serializers.CharField(
+        required=False, allow_null=True, help_text="Optional share token for access"
     )
 
 

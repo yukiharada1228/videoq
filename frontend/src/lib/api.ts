@@ -470,12 +470,11 @@ class ApiClient {
   }
 
   async chat(data: ChatRequest): Promise<ChatMessage> {
-    const { share_token, ...bodyData } = data;
-    const endpoint = share_token ? `/chat/?share_token=${share_token}` : '/chat/';
+    const endpoint = '/chat/';
 
     return this.request<ChatMessage>(endpoint, {
       method: 'POST',
-      body: bodyData,
+      body: data,
     });
   }
 
@@ -484,13 +483,14 @@ class ApiClient {
     feedback: 'good' | 'bad' | null,
     shareToken?: string,
   ): Promise<{ chat_log_id: number; feedback: 'good' | 'bad' | null }> {
-    const endpoint = shareToken ? `/chat/feedback/?share_token=${shareToken}` : '/chat/feedback/';
+    const endpoint = '/chat/feedback/';
 
     return this.request(endpoint, {
       method: 'POST',
       body: {
         chat_log_id: chatLogId,
         feedback,
+        share_token: shareToken, // Include in body
       },
     });
   }
