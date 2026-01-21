@@ -198,6 +198,8 @@ def extract_and_split_audio(input_path, max_size_mb=24, temp_manager=None):
 
 # Alias for cleaner imports
 extract_audio = extract_and_split_audio
+
+async def transcribe_audio_segment_async(
     client, segment_info, segment_index, model="whisper-1"
 ):
     """
