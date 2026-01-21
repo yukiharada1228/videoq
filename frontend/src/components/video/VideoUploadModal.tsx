@@ -61,15 +61,12 @@ export function VideoUploadModal({ isOpen, onClose, onUploadSuccess }: VideoUplo
 
   useEffect(() => {
     if (success) {
-      if (onUploadSuccess) {
-        onUploadSuccess();
-      }
       const timer = setTimeout(() => {
         handleClose();
       }, 2000);
       return () => clearTimeout(timer);
     }
-  }, [success, onUploadSuccess, handleClose]);
+  }, [success, handleClose]);
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && !isUploading && handleClose()}>

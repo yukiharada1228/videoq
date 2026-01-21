@@ -49,10 +49,10 @@ export default function VideosPage() {
     setSelectedTagIds([]);
   }, []);
 
-  const handleUploadSuccess = () => {
+  const handleUploadSuccess = useCallback(() => {
     void loadVideos();
     void refetchUser(); // Update video_count
-  };
+  }, [loadVideos, refetchUser]);
 
   const handleUploadClick = () => {
     setIsUploadModalOpen(true);
