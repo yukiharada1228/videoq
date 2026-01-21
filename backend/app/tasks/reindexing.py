@@ -58,34 +58,44 @@ def _backup_video_ids(video_ids: List[int]) -> List[dict]:
 def _reindex_video_batch(videos: list, rollback_manager: TransactionRollbackManager):
     """
     Re-index a batch of videos with rollback support.
+    Safely re-indexes into a temporary collection first, then swaps on success.
 
     Args:
         videos: List of Video objects to re-index
-        rollback_manager: TransactionRollbackManager for rollback registration
+        rollback_manager: TransactionRollbackManager (kept for interface compatibility, though mostly unused for vector rollback now)
 
     Returns:
         Tuple of (successful_video_ids, failed_videos)
     """
+    import uuid
+    from app.utils.vector_manager import delete_collection, move_vectors_to_collection
+
     successful_video_ids = []
     failed_videos = []
+    
+    # Get main collection name
+    main_collection = PGVectorManager.get_config()["collection_name"]
 
     for video in videos:
+        # Create a unique temp collection name
+        temp_collection = f"temp_reindex_{video.id}_{uuid.uuid4().hex[:8]}"
+        
         try:
-            # Delete existing vectors for this video
+            logger.info(f"Indexing video {video.id} to temp collection: {temp_collection}")
+            
+            # 1. Index to temporary collection (Existing vectors in main are safe)
+            index_scenes_batch(video.transcript, video, collection_name=temp_collection)
+
+            # 2. On success, perform safe swap
+            # Delete old vectors from main collection
             delete_video_vectors(video.id)
+            
+            # Move new vectors from temp to main
+            move_vectors_to_collection(temp_collection, main_collection, video.id)
+            
+            # 3. Cleanup temp collection
+            delete_collection(temp_collection)
 
-            # Register rollback (in case batch fails later)
-            def make_rollback(vid):
-                def rollback():
-                    logger.info(f"Rollback: would restore vectors for video {vid}")
-                    # Note: Actual restore would require storing vector data
-
-                return rollback
-
-            rollback_manager.register_rollback(make_rollback(video.id))
-
-            # Re-index scenes
-            index_scenes_batch(video.transcript, video)
             successful_video_ids.append(video.id)
 
             logger.info(f"Successfully re-indexed video {video.id} ({video.title})")
@@ -97,6 +107,12 @@ def _reindex_video_batch(videos: list, rollback_manager: TransactionRollbackMana
             failed_videos.append(
                 {"video_id": video.id, "title": video.title, "error": str(e)}
             )
+            
+            # Cleanup temp collection on failure
+            try:
+                delete_collection(temp_collection)
+            except Exception as cleanup_error:
+                logger.warning(f"Failed to cleanup temp collection {temp_collection}: {cleanup_error}")
 
     return successful_video_ids, failed_videos
 

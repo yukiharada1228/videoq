@@ -13,15 +13,18 @@ from app.utils.vector_manager import PGVectorManager
 logger = logging.getLogger(__name__)
 
 
-def index_scenes_to_vectorstore(scene_docs, video, api_key=None):
+def index_scenes_to_vectorstore(scene_docs, video, api_key=None, collection_name=None):
     """
     Create vector index using LangChain + pgvector
     scene_docs: [{text, metadata}]
     api_key: Optional API key for OpenAI (uses environment variable if not provided)
+    collection_name: Optional custom collection name
     """
     try:
         embeddings = get_embeddings(api_key)
         config = PGVectorManager.get_config()
+        
+        target_collection = collection_name or config["collection_name"]
 
         valid_docs = [d for d in scene_docs if d.get("text")]
         texts = [d["text"] for d in valid_docs]
@@ -32,7 +35,7 @@ def index_scenes_to_vectorstore(scene_docs, video, api_key=None):
             return
 
         logger.info(
-            f"Indexing {len(texts)} scenes to pgvector collection: {config['collection_name']}"
+            f"Indexing {len(texts)} scenes to pgvector collection: {target_collection}"
         )
 
         # Create vector store with pgvector
@@ -47,7 +50,7 @@ def index_scenes_to_vectorstore(scene_docs, video, api_key=None):
         PGVector.from_texts(
             texts=texts,
             embedding=embeddings,
-            collection_name=config["collection_name"],
+            collection_name=target_collection,
             connection=connection_str,  # langchain_postgres uses connection parameter (psycopg3 format)
             metadatas=metadatas,
             use_jsonb=True,  # Enable JSONB filtering
@@ -81,10 +84,11 @@ def create_scene_metadata(video, scene):
     return metadata
 
 
-def index_scenes_batch(scene_split_srt, video, api_key=None):
+def index_scenes_batch(scene_split_srt, video, api_key=None, collection_name=None):
     """
     Batch index scenes to pgvector
     api_key: Optional API key for OpenAI (uses environment variable if not provided)
+    collection_name: Optional custom collection name
     """
     try:
         logger.info("Starting scene indexing to pgvector...")
@@ -100,7 +104,7 @@ def index_scenes_batch(scene_split_srt, video, api_key=None):
         ]
 
         logger.info(f"Prepared {len(scene_docs)} scene documents for indexing")
-        index_scenes_to_vectorstore(scene_docs, video, api_key)
+        index_scenes_to_vectorstore(scene_docs, video, api_key, collection_name)
 
     except Exception as e:
         logger.warning(f"Failed to prepare scenes for indexing: {e}", exc_info=True)

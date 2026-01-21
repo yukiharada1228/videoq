@@ -202,8 +202,8 @@ class RagChatService:
         # Get API key if using OpenAI provider
         # Use injected config if available, otherwise fall back to settings
         if self.config:
-            api_key = self.config.openai_api_key
             embedding_provider = self.config.embedding_provider
+            api_key = self.config.openai_api_key if embedding_provider == "openai" else None
         else:
             embedding_provider = settings.EMBEDDING_PROVIDER
             api_key = settings.OPENAI_API_KEY if embedding_provider == "openai" else None

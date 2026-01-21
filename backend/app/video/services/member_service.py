@@ -51,17 +51,43 @@ class VideoGroupMemberService:
     @staticmethod
     def add_video_to_group(group, video):
         """Add video to group operation"""
-        if VideoGroupMemberService.get_member_queryset(group, video).first():
+        from django.db import IntegrityError, transaction
+
+        try:
+            with transaction.atomic():
+                # Compute next order only if we are creating
+                # Note: get_or_create might evaluate defaults eagerly or lazily depending on impl,
+                # but typically we pass a value. To be safe/atomic against race conditions for 'order',
+                # we technically need locking or retry. 
+                # However, for 'exists' check, get_or_create is sufficient to prevent duplicates.
+                # For 'order', if multiple adds happen, order might clash or have gaps if we don't lock.
+                # Given the user request focuses on IntegrityError/race on 'add', get_or_create is key.
+                
+                # To get a valid next_order inside the atomic block (locking relevant group rows):
+                # But to keep it simple as requested: "perform an atomic get-or-create... compute next_order only when needed"
+                
+                # We can't easily compute next_order "only when needed" with vanilla get_or_create defaults 
+                # unless we use a callable, which Django supports.
+                def get_order():
+                    return VideoGroupMemberService.get_next_order(group)
+
+                member, created = VideoGroupMember.objects.get_or_create(
+                    group=group, 
+                    video=video,
+                    defaults={'order': get_order()}
+                )
+
+                if not created:
+                    return create_error_response(
+                        "This video is already added to the group", status.HTTP_400_BAD_REQUEST
+                    )
+
+                return Response(
+                    {"message": "Video added to group", "id": member.id},
+                    status=status.HTTP_201_CREATED,
+                )
+
+        except IntegrityError:
             return create_error_response(
                 "This video is already added to the group", status.HTTP_400_BAD_REQUEST
             )
-
-        next_order = VideoGroupMemberService.get_next_order(group)
-        member = VideoGroupMember.objects.create(
-            group=group, video=video, order=next_order
-        )
-
-        return Response(
-            {"message": "Video added to group", "id": member.id},
-            status=status.HTTP_201_CREATED,
-        )

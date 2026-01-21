@@ -193,7 +193,20 @@ class ApiClient {
 
   constructor(options: ApiClientOptions = {}) {
     this.baseUrl = options.baseUrl ?? DEFAULT_API_URL;
-    this.fetchImpl = options.fetchImpl ?? fetch;
+
+    // Secure fetch implementation
+    if (options.fetchImpl) {
+      this.fetchImpl = options.fetchImpl;
+    } else if (typeof globalThis !== 'undefined' && typeof globalThis.fetch === 'function') {
+      this.fetchImpl = globalThis.fetch.bind(globalThis);
+    } else if (typeof window !== 'undefined' && typeof window.fetch === 'function') {
+      this.fetchImpl = window.fetch.bind(window);
+    } else {
+      throw new Error(
+        "Fetch API not found. If running in a non-browser environment (e.g. Node.js), " +
+        "please provide a fetch implementation via options.fetchImpl or polyfill globalThis.fetch."
+      );
+    }
   }
 
   // HttpOnly Cookie-based authentication (security enhancement)

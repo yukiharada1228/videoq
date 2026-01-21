@@ -278,3 +278,79 @@ def delete_all_vectors():
             f"Failed to delete all vectors from collection: {e}", exc_info=True
         )
         raise
+
+def move_vectors_to_collection(
+    source_collection, target_collection, video_id=None
+):
+    """
+    Move vectors from source collection to target collection.
+    If video_id is provided, only moves vectors for that video.
+    """
+    try:
+        def move_operation(cursor):
+            # 1. Get collection UUIDs
+            cursor.execute(
+                "SELECT uuid FROM langchain_pg_collection WHERE name = %s",
+                (source_collection,)
+            )
+            source_res = cursor.fetchone()
+            if not source_res:
+                return 0
+            source_uuid = source_res[0]
+
+            cursor.execute(
+                "SELECT uuid FROM langchain_pg_collection WHERE name = %s",
+                (target_collection,)
+            )
+            target_res = cursor.fetchone()
+            if not target_res:
+                # Target collection might not exist yet if it's empty, 
+                # but usually it should if initialized. 
+                # If using LangChain PGVector, it handles creation. 
+                # Assuming target exists for now or handled by caller.
+                # If not, we can't move to non-existent collection easily without creating it.
+                return 0
+            target_uuid = target_res[0]
+
+            # 2. Update collection_id
+            query = """
+                UPDATE langchain_pg_embedding
+                SET collection_id = %s
+                WHERE collection_id = %s
+            """
+            params = [target_uuid, source_uuid]
+
+            if video_id:
+                query += " AND cmetadata->>'video_id' = %s"
+                params.append(str(video_id))
+
+            cursor.execute(query, params)
+            return cursor.rowcount
+
+        moved_count = PGVectorManager.execute_with_connection(move_operation)
+        logger.info(
+            f"Moved {moved_count} vectors from {source_collection} to {target_collection}"
+        )
+        return moved_count
+
+    except Exception as e:
+        logger.error(f"Failed to move vectors: {e}", exc_info=True)
+        raise
+
+
+def delete_collection(collection_name):
+    """
+    Delete a collection and all its embeddings
+    """
+    try:
+        def delete_op(cursor):
+            cursor.execute(
+                "DELETE FROM langchain_pg_collection WHERE name = %s",
+                (collection_name,)
+            )
+            return cursor.rowcount
+
+        PGVectorManager.execute_with_connection(delete_op)
+        logger.info(f"Deleted collection: {collection_name}")
+    except Exception as e:
+        logger.warning(f"Failed to delete collection {collection_name}: {e}")
