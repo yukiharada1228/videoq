@@ -68,7 +68,7 @@ def _reindex_video_batch(videos: list, rollback_manager: TransactionRollbackMana
         Tuple of (successful_video_ids, failed_videos)
     """
     import uuid
-    from app.utils.vector_manager import delete_collection, move_vectors_to_collection
+    from app.utils.vector_manager import delete_collection, swap_video_vectors
 
     successful_video_ids = []
     failed_videos = []
@@ -86,12 +86,8 @@ def _reindex_video_batch(videos: list, rollback_manager: TransactionRollbackMana
             # 1. Index to temporary collection (Existing vectors in main are safe)
             index_scenes_batch(video.transcript, video, collection_name=temp_collection)
 
-            # 2. On success, perform safe swap
-            # Delete old vectors from main collection
-            delete_video_vectors(video.id)
-            
-            # Move new vectors from temp to main
-            move_vectors_to_collection(temp_collection, main_collection, video.id)
+            # 2. On success, perform safe swap (Atomic)
+            swap_video_vectors(video.id, temp_collection, main_collection)
             
             # 3. Cleanup temp collection
             delete_collection(temp_collection)

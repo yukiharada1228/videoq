@@ -30,6 +30,7 @@ class PGVectorManager:
         Args:
             provider: Callable that returns a config dict with 'database_url' and 'collection_name'
         """
+        cls.close_connection()  # Close existing connection before changing provider
         cls._config_provider = provider
         cls._config = None  # Reset config to use new provider
 
@@ -38,6 +39,7 @@ class PGVectorManager:
         """
         Reset manager state. Useful for testing.
         """
+        cls.close_connection()  # Close existing connection before reset
         cls._config = None
         cls._connection = None
         cls._config_provider = None
@@ -320,7 +322,7 @@ def move_vectors_to_collection(
             """
             params = [target_uuid, source_uuid]
 
-            if video_id:
+            if video_id is not None:
                 query += " AND cmetadata->>'video_id' = %s"
                 params.append(str(video_id))
 
@@ -344,13 +346,90 @@ def delete_collection(collection_name):
     """
     try:
         def delete_op(cursor):
+            # 1. Delete embeddings first
+            cursor.execute(
+                """
+                DELETE FROM langchain_pg_embedding 
+                WHERE collection_id IN (
+                    SELECT uuid FROM langchain_pg_collection WHERE name = %s
+                )
+                """,
+                (collection_name,)
+            )
+            embeddings_count = cursor.rowcount
+
+            # 2. Delete collection
             cursor.execute(
                 "DELETE FROM langchain_pg_collection WHERE name = %s",
                 (collection_name,)
             )
-            return cursor.rowcount
+            return cursor.rowcount, embeddings_count
 
-        PGVectorManager.execute_with_connection(delete_op)
-        logger.info(f"Deleted collection: {collection_name}")
+        _, docs_count = PGVectorManager.execute_with_connection(delete_op)
+        logger.info(f"Deleted collection: {collection_name} and {docs_count} embeddings")
     except Exception as e:
         logger.warning(f"Failed to delete collection {collection_name}: {e}")
+
+def swap_video_vectors(video_id, temp_collection, main_collection):
+    """
+    Atomically swap vectors for a video:
+    1. Delete existing vectors for video_id in main_collection (if any)
+    2. Move new vectors from temp_collection to main_collection
+    All within a single transaction.
+    """
+    try:
+        def swap_operation(cursor):
+            # 1. Delete old vectors
+            cursor.execute(
+                """
+                DELETE FROM langchain_pg_embedding 
+                WHERE cmetadata->>'video_id' = %s
+                """,
+                (str(video_id),)
+            )
+            deleted_count = cursor.rowcount
+
+            # 2. Move new vectors
+            # Get collection UUIDs
+            cursor.execute(
+                "SELECT uuid FROM langchain_pg_collection WHERE name = %s",
+                (temp_collection,)
+            )
+            source_res = cursor.fetchone()
+            if not source_res:
+                raise Exception(f"Source collection {temp_collection} not found")
+            source_uuid = source_res[0]
+
+            cursor.execute(
+                "SELECT uuid FROM langchain_pg_collection WHERE name = %s",
+                (main_collection,)
+            )
+            target_res = cursor.fetchone()
+            if not target_res:
+                 # If target doesn't exist, we can't move easily. 
+                 # In this app flow, main collection should exist.
+                 raise Exception(f"Target collection {main_collection} not found")
+            target_uuid = target_res[0]
+
+            # Move vectors
+            cursor.execute(
+                """
+                UPDATE langchain_pg_embedding
+                SET collection_id = %s
+                WHERE collection_id = %s
+                """,
+                (target_uuid, source_uuid)
+            )
+            moved_count = cursor.rowcount
+            
+            return deleted_count, moved_count
+
+        deleted, moved = PGVectorManager.execute_with_connection(swap_operation)
+        logger.info(
+            f"Atomically swapped vectors for video {video_id}: "
+            f"Deleted {deleted} old, Moved {moved} new from {temp_collection} to {main_collection}"
+        )
+        return True
+    except Exception as e:
+        logger.error(f"Failed to swap vectors for video {video_id}: {e}", exc_info=True)
+        raise
