@@ -9,6 +9,7 @@ from django.test import TestCase
 
 from app.utils.vector_manager import (PGVectorManager, delete_video_vectors,
                                       delete_video_vectors_batch,
+                                      swap_video_vectors,
                                       update_video_title_in_vectors)
 
 
@@ -253,3 +254,25 @@ class VectorOperationsTests(TestCase):
 
         self.assertEqual(result, 0)
         mock_logger.warning.assert_called()
+    @patch("app.utils.vector_manager.PGVectorManager.execute_with_connection")
+    @patch("app.utils.vector_manager.logger")
+    def test_swap_video_vectors(self, mock_logger, mock_execute):
+        """Test swap_video_vectors"""
+        mock_execute.return_value = (5, 10)  # deleted, moved
+
+        result = swap_video_vectors(123, "temp_collection", "main_collection")
+
+        self.assertTrue(result)
+        mock_execute.assert_called_once()
+        mock_logger.info.assert_called()
+
+    @patch("app.utils.vector_manager.PGVectorManager.execute_with_connection")
+    @patch("app.utils.vector_manager.logger")
+    def test_swap_video_vectors_error(self, mock_logger, mock_execute):
+        """Test swap_video_vectors error handling"""
+        mock_execute.side_effect = Exception("Database error")
+
+        with self.assertRaises(Exception):
+            swap_video_vectors(123, "temp_collection", "main_collection")
+
+        mock_logger.error.assert_called()
