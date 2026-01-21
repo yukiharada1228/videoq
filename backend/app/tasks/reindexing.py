@@ -143,7 +143,7 @@ def reindex_all_videos_embeddings(self):
 
             logger.info(f"Processing batch {batch_num}/{total_batches}")
 
-    # Create rollback manager for this batch
+            # Create rollback manager for this batch
             rollback_manager = TransactionRollbackManager()
             batch_success_ids = []
 
