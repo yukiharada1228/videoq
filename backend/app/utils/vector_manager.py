@@ -4,7 +4,7 @@ Unified management of PGVector operations
 
 import logging
 import os
-from typing import Any, Callable, Optional
+from typing import Callable, Optional
 
 import psycopg2
 from pgvector.psycopg2 import register_vector

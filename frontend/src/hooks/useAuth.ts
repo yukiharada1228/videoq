@@ -1,9 +1,10 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { useI18nNavigate, useI18nLocation, removeLocalePrefix } from '@/lib/i18n';
 import { useAuthStore } from '@/stores';
+import type { User } from '@/lib/api';
 
 interface UseAuthReturn {
-  user: ReturnType<typeof useAuthStore>['user'];
+  user: User | null;
   loading: boolean;
   refetch: () => Promise<void>;
 }
@@ -28,7 +29,10 @@ export function useAuth(options: UseAuthOptions = {}): UseAuthReturn {
 
   // Hold callback with useRef to prevent infinite loops
   const onAuthErrorRef = useRef(onAuthError);
-  onAuthErrorRef.current = onAuthError;
+
+  useEffect(() => {
+    onAuthErrorRef.current = onAuthError;
+  }, [onAuthError]);
 
   const handleCheckAuth = useCallback(async () => {
     await checkAuth();

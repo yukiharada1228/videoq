@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { apiClient, type Video, type VideoList as VideoListType } from '@/lib/api';
 import { useI18nNavigate } from '@/lib/i18n';
 import { useVideosStore } from '@/stores';
-import { useAsyncState } from './useAsyncState';
+
 
 /**
  * Hook to fetch video list
