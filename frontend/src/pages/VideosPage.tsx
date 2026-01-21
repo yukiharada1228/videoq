@@ -16,6 +16,17 @@ import { TagFilterPanel } from '@/components/video/TagFilterPanel';
 import { TagManagementModal } from '@/components/video/TagManagementModal';
 
 
+/**
+ * Render the Videos management page with listing, filtering, statistics, and upload/tag modals.
+ *
+ * Displays a scrollable video list with loading and error states, a tag filter panel with management,
+ * statistic cards for total/completed/pending/processing counts, an upload button (disabled when the
+ * current user cannot upload), and a warning when the user's upload limit is reached. The upload modal
+ * can be opened via UI or the `upload=true` query parameter; successful uploads reload videos and refresh
+ * user data.
+ *
+ * @returns The page's React element.
+ */
 export default function VideosPage() {
   const { videos, isLoading, error, loadVideos } = useVideos();
   const stats = useVideoStats(videos);
@@ -167,4 +178,3 @@ export default function VideosPage() {
     </>
   );
 }
-
