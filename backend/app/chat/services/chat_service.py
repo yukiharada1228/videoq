@@ -1,4 +1,4 @@
-from app.models import ChatLog
+
 
 
 class ChatService:

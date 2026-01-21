@@ -10,10 +10,7 @@ from celery import shared_task
 from app.models import Video
 from app.tasks.vector_indexing import index_scenes_batch
 from app.utils.task_helpers import TransactionRollbackManager
-from app.utils.vector_manager import (
-    PGVectorManager,
-    delete_video_vectors,
-)
+from app.utils.vector_manager import PGVectorManager
 
 logger = logging.getLogger(__name__)
 

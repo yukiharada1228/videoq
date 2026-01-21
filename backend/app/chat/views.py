@@ -1,7 +1,7 @@
 import csv
 import json
 
-from django.db.models import Prefetch
+
 from django.http import HttpResponse
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics, status
@@ -13,7 +13,7 @@ from app.common.authentication import CookieJWTAuthentication
 from app.common.permissions import (IsAuthenticatedOrSharedAccess,
                                     ShareTokenAuthentication)
 from app.common.responses import create_error_response
-from app.models import ChatLog, VideoGroup, VideoGroupMember
+from app.models import ChatLog, VideoGroup
 
 from .serializers import (ChatFeedbackRequestSerializer,
                           ChatFeedbackResponseSerializer, ChatLogSerializer,
