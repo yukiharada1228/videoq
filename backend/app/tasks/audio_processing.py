@@ -28,42 +28,45 @@ SUPPORTED_FORMATS = {
 }
 
 
-def _get_video_duration(input_path):
+async def _get_video_duration(input_path):
     """
     Get video duration using ffprobe
     Returns: duration in seconds
     """
-    probe_result = subprocess.run(
-        [
-            "ffprobe",
-            "-v",
-            "quiet",
-            "-print_format",
-            "json",
-            "-show_format",
-            input_path,
-        ],
-        capture_output=True,
-        text=True,
-        check=True,
+    process = await asyncio.create_subprocess_exec(
+        "ffprobe",
+        "-v",
+        "quiet",
+        "-print_format",
+        "json",
+        "-show_format",
+        input_path,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
     )
-    probe = json.loads(probe_result.stdout)
+    stdout, stderr = await process.communicate()
+    if process.returncode != 0:
+        raise subprocess.CalledProcessError(
+            process.returncode, "ffprobe", output=stdout, stderr=stderr
+        )
+
+    probe = json.loads(stdout.decode())
     duration = float(probe["format"]["duration"])
     logger.info(f"Video duration: {duration:.2f} seconds")
     return duration
 
 
-def _extract_full_audio(input_path, temp_dir):
+async def _extract_full_audio(input_path, temp_dir):
     """
     Extract the full audio track from a video file and save it as an MP3 in a temporary directory.
-    
+
     Parameters:
         input_path (str): Path to the source video file.
         temp_dir (str): Directory where the extracted MP3 will be written.
-    
+
     Returns:
         tuple: (audio_path, audio_size_mb) where `audio_path` is the filesystem path to the extracted MP3 and `audio_size_mb` is the file size in megabytes.
-    
+
     Raises:
         subprocess.CalledProcessError: If ffmpeg fails to extract audio.
     """
@@ -71,46 +74,51 @@ def _extract_full_audio(input_path, temp_dir):
         temp_dir, f"temp_audio_{os.path.basename(input_path)}.mp3"
     )
 
-    subprocess.run(
-        [
-            "ffmpeg",
-            "-i",
-            input_path,
-            "-vn",
-            "-acodec",
-            "mp3",
-            "-ab",
-            "128k",
-            "-y",
-            temp_audio_path,
-        ],
-        check=True,
-        capture_output=True,
-        text=True,
+    process = await asyncio.create_subprocess_exec(
+        "ffmpeg",
+        "-i",
+        input_path,
+        "-vn",
+        "-acodec",
+        "mp3",
+        "-ab",
+        "128k",
+        "-y",
+        temp_audio_path,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
     )
+    stdout, stderr = await process.communicate()
+    if process.returncode != 0:
+        raise subprocess.CalledProcessError(
+            process.returncode, "ffmpeg", output=stdout, stderr=stderr
+        )
 
     audio_size_mb = os.path.getsize(temp_audio_path) / (1024 * 1024)
     logger.debug(f"Extracted audio size: {audio_size_mb:.2f} MB")
     return temp_audio_path, audio_size_mb
 
 
-def _extract_audio_segment(input_path, start_time, end_time, segment_index, temp_dir):
+async def _extract_audio_segment(
+    input_path, start_time, end_time, segment_index, temp_dir, semaphore=None
+):
     """
     Extracts an MP3 audio segment from a media file and writes it to the specified temporary directory.
-    
+
     Parameters:
         input_path (str): Path to the source media file.
         start_time (float): Segment start time in seconds.
         end_time (float): Segment end time in seconds.
         segment_index (int): Index used to construct the output filename.
         temp_dir (str): Directory where the extracted segment will be written.
-    
+        semaphore (asyncio.Semaphore): Optional semaphore to limit concurrency.
+
     Returns:
         dict: Information about the extracted segment with keys:
             - "path" (str): Full path to the extracted MP3 file.
             - "start_time" (float): The segment's start time (seconds).
             - "end_time" (float): The segment's end time (seconds).
-    
+
     Raises:
         subprocess.CalledProcessError: If the ffmpeg command fails.
     """
@@ -119,8 +127,8 @@ def _extract_audio_segment(input_path, start_time, end_time, segment_index, temp
         temp_dir, f"audio_segment_{segment_index}_{os.path.basename(input_path)}.mp3"
     )
 
-    subprocess.run(
-        [
+    async def run_ffmpeg():
+        process = await asyncio.create_subprocess_exec(
             "ffmpeg",
             "-ss",
             str(start_time),
@@ -135,16 +143,25 @@ def _extract_audio_segment(input_path, start_time, end_time, segment_index, temp
             "128k",
             "-y",
             audio_path,
-        ],
-        check=True,
-        capture_output=True,
-        text=True,
-    )
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await process.communicate()
+        if process.returncode != 0:
+            raise subprocess.CalledProcessError(
+                process.returncode, "ffmpeg", output=stdout, stderr=stderr
+            )
+
+    if semaphore:
+        async with semaphore:
+            await run_ffmpeg()
+    else:
+        await run_ffmpeg()
 
     return {"path": audio_path, "start_time": start_time, "end_time": end_time}
 
 
-def _split_audio_into_segments(
+async def _split_audio_into_segments(
     input_path, duration, audio_size_mb, max_size_mb, temp_dir
 ):
     """
@@ -159,28 +176,32 @@ def _split_audio_into_segments(
         f"Splitting into {num_segments} segments of ~{segment_duration:.2f} seconds each"
     )
 
-    audio_segments = []
+    # Limit concurrent ffmpeg processes to avoid overloading the system
+    semaphore = asyncio.Semaphore(4)
+    tasks = []
     for i in range(num_segments):
         start_time = i * segment_duration
         end_time = min((i + 1) * segment_duration, duration)
-        segment = _extract_audio_segment(input_path, start_time, end_time, i, temp_dir)
-        audio_segments.append(segment)
+        tasks.append(
+            _extract_audio_segment(
+                input_path, start_time, end_time, i, temp_dir, semaphore=semaphore
+            )
+        )
 
+    audio_segments = await asyncio.gather(*tasks)
     return audio_segments
 
 
-def extract_and_split_audio(input_path, max_size_mb=24, temp_manager=None):
+async def extract_and_split_audio_async(input_path, max_size_mb=24, temp_manager=None):
     """
-    Extract audio from video and split appropriately based on file size
-    max_size_mb: Maximum size of each segment (MB)
-    temp_manager: TemporaryFileManager instance for cleanup
+    Extract audio from video and split appropriately based on file size (async version)
     """
     try:
-        duration = _get_video_duration(input_path)
+        duration = await _get_video_duration(input_path)
         temp_dir = tempfile.gettempdir()
 
         # Extract audio and check size
-        temp_audio_path, audio_size_mb = _extract_full_audio(input_path, temp_dir)
+        temp_audio_path, audio_size_mb = await _extract_full_audio(input_path, temp_dir)
 
         if audio_size_mb <= max_size_mb:
             # No splitting needed
@@ -191,7 +212,7 @@ def extract_and_split_audio(input_path, max_size_mb=24, temp_manager=None):
         else:
             # Split into segments
             os.remove(temp_audio_path)
-            audio_segments = _split_audio_into_segments(
+            audio_segments = await _split_audio_into_segments(
                 input_path, duration, audio_size_mb, max_size_mb, temp_dir
             )
 
@@ -203,11 +224,23 @@ def extract_and_split_audio(input_path, max_size_mb=24, temp_manager=None):
         return audio_segments
 
     except subprocess.CalledProcessError as e:
-        logger.error(f"Error running ffmpeg/ffprobe: {e.stderr}")
+        logger.error(
+            f"Error running ffmpeg/ffprobe: {e.stderr.decode() if e.stderr else str(e)}"
+        )
         return []
     except Exception as e:
         logger.error(f"Error extracting/splitting audio: {e}")
         return []
+
+
+def extract_and_split_audio(input_path, max_size_mb=24, temp_manager=None):
+    """
+    Extract audio from video and split appropriately based on file size
+    Sync wrapper for extract_and_split_audio_async
+    """
+    return asyncio.run(
+        extract_and_split_audio_async(input_path, max_size_mb, temp_manager)
+    )
 
 
 async def transcribe_audio_segment_async(
