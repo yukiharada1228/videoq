@@ -67,6 +67,7 @@ def _extract_full_audio(input_path, temp_dir):
             "ffmpeg",
             "-i",
             input_path,
+            "-vn",
             "-acodec",
             "mp3",
             "-ab",
@@ -97,12 +98,13 @@ def _extract_audio_segment(input_path, start_time, end_time, segment_index, temp
     subprocess.run(
         [
             "ffmpeg",
-            "-i",
-            input_path,
             "-ss",
             str(start_time),
+            "-i",
+            input_path,
             "-t",
             str(segment_duration),
+            "-vn",
             "-acodec",
             "mp3",
             "-ab",
