@@ -56,14 +56,14 @@ def _get_video_duration(input_path):
 def _extract_full_audio(input_path, temp_dir):
     """
     Extract the full audio track from a video file and save it as an MP3 in a temporary directory.
-    
+
     Parameters:
         input_path (str): Path to the source video file.
         temp_dir (str): Directory where the extracted MP3 will be written.
-    
+
     Returns:
         tuple: (audio_path, audio_size_mb) where `audio_path` is the filesystem path to the extracted MP3 and `audio_size_mb` is the file size in megabytes.
-    
+
     Raises:
         subprocess.CalledProcessError: If ffmpeg fails to extract audio.
     """
@@ -97,20 +97,20 @@ def _extract_full_audio(input_path, temp_dir):
 def _extract_audio_segment(input_path, start_time, end_time, segment_index, temp_dir):
     """
     Extracts an MP3 audio segment from a media file and writes it to the specified temporary directory.
-    
+
     Parameters:
         input_path (str): Path to the source media file.
         start_time (float): Segment start time in seconds.
         end_time (float): Segment end time in seconds.
         segment_index (int): Index used to construct the output filename.
         temp_dir (str): Directory where the extracted segment will be written.
-    
+
     Returns:
         dict: Information about the extracted segment with keys:
             - "path" (str): Full path to the extracted MP3 file.
             - "start_time" (float): The segment's start time (seconds).
             - "end_time" (float): The segment's end time (seconds).
-    
+
     Raises:
         subprocess.CalledProcessError: If the ffmpeg command fails.
     """
