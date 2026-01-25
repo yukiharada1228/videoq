@@ -43,7 +43,9 @@ class ResponseHelpersTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(response.data["error"]["code"], "VALIDATION_ERROR")
         self.assertEqual(response.data["error"]["message"], "Validation failed")
-        self.assertEqual(response.data["error"]["fields"]["email"], ["Invalid email format"])
+        self.assertEqual(
+            response.data["error"]["fields"]["email"], ["Invalid email format"]
+        )
 
     def test_create_success_response_with_data(self):
         """Test create_success_response with data"""

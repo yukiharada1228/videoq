@@ -103,7 +103,11 @@ def _get_error_message(exc, response) -> str:
             return str(first_error)
 
     # Fallback to status text
-    return response.status_text if hasattr(response, "status_text") else "An error occurred"
+    return (
+        response.status_text
+        if hasattr(response, "status_text")
+        else "An error occurred"
+    )
 
 
 def _get_field_errors(exc) -> dict | None:

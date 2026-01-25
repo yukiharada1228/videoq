@@ -1,6 +1,7 @@
 """Common response helpers"""
 
 from typing import Any
+
 from rest_framework import status
 from rest_framework.response import Response
 
