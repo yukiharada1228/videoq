@@ -7,6 +7,7 @@ from django.conf import settings
 from langchain_core.embeddings import Embeddings
 from langchain_ollama import OllamaEmbeddings
 from langchain_openai import OpenAIEmbeddings
+from pydantic import SecretStr
 from tqdm import tqdm
 
 
@@ -48,7 +49,7 @@ class OpenAIEmbedder(BaseEmbedder):
     ):
         super().__init__(batch_size=batch_size)
         self.model = model
-        self.embeddings = OpenAIEmbeddings(api_key=api_key, model=model)
+        self.embeddings = OpenAIEmbeddings(api_key=SecretStr(api_key), model=model)
         self.encoding = tiktoken.encoding_for_model(model)
 
 
