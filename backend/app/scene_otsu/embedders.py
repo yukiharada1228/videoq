@@ -1,9 +1,10 @@
-from abc import ABC, abstractmethod
+from abc import ABC
 from typing import List, Optional
 
 import numpy as np
 import tiktoken
 from django.conf import settings
+from langchain_core.embeddings import Embeddings
 from langchain_ollama import OllamaEmbeddings
 from langchain_openai import OpenAIEmbeddings
 from tqdm import tqdm
@@ -12,10 +13,11 @@ from tqdm import tqdm
 class BaseEmbedder(ABC):
     """Abstract base class for embedding generation"""
 
+    embeddings: Embeddings
+    encoding: tiktoken.Encoding
+
     def __init__(self, batch_size: int = 16):
         self.batch_size = batch_size
-        self.embeddings = None
-        self.encoding = None
 
     def count_tokens(self, text: str) -> int:
         """Count tokens in text using the provided encoding"""
