@@ -19,7 +19,7 @@ class WhisperConfig:
     def __init__(self):
         """
         Initialize WhisperConfig from environment variables.
-        
+
         Reads WHISPER_BACKEND (default "openai") and WHISPER_LOCAL_URL (default "http://host.docker.internal:8080"), stores the lowercase backend in `self.backend` and the local server URL in `self.local_url`. Logs the configured backend and, if the backend equals BACKEND_LOCAL, logs the local server URL.
         """
         self.backend = os.getenv("WHISPER_BACKEND", self.BACKEND_OPENAI).lower()
