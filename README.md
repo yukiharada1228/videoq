@@ -1,6 +1,6 @@
 # VideoQ
 
-VideoQ is a web application that provides video transcription (Whisper) and AI chat (RAG) over those transcripts.
+An AI video navigator that allows you to search and ask questions simply by uploading videos.
 
 ## Quick Start
 
