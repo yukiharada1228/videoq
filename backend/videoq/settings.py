@@ -290,7 +290,7 @@ if USE_S3_STORAGE:
             },
         },
         "default": {  # Media file storage
-            "BACKEND": "app.models.SafeS3Boto3Storage",
+            "BACKEND": "app.models.storage.SafeS3Boto3Storage",
             "OPTIONS": {
                 "bucket_name": AWS_STORAGE_BUCKET_NAME,
                 "access_key": AWS_ACCESS_KEY_ID,
@@ -314,7 +314,7 @@ else:
     # Use custom storage for media files (with timestamp-based filename conversion)
     STORAGES = {
         "default": {
-            "BACKEND": "app.models.SafeFileSystemStorage",
+            "BACKEND": "app.models.storage.SafeFileSystemStorage",
         },
         "staticfiles": {
             "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
