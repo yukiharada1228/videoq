@@ -111,12 +111,27 @@ def handle_video_limit_reduction(sender, instance, **kwargs):
         with transaction.atomic():
             count = videos_to_delete.count()
             if count > 0:
+                # Collect file references for deletion after transaction commits
+                files_to_delete = []
                 for video in videos_to_delete:
-                    # Delete file explicitly
                     if video.file:
-                        video.file.delete(save=False)
-                    # Delete video instance (triggers CASCADE and post_delete signal)
+                        files_to_delete.append(video.file)
+                
+                # Delete video instances inside transaction (triggers CASCADE and post_delete signal)
+                for video in videos_to_delete:
                     video.delete()
+
+                # Register file deletion to happen after transaction commits
+                def delete_files():
+                    for file_field in files_to_delete:
+                        try:
+                            file_field.delete(save=False)
+                        except Exception as e:
+                            import logging
+                            logger = logging.getLogger(__name__)
+                            logger.warning(f"Failed to delete file {file_field.name}: {e}")
+
+                transaction.on_commit(delete_files)
 
                 import logging
 
