@@ -25,6 +25,13 @@ class Tag(models.Model):
         ]
 
     def __str__(self):
+        """
+        Return a human-readable representation of the tag including its creator.
+        
+        Returns:
+            str: Formatted string "<name> (by <username>)" where <username> is the related user's
+            username or "user_<user_id>" if the related user object lacks a `username` attribute.
+        """
         try:
             username = self.user.username
         except AttributeError:
@@ -50,6 +57,12 @@ class VideoTag(models.Model):
         ]
 
     def __str__(self):
+        """
+        Provide a human-readable representation of this VideoTag combining the tag name and video title.
+        
+        Returns:
+            str: A string in the format "<tag_name> on <video_title>". If the related Tag or Video is missing, `tag_<tag_id>` or `video_<video_id>` is used respectively.
+        """
         try:
             tag_name = self.tag.name
         except AttributeError:
