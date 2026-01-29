@@ -41,6 +41,14 @@ class VideoGroup(models.Model):
         ]
 
     def __str__(self):
+        """
+        Return a human-readable representation of the VideoGroup including its name and owner's identifier.
+        
+        If the related user has a `username` attribute that can be accessed, that username is shown; otherwise the owner's numeric ID is used in the form `user_<id>`.
+        
+        Returns:
+            str: Formatted as "<name> (by <username>)" where `<username>` is the owner's username or "user_<user_id>" if username is not available.
+        """
         try:
             username = self.user.username
         except AttributeError:
@@ -70,6 +78,14 @@ class VideoGroupMember(models.Model):
         ]
 
     def __str__(self):
+        """
+        Provide a human-readable representation of the membership showing the video title and group name.
+        
+        The string is formatted as "<video_title> in <group_name>". If the related Video or VideoGroup is unavailable or lacks a title/name, the method falls back to "video_{video_id}" or "group_{group_id}" respectively.
+        
+        Returns:
+            str: The formatted membership representation.
+        """
         try:
             video_title = self.video.title
         except AttributeError:

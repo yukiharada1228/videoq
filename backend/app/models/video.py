@@ -5,6 +5,16 @@ from .storage import get_default_storage
 
 
 def user_directory_path(instance, filename):
+    """
+    Builds the upload path for a video's file using the video's user's id.
+    
+    Parameters:
+        instance: Model instance that has a related `user` attribute with an `id`.
+        filename: Original filename of the uploaded file.
+    
+    Returns:
+        The file path where the video should be stored, formatted as "videos/{user_id}/{filename}".
+    """
     return f"videos/{instance.user.id}/{filename}"
 
 
@@ -59,6 +69,14 @@ class Video(models.Model):
         ]
 
     def __str__(self):
+        """
+        Return a human-readable representation of the Video combining its title and uploader.
+        
+        If the related user has a `username` attribute, that username is used; otherwise the uploader is represented as `user_{user_id}`.
+        
+        Returns:
+            str: A string formatted as "{title} (by {username})".
+        """
         try:
             username = self.user.username
         except AttributeError:
