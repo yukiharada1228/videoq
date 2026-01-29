@@ -9,7 +9,9 @@ from .video import Video
 @receiver(post_delete, sender=Video)
 def delete_video_vectors_signal(sender, instance, **kwargs):
     """
-    Delete vector data from PGVector when Video is deleted
+    Remove PGVector embeddings associated with a Video instance when it is deleted.
+    
+    If vector deletion fails, a warning is logged and the failure does not prevent the Video deletion.
     """
     try:
         from app.utils.vector_manager import delete_video_vectors
@@ -26,16 +28,14 @@ def delete_video_vectors_signal(sender, instance, **kwargs):
 
 def _should_delete_videos(old_limit, new_limit):
     """
-    Determine if videos should be deleted based on limit change.
-
-    Returns True if:
-    - old_limit is None (unlimited) and new_limit is not None
-    - old_limit is a number and new_limit is a smaller number (including 0)
-
-    Returns False if:
-    - old_limit == new_limit (no change)
-    - new_limit is None (changing to unlimited)
-    - new_limit > old_limit (increasing limit)
+    Determine whether reducing a user's video limit should trigger deletion of existing videos.
+    
+    Parameters:
+        old_limit (int | None): Previous video limit; `None` means unlimited.
+        new_limit (int | None): New video limit to apply; `None` means unlimited.
+    
+    Returns:
+        bool: `true` if videos must be deleted to satisfy the new limit, `false` otherwise.
     """
     # No change
     if old_limit == new_limit:
@@ -59,8 +59,20 @@ def _should_delete_videos(old_limit, new_limit):
 @receiver(pre_save, sender=User)
 def handle_video_limit_reduction(sender, instance, **kwargs):
     """
-    Automatically delete excess videos when video_limit is reduced.
-    Deletes oldest videos first (based on uploaded_at ascending).
+    Delete a user's oldest videos when their `video_limit` is reduced.
+    
+    Skips new users (unsaved instances). If the new limit is lower than the previous limit (or the user is transitioning from unlimited to limited),
+    the handler deletes the oldest videos first until the user's stored videos satisfy the new limit. Deletion occurs inside a database transaction;
+    each video's file (if present) is removed before the video instance is deleted. Successful deletions are logged. On unexpected errors the error
+    is logged and the exception is re-raised to prevent saving the User with an inconsistent state.
+    
+    Parameters:
+        sender: The model class sending the signal (typically User).
+        instance: The User instance being saved (with the new `video_limit` applied).
+        **kwargs: Additional signal keyword arguments (ignored).
+    
+    Raises:
+        Exception: Any unexpected error encountered while deleting videos is logged and re-raised.
     """
     # Skip if this is a new user (not yet saved)
     if instance.pk is None:
