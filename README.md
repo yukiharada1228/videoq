@@ -137,6 +137,53 @@ docker compose restart backend celery-worker
 
 **Note:** If switching providers (e.g., OpenAI → Ollama), you must re-index existing videos.
 
+### Production Deployment
+
+#### Frontend Environment Configuration
+
+For production builds, configure the backend API URL using `.env.production`:
+
+**Same-server deployment (frontend and backend on same domain):**
+
+```bash
+# frontend/.env.production
+VITE_API_URL=/api
+```
+
+This uses a relative path, assuming both frontend and backend are served from the same domain (e.g., via Nginx reverse proxy).
+
+**Separate-server deployment (frontend and backend on different domains):**
+
+```bash
+# frontend/.env.production
+VITE_API_URL=https://backend.example.com/api
+```
+
+**Backend Configuration for Separate Domains:**
+
+When deploying frontend and backend on different domains, configure backend `.env`:
+
+```bash
+# Backend URL settings
+CORS_ALLOWED_ORIGINS=https://frontend.example.com
+SECURE_COOKIES=true  # Required for HTTPS
+ALLOWED_HOSTS=backend.example.com
+
+# Frontend URL (for email links)
+FRONTEND_URL=https://frontend.example.com
+```
+
+**Important:** For separate-domain deployment, you **must** use HTTPS. The `SameSite=None` cookie attribute (required for cross-origin authentication) only works over HTTPS.
+
+**Build and Deploy:**
+
+```bash
+cd frontend
+npm install
+npm run build  # Uses .env.production
+# Deploy the dist/ folder to your web server
+```
+
 ### Local LLM with Ollama (Optional)
 
 **1. Pull LLM Model**
