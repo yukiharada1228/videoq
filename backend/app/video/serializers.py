@@ -8,6 +8,16 @@ from app.tasks import transcribe_video
 logger = logging.getLogger(__name__)
 
 
+class RelativeFileField(serializers.FileField):
+    """Custom FileField that always returns relative URLs instead of absolute URLs"""
+
+    def to_representation(self, value):
+        if not value:
+            return None
+        # Return only the relative URL path (without host/port)
+        return value.url
+
+
 class UserOwnedSerializerMixin:
     """Common serializer base class for user-owned resources"""
 
@@ -29,6 +39,7 @@ class VideoSerializer(serializers.ModelSerializer):
     """Serializer for Video model"""
 
     tags = serializers.SerializerMethodField()
+    file = RelativeFileField(read_only=True)
 
     class Meta:
         model = Video
@@ -123,6 +134,7 @@ class VideoListSerializer(serializers.ModelSerializer):
     """Serializer for Video list"""
 
     tags = serializers.SerializerMethodField()
+    file = RelativeFileField(read_only=True)
 
     class Meta:
         model = Video
