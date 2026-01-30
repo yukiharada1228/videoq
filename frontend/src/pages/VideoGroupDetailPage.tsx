@@ -863,7 +863,7 @@ export default function VideoGroupDetailPage() {
                           key={selectedVideo.id}
                           controls
                           className="w-full h-full max-h-[400px] lg:max-h-[500px] rounded object-contain"
-                          src={selectedVideo.file}
+                          src={apiClient.getVideoUrl(selectedVideo.file)}
                           onCanPlay={handleVideoCanPlay}
                         >
                           {t('common.messages.browserNoVideoSupport')}

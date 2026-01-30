@@ -674,6 +674,12 @@ class ApiClient {
     return response.json();
   }
 
+  // Get video URL with correct origin
+  getVideoUrl(videoFile: string): string {
+    const url = new URL(videoFile, window.location.origin);
+    return url.toString();
+  }
+
   // Get video URL for shared group (add share_token as query parameter)
   getSharedVideoUrl(videoFile: string, shareToken: string): string {
     const url = new URL(videoFile, window.location.origin);
