@@ -147,13 +147,6 @@ describe('ApiClient', () => {
       expect(result).toBe('');
     });
 
-    it('should return empty string when videoFile is null', () => {
-      const videoFile = '';
-      const shareToken = 'abc123';
-      const result = apiClient.getSharedVideoUrl(videoFile, shareToken);
-      expect(result).toBe('');
-    });
-
     it('should preserve existing query parameters when adding share_token', () => {
       const videoFile = 'http://example.com/video.mp4?quality=hd';
       const shareToken = 'token123';
