@@ -59,6 +59,18 @@ describe('ApiClient', () => {
       const result = apiClient.getVideoUrl(videoFile);
       expect(result).toBe('http://localhost:60158/api/media/videos/1/video.mp4');
     });
+
+    it('should rewrite absolute API URL with frontend origin', () => {
+      const videoFile = 'http://localhost:8000/api/media/videos/1/video.mp4';
+      const result = apiClient.getVideoUrl(videoFile);
+      expect(result).toBe('http://localhost:3000/api/media/videos/1/video.mp4');
+    });
+
+    it('should preserve external URLs like S3 without rewriting', () => {
+      const videoFile = 'https://s3.amazonaws.com/bucket/videos/1/video.mp4';
+      const result = apiClient.getVideoUrl(videoFile);
+      expect(result).toBe('https://s3.amazonaws.com/bucket/videos/1/video.mp4');
+    });
   });
 
   describe('getSharedVideoUrl', () => {
@@ -97,6 +109,20 @@ describe('ApiClient', () => {
       const shareToken = 'test-token-abc';
       const result = apiClient.getSharedVideoUrl(videoFile, shareToken);
       expect(result).toBe('http://localhost:60158/api/media/videos/1/video.mp4?share_token=test-token-abc');
+    });
+
+    it('should rewrite absolute API URL with frontend origin and add share_token', () => {
+      const videoFile = 'http://localhost:8000/api/media/videos/1/video.mp4';
+      const shareToken = 'test-token-def';
+      const result = apiClient.getSharedVideoUrl(videoFile, shareToken);
+      expect(result).toBe('http://localhost:3000/api/media/videos/1/video.mp4?share_token=test-token-def');
+    });
+
+    it('should add share_token to external URLs like S3 without rewriting origin', () => {
+      const videoFile = 'https://s3.amazonaws.com/bucket/videos/1/video.mp4';
+      const shareToken = 'test-token-ghi';
+      const result = apiClient.getSharedVideoUrl(videoFile, shareToken);
+      expect(result).toBe('https://s3.amazonaws.com/bucket/videos/1/video.mp4?share_token=test-token-ghi');
     });
   });
 });

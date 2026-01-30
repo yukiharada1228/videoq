@@ -676,13 +676,31 @@ class ApiClient {
 
   // Get video URL with correct origin
   getVideoUrl(videoFile: string): string {
-    const url = new URL(videoFile, window.location.origin);
+    const baseOrigin = window.location.origin;
+    const apiOrigin = new URL(API_URL, baseOrigin).origin;
+    const url = new URL(videoFile, baseOrigin);
+
+    // Only rewrite URL if it's from the API origin (not external URLs like S3)
+    if (url.origin === apiOrigin) {
+      return new URL(`${url.pathname}${url.search}${url.hash}`, baseOrigin).toString();
+    }
     return url.toString();
   }
 
   // Get video URL for shared group (add share_token as query parameter)
   getSharedVideoUrl(videoFile: string, shareToken: string): string {
-    const url = new URL(videoFile, window.location.origin);
+    const baseOrigin = window.location.origin;
+    const apiOrigin = new URL(API_URL, baseOrigin).origin;
+    const url = new URL(videoFile, baseOrigin);
+
+    // Only rewrite URL if it's from the API origin (not external URLs like S3)
+    if (url.origin === apiOrigin) {
+      const rewrittenUrl = new URL(`${url.pathname}${url.search}${url.hash}`, baseOrigin);
+      rewrittenUrl.searchParams.set('share_token', shareToken);
+      return rewrittenUrl.toString();
+    }
+
+    // For external URLs, just add share_token
     url.searchParams.set('share_token', shareToken);
     return url.toString();
   }
