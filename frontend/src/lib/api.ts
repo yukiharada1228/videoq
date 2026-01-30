@@ -674,9 +674,43 @@ class ApiClient {
     return response.json();
   }
 
+  // Get video URL (convert relative URLs to absolute URLs using backend origin)
+  getVideoUrl(videoFile: string | null): string {
+    if (!videoFile) return '';
+
+    // If already absolute URL (http:// or https://), return as-is
+    if (videoFile.startsWith('http://') || videoFile.startsWith('https://')) {
+      return videoFile;
+    }
+
+    // Resolve baseUrl against window.location.origin to get proper backend URL
+    // This handles both absolute URLs (http://...) and relative paths (/api)
+    const resolvedBase = new URL(this.baseUrl, window.location.origin);
+
+    // For relative URLs
+    if (videoFile.startsWith('/')) {
+      // videoFile is an absolute path from origin, combine with origin only
+      return `${resolvedBase.origin}${videoFile}`;
+    }
+
+    // videoFile is a relative path, combine with base URL path to preserve base path segments
+    // Remove trailing slash from base pathname if exists to avoid duplicate slashes
+    const basePath = resolvedBase.pathname.replace(/\/$/, '');
+    return `${resolvedBase.origin}${basePath}/${videoFile}`;
+  }
+
   // Get video URL for shared group (add share_token as query parameter)
   getSharedVideoUrl(videoFile: string, shareToken: string): string {
-    const url = new URL(videoFile, window.location.origin);
+    // First convert to absolute URL using backend origin
+    const absoluteUrl = this.getVideoUrl(videoFile);
+
+    // If getVideoUrl returned empty string, return empty string
+    if (!absoluteUrl) {
+      return '';
+    }
+
+    // Then add share_token parameter
+    const url = new URL(absoluteUrl);
     url.searchParams.set('share_token', shareToken);
     return url.toString();
   }

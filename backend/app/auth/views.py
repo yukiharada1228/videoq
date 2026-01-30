@@ -75,12 +75,15 @@ class LoginView(PublicAPIView):
         )
 
         # Set JWT token in HttpOnly Cookie
+        # Use 'None' for SameSite when SECURE_COOKIES is True (cross-origin deployment)
+        samesite_value = "None" if settings.SECURE_COOKIES else "Lax"
+
         response.set_cookie(
             key="access_token",
             value=str(refresh.access_token),
             httponly=True,
             secure=settings.SECURE_COOKIES,  # Controlled by SECURE_COOKIES env var
-            samesite="Lax",
+            samesite=samesite_value,
             max_age=60 * 10,  # 10 minutes (same as ACCESS_TOKEN_LIFETIME)
         )
         response.set_cookie(
@@ -88,7 +91,7 @@ class LoginView(PublicAPIView):
             value=str(refresh),
             httponly=True,
             secure=settings.SECURE_COOKIES,  # Controlled by SECURE_COOKIES env var
-            samesite="Lax",
+            samesite=samesite_value,
             max_age=60 * 60 * 24 * 14,  # 14 days (same as REFRESH_TOKEN_LIFETIME)
         )
 
@@ -108,8 +111,19 @@ class LogoutView(AuthenticatedAPIView):
         response = create_success_response(message="Logged out successfully")
 
         # Delete HttpOnly Cookie
-        response.delete_cookie("access_token")
-        response.delete_cookie("refresh_token")
+        # Must use same samesite and secure values as set_cookie for proper deletion
+        samesite_value = "None" if settings.SECURE_COOKIES else "Lax"
+
+        response.delete_cookie(
+            key="access_token",
+            samesite=samesite_value,
+            secure=settings.SECURE_COOKIES,
+        )
+        response.delete_cookie(
+            key="refresh_token",
+            samesite=samesite_value,
+            secure=settings.SECURE_COOKIES,
+        )
 
         return response
 
@@ -150,12 +164,15 @@ class RefreshView(PublicAPIView):
         response = Response({"access": str(access)})
 
         # Set new access_token in HttpOnly Cookie
+        # Use 'None' for SameSite when SECURE_COOKIES is True (cross-origin deployment)
+        samesite_value = "None" if settings.SECURE_COOKIES else "Lax"
+
         response.set_cookie(
             key="access_token",
             value=str(access),
             httponly=True,
             secure=settings.SECURE_COOKIES,  # Controlled by SECURE_COOKIES env var
-            samesite="Lax",
+            samesite=samesite_value,
             max_age=60 * 10,  # 10 minutes (same as ACCESS_TOKEN_LIFETIME)
         )
 
