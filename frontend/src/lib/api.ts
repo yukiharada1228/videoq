@@ -683,28 +683,20 @@ class ApiClient {
       return videoFile;
     }
 
-    // For relative URLs, try to convert to absolute URL using backend origin
-    try {
-      // If relative URL starting with /, convert to absolute URL using backend origin
-      if (videoFile.startsWith('/')) {
-        // Extract origin from baseUrl (e.g., "http://localhost:8000/api" -> "http://localhost:8000")
-        const backendUrl = new URL(this.baseUrl);
-        return `${backendUrl.origin}${videoFile}`;
-      }
+    // Resolve baseUrl against window.location.origin to get proper backend URL
+    // This handles both absolute URLs (http://...) and relative paths (/api)
+    const resolvedBase = new URL(this.baseUrl, window.location.origin);
 
-      // If no leading slash, assume it's a relative path and add one
-      const backendUrl = new URL(this.baseUrl);
-      return `${backendUrl.origin}/${videoFile}`;
-    } catch (error) {
-      // If baseUrl is invalid, try to construct URL using current window origin
-      console.error('Failed to construct URL from baseUrl:', this.baseUrl, error);
-
-      // Fallback: use current window origin
-      if (videoFile.startsWith('/')) {
-        return `${window.location.origin}${videoFile}`;
-      }
-      return `${window.location.origin}/${videoFile}`;
+    // For relative URLs
+    if (videoFile.startsWith('/')) {
+      // videoFile is an absolute path from origin, combine with origin only
+      return `${resolvedBase.origin}${videoFile}`;
     }
+
+    // videoFile is a relative path, combine with base URL path to preserve base path segments
+    // Remove trailing slash from base pathname if exists to avoid duplicate slashes
+    const basePath = resolvedBase.pathname.replace(/\/$/, '');
+    return `${resolvedBase.origin}${basePath}/${videoFile}`;
   }
 
   // Get video URL for shared group (add share_token as query parameter)
