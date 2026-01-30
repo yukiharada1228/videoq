@@ -321,7 +321,7 @@ export default function VideoDetailPage() {
                   ref={videoRef}
                   controls
                   className="w-full rounded"
-                  src={apiClient.getVideoUrl(video.file)}
+                  src={video.file}
                   onLoadedMetadata={handleVideoLoaded}
                 >
                   {t('common.messages.browserNoVideoSupport')}
