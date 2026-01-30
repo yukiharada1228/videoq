@@ -1,7 +1,6 @@
 'use client';
 
 import type { VideoInGroup, VideoList as VideoListType } from '@/lib/api';
-import { apiClient } from '@/lib/api';
 import { Card, CardContent } from '@/components/ui/card';
 import { getStatusBadgeClassName, getStatusLabel, formatDate } from '@/lib/utils/video';
 import { Link } from '@/lib/i18n';
@@ -40,7 +39,7 @@ export function VideoCard({ video, showLink = true, className = '', onClick }: V
               muted
               playsInline
               preload="metadata"
-              src={apiClient.getVideoUrl(video.file)}
+              src={video.file}
               onMouseEnter={(e) => {
                 const video = e.currentTarget;
                 video.play().catch(() => {});
