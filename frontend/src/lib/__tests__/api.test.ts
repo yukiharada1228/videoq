@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 // Mock environment variable
 vi.stubGlobal('import.meta', {
@@ -10,7 +10,7 @@ vi.stubGlobal('import.meta', {
 // Import after mocking
 const { apiClient } = await import('../api');
 
-// Create a test instance with invalid baseUrl
+// Create a test instance with custom baseUrl
 class TestApiClient {
   private baseUrl: string;
 
@@ -25,22 +25,24 @@ class TestApiClient {
       return videoFile;
     }
 
-    try {
-      if (videoFile.startsWith('/')) {
-        const backendUrl = new URL(this.baseUrl);
-        return `${backendUrl.origin}${videoFile}`;
-      }
+    const resolvedBase = new URL(this.baseUrl, window.location.origin);
 
-      const backendUrl = new URL(this.baseUrl);
-      return `${backendUrl.origin}/${videoFile}`;
-    } catch (error) {
-      console.error('Failed to construct URL from baseUrl:', this.baseUrl, error);
-
-      if (videoFile.startsWith('/')) {
-        return `${window.location.origin}${videoFile}`;
-      }
-      return `${window.location.origin}/${videoFile}`;
+    if (videoFile.startsWith('/')) {
+      return `${resolvedBase.origin}${videoFile}`;
     }
+
+    const basePath = resolvedBase.pathname.replace(/\/$/, '');
+    return `${resolvedBase.origin}${basePath}/${videoFile}`;
+  }
+
+  getSharedVideoUrl(videoFile: string, shareToken: string): string {
+    const absoluteUrl = this.getVideoUrl(videoFile);
+    if (!absoluteUrl) {
+      return '';
+    }
+    const url = new URL(absoluteUrl);
+    url.searchParams.set('share_token', shareToken);
+    return url.toString();
   }
 }
 
@@ -84,24 +86,42 @@ describe('ApiClient', () => {
       expect(result).toBe('http://localhost:8000/api/media/videos/1/video.mp4');
     });
 
-    it('should convert relative URL without leading slash to absolute URL using backend origin', () => {
+    it('should convert relative URL without leading slash to absolute URL using backend origin and base path', () => {
       const relativeUrl = 'media/videos/1/video.mp4';
       const result = apiClient.getVideoUrl(relativeUrl);
-      expect(result).toBe('http://localhost:8000/media/videos/1/video.mp4');
+      // Should preserve /api base path: http://localhost:8000/api/media/videos/1/video.mp4
+      expect(result).toBe('http://localhost:8000/api/media/videos/1/video.mp4');
     });
 
-    it('should fallback to window.location.origin when baseUrl is invalid (with leading slash)', () => {
-      const invalidClient = new TestApiClient('invalid-url');
-      const relativeUrl = '/api/media/video.mp4';
-      const result = invalidClient.getVideoUrl(relativeUrl);
-      expect(result).toBe('http://frontend.example.com/api/media/video.mp4');
+    it('should handle relative baseUrl (e.g., "/api") correctly with absolute path videoFile', () => {
+      const relativeBaseClient = new TestApiClient('/api');
+      const videoFile = '/media/videos/1/video.mp4';
+      const result = relativeBaseClient.getVideoUrl(videoFile);
+      // Relative baseUrl resolved against window.location.origin
+      expect(result).toBe('http://frontend.example.com/media/videos/1/video.mp4');
     });
 
-    it('should fallback to window.location.origin when baseUrl is invalid (without leading slash)', () => {
-      const invalidClient = new TestApiClient('invalid-url');
-      const relativeUrl = 'media/video.mp4';
-      const result = invalidClient.getVideoUrl(relativeUrl);
-      expect(result).toBe('http://frontend.example.com/media/video.mp4');
+    it('should handle relative baseUrl (e.g., "/api") correctly with relative path videoFile', () => {
+      const relativeBaseClient = new TestApiClient('/api');
+      const videoFile = 'media/videos/1/video.mp4';
+      const result = relativeBaseClient.getVideoUrl(videoFile);
+      // Should preserve /api base path
+      expect(result).toBe('http://frontend.example.com/api/media/videos/1/video.mp4');
+    });
+
+    it('should avoid duplicate slashes when combining base path and videoFile', () => {
+      const clientWithTrailingSlash = new TestApiClient('http://localhost:8000/api/');
+      const videoFile = 'media/video.mp4';
+      const result = clientWithTrailingSlash.getVideoUrl(videoFile);
+      // Should not have duplicate slashes
+      expect(result).toBe('http://localhost:8000/api/media/video.mp4');
+    });
+
+    it('should preserve base path segments when baseUrl has multiple path segments', () => {
+      const clientWithDeepPath = new TestApiClient('/api/v1');
+      const videoFile = 'media/video.mp4';
+      const result = clientWithDeepPath.getVideoUrl(videoFile);
+      expect(result).toBe('http://frontend.example.com/api/v1/media/video.mp4');
     });
   });
 
@@ -148,11 +168,20 @@ describe('ApiClient', () => {
       expect(result).toBe('https://secure.example.com/video.mp4?share_token=secure123');
     });
 
-    it('should handle relative URLs without leading slash', () => {
+    it('should handle relative URLs without leading slash and preserve base path', () => {
       const videoFile = 'media/video.mp4';
       const shareToken = 'token456';
       const result = apiClient.getSharedVideoUrl(videoFile, shareToken);
-      expect(result).toBe('http://localhost:8000/media/video.mp4?share_token=token456');
+      // Should preserve /api base path
+      expect(result).toBe('http://localhost:8000/api/media/video.mp4?share_token=token456');
+    });
+
+    it('should work with relative baseUrl and preserve base path', () => {
+      const relativeBaseClient = new TestApiClient('/api');
+      const videoFile = 'media/video.mp4';
+      const shareToken = 'token789';
+      const result = relativeBaseClient.getSharedVideoUrl(videoFile, shareToken);
+      expect(result).toBe('http://frontend.example.com/api/media/video.mp4?share_token=token789');
     });
   });
 });
