@@ -229,6 +229,9 @@ if _cors_allowed_origins_env:
 else:
     CORS_ALLOWED_ORIGINS = DefaultSettings.CORS_ALLOWED_ORIGINS
 
+# CORS: Allow credentials (required for HttpOnly Cookie authentication across origins)
+CORS_ALLOW_CREDENTIALS = True
+
 # Celery Configuration
 CELERY_BROKER_URL = os.environ.get(
     "CELERY_BROKER_URL", DefaultSettings.CELERY_BROKER_URL
@@ -252,6 +255,21 @@ SECURE_COOKIES = (
     os.environ.get("SECURE_COOKIES", str(DefaultSettings.SECURE_COOKIES)).lower()
     == "true"
 )
+
+# Session Cookie settings for cross-origin deployment
+# When frontend and backend are on different origins, SameSite must be 'None' and Secure must be True
+SESSION_COOKIE_SAMESITE = "None" if SECURE_COOKIES else "Lax"
+SESSION_COOKIE_SECURE = SECURE_COOKIES
+SESSION_COOKIE_HTTPONLY = True  # Prevent XSS attacks
+
+# CSRF Cookie settings for cross-origin deployment
+CSRF_COOKIE_SAMESITE = "None" if SECURE_COOKIES else "Lax"
+CSRF_COOKIE_SECURE = SECURE_COOKIES
+CSRF_COOKIE_HTTPONLY = False  # JavaScript needs to read CSRF token
+
+# CSRF trusted origins (required for cross-origin POST requests)
+# Use same origins as CORS_ALLOWED_ORIGINS
+CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
 
 # Storage configuration
 USE_S3_STORAGE = (
