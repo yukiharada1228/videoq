@@ -71,6 +71,21 @@ Open [http://localhost](http://localhost) in your browser and you're ready to go
 - **Admin Panel:** [http://localhost/api/admin](http://localhost/api/admin) (manage users, videos)
 - **API Docs:** [http://localhost/api/docs/](http://localhost/api/docs/) (for developers)
 
+### 📋 User Management
+
+**Important:** New users are created with a video upload limit of 0 (no uploads allowed). As an administrator, you need to set appropriate video limits for users through the admin panel.
+
+**To set video limits:**
+1. Go to the [Admin Panel](http://localhost/api/admin)
+2. Click on "Users" 
+3. Select a user to edit
+4. Set the "Video limit" field:
+   - `0` = No uploads allowed (default for new users)
+   - Any positive number = Maximum videos the user can upload
+   - Leave blank = Unlimited uploads
+
+This design ensures administrators have full control over resource usage and user permissions.
+
 ## 💰 Want to save money? Use local alternatives
 
 VideoQ can run completely offline using free, local AI models. This eliminates OpenAI costs entirely!
