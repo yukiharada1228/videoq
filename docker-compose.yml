@@ -72,9 +72,23 @@ services:
     networks:
       - videoq-network
 
+  stripe-cli:
+    image: stripe/stripe-cli:latest
+    container_name: videoq-stripe-cli
+    command: listen --api-key ${STRIPE_SECRET_KEY} --forward-to backend:8000/webhooks/stripe
+    env_file:
+      - .env
+    environment:
+      - STRIPE_API_KEY=${STRIPE_SECRET_KEY}
+    depends_on:
+      - backend
+    networks:
+      - videoq-network
+
 volumes:
   staticfiles:
   postgres_data:
+
 
 networks:
   videoq-network:
