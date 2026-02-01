@@ -65,6 +65,11 @@ class DefaultSettings:
     OPENAI_API_KEY = ""  # OpenAI API key (from environment variable)
     LLM_MODEL = "gpt-4o-mini"  # Default LLM model (provider-agnostic)
 
+    # Stripe configuration (for billing)
+    STRIPE_SECRET_KEY = ""  # Stripe secret key (from environment variable)
+    STRIPE_PUBLISHABLE_KEY = ""  # Stripe publishable key (from environment variable)
+    STRIPE_WEBHOOK_SECRET = ""  # Stripe webhook secret (from environment variable)
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -380,3 +385,14 @@ OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", DefaultSettings.OLLAMA_BASE_
 LLM_PROVIDER = os.environ.get("LLM_PROVIDER", DefaultSettings.LLM_PROVIDER).lower()
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", DefaultSettings.OPENAI_API_KEY)
 LLM_MODEL = os.environ.get("LLM_MODEL", DefaultSettings.LLM_MODEL)
+
+# Stripe configuration
+STRIPE_SECRET_KEY = os.environ.get(
+    "STRIPE_SECRET_KEY", DefaultSettings.STRIPE_SECRET_KEY
+)
+STRIPE_PUBLISHABLE_KEY = os.environ.get(
+    "STRIPE_PUBLISHABLE_KEY", DefaultSettings.STRIPE_PUBLISHABLE_KEY
+)
+STRIPE_WEBHOOK_SECRET = os.environ.get(
+    "STRIPE_WEBHOOK_SECRET", DefaultSettings.STRIPE_WEBHOOK_SECRET
+)
