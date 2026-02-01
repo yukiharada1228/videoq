@@ -288,8 +288,10 @@ npm run build  # Creates dist/ folder
 - Make sure there are no extra spaces in the key
 
 **"Video upload fails"**
-- Check Docker has enough disk space
+- Check your host system has enough disk space (videos are stored in `./backend/media/`)
 - Verify video format is supported (MP4, MOV, AVI, etc.)
+- For large videos (>1GB), nginx is configured to allow up to 1000MB uploads
+- Check nginx logs if upload stops: `docker compose logs nginx`
 
 **"Transcription is slow"**
 - Consider using local Whisper (see cost-saving section above)
