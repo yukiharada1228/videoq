@@ -2,6 +2,8 @@
 
 An AI video navigator that allows you to search and ask questions simply by uploading videos.
 
+![VideoQ Application Screenshot](assets/videoq-app-screenshot.png)
+
 ## Quick Start
 
 Get VideoQ up and running in minutes using Docker.
