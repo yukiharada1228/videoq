@@ -1,243 +1,184 @@
 # VideoQ
 
-An AI video navigator that allows you to search and ask questions simply by uploading videos.
+🎥 **Upload videos. Ask questions. Get instant answers.**
+
+VideoQ is an AI-powered video navigator that automatically transcribes your videos and lets you chat with them using natural language.
+
+**[日本語版README](README.ja.md) | [English README](README.md)**
 
 ![VideoQ Application Screenshot](assets/videoq-app-screenshot.png)
 
-## Quick Start
+## ✨ What can you do?
 
-Get VideoQ up and running in minutes using Docker.
+- **Upload any video** - MP4, MOV, AVI, and more
+- **Ask questions** - "What did they say about the budget?" or "Summarize the key points"
+- **Search content** - Find specific moments without scrubbing through hours of footage
+- **Organize with tags** - Keep your videos organized with custom tags and colors
+- **Share insights** - Create shareable groups of videos for team collaboration
 
-### Prerequisites
+## 🚀 Quick Start (5 minutes)
 
--   [Docker](https://docs.docker.com/get-docker/) & [Docker Compose](https://docs.docker.com/compose/install/)
+### What you'll need
 
-### 1. Environment Setup
+- [Docker](https://docs.docker.com/get-docker/) & [Docker Compose](https://docs.docker.com/compose/install/) installed
+- An [OpenAI API key](https://platform.openai.com/api-keys) (don't worry, we'll show you how to get one)
 
-Copy the example environment file:
+### Step 1: Get your OpenAI API key
+
+1. Go to [OpenAI Platform](https://platform.openai.com/api-keys)
+2. Sign up or log in
+3. Click "Create new secret key"
+4. Copy the key (starts with `sk-...`)
+
+
+
+### Step 2: Set up VideoQ
 
 ```bash
+# Clone and enter the project
+git clone https://github.com/yukiharada1228/videoq.git
+cd videoq
+
+# Copy the configuration file
 cp .env.example .env
 ```
 
-(Optional) Edit `.env` to configure settings. The default configuration is ready for local development.
-
-### 2. Start Services
-
-Start the application in the background:
+Now edit the `.env` file and add your OpenAI API key:
 
 ```bash
-docker compose up --build -d
+OPENAI_API_KEY=sk-your-key-here
 ```
 
-### 3. Initial Setup
-
-Run the following commands to set up the database and create an admin user:
+### Step 3: Start VideoQ
 
 ```bash
-# Apply database migrations
-docker compose exec backend python manage.py migrate
+# Start all services (this might take a few minutes the first time)
+docker compose up --build -d
 
-# Collect static files (for admin panel)
+# Set up the database
+docker compose exec backend python manage.py migrate
 docker compose exec backend python manage.py collectstatic --noinput
 
-# Create a superuser (for admin panel access)
+# Create your admin account
 docker compose exec backend python manage.py createsuperuser
 ```
 
-### 4. Access the Application
+### Step 4: Start using VideoQ!
 
--   **Frontend:** [http://localhost](http://localhost)
--   **Backend API:** [http://localhost/api](http://localhost/api)
--   **Admin Panel:** [http://localhost/api/admin](http://localhost/api/admin)
--   **API Documentation:** [Swagger](http://localhost/api/docs/) | [ReDoc](http://localhost/api/redoc/)
+Open [http://localhost](http://localhost) in your browser and you're ready to go!
 
-## Features
+**Other useful links:**
+- **Admin Panel:** [http://localhost/api/admin](http://localhost/api/admin) (manage users, videos)
+- **API Docs:** [http://localhost/api/docs/](http://localhost/api/docs/) (for developers)
 
--   **Authentication**: JWT via HttpOnly cookies (email verification + password reset)
--   **Video upload**: Supports multiple formats
--   **Upload limit**: Per-user limit via `User.video_limit` (`NULL` = unlimited, `0` = disabled)
--   **Automatic transcription**: Async processing via Celery (Whisper API)
--   **AI chat**: RAG using pgvector (OpenAI API)
--   **Tag management**: Organize videos with custom tags (name + color)
--   **Group management**: Group multiple videos and reorder them with drag-and-drop
--   **Sharing**: Share groups via share token (guest viewing/chat)
--   **Protected media delivery**: Served only with auth/share token
--   **Internationalization**: Multi-language support with i18next
+## 💰 Want to save money? Use local alternatives
 
-## Advanced Configuration
+VideoQ can run completely offline using free, local AI models. This eliminates OpenAI costs entirely!
 
-### Local Whisper Transcription (Optional)
+<details>
+<summary><strong>🖥️ Local Whisper (Free transcription)</strong></summary>
 
-Use a local whisper.cpp server for faster, cost-free GPU-accelerated transcription.
+Use your computer's GPU for faster, cost-free transcription.
 
-**1. Quick Setup**
+**Quick setup:**
 
 ```bash
-# 1. Initialize submodule (from VideoQ root)
+# 1. Get whisper.cpp (from VideoQ root directory)
 git submodule update --init --recursive
 cd whisper.cpp
 
-# 2. Build whisper.cpp
+# 2. Build it
 cmake -B build
 cmake --build build -j --config Release
 
-# 3. Download model
+# 3. Download a model
 bash ./models/download-ggml-model.sh large-v3-turbo
 
-# 4. Start server (macOS/Linux)
+# 4. Start the server
 ./build/bin/whisper-server -m models/ggml-large-v3-turbo.bin --inference-path /audio/transcriptions
-# Windows users: ./build/bin/Release/whisper-server.exe ...
 ```
 
-**2. Configure VideoQ**
+**Configure VideoQ to use it:**
 
-Update `.env` in VideoQ root:
-
+Edit your `.env` file:
 ```bash
 WHISPER_BACKEND=whisper.cpp
 WHISPER_LOCAL_URL=http://host.docker.internal:8080
 ```
 
-Restart services:
+Then restart: `docker compose restart backend celery-worker`
 
+</details>
+
+<details>
+<summary><strong>🤖 Local AI Chat with Ollama (Free ChatGPT alternative)</strong></summary>
+
+**Install Ollama:**
+1. Download from [ollama.com](https://ollama.com)
+2. Install and run it
+
+**Get a model:**
 ```bash
-docker compose restart backend celery-worker
+ollama pull qwen3:0.6b  # Small, fast model
+# or
+ollama pull llama3:8b   # Larger, more capable model
 ```
 
-**GPU Acceleration:**
--   **macOS**: Enabled by default via Metal.
--   **Windows/Linux**: Rebuild with `cmake -B build -DGGML_CUDA=1` (NVIDIA) or `-DGGML_VULKAN=1` (Other).
+**Configure VideoQ:**
 
-### Local Embedding Models with Ollama (Optional)
-
-VideoQ supports local embedding generation using Ollama, eliminating the need for OpenAI API keys for embeddings.
-
-**1. Install Ollama & Pull Model**
-
-Download from [ollama.com](https://ollama.com).
-
-```bash
-ollama pull qwen3-embedding:0.6b
-```
-
-**2. Configure VideoQ**
-
-Update `.env`:
-
-```bash
-EMBEDDING_PROVIDER=ollama
-EMBEDDING_MODEL=qwen3-embedding:0.6b
-OLLAMA_BASE_URL=http://host.docker.internal:11434
-```
-
-**3. Restart services**
-
-```bash
-docker compose restart backend celery-worker
-```
-
-**Note:** If switching providers (e.g., OpenAI → Ollama), you must re-index existing videos.
-
-### Production Deployment
-
-#### Frontend Environment Configuration
-
-For production builds, configure the backend API URL using `.env.production`:
-
-**Same-server deployment (frontend and backend on same domain):**
-
-```bash
-# frontend/.env.production
-VITE_API_URL=/api
-```
-
-This uses a relative path, assuming both frontend and backend are served from the same domain (e.g., via Nginx reverse proxy).
-
-**Separate-server deployment (frontend and backend on different domains):**
-
-```bash
-# frontend/.env.production
-VITE_API_URL=https://backend.example.com/api
-```
-
-**Backend Configuration for Separate Domains:**
-
-When deploying frontend and backend on different domains, configure backend `.env`:
-
-```bash
-# Backend URL settings
-CORS_ALLOWED_ORIGINS=https://frontend.example.com
-SECURE_COOKIES=true  # Required for HTTPS
-ALLOWED_HOSTS=backend.example.com
-
-# Frontend URL (for email links)
-FRONTEND_URL=https://frontend.example.com
-```
-
-**Important:** For separate-domain deployment, you **must** use HTTPS. The `SameSite=None` cookie attribute (required for cross-origin authentication) only works over HTTPS.
-
-**Build and Deploy:**
-
-```bash
-cd frontend
-npm install
-npm run build  # Uses .env.production
-# Deploy the dist/ folder to your web server
-```
-
-### Local LLM with Ollama (Optional)
-
-**1. Pull LLM Model**
-
-```bash
-ollama pull qwen3:0.6b
-```
-
-**2. Configure VideoQ**
-
-Update `.env`:
-
+Edit your `.env` file:
 ```bash
 LLM_PROVIDER=ollama
 LLM_MODEL=qwen3:0.6b
 OLLAMA_BASE_URL=http://host.docker.internal:11434
 ```
 
-**3. Restart services**
+Then restart: `docker compose restart backend celery-worker`
 
+</details>
+
+<details>
+<summary><strong>🔍 Local Embeddings (Free text search)</strong></summary>
+
+**Get an embedding model:**
 ```bash
-docker compose restart backend celery-worker
+ollama pull qwen3-embedding:0.6b
 ```
 
-### Re-indexing Video Embeddings
+**Configure VideoQ:**
 
-When switching embedding providers or models, you must re-index existing videos.
+Edit your `.env` file:
+```bash
+EMBEDDING_PROVIDER=ollama
+EMBEDDING_MODEL=qwen3-embedding:0.6b
+OLLAMA_BASE_URL=http://host.docker.internal:11434
+```
 
-1.  Update `.env` with new embedding settings and restart services.
-2.  Go to Django Admin: `http://localhost/api/admin`.
-3.  Select **Videos**.
-4.  Select any/all videos and choose **"Re-index video embeddings"** from the Actions dropdown.
-5.  Click **"Go"**. This runs in the background via Celery.
+Then restart: `docker compose restart backend celery-worker`
 
-## Development
+**Important:** If you switch from OpenAI to local embeddings, you'll need to re-index your existing videos in the admin panel.
 
-### Frontend-only Development
+</details>
 
-For faster frontend iteration without Docker:
+## 🛠️ Development & Customization
 
-1.  Ensure backend is running (Docker or local).
-2.  Run frontend dev server:
+<details>
+<summary><strong>Frontend Development</strong></summary>
+
+Want to customize the UI? Run the frontend separately for faster development:
 
 ```bash
 cd frontend
 npm install
-npm run dev
+npm run dev  # Runs at http://localhost:3000
 ```
 
-Server runs at `http://localhost:3000`.
+Make sure the backend is still running via Docker.
 
-### Backend Development
+</details>
+
+<details>
+<summary><strong>Backend Development</strong></summary>
 
 ```bash
 cd backend
@@ -245,7 +186,10 @@ pip install -r requirements.txt
 python manage.py runserver
 ```
 
-### Running Tests
+</details>
+
+<details>
+<summary><strong>Running Tests</strong></summary>
 
 **Frontend:**
 ```bash
@@ -260,66 +204,111 @@ cd backend
 python manage.py test
 ```
 
-### Code Quality
+</details>
 
--   **Frontend:** `npm run lint`
--   **Backend:** `black .` and `isort .`
-
-### Common Docker Commands
+<details>
+<summary><strong>Useful Docker Commands</strong></summary>
 
 ```bash
-docker compose ps                                          # List services
-docker compose logs -f                                     # Follow all logs
-docker compose logs -f backend celery-worker               # Follow specific services
+docker compose ps                                          # See what's running
+docker compose logs -f                                     # Watch all logs
+docker compose logs -f backend                             # Watch backend logs only
 docker compose exec backend python manage.py shell         # Django shell
-docker compose down                                        # Stop services
+docker compose down                                        # Stop everything
+docker compose restart backend                             # Restart just backend
 ```
 
-## System Architecture
+</details>
 
-### Overview
+## 🏗️ How it works
 
--   **Frontend**: React (Vite) SPA
--   **Backend**: Django REST Framework
--   **Database**: PostgreSQL + pgvector
--   **Async Tasks**: Celery + Redis
--   **Proxy**: Nginx
+VideoQ is built with modern, reliable technologies:
 
-The default local setup (see `docker-compose.yml`) exposes Nginx on port 80, which routes requests to frontend and backend.
+**Frontend:** React + TypeScript + Tailwind CSS  
+**Backend:** Django + PostgreSQL + Redis  
+**AI:** OpenAI APIs + pgvector for semantic search  
+**Infrastructure:** Docker + Nginx
 
-### Data Flow
+**The magic happens like this:**
+1. **Upload** → Video saved securely
+2. **Transcribe** → AI converts speech to text  
+3. **Index** → Text broken into searchable chunks
+4. **Chat** → Your questions matched against video content
+5. **Answer** → AI responds with relevant context
 
-1.  **Video Upload**: User uploads video → Django saves to storage.
-2.  **Transcription**: Celery task → Whisper API (or local) → save transcript to DB.
-3.  **Vectorization**: Transcript chunked → Embeddings → stored in pgvector.
-4.  **Chat**: User question → embedded → vector search → LLM answer.
+## 🚀 Production Deployment
 
-### Tech Stack
+<details>
+<summary><strong>Deploy to your own server</strong></summary>
 
-#### Backend
--   **Django 5.2+**, **Django REST Framework**
--   **Celery 5.5+**, **Redis**
--   **PostgreSQL 17**, **pgvector**
--   **LangChain**, **OpenAI API**, **Ollama**
+**Frontend Configuration:**
 
-#### Frontend
--   **React 19.2**, **TypeScript 5.9**, **Vite 7.2**
--   **Tailwind CSS 4.1**, **Radix UI**, **Lucide React**
--   **React Router 7.1**, **React Hook Form**, **Zod**
--   **i18next**
+Create `frontend/.env.production`:
 
-### Security
+```bash
+# Same domain (recommended)
+VITE_API_URL=/api
 
--   **Authentication**: JWT in HttpOnly cookies.
--   **Media Protection**: Served via Nginx with auth validation.
--   **CORS**: Configurable allowed origins.
+# Or different domain
+VITE_API_URL=https://api.yourdomain.com/api
+```
 
-### Scalability
+**Backend Configuration:**
 
--   **Celery**: Horizontal scaling for transcription/indexing.
--   **Storage**: S3-compatible support (django-storages).
--   **Database**: pgvector for efficient vector search.
+Update your `.env`:
 
-## License
+```bash
+ALLOWED_HOSTS=yourdomain.com
+CORS_ALLOWED_ORIGINS=https://yourdomain.com
+SECURE_COOKIES=true
+FRONTEND_URL=https://yourdomain.com
+```
+
+**Build and deploy:**
+
+```bash
+cd frontend
+npm run build  # Creates dist/ folder
+# Upload dist/ to your web server
+```
+
+**Important:** Use HTTPS in production for security.
+
+</details>
+
+## ❓ Troubleshooting
+
+**"I can't access VideoQ at localhost"**
+- Make sure Docker is running: `docker compose ps`
+- Check if services started: `docker compose logs`
+
+**"OpenAI API errors"**
+- Verify your API key is correct in `.env`
+- Check your OpenAI account has credits
+- Make sure there are no extra spaces in the key
+
+**"Video upload fails"**
+- Check your host system has enough disk space (videos are stored in `./backend/media/`)
+- Verify video format is supported (MP4, MOV, AVI, etc.)
+- For large videos (>1GB), nginx is configured to allow up to 1000MB uploads
+- Check nginx logs if upload stops: `docker compose logs nginx`
+
+**"Transcription is slow"**
+- Consider using local Whisper (see cost-saving section above)
+- Larger videos take longer - this is normal
+
+**Need more help?** Check the logs: `docker compose logs -f`
+
+## 🤝 Contributing
+
+Found a bug? Want to add a feature? Contributions are welcome!
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if needed
+5. Submit a pull request
+
+## 📄 License
 
 See [LICENSE](LICENSE) file for details.
