@@ -9,11 +9,10 @@
  * API Contract: /specs/001-stripe-billing/contracts/billing-api.yaml
  */
 
-import {
+import type {
     SubscriptionPlan,
     UserSubscription,
     UsageRecord,
-    PaymentTransaction,
     CheckoutSessionResponse,
     CheckoutSessionRequest,
     UsageCheckRequest,
@@ -230,7 +229,11 @@ class BillingService {
             }
 
             // For other error status codes, handle normally
+            // handleError always throws, but TypeScript can't infer that
             await this.handleError(response);
+
+            // This line will never be reached, but satisfies TypeScript
+            throw new Error('Unexpected error in checkUsageLimit');
         } catch (error) {
             this.logError('Usage check failed:', error);
             throw error;
