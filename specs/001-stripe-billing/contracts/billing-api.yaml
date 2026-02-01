@@ -1,0 +1,575 @@
+openapi: 3.0.3
+info:
+  title: VideoQ Billing API
+  description: Stripe-based subscription billing and usage tracking API
+  version: 1.0.0
+  contact:
+    name: VideoQ Development Team
+
+servers:
+  - url: http://localhost:8000/api
+    description: Local development server
+  - url: https://api.videoq.com
+    description: Production server
+
+security:
+  - JWTAuth: []
+
+tags:
+  - name: Plans
+    description: Subscription plan management
+  - name: Subscriptions
+    description: User subscription lifecycle
+  - name: Usage
+    description: Usage tracking and limits
+  - name: Webhooks
+    description: Stripe webhook handlers
+
+paths:
+  /billing/plans:
+    get:
+      tags:
+        - Plans
+      summary: List all active subscription plans
+      description: Returns all available subscription plans for user selection
+      operationId: listPlans
+      security: []  # Public endpoint
+      responses:
+        '200':
+          description: List of subscription plans
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SubscriptionPlan'
+              example:
+                - id: 1
+                  name: Free
+                  slug: free
+                  description: Perfect for trying out VideoQ
+                  price_cents: 0
+                  currency: USD
+                  video_limit: 3
+                  transcription_limit_minutes: 30
+                  features:
+                    - "3 videos"
+                    - "30 minutes transcription/month"
+                  sort_order: 0
+                - id: 2
+                  name: Standard
+                  slug: standard
+                  description: For individual professionals
+                  price_cents: 1200
+                  currency: USD
+                  video_limit: 50
+                  transcription_limit_minutes: 300
+                  features:
+                    - "50 videos"
+                    - "5 hours transcription/month"
+                  sort_order: 1
+
+  /billing/subscription:
+    get:
+      tags:
+        - Subscriptions
+      summary: Get current user's subscription
+      description: Returns authenticated user's active subscription with plan details
+      operationId: getSubscription
+      responses:
+        '200':
+          description: User subscription details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSubscription'
+        '404':
+          description: User has no active subscription
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /billing/subscription/checkout:
+    post:
+      tags:
+        - Subscriptions
+      summary: Create Stripe Checkout session for upgrade
+      description: Initiates subscription upgrade/creation via Stripe Checkout
+      operationId: createCheckoutSession
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - plan_id
+              properties:
+                plan_id:
+                  type: integer
+                  description: ID of the plan to subscribe to
+                  example: 2
+                success_url:
+                  type: string
+                  format: uri
+                  description: URL to redirect after successful payment
+                  example: "https://videoq.com/billing/success"
+                cancel_url:
+                  type: string
+                  format: uri
+                  description: URL to redirect if user cancels
+                  example: "https://videoq.com/billing"
+      responses:
+        '200':
+          description: Checkout session created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  checkout_url:
+                    type: string
+                    format: uri
+                    description: Stripe Checkout URL to redirect user
+                    example: "https://checkout.stripe.com/c/pay/cs_test_..."
+                  session_id:
+                    type: string
+                    description: Stripe Checkout Session ID
+                    example: "cs_test_a1b2c3d4..."
+        '400':
+          description: Invalid plan or user already on requested plan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: User cannot upgrade (e.g., payment method required)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /billing/subscription/cancel:
+    post:
+      tags:
+        - Subscriptions
+      summary: Cancel subscription at period end
+      description: Schedules subscription cancellation at the end of current billing period
+      operationId: cancelSubscription
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                immediate:
+                  type: boolean
+                  description: If true, cancel immediately (admin only)
+                  default: false
+                  example: false
+      responses:
+        '200':
+          description: Subscription cancellation scheduled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSubscription'
+              example:
+                id: 42
+                plan:
+                  id: 2
+                  name: Standard
+                status: active
+                cancel_at_period_end: true
+                current_period_end: "2026-03-01T14:30:00Z"
+                message: "Your subscription will be cancelled on March 1, 2026. You will retain access until then."
+        '404':
+          description: No active subscription to cancel
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /billing/subscription/reactivate:
+    post:
+      tags:
+        - Subscriptions
+      summary: Reactivate cancelled subscription
+      description: Cancels a scheduled cancellation, reactivating the subscription
+      operationId: reactivateSubscription
+      responses:
+        '200':
+          description: Subscription reactivated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSubscription'
+        '400':
+          description: Subscription not scheduled for cancellation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /billing/usage:
+    get:
+      tags:
+        - Usage
+      summary: Get current billing period usage
+      description: Returns user's usage statistics for the current billing period
+      operationId: getUsage
+      responses:
+        '200':
+          description: Usage statistics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsageRecord'
+              example:
+                billing_period_start: "2026-02-01T14:30:00Z"
+                billing_period_end: "2026-03-01T14:30:00Z"
+                video_count: 12
+                video_limit: 50
+                video_usage_percentage: 24.0
+                transcription_seconds: 7200
+                transcription_minutes: 120
+                transcription_limit_minutes: 300
+                transcription_usage_percentage: 40.0
+                warnings:
+                  - threshold: 80
+                    resource: transcription
+                    reached: false
+                updated_at: "2026-02-20T09:20:00Z"
+        '404':
+          description: No usage data for current period
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /billing/usage/check:
+    post:
+      tags:
+        - Usage
+      summary: Check if action is allowed under current limits
+      description: Pre-flight check for video upload or transcription requests
+      operationId: checkUsageLimit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - action
+              properties:
+                action:
+                  type: string
+                  enum: [upload_video, transcribe_video]
+                  description: Action to validate
+                  example: "upload_video"
+                estimated_duration_seconds:
+                  type: integer
+                  description: Estimated transcription duration (for transcribe action)
+                  example: 300
+      responses:
+        '200':
+          description: Action is allowed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  allowed:
+                    type: boolean
+                    example: true
+                  reason:
+                    type: string
+                    nullable: true
+                    example: null
+                  current_usage:
+                    $ref: '#/components/schemas/UsageRecord'
+        '403':
+          description: Action not allowed due to limits
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  allowed:
+                    type: boolean
+                    example: false
+                  reason:
+                    type: string
+                    example: "Video limit reached (50/50). Upgrade to upload more."
+                  upgrade_url:
+                    type: string
+                    format: uri
+                    example: "/billing"
+
+  /billing/history:
+    get:
+      tags:
+        - Subscriptions
+      summary: Get billing and payment history
+      description: Returns user's payment transactions and subscription changes
+      operationId: getBillingHistory
+      parameters:
+        - name: limit
+          in: query
+          description: Number of records to return
+          schema:
+            type: integer
+            default: 10
+            maximum: 100
+        - name: offset
+          in: query
+          description: Pagination offset
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Billing history
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                    example: 3
+                  transactions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PaymentTransaction'
+
+  /billing/webhook/stripe:
+    post:
+      tags:
+        - Webhooks
+      summary: Stripe webhook receiver
+      description: Handles Stripe webhook events (signature verification required)
+      operationId: handleStripeWebhook
+      security: []  # Uses Stripe signature, not JWT
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Stripe Event object
+      responses:
+        '200':
+          description: Webhook received and queued for processing
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  received:
+                    type: boolean
+                    example: true
+                  event_id:
+                    type: string
+                    example: "evt_1O5KaBC..."
+        '400':
+          description: Invalid signature or malformed payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  securitySchemes:
+    JWTAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token from /api/auth/login endpoint
+
+  schemas:
+    SubscriptionPlan:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 2
+        name:
+          type: string
+          example: "Standard"
+        slug:
+          type: string
+          example: "standard"
+        description:
+          type: string
+          example: "For individual professionals"
+        price_cents:
+          type: integer
+          description: Monthly price in cents
+          example: 1200
+        price_display:
+          type: string
+          description: Formatted price for display
+          example: "$12.00/month"
+        currency:
+          type: string
+          example: "USD"
+        video_limit:
+          type: integer
+          nullable: true
+          description: Max videos allowed (null = unlimited)
+          example: 50
+        transcription_limit_minutes:
+          type: integer
+          nullable: true
+          description: Max transcription minutes per month (null = unlimited)
+          example: 300
+        features:
+          type: array
+          items:
+            type: string
+          example:
+            - "50 videos"
+            - "5 hours transcription/month"
+        sort_order:
+          type: integer
+          example: 1
+
+    UserSubscription:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 42
+        plan:
+          $ref: '#/components/schemas/SubscriptionPlan'
+        status:
+          type: string
+          enum: [active, trialing, past_due, cancelled, incomplete, incomplete_expired]
+          example: "active"
+        current_period_start:
+          type: string
+          format: date-time
+          example: "2026-02-01T14:30:00Z"
+        current_period_end:
+          type: string
+          format: date-time
+          example: "2026-03-01T14:30:00Z"
+        cancel_at_period_end:
+          type: boolean
+          example: false
+        cancelled_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: null
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-02-01T14:30:00Z"
+
+    UsageRecord:
+      type: object
+      properties:
+        billing_period_start:
+          type: string
+          format: date-time
+          example: "2026-02-01T14:30:00Z"
+        billing_period_end:
+          type: string
+          format: date-time
+          example: "2026-03-01T14:30:00Z"
+        video_count:
+          type: integer
+          example: 12
+        video_limit:
+          type: integer
+          nullable: true
+          example: 50
+        video_usage_percentage:
+          type: number
+          format: float
+          example: 24.0
+        transcription_seconds:
+          type: integer
+          example: 7200
+        transcription_minutes:
+          type: number
+          format: float
+          example: 120.0
+        transcription_limit_minutes:
+          type: integer
+          nullable: true
+          example: 300
+        transcription_usage_percentage:
+          type: number
+          format: float
+          example: 40.0
+        warnings:
+          type: array
+          items:
+            type: object
+            properties:
+              threshold:
+                type: integer
+                enum: [80, 90, 100]
+              resource:
+                type: string
+                enum: [video, transcription]
+              reached:
+                type: boolean
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-02-20T09:20:00Z"
+
+    PaymentTransaction:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 123
+        amount_cents:
+          type: integer
+          example: 1200
+        amount_display:
+          type: string
+          example: "$12.00"
+        currency:
+          type: string
+          example: "USD"
+        type:
+          type: string
+          enum: [subscription_payment, subscription_refund, overage_charge, proration, dispute]
+          example: "subscription_payment"
+        status:
+          type: string
+          enum: [pending, succeeded, failed, refunded, disputed]
+          example: "succeeded"
+        description:
+          type: string
+          example: "Standard Plan - Feb 2026"
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-02-01T14:35:00Z"
+
+    Error:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          example: "limit_exceeded"
+        message:
+          type: string
+          example: "Video limit reached (50/50). Upgrade to upload more."
+        details:
+          type: object
+          nullable: true
+          additionalProperties: true
