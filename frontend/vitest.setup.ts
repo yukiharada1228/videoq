@@ -69,9 +69,10 @@ vi.mock('@/lib/i18n', () => ({
   useI18nNavigate: () => mockNavigate,
   useI18nLocation: () => mockLocation,
   removeLocalePrefix: (pathname: string) => pathname,
+  addLocalePrefix: (pathname: string) => pathname,
   useLocale: () => 'en',
-  Link: ({ children, to, ...props }: { children?: React.ReactNode; to?: unknown } & Record<string, unknown>) =>
-    React.createElement('a', { href: typeof to === 'string' ? to : '', ...props }, children),
+  Link: ({ children, to, href, ...props }: { children?: React.ReactNode; to?: unknown; href?: string } & Record<string, unknown>) =>
+    React.createElement('a', { href: href || (typeof to === 'string' ? to : ''), ...props }, children),
   i18nConfig: {
     locales: ['en', 'ja'],
     defaultLocale: 'en',
