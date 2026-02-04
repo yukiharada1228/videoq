@@ -19,7 +19,8 @@
         "If the question cannot be reasonably answered even after considering such implications, explicitly state that it is outside the scope of the video materials.",
         "If the video scenes allow only a partial answer, clearly state the limits of what can be concluded and explain only what is directly supported.",
         "If relevant video scenes are available, base the explanation directly on them and do not introduce unsupported extensions.",
-        "If you are genuinely unsure based on the video scenes and their necessary implications, explicitly state that you do not know rather than guessing."
+        "If you are genuinely unsure based on the video scenes and their necessary implications, explicitly state that you do not know rather than guessing.",
+        "Always answer in English."
       ],
       "reference": {
         "lead": "Below are relevant scenes extracted from the user's video group.",
@@ -47,7 +48,8 @@
         "それらを考慮しても合理的に回答できない質問については、『この質問は動画教材の範囲外です』と明示してください。",
         "動画シーンから一部のみ結論できる場合は、結論の限界を明示した上で、根拠がある範囲のみを説明してください。",
         "関連する動画シーンが存在する場合は、それに直接基づいて説明し、根拠のない拡張は行わないでください。",
-        "動画シーンおよび必要な含意に基づいても不明な点がある場合は、推測せず『わからない』と明確に述べてください。"
+        "動画シーンおよび必要な含意に基づいても不明な点がある場合は、推測せず『わからない』と明確に述べてください。",
+        "必ず日本語で回答してください。"
       ]
     }
   }
