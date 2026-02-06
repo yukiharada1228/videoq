@@ -9,6 +9,7 @@ const mockGroups = [
 
 vi.mock('@/lib/api', () => ({
   apiClient: {
+    getMe: vi.fn(() => Promise.resolve({ id: '1', username: 'testuser', email: 'test@example.com' })),
     getVideoGroups: vi.fn(),
     createVideoGroup: vi.fn(),
   },
@@ -24,7 +25,7 @@ vi.mock('@/hooks/useAuth', () => ({
 describe('VideoGroupsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    ;(apiClient.getVideoGroups as ReturnType<typeof vi.fn>).mockResolvedValue(mockGroups)
+      ; (apiClient.getVideoGroups as ReturnType<typeof vi.fn>).mockResolvedValue(mockGroups)
   })
 
   it('should render page title', async () => {
@@ -56,12 +57,12 @@ describe('VideoGroupsPage', () => {
     render(<VideoGroupsPage />)
 
     await waitFor(() => {
-      expect(screen.getByText(/videos\.groups\.videoCount/)).toBeInTheDocument()
+      expect(screen.getAllByText(/videos\.groups\.videoCount/).length).toBeGreaterThan(0)
     })
   })
 
   it('should display empty message when no groups', async () => {
-    ;(apiClient.getVideoGroups as ReturnType<typeof vi.fn>).mockResolvedValue([])
+    ; (apiClient.getVideoGroups as ReturnType<typeof vi.fn>).mockResolvedValue([])
 
     render(<VideoGroupsPage />)
 
@@ -98,7 +99,7 @@ describe('VideoGroupsPage', () => {
   })
 
   it('should call createVideoGroup on form submit', async () => {
-    ;(apiClient.createVideoGroup as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 3 })
+    ; (apiClient.createVideoGroup as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 3 })
 
     render(<VideoGroupsPage />)
 
@@ -146,12 +147,12 @@ describe('VideoGroupsPage - Error Handling', () => {
   })
 
   it('should display error message on load failure', async () => {
-    ;(apiClient.getVideoGroups as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Load failed'))
+    ; (apiClient.getVideoGroups as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Load failed'))
 
     render(<VideoGroupsPage />)
 
     await waitFor(() => {
-      expect(screen.getByText(/videos.groups.loadError/)).toBeInTheDocument()
+      expect(screen.getByText('Load failed')).toBeInTheDocument()
     })
   })
 })

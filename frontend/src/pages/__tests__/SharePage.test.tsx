@@ -22,6 +22,7 @@ vi.mock('react-router-dom', async () => {
 
 vi.mock('@/lib/api', () => ({
   apiClient: {
+    getMe: vi.fn(() => Promise.resolve({ id: '1', username: 'testuser', email: 'test@example.com' })),
     getSharedGroup: vi.fn(),
     getSharedVideoUrl: vi.fn((url, token) => `${url}?token=${token}`),
   },
@@ -34,7 +35,7 @@ vi.mock('@/components/chat/ChatPanel', () => ({
 describe('SharePage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    ;(apiClient.getSharedGroup as ReturnType<typeof vi.fn>).mockResolvedValue(mockGroup)
+      ; (apiClient.getSharedGroup as ReturnType<typeof vi.fn>).mockResolvedValue(mockGroup)
   })
 
   it('should render group name', async () => {
@@ -57,8 +58,8 @@ describe('SharePage', () => {
     render(<SharePage />)
 
     await waitFor(() => {
-      expect(screen.getByText('Shared Video 1')).toBeInTheDocument()
-      expect(screen.getByText('Shared Video 2')).toBeInTheDocument()
+      expect(screen.getAllByText('Shared Video 1').length).toBeGreaterThan(0)
+      expect(screen.getAllByText('Shared Video 2').length).toBeGreaterThan(0)
     })
   })
 
@@ -95,7 +96,7 @@ describe('SharePage - Error Handling', () => {
   })
 
   it('should display error message when share link is invalid', async () => {
-    ;(apiClient.getSharedGroup as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Not found'))
+    ; (apiClient.getSharedGroup as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Not found'))
 
     render(<SharePage />)
 
@@ -109,7 +110,7 @@ describe('SharePage - Empty Group', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     const emptyGroup = { ...mockGroup, videos: [] }
-    ;(apiClient.getSharedGroup as ReturnType<typeof vi.fn>).mockResolvedValue(emptyGroup)
+      ; (apiClient.getSharedGroup as ReturnType<typeof vi.fn>).mockResolvedValue(emptyGroup)
   })
 
   it('should display no videos message when group is empty', async () => {

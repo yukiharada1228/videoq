@@ -7,22 +7,9 @@ let mockNavigate: ReturnType<typeof vi.fn>
 
 vi.mock('@/lib/api', () => ({
   apiClient: {
+    getMe: vi.fn(() => Promise.resolve({ id: '1', username: 'testuser', email: 'test@example.com' })),
     signup: vi.fn(),
   },
-}))
-
-vi.mock('@/hooks/useAuthForm', () => ({
-  useAuthForm: ({ onSubmit, onSuccessRedirect }: { onSubmit: (data: unknown) => Promise<void>, onSuccessRedirect: () => void }) => ({
-    formData: { username: '', email: '', password: '', confirmPassword: '' },
-    error: null,
-    loading: false,
-    handleChange: vi.fn(),
-    handleSubmit: async (e: Event) => {
-      e.preventDefault()
-      await onSubmit({ username: 'test', email: 'test@example.com', password: 'test123', confirmPassword: 'test123' })
-      onSuccessRedirect()
-    },
-  }),
 }))
 
 describe('SignupPage', () => {
@@ -42,10 +29,10 @@ describe('SignupPage', () => {
     render(<SignupPage />)
 
     expect(screen.getByText('auth.signup.description')).toBeInTheDocument()
-    expect(screen.getByLabelText('auth.email.label')).toBeInTheDocument()
-    expect(screen.getByLabelText('auth.username.label')).toBeInTheDocument()
-    expect(screen.getByLabelText('auth.password.label')).toBeInTheDocument()
-    expect(screen.getByLabelText('auth.confirmPassword.label')).toBeInTheDocument()
+    expect(screen.getByText('auth.fields.email.label')).toBeInTheDocument()
+    expect(screen.getByText('auth.fields.username.label')).toBeInTheDocument()
+    expect(screen.getByText('auth.fields.password.label')).toBeInTheDocument()
+    expect(screen.getByText('auth.fields.passwordConfirmation.label')).toBeInTheDocument()
   })
 
   it('should render login link', () => {
@@ -56,22 +43,46 @@ describe('SignupPage', () => {
 
   it('should call apiClient.signup on submit', async () => {
     const mockSignup = vi.fn().mockResolvedValue({})
-    ;(apiClient.signup as ReturnType<typeof vi.fn>).mockImplementation(mockSignup)
+      ; (apiClient.signup as ReturnType<typeof vi.fn>).mockImplementation(mockSignup)
 
     render(<SignupPage />)
+
+    const emailInput = screen.getByPlaceholderText('auth.fields.email.placeholder')
+    const usernameInput = screen.getByPlaceholderText('auth.fields.username.placeholder')
+    const passwordInput = screen.getByPlaceholderText('auth.fields.password.placeholder')
+    const confirmPasswordInput = screen.getByPlaceholderText('auth.fields.passwordConfirmation.placeholder')
+
+    fireEvent.change(emailInput, { target: { value: 'test@example.com' } })
+    fireEvent.change(usernameInput, { target: { value: 'testuser' } })
+    fireEvent.change(passwordInput, { target: { value: 'test1234' } })
+    fireEvent.change(confirmPasswordInput, { target: { value: 'test1234' } })
 
     const submitButton = screen.getByText('auth.signup.submit')
     fireEvent.click(submitButton)
 
     await waitFor(() => {
-      expect(mockSignup).toHaveBeenCalled()
+      expect(mockSignup).toHaveBeenCalledWith({
+        email: 'test@example.com',
+        username: 'testuser',
+        password: 'test1234',
+      })
     })
   })
 
   it('should navigate to check email page on successful signup', async () => {
-    ;(apiClient.signup as ReturnType<typeof vi.fn>).mockResolvedValue({})
+    ; (apiClient.signup as ReturnType<typeof vi.fn>).mockResolvedValue({})
 
     render(<SignupPage />)
+
+    const emailInput = screen.getByPlaceholderText('auth.fields.email.placeholder')
+    const usernameInput = screen.getByPlaceholderText('auth.fields.username.placeholder')
+    const passwordInput = screen.getByPlaceholderText('auth.fields.password.placeholder')
+    const confirmPasswordInput = screen.getByPlaceholderText('auth.fields.passwordConfirmation.placeholder')
+
+    fireEvent.change(emailInput, { target: { value: 'test@example.com' } })
+    fireEvent.change(usernameInput, { target: { value: 'testuser' } })
+    fireEvent.change(passwordInput, { target: { value: 'test1234' } })
+    fireEvent.change(confirmPasswordInput, { target: { value: 'test1234' } })
 
     const submitButton = screen.getByText('auth.signup.submit')
     fireEvent.click(submitButton)

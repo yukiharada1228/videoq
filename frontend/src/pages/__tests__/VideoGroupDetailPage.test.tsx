@@ -23,6 +23,7 @@ vi.mock('react-router-dom', async () => {
 
 vi.mock('@/lib/api', () => ({
   apiClient: {
+    getMe: vi.fn(() => Promise.resolve({ id: '1', username: 'testuser', email: 'test@example.com' })),
     getVideoGroup: vi.fn(),
     getVideos: vi.fn(),
     updateVideoGroup: vi.fn(),
@@ -57,8 +58,8 @@ vi.mock('@/components/video/TagManagementModal', () => ({
 describe('VideoGroupDetailPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    ;(apiClient.getVideoGroup as ReturnType<typeof vi.fn>).mockResolvedValue(mockGroup)
-    ;(apiClient.getVideos as ReturnType<typeof vi.fn>).mockResolvedValue([])
+      ; (apiClient.getVideoGroup as ReturnType<typeof vi.fn>).mockResolvedValue(mockGroup)
+      ; (apiClient.getVideos as ReturnType<typeof vi.fn>).mockResolvedValue([])
   })
 
   it('should render group name', async () => {
@@ -113,8 +114,8 @@ describe('VideoGroupDetailPage', () => {
     render(<VideoGroupDetailPage />)
 
     await waitFor(() => {
-      expect(screen.getByText('Video 1')).toBeInTheDocument()
-      expect(screen.getByText('Video 2')).toBeInTheDocument()
+      expect(screen.getAllByText('Video 1').length).toBeGreaterThan(0)
+      expect(screen.getAllByText('Video 2').length).toBeGreaterThan(0)
     })
   })
 
@@ -160,7 +161,7 @@ describe('VideoGroupDetailPage - Share Link', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     const groupWithShare = { ...mockGroup, share_token: 'test-token-123' }
-    ;(apiClient.getVideoGroup as ReturnType<typeof vi.fn>).mockResolvedValue(groupWithShare)
+      ; (apiClient.getVideoGroup as ReturnType<typeof vi.fn>).mockResolvedValue(groupWithShare)
   })
 
   it('should show share link when token exists', async () => {
@@ -178,8 +179,8 @@ describe('VideoGroupDetailPage - Delete', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    ;(apiClient.getVideoGroup as ReturnType<typeof vi.fn>).mockResolvedValue(mockGroup)
-    ;(apiClient.deleteVideoGroup as ReturnType<typeof vi.fn>).mockResolvedValue({})
+      ; (apiClient.getVideoGroup as ReturnType<typeof vi.fn>).mockResolvedValue(mockGroup)
+      ; (apiClient.deleteVideoGroup as ReturnType<typeof vi.fn>).mockResolvedValue({})
     window.confirm = vi.fn(() => true)
   })
 

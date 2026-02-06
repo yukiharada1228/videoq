@@ -7,6 +7,7 @@ let mockNavigate: ReturnType<typeof vi.fn>
 
 vi.mock('@/lib/api', () => ({
   apiClient: {
+    getMe: vi.fn(() => Promise.resolve({ id: '1', username: 'testuser', email: 'test@example.com' })),
     login: vi.fn(),
   },
 }))
@@ -45,7 +46,7 @@ describe('LoginPage', () => {
   })
 
   it('should call apiClient.login on submit', async () => {
-    ;(apiClient.login as ReturnType<typeof vi.fn>).mockResolvedValue({})
+    ; (apiClient.login as ReturnType<typeof vi.fn>).mockResolvedValue({})
 
     render(<LoginPage />)
 
@@ -64,7 +65,7 @@ describe('LoginPage', () => {
   })
 
   it('should navigate to home on successful login', async () => {
-    ;(apiClient.login as ReturnType<typeof vi.fn>).mockResolvedValue({})
+    ; (apiClient.login as ReturnType<typeof vi.fn>).mockResolvedValue({})
 
     render(<LoginPage />)
 

@@ -44,6 +44,7 @@ vi.mock('@/hooks/useTags', () => ({
 
 vi.mock('@/lib/api', () => ({
   apiClient: {
+    getMe: vi.fn(() => Promise.resolve({ id: '1', username: 'testuser', email: 'test@example.com' })),
     updateVideo: vi.fn(),
     deleteVideo: vi.fn(),
     getVideoUrl: vi.fn((url) => url),
@@ -60,7 +61,7 @@ describe('VideoDetailPage', () => {
   it('should render video title', () => {
     render(<VideoDetailPage />)
 
-    expect(screen.getByText('Test Video')).toBeInTheDocument()
+    expect(screen.getAllByText('Test Video').length).toBeGreaterThan(0)
   })
 
   it('should render video description', () => {
@@ -120,7 +121,7 @@ describe('VideoDetailPage', () => {
 describe('VideoDetailPage - Delete', () => {
   it('should call deleteVideo when delete is confirmed', async () => {
     window.confirm = vi.fn(() => true)
-    ;(apiClient.deleteVideo as ReturnType<typeof vi.fn>).mockResolvedValue({})
+      ; (apiClient.deleteVideo as ReturnType<typeof vi.fn>).mockResolvedValue({})
 
     render(<VideoDetailPage />)
 

@@ -4,6 +4,7 @@ import { apiClient } from '@/lib/api'
 
 vi.mock('@/lib/api', () => ({
   apiClient: {
+    getMe: vi.fn(() => Promise.resolve({ id: '1', username: 'testuser', email: 'test@example.com' })),
     requestPasswordReset: vi.fn(),
   },
 }))
@@ -45,7 +46,7 @@ describe('ForgotPasswordPage', () => {
   })
 
   it('should call requestPasswordReset on submit', async () => {
-    ;(apiClient.requestPasswordReset as ReturnType<typeof vi.fn>).mockResolvedValue({})
+    ; (apiClient.requestPasswordReset as ReturnType<typeof vi.fn>).mockResolvedValue({})
 
     render(<ForgotPasswordPage />)
 
@@ -61,7 +62,7 @@ describe('ForgotPasswordPage', () => {
   })
 
   it('should show success message after successful submission', async () => {
-    ;(apiClient.requestPasswordReset as ReturnType<typeof vi.fn>).mockResolvedValue({})
+    ; (apiClient.requestPasswordReset as ReturnType<typeof vi.fn>).mockResolvedValue({})
 
     render(<ForgotPasswordPage />)
 
@@ -77,7 +78,7 @@ describe('ForgotPasswordPage', () => {
   })
 
   it('should show loading state while submitting', async () => {
-    ;(apiClient.requestPasswordReset as ReturnType<typeof vi.fn>).mockImplementation(
+    ; (apiClient.requestPasswordReset as ReturnType<typeof vi.fn>).mockImplementation(
       () => new Promise((resolve) => setTimeout(resolve, 100))
     )
 

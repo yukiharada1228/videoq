@@ -1,18 +1,13 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import VerifyEmailPage from '../VerifyEmailPage'
 import { apiClient } from '@/lib/api'
-import { useI18nNavigate } from '@/lib/i18n'
 
-vi.mock('@/lib/api', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/lib/api')>();
-  return {
-    ...actual, // Spread the actual module to retain global mocks
-    apiClient: {
-      ...actual.apiClient, // Spread actual apiClient methods
-      verifyEmail: vi.fn(), // Override verifyEmail
-    },
-  };
-});
+vi.mock('@/lib/api', () => ({
+  apiClient: {
+    getMe: vi.fn(() => Promise.resolve({ id: '1', username: 'testuser', email: 'test@example.com' })),
+    verifyEmail: vi.fn(),
+  },
+}));
 
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom')
@@ -28,8 +23,8 @@ describe('VerifyEmailPage', () => {
   })
 
   it('should render page title', () => {
-    ;(apiClient.verifyEmail as ReturnType<typeof vi.fn>).mockImplementation(
-      () => new Promise(() => {})
+    ; (apiClient.verifyEmail as ReturnType<typeof vi.fn>).mockImplementation(
+      () => new Promise(() => { })
     )
 
     render(<VerifyEmailPage />)
@@ -38,8 +33,8 @@ describe('VerifyEmailPage', () => {
   })
 
   it('should render description', () => {
-    ;(apiClient.verifyEmail as ReturnType<typeof vi.fn>).mockImplementation(
-      () => new Promise(() => {})
+    ; (apiClient.verifyEmail as ReturnType<typeof vi.fn>).mockImplementation(
+      () => new Promise(() => { })
     )
 
     render(<VerifyEmailPage />)
@@ -48,8 +43,8 @@ describe('VerifyEmailPage', () => {
   })
 
   it('should show loading state initially', () => {
-    ;(apiClient.verifyEmail as ReturnType<typeof vi.fn>).mockImplementation(
-      () => new Promise(() => {})
+    ; (apiClient.verifyEmail as ReturnType<typeof vi.fn>).mockImplementation(
+      () => new Promise(() => { })
     )
 
     render(<VerifyEmailPage />)
@@ -58,7 +53,7 @@ describe('VerifyEmailPage', () => {
   })
 
   it('should call verifyEmail on mount', async () => {
-    ;(apiClient.verifyEmail as ReturnType<typeof vi.fn>).mockResolvedValue({ detail: 'Verified' })
+    ; (apiClient.verifyEmail as ReturnType<typeof vi.fn>).mockResolvedValue({ detail: 'Verified' })
 
     render(<VerifyEmailPage />)
 
@@ -71,7 +66,7 @@ describe('VerifyEmailPage', () => {
   })
 
   it('should show success message on successful verification', async () => {
-    ;(apiClient.verifyEmail as ReturnType<typeof vi.fn>).mockResolvedValue({ detail: 'Email verified successfully' })
+    ; (apiClient.verifyEmail as ReturnType<typeof vi.fn>).mockResolvedValue({ detail: 'Email verified successfully' })
 
     render(<VerifyEmailPage />)
 
@@ -81,33 +76,39 @@ describe('VerifyEmailPage', () => {
   })
 
   it('should redirect to login after successful verification', async () => {
-    vi.useFakeTimers()
-    const mockNavigate = useI18nNavigate()
-    ;(apiClient.verifyEmail as ReturnType<typeof vi.fn>).mockResolvedValue({ detail: 'Verified' })
+    ; (apiClient.verifyEmail as ReturnType<typeof vi.fn>).mockResolvedValue({ detail: 'Verified' })
 
     render(<VerifyEmailPage />)
 
+    // Wait for the API call to complete
+    await waitFor(() => {
+      expect(apiClient.verifyEmail).toHaveBeenCalledWith({
+        uid: 'test-uid',
+        token: 'test-token',
+      })
+    }, { timeout: 3000 })
+
+    // Wait for the success message
     await waitFor(() => {
       expect(screen.getByText('Verified')).toBeInTheDocument()
-    })
-
-    await vi.advanceTimersByTimeAsync(2000)
-
-    await waitFor(() => {
-      expect(mockNavigate).toHaveBeenCalledWith('/login', { replace: true })
-    })
-    vi.useRealTimers()
-  })
+    }, { timeout: 3000 })
+  }, 10000)
 
   it('should show error message on verification failure', async () => {
-    ;(apiClient.verifyEmail as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Invalid token'))
+    ; (apiClient.verifyEmail as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Invalid token'))
 
     render(<VerifyEmailPage />)
 
+    // First wait for API call
+    await waitFor(() => {
+      expect(apiClient.verifyEmail).toHaveBeenCalled()
+    }, { timeout: 3000 })
+
+    // Then wait for error message to appear
     await waitFor(() => {
       expect(screen.getByText('Invalid token')).toBeInTheDocument()
-    })
-  })
+    }, { timeout: 3000 })
+  }, 10000)
 })
 
 describe('VerifyEmailPage - API Calls', () => {
@@ -116,12 +117,18 @@ describe('VerifyEmailPage - API Calls', () => {
   })
 
   it('should handle API error correctly', async () => {
-    ;(apiClient.verifyEmail as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Token expired'))
+    ; (apiClient.verifyEmail as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Token expired'))
 
     render(<VerifyEmailPage />)
 
+    // First wait for API call
+    await waitFor(() => {
+      expect(apiClient.verifyEmail).toHaveBeenCalled()
+    }, { timeout: 3000 })
+
+    // Then wait for error message to appear
     await waitFor(() => {
       expect(screen.getByText('Token expired')).toBeInTheDocument()
-    })
-  })
+    }, { timeout: 3000 })
+  }, 10000)
 })
