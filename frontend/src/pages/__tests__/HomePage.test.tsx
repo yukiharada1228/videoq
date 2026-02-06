@@ -19,6 +19,7 @@ const mockGroups = [
 
 vi.mock('@/lib/api', () => ({
   apiClient: {
+    getMe: vi.fn(() => Promise.resolve({ id: '1', username: 'testuser', email: 'test@example.com' })),
     getVideos: vi.fn(),
     getVideoGroups: vi.fn(),
   },
