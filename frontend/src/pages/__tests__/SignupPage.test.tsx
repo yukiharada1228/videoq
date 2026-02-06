@@ -42,6 +42,10 @@ describe('SignupPage', () => {
     render(<SignupPage />)
 
     expect(screen.getByText('auth.signup.description')).toBeInTheDocument()
+    expect(screen.getByLabelText('auth.email.label')).toBeInTheDocument()
+    expect(screen.getByLabelText('auth.username.label')).toBeInTheDocument()
+    expect(screen.getByLabelText('auth.password.label')).toBeInTheDocument()
+    expect(screen.getByLabelText('auth.confirmPassword.label')).toBeInTheDocument()
   })
 
   it('should render login link', () => {
@@ -80,8 +84,9 @@ describe('SignupPage', () => {
   it('should have centered layout', () => {
     render(<SignupPage />)
 
-    const container = screen.getByText('auth.signup.title').closest('div')
+    const container = screen.getByText('auth.signup.title').closest('main')
     expect(container).toBeInTheDocument()
+    expect(container).toHaveClass('flex', 'flex-1', 'items-center', 'justify-center', 'px-4')
   })
 
   it('should display footer question text', () => {

@@ -3,11 +3,16 @@ import VerifyEmailPage from '../VerifyEmailPage'
 import { apiClient } from '@/lib/api'
 import { useI18nNavigate } from '@/lib/i18n'
 
-vi.mock('@/lib/api', () => ({
-  apiClient: {
-    verifyEmail: vi.fn(),
-  },
-}))
+vi.mock('@/lib/api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/api')>();
+  return {
+    ...actual, // Spread the actual module to retain global mocks
+    apiClient: {
+      ...actual.apiClient, // Spread actual apiClient methods
+      verifyEmail: vi.fn(), // Override verifyEmail
+    },
+  };
+});
 
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom')

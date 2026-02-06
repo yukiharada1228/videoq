@@ -121,9 +121,12 @@ class IndexScenesToVectorstoreTests(TestCase):
 
         mock_pgvector.from_texts.assert_called_once()
 
+    @patch("app.tasks.vector_indexing.PGVector")
     @patch("app.tasks.vector_indexing.PGVectorManager")
     @patch("app.tasks.vector_indexing.get_embeddings")
-    def test_skips_empty_texts(self, mock_get_embeddings, mock_pgvector_manager):
+    def test_skips_empty_texts(
+        self, mock_get_embeddings, mock_pgvector_manager, mock_pgvector
+    ):
         """Test that empty texts are skipped"""
         mock_pgvector_manager.get_config.return_value = {
             "collection_name": "test_collection",
@@ -137,6 +140,7 @@ class IndexScenesToVectorstoreTests(TestCase):
 
         # Should not raise, should just log and skip
         index_scenes_to_vectorstore(scene_docs, self.video, "test-api-key")
+        mock_pgvector.from_texts.assert_not_called()
 
     @patch("app.tasks.vector_indexing.PGVector")
     @patch("app.tasks.vector_indexing.PGVectorManager")
