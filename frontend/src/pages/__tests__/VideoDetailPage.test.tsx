@@ -1,7 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import VideoDetailPage from '../VideoDetailPage'
 import { apiClient } from '@/lib/api'
-import { useI18nNavigate } from '@/lib/i18n'
 
 const mockVideo = {
   id: 1,

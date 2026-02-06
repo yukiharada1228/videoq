@@ -20,11 +20,6 @@ vi.mock('react-router-dom', async () => {
 describe('VerifyEmailPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.useFakeTimers()
-  })
-
-  afterEach(() => {
-    vi.useRealTimers()
   })
 
   it('should render page title', () => {
@@ -81,6 +76,7 @@ describe('VerifyEmailPage', () => {
   })
 
   it('should redirect to login after successful verification', async () => {
+    vi.useFakeTimers()
     const mockNavigate = useI18nNavigate()
     ;(apiClient.verifyEmail as ReturnType<typeof vi.fn>).mockResolvedValue({ detail: 'Verified' })
 
@@ -90,11 +86,12 @@ describe('VerifyEmailPage', () => {
       expect(screen.getByText('Verified')).toBeInTheDocument()
     })
 
-    vi.advanceTimersByTime(2000)
+    await vi.advanceTimersByTimeAsync(2000)
 
     await waitFor(() => {
       expect(mockNavigate).toHaveBeenCalledWith('/login', { replace: true })
     })
+    vi.useRealTimers()
   })
 
   it('should show error message on verification failure', async () => {

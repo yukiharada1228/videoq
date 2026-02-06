@@ -56,7 +56,7 @@ describe('VideoGroupsPage', () => {
     render(<VideoGroupsPage />)
 
     await waitFor(() => {
-      expect(screen.getByText('videos.groups.videoCount')).toBeInTheDocument()
+      expect(screen.getByText(/videos\.groups\.videoCount/)).toBeInTheDocument()
     })
   })
 

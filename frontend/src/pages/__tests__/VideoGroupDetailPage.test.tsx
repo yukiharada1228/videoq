@@ -174,11 +174,17 @@ describe('VideoGroupDetailPage - Share Link', () => {
 })
 
 describe('VideoGroupDetailPage - Delete', () => {
+  const originalConfirm = window.confirm
+
   beforeEach(() => {
     vi.clearAllMocks()
     ;(apiClient.getVideoGroup as ReturnType<typeof vi.fn>).mockResolvedValue(mockGroup)
     ;(apiClient.deleteVideoGroup as ReturnType<typeof vi.fn>).mockResolvedValue({})
     window.confirm = vi.fn(() => true)
+  })
+
+  afterEach(() => {
+    window.confirm = originalConfirm
   })
 
   it('should call deleteVideoGroup when delete is confirmed', async () => {

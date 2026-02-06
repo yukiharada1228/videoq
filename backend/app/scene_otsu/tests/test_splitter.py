@@ -8,7 +8,6 @@ import numpy as np
 from django.test import TestCase, override_settings
 
 from app.scene_otsu.splitter import SceneSplitter
-from app.scene_otsu.types import SceneSegment
 
 
 @override_settings(
@@ -20,14 +19,14 @@ class SceneSplitterInitializationTests(TestCase):
     @patch("app.scene_otsu.splitter.create_embedder")
     def test_initialization_with_api_key(self, mock_create_embedder):
         """Test initialization with API key"""
-        splitter = SceneSplitter(api_key="test-key")
+        SceneSplitter(api_key="test-key")
 
         mock_create_embedder.assert_called_once_with(api_key="test-key", batch_size=16)
 
     @patch("app.scene_otsu.splitter.create_embedder")
     def test_initialization_with_custom_batch_size(self, mock_create_embedder):
         """Test initialization with custom batch size"""
-        splitter = SceneSplitter(api_key="test-key", batch_size=32)
+        SceneSplitter(api_key="test-key", batch_size=32)
 
         mock_create_embedder.assert_called_once_with(api_key="test-key", batch_size=32)
 
