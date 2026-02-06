@@ -69,11 +69,54 @@ vi.mock('@/lib/i18n', () => ({
   useI18nNavigate: () => mockNavigate,
   useI18nLocation: () => mockLocation,
   removeLocalePrefix: (pathname: string) => pathname,
+  addLocalePrefix: (pathname: string) => pathname,
   useLocale: () => 'en',
-  Link: ({ children, to, ...props }: { children?: React.ReactNode; to?: unknown } & Record<string, unknown>) =>
-    React.createElement('a', { href: typeof to === 'string' ? to : '', ...props }, children),
+  Link: ({ children, to, href, ...props }: { children?: React.ReactNode; to?: unknown; href?: string } & Record<string, unknown>) =>
+    React.createElement('a', { href: href || (typeof to === 'string' ? to : ''), ...props }, children),
   i18nConfig: {
     locales: ['en', 'ja'],
     defaultLocale: 'en',
   },
 }))
+
+// Helper function for getVideoUrl within the mock
+const mockGetVideoUrl = (videoFilePath: string | null): string => {
+  if (!videoFilePath) return '';
+  if (videoFilePath.startsWith('http://') || videoFilePath.startsWith('https://')) return videoFilePath;
+  // Prevent double /api/ when path already starts with /api/
+  if (videoFilePath.startsWith('/api/')) {
+    return `http://localhost:8000${videoFilePath}`;
+  }
+  return `http://localhost:8000/api/${videoFilePath}`;
+};
+
+// Helper function for getSharedVideoUrl within the mock
+const mockGetSharedVideoUrl = (videoFilePath: string | null, shareToken: string): string => {
+  if (!videoFilePath) return '';
+  const baseUrl = mockGetVideoUrl(videoFilePath); // Use the local helper
+  const separator = baseUrl.includes('?') ? '&' : '?';
+  return `${baseUrl}${separator}share_token=${shareToken}`;
+};
+
+// Mock the API client
+vi.mock('@/lib/api', () => ({
+  apiClient: {
+    getMe: vi.fn(() => Promise.resolve({ id: '1', username: 'testuser', email: 'test@example.com' })),
+    signup: vi.fn(() => Promise.resolve()),
+    verifyEmail: vi.fn(() => Promise.resolve()),
+    requestPasswordReset: vi.fn(() => Promise.resolve()),
+    confirmPasswordReset: vi.fn(() => Promise.resolve()),
+    login: vi.fn(() => Promise.resolve({ id: '1', username: 'testuser', email: 'test@example.com' })),
+    getVideoGroups: vi.fn(() => Promise.resolve([])),
+    getSharedVideoGroup: vi.fn(() => Promise.resolve(null)),
+    createVideoGroup: vi.fn(() => Promise.resolve({ id: '1', name: 'New Group', description: 'Description', videos: [] })),
+    updateVideoGroup: vi.fn(() => Promise.resolve()),
+    deleteVideoGroup: vi.fn(() => Promise.resolve()),
+    getVideos: vi.fn(() => Promise.resolve([])),
+    updateVideo: vi.fn(() => Promise.resolve()),
+    deleteVideo: vi.fn(() => Promise.resolve()),
+    chat: vi.fn(() => Promise.resolve({ response: 'Mock chat response' })),
+    getVideoUrl: vi.fn(mockGetVideoUrl),
+    getSharedVideoUrl: vi.fn(mockGetSharedVideoUrl),
+  },
+}));
