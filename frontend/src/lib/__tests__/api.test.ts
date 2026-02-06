@@ -615,11 +615,22 @@ describe('ApiClient', () => {
   });
 
   describe('getSharedVideoUrl', () => {
-    it('should add share_token parameter to absolute URL', () => {
-      const videoFile = 'http://example.com/video.mp4';
+    it('should add share_token parameter if URL origin matches API base URL', () => {
+      // Mock baseUrl to match the video URL origin
+      // Default baseUrl is http://localhost:8000/api
+      const videoFile = 'http://localhost:8000/api/media/video.mp4';
       const shareToken = 'abc123';
       const result = apiClient.getSharedVideoUrl(videoFile, shareToken);
-      expect(result).toBe('http://example.com/video.mp4?share_token=abc123');
+      expect(result).toBe('http://localhost:8000/api/media/video.mp4?share_token=abc123');
+    });
+
+    it('should NOT add share_token parameter if URL origin differs (e.g. S3)', () => {
+      // API is http://localhost:8000, Video is S3
+      const videoFile = 'https://my-bucket.s3.amazonaws.com/video.mp4?Sign=123';
+      const shareToken = 'abc123';
+      const result = apiClient.getSharedVideoUrl(videoFile, shareToken);
+      // Result should be exactly the input URL, without additional query params
+      expect(result).toBe(videoFile);
     });
 
     it('should return empty if url is empty', () => {
