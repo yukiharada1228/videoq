@@ -709,10 +709,29 @@ class ApiClient {
       return '';
     }
 
-    // Then add share_token parameter
-    const url = new URL(absoluteUrl);
-    url.searchParams.set('share_token', shareToken);
-    return url.toString();
+    // Then add share_token parameter ONLY if the URL is served from our API (ProtectedMediaView)
+    // S3 presigned URLs (external origin) already contain authentication info in query params,
+    // and appending share_token would invalidate the S3 signature.
+
+    // Check if the video URL shares the same origin with our API
+    // We compare with this.baseUrl (which might be relative or absolute)
+    try {
+      const videoUrlObj = new URL(absoluteUrl);
+      const apiBaseUrlObj = new URL(this.baseUrl, window.location.origin);
+
+      // If origins match, it means we are serving the file, so we need the share token for permission check
+      if (videoUrlObj.origin === apiBaseUrlObj.origin) {
+        videoUrlObj.searchParams.set('share_token', shareToken);
+        return videoUrlObj.toString();
+      }
+
+      // If origins differ (e.g. S3), do NOT append share_token
+      return absoluteUrl;
+    } catch (e) {
+      // If URL parsing fails, fallback to original behavior (safer) or return as is
+      console.warn('Failed to parse video URL for share token check', e);
+      return absoluteUrl;
+    }
   }
 
   // Tag management methods
