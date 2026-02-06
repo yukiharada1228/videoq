@@ -28,8 +28,8 @@ describe('LoginPage', () => {
   it('should render username and password fields', () => {
     render(<LoginPage />)
 
-    // Fields are rendered through AuthForm component
-    expect(screen.getByText('auth.login.description')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('auth.fields.username.placeholder')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('auth.fields.password.placeholder')).toBeInTheDocument()
   })
 
   it('should render forgot password link', () => {
@@ -86,8 +86,8 @@ describe('LoginPage', () => {
   it('should have centered layout', () => {
     render(<LoginPage />)
 
-    // Check that PageLayout with centered prop is used
-    const container = screen.getByText('auth.login.title').closest('div')
+    const container = screen.getByText('auth.login.title').closest('main')
     expect(container).toBeInTheDocument()
+    expect(container).toHaveClass('flex', 'flex-1', 'items-center', 'justify-center', 'px-4')
   })
 })
