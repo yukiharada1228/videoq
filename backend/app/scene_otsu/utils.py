@@ -10,7 +10,19 @@ class TimestampConverter:
         hours = int(seconds // 3600)
         minutes = int((seconds % 3600) // 60)
         secs = int(seconds % 60)
-        milliseconds = int((seconds % 1) * 1000)
+        milliseconds = round((seconds % 1) * 1000)
+
+        # Handle potential overflow from rounding milliseconds
+        if milliseconds == 1000:
+            milliseconds = 0
+            secs += 1
+        if secs == 60:
+            secs = 0
+            minutes += 1
+        if minutes == 60:
+            minutes = 0
+            hours += 1
+
         return f"{hours:02d}:{minutes:02d}:{secs:02d},{milliseconds:03d}"
 
     @staticmethod
