@@ -523,7 +523,9 @@ describe('ApiClient', () => {
 
       expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/chat/history/export/?group_id=1', expect.anything());
       expect(createElementSpy).toHaveBeenCalledWith('a');
+      expect(appendChildSpy).toHaveBeenCalledWith(mockLink);
       expect(mockLink.click).toHaveBeenCalled();
+      expect(removeChildSpy).toHaveBeenCalledWith(mockLink);
       expect(mockRevoke).toHaveBeenCalledWith(mockUrl);
     });
   });
