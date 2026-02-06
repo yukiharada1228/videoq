@@ -3,6 +3,8 @@ import SignupPage from '../SignupPage'
 import { apiClient } from '@/lib/api'
 import { useI18nNavigate } from '@/lib/i18n'
 
+let mockNavigate: ReturnType<typeof vi.fn>
+
 vi.mock('@/lib/api', () => ({
   apiClient: {
     signup: vi.fn(),
@@ -26,6 +28,7 @@ vi.mock('@/hooks/useAuthForm', () => ({
 describe('SignupPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockNavigate = useI18nNavigate() as ReturnType<typeof vi.fn>
   })
 
   it('should render signup form', () => {
@@ -62,7 +65,6 @@ describe('SignupPage', () => {
   })
 
   it('should navigate to check email page on successful signup', async () => {
-    const mockNavigate = useI18nNavigate()
     ;(apiClient.signup as ReturnType<typeof vi.fn>).mockResolvedValue({})
 
     render(<SignupPage />)

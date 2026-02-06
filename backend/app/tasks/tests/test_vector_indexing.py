@@ -2,7 +2,7 @@
 Tests for vector indexing functions
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase

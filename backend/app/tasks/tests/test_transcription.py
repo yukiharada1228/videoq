@@ -2,8 +2,6 @@
 Tests for transcription task
 """
 
-import os
-import tempfile
 from unittest.mock import MagicMock, PropertyMock, patch
 
 from django.contrib.auth import get_user_model
@@ -90,14 +88,13 @@ class DownloadVideoFromStorageTests(TestCase):
             )
             mock_file.open.return_value.__exit__ = MagicMock(return_value=False)
 
-            self.video.file = mock_file
+            with patch.object(type(self.video), 'file', new_callable=PropertyMock, return_value=mock_file):
+                with patch("builtins.open", MagicMock()):
+                    path, file_obj = download_video_from_storage(
+                        self.video, self.video.id, temp_manager
+                    )
 
-            with patch("builtins.open", MagicMock()):
-                path, file_obj = download_video_from_storage(
-                    self.video, self.video.id, temp_manager
-                )
-
-                self.assertIn("video_", path)
+                    self.assertIn("video_", path)
 
 
 class CleanupExternalUploadTests(TestCase):
@@ -209,8 +206,10 @@ class TranscribeVideoTaskTests(TestCase):
     @patch("app.tasks.transcription.create_whisper_client")
     @patch("app.tasks.transcription.get_whisper_model_name")
     @patch("app.tasks.transcription.WhisperConfig")
+    @patch("app.tasks.transcription.VideoTaskManager.validate_video_for_processing", return_value=(True, None))
     def test_successful_transcription_pipeline(
         self,
+        mock_validate,
         mock_whisper_config,
         mock_get_model,
         mock_create_client,
@@ -247,8 +246,10 @@ class TranscribeVideoTaskTests(TestCase):
     @patch("app.tasks.transcription.create_whisper_client")
     @patch("app.tasks.transcription.get_whisper_model_name")
     @patch("app.tasks.transcription.WhisperConfig")
+    @patch("app.tasks.transcription.VideoTaskManager.validate_video_for_processing", return_value=(True, None))
     def test_handles_empty_audio_segments(
         self,
+        mock_validate,
         mock_whisper_config,
         mock_get_model,
         mock_create_client,
@@ -278,8 +279,10 @@ class TranscribeVideoTaskTests(TestCase):
     @patch("app.tasks.transcription.create_whisper_client")
     @patch("app.tasks.transcription.get_whisper_model_name")
     @patch("app.tasks.transcription.WhisperConfig")
+    @patch("app.tasks.transcription.VideoTaskManager.validate_video_for_processing", return_value=(True, None))
     def test_handles_transcription_failure(
         self,
+        mock_validate,
         mock_whisper_config,
         mock_get_model,
         mock_create_client,
@@ -320,8 +323,10 @@ class TranscribeVideoTaskTests(TestCase):
     @patch("app.tasks.transcription.create_whisper_client")
     @patch("app.tasks.transcription.get_whisper_model_name")
     @patch("app.tasks.transcription.WhisperConfig")
+    @patch("app.tasks.transcription.VideoTaskManager.validate_video_for_processing", return_value=(True, None))
     def test_external_id_triggers_file_cleanup(
         self,
+        mock_validate,
         mock_whisper_config,
         mock_get_model,
         mock_create_client,
@@ -360,8 +365,10 @@ class TranscribeVideoTaskTests(TestCase):
     @patch("app.tasks.transcription.create_whisper_client")
     @patch("app.tasks.transcription.get_whisper_model_name")
     @patch("app.tasks.transcription.WhisperConfig")
+    @patch("app.tasks.transcription.VideoTaskManager.validate_video_for_processing", return_value=(True, None))
     def test_no_external_id_keeps_file(
         self,
+        mock_validate,
         mock_whisper_config,
         mock_get_model,
         mock_create_client,

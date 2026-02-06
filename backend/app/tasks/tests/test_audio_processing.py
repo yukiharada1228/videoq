@@ -4,10 +4,9 @@ Tests for audio processing functions
 
 import asyncio
 import json
-import os
 import subprocess
 import tempfile
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 from django.test import TestCase
 
@@ -266,7 +265,7 @@ class ExtractAndSplitAudioTests(TestCase):
         mock_extract.return_value = ("/tmp/audio.mp3", 20.0)
 
         with TemporaryFileManager() as temp_manager:
-            segments = extract_and_split_audio(
+            extract_and_split_audio(
                 "/path/to/video.mp4", temp_manager=temp_manager
             )
 

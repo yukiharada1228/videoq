@@ -3,29 +3,18 @@ import LoginPage from '../LoginPage'
 import { apiClient } from '@/lib/api'
 import { useI18nNavigate } from '@/lib/i18n'
 
+let mockNavigate: ReturnType<typeof vi.fn>
+
 vi.mock('@/lib/api', () => ({
   apiClient: {
     login: vi.fn(),
   },
 }))
 
-vi.mock('@/hooks/useAuthForm', () => ({
-  useAuthForm: ({ onSubmit, onSuccessRedirect }: { onSubmit: (data: unknown) => Promise<void>, onSuccessRedirect: () => void }) => ({
-    formData: { username: '', password: '' },
-    error: null,
-    loading: false,
-    handleChange: vi.fn(),
-    handleSubmit: async (e: Event) => {
-      e.preventDefault()
-      await onSubmit({ username: 'test', password: 'test123' })
-      onSuccessRedirect()
-    },
-  }),
-}))
-
 describe('LoginPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockNavigate = useI18nNavigate() as ReturnType<typeof vi.fn>
   })
 
   it('should render login form', () => {
@@ -56,24 +45,34 @@ describe('LoginPage', () => {
   })
 
   it('should call apiClient.login on submit', async () => {
-    const mockLogin = vi.fn().mockResolvedValue({})
-    ;(apiClient.login as ReturnType<typeof vi.fn>).mockImplementation(mockLogin)
+    ;(apiClient.login as ReturnType<typeof vi.fn>).mockResolvedValue({})
 
     render(<LoginPage />)
+
+    const usernameInput = screen.getByPlaceholderText('auth.fields.username.placeholder')
+    fireEvent.change(usernameInput, { target: { value: 'test' } })
+
+    const passwordInput = screen.getByPlaceholderText('auth.fields.password.placeholder')
+    fireEvent.change(passwordInput, { target: { value: 'test123' } })
 
     const submitButton = screen.getByText('auth.login.submit')
     fireEvent.click(submitButton)
 
     await waitFor(() => {
-      expect(mockLogin).toHaveBeenCalled()
+      expect(apiClient.login).toHaveBeenCalledWith({ username: 'test', password: 'test123' })
     })
   })
 
   it('should navigate to home on successful login', async () => {
-    const mockNavigate = useI18nNavigate()
     ;(apiClient.login as ReturnType<typeof vi.fn>).mockResolvedValue({})
 
     render(<LoginPage />)
+
+    const usernameInput = screen.getByPlaceholderText('auth.fields.username.placeholder')
+    fireEvent.change(usernameInput, { target: { value: 'test' } })
+
+    const passwordInput = screen.getByPlaceholderText('auth.fields.password.placeholder')
+    fireEvent.change(passwordInput, { target: { value: 'test123' } })
 
     const submitButton = screen.getByText('auth.login.submit')
     fireEvent.click(submitButton)

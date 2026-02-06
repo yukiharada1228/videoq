@@ -3,22 +3,20 @@ Tests for video serializers
 """
 
 from io import BytesIO
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from rest_framework.request import Request
-from rest_framework.test import APIRequestFactory
+from rest_framework.test import APIRequestFactory, force_authenticate
 
 from app.models import Tag, Video, VideoGroup, VideoGroupMember, VideoTag
 from app.video.serializers import (TagCreateSerializer, TagDetailSerializer,
-                                   TagListSerializer, TagUpdateSerializer,
+                                   TagUpdateSerializer,
                                    VideoCreateSerializer,
                                    VideoGroupDetailSerializer,
-                                   VideoGroupListSerializer,
-                                   VideoListSerializer, VideoSerializer,
-                                   VideoUpdateSerializer)
+                                   VideoSerializer)
 
 User = get_user_model()
 
@@ -46,8 +44,10 @@ class VideoCreateSerializerTests(TestCase):
     def _get_request_context(self):
         """Helper to create request context"""
         request = self.factory.post("/videos/")
-        request.user = self.user
-        return {"request": Request(request)}
+        force_authenticate(request, user=self.user)
+        drf_request = Request(request)
+        drf_request._user = self.user
+        return {"request": drf_request}
 
     @patch("app.video.serializers.transcribe_video.delay")
     def test_valid_video_creation(self, mock_task):

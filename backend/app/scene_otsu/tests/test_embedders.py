@@ -4,7 +4,6 @@ Tests for scene_otsu embedder classes
 
 from unittest.mock import MagicMock, patch
 
-import numpy as np
 from django.test import TestCase, override_settings
 
 
@@ -51,7 +50,7 @@ class BaseEmbedderTests(TestCase):
         with patch.object(embedder, "_embed_batch") as mock_embed_batch:
             mock_embed_batch.return_value = [[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]
 
-            result = embedder.get_embeddings(texts)
+            embedder.get_embeddings(texts)
 
             # Should be called twice for 4 texts with batch_size=2
             self.assertEqual(mock_embed_batch.call_count, 2)

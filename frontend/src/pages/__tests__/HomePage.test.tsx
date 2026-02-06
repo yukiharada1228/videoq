@@ -3,6 +3,8 @@ import HomePage from '../HomePage'
 import { apiClient } from '@/lib/api'
 import { useI18nNavigate } from '@/lib/i18n'
 
+let mockNavigate: ReturnType<typeof vi.fn>
+
 const mockVideos = [
   { id: 1, title: 'Video 1', status: 'completed' },
   { id: 2, title: 'Video 2', status: 'pending' },
@@ -32,6 +34,7 @@ vi.mock('@/hooks/useAuth', () => ({
 describe('HomePage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockNavigate = useI18nNavigate() as ReturnType<typeof vi.fn>
     ;(apiClient.getVideos as ReturnType<typeof vi.fn>).mockResolvedValue(mockVideos)
     ;(apiClient.getVideoGroups as ReturnType<typeof vi.fn>).mockResolvedValue(mockGroups)
   })
@@ -48,7 +51,7 @@ describe('HomePage', () => {
     render(<HomePage />)
 
     await waitFor(() => {
-      expect(screen.getByText('home.welcome.subtitle')).toBeInTheDocument()
+      expect(screen.getByText(/home\.welcome\.subtitle.*testuser/)).toBeInTheDocument()
     })
   })
 
@@ -89,15 +92,13 @@ describe('HomePage', () => {
   })
 
   it('should navigate to videos page with upload param when upload card is clicked', async () => {
-    const mockNavigate = useI18nNavigate()
-
     render(<HomePage />)
 
     await waitFor(() => {
       expect(screen.getByText('home.actions.upload.title')).toBeInTheDocument()
     })
 
-    const uploadCard = screen.getByText('home.actions.upload.title').closest('[class*="Card"]')
+    const uploadCard = screen.getByText('home.actions.upload.title').closest('[data-slot="card"]')
     if (uploadCard) {
       fireEvent.click(uploadCard)
     }
@@ -108,15 +109,13 @@ describe('HomePage', () => {
   })
 
   it('should navigate to videos page when library card is clicked', async () => {
-    const mockNavigate = useI18nNavigate()
-
     render(<HomePage />)
 
     await waitFor(() => {
       expect(screen.getByText('home.actions.library.title')).toBeInTheDocument()
     })
 
-    const libraryCard = screen.getByText('home.actions.library.title').closest('[class*="Card"]')
+    const libraryCard = screen.getByText('home.actions.library.title').closest('[data-slot="card"]')
     if (libraryCard) {
       fireEvent.click(libraryCard)
     }
@@ -127,15 +126,13 @@ describe('HomePage', () => {
   })
 
   it('should navigate to groups page when groups card is clicked', async () => {
-    const mockNavigate = useI18nNavigate()
-
     render(<HomePage />)
 
     await waitFor(() => {
       expect(screen.getByText('home.actions.groups.title')).toBeInTheDocument()
     })
 
-    const groupsCard = screen.getByText('home.actions.groups.title').closest('[class*="Card"]')
+    const groupsCard = screen.getByText('home.actions.groups.title').closest('[data-slot="card"]')
     if (groupsCard) {
       fireEvent.click(groupsCard)
     }

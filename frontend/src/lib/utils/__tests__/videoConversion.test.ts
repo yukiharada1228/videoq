@@ -16,6 +16,7 @@ describe('convertVideoInGroupToSelectedVideo', () => {
       file: 'video.mp4',
       status: 'completed',
       order: 0,
+      uploaded_at: '2024-01-01T00:00:00Z',
     }
 
     const result = convertVideoInGroupToSelectedVideo(videoInGroup)
@@ -37,6 +38,7 @@ describe('convertVideoInGroupToSelectedVideo', () => {
       file: null,
       status: 'pending',
       order: 1,
+      uploaded_at: '2024-01-01T00:00:00Z',
     }
 
     const result = convertVideoInGroupToSelectedVideo(videoInGroup)
@@ -52,6 +54,7 @@ describe('convertVideoInGroupToSelectedVideo', () => {
       file: 'video.mp4',
       status: 'processing',
       order: 2,
+      uploaded_at: '2024-01-01T00:00:00Z',
     }
 
     const result = convertVideoInGroupToSelectedVideo(videoInGroup)
@@ -140,9 +143,9 @@ describe('createVideoIdSet', () => {
 describe('extractVideoIds', () => {
   it('should extract IDs from VideoInGroup array', () => {
     const videos: VideoInGroup[] = [
-      { id: 1, title: 'V1', description: '', file: null, status: 'completed', order: 0 },
-      { id: 2, title: 'V2', description: '', file: null, status: 'completed', order: 1 },
-      { id: 3, title: 'V3', description: '', file: null, status: 'completed', order: 2 },
+      { id: 1, title: 'V1', description: '', file: null, status: 'completed', order: 0, uploaded_at: '2024-01-01T00:00:00Z' },
+      { id: 2, title: 'V2', description: '', file: null, status: 'completed', order: 1, uploaded_at: '2024-01-01T00:00:00Z' },
+      { id: 3, title: 'V3', description: '', file: null, status: 'completed', order: 2, uploaded_at: '2024-01-01T00:00:00Z' },
     ]
 
     const result = extractVideoIds(videos)
@@ -171,9 +174,9 @@ describe('extractVideoIds', () => {
 
   it('should preserve order of IDs', () => {
     const videos: VideoInGroup[] = [
-      { id: 5, title: 'V5', description: '', file: null, status: 'completed', order: 0 },
-      { id: 1, title: 'V1', description: '', file: null, status: 'completed', order: 1 },
-      { id: 3, title: 'V3', description: '', file: null, status: 'completed', order: 2 },
+      { id: 5, title: 'V5', description: '', file: null, status: 'completed', order: 0, uploaded_at: '2024-01-01T00:00:00Z' },
+      { id: 1, title: 'V1', description: '', file: null, status: 'completed', order: 1, uploaded_at: '2024-01-01T00:00:00Z' },
+      { id: 3, title: 'V3', description: '', file: null, status: 'completed', order: 2, uploaded_at: '2024-01-01T00:00:00Z' },
     ]
 
     const result = extractVideoIds(videos)

@@ -2,7 +2,7 @@
 Tests for reindexing task
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
@@ -71,9 +71,9 @@ class ReindexAllVideosEmbeddingsTests(TestCase):
         )
         Video.objects.create(
             user=self.user,
-            title="Null Transcript",
+            title="Empty Transcript",
             status="completed",
-            transcript=None,
+            transcript="",
         )
 
         result = reindex_all_videos_embeddings()
