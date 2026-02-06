@@ -78,9 +78,8 @@ class DownloadVideoFromStorageTests(TestCase):
     def test_attribute_error_triggers_download(self):
         """Test that AttributeError on path also triggers download"""
         with TemporaryFileManager() as temp_manager:
-            mock_file = MagicMock()
+            mock_file = MagicMock(spec=['name', 'open'])
             mock_file.name = "test_video.mp4"
-            type(mock_file).path = PropertyMock(side_effect=AttributeError)
 
             mock_remote_content = b"fake video content"
             mock_file.open.return_value.__enter__ = MagicMock(
