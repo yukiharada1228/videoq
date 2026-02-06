@@ -124,7 +124,7 @@
   },
   "layout": {
     "footer": {
-      "copyright": "© {{year}} VideoQ. All rights reserved."
+      "copyright": "© {{year}} VideoQ. Released under the MIT License."
     }
   },
   "home": {
