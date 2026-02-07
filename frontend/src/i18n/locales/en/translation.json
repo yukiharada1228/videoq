@@ -509,5 +509,10 @@
       "message": "To use transcription and chat features, please set your OpenAI API key in Settings.",
       "settingsLink": "Go to Settings"
     }
+  },
+  "shorts": {
+    "button": "Review Shorts",
+    "noScenes": "No scenes to display",
+    "referenceCount": "{{count}} references"
   }
 }
