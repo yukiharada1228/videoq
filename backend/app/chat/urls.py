@@ -1,7 +1,7 @@
 from django.urls import path
 
 from .views import (ChatFeedbackView, ChatHistoryExportView, ChatHistoryView,
-                    ChatView)
+                    ChatView, PopularScenesView)
 
 urlpatterns = [
     path("", ChatView.as_view(), name="chat"),
@@ -10,4 +10,5 @@ urlpatterns = [
         "history/export/", ChatHistoryExportView.as_view(), name="chat-history-export"
     ),
     path("feedback/", ChatFeedbackView.as_view(), name="chat-feedback"),
+    path("popular-scenes/", PopularScenesView.as_view(), name="popular-scenes"),
 ]

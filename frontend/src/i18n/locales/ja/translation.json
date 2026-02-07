@@ -515,5 +515,10 @@
       "message": "文字起こし・チャット機能を利用するには、設定画面でOpenAI APIキーを設定してください。",
       "settingsLink": "設定画面へ"
     }
+  },
+  "shorts": {
+    "button": "復習ショート",
+    "noScenes": "表示するシーンがありません",
+    "referenceCount": "{{count}}回参照"
   }
 }

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { apiClient, type VideoGroup, type VideoInGroup } from '@/lib/api';
+import { ShortsButton } from '@/components/shorts/ShortsButton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { MessageAlert } from '@/components/common/MessageAlert';
@@ -153,6 +154,14 @@ export default function SharePage() {
                 {group.description || t('videos.shared.descriptionFallback')}
               </p>
             </div>
+            {group.videos && group.videos.length > 0 && (
+              <ShortsButton
+                groupId={group.id}
+                videos={group.videos}
+                shareToken={shareToken}
+                size="sm"
+              />
+            )}
           </div>
  
           {error && <MessageAlert type="error" message={error} />}

@@ -56,6 +56,15 @@ export interface RelatedVideo {
   end_time: string;
 }
 
+export interface PopularScene {
+  video_id: number;
+  title: string;
+  start_time: string;
+  end_time: string;
+  reference_count: number;
+  file: string | null;
+}
+
 export interface ChatHistoryItem {
   id: number;
   group: number;
@@ -775,6 +784,17 @@ class ApiClient {
     return this.request<void>(`/videos/${videoId}/tags/${tagId}/remove/`, {
       method: 'DELETE',
     });
+  }
+
+  async getPopularScenes(groupId: number, shareToken?: string, limit?: number): Promise<PopularScene[]> {
+    const params = new URLSearchParams({ group_id: String(groupId) });
+    if (shareToken) {
+      params.set('share_token', shareToken);
+    }
+    if (limit) {
+      params.set('limit', String(limit));
+    }
+    return this.request<PopularScene[]>(`/chat/popular-scenes/?${params.toString()}`);
   }
 
 }
