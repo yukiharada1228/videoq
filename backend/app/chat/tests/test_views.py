@@ -522,3 +522,222 @@ class ChatHistoryExportViewTests(APITestCase):
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+
+class PopularScenesViewTests(APITestCase):
+    """Tests for PopularScenesView"""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="testuser",
+            email="test@example.com",
+            password="testpass123",
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+
+        self.video1 = Video.objects.create(
+            user=self.user,
+            title="Test Video 1",
+            description="Test Description 1",
+            status="completed",
+        )
+        self.video2 = Video.objects.create(
+            user=self.user,
+            title="Test Video 2",
+            description="Test Description 2",
+            status="completed",
+        )
+
+        share_token = secrets.token_urlsafe(32)
+        self.group = VideoGroup.objects.create(
+            user=self.user,
+            name="Test Group",
+            description="Test",
+            share_token=share_token,
+        )
+        VideoGroupMember.objects.create(group=self.group, video=self.video1, order=0)
+        VideoGroupMember.objects.create(group=self.group, video=self.video2, order=1)
+
+        # Create chat logs with related_videos
+        ChatLog.objects.create(
+            user=self.user,
+            group=self.group,
+            question="Question 1",
+            answer="Answer 1",
+            related_videos=[
+                {
+                    "video_id": self.video1.id,
+                    "title": "Test Video 1",
+                    "start_time": "00:01:00",
+                    "end_time": "00:02:00",
+                },
+                {
+                    "video_id": self.video2.id,
+                    "title": "Test Video 2",
+                    "start_time": "00:03:00",
+                    "end_time": "00:04:00",
+                },
+            ],
+        )
+        ChatLog.objects.create(
+            user=self.user,
+            group=self.group,
+            question="Question 2",
+            answer="Answer 2",
+            related_videos=[
+                {
+                    "video_id": self.video1.id,
+                    "title": "Test Video 1",
+                    "start_time": "00:01:00",
+                    "end_time": "00:02:00",
+                },
+            ],
+        )
+        ChatLog.objects.create(
+            user=self.user,
+            group=self.group,
+            question="Question 3",
+            answer="Answer 3",
+            related_videos=[
+                {
+                    "video_id": self.video1.id,
+                    "title": "Test Video 1",
+                    "start_time": "00:01:00",
+                    "end_time": "00:02:00",
+                },
+            ],
+        )
+
+    def test_get_popular_scenes(self):
+        """Test getting popular scenes"""
+        url = reverse("popular-scenes")
+        url += f"?group_id={self.group.id}"
+
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 2)
+        # Most referenced scene should be first
+        self.assertEqual(response.data[0]["video_id"], self.video1.id)
+        self.assertEqual(response.data[0]["start_time"], "00:01:00")
+        self.assertEqual(response.data[0]["reference_count"], 3)
+        # Second scene
+        self.assertEqual(response.data[1]["video_id"], self.video2.id)
+        self.assertEqual(response.data[1]["start_time"], "00:03:00")
+        self.assertEqual(response.data[1]["reference_count"], 1)
+
+    def test_get_popular_scenes_with_limit(self):
+        """Test getting popular scenes with limit"""
+        url = reverse("popular-scenes")
+        url += f"?group_id={self.group.id}&limit=1"
+
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]["video_id"], self.video1.id)
+        self.assertEqual(response.data[0]["reference_count"], 3)
+
+    def test_get_popular_scenes_missing_group_id(self):
+        """Test getting popular scenes without group_id"""
+        url = reverse("popular-scenes")
+
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_get_popular_scenes_group_not_found(self):
+        """Test getting popular scenes for non-existent group"""
+        url = reverse("popular-scenes")
+        url += "?group_id=99999"
+
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_get_popular_scenes_wrong_user(self):
+        """Test getting popular scenes for group owned by different user"""
+        other_user = User.objects.create_user(
+            username="otheruser",
+            email="other@example.com",
+            password="testpass123",
+        )
+        other_group = VideoGroup.objects.create(
+            user=other_user, name="Other Group", description="Test"
+        )
+
+        url = reverse("popular-scenes")
+        url += f"?group_id={other_group.id}"
+
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_get_popular_scenes_with_share_token(self):
+        """Test getting popular scenes with share token"""
+        self.client.force_authenticate(user=None)
+        url = reverse("popular-scenes")
+        url += f"?group_id={self.group.id}&share_token={self.group.share_token}"
+
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 2)
+
+    def test_get_popular_scenes_invalid_share_token(self):
+        """Test getting popular scenes with invalid share token"""
+        self.client.force_authenticate(user=None)
+        url = reverse("popular-scenes")
+        url += f"?group_id={self.group.id}&share_token=invalid-token"
+
+        response = self.client.get(url)
+
+        # Invalid share token returns 401 (Unauthorized) not 404
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_get_popular_scenes_empty_chat_logs(self):
+        """Test getting popular scenes when no chat logs exist"""
+        empty_group = VideoGroup.objects.create(
+            user=self.user, name="Empty Group", description="Test"
+        )
+
+        url = reverse("popular-scenes")
+        url += f"?group_id={empty_group.id}"
+
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 0)
+
+    def test_get_popular_scenes_no_related_videos(self):
+        """Test getting popular scenes when chat logs have no related_videos"""
+        group_no_videos = VideoGroup.objects.create(
+            user=self.user, name="No Videos Group", description="Test"
+        )
+        ChatLog.objects.create(
+            user=self.user,
+            group=group_no_videos,
+            question="Question",
+            answer="Answer",
+            related_videos=[],
+        )
+
+        url = reverse("popular-scenes")
+        url += f"?group_id={group_no_videos.id}"
+
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 0)
+
+    def test_get_popular_scenes_includes_file_url(self):
+        """Test that popular scenes include file URL"""
+        url = reverse("popular-scenes")
+        url += f"?group_id={self.group.id}"
+
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # file field should be present (may be None if no file uploaded)
+        self.assertIn("file", response.data[0])

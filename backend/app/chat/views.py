@@ -1,9 +1,10 @@
 import csv
 import json
+from collections import Counter
 
 from django.db.models import Prefetch
 from django.http import HttpResponse
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -13,7 +14,7 @@ from app.common.authentication import CookieJWTAuthentication
 from app.common.permissions import (IsAuthenticatedOrSharedAccess,
                                     ShareTokenAuthentication)
 from app.common.responses import create_error_response
-from app.models import ChatLog, VideoGroup, VideoGroupMember
+from app.models import ChatLog, Video, VideoGroup, VideoGroupMember
 
 from .serializers import (ChatFeedbackRequestSerializer,
                           ChatFeedbackResponseSerializer, ChatLogSerializer,
@@ -315,3 +316,139 @@ class ChatHistoryExportView(APIView):
             )
 
         return response
+
+
+class PopularScenesView(APIView):
+    """
+    Get popular scenes from chat logs for a group.
+    Aggregates related_videos from ChatLog and returns frequently referenced scenes.
+    GET /api/chat/popular-scenes/?group_id=123
+    """
+
+    authentication_classes = [CookieJWTAuthentication, ShareTokenAuthentication]
+    permission_classes = [IsAuthenticatedOrSharedAccess]
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="group_id",
+                type=int,
+                required=True,
+                description="The ID of the video group",
+            ),
+            OpenApiParameter(
+                name="limit",
+                type=int,
+                required=False,
+                description="Maximum number of scenes to return (default: 20)",
+            ),
+            OpenApiParameter(
+                name="share_token",
+                type=str,
+                required=False,
+                description="Share token for shared access",
+            ),
+        ],
+        responses={
+            200: {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "video_id": {"type": "integer"},
+                        "title": {"type": "string"},
+                        "start_time": {"type": "string"},
+                        "end_time": {"type": "string"},
+                        "reference_count": {"type": "integer"},
+                        "file": {"type": "string", "nullable": True},
+                    },
+                },
+            }
+        },
+        summary="Get popular scenes",
+        description="Returns frequently referenced scenes from chat logs for a video group.",
+    )
+    def get(self, request):
+        group_id = request.query_params.get("group_id")
+        share_token = request.query_params.get("share_token")
+        limit = int(request.query_params.get("limit", 20))
+
+        if not group_id:
+            return create_error_response(
+                "Group ID not specified", status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            if share_token:
+                group = _get_video_group_with_members(group_id, share_token=share_token)
+            else:
+                group = _get_video_group_with_members(
+                    group_id, user_id=request.user.id
+                )
+        except VideoGroup.DoesNotExist:
+            return create_error_response(
+                "Specified group not found", status.HTTP_404_NOT_FOUND
+            )
+
+        # Get all chat logs for the group
+        chat_logs = ChatLog.objects.filter(group=group).values_list(
+            "related_videos", flat=True
+        )
+
+        # Count (video_id, start_time, end_time) tuples
+        scene_counter: Counter = Counter()
+        scene_info: dict = {}
+
+        for related_videos in chat_logs:
+            if not related_videos:
+                continue
+            for rv in related_videos:
+                video_id = rv.get("video_id")
+                start_time = rv.get("start_time")
+                end_time = rv.get("end_time")
+                title = rv.get("title", "")
+
+                if video_id and start_time:
+                    key = (video_id, start_time)
+                    scene_counter[key] += 1
+                    # Store additional info for the scene
+                    if key not in scene_info:
+                        scene_info[key] = {
+                            "video_id": video_id,
+                            "title": title,
+                            "start_time": start_time,
+                            "end_time": end_time or start_time,
+                        }
+
+        # Get top N scenes
+        top_scenes = scene_counter.most_common(limit)
+
+        # Build video_id -> file URL mapping for videos in the group
+        video_ids = [scene[0][0] for scene in top_scenes]
+        videos = Video.objects.filter(id__in=video_ids)
+        video_file_map = {}
+        for video in videos:
+            if video.file:
+                try:
+                    video_file_map[video.id] = video.file.url
+                except ValueError:
+                    video_file_map[video.id] = None
+            else:
+                video_file_map[video.id] = None
+
+        # Build response
+        result = []
+        for (video_id, start_time), count in top_scenes:
+            info = scene_info[(video_id, start_time)]
+            result.append(
+                {
+                    "video_id": info["video_id"],
+                    "title": info["title"],
+                    "start_time": info["start_time"],
+                    "end_time": info["end_time"],
+                    "reference_count": count,
+                    "file": video_file_map.get(video_id),
+                }
+            )
+
+        return Response(result)
