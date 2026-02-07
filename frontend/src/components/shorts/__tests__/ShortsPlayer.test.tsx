@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { ShortsPlayer } from '../ShortsPlayer'
 import { apiClient, type PopularScene } from '@/lib/api'
 
@@ -153,12 +153,12 @@ describe('ShortsPlayer', () => {
     expect(document.body.style.overflow).toBe('')
   })
 
-  it('should set up IntersectionObserver', () => {
+  it('should set up IntersectionObserver', async () => {
     render(<ShortsPlayer scenes={mockScenes} onClose={mockOnClose} />)
 
-    // Wait for isReady to be true
-    setTimeout(() => {
+    // Wait for isReady to be true and IntersectionObserver to be set up
+    await waitFor(() => {
       expect(mockIntersectionObserver).toHaveBeenCalled()
-    }, 150)
+    }, { timeout: 200 })
   })
 })
