@@ -20,6 +20,7 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
   const slideRefs = useRef(new Map<number, HTMLDivElement>());
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isMuted, setIsMuted] = useState(true);  // Must start muted for mobile autoplay
+  const isMutedRef = useRef(isMuted);  // Track muted state for async callbacks
 
   // Pre-compute time values and video URLs to avoid per-frame recalculation
   const sceneMeta = useMemo(() =>
@@ -59,6 +60,11 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
     return () => observer.disconnect();
   }, [scenes.length]);
 
+  // Keep ref in sync with state
+  useEffect(() => {
+    isMutedRef.current = isMuted;
+  }, [isMuted]);
+
   // Play/pause based on current slide
   useEffect(() => {
     videoRefs.current.forEach((video, i) => {
@@ -67,10 +73,16 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
     const video = videoRefs.current.get(currentIndex);
     if (video) {
       video.currentTime = sceneMeta[currentIndex].startSeconds;
+      video.muted = isMutedRef.current;  // Use ref to avoid re-triggering effect
       const playPromise = video.play();
       if (playPromise !== undefined) {
         playPromise.catch(() => {
-          // Auto-play was prevented - this is expected on mobile without mute
+          // Auto-play was prevented - fallback to muted playback
+          if (!video.muted) {
+            video.muted = true;
+            setIsMuted(true);  // Update state to reflect forced mute
+            video.play().catch(() => { });
+          }
         });
       }
     }
