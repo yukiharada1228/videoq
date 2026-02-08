@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Volume2, VolumeX, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -11,139 +11,63 @@ interface ShortsPlayerProps {
   onClose: () => void;
 }
 
-/** Number of adjacent videos to preload in each direction */
 const PRELOAD_RANGE = 1;
 
 export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps) {
   const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
-  const videoElementsRef = useRef<Map<number, HTMLVideoElement>>(new Map());
-  const slideRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+  const videoRefs = useRef(new Map<number, HTMLVideoElement>());
+  const slideRefs = useRef(new Map<number, HTMLDivElement>());
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
 
-  const getVideoSrc = useCallback((scene: PopularScene): string => {
+  const getVideoSrc = (scene: PopularScene) => {
     if (!scene.file) return '';
     const baseUrl = shareToken
       ? apiClient.getSharedVideoUrl(scene.file, shareToken)
       : apiClient.getVideoUrl(scene.file);
-    // Use media fragment to limit buffering to the clip range
-    const start = timeStringToSeconds(scene.start_time);
-    const end = timeStringToSeconds(scene.end_time);
-    return `${baseUrl}#t=${start},${end}`;
-  }, [shareToken]);
+    return `${baseUrl}#t=${timeStringToSeconds(scene.start_time)},${timeStringToSeconds(scene.end_time)}`;
+  };
 
-  const handleTimeUpdate = useCallback((scene: PopularScene, video: HTMLVideoElement) => {
-    const endSeconds = timeStringToSeconds(scene.end_time);
-    const startSeconds = timeStringToSeconds(scene.start_time);
-
-    if (video.currentTime >= endSeconds) {
-      video.currentTime = startSeconds;
-    }
-  }, []);
-
-  const handleLoadedMetadata = useCallback((scene: PopularScene, video: HTMLVideoElement) => {
-    const startSeconds = timeStringToSeconds(scene.start_time);
-    video.currentTime = startSeconds;
-  }, []);
-
-  const playVideo = useCallback((index: number) => {
-    const video = videoElementsRef.current.get(index);
-    if (video) {
-      const scene = scenes[index];
-      const startSeconds = timeStringToSeconds(scene.start_time);
-      video.currentTime = startSeconds;
-      void video.play();
-    }
-  }, [scenes]);
-
-  // Set up IntersectionObserver on slide containers
+  // IntersectionObserver for scroll-based slide detection
   useEffect(() => {
     if (scenes.length === 0) return;
-
     const observer = new IntersectionObserver(
       (entries) => {
-        entries.forEach((entry) => {
-          const index = Number((entry.target as HTMLElement).dataset.index);
-
+        for (const entry of entries) {
           if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
-            setCurrentIndex(index);
+            setCurrentIndex(Number((entry.target as HTMLElement).dataset.index));
           }
-        });
+        }
       },
-      {
-        threshold: 0.5,
-        root: containerRef.current,
-      }
+      { threshold: 0.5, root: containerRef.current }
     );
-
-    // Observe after DOM is committed
-    requestAnimationFrame(() => {
-      slideRefs.current.forEach((slide) => {
-        observer.observe(slide);
-      });
-    });
-
-    return () => {
-      observer.disconnect();
-    };
+    requestAnimationFrame(() => slideRefs.current.forEach((s) => observer.observe(s)));
+    return () => observer.disconnect();
   }, [scenes.length]);
 
-  // Play/pause based on currentIndex changes
+  // Play/pause based on current slide
   useEffect(() => {
-    // Pause all videos except current
-    videoElementsRef.current.forEach((video, i) => {
-      if (i !== currentIndex) {
-        video.pause();
-      }
+    videoRefs.current.forEach((video, i) => {
+      if (i !== currentIndex) video.pause();
     });
-    // Play current video
-    playVideo(currentIndex);
-  }, [currentIndex, playVideo]);
+    const video = videoRefs.current.get(currentIndex);
+    if (video) {
+      video.currentTime = timeStringToSeconds(scenes[currentIndex].start_time);
+      void video.play();
+    }
+  }, [currentIndex, scenes]);
 
-  // Update muted state for loaded videos
+  // Escape key + body scroll lock
   useEffect(() => {
-    videoElementsRef.current.forEach((video) => {
-      video.muted = isMuted;
-    });
-  }, [isMuted]);
-
-  const toggleMute = useCallback(() => {
-    setIsMuted((prev) => !prev);
-  }, []);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose();
-      }
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
-
-  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKeyDown);
     document.body.style.overflow = 'hidden';
     return () => {
+      document.removeEventListener('keydown', onKeyDown);
       document.body.style.overflow = '';
     };
-  }, []);
-
-  const setVideoRef = useCallback((index: number) => (el: HTMLVideoElement | null) => {
-    if (el) {
-      videoElementsRef.current.set(index, el);
-    } else {
-      videoElementsRef.current.delete(index);
-    }
-  }, []);
-
-  const setSlideRef = useCallback((index: number) => (el: HTMLDivElement | null) => {
-    if (el) {
-      slideRefs.current.set(index, el);
-    } else {
-      slideRefs.current.delete(index);
-    }
-  }, []);
+  }, [onClose]);
 
   if (scenes.length === 0) {
     return (
@@ -161,20 +85,10 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
   return (
     <div className="fixed inset-0 z-50 bg-black">
       <div className="absolute top-4 right-4 z-10 flex gap-2">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="text-white hover:bg-white/20"
-          onClick={toggleMute}
-        >
+        <Button variant="ghost" size="icon" className="text-white hover:bg-white/20" onClick={() => setIsMuted((m) => !m)}>
           {isMuted ? <VolumeX className="h-6 w-6" /> : <Volume2 className="h-6 w-6" />}
         </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="text-white hover:bg-white/20"
-          onClick={onClose}
-        >
+        <Button variant="ghost" size="icon" className="text-white hover:bg-white/20" onClick={onClose}>
           <X className="h-6 w-6" />
         </Button>
       </div>
@@ -183,34 +97,34 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
         {currentIndex + 1} / {scenes.length}
       </div>
 
-      <div
-        ref={containerRef}
-        className="h-full w-full overflow-y-scroll snap-y snap-mandatory"
-        style={{ scrollSnapType: 'y mandatory' }}
-      >
+      <div ref={containerRef} className="h-full w-full overflow-y-scroll snap-y snap-mandatory" style={{ scrollSnapType: 'y mandatory' }}>
         {scenes.map((scene, index) => {
           const shouldLoad = Math.abs(index - currentIndex) <= PRELOAD_RANGE;
 
           return (
             <div
               key={`${scene.video_id}-${scene.start_time}`}
-              ref={setSlideRef(index)}
+              ref={(el) => { el ? slideRefs.current.set(index, el) : slideRefs.current.delete(index); }}
               data-index={index}
               className="h-full w-full snap-start snap-always relative flex items-center justify-center"
             >
               {scene.file ? (
                 shouldLoad ? (
                   <video
-                    ref={setVideoRef(index)}
-                    data-index={index}
+                    ref={(el) => { el ? videoRefs.current.set(index, el) : videoRefs.current.delete(index); }}
                     className="max-h-full max-w-full object-contain"
                     src={getVideoSrc(scene)}
                     playsInline
                     muted={isMuted}
-                    loop={false}
                     preload={index === currentIndex ? 'auto' : 'metadata'}
-                    onLoadedMetadata={(e) => handleLoadedMetadata(scene, e.currentTarget)}
-                    onTimeUpdate={(e) => handleTimeUpdate(scene, e.currentTarget)}
+                    onLoadedMetadata={(e) => { e.currentTarget.currentTime = timeStringToSeconds(scene.start_time); }}
+                    onTimeUpdate={(e) => {
+                      const video = e.currentTarget;
+                      if (video.currentTime >= timeStringToSeconds(scene.end_time)) {
+                        video.currentTime = timeStringToSeconds(scene.start_time);
+                        void video.play();
+                      }
+                    }}
                   />
                 ) : (
                   <div className="flex items-center justify-center text-white/40">
@@ -218,15 +132,11 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
                   </div>
                 )
               ) : (
-                <div className="text-white/50">
-                  {t('videos.shared.videoNoFile')}
-                </div>
+                <div className="text-white/50">{t('videos.shared.videoNoFile')}</div>
               )}
 
               <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-6 pb-8">
-                <h3 className="text-white text-lg font-semibold mb-1 line-clamp-2">
-                  {scene.title}
-                </h3>
+                <h3 className="text-white text-lg font-semibold mb-1 line-clamp-2">{scene.title}</h3>
                 <div className="flex items-center gap-4 text-white/70 text-sm">
                   <span>{scene.start_time} - {scene.end_time}</span>
                   <span>{t('shorts.referenceCount', { count: scene.reference_count })}</span>
