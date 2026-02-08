@@ -19,7 +19,9 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
   const [showPlayOverlay, setShowPlayOverlay] = useState(true);
+  const [videoOffset, setVideoOffset] = useState(0);  // For smooth scroll following
   const currentIndexRef = useRef(currentIndex);
+  const isScrollingRef = useRef(false);
 
   // Keep ref in sync
   useEffect(() => {
@@ -77,6 +79,9 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
     const video = videoRef.current;
     if (!video || !currentMeta?.src || showPlayOverlay) return;
 
+    // Don't change during scroll animation
+    if (isScrollingRef.current) return;
+
     // Change source and play
     if (video.src !== currentMeta.src) {
       video.src = currentMeta.src;
@@ -85,9 +90,7 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
     video.currentTime = currentMeta.startSeconds;
     video.muted = isMuted;
 
-    video.play().catch(() => {
-      // If play fails, the video element is still "unlocked" for user gesture
-    });
+    video.play().catch(() => { });
   }, [currentIndex, currentMeta, isMuted, showPlayOverlay]);
 
   // IntersectionObserver for scroll-based slide detection
@@ -98,7 +101,10 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
         for (const entry of entries) {
           if (entry.isIntersecting && entry.intersectionRatio >= 0.6) {
             const newIndex = Number((entry.target as HTMLElement).dataset.index);
-            setCurrentIndex(newIndex);
+            if (newIndex !== currentIndexRef.current) {
+              setCurrentIndex(newIndex);
+              setVideoOffset(0);  // Reset offset when slide changes
+            }
           }
         }
       },
@@ -112,42 +118,64 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
     return () => observer.disconnect();
   }, [scenes.length]);
 
-  // Handle touch events to ensure playback in user gesture context
+  // Track scroll position for smooth video following
   useEffect(() => {
     const container = containerRef.current;
     if (!container || showPlayOverlay) return;
 
     let scrollTimeout: ReturnType<typeof setTimeout>;
 
-    const handleTouchEnd = () => {
-      // Play in touchend context for strongest user gesture
+    const handleScroll = () => {
+      isScrollingRef.current = true;
       clearTimeout(scrollTimeout);
+
+      const scrollTop = container.scrollTop;
+      const slideHeight = container.clientHeight;
+      const currentSlideTop = currentIndexRef.current * slideHeight;
+
+      // Calculate offset from current slide position
+      const offset = scrollTop - currentSlideTop;
+      setVideoOffset(-offset);  // Negative because we want video to move opposite to scroll
+
       scrollTimeout = setTimeout(() => {
+        isScrollingRef.current = false;
+        setVideoOffset(0);  // Reset offset after scroll ends
+
+        // Ensure video is playing
+        const video = videoRef.current;
+        if (video && video.paused && currentMeta?.src) {
+          video.play().catch(() => { });
+        }
+      }, 150);
+    };
+
+    container.addEventListener('scroll', handleScroll, { passive: true });
+
+    return () => {
+      container.removeEventListener('scroll', handleScroll);
+      clearTimeout(scrollTimeout);
+    };
+  }, [showPlayOverlay, currentMeta]);
+
+  // Handle touch events to ensure playback in user gesture context
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || showPlayOverlay) return;
+
+    const handleTouchEnd = () => {
+      setTimeout(() => {
         const video = videoRef.current;
         if (video && video.paused) {
           video.muted = isMuted;
-          video.play().catch(() => { });
-        }
-      }, 100);
-    };
-
-    const handleScroll = () => {
-      clearTimeout(scrollTimeout);
-      scrollTimeout = setTimeout(() => {
-        const video = videoRef.current;
-        if (video && video.paused) {
           video.play().catch(() => { });
         }
       }, 200);
     };
 
     container.addEventListener('touchend', handleTouchEnd, { passive: true });
-    container.addEventListener('scroll', handleScroll, { passive: true });
 
     return () => {
       container.removeEventListener('touchend', handleTouchEnd);
-      container.removeEventListener('scroll', handleScroll);
-      clearTimeout(scrollTimeout);
     };
   }, [showPlayOverlay, isMuted]);
 
@@ -226,9 +254,16 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black">
-      {/* Single video element that follows the current slide */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-5">
+    <div className="fixed inset-0 z-50 bg-black overflow-hidden">
+      {/* Single video element that follows scroll */}
+      <div
+        className="absolute inset-0 flex items-center justify-center pointer-events-none"
+        style={{
+          transform: `translateY(${videoOffset}px)`,
+          transition: isScrollingRef.current ? 'none' : 'transform 0.1s ease-out',
+          zIndex: 5
+        }}
+      >
         {currentMeta?.src && (
           <video
             ref={videoRef}
@@ -261,7 +296,7 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
       )}
 
       {/* Controls */}
-      <div className="absolute top-4 right-4 z-10 flex gap-2">
+      <div className="absolute top-4 right-4 z-30 flex gap-2">
         <Button variant="ghost" size="icon" className="text-white hover:bg-white/20" onClick={handleMuteToggle}>
           {isMuted ? <VolumeX className="h-6 w-6" /> : <Volume2 className="h-6 w-6" />}
         </Button>
@@ -270,11 +305,11 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
         </Button>
       </div>
 
-      <div className="absolute top-4 left-4 z-10 text-white/70 text-sm">
+      <div className="absolute top-4 left-4 z-30 text-white/70 text-sm">
         {currentIndex + 1} / {scenes.length}
       </div>
 
-      {/* Scrollable slides (transparent, for scroll detection) */}
+      {/* Scrollable slides */}
       <div
         ref={containerRef}
         className="h-full w-full overflow-y-scroll snap-y snap-mandatory scroll-smooth relative z-10"
@@ -289,7 +324,7 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
             className="h-full w-full snap-start snap-always relative flex items-center justify-center"
           >
             {/* Scene info overlay */}
-            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-6 pb-8 pointer-events-none">
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-6 pb-8 pointer-events-none z-20">
               <h3 className="text-white text-lg font-semibold mb-1 line-clamp-2">{scene.title}</h3>
               <div className="flex items-center gap-4 text-white/70 text-sm">
                 <span>{scene.start_time} - {scene.end_time}</span>
@@ -299,7 +334,7 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
 
             {/* Show message if no file */}
             {!scene.file && (
-              <div className="text-white/50">{t('videos.shared.videoNoFile')}</div>
+              <div className="text-white/50 z-10">{t('videos.shared.videoNoFile')}</div>
             )}
           </div>
         ))}
