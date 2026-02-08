@@ -125,7 +125,6 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
           const distance = Math.abs(index - currentIndex);
           const shouldLoad = distance <= PRELOAD_RANGE;
           // Only preload the current video aggressively
-          const preload = index === currentIndex ? 'auto' : 'metadata';
           const meta = sceneMeta[index];
 
           return (
