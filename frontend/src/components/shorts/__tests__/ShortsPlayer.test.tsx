@@ -22,6 +22,7 @@ window.IntersectionObserver = mockIntersectionObserver
 // Mock HTMLMediaElement
 window.HTMLMediaElement.prototype.play = vi.fn().mockResolvedValue(undefined)
 window.HTMLMediaElement.prototype.pause = vi.fn()
+window.HTMLMediaElement.prototype.load = vi.fn()
 
 const mockScenes: PopularScene[] = [
   {
@@ -41,16 +42,6 @@ const mockScenes: PopularScene[] = [
     file: 'videos/2/test2.mp4',
   },
 ]
-
-const createManyScenes = (count: number): PopularScene[] =>
-  Array.from({ length: count }, (_, i) => ({
-    video_id: i + 1,
-    title: `Test Video ${i + 1}`,
-    start_time: '00:01:00',
-    end_time: '00:02:00',
-    reference_count: count - i,
-    file: `videos/${i + 1}/test.mp4`,
-  }))
 
 describe('ShortsPlayer', () => {
   const mockOnClose = vi.fn()
@@ -171,19 +162,14 @@ describe('ShortsPlayer', () => {
     }, { timeout: 200 })
   })
 
-  // --- New tests for lazy loading, media fragments, and loop fix ---
+  // --- Tests for single video element approach ---
 
-  it('should only render video elements within PRELOAD_RANGE', () => {
-    const scenes = createManyScenes(6)
-    render(<ShortsPlayer scenes={scenes} onClose={mockOnClose} />)
+  it('should render a single video element', () => {
+    render(<ShortsPlayer scenes={mockScenes} onClose={mockOnClose} />)
 
-    // currentIndex=0, PRELOAD_RANGE=2 → indices 0, 1, 2 should have <video>
+    // Single video element approach - only one video should exist
     const videos = document.querySelectorAll('video')
-    expect(videos.length).toBe(3)
-
-    // Indices 3, 4, 5 should show loading placeholder (animate-spin)
-    const spinners = document.querySelectorAll('.animate-spin')
-    expect(spinners.length).toBe(3)
+    expect(videos.length).toBe(1)
   })
 
   it('should include media fragment #t= in video src', () => {
@@ -195,18 +181,14 @@ describe('ShortsPlayer', () => {
     expect(video!.src).toContain('#t=60,120')
   })
 
-  it('should set preload="auto" for current and ±1, "metadata" for ±2', () => {
-    const scenes = createManyScenes(6)
-    render(<ShortsPlayer scenes={scenes} onClose={mockOnClose} />)
+  it('should set preload="auto" for the video element', () => {
+    render(<ShortsPlayer scenes={mockScenes} onClose={mockOnClose} />)
 
-    const videos = document.querySelectorAll('video')
-    // currentIndex=0: index 0 (current) → auto, index 1 (±1) → auto, index 2 (±2) → metadata
-    expect(videos[0].preload).toBe('auto')
-    expect(videos[1].preload).toBe('auto')
-    expect(videos[2].preload).toBe('metadata')
+    const video = document.querySelector('video')
+    expect(video?.preload).toBe('auto')
   })
 
-  it('should set currentTime on loadedMetadata', () => {
+  it('should set currentTime to startSeconds on loadedMetadata', () => {
     render(<ShortsPlayer scenes={mockScenes} onClose={mockOnClose} />)
 
     const video = document.querySelector('video')!
@@ -222,6 +204,7 @@ describe('ShortsPlayer', () => {
     render(<ShortsPlayer scenes={mockScenes} onClose={mockOnClose} />)
 
     const video = document.querySelector('video')!
+    // end_time 00:02:00 = 120s
     Object.defineProperty(video, 'currentTime', { value: 120, writable: true })
 
     fireEvent.timeUpdate(video)
@@ -235,6 +218,7 @@ describe('ShortsPlayer', () => {
     render(<ShortsPlayer scenes={mockScenes} onClose={mockOnClose} />)
 
     const video = document.querySelector('video')!
+    // current time = 90s (still between start 60s and end 120s)
     Object.defineProperty(video, 'currentTime', { value: 90, writable: true })
 
     fireEvent.timeUpdate(video)
@@ -255,5 +239,22 @@ describe('ShortsPlayer', () => {
     unmount()
 
     expect(mockDisconnect).toHaveBeenCalled()
+  })
+
+  it('should show play overlay initially', () => {
+    render(<ShortsPlayer scenes={mockScenes} onClose={mockOnClose} />)
+
+    expect(screen.getByText(/shorts.tapToPlay/)).toBeInTheDocument()
+  })
+
+  it('should hide play overlay after clicking', () => {
+    render(<ShortsPlayer scenes={mockScenes} onClose={mockOnClose} />)
+
+    const overlay = screen.getByText(/shorts.tapToPlay/).closest('div[class*="cursor-pointer"]')
+    if (overlay) {
+      fireEvent.click(overlay)
+    }
+
+    expect(screen.queryByText(/shorts.tapToPlay/)).not.toBeInTheDocument()
   })
 })

@@ -519,6 +519,7 @@
   "shorts": {
     "button": "復習ショート",
     "noScenes": "表示するシーンがありません",
-    "referenceCount": "{{count}}回参照"
+    "referenceCount": "{{count}}回参照",
+    "tapToPlay": "タップして再生"
   }
 }
