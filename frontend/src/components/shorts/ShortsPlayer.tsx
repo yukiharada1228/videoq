@@ -261,16 +261,8 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
     );
   }
 
-  // Next scene metadata for preloading
-  const nextMeta = currentIndex < sceneMeta.length - 1 ? sceneMeta[currentIndex + 1] : null;
-
   return (
     <div className="fixed inset-0 z-50 bg-black overflow-hidden">
-      {/* Preload next video */}
-      {nextMeta?.src && (
-        <link rel="preload" as="video" href={nextMeta.src} />
-      )}
-
       {/* Single video element that follows scroll */}
       <div
         className="absolute inset-0 flex items-center justify-center pointer-events-none"
