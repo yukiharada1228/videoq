@@ -513,6 +513,7 @@
   "shorts": {
     "button": "Review Shorts",
     "noScenes": "No scenes to display",
-    "referenceCount": "{{count}} references"
+    "referenceCount": "{{count}} references",
+    "tapToPlay": "Tap to play"
   }
 }
