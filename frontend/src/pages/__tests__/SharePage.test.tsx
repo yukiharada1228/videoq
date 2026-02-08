@@ -25,6 +25,7 @@ vi.mock('@/lib/api', () => ({
     getMe: vi.fn(() => Promise.resolve({ id: '1', username: 'testuser', email: 'test@example.com' })),
     getSharedGroup: vi.fn(),
     getSharedVideoUrl: vi.fn((url, token) => `${url}?token=${token}`),
+    getPopularScenes: vi.fn(() => Promise.resolve([])),
   },
 }))
 
