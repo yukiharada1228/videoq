@@ -15,6 +15,8 @@ VideoQ is an AI-powered video navigator that automatically transcribes your vide
 - **Search content** - Find specific moments without scrubbing through hours of footage
 - **Organize with tags** - Keep your videos organized with custom tags and colors
 - **Share insights** - Create shareable groups of videos for team collaboration
+- **🆕 Shorts-style Viewing** - Swipe through popular scenes frequently referenced in AI answers
+- **🆕 Multilingual Support** - Switch between Japanese and English interfaces
 
 ## 🚀 Quick Start (5 minutes)
 
@@ -85,6 +87,26 @@ Open [http://localhost](http://localhost) in your browser and you're ready to go
    - Leave blank = Unlimited uploads
 
 This design ensures administrators have full control over resource usage and user permissions.
+
+## 🎬 Features in Detail
+
+### Shorts-style Viewing
+
+VideoQ tracks which video segments are most frequently referenced when the AI answers your questions. You can browse these popular scenes in a shorts-style vertical format:
+
+- **TikTok-like navigation** - Swipe up/down or use arrow keys to navigate between scenes
+- **Popular scenes** - See the moments that matter most based on actual AI usage
+- **Quick preview** - Jump directly to the most relevant parts of your videos
+- **Share with others** - Shorts work on shared links too
+
+### Sharing & Collaboration
+
+Share video groups with others without requiring them to sign up:
+
+- **Generate share links** - Create unique URLs for your video groups
+- **No login required** - Recipients can view videos and chat without an account
+- **Full AI chat access** - Shared users can ask questions about the videos
+- **Control access** - Revoke or regenerate share links at any time
 
 ## 💰 Want to save money? Use local alternatives
 
@@ -190,6 +212,14 @@ npm run dev  # Runs at http://localhost:3000
 
 Make sure the backend is still running via Docker.
 
+**Tech Stack:**
+- React 19 + TypeScript
+- Tailwind CSS v4
+- Vite 7
+- Vitest for testing
+- i18next for internationalization
+- Radix UI components
+
 </details>
 
 <details>
@@ -201,6 +231,13 @@ pip install -r requirements.txt
 python manage.py runserver
 ```
 
+**Tech Stack:**
+- Django 5.2
+- Django REST Framework
+- Celery for async tasks
+- LangChain for AI integrations
+- pgvector for semantic search
+
 </details>
 
 <details>
@@ -211,6 +248,7 @@ python manage.py runserver
 cd frontend
 npm run test              # Run tests
 npm run test:watch        # Watch mode
+npm run test:coverage     # With coverage report
 ```
 
 **Backend:**
@@ -239,17 +277,18 @@ docker compose restart backend                             # Restart just backen
 
 VideoQ is built with modern, reliable technologies:
 
-**Frontend:** React + TypeScript + Tailwind CSS  
-**Backend:** Django + PostgreSQL + Redis  
-**AI:** OpenAI APIs + pgvector for semantic search  
+**Frontend:** React 19 + TypeScript + Tailwind CSS v4  
+**Backend:** Django 5.2 + PostgreSQL + Redis  
+**AI:** OpenAI APIs (or Ollama for local) + pgvector for semantic search  
 **Infrastructure:** Docker + Nginx
 
 **The magic happens like this:**
 1. **Upload** → Video saved securely
-2. **Transcribe** → AI converts speech to text  
-3. **Index** → Text broken into searchable chunks
+2. **Transcribe** → AI converts speech to text (Whisper API or local)
+3. **Index** → Text broken into searchable chunks with embeddings
 4. **Chat** → Your questions matched against video content
-5. **Answer** → AI responds with relevant context
+5. **Answer** → AI responds with relevant context and timestamps
+6. **Discover** → Frequently referenced scenes become available in Shorts view
 
 ## 🚀 Production Deployment
 
@@ -311,6 +350,11 @@ npm run build  # Creates dist/ folder
 **"Transcription is slow"**
 - Consider using local Whisper (see cost-saving section above)
 - Larger videos take longer - this is normal
+
+**"Shorts mode isn't showing scenes"**
+- Shorts display scenes that have been referenced in AI chat responses
+- Try asking AI questions about your videos first to generate popular scenes
+- Make sure videos have finished processing (status should be "completed")
 
 **Need more help?** Check the logs: `docker compose logs -f`
 
