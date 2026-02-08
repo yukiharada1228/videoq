@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, Volume2, VolumeX, Loader2, Play } from 'lucide-react';
+import { X, Volume2, VolumeX, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { apiClient, type PopularScene } from '@/lib/api';
 import { timeStringToSeconds } from '@/lib/utils/video';
@@ -11,18 +11,13 @@ interface ShortsPlayerProps {
   onClose: () => void;
 }
 
-// Increased preload range to ensure more videos are ready
-const PRELOAD_RANGE = 5;
-
 export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps) {
   const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
-  const videoRefs = useRef(new Map<number, HTMLVideoElement>());
+  const videoRef = useRef<HTMLVideoElement>(null);  // Single video element
   const slideRefs = useRef(new Map<number, HTMLDivElement>());
-  const unlockedVideosRef = useRef(new Set<number>());  // Track which videos are unlocked
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
-  const [isAudioUnlocked, setIsAudioUnlocked] = useState(false);
   const [showPlayOverlay, setShowPlayOverlay] = useState(true);
   const currentIndexRef = useRef(currentIndex);
 
@@ -48,71 +43,52 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
     [scenes, shareToken]
   );
 
-  // Unlock a video element by playing it muted briefly
-  const unlockVideo = useCallback((video: HTMLVideoElement, index: number) => {
-    if (unlockedVideosRef.current.has(index)) return Promise.resolve();
+  // Current scene metadata
+  const currentMeta = sceneMeta[currentIndex];
 
-    return new Promise<void>((resolve) => {
-      const originalMuted = video.muted;
-      const originalTime = video.currentTime;
-      video.muted = true;
-      video.play().then(() => {
-        video.pause();
-        video.currentTime = originalTime;
-        video.muted = originalMuted;
-        unlockedVideosRef.current.add(index);
-        resolve();
-      }).catch(() => {
-        resolve();
-      });
-    });
-  }, []);
+  // Play the current video
+  const playCurrentVideo = useCallback(() => {
+    const video = videoRef.current;
+    if (!video || !currentMeta) return;
 
-  // Unlock all loaded videos
-  const unlockAllVideos = useCallback(async () => {
-    const promises: Promise<void>[] = [];
-    videoRefs.current.forEach((video, index) => {
-      promises.push(unlockVideo(video, index));
-    });
-    await Promise.all(promises);
-  }, [unlockVideo]);
-
-  // Play video - simpler approach since videos are pre-unlocked
-  const playVideo = useCallback((index: number, muted: boolean) => {
-    const video = videoRefs.current.get(index);
-    const meta = sceneMeta[index];
-    if (!video || !meta) return;
-
-    video.currentTime = meta.startSeconds;
-    video.muted = muted;
-
+    video.currentTime = currentMeta.startSeconds;
     video.play().catch(() => {
-      // If play fails, unlock and retry
-      unlockVideo(video, index).then(() => {
-        video.muted = muted;
-        video.play().catch(() => {
-          // Final fallback: play muted
-          video.muted = true;
-          setIsMuted(true);
-          video.play().catch(() => { });
-        });
-      });
+      // Fallback: try muted
+      video.muted = true;
+      setIsMuted(true);
+      video.play().catch(() => { });
     });
-  }, [sceneMeta, unlockVideo]);
+  }, [currentMeta]);
 
   // Handle initial tap to unlock audio and start playback
-  const handlePlayOverlayClick = useCallback(async () => {
+  const handlePlayOverlayClick = useCallback(() => {
     setShowPlayOverlay(false);
-
-    // Unlock all currently loaded videos
-    await unlockAllVideos();
-
-    setIsAudioUnlocked(true);
     setIsMuted(false);
 
-    // Start playing current video with sound
-    playVideo(currentIndex, false);
-  }, [currentIndex, playVideo, unlockAllVideos]);
+    const video = videoRef.current;
+    if (video) {
+      video.muted = false;
+      playCurrentVideo();
+    }
+  }, [playCurrentVideo]);
+
+  // Update video source when index changes
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !currentMeta?.src || showPlayOverlay) return;
+
+    // Change source and play
+    if (video.src !== currentMeta.src) {
+      video.src = currentMeta.src;
+      video.load();
+    }
+    video.currentTime = currentMeta.startSeconds;
+    video.muted = isMuted;
+
+    video.play().catch(() => {
+      // If play fails, the video element is still "unlocked" for user gesture
+    });
+  }, [currentIndex, currentMeta, isMuted, showPlayOverlay]);
 
   // IntersectionObserver for scroll-based slide detection
   useEffect(() => {
@@ -136,94 +112,50 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
     return () => observer.disconnect();
   }, [scenes.length]);
 
-  // Unlock newly loaded videos when they appear
-  useEffect(() => {
-    if (!isAudioUnlocked) return;
-
-    // Unlock any new videos that have been loaded
-    videoRefs.current.forEach((video, index) => {
-      if (!unlockedVideosRef.current.has(index)) {
-        unlockVideo(video, index);
-      }
-    });
-  }, [currentIndex, isAudioUnlocked, unlockVideo]);
-
-  // Handle scroll/touch to play videos
+  // Handle touch events to ensure playback in user gesture context
   useEffect(() => {
     const container = containerRef.current;
-    if (!container || !isAudioUnlocked) return;
+    if (!container || showPlayOverlay) return;
 
     let scrollTimeout: ReturnType<typeof setTimeout>;
-    let isTouching = false;
-
-    const pauseAllExceptCurrent = () => {
-      videoRefs.current.forEach((video, i) => {
-        if (i !== currentIndexRef.current && !video.paused) {
-          video.pause();
-        }
-      });
-    };
-
-    const handleTouchStart = () => {
-      isTouching = true;
-      pauseAllExceptCurrent();
-    };
 
     const handleTouchEnd = () => {
-      isTouching = false;
-      // Play in touchend context (strongest user gesture)
-      const idx = currentIndexRef.current;
-      const video = videoRefs.current.get(idx);
-      if (video) {
-        // Ensure video is unlocked, then play
-        if (!unlockedVideosRef.current.has(idx)) {
-          unlockVideo(video, idx).then(() => {
-            playVideo(idx, isMuted);
-          });
-        } else {
-          playVideo(idx, isMuted);
+      // Play in touchend context for strongest user gesture
+      clearTimeout(scrollTimeout);
+      scrollTimeout = setTimeout(() => {
+        const video = videoRef.current;
+        if (video && video.paused) {
+          video.muted = isMuted;
+          video.play().catch(() => { });
         }
-      }
+      }, 100);
     };
 
     const handleScroll = () => {
       clearTimeout(scrollTimeout);
-      pauseAllExceptCurrent();
-
       scrollTimeout = setTimeout(() => {
-        if (!isTouching) {
-          const idx = currentIndexRef.current;
-          playVideo(idx, isMuted);
+        const video = videoRef.current;
+        if (video && video.paused) {
+          video.play().catch(() => { });
         }
-      }, 150);
+      }, 200);
     };
 
-    container.addEventListener('touchstart', handleTouchStart, { passive: true });
     container.addEventListener('touchend', handleTouchEnd, { passive: true });
     container.addEventListener('scroll', handleScroll, { passive: true });
 
     return () => {
-      container.removeEventListener('touchstart', handleTouchStart);
       container.removeEventListener('touchend', handleTouchEnd);
       container.removeEventListener('scroll', handleScroll);
       clearTimeout(scrollTimeout);
     };
-  }, [isAudioUnlocked, isMuted, playVideo, unlockVideo]);
-
-  // Pause other videos when current index changes
-  useEffect(() => {
-    videoRefs.current.forEach((video, i) => {
-      if (i !== currentIndex && video && !video.paused) {
-        video.pause();
-      }
-    });
-  }, [currentIndex]);
+  }, [showPlayOverlay, isMuted]);
 
   // Handle mute toggle
   const handleMuteToggle = useCallback(() => {
     const newMuted = !isMuted;
     setIsMuted(newMuted);
-    const video = videoRefs.current.get(currentIndexRef.current);
+    const video = videoRef.current;
     if (video) {
       video.muted = newMuted;
       if (!newMuted && video.paused) {
@@ -232,21 +164,21 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
     }
   }, [isMuted]);
 
-  // Handle tap/click on video to toggle play/pause
-  const handleVideoClick = useCallback((index: number) => {
-    if (!isAudioUnlocked) {
+  // Handle tap on video area to toggle play/pause
+  const handleVideoAreaClick = useCallback(() => {
+    if (showPlayOverlay) {
       handlePlayOverlayClick();
       return;
     }
-    const video = videoRefs.current.get(index);
+    const video = videoRef.current;
     if (video) {
       if (video.paused) {
-        playVideo(index, isMuted);
+        video.play().catch(() => { });
       } else {
         video.pause();
       }
     }
-  }, [isAudioUnlocked, isMuted, handlePlayOverlayClick, playVideo]);
+  }, [showPlayOverlay, handlePlayOverlayClick]);
 
   // Escape key + body scroll lock
   useEffect(() => {
@@ -258,6 +190,27 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
       document.body.style.overflow = '';
     };
   }, [onClose]);
+
+  // Handle video time update for looping
+  const handleTimeUpdate = useCallback(() => {
+    const video = videoRef.current;
+    if (!video || !currentMeta) return;
+
+    if (video.currentTime >= currentMeta.endSeconds) {
+      video.currentTime = currentMeta.startSeconds;
+      video.play().catch(() => { });
+    }
+  }, [currentMeta]);
+
+  // Handle video loaded
+  const handleLoadedMetadata = useCallback(() => {
+    const video = videoRef.current;
+    if (!video || !currentMeta) return;
+
+    if (video.currentTime < currentMeta.startSeconds || video.currentTime > currentMeta.endSeconds) {
+      video.currentTime = currentMeta.startSeconds;
+    }
+  }, [currentMeta]);
 
   if (scenes.length === 0) {
     return (
@@ -274,6 +227,24 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
 
   return (
     <div className="fixed inset-0 z-50 bg-black">
+      {/* Single video element that follows the current slide */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-5">
+        {currentMeta?.src && (
+          <video
+            ref={videoRef}
+            className="max-h-full max-w-full object-contain"
+            src={currentMeta.src}
+            playsInline
+            // @ts-expect-error - webkit-playsinline is needed for iOS Safari
+            webkitplaysinline=""
+            muted={isMuted}
+            preload="auto"
+            onTimeUpdate={handleTimeUpdate}
+            onLoadedMetadata={handleLoadedMetadata}
+          />
+        )}
+      </div>
+
       {/* Play overlay for initial unlock */}
       {showPlayOverlay && (
         <div
@@ -289,6 +260,7 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
         </div>
       )}
 
+      {/* Controls */}
       <div className="absolute top-4 right-4 z-10 flex gap-2">
         <Button variant="ghost" size="icon" className="text-white hover:bg-white/20" onClick={handleMuteToggle}>
           {isMuted ? <VolumeX className="h-6 w-6" /> : <Volume2 className="h-6 w-6" />}
@@ -302,72 +274,35 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
         {currentIndex + 1} / {scenes.length}
       </div>
 
+      {/* Scrollable slides (transparent, for scroll detection) */}
       <div
         ref={containerRef}
-        className="h-full w-full overflow-y-scroll snap-y snap-mandatory scroll-smooth"
+        className="h-full w-full overflow-y-scroll snap-y snap-mandatory scroll-smooth relative z-10"
         style={{ scrollSnapType: 'y mandatory', WebkitOverflowScrolling: 'touch' }}
+        onClick={handleVideoAreaClick}
       >
-        {scenes.map((scene, index) => {
-          const distance = Math.abs(index - currentIndex);
-          const shouldLoad = distance <= PRELOAD_RANGE;
-          const meta = sceneMeta[index];
-
-          return (
-            <div
-              key={`${scene.video_id}-${scene.start_time}`}
-              ref={(el) => { if (el) { slideRefs.current.set(index, el); } else { slideRefs.current.delete(index); } }}
-              data-index={index}
-              className="h-full w-full snap-start snap-always relative flex items-center justify-center bg-black"
-            >
-              {scene.file ? (
-                shouldLoad ? (
-                  <video
-                    ref={(el) => { if (el) { videoRefs.current.set(index, el); } else { videoRefs.current.delete(index); } }}
-                    className="max-h-full max-w-full object-contain cursor-pointer"
-                    src={meta.src}
-                    playsInline
-                    // @ts-expect-error - webkit-playsinline is needed for iOS Safari
-                    webkitplaysinline=""
-                    muted={isMuted}
-                    preload="auto"
-                    onClick={() => handleVideoClick(index)}
-                    onLoadedMetadata={(e) => {
-                      const v = e.currentTarget;
-                      if (v.currentTime < meta.startSeconds || v.currentTime > meta.endSeconds) {
-                        v.currentTime = meta.startSeconds;
-                      }
-                      // Auto-unlock when video loads if audio is already unlocked
-                      if (isAudioUnlocked && !unlockedVideosRef.current.has(index)) {
-                        unlockVideo(v, index);
-                      }
-                    }}
-                    onTimeUpdate={(e) => {
-                      const video = e.currentTarget;
-                      if (video.currentTime >= meta.endSeconds) {
-                        video.currentTime = meta.startSeconds;
-                        video.play().catch(() => { });
-                      }
-                    }}
-                  />
-                ) : (
-                  <div className="flex items-center justify-center text-white/40">
-                    <Loader2 className="h-8 w-8 animate-spin" />
-                  </div>
-                )
-              ) : (
-                <div className="text-white/50">{t('videos.shared.videoNoFile')}</div>
-              )}
-
-              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-6 pb-8">
-                <h3 className="text-white text-lg font-semibold mb-1 line-clamp-2">{scene.title}</h3>
-                <div className="flex items-center gap-4 text-white/70 text-sm">
-                  <span>{scene.start_time} - {scene.end_time}</span>
-                  <span>{t('shorts.referenceCount', { count: scene.reference_count })}</span>
-                </div>
+        {scenes.map((scene, index) => (
+          <div
+            key={`${scene.video_id}-${scene.start_time}`}
+            ref={(el) => { if (el) { slideRefs.current.set(index, el); } else { slideRefs.current.delete(index); } }}
+            data-index={index}
+            className="h-full w-full snap-start snap-always relative flex items-center justify-center"
+          >
+            {/* Scene info overlay */}
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-6 pb-8 pointer-events-none">
+              <h3 className="text-white text-lg font-semibold mb-1 line-clamp-2">{scene.title}</h3>
+              <div className="flex items-center gap-4 text-white/70 text-sm">
+                <span>{scene.start_time} - {scene.end_time}</span>
+                <span>{t('shorts.referenceCount', { count: scene.reference_count })}</span>
               </div>
             </div>
-          );
-        })}
+
+            {/* Show message if no file */}
+            {!scene.file && (
+              <div className="text-white/50">{t('videos.shared.videoNoFile')}</div>
+            )}
+          </div>
+        ))}
       </div>
     </div>
   );

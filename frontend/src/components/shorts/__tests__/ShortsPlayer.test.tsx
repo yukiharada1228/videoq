@@ -22,6 +22,7 @@ window.IntersectionObserver = mockIntersectionObserver
 // Mock HTMLMediaElement
 window.HTMLMediaElement.prototype.play = vi.fn().mockResolvedValue(undefined)
 window.HTMLMediaElement.prototype.pause = vi.fn()
+window.HTMLMediaElement.prototype.load = vi.fn()
 
 const mockScenes: PopularScene[] = [
   {
@@ -171,19 +172,14 @@ describe('ShortsPlayer', () => {
     }, { timeout: 200 })
   })
 
-  // --- New tests for lazy loading, media fragments, and loop fix ---
+  // --- Tests for single video element approach ---
 
-  it('should only render video elements within PRELOAD_RANGE', () => {
-    const scenes = createManyScenes(10)
-    render(<ShortsPlayer scenes={scenes} onClose={mockOnClose} />)
+  it('should render a single video element', () => {
+    render(<ShortsPlayer scenes={mockScenes} onClose={mockOnClose} />)
 
-    // currentIndex=0, PRELOAD_RANGE=5 → indices 0-5 should have <video>
+    // Single video element approach - only one video should exist
     const videos = document.querySelectorAll('video')
-    expect(videos.length).toBe(6)
-
-    // Indices 6-9 should show loading placeholder (animate-spin)
-    const spinners = document.querySelectorAll('.animate-spin')
-    expect(spinners.length).toBe(4)
+    expect(videos.length).toBe(1)
   })
 
   it('should not include media fragment #t= in video src', () => {
@@ -195,15 +191,11 @@ describe('ShortsPlayer', () => {
     expect(video!.src).not.toContain('#t=60,120')
   })
 
-  it('should set preload="auto" for all videos within range', () => {
-    const scenes = createManyScenes(6)
-    render(<ShortsPlayer scenes={scenes} onClose={mockOnClose} />)
+  it('should set preload="auto" for the video element', () => {
+    render(<ShortsPlayer scenes={mockScenes} onClose={mockOnClose} />)
 
-    const videos = document.querySelectorAll('video')
-    // PRELOAD_RANGE=5: all 6 videos are within range, all use preload="auto"
-    videos.forEach((video) => {
-      expect(video.preload).toBe('auto')
-    })
+    const video = document.querySelector('video')
+    expect(video?.preload).toBe('auto')
   })
 
   it('should set currentTime on loadedMetadata', () => {
@@ -255,5 +247,22 @@ describe('ShortsPlayer', () => {
     unmount()
 
     expect(mockDisconnect).toHaveBeenCalled()
+  })
+
+  it('should show play overlay initially', () => {
+    render(<ShortsPlayer scenes={mockScenes} onClose={mockOnClose} />)
+
+    expect(screen.getByText(/shorts.tapToPlay/)).toBeInTheDocument()
+  })
+
+  it('should hide play overlay after clicking', () => {
+    render(<ShortsPlayer scenes={mockScenes} onClose={mockOnClose} />)
+
+    const overlay = screen.getByText(/shorts.tapToPlay/).closest('div[class*="cursor-pointer"]')
+    if (overlay) {
+      fireEvent.click(overlay)
+    }
+
+    expect(screen.queryByText(/shorts.tapToPlay/)).not.toBeInTheDocument()
   })
 })
