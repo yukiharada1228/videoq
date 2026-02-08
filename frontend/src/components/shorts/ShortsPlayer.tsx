@@ -152,7 +152,9 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
                     }}
                     onTimeUpdate={(e) => {
                       const video = e.currentTarget;
-                      if (video.currentTime >= meta.endSeconds) {
+                      // Loop back to start if we exceed end time
+                      // Use a small buffer (0.3s) to avoid micro-loops if update frequency is high
+                      if (video.currentTime >= meta.endSeconds - 0.1 && video.currentTime < meta.endSeconds + 1) {
                         video.currentTime = meta.startSeconds;
                         video.play().catch(() => { });
                       }
