@@ -20,16 +20,22 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
   const slideRefs = useRef(new Map<number, HTMLDivElement>());
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isMuted, setIsMuted] = useState(false);  // Start unmuted for better UX
-  const [isAudioUnlocked, setIsAudioUnlocked] = useState(false);  // Track if user has interacted
-  const [showPlayOverlay, setShowPlayOverlay] = useState(true);  // Show tap to play overlay
+  const [isAudioUnlocked, setIsAudioUnlocked] = useState(false);
+  const [showPlayOverlay, setShowPlayOverlay] = useState(true);
   const currentIndexRef = useRef(currentIndex);
+  const isMutedRef = useRef(isMuted);
+  const userWantsMutedRef = useRef(false);  // Track if user explicitly wants mute
 
-  // Keep ref in sync
+  // Keep refs in sync
   useEffect(() => {
     currentIndexRef.current = currentIndex;
   }, [currentIndex]);
 
-  // Pre-compute time values and video URLs to avoid per-frame recalculation
+  useEffect(() => {
+    isMutedRef.current = isMuted;
+  }, [isMuted]);
+
+  // Pre-compute time values and video URLs
   const sceneMeta = useMemo(() =>
     scenes.map((scene) => {
       const startSeconds = timeStringToSeconds(scene.start_time);
@@ -46,30 +52,46 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
     [scenes, shareToken]
   );
 
-  // Play video with proper state
-  const playVideo = useCallback((index: number) => {
+  // Play video using mute-then-unmute technique for mobile compatibility
+  const playVideoWithUnlock = useCallback((index: number) => {
     const video = videoRefs.current.get(index);
     const meta = sceneMeta[index];
-    if (video && meta) {
-      video.currentTime = meta.startSeconds;
-      video.muted = isMuted;
-      video.play().catch(() => {
-        // If play fails, try muted as fallback
-        if (!video.muted) {
-          video.muted = true;
-          setIsMuted(true);
-          video.play().catch(() => { });
-        }
+    if (!video || !meta) return;
+
+    video.currentTime = meta.startSeconds;
+
+    // If user explicitly wants muted, just play muted
+    if (userWantsMutedRef.current) {
+      video.muted = true;
+      video.play().catch(() => { });
+      return;
+    }
+
+    // Mute-then-unmute technique: Start muted to ensure playback starts
+    // Then immediately unmute (works because we're in user gesture context)
+    video.muted = true;
+    const playPromise = video.play();
+
+    if (playPromise !== undefined) {
+      playPromise.then(() => {
+        // Successfully started playing, now unmute
+        video.muted = false;
+        setIsMuted(false);
+      }).catch(() => {
+        // Play failed even with mute, keep muted state
+        setIsMuted(true);
+        userWantsMutedRef.current = true;
       });
     }
-  }, [sceneMeta, isMuted]);
+  }, [sceneMeta]);
 
   // Handle initial tap to unlock audio and start playback
   const handlePlayOverlayClick = useCallback(() => {
     setIsAudioUnlocked(true);
     setShowPlayOverlay(false);
-    playVideo(currentIndex);
-  }, [currentIndex, playVideo]);
+    userWantsMutedRef.current = false;
+    playVideoWithUnlock(currentIndex);
+  }, [currentIndex, playVideoWithUnlock]);
 
   // IntersectionObserver for scroll-based slide detection
   useEffect(() => {
@@ -93,33 +115,83 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
     return () => observer.disconnect();
   }, [scenes.length]);
 
-  // Handle scroll end to play video (uses user gesture context)
+  // Handle touch events to capture user gesture for audio unlock
   useEffect(() => {
     const container = containerRef.current;
     if (!container || !isAudioUnlocked) return;
 
+    let lastTouchTime = 0;
     let scrollTimeout: ReturnType<typeof setTimeout>;
+    let pendingPlayIndex: number | null = null;
+
+    const handleTouchStart = () => {
+      lastTouchTime = Date.now();
+      // Pause current video during touch
+      videoRefs.current.forEach((video) => {
+        if (!video.paused) video.pause();
+      });
+    };
+
+    const handleTouchEnd = () => {
+      // Play video in touchend event (strongest user gesture context)
+      const idx = currentIndexRef.current;
+      if (pendingPlayIndex !== null && pendingPlayIndex !== idx) {
+        // Index changed, play the new one
+        playVideoWithUnlock(idx);
+      }
+      pendingPlayIndex = null;
+    };
 
     const handleScroll = () => {
       clearTimeout(scrollTimeout);
+      pendingPlayIndex = currentIndexRef.current;
+
       // Pause all videos during scroll
       videoRefs.current.forEach((video) => {
         if (!video.paused) video.pause();
       });
 
-      // Wait for scroll to settle, then play current video
+      // If scroll without touch (momentum), use timeout
       scrollTimeout = setTimeout(() => {
+        const timeSinceTouch = Date.now() - lastTouchTime;
         const idx = currentIndexRef.current;
-        playVideo(idx);
+
+        // If recent touch, play with unlock technique
+        if (timeSinceTouch < 500) {
+          playVideoWithUnlock(idx);
+        } else {
+          // Fallback: try normal play, will mute if needed
+          const video = videoRefs.current.get(idx);
+          const meta = sceneMeta[idx];
+          if (video && meta) {
+            video.currentTime = meta.startSeconds;
+            video.muted = userWantsMutedRef.current;
+            video.play().then(() => {
+              if (!userWantsMutedRef.current) {
+                video.muted = false;
+                setIsMuted(false);
+              }
+            }).catch(() => {
+              // Failed, use mute-then-unmute
+              playVideoWithUnlock(idx);
+            });
+          }
+        }
+        pendingPlayIndex = null;
       }, 150);
     };
 
+    container.addEventListener('touchstart', handleTouchStart, { passive: true });
+    container.addEventListener('touchend', handleTouchEnd, { passive: true });
     container.addEventListener('scroll', handleScroll, { passive: true });
+
     return () => {
+      container.removeEventListener('touchstart', handleTouchStart);
+      container.removeEventListener('touchend', handleTouchEnd);
       container.removeEventListener('scroll', handleScroll);
       clearTimeout(scrollTimeout);
     };
-  }, [isAudioUnlocked, playVideo]);
+  }, [isAudioUnlocked, playVideoWithUnlock, sceneMeta]);
 
   // Pause other videos when current index changes
   useEffect(() => {
@@ -132,9 +204,10 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
 
   // Handle mute toggle
   const handleMuteToggle = useCallback(() => {
-    const newMuted = !isMuted;
+    const newMuted = !isMutedRef.current;
+    userWantsMutedRef.current = newMuted;
     setIsMuted(newMuted);
-    const video = videoRefs.current.get(currentIndex);
+    const video = videoRefs.current.get(currentIndexRef.current);
     if (video) {
       video.muted = newMuted;
       // If unmuting and paused, try to play
@@ -142,7 +215,7 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
         video.play().catch(() => { });
       }
     }
-  }, [isMuted, currentIndex]);
+  }, []);
 
   // Handle tap/click on video to toggle play/pause
   const handleVideoClick = useCallback((index: number) => {
@@ -153,12 +226,12 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
     const video = videoRefs.current.get(index);
     if (video) {
       if (video.paused) {
-        video.play().catch(() => { });
+        playVideoWithUnlock(index);
       } else {
         video.pause();
       }
     }
-  }, [isAudioUnlocked, handlePlayOverlayClick]);
+  }, [isAudioUnlocked, handlePlayOverlayClick, playVideoWithUnlock]);
 
   // Escape key + body scroll lock
   useEffect(() => {
@@ -196,7 +269,7 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
             <div className="w-20 h-20 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm">
               <Play className="h-10 w-10 text-white ml-1" />
             </div>
-            <p className="text-lg font-medium">{t('shorts.tapToPlay', 'タップして再生')}</p>
+            <p className="text-lg font-medium">{t('shorts.tapToPlay')}</p>
           </div>
         </div>
       )}
