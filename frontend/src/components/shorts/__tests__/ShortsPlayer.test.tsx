@@ -195,14 +195,14 @@ describe('ShortsPlayer', () => {
     expect(video!.src).not.toContain('#t=60,120')
   })
 
-  it('should set preload="auto" for current only, "metadata" for others', () => {
+  it('should set preload="auto" for current and next video, "metadata" for others', () => {
     const scenes = createManyScenes(6)
     render(<ShortsPlayer scenes={scenes} onClose={mockOnClose} />)
 
     const videos = document.querySelectorAll('video')
-    // currentIndex=0: index 0 (current) → auto, others → metadata
+    // currentIndex=0: index 0 (current) → auto, index 1 (next) → auto, others → metadata
     expect(videos[0].preload).toBe('auto')
-    expect(videos[1].preload).toBe('metadata')
+    expect(videos[1].preload).toBe('auto')
     expect(videos[2].preload).toBe('metadata')
   })
 
