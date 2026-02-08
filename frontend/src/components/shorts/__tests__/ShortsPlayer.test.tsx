@@ -43,16 +43,6 @@ const mockScenes: PopularScene[] = [
   },
 ]
 
-const createManyScenes = (count: number): PopularScene[] =>
-  Array.from({ length: count }, (_, i) => ({
-    video_id: i + 1,
-    title: `Test Video ${i + 1}`,
-    start_time: '00:01:00',
-    end_time: '00:02:00',
-    reference_count: count - i,
-    file: `videos/${i + 1}/test.mp4`,
-  }))
-
 describe('ShortsPlayer', () => {
   const mockOnClose = vi.fn()
 
