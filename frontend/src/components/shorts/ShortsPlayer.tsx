@@ -146,15 +146,13 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
                     preload={index === currentIndex || index === currentIndex + 1 ? 'auto' : 'metadata'}
                     onLoadedMetadata={(e) => {
                       const v = e.currentTarget;
-                      if (v.currentTime < meta.startSeconds) {
+                      if (v.currentTime < meta.startSeconds || v.currentTime > meta.endSeconds) {
                         v.currentTime = meta.startSeconds;
                       }
                     }}
                     onTimeUpdate={(e) => {
                       const video = e.currentTarget;
-                      // Loop back to start if we exceed end time
-                      // Use a small buffer (0.3s) to avoid micro-loops if update frequency is high
-                      if (video.currentTime >= meta.endSeconds - 0.1 && video.currentTime < meta.endSeconds + 1) {
+                      if (video.currentTime >= meta.endSeconds) {
                         video.currentTime = meta.startSeconds;
                         video.play().catch(() => { });
                       }
