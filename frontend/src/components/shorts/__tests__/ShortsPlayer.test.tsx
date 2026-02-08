@@ -172,13 +172,13 @@ describe('ShortsPlayer', () => {
     expect(videos.length).toBe(1)
   })
 
-  it('should not include media fragment #t= in video src', () => {
+  it('should include media fragment #t= in video src', () => {
     render(<ShortsPlayer scenes={mockScenes} onClose={mockOnClose} />)
 
     const video = document.querySelector('video')
     expect(video).not.toBeNull()
     // start_time 00:01:00 = 60s, end_time 00:02:00 = 120s
-    expect(video!.src).not.toContain('#t=60,120')
+    expect(video!.src).toContain('#t=60,120')
   })
 
   it('should set preload="auto" for the video element', () => {
@@ -188,41 +188,43 @@ describe('ShortsPlayer', () => {
     expect(video?.preload).toBe('auto')
   })
 
-  it('should set currentTime on loadedMetadata', () => {
+  it('should set currentTime to 0 on loadedMetadata (media fragment relative)', () => {
     render(<ShortsPlayer scenes={mockScenes} onClose={mockOnClose} />)
 
     const video = document.querySelector('video')!
-    Object.defineProperty(video, 'currentTime', { value: 0, writable: true })
+    Object.defineProperty(video, 'currentTime', { value: 10, writable: true })
 
     fireEvent.loadedMetadata(video)
 
-    // start_time 00:01:00 = 60s
-    expect(video.currentTime).toBe(60)
+    // With media fragments, video starts at 0 (relative to fragment start)
+    expect(video.currentTime).toBe(0)
   })
 
-  it('should loop and call play() when reaching end_time', () => {
+  it('should loop and call play() when reaching fragment duration', () => {
     render(<ShortsPlayer scenes={mockScenes} onClose={mockOnClose} />)
 
     const video = document.querySelector('video')!
-    Object.defineProperty(video, 'currentTime', { value: 120, writable: true })
+    // Fragment duration = 120 - 60 = 60s
+    Object.defineProperty(video, 'currentTime', { value: 60, writable: true })
 
     fireEvent.timeUpdate(video)
 
-    // Should seek back to start_time (60s) and call play()
-    expect(video.currentTime).toBe(60)
+    // Should seek back to 0 (start of fragment) and call play()
+    expect(video.currentTime).toBe(0)
     expect(video.play).toHaveBeenCalled()
   })
 
-  it('should not loop when currentTime is before end_time', () => {
+  it('should not loop when currentTime is before fragment duration', () => {
     render(<ShortsPlayer scenes={mockScenes} onClose={mockOnClose} />)
 
     const video = document.querySelector('video')!
-    Object.defineProperty(video, 'currentTime', { value: 90, writable: true })
+    // Fragment duration = 60s, current time = 30s (still playing)
+    Object.defineProperty(video, 'currentTime', { value: 30, writable: true })
 
     fireEvent.timeUpdate(video)
 
     // Should not change currentTime
-    expect(video.currentTime).toBe(90)
+    expect(video.currentTime).toBe(30)
   })
 
   it('should disconnect IntersectionObserver on unmount', async () => {

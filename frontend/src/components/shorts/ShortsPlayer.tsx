@@ -28,19 +28,23 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
     currentIndexRef.current = currentIndex;
   }, [currentIndex]);
 
-  // Pre-compute time values and video URLs
+  // Pre-compute time values and video URLs with media fragments
   const sceneMeta = useMemo(() =>
     scenes.map((scene) => {
       const startSeconds = timeStringToSeconds(scene.start_time);
       const endSeconds = timeStringToSeconds(scene.end_time);
       const end = endSeconds > startSeconds ? endSeconds : startSeconds + 0.001;
       let src = '';
+      let baseSrc = '';
       if (scene.file) {
-        src = shareToken
+        baseSrc = shareToken
           ? apiClient.getSharedVideoUrl(scene.file, shareToken)
           : apiClient.getVideoUrl(scene.file);
+        // Add media fragment to load only the specific time range
+        // Format: #t=startSeconds,endSeconds
+        src = `${baseSrc}#t=${startSeconds},${end}`;
       }
-      return { startSeconds, endSeconds: end, src };
+      return { startSeconds, endSeconds: end, src, baseSrc };
     }),
     [scenes, shareToken]
   );
@@ -53,7 +57,8 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
     const video = videoRef.current;
     if (!video || !currentMeta) return;
 
-    video.currentTime = currentMeta.startSeconds;
+    // With media fragments, video starts at 0 (relative to fragment start)
+    video.currentTime = 0;
     video.play().catch(() => {
       // Fallback: try muted
       video.muted = true;
@@ -87,7 +92,8 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
       video.src = currentMeta.src;
       video.load();
     }
-    video.currentTime = currentMeta.startSeconds;
+    // With media fragments, video starts at 0 (relative to fragment start)
+    video.currentTime = 0;
     video.muted = isMuted;
 
     video.play().catch(() => { });
@@ -224,8 +230,11 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
     const video = videoRef.current;
     if (!video || !currentMeta) return;
 
-    if (video.currentTime >= currentMeta.endSeconds) {
-      video.currentTime = currentMeta.startSeconds;
+    // With media fragments, the duration is (endSeconds - startSeconds)
+    // Video time is relative to fragment start (0 = startSeconds)
+    const fragmentDuration = currentMeta.endSeconds - currentMeta.startSeconds;
+    if (video.currentTime >= fragmentDuration) {
+      video.currentTime = 0;
       video.play().catch(() => { });
     }
   }, [currentMeta]);
@@ -235,9 +244,8 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
     const video = videoRef.current;
     if (!video || !currentMeta) return;
 
-    if (video.currentTime < currentMeta.startSeconds || video.currentTime > currentMeta.endSeconds) {
-      video.currentTime = currentMeta.startSeconds;
-    }
+    // With media fragments, video should start at 0
+    video.currentTime = 0;
   }, [currentMeta]);
 
   if (scenes.length === 0) {
@@ -253,8 +261,16 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
     );
   }
 
+  // Next scene metadata for preloading
+  const nextMeta = currentIndex < sceneMeta.length - 1 ? sceneMeta[currentIndex + 1] : null;
+
   return (
     <div className="fixed inset-0 z-50 bg-black overflow-hidden">
+      {/* Preload next video */}
+      {nextMeta?.src && (
+        <link rel="preload" as="video" href={nextMeta.src} />
+      )}
+
       {/* Single video element that follows scroll */}
       <div
         className="absolute inset-0 flex items-center justify-center pointer-events-none"
