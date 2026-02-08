@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -12,16 +12,29 @@ interface ShortsButtonProps {
   size?: 'sm' | 'default';
 }
 
+/** Client-side cache TTL in milliseconds (5 minutes) */
+const CACHE_TTL = 5 * 60 * 1000;
+
 export function ShortsButton({ groupId, videos, shareToken, size = 'default' }: ShortsButtonProps) {
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [scenes, setScenes] = useState<PopularScene[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const cacheRef = useRef<{ data: PopularScene[]; fetchedAt: number } | null>(null);
 
   const handleOpen = useCallback(async () => {
+    // Use cached data if still fresh
+    const cached = cacheRef.current;
+    if (cached && Date.now() - cached.fetchedAt < CACHE_TTL) {
+      setScenes(cached.data);
+      setIsOpen(true);
+      return;
+    }
+
     setIsLoading(true);
     try {
       const popularScenes = await apiClient.getPopularScenes(groupId, shareToken);
+      cacheRef.current = { data: popularScenes, fetchedAt: Date.now() };
       setScenes(popularScenes);
       setIsOpen(true);
     } catch (error) {
