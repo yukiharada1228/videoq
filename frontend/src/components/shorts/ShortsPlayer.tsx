@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Volume2, VolumeX, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,7 @@ interface ShortsPlayerProps {
   onClose: () => void;
 }
 
-const PRELOAD_RANGE = 1;
+const PRELOAD_RANGE = 2;
 
 export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps) {
   const { t } = useTranslation();
@@ -21,16 +21,23 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
 
-  const getVideoSrc = (scene: PopularScene) => {
-    if (!scene.file) return '';
-    const baseUrl = shareToken
-      ? apiClient.getSharedVideoUrl(scene.file, shareToken)
-      : apiClient.getVideoUrl(scene.file);
-    const startSeconds = timeStringToSeconds(scene.start_time);
-    const endSeconds = timeStringToSeconds(scene.end_time);
-    const end = endSeconds > startSeconds ? endSeconds : startSeconds + 0.001;
-    return `${baseUrl}#t=${startSeconds},${end}`;
-  };
+  // Pre-compute time values and video URLs to avoid per-frame recalculation
+  const sceneMeta = useMemo(() =>
+    scenes.map((scene) => {
+      const startSeconds = timeStringToSeconds(scene.start_time);
+      const endSeconds = timeStringToSeconds(scene.end_time);
+      const end = endSeconds > startSeconds ? endSeconds : startSeconds + 0.001;
+      let src = '';
+      if (scene.file) {
+        const baseUrl = shareToken
+          ? apiClient.getSharedVideoUrl(scene.file, shareToken)
+          : apiClient.getVideoUrl(scene.file);
+        src = `${baseUrl}#t=${startSeconds},${end}`;
+      }
+      return { startSeconds, endSeconds: end, src };
+    }),
+    [scenes, shareToken]
+  );
 
   // IntersectionObserver for scroll-based slide detection
   useEffect(() => {
@@ -58,10 +65,10 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
     });
     const video = videoRefs.current.get(currentIndex);
     if (video) {
-      video.currentTime = timeStringToSeconds(scenes[currentIndex].start_time);
+      video.currentTime = sceneMeta[currentIndex].startSeconds;
       video.play().catch(() => {});
     }
-  }, [currentIndex, scenes]);
+  }, [currentIndex, sceneMeta]);
 
   // Escape key + body scroll lock
   useEffect(() => {
@@ -104,7 +111,10 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
 
       <div ref={containerRef} className="h-full w-full overflow-y-scroll snap-y snap-mandatory" style={{ scrollSnapType: 'y mandatory' }}>
         {scenes.map((scene, index) => {
-          const shouldLoad = Math.abs(index - currentIndex) <= PRELOAD_RANGE;
+          const distance = Math.abs(index - currentIndex);
+          const shouldLoad = distance <= PRELOAD_RANGE;
+          const preload = distance <= 1 ? 'auto' : 'metadata';
+          const meta = sceneMeta[index];
 
           return (
             <div
@@ -118,15 +128,15 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
                   <video
                     ref={(el) => { if (el) { videoRefs.current.set(index, el); } else { videoRefs.current.delete(index); } }}
                     className="max-h-full max-w-full object-contain"
-                    src={getVideoSrc(scene)}
+                    src={meta.src}
                     playsInline
                     muted={isMuted}
-                    preload={index === currentIndex ? 'auto' : 'metadata'}
-                    onLoadedMetadata={(e) => { e.currentTarget.currentTime = timeStringToSeconds(scene.start_time); }}
+                    preload={preload}
+                    onLoadedMetadata={(e) => { e.currentTarget.currentTime = meta.startSeconds; }}
                     onTimeUpdate={(e) => {
                       const video = e.currentTarget;
-                      if (video.currentTime >= timeStringToSeconds(scene.end_time)) {
-                        video.currentTime = timeStringToSeconds(scene.start_time);
+                      if (video.currentTime >= meta.endSeconds) {
+                        video.currentTime = meta.startSeconds;
                         video.play().catch(() => {});
                       }
                     }}

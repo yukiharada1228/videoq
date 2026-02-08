@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -20,6 +20,16 @@ export function ShortsButton({ groupId, videos, shareToken, size = 'default' }: 
   const [scenes, setScenes] = useState<PopularScene[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const cacheRef = useRef<{ groupId: number; data: PopularScene[]; fetchedAt: number } | null>(null);
+
+  // Prefetch popular scenes data on mount
+  useEffect(() => {
+    if (!videos || videos.length === 0) return;
+    const cached = cacheRef.current;
+    if (cached && cached.groupId === groupId && Date.now() - cached.fetchedAt < CACHE_TTL) return;
+    apiClient.getPopularScenes(groupId, shareToken).then((data) => {
+      cacheRef.current = { groupId, data, fetchedAt: Date.now() };
+    }).catch(() => {});
+  }, [groupId, videos, shareToken]);
 
   const handleOpen = async () => {
     const cached = cacheRef.current;

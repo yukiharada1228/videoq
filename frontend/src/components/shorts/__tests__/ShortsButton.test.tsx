@@ -74,42 +74,38 @@ describe('ShortsButton', () => {
     expect(container.firstChild).toBeNull()
   })
 
-  it('should call getPopularScenes when button is clicked', async () => {
+  it('should prefetch popular scenes on mount', async () => {
     render(<ShortsButton groupId={1} videos={mockVideos} />)
-
-    const button = screen.getByText(/shorts.button/)
-
-    await act(async () => {
-      fireEvent.click(button)
-    })
 
     await waitFor(() => {
       expect(apiClient.getPopularScenes).toHaveBeenCalledWith(1, undefined)
     })
   })
 
-  it('should call getPopularScenes with shareToken when provided', async () => {
+  it('should prefetch with shareToken when provided', async () => {
     render(<ShortsButton groupId={1} videos={mockVideos} shareToken="test-token" />)
-
-    const button = screen.getByText(/shorts.button/)
-
-    await act(async () => {
-      fireEvent.click(button)
-    })
 
     await waitFor(() => {
       expect(apiClient.getPopularScenes).toHaveBeenCalledWith(1, 'test-token')
     })
   })
 
-  it('should open ShortsPlayer when button is clicked', async () => {
+  it('should open ShortsPlayer instantly using prefetched data', async () => {
     render(<ShortsButton groupId={1} videos={mockVideos} />)
+
+    // Wait for prefetch to complete
+    await waitFor(() => {
+      expect(apiClient.getPopularScenes).toHaveBeenCalledTimes(1)
+    })
 
     const button = screen.getByText(/shorts.button/)
 
     await act(async () => {
       fireEvent.click(button)
     })
+
+    // Should open without additional API call (uses cache from prefetch)
+    expect(apiClient.getPopularScenes).toHaveBeenCalledTimes(1)
 
     await waitFor(() => {
       expect(screen.getByText('Test Video 1')).toBeInTheDocument()
@@ -117,11 +113,16 @@ describe('ShortsButton', () => {
     })
   })
 
-  it('should handle API error gracefully', async () => {
+  it('should handle API error gracefully on click when prefetch failed', async () => {
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     ;(apiClient.getPopularScenes as any).mockRejectedValue(new Error('API Error'))
 
     render(<ShortsButton groupId={1} videos={mockVideos} />)
+
+    // Wait for prefetch to fail silently
+    await waitFor(() => {
+      expect(apiClient.getPopularScenes).toHaveBeenCalledTimes(1)
+    })
 
     const button = screen.getByText(/shorts.button/)
 
@@ -136,17 +137,20 @@ describe('ShortsButton', () => {
     consoleErrorSpy.mockRestore()
   })
 
-  it('should show loading state while fetching', async () => {
-    let resolvePromise: (value: PopularScene[]) => void
-    const pendingPromise = new Promise<PopularScene[]>((resolve) => {
-      resolvePromise = resolve
-    })
-    ;(apiClient.getPopularScenes as any).mockReturnValue(pendingPromise)
+  it('should show loading state while fetching on click without cache', async () => {
+    let resolveFirst: (value: PopularScene[]) => void
+    let resolveSecond: (value: PopularScene[]) => void
+    const firstPromise = new Promise<PopularScene[]>((resolve) => { resolveFirst = resolve })
+    const secondPromise = new Promise<PopularScene[]>((resolve) => { resolveSecond = resolve })
+    ;(apiClient.getPopularScenes as any)
+      .mockReturnValueOnce(firstPromise)   // prefetch
+      .mockReturnValueOnce(secondPromise)  // click
 
     render(<ShortsButton groupId={1} videos={mockVideos} />)
 
     const button = screen.getByRole('button')
 
+    // Click before prefetch resolves - no cache available
     await act(async () => {
       fireEvent.click(button)
     })
@@ -154,9 +158,10 @@ describe('ShortsButton', () => {
     // Button should be disabled during loading
     expect(button).toBeDisabled()
 
-    // Resolve the promise
+    // Resolve both
     await act(async () => {
-      resolvePromise!(mockPopularScenes)
+      resolveFirst!(mockPopularScenes)
+      resolveSecond!(mockPopularScenes)
     })
 
     // Button should be enabled after loading
@@ -211,18 +216,21 @@ describe('ShortsButton', () => {
 
   // --- New tests for client-side caching ---
 
-  it('should use cached data on second click within TTL', async () => {
+  it('should use prefetched cache on click without additional API call', async () => {
     render(<ShortsButton groupId={1} videos={mockVideos} />)
 
-    const button = screen.getByText(/shorts.button/)
-
-    // First click - should call API
-    await act(async () => {
-      fireEvent.click(button)
-    })
+    // Wait for prefetch
     await waitFor(() => {
       expect(apiClient.getPopularScenes).toHaveBeenCalledTimes(1)
     })
+
+    const button = screen.getByText(/shorts.button/)
+
+    // First click - uses cache from prefetch
+    await act(async () => {
+      fireEvent.click(button)
+    })
+    expect(apiClient.getPopularScenes).toHaveBeenCalledTimes(1)
 
     // Close the player
     const allButtons = screen.getAllByRole('button')
@@ -233,7 +241,7 @@ describe('ShortsButton', () => {
       })
     }
 
-    // Second click - should use cache, not call API again
+    // Second click - still uses cache
     await act(async () => {
       fireEvent.click(screen.getByText(/shorts.button/))
     })
@@ -253,15 +261,18 @@ describe('ShortsButton', () => {
 
     render(<ShortsButton groupId={1} videos={mockVideos} />)
 
-    const button = screen.getByText(/shorts.button/)
-
-    // First click
-    await act(async () => {
-      fireEvent.click(button)
-    })
+    // Wait for prefetch (call 1)
     await waitFor(() => {
       expect(apiClient.getPopularScenes).toHaveBeenCalledTimes(1)
     })
+
+    const button = screen.getByText(/shorts.button/)
+
+    // Click within TTL - uses cache
+    await act(async () => {
+      fireEvent.click(button)
+    })
+    expect(apiClient.getPopularScenes).toHaveBeenCalledTimes(1)
 
     // Close the player
     const allButtons = screen.getAllByRole('button')
@@ -275,7 +286,7 @@ describe('ShortsButton', () => {
     // Advance past the 5 minute TTL
     now += 5 * 60 * 1000 + 1
 
-    // Click again - cache expired, should call API again
+    // Click again - cache expired, should call API again (call 2)
     await act(async () => {
       fireEvent.click(screen.getByText(/shorts.button/))
     })
