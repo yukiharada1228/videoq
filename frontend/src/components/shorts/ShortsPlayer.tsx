@@ -21,7 +21,7 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
   const [showPlayOverlay, setShowPlayOverlay] = useState(true);
   const [videoOffset, setVideoOffset] = useState(0);  // For smooth scroll following
   const currentIndexRef = useRef(currentIndex);
-  const isScrollingRef = useRef(false);
+  const [isScrolling, setIsScrolling] = useState(false);
 
   // Keep ref in sync
   useEffect(() => {
@@ -80,7 +80,7 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
     if (!video || !currentMeta?.src || showPlayOverlay) return;
 
     // Don't change during scroll animation
-    if (isScrollingRef.current) return;
+    if (isScrolling) return;
 
     // Change source and play
     if (video.src !== currentMeta.src) {
@@ -91,7 +91,7 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
     video.muted = isMuted;
 
     video.play().catch(() => { });
-  }, [currentIndex, currentMeta, isMuted, showPlayOverlay]);
+  }, [currentIndex, currentMeta, isMuted, showPlayOverlay, isScrolling]);
 
   // IntersectionObserver for scroll-based slide detection
   useEffect(() => {
@@ -126,7 +126,7 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
     let scrollTimeout: ReturnType<typeof setTimeout>;
 
     const handleScroll = () => {
-      isScrollingRef.current = true;
+      setIsScrolling(true);
       clearTimeout(scrollTimeout);
 
       const scrollTop = container.scrollTop;
@@ -138,7 +138,7 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
       setVideoOffset(-offset);  // Negative because we want video to move opposite to scroll
 
       scrollTimeout = setTimeout(() => {
-        isScrollingRef.current = false;
+        setIsScrolling(false);
         setVideoOffset(0);  // Reset offset after scroll ends
 
         // Ensure video is playing
@@ -260,7 +260,7 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
         className="absolute inset-0 flex items-center justify-center pointer-events-none"
         style={{
           transform: `translateY(${videoOffset}px)`,
-          transition: isScrollingRef.current ? 'none' : 'transform 0.1s ease-out',
+          transition: isScrolling ? 'none' : 'transform 0.1s ease-out',
           zIndex: 5
         }}
       >
