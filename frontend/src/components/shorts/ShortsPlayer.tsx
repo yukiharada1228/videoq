@@ -29,10 +29,9 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
       const end = endSeconds > startSeconds ? endSeconds : startSeconds + 0.001;
       let src = '';
       if (scene.file) {
-        const baseUrl = shareToken
+        src = shareToken
           ? apiClient.getSharedVideoUrl(scene.file, shareToken)
           : apiClient.getVideoUrl(scene.file);
-        src = `${baseUrl}#t=${startSeconds},${end}`;
       }
       return { startSeconds, endSeconds: end, src };
     }),
@@ -45,15 +44,17 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
     const observer = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
-          if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
+          if (entry.isIntersecting && entry.intersectionRatio >= 0.6) {
             setCurrentIndex(Number((entry.target as HTMLElement).dataset.index));
           }
         }
       },
-      { threshold: 0.5, root: containerRef.current }
+      { threshold: 0.6, root: containerRef.current }
     );
     requestAnimationFrame(() => {
-      slideRefs.current.forEach((s) => { observer.observe(s); });
+      if (slideRefs.current && slideRefs.current.size > 0) {
+        slideRefs.current.forEach((s) => { if (s) observer.observe(s); });
+      }
     });
     return () => observer.disconnect();
   }, [scenes.length]);
@@ -61,12 +62,18 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
   // Play/pause based on current slide
   useEffect(() => {
     videoRefs.current.forEach((video, i) => {
-      if (i !== currentIndex) video.pause();
+      if (i !== currentIndex && video) video.pause();
     });
     const video = videoRefs.current.get(currentIndex);
     if (video) {
       video.currentTime = sceneMeta[currentIndex].startSeconds;
-      video.play().catch(() => {});
+      const playPromise = video.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(() => {
+          // Auto-play was prevented
+          // We can show a UI element to let the user manually start playback
+        });
+      }
     }
   }, [currentIndex, sceneMeta]);
 
@@ -109,11 +116,16 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
         {currentIndex + 1} / {scenes.length}
       </div>
 
-      <div ref={containerRef} className="h-full w-full overflow-y-scroll snap-y snap-mandatory" style={{ scrollSnapType: 'y mandatory' }}>
+      <div
+        ref={containerRef}
+        className="h-full w-full overflow-y-scroll snap-y snap-mandatory scroll-smooth"
+        style={{ scrollSnapType: 'y mandatory', WebkitOverflowScrolling: 'touch' }}
+      >
         {scenes.map((scene, index) => {
           const distance = Math.abs(index - currentIndex);
           const shouldLoad = distance <= PRELOAD_RANGE;
-          const preload = distance <= 1 ? 'auto' : 'metadata';
+          // Only preload the current video aggressively
+          const preload = index === currentIndex ? 'auto' : 'metadata';
           const meta = sceneMeta[index];
 
           return (
@@ -121,23 +133,29 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
               key={`${scene.video_id}-${scene.start_time}`}
               ref={(el) => { if (el) { slideRefs.current.set(index, el); } else { slideRefs.current.delete(index); } }}
               data-index={index}
-              className="h-full w-full snap-start snap-always relative flex items-center justify-center"
+              className="h-full w-full snap-start snap-always relative flex items-center justify-center bg-black"
             >
               {scene.file ? (
                 shouldLoad ? (
                   <video
                     ref={(el) => { if (el) { videoRefs.current.set(index, el); } else { videoRefs.current.delete(index); } }}
-                    className="max-h-full max-w-full object-contain"
+                    className="max-h-full max-w-full object-contain pointer-events-none"
                     src={meta.src}
                     playsInline
+                    webkit-playsinline="true"
                     muted={isMuted}
                     preload={preload}
-                    onLoadedMetadata={(e) => { e.currentTarget.currentTime = meta.startSeconds; }}
+                    onLoadedMetadata={(e) => {
+                      const v = e.currentTarget;
+                      if (v.currentTime < meta.startSeconds) {
+                        v.currentTime = meta.startSeconds;
+                      }
+                    }}
                     onTimeUpdate={(e) => {
                       const video = e.currentTarget;
                       if (video.currentTime >= meta.endSeconds) {
                         video.currentTime = meta.startSeconds;
-                        video.play().catch(() => {});
+                        video.play().catch(() => { });
                       }
                     }}
                   />

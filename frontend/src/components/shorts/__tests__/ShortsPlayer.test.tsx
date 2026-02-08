@@ -186,23 +186,23 @@ describe('ShortsPlayer', () => {
     expect(spinners.length).toBe(3)
   })
 
-  it('should include media fragment #t= in video src', () => {
+  it('should not include media fragment #t= in video src', () => {
     render(<ShortsPlayer scenes={mockScenes} onClose={mockOnClose} />)
 
     const video = document.querySelector('video')
     expect(video).not.toBeNull()
     // start_time 00:01:00 = 60s, end_time 00:02:00 = 120s
-    expect(video!.src).toContain('#t=60,120')
+    expect(video!.src).not.toContain('#t=60,120')
   })
 
-  it('should set preload="auto" for current and ±1, "metadata" for ±2', () => {
+  it('should set preload="auto" for current only, "metadata" for others', () => {
     const scenes = createManyScenes(6)
     render(<ShortsPlayer scenes={scenes} onClose={mockOnClose} />)
 
     const videos = document.querySelectorAll('video')
-    // currentIndex=0: index 0 (current) → auto, index 1 (±1) → auto, index 2 (±2) → metadata
+    // currentIndex=0: index 0 (current) → auto, others → metadata
     expect(videos[0].preload).toBe('auto')
-    expect(videos[1].preload).toBe('auto')
+    expect(videos[1].preload).toBe('metadata')
     expect(videos[2].preload).toBe('metadata')
   })
 
