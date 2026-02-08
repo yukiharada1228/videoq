@@ -144,7 +144,7 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
                     playsInline
                     webkit-playsinline="true"
                     muted={isMuted}
-                    preload={preload}
+                    preload={index === currentIndex || index === currentIndex + 1 ? 'auto' : 'metadata'}
                     onLoadedMetadata={(e) => {
                       const v = e.currentTarget;
                       if (v.currentTime < meta.startSeconds) {
