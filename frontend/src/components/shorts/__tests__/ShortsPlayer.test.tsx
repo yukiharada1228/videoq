@@ -174,16 +174,16 @@ describe('ShortsPlayer', () => {
   // --- New tests for lazy loading, media fragments, and loop fix ---
 
   it('should only render video elements within PRELOAD_RANGE', () => {
-    const scenes = createManyScenes(6)
+    const scenes = createManyScenes(10)
     render(<ShortsPlayer scenes={scenes} onClose={mockOnClose} />)
 
-    // currentIndex=0, PRELOAD_RANGE=2 → indices 0, 1, 2 should have <video>
+    // currentIndex=0, PRELOAD_RANGE=5 → indices 0-5 should have <video>
     const videos = document.querySelectorAll('video')
-    expect(videos.length).toBe(3)
+    expect(videos.length).toBe(6)
 
-    // Indices 3, 4, 5 should show loading placeholder (animate-spin)
+    // Indices 6-9 should show loading placeholder (animate-spin)
     const spinners = document.querySelectorAll('.animate-spin')
-    expect(spinners.length).toBe(3)
+    expect(spinners.length).toBe(4)
   })
 
   it('should not include media fragment #t= in video src', () => {
@@ -195,15 +195,15 @@ describe('ShortsPlayer', () => {
     expect(video!.src).not.toContain('#t=60,120')
   })
 
-  it('should set preload="auto" for current and next video, "metadata" for others', () => {
+  it('should set preload="auto" for all videos within range', () => {
     const scenes = createManyScenes(6)
     render(<ShortsPlayer scenes={scenes} onClose={mockOnClose} />)
 
     const videos = document.querySelectorAll('video')
-    // currentIndex=0: index 0 (current) → auto, index 1 (next) → auto, others → metadata
-    expect(videos[0].preload).toBe('auto')
-    expect(videos[1].preload).toBe('auto')
-    expect(videos[2].preload).toBe('metadata')
+    // PRELOAD_RANGE=5: all 6 videos are within range, all use preload="auto"
+    videos.forEach((video) => {
+      expect(video.preload).toBe('auto')
+    })
   })
 
   it('should set currentTime on loadedMetadata', () => {

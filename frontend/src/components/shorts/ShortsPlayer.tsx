@@ -11,29 +11,25 @@ interface ShortsPlayerProps {
   onClose: () => void;
 }
 
-const PRELOAD_RANGE = 2;
+// Increased preload range to ensure more videos are ready
+const PRELOAD_RANGE = 5;
 
 export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps) {
   const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRefs = useRef(new Map<number, HTMLVideoElement>());
   const slideRefs = useRef(new Map<number, HTMLDivElement>());
+  const unlockedVideosRef = useRef(new Set<number>());  // Track which videos are unlocked
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [isMuted, setIsMuted] = useState(false);  // Start unmuted for better UX
+  const [isMuted, setIsMuted] = useState(false);
   const [isAudioUnlocked, setIsAudioUnlocked] = useState(false);
   const [showPlayOverlay, setShowPlayOverlay] = useState(true);
   const currentIndexRef = useRef(currentIndex);
-  const isMutedRef = useRef(isMuted);
-  const userWantsMutedRef = useRef(false);  // Track if user explicitly wants mute
 
-  // Keep refs in sync
+  // Keep ref in sync
   useEffect(() => {
     currentIndexRef.current = currentIndex;
   }, [currentIndex]);
-
-  useEffect(() => {
-    isMutedRef.current = isMuted;
-  }, [isMuted]);
 
   // Pre-compute time values and video URLs
   const sceneMeta = useMemo(() =>
@@ -52,46 +48,71 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
     [scenes, shareToken]
   );
 
-  // Play video using mute-then-unmute technique for mobile compatibility
-  const playVideoWithUnlock = useCallback((index: number) => {
+  // Unlock a video element by playing it muted briefly
+  const unlockVideo = useCallback((video: HTMLVideoElement, index: number) => {
+    if (unlockedVideosRef.current.has(index)) return Promise.resolve();
+
+    return new Promise<void>((resolve) => {
+      const originalMuted = video.muted;
+      const originalTime = video.currentTime;
+      video.muted = true;
+      video.play().then(() => {
+        video.pause();
+        video.currentTime = originalTime;
+        video.muted = originalMuted;
+        unlockedVideosRef.current.add(index);
+        resolve();
+      }).catch(() => {
+        resolve();
+      });
+    });
+  }, []);
+
+  // Unlock all loaded videos
+  const unlockAllVideos = useCallback(async () => {
+    const promises: Promise<void>[] = [];
+    videoRefs.current.forEach((video, index) => {
+      promises.push(unlockVideo(video, index));
+    });
+    await Promise.all(promises);
+  }, [unlockVideo]);
+
+  // Play video - simpler approach since videos are pre-unlocked
+  const playVideo = useCallback((index: number, muted: boolean) => {
     const video = videoRefs.current.get(index);
     const meta = sceneMeta[index];
     if (!video || !meta) return;
 
     video.currentTime = meta.startSeconds;
+    video.muted = muted;
 
-    // If user explicitly wants muted, just play muted
-    if (userWantsMutedRef.current) {
-      video.muted = true;
-      video.play().catch(() => { });
-      return;
-    }
-
-    // Mute-then-unmute technique: Start muted to ensure playback starts
-    // Then immediately unmute (works because we're in user gesture context)
-    video.muted = true;
-    const playPromise = video.play();
-
-    if (playPromise !== undefined) {
-      playPromise.then(() => {
-        // Successfully started playing, now unmute
-        video.muted = false;
-        setIsMuted(false);
-      }).catch(() => {
-        // Play failed even with mute, keep muted state
-        setIsMuted(true);
-        userWantsMutedRef.current = true;
+    video.play().catch(() => {
+      // If play fails, unlock and retry
+      unlockVideo(video, index).then(() => {
+        video.muted = muted;
+        video.play().catch(() => {
+          // Final fallback: play muted
+          video.muted = true;
+          setIsMuted(true);
+          video.play().catch(() => { });
+        });
       });
-    }
-  }, [sceneMeta]);
+    });
+  }, [sceneMeta, unlockVideo]);
 
   // Handle initial tap to unlock audio and start playback
-  const handlePlayOverlayClick = useCallback(() => {
-    setIsAudioUnlocked(true);
+  const handlePlayOverlayClick = useCallback(async () => {
     setShowPlayOverlay(false);
-    userWantsMutedRef.current = false;
-    playVideoWithUnlock(currentIndex);
-  }, [currentIndex, playVideoWithUnlock]);
+
+    // Unlock all currently loaded videos
+    await unlockAllVideos();
+
+    setIsAudioUnlocked(true);
+    setIsMuted(false);
+
+    // Start playing current video with sound
+    playVideo(currentIndex, false);
+  }, [currentIndex, playVideo, unlockAllVideos]);
 
   // IntersectionObserver for scroll-based slide detection
   useEffect(() => {
@@ -115,69 +136,65 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
     return () => observer.disconnect();
   }, [scenes.length]);
 
-  // Handle touch events to capture user gesture for audio unlock
+  // Unlock newly loaded videos when they appear
+  useEffect(() => {
+    if (!isAudioUnlocked) return;
+
+    // Unlock any new videos that have been loaded
+    videoRefs.current.forEach((video, index) => {
+      if (!unlockedVideosRef.current.has(index)) {
+        unlockVideo(video, index);
+      }
+    });
+  }, [currentIndex, isAudioUnlocked, unlockVideo]);
+
+  // Handle scroll/touch to play videos
   useEffect(() => {
     const container = containerRef.current;
     if (!container || !isAudioUnlocked) return;
 
-    let lastTouchTime = 0;
     let scrollTimeout: ReturnType<typeof setTimeout>;
-    let pendingPlayIndex: number | null = null;
+    let isTouching = false;
 
-    const handleTouchStart = () => {
-      lastTouchTime = Date.now();
-      // Pause current video during touch
-      videoRefs.current.forEach((video) => {
-        if (!video.paused) video.pause();
+    const pauseAllExceptCurrent = () => {
+      videoRefs.current.forEach((video, i) => {
+        if (i !== currentIndexRef.current && !video.paused) {
+          video.pause();
+        }
       });
     };
 
+    const handleTouchStart = () => {
+      isTouching = true;
+      pauseAllExceptCurrent();
+    };
+
     const handleTouchEnd = () => {
-      // Play video in touchend event (strongest user gesture context)
+      isTouching = false;
+      // Play in touchend context (strongest user gesture)
       const idx = currentIndexRef.current;
-      if (pendingPlayIndex !== null && pendingPlayIndex !== idx) {
-        // Index changed, play the new one
-        playVideoWithUnlock(idx);
+      const video = videoRefs.current.get(idx);
+      if (video) {
+        // Ensure video is unlocked, then play
+        if (!unlockedVideosRef.current.has(idx)) {
+          unlockVideo(video, idx).then(() => {
+            playVideo(idx, isMuted);
+          });
+        } else {
+          playVideo(idx, isMuted);
+        }
       }
-      pendingPlayIndex = null;
     };
 
     const handleScroll = () => {
       clearTimeout(scrollTimeout);
-      pendingPlayIndex = currentIndexRef.current;
+      pauseAllExceptCurrent();
 
-      // Pause all videos during scroll
-      videoRefs.current.forEach((video) => {
-        if (!video.paused) video.pause();
-      });
-
-      // If scroll without touch (momentum), use timeout
       scrollTimeout = setTimeout(() => {
-        const timeSinceTouch = Date.now() - lastTouchTime;
-        const idx = currentIndexRef.current;
-
-        // If recent touch, play with unlock technique
-        if (timeSinceTouch < 500) {
-          playVideoWithUnlock(idx);
-        } else {
-          // Fallback: try normal play, will mute if needed
-          const video = videoRefs.current.get(idx);
-          const meta = sceneMeta[idx];
-          if (video && meta) {
-            video.currentTime = meta.startSeconds;
-            video.muted = userWantsMutedRef.current;
-            video.play().then(() => {
-              if (!userWantsMutedRef.current) {
-                video.muted = false;
-                setIsMuted(false);
-              }
-            }).catch(() => {
-              // Failed, use mute-then-unmute
-              playVideoWithUnlock(idx);
-            });
-          }
+        if (!isTouching) {
+          const idx = currentIndexRef.current;
+          playVideo(idx, isMuted);
         }
-        pendingPlayIndex = null;
       }, 150);
     };
 
@@ -191,7 +208,7 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
       container.removeEventListener('scroll', handleScroll);
       clearTimeout(scrollTimeout);
     };
-  }, [isAudioUnlocked, playVideoWithUnlock, sceneMeta]);
+  }, [isAudioUnlocked, isMuted, playVideo, unlockVideo]);
 
   // Pause other videos when current index changes
   useEffect(() => {
@@ -204,18 +221,16 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
 
   // Handle mute toggle
   const handleMuteToggle = useCallback(() => {
-    const newMuted = !isMutedRef.current;
-    userWantsMutedRef.current = newMuted;
+    const newMuted = !isMuted;
     setIsMuted(newMuted);
     const video = videoRefs.current.get(currentIndexRef.current);
     if (video) {
       video.muted = newMuted;
-      // If unmuting and paused, try to play
       if (!newMuted && video.paused) {
         video.play().catch(() => { });
       }
     }
-  }, []);
+  }, [isMuted]);
 
   // Handle tap/click on video to toggle play/pause
   const handleVideoClick = useCallback((index: number) => {
@@ -226,12 +241,12 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
     const video = videoRefs.current.get(index);
     if (video) {
       if (video.paused) {
-        playVideoWithUnlock(index);
+        playVideo(index, isMuted);
       } else {
         video.pause();
       }
     }
-  }, [isAudioUnlocked, handlePlayOverlayClick, playVideoWithUnlock]);
+  }, [isAudioUnlocked, isMuted, handlePlayOverlayClick, playVideo]);
 
   // Escape key + body scroll lock
   useEffect(() => {
@@ -314,12 +329,16 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
                     // @ts-expect-error - webkit-playsinline is needed for iOS Safari
                     webkitplaysinline=""
                     muted={isMuted}
-                    preload={index === currentIndex || index === currentIndex + 1 ? 'auto' : 'metadata'}
+                    preload="auto"
                     onClick={() => handleVideoClick(index)}
                     onLoadedMetadata={(e) => {
                       const v = e.currentTarget;
                       if (v.currentTime < meta.startSeconds || v.currentTime > meta.endSeconds) {
                         v.currentTime = meta.startSeconds;
+                      }
+                      // Auto-unlock when video loads if audio is already unlocked
+                      if (isAudioUnlocked && !unlockedVideosRef.current.has(index)) {
+                        unlockVideo(v, index);
                       }
                     }}
                     onTimeUpdate={(e) => {
