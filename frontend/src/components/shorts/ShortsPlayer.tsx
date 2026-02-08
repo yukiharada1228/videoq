@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, Volume2, VolumeX, Loader2 } from 'lucide-react';
+import { X, Volume2, VolumeX, Loader2, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { apiClient, type PopularScene } from '@/lib/api';
 import { timeStringToSeconds } from '@/lib/utils/video';
@@ -19,8 +19,15 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
   const videoRefs = useRef(new Map<number, HTMLVideoElement>());
   const slideRefs = useRef(new Map<number, HTMLDivElement>());
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [isMuted, setIsMuted] = useState(true);  // Must start muted for mobile autoplay
-  const isMutedRef = useRef(isMuted);  // Track muted state for async callbacks
+  const [isMuted, setIsMuted] = useState(false);  // Start unmuted for better UX
+  const [isAudioUnlocked, setIsAudioUnlocked] = useState(false);  // Track if user has interacted
+  const [showPlayOverlay, setShowPlayOverlay] = useState(true);  // Show tap to play overlay
+  const currentIndexRef = useRef(currentIndex);
+
+  // Keep ref in sync
+  useEffect(() => {
+    currentIndexRef.current = currentIndex;
+  }, [currentIndex]);
 
   // Pre-compute time values and video URLs to avoid per-frame recalculation
   const sceneMeta = useMemo(() =>
@@ -39,6 +46,31 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
     [scenes, shareToken]
   );
 
+  // Play video with proper state
+  const playVideo = useCallback((index: number) => {
+    const video = videoRefs.current.get(index);
+    const meta = sceneMeta[index];
+    if (video && meta) {
+      video.currentTime = meta.startSeconds;
+      video.muted = isMuted;
+      video.play().catch(() => {
+        // If play fails, try muted as fallback
+        if (!video.muted) {
+          video.muted = true;
+          setIsMuted(true);
+          video.play().catch(() => { });
+        }
+      });
+    }
+  }, [sceneMeta, isMuted]);
+
+  // Handle initial tap to unlock audio and start playback
+  const handlePlayOverlayClick = useCallback(() => {
+    setIsAudioUnlocked(true);
+    setShowPlayOverlay(false);
+    playVideo(currentIndex);
+  }, [currentIndex, playVideo]);
+
   // IntersectionObserver for scroll-based slide detection
   useEffect(() => {
     if (scenes.length === 0) return;
@@ -46,7 +78,8 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
       (entries) => {
         for (const entry of entries) {
           if (entry.isIntersecting && entry.intersectionRatio >= 0.6) {
-            setCurrentIndex(Number((entry.target as HTMLElement).dataset.index));
+            const newIndex = Number((entry.target as HTMLElement).dataset.index);
+            setCurrentIndex(newIndex);
           }
         }
       },
@@ -60,52 +93,63 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
     return () => observer.disconnect();
   }, [scenes.length]);
 
-  // Keep ref in sync with state
+  // Handle scroll end to play video (uses user gesture context)
   useEffect(() => {
-    isMutedRef.current = isMuted;
-  }, [isMuted]);
+    const container = containerRef.current;
+    if (!container || !isAudioUnlocked) return;
 
-  // Play/pause based on current slide
+    let scrollTimeout: ReturnType<typeof setTimeout>;
+
+    const handleScroll = () => {
+      clearTimeout(scrollTimeout);
+      // Pause all videos during scroll
+      videoRefs.current.forEach((video) => {
+        if (!video.paused) video.pause();
+      });
+
+      // Wait for scroll to settle, then play current video
+      scrollTimeout = setTimeout(() => {
+        const idx = currentIndexRef.current;
+        playVideo(idx);
+      }, 150);
+    };
+
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      container.removeEventListener('scroll', handleScroll);
+      clearTimeout(scrollTimeout);
+    };
+  }, [isAudioUnlocked, playVideo]);
+
+  // Pause other videos when current index changes
   useEffect(() => {
     videoRefs.current.forEach((video, i) => {
-      if (i !== currentIndex && video) video.pause();
+      if (i !== currentIndex && video && !video.paused) {
+        video.pause();
+      }
     });
+  }, [currentIndex]);
+
+  // Handle mute toggle
+  const handleMuteToggle = useCallback(() => {
+    const newMuted = !isMuted;
+    setIsMuted(newMuted);
     const video = videoRefs.current.get(currentIndex);
     if (video) {
-      video.currentTime = sceneMeta[currentIndex].startSeconds;
-      video.muted = isMutedRef.current;  // Use ref to avoid re-triggering effect
-      const playPromise = video.play();
-      if (playPromise !== undefined) {
-        playPromise.catch(() => {
-          // Auto-play was prevented - fallback to muted playback
-          if (!video.muted) {
-            video.muted = true;
-            setIsMuted(true);  // Update state to reflect forced mute
-            video.play().catch(() => { });
-          }
-        });
+      video.muted = newMuted;
+      // If unmuting and paused, try to play
+      if (!newMuted && video.paused) {
+        video.play().catch(() => { });
       }
     }
-  }, [currentIndex, sceneMeta]);
+  }, [isMuted, currentIndex]);
 
-  // Handle mute toggle with proper mobile support
-  const handleMuteToggle = () => {
-    setIsMuted((m) => {
-      const newMuted = !m;
-      const video = videoRefs.current.get(currentIndex);
-      if (video) {
-        video.muted = newMuted;
-        // On unmute, try to resume playback (requires user gesture which we have)
-        if (!newMuted && video.paused) {
-          video.play().catch(() => { });
-        }
-      }
-      return newMuted;
-    });
-  };
-
-  // Handle tap/click on video to toggle play/pause (helps on mobile)
-  const handleVideoClick = (index: number) => {
+  // Handle tap/click on video to toggle play/pause
+  const handleVideoClick = useCallback((index: number) => {
+    if (!isAudioUnlocked) {
+      handlePlayOverlayClick();
+      return;
+    }
     const video = videoRefs.current.get(index);
     if (video) {
       if (video.paused) {
@@ -114,7 +158,7 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
         video.pause();
       }
     }
-  };
+  }, [isAudioUnlocked, handlePlayOverlayClick]);
 
   // Escape key + body scroll lock
   useEffect(() => {
@@ -142,6 +186,21 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
 
   return (
     <div className="fixed inset-0 z-50 bg-black">
+      {/* Play overlay for initial unlock */}
+      {showPlayOverlay && (
+        <div
+          className="absolute inset-0 z-20 flex items-center justify-center bg-black/60 cursor-pointer"
+          onClick={handlePlayOverlayClick}
+        >
+          <div className="flex flex-col items-center gap-4 text-white">
+            <div className="w-20 h-20 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm">
+              <Play className="h-10 w-10 text-white ml-1" />
+            </div>
+            <p className="text-lg font-medium">{t('shorts.tapToPlay', 'タップして再生')}</p>
+          </div>
+        </div>
+      )}
+
       <div className="absolute top-4 right-4 z-10 flex gap-2">
         <Button variant="ghost" size="icon" className="text-white hover:bg-white/20" onClick={handleMuteToggle}>
           {isMuted ? <VolumeX className="h-6 w-6" /> : <Volume2 className="h-6 w-6" />}
@@ -163,7 +222,6 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
         {scenes.map((scene, index) => {
           const distance = Math.abs(index - currentIndex);
           const shouldLoad = distance <= PRELOAD_RANGE;
-          // Only preload the current video aggressively
           const meta = sceneMeta[index];
 
           return (
@@ -183,12 +241,10 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
                     // @ts-expect-error - webkit-playsinline is needed for iOS Safari
                     webkitplaysinline=""
                     muted={isMuted}
-                    autoPlay={index === currentIndex}
                     preload={index === currentIndex || index === currentIndex + 1 ? 'auto' : 'metadata'}
                     onClick={() => handleVideoClick(index)}
                     onLoadedMetadata={(e) => {
                       const v = e.currentTarget;
-                      v.muted = isMuted;  // Ensure muted state is synced
                       if (v.currentTime < meta.startSeconds || v.currentTime > meta.endSeconds) {
                         v.currentTime = meta.startSeconds;
                       }
@@ -197,13 +253,6 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
                       const video = e.currentTarget;
                       if (video.currentTime >= meta.endSeconds) {
                         video.currentTime = meta.startSeconds;
-                        video.play().catch(() => { });
-                      }
-                    }}
-                    onCanPlay={(e) => {
-                      // Ensure video plays when ready (mobile Safari sometimes needs this)
-                      const video = e.currentTarget;
-                      if (index === currentIndex && video.paused) {
                         video.play().catch(() => { });
                       }
                     }}
