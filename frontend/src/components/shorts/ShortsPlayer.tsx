@@ -26,7 +26,10 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
     const baseUrl = shareToken
       ? apiClient.getSharedVideoUrl(scene.file, shareToken)
       : apiClient.getVideoUrl(scene.file);
-    return `${baseUrl}#t=${timeStringToSeconds(scene.start_time)},${timeStringToSeconds(scene.end_time)}`;
+    const startSeconds = timeStringToSeconds(scene.start_time);
+    const endSeconds = timeStringToSeconds(scene.end_time);
+    const end = endSeconds > startSeconds ? endSeconds : startSeconds + 0.001;
+    return `${baseUrl}#t=${startSeconds},${end}`;
   };
 
   // IntersectionObserver for scroll-based slide detection
@@ -42,7 +45,9 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
       },
       { threshold: 0.5, root: containerRef.current }
     );
-    requestAnimationFrame(() => slideRefs.current.forEach((s) => observer.observe(s)));
+    requestAnimationFrame(() => {
+      slideRefs.current.forEach((s) => { observer.observe(s); });
+    });
     return () => observer.disconnect();
   }, [scenes.length]);
 
@@ -54,7 +59,7 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
     const video = videoRefs.current.get(currentIndex);
     if (video) {
       video.currentTime = timeStringToSeconds(scenes[currentIndex].start_time);
-      void video.play();
+      video.play().catch(() => {});
     }
   }, [currentIndex, scenes]);
 
@@ -104,14 +109,14 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
           return (
             <div
               key={`${scene.video_id}-${scene.start_time}`}
-              ref={(el) => { el ? slideRefs.current.set(index, el) : slideRefs.current.delete(index); }}
+              ref={(el) => { if (el) { slideRefs.current.set(index, el); } else { slideRefs.current.delete(index); } }}
               data-index={index}
               className="h-full w-full snap-start snap-always relative flex items-center justify-center"
             >
               {scene.file ? (
                 shouldLoad ? (
                   <video
-                    ref={(el) => { el ? videoRefs.current.set(index, el) : videoRefs.current.delete(index); }}
+                    ref={(el) => { if (el) { videoRefs.current.set(index, el); } else { videoRefs.current.delete(index); } }}
                     className="max-h-full max-w-full object-contain"
                     src={getVideoSrc(scene)}
                     playsInline
@@ -122,7 +127,7 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
                       const video = e.currentTarget;
                       if (video.currentTime >= timeStringToSeconds(scene.end_time)) {
                         video.currentTime = timeStringToSeconds(scene.start_time);
-                        void video.play();
+                        video.play().catch(() => {});
                       }
                     }}
                   />

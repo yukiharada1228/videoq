@@ -208,4 +208,82 @@ describe('ShortsButton', () => {
     const button = screen.getByRole('button')
     expect(button).toBeInTheDocument()
   })
+
+  // --- New tests for client-side caching ---
+
+  it('should use cached data on second click within TTL', async () => {
+    render(<ShortsButton groupId={1} videos={mockVideos} />)
+
+    const button = screen.getByText(/shorts.button/)
+
+    // First click - should call API
+    await act(async () => {
+      fireEvent.click(button)
+    })
+    await waitFor(() => {
+      expect(apiClient.getPopularScenes).toHaveBeenCalledTimes(1)
+    })
+
+    // Close the player
+    const allButtons = screen.getAllByRole('button')
+    const closeButton = allButtons.find(btn => btn.querySelector('svg.lucide-x'))
+    if (closeButton) {
+      await act(async () => {
+        fireEvent.click(closeButton)
+      })
+    }
+
+    // Second click - should use cache, not call API again
+    await act(async () => {
+      fireEvent.click(screen.getByText(/shorts.button/))
+    })
+
+    expect(apiClient.getPopularScenes).toHaveBeenCalledTimes(1)
+
+    // Player should still open with cached data
+    await waitFor(() => {
+      expect(screen.getByText('Test Video 1')).toBeInTheDocument()
+    })
+  })
+
+  it('should re-fetch after cache expires', async () => {
+    const originalDateNow = Date.now
+    let now = originalDateNow()
+    vi.spyOn(Date, 'now').mockImplementation(() => now)
+
+    render(<ShortsButton groupId={1} videos={mockVideos} />)
+
+    const button = screen.getByText(/shorts.button/)
+
+    // First click
+    await act(async () => {
+      fireEvent.click(button)
+    })
+    await waitFor(() => {
+      expect(apiClient.getPopularScenes).toHaveBeenCalledTimes(1)
+    })
+
+    // Close the player
+    const allButtons = screen.getAllByRole('button')
+    const closeButton = allButtons.find(btn => btn.querySelector('svg.lucide-x'))
+    if (closeButton) {
+      await act(async () => {
+        fireEvent.click(closeButton)
+      })
+    }
+
+    // Advance past the 5 minute TTL
+    now += 5 * 60 * 1000 + 1
+
+    // Click again - cache expired, should call API again
+    await act(async () => {
+      fireEvent.click(screen.getByText(/shorts.button/))
+    })
+
+    await waitFor(() => {
+      expect(apiClient.getPopularScenes).toHaveBeenCalledTimes(2)
+    })
+
+    vi.restoreAllMocks()
+  })
 })

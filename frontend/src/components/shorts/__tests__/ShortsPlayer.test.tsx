@@ -42,6 +42,16 @@ const mockScenes: PopularScene[] = [
   },
 ]
 
+const createManyScenes = (count: number): PopularScene[] =>
+  Array.from({ length: count }, (_, i) => ({
+    video_id: i + 1,
+    title: `Test Video ${i + 1}`,
+    start_time: '00:01:00',
+    end_time: '00:02:00',
+    reference_count: count - i,
+    file: `videos/${i + 1}/test.mp4`,
+  }))
+
 describe('ShortsPlayer', () => {
   const mockOnClose = vi.fn()
 
@@ -156,9 +166,93 @@ describe('ShortsPlayer', () => {
   it('should set up IntersectionObserver', async () => {
     render(<ShortsPlayer scenes={mockScenes} onClose={mockOnClose} />)
 
-    // Wait for isReady to be true and IntersectionObserver to be set up
     await waitFor(() => {
       expect(mockIntersectionObserver).toHaveBeenCalled()
     }, { timeout: 200 })
+  })
+
+  // --- New tests for lazy loading, media fragments, and loop fix ---
+
+  it('should only render video elements within PRELOAD_RANGE', () => {
+    const scenes = createManyScenes(5)
+    render(<ShortsPlayer scenes={scenes} onClose={mockOnClose} />)
+
+    // currentIndex=0, PRELOAD_RANGE=1 → indices 0 and 1 should have <video>
+    const videos = document.querySelectorAll('video')
+    expect(videos.length).toBe(2)
+
+    // Indices 2, 3, 4 should show loading placeholder (animate-spin)
+    const spinners = document.querySelectorAll('.animate-spin')
+    expect(spinners.length).toBe(3)
+  })
+
+  it('should include media fragment #t= in video src', () => {
+    render(<ShortsPlayer scenes={mockScenes} onClose={mockOnClose} />)
+
+    const video = document.querySelector('video')
+    expect(video).not.toBeNull()
+    // start_time 00:01:00 = 60s, end_time 00:02:00 = 120s
+    expect(video!.src).toContain('#t=60,120')
+  })
+
+  it('should set preload="auto" for current and "metadata" for adjacent', () => {
+    const scenes = createManyScenes(3)
+    render(<ShortsPlayer scenes={scenes} onClose={mockOnClose} />)
+
+    const videos = document.querySelectorAll('video')
+    // index 0 (current) → auto, index 1 (adjacent) → metadata
+    expect(videos[0].preload).toBe('auto')
+    expect(videos[1].preload).toBe('metadata')
+  })
+
+  it('should set currentTime on loadedMetadata', () => {
+    render(<ShortsPlayer scenes={mockScenes} onClose={mockOnClose} />)
+
+    const video = document.querySelector('video')!
+    Object.defineProperty(video, 'currentTime', { value: 0, writable: true })
+
+    fireEvent.loadedMetadata(video)
+
+    // start_time 00:01:00 = 60s
+    expect(video.currentTime).toBe(60)
+  })
+
+  it('should loop and call play() when reaching end_time', () => {
+    render(<ShortsPlayer scenes={mockScenes} onClose={mockOnClose} />)
+
+    const video = document.querySelector('video')!
+    Object.defineProperty(video, 'currentTime', { value: 120, writable: true })
+
+    fireEvent.timeUpdate(video)
+
+    // Should seek back to start_time (60s) and call play()
+    expect(video.currentTime).toBe(60)
+    expect(video.play).toHaveBeenCalled()
+  })
+
+  it('should not loop when currentTime is before end_time', () => {
+    render(<ShortsPlayer scenes={mockScenes} onClose={mockOnClose} />)
+
+    const video = document.querySelector('video')!
+    Object.defineProperty(video, 'currentTime', { value: 90, writable: true })
+
+    fireEvent.timeUpdate(video)
+
+    // Should not change currentTime
+    expect(video.currentTime).toBe(90)
+  })
+
+  it('should disconnect IntersectionObserver on unmount', async () => {
+    const mockDisconnect = vi.fn()
+    mockIntersectionObserver.mockReturnValue({
+      observe: vi.fn(),
+      unobserve: vi.fn(),
+      disconnect: mockDisconnect,
+    })
+
+    const { unmount } = render(<ShortsPlayer scenes={mockScenes} onClose={mockOnClose} />)
+    unmount()
+
+    expect(mockDisconnect).toHaveBeenCalled()
   })
 })

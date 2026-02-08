@@ -19,11 +19,11 @@ export function ShortsButton({ groupId, videos, shareToken, size = 'default' }: 
   const [isOpen, setIsOpen] = useState(false);
   const [scenes, setScenes] = useState<PopularScene[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const cacheRef = useRef<{ data: PopularScene[]; fetchedAt: number } | null>(null);
+  const cacheRef = useRef<{ groupId: number; data: PopularScene[]; fetchedAt: number } | null>(null);
 
   const handleOpen = async () => {
     const cached = cacheRef.current;
-    if (cached && Date.now() - cached.fetchedAt < CACHE_TTL) {
+    if (cached && cached.groupId === groupId && Date.now() - cached.fetchedAt < CACHE_TTL) {
       setScenes(cached.data);
       setIsOpen(true);
       return;
@@ -32,7 +32,7 @@ export function ShortsButton({ groupId, videos, shareToken, size = 'default' }: 
     setIsLoading(true);
     try {
       const popularScenes = await apiClient.getPopularScenes(groupId, shareToken);
-      cacheRef.current = { data: popularScenes, fetchedAt: Date.now() };
+      cacheRef.current = { groupId, data: popularScenes, fetchedAt: Date.now() };
       setScenes(popularScenes);
       setIsOpen(true);
     } catch (error) {
