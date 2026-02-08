@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -12,7 +12,6 @@ interface ShortsButtonProps {
   size?: 'sm' | 'default';
 }
 
-/** Client-side cache TTL in milliseconds (5 minutes) */
 const CACHE_TTL = 5 * 60 * 1000;
 
 export function ShortsButton({ groupId, videos, shareToken, size = 'default' }: ShortsButtonProps) {
@@ -22,8 +21,7 @@ export function ShortsButton({ groupId, videos, shareToken, size = 'default' }: 
   const [isLoading, setIsLoading] = useState(false);
   const cacheRef = useRef<{ data: PopularScene[]; fetchedAt: number } | null>(null);
 
-  const handleOpen = useCallback(async () => {
-    // Use cached data if still fresh
+  const handleOpen = async () => {
     const cached = cacheRef.current;
     if (cached && Date.now() - cached.fetchedAt < CACHE_TTL) {
       setScenes(cached.data);
@@ -42,11 +40,7 @@ export function ShortsButton({ groupId, videos, shareToken, size = 'default' }: 
     } finally {
       setIsLoading(false);
     }
-  }, [groupId, shareToken]);
-
-  const handleClose = useCallback(() => {
-    setIsOpen(false);
-  }, []);
+  };
 
   if (!videos || videos.length === 0) {
     return null;
@@ -54,23 +48,13 @@ export function ShortsButton({ groupId, videos, shareToken, size = 'default' }: 
 
   return (
     <>
-      <Button
-        variant="outline"
-        size={size}
-        onClick={handleOpen}
-        disabled={isLoading}
-        className="gap-2"
-      >
+      <Button variant="outline" size={size} onClick={handleOpen} disabled={isLoading} className="gap-2">
         <Play className="h-4 w-4" />
         {isLoading ? t('common.loading') : t('shorts.button')}
       </Button>
 
       {isOpen && (
-        <ShortsPlayer
-          scenes={scenes}
-          shareToken={shareToken}
-          onClose={handleClose}
-        />
+        <ShortsPlayer scenes={scenes} shareToken={shareToken} onClose={() => setIsOpen(false)} />
       )}
     </>
   );
