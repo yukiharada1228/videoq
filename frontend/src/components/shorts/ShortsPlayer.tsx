@@ -57,8 +57,8 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
     const video = videoRef.current;
     if (!video || !currentMeta) return;
 
-    // With media fragments, video starts at 0 (relative to fragment start)
-    video.currentTime = 0;
+    // Set to start time of the scene
+    video.currentTime = currentMeta.startSeconds;
     video.play().catch(() => {
       // Fallback: try muted
       video.muted = true;
@@ -92,8 +92,8 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
       video.src = currentMeta.src;
       video.load();
     }
-    // With media fragments, video starts at 0 (relative to fragment start)
-    video.currentTime = 0;
+    // Set to start time of the scene
+    video.currentTime = currentMeta.startSeconds;
     video.muted = isMuted;
 
     video.play().catch(() => { });
@@ -230,11 +230,9 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
     const video = videoRef.current;
     if (!video || !currentMeta) return;
 
-    // With media fragments, the duration is (endSeconds - startSeconds)
-    // Video time is relative to fragment start (0 = startSeconds)
-    const fragmentDuration = currentMeta.endSeconds - currentMeta.startSeconds;
-    if (video.currentTime >= fragmentDuration) {
-      video.currentTime = 0;
+    // Loop back to start when reaching end time
+    if (video.currentTime >= currentMeta.endSeconds) {
+      video.currentTime = currentMeta.startSeconds;
       video.play().catch(() => { });
     }
   }, [currentMeta]);
@@ -244,8 +242,10 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
     const video = videoRef.current;
     if (!video || !currentMeta) return;
 
-    // With media fragments, video should start at 0
-    video.currentTime = 0;
+    // Ensure video starts at the correct position
+    if (video.currentTime < currentMeta.startSeconds || video.currentTime > currentMeta.endSeconds) {
+      video.currentTime = currentMeta.startSeconds;
+    }
   }, [currentMeta]);
 
   if (scenes.length === 0) {

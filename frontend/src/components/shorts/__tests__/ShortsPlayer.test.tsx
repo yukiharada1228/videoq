@@ -188,43 +188,43 @@ describe('ShortsPlayer', () => {
     expect(video?.preload).toBe('auto')
   })
 
-  it('should set currentTime to 0 on loadedMetadata (media fragment relative)', () => {
+  it('should set currentTime to startSeconds on loadedMetadata', () => {
     render(<ShortsPlayer scenes={mockScenes} onClose={mockOnClose} />)
 
     const video = document.querySelector('video')!
-    Object.defineProperty(video, 'currentTime', { value: 10, writable: true })
+    Object.defineProperty(video, 'currentTime', { value: 0, writable: true })
 
     fireEvent.loadedMetadata(video)
 
-    // With media fragments, video starts at 0 (relative to fragment start)
-    expect(video.currentTime).toBe(0)
+    // start_time 00:01:00 = 60s
+    expect(video.currentTime).toBe(60)
   })
 
-  it('should loop and call play() when reaching fragment duration', () => {
+  it('should loop and call play() when reaching end_time', () => {
     render(<ShortsPlayer scenes={mockScenes} onClose={mockOnClose} />)
 
     const video = document.querySelector('video')!
-    // Fragment duration = 120 - 60 = 60s
-    Object.defineProperty(video, 'currentTime', { value: 60, writable: true })
+    // end_time 00:02:00 = 120s
+    Object.defineProperty(video, 'currentTime', { value: 120, writable: true })
 
     fireEvent.timeUpdate(video)
 
-    // Should seek back to 0 (start of fragment) and call play()
-    expect(video.currentTime).toBe(0)
+    // Should seek back to start_time (60s) and call play()
+    expect(video.currentTime).toBe(60)
     expect(video.play).toHaveBeenCalled()
   })
 
-  it('should not loop when currentTime is before fragment duration', () => {
+  it('should not loop when currentTime is before end_time', () => {
     render(<ShortsPlayer scenes={mockScenes} onClose={mockOnClose} />)
 
     const video = document.querySelector('video')!
-    // Fragment duration = 60s, current time = 30s (still playing)
-    Object.defineProperty(video, 'currentTime', { value: 30, writable: true })
+    // current time = 90s (still between start 60s and end 120s)
+    Object.defineProperty(video, 'currentTime', { value: 90, writable: true })
 
     fireEvent.timeUpdate(video)
 
     // Should not change currentTime
-    expect(video.currentTime).toBe(30)
+    expect(video.currentTime).toBe(90)
   })
 
   it('should disconnect IntersectionObserver on unmount', async () => {
