@@ -19,7 +19,7 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
   const videoRefs = useRef(new Map<number, HTMLVideoElement>());
   const slideRefs = useRef(new Map<number, HTMLDivElement>());
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [isMuted, setIsMuted] = useState(false);
+  const [isMuted, setIsMuted] = useState(true);  // Must start muted for mobile autoplay
 
   // Pre-compute time values and video URLs to avoid per-frame recalculation
   const sceneMeta = useMemo(() =>
@@ -70,12 +70,39 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
       const playPromise = video.play();
       if (playPromise !== undefined) {
         playPromise.catch(() => {
-          // Auto-play was prevented
-          // We can show a UI element to let the user manually start playback
+          // Auto-play was prevented - this is expected on mobile without mute
         });
       }
     }
   }, [currentIndex, sceneMeta]);
+
+  // Handle mute toggle with proper mobile support
+  const handleMuteToggle = () => {
+    setIsMuted((m) => {
+      const newMuted = !m;
+      const video = videoRefs.current.get(currentIndex);
+      if (video) {
+        video.muted = newMuted;
+        // On unmute, try to resume playback (requires user gesture which we have)
+        if (!newMuted && video.paused) {
+          video.play().catch(() => { });
+        }
+      }
+      return newMuted;
+    });
+  };
+
+  // Handle tap/click on video to toggle play/pause (helps on mobile)
+  const handleVideoClick = (index: number) => {
+    const video = videoRefs.current.get(index);
+    if (video) {
+      if (video.paused) {
+        video.play().catch(() => { });
+      } else {
+        video.pause();
+      }
+    }
+  };
 
   // Escape key + body scroll lock
   useEffect(() => {
@@ -104,7 +131,7 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
   return (
     <div className="fixed inset-0 z-50 bg-black">
       <div className="absolute top-4 right-4 z-10 flex gap-2">
-        <Button variant="ghost" size="icon" className="text-white hover:bg-white/20" onClick={() => setIsMuted((m) => !m)}>
+        <Button variant="ghost" size="icon" className="text-white hover:bg-white/20" onClick={handleMuteToggle}>
           {isMuted ? <VolumeX className="h-6 w-6" /> : <Volume2 className="h-6 w-6" />}
         </Button>
         <Button variant="ghost" size="icon" className="text-white hover:bg-white/20" onClick={onClose}>
@@ -138,14 +165,18 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
                 shouldLoad ? (
                   <video
                     ref={(el) => { if (el) { videoRefs.current.set(index, el); } else { videoRefs.current.delete(index); } }}
-                    className="max-h-full max-w-full object-contain pointer-events-none"
+                    className="max-h-full max-w-full object-contain cursor-pointer"
                     src={meta.src}
                     playsInline
-                    webkit-playsinline="true"
+                    // @ts-expect-error - webkit-playsinline is needed for iOS Safari
+                    webkitplaysinline=""
                     muted={isMuted}
+                    autoPlay={index === currentIndex}
                     preload={index === currentIndex || index === currentIndex + 1 ? 'auto' : 'metadata'}
+                    onClick={() => handleVideoClick(index)}
                     onLoadedMetadata={(e) => {
                       const v = e.currentTarget;
+                      v.muted = isMuted;  // Ensure muted state is synced
                       if (v.currentTime < meta.startSeconds || v.currentTime > meta.endSeconds) {
                         v.currentTime = meta.startSeconds;
                       }
@@ -154,6 +185,13 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
                       const video = e.currentTarget;
                       if (video.currentTime >= meta.endSeconds) {
                         video.currentTime = meta.startSeconds;
+                        video.play().catch(() => { });
+                      }
+                    }}
+                    onCanPlay={(e) => {
+                      // Ensure video plays when ready (mobile Safari sometimes needs this)
+                      const video = e.currentTarget;
+                      if (index === currentIndex && video.paused) {
                         video.play().catch(() => { });
                       }
                     }}
