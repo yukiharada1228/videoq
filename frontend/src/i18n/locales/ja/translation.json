@@ -517,7 +517,7 @@
     }
   },
   "shorts": {
-    "button": "復習ショート",
+    "button": "ショート動画",
     "noScenes": "表示するシーンがありません",
     "referenceCount": "{{count}}回参照",
     "tapToPlay": "タップして再生"
