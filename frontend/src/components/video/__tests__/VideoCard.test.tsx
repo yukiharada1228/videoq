@@ -73,10 +73,9 @@ describe('VideoCard', () => {
     const { container } = render(<VideoCard video={mockVideo} onClick={onClick} showLink={false} />)
 
     const card = container.querySelector('[onclick]') || container.firstChild
-    if (card) {
-      fireEvent.click(card as Element)
-      expect(onClick).toHaveBeenCalled()
-    }
+    expect(card).not.toBeNull()
+    fireEvent.click(card as Element)
+    expect(onClick).toHaveBeenCalled()
   })
 
   it('should render placeholder when file is not available', () => {
@@ -105,49 +104,46 @@ describe('VideoCard', () => {
     const { container } = render(<VideoCard video={mockVideo} />)
 
     const video = container.querySelector('video')
-    if (video) {
-      const playSpy = vi.spyOn(video, 'play').mockResolvedValue(undefined)
+    expect(video).not.toBeNull()
+    const playSpy = vi.spyOn(video!, 'play').mockResolvedValue(undefined)
 
-      fireEvent.mouseEnter(video)
+    fireEvent.mouseEnter(video!)
 
-      expect(playSpy).toHaveBeenCalled()
-      playSpy.mockRestore()
-    }
+    expect(playSpy).toHaveBeenCalled()
+    playSpy.mockRestore()
   })
 
   it('should pause video and reset time on mouse leave', () => {
     const { container } = render(<VideoCard video={mockVideo} />)
 
     const video = container.querySelector('video')
-    if (video) {
-      const pauseSpy = vi.spyOn(video, 'pause').mockImplementation(() => { })
-      Object.defineProperty(video, 'currentTime', {
-        writable: true,
-        value: 0,
-      })
+    expect(video).not.toBeNull()
+    const pauseSpy = vi.spyOn(video!, 'pause').mockImplementation(() => { })
+    Object.defineProperty(video!, 'currentTime', {
+      writable: true,
+      value: 0,
+    })
 
-      fireEvent.mouseLeave(video)
+    fireEvent.mouseLeave(video!)
 
-      expect(pauseSpy).toHaveBeenCalled()
-      expect(video.currentTime).toBe(0)
-      pauseSpy.mockRestore()
-    }
+    expect(pauseSpy).toHaveBeenCalled()
+    expect(video!.currentTime).toBe(0)
+    pauseSpy.mockRestore()
   })
 
   it('should handle video play error gracefully', () => {
     const { container } = render(<VideoCard video={mockVideo} />)
 
     const video = container.querySelector('video')
-    if (video) {
-      const playSpy = vi.spyOn(video, 'play').mockRejectedValue(new Error('Play failed'))
+    expect(video).not.toBeNull()
+    const playSpy = vi.spyOn(video!, 'play').mockRejectedValue(new Error('Play failed'))
 
-      // Should not throw
-      expect(() => {
-        fireEvent.mouseEnter(video)
-      }).not.toThrow()
+    // Should not throw
+    expect(() => {
+      fireEvent.mouseEnter(video!)
+    }).not.toThrow()
 
-      playSpy.mockRestore()
-    }
+    playSpy.mockRestore()
   })
 })
 
