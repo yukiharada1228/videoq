@@ -1,5 +1,6 @@
 'use client';
 
+import { useRef, useState, useEffect, useCallback } from 'react';
 import type { VideoInGroup, VideoList as VideoListType } from '@/lib/api';
 import { apiClient } from '@/lib/api';
 import { Card, CardContent } from '@/components/ui/card';
@@ -16,14 +17,71 @@ interface VideoCardProps {
   onClick?: () => void;
 }
 
+/**
+ * Custom hook that uses IntersectionObserver to detect when an element
+ * enters the viewport. Once visible, stays true (no unloading on scroll-out).
+ */
+function useInView(rootMargin = '200px') {
+  const ref = useRef<HTMLDivElement>(null);
+  const [isInView, setIsInView] = useState(false);
+
+  useEffect(() => {
+    const element = ref.current;
+    if (!element || isInView) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsInView(true);
+        }
+      },
+      { rootMargin }
+    );
+
+    observer.observe(element);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [isInView, rootMargin]);
+
+  return { ref, isInView };
+}
+
+/**
+ * Placeholder shown while the video card is outside the viewport.
+ * Lightweight SVG icon on a gradient background — no network requests.
+ */
+function VideoPlaceholder() {
+  return (
+    <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900">
+      <svg className="w-10 h-10 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+      </svg>
+    </div>
+  );
+}
+
 export function VideoCard({ video, showLink = true, className = '', onClick }: VideoCardProps) {
   const { locale } = useParams<{ locale: string }>();
   const { t } = useTranslation();
+  const { ref: cardRef, isInView } = useInView('200px');
+
+  const handleMouseEnter = useCallback((e: React.MouseEvent<HTMLVideoElement>) => {
+    const vid = e.currentTarget;
+    vid.play().catch(() => { });
+  }, []);
+
+  const handleMouseLeave = useCallback((e: React.MouseEvent<HTMLVideoElement>) => {
+    const vid = e.currentTarget;
+    vid.pause();
+    vid.currentTime = 0;
+  }, []);
 
   const cardContent = (
     <Card className={`h-full flex flex-col hover:shadow-md transition-all duration-200 cursor-pointer border-0 shadow-sm hover:shadow-lg overflow-hidden group ${className}`}>
       {/* Thumbnail */}
-      <div className="relative w-full aspect-video bg-gray-900 overflow-hidden group">
+      <div ref={cardRef} className="relative w-full aspect-video bg-gray-900 overflow-hidden group">
         {video.external_id ? (
           <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-900 to-gray-700 px-3">
             <div className="text-center">
@@ -35,22 +93,19 @@ export function VideoCard({ video, showLink = true, className = '', onClick }: V
           </div>
         ) : video.file ? (
           <>
-            <video
-              className="w-full h-full object-cover"
-              muted
-              playsInline
-              preload="metadata"
-              src={apiClient.getVideoUrl(video.file)}
-              onMouseEnter={(e) => {
-                const video = e.currentTarget;
-                video.play().catch(() => {});
-              }}
-              onMouseLeave={(e) => {
-                const video = e.currentTarget;
-                video.pause();
-                video.currentTime = 0;
-              }}
-            />
+            {isInView ? (
+              <video
+                className="w-full h-full object-cover"
+                muted
+                playsInline
+                preload="metadata"
+                src={apiClient.getVideoUrl(video.file)}
+                onMouseEnter={handleMouseEnter}
+                onMouseLeave={handleMouseLeave}
+              />
+            ) : (
+              <VideoPlaceholder />
+            )}
             {/* Overlay on hover (light) */}
             <div className="absolute inset-0 bg-black opacity-0 group-hover:opacity-20 transition-opacity pointer-events-none"></div>
           </>
@@ -115,3 +170,4 @@ export function VideoCard({ video, showLink = true, className = '', onClick }: V
 
   return cardContent;
 }
+
