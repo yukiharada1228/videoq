@@ -511,7 +511,7 @@
     }
   },
   "shorts": {
-    "button": "Review Shorts",
+    "button": "Short Videos",
     "noScenes": "No scenes to display",
     "referenceCount": "{{count}} references",
     "tapToPlay": "Tap to play"
