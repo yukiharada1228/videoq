@@ -15,7 +15,7 @@ VideoQ is an AI-powered video navigator that automatically transcribes your vide
 - **Search content** - Find specific moments without scrubbing through hours of footage
 - **Organize with tags** - Keep your videos organized with custom tags and colors
 - **Share insights** - Create shareable groups of videos for team collaboration
-- **Shorts-style Viewing** - Swipe through popular scenes frequently referenced in AI answers
+- **Short Videos** - Swipe through popular scenes frequently referenced in AI answers
 - **Multilingual Support** - Switch between Japanese and English interfaces
 
 ## 🚀 Quick Start (5 minutes)
@@ -90,9 +90,9 @@ This design ensures administrators have full control over resource usage and use
 
 ## 🎬 Features in Detail
 
-### Shorts-style Viewing
+### Short Videos
 
-VideoQ tracks which video segments are most frequently referenced when the AI answers your questions. You can browse these popular scenes in a shorts-style vertical format:
+VideoQ tracks which video segments are most frequently referenced when the AI answers your questions. You can browse these popular scenes in a vertical Short-video format:
 
 - **TikTok-like navigation** - Swipe up/down or use arrow keys to navigate between scenes
 - **Popular scenes** - See the moments that matter most based on actual AI usage
