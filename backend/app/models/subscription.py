@@ -15,12 +15,12 @@ PLAN_LIMITS = {
         "ai_answers": 100,
     },
     PlanType.STANDARD: {
-        "storage_gb": 50,
+        "storage_gb": 25,
         "processing_minutes": 300,
         "ai_answers": 1000,
     },
     PlanType.BUSINESS: {
-        "storage_gb": 200,
+        "storage_gb": 100,
         "processing_minutes": 1000,
         "ai_answers": 10000,
     },
