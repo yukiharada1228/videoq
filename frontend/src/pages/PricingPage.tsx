@@ -10,6 +10,7 @@ export default function PricingPage() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
+  const [downgradeLoading, setDowngradeLoading] = useState(false);
 
   useEffect(() => {
     apiClient
@@ -36,6 +37,17 @@ export default function PricingPage() {
     } catch (err) {
       console.error('Failed to create checkout session:', err);
       setCheckoutLoading(null);
+    }
+  };
+
+  const handleDowngrade = async () => {
+    setDowngradeLoading(true);
+    try {
+      const res = await apiClient.createBillingPortalSession(window.location.href);
+      window.location.href = res.portal_url;
+    } catch (err) {
+      console.error('Failed to create billing portal session:', err);
+      setDowngradeLoading(false);
     }
   };
 
@@ -133,6 +145,16 @@ export default function PricingPage() {
                     className="w-full py-2 px-4 rounded-lg bg-gray-100 text-gray-500 font-medium cursor-not-allowed"
                   >
                     {t('billing.pricing.currentPlan')}
+                  </button>
+                ) : isFree && user && user.plan !== 'free' ? (
+                  <button
+                    onClick={handleDowngrade}
+                    disabled={downgradeLoading}
+                    className="w-full py-2 px-4 rounded-lg font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                  >
+                    {downgradeLoading
+                      ? t('billing.pricing.redirecting')
+                      : t('billing.pricing.downgrade')}
                   </button>
                 ) : isFree ? (
                   <div className="h-10" />

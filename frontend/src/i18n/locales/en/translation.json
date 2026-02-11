@@ -112,6 +112,7 @@
     "videos": "Videos",
     "videoGroups": "Chat groups",
     "pricing": "Pricing",
+    "billing": "Billing",
     "settings": "Settings",
     "logout": "Log out",
     "welcome": "Welcome, {{username}}",
@@ -529,6 +530,7 @@
       "aiAnswers": "{{amount}} AI answers/month",
       "currentPlan": "Current Plan",
       "upgrade": "Upgrade",
+      "downgrade": "Switch to Free",
       "redirecting": "Redirecting..."
     },
     "plans": {

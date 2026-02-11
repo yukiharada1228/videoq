@@ -118,6 +118,7 @@
     "videos": "動画一覧",
     "videoGroups": "チャットグループ",
     "pricing": "料金プラン",
+    "billing": "ご利用状況",
     "settings": "設定",
     "logout": "ログアウト",
     "welcome": "ようこそ、{{username}}さん",
@@ -535,6 +536,7 @@
       "aiAnswers": "AI回答 {{amount}}回/月",
       "currentPlan": "現在のプラン",
       "upgrade": "アップグレード",
+      "downgrade": "無料プランに変更",
       "redirecting": "リダイレクト中..."
     },
     "plans": {
