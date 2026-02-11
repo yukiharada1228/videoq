@@ -55,6 +55,12 @@ export function Header({ children }: HeaderProps) {
                 </button>
               </>
             )}
+            <button
+              onClick={() => navigate('/pricing')}
+              className="text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              {t('navigation.pricing')}
+            </button>
             {children}
           </div>
 
@@ -135,6 +141,15 @@ export function Header({ children }: HeaderProps) {
                 className="block w-full text-left px-2 py-2 text-gray-600 hover:bg-gray-50 rounded transition-colors"
               >
                 {t('navigation.videoGroups')}
+              </button>
+              <button
+                onClick={() => {
+                  navigate('/pricing');
+                  closeMobileMenu();
+                }}
+                className="block w-full text-left px-2 py-2 text-gray-600 hover:bg-gray-50 rounded transition-colors"
+              >
+                {t('navigation.pricing')}
               </button>
               <button
                 onClick={() => {

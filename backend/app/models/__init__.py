@@ -6,6 +6,7 @@ from .storage import (
     SafeS3Boto3Storage,
     get_default_storage,
 )
+from .subscription import PLAN_LIMITS, PlanType, Subscription
 from .tag import Tag, VideoTag
 from .user import User
 from .video import Video, user_directory_path
@@ -23,6 +24,9 @@ __all__ = [
     "VideoGroup",
     "VideoGroupMember",
     "ChatLog",
+    "Subscription",
+    "PlanType",
+    "PLAN_LIMITS",
     "SafeFilenameMixin",
     "SafeFileSystemStorage",
     "SafeS3Boto3Storage",

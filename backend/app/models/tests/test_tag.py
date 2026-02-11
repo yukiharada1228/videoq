@@ -19,7 +19,6 @@ class TagModelTests(TestCase):
             username="testuser",
             email="test@example.com",
             password="testpass123",
-            video_limit=None,
         )
 
     def test_create_tag(self):
@@ -111,7 +110,6 @@ class VideoTagModelTests(TestCase):
             username="testuser",
             email="test@example.com",
             password="testpass123",
-            video_limit=None,
         )
         self.video = Video.objects.create(
             user=self.user,

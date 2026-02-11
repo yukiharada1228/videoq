@@ -81,6 +81,9 @@ class LoginSerializer(serializers.Serializer, CredentialsSerializerMixin):
 
 class UserSerializer(serializers.ModelSerializer):
     video_count = serializers.SerializerMethodField()
+    plan = serializers.SerializerMethodField()
+    storage_used_bytes = serializers.SerializerMethodField()
+    storage_limit_bytes = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -88,14 +91,29 @@ class UserSerializer(serializers.ModelSerializer):
             "id",
             "username",
             "email",
-            "video_limit",
             "video_count",
+            "plan",
+            "storage_used_bytes",
+            "storage_limit_bytes",
         ]
 
     def get_video_count(self, obj):
         """Return the current user's video count"""
         # Use annotated video_count if available (to avoid N+1 query)
         return getattr(obj, "video_count", obj.videos.count())
+
+    def get_plan(self, obj):
+        """Return the user's current subscription plan"""
+        sub = getattr(obj, "subscription", None)
+        if sub:
+            return sub.plan
+        return "free"
+
+    def get_storage_used_bytes(self, obj):
+        return obj.storage_used_bytes
+
+    def get_storage_limit_bytes(self, obj):
+        return obj.storage_limit_bytes
 
 
 class RefreshSerializer(serializers.Serializer):

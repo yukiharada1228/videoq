@@ -26,7 +26,6 @@ class DownloadVideoFromStorageTests(TestCase):
             username="testuser",
             email="test@example.com",
             password="testpass123",
-            video_limit=None,
         )
         self.video = Video.objects.create(
             user=self.user,
@@ -129,7 +128,6 @@ class SaveTranscriptionResultTests(TestCase):
             username="testuser",
             email="test@example.com",
             password="testpass123",
-            video_limit=None,
         )
         self.video = Video.objects.create(
             user=self.user,
@@ -166,7 +164,6 @@ class HandleTranscriptionErrorTests(TestCase):
             username="testuser",
             email="test@example.com",
             password="testpass123",
-            video_limit=None,
         )
         self.video = Video.objects.create(
             user=self.user,
@@ -194,7 +191,6 @@ class TranscribeVideoTaskTests(TestCase):
             username="testuser",
             email="test@example.com",
             password="testpass123",
-            video_limit=None,
         )
 
     @patch("app.tasks.transcription.index_scenes_batch")

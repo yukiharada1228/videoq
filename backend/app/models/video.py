@@ -44,6 +44,10 @@ class Video(models.Model):
         max_length=20, choices=STATUS_CHOICES, default="pending", db_index=True
     )
     error_message = models.TextField(blank=True)
+    file_size = models.BigIntegerField(
+        default=0,
+        help_text="File size in bytes",
+    )
     external_id = models.CharField(
         max_length=255,
         null=True,

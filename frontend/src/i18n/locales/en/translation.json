@@ -111,6 +111,7 @@
     "brand": "VideoQ",
     "videos": "Videos",
     "videoGroups": "Chat groups",
+    "pricing": "Pricing",
     "settings": "Settings",
     "logout": "Log out",
     "welcome": "Welcome, {{username}}",
@@ -195,8 +196,8 @@
         "message": "You need to set your OpenAI API key to upload and transcribe videos.",
         "settingsLink": "Go to Settings"
       },
-      "uploadLimitWarning": {
-        "message": "You have reached the video upload limit ({{limit}} videos). To upload new videos, please delete existing ones."
+      "storageLimitWarning": {
+        "message": "Storage limit reached ({{used}}GB / {{limit}}GB). Please upgrade your plan or delete existing videos."
       },
       "subtitle_one": "{{count}} video",
       "subtitle_other": "{{count}} videos"
@@ -515,5 +516,51 @@
     "noScenes": "No scenes to display",
     "referenceCount": "{{count}} references",
     "tapToPlay": "Tap to play"
+  },
+  "billing": {
+    "pricing": {
+      "title": "Choose Your Plan",
+      "subtitle": "Select the plan that best fits your needs.",
+      "free": "Free",
+      "month": "mo",
+      "popular": "Most Popular",
+      "storage": "{{amount}}GB storage",
+      "processing": "{{amount}} min video processing",
+      "aiAnswers": "{{amount}} AI answers/month",
+      "currentPlan": "Current Plan",
+      "upgrade": "Upgrade",
+      "redirecting": "Redirecting..."
+    },
+    "plans": {
+      "free": "Free Plan",
+      "standard": "Standard Plan",
+      "business": "Business Plan"
+    },
+    "management": {
+      "title": "Billing & Subscription",
+      "currentPlan": "Current Plan",
+      "status": "Status",
+      "statusActive": "Active",
+      "periodEnd": "Current Period Ends",
+      "cancelScheduled": "Your subscription will be canceled at the end of the current billing period.",
+      "viewPlans": "View Plans",
+      "manageSubscription": "Manage Subscription",
+      "redirecting": "Redirecting...",
+      "limitsTitle": "Plan Limits",
+      "limitsStorage": "Storage:",
+      "limitsProcessing": "Processing:",
+      "limitsMinutes": " min",
+      "limitsAi": "AI Answers:",
+      "limitsCount": " /month"
+    },
+    "success": {
+      "title": "Subscription Activated!",
+      "description": "Your subscription has been successfully activated. Enjoy your new plan!"
+    },
+    "cancel": {
+      "title": "Checkout Canceled",
+      "description": "Your checkout was canceled. No charges were made.",
+      "viewPlans": "View Plans"
+    }
   }
 }

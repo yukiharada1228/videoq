@@ -30,7 +30,6 @@ class VideoCreateSerializerTests(TestCase):
             username="testuser",
             email="test@example.com",
             password="testpass123",
-            video_limit=None,
         )
 
     def _create_video_file(self):
@@ -80,85 +79,6 @@ class VideoCreateSerializerTests(TestCase):
         video = serializer.save()
 
         mock_task.assert_called_once_with(video.id)
-
-    def test_validates_video_limit_zero(self):
-        """Test validation when video_limit is 0"""
-        self.user.video_limit = 0
-        self.user.save()
-
-        data = {
-            "file": self._create_video_file(),
-            "title": "Test Video",
-        }
-
-        serializer = VideoCreateSerializer(
-            data=data, context=self._get_request_context()
-        )
-
-        self.assertFalse(serializer.is_valid())
-        self.assertIn("Video upload limit reached", str(serializer.errors))
-
-    @patch("app.video.serializers.transcribe_video.delay")
-    def test_validates_video_limit_reached(self, mock_task):
-        """Test validation when video_limit is reached"""
-        self.user.video_limit = 2
-        self.user.save()
-
-        # Create 2 videos
-        Video.objects.create(user=self.user, title="Video 1")
-        Video.objects.create(user=self.user, title="Video 2")
-
-        data = {
-            "file": self._create_video_file(),
-            "title": "Video 3",
-        }
-
-        serializer = VideoCreateSerializer(
-            data=data, context=self._get_request_context()
-        )
-
-        self.assertFalse(serializer.is_valid())
-        self.assertIn("Video upload limit reached", str(serializer.errors))
-
-    @patch("app.video.serializers.transcribe_video.delay")
-    def test_allows_upload_when_within_limit(self, mock_task):
-        """Test that upload is allowed when within limit"""
-        self.user.video_limit = 3
-        self.user.save()
-
-        Video.objects.create(user=self.user, title="Video 1")
-
-        data = {
-            "file": self._create_video_file(),
-            "title": "Video 2",
-        }
-
-        serializer = VideoCreateSerializer(
-            data=data, context=self._get_request_context()
-        )
-
-        self.assertTrue(serializer.is_valid())
-
-    @patch("app.video.serializers.transcribe_video.delay")
-    def test_allows_unlimited_uploads(self, mock_task):
-        """Test that unlimited uploads are allowed when video_limit is None"""
-        self.user.video_limit = None
-        self.user.save()
-
-        # Create many videos
-        for i in range(10):
-            Video.objects.create(user=self.user, title=f"Video {i}")
-
-        data = {
-            "file": self._create_video_file(),
-            "title": "Another Video",
-        }
-
-        serializer = VideoCreateSerializer(
-            data=data, context=self._get_request_context()
-        )
-
-        self.assertTrue(serializer.is_valid())
 
     def test_normalizes_empty_external_id(self):
         """Test that empty external_id is normalized to None"""
@@ -313,7 +233,6 @@ class VideoSerializerTests(TestCase):
             username="testuser",
             email="test@example.com",
             password="testpass123",
-            video_limit=None,
         )
         self.video = Video.objects.create(
             user=self.user,
@@ -347,7 +266,6 @@ class VideoGroupDetailSerializerTests(TestCase):
             username="testuser",
             email="test@example.com",
             password="testpass123",
-            video_limit=None,
         )
         self.group = VideoGroup.objects.create(
             user=self.user,
@@ -411,7 +329,6 @@ class TagDetailSerializerTests(TestCase):
             username="testuser",
             email="test@example.com",
             password="testpass123",
-            video_limit=None,
         )
         self.tag = Tag.objects.create(
             user=self.user,

@@ -15,8 +15,33 @@ export interface User {
   id: number;
   username: string;
   email: string;
-  video_limit: number | null;
   video_count: number;
+  plan: 'free' | 'standard' | 'business';
+  storage_used_bytes: number;
+  storage_limit_bytes: number;
+}
+
+export interface Plan {
+  name: string;
+  plan_id: 'free' | 'standard' | 'business';
+  price: number;
+  currency: string;
+  storage_gb: number;
+  processing_minutes: number;
+  ai_answers: number;
+}
+
+export interface UserSubscription {
+  plan: string;
+  stripe_status: string;
+  current_period_end: string | null;
+  cancel_at_period_end: boolean;
+  is_active: boolean;
+  limits: {
+    storage_gb: number;
+    processing_minutes: number;
+    ai_answers: number;
+  };
 }
 
 export interface SignupRequest {
@@ -458,6 +483,39 @@ class ApiClient {
     return this.request<User>('/auth/me');
   }
 
+  /**
+   * Silently fetch the current user without triggering auth redirects.
+   * Returns null if not authenticated or on any error.
+   * Attempts token refresh on 401 before giving up.
+   * Used on public pages (e.g. pricing) to detect logged-in users.
+   */
+  async getMeSafe(): Promise<User | null> {
+    try {
+      const url = this.buildUrl('/auth/me');
+      const doFetch = () =>
+        fetch(url, {
+          method: 'GET',
+          credentials: 'include',
+          headers: this.getJsonHeaders(),
+        });
+
+      let response = await doFetch();
+      if (response.status === 401) {
+        // Try refreshing the token silently
+        try {
+          await this.refreshToken();
+          response = await doFetch();
+        } catch {
+          return null;
+        }
+      }
+      if (!response.ok) return null;
+      return await response.json();
+    } catch {
+      return null;
+    }
+  }
+
   async chat(data: ChatRequest): Promise<ChatMessage> {
     const { share_token, ...bodyData } = data;
     const endpoint = share_token ? `/chat/?share_token=${share_token}` : '/chat/';
@@ -795,6 +853,29 @@ class ApiClient {
       params.set('limit', String(limit));
     }
     return this.request<PopularScene[]>(`/chat/popular-scenes/?${params.toString()}`);
+  }
+
+  // Billing methods
+  async getPlans(): Promise<Plan[]> {
+    return this.request<Plan[]>('/billing/plans/');
+  }
+
+  async getSubscription(): Promise<UserSubscription> {
+    return this.request<UserSubscription>('/billing/subscription/');
+  }
+
+  async createCheckoutSession(plan: string, successUrl: string, cancelUrl: string): Promise<{ checkout_url: string }> {
+    return this.request<{ checkout_url: string }>('/billing/checkout/', {
+      method: 'POST',
+      body: { plan, success_url: successUrl, cancel_url: cancelUrl },
+    });
+  }
+
+  async createBillingPortalSession(returnUrl: string): Promise<{ portal_url: string }> {
+    return this.request<{ portal_url: string }>('/billing/portal/', {
+      method: 'POST',
+      body: { return_url: returnUrl },
+    });
   }
 
 }

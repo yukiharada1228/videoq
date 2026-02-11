@@ -117,6 +117,7 @@
     "brand": "VideoQ",
     "videos": "動画一覧",
     "videoGroups": "チャットグループ",
+    "pricing": "料金プラン",
     "settings": "設定",
     "logout": "ログアウト",
     "welcome": "ようこそ、{{username}}さん",
@@ -201,8 +202,8 @@
         "message": "動画をアップロードして文字起こしを行うには、OpenAI APIキーを設定する必要があります。",
         "settingsLink": "設定画面へ"
       },
-      "uploadLimitWarning": {
-        "message": "動画のアップロード上限（{{limit}}本）に達しました。新しい動画をアップロードするには、既存の動画を削除してください。"
+      "storageLimitWarning": {
+        "message": "ストレージ上限に達しました（{{used}}GB / {{limit}}GB）。プランをアップグレードするか、既存の動画を削除してください。"
       },
       "subtitle_one": "{{count}}本の動画",
       "subtitle_other": "{{count}}本の動画"
@@ -521,5 +522,51 @@
     "noScenes": "表示するシーンがありません",
     "referenceCount": "{{count}}回参照",
     "tapToPlay": "タップして再生"
+  },
+  "billing": {
+    "pricing": {
+      "title": "料金プラン",
+      "subtitle": "ニーズに合ったプランをお選びください。",
+      "free": "無料",
+      "month": "月",
+      "popular": "人気",
+      "storage": "{{amount}}GB ストレージ",
+      "processing": "{{amount}}分 動画処理",
+      "aiAnswers": "AI回答 {{amount}}回/月",
+      "currentPlan": "現在のプラン",
+      "upgrade": "アップグレード",
+      "redirecting": "リダイレクト中..."
+    },
+    "plans": {
+      "free": "フリープラン",
+      "standard": "スタンダードプラン",
+      "business": "ビジネスプラン"
+    },
+    "management": {
+      "title": "請求・サブスクリプション",
+      "currentPlan": "現在のプラン",
+      "status": "ステータス",
+      "statusActive": "有効",
+      "periodEnd": "現在の契約期間終了日",
+      "cancelScheduled": "サブスクリプションは現在の請求期間の終了時にキャンセルされます。",
+      "viewPlans": "プランを見る",
+      "manageSubscription": "サブスクリプション管理",
+      "redirecting": "リダイレクト中...",
+      "limitsTitle": "プラン制限",
+      "limitsStorage": "ストレージ:",
+      "limitsProcessing": "動画処理:",
+      "limitsMinutes": "分",
+      "limitsAi": "AI回答:",
+      "limitsCount": "回/月"
+    },
+    "success": {
+      "title": "サブスクリプションが有効になりました！",
+      "description": "サブスクリプションが正常に有効化されました。新しいプランをお楽しみください！"
+    },
+    "cancel": {
+      "title": "チェックアウトがキャンセルされました",
+      "description": "チェックアウトがキャンセルされました。料金は発生していません。",
+      "viewPlans": "プランを見る"
+    }
   }
 }

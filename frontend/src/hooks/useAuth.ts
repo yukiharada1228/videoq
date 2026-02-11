@@ -62,6 +62,7 @@ export function useAuth(options: UseAuthOptions = {}): UseAuthReturn {
       '/reset-password',
       '/verify-email',
       '/share',
+      '/pricing',
     ];
     const authRequired = !publicPaths.some((path) =>
       pathname.startsWith(path)
@@ -70,7 +71,14 @@ export function useAuth(options: UseAuthOptions = {}): UseAuthReturn {
     if (authRequired) {
       checkAuth();
     } else {
-      setLoading(false);
+      // On public pages, silently try to fetch user data without redirecting on failure.
+      // This allows features like showing current plan on pricing page for logged-in users.
+      apiClient
+        .getMeSafe()
+        .then((userData) => {
+          if (userData) setUser(userData);
+        })
+        .finally(() => setLoading(false));
     }
   }, [checkAuth, pathname]);
 

@@ -14,6 +14,10 @@ import VideoDetailPage from '@/pages/VideoDetailPage';
 import VideoGroupsPage from '@/pages/VideoGroupsPage';
 import VideoGroupDetailPage from '@/pages/VideoGroupDetailPage';
 import SharePage from '@/pages/SharePage';
+import PricingPage from '@/pages/PricingPage';
+import BillingPage from '@/pages/BillingPage';
+import BillingSuccessPage from '@/pages/BillingSuccessPage';
+import BillingCancelPage from '@/pages/BillingCancelPage';
 
 function LocaleGate() {
   const params = useParams<{ locale?: string }>();
@@ -53,6 +57,10 @@ const routeChildren = (
     <Route path="videos/groups" element={<VideoGroupsPage />} />
     <Route path="videos/groups/:id" element={<VideoGroupDetailPage />} />
     <Route path="share/:token" element={<SharePage />} />
+    <Route path="pricing" element={<PricingPage />} />
+    <Route path="billing" element={<BillingPage />} />
+    <Route path="billing/success" element={<BillingSuccessPage />} />
+    <Route path="billing/cancel" element={<BillingCancelPage />} />
   </>
 );
 

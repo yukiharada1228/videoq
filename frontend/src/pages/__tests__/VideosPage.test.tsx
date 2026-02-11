@@ -30,7 +30,7 @@ vi.mock('@/hooks/useVideoStats', () => ({
 
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({
-    user: { id: 1, username: 'testuser', video_limit: 10, video_count: 3 },
+    user: { id: 1, username: 'testuser', video_count: 3, plan: 'free', storage_used_bytes: 1073741824, storage_limit_bytes: 5368709120 },
     loading: false,
     refetch: vi.fn(),
   }),

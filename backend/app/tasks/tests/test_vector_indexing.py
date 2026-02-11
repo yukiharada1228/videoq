@@ -23,7 +23,6 @@ class CreateSceneMetadataTests(TestCase):
             username="testuser",
             email="test@example.com",
             password="testpass123",
-            video_limit=None,
         )
         self.video = Video.objects.create(
             user=self.user,
@@ -92,7 +91,6 @@ class IndexScenesToVectorstoreTests(TestCase):
             username="testuser",
             email="test@example.com",
             password="testpass123",
-            video_limit=None,
         )
         self.video = Video.objects.create(
             user=self.user,
@@ -189,7 +187,6 @@ class IndexScenesBatchTests(TestCase):
             username="testuser",
             email="test@example.com",
             password="testpass123",
-            video_limit=None,
         )
         self.video = Video.objects.create(
             user=self.user,

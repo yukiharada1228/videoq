@@ -247,6 +247,8 @@ class MeView(AuthenticatedAPIView, generics.RetrieveAPIView):
     def get_object(self):
         from django.db.models import Count
 
-        return User.objects.annotate(video_count=Count("videos")).get(
-            pk=self.request.user.pk
+        return (
+            User.objects.select_related("subscription")
+            .annotate(video_count=Count("videos"))
+            .get(pk=self.request.user.pk)
         )

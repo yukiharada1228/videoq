@@ -78,13 +78,12 @@ export default function VideosPage() {
 
   const isUploadDisabled = useMemo(() => {
     if (!user || userLoading) return true;
-    if (user.video_limit === null) return false;
-    return user.video_count >= user.video_limit;
+    return user.storage_used_bytes >= user.storage_limit_bytes;
   }, [user, userLoading]);
 
   const hasReachedLimit = useMemo(() => {
-    if (!user || user.video_limit === null) return false;
-    return user.video_count >= user.video_limit;
+    if (!user) return false;
+    return user.storage_used_bytes >= user.storage_limit_bytes;
   }, [user]);
 
   return (
@@ -113,10 +112,13 @@ export default function VideosPage() {
             </Button>
           </div>
 
-          {hasReachedLimit && user && user.video_limit !== null && (
+          {hasReachedLimit && user && (
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
               <p className="text-yellow-800 text-sm">
-                {t('videos.list.uploadLimitWarning.message', { limit: user.video_limit })}
+                {t('videos.list.storageLimitWarning.message', {
+                  used: (user.storage_used_bytes / (1024 * 1024 * 1024)).toFixed(1),
+                  limit: (user.storage_limit_bytes / (1024 * 1024 * 1024)).toFixed(0),
+                })}
               </p>
             </div>
           )}

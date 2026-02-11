@@ -57,6 +57,19 @@ services:
     networks:
       - videoq-network
 
+  stripe-cli:
+    image: stripe/stripe-cli:latest
+    container_name: videoq-stripe-cli
+    command: listen --forward-to http://backend:8000/api/billing/webhook/
+    env_file:
+      - .env
+    volumes:
+      - stripe-config:/root/.config/stripe
+    depends_on:
+      - backend
+    networks:
+      - videoq-network
+
   nginx:
     image: nginx:alpine
     container_name: videoq-nginx
@@ -75,6 +88,7 @@ services:
 volumes:
   staticfiles:
   postgres_data:
+  stripe-config:
 
 networks:
   videoq-network:

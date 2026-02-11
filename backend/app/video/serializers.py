@@ -73,30 +73,33 @@ class VideoCreateSerializer(UserOwnedSerializerMixin, serializers.ModelSerialize
         return value
 
     def validate(self, attrs):
-        """Validate video upload limit"""
+        """Validate storage limit based on subscription plan"""
         user = self.context["request"].user
+        file = attrs.get("file")
 
-        # Check video limit
-        video_limit = user.video_limit
+        if file:
+            new_file_size = file.size
+            used = user.storage_used_bytes
+            limit = user.storage_limit_bytes
 
-        # If video_limit is None, unlimited uploads are allowed
-        if video_limit is None:
-            return attrs
-
-        # Get current video count for the user
-        current_video_count = Video.objects.filter(user=user).count()
-
-        # If video_limit is 0, no uploads are allowed
-        # If video_limit is > 0, check if user has reached the limit
-        if current_video_count >= video_limit:
-            raise serializers.ValidationError(
-                f"Video upload limit reached. You can upload up to {video_limit} video(s)."
-            )
+            if used + new_file_size > limit:
+                limit_gb = limit / (1024 * 1024 * 1024)
+                used_gb = used / (1024 * 1024 * 1024)
+                raise serializers.ValidationError(
+                    f"Storage limit reached. "
+                    f"Used: {used_gb:.1f}GB / {limit_gb:.0f}GB. "
+                    f"Please upgrade your plan or delete existing videos."
+                )
 
         return attrs
 
     def create(self, validated_data):
         """Start transcription task when Video is created"""
+        # Record file size before saving
+        file = validated_data.get("file")
+        if file:
+            validated_data["file_size"] = file.size
+
         # Create Video instance
         video = super().create(validated_data)
 
