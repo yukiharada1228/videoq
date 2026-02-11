@@ -19,6 +19,10 @@ export interface User {
   plan: 'free' | 'standard' | 'business';
   storage_used_bytes: number;
   storage_limit_bytes: number;
+  processing_minutes_used: number;
+  processing_minutes_limit: number;
+  ai_answers_used: number;
+  ai_answers_limit: number;
 }
 
 export interface Plan {

@@ -104,6 +104,13 @@ class ChatView(generics.CreateAPIView):
             # Normal authenticated user
             user = request.user
 
+        # Check AI answers limit
+        if user.ai_answers_used >= user.ai_answers_limit:
+            return create_error_response(
+                "AI answers limit reached. Please upgrade your plan.",
+                status.HTTP_429_TOO_MANY_REQUESTS,
+            )
+
         # Get LangChain LLM
         llm, error_response = get_langchain_llm(user)
         if error_response:
@@ -148,17 +155,16 @@ class ChatView(generics.CreateAPIView):
             if group_id is not None and result.related_videos:
                 response_data["related_videos"] = result.related_videos
 
-            if group_id is not None and group is not None:
-                chat_log = ChatLog.objects.create(
-                    user=(group.user if is_shared else user),
-                    group=group,
-                    question=result.query_text,
-                    answer=result.llm_response.content,
-                    related_videos=result.related_videos or [],
-                    is_shared_origin=is_shared,
-                )
-                response_data["chat_log_id"] = chat_log.id
-                response_data["feedback"] = chat_log.feedback
+            chat_log = ChatLog.objects.create(
+                user=(group.user if is_shared else user),
+                group=group,
+                question=result.query_text,
+                answer=result.llm_response.content,
+                related_videos=result.related_videos or [],
+                is_shared_origin=is_shared,
+            )
+            response_data["chat_log_id"] = chat_log.id
+            response_data["feedback"] = chat_log.feedback
 
             return Response(response_data)
 

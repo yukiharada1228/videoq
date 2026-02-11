@@ -11,6 +11,7 @@ from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 
 from app.models import ChatLog, Video, VideoGroup, VideoGroupMember
+from app.models.subscription import PlanType, Subscription
 
 User = get_user_model()
 
@@ -96,7 +97,7 @@ class ChatViewTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["role"], "assistant")
         self.assertNotIn("related_videos", response.data)
-        self.assertNotIn("chat_log_id", response.data)
+        self.assertIn("chat_log_id", response.data)
 
     @patch("app.chat.views.get_langchain_llm")
     def test_chat_empty_messages(self, mock_get_llm):
@@ -222,6 +223,60 @@ class ChatViewTests(APITestCase):
         response = self.client.post(url, data, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_chat_ai_answers_limit_reached(self):
+        """Test that 429 is returned when AI answers limit is reached"""
+        # Free plan = 50 ai_answers limit
+        Subscription.objects.update_or_create(
+            user=self.user, defaults={"plan": PlanType.FREE}
+        )
+
+        # Create 50 chat logs to hit the limit
+        logs = [
+            ChatLog(
+                user=self.user,
+                group=self.group,
+                question=f"Q{i}",
+                answer=f"A{i}",
+            )
+            for i in range(50)
+        ]
+        ChatLog.objects.bulk_create(logs)
+
+        url = reverse("chat")
+        data = {
+            "messages": [{"role": "user", "content": "Test question"}],
+            "group_id": self.group.id,
+        }
+
+        response = self.client.post(url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+
+    @patch("app.chat.views.get_langchain_llm")
+    @patch("app.chat.views.RagChatService")
+    def test_chat_without_group_creates_chatlog(self, mock_service_class, mock_get_llm):
+        """Test that chat without group_id still creates a ChatLog"""
+        mock_llm = MagicMock()
+        mock_get_llm.return_value = (mock_llm, None)
+
+        mock_service = MagicMock()
+        mock_result = MagicMock()
+        mock_result.llm_response.content = "Test response"
+        mock_result.query_text = "Test question"
+        mock_result.related_videos = None
+        mock_service.run.return_value = mock_result
+        mock_service_class.return_value = mock_service
+
+        url = reverse("chat")
+        data = {"messages": [{"role": "user", "content": "Test question"}]}
+
+        response = self.client.post(url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("chat_log_id", response.data)
+        chat_log = ChatLog.objects.get(id=response.data["chat_log_id"])
+        self.assertIsNone(chat_log.group)
 
 
 class ChatFeedbackViewTests(APITestCase):

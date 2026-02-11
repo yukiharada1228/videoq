@@ -14,7 +14,12 @@ class ChatLog(models.Model):
         db_index=True,
     )
     group = models.ForeignKey(
-        "VideoGroup", on_delete=models.CASCADE, related_name="chat_logs", db_index=True
+        "VideoGroup",
+        on_delete=models.CASCADE,
+        related_name="chat_logs",
+        db_index=True,
+        null=True,
+        blank=True,
     )
     question = models.TextField()
     answer = models.TextField()

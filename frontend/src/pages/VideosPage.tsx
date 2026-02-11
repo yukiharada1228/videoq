@@ -86,6 +86,11 @@ export default function VideosPage() {
     return user.storage_used_bytes >= user.storage_limit_bytes;
   }, [user]);
 
+  const hasReachedProcessingLimit = useMemo(() => {
+    if (!user) return false;
+    return user.processing_minutes_used >= user.processing_minutes_limit;
+  }, [user]);
+
   return (
     <>
       <PageLayout fullWidth>
@@ -118,6 +123,17 @@ export default function VideosPage() {
                 {t('videos.list.storageLimitWarning.message', {
                   used: (user.storage_used_bytes / (1024 * 1024 * 1024)).toFixed(1),
                   limit: (user.storage_limit_bytes / (1024 * 1024 * 1024)).toFixed(0),
+                })}
+              </p>
+            </div>
+          )}
+
+          {hasReachedProcessingLimit && user && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <p className="text-yellow-800 text-sm">
+                {t('videos.list.processingLimitWarning.message', {
+                  used: Math.round(user.processing_minutes_used),
+                  limit: user.processing_minutes_limit,
                 })}
               </p>
             </div>

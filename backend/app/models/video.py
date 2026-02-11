@@ -48,6 +48,7 @@ class Video(models.Model):
         default=0,
         help_text="File size in bytes",
     )
+    duration_seconds = models.FloatField(null=True, blank=True)
     external_id = models.CharField(
         max_length=255,
         null=True,

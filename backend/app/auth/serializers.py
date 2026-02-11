@@ -84,6 +84,10 @@ class UserSerializer(serializers.ModelSerializer):
     plan = serializers.SerializerMethodField()
     storage_used_bytes = serializers.SerializerMethodField()
     storage_limit_bytes = serializers.SerializerMethodField()
+    processing_minutes_used = serializers.SerializerMethodField()
+    processing_minutes_limit = serializers.SerializerMethodField()
+    ai_answers_used = serializers.SerializerMethodField()
+    ai_answers_limit = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -95,6 +99,10 @@ class UserSerializer(serializers.ModelSerializer):
             "plan",
             "storage_used_bytes",
             "storage_limit_bytes",
+            "processing_minutes_used",
+            "processing_minutes_limit",
+            "ai_answers_used",
+            "ai_answers_limit",
         ]
 
     def get_video_count(self, obj):
@@ -114,6 +122,18 @@ class UserSerializer(serializers.ModelSerializer):
 
     def get_storage_limit_bytes(self, obj):
         return obj.storage_limit_bytes
+
+    def get_processing_minutes_used(self, obj):
+        return obj.processing_minutes_used
+
+    def get_processing_minutes_limit(self, obj):
+        return obj.processing_minutes_limit
+
+    def get_ai_answers_used(self, obj):
+        return obj.ai_answers_used
+
+    def get_ai_answers_limit(self, obj):
+        return obj.ai_answers_limit
 
 
 class RefreshSerializer(serializers.Serializer):

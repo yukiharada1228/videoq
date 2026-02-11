@@ -206,6 +206,9 @@
       "storageLimitWarning": {
         "message": "ストレージ上限に達しました（{{used}}GB / {{limit}}GB）。プランをアップグレードするか、既存の動画を削除してください。"
       },
+      "processingLimitWarning": {
+        "message": "処理時間の上限に達しました（{{used}} / {{limit}}分）。プランをアップグレードして、より多くの動画を処理してください。"
+      },
       "subtitle_one": "{{count}}本の動画",
       "subtitle_other": "{{count}}本の動画"
     },
@@ -428,6 +431,7 @@
   },
   "chat": {
     "title": "チャット",
+    "limitReached": "AI回答の上限に達しました（{{used}} / {{limit}}回）。プランをアップグレードしてください。",
     "history": "会話履歴",
     "historyEmpty": "履歴はありません",
     "historyLoading": "読込中...",

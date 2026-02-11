@@ -4,6 +4,7 @@ Main transcription task using Celery
 
 import logging
 import os
+import subprocess
 import tempfile
 
 from celery import shared_task
@@ -19,6 +20,27 @@ from app.utils.whisper_client import (WhisperConfig, create_whisper_client,
                                       get_whisper_model_name)
 
 logger = logging.getLogger(__name__)
+
+
+def _get_video_duration(video_file_path):
+    """Get video duration in seconds using ffprobe."""
+    try:
+        result = subprocess.run(
+            [
+                "ffprobe",
+                "-v", "error",
+                "-show_entries", "format=duration",
+                "-of", "default=noprint_wrappers=1:nokey=1",
+                video_file_path,
+            ],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        return float(result.stdout.strip())
+    except Exception as e:
+        logger.warning(f"Failed to get video duration: {e}")
+        return None
 
 
 def download_video_from_storage(video, video_id, temp_manager):
@@ -130,6 +152,22 @@ def transcribe_video(self, video_id):
             video_file_path, video_file = download_video_from_storage(
                 video, video_id, temp_manager
             )
+
+            # Get video duration and check processing limit
+            duration = _get_video_duration(video_file_path)
+            if duration is not None:
+                video.duration_seconds = duration
+                video.save(update_fields=["duration_seconds"])
+                duration_minutes = duration / 60.0
+                user = video.user
+                if user.processing_minutes_used + duration_minutes > user.processing_minutes_limit:
+                    handle_transcription_error(
+                        video,
+                        "Processing minutes limit exceeded. "
+                        "Please upgrade your plan."
+                    )
+                    return
+
             logger.info(f"Starting transcription for video {video_id}")
 
             # Extract audio and transcribe

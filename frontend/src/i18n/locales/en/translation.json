@@ -200,6 +200,9 @@
       "storageLimitWarning": {
         "message": "Storage limit reached ({{used}}GB / {{limit}}GB). Please upgrade your plan or delete existing videos."
       },
+      "processingLimitWarning": {
+        "message": "Processing time limit reached ({{used}} / {{limit}} min). Please upgrade your plan to process more videos."
+      },
       "subtitle_one": "{{count}} video",
       "subtitle_other": "{{count}} videos"
     },
@@ -422,6 +425,7 @@
   },
   "chat": {
     "title": "Chat",
+    "limitReached": "AI answer limit reached ({{used}} / {{limit}}). Please upgrade your plan.",
     "history": "Conversation history",
     "historyEmpty": "No history available",
     "historyLoading": "Loading...",
