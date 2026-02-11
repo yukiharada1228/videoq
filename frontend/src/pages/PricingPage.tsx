@@ -3,8 +3,6 @@ import { useTranslation } from 'react-i18next';
 import { apiClient, type Plan } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
 import { Header } from '@/components/layout/Header';
-import { formatFileSize } from '@/lib/utils';
-import { UsageBar } from '@/components/common/UsageBar';
 
 export default function PricingPage() {
   const { t } = useTranslation();
@@ -180,45 +178,6 @@ export default function PricingPage() {
           })}
         </div>
 
-        {user && (
-          <div className="max-w-xl mx-auto mt-12 bg-white rounded-lg border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
-              {t('billing.management.usageTitle')}
-            </h2>
-            <div className="space-y-4">
-              <UsageBar
-                label={t('billing.management.usageStorage')}
-                used={user.storage_used_bytes}
-                limit={user.storage_limit_bytes}
-                formatValue={(used, limit) =>
-                  `${formatFileSize(used)} / ${formatFileSize(limit)}`
-                }
-              />
-              <UsageBar
-                label={t('billing.management.usageProcessing')}
-                used={user.processing_minutes_used}
-                limit={user.processing_minutes_limit}
-                formatValue={(used, limit) =>
-                  t('billing.management.usageMinutes', {
-                    used: Math.round(used),
-                    limit,
-                  })
-                }
-              />
-              <UsageBar
-                label={t('billing.management.usageAi')}
-                used={user.ai_answers_used}
-                limit={user.ai_answers_limit}
-                formatValue={(used, limit) =>
-                  t('billing.management.usageCount', {
-                    used: used.toLocaleString(),
-                    limit: limit.toLocaleString(),
-                  })
-                }
-              />
-            </div>
-          </div>
-        )}
       </main>
     </div>
   );
