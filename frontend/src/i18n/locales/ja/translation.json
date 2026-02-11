@@ -541,7 +541,9 @@
       "currentPlan": "現在のプラン",
       "upgrade": "アップグレード",
       "downgrade": "無料プランに変更",
-      "redirecting": "リダイレクト中..."
+      "redirecting": "リダイレクト中...",
+      "confirmChange": "{{plan}}プランに変更しますか？変更は即時反映されます。",
+      "planDowngrade": "ダウングレード"
     },
     "plans": {
       "free": "フリープラン",

@@ -535,7 +535,9 @@
       "currentPlan": "Current Plan",
       "upgrade": "Upgrade",
       "downgrade": "Switch to Free",
-      "redirecting": "Redirecting..."
+      "redirecting": "Redirecting...",
+      "confirmChange": "Are you sure you want to switch to the {{plan}} plan? The change will take effect immediately.",
+      "planDowngrade": "Downgrade"
     },
     "plans": {
       "free": "Free Plan",

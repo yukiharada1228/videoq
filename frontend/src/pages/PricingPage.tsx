@@ -25,6 +25,15 @@ export default function PricingPage() {
       window.location.href = '/login';
       return;
     }
+
+    // If user already has a paid plan, confirm before switching
+    if (user.plan !== 'free') {
+      const targetPlan = plans.find((p) => p.plan_id === planId);
+      if (!window.confirm(t('billing.pricing.confirmChange', { plan: targetPlan?.name ?? planId }))) {
+        return;
+      }
+    }
+
     setCheckoutLoading(planId);
     try {
       const origin = window.location.origin;
@@ -158,21 +167,29 @@ export default function PricingPage() {
                   </button>
                 ) : isFree ? (
                   <div className="h-10" />
-                ) : (
-                  <button
-                    onClick={() => handleUpgrade(plan.plan_id)}
-                    disabled={checkoutLoading === plan.plan_id}
-                    className={`w-full py-2 px-4 rounded-lg font-medium transition-colors ${
-                      isPopular
-                        ? 'bg-blue-600 text-white hover:bg-blue-700'
-                        : 'bg-gray-900 text-white hover:bg-gray-800'
-                    } disabled:opacity-50`}
-                  >
-                    {checkoutLoading === plan.plan_id
-                      ? t('billing.pricing.redirecting')
-                      : t('billing.pricing.upgrade')}
-                  </button>
-                )}
+                ) : (() => {
+                  const currentPlan = plans.find((p) => p.plan_id === user?.plan);
+                  const isDowngrade = currentPlan && plan.price < currentPlan.price;
+                  return (
+                    <button
+                      onClick={() => handleUpgrade(plan.plan_id)}
+                      disabled={checkoutLoading === plan.plan_id}
+                      className={`w-full py-2 px-4 rounded-lg font-medium transition-colors ${
+                        isDowngrade
+                          ? 'border border-gray-300 text-gray-700 hover:bg-gray-50'
+                          : isPopular
+                            ? 'bg-blue-600 text-white hover:bg-blue-700'
+                            : 'bg-gray-900 text-white hover:bg-gray-800'
+                      } disabled:opacity-50`}
+                    >
+                      {checkoutLoading === plan.plan_id
+                        ? t('billing.pricing.redirecting')
+                        : isDowngrade
+                          ? t('billing.pricing.planDowngrade')
+                          : t('billing.pricing.upgrade')}
+                    </button>
+                  );
+                })()}
               </div>
             );
           })}
