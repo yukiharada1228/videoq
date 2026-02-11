@@ -76,6 +76,7 @@ volumes:
   staticfiles:
   postgres_data:
 
+
 networks:
   videoq-network:
     driver: bridge

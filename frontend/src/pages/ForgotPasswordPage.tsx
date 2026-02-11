@@ -60,6 +60,7 @@ export default function ForgotPasswordPage() {
                 <Label htmlFor="email">{t('auth.fields.email.label')}</Label>
                 <Input
                   id="email"
+                  name="email"
                   type="email"
                   required
                   value={email}
