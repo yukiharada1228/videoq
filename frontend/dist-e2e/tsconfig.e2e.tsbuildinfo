@@ -1,0 +1,1 @@
+{"root":["../e2e/auth.spec.ts","../e2e/authenticated.spec.ts","../e2e/protected.spec.ts","../e2e/share.spec.ts","../playwright.config.ts"],"version":"5.9.3"}

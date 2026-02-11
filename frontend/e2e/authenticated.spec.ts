@@ -31,7 +31,7 @@ async function login(page: Page) {
 
 test.describe('Authenticated User Flow', () => {
 
-    test.beforeEach(async ({ page }) => {
+    test.beforeEach(async () => {
         // Check if credentials are provided, otherwise skip
         if (!process.env.TEST_USERNAME || !process.env.TEST_PASSWORD) {
             test.skip();
