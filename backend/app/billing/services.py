@@ -35,12 +35,43 @@ def get_or_create_stripe_customer(user):
 
 
 def create_checkout_session(user, plan, success_url, cancel_url):
-    """Create a Stripe Checkout Session for the given plan."""
+    """Create a Stripe Checkout Session for the given plan.
+
+    If the user already has an active subscription, update it in-place
+    instead of creating a second subscription via Checkout.
+    """
     price_id = STRIPE_PRICE_MAP.get(plan)
     if not price_id:
         raise ValueError(f"No Stripe price configured for plan: {plan}")
 
     customer_id = get_or_create_stripe_customer(user)
+
+    # If user already has an active Stripe subscription, update it directly
+    sub = Subscription.objects.filter(user=user).first()
+    if sub and sub.stripe_subscription_id and sub.stripe_status in (
+        "active",
+        "trialing",
+    ):
+        stripe_sub = stripe.Subscription.retrieve(sub.stripe_subscription_id)
+        current_item = stripe_sub["items"]["data"][0]
+
+        # Skip if already on the requested price
+        if current_item["price"]["id"] == price_id:
+            raise ValueError("Already subscribed to this plan")
+
+        stripe.Subscription.modify(
+            sub.stripe_subscription_id,
+            items=[
+                {
+                    "id": current_item["id"],
+                    "price": price_id,
+                }
+            ],
+            proration_behavior="create_prorations",
+        )
+        # Return a pseudo-object with redirect to success_url
+        # (webhook will sync the updated subscription)
+        return _SuccessRedirect(success_url)
 
     session = stripe.checkout.Session.create(
         customer=customer_id,
@@ -51,6 +82,13 @@ def create_checkout_session(user, plan, success_url, cancel_url):
         metadata={"user_id": str(user.pk), "plan": plan},
     )
     return session
+
+
+class _SuccessRedirect:
+    """Minimal object that mimics Checkout Session's `.url` attribute."""
+
+    def __init__(self, url):
+        self.url = url
 
 
 def create_billing_portal_session(user, return_url):
