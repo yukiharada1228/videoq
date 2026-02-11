@@ -530,7 +530,7 @@
       "month": "mo",
       "popular": "Most Popular",
       "storage": "{{amount}}GB storage",
-      "processing": "{{amount}} min video processing",
+      "processing": "{{amount}} min video processing/mo",
       "aiAnswers": "{{amount}} AI answers/month",
       "currentPlan": "Current Plan",
       "upgrade": "Upgrade",

@@ -231,17 +231,18 @@ class ChatViewTests(APITestCase):
             user=self.user, defaults={"plan": PlanType.FREE}
         )
 
-        # Create 50 chat logs to hit the limit
-        logs = [
-            ChatLog(
+        # Create usage records to hit the limit (100 for free plan)
+        from app.models import UsageRecord
+
+        records = [
+            UsageRecord(
                 user=self.user,
-                group=self.group,
-                question=f"Q{i}",
-                answer=f"A{i}",
+                resource="ai_answers",
+                amount=1,
             )
-            for i in range(50)
+            for _ in range(100)
         ]
-        ChatLog.objects.bulk_create(logs)
+        UsageRecord.objects.bulk_create(records)
 
         url = reverse("chat")
         data = {

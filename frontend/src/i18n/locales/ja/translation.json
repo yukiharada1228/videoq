@@ -536,7 +536,7 @@
       "month": "月",
       "popular": "人気",
       "storage": "{{amount}}GB ストレージ",
-      "processing": "{{amount}}分 動画処理",
+      "processing": "{{amount}}分 動画処理/月",
       "aiAnswers": "AI回答 {{amount}}回/月",
       "currentPlan": "現在のプラン",
       "upgrade": "アップグレード",

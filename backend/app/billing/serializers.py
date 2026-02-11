@@ -8,7 +8,7 @@ class PlanSerializer(serializers.Serializer):
     plan_id = serializers.CharField()
     price = serializers.IntegerField()
     currency = serializers.CharField()
-    storage_gb = serializers.IntegerField()
+    storage_gb = serializers.FloatField()
     processing_minutes = serializers.IntegerField()
     ai_answers = serializers.IntegerField()
 

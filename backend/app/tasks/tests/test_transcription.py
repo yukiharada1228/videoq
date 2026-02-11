@@ -431,14 +431,16 @@ class TranscribeVideoTaskTests(TestCase):
         mock_get_duration,
     ):
         """Test that exceeding processing minutes limit sets error status"""
-        # Free plan = 30 min limit. Create existing videos with 29 min used.
+        # Free plan = 5 min limit. Create usage records with 4 min used.
+        from app.models import UsageRecord
+
         Subscription.objects.update_or_create(
             user=self.user, defaults={"plan": PlanType.FREE}
         )
-        Video.objects.create(
+        UsageRecord.objects.create(
             user=self.user,
-            title="Old Video",
-            duration_seconds=29 * 60,
+            resource="processing_minutes",
+            amount=4.0,
         )
 
         video = Video.objects.create(
@@ -449,7 +451,7 @@ class TranscribeVideoTaskTests(TestCase):
 
         mock_get_model.return_value = "whisper-1"
         mock_download.return_value = ("/tmp/video.mp4", MagicMock())
-        # New video is 2 minutes -> would exceed 30 min limit
+        # New video is 2 minutes -> would exceed 5 min limit
         mock_get_duration.return_value = 120.0
 
         transcribe_video(video.id)
