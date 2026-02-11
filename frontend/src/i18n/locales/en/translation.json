@@ -536,8 +536,12 @@
       "upgrade": "Upgrade",
       "downgrade": "Switch to Free",
       "redirecting": "Redirecting...",
-      "confirmChange": "Are you sure you want to switch to the {{plan}} plan? The change will take effect immediately.",
-      "planDowngrade": "Downgrade"
+      "confirmChange": "Are you sure you want to switch to the {{plan}} plan?",
+      "confirmChangeDescription": "The plan change will take effect immediately. Any billing adjustments will be prorated.",
+      "confirmChangeCancel": "Cancel",
+      "confirmChangeConfirm": "Change Plan",
+      "planDowngrade": "Downgrade",
+      "getStartedFree": "Get Started Free"
     },
     "plans": {
       "free": "Free Plan",

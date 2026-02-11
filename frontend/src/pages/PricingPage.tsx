@@ -3,6 +3,14 @@ import { useTranslation } from 'react-i18next';
 import { apiClient, type Plan } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
 import { Header } from '@/components/layout/Header';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 export default function PricingPage() {
   const { t } = useTranslation();
@@ -11,6 +19,7 @@ export default function PricingPage() {
   const [loading, setLoading] = useState(true);
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
   const [downgradeLoading, setDowngradeLoading] = useState(false);
+  const [confirmPlan, setConfirmPlan] = useState<Plan | null>(null);
 
   useEffect(() => {
     apiClient
@@ -20,20 +29,7 @@ export default function PricingPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const handleUpgrade = async (planId: string) => {
-    if (!user) {
-      window.location.href = '/login';
-      return;
-    }
-
-    // If user already has a paid plan, confirm before switching
-    if (user.plan !== 'free') {
-      const targetPlan = plans.find((p) => p.plan_id === planId);
-      if (!window.confirm(t('billing.pricing.confirmChange', { plan: targetPlan?.name ?? planId }))) {
-        return;
-      }
-    }
-
+  const handleCheckout = async (planId: string) => {
     setCheckoutLoading(planId);
     try {
       const origin = window.location.origin;
@@ -49,7 +45,33 @@ export default function PricingPage() {
     }
   };
 
-  const handleDowngrade = async () => {
+  const handlePlanChange = (plan: Plan) => {
+    if (!user) {
+      window.location.href = '/login';
+      return;
+    }
+
+    // If user already has a paid plan, show confirmation dialog
+    if (user.plan !== 'free') {
+      setConfirmPlan(plan);
+      return;
+    }
+
+    handleCheckout(plan.plan_id);
+  };
+
+  const handleConfirmChange = () => {
+    if (!confirmPlan) return;
+    const plan = confirmPlan;
+    setConfirmPlan(null);
+
+    // Paid→paid changes (both upgrade and downgrade) go through checkout,
+    // which updates the existing subscription on the backend.
+    // Billing portal is only for cancellation (paid→free).
+    handleCheckout(plan.plan_id);
+  };
+
+  const handleBillingPortal = async () => {
     setDowngradeLoading(true);
     try {
       const res = await apiClient.createBillingPortalSession(window.location.href);
@@ -157,13 +179,20 @@ export default function PricingPage() {
                   </button>
                 ) : isFree && user && user.plan !== 'free' ? (
                   <button
-                    onClick={handleDowngrade}
+                    onClick={handleBillingPortal}
                     disabled={downgradeLoading}
                     className="w-full py-2 px-4 rounded-lg font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
                   >
                     {downgradeLoading
                       ? t('billing.pricing.redirecting')
                       : t('billing.pricing.downgrade')}
+                  </button>
+                ) : isFree && !user ? (
+                  <button
+                    onClick={() => { window.location.href = '/signup'; }}
+                    className="w-full py-2 px-4 rounded-lg font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    {t('billing.pricing.getStartedFree')}
                   </button>
                 ) : isFree ? (
                   <div className="h-10" />
@@ -172,8 +201,8 @@ export default function PricingPage() {
                   const isDowngrade = currentPlan && plan.price < currentPlan.price;
                   return (
                     <button
-                      onClick={() => handleUpgrade(plan.plan_id)}
-                      disabled={checkoutLoading === plan.plan_id}
+                      onClick={() => handlePlanChange(plan)}
+                      disabled={checkoutLoading === plan.plan_id || downgradeLoading}
                       className={`w-full py-2 px-4 rounded-lg font-medium transition-colors ${
                         isDowngrade
                           ? 'border border-gray-300 text-gray-700 hover:bg-gray-50'
@@ -182,7 +211,7 @@ export default function PricingPage() {
                             : 'bg-gray-900 text-white hover:bg-gray-800'
                       } disabled:opacity-50`}
                     >
-                      {checkoutLoading === plan.plan_id
+                      {checkoutLoading === plan.plan_id || (isDowngrade && downgradeLoading)
                         ? t('billing.pricing.redirecting')
                         : isDowngrade
                           ? t('billing.pricing.planDowngrade')
@@ -194,8 +223,34 @@ export default function PricingPage() {
             );
           })}
         </div>
-
       </main>
+
+      <Dialog open={!!confirmPlan} onOpenChange={(open) => { if (!open) setConfirmPlan(null); }}>
+        <DialogContent showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle>
+              {t('billing.pricing.confirmChange', { plan: confirmPlan?.name ?? '' })}
+            </DialogTitle>
+            <DialogDescription>
+              {t('billing.pricing.confirmChangeDescription')}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <button
+              onClick={() => setConfirmPlan(null)}
+              className="px-4 py-2 rounded-lg font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              {t('billing.pricing.confirmChangeCancel')}
+            </button>
+            <button
+              onClick={handleConfirmChange}
+              className="px-4 py-2 rounded-lg font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+            >
+              {t('billing.pricing.confirmChangeConfirm')}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

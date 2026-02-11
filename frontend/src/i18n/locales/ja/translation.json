@@ -542,8 +542,12 @@
       "upgrade": "アップグレード",
       "downgrade": "無料プランに変更",
       "redirecting": "リダイレクト中...",
-      "confirmChange": "{{plan}}プランに変更しますか？変更は即時反映されます。",
-      "planDowngrade": "ダウングレード"
+      "confirmChange": "{{plan}}プランに変更しますか？",
+      "confirmChangeDescription": "プラン変更は即時反映されます。料金は日割りで調整されます。",
+      "confirmChangeCancel": "キャンセル",
+      "confirmChangeConfirm": "プランを変更する",
+      "planDowngrade": "ダウングレード",
+      "getStartedFree": "無料で始める"
     },
     "plans": {
       "free": "フリープラン",
