@@ -563,7 +563,14 @@
       "limitsProcessing": "動画処理:",
       "limitsMinutes": "分",
       "limitsAi": "AI回答:",
-      "limitsCount": "回/月"
+      "limitsCount": "回/月",
+      "usageTitle": "使用状況",
+      "usageStorage": "ストレージ",
+      "usageProcessing": "処理時間（今月）",
+      "usageAi": "AI回答（今月）",
+      "usageUnit": "{{used}} / {{limit}}",
+      "usageMinutes": "{{used}} / {{limit}} 分",
+      "usageCount": "{{used}} / {{limit}} 回"
     },
     "success": {
       "title": "サブスクリプションが有効になりました！",

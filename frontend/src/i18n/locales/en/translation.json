@@ -557,7 +557,14 @@
       "limitsProcessing": "Processing:",
       "limitsMinutes": " min",
       "limitsAi": "AI Answers:",
-      "limitsCount": " /month"
+      "limitsCount": " /month",
+      "usageTitle": "Usage",
+      "usageStorage": "Storage",
+      "usageProcessing": "Processing Time (This Month)",
+      "usageAi": "AI Answers (This Month)",
+      "usageUnit": "{{used}} / {{limit}}",
+      "usageMinutes": "{{used}} / {{limit}} min",
+      "usageCount": "{{used}} / {{limit}}"
     },
     "success": {
       "title": "Subscription Activated!",

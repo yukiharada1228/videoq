@@ -3,6 +3,49 @@ import { useTranslation } from 'react-i18next';
 import { apiClient, type Plan } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
 import { Header } from '@/components/layout/Header';
+import { formatFileSize } from '@/lib/utils';
+
+function UsageBar({
+  label,
+  used,
+  limit,
+  formatValue,
+}: {
+  label: string;
+  used: number;
+  limit: number;
+  formatValue: (used: number, limit: number) => string;
+}) {
+  const percent = limit > 0 ? Math.min((used / limit) * 100, 100) : 0;
+  const overLimit = limit > 0 && used >= limit;
+
+  const barColor =
+    overLimit || percent >= 100
+      ? 'bg-red-500'
+      : percent >= 80
+        ? 'bg-yellow-500'
+        : 'bg-blue-500';
+
+  return (
+    <div>
+      <div className="flex justify-between items-baseline mb-1">
+        <span className="text-sm text-gray-600">{label}</span>
+        <span className="text-sm font-medium text-gray-900">
+          {formatValue(used, limit)}
+        </span>
+      </div>
+      <div className="w-full bg-gray-200 rounded-full h-2">
+        <div
+          className={`h-2 rounded-full transition-all ${barColor}`}
+          style={{ width: `${percent}%` }}
+        />
+      </div>
+      <p className="text-xs text-gray-400 mt-0.5 text-right">
+        {Math.round(percent)}%
+      </p>
+    </div>
+  );
+}
 
 export default function PricingPage() {
   const { t } = useTranslation();
@@ -177,6 +220,46 @@ export default function PricingPage() {
             );
           })}
         </div>
+
+        {user && (
+          <div className="max-w-xl mx-auto mt-12 bg-white rounded-lg border border-gray-200 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+              {t('billing.management.usageTitle')}
+            </h2>
+            <div className="space-y-4">
+              <UsageBar
+                label={t('billing.management.usageStorage')}
+                used={user.storage_used_bytes}
+                limit={user.storage_limit_bytes}
+                formatValue={(used, limit) =>
+                  `${formatFileSize(used)} / ${formatFileSize(limit)}`
+                }
+              />
+              <UsageBar
+                label={t('billing.management.usageProcessing')}
+                used={user.processing_minutes_used}
+                limit={user.processing_minutes_limit}
+                formatValue={(used, limit) =>
+                  t('billing.management.usageMinutes', {
+                    used: Math.round(used),
+                    limit,
+                  })
+                }
+              />
+              <UsageBar
+                label={t('billing.management.usageAi')}
+                used={user.ai_answers_used}
+                limit={user.ai_answers_limit}
+                formatValue={(used, limit) =>
+                  t('billing.management.usageCount', {
+                    used: used.toLocaleString(),
+                    limit: limit.toLocaleString(),
+                  })
+                }
+              />
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );
