@@ -98,8 +98,8 @@ class LoginView(PublicAPIView):
         return response
 
 
-class LogoutView(AuthenticatedAPIView):
-    """Logout view"""
+class LogoutView(PublicAPIView):
+    """Logout view - public so logout works even with expired tokens"""
 
     @extend_schema(
         responses={200: MessageResponseSerializer},
@@ -117,12 +117,10 @@ class LogoutView(AuthenticatedAPIView):
         response.delete_cookie(
             key="access_token",
             samesite=samesite_value,
-            secure=settings.SECURE_COOKIES,
         )
         response.delete_cookie(
             key="refresh_token",
             samesite=samesite_value,
-            secure=settings.SECURE_COOKIES,
         )
 
         return response
