@@ -7,7 +7,7 @@ from django.db import IntegrityError
 from django.test import TestCase
 from django.utils import timezone
 
-from app.models import ChatLog, Video, VideoGroup
+from app.models import ChatLog, UsageRecord, Video, VideoGroup
 from app.models.subscription import PLAN_LIMITS, PlanType, Subscription
 
 User = get_user_model()
@@ -71,7 +71,7 @@ class UserUsagePropertyTests(TestCase):
 
     def test_processing_minutes_limit_free_no_subscription(self):
         """Free user without subscription gets default limit"""
-        self.assertEqual(self.user.processing_minutes_limit, 30)
+        self.assertEqual(self.user.processing_minutes_limit, 5)
 
     def test_processing_minutes_limit_with_subscription(self):
         """User with standard subscription gets standard limit"""
@@ -87,37 +87,44 @@ class UserUsagePropertyTests(TestCase):
             PLAN_LIMITS[PlanType.STANDARD]["processing_minutes"],
         )
 
-    def test_processing_minutes_used_no_videos(self):
-        """No videos means 0 processing minutes used"""
+    def test_processing_minutes_used_no_records(self):
+        """No usage records means 0 processing minutes used"""
         self.assertEqual(self.user.processing_minutes_used, 0)
 
-    def test_processing_minutes_used_with_videos(self):
-        """Processing minutes should sum duration_seconds of current period videos"""
-        Video.objects.create(
+    def test_processing_minutes_used_with_records(self):
+        """Processing minutes should sum UsageRecord amounts in current period"""
+        UsageRecord.objects.create(
+            user=self.user,
+            resource="processing_minutes",
+            amount=2.0,
+        )
+        UsageRecord.objects.create(
+            user=self.user,
+            resource="processing_minutes",
+            amount=3.0,
+        )
+        # 2 + 3 = 5 minutes
+        self.assertAlmostEqual(self.user.processing_minutes_used, 5.0)
+
+    def test_processing_minutes_used_persists_after_video_deletion(self):
+        """Processing minutes should persist even after the source video is deleted"""
+        video = Video.objects.create(
             user=self.user,
             title="Video 1",
             duration_seconds=120.0,
         )
-        Video.objects.create(
+        UsageRecord.objects.create(
             user=self.user,
-            title="Video 2",
-            duration_seconds=180.0,
+            resource="processing_minutes",
+            amount=2.0,
+            video=video,
         )
-        # 120 + 180 = 300 seconds = 5 minutes
-        self.assertAlmostEqual(self.user.processing_minutes_used, 5.0)
-
-    def test_processing_minutes_used_ignores_null_duration(self):
-        """Videos without duration_seconds should not affect total"""
-        Video.objects.create(
-            user=self.user,
-            title="Video 1",
-            duration_seconds=None,
-        )
-        self.assertEqual(self.user.processing_minutes_used, 0)
+        video.delete()
+        self.assertAlmostEqual(self.user.processing_minutes_used, 2.0)
 
     def test_ai_answers_limit_free_no_subscription(self):
         """Free user without subscription gets default limit"""
-        self.assertEqual(self.user.ai_answers_limit, 50)
+        self.assertEqual(self.user.ai_answers_limit, 100)
 
     def test_ai_answers_limit_with_subscription(self):
         """User with business subscription gets business limit"""
@@ -132,35 +139,43 @@ class UserUsagePropertyTests(TestCase):
             PLAN_LIMITS[PlanType.BUSINESS]["ai_answers"],
         )
 
-    def test_ai_answers_used_no_chat_logs(self):
-        """No chat logs means 0 ai answers used"""
+    def test_ai_answers_used_no_records(self):
+        """No usage records means 0 ai answers used"""
         self.assertEqual(self.user.ai_answers_used, 0)
 
-    def test_ai_answers_used_counts_chat_logs(self):
-        """AI answers used should count ChatLog records in current period"""
+    def test_ai_answers_used_counts_usage_records(self):
+        """AI answers used should count UsageRecords in current period"""
+        UsageRecord.objects.create(
+            user=self.user, resource="ai_answers", amount=1
+        )
+        UsageRecord.objects.create(
+            user=self.user, resource="ai_answers", amount=1
+        )
+        UsageRecord.objects.create(
+            user=self.user, resource="ai_answers", amount=1
+        )
+        self.assertEqual(self.user.ai_answers_used, 3)
+
+    def test_ai_answers_used_only_counts_own_records(self):
+        """AI answers used should only count the user's own usage records"""
+        other_user = User.objects.create_user(
+            username="other", email="other@example.com", password="pass123"
+        )
+        UsageRecord.objects.create(
+            user=other_user, resource="ai_answers", amount=1
+        )
+        self.assertEqual(self.user.ai_answers_used, 0)
+
+    def test_ai_answers_used_persists_after_group_deletion(self):
+        """AI answers used should persist even after the source group is deleted"""
         group = VideoGroup.objects.create(
             user=self.user, name="Test Group", description="Test"
         )
         ChatLog.objects.create(
             user=self.user, group=group, question="Q1", answer="A1"
         )
-        ChatLog.objects.create(
-            user=self.user, group=group, question="Q2", answer="A2"
+        UsageRecord.objects.create(
+            user=self.user, resource="ai_answers", amount=1
         )
-        ChatLog.objects.create(
-            user=self.user, group=None, question="Q3", answer="A3"
-        )
-        self.assertEqual(self.user.ai_answers_used, 3)
-
-    def test_ai_answers_used_only_counts_own_logs(self):
-        """AI answers used should only count the user's own chat logs"""
-        other_user = User.objects.create_user(
-            username="other", email="other@example.com", password="pass123"
-        )
-        group = VideoGroup.objects.create(
-            user=other_user, name="Other Group", description="Test"
-        )
-        ChatLog.objects.create(
-            user=other_user, group=group, question="Q1", answer="A1"
-        )
-        self.assertEqual(self.user.ai_answers_used, 0)
+        group.delete()  # CASCADE deletes ChatLog, but UsageRecord remains
+        self.assertEqual(self.user.ai_answers_used, 1)

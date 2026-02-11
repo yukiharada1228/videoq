@@ -168,6 +168,16 @@ def transcribe_video(self, video_id):
                     )
                     return
 
+                # Record usage so it persists even if the video is deleted later
+                from app.models import UsageRecord
+
+                UsageRecord.objects.create(
+                    user=user,
+                    resource="processing_minutes",
+                    amount=duration_minutes,
+                    video=video,
+                )
+
             logger.info(f"Starting transcription for video {video_id}")
 
             # Extract audio and transcribe

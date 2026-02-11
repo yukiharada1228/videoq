@@ -155,14 +155,24 @@ class ChatView(generics.CreateAPIView):
             if group_id is not None and result.related_videos:
                 response_data["related_videos"] = result.related_videos
 
+            chat_log_user = group.user if is_shared else user
             chat_log = ChatLog.objects.create(
-                user=(group.user if is_shared else user),
+                user=chat_log_user,
                 group=group,
                 question=result.query_text,
                 answer=result.llm_response.content,
                 related_videos=result.related_videos or [],
                 is_shared_origin=is_shared,
             )
+
+            from app.models import UsageRecord
+
+            UsageRecord.objects.create(
+                user=chat_log_user,
+                resource="ai_answers",
+                amount=1,
+            )
+
             response_data["chat_log_id"] = chat_log.id
             response_data["feedback"] = chat_log.feedback
 

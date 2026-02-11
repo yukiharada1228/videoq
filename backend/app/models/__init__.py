@@ -8,6 +8,7 @@ from .storage import (
 )
 from .subscription import PLAN_LIMITS, PlanType, Subscription
 from .tag import Tag, VideoTag
+from .usage import UsageRecord
 from .user import User
 from .video import Video, user_directory_path
 from .video_group import VideoGroup, VideoGroupMember
@@ -27,6 +28,7 @@ __all__ = [
     "Subscription",
     "PlanType",
     "PLAN_LIMITS",
+    "UsageRecord",
     "SafeFilenameMixin",
     "SafeFileSystemStorage",
     "SafeS3Boto3Storage",

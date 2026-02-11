@@ -10,19 +10,19 @@ class PlanType(models.TextChoices):
 
 PLAN_LIMITS = {
     PlanType.FREE: {
-        "storage_gb": 5,
-        "processing_minutes": 30,
-        "ai_answers": 50,
+        "storage_gb": 0.5,
+        "processing_minutes": 5,
+        "ai_answers": 100,
     },
     PlanType.STANDARD: {
-        "storage_gb": 100,
+        "storage_gb": 50,
         "processing_minutes": 300,
         "ai_answers": 1000,
     },
     PlanType.BUSINESS: {
-        "storage_gb": 500,
-        "processing_minutes": 1500,
-        "ai_answers": 5000,
+        "storage_gb": 200,
+        "processing_minutes": 1000,
+        "ai_answers": 10000,
     },
 }
 
