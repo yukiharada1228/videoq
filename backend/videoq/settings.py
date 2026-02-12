@@ -290,6 +290,7 @@ USE_S3_STORAGE = (
 
 if USE_S3_STORAGE:
     # AWS S3 / Cloudflare R2 basic settings
+    # django-storages automatically reads these global settings
     AWS_ACCESS_KEY_ID = os.environ.get("AWS_ACCESS_KEY_ID")
     AWS_SECRET_ACCESS_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY")
     AWS_STORAGE_BUCKET_NAME = os.environ.get("AWS_STORAGE_BUCKET_NAME")
@@ -297,50 +298,26 @@ if USE_S3_STORAGE:
     AWS_S3_ENDPOINT_URL = os.environ.get("AWS_S3_ENDPOINT_URL") or None
     AWS_S3_CUSTOM_DOMAIN = os.environ.get("AWS_S3_CUSTOM_DOMAIN") or None
 
-    # If using standard AWS S3 without a custom endpoint, set default custom domain if not provided
-    if not AWS_S3_ENDPOINT_URL and not AWS_S3_CUSTOM_DOMAIN and AWS_STORAGE_BUCKET_NAME:
-        AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com"
-
-    # Enable presigned URLs (default True)
+    # Presigned URL settings
     AWS_QUERYSTRING_AUTH = True
-    # Presigned URL expiration (seconds, default 3600)
     AWS_QUERYSTRING_EXPIRE = 3600
-    # All-region compatible signature version
     AWS_S3_SIGNATURE_VERSION = "s3v4"
 
     # Configure storage using Django 4.2+ method
-    _s3_options = {
-        "bucket_name": AWS_STORAGE_BUCKET_NAME,
-        "access_key": AWS_ACCESS_KEY_ID,
-        "secret_key": AWS_SECRET_ACCESS_KEY,
-        "region_name": AWS_S3_REGION_NAME,
-        "querystring_auth": True,
-        "querystring_expire": 3600,
-    }
-    if AWS_S3_ENDPOINT_URL:
-        _s3_options["endpoint_url"] = AWS_S3_ENDPOINT_URL
-    if AWS_S3_CUSTOM_DOMAIN:
-        _s3_options["custom_domain"] = AWS_S3_CUSTOM_DOMAIN
-    else:
-        # If no custom domain, use AWS S3's default behavior (False means don't use custom domain)
-        _s3_options["custom_domain"] = False
-
     STORAGES = {
         "staticfiles": {  # Static file storage
             "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
             "OPTIONS": {
-                **_s3_options,
-                "location": "static",  # Directory in S3
-                "default_acl": "private",  # Change ACL to private
+                "location": "static",
+                "default_acl": "private",
                 "object_parameters": {"CacheControl": "max-age=86400"},
             },
         },
         "default": {  # Media file storage
             "BACKEND": "app.models.storage.SafeS3Boto3Storage",
             "OPTIONS": {
-                **_s3_options,
-                "location": "media",  # Directory in S3
-                "default_acl": "private",  # Change ACL to private
+                "location": "media",
+                "default_acl": "private",
                 "file_overwrite": False,
             },
         },
