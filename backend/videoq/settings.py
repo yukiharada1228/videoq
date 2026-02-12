@@ -263,6 +263,10 @@ SECURE_COOKIES = (
     == "true"
 )
 
+# Honor the 'X-Forwarded-Proto' header set by Nginx to identify HTTPS connections
+if SECURE_COOKIES:
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
 # Session Cookie settings for cross-origin deployment
 # When frontend and backend are on different origins, SameSite must be 'None' and Secure must be True
 SESSION_COOKIE_SAMESITE = "None" if SECURE_COOKIES else "Lax"
