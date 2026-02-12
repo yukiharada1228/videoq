@@ -18,6 +18,9 @@ import PricingPage from '@/pages/PricingPage';
 import BillingPage from '@/pages/BillingPage';
 import BillingSuccessPage from '@/pages/BillingSuccessPage';
 import BillingCancelPage from '@/pages/BillingCancelPage';
+import CommercialDisclosurePage from '@/pages/CommercialDisclosurePage';
+import TermsPage from '@/pages/TermsPage';
+import PrivacyPolicyPage from '@/pages/PrivacyPolicyPage';
 
 function LocaleGate() {
   const params = useParams<{ locale?: string }>();
@@ -61,6 +64,9 @@ const routeChildren = (
     <Route path="billing" element={<BillingPage />} />
     <Route path="billing/success" element={<BillingSuccessPage />} />
     <Route path="billing/cancel" element={<BillingCancelPage />} />
+    <Route path="legal/commercial-disclosure" element={<CommercialDisclosurePage />} />
+    <Route path="legal/terms" element={<TermsPage />} />
+    <Route path="legal/privacy" element={<PrivacyPolicyPage />} />
   </>
 );
 

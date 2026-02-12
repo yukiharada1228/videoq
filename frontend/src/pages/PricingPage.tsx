@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { apiClient, type Plan } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
 import { Header } from '@/components/layout/Header';
+import { Footer } from '@/components/layout/Footer';
 import {
   Dialog,
   DialogContent,
@@ -224,6 +225,8 @@ export default function PricingPage() {
           })}
         </div>
       </main>
+
+      <Footer />
 
       <Dialog open={!!confirmPlan} onOpenChange={(open) => { if (!open) setConfirmPlan(null); }}>
         <DialogContent showCloseButton={false}>

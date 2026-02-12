@@ -120,7 +120,10 @@
   },
   "layout": {
     "footer": {
-      "copyright": "© {{year}} VideoQ. Released under the MIT License."
+      "copyright": "© {{year}} VideoQ. Released under the MIT License.",
+      "terms": "Terms of Service",
+      "privacy": "Privacy Policy",
+      "disclosure": "Commercial Disclosure (JP)"
     }
   },
   "home": {
@@ -580,6 +583,97 @@
       "title": "Checkout Canceled",
       "description": "Your checkout was canceled. No charges were made.",
       "viewPlans": "View Plans"
+    }
+  },
+  "legal": {
+    "disclosure": {
+      "title": "Commercial Disclosure (特定商取引法に基づく表記)"
+    },
+    "terms": {
+      "title": "Terms of Service",
+      "sections": {
+        "serviceOverview": {
+          "heading": "1. Service Overview",
+          "body": "VideoQ (\"the Service\") is a web-based platform operated by Yuki Harada (sole proprietor) that allows users to upload videos, generate transcriptions, and interact with video content through AI-powered chat. By using the Service, you agree to these Terms of Service."
+        },
+        "accountRegistration": {
+          "heading": "2. Account Registration",
+          "body": "To use the Service, you must create an account by providing a valid email address, username, and password. You are responsible for maintaining the confidentiality of your account credentials and for all activities that occur under your account. If you are a minor, you must obtain parental or guardian consent before using this Service."
+        },
+        "prohibitedUse": {
+          "heading": "3. Prohibited Use",
+          "body": "You may not use the Service for any unlawful or unauthorized purpose. Prohibited activities include, but are not limited to:\n- Uploading content that infringes on third-party intellectual property rights\n- Uploading content that is illegal, harmful, or offensive\n- Attempting to gain unauthorized access to the Service or its systems\n- Using the Service to distribute spam or malicious software\n- Reselling or redistributing the Service without authorization\n- Excessive automated access, reverse engineering, or placing an unreasonable load on the Service"
+        },
+        "accountSuspension": {
+          "heading": "4. Account Suspension and Termination",
+          "body": "We reserve the right to suspend or delete your account without prior notice if you violate these Terms of Service."
+        },
+        "paymentAndBilling": {
+          "heading": "5. Payment and Billing",
+          "body": "The Service offers free and paid subscription plans. Paid plans are billed monthly via credit card through Stripe. All prices are displayed in Japanese Yen (JPY) and include applicable taxes. By subscribing to a paid plan, you authorize recurring monthly charges until you cancel."
+        },
+        "cancellation": {
+          "heading": "6. Cancellation and Refunds",
+          "body": "You may cancel your subscription at any time through the billing management page. Upon cancellation, you will continue to have access to paid features until the end of your current billing period. Due to the nature of digital services, refunds are not provided for partial billing periods."
+        },
+        "intellectualProperty": {
+          "heading": "7. Intellectual Property",
+          "body": "You retain ownership of all content you upload to the Service. By uploading content, you grant us a limited license to process, store, and display your content solely for the purpose of providing the Service. The Service itself, including its design, code, and branding, is the intellectual property of the operator."
+        },
+        "limitationOfLiability": {
+          "heading": "8. Limitation of Liability",
+          "body": "The Service is provided \"as is\" without warranties of any kind. We do not guarantee uninterrupted or error-free operation. We make no guarantees regarding the accuracy, completeness, or usefulness of AI-generated responses. You use such content at your own risk. We are not responsible for any loss, corruption, or failure of backup of your data. To the maximum extent permitted by law, we shall not be liable for any indirect, incidental, or consequential damages arising from your use of the Service. Our total liability shall not exceed the amount you paid to us in the 12 months preceding the claim."
+        },
+        "serviceChanges": {
+          "heading": "9. Service Modifications and Termination",
+          "body": "We may modify, suspend, or terminate all or part of the Service with prior notice."
+        },
+        "governingLaw": {
+          "heading": "10. Governing Law and Jurisdiction",
+          "body": "These Terms shall be governed by and construed in accordance with the laws of Japan. Any disputes arising from these Terms shall be subject to the exclusive jurisdiction of the Tokyo District Court."
+        },
+        "changes": {
+          "heading": "11. Changes to These Terms",
+          "body": "We may update these Terms from time to time. When we make material changes, we will notify registered users via email or through the Service. Continued use of the Service after changes take effect constitutes acceptance of the revised Terms."
+        }
+      }
+    },
+    "privacy": {
+      "title": "Privacy Policy",
+      "sections": {
+        "dataCollected": {
+          "heading": "1. Data We Collect",
+          "body": "We collect the following types of information:\n- Account information: email address, username, and password (hashed)\n- Uploaded content: video files and generated transcriptions\n- Usage data: chat messages, AI interaction history, and service usage statistics\n- Payment information: processed securely by Stripe; we do not store credit card numbers\n- Technical data: IP address, browser type, and access logs"
+        },
+        "purposeOfUse": {
+          "heading": "2. Purpose of Use",
+          "body": "We use the collected information to:\n- Provide and maintain the Service\n- Process video transcriptions and AI chat responses\n- Manage your account and subscription billing\n- Improve the Service and develop new features\n- Communicate with you regarding your account and service updates\n- Ensure compliance with legal obligations"
+        },
+        "thirdPartySharing": {
+          "heading": "3. Third-Party Services",
+          "body": "We share data with the following third-party services as necessary to operate the Service:\n- Stripe: payment processing (name, email, payment details)\n- OpenAI: video transcription and AI chat functionality (video audio data, chat messages)\n\nThese providers process data in accordance with their own privacy policies. Third-party services such as OpenAI may process data on servers located outside of Japan. We do not sell your personal information to third parties."
+        },
+        "cookies": {
+          "heading": "4. Cookies and Local Storage",
+          "body": "The Service uses cookies and local storage for session management and authentication. These are essential for the Service to function properly. We do not use third-party tracking cookies for advertising purposes."
+        },
+        "dataRetention": {
+          "heading": "5. Data Retention",
+          "body": "Your account data and uploaded content are retained for as long as your account is active. If you delete your account, your data will be removed from our systems within 30 days, except where retention is required by law. Chat history and usage logs may be retained in anonymized form for service improvement."
+        },
+        "security": {
+          "heading": "6. Security Measures",
+          "body": "We take reasonable security measures to protect your personal information. However, no method of transmission over the Internet or digital storage is completely secure, and we cannot guarantee absolute security."
+        },
+        "userRights": {
+          "heading": "7. Your Rights",
+          "body": "You have the right to:\n- Access the personal data we hold about you\n- Request correction of inaccurate data\n- Request deletion of your account and associated data\n- Export your data in a portable format\n- Withdraw consent for data processing\n\nTo exercise these rights, please contact us at the email address below."
+        },
+        "contact": {
+          "heading": "8. Contact",
+          "body": "For questions or requests regarding this Privacy Policy, please contact us at:\nEmail: yukiharada1228@gmail.com"
+        }
+      }
     }
   }
 }

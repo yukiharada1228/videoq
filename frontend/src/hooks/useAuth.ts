@@ -63,6 +63,7 @@ export function useAuth(options: UseAuthOptions = {}): UseAuthReturn {
       '/verify-email',
       '/share',
       '/pricing',
+      '/legal',
     ];
     const authRequired = !publicPaths.some((path) =>
       pathname.startsWith(path)
