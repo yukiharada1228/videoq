@@ -289,12 +289,18 @@ USE_S3_STORAGE = (
 )
 
 if USE_S3_STORAGE:
-    # AWS S3 basic settings
+    # AWS S3 / Cloudflare R2 basic settings
     AWS_ACCESS_KEY_ID = os.environ.get("AWS_ACCESS_KEY_ID")
     AWS_SECRET_ACCESS_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY")
     AWS_STORAGE_BUCKET_NAME = os.environ.get("AWS_STORAGE_BUCKET_NAME")
-    AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com"
-    AWS_S3_REGION_NAME = os.environ.get("AWS_S3_REGION_NAME", "ap-northeast-1")
+    AWS_S3_REGION_NAME = os.environ.get("AWS_S3_REGION_NAME", "auto")
+    AWS_S3_ENDPOINT_URL = os.environ.get("AWS_S3_ENDPOINT_URL")
+    AWS_S3_CUSTOM_DOMAIN = os.environ.get("AWS_S3_CUSTOM_DOMAIN")
+
+    # If using standard AWS S3 without a custom endpoint, set default custom domain if not provided
+    if not AWS_S3_ENDPOINT_URL and not AWS_S3_CUSTOM_DOMAIN and AWS_STORAGE_BUCKET_NAME:
+        AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com"
+
     # Enable presigned URLs (default True)
     AWS_QUERYSTRING_AUTH = True
     # Presigned URL expiration (seconds, default 3600)
@@ -310,9 +316,11 @@ if USE_S3_STORAGE:
                 "bucket_name": AWS_STORAGE_BUCKET_NAME,
                 "access_key": AWS_ACCESS_KEY_ID,
                 "secret_key": AWS_SECRET_ACCESS_KEY,
+                "endpoint_url": AWS_S3_ENDPOINT_URL,
+                "region_name": AWS_S3_REGION_NAME,
                 "location": "static",  # Directory in S3
                 "default_acl": "private",  # Change ACL to private
-                "custom_domain": False,
+                "custom_domain": AWS_S3_CUSTOM_DOMAIN,
                 "querystring_auth": True,  # Enable presigned URLs
                 "querystring_expire": 3600,  # Override URL expiration
                 "object_parameters": {"CacheControl": "max-age=86400"},
@@ -324,10 +332,12 @@ if USE_S3_STORAGE:
                 "bucket_name": AWS_STORAGE_BUCKET_NAME,
                 "access_key": AWS_ACCESS_KEY_ID,
                 "secret_key": AWS_SECRET_ACCESS_KEY,
+                "endpoint_url": AWS_S3_ENDPOINT_URL,
+                "region_name": AWS_S3_REGION_NAME,
                 "location": "media",  # Directory in S3
                 "default_acl": "private",  # Change ACL to private
                 "file_overwrite": False,
-                "custom_domain": False,
+                "custom_domain": AWS_S3_CUSTOM_DOMAIN,
                 "querystring_auth": True,  # Enable presigned URLs
                 "querystring_expire": 3600,  # Override URL expiration
             },
