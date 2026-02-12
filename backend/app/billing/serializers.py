@@ -24,7 +24,7 @@ class SubscriptionSerializer(serializers.Serializer):
 
 class CreateCheckoutSessionSerializer(serializers.Serializer):
     plan = serializers.ChoiceField(
-        choices=[PlanType.STANDARD, PlanType.BUSINESS]
+        choices=[PlanType.LITE, PlanType.STANDARD]
     )
     success_url = serializers.URLField()
     cancel_url = serializers.URLField()
@@ -38,8 +38,8 @@ def get_plans_data():
     """Return plan data for the pricing page."""
     plan_info = {
         PlanType.FREE: {"name": "Free", "price": 0},
+        PlanType.LITE: {"name": "Lite", "price": 980},
         PlanType.STANDARD: {"name": "Standard", "price": 2980},
-        PlanType.BUSINESS: {"name": "Business", "price": 9800},
     }
 
     plans = []

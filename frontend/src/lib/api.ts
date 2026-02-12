@@ -16,7 +16,7 @@ export interface User {
   username: string;
   email: string;
   video_count: number;
-  plan: 'free' | 'standard' | 'business';
+  plan: 'free' | 'lite' | 'standard';
   storage_used_bytes: number;
   storage_limit_bytes: number;
   processing_minutes_used: number;
@@ -27,7 +27,7 @@ export interface User {
 
 export interface Plan {
   name: string;
-  plan_id: 'free' | 'standard' | 'business';
+  plan_id: 'free' | 'lite' | 'standard';
   price: number;
   currency: string;
   storage_gb: number;

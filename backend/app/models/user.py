@@ -55,8 +55,8 @@ class User(AbstractUser):
     def ai_answers_limit(self):
         sub = self._get_subscription()
         if sub is None:
-            return 100  # free default
-        return sub.limits.get("ai_answers", 100)
+            return 300  # free default
+        return sub.limits.get("ai_answers", 300)
 
     @property
     def ai_answers_used(self):

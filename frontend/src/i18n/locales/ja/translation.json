@@ -551,8 +551,8 @@
     },
     "plans": {
       "free": "フリープラン",
-      "standard": "スタンダードプラン",
-      "business": "ビジネスプラン"
+      "lite": "ライトプラン",
+      "standard": "スタンダードプラン"
     },
     "management": {
       "title": "請求・サブスクリプション",

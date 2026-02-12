@@ -124,19 +124,19 @@ class UserUsagePropertyTests(TestCase):
 
     def test_ai_answers_limit_free_no_subscription(self):
         """Free user without subscription gets default limit"""
-        self.assertEqual(self.user.ai_answers_limit, 100)
+        self.assertEqual(self.user.ai_answers_limit, 300)
 
     def test_ai_answers_limit_with_subscription(self):
-        """User with business subscription gets business limit"""
+        """User with standard subscription gets standard limit"""
         Subscription.objects.update_or_create(
-            user=self.user, defaults={"plan": PlanType.BUSINESS}
+            user=self.user, defaults={"plan": PlanType.STANDARD}
         )
         if hasattr(self.user, "_subscription_cache"):
             del self.user._subscription_cache
         self.user.refresh_from_db()
         self.assertEqual(
             self.user.ai_answers_limit,
-            PLAN_LIMITS[PlanType.BUSINESS]["ai_answers"],
+            PLAN_LIMITS[PlanType.STANDARD]["ai_answers"],
         )
 
     def test_ai_answers_used_no_records(self):

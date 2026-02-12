@@ -10,8 +10,8 @@ logger = logging.getLogger(__name__)
 stripe.api_key = settings.STRIPE_SECRET_KEY
 
 STRIPE_PRICE_MAP = {
+    PlanType.LITE: settings.STRIPE_LITE_PRICE_ID,
     PlanType.STANDARD: settings.STRIPE_STANDARD_PRICE_ID,
-    PlanType.BUSINESS: settings.STRIPE_BUSINESS_PRICE_ID,
 }
 
 PRICE_TO_PLAN_MAP = {v: k for k, v in STRIPE_PRICE_MAP.items() if v}

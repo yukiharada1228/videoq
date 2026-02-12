@@ -545,8 +545,8 @@
     },
     "plans": {
       "free": "Free Plan",
-      "standard": "Standard Plan",
-      "business": "Business Plan"
+      "lite": "Lite Plan",
+      "standard": "Standard Plan"
     },
     "management": {
       "title": "Billing & Subscription",

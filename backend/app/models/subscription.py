@@ -4,24 +4,24 @@ from django.db import models
 
 class PlanType(models.TextChoices):
     FREE = "free", "Free"
+    LITE = "lite", "Lite"
     STANDARD = "standard", "Standard"
-    BUSINESS = "business", "Business"
 
 
 PLAN_LIMITS = {
     PlanType.FREE: {
         "storage_gb": 0.5,
         "processing_minutes": 5,
-        "ai_answers": 100,
+        "ai_answers": 300,
+    },
+    PlanType.LITE: {
+        "storage_gb": 5,
+        "processing_minutes": 60,
+        "ai_answers": 2000,
     },
     PlanType.STANDARD: {
         "storage_gb": 25,
         "processing_minutes": 300,
-        "ai_answers": 1000,
-    },
-    PlanType.BUSINESS: {
-        "storage_gb": 100,
-        "processing_minutes": 1000,
         "ai_answers": 10000,
     },
 }

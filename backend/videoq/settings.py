@@ -70,7 +70,7 @@ class DefaultSettings:
     STRIPE_PUBLISHABLE_KEY = ""
     STRIPE_WEBHOOK_SECRET = ""
     STRIPE_STANDARD_PRICE_ID = ""
-    STRIPE_BUSINESS_PRICE_ID = ""
+    STRIPE_LITE_PRICE_ID = ""
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -394,6 +394,6 @@ STRIPE_WEBHOOK_SECRET = os.environ.get(
 STRIPE_STANDARD_PRICE_ID = os.environ.get(
     "STRIPE_STANDARD_PRICE_ID", DefaultSettings.STRIPE_STANDARD_PRICE_ID
 )
-STRIPE_BUSINESS_PRICE_ID = os.environ.get(
-    "STRIPE_BUSINESS_PRICE_ID", DefaultSettings.STRIPE_BUSINESS_PRICE_ID
+STRIPE_LITE_PRICE_ID = os.environ.get(
+    "STRIPE_LITE_PRICE_ID", DefaultSettings.STRIPE_LITE_PRICE_ID
 )
