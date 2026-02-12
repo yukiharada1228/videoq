@@ -85,7 +85,7 @@ echo "### Reloading nginx again with SSL config ..."
 docker compose exec nginx nginx -s reload
 
 
-echo "### Starting certbot for auto-renewal ..."
-docker compose up -d certbot
+echo "### Starting all remaining services ..."
+docker compose up -d
 
-echo "### Done! SSL setup is complete and auto-renewal is active."
+echo "### Done! SSL setup is complete and all services are running with auto-renewal active."
