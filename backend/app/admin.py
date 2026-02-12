@@ -1,9 +1,9 @@
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.admin import UserAdmin
 from django.db.models import Count
 
-from .models import Subscription, Video, VideoGroup, VideoGroupMember
+from .models import Subscription, UsageRecord, Video, VideoGroup, VideoGroupMember
 
 User = get_user_model()
 
@@ -37,12 +37,13 @@ class CustomUserAdmin(UserAdmin):
         "last_login",
         "is_active",
         "get_plan",
+        "get_usage",
     )
     list_filter = (
         "is_staff",
         "is_active",
     )
-    search_fields = ("username",)
+    search_fields = ("username", "email")
     ordering = ("-date_joined",)
 
     @admin.display(description="Plan")
@@ -51,6 +52,10 @@ class CustomUserAdmin(UserAdmin):
             return obj.subscription.plan
         except Exception:
             return "free"
+
+    @admin.display(description="Usage (Proc/AI)")
+    def get_usage(self, obj):
+        return f"{obj.processing_minutes_used:.1f}m / {obj.ai_answers_used}"
 
 
 @admin.register(Video)
@@ -138,3 +143,15 @@ class VideoGroupMemberAdmin(admin.ModelAdmin):
             VideoGroupMember,
             select_related_fields=["group", "video", "group__user", "video__user"],
         )
+
+
+@admin.register(UsageRecord)
+class UsageRecordAdmin(admin.ModelAdmin):
+    list_display = ("user", "resource", "amount", "video", "created_at")
+    list_filter = ("resource", "created_at")
+    search_fields = ("user__username", "user__email")
+    readonly_fields = ("created_at",)
+    raw_id_fields = ("user", "video")
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related("user", "video")
