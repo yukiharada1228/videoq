@@ -459,9 +459,13 @@ class PopularScenesView(APIView):
             else:
                 video_file_map[video.id] = None
 
-        # Build response
+        # Build response, skipping scenes where the video file is missing
         result = []
         for (video_id, start_time), count in top_scenes:
+            file_url = video_file_map.get(video_id)
+            if not file_url:
+                continue
+
             info = scene_info[(video_id, start_time)]
             result.append(
                 {
@@ -470,7 +474,7 @@ class PopularScenesView(APIView):
                     "start_time": info["start_time"],
                     "end_time": info["end_time"],
                     "reference_count": count,
-                    "file": video_file_map.get(video_id),
+                    "file": file_url,
                 }
             )
 
