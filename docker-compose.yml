@@ -99,6 +99,21 @@ services:
       - ./certbot/conf:/etc/letsencrypt
     entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
 
+  db-backup:
+    build: ./backup
+    container_name: videoq-db-backup
+    env_file:
+      - .env
+    environment:
+      - AWS_DEFAULT_REGION=auto
+      # 18:00 UTC = 3:00 AM JST
+      - BACKUP_SCHEDULE=0 18 * * *
+    depends_on:
+      - postgres
+    networks:
+      - videoq-network
+
+
 volumes:
   staticfiles:
   postgres_data:
