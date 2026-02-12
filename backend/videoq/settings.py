@@ -397,3 +397,30 @@ STRIPE_STANDARD_PRICE_ID = os.environ.get(
 STRIPE_LITE_PRICE_ID = os.environ.get(
     "STRIPE_LITE_PRICE_ID", DefaultSettings.STRIPE_LITE_PRICE_ID
 )
+
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": "INFO",
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "app": {
+            "handlers": ["console"],
+            "level": "DEBUG",
+            "propagate": False,
+        },
+    },
+}
