@@ -1,11 +1,31 @@
 #!/bin/bash
 
+
+# Load .env file if present
+if [ -f .env ]; then
+  export $(grep -v '^#' .env | xargs)
+fi
+
 # Configuration
-domains=(videoq.jp)
+domains=(${1:-$DOMAINS}) # Get from arg 1 or .env
+email=${2:-$EMAIL}       # Get from arg 2 or .env
 rsa_key_size=4096
 data_path="./certbot"
-email="yukiharada1228@gmail.com" # PLEASE UPDATE THIS EMAIL
 staging=0 # Set to 1 if you're testing your setup to avoid hitting request limits
+
+# Validation
+if [ -z "$domains" ]; then
+  echo "Error: No domains specified. Usage: ./setup-ssl.sh <domain> <email>"
+  echo "Or set DOMAINS and EMAIL in .env file"
+  exit 1
+fi
+
+if [ -z "$email" ]; then
+  echo "Error: No email specified. Usage: ./setup-ssl.sh <domain> <email>"
+  echo "Or set DOMAINS and EMAIL in .env file"
+  exit 1
+fi
+
 
 if [ -d "$data_path" ]; then
   read -p "Existing data found for $domains. Continue and replace existing certificate? (y/N) " decision
