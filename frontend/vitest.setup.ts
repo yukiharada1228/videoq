@@ -98,6 +98,14 @@ const mockGetSharedVideoUrl = (videoFilePath: string | null, shareToken: string)
   return `${baseUrl}${separator}share_token=${shareToken}`;
 };
 
+// Mock useConfig hook so individual test api mocks don't need getConfig
+vi.mock('@/hooks/useConfig', () => ({
+  useConfig: () => ({
+    config: { billing_enabled: true, signup_enabled: true },
+    loading: false,
+  }),
+}))
+
 // Mock the API client
 vi.mock('@/lib/api', () => ({
   apiClient: {
