@@ -1,0 +1,11 @@
+# Allow all crawlers
+User-agent: *
+Allow: /
+
+# Disallow authenticated pages
+Disallow: /videos
+Disallow: /settings
+Disallow: /billing
+
+# Sitemap
+Sitemap: https://videoq.jp/sitemap.xml
