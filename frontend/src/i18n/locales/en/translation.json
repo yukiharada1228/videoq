@@ -585,6 +585,51 @@
       "viewPlans": "View Plans"
     }
   },
+  "landing": {
+    "hero": {
+      "title": "Make Your Videos Smarter",
+      "subtitle": "VideoQ is a web platform that automatically transcribes your uploaded videos and lets you search and ask questions about video content through AI chat.",
+      "cta": "Get Started Free",
+      "login": "Sign in"
+    },
+    "features": {
+      "title": "Key Features",
+      "transcription": {
+        "title": "Auto Transcription",
+        "description": "Automatically transcribe audio from uploaded videos. High-accuracy speech recognition powered by OpenAI Whisper."
+      },
+      "chat": {
+        "title": "AI Chat",
+        "description": "Ask AI questions about your video content based on transcription data. Find the information you need instantly."
+      },
+      "group": {
+        "title": "Chat Groups",
+        "description": "Group multiple videos for centralized management. Search and ask questions across all videos in a group."
+      },
+      "share": {
+        "title": "Share Links",
+        "description": "Generate share links for chat groups to share video content and AI chat externally without requiring login."
+      }
+    },
+    "about": {
+      "title": "About the Service",
+      "description": "VideoQ is a web-based video platform operated by Yuki Harada (sole proprietor). It is designed for a wide range of use cases including education, corporate training, and content creation.",
+      "operator": "Operator",
+      "operatorValue": "Yuki Harada (Sole Proprietor)",
+      "contact": "Contact",
+      "contactValue": "yukiharada1228@gmail.com",
+      "payment": "Payment Method",
+      "paymentValue": "Credit card (via Stripe)",
+      "pricing": "Pricing",
+      "pricingValue": "Free plan available. Paid plans are monthly subscriptions (JPY, tax included)."
+    },
+    "legal": {
+      "title": "Legal Information",
+      "terms": "Terms of Service",
+      "privacy": "Privacy Policy",
+      "disclosure": "Commercial Disclosure (JP)"
+    }
+  },
   "legal": {
     "disclosure": {
       "title": "Commercial Disclosure (特定商取引法に基づく表記)"

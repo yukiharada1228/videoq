@@ -11,10 +11,11 @@ import { useAsyncState } from '@/hooks/useAsyncState';
 import { useVideoStats } from '@/hooks/useVideoStats';
 import { formatFileSize } from '@/lib/utils';
 import { UsageBar } from '@/components/common/UsageBar';
+import LandingPage from '@/pages/LandingPage';
 
 export default function HomePage() {
   const navigate = useI18nNavigate();
-  const { user, loading } = useAuth();
+  const { user, loading } = useAuth({ redirectToLogin: false });
   const { config } = useConfig();
   const { t } = useTranslation();
 
@@ -57,7 +58,20 @@ export default function HomePage() {
     navigate('/videos?upload=true');
   };
 
-  if (loading || !user || isLoadingStats) {
+  if (loading) {
+    return (
+      <PageLayout>
+        <LoadingSpinner />
+      </PageLayout>
+    );
+  }
+
+  // Show landing page for unauthenticated users
+  if (!user) {
+    return <LandingPage />;
+  }
+
+  if (isLoadingStats) {
     return (
       <PageLayout>
         <LoadingSpinner />
@@ -189,4 +203,3 @@ export default function HomePage() {
     </PageLayout>
   );
 }
-

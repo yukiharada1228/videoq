@@ -65,7 +65,9 @@ export function useAuth(options: UseAuthOptions = {}): UseAuthReturn {
       '/pricing',
       '/legal',
     ];
-    const authRequired = !publicPaths.some((path) =>
+    // Root path is also public (shows landing page for unauthenticated users)
+    const isRoot = pathname === '/' || pathname === '';
+    const authRequired = !isRoot && !publicPaths.some((path) =>
       pathname.startsWith(path)
     );
 

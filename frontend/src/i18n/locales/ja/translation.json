@@ -591,6 +591,51 @@
       "viewPlans": "プランを見る"
     }
   },
+  "landing": {
+    "hero": {
+      "title": "動画をもっとスマートに活用",
+      "subtitle": "VideoQは、動画をアップロードするだけで自動的に文字起こしを行い、AIチャットで動画の内容について質問・検索ができるWebプラットフォームです。",
+      "cta": "無料で始める",
+      "login": "ログインはこちら"
+    },
+    "features": {
+      "title": "主な機能",
+      "transcription": {
+        "title": "自動文字起こし",
+        "description": "アップロードされた動画の音声を自動で文字起こし。OpenAI Whisperを活用した高精度な音声認識。"
+      },
+      "chat": {
+        "title": "AIチャット",
+        "description": "文字起こしデータをもとに、動画の内容についてAIに質問。必要な情報をすぐに見つけることができます。"
+      },
+      "group": {
+        "title": "チャットグループ",
+        "description": "複数の動画をグループ化して一括管理。グループ全体の動画内容を横断的に検索・質問できます。"
+      },
+      "share": {
+        "title": "共有リンク",
+        "description": "チャットグループの共有リンクを生成して、ログインなしで動画コンテンツとAIチャットを外部に共有。"
+      }
+    },
+    "about": {
+      "title": "サービス概要",
+      "description": "VideoQ（ビデオキュー）は、個人事業主・原田 優輝が運営するWebベースの動画活用プラットフォームです。教育機関、企業研修、コンテンツ制作など幅広い用途でご利用いただけます。",
+      "operator": "運営者",
+      "operatorValue": "原田 優輝（個人事業主）",
+      "contact": "お問い合わせ",
+      "contactValue": "yukiharada1228@gmail.com",
+      "payment": "決済方法",
+      "paymentValue": "クレジットカード（Stripe経由）",
+      "pricing": "料金",
+      "pricingValue": "無料プランあり。有料プランは月額制（税込・日本円）。"
+    },
+    "legal": {
+      "title": "法的情報",
+      "terms": "利用規約",
+      "privacy": "プライバシーポリシー",
+      "disclosure": "特定商取引法に基づく表記"
+    }
+  },
   "legal": {
     "disclosure": {
       "title": "特定商取引法に基づく表記"
