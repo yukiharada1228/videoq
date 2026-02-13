@@ -412,6 +412,7 @@ class TranscribeVideoTaskTests(TestCase):
         with self.assertRaises(ValueError):
             transcribe_video(video.id)
 
+    @override_settings(BILLING_ENABLED=True)
     @patch("app.tasks.transcription._get_video_duration")
     @patch("app.tasks.transcription.download_video_from_storage")
     @patch("app.tasks.transcription.create_whisper_client")

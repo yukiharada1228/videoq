@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, patch
 from django.core.files.uploadedfile import SimpleUploadedFile
 
 from django.contrib.auth import get_user_model
+from django.test import override_settings
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
@@ -226,14 +227,15 @@ class ChatViewTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
+    @override_settings(BILLING_ENABLED=True)
     def test_chat_ai_answers_limit_reached(self):
         """Test that 429 is returned when AI answers limit is reached"""
-        # Free plan = 50 ai_answers limit
+        # Free plan = 300 ai_answers limit
         Subscription.objects.update_or_create(
             user=self.user, defaults={"plan": PlanType.FREE}
         )
 
-        # Create usage records to hit the limit (100 for free plan)
+        # Create usage records to hit the limit (300 for free plan)
         from app.models import UsageRecord
 
         records = [
@@ -242,7 +244,7 @@ class ChatViewTests(APITestCase):
                 resource="ai_answers",
                 amount=1,
             )
-            for _ in range(100)
+            for _ in range(300)
         ]
         UsageRecord.objects.bulk_create(records)
 
