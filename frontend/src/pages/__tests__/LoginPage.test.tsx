@@ -86,8 +86,12 @@ describe('LoginPage', () => {
   it('should have centered layout', () => {
     render(<LoginPage />)
 
-    const container = screen.getByText('auth.login.title').closest('main')
-    expect(container).toBeInTheDocument()
-    expect(container).toHaveClass('flex', 'flex-1', 'items-center', 'justify-center', 'px-4')
+    const main = screen.getByText('auth.login.title').closest('main')
+    expect(main).toBeInTheDocument()
+    expect(main).toHaveClass('flex-1')
+
+    // Centering classes are on an inner wrapper div
+    const wrapper = screen.getByText('auth.login.title').closest('.flex.items-center.justify-center')
+    expect(wrapper).toBeInTheDocument()
   })
 })

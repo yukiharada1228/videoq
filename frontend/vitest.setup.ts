@@ -129,6 +129,8 @@ vi.mock('@/lib/api', () => ({
     chat: vi.fn(() => Promise.resolve({ response: 'Mock chat response' })),
     getVideoUrl: vi.fn(mockGetVideoUrl),
     getSharedVideoUrl: vi.fn(mockGetSharedVideoUrl),
+    getPlans: vi.fn(() => Promise.resolve([])),
+    getPopularScenes: vi.fn(() => Promise.resolve([])),
   },
 }));
 
@@ -140,11 +142,14 @@ beforeEach(async () => {
     const mod = await import('@/lib/api') as any
     const client = mod.apiClient
     if (client && !client.__autoMocked) {
+      // Only apply auto-mock proxy when the module is actually mocked
+      // (vi.fn() instances have a .mock property; real functions do not)
+      if (!client.getMe?.mock) return
       const skip = new Set(['then', 'toJSON', 'valueOf', 'toString', '__autoMocked', '$$typeof'])
       Object.setPrototypeOf(client, new Proxy({}, {
         get(_target: any, prop: string | symbol) {
           if (typeof prop === 'symbol' || skip.has(prop as string)) return undefined
-          const fn = vi.fn()
+          const fn = vi.fn(() => Promise.resolve(undefined))
           client[prop] = fn
           return fn
         }

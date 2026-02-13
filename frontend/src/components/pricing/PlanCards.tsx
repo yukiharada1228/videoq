@@ -26,7 +26,7 @@ export function PlanCards({
   useEffect(() => {
     apiClient
       .getPlans()
-      .then(setPlans)
+      .then((data) => setPlans(data ?? []))
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);

@@ -27,7 +27,17 @@ vi.mock('@/lib/api', () => ({
 
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({
-    user: { id: 1, username: 'testuser' },
+    user: {
+      id: 1,
+      username: 'testuser',
+      billing_enabled: false,
+      storage_used_bytes: 0,
+      storage_limit_bytes: 1073741824,
+      processing_minutes_used: 0,
+      processing_minutes_limit: 60,
+      ai_answers_used: 0,
+      ai_answers_limit: 100,
+    },
     loading: false,
   }),
 }))
