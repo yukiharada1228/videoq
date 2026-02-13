@@ -1,10 +1,14 @@
 # VideoQ
 
-🎥 **Upload videos. Ask questions. Get instant answers.**
+🎥 **Just ask AI and instantly jump to any scene you want**
 
 VideoQ is an AI-powered video navigator that automatically transcribes your videos and lets you chat with them using natural language.
 
 **[日本語版README](README.md) | [English README](README.en.md)**
+
+🌐 **Try it online now:** [https://videoq.jp/](https://videoq.jp/)
+
+Or follow the steps below to set it up locally.
 
 ![VideoQ Application Screenshot](assets/videoq-app-screenshot.png)
 

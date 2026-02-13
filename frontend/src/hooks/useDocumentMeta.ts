@@ -10,9 +10,9 @@ interface DocumentMetaOptions {
   twitterCard?: 'summary' | 'summary_large_image';
 }
 
-const DEFAULT_TITLE = 'VideoQ - 動画をもっとスマートに活用';
+const DEFAULT_TITLE = 'VideoQ - 質問して見たいシーンへジャンプ';
 const DEFAULT_DESCRIPTION =
-  'VideoQは、動画をアップロードするだけで自動的に文字起こしを行い、AIチャットで動画の内容について質問・検索ができるWebプラットフォームです。';
+  'VideoQは、動画を自動で文字起こしし、AIチャットで見たい箇所に瞬時にアクセスできるWebプラットフォームです。教育機関、企業研修、コンテンツ制作など幅広い用途でご利用いただけます。';
 
 export function useDocumentMeta(options: DocumentMetaOptions = {}) {
   const {

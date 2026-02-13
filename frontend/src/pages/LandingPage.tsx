@@ -8,12 +8,12 @@ export default function LandingPage() {
   const { t } = useTranslation();
 
   useDocumentMeta({
-    title: 'VideoQ - 動画をもっとスマートに活用',
+    title: 'VideoQ - 質問して見たいシーンへジャンプ',
     description:
-      'VideoQは、動画をアップロードするだけで自動的に文字起こしを行い、AIチャットで動画の内容について質問・検索ができるWebプラットフォームです。教育機関、企業研修、コンテンツ制作など幅広い用途でご利用いただけます。',
-    ogTitle: 'VideoQ - 動画をもっとスマートに活用',
+      'VideoQは、動画を自動で文字起こしし、AIチャットで見たい箇所に瞬時にアクセスできるWebプラットフォームです。教育機関、企業研修、コンテンツ制作など幅広い用途でご利用いただけます。',
+    ogTitle: 'VideoQ - 質問して見たいシーンへジャンプ',
     ogDescription:
-      '動画の文字起こしとAIチャットで、動画コンテンツをもっと便利に。無料プランあり。',
+      'AIチャットで動画の見たいシーンに瞬時にジャンプ。自動文字起こしで動画をもっと便利に。無料プランあり。',
     ogUrl: 'https://videoq.jp/',
   });
 

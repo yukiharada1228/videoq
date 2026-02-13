@@ -587,8 +587,8 @@
   },
   "landing": {
     "hero": {
-      "title": "Make Your Videos Smarter",
-      "subtitle": "VideoQ is a web platform that automatically transcribes your uploaded videos and lets you search and ask questions about video content through AI chat.",
+      "title": "Ask AI and Jump to Any Scene You Want",
+      "subtitle": "VideoQ automatically transcribes your videos and lets you instantly access any moment through AI chat. Perfect for education, corporate training, and content creation.",
       "cta": "Get Started Free",
       "login": "Sign in"
     },

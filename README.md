@@ -1,10 +1,14 @@
 # VideoQ
 
-🎥 **動画をアップロード。質問する。瞬時に回答を得る。**
+🎥 **AIに質問するだけで、見たいシーンに瞬時にジャンプ**
 
 VideoQは、動画を自動で文字起こしし、自然言語で動画と会話できるAI搭載の動画ナビゲーターです。
 
 **[日本語版README](README.md) | [English README](README.en.md)**
+
+🌐 **オンラインで今すぐ試す:** [https://videoq.jp/](https://videoq.jp/)
+
+または、以下の手順でローカル環境にセットアップできます。
 
 ![VideoQ Application Screenshot](assets/videoq-app-screenshot.png)
 
