@@ -1,229 +1,229 @@
 # VideoQ
 
-🎥 **Upload videos. Ask questions. Get instant answers.**
+🎥 **動画をアップロード。質問する。瞬時に回答を得る。**
 
-VideoQ is an AI-powered video navigator that automatically transcribes your videos and lets you chat with them using natural language.
+VideoQは、動画を自動で文字起こしし、自然言語で動画と会話できるAI搭載の動画ナビゲーターです。
 
-**[日本語版README](README.ja.md) | [English README](README.md)**
+**[日本語版README](README.md) | [English README](README.en.md)**
 
 ![VideoQ Application Screenshot](assets/videoq-app-screenshot.png)
 
-## ✨ What can you do?
+## ✨ できること
 
-- **Upload any video** - MP4, MOV, AVI, and more
-- **Ask questions** - "What did they say about the budget?" or "Summarize the key points"
-- **Search content** - Find specific moments without scrubbing through hours of footage
-- **Organize with tags** - Keep your videos organized with custom tags and colors
-- **Share insights** - Create shareable groups of videos for team collaboration
-- **Short Videos** - Swipe through popular scenes frequently referenced in AI answers
-- **Multilingual Support** - Switch between Japanese and English interfaces
+- **あらゆる動画をアップロード** - MP4、MOV、AVI など
+- **質問する** - 「予算について何と言っていた？」「要点をまとめて」など
+- **コンテンツを検索** - 何時間もの映像をスクラブせずに特定の瞬間を見つける
+- **タグで整理** - カスタムタグと色で動画を整理
+- **インサイトを共有** - チームコラボレーション用の共有可能な動画グループを作成
+- **ショート動画** - AIの回答で頻繁に参照される人気シーンをTikTokのようにスワイプ閲覧
+- **多言語対応** - 日本語・英語インターフェースの切り替え
 
-## 🚀 Quick Start (5 minutes)
+## 🚀 クイックスタート（5分）
 
-### What you'll need
+### 必要なもの
 
-- [Docker](https://docs.docker.com/get-docker/) & [Docker Compose](https://docs.docker.com/compose/install/) installed
-- An [OpenAI API key](https://platform.openai.com/api-keys) (don't worry, we'll show you how to get one)
+- [Docker](https://docs.docker.com/get-docker/) と [Docker Compose](https://docs.docker.com/compose/install/) がインストール済み
+- [OpenAI APIキー](https://platform.openai.com/api-keys)（取得方法をご説明します）
 
-### Step 1: Get your OpenAI API key
+### ステップ1: OpenAI APIキーを取得
 
-1. Go to [OpenAI Platform](https://platform.openai.com/api-keys)
-2. Sign up or log in
-3. Click "Create new secret key"
-4. Copy the key (starts with `sk-...`)
+1. [OpenAI Platform](https://platform.openai.com/api-keys) にアクセス
+2. サインアップまたはログイン
+3. 「Create new secret key」をクリック
+4. キーをコピー（`sk-...` で始まります）
 
 
 
-### Step 2: Set up VideoQ
+### ステップ2: VideoQをセットアップ
 
 ```bash
-# Clone and enter the project
+# プロジェクトをクローンして移動
 git clone https://github.com/yukiharada1228/videoq.git
 cd videoq
 
-# Copy the configuration file
+# 設定ファイルをコピー
 cp .env.example .env
 ```
 
-Now edit the `.env` file and add your OpenAI API key:
+`.env` ファイルを編集してOpenAI APIキーを追加：
 
 ```bash
 OPENAI_API_KEY=sk-your-key-here
 ```
 
-### Step 3: Start VideoQ
+### ステップ3: VideoQを起動
 
 ```bash
-# Start all services (this might take a few minutes the first time)
+# 全サービスを開始（初回は数分かかる場合があります）
 docker compose up --build -d
 
-# Set up the database
+# データベースをセットアップ
 docker compose exec backend python manage.py migrate
 docker compose exec backend python manage.py collectstatic --noinput
 
-# Create your admin account
+# 管理者アカウントを作成
 docker compose exec backend python manage.py createsuperuser
 ```
 
-### Step 4: Start using VideoQ!
+### ステップ4: VideoQを使い始める！
 
-Open [http://localhost](http://localhost) in your browser and you're ready to go!
+ブラウザで [http://localhost](http://localhost) を開けば準備完了です！
 
-**Other useful links:**
-- **Admin Panel:** [http://localhost/api/admin](http://localhost/api/admin) (manage users, videos)
-- **API Docs:** [http://localhost/api/docs/](http://localhost/api/docs/) (for developers)
+**その他の便利なリンク:**
+- **管理パネル:** [http://localhost/api/admin](http://localhost/api/admin) （ユーザー、動画の管理）
+- **API ドキュメント:** [http://localhost/api/docs/](http://localhost/api/docs/) （開発者向け）
 
-### 📋 User Management
+### 📋 ユーザー管理
 
-**Important:** New users are created with a video upload limit of 0 (no uploads allowed). As an administrator, you need to set appropriate video limits for users through the admin panel.
+**重要:** 新規ユーザーは動画アップロード制限が0（アップロード不可）で作成されます。管理者として、管理パネルを通じてユーザーに適切な動画制限を設定する必要があります。
 
-**To set video limits:**
-1. Go to the [Admin Panel](http://localhost/api/admin)
-2. Click on "Users" 
-3. Select a user to edit
-4. Set the "Video limit" field:
-   - `0` = No uploads allowed (default for new users)
-   - Any positive number = Maximum videos the user can upload
-   - Leave blank = Unlimited uploads
+**動画制限を設定するには:**
+1. [管理パネル](http://localhost/api/admin) にアクセス
+2. 「Users」をクリック
+3. 編集するユーザーを選択
+4. 「Video limit」フィールドを設定：
+   - `0` = アップロード不可（新規ユーザーのデフォルト）
+   - 任意の正の数 = ユーザーがアップロードできる最大動画数
+   - 空白 = 無制限アップロード
 
-This design ensures administrators have full control over resource usage and user permissions.
+この設計により、管理者がリソース使用量とユーザー権限を完全に制御できます。
 
-## 🎬 Features in Detail
+## 🎬 機能の詳細
 
-### Short Videos
+### ショート動画
 
-VideoQ tracks which video segments are most frequently referenced when the AI answers your questions. You can browse these popular scenes in a vertical Short-video format:
+VideoQはAIが質問に回答する際に最も頻繁に参照された動画セグメントを追跡します。これらの人気シーンを縦型のショート動画形式で閲覧できます：
 
-- **TikTok-like navigation** - Swipe up/down or use arrow keys to navigate between scenes
-- **Popular scenes** - See the moments that matter most based on actual AI usage
-- **Quick preview** - Jump directly to the most relevant parts of your videos
-- **Share with others** - Shorts work on shared links too
+- **TikTokのようなナビゲーション** - 上下にスワイプまたは矢印キーでシーン間を移動
+- **人気シーン** - 実際のAI使用状況に基づいて最も重要な瞬間を表示
+- **クイックプレビュー** - 動画の最も関連性の高い部分に直接ジャンプ
+- **共有でも使える** - ショート機能は共有リンクでも動作
 
-### Sharing & Collaboration
+### 共有とコラボレーション
 
-Share video groups with others without requiring them to sign up:
+サインアップ不要で他者と動画グループを共有：
 
-- **Generate share links** - Create unique URLs for your video groups
-- **No login required** - Recipients can view videos and chat without an account
-- **Full AI chat access** - Shared users can ask questions about the videos
-- **Control access** - Revoke or regenerate share links at any time
+- **共有リンクの生成** - 動画グループの一意のURLを作成
+- **ログイン不要** - 受信者はアカウントなしで動画を視聴しチャット可能
+- **フルAIチャットアクセス** - 共有ユーザーも動画について質問可能
+- **アクセス制御** - 共有リンクの無効化や再生成がいつでも可能
 
-## 💰 Want to save money? Use local alternatives
+## 💰 コストを節約したい？ローカル代替手段を使用
 
-VideoQ can run completely offline using free, local AI models. This eliminates OpenAI costs entirely!
+VideoQは完全にオフラインで動作し、無料のローカルAIモデルを使用できます。これによりOpenAIのコストを完全に削減できます！
 
 <details>
-<summary><strong>🖥️ Local Whisper (Free transcription)</strong></summary>
+<summary><strong>🖥️ ローカルWhisper（無料の文字起こし）</strong></summary>
 
-Use your computer's GPU for faster, cost-free transcription.
+コンピューターのGPUを使用して、より高速で無料の文字起こしを実現。
 
-**Quick setup:**
+**クイックセットアップ:**
 
 ```bash
-# 1. Get whisper.cpp (from VideoQ root directory)
+# 1. whisper.cppを取得（VideoQルートディレクトリから）
 git submodule update --init --recursive
 cd whisper.cpp
 
-# 2. Build it
+# 2. ビルド
 cmake -B build
 cmake --build build -j --config Release
 
-# 3. Download a model
+# 3. モデルをダウンロード
 bash ./models/download-ggml-model.sh large-v3-turbo
 
-# 4. Start the server
-./build/bin/whisper-server -m models/ggml-large-v3-turbo.bin --inference-path /audio/transcriptions
+# 4. サーバーを起動
+./build/bin/whisper-server -m models/ggml-large-v3-turbo.bin --inference-path /audio/transcriptions -l ja
 ```
 
-**Configure VideoQ to use it:**
+**VideoQを設定:**
 
-Edit your `.env` file:
+`.env` ファイルを編集：
 ```bash
 WHISPER_BACKEND=whisper.cpp
 WHISPER_LOCAL_URL=http://host.docker.internal:8080
 ```
 
-Then restart: `docker compose restart backend celery-worker`
+再起動: `docker compose restart backend celery-worker`
 
 </details>
 
 <details>
-<summary><strong>🤖 Local AI Chat with Ollama (Free ChatGPT alternative)</strong></summary>
+<summary><strong>🤖 OllamaでローカルAIチャット（無料のChatGPT代替）</strong></summary>
 
-**Install Ollama:**
-1. Download from [ollama.com](https://ollama.com)
-2. Install and run it
+**Ollamaをインストール:**
+1. [ollama.com](https://ollama.com) からダウンロード
+2. インストールして実行
 
-**Get a model:**
+**モデルを取得:**
 ```bash
-ollama pull qwen3:0.6b  # Small, fast model
-# or
-ollama pull llama3:8b   # Larger, more capable model
+ollama pull qwen3:0.6b  # 小さく高速なモデル
+# または
+ollama pull llama3:8b   # より大きく高性能なモデル
 ```
 
-**Configure VideoQ:**
+**VideoQを設定:**
 
-Edit your `.env` file:
+`.env` ファイルを編集：
 ```bash
 LLM_PROVIDER=ollama
 LLM_MODEL=qwen3:0.6b
 OLLAMA_BASE_URL=http://host.docker.internal:11434
 ```
 
-Then restart: `docker compose restart backend celery-worker`
+再起動: `docker compose restart backend celery-worker`
 
 </details>
 
 <details>
-<summary><strong>🔍 Local Embeddings (Free text search)</strong></summary>
+<summary><strong>🔍 ローカル埋め込み（無料のテキスト検索）</strong></summary>
 
-**Get an embedding model:**
+**埋め込みモデルを取得:**
 ```bash
 ollama pull qwen3-embedding:0.6b
 ```
 
-**Configure VideoQ:**
+**VideoQを設定:**
 
-Edit your `.env` file:
+`.env` ファイルを編集：
 ```bash
 EMBEDDING_PROVIDER=ollama
 EMBEDDING_MODEL=qwen3-embedding:0.6b
 OLLAMA_BASE_URL=http://host.docker.internal:11434
 ```
 
-Then restart: `docker compose restart backend celery-worker`
+再起動: `docker compose restart backend celery-worker`
 
-**Important:** If you switch from OpenAI to local embeddings, you'll need to re-index your existing videos in the admin panel.
+**重要:** OpenAIからローカル埋め込みに切り替える場合、管理パネルで既存の動画を再インデックスする必要があります。
 
 </details>
 
-## 🛠️ Development & Customization
+## 🛠️ 開発・カスタマイズ
 
 <details>
-<summary><strong>Frontend Development</strong></summary>
+<summary><strong>フロントエンド開発</strong></summary>
 
-Want to customize the UI? Run the frontend separately for faster development:
+UIをカスタマイズしたい？より高速な開発のためにフロントエンドを個別に実行：
 
 ```bash
 cd frontend
 npm install
-npm run dev  # Runs at http://localhost:3000
+npm run dev  # http://localhost:3000 で実行
 ```
 
-Make sure the backend is still running via Docker.
+バックエンドはDockerで実行したままにしてください。
 
-**Tech Stack:**
+**技術スタック:**
 - React 19 + TypeScript
 - Tailwind CSS v4
 - Vite 7
-- Vitest for testing
-- i18next for internationalization
-- Radix UI components
+- Vitest（テスト用）
+- i18next（国際化対応）
+- Radix UIコンポーネント
 
 </details>
 
 <details>
-<summary><strong>Backend Development</strong></summary>
+<summary><strong>バックエンド開発</strong></summary>
 
 ```bash
 cd backend
@@ -231,27 +231,27 @@ pip install -r requirements.txt
 python manage.py runserver
 ```
 
-**Tech Stack:**
+**技術スタック:**
 - Django 5.2
 - Django REST Framework
-- Celery for async tasks
-- LangChain for AI integrations
-- pgvector for semantic search
+- Celery（非同期タスク）
+- LangChain（AI連携）
+- pgvector（セマンティック検索）
 
 </details>
 
 <details>
-<summary><strong>Running Tests</strong></summary>
+<summary><strong>テストの実行</strong></summary>
 
-**Frontend:**
+**フロントエンド:**
 ```bash
 cd frontend
-npm run test              # Run tests
-npm run test:watch        # Watch mode
-npm run test:coverage     # With coverage report
+npm run test              # テスト実行
+npm run test:watch        # ウォッチモード
+npm run test:coverage     # カバレッジレポート付き
 ```
 
-**Backend:**
+**バックエンド:**
 ```bash
 cd backend
 python manage.py test
@@ -260,56 +260,56 @@ python manage.py test
 </details>
 
 <details>
-<summary><strong>Useful Docker Commands</strong></summary>
+<summary><strong>便利なDockerコマンド</strong></summary>
 
 ```bash
-docker compose ps                                          # See what's running
-docker compose logs -f                                     # Watch all logs
-docker compose logs -f backend                             # Watch backend logs only
-docker compose exec backend python manage.py shell         # Django shell
-docker compose down                                        # Stop everything
-docker compose restart backend                             # Restart just backend
+docker compose ps                                          # 実行中のサービスを確認
+docker compose logs -f                                     # 全ログを監視
+docker compose logs -f backend                             # バックエンドログのみ監視
+docker compose exec backend python manage.py shell         # Djangoシェル
+docker compose down                                        # 全て停止
+docker compose restart backend                             # バックエンドのみ再起動
 ```
 
 </details>
 
-## 🏗️ How it works
+## 🏗️ 仕組み
 
-VideoQ is built with modern, reliable technologies:
+VideoQは現代的で信頼性の高い技術で構築されています：
 
-**Frontend:** React 19 + TypeScript + Tailwind CSS v4  
-**Backend:** Django 5.2 + PostgreSQL + Redis  
-**AI:** OpenAI APIs (or Ollama for local) + pgvector for semantic search  
-**Infrastructure:** Docker + Nginx
+**フロントエンド:** React 19 + TypeScript + Tailwind CSS v4  
+**バックエンド:** Django 5.2 + PostgreSQL + Redis  
+**AI:** OpenAI APIs（またはローカルのOllama）+ セマンティック検索用pgvector  
+**インフラ:** Docker + Nginx
 
-**The magic happens like this:**
-1. **Upload** → Video saved securely
-2. **Transcribe** → AI converts speech to text (Whisper API or local)
-3. **Index** → Text broken into searchable chunks with embeddings
-4. **Chat** → Your questions matched against video content
-5. **Answer** → AI responds with relevant context and timestamps
-6. **Discover** → Frequently referenced scenes become available in Shorts view
+**魔法はこのように起こります:**
+1. **アップロード** → 動画を安全に保存
+2. **文字起こし** → AIが音声をテキストに変換（Whisper APIまたはローカル）
+3. **インデックス** → テキストを埋め込み付きの検索可能なチャンクに分割
+4. **チャット** → あなたの質問を動画コンテンツとマッチング
+5. **回答** → AIが関連するコンテキストとタイムスタンプで応答
+6. **発見** → 頻繁に参照されたシーンがショートビューで利用可能に
 
-## 🚀 Production Deployment
+## 🚀 本番デプロイ
 
 <details>
-<summary><strong>Deploy to your own server</strong></summary>
+<summary><strong>自分のサーバーにデプロイ</strong></summary>
 
-**Frontend Configuration:**
+**フロントエンド設定:**
 
-Create `frontend/.env.production`:
+`frontend/.env.production` を作成：
 
 ```bash
-# Same domain (recommended)
+# 同一ドメイン（推奨）
 VITE_API_URL=/api
 
-# Or different domain
+# または異なるドメイン
 VITE_API_URL=https://api.yourdomain.com/api
 ```
 
-**Backend Configuration:**
+**バックエンド設定:**
 
-Update your `.env`:
+`.env` を更新：
 
 ```bash
 ALLOWED_HOSTS=yourdomain.com
@@ -318,56 +318,56 @@ SECURE_COOKIES=true
 FRONTEND_URL=https://yourdomain.com
 ```
 
-**Build and deploy:**
+**ビルドとデプロイ:**
 
 ```bash
 cd frontend
-npm run build  # Creates dist/ folder
-# Upload dist/ to your web server
+npm run build  # dist/ フォルダを作成
+# dist/ をWebサーバーにアップロード
 ```
 
-**Important:** Use HTTPS in production for security.
+**重要:** セキュリティのため本番環境ではHTTPSを使用してください。
 
 </details>
 
-## ❓ Troubleshooting
+## ❓ トラブルシューティング
 
-**"I can't access VideoQ at localhost"**
-- Make sure Docker is running: `docker compose ps`
-- Check if services started: `docker compose logs`
+**「localhostでVideoQにアクセスできない」**
+- Dockerが実行中か確認: `docker compose ps`
+- サービスが開始されているか確認: `docker compose logs`
 
-**"OpenAI API errors"**
-- Verify your API key is correct in `.env`
-- Check your OpenAI account has credits
-- Make sure there are no extra spaces in the key
+**「OpenAI APIエラー」**
+- `.env` でAPIキーが正しいか確認
+- OpenAIアカウントにクレジットがあるか確認
+- キーに余分なスペースがないか確認
 
-**"Video upload fails"**
-- Check your host system has enough disk space (videos are stored in `./backend/media/`)
-- Verify video format is supported (MP4, MOV, AVI, etc.)
-- For large videos (>1GB), nginx is configured to allow up to 1000MB uploads
-- Check nginx logs if upload stops: `docker compose logs nginx`
+**「動画アップロードが失敗する」**
+- ホストシステムに十分なディスク容量があるか確認（動画は `./backend/media/` に保存されます）
+- 動画形式がサポートされているか確認（MP4、MOV、AVI など）
+- 大きな動画（>1GB）の場合、nginxは最大1000MBのアップロードを許可するよう設定されています
+- アップロードが停止する場合はnginxログを確認: `docker compose logs nginx`
 
-**"Transcription is slow"**
-- Consider using local Whisper (see cost-saving section above)
-- Larger videos take longer - this is normal
+**「文字起こしが遅い」**
+- ローカルWhisperの使用を検討（上記のコスト節約セクション参照）
+- 大きな動画は時間がかかります - これは正常です
 
-**"Shorts mode isn't showing scenes"**
-- Shorts display scenes that have been referenced in AI chat responses
-- Try asking AI questions about your videos first to generate popular scenes
-- Make sure videos have finished processing (status should be "completed")
+**「ショートモードでシーンが表示されない」**
+- ショートはAIチャットの回答で参照されたシーンを表示します
+- まずAIに動画について質問して人気シーンを生成してみてください
+- 動画の処理が完了しているか確認（ステータスが「完了」になっている必要があります）
 
-**Need more help?** Check the logs: `docker compose logs -f`
+**さらにヘルプが必要？** ログを確認: `docker compose logs -f`
 
-## 🤝 Contributing
+## 🤝 貢献
 
-Found a bug? Want to add a feature? Contributions are welcome!
+バグを見つけた？機能を追加したい？貢献を歓迎します！
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if needed
-5. Submit a pull request
+1. リポジトリをフォーク
+2. 機能ブランチを作成
+3. 変更を加える
+4. 必要に応じてテストを追加
+5. プルリクエストを送信
 
-## 📄 License
+## 📄 ライセンス
 
-See [LICENSE](LICENSE) file for details.
+詳細は [LICENSE](LICENSE) ファイルをご覧ください。
