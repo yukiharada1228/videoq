@@ -594,6 +594,7 @@
     },
     "features": {
       "title": "Key Features",
+      "subtitle": "Powerful features that dramatically enhance video learning and information retrieval",
       "transcription": {
         "title": "Auto Transcription",
         "description": "Automatically transcribe audio from uploaded videos. High-accuracy speech recognition powered by OpenAI Whisper."
@@ -610,6 +611,29 @@
         "title": "Share Links",
         "description": "Generate share links for chat groups to share video content and AI chat externally without requiring login."
       }
+    },
+    "useCases": {
+      "title": "How You Can Use VideoQ",
+      "subtitle": "From education to business, applicable in a wide range of scenarios",
+      "education": {
+        "title": "Online Learning",
+        "description": "Ask questions about unclear parts in lecture videos and jump instantly to the relevant scene"
+      },
+      "business": {
+        "title": "Meetings & Training",
+        "description": "Quickly find important discussion points in long meeting recordings"
+      },
+      "production": {
+        "title": "Content Creation",
+        "description": "Efficiently search and manage necessary scenes from video materials"
+      }
+    },
+    "cta": {
+      "title": "Start Now and Transform Your Video Experience",
+      "subtitle": "Account creation takes just 1 minute. Start using for free immediately.",
+      "getStarted": "Get Started Free",
+      "viewPricing": "View Pricing Plans",
+      "badge": "🎉 Start Free"
     },
     "about": {
       "title": "About the Service",
