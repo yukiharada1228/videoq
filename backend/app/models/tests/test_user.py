@@ -5,7 +5,6 @@ Tests for User model
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError
 from django.test import TestCase
-from django.utils import timezone
 
 from app.models import ChatLog, UsageRecord, Video, VideoGroup
 from app.models.subscription import PLAN_LIMITS, PlanType, Subscription

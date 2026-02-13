@@ -101,6 +101,7 @@ const mockGetSharedVideoUrl = (videoFilePath: string | null, shareToken: string)
 // Mock the API client
 vi.mock('@/lib/api', () => ({
   apiClient: {
+    getConfig: vi.fn(() => Promise.resolve({ billing_enabled: true, signup_enabled: true })),
     getMe: vi.fn(() => Promise.resolve({ id: '1', username: 'testuser', email: 'test@example.com' })),
     signup: vi.fn(() => Promise.resolve()),
     verifyEmail: vi.fn(() => Promise.resolve()),

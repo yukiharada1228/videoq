@@ -3,7 +3,7 @@ import logging
 import stripe
 from django.conf import settings
 
-from app.models.subscription import PLAN_LIMITS, PlanType, Subscription
+from app.models.subscription import PlanType, Subscription
 
 logger = logging.getLogger(__name__)
 
