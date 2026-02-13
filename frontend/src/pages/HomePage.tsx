@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { PageLayout } from '@/components/layout/PageLayout';
 import { useI18nNavigate } from '@/lib/i18n';
 import { useAuth } from '@/hooks/useAuth';
+import { useConfig } from '@/hooks/useConfig';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { apiClient, type VideoGroupList, type VideoList } from '@/lib/api';
 import { useAsyncState } from '@/hooks/useAsyncState';
@@ -14,6 +15,7 @@ import { UsageBar } from '@/components/common/UsageBar';
 export default function HomePage() {
   const navigate = useI18nNavigate();
   const { user, loading } = useAuth();
+  const { config } = useConfig();
   const { t } = useTranslation();
 
   const { data: rawData, isLoading: isLoadingStats, execute: loadStats } = useAsyncState<{
@@ -144,43 +146,45 @@ export default function HomePage() {
           </Card>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">{t('billing.management.usageTitle')}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <UsageBar
-              label={t('billing.management.usageStorage')}
-              used={user.storage_used_bytes}
-              limit={user.storage_limit_bytes}
-              formatValue={(used, limit) =>
-                `${formatFileSize(used)} / ${formatFileSize(limit)}`
-              }
-            />
-            <UsageBar
-              label={t('billing.management.usageProcessing')}
-              used={user.processing_minutes_used}
-              limit={user.processing_minutes_limit}
-              formatValue={(used, limit) =>
-                t('billing.management.usageMinutes', {
-                  used: Math.round(used),
-                  limit,
-                })
-              }
-            />
-            <UsageBar
-              label={t('billing.management.usageAi')}
-              used={user.ai_answers_used}
-              limit={user.ai_answers_limit}
-              formatValue={(used, limit) =>
-                t('billing.management.usageCount', {
-                  used: used.toLocaleString(),
-                  limit: limit.toLocaleString(),
-                })
-              }
-            />
-          </CardContent>
-        </Card>
+        {config.billing_enabled && user.billing_enabled !== false && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">{t('billing.management.usageTitle')}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <UsageBar
+                label={t('billing.management.usageStorage')}
+                used={user.storage_used_bytes}
+                limit={user.storage_limit_bytes}
+                formatValue={(used, limit) =>
+                  `${formatFileSize(used)} / ${formatFileSize(limit)}`
+                }
+              />
+              <UsageBar
+                label={t('billing.management.usageProcessing')}
+                used={user.processing_minutes_used}
+                limit={user.processing_minutes_limit}
+                formatValue={(used, limit) =>
+                  t('billing.management.usageMinutes', {
+                    used: Math.round(used),
+                    limit,
+                  })
+                }
+              />
+              <UsageBar
+                label={t('billing.management.usageAi')}
+                used={user.ai_answers_used}
+                limit={user.ai_answers_limit}
+                formatValue={(used, limit) =>
+                  t('billing.management.usageCount', {
+                    used: used.toLocaleString(),
+                    limit: limit.toLocaleString(),
+                  })
+                }
+              />
+            </CardContent>
+          </Card>
+        )}
       </div>
     </PageLayout>
   );

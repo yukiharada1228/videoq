@@ -250,3 +250,15 @@ class MeView(AuthenticatedAPIView, generics.RetrieveAPIView):
             .annotate(video_count=Count("videos"))
             .get(pk=self.request.user.pk)
         )
+
+
+class ConfigView(PublicAPIView):
+    """Public configuration endpoint for frontend feature flags"""
+
+    def get(self, request):
+        return Response(
+            {
+                "billing_enabled": settings.BILLING_ENABLED,
+                "signup_enabled": settings.ENABLE_SIGNUP,
+            }
+        )

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { apiClient, type UserSubscription } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
+import { useConfig } from '@/hooks/useConfig';
 import { useI18nNavigate } from '@/lib/i18n';
 import { Header } from '@/components/layout/Header';
 import { formatFileSize } from '@/lib/utils';
@@ -10,12 +11,19 @@ import { UsageBar } from '@/components/common/UsageBar';
 export default function BillingPage() {
   const { t } = useTranslation();
   const { user, loading: authLoading } = useAuth();
+  const { config, loading: configLoading } = useConfig();
   const navigate = useI18nNavigate();
   const [subscription, setSubscription] = useState<UserSubscription | null>(null);
   const [loading, setLoading] = useState(true);
   const [portalLoading, setPortalLoading] = useState(false);
 
+  const billingEnabled = config.billing_enabled && user?.billing_enabled !== false;
+
   useEffect(() => {
+    if (!configLoading && !billingEnabled) {
+      navigate('/', { replace: true });
+      return;
+    }
     if (!authLoading && user) {
       apiClient
         .getSubscription()
@@ -23,7 +31,7 @@ export default function BillingPage() {
         .catch(console.error)
         .finally(() => setLoading(false));
     }
-  }, [user, authLoading]);
+  }, [user, authLoading, configLoading, billingEnabled, navigate]);
 
   const handleManageSubscription = async () => {
     setPortalLoading(true);
@@ -37,6 +45,10 @@ export default function BillingPage() {
       setPortalLoading(false);
     }
   };
+
+  if (configLoading || !billingEnabled) {
+    return null;
+  }
 
   if (authLoading || loading) {
     return (

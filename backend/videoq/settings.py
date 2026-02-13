@@ -65,6 +65,9 @@ class DefaultSettings:
     OPENAI_API_KEY = ""  # OpenAI API key (from environment variable)
     LLM_MODEL = "gpt-4o-mini"  # Default LLM model (provider-agnostic)
 
+    # Billing
+    BILLING_ENABLED = None  # Auto-detect from STRIPE_SECRET_KEY if not set
+
     # Stripe
     STRIPE_SECRET_KEY = ""
     STRIPE_PUBLISHABLE_KEY = ""
@@ -397,6 +400,13 @@ STRIPE_STANDARD_PRICE_ID = os.environ.get(
 STRIPE_LITE_PRICE_ID = os.environ.get(
     "STRIPE_LITE_PRICE_ID", DefaultSettings.STRIPE_LITE_PRICE_ID
 )
+
+# Billing: auto-detect from STRIPE_SECRET_KEY when not explicitly set
+_billing_enabled_env = os.environ.get("BILLING_ENABLED")
+if _billing_enabled_env is not None:
+    BILLING_ENABLED = _billing_enabled_env.lower() == "true"
+else:
+    BILLING_ENABLED = bool(STRIPE_SECRET_KEY)
 
 
 LOGGING = {

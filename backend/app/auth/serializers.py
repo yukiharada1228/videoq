@@ -1,5 +1,6 @@
 import logging
 
+from django.conf import settings
 from django.contrib.auth import authenticate, get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.tokens import default_token_generator
@@ -82,6 +83,7 @@ class LoginSerializer(serializers.Serializer, CredentialsSerializerMixin):
 class UserSerializer(serializers.ModelSerializer):
     video_count = serializers.SerializerMethodField()
     plan = serializers.SerializerMethodField()
+    billing_enabled = serializers.SerializerMethodField()
     storage_used_bytes = serializers.SerializerMethodField()
     storage_limit_bytes = serializers.SerializerMethodField()
     processing_minutes_used = serializers.SerializerMethodField()
@@ -97,6 +99,7 @@ class UserSerializer(serializers.ModelSerializer):
             "email",
             "video_count",
             "plan",
+            "billing_enabled",
             "storage_used_bytes",
             "storage_limit_bytes",
             "processing_minutes_used",
@@ -116,6 +119,10 @@ class UserSerializer(serializers.ModelSerializer):
         if sub:
             return sub.plan
         return "free"
+
+    def get_billing_enabled(self, obj):
+        """Return whether billing/subscription features are enabled"""
+        return settings.BILLING_ENABLED
 
     def get_storage_used_bytes(self, obj):
         return obj.storage_used_bytes

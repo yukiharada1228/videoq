@@ -1,5 +1,6 @@
 import logging
 
+from django.conf import settings
 from rest_framework import serializers
 
 from app.models import Tag, Video, VideoGroup
@@ -54,11 +55,12 @@ class VideoSerializer(serializers.ModelSerializer):
         return [{"id": t.id, "name": t.name, "color": t.color} for t in tags]
 
     def to_representation(self, instance):
-        """Hide file URL if storage limit is exceeded."""
+        """Hide file URL if storage limit is exceeded (only when billing is enabled)."""
         ret = super().to_representation(instance)
-        request = self.context.get("request")
-        if request and request.user.is_storage_limit_exceeded:
-            ret["file"] = None
+        if settings.BILLING_ENABLED:
+            request = self.context.get("request")
+            if request and request.user.is_storage_limit_exceeded:
+                ret["file"] = None
         return ret
 
 
@@ -156,11 +158,12 @@ class VideoListSerializer(serializers.ModelSerializer):
         return [{"id": t.id, "name": t.name, "color": t.color} for t in tags]
 
     def to_representation(self, instance):
-        """Hide file URL if storage limit is exceeded."""
+        """Hide file URL if storage limit is exceeded (only when billing is enabled)."""
         ret = super().to_representation(instance)
-        request = self.context.get("request")
-        if request and request.user.is_storage_limit_exceeded:
-            ret["file"] = None
+        if settings.BILLING_ENABLED:
+            request = self.context.get("request")
+            if request and request.user.is_storage_limit_exceeded:
+                ret["file"] = None
         return ret
 
 

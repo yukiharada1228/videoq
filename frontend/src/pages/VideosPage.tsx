@@ -76,20 +76,23 @@ export default function VideosPage() {
     }
   };
 
+  const billingEnabled = user?.billing_enabled !== false;
+
   const isUploadDisabled = useMemo(() => {
     if (!user || userLoading) return true;
+    if (!billingEnabled) return false;
     return user.storage_used_bytes >= user.storage_limit_bytes;
-  }, [user, userLoading]);
+  }, [user, userLoading, billingEnabled]);
 
   const hasReachedLimit = useMemo(() => {
-    if (!user) return false;
+    if (!user || !billingEnabled) return false;
     return user.storage_used_bytes >= user.storage_limit_bytes;
-  }, [user]);
+  }, [user, billingEnabled]);
 
   const hasReachedProcessingLimit = useMemo(() => {
-    if (!user) return false;
+    if (!user || !billingEnabled) return false;
     return user.processing_minutes_used >= user.processing_minutes_limit;
-  }, [user]);
+  }, [user, billingEnabled]);
 
   return (
     <>

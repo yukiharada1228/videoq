@@ -1,5 +1,10 @@
+from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+
+# Effectively unlimited value for self-hosted / billing-disabled mode.
+# Use a value safely within JavaScript's Number.MAX_SAFE_INTEGER (2^53 - 1).
+_UNLIMITED = 10**15  # 1 PB for storage, or ~1.9 million years for minutes
 
 
 class User(AbstractUser):
@@ -20,6 +25,8 @@ class User(AbstractUser):
     @property
     def storage_limit_bytes(self):
         """Get storage limit in bytes from subscription plan."""
+        if not settings.BILLING_ENABLED:
+            return _UNLIMITED
         sub = self._get_subscription()
         if sub is None:
             return int(0.5 * 1024 * 1024 * 1024)  # 0.5GB default
@@ -34,10 +41,14 @@ class User(AbstractUser):
     @property
     def is_storage_limit_exceeded(self):
         """Check if storage usage exceeds the limit."""
+        if not settings.BILLING_ENABLED:
+            return False
         return self.storage_used_bytes > self.storage_limit_bytes
 
     @property
     def processing_minutes_limit(self):
+        if not settings.BILLING_ENABLED:
+            return _UNLIMITED
         sub = self._get_subscription()
         if sub is None:
             return 5  # free default
@@ -58,6 +69,8 @@ class User(AbstractUser):
 
     @property
     def ai_answers_limit(self):
+        if not settings.BILLING_ENABLED:
+            return _UNLIMITED
         sub = self._get_subscription()
         if sub is None:
             return 300  # free default

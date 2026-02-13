@@ -1,11 +1,12 @@
 from django.conf import settings
 from django.urls import path
 
-from .views import (EmailVerificationView, LoginView, LogoutView, MeView,
-                    PasswordResetConfirmView, PasswordResetRequestView,
-                    RefreshView, UserSignupView)
+from .views import (ConfigView, EmailVerificationView, LoginView, LogoutView,
+                    MeView, PasswordResetConfirmView,
+                    PasswordResetRequestView, RefreshView, UserSignupView)
 
 urlpatterns = [
+    path("config/", ConfigView.as_view(), name="auth-config"),
     path("login/", LoginView.as_view(), name="auth-login"),
     path("logout/", LogoutView.as_view(), name="auth-logout"),
     path("refresh/", RefreshView.as_view(), name="auth-refresh"),

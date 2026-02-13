@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { apiClient, type Plan } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
+import { useConfig } from '@/hooks/useConfig';
+import { useI18nNavigate } from '@/lib/i18n';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { PlanCards } from '@/components/pricing/PlanCards';
@@ -16,10 +18,22 @@ import {
 
 export default function PricingPage() {
   const { t } = useTranslation();
-  const { user } = useAuth({ redirectToLogin: false });
+  const { user, loading: authLoading } = useAuth({ redirectToLogin: false });
+  const { config, loading: configLoading } = useConfig();
+  const navigate = useI18nNavigate();
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
   const [downgradeLoading, setDowngradeLoading] = useState(false);
   const [confirmPlan, setConfirmPlan] = useState<Plan | null>(null);
+
+  // Once auth resolves, prefer user-level flag; otherwise fall back to config API
+  const stillLoading = authLoading || configLoading;
+  const billingEnabled = user ? user.billing_enabled : config.billing_enabled;
+
+  useEffect(() => {
+    if (!stillLoading && !billingEnabled) {
+      navigate('/', { replace: true });
+    }
+  }, [stillLoading, billingEnabled, navigate]);
 
   const handleCheckout = async (planId: string) => {
     setCheckoutLoading(planId);
@@ -68,6 +82,10 @@ export default function PricingPage() {
       setDowngradeLoading(false);
     }
   };
+
+  if (stillLoading || !billingEnabled) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">

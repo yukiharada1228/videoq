@@ -34,6 +34,8 @@ class PlanListView(PublicViewMixin, generics.GenericAPIView):
     serializer_class = PlanSerializer
 
     def get(self, request):
+        if not settings.BILLING_ENABLED:
+            return Response([])
         plans = get_plans_data()
         serializer = PlanSerializer(plans, many=True)
         return Response(serializer.data)
@@ -56,6 +58,12 @@ class CreateCheckoutSessionView(AuthenticatedViewMixin, generics.GenericAPIView)
     serializer_class = CreateCheckoutSessionSerializer
 
     def post(self, request):
+        if not settings.BILLING_ENABLED:
+            return create_error_response(
+                message="Billing is not enabled.",
+                status_code=status.HTTP_404_NOT_FOUND,
+            )
+
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -80,6 +88,12 @@ class CreateBillingPortalView(AuthenticatedViewMixin, generics.GenericAPIView):
     serializer_class = CreateBillingPortalSerializer
 
     def post(self, request):
+        if not settings.BILLING_ENABLED:
+            return create_error_response(
+                message="Billing is not enabled.",
+                status_code=status.HTTP_404_NOT_FOUND,
+            )
+
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 

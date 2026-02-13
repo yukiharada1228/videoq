@@ -7,10 +7,12 @@ import { useAuthForm } from '@/hooks/useAuthForm';
 import { apiClient } from '@/lib/api';
 import { AUTH_FIELDS } from '@/lib/authConfig';
 import { PlanCards } from '@/components/pricing/PlanCards';
+import { useConfig } from '@/hooks/useConfig';
 
 export default function LoginPage() {
   const navigate = useI18nNavigate();
   const { t } = useTranslation();
+  const { config, loading: configLoading } = useConfig();
 
   const { formData, error, loading, handleChange, handleSubmit } = useAuthForm({
     onSubmit: async (data) => {
@@ -57,19 +59,21 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <section className="max-w-5xl mx-auto px-4 pb-16">
-          <div className="text-center mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">
-              {t('billing.pricing.title')}
-            </h2>
-            <p className="text-gray-600">
-              {t('billing.pricing.subtitle')}
-            </p>
-          </div>
-          <PlanCards
-            onSelectPlan={() => navigate('/signup')}
-          />
-        </section>
+        {!configLoading && config.billing_enabled && (
+          <section className="max-w-5xl mx-auto px-4 pb-16">
+            <div className="text-center mb-8">
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                {t('billing.pricing.title')}
+              </h2>
+              <p className="text-gray-600">
+                {t('billing.pricing.subtitle')}
+              </p>
+            </div>
+            <PlanCards
+              onSelectPlan={() => navigate('/signup')}
+            />
+          </section>
+        )}
       </main>
       <Footer />
     </div>

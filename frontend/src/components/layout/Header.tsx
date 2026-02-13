@@ -2,6 +2,7 @@
 
 import { Link, useI18nNavigate } from '@/lib/i18n';
 import { useAuth } from '@/hooks/useAuth';
+import { useConfig } from '@/hooks/useConfig';
 import { apiClient } from '@/lib/api';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -13,8 +14,13 @@ interface HeaderProps {
 export function Header({ children }: HeaderProps) {
   const navigate = useI18nNavigate();
   const { user } = useAuth({ redirectToLogin: false });
+  const { config, loading: configLoading } = useConfig();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { t } = useTranslation();
+
+  // Once user loads, use user-level flag; otherwise fall back to config API
+  // Hide while config is loading to prevent flash
+  const showBilling = configLoading ? false : (user ? user.billing_enabled : config.billing_enabled);
 
   const handleLogout = async () => {
     await apiClient.logout();
@@ -55,12 +61,14 @@ export function Header({ children }: HeaderProps) {
                 </button>
               </>
             )}
-            <button
-              onClick={() => navigate('/pricing')}
-              className="text-gray-600 hover:text-gray-900 transition-colors"
-            >
-              {t('navigation.pricing')}
-            </button>
+            {showBilling && (
+              <button
+                onClick={() => navigate('/pricing')}
+                className="text-gray-600 hover:text-gray-900 transition-colors"
+              >
+                {t('navigation.pricing')}
+              </button>
+            )}
             {children}
           </div>
 
@@ -142,15 +150,17 @@ export function Header({ children }: HeaderProps) {
               >
                 {t('navigation.videoGroups')}
               </button>
-              <button
-                onClick={() => {
-                  navigate('/pricing');
-                  closeMobileMenu();
-                }}
-                className="block w-full text-left px-2 py-2 text-gray-600 hover:bg-gray-50 rounded transition-colors"
-              >
-                {t('navigation.pricing')}
-              </button>
+              {showBilling && (
+                <button
+                  onClick={() => {
+                    navigate('/pricing');
+                    closeMobileMenu();
+                  }}
+                  className="block w-full text-left px-2 py-2 text-gray-600 hover:bg-gray-50 rounded transition-colors"
+                >
+                  {t('navigation.pricing')}
+                </button>
+              )}
               <button
                 onClick={() => {
                   handleLogout();
@@ -167,4 +177,3 @@ export function Header({ children }: HeaderProps) {
     </header>
   );
 }
-

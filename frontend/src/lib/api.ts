@@ -17,6 +17,7 @@ export interface User {
   email: string;
   video_count: number;
   plan: 'free' | 'lite' | 'standard';
+  billing_enabled: boolean;
   storage_used_bytes: number;
   storage_limit_bytes: number;
   processing_minutes_used: number;
@@ -46,6 +47,11 @@ export interface UserSubscription {
     processing_minutes: number;
     ai_answers: number;
   };
+}
+
+export interface AppConfig {
+  billing_enabled: boolean;
+  signup_enabled: boolean;
 }
 
 export interface SignupRequest {
@@ -428,6 +434,18 @@ class ApiClient {
       this.logError('API request failed:', error);
       throw error;
     }
+  }
+
+  async getConfig(): Promise<AppConfig> {
+    const url = this.buildUrl('/auth/config/');
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: this.getJsonHeaders(),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to fetch config: ${response.status}`);
+    }
+    return response.json();
   }
 
   async signup(data: SignupRequest): Promise<void> {
