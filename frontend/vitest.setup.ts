@@ -1,4 +1,4 @@
-import { afterEach, vi } from 'vitest'
+import { afterEach, beforeEach, vi } from 'vitest'
 import { cleanup } from '@testing-library/react'
 import '@testing-library/jest-dom/vitest'
 import React from 'react'
@@ -111,6 +111,8 @@ vi.mock('@/lib/api', () => ({
   apiClient: {
     getConfig: vi.fn(() => Promise.resolve({ billing_enabled: true, signup_enabled: true })),
     getMe: vi.fn(() => Promise.resolve({ id: '1', username: 'testuser', email: 'test@example.com' })),
+    getMeSafe: vi.fn(() => Promise.resolve(null)),
+    logout: vi.fn(() => Promise.resolve()),
     signup: vi.fn(() => Promise.resolve()),
     verifyEmail: vi.fn(() => Promise.resolve()),
     requestPasswordReset: vi.fn(() => Promise.resolve()),
@@ -129,3 +131,25 @@ vi.mock('@/lib/api', () => ({
     getSharedVideoUrl: vi.fn(mockGetSharedVideoUrl),
   },
 }));
+
+// Patch missing common API methods on the mock before each test.
+// This handles the case where individual test files override the @/lib/api mock
+// without including methods like getMeSafe/logout that hooks (useAuth) need.
+beforeEach(async () => {
+  try {
+    const mod = await import('@/lib/api')
+    const client = (mod as any).apiClient
+    if (client) {
+      const defaults: Record<string, () => unknown> = {
+        getMeSafe: () => Promise.resolve(null),
+        getConfig: () => Promise.resolve({ billing_enabled: true, signup_enabled: true }),
+        logout: () => Promise.resolve(),
+      }
+      for (const [name, impl] of Object.entries(defaults)) {
+        if (typeof client[name] !== 'function') {
+          client[name] = vi.fn(impl)
+        }
+      }
+    }
+  } catch { /* ignore */ }
+})

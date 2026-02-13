@@ -4,7 +4,7 @@ Tests for User model
 
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError
-from django.test import TestCase
+from django.test import TestCase, override_settings
 
 from app.models import ChatLog, UsageRecord, Video, VideoGroup
 from app.models.subscription import PLAN_LIMITS, PlanType, Subscription
@@ -58,6 +58,7 @@ class UserModelTests(TestCase):
         self.assertTrue(hasattr(user, "date_joined"))
 
 
+@override_settings(BILLING_ENABLED=True)
 class UserUsagePropertyTests(TestCase):
     """Tests for usage limit properties on User model"""
 

@@ -7,14 +7,16 @@ import { useI18nNavigate } from '@/lib/i18n'
 vi.mock('@/lib/api', () => ({
   apiClient: {
     getMe: vi.fn(),
+    getMeSafe: vi.fn(() => Promise.resolve(null)),
   },
 }))
 
 describe('useAuth', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    ;(globalThis as any).__setMockPathname?.('/')
-    window.history.pushState({}, '', '/')
+    // Default to a protected route so useAuth calls getMe (not getMeSafe)
+    ;(globalThis as any).__setMockPathname?.('/dashboard')
+    window.history.pushState({}, '', '/dashboard')
   })
 
   it('should initialize with loading state', () => {

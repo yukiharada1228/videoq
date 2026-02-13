@@ -3,7 +3,10 @@ Tests for chat views
 """
 
 import secrets
+from io import BytesIO
 from unittest.mock import MagicMock, patch
+
+from django.core.files.uploadedfile import SimpleUploadedFile
 
 from django.contrib.auth import get_user_model
 from django.urls import reverse
@@ -592,17 +595,21 @@ class PopularScenesViewTests(APITestCase):
         self.client = APIClient()
         self.client.force_authenticate(user=self.user)
 
+        dummy_file1 = SimpleUploadedFile("video1.mp4", b"data1", content_type="video/mp4")
+        dummy_file2 = SimpleUploadedFile("video2.mp4", b"data2", content_type="video/mp4")
         self.video1 = Video.objects.create(
             user=self.user,
             title="Test Video 1",
             description="Test Description 1",
             status="completed",
+            file=dummy_file1,
         )
         self.video2 = Video.objects.create(
             user=self.user,
             title="Test Video 2",
             description="Test Description 2",
             status="completed",
+            file=dummy_file2,
         )
 
         share_token = secrets.token_urlsafe(32)
