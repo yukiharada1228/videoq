@@ -53,6 +53,14 @@ class VideoSerializer(serializers.ModelSerializer):
         tags = [vt.tag for vt in video_tags]
         return [{"id": t.id, "name": t.name, "color": t.color} for t in tags]
 
+    def to_representation(self, instance):
+        """Hide file URL if storage limit is exceeded."""
+        ret = super().to_representation(instance)
+        request = self.context.get("request")
+        if request and request.user.is_storage_limit_exceeded:
+            ret["file"] = None
+        return ret
+
 
 class VideoCreateSerializer(UserOwnedSerializerMixin, serializers.ModelSerializer):
     """Serializer for Video creation"""
@@ -146,6 +154,14 @@ class VideoListSerializer(serializers.ModelSerializer):
         video_tags = obj.video_tags.all()
         tags = [vt.tag for vt in video_tags]
         return [{"id": t.id, "name": t.name, "color": t.color} for t in tags]
+
+    def to_representation(self, instance):
+        """Hide file URL if storage limit is exceeded."""
+        ret = super().to_representation(instance)
+        request = self.context.get("request")
+        if request and request.user.is_storage_limit_exceeded:
+            ret["file"] = None
+        return ret
 
 
 class VideoGroupListSerializer(serializers.ModelSerializer):

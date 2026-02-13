@@ -32,6 +32,11 @@ class User(AbstractUser):
         return total or 0
 
     @property
+    def is_storage_limit_exceeded(self):
+        """Check if storage usage exceeds the limit."""
+        return self.storage_used_bytes > self.storage_limit_bytes
+
+    @property
     def processing_minutes_limit(self):
         sub = self._get_subscription()
         if sub is None:

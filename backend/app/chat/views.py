@@ -111,6 +111,13 @@ class ChatView(generics.CreateAPIView):
                 status.HTTP_429_TOO_MANY_REQUESTS,
             )
 
+        # Check storage limit (lock feature if exceeded)
+        if not is_shared and user.is_storage_limit_exceeded:
+            return create_error_response(
+                "Storage limit exceeded. Please delete videos or upgrade your plan to continue.",
+                status.HTTP_403_FORBIDDEN,
+            )
+
         # Get LangChain LLM
         llm, error_response = get_langchain_llm(user)
         if error_response:
