@@ -3,7 +3,7 @@ import { Link } from '@/lib/i18n';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { useDocumentMeta } from '@/hooks/useDocumentMeta';
-import appScreenshot from '@/assets/videoq-app-screenshot.png';
+import appScreenshot from '@/assets/videoq-app-screenshot.gif';
 
 export default function LandingPage() {
   const { t } = useTranslation();

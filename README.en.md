@@ -10,7 +10,7 @@ VideoQ is an AI-powered video navigator that automatically transcribes your vide
 
 Or follow the steps below to set it up locally.
 
-![VideoQ Application Screenshot](assets/videoq-app-screenshot.png)
+![VideoQ Application Screenshot](assets/videoq-app-screenshot.gif)
 
 ## ✨ What can you do?
 
