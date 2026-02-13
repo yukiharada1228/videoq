@@ -3,7 +3,6 @@ Tests for chat views
 """
 
 import secrets
-from io import BytesIO
 from unittest.mock import MagicMock, patch
 
 from django.core.files.uploadedfile import SimpleUploadedFile

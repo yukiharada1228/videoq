@@ -132,24 +132,24 @@ vi.mock('@/lib/api', () => ({
   },
 }));
 
-// Patch missing common API methods on the mock before each test.
-// This handles the case where individual test files override the @/lib/api mock
-// without including methods like getMeSafe/logout that hooks (useAuth) need.
+// Auto-create vi.fn() for any missing apiClient method via prototype Proxy.
+// This prevents test failures when individual test files override @/lib/api
+// without including every method that hooks/components may call.
 beforeEach(async () => {
   try {
-    const mod = await import('@/lib/api')
-    const client = (mod as any).apiClient
-    if (client) {
-      const defaults: Record<string, () => unknown> = {
-        getMeSafe: () => Promise.resolve(null),
-        getConfig: () => Promise.resolve({ billing_enabled: true, signup_enabled: true }),
-        logout: () => Promise.resolve(),
-      }
-      for (const [name, impl] of Object.entries(defaults)) {
-        if (typeof client[name] !== 'function') {
-          client[name] = vi.fn(impl)
+    const mod = await import('@/lib/api') as any
+    const client = mod.apiClient
+    if (client && !client.__autoMocked) {
+      const skip = new Set(['then', 'toJSON', 'valueOf', 'toString', '__autoMocked', '$$typeof'])
+      Object.setPrototypeOf(client, new Proxy({}, {
+        get(_target: any, prop: string | symbol) {
+          if (typeof prop === 'symbol' || skip.has(prop as string)) return undefined
+          const fn = vi.fn()
+          client[prop] = fn
+          return fn
         }
-      }
+      }))
+      client.__autoMocked = true
     }
   } catch { /* ignore */ }
 })
