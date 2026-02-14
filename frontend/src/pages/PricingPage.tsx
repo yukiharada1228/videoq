@@ -4,6 +4,7 @@ import { apiClient, type Plan } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
 import { useConfig } from '@/hooks/useConfig';
 import { useI18nNavigate } from '@/lib/i18n';
+import { useDocumentMeta } from '@/hooks/useDocumentMeta';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { PlanCards } from '@/components/pricing/PlanCards';
@@ -24,6 +25,16 @@ export default function PricingPage() {
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
   const [downgradeLoading, setDowngradeLoading] = useState(false);
   const [confirmPlan, setConfirmPlan] = useState<Plan | null>(null);
+
+  useDocumentMeta({
+    title: 'VideoQ 料金プラン - 教育・eラーニング向け動画AIプラットフォーム',
+    description:
+      'VideoQの料金プランをご紹介。教育動画・研修動画のAI検索、eラーニング向け動画学習プラットフォーム。無料プランから始められます。',
+    ogTitle: 'VideoQ 料金プラン - 教育・eラーニング向け動画AIプラットフォーム',
+    ogDescription:
+      'VideoQの料金プラン。教育動画・研修動画のAI検索に。無料プランあり。',
+    ogUrl: 'https://videoq.jp/pricing',
+  });
 
   // Once auth resolves, prefer user-level flag; otherwise fall back to config API
   const stillLoading = authLoading || configLoading;

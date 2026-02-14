@@ -1,11 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <!-- Home / Landing Page -->
   <url>
     <loc>https://videoq.jp/ja/</loc>
     <lastmod>2026-02-14</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://videoq.jp/ja/" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://videoq.jp/en/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://videoq.jp/" />
   </url>
 
   <url>
@@ -13,50 +17,131 @@
     <lastmod>2026-02-14</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://videoq.jp/ja/" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://videoq.jp/en/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://videoq.jp/" />
   </url>
 
   <!-- Pricing -->
   <url>
-    <loc>https://videoq.jp/pricing</loc>
+    <loc>https://videoq.jp/ja/pricing</loc>
     <lastmod>2026-02-14</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://videoq.jp/ja/pricing" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://videoq.jp/en/pricing" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://videoq.jp/pricing" />
+  </url>
+
+  <url>
+    <loc>https://videoq.jp/en/pricing</loc>
+    <lastmod>2026-02-14</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://videoq.jp/ja/pricing" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://videoq.jp/en/pricing" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://videoq.jp/pricing" />
   </url>
 
   <!-- Legal Pages -->
   <url>
-    <loc>https://videoq.jp/legal/terms</loc>
+    <loc>https://videoq.jp/ja/legal/terms</loc>
     <lastmod>2026-02-14</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://videoq.jp/ja/legal/terms" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://videoq.jp/en/legal/terms" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://videoq.jp/legal/terms" />
   </url>
 
   <url>
-    <loc>https://videoq.jp/legal/privacy</loc>
+    <loc>https://videoq.jp/en/legal/terms</loc>
     <lastmod>2026-02-14</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://videoq.jp/ja/legal/terms" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://videoq.jp/en/legal/terms" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://videoq.jp/legal/terms" />
   </url>
 
   <url>
-    <loc>https://videoq.jp/legal/commercial-disclosure</loc>
+    <loc>https://videoq.jp/ja/legal/privacy</loc>
     <lastmod>2026-02-14</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://videoq.jp/ja/legal/privacy" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://videoq.jp/en/legal/privacy" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://videoq.jp/legal/privacy" />
+  </url>
+
+  <url>
+    <loc>https://videoq.jp/en/legal/privacy</loc>
+    <lastmod>2026-02-14</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://videoq.jp/ja/legal/privacy" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://videoq.jp/en/legal/privacy" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://videoq.jp/legal/privacy" />
+  </url>
+
+  <url>
+    <loc>https://videoq.jp/ja/legal/commercial-disclosure</loc>
+    <lastmod>2026-02-14</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://videoq.jp/ja/legal/commercial-disclosure" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://videoq.jp/en/legal/commercial-disclosure" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://videoq.jp/legal/commercial-disclosure" />
+  </url>
+
+  <url>
+    <loc>https://videoq.jp/en/legal/commercial-disclosure</loc>
+    <lastmod>2026-02-14</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://videoq.jp/ja/legal/commercial-disclosure" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://videoq.jp/en/legal/commercial-disclosure" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://videoq.jp/legal/commercial-disclosure" />
   </url>
 
   <!-- Auth Pages -->
   <url>
-    <loc>https://videoq.jp/login</loc>
+    <loc>https://videoq.jp/ja/login</loc>
     <lastmod>2026-02-14</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://videoq.jp/ja/login" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://videoq.jp/en/login" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://videoq.jp/login" />
   </url>
 
   <url>
-    <loc>https://videoq.jp/signup</loc>
+    <loc>https://videoq.jp/en/login</loc>
     <lastmod>2026-02-14</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://videoq.jp/ja/login" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://videoq.jp/en/login" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://videoq.jp/login" />
+  </url>
+
+  <url>
+    <loc>https://videoq.jp/ja/signup</loc>
+    <lastmod>2026-02-14</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://videoq.jp/ja/signup" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://videoq.jp/en/signup" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://videoq.jp/signup" />
+  </url>
+
+  <url>
+    <loc>https://videoq.jp/en/signup</loc>
+    <lastmod>2026-02-14</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://videoq.jp/ja/signup" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://videoq.jp/en/signup" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://videoq.jp/signup" />
   </url>
 </urlset>

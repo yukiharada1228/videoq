@@ -1,11 +1,23 @@
 # Allow all crawlers
 User-agent: *
 Allow: /
+Allow: /ja/
+Allow: /en/
+Allow: /ja/pricing
+Allow: /en/pricing
 
 # Disallow authenticated pages
 Disallow: /videos
 Disallow: /settings
 Disallow: /billing
+
+# Google
+User-agent: Googlebot
+Allow: /
+
+# Bing
+User-agent: Bingbot
+Allow: /
 
 # Sitemap
 Sitemap: https://videoq.jp/sitemap.xml

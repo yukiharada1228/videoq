@@ -9,12 +9,12 @@ export default function LandingPage() {
   const { t } = useTranslation();
 
   useDocumentMeta({
-    title: 'VideoQ - 動画にAIで質問して、見たいシーンへジャンプ',
+    title: 'VideoQ - 教育・研修動画をAIで検索｜eラーニング・動画学習プラットフォーム',
     description:
-      '動画をアップロードするだけ。AIが自動で文字起こしし、チャットで質問すれば見たい箇所にすぐアクセスできます。無料プランあり。',
-    ogTitle: 'VideoQ - 動画にAIで質問して、見たいシーンへジャンプ',
+      'VideoQは教育・研修動画をAIで検索できるeラーニングプラットフォームです。動画をアップロードするだけでAIが自動文字起こし。オンライン授業、社員研修、動画教材の管理・検索に。無料プランあり。',
+    ogTitle: 'VideoQ - 教育・研修動画をAIで検索｜eラーニング・動画学習プラットフォーム',
     ogDescription:
-      '動画をアップロードするだけ。AIが自動で文字起こしし、チャットで質問すれば見たい箇所にすぐアクセスできます。無料プランあり。',
+      '教育・研修動画をAIで検索できるeラーニングプラットフォーム。動画アップロードだけでAIが自動文字起こし。オンライン授業・社員研修に最適。無料プランあり。',
     ogUrl: 'https://videoq.jp/',
   });
 
@@ -50,9 +50,9 @@ export default function LandingPage() {
       <main className="flex-1">
         {/* Hero */}
         <section className="bg-gradient-to-b from-blue-50 to-white border-b border-gray-200 py-16 md:py-24 px-4">
-          <div className="max-w-5xl mx-auto">
-            <div className="grid md:grid-cols-2 gap-10 items-center">
-              <div className="text-center md:text-left space-y-6">
+          <div className="max-w-6xl mx-auto">
+            <div className="grid md:grid-cols-5 gap-10 items-center">
+              <div className="md:col-span-2 text-center md:text-left space-y-6">
                 <h1 className="text-3xl md:text-5xl font-bold text-gray-900 leading-tight tracking-tight">
                   {t('landing.hero.title')}
                 </h1>
@@ -77,11 +77,11 @@ export default function LandingPage() {
                   {t('landing.hero.ctaSub')}
                 </p>
               </div>
-              <div>
+              <div className="md:col-span-3">
                 <div className="rounded-xl overflow-hidden border-2 border-gray-200 shadow-lg">
                   <img
                     src={appScreenshot}
-                    alt="VideoQ App Screenshot"
+                    alt="VideoQ - 教育動画・eラーニング向けAI動画検索プラットフォームのスクリーンショット"
                     className="w-full h-auto"
                   />
                 </div>

@@ -587,50 +587,66 @@
   },
   "landing": {
     "hero": {
-      "title": "Ask AI and Jump to Any Scene You Want",
-      "subtitle": "VideoQ automatically transcribes your videos and lets you instantly access any moment through AI chat. Perfect for education, corporate training, and content creation.",
+      "title": "AI Video Search for Education & E-Learning",
+      "subtitle": "VideoQ is a video learning platform that automatically transcribes educational videos and lets you search any moment through AI chat. Perfect for e-learning, online education, corporate training, and training video management.",
       "cta": "Get Started Free",
       "login": "Sign in"
     },
+    "howItWorks": {
+      "title": "Start Video Learning in 3 Steps",
+      "subtitle": "No complicated setup required. Start using your educational videos right away",
+      "step1": {
+        "title": "Upload Educational Videos",
+        "description": "Upload lecture videos, training videos, and e-learning materials via drag and drop"
+      },
+      "step2": {
+        "title": "AI Auto-Transcription",
+        "description": "OpenAI Whisper converts audio to text with high accuracy. Video transcription for education made effortless"
+      },
+      "step3": {
+        "title": "Search and Jump to Any Scene",
+        "description": "Ask AI questions and get answers with exact video timestamps. Perfect for reviewing online course videos and training content"
+      }
+    },
     "features": {
       "title": "Key Features",
-      "subtitle": "Powerful features that dramatically enhance video learning and information retrieval",
+      "subtitle": "Powerful features for e-learning, video learning, and educational video management",
       "transcription": {
-        "title": "Auto Transcription",
-        "description": "Automatically transcribe audio from uploaded videos. High-accuracy speech recognition powered by OpenAI Whisper."
+        "title": "Video Transcription for Education",
+        "description": "Automatically transcribe educational videos and training videos. High-accuracy speech recognition powered by OpenAI Whisper turns your video content into searchable text."
       },
       "chat": {
-        "title": "AI Chat",
-        "description": "Ask AI questions about your video content based on transcription data. Find the information you need instantly."
+        "title": "AI Video Search",
+        "description": "Ask AI questions about your educational video content. Instantly find specific topics in lecture videos, online course videos, and training materials with timestamp-linked answers."
       },
       "group": {
-        "title": "Chat Groups",
-        "description": "Group multiple videos for centralized management. Search and ask questions across all videos in a group."
+        "title": "Learning Management Groups",
+        "description": "Group multiple educational videos for centralized management. Search and ask questions across entire course video libraries and training collections."
       },
       "share": {
-        "title": "Share Links",
-        "description": "Generate share links for chat groups to share video content and AI chat externally without requiring login."
+        "title": "Share with Learners",
+        "description": "Generate share links to distribute educational video content and AI-powered search to learners and trainees without requiring login."
       }
     },
     "useCases": {
       "title": "How You Can Use VideoQ",
-      "subtitle": "From education to business, applicable in a wide range of scenarios",
+      "subtitle": "From e-learning and online education to corporate training and video production",
       "education": {
-        "title": "Online Learning",
-        "description": "Ask questions about unclear parts in lecture videos and jump instantly to the relevant scene"
+        "title": "E-Learning & Online Education",
+        "description": "Search educational videos and online course content with AI. Ask questions about lecture videos and jump to the exact scene. The ideal video learning platform for students and educators."
       },
       "business": {
-        "title": "Meetings & Training",
-        "description": "Quickly find important discussion points in long meeting recordings"
+        "title": "Corporate Training & Onboarding",
+        "description": "Manage training videos with AI-powered search. Employees can quickly find key topics in corporate training recordings and onboarding materials."
       },
       "production": {
-        "title": "Content Creation",
-        "description": "Efficiently search and manage necessary scenes from video materials"
+        "title": "Video Content Management",
+        "description": "Efficiently search and manage video assets with AI video search. Find specific scenes across large video libraries."
       }
     },
     "cta": {
-      "title": "Start Now and Transform Your Video Experience",
-      "subtitle": "Account creation takes just 1 minute. Start using for free immediately.",
+      "title": "Start Your E-Learning Video Platform Today",
+      "subtitle": "Account creation takes just 1 minute. Start using the video learning platform for free immediately.",
       "getStarted": "Get Started Free",
       "viewPricing": "View Pricing Plans",
       "badge": "🎉 Start Free"
