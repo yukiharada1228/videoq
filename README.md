@@ -6,8 +6,6 @@ VideoQは、動画を自動で文字起こしし、自然言語で動画と会�
 
 **[日本語版README](README.md) | [English README](README.en.md)**
 
-🌐 **オンラインで今すぐ試す:** [https://videoq.jp/](https://videoq.jp/)
-
 または、以下の手順でローカル環境にセットアップできます。
 
 ![VideoQ Application Screenshot](assets/videoq-app-screenshot.gif)
