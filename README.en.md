@@ -6,8 +6,6 @@ VideoQ is an AI-powered video navigator that automatically transcribes your vide
 
 **[日本語版README](README.md) | [English README](README.en.md)**
 
-🌐 **Try it online now:** [https://videoq.jp/](https://videoq.jp/)
-
 Or follow the steps below to set it up locally.
 
 ![VideoQ Application Screenshot](assets/videoq-app-screenshot.gif)
