@@ -181,82 +181,6 @@ OLLAMA_BASE_URL=http://host.docker.internal:11434
 
 </details>
 
-## 🛠️ 開発・カスタマイズ
-
-<details>
-<summary><strong>フロントエンド開発</strong></summary>
-
-UIをカスタマイズしたい？より高速な開発のためにフロントエンドを個別に実行：
-
-```bash
-cd frontend
-npm install
-npm run dev  # http://localhost:3000 で実行
-```
-
-バックエンドはDockerで実行したままにしてください。
-
-**技術スタック:**
-- React 19 + TypeScript
-- Tailwind CSS v4
-- Vite 7
-- Vitest（テスト用）
-- i18next（国際化対応）
-- Radix UIコンポーネント
-
-</details>
-
-<details>
-<summary><strong>バックエンド開発</strong></summary>
-
-```bash
-cd backend
-pip install -r requirements.txt
-python manage.py runserver
-```
-
-**技術スタック:**
-- Django 5.2
-- Django REST Framework
-- Celery（非同期タスク）
-- LangChain（AI連携）
-- pgvector（セマンティック検索）
-
-</details>
-
-<details>
-<summary><strong>テストの実行</strong></summary>
-
-**フロントエンド:**
-```bash
-cd frontend
-npm run test              # テスト実行
-npm run test:watch        # ウォッチモード
-npm run test:coverage     # カバレッジレポート付き
-```
-
-**バックエンド:**
-```bash
-cd backend
-python manage.py test
-```
-
-</details>
-
-<details>
-<summary><strong>便利なDockerコマンド</strong></summary>
-
-```bash
-docker compose ps                                          # 実行中のサービスを確認
-docker compose logs -f                                     # 全ログを監視
-docker compose logs -f backend                             # バックエンドログのみ監視
-docker compose exec backend python manage.py shell         # Djangoシェル
-docker compose down                                        # 全て停止
-docker compose restart backend                             # バックエンドのみ再起動
-```
-
-</details>
-
 ## 🏗️ 仕組み
 
 VideoQは現代的で信頼性の高い技術で構築されています：
@@ -273,36 +197,6 @@ VideoQは現代的で信頼性の高い技術で構築されています：
 4. **チャット** → あなたの質問を動画コンテンツとマッチング
 5. **回答** → AIが関連するコンテキストとタイムスタンプで応答
 6. **発見** → 頻繁に参照されたシーンがショートビューで利用可能に
-
-
-
-## ❓ トラブルシューティング
-
-**「localhostでVideoQにアクセスできない」**
-- Dockerが実行中か確認: `docker compose ps`
-- サービスが開始されているか確認: `docker compose logs`
-
-**「OpenAI APIエラー」**
-- `.env` でAPIキーが正しいか確認
-- OpenAIアカウントにクレジットがあるか確認
-- キーに余分なスペースがないか確認
-
-**「動画アップロードが失敗する」**
-- ホストシステムに十分なディスク容量があるか確認（動画は `./backend/media/` に保存されます）
-- 動画形式がサポートされているか確認（MP4、MOV、AVI など）
-- 大きな動画（>1GB）の場合、nginxは最大1000MBのアップロードを許可するよう設定されています
-- アップロードが停止する場合はnginxログを確認: `docker compose logs nginx`
-
-**「文字起こしが遅い」**
-- ローカルWhisperの使用を検討（上記のコスト節約セクション参照）
-- 大きな動画は時間がかかります - これは正常です
-
-**「ショートモードでシーンが表示されない」**
-- ショートはAIチャットの回答で参照されたシーンを表示します
-- まずAIに動画について質問して人気シーンを生成してみてください
-- 動画の処理が完了しているか確認（ステータスが「完了」になっている必要があります）
-
-**さらにヘルプが必要？** ログを確認: `docker compose logs -f`
 
 ## 🤝 貢献
 
