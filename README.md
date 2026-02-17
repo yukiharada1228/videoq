@@ -294,45 +294,7 @@ VideoQは現代的で信頼性の高い技術で構築されています：
 5. **回答** → AIが関連するコンテキストとタイムスタンプで応答
 6. **発見** → 頻繁に参照されたシーンがショートビューで利用可能に
 
-## 🚀 本番デプロイ
 
-<details>
-<summary><strong>自分のサーバーにデプロイ</strong></summary>
-
-**フロントエンド設定:**
-
-`frontend/.env.production` を作成：
-
-```bash
-# 同一ドメイン（推奨）
-VITE_API_URL=/api
-
-# または異なるドメイン
-VITE_API_URL=https://api.yourdomain.com/api
-```
-
-**バックエンド設定:**
-
-`.env` を更新：
-
-```bash
-ALLOWED_HOSTS=yourdomain.com
-CORS_ALLOWED_ORIGINS=https://yourdomain.com
-SECURE_COOKIES=true
-FRONTEND_URL=https://yourdomain.com
-```
-
-**ビルドとデプロイ:**
-
-```bash
-cd frontend
-npm run build  # dist/ フォルダを作成
-# dist/ をWebサーバーにアップロード
-```
-
-**重要:** セキュリティのため本番環境ではHTTPSを使用してください。
-
-</details>
 
 ## ❓ トラブルシューティング
 
@@ -371,6 +333,11 @@ npm run build  # dist/ フォルダを作成
 3. 変更を加える
 4. 必要に応じてテストを追加
 5. プルリクエストを送信
+
+## 📚 参考文献
+
+- 藤吉 弘亘. "AIと共に生きる時代における教育への生成 AI 活用：「藤吉 AI先生」". 情報処理学会 会誌「情報処理」 Vol.66, No.11 (2025).
+  - [https://ipsj.ixsq.nii.ac.jp/records/2004788](https://ipsj.ixsq.nii.ac.jp/records/2004788)
 
 ## 📄 ライセンス
 
