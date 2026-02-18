@@ -189,7 +189,7 @@ OLLAMA_BASE_URL=http://host.docker.internal:11434
 4. 必要に応じてテストを追加
 5. プルリクエストを送信
 
-## 📚 参考文献
+## 📚 引用
 
 - 藤吉 弘亘. "AIと共に生きる時代における教育への生成 AI 活用：「藤吉 AI先生」". 情報処理学会 会誌「情報処理」 Vol.66, No.11 (2025).
   - [https://ipsj.ixsq.nii.ac.jp/records/2004788](https://ipsj.ixsq.nii.ac.jp/records/2004788)
