@@ -16,8 +16,8 @@ export function Header({ children }: HeaderProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { t } = useTranslation();
 
-  const handleLogout = () => {
-    apiClient.logout();
+  const handleLogout = async () => {
+    await apiClient.logout();
     navigate('/login');
   };
 
