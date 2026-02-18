@@ -6,7 +6,7 @@ VideoQは、動画を自動で文字起こしし、自然言語で動画と会�
 
 または、以下の手順でローカル環境にセットアップできます。
 
-![VideoQ Application Screenshot](assets/videoq-screenshot.gif)
+![VideoQ Application Screenshot](assets/screenshot.gif)
 
 ## ✨ できること
 
