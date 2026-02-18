@@ -17,8 +17,13 @@ export function Header({ children }: HeaderProps) {
   const { t } = useTranslation();
 
   const handleLogout = async () => {
-    await apiClient.logout();
-    navigate('/login');
+    try {
+      await apiClient.logout();
+    } catch (error) {
+      console.error('Logout failed:', error);
+    } finally {
+      navigate('/login');
+    }
   };
 
   const toggleMobileMenu = () => {
