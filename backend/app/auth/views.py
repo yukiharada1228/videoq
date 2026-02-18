@@ -117,12 +117,10 @@ class LogoutView(AuthenticatedAPIView):
         response.delete_cookie(
             key="access_token",
             samesite=samesite_value,
-            secure=settings.SECURE_COOKIES,
         )
         response.delete_cookie(
             key="refresh_token",
             samesite=samesite_value,
-            secure=settings.SECURE_COOKIES,
         )
 
         return response
