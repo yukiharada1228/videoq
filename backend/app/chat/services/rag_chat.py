@@ -6,7 +6,7 @@ from django.conf import settings
 from langchain_core.messages import AIMessage
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnableLambda, RunnableParallel
-from langchain_postgres import PGVector
+from langchain_postgres import PGVectorStore
 
 from app.chat.prompts import build_system_prompt
 from app.utils.embeddings import get_embeddings
@@ -106,7 +106,7 @@ class RagChatService:
             return None
 
         # Use prefetch cache if available (populated in ChatView)
-        group_video_ids = [str(member.video_id) for member in group.members.all()]
+        group_video_ids = [member.video_id for member in group.members.all()]
 
         if not group_video_ids:
             return None
@@ -188,18 +188,11 @@ class RagChatService:
             "related_videos": self._extract_related_videos(docs),
         }
 
-    def _create_vector_store(self) -> PGVector:
+    def _create_vector_store(self) -> PGVectorStore:
         # Get API key if using OpenAI provider
         api_key = None
         if settings.EMBEDDING_PROVIDER == "openai":
             api_key = settings.OPENAI_API_KEY
         embeddings = get_embeddings(api_key)
-        config = PGVectorManager.get_config()
-        connection_str = PGVectorManager.get_psycopg_connection_string()
 
-        return PGVector.from_existing_index(
-            collection_name=config["collection_name"],
-            embedding=embeddings,
-            connection=connection_str,
-            use_jsonb=True,
-        )
+        return PGVectorManager.create_vectorstore(embeddings)
