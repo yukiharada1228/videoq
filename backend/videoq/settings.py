@@ -376,6 +376,13 @@ EMBEDDING_PROVIDER = os.environ.get(
 EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL", DefaultSettings.EMBEDDING_MODEL)
 OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", DefaultSettings.OLLAMA_BASE_URL)
 
+# Vector store configuration
+PGVECTOR_COLLECTION_NAME = os.environ.get("PGVECTOR_COLLECTION_NAME", "videoq_scenes")
+
+EMBEDDING_VECTOR_SIZE = int(
+    os.environ.get("EMBEDDING_VECTOR_SIZE", 1536)
+)
+
 # LLM configuration
 LLM_PROVIDER = os.environ.get("LLM_PROVIDER", DefaultSettings.LLM_PROVIDER).lower()
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", DefaultSettings.OPENAI_API_KEY)
