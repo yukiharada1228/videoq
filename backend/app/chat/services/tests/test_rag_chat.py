@@ -35,29 +35,24 @@ class RagChatServiceTests(TestCase):
             description="Test",
         )
 
-    @patch("app.chat.services.rag_chat.PGVector.from_existing_index")
-    @patch("app.chat.services.rag_chat.PGVectorManager")
+    @patch("app.chat.services.rag_chat.PGVectorManager.create_vectorstore")
     @patch("app.chat.services.rag_chat.get_embeddings")
     @override_settings(EMBEDDING_PROVIDER="openai", OPENAI_API_KEY="test-api-key")
     def test_create_vector_store_with_api_key(
-        self, mock_get_embeddings, mock_pgvector_manager, mock_pgvector
+        self, mock_get_embeddings, mock_create_vectorstore
     ):
         """Test _create_vector_store when API key is configured via environment"""
-        mock_pgvector_manager.get_config.return_value = {
-            "collection_name": "test_collection"
-        }
-        mock_pgvector_manager.get_psycopg_connection_string.return_value = (
-            "postgresql://test"
-        )
+        mock_store = MagicMock()
+        mock_create_vectorstore.return_value = mock_store
 
         service = RagChatService(user=self.user, llm=MagicMock())
         vector_store = service._create_vector_store()
 
         self.assertIsNotNone(vector_store)
         mock_get_embeddings.assert_called_once_with("test-api-key")
+        mock_create_vectorstore.assert_called_once()
 
-    @patch("app.chat.services.rag_chat.PGVector.from_existing_index")
-    @patch("app.chat.services.rag_chat.PGVectorManager")
+    @patch("app.chat.services.rag_chat.PGVectorManager.create_vectorstore")
     @patch("app.chat.services.rag_chat.get_embeddings")
     @override_settings(
         EMBEDDING_PROVIDER="ollama",
@@ -65,18 +60,15 @@ class RagChatServiceTests(TestCase):
         OPENAI_API_KEY="",
     )
     def test_create_vector_store_with_ollama(
-        self, mock_get_embeddings, mock_pgvector_manager, mock_pgvector
+        self, mock_get_embeddings, mock_create_vectorstore
     ):
         """Test _create_vector_store when using Ollama (no API key needed)"""
-        mock_pgvector_manager.get_config.return_value = {
-            "collection_name": "test_collection"
-        }
-        mock_pgvector_manager.get_psycopg_connection_string.return_value = (
-            "postgresql://test"
-        )
+        mock_store = MagicMock()
+        mock_create_vectorstore.return_value = mock_store
 
         service = RagChatService(user=self.user, llm=MagicMock())
         vector_store = service._create_vector_store()
 
         self.assertIsNotNone(vector_store)
         mock_get_embeddings.assert_called_once_with(None)
+        mock_create_vectorstore.assert_called_once()
