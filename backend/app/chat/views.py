@@ -375,7 +375,13 @@ class PopularScenesView(APIView):
     def get(self, request):
         group_id = request.query_params.get("group_id")
         share_token = request.query_params.get("share_token")
-        limit = int(request.query_params.get("limit", 20))
+        try:
+            limit = int(request.query_params.get("limit", 20))
+            limit = max(1, min(limit, 100))
+        except (ValueError, TypeError):
+            return create_error_response(
+                "Invalid limit parameter", status.HTTP_400_BAD_REQUEST
+            )
 
         if not group_id:
             return create_error_response(

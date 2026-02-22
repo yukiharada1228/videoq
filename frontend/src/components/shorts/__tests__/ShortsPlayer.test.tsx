@@ -257,9 +257,8 @@ describe('ShortsPlayer', () => {
     render(<ShortsPlayer scenes={mockScenes} onClose={mockOnClose} />)
 
     const overlay = screen.getByText(/shorts.tapToPlay/).closest('div[class*="cursor-pointer"]')
-    if (overlay) {
-      fireEvent.click(overlay)
-    }
+    expect(overlay).toBeTruthy()
+    fireEvent.click(overlay!)
 
     expect(screen.queryByText(/shorts.tapToPlay/)).not.toBeInTheDocument()
   })
@@ -272,9 +271,8 @@ describe('ShortsPlayer', () => {
     // Initially, question is not shown (play overlay is active)
     // Dismiss play overlay
     const overlay = screen.getByText(/shorts.tapToPlay/).closest('div[class*="cursor-pointer"]')
-    if (overlay) {
-      fireEvent.click(overlay)
-    }
+    expect(overlay).toBeTruthy()
+    fireEvent.click(overlay!)
 
     // Question should now be visible (center phase)
     expect(screen.getByText('What is the main topic?')).toBeInTheDocument()
@@ -285,9 +283,8 @@ describe('ShortsPlayer', () => {
 
     // Dismiss play overlay
     const overlay = screen.getByText(/shorts.tapToPlay/).closest('div[class*="cursor-pointer"]')
-    if (overlay) {
-      fireEvent.click(overlay)
-    }
+    expect(overlay).toBeTruthy()
+    fireEvent.click(overlay!)
 
     // Should show the "Question" label
     expect(screen.getByText(/shorts.question/)).toBeInTheDocument()
@@ -298,9 +295,8 @@ describe('ShortsPlayer', () => {
 
     // Dismiss play overlay
     const overlay = screen.getByText(/shorts.tapToPlay/).closest('div[class*="cursor-pointer"]')
-    if (overlay) {
-      fireEvent.click(overlay)
-    }
+    expect(overlay).toBeTruthy()
+    fireEvent.click(overlay!)
 
     // Question should be visible in center initially
     expect(screen.getByText('What is the main topic?')).toBeInTheDocument()
@@ -339,9 +335,8 @@ describe('ShortsPlayer', () => {
 
     // Dismiss play overlay
     const overlay = screen.getByText(/shorts.tapToPlay/).closest('div[class*="cursor-pointer"]')
-    if (overlay) {
-      fireEvent.click(overlay)
-    }
+    expect(overlay).toBeTruthy()
+    fireEvent.click(overlay!)
 
     // Question label should not be visible
     expect(screen.queryByText(/shorts.question/)).not.toBeInTheDocument()
