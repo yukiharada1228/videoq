@@ -38,6 +38,10 @@ class PGVectorManager:
                         db_url = db_url.replace(
                             "postgresql://", "postgresql+psycopg://", 1
                         )
+                    elif db_url.startswith("postgres://"):
+                        db_url = db_url.replace(
+                            "postgres://", "postgresql+psycopg://", 1
+                        )
                     cls._engine = PGEngine.from_connection_string(url=db_url)
         return cls._engine
 
@@ -73,12 +77,14 @@ class PGVectorManager:
                         Column("video_id", "INTEGER"),
                     ],
                 )
-            except Exception:
-                # Table likely already exists
-                logger.debug(
-                    "Vectorstore table '%s' already exists or init skipped",
-                    cls.get_table_name(),
-                )
+            except Exception as e:
+                if "already exists" in str(e):
+                    logger.debug(
+                        "Vectorstore table '%s' already exists",
+                        cls.get_table_name(),
+                    )
+                else:
+                    raise
             cls._table_initialized = True
 
     @classmethod

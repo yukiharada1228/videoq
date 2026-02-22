@@ -41,6 +41,7 @@ def index_scenes_to_vectorstore(scene_docs, video, api_key=None):
 
     except Exception as e:
         logger.warning("Indexing to vectorstore failed: %s", e, exc_info=True)
+        raise
 
 
 def create_scene_metadata(video, scene):
