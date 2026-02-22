@@ -442,7 +442,7 @@ class PopularScenesView(APIView):
 
         # Build video_id -> file URL mapping for videos in the group
         video_ids = [scene[0][0] for scene in top_scenes]
-        videos = Video.objects.filter(id__in=video_ids)
+        videos = Video.objects.filter(id__in=video_ids, user=group.user)
         video_file_map = {}
         for video in videos:
             if video.file:
