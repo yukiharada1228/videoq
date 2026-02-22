@@ -8,11 +8,9 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 
 from app.models import Video
-from app.tasks.vector_indexing import (
-    create_scene_metadata,
-    index_scenes_batch,
-    index_scenes_to_vectorstore,
-)
+from app.tasks.vector_indexing import (create_scene_metadata,
+                                       index_scenes_batch,
+                                       index_scenes_to_vectorstore)
 
 User = get_user_model()
 

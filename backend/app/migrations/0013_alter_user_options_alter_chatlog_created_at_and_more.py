@@ -6,143 +6,219 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('app', '0012_remove_user_llm_settings'),
-        ('auth', '0012_alter_user_first_name_max_length'),
+        ("app", "0012_remove_user_llm_settings"),
+        ("auth", "0012_alter_user_first_name_max_length"),
     ]
 
     operations = [
         migrations.AlterModelOptions(
-            name='user',
+            name="user",
             options={},
         ),
         migrations.AlterField(
-            model_name='chatlog',
-            name='created_at',
+            model_name="chatlog",
+            name="created_at",
             field=models.DateTimeField(auto_now_add=True, db_index=True),
         ),
         migrations.AlterField(
-            model_name='chatlog',
-            name='feedback',
-            field=models.CharField(blank=True, choices=[('good', 'Good'), ('bad', 'Bad')], db_index=True, help_text='Feedback on the answer (good/bad)', max_length=4, null=True),
+            model_name="chatlog",
+            name="feedback",
+            field=models.CharField(
+                blank=True,
+                choices=[("good", "Good"), ("bad", "Bad")],
+                db_index=True,
+                help_text="Feedback on the answer (good/bad)",
+                max_length=4,
+                null=True,
+            ),
         ),
         migrations.AlterField(
-            model_name='chatlog',
-            name='is_shared_origin',
+            model_name="chatlog",
+            name="is_shared_origin",
             field=models.BooleanField(db_index=True, default=False),
         ),
         migrations.AlterField(
-            model_name='tag',
-            name='created_at',
+            model_name="tag",
+            name="created_at",
             field=models.DateTimeField(auto_now_add=True, db_index=True),
         ),
         migrations.AlterField(
-            model_name='tag',
-            name='name',
-            field=models.CharField(db_index=True, help_text='Tag name', max_length=50),
+            model_name="tag",
+            name="name",
+            field=models.CharField(db_index=True, help_text="Tag name", max_length=50),
         ),
         migrations.AlterField(
-            model_name='user',
-            name='video_limit',
-            field=models.PositiveIntegerField(blank=True, db_index=True, default=0, help_text='Maximum number of videos user can upload. 0 means no uploads allowed, null means unlimited.', null=True),
+            model_name="user",
+            name="video_limit",
+            field=models.PositiveIntegerField(
+                blank=True,
+                db_index=True,
+                default=0,
+                help_text="Maximum number of videos user can upload. 0 means no uploads allowed, null means unlimited.",
+                null=True,
+            ),
         ),
         migrations.AlterField(
-            model_name='video',
-            name='external_id',
-            field=models.CharField(blank=True, db_index=True, help_text='ID from external LMS (e.g., Moodle cm_id, Canvas content_id)', max_length=255, null=True, unique=True),
+            model_name="video",
+            name="external_id",
+            field=models.CharField(
+                blank=True,
+                db_index=True,
+                help_text="ID from external LMS (e.g., Moodle cm_id, Canvas content_id)",
+                max_length=255,
+                null=True,
+                unique=True,
+            ),
         ),
         migrations.AlterField(
-            model_name='video',
-            name='status',
-            field=models.CharField(choices=[('pending', 'Pending'), ('processing', 'Processing'), ('completed', 'Completed'), ('error', 'Error')], db_index=True, default='pending', max_length=20),
+            model_name="video",
+            name="status",
+            field=models.CharField(
+                choices=[
+                    ("pending", "Pending"),
+                    ("processing", "Processing"),
+                    ("completed", "Completed"),
+                    ("error", "Error"),
+                ],
+                db_index=True,
+                default="pending",
+                max_length=20,
+            ),
         ),
         migrations.AlterField(
-            model_name='video',
-            name='uploaded_at',
+            model_name="video",
+            name="uploaded_at",
             field=models.DateTimeField(auto_now_add=True, db_index=True),
         ),
         migrations.AlterField(
-            model_name='videogroup',
-            name='created_at',
+            model_name="videogroup",
+            name="created_at",
             field=models.DateTimeField(auto_now_add=True, db_index=True),
         ),
         migrations.AlterField(
-            model_name='videogroup',
-            name='share_token',
-            field=models.CharField(blank=True, db_index=True, help_text='Share token', max_length=64, null=True, unique=True),
+            model_name="videogroup",
+            name="share_token",
+            field=models.CharField(
+                blank=True,
+                db_index=True,
+                help_text="Share token",
+                max_length=64,
+                null=True,
+                unique=True,
+            ),
         ),
         migrations.AlterField(
-            model_name='videogroupmember',
-            name='added_at',
+            model_name="videogroupmember",
+            name="added_at",
             field=models.DateTimeField(auto_now_add=True, db_index=True),
         ),
         migrations.AlterField(
-            model_name='videogroupmember',
-            name='order',
-            field=models.IntegerField(db_index=True, default=0, help_text='Order within the group'),
+            model_name="videogroupmember",
+            name="order",
+            field=models.IntegerField(
+                db_index=True, default=0, help_text="Order within the group"
+            ),
         ),
         migrations.AlterField(
-            model_name='videotag',
-            name='added_at',
+            model_name="videotag",
+            name="added_at",
             field=models.DateTimeField(auto_now_add=True, db_index=True),
         ),
         migrations.AddIndex(
-            model_name='chatlog',
-            index=models.Index(fields=['user', '-created_at'], name='app_chatlog_user_id_727742_idx'),
+            model_name="chatlog",
+            index=models.Index(
+                fields=["user", "-created_at"], name="app_chatlog_user_id_727742_idx"
+            ),
         ),
         migrations.AddIndex(
-            model_name='chatlog',
-            index=models.Index(fields=['group', '-created_at'], name='app_chatlog_group_i_4bc6d0_idx'),
+            model_name="chatlog",
+            index=models.Index(
+                fields=["group", "-created_at"], name="app_chatlog_group_i_4bc6d0_idx"
+            ),
         ),
         migrations.AddIndex(
-            model_name='chatlog',
-            index=models.Index(condition=models.Q(('feedback__isnull', False)), fields=['feedback'], name='chatlog_feedback_idx'),
+            model_name="chatlog",
+            index=models.Index(
+                condition=models.Q(("feedback__isnull", False)),
+                fields=["feedback"],
+                name="chatlog_feedback_idx",
+            ),
         ),
         migrations.AddIndex(
-            model_name='tag',
-            index=models.Index(fields=['user', 'name'], name='app_tag_user_id_b053bd_idx'),
+            model_name="tag",
+            index=models.Index(
+                fields=["user", "name"], name="app_tag_user_id_b053bd_idx"
+            ),
         ),
         migrations.AddIndex(
-            model_name='user',
-            index=models.Index(fields=['email', 'is_active'], name='app_user_email_a838b5_idx'),
+            model_name="user",
+            index=models.Index(
+                fields=["email", "is_active"], name="app_user_email_a838b5_idx"
+            ),
         ),
         migrations.AddIndex(
-            model_name='user',
-            index=models.Index(fields=['date_joined', '-id'], name='app_user_date_jo_c41876_idx'),
+            model_name="user",
+            index=models.Index(
+                fields=["date_joined", "-id"], name="app_user_date_jo_c41876_idx"
+            ),
         ),
         migrations.AddIndex(
-            model_name='video',
-            index=models.Index(fields=['user', 'status', '-uploaded_at'], name='app_video_user_id_9c7398_idx'),
+            model_name="video",
+            index=models.Index(
+                fields=["user", "status", "-uploaded_at"],
+                name="app_video_user_id_9c7398_idx",
+            ),
         ),
         migrations.AddIndex(
-            model_name='video',
-            index=models.Index(fields=['user', 'title'], name='app_video_user_id_d60748_idx'),
+            model_name="video",
+            index=models.Index(
+                fields=["user", "title"], name="app_video_user_id_d60748_idx"
+            ),
         ),
         migrations.AddIndex(
-            model_name='video',
-            index=models.Index(condition=models.Q(('external_id__isnull', False)), fields=['external_id'], name='video_external_id_idx'),
+            model_name="video",
+            index=models.Index(
+                condition=models.Q(("external_id__isnull", False)),
+                fields=["external_id"],
+                name="video_external_id_idx",
+            ),
         ),
         migrations.AddIndex(
-            model_name='videogroup',
-            index=models.Index(fields=['user', '-created_at'], name='app_videogr_user_id_28e91c_idx'),
+            model_name="videogroup",
+            index=models.Index(
+                fields=["user", "-created_at"], name="app_videogr_user_id_28e91c_idx"
+            ),
         ),
         migrations.AddIndex(
-            model_name='videogroup',
-            index=models.Index(condition=models.Q(('share_token__isnull', False)), fields=['share_token'], name='videogroup_share_token_idx'),
+            model_name="videogroup",
+            index=models.Index(
+                condition=models.Q(("share_token__isnull", False)),
+                fields=["share_token"],
+                name="videogroup_share_token_idx",
+            ),
         ),
         migrations.AddIndex(
-            model_name='videogroupmember',
-            index=models.Index(fields=['group', 'order'], name='app_videogr_group_i_d0eb57_idx'),
+            model_name="videogroupmember",
+            index=models.Index(
+                fields=["group", "order"], name="app_videogr_group_i_d0eb57_idx"
+            ),
         ),
         migrations.AddIndex(
-            model_name='videogroupmember',
-            index=models.Index(fields=['video', 'group'], name='app_videogr_video_i_f96db2_idx'),
+            model_name="videogroupmember",
+            index=models.Index(
+                fields=["video", "group"], name="app_videogr_video_i_f96db2_idx"
+            ),
         ),
         migrations.AddIndex(
-            model_name='videotag',
-            index=models.Index(fields=['video', 'tag'], name='app_videota_video_i_3d974b_idx'),
+            model_name="videotag",
+            index=models.Index(
+                fields=["video", "tag"], name="app_videota_video_i_3d974b_idx"
+            ),
         ),
         migrations.AddIndex(
-            model_name='videotag',
-            index=models.Index(fields=['tag', '-added_at'], name='app_videota_tag_id_94f309_idx'),
+            model_name="videotag",
+            index=models.Index(
+                fields=["tag", "-added_at"], name="app_videota_tag_id_94f309_idx"
+            ),
         ),
     ]

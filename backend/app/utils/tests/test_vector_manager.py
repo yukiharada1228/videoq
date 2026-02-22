@@ -7,12 +7,9 @@ from unittest.mock import MagicMock, patch
 
 from django.test import TestCase, override_settings
 
-from app.utils.vector_manager import (
-    PGVectorManager,
-    delete_all_vectors,
-    delete_video_vectors,
-    update_video_title_in_vectors,
-)
+from app.utils.vector_manager import (PGVectorManager, delete_all_vectors,
+                                      delete_video_vectors,
+                                      update_video_title_in_vectors)
 
 
 class PGVectorManagerTests(TestCase):

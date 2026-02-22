@@ -78,7 +78,7 @@ class DownloadVideoFromStorageTests(TestCase):
     def test_attribute_error_triggers_download(self):
         """Test that AttributeError on path also triggers download"""
         with TemporaryFileManager() as temp_manager:
-            mock_file = MagicMock(spec=['name', 'open'])
+            mock_file = MagicMock(spec=["name", "open"])
             mock_file.name = "test_video.mp4"
 
             mock_remote_content = b"fake video content"
@@ -87,7 +87,12 @@ class DownloadVideoFromStorageTests(TestCase):
             )
             mock_file.open.return_value.__exit__ = MagicMock(return_value=False)
 
-            with patch.object(type(self.video), 'file', new_callable=PropertyMock, return_value=mock_file):
+            with patch.object(
+                type(self.video),
+                "file",
+                new_callable=PropertyMock,
+                return_value=mock_file,
+            ):
                 with patch("builtins.open", MagicMock()):
                     path, file_obj = download_video_from_storage(
                         self.video, self.video.id, temp_manager
@@ -205,7 +210,10 @@ class TranscribeVideoTaskTests(TestCase):
     @patch("app.tasks.transcription.create_whisper_client")
     @patch("app.tasks.transcription.get_whisper_model_name")
     @patch("app.tasks.transcription.WhisperConfig")
-    @patch("app.tasks.transcription.VideoTaskManager.validate_video_for_processing", return_value=(True, None))
+    @patch(
+        "app.tasks.transcription.VideoTaskManager.validate_video_for_processing",
+        return_value=(True, None),
+    )
     def test_successful_transcription_pipeline(
         self,
         mock_validate,
@@ -245,7 +253,10 @@ class TranscribeVideoTaskTests(TestCase):
     @patch("app.tasks.transcription.create_whisper_client")
     @patch("app.tasks.transcription.get_whisper_model_name")
     @patch("app.tasks.transcription.WhisperConfig")
-    @patch("app.tasks.transcription.VideoTaskManager.validate_video_for_processing", return_value=(True, None))
+    @patch(
+        "app.tasks.transcription.VideoTaskManager.validate_video_for_processing",
+        return_value=(True, None),
+    )
     def test_handles_empty_audio_segments(
         self,
         mock_validate,
@@ -278,7 +289,10 @@ class TranscribeVideoTaskTests(TestCase):
     @patch("app.tasks.transcription.create_whisper_client")
     @patch("app.tasks.transcription.get_whisper_model_name")
     @patch("app.tasks.transcription.WhisperConfig")
-    @patch("app.tasks.transcription.VideoTaskManager.validate_video_for_processing", return_value=(True, None))
+    @patch(
+        "app.tasks.transcription.VideoTaskManager.validate_video_for_processing",
+        return_value=(True, None),
+    )
     def test_handles_transcription_failure(
         self,
         mock_validate,
@@ -322,7 +336,10 @@ class TranscribeVideoTaskTests(TestCase):
     @patch("app.tasks.transcription.create_whisper_client")
     @patch("app.tasks.transcription.get_whisper_model_name")
     @patch("app.tasks.transcription.WhisperConfig")
-    @patch("app.tasks.transcription.VideoTaskManager.validate_video_for_processing", return_value=(True, None))
+    @patch(
+        "app.tasks.transcription.VideoTaskManager.validate_video_for_processing",
+        return_value=(True, None),
+    )
     def test_external_id_triggers_file_cleanup(
         self,
         mock_validate,
@@ -364,7 +381,10 @@ class TranscribeVideoTaskTests(TestCase):
     @patch("app.tasks.transcription.create_whisper_client")
     @patch("app.tasks.transcription.get_whisper_model_name")
     @patch("app.tasks.transcription.WhisperConfig")
-    @patch("app.tasks.transcription.VideoTaskManager.validate_video_for_processing", return_value=(True, None))
+    @patch(
+        "app.tasks.transcription.VideoTaskManager.validate_video_for_processing",
+        return_value=(True, None),
+    )
     def test_no_external_id_keeps_file(
         self,
         mock_validate,
