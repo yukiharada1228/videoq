@@ -1,172 +1,135 @@
 """
-Unified management of PGVector operations
+Unified management of PGVectorStore operations
 """
 
 import logging
 import os
+import threading
 
-import psycopg2
-from pgvector.psycopg2 import register_vector
+from django.conf import settings
+from langchain_postgres import Column, PGEngine, PGVectorStore
 
 logger = logging.getLogger(__name__)
 
 
 class PGVectorManager:
     """
-    Unified management class for PGVector operations
+    Unified management class for PGVectorStore operations.
+    Manages PGEngine singleton and vectorstore table initialization.
     """
 
-    _config = None
-    _connection = None
+    _engine = None
+    _engine_lock = threading.Lock()
+    _table_initialized = False
+    _table_init_lock = threading.Lock()
 
     @classmethod
-    def get_config(cls):
-        """
-        Get PGVector configuration (singleton pattern)
-        """
-        if cls._config is None:
-            cls._config = {
-                "database_url": os.getenv(
-                    "DATABASE_URL",
-                    "postgresql://postgres:postgres@postgres:5432/postgres",
-                ),
-                "collection_name": os.getenv(
-                    "PGVECTOR_COLLECTION_NAME", "videoq_scenes"
-                ),
-            }
-        return cls._config
+    def get_engine(cls):
+        """Get or create the PGEngine singleton (thread-safe)."""
+        if cls._engine is None:
+            with cls._engine_lock:
+                if cls._engine is None:
+                    db_url = os.getenv(
+                        "DATABASE_URL",
+                        "postgresql://postgres:postgres@postgres:5432/postgres",
+                    )
+                    # PGEngine requires postgresql+psycopg:// format
+                    if db_url.startswith("postgresql://"):
+                        db_url = db_url.replace(
+                            "postgresql://", "postgresql+psycopg://", 1
+                        )
+                    elif db_url.startswith("postgres://"):
+                        db_url = db_url.replace(
+                            "postgres://", "postgresql+psycopg://", 1
+                        )
+                    cls._engine = PGEngine.from_connection_string(url=db_url)
+        return cls._engine
 
     @classmethod
-    def get_connection(cls):
-        """
-        Get PGVector connection (connection pool)
-        """
-        if cls._connection is None or cls._connection.closed:
-            config = cls.get_config()
-            cls._connection = psycopg2.connect(config["database_url"])
-            register_vector(cls._connection)
-        return cls._connection
+    def get_table_name(cls):
+        """Get the vectorstore table name (= collection name)."""
+        return getattr(
+            settings,
+            "PGVECTOR_COLLECTION_NAME",
+            os.getenv("PGVECTOR_COLLECTION_NAME", "videoq_scenes"),
+        )
 
     @classmethod
-    def close_connection(cls):
-        """
-        Close connection
-        """
-        if cls._connection and not cls._connection.closed:
-            cls._connection.close()
-            cls._connection = None
+    def get_vector_size(cls):
+        """Get the embedding vector dimension size."""
+        return getattr(settings, "EMBEDDING_VECTOR_SIZE", 1536)
 
     @classmethod
-    def execute_with_connection(cls, operation_func):
-        """
-        Execute operation using connection
-        """
-        conn = cls.get_connection()
-        cursor = conn.cursor()
-
-        try:
-            result = operation_func(cursor)
-            conn.commit()
-            return result
-        except Exception as e:
-            conn.rollback()
-            raise e
-        finally:
-            cursor.close()
+    def ensure_table(cls):
+        """Ensure the vectorstore table exists (idempotent, thread-safe)."""
+        if cls._table_initialized:
+            return
+        with cls._table_init_lock:
+            if cls._table_initialized:
+                return
+            engine = cls.get_engine()
+            try:
+                engine.init_vectorstore_table(
+                    table_name=cls.get_table_name(),
+                    vector_size=cls.get_vector_size(),
+                    metadata_columns=[
+                        Column("user_id", "INTEGER"),
+                        Column("video_id", "INTEGER"),
+                    ],
+                )
+            except Exception as e:
+                if "already exists" in str(e):
+                    logger.debug(
+                        "Vectorstore table '%s' already exists",
+                        cls.get_table_name(),
+                    )
+                else:
+                    raise
+            cls._table_initialized = True
 
     @classmethod
-    def get_psycopg_connection_string(cls):
-        """
-        Get connection string for langchain_postgres
-        Convert postgresql:// → postgresql+psycopg://
-        """
-        connection_str = cls.get_config()["database_url"]
-        if connection_str.startswith("postgresql://"):
-            connection_str = connection_str.replace(
-                "postgresql://", "postgresql+psycopg://", 1
-            )
-        return connection_str
+    def create_vectorstore(cls, embeddings):
+        """Create a PGVectorStore instance (sync)."""
+        cls.ensure_table()
+        engine = cls.get_engine()
+        return PGVectorStore.create_sync(
+            engine=engine,
+            embedding_service=embeddings,
+            table_name=cls.get_table_name(),
+            metadata_columns=["user_id", "video_id"],
+        )
+
+    @classmethod
+    def _get_management_store(cls):
+        """Get a PGVectorStore for management operations (no real embeddings needed)."""
+        from langchain_core.embeddings import FakeEmbeddings
+
+        fake_embeddings = FakeEmbeddings(size=cls.get_vector_size())
+        return cls.create_vectorstore(fake_embeddings)
 
 
 def delete_video_vectors(video_id):
     """
-    Safely delete vector data related to the specified video ID from PGVector
+    Delete vector data related to the specified video ID using PGVectorStore filter.
     """
     try:
-        config = PGVectorManager.get_config()
-        logger.info(
-            f"Deleting vectors for video ID: {video_id} from collection: {config['collection_name']}"
-        )
+        logger.info("Deleting vectors for video ID: %s", video_id)
 
-        def delete_operation(cursor):
-            # Filter by video_id and delete in one operation
-            delete_query = """
-                DELETE FROM langchain_pg_embedding 
-                WHERE cmetadata->>'video_id' = %s
-            """
-            cursor.execute(delete_query, (str(video_id),))
-            return cursor.rowcount
+        store = PGVectorManager._get_management_store()
+        store.delete(filter={"video_id": int(video_id)})
 
-        deleted_count = PGVectorManager.execute_with_connection(delete_operation)
-
-        if deleted_count > 0:
-            logger.info(
-                f"Successfully deleted {deleted_count} vector documents for video ID: {video_id}"
-            )
-        else:
-            logger.info(f"No vector documents found for video ID: {video_id}")
+        logger.info("Deleted vectors for video ID: %s", video_id)
 
     except Exception as e:
         logger.warning(
-            f"Failed to delete vectors for video ID {video_id}: {e}", exc_info=True
-        )
-
-
-def delete_video_vectors_batch(video_ids):
-    """
-    Batch delete vector data related to multiple video IDs
-    """
-    if not video_ids:
-        return
-
-    try:
-        config = PGVectorManager.get_config()
-        logger.info(
-            f"Batch deleting vectors for {len(video_ids)} videos from collection: {config['collection_name']}"
-        )
-
-        def batch_delete_operation(cursor):
-            # Delete multiple video_ids at once
-            video_id_strs = [str(vid) for vid in video_ids]
-            placeholders = ",".join(["%s"] * len(video_id_strs))
-
-            delete_query = f"""
-                DELETE FROM langchain_pg_embedding 
-                WHERE cmetadata->>'video_id' = ANY(ARRAY[{placeholders}])
-            """
-            cursor.execute(delete_query, video_id_strs)
-            return cursor.rowcount
-
-        deleted_count = PGVectorManager.execute_with_connection(batch_delete_operation)
-
-        if deleted_count > 0:
-            logger.info(
-                f"Successfully batch deleted {deleted_count} vector documents for {len(video_ids)} videos"
-            )
-        else:
-            logger.info(
-                f"No vector documents found for the batch of {len(video_ids)} videos"
-            )
-
-    except Exception as e:
-        logger.warning(
-            f"Failed to batch delete vectors for videos {video_ids}: {e}", exc_info=True
+            "Failed to delete vectors for video ID %s: %s", video_id, e, exc_info=True
         )
 
 
 def update_video_title_in_vectors(video_id, new_title):
     """
-    Update video_title in PGVector metadata
+    Update video_title in PGVectorStore metadata.
+    Uses raw SQL since PGVectorStore has no update API.
 
     Args:
         video_id: Video ID
@@ -176,34 +139,42 @@ def update_video_title_in_vectors(video_id, new_title):
         int: Number of documents updated
     """
     try:
+        from django.db import connection
 
-        def update_operation(cursor):
-            update_query = """
-                UPDATE langchain_pg_embedding
-                SET cmetadata = jsonb_set(
-                    cmetadata::jsonb,
-                    '{video_title}',
+        table = connection.ops.quote_name(PGVectorManager.get_table_name())
+
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                UPDATE {}
+                SET langchain_metadata = jsonb_set(
+                    COALESCE(langchain_metadata::jsonb, '{{}}'::jsonb),
+                    '{{video_title}}',
                     to_jsonb(%s::text)
                 )
-                WHERE cmetadata->>'video_id' = %s
-            """
-            cursor.execute(update_query, (new_title, str(video_id)))
-            return cursor.rowcount
-
-        updated_count = PGVectorManager.execute_with_connection(update_operation)
+                WHERE video_id = %s
+                """.format(table),
+                [new_title, int(video_id)],
+            )
+            updated_count = cursor.rowcount
 
         if updated_count > 0:
             logger.info(
-                f"Updated video_title to '{new_title}' for {updated_count} vector documents (video ID: {video_id})"
+                "Updated video_title to '%s' for %d vectors (video ID: %s)",
+                new_title,
+                updated_count,
+                video_id,
             )
         else:
-            logger.info(f"No vector documents found to update for video ID: {video_id}")
+            logger.info("No vectors found to update for video ID: %s", video_id)
 
         return updated_count
 
     except Exception as e:
         logger.warning(
-            f"Failed to update video_title in PGVector for video {video_id}: {e}",
+            "Failed to update video_title in vectors for video %s: %s",
+            video_id,
+            e,
             exc_info=True,
         )
         return 0
@@ -211,43 +182,30 @@ def update_video_title_in_vectors(video_id, new_title):
 
 def delete_all_vectors():
     """
-    Delete all vector data from PGVector collection
-    Used when re-indexing all videos with a new embedding model
+    Delete all vector data from the collection table.
+    Used when re-indexing all videos with a new embedding model.
 
     Returns:
         int: Number of documents deleted
     """
     try:
-        config = PGVectorManager.get_config()
-        logger.info(
-            f"Deleting all vectors from collection: {config['collection_name']}"
-        )
+        from django.db import connection
 
-        def delete_all_operation(cursor):
-            delete_query = """
-                DELETE FROM langchain_pg_embedding
-                WHERE collection_id IN (
-                    SELECT uuid FROM langchain_pg_collection WHERE name = %s
-                )
-            """
-            cursor.execute(delete_query, (config["collection_name"],))
-            return cursor.rowcount
+        table_name = PGVectorManager.get_table_name()
+        logger.info("Deleting all vectors from table: %s", table_name)
 
-        deleted_count = PGVectorManager.execute_with_connection(delete_all_operation)
+        quoted_table = connection.ops.quote_name(table_name)
+        with connection.cursor() as cursor:
+            cursor.execute("DELETE FROM {}".format(quoted_table))
+            deleted_count = cursor.rowcount
 
         if deleted_count > 0:
-            logger.info(
-                f"Successfully deleted {deleted_count} vector documents from collection: {config['collection_name']}"
-            )
+            logger.info("Deleted %d vectors from %s", deleted_count, table_name)
         else:
-            logger.info(
-                f"No vector documents found in collection: {config['collection_name']}"
-            )
+            logger.info("No vectors in table %s", table_name)
 
         return deleted_count
 
     except Exception as e:
-        logger.error(
-            f"Failed to delete all vectors from collection: {e}", exc_info=True
-        )
+        logger.error("Failed to delete all vectors: %s", e, exc_info=True)
         raise

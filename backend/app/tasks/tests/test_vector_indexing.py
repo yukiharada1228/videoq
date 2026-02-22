@@ -2,15 +2,17 @@
 Tests for vector indexing functions
 """
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 
 from app.models import Video
-from app.tasks.vector_indexing import (create_scene_metadata,
-                                       index_scenes_batch,
-                                       index_scenes_to_vectorstore)
+from app.tasks.vector_indexing import (
+    create_scene_metadata,
+    index_scenes_batch,
+    index_scenes_to_vectorstore,
+)
 
 User = get_user_model()
 
@@ -100,17 +102,15 @@ class IndexScenesToVectorstoreTests(TestCase):
             status="completed",
         )
 
-    @patch("app.tasks.vector_indexing.PGVector")
     @patch("app.tasks.vector_indexing.PGVectorManager")
     @patch("app.tasks.vector_indexing.get_embeddings")
     def test_indexes_scenes_successfully(
-        self, mock_get_embeddings, mock_pgvector_manager, mock_pgvector
+        self, mock_get_embeddings, mock_pgvector_manager
     ):
         """Test successful scene indexing"""
-        mock_pgvector_manager.get_config.return_value = {
-            "collection_name": "test_collection",
-            "database_url": "postgresql://localhost/test",
-        }
+        mock_store = MagicMock()
+        mock_pgvector_manager.create_vectorstore.return_value = mock_store
+        mock_pgvector_manager.get_table_name.return_value = "test_table"
 
         scene_docs = [
             {"text": "Hello world", "metadata": {"video_id": 1}},
@@ -119,19 +119,14 @@ class IndexScenesToVectorstoreTests(TestCase):
 
         index_scenes_to_vectorstore(scene_docs, self.video, "test-api-key")
 
-        mock_pgvector.from_texts.assert_called_once()
+        mock_store.add_texts.assert_called_once()
 
-    @patch("app.tasks.vector_indexing.PGVector")
     @patch("app.tasks.vector_indexing.PGVectorManager")
     @patch("app.tasks.vector_indexing.get_embeddings")
-    def test_skips_empty_texts(
-        self, mock_get_embeddings, mock_pgvector_manager, mock_pgvector
-    ):
+    def test_skips_empty_texts(self, mock_get_embeddings, mock_pgvector_manager):
         """Test that empty texts are skipped"""
-        mock_pgvector_manager.get_config.return_value = {
-            "collection_name": "test_collection",
-            "database_url": "postgresql://localhost/test",
-        }
+        mock_store = MagicMock()
+        mock_pgvector_manager.create_vectorstore.return_value = mock_store
 
         scene_docs = [
             {"text": "", "metadata": {"video_id": 1}},
@@ -140,45 +135,22 @@ class IndexScenesToVectorstoreTests(TestCase):
 
         # Should not raise, should just log and skip
         index_scenes_to_vectorstore(scene_docs, self.video, "test-api-key")
-        mock_pgvector.from_texts.assert_not_called()
+        mock_pgvector_manager.create_vectorstore.assert_not_called()
 
-    @patch("app.tasks.vector_indexing.PGVector")
     @patch("app.tasks.vector_indexing.PGVectorManager")
     @patch("app.tasks.vector_indexing.get_embeddings")
-    def test_handles_indexing_error(
-        self, mock_get_embeddings, mock_pgvector_manager, mock_pgvector
-    ):
-        """Test that indexing errors are handled gracefully"""
-        mock_pgvector_manager.get_config.return_value = {
-            "collection_name": "test_collection",
-            "database_url": "postgresql://localhost/test",
-        }
-        mock_pgvector.from_texts.side_effect = Exception("Indexing failed")
+    def test_handles_indexing_error(self, mock_get_embeddings, mock_pgvector_manager):
+        """Test that indexing errors are re-raised after logging"""
+        mock_store = MagicMock()
+        mock_store.add_texts.side_effect = Exception("Indexing failed")
+        mock_pgvector_manager.create_vectorstore.return_value = mock_store
+        mock_pgvector_manager.get_table_name.return_value = "test_table"
 
         scene_docs = [{"text": "Hello world", "metadata": {"video_id": 1}}]
 
-        # Should not raise, should log warning
-        index_scenes_to_vectorstore(scene_docs, self.video, "test-api-key")
-
-    @patch("app.tasks.vector_indexing.PGVector")
-    @patch("app.tasks.vector_indexing.PGVectorManager")
-    @patch("app.tasks.vector_indexing.get_embeddings")
-    def test_converts_connection_string(
-        self, mock_get_embeddings, mock_pgvector_manager, mock_pgvector
-    ):
-        """Test that postgresql:// is converted to postgresql+psycopg://"""
-        mock_pgvector_manager.get_config.return_value = {
-            "collection_name": "test_collection",
-            "database_url": "postgresql://user:pass@localhost/db",
-        }
-
-        scene_docs = [{"text": "Hello world", "metadata": {"video_id": 1}}]
-
-        index_scenes_to_vectorstore(scene_docs, self.video, "test-api-key")
-
-        # Check that the connection string was converted
-        call_kwargs = mock_pgvector.from_texts.call_args[1]
-        self.assertIn("postgresql+psycopg://", call_kwargs["connection"])
+        # Should re-raise so callers can handle the failure
+        with self.assertRaises(Exception):
+            index_scenes_to_vectorstore(scene_docs, self.video, "test-api-key")
 
 
 class IndexScenesBatchTests(TestCase):
