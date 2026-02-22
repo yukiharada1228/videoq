@@ -53,13 +53,14 @@ const mockPopularScenes: PopularScene[] = [
     end_time: '00:02:00',
     reference_count: 5,
     file: 'videos/1/test1.mp4',
+    questions: ['What is the main topic?'],
   },
 ]
 
 describe('ShortsButton', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    ;(apiClient.getPopularScenes as any).mockResolvedValue(mockPopularScenes)
+      ; (apiClient.getPopularScenes as any).mockResolvedValue(mockPopularScenes)
   })
 
   it('should render button with correct text', () => {
@@ -114,8 +115,8 @@ describe('ShortsButton', () => {
   })
 
   it('should handle API error gracefully on click when prefetch failed', async () => {
-    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    ;(apiClient.getPopularScenes as any).mockRejectedValue(new Error('API Error'))
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => { })
+      ; (apiClient.getPopularScenes as any).mockRejectedValue(new Error('API Error'))
 
     render(<ShortsButton groupId={1} videos={mockVideos} />)
 
@@ -142,9 +143,9 @@ describe('ShortsButton', () => {
     let resolveSecond: (value: PopularScene[]) => void
     const firstPromise = new Promise<PopularScene[]>((resolve) => { resolveFirst = resolve })
     const secondPromise = new Promise<PopularScene[]>((resolve) => { resolveSecond = resolve })
-    ;(apiClient.getPopularScenes as any)
-      .mockReturnValueOnce(firstPromise)   // prefetch
-      .mockReturnValueOnce(secondPromise)  // click
+      ; (apiClient.getPopularScenes as any)
+        .mockReturnValueOnce(firstPromise)   // prefetch
+        .mockReturnValueOnce(secondPromise)  // click
 
     render(<ShortsButton groupId={1} videos={mockVideos} />)
 

@@ -63,6 +63,7 @@ export interface PopularScene {
   end_time: string;
   reference_count: number;
   file: string | null;
+  questions: string[];
 }
 
 export interface ChatHistoryItem {

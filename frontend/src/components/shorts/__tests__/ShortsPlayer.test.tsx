@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { ShortsPlayer } from '../ShortsPlayer'
 import { apiClient, type PopularScene } from '@/lib/api'
 
@@ -32,6 +32,7 @@ const mockScenes: PopularScene[] = [
     end_time: '00:02:00',
     reference_count: 5,
     file: 'videos/1/test1.mp4',
+    questions: ['What is the main topic?', 'How does this work?'],
   },
   {
     video_id: 2,
@@ -40,6 +41,7 @@ const mockScenes: PopularScene[] = [
     end_time: '00:04:00',
     reference_count: 3,
     file: 'videos/2/test2.mp4',
+    questions: ['What is the second topic?'],
   },
 ]
 
@@ -48,10 +50,12 @@ describe('ShortsPlayer', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.useFakeTimers()
     document.body.style.overflow = ''
   })
 
   afterEach(() => {
+    vi.useRealTimers()
     document.body.style.overflow = ''
   })
 
@@ -130,6 +134,7 @@ describe('ShortsPlayer', () => {
         end_time: '00:02:00',
         reference_count: 5,
         file: null,
+        questions: ['Test question?'],
       },
     ]
 
@@ -155,6 +160,7 @@ describe('ShortsPlayer', () => {
   })
 
   it('should set up IntersectionObserver', async () => {
+    vi.useRealTimers()
     render(<ShortsPlayer scenes={mockScenes} onClose={mockOnClose} />)
 
     await waitFor(() => {
@@ -256,5 +262,88 @@ describe('ShortsPlayer', () => {
     }
 
     expect(screen.queryByText(/shorts.tapToPlay/)).not.toBeInTheDocument()
+  })
+
+  // --- Tests for question flashcard feature ---
+
+  it('should show question overlay after play overlay is dismissed', () => {
+    render(<ShortsPlayer scenes={mockScenes} onClose={mockOnClose} />)
+
+    // Initially, question is not shown (play overlay is active)
+    // Dismiss play overlay
+    const overlay = screen.getByText(/shorts.tapToPlay/).closest('div[class*="cursor-pointer"]')
+    if (overlay) {
+      fireEvent.click(overlay)
+    }
+
+    // Question should now be visible (center phase)
+    expect(screen.getByText('What is the main topic?')).toBeInTheDocument()
+  })
+
+  it('should show question label in flashcard', () => {
+    render(<ShortsPlayer scenes={mockScenes} onClose={mockOnClose} />)
+
+    // Dismiss play overlay
+    const overlay = screen.getByText(/shorts.tapToPlay/).closest('div[class*="cursor-pointer"]')
+    if (overlay) {
+      fireEvent.click(overlay)
+    }
+
+    // Should show the "Question" label
+    expect(screen.getByText(/shorts.question/)).toBeInTheDocument()
+  })
+
+  it('should transition question from center to top after timeout', () => {
+    render(<ShortsPlayer scenes={mockScenes} onClose={mockOnClose} />)
+
+    // Dismiss play overlay
+    const overlay = screen.getByText(/shorts.tapToPlay/).closest('div[class*="cursor-pointer"]')
+    if (overlay) {
+      fireEvent.click(overlay)
+    }
+
+    // Question should be visible in center initially
+    expect(screen.getByText('What is the main topic?')).toBeInTheDocument()
+
+    // Advance timer to trigger shrink phase (2500ms)
+    act(() => {
+      vi.advanceTimersByTime(2500)
+    })
+
+    // Question text should still be visible (now shrinking/top)
+    expect(screen.getByText('What is the main topic?')).toBeInTheDocument()
+
+    // Advance timer to complete shrink animation (500ms)
+    act(() => {
+      vi.advanceTimersByTime(500)
+    })
+
+    // Question should still be visible in top position
+    expect(screen.getByText('What is the main topic?')).toBeInTheDocument()
+  })
+
+  it('should not show question overlay when scene has no questions', () => {
+    const scenesWithoutQuestions: PopularScene[] = [
+      {
+        video_id: 1,
+        title: 'Test Video',
+        start_time: '00:01:00',
+        end_time: '00:02:00',
+        reference_count: 5,
+        file: 'videos/1/test1.mp4',
+        questions: [],
+      },
+    ]
+
+    render(<ShortsPlayer scenes={scenesWithoutQuestions} onClose={mockOnClose} />)
+
+    // Dismiss play overlay
+    const overlay = screen.getByText(/shorts.tapToPlay/).closest('div[class*="cursor-pointer"]')
+    if (overlay) {
+      fireEvent.click(overlay)
+    }
+
+    // Question label should not be visible
+    expect(screen.queryByText(/shorts.question/)).not.toBeInTheDocument()
   })
 })
