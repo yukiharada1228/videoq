@@ -361,6 +361,10 @@ class PopularScenesView(APIView):
                         "end_time": {"type": "string"},
                         "reference_count": {"type": "integer"},
                         "file": {"type": "string", "nullable": True},
+                        "questions": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                        },
                     },
                 },
             }
@@ -388,16 +392,19 @@ class PopularScenesView(APIView):
                 "Specified group not found", status.HTTP_404_NOT_FOUND
             )
 
-        # Get all chat logs for the group
-        chat_logs = ChatLog.objects.filter(group=group).values_list(
-            "related_videos", flat=True
+        # Get all chat logs for the group (with question text)
+        chat_logs = ChatLog.objects.filter(group=group).values(
+            "question", "related_videos"
         )
 
         # Count (video_id, start_time, end_time) tuples
         scene_counter: Counter = Counter()
         scene_info: dict = {}
+        scene_questions: dict = {}  # key -> set of questions
 
-        for related_videos in chat_logs:
+        for log in chat_logs:
+            related_videos = log.get("related_videos")
+            question = log.get("question", "")
             if not related_videos:
                 continue
             for rv in related_videos:
@@ -417,6 +424,12 @@ class PopularScenesView(APIView):
                             "start_time": start_time,
                             "end_time": end_time or start_time,
                         }
+                    # Collect unique questions for this scene
+                    if question:
+                        if key not in scene_questions:
+                            scene_questions[key] = []
+                        if question not in scene_questions[key]:
+                            scene_questions[key].append(question)
 
         # Get top N scenes
         top_scenes = scene_counter.most_common(limit)
@@ -438,6 +451,8 @@ class PopularScenesView(APIView):
         result = []
         for (video_id, start_time), count in top_scenes:
             info = scene_info[(video_id, start_time)]
+            # Return up to 3 unique questions for this scene
+            questions = scene_questions.get((video_id, start_time), [])[:3]
             result.append(
                 {
                     "video_id": info["video_id"],
@@ -446,6 +461,7 @@ class PopularScenesView(APIView):
                     "end_time": info["end_time"],
                     "reference_count": count,
                     "file": video_file_map.get(video_id),
+                    "questions": questions,
                 }
             )
 
