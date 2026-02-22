@@ -58,14 +58,14 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
   const currentScene = scenes[currentIndex];
   const currentQuestion = currentScene?.questions?.[0] || '';
 
-  // Start question flashcard animation sequence
-  const startQuestionAnimation = useCallback(() => {
+  // Start question flashcard animation sequence (called from event handlers only)
+  const startQuestionAnimation = (question: string) => {
     // Clear any existing timer
     if (questionTimerRef.current) {
       clearTimeout(questionTimerRef.current);
     }
 
-    if (!currentQuestion) {
+    if (!question) {
       setQuestionPhase('hidden');
       return;
     }
@@ -82,19 +82,16 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
         setQuestionPhase('top');
       }, 500);
     }, 2500);
-  }, [currentQuestion]);
+  };
 
-  // Trigger question animation when slide changes (and not on initial load)
+  // Cleanup timers on unmount
   useEffect(() => {
-    if (!showPlayOverlay) {
-      startQuestionAnimation();
-    }
     return () => {
       if (questionTimerRef.current) {
         clearTimeout(questionTimerRef.current);
       }
     };
-  }, [currentIndex, showPlayOverlay, startQuestionAnimation]);
+  }, []);
 
   // Play the current video
   const playCurrentVideo = useCallback(() => {
@@ -116,12 +113,16 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
     setShowPlayOverlay(false);
     setIsMuted(false);
 
+    // Trigger question animation on first play
+    const question = scenes[currentIndexRef.current]?.questions?.[0] || '';
+    startQuestionAnimation(question);
+
     const video = videoRef.current;
     if (video) {
       video.muted = false;
       playCurrentVideo();
     }
-  }, [playCurrentVideo]);
+  }, [playCurrentVideo, scenes]);
 
   // Update video source when index changes
   useEffect(() => {
@@ -154,6 +155,9 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
             if (newIndex !== currentIndexRef.current) {
               setCurrentIndex(newIndex);
               setVideoOffset(0);  // Reset offset when slide changes
+              // Trigger question animation for new slide
+              const question = scenes[newIndex]?.questions?.[0] || '';
+              startQuestionAnimation(question);
             }
           }
         }
