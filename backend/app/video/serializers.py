@@ -57,10 +57,45 @@ class VideoSerializer(serializers.ModelSerializer):
 class VideoCreateSerializer(UserOwnedSerializerMixin, serializers.ModelSerializer):
     """Serializer for Video creation"""
 
+    ALLOWED_VIDEO_EXTENSIONS = {
+        ".mp4", ".mov", ".avi", ".mkv", ".webm", ".m4v", ".mpeg", ".mpg", ".3gp",
+    }
+    ALLOWED_VIDEO_MIMETYPES = {
+        "video/mp4",
+        "video/quicktime",       # .mov
+        "video/x-msvideo",       # .avi
+        "video/x-matroska",      # .mkv
+        "video/webm",            # .webm
+        "video/x-m4v",           # .m4v
+        "video/mpeg",            # .mpeg, .mpg
+        "video/3gpp",            # .3gp
+    }
+
     class Meta:
         model = Video
         fields = ["id", "file", "title", "description", "external_id"]
         read_only_fields = ["id"]
+
+    def validate_file(self, value):
+        """Validate uploaded file type"""
+        import os
+
+        # Extension check
+        ext = os.path.splitext(value.name)[1].lower()
+        if ext not in self.ALLOWED_VIDEO_EXTENSIONS:
+            raise serializers.ValidationError(
+                f"Unsupported file type: '{ext}'. "
+                f"Allowed types: {', '.join(self.ALLOWED_VIDEO_EXTENSIONS)}"
+            )
+
+        # MIME type check
+        content_type = getattr(value, "content_type", None)
+        if content_type and content_type not in self.ALLOWED_VIDEO_MIMETYPES:
+            raise serializers.ValidationError(
+                f"Invalid content type: '{content_type}'. Only video files are allowed."
+            )
+
+        return value
 
     def validate_external_id(self, value):
         """
