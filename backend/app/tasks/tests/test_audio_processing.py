@@ -265,9 +265,7 @@ class ExtractAndSplitAudioTests(TestCase):
         mock_extract.return_value = ("/tmp/audio.mp3", 20.0)
 
         with TemporaryFileManager() as temp_manager:
-            extract_and_split_audio(
-                "/path/to/video.mp4", temp_manager=temp_manager
-            )
+            extract_and_split_audio("/path/to/video.mp4", temp_manager=temp_manager)
 
             self.assertEqual(len(temp_manager.temp_files), 1)
             self.assertEqual(temp_manager.temp_files[0], "/tmp/audio.mp3")
