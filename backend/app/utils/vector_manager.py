@@ -120,31 +120,6 @@ def delete_video_vectors(video_id):
         )
 
 
-def delete_video_vectors_batch(video_ids):
-    """
-    Batch delete vector data related to multiple video IDs.
-    """
-    if not video_ids:
-        return
-
-    try:
-        logger.info("Batch deleting vectors for %d videos", len(video_ids))
-
-        store = PGVectorManager._get_management_store()
-        int_ids = [int(vid) for vid in video_ids]
-        store.delete(filter={"video_id": {"$in": int_ids}})
-
-        logger.info("Batch deleted vectors for %d videos", len(video_ids))
-
-    except Exception as e:
-        logger.warning(
-            "Failed to batch delete vectors for videos %s: %s",
-            video_ids,
-            e,
-            exc_info=True,
-        )
-
-
 def update_video_title_in_vectors(video_id, new_title):
     """
     Update video_title in PGVectorStore metadata.
