@@ -141,19 +141,19 @@ def update_video_title_in_vectors(video_id, new_title):
     try:
         from django.db import connection
 
-        table = PGVectorManager.get_table_name()
+        table = connection.ops.quote_name(PGVectorManager.get_table_name())
 
         with connection.cursor() as cursor:
             cursor.execute(
-                f"""
-                UPDATE "{table}"
+                """
+                UPDATE {}
                 SET langchain_metadata = jsonb_set(
                     COALESCE(langchain_metadata::jsonb, '{{}}'::jsonb),
                     '{{video_title}}',
                     to_jsonb(%s::text)
                 )
                 WHERE video_id = %s
-                """,
+                """.format(table),
                 [new_title, int(video_id)],
             )
             updated_count = cursor.rowcount
@@ -191,17 +191,18 @@ def delete_all_vectors():
     try:
         from django.db import connection
 
-        table = PGVectorManager.get_table_name()
-        logger.info("Deleting all vectors from table: %s", table)
+        table_name = PGVectorManager.get_table_name()
+        logger.info("Deleting all vectors from table: %s", table_name)
 
+        quoted_table = connection.ops.quote_name(table_name)
         with connection.cursor() as cursor:
-            cursor.execute(f'DELETE FROM "{table}"')
+            cursor.execute("DELETE FROM {}".format(quoted_table))
             deleted_count = cursor.rowcount
 
         if deleted_count > 0:
-            logger.info("Deleted %d vectors from %s", deleted_count, table)
+            logger.info("Deleted %d vectors from %s", deleted_count, table_name)
         else:
-            logger.info("No vectors in table %s", table)
+            logger.info("No vectors in table %s", table_name)
 
         return deleted_count
 

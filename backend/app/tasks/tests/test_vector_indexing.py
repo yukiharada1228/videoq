@@ -140,7 +140,7 @@ class IndexScenesToVectorstoreTests(TestCase):
     @patch("app.tasks.vector_indexing.PGVectorManager")
     @patch("app.tasks.vector_indexing.get_embeddings")
     def test_handles_indexing_error(self, mock_get_embeddings, mock_pgvector_manager):
-        """Test that indexing errors are handled gracefully"""
+        """Test that indexing errors are re-raised after logging"""
         mock_store = MagicMock()
         mock_store.add_texts.side_effect = Exception("Indexing failed")
         mock_pgvector_manager.create_vectorstore.return_value = mock_store
@@ -148,8 +148,9 @@ class IndexScenesToVectorstoreTests(TestCase):
 
         scene_docs = [{"text": "Hello world", "metadata": {"video_id": 1}}]
 
-        # Should not raise, should log warning
-        index_scenes_to_vectorstore(scene_docs, self.video, "test-api-key")
+        # Should re-raise so callers can handle the failure
+        with self.assertRaises(Exception):
+            index_scenes_to_vectorstore(scene_docs, self.video, "test-api-key")
 
 
 class IndexScenesBatchTests(TestCase):
