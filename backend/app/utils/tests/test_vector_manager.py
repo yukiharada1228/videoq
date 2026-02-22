@@ -11,7 +11,6 @@ from app.utils.vector_manager import (
     PGVectorManager,
     delete_all_vectors,
     delete_video_vectors,
-    delete_video_vectors_batch,
     update_video_title_in_vectors,
 )
 
@@ -134,34 +133,6 @@ class DeleteVideoVectorsTests(TestCase):
         mock_get_store.side_effect = Exception("Database error")
 
         delete_video_vectors(123)
-
-        mock_logger.warning.assert_called()
-
-
-class DeleteVideoVectorsBatchTests(TestCase):
-    """Tests for delete_video_vectors_batch function"""
-
-    @patch.object(PGVectorManager, "_get_management_store")
-    def test_delete_video_vectors_batch(self, mock_get_store):
-        mock_store = MagicMock()
-        mock_get_store.return_value = mock_store
-
-        delete_video_vectors_batch([1, 2, 3])
-
-        mock_store.delete.assert_called_once_with(
-            filter={"video_id": {"$in": [1, 2, 3]}}
-        )
-
-    def test_delete_video_vectors_batch_empty(self):
-        # Should return immediately without calling store
-        delete_video_vectors_batch([])
-
-    @patch.object(PGVectorManager, "_get_management_store")
-    @patch("app.utils.vector_manager.logger")
-    def test_delete_video_vectors_batch_error(self, mock_logger, mock_get_store):
-        mock_get_store.side_effect = Exception("Database error")
-
-        delete_video_vectors_batch([1, 2, 3])
 
         mock_logger.warning.assert_called()
 
