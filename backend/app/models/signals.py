@@ -10,7 +10,7 @@ from .video import Video
 def delete_video_vectors_signal(sender, instance, **kwargs):
     """
     Remove PGVector embeddings associated with a Video instance when it is deleted.
-    
+
     If vector deletion fails, a warning is logged and the failure does not prevent the Video deletion.
     """
     try:
@@ -29,11 +29,11 @@ def delete_video_vectors_signal(sender, instance, **kwargs):
 def _should_delete_videos(old_limit, new_limit):
     """
     Determine whether reducing a user's video limit should trigger deletion of existing videos.
-    
+
     Parameters:
         old_limit (int | None): Previous video limit; `None` means unlimited.
         new_limit (int | None): New video limit to apply; `None` means unlimited.
-    
+
     Returns:
         bool: `true` if videos must be deleted to satisfy the new limit, `false` otherwise.
     """
@@ -60,17 +60,17 @@ def _should_delete_videos(old_limit, new_limit):
 def handle_video_limit_reduction(sender, instance, **kwargs):
     """
     Delete a user's oldest videos when their `video_limit` is reduced.
-    
+
     Skips new users (unsaved instances). If the new limit is lower than the previous limit (or the user is transitioning from unlimited to limited),
     the handler deletes the oldest videos first until the user's stored videos satisfy the new limit. Deletion occurs inside a database transaction;
     each video's file (if present) is removed before the video instance is deleted. Successful deletions are logged. On unexpected errors the error
     is logged and the exception is re-raised to prevent saving the User with an inconsistent state.
-    
+
     Parameters:
         sender: The model class sending the signal (typically User).
         instance: The User instance being saved (with the new `video_limit` applied).
         **kwargs: Additional signal keyword arguments (ignored).
-    
+
     Raises:
         Exception: Any unexpected error encountered while deleting videos is logged and re-raised.
     """
@@ -116,7 +116,7 @@ def handle_video_limit_reduction(sender, instance, **kwargs):
                 for video in videos_to_delete:
                     if video.file:
                         files_to_delete.append(video.file)
-                
+
                 # Delete video instances inside transaction (triggers CASCADE and post_delete signal)
                 for video in videos_to_delete:
                     video.delete()
@@ -128,8 +128,11 @@ def handle_video_limit_reduction(sender, instance, **kwargs):
                             file_field.delete(save=False)
                         except Exception as e:
                             import logging
+
                             logger = logging.getLogger(__name__)
-                            logger.warning(f"Failed to delete file {file_field.name}: {e}")
+                            logger.warning(
+                                f"Failed to delete file {file_field.name}: {e}"
+                            )
 
                 transaction.on_commit(delete_files)
 

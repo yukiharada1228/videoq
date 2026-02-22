@@ -43,9 +43,9 @@ class VideoGroup(models.Model):
     def __str__(self):
         """
         Return a human-readable representation of the VideoGroup including its name and owner's identifier.
-        
+
         If the related user has a `username` attribute that can be accessed, that username is shown; otherwise the owner's numeric ID is used in the form `user_<id>`.
-        
+
         Returns:
             str: Formatted as "<name> (by <username>)" where `<username>` is the owner's username or "user_<user_id>" if username is not available.
         """
@@ -64,7 +64,9 @@ class VideoGroupMember(models.Model):
         "Video", on_delete=models.CASCADE, related_name="groups", db_index=True
     )
     added_at = models.DateTimeField(auto_now_add=True, db_index=True)
-    order = models.IntegerField(default=0, db_index=True, help_text="Order within the group")
+    order = models.IntegerField(
+        default=0, db_index=True, help_text="Order within the group"
+    )
 
     class Meta:
         ordering = ["order", "added_at"]
@@ -80,9 +82,9 @@ class VideoGroupMember(models.Model):
     def __str__(self):
         """
         Provide a human-readable representation of the membership showing the video title and group name.
-        
+
         The string is formatted as "<video_title> in <group_name>". If the related Video or VideoGroup is unavailable or lacks a title/name, the method falls back to "video_{video_id}" or "group_{group_id}" respectively.
-        
+
         Returns:
             str: The formatted membership representation.
         """

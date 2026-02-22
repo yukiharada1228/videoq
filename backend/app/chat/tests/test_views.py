@@ -622,6 +622,10 @@ class PopularScenesViewTests(APITestCase):
         self.assertEqual(response.data[0]["video_id"], self.video1.id)
         self.assertEqual(response.data[0]["start_time"], "00:01:00")
         self.assertEqual(response.data[0]["reference_count"], 3)
+        # Check questions are included
+        self.assertIn("questions", response.data[0])
+        self.assertIsInstance(response.data[0]["questions"], list)
+        self.assertGreater(len(response.data[0]["questions"]), 0)
         # Second scene
         self.assertEqual(response.data[1]["video_id"], self.video2.id)
         self.assertEqual(response.data[1]["start_time"], "00:03:00")
@@ -742,64 +746,49 @@ class PopularScenesViewTests(APITestCase):
         # file field should be present (may be None if no file uploaded)
         self.assertIn("file", response.data[0])
 
-    def test_get_popular_scenes_returns_cached_result(self):
-        """Test that popular scenes are cached and returned from cache on second request"""
+    def test_get_popular_scenes_questions_collected(self):
+        """Test that popular scenes include associated questions"""
         url = reverse("popular-scenes")
         url += f"?group_id={self.group.id}"
 
-        response1 = self.client.get(url)
-        self.assertEqual(response1.status_code, status.HTTP_200_OK)
-
-        # Add a new chat log after first request
-        ChatLog.objects.create(
-            user=self.user,
-            group=self.group,
-            question="New question",
-            answer="New answer",
-            related_videos=[
-                {
-                    "video_id": self.video2.id,
-                    "title": "Test Video 2",
-                    "start_time": "00:05:00",
-                    "end_time": "00:06:00",
-                },
-            ],
-        )
-
-        # Second request should return cached result (same as first)
-        response2 = self.client.get(url)
-        self.assertEqual(response2.status_code, status.HTTP_200_OK)
-        self.assertEqual(response1.data, response2.data)
-
-    def test_get_popular_scenes_cache_invalidated_after_ttl(self):
-        """Test that cache is invalidated after TTL expires"""
-        from django.core.cache import cache
-
-        url = reverse("popular-scenes")
-        url += f"?group_id={self.group.id}"
-
-        self.client.get(url)
-
-        # Manually clear cache to simulate TTL expiry
-        cache.clear()
-
-        # Add a new chat log
-        ChatLog.objects.create(
-            user=self.user,
-            group=self.group,
-            question="New question",
-            answer="New answer",
-            related_videos=[
-                {
-                    "video_id": self.video2.id,
-                    "title": "Test Video 2",
-                    "start_time": "00:05:00",
-                    "end_time": "00:06:00",
-                },
-            ],
-        )
-
-        # After cache clear, should return fresh data including new scene
         response = self.client.get(url)
+
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 3)
+        # First scene (video1, 00:01:00) is referenced by Q1, Q2, Q3
+        scene = response.data[0]
+        self.assertEqual(scene["video_id"], self.video1.id)
+        self.assertIn("questions", scene)
+        questions = scene["questions"]
+        self.assertEqual(len(questions), 3)
+        self.assertIn("Question 1", questions)
+        self.assertIn("Question 2", questions)
+        self.assertIn("Question 3", questions)
+
+    def test_get_popular_scenes_questions_max_three(self):
+        """Test that questions are limited to 3 per scene"""
+        # Add more chat logs referencing the same scene
+        for i in range(5):
+            ChatLog.objects.create(
+                user=self.user,
+                group=self.group,
+                question=f"Extra Question {i}",
+                answer=f"Extra Answer {i}",
+                related_videos=[
+                    {
+                        "video_id": self.video1.id,
+                        "title": "Test Video 1",
+                        "start_time": "00:01:00",
+                        "end_time": "00:02:00",
+                    },
+                ],
+            )
+
+        url = reverse("popular-scenes")
+        url += f"?group_id={self.group.id}"
+
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # Should be limited to 3 questions max
+        scene = response.data[0]
+        self.assertLessEqual(len(scene["questions"]), 3)

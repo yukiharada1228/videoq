@@ -2,7 +2,6 @@ import csv
 import json
 from collections import Counter
 
-from django.core.cache import cache
 from django.db.models import Prefetch
 from django.http import HttpResponse
 from drf_spectacular.utils import OpenApiParameter, extend_schema
@@ -362,6 +361,10 @@ class PopularScenesView(APIView):
                         "end_time": {"type": "string"},
                         "reference_count": {"type": "integer"},
                         "file": {"type": "string", "nullable": True},
+                        "questions": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                        },
                     },
                 },
             }
@@ -372,7 +375,13 @@ class PopularScenesView(APIView):
     def get(self, request):
         group_id = request.query_params.get("group_id")
         share_token = request.query_params.get("share_token")
-        limit = int(request.query_params.get("limit", 20))
+        try:
+            limit = int(request.query_params.get("limit", 20))
+            limit = max(1, min(limit, 100))
+        except (ValueError, TypeError):
+            return create_error_response(
+                "Invalid limit parameter", status.HTTP_400_BAD_REQUEST
+            )
 
         if not group_id:
             return create_error_response(
@@ -383,30 +392,25 @@ class PopularScenesView(APIView):
             if share_token:
                 group = _get_video_group_with_members(group_id, share_token=share_token)
             else:
-                group = _get_video_group_with_members(
-                    group_id, user_id=request.user.id
-                )
+                group = _get_video_group_with_members(group_id, user_id=request.user.id)
         except VideoGroup.DoesNotExist:
             return create_error_response(
                 "Specified group not found", status.HTTP_404_NOT_FOUND
             )
 
-        # Try cache first (5 minute TTL)
-        cache_key = f"popular_scenes_{group_id}_{limit}"
-        result = cache.get(cache_key)
-        if result is not None:
-            return Response(result)
-
-        # Get all chat logs for the group
-        chat_logs = ChatLog.objects.filter(group=group).values_list(
-            "related_videos", flat=True
+        # Get all chat logs for the group (with question text)
+        chat_logs = ChatLog.objects.filter(group=group).values(
+            "question", "related_videos"
         )
 
         # Count (video_id, start_time, end_time) tuples
         scene_counter: Counter = Counter()
         scene_info: dict = {}
+        scene_questions: dict = {}  # key -> list of unique questions (max 3)
 
-        for related_videos in chat_logs:
+        for log in chat_logs:
+            related_videos = log.get("related_videos")
+            question = log.get("question", "")
             if not related_videos:
                 continue
             for rv in related_videos:
@@ -426,6 +430,12 @@ class PopularScenesView(APIView):
                             "start_time": start_time,
                             "end_time": end_time or start_time,
                         }
+                    # Collect unique questions for this scene (up to 3)
+                    if question:
+                        if key not in scene_questions:
+                            scene_questions[key] = []
+                        if len(scene_questions[key]) < 3 and question not in scene_questions[key]:
+                            scene_questions[key].append(question)
 
         # Get top N scenes
         top_scenes = scene_counter.most_common(limit)
@@ -447,6 +457,7 @@ class PopularScenesView(APIView):
         result = []
         for (video_id, start_time), count in top_scenes:
             info = scene_info[(video_id, start_time)]
+            questions = scene_questions.get((video_id, start_time), [])
             result.append(
                 {
                     "video_id": info["video_id"],
@@ -455,9 +466,8 @@ class PopularScenesView(APIView):
                     "end_time": info["end_time"],
                     "reference_count": count,
                     "file": video_file_map.get(video_id),
+                    "questions": questions,
                 }
             )
-
-        cache.set(cache_key, result, timeout=300)
 
         return Response(result)

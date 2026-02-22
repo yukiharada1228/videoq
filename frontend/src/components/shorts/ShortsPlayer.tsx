@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, Volume2, VolumeX, Play } from 'lucide-react';
+import { X, Volume2, VolumeX, Play, MessageCircleQuestion } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { apiClient, type PopularScene } from '@/lib/api';
 import { timeStringToSeconds } from '@/lib/utils/video';
@@ -10,6 +10,8 @@ interface ShortsPlayerProps {
   shareToken?: string;
   onClose: () => void;
 }
+
+type QuestionPhase = 'center' | 'shrinking' | 'top' | 'hidden';
 
 export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps) {
   const { t } = useTranslation();
@@ -22,6 +24,8 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
   const [videoOffset, setVideoOffset] = useState(0);  // For smooth scroll following
   const currentIndexRef = useRef(currentIndex);
   const [isScrolling, setIsScrolling] = useState(false);
+  const [questionPhase, setQuestionPhase] = useState<QuestionPhase>('hidden');
+  const questionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Keep ref in sync
   useEffect(() => {
@@ -51,6 +55,43 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
 
   // Current scene metadata
   const currentMeta = sceneMeta[currentIndex];
+  const currentScene = scenes[currentIndex];
+  const currentQuestion = currentScene?.questions?.[0] || '';
+
+  // Start question flashcard animation sequence (called from event handlers only)
+  const startQuestionAnimation = (question: string) => {
+    // Clear any existing timer
+    if (questionTimerRef.current) {
+      clearTimeout(questionTimerRef.current);
+    }
+
+    if (!question) {
+      setQuestionPhase('hidden');
+      return;
+    }
+
+    // Phase 1: Show question centered
+    setQuestionPhase('center');
+
+    // Phase 2: After 2.5s, shrink to top
+    questionTimerRef.current = setTimeout(() => {
+      setQuestionPhase('shrinking');
+
+      // Phase 3: After shrink animation completes (500ms), set to top
+      questionTimerRef.current = setTimeout(() => {
+        setQuestionPhase('top');
+      }, 500);
+    }, 2500);
+  };
+
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      if (questionTimerRef.current) {
+        clearTimeout(questionTimerRef.current);
+      }
+    };
+  }, []);
 
   // Play the current video
   const playCurrentVideo = useCallback(() => {
@@ -72,12 +113,16 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
     setShowPlayOverlay(false);
     setIsMuted(false);
 
+    // Trigger question animation on first play
+    const question = scenes[currentIndexRef.current]?.questions?.[0] || '';
+    startQuestionAnimation(question);
+
     const video = videoRef.current;
     if (video) {
       video.muted = false;
       playCurrentVideo();
     }
-  }, [playCurrentVideo]);
+  }, [playCurrentVideo, scenes]);
 
   // Update video source when index changes
   useEffect(() => {
@@ -110,6 +155,9 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
             if (newIndex !== currentIndexRef.current) {
               setCurrentIndex(newIndex);
               setVideoOffset(0);  // Reset offset when slide changes
+              // Trigger question animation for new slide
+              const question = scenes[newIndex]?.questions?.[0] || '';
+              startQuestionAnimation(question);
             }
           }
         }
@@ -263,6 +311,100 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
 
   return (
     <div className="fixed inset-0 z-50 bg-black overflow-hidden">
+      {/* Question Flashcard Overlay */}
+      {currentQuestion && questionPhase !== 'hidden' && (
+        <>
+          {/* Center question (full-screen overlay) */}
+          {questionPhase === 'center' && (
+            <div
+              className="absolute inset-0 z-40 flex items-center justify-center px-8"
+              style={{
+                animation: 'questionFadeIn 0.4s ease-out',
+              }}
+            >
+              <div
+                className="max-w-md w-full p-6 rounded-2xl text-center"
+                style={{
+                  background: 'rgba(0, 0, 0, 0.7)',
+                  backdropFilter: 'blur(20px)',
+                  WebkitBackdropFilter: 'blur(20px)',
+                  border: '1px solid rgba(255, 255, 255, 0.15)',
+                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
+                }}
+              >
+                <div className="flex items-center justify-center gap-2 mb-3">
+                  <MessageCircleQuestion className="h-5 w-5 text-blue-400" />
+                  <span className="text-blue-400 text-sm font-medium tracking-wide uppercase">
+                    {t('shorts.question')}
+                  </span>
+                </div>
+                <p className="text-white text-xl font-semibold leading-relaxed">
+                  {currentQuestion}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Shrinking/Top question (persistent badge) */}
+          {(questionPhase === 'shrinking' || questionPhase === 'top') && (
+            <div
+              className="absolute left-4 right-16 z-40"
+              style={{
+                top: questionPhase === 'shrinking' ? undefined : '3.5rem',
+                animation: questionPhase === 'shrinking'
+                  ? 'questionShrinkToTop 0.5s ease-in-out forwards'
+                  : undefined,
+              }}
+            >
+              <div
+                className="inline-flex items-center gap-2 px-3 py-2 rounded-xl max-w-full"
+                style={{
+                  background: 'rgba(0, 0, 0, 0.6)',
+                  backdropFilter: 'blur(12px)',
+                  WebkitBackdropFilter: 'blur(12px)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                }}
+              >
+                <MessageCircleQuestion className="h-4 w-4 text-blue-400 shrink-0" />
+                <p className="text-white text-sm font-medium truncate">
+                  {currentQuestion}
+                </p>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* CSS Animations */}
+      <style>{`
+        @keyframes questionFadeIn {
+          from {
+            opacity: 0;
+            transform: scale(0.9);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+        @keyframes questionShrinkToTop {
+          from {
+            top: 50%;
+            left: 50%;
+            right: auto;
+            transform: translate(-50%, -50%) scale(1);
+            opacity: 0.8;
+          }
+          to {
+            top: 3.5rem;
+            left: 1rem;
+            right: auto;
+            transform: translate(0, 0) scale(1);
+            opacity: 1;
+          }
+        }
+      `}</style>
+
       {/* Single video element that follows scroll */}
       <div
         className="absolute inset-0 flex items-center justify-center pointer-events-none"
@@ -304,7 +446,7 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
       )}
 
       {/* Controls */}
-      <div className="absolute top-4 right-4 z-30 flex gap-2">
+      <div className="absolute top-4 right-4 z-50 flex gap-2">
         <Button variant="ghost" size="icon" className="text-white hover:bg-white/20" onClick={handleMuteToggle}>
           {isMuted ? <VolumeX className="h-6 w-6" /> : <Volume2 className="h-6 w-6" />}
         </Button>
@@ -332,7 +474,7 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
             className="h-full w-full snap-start snap-always relative flex items-center justify-center"
           >
             {/* Scene info overlay */}
-            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-6 pb-8 pointer-events-none z-20">
+            <div className="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/80 to-transparent p-6 pb-8 pointer-events-none z-20">
               <h3 className="text-white text-lg font-semibold mb-1 line-clamp-2">{scene.title}</h3>
               <div className="flex items-center gap-4 text-white/70 text-sm">
                 <span>{scene.start_time} - {scene.end_time}</span>
