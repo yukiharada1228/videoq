@@ -406,7 +406,7 @@ class PopularScenesView(APIView):
         # Count (video_id, start_time, end_time) tuples
         scene_counter: Counter = Counter()
         scene_info: dict = {}
-        scene_questions: dict = {}  # key -> set of questions
+        scene_questions: dict = {}  # key -> list of unique questions (max 3)
 
         for log in chat_logs:
             related_videos = log.get("related_videos")
@@ -430,11 +430,11 @@ class PopularScenesView(APIView):
                             "start_time": start_time,
                             "end_time": end_time or start_time,
                         }
-                    # Collect unique questions for this scene
+                    # Collect unique questions for this scene (up to 3)
                     if question:
                         if key not in scene_questions:
                             scene_questions[key] = []
-                        if question not in scene_questions[key]:
+                        if len(scene_questions[key]) < 3 and question not in scene_questions[key]:
                             scene_questions[key].append(question)
 
         # Get top N scenes
@@ -457,8 +457,7 @@ class PopularScenesView(APIView):
         result = []
         for (video_id, start_time), count in top_scenes:
             info = scene_info[(video_id, start_time)]
-            # Return up to 3 unique questions for this scene
-            questions = scene_questions.get((video_id, start_time), [])[:3]
+            questions = scene_questions.get((video_id, start_time), [])
             result.append(
                 {
                     "video_id": info["video_id"],
