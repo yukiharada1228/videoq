@@ -13,10 +13,8 @@ from rest_framework.test import APIRequestFactory, force_authenticate
 
 from app.models import Tag, Video, VideoGroup, VideoGroupMember, VideoTag
 from app.video.serializers import (TagCreateSerializer, TagDetailSerializer,
-                                   TagUpdateSerializer,
-                                   VideoCreateSerializer,
-                                   VideoGroupDetailSerializer,
-                                   VideoSerializer)
+                                   TagUpdateSerializer, VideoCreateSerializer,
+                                   VideoGroupDetailSerializer, VideoSerializer)
 
 User = get_user_model()
 

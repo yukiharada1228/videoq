@@ -520,6 +520,7 @@
     "button": "ショート動画",
     "noScenes": "表示するシーンがありません",
     "referenceCount": "{{count}}回参照",
-    "tapToPlay": "タップして再生"
+    "tapToPlay": "タップして再生",
+    "question": "質問"
   }
 }
