@@ -2,7 +2,6 @@ import csv
 import json
 from collections import Counter
 
-from django.core.cache import cache
 from django.db.models import Prefetch
 from django.http import HttpResponse
 from drf_spectacular.utils import OpenApiParameter, extend_schema
@@ -383,19 +382,11 @@ class PopularScenesView(APIView):
             if share_token:
                 group = _get_video_group_with_members(group_id, share_token=share_token)
             else:
-                group = _get_video_group_with_members(
-                    group_id, user_id=request.user.id
-                )
+                group = _get_video_group_with_members(group_id, user_id=request.user.id)
         except VideoGroup.DoesNotExist:
             return create_error_response(
                 "Specified group not found", status.HTTP_404_NOT_FOUND
             )
-
-        # Try cache first (5 minute TTL)
-        cache_key = f"popular_scenes_{group_id}_{limit}"
-        result = cache.get(cache_key)
-        if result is not None:
-            return Response(result)
 
         # Get all chat logs for the group
         chat_logs = ChatLog.objects.filter(group=group).values_list(
@@ -457,7 +448,5 @@ class PopularScenesView(APIView):
                     "file": video_file_map.get(video_id),
                 }
             )
-
-        cache.set(cache_key, result, timeout=300)
 
         return Response(result)
