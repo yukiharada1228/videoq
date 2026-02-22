@@ -25,7 +25,9 @@ class GetLangchainLLMTests(TestCase):
         )
 
     @patch("app.chat.services.llm.ChatOpenAI")
-    @override_settings(LLM_PROVIDER="openai", OPENAI_API_KEY="test-api-key", LLM_MODEL="gpt-4o-mini")
+    @override_settings(
+        LLM_PROVIDER="openai", OPENAI_API_KEY="test-api-key", LLM_MODEL="gpt-4o-mini"
+    )
     def test_get_langchain_llm_with_api_key(self, mock_chat_openai):
         """Test get_langchain_llm when API key is configured via environment"""
         llm, error_response = get_langchain_llm(self.user)
@@ -39,7 +41,9 @@ class GetLangchainLLMTests(TestCase):
         )
 
     @patch("app.chat.services.llm.ChatOpenAI")
-    @override_settings(LLM_PROVIDER="openai", OPENAI_API_KEY="test-api-key", LLM_MODEL="gpt-4o")
+    @override_settings(
+        LLM_PROVIDER="openai", OPENAI_API_KEY="test-api-key", LLM_MODEL="gpt-4o"
+    )
     def test_get_langchain_llm_with_custom_model(self, mock_chat_openai):
         """Test get_langchain_llm with custom LLM model from environment"""
         llm, error_response = get_langchain_llm(self.user)
@@ -52,7 +56,9 @@ class GetLangchainLLMTests(TestCase):
             temperature=0.0,
         )
 
-    @override_settings(LLM_PROVIDER="openai", OPENAI_API_KEY="", LLM_MODEL="gpt-4o-mini")
+    @override_settings(
+        LLM_PROVIDER="openai", OPENAI_API_KEY="", LLM_MODEL="gpt-4o-mini"
+    )
     @patch.dict("os.environ", {"OPENAI_API_KEY": ""}, clear=False)
     def test_get_langchain_llm_without_api_key(self):
         """Test get_langchain_llm when API key is not configured"""
@@ -63,7 +69,9 @@ class GetLangchainLLMTests(TestCase):
         self.assertEqual(error_response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("OPENAI_API_KEY", str(error_response.data))
 
-    @override_settings(LLM_PROVIDER="openai", OPENAI_API_KEY=None, LLM_MODEL="gpt-4o-mini")
+    @override_settings(
+        LLM_PROVIDER="openai", OPENAI_API_KEY=None, LLM_MODEL="gpt-4o-mini"
+    )
     @patch.dict("os.environ", {"OPENAI_API_KEY": ""}, clear=False)
     def test_get_langchain_llm_with_none_api_key(self):
         """Test get_langchain_llm when API key is None"""

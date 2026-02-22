@@ -153,7 +153,9 @@ def update_video_title_in_vectors(video_id, new_title):
                     to_jsonb(%s::text)
                 )
                 WHERE video_id = %s
-                """.format(table),
+                """.format(
+                    table
+                ),
                 [new_title, int(video_id)],
             )
             updated_count = cursor.rowcount
