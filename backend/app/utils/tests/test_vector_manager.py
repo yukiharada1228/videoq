@@ -5,11 +5,14 @@ Tests for vector_manager module
 import os
 from unittest.mock import MagicMock, patch
 
-from django.test import TestCase
+from django.test import TestCase, override_settings
 
-from app.utils.vector_manager import (PGVectorManager, delete_video_vectors,
-                                      delete_video_vectors_batch,
-                                      update_video_title_in_vectors)
+from app.utils.vector_manager import (
+    PGVectorManager,
+    delete_all_vectors,
+    delete_video_vectors,
+    update_video_title_in_vectors,
+)
 
 
 class PGVectorManagerTests(TestCase):
@@ -17,239 +20,204 @@ class PGVectorManagerTests(TestCase):
 
     def setUp(self):
         """Reset singleton state"""
-        PGVectorManager._config = None
-        PGVectorManager._connection = None
+        PGVectorManager._engine = None
+        PGVectorManager._table_initialized = False
 
     def tearDown(self):
         """Clean up"""
-        PGVectorManager.close_connection()
+        PGVectorManager._engine = None
+        PGVectorManager._table_initialized = False
 
+    @patch("app.utils.vector_manager.PGEngine.from_connection_string")
     @patch.dict(
         os.environ, {"DATABASE_URL": "postgresql://test:test@localhost:5432/test"}
     )
-    def test_get_config(self):
-        """Test get_config"""
-        config = PGVectorManager.get_config()
+    def test_get_engine_creates_singleton(self, mock_from_conn):
+        mock_engine = MagicMock()
+        mock_from_conn.return_value = mock_engine
 
-        self.assertIsNotNone(config)
-        self.assertIn("database_url", config)
-        self.assertIn("collection_name", config)
-        self.assertEqual(
-            config["database_url"], "postgresql://test:test@localhost:5432/test"
+        engine1 = PGVectorManager.get_engine()
+        engine2 = PGVectorManager.get_engine()
+
+        self.assertIs(engine1, engine2)
+        mock_from_conn.assert_called_once_with(
+            url="postgresql+psycopg://test:test@localhost:5432/test"
         )
 
+    @patch("app.utils.vector_manager.PGEngine.from_connection_string")
     @patch.dict(os.environ, {}, clear=True)
-    def test_get_config_default(self):
-        """Test get_config with default values"""
-        config = PGVectorManager.get_config()
+    def test_get_engine_default_url(self, mock_from_conn):
+        mock_from_conn.return_value = MagicMock()
 
-        self.assertIsNotNone(config)
-        self.assertIn("database_url", config)
-        self.assertIn("collection_name", config)
+        PGVectorManager.get_engine()
 
-    @patch("app.utils.vector_manager.register_vector")
-    @patch("app.utils.vector_manager.psycopg2.connect")
-    def test_get_connection(self, mock_connect, mock_register):
-        """Test get_connection"""
-        mock_conn = MagicMock()
-        mock_conn.closed = False
-        mock_connect.return_value = mock_conn
-        # Mock register_vector to avoid database connection
-        mock_register.return_value = None
+        mock_from_conn.assert_called_once_with(
+            url="postgresql+psycopg://postgres:postgres@postgres:5432/postgres"
+        )
 
-        conn = PGVectorManager.get_connection()
+    @patch("app.utils.vector_manager.PGEngine.from_connection_string")
+    @patch.dict(
+        os.environ, {"DATABASE_URL": "postgres://test:test@localhost:5432/test"}
+    )
+    def test_get_engine_normalizes_postgres_short_url(self, mock_from_conn):
+        mock_from_conn.return_value = MagicMock()
 
-        self.assertIsNotNone(conn)
-        mock_connect.assert_called_once()
-        mock_register.assert_called_once_with(mock_conn)
+        PGVectorManager.get_engine()
 
-    @patch("app.utils.vector_manager.register_vector")
-    @patch("app.utils.vector_manager.psycopg2.connect")
-    def test_get_connection_reuses_existing(self, mock_connect, mock_register):
-        """Test get_connection reuses existing connection"""
-        mock_conn = MagicMock()
-        mock_conn.closed = False
-        mock_connect.return_value = mock_conn
-        mock_register.return_value = None
+        mock_from_conn.assert_called_once_with(
+            url="postgresql+psycopg://test:test@localhost:5432/test"
+        )
 
-        conn1 = PGVectorManager.get_connection()
-        conn2 = PGVectorManager.get_connection()
+    @override_settings(PGVECTOR_COLLECTION_NAME="test_collection")
+    def test_get_table_name(self):
+        self.assertEqual(PGVectorManager.get_table_name(), "test_collection")
 
-        self.assertEqual(conn1, conn2)
-        # Should only connect once
-        self.assertEqual(mock_connect.call_count, 1)
+    @override_settings(EMBEDDING_VECTOR_SIZE=768)
+    def test_get_vector_size(self):
+        self.assertEqual(PGVectorManager.get_vector_size(), 768)
 
-    @patch("app.utils.vector_manager.register_vector")
-    @patch("app.utils.vector_manager.psycopg2.connect")
-    def test_close_connection(self, mock_connect, mock_register):
-        """Test close_connection"""
-        mock_conn = MagicMock()
-        mock_conn.closed = False
-        mock_connect.return_value = mock_conn
-        mock_register.return_value = None
+    @patch.object(PGVectorManager, "get_engine")
+    def test_ensure_table_calls_init(self, mock_get_engine):
+        mock_engine = MagicMock()
+        mock_get_engine.return_value = mock_engine
 
-        PGVectorManager.get_connection()
-        PGVectorManager.close_connection()
+        PGVectorManager.ensure_table()
 
-        mock_conn.close.assert_called_once()
-        self.assertIsNone(PGVectorManager._connection)
+        mock_engine.init_vectorstore_table.assert_called_once()
 
-    @patch("app.utils.vector_manager.register_vector")
-    @patch("app.utils.vector_manager.psycopg2.connect")
-    def test_execute_with_connection_success(self, mock_connect, mock_register):
-        """Test execute_with_connection with successful operation"""
-        mock_conn = MagicMock()
-        mock_conn.closed = False
-        mock_cursor = MagicMock()
-        mock_conn.cursor.return_value = mock_cursor
-        mock_connect.return_value = mock_conn
-        mock_register.return_value = None
+    @patch.object(PGVectorManager, "get_engine")
+    def test_ensure_table_idempotent(self, mock_get_engine):
+        mock_engine = MagicMock()
+        mock_get_engine.return_value = mock_engine
 
-        def operation(cursor):
-            return "result"
+        PGVectorManager.ensure_table()
+        PGVectorManager.ensure_table()
 
-        result = PGVectorManager.execute_with_connection(operation)
+        # Only called once due to _table_initialized flag
+        mock_engine.init_vectorstore_table.assert_called_once()
 
-        self.assertEqual(result, "result")
-        mock_conn.commit.assert_called_once()
-        mock_cursor.close.assert_called_once()
+    @patch.object(PGVectorManager, "get_engine")
+    def test_ensure_table_handles_existing_table(self, mock_get_engine):
+        mock_engine = MagicMock()
+        mock_engine.init_vectorstore_table.side_effect = Exception(
+            'relation "videoq_scenes" already exists'
+        )
+        mock_get_engine.return_value = mock_engine
 
-    @patch("app.utils.vector_manager.register_vector")
-    @patch("app.utils.vector_manager.psycopg2.connect")
-    def test_execute_with_connection_error(self, mock_connect, mock_register):
-        """Test execute_with_connection with error"""
-        mock_conn = MagicMock()
-        mock_conn.closed = False
-        mock_cursor = MagicMock()
-        mock_conn.cursor.return_value = mock_cursor
-        mock_connect.return_value = mock_conn
-        mock_register.return_value = None
+        # Should not raise
+        PGVectorManager.ensure_table()
+        self.assertTrue(PGVectorManager._table_initialized)
 
-        def operation(cursor):
-            raise ValueError("Test error")
+    @patch.object(PGVectorManager, "get_engine")
+    def test_ensure_table_raises_unexpected_errors(self, mock_get_engine):
+        mock_engine = MagicMock()
+        mock_engine.init_vectorstore_table.side_effect = ConnectionError(
+            "connection refused"
+        )
+        mock_get_engine.return_value = mock_engine
 
-        with self.assertRaises(ValueError):
-            PGVectorManager.execute_with_connection(operation)
+        with self.assertRaises(ConnectionError):
+            PGVectorManager.ensure_table()
+        self.assertFalse(PGVectorManager._table_initialized)
 
-        mock_conn.rollback.assert_called_once()
-        mock_cursor.close.assert_called_once()
+    @patch("app.utils.vector_manager.PGVectorStore.create_sync")
+    @patch.object(PGVectorManager, "ensure_table")
+    @patch.object(PGVectorManager, "get_engine")
+    def test_create_vectorstore(self, mock_get_engine, mock_ensure, mock_create_sync):
+        mock_engine = MagicMock()
+        mock_get_engine.return_value = mock_engine
+        mock_store = MagicMock()
+        mock_create_sync.return_value = mock_store
 
-    def test_get_psycopg_connection_string(self):
-        """Test get_psycopg_connection_string"""
-        with patch.object(PGVectorManager, "get_config") as mock_config:
-            mock_config.return_value = {
-                "database_url": "postgresql://user:pass@host:5432/db",
-            }
+        embeddings = MagicMock()
+        result = PGVectorManager.create_vectorstore(embeddings)
 
-            result = PGVectorManager.get_psycopg_connection_string()
-
-            self.assertEqual(result, "postgresql+psycopg://user:pass@host:5432/db")
-
-    def test_get_psycopg_connection_string_already_converted(self):
-        """Test get_psycopg_connection_string with already converted string"""
-        with patch.object(PGVectorManager, "get_config") as mock_config:
-            mock_config.return_value = {
-                "database_url": "postgresql+psycopg://user:pass@host:5432/db",
-            }
-
-            result = PGVectorManager.get_psycopg_connection_string()
-
-            self.assertEqual(result, "postgresql+psycopg://user:pass@host:5432/db")
+        self.assertIs(result, mock_store)
+        mock_ensure.assert_called_once()
+        mock_create_sync.assert_called_once_with(
+            engine=mock_engine,
+            embedding_service=embeddings,
+            table_name=PGVectorManager.get_table_name(),
+            metadata_columns=["user_id", "video_id"],
+        )
 
 
-class VectorOperationsTests(TestCase):
-    """Tests for vector operations"""
+class DeleteVideoVectorsTests(TestCase):
+    """Tests for delete_video_vectors function"""
 
-    @patch("app.utils.vector_manager.PGVectorManager.execute_with_connection")
-    @patch("app.utils.vector_manager.PGVectorManager.get_config")
-    @patch("app.utils.vector_manager.logger")
-    def test_delete_video_vectors(self, mock_logger, mock_config, mock_execute):
-        """Test delete_video_vectors"""
-        mock_config.return_value = {"collection_name": "test_collection"}
-        mock_execute.return_value = 5
-
-        result = delete_video_vectors(123)
-
-        self.assertIsNone(result)  # Function doesn't return anything
-        mock_execute.assert_called_once()
-        mock_logger.info.assert_called()
-
-    @patch("app.utils.vector_manager.PGVectorManager.execute_with_connection")
-    @patch("app.utils.vector_manager.PGVectorManager.get_config")
-    @patch("app.utils.vector_manager.logger")
-    def test_delete_video_vectors_no_results(
-        self, mock_logger, mock_config, mock_execute
-    ):
-        """Test delete_video_vectors with no results"""
-        mock_config.return_value = {"collection_name": "test_collection"}
-        mock_execute.return_value = 0
+    @patch.object(PGVectorManager, "_get_management_store")
+    def test_delete_video_vectors(self, mock_get_store):
+        mock_store = MagicMock()
+        mock_get_store.return_value = mock_store
 
         delete_video_vectors(123)
 
-        mock_logger.info.assert_called()
+        mock_store.delete.assert_called_once_with(filter={"video_id": 123})
 
-    @patch("app.utils.vector_manager.PGVectorManager.execute_with_connection")
-    @patch("app.utils.vector_manager.PGVectorManager.get_config")
+    @patch.object(PGVectorManager, "_get_management_store")
     @patch("app.utils.vector_manager.logger")
-    def test_delete_video_vectors_error(self, mock_logger, mock_config, mock_execute):
-        """Test delete_video_vectors with error"""
-        mock_config.return_value = {"collection_name": "test_collection"}
-        mock_execute.side_effect = Exception("Database error")
+    def test_delete_video_vectors_error(self, mock_logger, mock_get_store):
+        mock_get_store.side_effect = Exception("Database error")
 
         delete_video_vectors(123)
 
         mock_logger.warning.assert_called()
 
-    @patch("app.utils.vector_manager.PGVectorManager.execute_with_connection")
-    @patch("app.utils.vector_manager.PGVectorManager.get_config")
-    @patch("app.utils.vector_manager.logger")
-    def test_delete_video_vectors_batch(self, mock_logger, mock_config, mock_execute):
-        """Test delete_video_vectors_batch"""
-        mock_config.return_value = {"collection_name": "test_collection"}
-        mock_execute.return_value = 10
 
-        delete_video_vectors_batch([1, 2, 3])
+class UpdateVideoTitleTests(TestCase):
+    """Tests for update_video_title_in_vectors function"""
 
-        mock_execute.assert_called_once()
-        mock_logger.info.assert_called()
-
-    @patch("app.utils.vector_manager.logger")
-    def test_delete_video_vectors_batch_empty(self, mock_logger):
-        """Test delete_video_vectors_batch with empty list"""
-        delete_video_vectors_batch([])
-
-        mock_logger.info.assert_not_called()
-
-    @patch("app.utils.vector_manager.PGVectorManager.execute_with_connection")
-    @patch("app.utils.vector_manager.logger")
-    def test_update_video_title_in_vectors(self, mock_logger, mock_execute):
-        """Test update_video_title_in_vectors"""
-        mock_execute.return_value = 3
+    @patch("django.db.connection")
+    def test_update_video_title_in_vectors(self, mock_connection):
+        mock_cursor = MagicMock()
+        mock_cursor.rowcount = 3
+        mock_connection.cursor.return_value.__enter__ = MagicMock(
+            return_value=mock_cursor
+        )
+        mock_connection.cursor.return_value.__exit__ = MagicMock(return_value=False)
 
         result = update_video_title_in_vectors(123, "New Title")
 
         self.assertEqual(result, 3)
-        mock_execute.assert_called_once()
-        mock_logger.info.assert_called()
+        mock_cursor.execute.assert_called_once()
 
-    @patch("app.utils.vector_manager.PGVectorManager.execute_with_connection")
-    @patch("app.utils.vector_manager.logger")
-    def test_update_video_title_in_vectors_no_results(self, mock_logger, mock_execute):
-        """Test update_video_title_in_vectors with no results"""
-        mock_execute.return_value = 0
-
-        result = update_video_title_in_vectors(123, "New Title")
-
-        self.assertEqual(result, 0)
-        mock_logger.info.assert_called()
-
-    @patch("app.utils.vector_manager.PGVectorManager.execute_with_connection")
-    @patch("app.utils.vector_manager.logger")
-    def test_update_video_title_in_vectors_error(self, mock_logger, mock_execute):
-        """Test update_video_title_in_vectors with error"""
-        mock_execute.side_effect = Exception("Database error")
+    @patch("django.db.connection")
+    def test_update_video_title_in_vectors_no_results(self, mock_connection):
+        mock_cursor = MagicMock()
+        mock_cursor.rowcount = 0
+        mock_connection.cursor.return_value.__enter__ = MagicMock(
+            return_value=mock_cursor
+        )
+        mock_connection.cursor.return_value.__exit__ = MagicMock(return_value=False)
 
         result = update_video_title_in_vectors(123, "New Title")
 
         self.assertEqual(result, 0)
-        mock_logger.warning.assert_called()
+
+
+class DeleteAllVectorsTests(TestCase):
+    """Tests for delete_all_vectors function"""
+
+    @patch("django.db.connection")
+    def test_delete_all_vectors(self, mock_connection):
+        mock_cursor = MagicMock()
+        mock_cursor.rowcount = 100
+        mock_connection.cursor.return_value.__enter__ = MagicMock(
+            return_value=mock_cursor
+        )
+        mock_connection.cursor.return_value.__exit__ = MagicMock(return_value=False)
+
+        result = delete_all_vectors()
+
+        self.assertEqual(result, 100)
+        mock_cursor.execute.assert_called_once()
+
+    @patch("django.db.connection")
+    def test_delete_all_vectors_error(self, mock_connection):
+        mock_connection.cursor.return_value.__enter__ = MagicMock(
+            side_effect=Exception("Database error")
+        )
+        mock_connection.cursor.return_value.__exit__ = MagicMock(return_value=False)
+
+        with self.assertRaises(Exception):
+            delete_all_vectors()
