@@ -55,6 +55,19 @@ class PGVectorManagerTests(TestCase):
             url="postgresql+psycopg://postgres:postgres@postgres:5432/postgres"
         )
 
+    @patch("app.utils.vector_manager.PGEngine.from_connection_string")
+    @patch.dict(
+        os.environ, {"DATABASE_URL": "postgres://test:test@localhost:5432/test"}
+    )
+    def test_get_engine_normalizes_postgres_short_url(self, mock_from_conn):
+        mock_from_conn.return_value = MagicMock()
+
+        PGVectorManager.get_engine()
+
+        mock_from_conn.assert_called_once_with(
+            url="postgresql+psycopg://test:test@localhost:5432/test"
+        )
+
     @override_settings(PGVECTOR_COLLECTION_NAME="test_collection")
     def test_get_table_name(self):
         self.assertEqual(PGVectorManager.get_table_name(), "test_collection")
@@ -86,12 +99,26 @@ class PGVectorManagerTests(TestCase):
     @patch.object(PGVectorManager, "get_engine")
     def test_ensure_table_handles_existing_table(self, mock_get_engine):
         mock_engine = MagicMock()
-        mock_engine.init_vectorstore_table.side_effect = Exception("Table exists")
+        mock_engine.init_vectorstore_table.side_effect = Exception(
+            'relation "videoq_scenes" already exists'
+        )
         mock_get_engine.return_value = mock_engine
 
         # Should not raise
         PGVectorManager.ensure_table()
         self.assertTrue(PGVectorManager._table_initialized)
+
+    @patch.object(PGVectorManager, "get_engine")
+    def test_ensure_table_raises_unexpected_errors(self, mock_get_engine):
+        mock_engine = MagicMock()
+        mock_engine.init_vectorstore_table.side_effect = ConnectionError(
+            "connection refused"
+        )
+        mock_get_engine.return_value = mock_engine
+
+        with self.assertRaises(ConnectionError):
+            PGVectorManager.ensure_table()
+        self.assertFalse(PGVectorManager._table_initialized)
 
     @patch("app.utils.vector_manager.PGVectorStore.create_sync")
     @patch.object(PGVectorManager, "ensure_table")
