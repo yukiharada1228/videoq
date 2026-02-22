@@ -278,17 +278,18 @@ USE_S3_STORAGE = (
 )
 
 if USE_S3_STORAGE:
-    # AWS S3 basic settings
+    # AWS S3 / Cloudflare R2 basic settings
+    # django-storages automatically reads these global settings
     AWS_ACCESS_KEY_ID = os.environ.get("AWS_ACCESS_KEY_ID")
     AWS_SECRET_ACCESS_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY")
     AWS_STORAGE_BUCKET_NAME = os.environ.get("AWS_STORAGE_BUCKET_NAME")
-    AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com"
-    AWS_S3_REGION_NAME = os.environ.get("AWS_S3_REGION_NAME", "ap-northeast-1")
-    # Enable presigned URLs (default True)
+    AWS_S3_REGION_NAME = os.environ.get("AWS_S3_REGION_NAME") or None
+    AWS_S3_ENDPOINT_URL = os.environ.get("AWS_S3_ENDPOINT_URL") or None
+    AWS_S3_CUSTOM_DOMAIN = os.environ.get("AWS_S3_CUSTOM_DOMAIN") or None
+
+    # Presigned URL settings
     AWS_QUERYSTRING_AUTH = True
-    # Presigned URL expiration (seconds, default 3600)
     AWS_QUERYSTRING_EXPIRE = 3600
-    # All-region compatible signature version
     AWS_S3_SIGNATURE_VERSION = "s3v4"
 
     # Configure storage using Django 4.2+ method
@@ -296,29 +297,17 @@ if USE_S3_STORAGE:
         "staticfiles": {  # Static file storage
             "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
             "OPTIONS": {
-                "bucket_name": AWS_STORAGE_BUCKET_NAME,
-                "access_key": AWS_ACCESS_KEY_ID,
-                "secret_key": AWS_SECRET_ACCESS_KEY,
-                "location": "static",  # Directory in S3
-                "default_acl": "private",  # Change ACL to private
-                "custom_domain": False,
-                "querystring_auth": True,  # Enable presigned URLs
-                "querystring_expire": 3600,  # Override URL expiration
+                "location": "static",
+                "default_acl": "private",
                 "object_parameters": {"CacheControl": "max-age=86400"},
             },
         },
         "default": {  # Media file storage
             "BACKEND": "app.models.storage.SafeS3Boto3Storage",
             "OPTIONS": {
-                "bucket_name": AWS_STORAGE_BUCKET_NAME,
-                "access_key": AWS_ACCESS_KEY_ID,
-                "secret_key": AWS_SECRET_ACCESS_KEY,
-                "location": "media",  # Directory in S3
-                "default_acl": "private",  # Change ACL to private
+                "location": "media",
+                "default_acl": "private",
                 "file_overwrite": False,
-                "custom_domain": False,
-                "querystring_auth": True,  # Enable presigned URLs
-                "querystring_expire": 3600,  # Override URL expiration
             },
         },
     }

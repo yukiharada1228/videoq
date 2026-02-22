@@ -214,7 +214,7 @@ graph TB
         E1[POSTGRES_DB]
         E2[POSTGRES_USER]
         E3[POSTGRES_PASSWORD]
-        E4["SECRET_KEY<br/>(recommended; required for production)"]
+        E4["SECRET_KEY<br/>(required)"]
         E5[DATABASE_URL]
         E6[CELERY_BROKER_URL]
         E6b[CELERY_RESULT_BACKEND]

@@ -45,9 +45,16 @@ cd videoq
 cp .env.example .env
 ```
 
-`.env` ファイルを編集してOpenAI APIキーを追加：
+`.env` ファイルを編集して必要なキーを設定：
 
 ```bash
+# SECRET_KEYを生成して設定（必須）
+docker compose run --rm backend python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
+
+# 生成された値を .env に設定
+SECRET_KEY=生成された値をここに貼り付け
+
+# OpenAI APIキーを設定
 OPENAI_API_KEY=sk-your-key-here
 ```
 
