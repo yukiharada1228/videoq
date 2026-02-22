@@ -514,6 +514,7 @@
     "button": "Short Videos",
     "noScenes": "No scenes to display",
     "referenceCount": "{{count}} references",
-    "tapToPlay": "Tap to play"
+    "tapToPlay": "Tap to play",
+    "question": "Question"
   }
 }
