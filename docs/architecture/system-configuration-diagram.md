@@ -242,7 +242,8 @@ graph TB
             CORS["CORS Settings
             Allowed Origin Restrictions"]
             RateLimit["Rate Limiting
-            API Call Restrictions"]
+            API Call Restrictions
+            (Not yet implemented)"]
         end
     end
 
