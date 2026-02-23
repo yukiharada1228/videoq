@@ -4,7 +4,7 @@
 
 VideoQは、動画を自動で文字起こしし、自然言語で動画と会話できるAI搭載の動画ナビゲーターです。
 
-または、以下の手順でローカル環境にセットアップできます。
+以下の手順でローカル環境にセットアップできます。
 
 ![VideoQ Application Screenshot](assets/screenshot.gif)
 
