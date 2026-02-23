@@ -14,6 +14,9 @@ from app.common.authentication import CookieJWTAuthentication
 from app.common.permissions import (IsAuthenticatedOrSharedAccess,
                                     ShareTokenAuthentication)
 from app.common.responses import create_error_response
+from app.common.throttles import (ChatShareTokenBurstThrottle,
+                                  ChatShareTokenRateThrottle,
+                                  ChatUserRateThrottle)
 from app.models import ChatLog, Video, VideoGroup, VideoGroupMember
 
 from .serializers import (ChatFeedbackRequestSerializer,
@@ -71,6 +74,11 @@ class ChatView(generics.CreateAPIView):
     serializer_class = ChatRequestSerializer
     authentication_classes = [CookieJWTAuthentication, ShareTokenAuthentication]
     permission_classes = [IsAuthenticatedOrSharedAccess]
+    throttle_classes = [
+        ChatUserRateThrottle,
+        ChatShareTokenRateThrottle,
+        ChatShareTokenBurstThrottle,
+    ]
 
     @extend_schema(
         request=ChatRequestSerializer,

@@ -195,6 +195,11 @@ REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": [
         "rest_framework.renderers.JSONRenderer",
     ],
+    "DEFAULT_THROTTLE_RATES": {
+        "chat_user": "30/minute",
+        "chat_shared": "120/hour",
+        "chat_shared_burst": "20/minute",
+    },
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "EXCEPTION_HANDLER": "app.common.exceptions.custom_exception_handler",
 }
