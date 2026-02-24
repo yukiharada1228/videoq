@@ -43,7 +43,10 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    Start([User Sends Question]) --> Auth{Authentication Check}
+    Start([User Sends Question]) --> RateLimit{"Rate Limit<br>Check"}
+    RateLimit -->|Exceeded| ErrorRateLimit[Rate Limit Error<br/>429 Too Many Requests]
+    ErrorRateLimit --> End
+    RateLimit -->|OK| Auth{Authentication Check}
     Auth -->|Unauthenticated| Error1[Authentication Error]
     Auth -->|Authenticated| GetGroup{Group Specified?}
     
@@ -75,7 +78,10 @@ flowchart TD
     Start([User Signs Up]) --> Input[Input User Information]
     Input --> Validate{Input Validation}
     Validate -->|Invalid| ShowError[Error Display]
-    Validate -->|Valid| CreateUser[Create User<br/>is_active: False]
+    Validate -->|Valid| RateLimitSignup{"Rate Limit<br>Check"}
+    RateLimitSignup -->|Exceeded| ErrorRateLimitSignup[Rate Limit Error<br/>429 Too Many Requests]
+    ErrorRateLimitSignup --> End
+    RateLimitSignup -->|OK| CreateUser[Create User<br/>is_active: False]
     CreateUser --> GenerateToken[Generate Verification Token]
     GenerateToken --> SendEmail[Send Verification Email]
     SendEmail --> ShowMessage[Display Email Confirmation Waiting Screen]

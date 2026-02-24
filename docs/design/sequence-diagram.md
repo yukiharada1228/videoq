@@ -71,6 +71,7 @@ sequenceDiagram
 
     User->>Frontend: Input Question
     Frontend->>Backend: POST /api/chat/ (body: group_id=123)
+    Backend->>Backend: Rate Limit Check (DRF Throttle)
     Note over Backend: Uses global LLM_PROVIDER and EMBEDDING_PROVIDER settings
     Backend->>DB: Get VideoGroup
     DB-->>Backend: VideoGroup Information
@@ -97,6 +98,7 @@ sequenceDiagram
 
     User->>Frontend: Input Sign Up Information
     Frontend->>Backend: POST /api/auth/signup/
+    Backend->>Backend: Rate Limit Check
     Backend->>DB: Create User(is_active: False)
     DB-->>Backend: User Created
     Backend->>Backend: Generate Verification Token
@@ -115,6 +117,7 @@ sequenceDiagram
     
     User->>Frontend: Input Login Information
     Frontend->>Backend: POST /api/auth/login/
+    Backend->>Backend: Rate Limit Check
     Backend->>DB: Verify Credentials
     DB-->>Backend: User Information
     Backend->>Backend: Generate JWT Tokens<br/>(Access & Refresh)
@@ -208,6 +211,7 @@ sequenceDiagram
 
     User->>Frontend: Request Password Reset
     Frontend->>Backend: POST /api/auth/password-reset/
+    Backend->>Backend: Rate Limit Check
     Backend->>DB: Search User(Email Address)
     DB-->>Backend: User Information
     Backend->>Backend: Generate Reset Token
