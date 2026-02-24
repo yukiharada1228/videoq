@@ -218,6 +218,7 @@ graph TB
         E5[DATABASE_URL]
         E6[CELERY_BROKER_URL]
         E6b[CELERY_RESULT_BACKEND]
+        E6c[CACHE_URL]
         E7[ENABLE_SIGNUP]
         E8[ALLOWED_HOSTS]
         E9[CORS_ALLOWED_ORIGINS]
@@ -250,6 +251,7 @@ graph TB
     E5 --> C2
     E6 --> C2
     E6b --> C2
+    E6c --> C2
     E6 --> C3
     E6b --> C3
     E7 --> C2
