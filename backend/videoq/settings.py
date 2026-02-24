@@ -26,6 +26,7 @@ class DefaultSettings:
     # Celery
     CELERY_BROKER_URL = "redis://localhost:6379/0"
     CELERY_RESULT_BACKEND = "redis://localhost:6379/0"
+    CACHE_URL = "redis://localhost:6379/0"
 
     # Security
     SECRET_KEY = "django-insecure-644978l%$qgjwpo$w!5i7l#y(m&h)e$u#3en_a%ln^4!js$-*+"
@@ -140,12 +141,13 @@ DATABASES = {
     )
 }
 
-# Cache configuration (shares the same Redis instance as Celery)
+# Cache configuration
 CACHES = {
     "default": {
         "BACKEND": "django.core.cache.backends.redis.RedisCache",
         "LOCATION": os.environ.get(
-            "CELERY_BROKER_URL", DefaultSettings.CELERY_BROKER_URL
+            "CACHE_URL",
+            os.environ.get("CACHE_URL", DefaultSettings.CACHE_URL)
         ),
     }
 }
