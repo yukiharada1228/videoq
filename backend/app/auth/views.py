@@ -8,6 +8,9 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from app.common.exceptions import ErrorCode
 from app.common.responses import create_error_response, create_success_response
+from app.common.throttles import (LoginIPThrottle, LoginUsernameThrottle,
+                                  PasswordResetEmailThrottle,
+                                  PasswordResetIPThrottle, SignupIPThrottle)
 from app.utils.mixins import AuthenticatedViewMixin, PublicViewMixin
 
 from .serializers import (EmailVerificationSerializer, LoginResponseSerializer,
@@ -34,6 +37,7 @@ class UserSignupView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = UserSignupSerializer
     permission_classes = PublicViewMixin.permission_classes
+    throttle_classes = [SignupIPThrottle]
 
     @extend_schema(
         request=UserSignupSerializer,
@@ -55,6 +59,7 @@ class LoginView(PublicAPIView):
     """Login view"""
 
     serializer_class = LoginSerializer
+    throttle_classes = [LoginIPThrottle, LoginUsernameThrottle]
 
     @extend_schema(
         request=LoginSerializer,
@@ -201,6 +206,7 @@ class PasswordResetRequestView(PublicAPIView):
     """Password reset request view"""
 
     serializer_class = PasswordResetRequestSerializer
+    throttle_classes = [PasswordResetIPThrottle, PasswordResetEmailThrottle]
 
     @extend_schema(
         request=PasswordResetRequestSerializer,

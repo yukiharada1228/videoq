@@ -47,7 +47,14 @@ def custom_exception_handler(exc, context):
     if fields:
         error_data["fields"] = fields
 
-    return Response({"error": error_data}, status=response.status_code)
+    new_response = Response({"error": error_data}, status=response.status_code)
+
+    # Preserve headers from the original DRF response (e.g. Retry-After)
+    for key, value in response.items():
+        if key not in new_response:
+            new_response[key] = value
+
+    return new_response
 
 
 def _get_error_code(status_code: int, exc) -> str:
