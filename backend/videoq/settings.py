@@ -140,6 +140,16 @@ DATABASES = {
     )
 }
 
+# Cache configuration (shares the same Redis instance as Celery)
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": os.environ.get(
+            "CELERY_BROKER_URL", DefaultSettings.CELERY_BROKER_URL
+        ),
+    }
+}
+
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
 
@@ -197,6 +207,18 @@ REST_FRAMEWORK = {
     ],
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "EXCEPTION_HANDLER": "app.common.exceptions.custom_exception_handler",
+    # Rate limiting: accurate client IP behind reverse proxies
+    "NUM_PROXIES": int(os.environ.get("NUM_PROXIES", "1")),
+    "DEFAULT_THROTTLE_RATES": {
+        "chat_share_token_ip": "100/hour",
+        "chat_share_token_global": "1000/hour",
+        "chat_authenticated": "300/hour",
+        "login_ip": "5/minute",
+        "login_username": "5/minute",
+        "signup_ip": "3/hour",
+        "password_reset_ip": "3/hour",
+        "password_reset_email": "3/hour",
+    },
 }
 
 SIMPLE_JWT = {
