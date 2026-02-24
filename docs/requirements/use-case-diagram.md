@@ -51,6 +51,7 @@ graph TB
         UC24[View Chat History]
         UC25[Export Chat History]
         UC26[Send Feedback]
+        UC32[View Popular Scenes]
     end
 
     subgraph Sharing["Sharing Features"]
@@ -100,6 +101,7 @@ graph TB
     User --> UC29
     User --> UC30
     User --> UC31
+    User --> UC32
     
     Guest --> UC29
     Guest --> UC30
@@ -152,6 +154,7 @@ graph TB
 - **UC24 View Chat History**: Display past chat history
 - **UC25 Export Chat History**: Export chat history as CSV
 - **UC26 Send Feedback**: Provide feedback on chat response
+- **UC32 View Popular Scenes**: View popular scenes referenced in chat
 
 ### Sharing Features
 - **UC27 Generate Share Link**: Generate share link for group
