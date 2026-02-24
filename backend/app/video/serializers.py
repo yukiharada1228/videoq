@@ -58,17 +58,25 @@ class VideoCreateSerializer(UserOwnedSerializerMixin, serializers.ModelSerialize
     """Serializer for Video creation"""
 
     ALLOWED_VIDEO_EXTENSIONS = {
-        ".mp4", ".mov", ".avi", ".mkv", ".webm", ".m4v", ".mpeg", ".mpg", ".3gp",
+        ".mp4",
+        ".mov",
+        ".avi",
+        ".mkv",
+        ".webm",
+        ".m4v",
+        ".mpeg",
+        ".mpg",
+        ".3gp",
     }
     ALLOWED_VIDEO_MIMETYPES = {
         "video/mp4",
-        "video/quicktime",       # .mov
-        "video/x-msvideo",       # .avi
-        "video/x-matroska",      # .mkv
-        "video/webm",            # .webm
-        "video/x-m4v",           # .m4v
-        "video/mpeg",            # .mpeg, .mpg
-        "video/3gpp",            # .3gp
+        "video/quicktime",  # .mov
+        "video/x-msvideo",  # .avi
+        "video/x-matroska",  # .mkv
+        "video/webm",  # .webm
+        "video/x-m4v",  # .m4v
+        "video/mpeg",  # .mpeg, .mpg
+        "video/3gpp",  # .3gp
     }
 
     class Meta:
