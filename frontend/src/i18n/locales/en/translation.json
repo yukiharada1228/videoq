@@ -436,7 +436,7 @@
     "feedbackNone": "Not rated",
     "placeholder": "Type a message...",
     "assistantGreeting": "Hello! Ask me anything about your videos.",
-    "error": "An error occurred. Please make sure your API key is configured correctly."
+    "error": "An error occurred in the chat."
   },
   "shared": {
     "loadError": "Failed to load the shared chat group.",
