@@ -14,6 +14,9 @@ from app.common.authentication import CookieJWTAuthentication
 from app.common.permissions import (IsAuthenticatedOrSharedAccess,
                                     ShareTokenAuthentication)
 from app.common.responses import create_error_response
+from app.common.throttles import (AuthenticatedChatThrottle,
+                                  ShareTokenGlobalThrottle,
+                                  ShareTokenIPThrottle)
 from app.models import ChatLog, Video, VideoGroup, VideoGroupMember
 
 from .serializers import (ChatFeedbackRequestSerializer,
@@ -71,6 +74,11 @@ class ChatView(generics.CreateAPIView):
     serializer_class = ChatRequestSerializer
     authentication_classes = [CookieJWTAuthentication, ShareTokenAuthentication]
     permission_classes = [IsAuthenticatedOrSharedAccess]
+    throttle_classes = [
+        ShareTokenIPThrottle,
+        ShareTokenGlobalThrottle,
+        AuthenticatedChatThrottle,
+    ]
 
     @extend_schema(
         request=ChatRequestSerializer,
@@ -434,7 +442,10 @@ class PopularScenesView(APIView):
                     if question:
                         if key not in scene_questions:
                             scene_questions[key] = []
-                        if len(scene_questions[key]) < 3 and question not in scene_questions[key]:
+                        if (
+                            len(scene_questions[key]) < 3
+                            and question not in scene_questions[key]
+                        ):
                             scene_questions[key].append(question)
 
         # Get top N scenes
