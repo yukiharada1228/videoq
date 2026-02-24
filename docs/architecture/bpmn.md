@@ -12,7 +12,10 @@ flowchart TD
     UserInput --> Validate{Input Validation}
     Validate -->|Invalid| ShowError[Error Display]
     ShowError --> UserInput
-    Validate -->|Valid| CreateAccount[Create Account]
+    Validate -->|Valid| RateLimit{"Rate Limit Check"}
+    RateLimit -->|Exceeded| ErrorRateLimit[Error Display]
+    ErrorRateLimit --> UserInput
+    RateLimit -->|OK| CreateAccount[Create Account]
     CreateAccount --> SendEmail[Send Verification Email]
     SendEmail --> WaitEmail{"User Checks<br>Email"}
     WaitEmail -->|Not Checked| Timeout{Timeout}
@@ -70,7 +73,10 @@ flowchart TD
     InputQuestion --> ValidateQuestion{Question Validation}
     ValidateQuestion -->|Invalid| ShowError[Error Display]
     ShowError --> InputQuestion
-    ValidateQuestion -->|Valid| CheckAuth{Authentication Check}
+    ValidateQuestion -->|Valid| RateLimit{"Rate Limit Check"}
+    RateLimit -->|Exceeded| ErrorRateLimit[Error Display]
+    ErrorRateLimit --> InputQuestion
+    RateLimit -->|OK| CheckAuth{Authentication Check}
     CheckAuth -->|Unauthenticated| RequireAuth[Require Authentication]
     RequireAuth --> End([End])
     CheckAuth -->|Authenticated| CheckGroup{Group Specified}
@@ -192,7 +198,10 @@ flowchart TD
 flowchart TD
     Start([Start]) --> RequestReset[Request Password Reset]
     RequestReset --> InputEmail[Input Email Address]
-    InputEmail --> ValidateEmail{"Email Address<br>Existence Check"}
+    InputEmail --> RateLimit{"Rate Limit Check"}
+    RateLimit -->|Exceeded| ErrorRateLimit[Error Display: Too Many Requests]
+    ErrorRateLimit --> InputEmail
+    RateLimit -->|OK| ValidateEmail{"Email Address<br>Existence Check"}
     ValidateEmail -->|Not Exists| ShowError[Error Display<br/>For Security, Show Success<br/>Even if Not Exists]
     ValidateEmail -->|Exists| GenerateToken[Generate Reset Token]
     GenerateToken --> SendEmail[Send Reset Email]

@@ -243,7 +243,7 @@ graph TB
             Allowed Origin Restrictions"]
             RateLimit["Rate Limiting
             API Call Restrictions
-            (Not yet implemented)"]
+            (DRF Throttling implemented)"]
         end
     end
 

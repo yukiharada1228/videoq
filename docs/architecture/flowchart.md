@@ -63,7 +63,9 @@ flowchart TD
     Input --> Validate1{Input Validation}
     Validate1 -->|Empty| Error1[Error Display]
     Validate1 -->|Valid| Send[Send API Request]
-    Send --> Auth{Authentication Check}
+    Send --> RateLimit{"Rate Limit<br>Check"}
+    RateLimit -->|Exceeded| Error6[Rate Limit Error<br/>429 Too Many Requests]
+    RateLimit -->|OK| Auth{Authentication Check}
     Auth -->|Failed| Error2[Authentication Error]
     Auth -->|Success| CheckGroup{Group Specified?}
     CheckGroup -->|No| NoContext[No Context]
@@ -88,6 +90,7 @@ flowchart TD
     Error3 --> End
     Error4 --> End
     Error5 --> End
+    Error6 --> End
 ```
 
 ## 3. User Authentication Flow
@@ -102,7 +105,9 @@ flowchart TD
     Signup --> InputSignup[Input User Information]
     InputSignup --> ValidateSignup{Input Validation}
     ValidateSignup -->|Invalid| ErrorSignup[Error Display]
-    ValidateSignup -->|Valid| CreateUser[(Database<br/>Create User<br/>is_active: False)]
+    ValidateSignup -->|Valid| RateLimitSignup{"Rate Limit<br>Check"}
+    RateLimitSignup -->|Exceeded| ErrorRateLimit[Rate Limit Error<br/>429 Too Many Requests]
+    RateLimitSignup -->|OK| CreateUser[(Database<br/>Create User<br/>is_active: False)]
     CreateUser --> GenerateToken[Generate Verification Token]
     GenerateToken --> SendEmail[Send Verification Email]
     SendEmail --> ShowMessage[Email Confirmation Waiting Screen]
@@ -115,7 +120,9 @@ flowchart TD
     RedirectLogin --> Login
     
     Login --> InputLogin[Input Login Information]
-    InputLogin --> ValidateLogin{Credential Verification}
+    InputLogin --> RateLimitLogin{"Rate Limit<br>Check"}
+    RateLimitLogin -->|Exceeded| ErrorRateLimit[Rate Limit Error<br/>429 Too Many Requests]
+    RateLimitLogin -->|OK| ValidateLogin{Credential Verification}
     ValidateLogin -->|Invalid| ErrorLogin[Authentication Error]
     ValidateLogin -->|Valid| GenerateJWT[Generate JWT Tokens<br/>Access & Refresh]
     GenerateJWT --> SetCookie[Set HttpOnly Cookies<br/>Access & Refresh Tokens]
@@ -123,7 +130,9 @@ flowchart TD
     RedirectHome --> End([Authentication Complete])
     
     Reset --> InputEmail[Input Email Address]
-    InputEmail --> ValidateEmail{"Email Address<br>Exists Check"}
+    InputEmail --> RateLimitReset{"Rate Limit<br>Check"}
+    RateLimitReset -->|Exceeded| ErrorRateLimit[Rate Limit Error<br/>429 Too Many Requests]
+    RateLimitReset -->|OK| ValidateEmail{"Email Address<br>Exists Check"}
     ValidateEmail -->|Not Exists| ErrorEmail[Error Display]
     ValidateEmail -->|Exists| GenerateResetToken[Generate Reset Token]
     GenerateResetToken --> SendResetEmail[Send Reset Email]
@@ -141,6 +150,7 @@ flowchart TD
     ErrorLogin --> End
     ErrorEmail --> End
     ErrorResetToken --> End
+    ErrorRateLimit --> End
 ```
 
 ## 4. Group Management Flow
