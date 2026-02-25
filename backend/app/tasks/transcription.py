@@ -8,6 +8,7 @@ import tempfile
 
 from celery import shared_task
 from django.conf import settings
+from django.db import transaction
 
 from app.tasks.audio_processing import extract_and_split_audio
 from app.tasks.srt_processing import (apply_scene_splitting,
@@ -66,6 +67,7 @@ def cleanup_external_upload(video_file, video_id):
         )
 
 
+@transaction.atomic
 def save_transcription_result(video, scene_split_srt):
     """
     Save transcription result

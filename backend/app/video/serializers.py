@@ -1,5 +1,6 @@
 import logging
 
+from django.db import transaction
 from rest_framework import serializers
 
 from app.models import Tag, Video, VideoGroup
@@ -138,18 +139,23 @@ class VideoCreateSerializer(UserOwnedSerializerMixin, serializers.ModelSerialize
 
         return attrs
 
+    @transaction.atomic
     def create(self, validated_data):
         """Start transcription task when Video is created"""
         # Create Video instance
         video = super().create(validated_data)
 
-        # Execute Celery task asynchronously
-        logger.info(f"Starting transcription task for video ID: {video.id}")
-        try:
-            task = transcribe_video.delay(video.id)
-            logger.info(f"Transcription task created with ID: {task.id}")
-        except Exception as e:
-            logger.error(f"Failed to start transcription task: {e}")
+        # Execute Celery task after transaction commits
+        # so the task can read the committed video record
+        def _dispatch_transcription():
+            logger.info(f"Starting transcription task for video ID: {video.id}")
+            try:
+                task = transcribe_video.delay(video.id)
+                logger.info(f"Transcription task created with ID: {task.id}")
+            except Exception as e:
+                logger.error(f"Failed to start transcription task: {e}")
+
+        transaction.on_commit(_dispatch_transcription)
 
         return video
 
