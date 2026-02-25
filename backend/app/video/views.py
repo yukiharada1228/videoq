@@ -1,6 +1,7 @@
 import logging
 import secrets
 
+from django.db import transaction
 from django.db.models import Max, Prefetch, Q
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics, status
@@ -128,6 +129,7 @@ class VideoGroupMemberService:
         return (max_order if max_order is not None else -1) + 1
 
     @staticmethod
+    @transaction.atomic
     def add_video_to_group(group, video):
         """Add video to group operation"""
         if VideoGroupMemberService.get_member_queryset(group, video).first():
@@ -240,6 +242,7 @@ class VideoDetailView(
     def should_include_transcript(self):
         return True
 
+    @transaction.atomic
     def update(self, request, *args, **kwargs):
         """Update PGVector metadata when Video is updated"""
         partial = kwargs.pop("partial", False)
@@ -266,18 +269,19 @@ class VideoDetailView(
 
         update_video_title_in_vectors(video_id, new_title)
 
+    @transaction.atomic
     def destroy(self, request, *args, **kwargs):
         """Delete file and vector data when Video is deleted (hard delete)"""
         instance = self.get_object()
-
-        # Delete file if it exists (actual file deletion)
-        if instance.file:
-            instance.file.delete(save=False)
 
         # Hard delete: delete the video record
         # CASCADE will handle VideoGroupMember
         # post_delete signal will handle vector deletion
         instance.delete()
+
+        # Delete file after DB deletion succeeds
+        if instance.file:
+            transaction.on_commit(lambda: instance.file.delete(save=False))
 
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -344,6 +348,7 @@ def add_video_to_group(request, group_id, video_id):
     description="Add multiple videos to a group. Videos already in the group will be skipped.",
 )
 @authenticated_view_with_error_handling(["POST"])
+@transaction.atomic
 def add_videos_to_group(request, group_id):
     """Add multiple videos to group"""
     group, error = ResourceValidator.validate_and_get_resource(
@@ -424,6 +429,7 @@ def remove_video_from_group(request, group_id, video_id):
     description="Update the order of videos in a group by providing video IDs in the desired order.",
 )
 @authenticated_view_with_error_handling(["PATCH"])
+@transaction.atomic
 def reorder_videos_in_group(request, group_id):
     """Update video order in group"""
     group, error = ResourceValidator.validate_and_get_resource(
@@ -591,6 +597,7 @@ class TagDetailView(
     responses={201: AddTagsToVideoResponseSerializer},
 )
 @authenticated_view_with_error_handling(["POST"])
+@transaction.atomic
 def add_tags_to_video(request, video_id):
     """Add multiple tags to video"""
     video, error = ResourceValidator.validate_and_get_resource(

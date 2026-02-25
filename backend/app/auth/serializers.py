@@ -3,6 +3,7 @@ import logging
 from django.contrib.auth import authenticate, get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.tokens import default_token_generator
+from django.db import transaction
 from django.utils.encoding import force_str
 from django.utils.http import urlsafe_base64_decode
 from rest_framework import serializers
@@ -43,6 +44,7 @@ class UserSignupSerializer(serializers.ModelSerializer):
             )
         return value
 
+    @transaction.atomic
     def create(self, validated_data):
         try:
             user = User.objects.create_user(
@@ -58,8 +60,7 @@ class UserSignupSerializer(serializers.ModelSerializer):
         try:
             send_email_verification(user)
         except Exception:
-            # Propagate exception even if user is created but email sending fails
-            user.delete()
+            # transaction.atomic will rollback user creation automatically
             raise serializers.ValidationError(
                 "Failed to send verification email. Please try again later."
             )
