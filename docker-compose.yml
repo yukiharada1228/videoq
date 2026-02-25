@@ -40,6 +40,7 @@ services:
       - ./backend/media:/app/media
     depends_on:
       - redis
+      - postgres
     networks:
       - videoq-network
 
@@ -75,6 +76,7 @@ services:
 volumes:
   staticfiles:
   postgres_data:
+
 
 networks:
   videoq-network:
