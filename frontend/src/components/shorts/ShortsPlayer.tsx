@@ -4,6 +4,111 @@ import { X, Volume2, VolumeX, Play, MessageCircleQuestion } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { apiClient, type PopularScene } from '@/lib/api';
 import { timeStringToSeconds } from '@/lib/utils/video';
+import { useQuestionAnimation } from '@/hooks/useQuestionAnimation';
+import { useShortsScroll } from '@/hooks/useShortsScroll';
+
+type QuestionPhase = 'hidden' | 'center' | 'shrinking' | 'top';
+
+interface QuestionFlashcardProps {
+  question: string;
+  phase: QuestionPhase;
+}
+
+function QuestionFlashcard({ question, phase }: QuestionFlashcardProps) {
+  const { t } = useTranslation();
+
+  if (phase === 'hidden' || !question) return null;
+
+  return (
+    <>
+      {phase === 'center' && (
+        <div
+          className="absolute inset-0 z-40 flex items-center justify-center px-8"
+          style={{
+            animation: 'questionFadeIn 0.4s ease-out',
+          }}
+        >
+          <div
+            className="max-w-md w-full p-6 rounded-2xl text-center"
+            style={{
+              background: 'rgba(0, 0, 0, 0.7)',
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
+              border: '1px solid rgba(255, 255, 255, 0.15)',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
+            }}
+          >
+            <div className="flex items-center justify-center gap-2 mb-3">
+              <MessageCircleQuestion className="h-5 w-5 text-blue-400" />
+              <span className="text-blue-400 text-sm font-medium tracking-wide uppercase">
+                {t('shorts.question')}
+              </span>
+            </div>
+            <p className="text-white text-xl font-semibold leading-relaxed">
+              {question}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {(phase === 'shrinking' || phase === 'top') && (
+        <div
+          className="absolute left-4 right-16 z-40"
+          style={{
+            top: phase === 'shrinking' ? undefined : '3.5rem',
+            animation: phase === 'shrinking'
+              ? 'questionShrinkToTop 0.5s ease-in-out forwards'
+              : undefined,
+          }}
+        >
+          <div
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl max-w-full"
+            style={{
+              background: 'rgba(0, 0, 0, 0.6)',
+              backdropFilter: 'blur(12px)',
+              WebkitBackdropFilter: 'blur(12px)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+            }}
+          >
+            <MessageCircleQuestion className="h-4 w-4 text-blue-400 shrink-0" />
+            <p className="text-white text-sm font-medium truncate">
+              {question}
+            </p>
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes questionFadeIn {
+          from {
+            opacity: 0;
+            transform: scale(0.9);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+        @keyframes questionShrinkToTop {
+          from {
+            top: 50%;
+            left: 50%;
+            right: auto;
+            transform: translate(-50%, -50%) scale(1);
+            opacity: 0.8;
+          }
+          to {
+            top: 3.5rem;
+            left: 1rem;
+            right: auto;
+            transform: translate(0, 0) scale(1);
+            opacity: 1;
+          }
+        }
+      `}</style>
+    </>
+  );
+}
 
 interface ShortsPlayerProps {
   scenes: PopularScene[];
@@ -11,26 +116,29 @@ interface ShortsPlayerProps {
   onClose: () => void;
 }
 
-type QuestionPhase = 'center' | 'shrinking' | 'top' | 'hidden';
-
 export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps) {
   const { t } = useTranslation();
-  const containerRef = useRef<HTMLDivElement>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);  // Single video element
-  const slideRefs = useRef(new Map<number, HTMLDivElement>());
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const [isMuted, setIsMuted] = useState(false);
   const [showPlayOverlay, setShowPlayOverlay] = useState(true);
-  const [videoOffset, setVideoOffset] = useState(0);  // For smooth scroll following
-  const currentIndexRef = useRef(currentIndex);
-  const [isScrolling, setIsScrolling] = useState(false);
-  const [questionPhase, setQuestionPhase] = useState<QuestionPhase>('hidden');
-  const questionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Keep ref in sync
-  useEffect(() => {
-    currentIndexRef.current = currentIndex;
-  }, [currentIndex]);
+  const { questionPhase, startQuestionAnimation } = useQuestionAnimation();
+
+  const {
+    currentIndex,
+    videoOffset,
+    isScrolling,
+    containerRef,
+    slideRefs,
+    currentIndexRef,
+  } = useShortsScroll({
+    scenes,
+    showPlayOverlay,
+    onIndexChange: (newIndex) => {
+      const question = scenes[newIndex]?.questions?.[0] || '';
+      startQuestionAnimation(question);
+    },
+  });
 
   // Pre-compute time values and video URLs with media fragments
   const sceneMeta = useMemo(() =>
@@ -44,8 +152,6 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
         baseSrc = shareToken
           ? apiClient.getSharedVideoUrl(scene.file, shareToken)
           : apiClient.getVideoUrl(scene.file);
-        // Add media fragment to load only the specific time range
-        // Format: #t=startSeconds,endSeconds
         src = `${baseSrc}#t=${startSeconds},${end}`;
       }
       return { startSeconds, endSeconds: end, src, baseSrc };
@@ -53,55 +159,17 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
     [scenes, shareToken]
   );
 
-  // Current scene metadata
   const currentMeta = sceneMeta[currentIndex];
   const currentScene = scenes[currentIndex];
   const currentQuestion = currentScene?.questions?.[0] || '';
-
-  // Start question flashcard animation sequence (called from event handlers only)
-  const startQuestionAnimation = (question: string) => {
-    // Clear any existing timer
-    if (questionTimerRef.current) {
-      clearTimeout(questionTimerRef.current);
-    }
-
-    if (!question) {
-      setQuestionPhase('hidden');
-      return;
-    }
-
-    // Phase 1: Show question centered
-    setQuestionPhase('center');
-
-    // Phase 2: After 2.5s, shrink to top
-    questionTimerRef.current = setTimeout(() => {
-      setQuestionPhase('shrinking');
-
-      // Phase 3: After shrink animation completes (500ms), set to top
-      questionTimerRef.current = setTimeout(() => {
-        setQuestionPhase('top');
-      }, 500);
-    }, 2500);
-  };
-
-  // Cleanup timers on unmount
-  useEffect(() => {
-    return () => {
-      if (questionTimerRef.current) {
-        clearTimeout(questionTimerRef.current);
-      }
-    };
-  }, []);
 
   // Play the current video
   const playCurrentVideo = useCallback(() => {
     const video = videoRef.current;
     if (!video || !currentMeta) return;
 
-    // Set to start time of the scene
     video.currentTime = currentMeta.startSeconds;
     video.play().catch(() => {
-      // Fallback: try muted
       video.muted = true;
       setIsMuted(true);
       video.play().catch(() => { });
@@ -113,7 +181,6 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
     setShowPlayOverlay(false);
     setIsMuted(false);
 
-    // Trigger question animation on first play
     const question = scenes[currentIndexRef.current]?.questions?.[0] || '';
     startQuestionAnimation(question);
 
@@ -122,94 +189,23 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
       video.muted = false;
       playCurrentVideo();
     }
-  }, [playCurrentVideo, scenes]);
+  }, [playCurrentVideo, scenes, currentIndexRef, startQuestionAnimation]);
 
   // Update video source when index changes
   useEffect(() => {
     const video = videoRef.current;
     if (!video || !currentMeta?.src || showPlayOverlay) return;
-
-    // Don't change during scroll animation
     if (isScrolling) return;
 
-    // Change source and play
     if (video.src !== currentMeta.src) {
       video.src = currentMeta.src;
       video.load();
     }
-    // Set to start time of the scene
     video.currentTime = currentMeta.startSeconds;
     video.muted = isMuted;
 
     video.play().catch(() => { });
   }, [currentIndex, currentMeta, isMuted, showPlayOverlay, isScrolling]);
-
-  // IntersectionObserver for scroll-based slide detection
-  useEffect(() => {
-    if (scenes.length === 0) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting && entry.intersectionRatio >= 0.6) {
-            const newIndex = Number((entry.target as HTMLElement).dataset.index);
-            if (newIndex !== currentIndexRef.current) {
-              setCurrentIndex(newIndex);
-              setVideoOffset(0);  // Reset offset when slide changes
-              // Trigger question animation for new slide
-              const question = scenes[newIndex]?.questions?.[0] || '';
-              startQuestionAnimation(question);
-            }
-          }
-        }
-      },
-      { threshold: 0.6, root: containerRef.current }
-    );
-    requestAnimationFrame(() => {
-      if (slideRefs.current && slideRefs.current.size > 0) {
-        slideRefs.current.forEach((s) => { if (s) observer.observe(s); });
-      }
-    });
-    return () => observer.disconnect();
-  }, [scenes.length]);
-
-  // Track scroll position for smooth video following
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container || showPlayOverlay) return;
-
-    let scrollTimeout: ReturnType<typeof setTimeout>;
-
-    const handleScroll = () => {
-      setIsScrolling(true);
-      clearTimeout(scrollTimeout);
-
-      const scrollTop = container.scrollTop;
-      const slideHeight = container.clientHeight;
-      const currentSlideTop = currentIndexRef.current * slideHeight;
-
-      // Calculate offset from current slide position
-      const offset = scrollTop - currentSlideTop;
-      setVideoOffset(-offset);  // Negative because we want video to move opposite to scroll
-
-      scrollTimeout = setTimeout(() => {
-        setIsScrolling(false);
-        setVideoOffset(0);  // Reset offset after scroll ends
-
-        // Ensure video is playing
-        const video = videoRef.current;
-        if (video && video.paused && currentMeta?.src) {
-          video.play().catch(() => { });
-        }
-      }, 150);
-    };
-
-    container.addEventListener('scroll', handleScroll, { passive: true });
-
-    return () => {
-      container.removeEventListener('scroll', handleScroll);
-      clearTimeout(scrollTimeout);
-    };
-  }, [showPlayOverlay, currentMeta]);
 
   // Handle touch events to ensure playback in user gesture context
   useEffect(() => {
@@ -231,7 +227,7 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
     return () => {
       container.removeEventListener('touchend', handleTouchEnd);
     };
-  }, [showPlayOverlay, isMuted]);
+  }, [showPlayOverlay, isMuted, containerRef]);
 
   // Handle mute toggle
   const handleMuteToggle = useCallback(() => {
@@ -278,7 +274,6 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
     const video = videoRef.current;
     if (!video || !currentMeta) return;
 
-    // Loop back to start when reaching end time
     if (video.currentTime >= currentMeta.endSeconds) {
       video.currentTime = currentMeta.startSeconds;
       video.play().catch(() => { });
@@ -290,7 +285,6 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
     const video = videoRef.current;
     if (!video || !currentMeta) return;
 
-    // Ensure video starts at the correct position
     if (video.currentTime < currentMeta.startSeconds || video.currentTime > currentMeta.endSeconds) {
       video.currentTime = currentMeta.startSeconds;
     }
@@ -311,99 +305,7 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
 
   return (
     <div className="fixed inset-0 z-50 bg-black overflow-hidden">
-      {/* Question Flashcard Overlay */}
-      {currentQuestion && questionPhase !== 'hidden' && (
-        <>
-          {/* Center question (full-screen overlay) */}
-          {questionPhase === 'center' && (
-            <div
-              className="absolute inset-0 z-40 flex items-center justify-center px-8"
-              style={{
-                animation: 'questionFadeIn 0.4s ease-out',
-              }}
-            >
-              <div
-                className="max-w-md w-full p-6 rounded-2xl text-center"
-                style={{
-                  background: 'rgba(0, 0, 0, 0.7)',
-                  backdropFilter: 'blur(20px)',
-                  WebkitBackdropFilter: 'blur(20px)',
-                  border: '1px solid rgba(255, 255, 255, 0.15)',
-                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
-                }}
-              >
-                <div className="flex items-center justify-center gap-2 mb-3">
-                  <MessageCircleQuestion className="h-5 w-5 text-blue-400" />
-                  <span className="text-blue-400 text-sm font-medium tracking-wide uppercase">
-                    {t('shorts.question')}
-                  </span>
-                </div>
-                <p className="text-white text-xl font-semibold leading-relaxed">
-                  {currentQuestion}
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Shrinking/Top question (persistent badge) */}
-          {(questionPhase === 'shrinking' || questionPhase === 'top') && (
-            <div
-              className="absolute left-4 right-16 z-40"
-              style={{
-                top: questionPhase === 'shrinking' ? undefined : '3.5rem',
-                animation: questionPhase === 'shrinking'
-                  ? 'questionShrinkToTop 0.5s ease-in-out forwards'
-                  : undefined,
-              }}
-            >
-              <div
-                className="inline-flex items-center gap-2 px-3 py-2 rounded-xl max-w-full"
-                style={{
-                  background: 'rgba(0, 0, 0, 0.6)',
-                  backdropFilter: 'blur(12px)',
-                  WebkitBackdropFilter: 'blur(12px)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                }}
-              >
-                <MessageCircleQuestion className="h-4 w-4 text-blue-400 shrink-0" />
-                <p className="text-white text-sm font-medium truncate">
-                  {currentQuestion}
-                </p>
-              </div>
-            </div>
-          )}
-        </>
-      )}
-
-      {/* CSS Animations */}
-      <style>{`
-        @keyframes questionFadeIn {
-          from {
-            opacity: 0;
-            transform: scale(0.9);
-          }
-          to {
-            opacity: 1;
-            transform: scale(1);
-          }
-        }
-        @keyframes questionShrinkToTop {
-          from {
-            top: 50%;
-            left: 50%;
-            right: auto;
-            transform: translate(-50%, -50%) scale(1);
-            opacity: 0.8;
-          }
-          to {
-            top: 3.5rem;
-            left: 1rem;
-            right: auto;
-            transform: translate(0, 0) scale(1);
-            opacity: 1;
-          }
-        }
-      `}</style>
+      <QuestionFlashcard question={currentQuestion} phase={questionPhase} />
 
       {/* Single video element that follows scroll */}
       <div

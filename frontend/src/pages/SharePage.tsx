@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { apiClient, type VideoGroup, type VideoInGroup } from '@/lib/api';
@@ -9,15 +9,45 @@ import { MessageAlert } from '@/components/common/MessageAlert';
 import { ChatPanel } from '@/components/chat/ChatPanel';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
-import { getStatusBadgeClassName, getStatusLabel, timeStringToSeconds } from '@/lib/utils/video';
+import { getStatusBadgeClassName, getStatusLabel } from '@/lib/utils/video';
 import { convertVideoInGroupToSelectedVideo, type SelectedVideo } from '@/lib/utils/videoConversion';
- 
+import { useVideoPlayback } from '@/hooks/useVideoPlayback';
+import { useMobileTab } from '@/hooks/useMobileTab';
+
+type MobileTab = 'videos' | 'player' | 'chat';
+
+interface MobileTabNavigationProps {
+  mobileTab: MobileTab;
+  onTabChange: (tab: MobileTab) => void;
+  labels: Record<MobileTab, string>;
+}
+
+// Shared pattern -- also in VideoGroupDetailPage.tsx
+function MobileTabNavigation({ mobileTab, onTabChange, labels }: MobileTabNavigationProps) {
+  const tabs: MobileTab[] = ['videos', 'player', 'chat'];
+  return (
+    <div className="lg:hidden flex border-b border-gray-200 bg-white rounded-t-lg">
+      {tabs.map((tab) => (
+        <button
+          key={tab}
+          onClick={() => onTabChange(tab)}
+          className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+            mobileTab === tab ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-600 hover:text-gray-900'
+          }`}
+        >
+          {labels[tab]}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 interface VideoItemProps {
   video: VideoInGroup;
   isSelected: boolean;
   onSelect: (videoId: number) => void;
 }
- 
+
 function VideoItem({ video, isSelected, onSelect }: VideoItemProps) {
   const { t } = useTranslation();
   return (
@@ -41,30 +71,41 @@ function VideoItem({ video, isSelected, onSelect }: VideoItemProps) {
     </div>
   );
 }
- 
+
 export default function SharePage() {
   const params = useParams<{ token: string }>();
   const shareToken = params?.token ?? '';
   const { t } = useTranslation();
- 
+
   const [group, setGroup] = useState<VideoGroup | null>(null);
   const [selectedVideo, setSelectedVideo] = useState<SelectedVideo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const pendingStartTimeRef = useRef<number | null>(null);
- 
-  const [mobileTab, setMobileTab] = useState<'videos' | 'player' | 'chat'>('player');
- 
+
+  const { mobileTab, setMobileTab } = useMobileTab();
+
+  const handleVideoSelect = useCallback((videoId: number) => {
+    const video = group?.videos?.find((v) => v.id === videoId);
+    if (video) {
+      setSelectedVideo(convertVideoInGroupToSelectedVideo(video));
+    }
+  }, [group?.videos]);
+
+  const { videoRef, handleVideoCanPlay, handleVideoPlayFromTime } = useVideoPlayback({
+    selectedVideo,
+    onVideoSelect: handleVideoSelect,
+    onMobileSwitch: () => setMobileTab('player'),
+  });
+
   useEffect(() => {
     const loadGroup = async () => {
       if (!shareToken) return;
- 
+
       try {
         setIsLoading(true);
         const groupData = await apiClient.getSharedGroup(shareToken);
         setGroup(groupData);
- 
+
         if (groupData.videos && groupData.videos.length > 0) {
           setSelectedVideo(convertVideoInGroupToSelectedVideo(groupData.videos[0]));
         }
@@ -75,45 +116,10 @@ export default function SharePage() {
         setIsLoading(false);
       }
     };
- 
+
     void loadGroup();
   }, [shareToken, t]);
- 
-  const handleVideoSelect = (videoId: number) => {
-    const video = group?.videos?.find((v) => v.id === videoId);
-    if (video) {
-      const selected = convertVideoInGroupToSelectedVideo(video);
-      setSelectedVideo(selected);
-      if (window.innerWidth < 1024) {
-        setMobileTab('player');
-      }
-    }
-  };
- 
-  const handleVideoCanPlay = () => {
-    if (pendingStartTimeRef.current !== null && videoRef.current) {
-      videoRef.current.currentTime = pendingStartTimeRef.current;
-      void videoRef.current.play();
-      pendingStartTimeRef.current = null;
-    }
-  };
- 
-  const handleVideoPlayFromTime = (videoId: number, startTime: string) => {
-    const seconds = timeStringToSeconds(startTime);
- 
-    if (window.innerWidth < 1024) {
-      setMobileTab('player');
-    }
- 
-    if (selectedVideo?.id === videoId && videoRef.current) {
-      videoRef.current.currentTime = seconds;
-      void videoRef.current.play();
-    } else {
-      pendingStartTimeRef.current = seconds;
-      handleVideoSelect(videoId);
-    }
-  };
- 
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex flex-col">
@@ -125,7 +131,7 @@ export default function SharePage() {
       </div>
     );
   }
- 
+
   if (error || !group) {
     return (
       <div className="min-h-screen flex flex-col">
@@ -141,7 +147,7 @@ export default function SharePage() {
       </div>
     );
   }
- 
+
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
       <Header />
@@ -163,42 +169,19 @@ export default function SharePage() {
               />
             )}
           </div>
- 
+
           {error && <MessageAlert type="error" message={error} />}
- 
-          <div className="lg:hidden flex border-b border-gray-200 bg-white rounded-t-lg">
-            <button
-              onClick={() => setMobileTab('videos')}
-              className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
-                mobileTab === 'videos'
-                  ? 'text-blue-600 border-b-2 border-blue-600'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              {t('videos.shared.tabs.videos')}
-            </button>
-            <button
-              onClick={() => setMobileTab('player')}
-              className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
-                mobileTab === 'player'
-                  ? 'text-blue-600 border-b-2 border-blue-600'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              {t('videos.shared.tabs.player')}
-            </button>
-            <button
-              onClick={() => setMobileTab('chat')}
-              className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
-                mobileTab === 'chat'
-                  ? 'text-blue-600 border-b-2 border-blue-600'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              {t('videos.shared.tabs.chat')}
-            </button>
-          </div>
- 
+
+          <MobileTabNavigation
+            mobileTab={mobileTab}
+            onTabChange={setMobileTab}
+            labels={{
+              videos: t('videos.shared.tabs.videos'),
+              player: t('videos.shared.tabs.player'),
+              chat: t('videos.shared.tabs.chat'),
+            }}
+          />
+
           <div className="flex flex-col lg:grid flex-1 min-h-0 gap-4 lg:gap-6 lg:grid-cols-[1fr_2fr_1fr]">
             <div className={`flex-col min-h-0 min-w-0 ${mobileTab === 'videos' ? 'flex' : 'hidden lg:flex'}`}>
               <Card className="h-[500px] lg:h-[600px] flex flex-col">
@@ -213,7 +196,10 @@ export default function SharePage() {
                           key={video.id}
                           video={video}
                           isSelected={selectedVideo?.id === video.id}
-                          onSelect={handleVideoSelect}
+                          onSelect={(videoId) => {
+                            handleVideoSelect(videoId);
+                            setMobileTab('player');
+                          }}
                         />
                       ))
                     ) : (
@@ -225,7 +211,7 @@ export default function SharePage() {
                 </CardContent>
               </Card>
             </div>
- 
+
             <div className={`flex-col min-h-0 min-w-0 ${mobileTab === 'player' ? 'flex' : 'hidden lg:flex'}`}>
               <Card className="h-[500px] lg:h-[600px] flex flex-col">
                 <CardHeader>
@@ -260,7 +246,7 @@ export default function SharePage() {
                 </CardContent>
               </Card>
             </div>
- 
+
             <div className={`flex-col min-h-0 min-w-0 ${mobileTab === 'chat' ? 'flex' : 'hidden lg:flex'}`}>
               <ChatPanel
                 groupId={group.id}
@@ -276,4 +262,3 @@ export default function SharePage() {
     </div>
   );
 }
-
