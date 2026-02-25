@@ -75,7 +75,8 @@ class VideoCreateSerializerTests(TestCase):
             data=data, context=self._get_request_context()
         )
         self.assertTrue(serializer.is_valid())
-        video = serializer.save()
+        with self.captureOnCommitCallbacks(execute=True):
+            video = serializer.save()
 
         mock_task.assert_called_once_with(video.id)
 
