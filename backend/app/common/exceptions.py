@@ -57,6 +57,33 @@ def custom_exception_handler(exc, context):
     return new_response
 
 
+def _extract_dict_detail(detail: dict) -> str | None:
+    """Extract message from dict-type DRF error detail."""
+    if "detail" in detail:
+        return str(detail["detail"])
+
+    if "non_field_errors" in detail:
+        errors = detail["non_field_errors"]
+        if isinstance(errors, list) and errors:
+            return str(errors[0])
+
+    for key, value in detail.items():
+        if isinstance(value, list) and value:
+            return str(value[0])
+        elif isinstance(value, str):
+            return value
+
+    return None
+
+
+def _extract_list_detail(detail: list) -> str | None:
+    """Extract message from list-type DRF error detail."""
+    if not detail:
+        return None
+    first_error = detail[0]
+    return first_error if isinstance(first_error, str) else str(first_error)
+
+
 def _get_error_code(status_code: int, exc) -> str:
     """Determine error code based on status code and exception type"""
     if status_code == status.HTTP_400_BAD_REQUEST:
@@ -76,40 +103,22 @@ def _get_error_code(status_code: int, exc) -> str:
 
 def _get_error_message(exc, response) -> str:
     """Extract human-readable message from exception"""
-    # Handle DRF validation errors
     if hasattr(exc, "detail"):
         detail = exc.detail
 
-        # Handle string detail
         if isinstance(detail, str):
             return detail
 
-        # Handle dict with 'detail' key
         if isinstance(detail, dict):
-            if "detail" in detail:
-                return str(detail["detail"])
+            result = _extract_dict_detail(detail)
+            if result:
+                return result
 
-            # Handle non_field_errors
-            if "non_field_errors" in detail:
-                errors = detail["non_field_errors"]
-                if isinstance(errors, list) and errors:
-                    return str(errors[0])
+        if isinstance(detail, list):
+            result = _extract_list_detail(detail)
+            if result:
+                return result
 
-            # Get first field error as message
-            for key, value in detail.items():
-                if isinstance(value, list) and value:
-                    return str(value[0])
-                elif isinstance(value, str):
-                    return value
-
-        # Handle list of errors
-        if isinstance(detail, list) and detail:
-            first_error = detail[0]
-            if isinstance(first_error, str):
-                return first_error
-            return str(first_error)
-
-    # Fallback to status text
     return (
         response.status_text
         if hasattr(response, "status_text")

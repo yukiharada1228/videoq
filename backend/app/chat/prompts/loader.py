@@ -67,12 +67,15 @@ def _resolve_locale_config(locale: Optional[str]) -> Dict[str, Any]:
     return resolved
 
 
-def build_system_prompt(
-    locale: Optional[str] = None, references: Optional[Sequence[str]] = None
-) -> str:
-    """Build system message based on detailed prompt template."""
-    config = _resolve_locale_config(locale)
+def _validate_prompt_fields(config: dict) -> tuple:
+    """Validate and extract required prompt config fields.
 
+    Returns:
+        Tuple of (header, role, background, request, format_instruction, rules, section_titles, reference_config)
+
+    Raises:
+        PromptConfigurationError if validation fails.
+    """
     header_template = config.get("header")
     role = config.get("role")
     background = config.get("background")
@@ -91,21 +94,66 @@ def build_system_prompt(
     if not isinstance(rules, list) or any(not isinstance(rule, str) for rule in rules):
         raise PromptConfigurationError("Prompt rules must be a list of strings.")
 
+    return (
+        cast(str, header_template),
+        cast(str, role),
+        cast(str, background),
+        cast(str, request),
+        cast(str, format_instruction),
+        rules,
+        section_titles,
+        reference_config,
+    )
+
+
+def _build_reference_lines(
+    reference_config: dict, references: Sequence[str] | None
+) -> list[str]:
+    """Build the reference section lines."""
+    lines: list[str] = []
+    lead = reference_config.get("lead", "")
+    footer = reference_config.get("footer", "")
+    empty = reference_config.get("empty", "")
+
+    texts = [str(ref) for ref in (references or []) if str(ref).strip()]
+    if texts:
+        if lead:
+            lines.append(lead)
+        lines.extend(texts)
+        if footer:
+            lines.append(footer)
+    elif empty:
+        lines.append(empty)
+
+    return lines
+
+
+def build_system_prompt(
+    locale: Optional[str] = None, references: Optional[Sequence[str]] = None
+) -> str:
+    """Build system message based on detailed prompt template."""
+    config = _resolve_locale_config(locale)
+
+    (
+        header_template,
+        role,
+        background,
+        request,
+        format_instruction,
+        rules,
+        section_titles,
+        reference_config,
+    ) = _validate_prompt_fields(config)
+
     rules_label = section_titles.get("rules", "# Rules")
     format_label = section_titles.get("format", "# Format")
     reference_label = section_titles.get("reference", "# Reference Materials")
 
-    header_template_str = cast(str, header_template)
-    role_str = cast(str, role)
-    background_str = cast(str, background)
-    request_str = cast(str, request)
-    format_instruction_str = cast(str, format_instruction)
-
-    header = header_template_str.format(
-        role=role_str,
-        background=background_str,
-        request=request_str,
-        format_instruction=format_instruction_str,
+    header = header_template.format(
+        role=role,
+        background=background,
+        request=request,
+        format_instruction=format_instruction,
         rules_label=rules_label,
         format_label=format_label,
         reference_label=reference_label,
@@ -119,29 +167,7 @@ def build_system_prompt(
     else:
         lines.append("1. Follow common-sense safety best practices.")
 
-    lines.extend(
-        [
-            "",
-            format_label,
-            format_instruction_str.strip(),
-            "",
-            reference_label,
-        ]
-    )
-
-    reference_lead = reference_config.get("lead", "")
-    reference_footer = reference_config.get("footer", "")
-    reference_empty = reference_config.get("empty", "")
-
-    reference_texts = [str(ref) for ref in (references or []) if str(ref).strip()]
-
-    if reference_texts:
-        if reference_lead:
-            lines.append(reference_lead)
-        lines.extend(reference_texts)
-        if reference_footer:
-            lines.append(reference_footer)
-    elif reference_empty:
-        lines.append(reference_empty)
+    lines.extend(["", format_label, format_instruction.strip(), "", reference_label])
+    lines.extend(_build_reference_lines(reference_config, references))
 
     return "\n".join(lines)
