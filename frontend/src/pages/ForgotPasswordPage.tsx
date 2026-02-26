@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
 import { Link } from '@/lib/i18n';
 import { useTranslation } from 'react-i18next';
 import { PageLayout } from '@/components/layout/PageLayout';
@@ -15,20 +14,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { MessageAlert } from '@/components/common/MessageAlert';
-import { apiClient } from '@/lib/api';
+import { useRequestPasswordResetMutation } from '@/hooks/usePasswordRecovery';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { t } = useTranslation();
-  const requestResetMutation = useMutation({
-    mutationFn: async (emailValue: string) => await apiClient.requestPasswordReset({ email: emailValue }),
-    onSuccess: () => setSuccess(true),
-    onError: (err) => {
-      setError(err instanceof Error ? err.message : String(err));
-    },
-  });
+  const requestResetMutation = useRequestPasswordResetMutation();
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -37,8 +30,15 @@ export default function ForgotPasswordPage() {
 
     try {
       await requestResetMutation.mutateAsync(email);
+      setSuccess(true);
     } catch {
-      // mutation state manages error display
+      setError(
+        requestResetMutation.error instanceof Error
+          ? requestResetMutation.error.message
+          : requestResetMutation.error
+            ? String(requestResetMutation.error)
+            : null,
+      );
     }
   };
 

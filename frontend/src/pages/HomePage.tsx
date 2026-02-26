@@ -1,38 +1,19 @@
 import { useTranslation } from 'react-i18next';
-import { useQueries } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { useI18nNavigate } from '@/lib/i18n';
 import { useAuth } from '@/hooks/useAuth';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
-import { apiClient, type VideoGroupList, type VideoList } from '@/lib/api';
 import { useVideoStats } from '@/hooks/useVideoStats';
-import { queryKeys } from '@/lib/queryKeys';
+import { useHomePageData } from '@/hooks/useHomePageData';
 
 export default function HomePage() {
   const navigate = useI18nNavigate();
   const { user, loading } = useAuth();
   const { t } = useTranslation();
 
-  const [videosQuery, groupsQuery] = useQueries({
-    queries: [
-      {
-        queryKey: queryKeys.videos.list(),
-        enabled: !!user,
-        queryFn: async (): Promise<VideoList[]> => await apiClient.getVideos().catch(() => []),
-        initialData: [] as VideoList[],
-      },
-      {
-        queryKey: queryKeys.videoGroups.all(user?.id ?? null),
-        enabled: !!user,
-        queryFn: async (): Promise<VideoGroupList[]> => await apiClient.getVideoGroups().catch(() => []),
-        initialData: [] as VideoGroupList[],
-      },
-    ],
-  });
-
-  const videoStats = useVideoStats(videosQuery.data ?? []);
-  const isLoadingStats = videosQuery.isLoading || groupsQuery.isLoading;
+  const { videos, groups, isLoading: isLoadingStats } = useHomePageData({ userId: user?.id });
+  const videoStats = useVideoStats(videos);
 
   const handleUploadClick = () => {
     navigate('/videos?upload=true');
@@ -91,7 +72,7 @@ export default function HomePage() {
               <div className="text-4xl mb-2">📁</div>
               <CardTitle className="text-xl">{t('home.actions.groups.title')}</CardTitle>
               <CardDescription className="text-2xl font-bold text-purple-600">
-                {t('home.actions.groups.description', { count: groupsQuery.data?.length || 0 })}
+                {t('home.actions.groups.description', { count: groups.length })}
               </CardDescription>
             </CardHeader>
           </Card>

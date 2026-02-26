@@ -1,13 +1,12 @@
 import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useI18nNavigate } from '@/lib/i18n';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { MessageAlert } from '@/components/common/MessageAlert';
-import { apiClient } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
 import { useVideoGroups } from '@/hooks/useVideoGroups';
+import { useCreateVideoGroupMutation } from '@/hooks/useVideoGroupsPageData';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -15,11 +14,9 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { handleAsyncError } from '@/lib/utils/errorHandling';
-import { queryKeys } from '@/lib/queryKeys';
  
 export default function VideoGroupsPage() {
   const { user, loading: authLoading } = useAuth();
-  const queryClient = useQueryClient();
   const navigate = useI18nNavigate();
   const { groups, isLoading, error: loadError } = useVideoGroups(true);
   const [error, setError] = useState<string | null>(null);
@@ -28,20 +25,12 @@ export default function VideoGroupsPage() {
   const [newGroupDescription, setNewGroupDescription] = useState('');
   const { t } = useTranslation();
 
-  const createGroupMutation = useMutation({
-    mutationFn: async () => {
-      return await apiClient.createVideoGroup({
-        name: newGroupName,
-        description: newGroupDescription,
-      });
-    },
-    onSuccess: async () => {
+  const createGroupMutation = useCreateVideoGroupMutation({
+    userId: user?.id,
+    onSuccess: () => {
       setNewGroupName('');
       setNewGroupDescription('');
       setIsCreateModalOpen(false);
-      if (user?.id != null) {
-        await queryClient.invalidateQueries({ queryKey: queryKeys.videoGroups.all(user.id) });
-      }
     },
   });
  
@@ -52,7 +41,10 @@ export default function VideoGroupsPage() {
         return;
       }
       setError(null);
-      await createGroupMutation.mutateAsync();
+      await createGroupMutation.mutateAsync({
+        name: newGroupName,
+        description: newGroupDescription,
+      });
     } catch (err) {
       handleAsyncError(err, t('videos.groups.createError'), (msg) => setError(msg));
     }
