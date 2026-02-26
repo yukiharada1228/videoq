@@ -1,5 +1,6 @@
 'use client';
 
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link, useI18nNavigate } from '@/lib/i18n';
 import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/lib/api';
@@ -12,13 +13,21 @@ interface HeaderProps {
 
 export function Header({ children }: HeaderProps) {
   const navigate = useI18nNavigate();
+  const queryClient = useQueryClient();
   const { user } = useAuth({ redirectToLogin: false });
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { t } = useTranslation();
+  const logoutMutation = useMutation({
+    mutationFn: async () => await apiClient.logout(),
+    onSettled: async () => {
+      // Prevent cross-user stale data after logout/login.
+      queryClient.clear();
+    },
+  });
 
   const handleLogout = async () => {
     try {
-      await apiClient.logout();
+      await logoutMutation.mutateAsync();
     } catch (error) {
       console.error('Logout failed:', error);
     } finally {
@@ -157,4 +166,3 @@ export function Header({ children }: HeaderProps) {
     </header>
   );
 }
-

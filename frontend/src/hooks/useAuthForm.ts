@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { useAsyncState } from './useAsyncState';
+import { useMutation } from '@tanstack/react-query';
 
 interface UseAuthFormProps<T> {
   onSubmit: (data: T) => Promise<void>;
@@ -22,9 +22,19 @@ export function useAuthForm<T extends Record<string, unknown>>({
   onSuccessRedirect,
 }: UseAuthFormProps<T>): UseAuthFormReturn<T> {
   const [formData, setFormData] = useState<T>(initialData);
-  
-  const { isLoading, error, execute: submitForm, setError } = useAsyncState({
-    onSuccess: onSuccessRedirect,
+  const [error, setError] = useState<string | null>(null);
+
+  const submitMutation = useMutation({
+    mutationFn: async (data: T) => {
+      await onSubmit(data);
+      return data;
+    },
+    onSuccess: () => {
+      onSuccessRedirect?.();
+    },
+    onError: (err) => {
+      setError(err instanceof Error ? err.message : String(err));
+    },
   });
 
   const updateField = useCallback((field: keyof T, value: T[keyof T]) => {
@@ -37,19 +47,16 @@ export function useAuthForm<T extends Record<string, unknown>>({
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    await submitForm(async () => {
-      await onSubmit(formData);
-      return formData;
-    });
-  }, [submitForm, onSubmit, formData]);
+    setError(null);
+    await submitMutation.mutateAsync(formData);
+  }, [submitMutation, formData]);
 
   return {
     formData,
     error,
-    loading: isLoading,
+    loading: submitMutation.isPending,
     setError,
     handleChange,
     handleSubmit,
   };
 }
-

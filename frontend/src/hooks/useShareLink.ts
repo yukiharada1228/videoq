@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient, type VideoGroup } from '@/lib/api';
 import { addLocalePrefix } from '@/lib/i18n';
 import { type Locale } from '@/i18n/config';
 import { handleAsyncError } from '@/lib/utils/errorHandling';
+import { queryKeys } from '@/lib/queryKeys';
 
 interface UseShareLinkReturn {
   shareLink: string | null;
@@ -16,9 +18,16 @@ interface UseShareLinkReturn {
 
 export function useShareLink(group: VideoGroup | null): UseShareLinkReturn {
   const { t, i18n } = useTranslation();
+  const queryClient = useQueryClient();
   const [shareLink, setShareLink] = useState<string | null>(null);
-  const [isGeneratingLink, setIsGeneratingLink] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
+
+  const createShareLinkMutation = useMutation({
+    mutationFn: async (groupId: number) => await apiClient.createShareLink(groupId),
+  });
+  const deleteShareLinkMutation = useMutation({
+    mutationFn: async (groupId: number) => await apiClient.deleteShareLink(groupId),
+  });
 
   // Sync share link URL from group's share_token
   useEffect(() => {
@@ -35,27 +44,30 @@ export function useShareLink(group: VideoGroup | null): UseShareLinkReturn {
   const generateShareLink = useCallback(async () => {
     if (!group) return;
     try {
-      setIsGeneratingLink(true);
-      const result = await apiClient.createShareLink(group.id);
+      const result = await createShareLinkMutation.mutateAsync(group.id);
+      queryClient.setQueryData<VideoGroup>(queryKeys.videoGroups.detail(group.id), (prev) =>
+        prev ? { ...prev, share_token: result.share_token } : prev
+      );
       const locale = i18n.language as Locale;
       const shareUrl = `${window.location.origin}${addLocalePrefix(`/share/${result.share_token}`, locale)}`;
       setShareLink(shareUrl);
     } catch (err) {
       handleAsyncError(err, t('videos.groupDetail.generateShareError'), () => { });
-    } finally {
-      setIsGeneratingLink(false);
     }
-  }, [group, i18n.language, t]);
+  }, [group, createShareLinkMutation, queryClient, i18n.language, t]);
 
   const deleteShareLink = useCallback(async () => {
     if (!group || !confirm(t('confirmations.disableShareLink'))) return;
     try {
-      await apiClient.deleteShareLink(group.id);
+      await deleteShareLinkMutation.mutateAsync(group.id);
+      queryClient.setQueryData<VideoGroup>(queryKeys.videoGroups.detail(group.id), (prev) =>
+        prev ? { ...prev, share_token: null } : prev
+      );
       setShareLink(null);
     } catch (err) {
       handleAsyncError(err, t('videos.groupDetail.disableShareError'), () => { });
     }
-  }, [group, t]);
+  }, [group, deleteShareLinkMutation, queryClient, t]);
 
   const copyShareLink = useCallback(async () => {
     if (!shareLink) return;
@@ -89,7 +101,7 @@ export function useShareLink(group: VideoGroup | null): UseShareLinkReturn {
 
   return {
     shareLink,
-    isGeneratingLink,
+    isGeneratingLink: createShareLinkMutation.isPending,
     isCopied,
     generateShareLink,
     deleteShareLink,

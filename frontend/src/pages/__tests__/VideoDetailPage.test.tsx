@@ -111,10 +111,10 @@ describe('VideoDetailPage', () => {
     expect(screen.getByText('videos.detail.cancel')).toBeInTheDocument()
   })
 
-  it('should load video on mount', () => {
+  it('should not manually load video on mount (query handles initial fetch)', () => {
     render(<VideoDetailPage />)
 
-    expect(mockLoadVideo).toHaveBeenCalled()
+    expect(mockLoadVideo).not.toHaveBeenCalled()
   })
 })
 

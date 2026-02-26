@@ -1,10 +1,13 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { apiClient, type VideoGroupList } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
+import { queryKeys } from '@/lib/queryKeys';
 
 interface UseVideoGroupsReturn {
   groups: VideoGroupList[];
   isLoading: boolean;
+  error: string | null;
   refetch: () => void;
 }
 
@@ -17,95 +20,32 @@ interface UseVideoGroupsReturn {
 export function useVideoGroups(trigger: boolean = true): UseVideoGroupsReturn {
   const { user } = useAuth();
   const userId = user?.id ?? null;
-  const [groups, setGroups] = useState<VideoGroupList[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const loadedUserIdRef = useRef<number | null>(null);
-  const previousTriggerRef = useRef<boolean>(trigger);
-  const isFetchingRef = useRef<boolean>(false);
-  const isMountedRef = useRef(true);
+
+  const groupsQuery = useQuery<VideoGroupList[]>({
+    queryKey: queryKeys.videoGroups.all(userId),
+    enabled: trigger && userId !== null,
+    queryFn: async () => {
+      return await apiClient.getVideoGroups();
+    },
+  });
 
   useEffect(() => {
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    // Refetch when user changes, or when trigger changes from false to true
-    const shouldFetch =
-      trigger &&
-      userId !== null &&
-      (loadedUserIdRef.current !== userId ||
-        (previousTriggerRef.current === false && trigger === true));
-
-    if (shouldFetch && !isFetchingRef.current) {
-      isFetchingRef.current = true;
-      // Defer to microtask to avoid eslint react-hooks/set-state-in-effect
-      // (Executes immediately after, loading display is effectively instant)
-      queueMicrotask(() => {
-        if (isMounted) setIsLoading(true);
-      });
-
-      apiClient
-        .getVideoGroups()
-        .then((data) => {
-          if (isMounted) {
-            setGroups(data);
-            loadedUserIdRef.current = userId;
-            setIsLoading(false);
-            isFetchingRef.current = false;
-          }
-        })
-        .catch((err) => {
-          // Silently fail - groups list will remain empty
-          console.error('Failed to load video groups', err);
-          if (isMounted) {
-            setGroups([]);
-            setIsLoading(false);
-            isFetchingRef.current = false;
-            // Don't set loadedUserIdRef so retry is possible
-          }
-        });
+    if (groupsQuery.error) {
+      console.error('Failed to load video groups', groupsQuery.error);
     }
-
-    previousTriggerRef.current = trigger;
-
-    return () => {
-      isMounted = false;
-    };
-  }, [trigger, userId]);
+  }, [groupsQuery.error]);
 
   const refetch = useCallback(() => {
-    if (userId === null || isFetchingRef.current) {
+    if (userId === null || !trigger) {
       return;
     }
+    void groupsQuery.refetch();
+  }, [groupsQuery, trigger, userId]);
 
-    // Clear ref to force refetch
-    loadedUserIdRef.current = null;
-    isFetchingRef.current = true;
-    setIsLoading(true);
-
-    apiClient
-      .getVideoGroups()
-      .then((data) => {
-        if (!isMountedRef.current) return;
-        setGroups(data);
-        loadedUserIdRef.current = userId;
-        setIsLoading(false);
-        isFetchingRef.current = false;
-      })
-      .catch((err) => {
-        console.error('Failed to load video groups', err);
-        if (!isMountedRef.current) return;
-        setGroups([]);
-        setIsLoading(false);
-        isFetchingRef.current = false;
-        // Don't set loadedUserIdRef so retry is possible
-      });
-  }, [userId]);
-
-  return { groups, isLoading, refetch };
+  return {
+    groups: groupsQuery.data ?? [],
+    isLoading: groupsQuery.isLoading,
+    error: groupsQuery.error instanceof Error ? groupsQuery.error.message : null,
+    refetch,
+  };
 }
-
