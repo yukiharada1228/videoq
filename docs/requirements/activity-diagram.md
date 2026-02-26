@@ -59,7 +59,7 @@ flowchart TD
     VectorSearch -->|No| NoContext[No Context]
     
     SearchVectors --> BuildContext[Build Context from<br/>Related Scenes]
-    BuildContext --> CallLLM[Generate Answer<br/>with OpenAI LLM]
+    BuildContext --> CallLLM[Generate Answer<br/>with OpenAI / Ollama LLM]
     NoContext --> CallLLM
     
     CallLLM --> SaveLog[Save Chat Log<br/>to Database]

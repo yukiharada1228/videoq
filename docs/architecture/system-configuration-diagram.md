@@ -61,7 +61,7 @@ graph TB
         /backend/media
         - Video Files
         - Static Files"]
-        S3["AWS S3
+        S3["AWS S3 / Cloudflare R2
         Optional
         - Video Files
         - Scalable Storage"]

@@ -469,6 +469,22 @@
   },
   "settings": {
     "title": "Settings",
+    "accountDeletion": {
+      "title": "Delete account",
+      "description": "Deactivate your account and schedule all associated data for deletion.",
+      "warningLine1": "Your account will be deactivated immediately and you will be signed out.",
+      "reasonLabel": "Reason for leaving (optional)",
+      "reasonPlaceholder": "Tell us what we could improve (optional)",
+      "confirmLabel": "Type {{keyword}} to confirm",
+      "confirmTitle": "Confirm account deletion",
+      "confirmDescription": "This will permanently delete your data. Please confirm to proceed.",
+      "confirmWarning": "This action is irreversible. Your data cannot be restored.",
+      "confirmCta": "Yes, delete my account",
+      "cancel": "Cancel",
+      "cta": "Delete my account",
+      "deleting": "Deleting...",
+      "error": "Failed to start deletion. Please try again."
+    },
     "openaiApiKey": {
       "title": "OpenAI API Key",
       "description": "Set your OpenAI API key to use transcription and chat features.",

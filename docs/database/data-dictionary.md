@@ -44,6 +44,34 @@ Table that stores user information for the system.
 - `video_groups`: One-to-many relationship with VideoGroup table
 - `chat_logs`: One-to-many relationship with ChatLog table
 - `tags`: One-to-many relationship with Tag table
+- `account_deletion_requests`: One-to-many relationship with AccountDeletionRequest table
+
+---
+
+## AccountDeletionRequest Table
+
+### Table Name
+`app_accountdeletionrequest`
+
+### Description
+Table that stores user requests for account deletion and reasons.
+
+### Column Definitions
+
+| Column Name | Data Type | Constraints | Default Value | Description |
+|------------|-----------|-------------|---------------|-------------|
+| id | BIGINT | PRIMARY KEY, AUTO_INCREMENT | - | Request ID |
+| user_id | BIGINT | FOREIGN KEY, NOT NULL | - | User ID |
+| reason | TEXT | NOT NULL | '' | Reason for deletion |
+| requested_at | TIMESTAMPTZ | NOT NULL | now() | Requested date and time |
+
+### Indexes
+- PRIMARY KEY: `id`
+- FOREIGN KEY: `user_id` → `app_user.id` (CASCADE)
+- INDEX: `(user_id, -requested_at)` (for monitoring latest requests)
+
+### Relations
+- `user`: Many-to-one relationship with User table
 
 ---
 
