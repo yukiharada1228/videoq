@@ -3,7 +3,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.admin import UserAdmin
 from django.db.models import Count
 
-from .models import Video, VideoGroup, VideoGroupMember
+from .models import AccountDeletionRequest, Video, VideoGroup, VideoGroupMember
 
 User = get_user_model()
 
@@ -154,4 +154,17 @@ class VideoGroupMemberAdmin(admin.ModelAdmin):
             request,
             VideoGroupMember,
             select_related_fields=["group", "video", "group__user", "video__user"],
+        )
+
+
+@admin.register(AccountDeletionRequest)
+class AccountDeletionRequestAdmin(admin.ModelAdmin):
+    list_display = ("user", "requested_at", "reason")
+    list_filter = ("requested_at",)
+    search_fields = ("user__username", "user__email", "reason")
+    readonly_fields = ("requested_at",)
+
+    def get_queryset(self, request):
+        return BaseAdminMixin.get_optimized_queryset(
+            request, AccountDeletionRequest, select_related_fields=["user"]
         )

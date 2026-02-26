@@ -2,6 +2,8 @@
 Tests for auth views
 """
 
+from unittest.mock import patch
+
 from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import default_token_generator
 from django.core import mail
@@ -240,3 +242,44 @@ class MeViewTests(APITestCase):
         response = self.client.get(self.url)
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+class AccountDeleteViewTests(APITestCase):
+    """Tests for AccountDeleteView"""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="deleteuser",
+            email="delete@example.com",
+            password="testpass123",
+        )
+        self.client.force_authenticate(user=self.user)
+        self.url = reverse("auth-account-delete")
+
+    @patch("app.tasks.account_deletion.delete_account_data.delay")
+    def test_account_delete_marks_inactive_and_enqueues_task(self, mock_delay):
+        """Test account delete marks user inactive and enqueues task"""
+        response = self.client.delete(
+            self.url, {"reason": "no longer needed"}, format="json"
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.user.refresh_from_db()
+        self.assertFalse(self.user.is_active)
+        self.assertIsNotNone(self.user.deactivated_at)
+        self.assertNotEqual(self.user.username, "deleteuser")
+        self.assertNotEqual(self.user.email, "delete@example.com")
+        self.assertTrue(self.user.username.startswith("deleted__"))
+        self.assertTrue(self.user.email.startswith("deleted__"))
+        mock_delay.assert_called_once_with(self.user.id)
+        # Check cookies are deleted
+        self.assertEqual(response.cookies.get("access_token").value, "")
+        self.assertEqual(response.cookies.get("refresh_token").value, "")
+
+        from app.models import AccountDeletionRequest
+
+        self.assertTrue(
+            AccountDeletionRequest.objects.filter(
+                user=self.user, reason="no longer needed"
+            ).exists()
+        )
