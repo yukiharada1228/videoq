@@ -1,4 +1,5 @@
 import { Suspense, useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Link, useI18nNavigate } from '@/lib/i18n';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -17,12 +18,15 @@ function VerifyEmailContent() {
   const token = searchParams.get('token');
   const isInvalidLink = !uid || !token;
   const { t } = useTranslation();
-  const [state, setState] = useState<VerificationState>(() =>
-    isInvalidLink ? 'error' : 'loading'
-  );
-  const [message, setMessage] = useState(() =>
-    isInvalidLink ? t('auth.verifyEmail.invalidLink') : t('auth.verifyEmail.loading')
-  );
+  const [state, setState] = useState<VerificationState>(() => (isInvalidLink ? 'error' : 'loading'));
+  const [message, setMessage] = useState(() => (isInvalidLink ? t('auth.verifyEmail.invalidLink') : t('auth.verifyEmail.loading')));
+
+  const verifyQuery = useQuery<{ detail?: string }>({
+    queryKey: ['verifyEmail', uid ?? null, token ?? null],
+    enabled: !isInvalidLink,
+    retry: false,
+    queryFn: async () => await apiClient.verifyEmail({ uid: uid!, token: token! }),
+  });
 
   useEffect(() => {
     if (isInvalidLink) {
@@ -30,33 +34,31 @@ function VerifyEmailContent() {
     }
 
     let timer: ReturnType<typeof setTimeout> | null = null;
-
-    const verify = async () => {
-      try {
-        const response = await apiClient.verifyEmail({ uid: uid!, token: token! });
-        setState('success');
-        setMessage(response.detail ?? t('auth.verifyEmail.success'));
-        timer = setTimeout(() => {
-          navigate('/login', { replace: true });
-        }, 2000);
-      } catch (error: unknown) {
-        setState('error');
-        if (error instanceof Error) {
-          setMessage(error.message);
-        } else {
-          setMessage(t('auth.verifyEmail.error'));
-        }
+    if (verifyQuery.isPending) {
+      setState('loading');
+      setMessage(t('auth.verifyEmail.loading'));
+    } else if (verifyQuery.isSuccess) {
+      setState('success');
+      setMessage(verifyQuery.data?.detail ?? t('auth.verifyEmail.success'));
+      timer = setTimeout(() => {
+        navigate('/login', { replace: true });
+      }, 2000);
+    } else if (verifyQuery.isError) {
+      setState('error');
+      const error = verifyQuery.error;
+      if (error instanceof Error) {
+        setMessage(error.message);
+      } else {
+        setMessage(t('auth.verifyEmail.error'));
       }
-    };
-
-    void verify();
+    }
 
     return () => {
       if (timer) {
         clearTimeout(timer);
       }
     };
-  }, [isInvalidLink, uid, token, navigate, t]);
+  }, [isInvalidLink, navigate, t, verifyQuery.isPending, verifyQuery.isSuccess, verifyQuery.isError, verifyQuery.data, verifyQuery.error]);
 
   const renderContent = () => {
     if (state === 'loading') {

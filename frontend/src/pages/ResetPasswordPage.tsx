@@ -1,4 +1,5 @@
 import { Suspense, useState } from 'react';
+import { useMutation } from '@tanstack/react-query';
 import { Link } from '@/lib/i18n';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -17,7 +18,6 @@ import { Label } from '@/components/ui/label';
 import { MessageAlert } from '@/components/common/MessageAlert';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { apiClient } from '@/lib/api';
-import { useAsyncState } from '@/hooks/useAsyncState';
 
 function ResetPasswordContent() {
   const [searchParams] = useSearchParams();
@@ -29,12 +29,22 @@ function ResetPasswordContent() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [clientError, setClientError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const { isLoading, error, execute, setError } = useAsyncState<void>({
+  const resetPasswordMutation = useMutation({
+    mutationFn: async () =>
+      await apiClient.confirmPasswordReset({
+        uid: uid!,
+        token: token!,
+        new_password: password,
+      }),
     onSuccess: () => {
       setSuccess(true);
       setPassword('');
       setConfirmPassword('');
+    },
+    onError: (err) => {
+      setError(err instanceof Error ? err.message : String(err));
     },
   });
 
@@ -54,15 +64,9 @@ function ResetPasswordContent() {
     }
 
     try {
-      await execute(() =>
-        apiClient.confirmPasswordReset({
-          uid,
-          token,
-          new_password: password,
-        })
-      );
+      await resetPasswordMutation.mutateAsync();
     } catch {
-      // useAsyncState manages error display
+      // mutation state manages error display
     }
   };
 
@@ -112,8 +116,8 @@ function ResetPasswordContent() {
               </div>
             </CardContent>
             <CardFooter className="flex flex-col space-y-4 pt-4">
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? t('auth.resetPassword.submitting') : t('auth.resetPassword.submit')}
+              <Button type="submit" className="w-full" disabled={resetPasswordMutation.isPending}>
+                {resetPasswordMutation.isPending ? t('auth.resetPassword.submitting') : t('auth.resetPassword.submit')}
               </Button>
               <Link href="/login" className="text-center text-sm text-blue-600 hover:underline">
                 {t('auth.resetPassword.backToLogin')}

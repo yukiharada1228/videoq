@@ -2,6 +2,41 @@ import { afterEach, vi } from 'vitest'
 import { cleanup } from '@testing-library/react'
 import '@testing-library/jest-dom/vitest'
 import React from 'react'
+import { QueryClientProvider } from '@tanstack/react-query'
+import { createAppQueryClient } from './src/lib/queryClient'
+
+vi.mock('@testing-library/react', async () => {
+  const actual = await vi.importActual<typeof import('@testing-library/react')>('@testing-library/react')
+
+  const createWrapper = (UserWrapper?: React.ComponentType<any>) => {
+    const TestQueryWrapper = ({ children, ...props }: { children?: React.ReactNode } & Record<string, unknown>) => {
+      const [queryClient] = React.useState(() => createAppQueryClient())
+      const content = React.createElement(QueryClientProvider, { client: queryClient }, children)
+      if (!UserWrapper) {
+        return content
+      }
+      return React.createElement(UserWrapper, props, content)
+    }
+
+    return TestQueryWrapper
+  }
+
+  const render: typeof actual.render = (ui: any, options?: any) => {
+    const wrapper = createWrapper(options?.wrapper)
+    return actual.render(ui, { ...options, wrapper })
+  }
+
+  const renderHook: typeof actual.renderHook = (callback: any, options?: any) => {
+    const wrapper = createWrapper(options?.wrapper)
+    return actual.renderHook(callback, { ...options, wrapper })
+  }
+
+  return {
+    ...actual,
+    render,
+    renderHook,
+  }
+})
 
 declare global {
   interface GlobalThis {

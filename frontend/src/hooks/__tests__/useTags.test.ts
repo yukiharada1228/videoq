@@ -56,7 +56,9 @@ describe('useTags', () => {
         })
 
         expect(apiClient.createTag).toHaveBeenCalledWith({ name: 'New Tag', color: '#0000ff' })
-        expect(result.current.tags).toContainEqual(mockTag)
+        await waitFor(() => {
+            expect(result.current.tags).toContainEqual(mockTag)
+        })
     })
 
     it('should update a tag', async () => {
@@ -76,7 +78,9 @@ describe('useTags', () => {
         })
 
         expect(apiClient.updateTag).toHaveBeenCalledWith(1, { name: 'Updated Tag', color: '#ffff00' })
-        expect(result.current.tags).toEqual([updatedTag])
+        await waitFor(() => {
+            expect(result.current.tags).toEqual([updatedTag])
+        })
     })
 
     it('should delete a tag', async () => {
@@ -98,7 +102,9 @@ describe('useTags', () => {
         })
 
         expect(apiClient.deleteTag).toHaveBeenCalledWith(1)
-        expect(result.current.tags).toEqual([initialTags[1]])
+        await waitFor(() => {
+            expect(result.current.tags).toEqual([initialTags[1]])
+        })
     })
 
     it('should handle loading errors', async () => {

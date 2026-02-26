@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useQuery } from '@tanstack/react-query';
 import { apiClient, type VideoGroup, type VideoInGroup } from '@/lib/api';
 import { ShortsButton } from '@/components/shorts/ShortsButton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,6 +14,7 @@ import { getStatusBadgeClassName, getStatusLabel } from '@/lib/utils/video';
 import { convertVideoInGroupToSelectedVideo, type SelectedVideo } from '@/lib/utils/videoConversion';
 import { useVideoPlayback } from '@/hooks/useVideoPlayback';
 import { useMobileTab } from '@/hooks/useMobileTab';
+import { queryKeys } from '@/lib/queryKeys';
 
 type MobileTab = 'videos' | 'player' | 'chat';
 
@@ -77,12 +79,17 @@ export default function SharePage() {
   const shareToken = params?.token ?? '';
   const { t } = useTranslation();
 
-  const [group, setGroup] = useState<VideoGroup | null>(null);
   const [selectedVideo, setSelectedVideo] = useState<SelectedVideo | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   const { mobileTab, setMobileTab } = useMobileTab();
+  const groupQuery = useQuery<VideoGroup>({
+    queryKey: queryKeys.videoGroups.shared(shareToken),
+    enabled: !!shareToken,
+    queryFn: async () => await apiClient.getSharedGroup(shareToken),
+  });
+  const group = groupQuery.data ?? null;
+  const error = groupQuery.error ? t('common.messages.shareLoadFailed') : null;
+  const isLoading = groupQuery.isLoading || groupQuery.isFetching;
 
   const handleVideoSelect = useCallback((videoId: number) => {
     const video = group?.videos?.find((v) => v.id === videoId);
@@ -98,27 +105,23 @@ export default function SharePage() {
   });
 
   useEffect(() => {
-    const loadGroup = async () => {
-      if (!shareToken) return;
+    if (groupQuery.error) {
+      console.error(groupQuery.error);
+    }
+  }, [groupQuery.error]);
 
-      try {
-        setIsLoading(true);
-        const groupData = await apiClient.getSharedGroup(shareToken);
-        setGroup(groupData);
-
-        if (groupData.videos && groupData.videos.length > 0) {
-          setSelectedVideo(convertVideoInGroupToSelectedVideo(groupData.videos[0]));
-        }
-      } catch (err) {
-        setError(t('common.messages.shareLoadFailed'));
-        console.error(err);
-      } finally {
-        setIsLoading(false);
+  useEffect(() => {
+    if (group?.videos && group.videos.length > 0) {
+      const selectedExists = selectedVideo
+        ? group.videos.some((video) => video.id === selectedVideo.id)
+        : false;
+      if (!selectedExists) {
+        setSelectedVideo(convertVideoInGroupToSelectedVideo(group.videos[0]));
       }
-    };
-
-    void loadGroup();
-  }, [shareToken, t]);
+    } else {
+      setSelectedVideo(null);
+    }
+  }, [group?.videos, selectedVideo]);
 
   if (isLoading) {
     return (

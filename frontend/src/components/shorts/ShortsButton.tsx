@@ -1,8 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { apiClient, type PopularScene, type VideoInGroup } from '@/lib/api';
+import { queryKeys } from '@/lib/queryKeys';
 import { ShortsPlayer } from './ShortsPlayer';
 
 interface ShortsButtonProps {
@@ -16,33 +18,29 @@ const CACHE_TTL = 5 * 60 * 1000;
 
 export function ShortsButton({ groupId, videos, shareToken, size = 'default' }: ShortsButtonProps) {
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
   const [scenes, setScenes] = useState<PopularScene[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const cacheRef = useRef<{ groupId: number; data: PopularScene[]; fetchedAt: number } | null>(null);
 
   // Prefetch popular scenes data on mount
   useEffect(() => {
     if (!videos || videos.length === 0) return;
-    const cached = cacheRef.current;
-    if (cached && cached.groupId === groupId && Date.now() - cached.fetchedAt < CACHE_TTL) return;
-    apiClient.getPopularScenes(groupId, shareToken).then((data) => {
-      cacheRef.current = { groupId, data, fetchedAt: Date.now() };
+    void queryClient.prefetchQuery({
+      queryKey: queryKeys.shorts.popularScenes(groupId, shareToken),
+      queryFn: async () => await apiClient.getPopularScenes(groupId, shareToken),
+      staleTime: CACHE_TTL,
     }).catch(() => {});
-  }, [groupId, videos, shareToken]);
+  }, [groupId, videos, shareToken, queryClient]);
 
   const handleOpen = async () => {
-    const cached = cacheRef.current;
-    if (cached && cached.groupId === groupId && Date.now() - cached.fetchedAt < CACHE_TTL) {
-      setScenes(cached.data);
-      setIsOpen(true);
-      return;
-    }
-
     setIsLoading(true);
     try {
-      const popularScenes = await apiClient.getPopularScenes(groupId, shareToken);
-      cacheRef.current = { groupId, data: popularScenes, fetchedAt: Date.now() };
+      const popularScenes = await queryClient.fetchQuery({
+        queryKey: queryKeys.shorts.popularScenes(groupId, shareToken),
+        queryFn: async () => await apiClient.getPopularScenes(groupId, shareToken),
+        staleTime: CACHE_TTL,
+      });
       setScenes(popularScenes);
       setIsOpen(true);
     } catch (error) {

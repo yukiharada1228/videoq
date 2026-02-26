@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useMutation } from '@tanstack/react-query';
 import { Link } from '@/lib/i18n';
 import { useTranslation } from 'react-i18next';
 import { PageLayout } from '@/components/layout/PageLayout';
@@ -15,14 +16,18 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { MessageAlert } from '@/components/common/MessageAlert';
 import { apiClient } from '@/lib/api';
-import { useAsyncState } from '@/hooks/useAsyncState';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [success, setSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { t } = useTranslation();
-  const { isLoading, error, execute, setError } = useAsyncState<void>({
+  const requestResetMutation = useMutation({
+    mutationFn: async (emailValue: string) => await apiClient.requestPasswordReset({ email: emailValue }),
     onSuccess: () => setSuccess(true),
+    onError: (err) => {
+      setError(err instanceof Error ? err.message : String(err));
+    },
   });
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -31,9 +36,9 @@ export default function ForgotPasswordPage() {
     setError(null);
 
     try {
-      await execute(() => apiClient.requestPasswordReset({ email }));
+      await requestResetMutation.mutateAsync(email);
     } catch {
-      // useAsyncState manages error display
+      // mutation state manages error display
     }
   };
 
@@ -69,8 +74,8 @@ export default function ForgotPasswordPage() {
               </div>
             </CardContent>
             <CardFooter className="flex flex-col space-y-4 pt-4">
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? t('auth.forgotPassword.submitting') : t('auth.forgotPassword.submit')}
+              <Button type="submit" className="w-full" disabled={requestResetMutation.isPending}>
+                {requestResetMutation.isPending ? t('auth.forgotPassword.submitting') : t('auth.forgotPassword.submit')}
               </Button>
               <Link href="/login" className="text-center text-sm text-blue-600 hover:underline">
                 {t('auth.forgotPassword.backToLogin')}

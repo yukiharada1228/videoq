@@ -1,9 +1,9 @@
 import { useEffect, useRef } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link, useI18nNavigate, useLocale } from '@/lib/i18n';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useVideo } from '@/hooks/useVideos';
-import { useAsyncState } from '@/hooks/useAsyncState';
 import { apiClient } from '@/lib/api';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,6 +19,7 @@ import { TagSelector } from '@/components/video/TagSelector';
 import { useTags } from '@/hooks/useTags';
 import { useVideoEditing } from '@/hooks/useVideoEditing';
 import type { Tag } from '@/lib/api';
+import { queryKeys } from '@/lib/queryKeys';
 
 interface VideoInfoEditFormProps {
   editedTitle: string;
@@ -131,6 +132,7 @@ function TranscriptSection({ transcript, status }: TranscriptSectionProps) {
 export default function VideoDetailPage() {
   const params = useParams<{ id: string }>();
   const navigate = useI18nNavigate();
+  const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const videoId = params?.id ? Number.parseInt(params.id, 10) : null;
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -171,17 +173,34 @@ export default function VideoDetailPage() {
     }
   };
 
-  const { isLoading: isDeleting, error: deleteError, mutate: handleDelete } = useAsyncState<void>({
-    onSuccess: () => navigate('/videos'),
-    confirmMessage: t('confirmations.deleteVideo'),
-  });
-
-  const { isLoading: isUpdating, error: updateError, mutate: handleUpdate } = useAsyncState<void>({
-    onSuccess: () => {
-      cancelEditing();
-      void loadVideo();
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      if (!videoId) return;
+      await apiClient.deleteVideo(videoId);
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.videos.all });
+      navigate('/videos');
     },
   });
+
+  const updateMutation = useMutation({
+    mutationFn: async () => {
+      await handleUpdateVideo();
+    },
+    onSuccess: async () => {
+      cancelEditing();
+      if (videoId) {
+        await queryClient.invalidateQueries({ queryKey: queryKeys.videos.detail(videoId) });
+      }
+      await loadVideo();
+    },
+  });
+
+  const isDeleting = deleteMutation.isPending;
+  const deleteError = deleteMutation.error instanceof Error ? deleteMutation.error.message : null;
+  const isUpdating = updateMutation.isPending;
+  const updateError = updateMutation.error instanceof Error ? updateMutation.error.message : null;
 
   if (isLoading) {
     return (
@@ -238,10 +257,10 @@ export default function VideoDetailPage() {
             {!isEditing && (
               <Button
                 variant="destructive"
-                onClick={() => void handleDelete(async () => {
-                  if (!videoId) return;
-                  await apiClient.deleteVideo(videoId);
-                })}
+                onClick={() => {
+                  if (!window.confirm(t('confirmations.deleteVideo'))) return;
+                  void deleteMutation.mutateAsync();
+                }}
                 disabled={isDeleting}
                 size="sm"
                 className="lg:size-default"
@@ -286,7 +305,7 @@ export default function VideoDetailPage() {
                     );
                   }}
                   onCreateTag={handleCreateTag}
-                  onSave={() => void handleUpdate(handleUpdateVideo)}
+                  onSave={() => void updateMutation.mutateAsync()}
                   onCancel={cancelEditing}
                 />
               ) : (

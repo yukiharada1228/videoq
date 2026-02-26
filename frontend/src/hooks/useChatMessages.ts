@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { useMutation } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { apiClient, type RelatedVideo } from '@/lib/api';
 
@@ -47,6 +48,21 @@ export function useChatMessages({ groupId, shareToken }: UseChatMessagesOptions)
     }
   }, [messages]);
 
+  const chatMutation = useMutation({
+    mutationFn: async (userMessage: Message) => {
+      return await apiClient.chat({
+        messages: [userMessage],
+        ...(groupId ? { group_id: groupId } : {}),
+        ...(shareToken ? { share_token: shareToken } : {}),
+      });
+    },
+  });
+
+  const feedbackMutation = useMutation({
+    mutationFn: async ({ chatLogId, nextFeedback }: { chatLogId: number; nextFeedback: 'good' | 'bad' | null }) =>
+      await apiClient.setChatFeedback(chatLogId, nextFeedback, shareToken),
+  });
+
   const handleSend = useCallback(async () => {
     if (!input.trim() || loading) return;
 
@@ -56,11 +72,7 @@ export function useChatMessages({ groupId, shareToken }: UseChatMessagesOptions)
     setLoading(true);
 
     try {
-      const response = await apiClient.chat({
-        messages: [userMessage],
-        ...(groupId ? { group_id: groupId } : {}),
-        ...(shareToken ? { share_token: shareToken } : {}),
-      });
+      const response = await chatMutation.mutateAsync(userMessage);
 
       setMessages((prev) => [
         ...prev,
@@ -81,7 +93,7 @@ export function useChatMessages({ groupId, shareToken }: UseChatMessagesOptions)
     } finally {
       setLoading(false);
     }
-  }, [input, loading, groupId, shareToken, t]);
+  }, [input, loading, chatMutation, t]);
 
   const handleKeyPress = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.nativeEvent.isComposing || e.key === 'Process') return;
@@ -99,7 +111,7 @@ export function useChatMessages({ groupId, shareToken }: UseChatMessagesOptions)
 
     setFeedbackUpdatingId(chatLogId);
     try {
-      const result = await apiClient.setChatFeedback(chatLogId, nextFeedback, shareToken);
+      const result = await feedbackMutation.mutateAsync({ chatLogId, nextFeedback });
       const normalizedFeedback = result.feedback ?? null;
 
       setMessages((prev) =>
@@ -114,7 +126,7 @@ export function useChatMessages({ groupId, shareToken }: UseChatMessagesOptions)
     } finally {
       setFeedbackUpdatingId(null);
     }
-  }, [messages, shareToken]);
+  }, [messages, shareToken, feedbackMutation]);
 
   return {
     messages,
