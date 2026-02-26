@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useVideos } from '@/hooks/useVideos';
@@ -28,11 +28,10 @@ import { TagManagementModal } from '@/components/video/TagManagementModal';
  * @returns The page's React element.
  */
 export default function VideosPage() {
-  const { videos, isLoading, error, loadVideos } = useVideos();
+  const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
+  const { videos, isLoading, error, refetch: refetchVideos } = useVideos(selectedTagIds);
   const stats = useVideoStats(videos);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
-
-  const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
   const [isTagManagementOpen, setIsTagManagementOpen] = useState(false);
   const [searchParams] = useSearchParams();
   const navigate = useI18nNavigate();
@@ -45,11 +44,6 @@ export default function VideosPage() {
     () => searchParams?.get('upload') === 'true',
     [searchParams],
   );
-
-  useEffect(() => {
-    void loadVideos(selectedTagIds.length > 0 ? selectedTagIds : undefined);
-  }, [loadVideos, selectedTagIds]);
-
   const handleTagToggle = useCallback((tagId: number) => {
     setSelectedTagIds((prev: number[]) =>
       prev.includes(tagId) ? prev.filter((id: number) => id !== tagId) : [...prev, tagId]
@@ -61,9 +55,9 @@ export default function VideosPage() {
   }, []);
 
   const handleUploadSuccess = useCallback(() => {
-    void loadVideos();
+    void refetchVideos();
     void refetchUser(); // Update video_count
-  }, [loadVideos, refetchUser]);
+  }, [refetchVideos, refetchUser]);
 
   const handleUploadClick = () => {
     setIsUploadModalOpen(true);

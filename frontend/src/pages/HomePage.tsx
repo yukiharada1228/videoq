@@ -1,53 +1,38 @@
-import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useQueries } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { useI18nNavigate } from '@/lib/i18n';
 import { useAuth } from '@/hooks/useAuth';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { apiClient, type VideoGroupList, type VideoList } from '@/lib/api';
-import { useAsyncState } from '@/hooks/useAsyncState';
 import { useVideoStats } from '@/hooks/useVideoStats';
+import { queryKeys } from '@/lib/queryKeys';
 
 export default function HomePage() {
   const navigate = useI18nNavigate();
   const { user, loading } = useAuth();
   const { t } = useTranslation();
 
-  const { data: rawData, isLoading: isLoadingStats, execute: loadStats } = useAsyncState<{
-    videos: VideoList[];
-    groups: VideoGroupList[];
-  }>({
-    initialData: {
-      videos: [],
-      groups: [],
-    },
+  const [videosQuery, groupsQuery] = useQueries({
+    queries: [
+      {
+        queryKey: queryKeys.videos.list(),
+        enabled: !!user,
+        queryFn: async (): Promise<VideoList[]> => await apiClient.getVideos().catch(() => []),
+        initialData: [] as VideoList[],
+      },
+      {
+        queryKey: queryKeys.videoGroups.all(user?.id ?? null),
+        enabled: !!user,
+        queryFn: async (): Promise<VideoGroupList[]> => await apiClient.getVideoGroups().catch(() => []),
+        initialData: [] as VideoGroupList[],
+      },
+    ],
   });
 
-  const videoStats = useVideoStats(rawData?.videos || []);
-  const hasVideos = (rawData?.videos?.length ?? 0) > 0;
-
-  useEffect(() => {
-    if (user && !isLoadingStats && !hasVideos) {
-      const loadData = async () => {
-        try {
-          const [videos, groups] = await Promise.all([
-            apiClient.getVideos().catch(() => []),
-            apiClient.getVideoGroups().catch(() => []),
-          ]);
-
-          await loadStats(async () => ({
-            videos,
-            groups,
-          }));
-        } catch (error) {
-          console.error('Failed to load stats:', error);
-        }
-      };
-
-      void loadData();
-    }
-  }, [user, isLoadingStats, hasVideos, loadStats]);
+  const videoStats = useVideoStats(videosQuery.data ?? []);
+  const isLoadingStats = videosQuery.isLoading || groupsQuery.isLoading;
 
   const handleUploadClick = () => {
     navigate('/videos?upload=true');
@@ -106,7 +91,7 @@ export default function HomePage() {
               <div className="text-4xl mb-2">📁</div>
               <CardTitle className="text-xl">{t('home.actions.groups.title')}</CardTitle>
               <CardDescription className="text-2xl font-bold text-purple-600">
-                {t('home.actions.groups.description', { count: rawData?.groups?.length || 0 })}
+                {t('home.actions.groups.description', { count: groupsQuery.data?.length || 0 })}
               </CardDescription>
             </CardHeader>
           </Card>
@@ -145,4 +130,3 @@ export default function HomePage() {
     </PageLayout>
   );
 }
-
