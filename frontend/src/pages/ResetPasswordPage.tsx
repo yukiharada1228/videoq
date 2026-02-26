@@ -16,8 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { MessageAlert } from '@/components/common/MessageAlert';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
-import { apiClient } from '@/lib/api';
-import { useAsyncState } from '@/hooks/useAsyncState';
+import { useConfirmPasswordResetMutation } from '@/hooks/usePasswordRecovery';
 
 function ResetPasswordContent() {
   const [searchParams] = useSearchParams();
@@ -29,14 +28,9 @@ function ResetPasswordContent() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [clientError, setClientError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const { isLoading, error, execute, setError } = useAsyncState<void>({
-    onSuccess: () => {
-      setSuccess(true);
-      setPassword('');
-      setConfirmPassword('');
-    },
-  });
+  const resetPasswordMutation = useConfirmPasswordResetMutation();
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -54,15 +48,22 @@ function ResetPasswordContent() {
     }
 
     try {
-      await execute(() =>
-        apiClient.confirmPasswordReset({
-          uid,
-          token,
-          new_password: password,
-        })
-      );
+      await resetPasswordMutation.mutateAsync({
+        uid,
+        token,
+        newPassword: password,
+      });
+      setSuccess(true);
+      setPassword('');
+      setConfirmPassword('');
     } catch {
-      // useAsyncState manages error display
+      setError(
+        resetPasswordMutation.error instanceof Error
+          ? resetPasswordMutation.error.message
+          : resetPasswordMutation.error
+            ? String(resetPasswordMutation.error)
+            : null,
+      );
     }
   };
 
@@ -112,8 +113,8 @@ function ResetPasswordContent() {
               </div>
             </CardContent>
             <CardFooter className="flex flex-col space-y-4 pt-4">
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? t('auth.resetPassword.submitting') : t('auth.resetPassword.submit')}
+              <Button type="submit" className="w-full" disabled={resetPasswordMutation.isPending}>
+                {resetPasswordMutation.isPending ? t('auth.resetPassword.submitting') : t('auth.resetPassword.submit')}
               </Button>
               <Link href="/login" className="text-center text-sm text-blue-600 hover:underline">
                 {t('auth.resetPassword.backToLogin')}

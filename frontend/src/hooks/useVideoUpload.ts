@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient, type VideoUploadRequest } from '@/lib/api';
-import { useAsyncState } from './useAsyncState';
+import { queryKeys } from '@/lib/queryKeys';
 
 interface UseVideoUploadReturn {
   file: File | null;
@@ -48,10 +49,40 @@ export function useVideoUpload(): UseVideoUploadReturn {
   const [externalId, setExternalId] = useState('');
   const [tagIds, setTagIds] = useState<number[]>([]);
   const [success, setSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
-  const { isLoading, error, execute: uploadVideo, setError } = useAsyncState({
-    onSuccess: () => {
+  const uploadMutation = useMutation({
+    mutationFn: async () => {
+      // Use filename (without extension) if title is empty
+      const finalTitle = title.trim() || (file ? file.name.replace(/\.[^/.]+$/, '') : '');
+
+      const request: VideoUploadRequest = {
+        file: file!,
+        title: finalTitle,
+        description: description.trim() || undefined,
+        external_id: externalId.trim() || undefined,
+      };
+
+      const uploadedVideo = await apiClient.uploadVideo(request);
+
+      if (tagIds.length > 0) {
+        try {
+          await apiClient.addTagsToVideo(uploadedVideo.id, tagIds);
+        } catch {
+          // Silently fail if tag addition fails; upload itself succeeded.
+        }
+      }
+
+      return uploadedVideo;
+    },
+    onSuccess: async () => {
       setSuccess(true);
+      setError(null);
+      await queryClient.invalidateQueries({ queryKey: queryKeys.videos.all });
+    },
+    onError: (err) => {
+      setError(err instanceof Error ? err.message : String(err));
     },
   });
 
@@ -73,7 +104,7 @@ export function useVideoUpload(): UseVideoUploadReturn {
     setTagIds([]);
     setSuccess(false);
     setError(null);
-  }, [setError]);
+  }, []);
 
   const handleSubmit = useCallback(async (e: React.FormEvent, onSuccess?: () => void) => {
     e.preventDefault();
@@ -84,36 +115,14 @@ export function useVideoUpload(): UseVideoUploadReturn {
       return;
     }
 
-    await uploadVideo(async () => {
-      // Use filename (without extension) if title is empty
-      const finalTitle = title.trim() || (file ? file.name.replace(/\.[^/.]+$/, '') : '');
-
-      const request: VideoUploadRequest = {
-        file: file!,
-        title: finalTitle,
-        description: description.trim() || undefined,
-        external_id: externalId.trim() || undefined,
-      };
-
-      const uploadedVideo = await apiClient.uploadVideo(request);
-
-      // Add tags if selected
-      if (tagIds.length > 0) {
-        try {
-          await apiClient.addTagsToVideo(uploadedVideo.id, tagIds);
-        } catch {
-          // Silently fail if tag addition fails
-          // The video upload itself was successful
-        }
-      }
-
-      return uploadedVideo;
-    });
+    setError(null);
+    setSuccess(false);
+    await uploadMutation.mutateAsync();
 
     if (onSuccess) {
       onSuccess();
     }
-  }, [uploadVideo, file, title, description, externalId, tagIds, setError]);
+  }, [uploadMutation, file, title, setError]);
 
   return {
     file,
@@ -121,7 +130,7 @@ export function useVideoUpload(): UseVideoUploadReturn {
     description,
     externalId,
     tagIds,
-    isUploading: isLoading,
+    isUploading: uploadMutation.isPending,
     error,
     success,
     setTitle,
@@ -133,4 +142,3 @@ export function useVideoUpload(): UseVideoUploadReturn {
     reset,
   };
 }
-

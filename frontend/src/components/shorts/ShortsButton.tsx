@@ -1,8 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { apiClient, type PopularScene, type VideoInGroup } from '@/lib/api';
+import { queryKeys } from '@/lib/queryKeys';
 import { ShortsPlayer } from './ShortsPlayer';
 
 interface ShortsButtonProps {
@@ -16,39 +18,39 @@ const CACHE_TTL = 5 * 60 * 1000;
 
 export function ShortsButton({ groupId, videos, shareToken, size = 'default' }: ShortsButtonProps) {
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
-  const [scenes, setScenes] = useState<PopularScene[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const cacheRef = useRef<{ groupId: number; data: PopularScene[]; fetchedAt: number } | null>(null);
+  const [isOpening, setIsOpening] = useState(false);
+  const popularScenesQuery = useQuery<PopularScene[]>({
+    queryKey: queryKeys.shorts.popularScenes(groupId, shareToken),
+    enabled: false,
+    staleTime: CACHE_TTL,
+    queryFn: async () => await apiClient.getPopularScenes(groupId, shareToken),
+  });
 
   // Prefetch popular scenes data on mount
   useEffect(() => {
     if (!videos || videos.length === 0) return;
-    const cached = cacheRef.current;
-    if (cached && cached.groupId === groupId && Date.now() - cached.fetchedAt < CACHE_TTL) return;
-    apiClient.getPopularScenes(groupId, shareToken).then((data) => {
-      cacheRef.current = { groupId, data, fetchedAt: Date.now() };
+    void queryClient.prefetchQuery({
+      queryKey: queryKeys.shorts.popularScenes(groupId, shareToken),
+      queryFn: async () => await apiClient.getPopularScenes(groupId, shareToken),
+      staleTime: CACHE_TTL,
     }).catch(() => {});
-  }, [groupId, videos, shareToken]);
+  }, [groupId, videos, shareToken, queryClient]);
 
   const handleOpen = async () => {
-    const cached = cacheRef.current;
-    if (cached && cached.groupId === groupId && Date.now() - cached.fetchedAt < CACHE_TTL) {
-      setScenes(cached.data);
-      setIsOpen(true);
-      return;
-    }
-
-    setIsLoading(true);
+    setIsOpening(true);
     try {
-      const popularScenes = await apiClient.getPopularScenes(groupId, shareToken);
-      cacheRef.current = { groupId, data: popularScenes, fetchedAt: Date.now() };
-      setScenes(popularScenes);
+      await queryClient.fetchQuery({
+        queryKey: queryKeys.shorts.popularScenes(groupId, shareToken),
+        queryFn: async () => await apiClient.getPopularScenes(groupId, shareToken),
+        staleTime: CACHE_TTL,
+      });
       setIsOpen(true);
     } catch (error) {
       console.error('Failed to load popular scenes:', error);
     } finally {
-      setIsLoading(false);
+      setIsOpening(false);
     }
   };
 
@@ -58,13 +60,19 @@ export function ShortsButton({ groupId, videos, shareToken, size = 'default' }: 
 
   return (
     <>
-      <Button variant="outline" size={size} onClick={handleOpen} disabled={isLoading} className="gap-2">
+      <Button
+        variant="outline"
+        size={size}
+        onClick={handleOpen}
+        disabled={isOpening}
+        className="gap-2"
+      >
         <Play className="h-4 w-4" />
-        {isLoading ? t('common.loading') : t('shorts.button')}
+        {isOpening ? t('common.loading') : t('shorts.button')}
       </Button>
 
       {isOpen && (
-        <ShortsPlayer scenes={scenes} shareToken={shareToken} onClose={() => setIsOpen(false)} />
+        <ShortsPlayer scenes={popularScenesQuery.data ?? []} shareToken={shareToken} onClose={() => setIsOpen(false)} />
       )}
     </>
   );

@@ -1,10 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef } from 'react';
 import { Link, useI18nNavigate, useLocale } from '@/lib/i18n';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useVideo } from '@/hooks/useVideos';
-import { useAsyncState } from '@/hooks/useAsyncState';
-import { apiClient, type Tag } from '@/lib/api';
+import { apiClient } from '@/lib/api';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,6 +16,117 @@ import { getStatusBadgeClassName, getStatusLabel, formatDate } from '@/lib/utils
 import { TagBadge } from '@/components/video/TagBadge';
 import { TagSelector } from '@/components/video/TagSelector';
 import { useTags } from '@/hooks/useTags';
+import { useVideoEditing } from '@/hooks/useVideoEditing';
+import { useVideoDetailPageMutations } from '@/hooks/useVideoDetailPageData';
+import type { Tag } from '@/lib/api';
+
+interface VideoInfoEditFormProps {
+  editedTitle: string;
+  editedDescription: string;
+  editedTagIds: number[];
+  tags: Tag[];
+  isUpdating: boolean;
+  onTitleChange: (title: string) => void;
+  onDescriptionChange: (desc: string) => void;
+  onTagToggle: (tagId: number) => void;
+  onCreateTag: () => void;
+  onSave: () => void;
+  onCancel: () => void;
+}
+
+function VideoInfoEditForm({
+  editedTitle, editedDescription, editedTagIds, tags, isUpdating,
+  onTitleChange, onDescriptionChange, onTagToggle, onCreateTag, onSave, onCancel,
+}: VideoInfoEditFormProps) {
+  const { t } = useTranslation();
+  return (
+    <>
+      <div>
+        <label className="text-sm font-medium text-gray-600 block mb-1">
+          {t('videos.detail.editTitleLabel')}
+        </label>
+        <Input
+          type="text"
+          value={editedTitle}
+          onChange={(e) => onTitleChange(e.target.value)}
+          className="w-full"
+          disabled={isUpdating}
+        />
+      </div>
+      <div>
+        <label className="text-sm font-medium text-gray-600 block mb-1">
+          {t('videos.detail.editDescriptionLabel')}
+        </label>
+        <Textarea
+          value={editedDescription}
+          onChange={(e) => onDescriptionChange(e.target.value)}
+          className="w-full min-h-[100px]"
+          disabled={isUpdating}
+        />
+      </div>
+      <div>
+        <TagSelector
+          tags={tags}
+          selectedTagIds={editedTagIds}
+          onToggle={onTagToggle}
+          onCreateNew={onCreateTag}
+          disabled={isUpdating}
+        />
+      </div>
+      <div className="flex gap-2 pt-2">
+        <Button
+          onClick={onSave}
+          disabled={isUpdating || !editedTitle.trim()}
+        >
+          {isUpdating ? (
+            <span className="flex items-center">
+              <InlineSpinner className="mr-2" />
+              {t('videos.detail.saving')}
+            </span>
+          ) : (
+            t('videos.detail.save')
+          )}
+        </Button>
+        <Button variant="outline" onClick={onCancel} disabled={isUpdating}>
+          {t('videos.detail.cancel')}
+        </Button>
+      </div>
+    </>
+  );
+}
+
+interface TranscriptSectionProps {
+  transcript: string | undefined;
+  status: string;
+}
+
+function TranscriptSection({ transcript, status }: TranscriptSectionProps) {
+  const { t } = useTranslation();
+
+  const statusMessages: Record<string, { key: string; className: string }> = {
+    pending: { key: 'common.messages.transcriptionPending', className: 'text-gray-500 italic' },
+    processing: { key: 'common.messages.transcriptionProcessing', className: 'text-gray-500 italic' },
+    completed: { key: 'common.messages.transcriptionUnavailable', className: 'text-gray-500 italic' },
+    error: { key: 'common.messages.transcriptionError', className: 'text-red-600 italic' },
+  };
+
+  return (
+    <Card className="lg:col-span-2">
+      <CardHeader>
+        <CardTitle>{t('videos.detail.transcript')}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {transcript && transcript.trim() ? (
+          <p className="text-gray-900 whitespace-pre-wrap">{transcript}</p>
+        ) : (
+          <p className={statusMessages[status]?.className || 'text-gray-500 italic'}>
+            {t(statusMessages[status]?.key || 'common.messages.transcriptionUnavailable')}
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function VideoDetailPage() {
   const params = useParams<{ id: string }>();
@@ -28,36 +138,22 @@ export default function VideoDetailPage() {
   const { t } = useTranslation();
   const locale = useLocale();
 
-  const { video, isLoading, error, loadVideo } = useVideo(videoId);
-
-  const [isEditing, setIsEditing] = useState(false);
-  const [editedTitle, setEditedTitle] = useState('');
-  const [editedDescription, setEditedDescription] = useState('');
-  const [editedTagIds, setEditedTagIds] = useState<number[]>([]);
-
+  const { video, isLoading, error } = useVideo(videoId);
   const { tags, createTag } = useTags();
 
-  // Create new tag handler
-  const handleCreateTag = async () => {
-    const tagName = prompt(t('tags.create.prompt', 'Enter new tag name:'));
-    if (tagName && tagName.trim()) {
-      try {
-        const newTag = (await createTag(tagName.trim())) as Tag;
-        if (newTag) {
-          setEditedTagIds(prev => [...prev, newTag.id]);
-        }
-      } catch (error) {
-        console.error('Failed to create tag:', error);
-        alert(t('tags.create.error', 'Failed to create tag'));
-      }
-    }
-  };
-
-  useEffect(() => {
-    if (videoId) {
-      void loadVideo();
-    }
-  }, [videoId, loadVideo]);
+  const {
+    isEditing,
+    editedTitle,
+    editedDescription,
+    editedTagIds,
+    setEditedTitle,
+    setEditedDescription,
+    setEditedTagIds,
+    startEditing,
+    cancelEditing,
+    handleUpdateVideo,
+    handleCreateTag,
+  } = useVideoEditing({ video, videoId, createTag });
 
   const handleVideoLoaded = () => {
     if (videoRef.current && startTime) {
@@ -69,61 +165,17 @@ export default function VideoDetailPage() {
     }
   };
 
-  const { isLoading: isDeleting, error: deleteError, mutate: handleDelete } = useAsyncState<void>({
-    onSuccess: () => navigate('/videos'),
-    confirmMessage: t('confirmations.deleteVideo'),
+  const { deleteMutation, updateMutation } = useVideoDetailPageMutations({
+    videoId,
+    onDeleteSuccess: () => navigate('/videos'),
+    onUpdate: handleUpdateVideo,
+    onUpdateSuccess: cancelEditing,
   });
 
-  const { isLoading: isUpdating, error: updateError, mutate: handleUpdate } = useAsyncState<void>({
-    onSuccess: () => {
-      setIsEditing(false);
-      void loadVideo();
-    },
-  });
-
-  const handleUpdateVideo = async () => {
-    if (!videoId || !video) return;
-
-    // 1. Update title and description
-    await apiClient.updateVideo(videoId, {
-      title: editedTitle,
-      description: editedDescription,
-    });
-
-    // 2. Calculate tag diffs
-    const currentTagIds = video.tags?.map(t => t.id) || [];
-    const tagsToAdd = editedTagIds.filter(id => !currentTagIds.includes(id));
-    const tagsToRemove = currentTagIds.filter(id => !editedTagIds.includes(id));
-
-    // 3. Add new tags
-    if (tagsToAdd.length > 0) {
-      await apiClient.addTagsToVideo(videoId, tagsToAdd);
-    }
-
-    // 4. Remove deleted tags
-    if (tagsToRemove.length > 0) {
-      await Promise.all(tagsToRemove.map(tagId =>
-        apiClient.removeTagFromVideo(videoId, tagId)
-      ));
-    }
-  };
-
-  const startEditing = () => {
-    if (video) {
-      setEditedTitle(video.title);
-      setEditedDescription(video.description || '');
-      setEditedTagIds(video.tags?.map(t => t.id) || []);
-      setIsEditing(true);
-    }
-  };
-
-  const handleCancelEdit = () => {
-    setIsEditing(false);
-    if (video) {
-      setEditedTitle(video.title);
-      setEditedDescription(video.description || '');
-    }
-  };
+  const isDeleting = deleteMutation.isPending;
+  const deleteError = deleteMutation.error instanceof Error ? deleteMutation.error.message : null;
+  const isUpdating = updateMutation.isPending;
+  const updateError = updateMutation.error instanceof Error ? updateMutation.error.message : null;
 
   if (isLoading) {
     return (
@@ -180,10 +232,10 @@ export default function VideoDetailPage() {
             {!isEditing && (
               <Button
                 variant="destructive"
-                onClick={() => void handleDelete(async () => {
-                  if (!videoId) return;
-                  await apiClient.deleteVideo(videoId);
-                })}
+                onClick={() => {
+                  if (!window.confirm(t('confirmations.deleteVideo'))) return;
+                  void deleteMutation.mutateAsync();
+                }}
                 disabled={isDeleting}
                 size="sm"
                 className="lg:size-default"
@@ -212,64 +264,25 @@ export default function VideoDetailPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               {isEditing ? (
-                <>
-                  <div>
-                    <label className="text-sm font-medium text-gray-600 block mb-1">
-                      {t('videos.detail.editTitleLabel')}
-                    </label>
-                    <Input
-                      type="text"
-                      value={editedTitle}
-                      onChange={(e) => setEditedTitle(e.target.value)}
-                      className="w-full"
-                      disabled={isUpdating}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-600 block mb-1">
-                      {t('videos.detail.editDescriptionLabel')}
-                    </label>
-                    <Textarea
-                      value={editedDescription}
-                      onChange={(e) => setEditedDescription(e.target.value)}
-                      className="w-full min-h-[100px]"
-                      disabled={isUpdating}
-                    />
-                  </div>
-                  <div>
-                    <TagSelector
-                      tags={tags}
-                      selectedTagIds={editedTagIds}
-                      onToggle={(tagId) => {
-                        setEditedTagIds(prev =>
-                          prev.includes(tagId)
-                            ? prev.filter(id => id !== tagId)
-                            : [...prev, tagId]
-                        );
-                      }}
-                      onCreateNew={handleCreateTag}
-                      disabled={isUpdating}
-                    />
-                  </div>
-                  <div className="flex gap-2 pt-2">
-                    <Button
-                      onClick={() => void handleUpdate(handleUpdateVideo)}
-                      disabled={isUpdating || !editedTitle.trim()}
-                    >
-                      {isUpdating ? (
-                        <span className="flex items-center">
-                          <InlineSpinner className="mr-2" />
-                          {t('videos.detail.saving')}
-                        </span>
-                      ) : (
-                        t('videos.detail.save')
-                      )}
-                    </Button>
-                    <Button variant="outline" onClick={handleCancelEdit} disabled={isUpdating}>
-                      {t('videos.detail.cancel')}
-                    </Button>
-                  </div>
-                </>
+                <VideoInfoEditForm
+                  editedTitle={editedTitle}
+                  editedDescription={editedDescription}
+                  editedTagIds={editedTagIds}
+                  tags={tags}
+                  isUpdating={isUpdating}
+                  onTitleChange={setEditedTitle}
+                  onDescriptionChange={setEditedDescription}
+                  onTagToggle={(tagId) => {
+                    setEditedTagIds(prev =>
+                      prev.includes(tagId)
+                        ? prev.filter(id => id !== tagId)
+                        : [...prev, tagId]
+                    );
+                  }}
+                  onCreateTag={handleCreateTag}
+                  onSave={() => void updateMutation.mutateAsync()}
+                  onCancel={cancelEditing}
+                />
               ) : (
                 <>
                   <div>
@@ -332,36 +345,10 @@ export default function VideoDetailPage() {
             </CardContent>
           </Card>
 
-          {video.transcript && video.transcript.trim() ? (
-            <Card className="lg:col-span-2">
-              <CardHeader>
-                <CardTitle>{t('videos.detail.transcript')}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-900 whitespace-pre-wrap">{video.transcript}</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card className="lg:col-span-2">
-              <CardHeader>
-                <CardTitle>{t('videos.detail.transcript')}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {video.status === 'pending' && (
-                  <p className="text-gray-500 italic">{t('common.messages.transcriptionPending')}</p>
-                )}
-                {video.status === 'processing' && (
-                  <p className="text-gray-500 italic">{t('common.messages.transcriptionProcessing')}</p>
-                )}
-                {video.status === 'completed' && (
-                  <p className="text-gray-500 italic">{t('common.messages.transcriptionUnavailable')}</p>
-                )}
-                {video.status === 'error' && (
-                  <p className="text-red-600 italic">{t('common.messages.transcriptionError')}</p>
-                )}
-              </CardContent>
-            </Card>
-          )}
+          <TranscriptSection
+            transcript={video.transcript}
+            status={video.status}
+          />
 
           {video.error_message && (
             <Card className="lg:col-span-2">
@@ -378,4 +365,3 @@ export default function VideoDetailPage() {
     </PageLayout>
   );
 }
-

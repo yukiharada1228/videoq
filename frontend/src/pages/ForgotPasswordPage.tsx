@@ -14,16 +14,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { MessageAlert } from '@/components/common/MessageAlert';
-import { apiClient } from '@/lib/api';
-import { useAsyncState } from '@/hooks/useAsyncState';
+import { useRequestPasswordResetMutation } from '@/hooks/usePasswordRecovery';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [success, setSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { t } = useTranslation();
-  const { isLoading, error, execute, setError } = useAsyncState<void>({
-    onSuccess: () => setSuccess(true),
-  });
+  const requestResetMutation = useRequestPasswordResetMutation();
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -31,9 +29,16 @@ export default function ForgotPasswordPage() {
     setError(null);
 
     try {
-      await execute(() => apiClient.requestPasswordReset({ email }));
+      await requestResetMutation.mutateAsync(email);
+      setSuccess(true);
     } catch {
-      // useAsyncState manages error display
+      setError(
+        requestResetMutation.error instanceof Error
+          ? requestResetMutation.error.message
+          : requestResetMutation.error
+            ? String(requestResetMutation.error)
+            : null,
+      );
     }
   };
 
@@ -69,8 +74,8 @@ export default function ForgotPasswordPage() {
               </div>
             </CardContent>
             <CardFooter className="flex flex-col space-y-4 pt-4">
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? t('auth.forgotPassword.submitting') : t('auth.forgotPassword.submit')}
+              <Button type="submit" className="w-full" disabled={requestResetMutation.isPending}>
+                {requestResetMutation.isPending ? t('auth.forgotPassword.submitting') : t('auth.forgotPassword.submit')}
               </Button>
               <Link href="/login" className="text-center text-sm text-blue-600 hover:underline">
                 {t('auth.forgotPassword.backToLogin')}

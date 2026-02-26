@@ -242,7 +242,7 @@ graph TB
 
 ### Data Integrity
 - Referential integrity through foreign key constraints
-- Consistency guarantee through transactions
+- Consistency guarantee through `transaction.atomic`
 
 ### Scalability
 - File storage supports S3

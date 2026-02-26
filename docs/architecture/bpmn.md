@@ -259,5 +259,5 @@ flowchart TD
 - Secure token-based authentication
 
 ### Data Integrity
-- Transaction management
+- Transaction management using `transaction.atomic` to ensure data consistency
 - Referential integrity guarantee through CASCADE deletion
