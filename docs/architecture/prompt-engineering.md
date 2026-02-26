@@ -10,10 +10,10 @@ VideoQ's AI chat feature uses RAG (Retrieval-Augmented Generation) architecture 
 
 The system prompt for RAG chat consists of the following elements:
 
-1. **Header**: Contains the assistant's role, background, request, and format instructions
-2. **Rules**: Constraints and guidelines for answer generation
-3. **Format Instruction**: Output format specification
-4. **Reference Materials**: Relevant scene information retrieved from vector search
+1. **Header**: Defines the assistant's role and authoritative scope of knowledge.
+2. **Rules**: Strict constraints for answer generation (e.g., grounding, handling premises, uncertainty handling).
+3. **Format Instruction**: Specifies natural sentence output and avoidance of bullet points.
+4. **Reference Materials**: Relevant scene information retrieved from vector search.
 
 ### Prompt Generation Flow
 
@@ -24,11 +24,13 @@ Vector Search (PGVector)
     ↓
 Retrieve Related Scenes (max 6)
     ↓
+Determine Locale (ja/en)
+    ↓
 Build Prompt (build_system_prompt)
     ↓
-Send to LLM (OpenAI ChatGPT)
+Send to LLM (OpenAI / Ollama)
     ↓
-Generate Answer
+Generate Answer (English or Japanese)
 ```
 
 ## Prompt Template Structure
@@ -42,23 +44,20 @@ Prompts are defined in `backend/app/chat/prompts/prompts.json`.
   "rag": {
     "default": {
       "header": "You are {role}. Because {background}, please {request}. Follow the rules below and respond using the specified format.",
-      "role": "an assistant who answers using scenes linked to the user's video group",
-      "background": "the conversation must stay grounded in the provided scene context",
+      "role": "an assistant that answers strictly and exclusively based on scenes linked to the user's video group",
+      "background": "the conversation must remain fully grounded in the provided video scenes and their explanations",
       "request": "answer the user's latest message",
-      "format_instruction": "respond with 1-3 bullet points and finish with a single-sentence summary",
+      "format_instruction": "Respond in clear, natural sentences. Avoid bullet points unless structural clarity would otherwise be lost.",
       "rules": [
-        "If you are unsure, say you do not know clearly instead of speculating.",
-        "Prioritize the provided scene context when forming your answers."
+        "Treat the provided video scenes as the sole authoritative source of truth.",
+        "Do not rely on general knowledge or external information.",
+        "If the premise clearly contradicts the video scenes, explicitly point out the misunderstanding.",
+        "If you are genuinely unsure, explicitly state that you do not know rather than guessing.",
+        "Always answer in English."
       ],
-      "section_titles": {
-        "rules": "# Rules",
-        "format": "# Format",
-        "reference": "# Reference Materials"
-      },
       "reference": {
         "lead": "Below are relevant scenes extracted from the user's video group.",
-        "footer": "Include brief descriptions when helpful.",
-        "empty": "No reference scenes are available. Base your answer on the rules above."
+        "empty": "If no relevant scenes are available, explicitly state that the content is outside the scope of the video materials."
       }
     }
   }
