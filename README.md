@@ -106,7 +106,7 @@ AWS_ACCESS_KEY_ID=your-key
 AWS_SECRET_ACCESS_KEY=your-secret
 AWS_STORAGE_BUCKET_NAME=your-bucket
 
-# Standard AWS S3 の場合
+# AWS S3 の場合
 AWS_S3_REGION_NAME=ap-northeast-1
 
 # Cloudflare R2 の場合
