@@ -215,3 +215,7 @@ class RefreshResponseSerializer(serializers.Serializer):
 
 class MessageResponseSerializer(serializers.Serializer):
     detail = serializers.CharField(help_text="Response message")
+
+
+class AccountDeleteSerializer(serializers.Serializer):
+    reason = serializers.CharField(required=False, allow_blank=True)
