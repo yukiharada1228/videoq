@@ -1,5 +1,4 @@
 import { useRef } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link, useI18nNavigate, useLocale } from '@/lib/i18n';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -18,8 +17,8 @@ import { TagBadge } from '@/components/video/TagBadge';
 import { TagSelector } from '@/components/video/TagSelector';
 import { useTags } from '@/hooks/useTags';
 import { useVideoEditing } from '@/hooks/useVideoEditing';
+import { useVideoDetailPageMutations } from '@/hooks/useVideoDetailPageData';
 import type { Tag } from '@/lib/api';
-import { queryKeys } from '@/lib/queryKeys';
 
 interface VideoInfoEditFormProps {
   editedTitle: string;
@@ -132,7 +131,6 @@ function TranscriptSection({ transcript, status }: TranscriptSectionProps) {
 export default function VideoDetailPage() {
   const params = useParams<{ id: string }>();
   const navigate = useI18nNavigate();
-  const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const videoId = params?.id ? Number.parseInt(params.id, 10) : null;
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -167,27 +165,11 @@ export default function VideoDetailPage() {
     }
   };
 
-  const deleteMutation = useMutation({
-    mutationFn: async () => {
-      if (!videoId) return;
-      await apiClient.deleteVideo(videoId);
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.videos.all });
-      navigate('/videos');
-    },
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: async () => {
-      await handleUpdateVideo();
-    },
-    onSuccess: async () => {
-      cancelEditing();
-      if (videoId) {
-        await queryClient.invalidateQueries({ queryKey: queryKeys.videos.detail(videoId) });
-      }
-    },
+  const { deleteMutation, updateMutation } = useVideoDetailPageMutations({
+    videoId,
+    onDeleteSuccess: () => navigate('/videos'),
+    onUpdate: handleUpdateVideo,
+    onUpdateSuccess: cancelEditing,
   });
 
   const isDeleting = deleteMutation.isPending;
