@@ -95,8 +95,26 @@ docker compose exec backend python manage.py createsuperuser
 
 この設計により、管理者がリソース使用量とユーザー権限を完全に制御できます。
 
-**セキュリティ機能:**
-VideoQはブルートフォース攻撃を防ぐため、ログイン、パスワードリセット、サインアップ、およびチャット機能に対するレート制限（APIの呼び出し制限）を備えています。
+## 📦 オプション：クラウドストレージの設定 (AWS S3 / Cloudflare R2)
+
+**※このステップは必須ではありません。** デフォルトではローカルのファイルシステムに動画を保存しますが、AWS S3やCloudflare R2などのオブジェクトストレージを使用することも可能です。
+
+`.env` ファイルで以下を設定：
+```bash
+USE_S3_STORAGE=true
+AWS_ACCESS_KEY_ID=your-key
+AWS_SECRET_ACCESS_KEY=your-secret
+AWS_STORAGE_BUCKET_NAME=your-bucket
+
+# Standard AWS S3 の場合
+AWS_S3_REGION_NAME=ap-northeast-1
+
+# Cloudflare R2 の場合
+AWS_S3_ENDPOINT_URL=https://<account-id>.r2.cloudflarestorage.com
+AWS_S3_REGION_NAME=auto
+```
+
+再起動: `docker compose restart backend celery-worker`
 
 ## 💰 オプション：ローカルAIでコストを節約
 
