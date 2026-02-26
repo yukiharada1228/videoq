@@ -33,7 +33,7 @@ function ChatMessageBubble({ message, feedbackUpdatingId, onVideoNavigate, onFee
               {message.related_videos.map((video, videoIndex) => (
                 <div
                   key={videoIndex}
-                  className="flex-shrink-0 bg-white border border-gray-200 rounded p-2 hover:bg-gray-50 cursor-pointer"
+                  className="shrink-0 bg-white border border-gray-200 rounded p-2 hover:bg-gray-50 cursor-pointer"
                   onClick={() => onVideoNavigate(video.video_id, video.start_time)}
                 >
                   <p className="text-xs font-medium text-gray-800 truncate mb-1">{video.title}</p>

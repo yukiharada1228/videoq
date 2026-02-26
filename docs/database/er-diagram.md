@@ -12,6 +12,7 @@ erDiagram
     User ||--o{ VideoGroup : owns
     User ||--o{ ChatLog : creates
     User ||--o{ Tag : owns
+    User ||--o{ AccountDeletionRequest : creates
     VideoGroup ||--o{ VideoGroupMember : contains
     Video ||--o{ VideoGroupMember : belongs_to
     Video ||--o{ VideoTag : has
@@ -90,6 +91,13 @@ erDiagram
         int tag_id FK
         datetime added_at
     }
+
+    AccountDeletionRequest {
+        int id PK
+        int user_id FK
+        text reason
+        datetime requested_at
+    }
 ```
 
 ## Relationship Details
@@ -113,6 +121,11 @@ erDiagram
 - **Relationship**: One user owns multiple tags
 - **Foreign Key**: `Tag.user_id` → `User.id`
 - **Delete Action**: CASCADE (tags are deleted when user is deleted)
+
+### User - AccountDeletionRequest (1:N)
+- **Relationship**: One user can have multiple account deletion requests
+- **Foreign Key**: `AccountDeletionRequest.user_id` → `User.id`
+- **Delete Action**: CASCADE (requests are deleted when user is deleted)
 
 ### Video - VideoTag (1:N)
 - **Relationship**: One video can have multiple tags
