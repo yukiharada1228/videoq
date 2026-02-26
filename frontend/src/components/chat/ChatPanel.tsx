@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -7,6 +8,7 @@ import { timeStringToSeconds } from '@/lib/utils/video';
 import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
 import { useChatMessages, type Message } from '@/hooks/useChatMessages';
+import { queryKeys } from '@/lib/queryKeys';
 
 interface ChatMessageBubbleProps {
   message: Message;
@@ -164,6 +166,7 @@ function ChatHistoryModal({ groupId, shareToken, history, historyLoading, onClos
 
 export function ChatPanel({ groupId, onVideoPlay, shareToken, className }: ChatPanelProps) {
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
   const {
     messages,
     input,
@@ -178,21 +181,23 @@ export function ChatPanel({ groupId, onVideoPlay, shareToken, className }: ChatP
   } = useChatMessages({ groupId, shareToken });
 
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [history, setHistory] = useState<ChatHistoryItem[] | null>(null);
-  const [historyLoading, setHistoryLoading] = useState(false);
+  const historyQuery = useQuery<ChatHistoryItem[]>({
+    queryKey: queryKeys.chat.history(groupId ?? null, shareToken),
+    enabled: false,
+    queryFn: async () => {
+      if (!groupId || shareToken) {
+        return [];
+      }
+      return await apiClient.getChatHistory(groupId);
+    },
+  });
 
   const openHistory = async () => {
     if (!groupId || !!shareToken) return;
     setHistoryOpen(true);
-    setHistoryLoading(true);
-    try {
-      const data = await apiClient.getChatHistory(groupId);
-      setHistory(data);
-    } catch (e) {
-      console.error('Failed to load history', e);
-      setHistory([]);
-    } finally {
-      setHistoryLoading(false);
+    const result = await historyQuery.refetch();
+    if (result.error) {
+      console.error('Failed to load history', result.error);
     }
   };
 
@@ -210,7 +215,9 @@ export function ChatPanel({ groupId, onVideoPlay, shareToken, className }: ChatP
     // Sync feedback to history modal if open
     const targetMessage = messages.find((m) => m.chatLogId === chatLogId);
     if (targetMessage) {
-      setHistory((prev) =>
+      queryClient.setQueryData<ChatHistoryItem[]>(
+        queryKeys.chat.history(groupId ?? null, shareToken),
+        (prev) =>
         prev
           ? prev.map((item) =>
             item.id === chatLogId ? { ...item, feedback: targetMessage.feedback === value ? null : value } : item,
@@ -269,8 +276,8 @@ export function ChatPanel({ groupId, onVideoPlay, shareToken, className }: ChatP
         <ChatHistoryModal
           groupId={groupId!}
           shareToken={shareToken}
-          history={history}
-          historyLoading={historyLoading}
+          history={historyQuery.data ?? null}
+          historyLoading={historyQuery.isLoading || historyQuery.isFetching}
           onClose={() => setHistoryOpen(false)}
         />
       )}

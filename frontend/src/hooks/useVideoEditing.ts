@@ -1,6 +1,8 @@
 import { useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient, type Tag, type Video } from '@/lib/api';
+import { queryKeys } from '@/lib/queryKeys';
 
 interface UseVideoEditingOptions {
   video: Video | null;
@@ -24,10 +26,40 @@ interface UseVideoEditingReturn {
 
 export function useVideoEditing({ video, videoId, createTag }: UseVideoEditingOptions): UseVideoEditingReturn {
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
   const [editedTitle, setEditedTitle] = useState('');
   const [editedDescription, setEditedDescription] = useState('');
   const [editedTagIds, setEditedTagIds] = useState<number[]>([]);
+
+  const saveVideoMutation = useMutation({
+    mutationFn: async () => {
+      if (!videoId || !video) return;
+
+      await apiClient.updateVideo(videoId, {
+        title: editedTitle,
+        description: editedDescription,
+      });
+
+      const currentTagIds = video.tags?.map(tag => tag.id) || [];
+      const tagsToAdd = editedTagIds.filter((id: number) => !currentTagIds.includes(id));
+      const tagsToRemove = currentTagIds.filter((id: number) => !editedTagIds.includes(id));
+
+      if (tagsToAdd.length > 0) {
+        await apiClient.addTagsToVideo(videoId, tagsToAdd);
+      }
+
+      if (tagsToRemove.length > 0) {
+        await Promise.all(tagsToRemove.map((tagId: number) =>
+          apiClient.removeTagFromVideo(videoId, tagId)
+        ));
+      }
+    },
+    onSuccess: async () => {
+      if (!videoId) return;
+      await queryClient.invalidateQueries({ queryKey: queryKeys.videos.detail(videoId) });
+    },
+  });
 
   const startEditing = useCallback(() => {
     if (video) {
@@ -48,26 +80,8 @@ export function useVideoEditing({ video, videoId, createTag }: UseVideoEditingOp
 
   const handleUpdateVideo = useCallback(async () => {
     if (!videoId || !video) return;
-
-    await apiClient.updateVideo(videoId, {
-      title: editedTitle,
-      description: editedDescription,
-    });
-
-    const currentTagIds = video.tags?.map(tag => tag.id) || [];
-    const tagsToAdd = editedTagIds.filter((id: number) => !currentTagIds.includes(id));
-    const tagsToRemove = currentTagIds.filter((id: number) => !editedTagIds.includes(id));
-
-    if (tagsToAdd.length > 0) {
-      await apiClient.addTagsToVideo(videoId, tagsToAdd);
-    }
-
-    if (tagsToRemove.length > 0) {
-      await Promise.all(tagsToRemove.map((tagId: number) =>
-        apiClient.removeTagFromVideo(videoId, tagId)
-      ));
-    }
-  }, [videoId, video, editedTitle, editedDescription, editedTagIds]);
+    await saveVideoMutation.mutateAsync();
+  }, [videoId, video, saveVideoMutation]);
 
   const handleCreateTag = useCallback(async () => {
     const tagName = prompt(t('tags.create.prompt', 'Enter new tag name:'));

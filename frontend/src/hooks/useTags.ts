@@ -1,62 +1,95 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient, type Tag } from '@/lib/api';
-import { useAsyncState } from './useAsyncState';
+import { queryKeys } from '@/lib/queryKeys';
 
 export function useTags() {
-  const [tags, setTags] = useState<Tag[]>([]);
-  const { isLoading, error, execute } = useAsyncState();
+  const queryClient = useQueryClient();
 
-  const loadTags = useCallback(async () => {
-    await execute(async () => {
-      const data = await apiClient.getTags();
-      setTags(data);
-      return data;
-    });
-  }, [execute]);
+  const tagsQuery = useQuery<Tag[]>({
+    queryKey: queryKeys.tags.all,
+    queryFn: async () => await apiClient.getTags(),
+  });
+
+  const createTagMutation = useMutation({
+    mutationFn: async ({ name, color }: { name: string; color?: string }) =>
+      await apiClient.createTag({ name, color }),
+  });
+
+  const updateTagMutation = useMutation({
+    mutationFn: async ({ id, name, color }: { id: number; name?: string; color?: string }) =>
+      await apiClient.updateTag(id, { name, color }),
+  });
+
+  const deleteTagMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await apiClient.deleteTag(id);
+      return id;
+    },
+  });
 
   const createTag = useCallback(
     async (name: string, color?: string) => {
-      return execute(async () => {
-        const newTag = await apiClient.createTag({ name, color });
-        setTags((prev) => [...prev, newTag]);
-        return newTag;
-      });
+      await queryClient.cancelQueries({ queryKey: queryKeys.tags.all });
+      const newTag = await createTagMutation.mutateAsync({ name, color });
+      queryClient.setQueryData<Tag[]>(queryKeys.tags.all, (prev = []) => [...prev, newTag]);
+      await queryClient.invalidateQueries({ queryKey: queryKeys.tags.all, refetchType: 'none' });
+      return newTag;
     },
-    [execute]
+    [createTagMutation, queryClient]
   );
 
   const updateTag = useCallback(
     async (id: number, name?: string, color?: string) => {
-      return execute(async () => {
-        const updatedTag = await apiClient.updateTag(id, { name, color });
-        setTags((prev) =>
-          prev.map((tag) => (tag.id === id ? updatedTag : tag))
-        );
-        return updatedTag;
-      });
+      await queryClient.cancelQueries({ queryKey: queryKeys.tags.all });
+      const updatedTag = await updateTagMutation.mutateAsync({ id, name, color });
+      queryClient.setQueryData<Tag[]>(
+        queryKeys.tags.all,
+        (prev = []) => prev.map((tag) => (tag.id === updatedTag.id ? updatedTag : tag)),
+      );
+      await queryClient.invalidateQueries({ queryKey: queryKeys.tags.all, refetchType: 'none' });
+      return updatedTag;
     },
-    [execute]
+    [queryClient, updateTagMutation]
   );
 
   const deleteTag = useCallback(
     async (id: number) => {
-      await execute(async () => {
-        await apiClient.deleteTag(id);
-        setTags((prev) => prev.filter((tag) => tag.id !== id));
-      });
+      await queryClient.cancelQueries({ queryKey: queryKeys.tags.all });
+      await deleteTagMutation.mutateAsync(id);
+      queryClient.setQueryData<Tag[]>(
+        queryKeys.tags.all,
+        (prev = []) => prev.filter((tag) => tag.id !== id),
+      );
+      await queryClient.invalidateQueries({ queryKey: queryKeys.tags.all, refetchType: 'none' });
     },
-    [execute]
+    [deleteTagMutation, queryClient]
   );
 
-  // Load tags on mount
   useEffect(() => {
-    loadTags().catch(() => {
-      // Error is handled by useAsyncState
-    });
-  }, [loadTags]);
+    if (tagsQuery.error) {
+      console.error('Failed to load tags:', tagsQuery.error);
+    }
+  }, [tagsQuery.error]);
+
+  const loadTags = useCallback(async () => {
+    await tagsQuery.refetch();
+  }, [tagsQuery]);
+
+  const errorSource =
+    tagsQuery.error ??
+    createTagMutation.error ??
+    updateTagMutation.error ??
+    deleteTagMutation.error;
+  const error = errorSource instanceof Error ? errorSource.message : null;
+  const isLoading =
+    tagsQuery.isLoading ||
+    createTagMutation.isPending ||
+    updateTagMutation.isPending ||
+    deleteTagMutation.isPending;
 
   return {
-    tags,
+    tags: tagsQuery.data ?? [],
     isLoading,
     error,
     loadTags,

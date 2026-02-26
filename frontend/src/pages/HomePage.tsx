@@ -1,12 +1,11 @@
-import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { useI18nNavigate } from '@/lib/i18n';
 import { useAuth } from '@/hooks/useAuth';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { apiClient, type VideoGroupList, type VideoList } from '@/lib/api';
-import { useAsyncState } from '@/hooks/useAsyncState';
 import { useVideoStats } from '@/hooks/useVideoStats';
 
 export default function HomePage() {
@@ -14,40 +13,28 @@ export default function HomePage() {
   const { user, loading } = useAuth();
   const { t } = useTranslation();
 
-  const { data: rawData, isLoading: isLoadingStats, execute: loadStats } = useAsyncState<{
+  const statsQuery = useQuery<{
     videos: VideoList[];
     groups: VideoGroupList[];
   }>({
+    queryKey: ['homeStats', user?.id ?? null],
+    enabled: !!user,
+    queryFn: async () => {
+      const [videos, groups] = await Promise.all([
+        apiClient.getVideos().catch(() => []),
+        apiClient.getVideoGroups().catch(() => []),
+      ]);
+      return { videos, groups };
+    },
     initialData: {
       videos: [],
       groups: [],
     },
   });
 
+  const rawData = statsQuery.data;
+  const isLoadingStats = statsQuery.isLoading;
   const videoStats = useVideoStats(rawData?.videos || []);
-  const hasVideos = (rawData?.videos?.length ?? 0) > 0;
-
-  useEffect(() => {
-    if (user && !isLoadingStats && !hasVideos) {
-      const loadData = async () => {
-        try {
-          const [videos, groups] = await Promise.all([
-            apiClient.getVideos().catch(() => []),
-            apiClient.getVideoGroups().catch(() => []),
-          ]);
-
-          await loadStats(async () => ({
-            videos,
-            groups,
-          }));
-        } catch (error) {
-          console.error('Failed to load stats:', error);
-        }
-      };
-
-      void loadData();
-    }
-  }, [user, isLoadingStats, hasVideos, loadStats]);
 
   const handleUploadClick = () => {
     navigate('/videos?upload=true');
@@ -145,4 +132,3 @@ export default function HomePage() {
     </PageLayout>
   );
 }
-
