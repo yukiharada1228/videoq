@@ -20,10 +20,11 @@ describe('useVideos', () => {
   })
 
   it('should initialize with empty videos array', () => {
+    ;(apiClient.getVideos as any).mockReturnValue(new Promise(() => {}))
     const { result } = renderHook(() => useVideos())
 
     expect(result.current.videos).toEqual([])
-    expect(result.current.isLoading).toBe(false)
+    expect(result.current.isLoading).toBe(true)
     expect(result.current.error).toBeNull()
   })
 
@@ -75,10 +76,12 @@ describe('useVideo', () => {
   })
 
   it('should initialize with null video', () => {
+    ;(apiClient.isAuthenticated as any).mockReturnValue(true)
+    ;(apiClient.getVideo as any).mockReturnValue(new Promise(() => {}))
     const { result } = renderHook(() => useVideo(1))
 
     expect(result.current.video).toBeNull()
-    expect(result.current.isLoading).toBe(false)
+    expect(result.current.isLoading).toBe(true)
     expect(result.current.error).toBeNull()
   })
 
@@ -153,4 +156,3 @@ describe('useVideo', () => {
     })
   })
 })
-

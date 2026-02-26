@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useRef } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link, useI18nNavigate, useLocale } from '@/lib/i18n';
 import { useParams, useSearchParams } from 'react-router-dom';
@@ -140,7 +140,7 @@ export default function VideoDetailPage() {
   const { t } = useTranslation();
   const locale = useLocale();
 
-  const { video, isLoading, error, loadVideo } = useVideo(videoId);
+  const { video, isLoading, error } = useVideo(videoId);
   const { tags, createTag } = useTags();
 
   const {
@@ -156,12 +156,6 @@ export default function VideoDetailPage() {
     handleUpdateVideo,
     handleCreateTag,
   } = useVideoEditing({ video, videoId, createTag });
-
-  useEffect(() => {
-    if (videoId) {
-      void loadVideo();
-    }
-  }, [videoId, loadVideo]);
 
   const handleVideoLoaded = () => {
     if (videoRef.current && startTime) {
@@ -193,7 +187,6 @@ export default function VideoDetailPage() {
       if (videoId) {
         await queryClient.invalidateQueries({ queryKey: queryKeys.videos.detail(videoId) });
       }
-      await loadVideo();
     },
   });
 
