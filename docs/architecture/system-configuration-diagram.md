@@ -27,7 +27,8 @@ graph TB
             Port: 80 (container)
             - React
             - TypeScript
-            - React Router"]
+            - React Router
+            - TanStack Query"]
         end
 
         subgraph Backend["Backend"]

@@ -74,7 +74,7 @@ graph TB
             useVideos[useVideos]
             useVideoUpload[useVideoUpload]
             useTags[useTags]
-            useAsyncState[useAsyncState]
+            QueryHooks[TanStack Query Hooks]
         end
         
         subgraph Lib["Libraries"]
@@ -85,6 +85,7 @@ graph TB
         
         subgraph Providers["Providers"]
             I18nProvider[I18nProvider]
+            QueryProvider[QueryClientProvider]
         end
     end
     
