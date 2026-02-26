@@ -1,5 +1,4 @@
 import { Suspense, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { Link, useI18nNavigate } from '@/lib/i18n';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -7,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
 import { MessageAlert } from '@/components/common/MessageAlert';
-import { apiClient } from '@/lib/api';
+import { useVerifyEmailQuery } from '@/hooks/useVerifyEmailData';
 
 type VerificationState = 'loading' | 'success' | 'error';
 
@@ -16,15 +15,8 @@ function VerifyEmailContent() {
   const [searchParams] = useSearchParams();
   const uid = searchParams.get('uid');
   const token = searchParams.get('token');
-  const isInvalidLink = !uid || !token;
   const { t } = useTranslation();
-
-  const verifyQuery = useQuery<{ detail?: string }>({
-    queryKey: ['verifyEmail', uid ?? null, token ?? null],
-    enabled: !isInvalidLink,
-    retry: false,
-    queryFn: async () => await apiClient.verifyEmail({ uid: uid!, token: token! }),
-  });
+  const { verifyQuery, isInvalidLink } = useVerifyEmailQuery({ uid, token });
 
   useEffect(() => {
     if (isInvalidLink || !verifyQuery.isSuccess) {

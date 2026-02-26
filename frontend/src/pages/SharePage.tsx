@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useQuery } from '@tanstack/react-query';
-import { apiClient, type VideoGroup, type VideoInGroup } from '@/lib/api';
+import { apiClient, type VideoInGroup } from '@/lib/api';
 import { ShortsButton } from '@/components/shorts/ShortsButton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
@@ -14,7 +13,7 @@ import { getStatusBadgeClassName, getStatusLabel } from '@/lib/utils/video';
 import { convertVideoInGroupToSelectedVideo, type SelectedVideo } from '@/lib/utils/videoConversion';
 import { useVideoPlayback } from '@/hooks/useVideoPlayback';
 import { useMobileTab } from '@/hooks/useMobileTab';
-import { queryKeys } from '@/lib/queryKeys';
+import { useSharedGroupQuery } from '@/hooks/useSharePageData';
 
 type MobileTab = 'videos' | 'player' | 'chat';
 
@@ -82,11 +81,7 @@ export default function SharePage() {
   const [selectedVideoId, setSelectedVideoId] = useState<number | null>(null);
 
   const { mobileTab, setMobileTab } = useMobileTab();
-  const groupQuery = useQuery<VideoGroup>({
-    queryKey: queryKeys.videoGroups.shared(shareToken),
-    enabled: !!shareToken,
-    queryFn: async () => await apiClient.getSharedGroup(shareToken),
-  });
+  const groupQuery = useSharedGroupQuery(shareToken);
   const group = groupQuery.data ?? null;
   const error = groupQuery.error ? t('common.messages.shareLoadFailed') : null;
   const isLoading = groupQuery.isLoading || groupQuery.isFetching;

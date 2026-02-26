@@ -1,5 +1,4 @@
 import { Suspense, useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
 import { Link } from '@/lib/i18n';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -17,7 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { MessageAlert } from '@/components/common/MessageAlert';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
-import { apiClient } from '@/lib/api';
+import { useConfirmPasswordResetMutation } from '@/hooks/usePasswordRecovery';
 
 function ResetPasswordContent() {
   const [searchParams] = useSearchParams();
@@ -31,22 +30,7 @@ function ResetPasswordContent() {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const resetPasswordMutation = useMutation({
-    mutationFn: async () =>
-      await apiClient.confirmPasswordReset({
-        uid: uid!,
-        token: token!,
-        new_password: password,
-      }),
-    onSuccess: () => {
-      setSuccess(true);
-      setPassword('');
-      setConfirmPassword('');
-    },
-    onError: (err) => {
-      setError(err instanceof Error ? err.message : String(err));
-    },
-  });
+  const resetPasswordMutation = useConfirmPasswordResetMutation();
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -64,9 +48,22 @@ function ResetPasswordContent() {
     }
 
     try {
-      await resetPasswordMutation.mutateAsync();
+      await resetPasswordMutation.mutateAsync({
+        uid,
+        token,
+        newPassword: password,
+      });
+      setSuccess(true);
+      setPassword('');
+      setConfirmPassword('');
     } catch {
-      // mutation state manages error display
+      setError(
+        resetPasswordMutation.error instanceof Error
+          ? resetPasswordMutation.error.message
+          : resetPasswordMutation.error
+            ? String(resetPasswordMutation.error)
+            : null,
+      );
     }
   };
 
