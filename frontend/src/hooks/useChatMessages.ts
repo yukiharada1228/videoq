@@ -126,7 +126,7 @@ export function useChatMessages({ groupId, shareToken }: UseChatMessagesOptions)
     } finally {
       setFeedbackUpdatingId(null);
     }
-  }, [messages, shareToken, feedbackMutation]);
+  }, [messages, feedbackMutation]);
 
   return {
     messages,

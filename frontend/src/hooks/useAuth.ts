@@ -27,7 +27,9 @@ export function useAuth(options: UseAuthOptions = {}): UseAuthReturn {
 
   // Hold callback with useRef to prevent infinite loops
   const onAuthErrorRef = useRef(onAuthError);
-  onAuthErrorRef.current = onAuthError;
+  useEffect(() => {
+    onAuthErrorRef.current = onAuthError;
+  }, [onAuthError]);
 
   const publicPaths = [
     '/login',

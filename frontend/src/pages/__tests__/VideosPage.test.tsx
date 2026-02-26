@@ -15,6 +15,7 @@ vi.mock('@/hooks/useVideos', () => ({
     isLoading: false,
     error: null,
     loadVideos: mockLoadVideos,
+    refetch: mockLoadVideos,
   }),
 }))
 
@@ -112,10 +113,10 @@ describe('VideosPage', () => {
     expect(screen.getByTestId('tag-filter-panel')).toBeInTheDocument()
   })
 
-  it('should load videos on mount', () => {
+  it('should not manually load videos on mount (query handles initial fetch)', () => {
     render(<VideosPage />)
 
-    expect(mockLoadVideos).toHaveBeenCalled()
+    expect(mockLoadVideos).not.toHaveBeenCalled()
   })
 
   it('should open upload modal when upload button is clicked', () => {
