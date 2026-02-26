@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useI18nNavigate } from '@/lib/i18n';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { MessageAlert } from '@/components/common/MessageAlert';
-import { apiClient, type VideoGroupList } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
+import { useVideoGroups } from '@/hooks/useVideoGroups';
+import { useCreateVideoGroupMutation } from '@/hooks/useVideoGroupsPageData';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -15,36 +16,23 @@ import { Label } from '@/components/ui/label';
 import { handleAsyncError } from '@/lib/utils/errorHandling';
  
 export default function VideoGroupsPage() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useI18nNavigate();
-  const [groups, setGroups] = useState<VideoGroupList[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { groups, isLoading, error: loadError } = useVideoGroups(true);
   const [error, setError] = useState<string | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
   const [newGroupDescription, setNewGroupDescription] = useState('');
-  const [loadedUserId, setLoadedUserId] = useState<number | null>(null);
   const { t } = useTranslation();
- 
-  const loadGroups = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      const data = await apiClient.getVideoGroups();
-      setGroups(data);
-    } catch (err) {
-      handleAsyncError(err, t('videos.groups.loadError'), (msg) => setError(msg));
-    } finally {
-      setIsLoading(false);
-    }
-  }, [t]);
- 
-  useEffect(() => {
-    if (user?.id && loadedUserId !== user.id) {
-      setLoadedUserId(user.id);
-      void loadGroups();
-    }
-  }, [user?.id, loadedUserId, loadGroups]);
+
+  const createGroupMutation = useCreateVideoGroupMutation({
+    userId: user?.id,
+    onSuccess: () => {
+      setNewGroupName('');
+      setNewGroupDescription('');
+      setIsCreateModalOpen(false);
+    },
+  });
  
   const handleCreateGroup = async () => {
     try {
@@ -53,16 +41,10 @@ export default function VideoGroupsPage() {
         return;
       }
       setError(null);
-      await apiClient.createVideoGroup({
+      await createGroupMutation.mutateAsync({
         name: newGroupName,
         description: newGroupDescription,
       });
-      setNewGroupName('');
-      setNewGroupDescription('');
-      setIsCreateModalOpen(false);
- 
-      setLoadedUserId(null);
-      await loadGroups();
     } catch (err) {
       handleAsyncError(err, t('videos.groups.createError'), (msg) => setError(msg));
     }
@@ -72,7 +54,7 @@ export default function VideoGroupsPage() {
     navigate(`/videos/groups/${groupId}`);
   };
  
-  if (isLoading) {
+  if (authLoading || isLoading) {
     return (
       <PageLayout fullWidth>
         <LoadingSpinner />
@@ -121,13 +103,15 @@ export default function VideoGroupsPage() {
                 <Button variant="outline" onClick={() => setIsCreateModalOpen(false)}>
                   {t('common.actions.cancel')}
                 </Button>
-                <Button onClick={handleCreateGroup}>{t('common.actions.create')}</Button>
+                <Button onClick={handleCreateGroup} disabled={createGroupMutation.isPending}>
+                  {t('common.actions.create')}
+                </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
         </div>
  
-        {error && <MessageAlert message={error} type="error" />}
+        {(error || loadError) && <MessageAlert message={error || loadError || ''} type="error" />}
  
         {groups.length === 0 ? (
           <Card>
@@ -160,4 +144,3 @@ export default function VideoGroupsPage() {
     </PageLayout>
   );
 }
-

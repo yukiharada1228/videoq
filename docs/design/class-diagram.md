@@ -254,12 +254,18 @@ classDiagram
         +render()
     }
     
+    class QueryProvider {
+        +ReactNode children
+        +render()
+    }
+    
     PageLayout "1" --> "1" Header : contains
     PageLayout "1" --> "1" Footer : contains
     AuthForm "1" --> "*" FormField : contains
     VideoList "1" --> "*" VideoCard : contains
     ChatPanel --> LoadingState : uses
     I18nProvider --> PageLayout : wraps
+    QueryProvider --> I18nProvider : wraps
 ```
 
 ## Backend Views (Django REST Framework)

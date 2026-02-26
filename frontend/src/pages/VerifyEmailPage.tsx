@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect } from 'react';
 import { Link, useI18nNavigate } from '@/lib/i18n';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
 import { MessageAlert } from '@/components/common/MessageAlert';
-import { apiClient } from '@/lib/api';
+import { useVerifyEmailQuery } from '@/hooks/useVerifyEmailData';
 
 type VerificationState = 'loading' | 'success' | 'error';
 
@@ -15,48 +15,42 @@ function VerifyEmailContent() {
   const [searchParams] = useSearchParams();
   const uid = searchParams.get('uid');
   const token = searchParams.get('token');
-  const isInvalidLink = !uid || !token;
   const { t } = useTranslation();
-  const [state, setState] = useState<VerificationState>(() =>
-    isInvalidLink ? 'error' : 'loading'
-  );
-  const [message, setMessage] = useState(() =>
-    isInvalidLink ? t('auth.verifyEmail.invalidLink') : t('auth.verifyEmail.loading')
-  );
+  const { verifyQuery, isInvalidLink } = useVerifyEmailQuery({ uid, token });
 
   useEffect(() => {
-    if (isInvalidLink) {
+    if (isInvalidLink || !verifyQuery.isSuccess) {
       return;
     }
 
-    let timer: ReturnType<typeof setTimeout> | null = null;
-
-    const verify = async () => {
-      try {
-        const response = await apiClient.verifyEmail({ uid: uid!, token: token! });
-        setState('success');
-        setMessage(response.detail ?? t('auth.verifyEmail.success'));
-        timer = setTimeout(() => {
-          navigate('/login', { replace: true });
-        }, 2000);
-      } catch (error: unknown) {
-        setState('error');
-        if (error instanceof Error) {
-          setMessage(error.message);
-        } else {
-          setMessage(t('auth.verifyEmail.error'));
-        }
-      }
-    };
-
-    void verify();
+    const timer = setTimeout(() => {
+      navigate('/login', { replace: true });
+    }, 2000);
 
     return () => {
-      if (timer) {
-        clearTimeout(timer);
-      }
+      clearTimeout(timer);
     };
-  }, [isInvalidLink, uid, token, navigate, t]);
+  }, [isInvalidLink, navigate, verifyQuery.isSuccess]);
+
+  let state: VerificationState;
+  let message: string;
+
+  if (isInvalidLink) {
+    state = 'error';
+    message = t('auth.verifyEmail.invalidLink');
+  } else if (verifyQuery.isPending) {
+    state = 'loading';
+    message = t('auth.verifyEmail.loading');
+  } else if (verifyQuery.isSuccess) {
+    state = 'success';
+    message = verifyQuery.data?.detail ?? t('auth.verifyEmail.success');
+  } else if (verifyQuery.isError) {
+    state = 'error';
+    message = verifyQuery.error instanceof Error ? verifyQuery.error.message : t('auth.verifyEmail.error');
+  } else {
+    state = 'loading';
+    message = t('auth.verifyEmail.loading');
+  }
 
   const renderContent = () => {
     if (state === 'loading') {

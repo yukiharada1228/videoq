@@ -11,6 +11,29 @@ from app.common.permissions import (IsAuthenticatedOrSharedAccess,
 from app.models import Video, VideoGroupMember
 
 
+def _check_video_access(request, video) -> bool:
+    """Check whether the request has access to the given video.
+
+    Returns True if access is granted, raises Http404 otherwise.
+    """
+    if (
+        hasattr(request, "auth")
+        and isinstance(request.auth, dict)
+        and "share_token" in request.auth
+    ):
+        group = request.auth.get("group")
+        if not VideoGroupMember.objects.filter(group=group, video=video).exists():
+            raise Http404()
+        return True
+
+    if request.user and request.user.is_authenticated:
+        if video.user != request.user:
+            raise Http404()
+        return True
+
+    raise Http404()
+
+
 class ProtectedMediaView(APIView):
     """View to serve media files protected by JWT authentication or share token"""
 
@@ -26,20 +49,7 @@ class ProtectedMediaView(APIView):
         if not video:
             raise Http404()
 
-        if hasattr(request, "auth") and isinstance(request.auth, dict):
-            if "share_token" in request.auth:
-                group = request.auth.get("group")
-                is_in_group = VideoGroupMember.objects.filter(
-                    group=group, video=video
-                ).exists()
-                if not is_in_group:
-                    raise Http404()
-        else:
-            if request.user and request.user.is_authenticated:
-                if video.user != request.user:
-                    raise Http404()
-            else:
-                raise Http404()
+        _check_video_access(request, video)
 
         response = HttpResponse()
         content_type, _ = mimetypes.guess_type(file_path)
