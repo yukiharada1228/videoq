@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   DndContext,
   closestCenter,
@@ -22,7 +21,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-import { apiClient, type VideoGroup, type VideoInGroup, type VideoList } from '@/lib/api';
+import { apiClient, type VideoGroup, type VideoInGroup } from '@/lib/api';
 import { ChatPanel } from '@/components/chat/ChatPanel';
 import { ShortsButton } from '@/components/shorts/ShortsButton';
 import { Header } from '@/components/layout/Header';
@@ -39,13 +38,18 @@ import { InlineSpinner } from '@/components/common/InlineSpinner';
 import { Link, useI18nNavigate } from '@/lib/i18n';
 import { handleAsyncError } from '@/lib/utils/errorHandling';
 import { getStatusBadgeClassName, getStatusLabel } from '@/lib/utils/video';
-import { convertVideoInGroupToSelectedVideo, createVideoIdSet, type SelectedVideo } from '@/lib/utils/videoConversion';
+import { convertVideoInGroupToSelectedVideo, type SelectedVideo } from '@/lib/utils/videoConversion';
 import { useTags } from '@/hooks/useTags';
 import { useShareLink } from '@/hooks/useShareLink';
 import { useVideoPlayback } from '@/hooks/useVideoPlayback';
 import { useMobileTab } from '@/hooks/useMobileTab';
+import {
+  useAddableVideosQuery,
+  useAddVideosToGroupMutation,
+  useVideoGroupDetailMutations,
+  useVideoGroupDetailQuery,
+} from '@/hooks/useVideoGroupDetailData';
 import { TagFilterPanel } from '@/components/video/TagFilterPanel';
-import { queryKeys } from '@/lib/queryKeys';
 
 // Empty sensors array for mobile to prevent unnecessary re-renders
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -303,13 +307,12 @@ interface AddVideosDialogProps {
   onOpenChange: (open: boolean) => void;
   groupId: number | null;
   group: VideoGroup | null;
-  onVideosAdded: () => Promise<void>;
+  onVideosAdded?: () => void;
 }
 
 function AddVideosDialog({ isOpen, onOpenChange, groupId, group, onVideosAdded }: AddVideosDialogProps) {
   const { t } = useTranslation();
   const { tags } = useTags();
-  const queryClient = useQueryClient();
 
   const [videoSearchInput, setVideoSearchInput] = useState('');
   const [videoSearch, setVideoSearch] = useState('');
@@ -341,52 +344,26 @@ function AddVideosDialog({ isOpen, onOpenChange, groupId, group, onVideosAdded }
     return () => clearTimeout(handler);
   }, [videoSearchInput]);
 
-  const availableVideosQuery = useQuery<VideoList[]>({
-    queryKey: [
-      'groupAddableVideos',
-      groupId,
-      videoSearch.trim(),
-      statusFilter,
-      ordering,
-      selectedTagIds,
-      group?.videos?.map((v) => v.id) ?? [],
-    ],
-    enabled: isOpen && !!group && !!groupId,
-    queryFn: async () => {
-      if (!group?.videos) {
-        return [];
-      }
-
-      const videos = await apiClient.getVideos({
-        q: videoSearch.trim() || undefined,
-        status: statusFilter || undefined,
-        ordering,
-        tags: selectedTagIds,
-      });
-      const currentVideoIdSet = createVideoIdSet(group.videos.map((v) => v.id));
-      return videos.filter((v) => !currentVideoIdSet.has(v.id));
-    },
+  const availableVideosQuery = useAddableVideosQuery({
+    isOpen,
+    groupId,
+    group,
+    q: videoSearch.trim(),
+    status: statusFilter,
+    ordering,
+    tagIds: selectedTagIds,
   });
 
   const availableVideos = availableVideosQuery.data ?? [];
   const isLoadingVideos = availableVideosQuery.isLoading || availableVideosQuery.isFetching;
 
-  const addVideosMutation = useMutation({
-    mutationFn: async (videoIds: number[]) => {
-      if (!groupId) {
-        throw new Error('Group ID is required');
-      }
-      return await apiClient.addVideosToGroup(groupId, videoIds);
-    },
-  });
+  const addVideosMutation = useAddVideosToGroupMutation(groupId, onVideosAdded);
 
   const handleAddVideos = async () => {
     if (!groupId || selectedVideos.length === 0) return;
 
     try {
       const result = await addVideosMutation.mutateAsync(selectedVideos);
-      await queryClient.invalidateQueries({ queryKey: queryKeys.videoGroups.detail(groupId) });
-      await onVideosAdded();
       onOpenChange(false);
       setSelectedVideos([]);
 
@@ -533,23 +510,10 @@ function AddVideosDialog({ isOpen, onOpenChange, groupId, group, onVideosAdded }
 export default function VideoGroupDetailPage() {
   const params = useParams<{ id: string }>();
   const navigate = useI18nNavigate();
-  const queryClient = useQueryClient();
   const groupId = params?.id ? Number.parseInt(params.id, 10) : null;
   const { t } = useTranslation();
-
-  const groupQuery = useQuery<VideoGroup>({
-    queryKey: queryKeys.videoGroups.detail(groupId),
-    enabled: !!groupId,
-    queryFn: async () => {
-      if (!groupId) {
-        throw new Error('Group ID is required');
-      }
-      return await apiClient.getVideoGroup(groupId);
-    },
-  });
-  const group = groupQuery.data ?? null;
-  const isLoading = groupQuery.isLoading || groupQuery.isFetching;
-  const error = groupQuery.error instanceof Error ? groupQuery.error.message : null;
+  const { group, isLoading: groupIsLoading, isFetching: groupIsFetching, errorMessage: error } =
+    useVideoGroupDetailQuery(groupId);
 
   const [isDeleting, setIsDeleting] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -584,65 +548,17 @@ export default function VideoGroupDetailPage() {
     }),
   );
 
-  const loadGroupData = useCallback(async () => {
-    if (!groupId) return;
-    await groupQuery.refetch();
-  }, [groupId, groupQuery]);
-
-  const setGroupCache = useCallback((nextGroup: VideoGroup) => {
-    if (!groupId) return;
-    queryClient.setQueryData<VideoGroup>(queryKeys.videoGroups.detail(groupId), nextGroup);
-  }, [groupId, queryClient]);
-
-  const removeVideoMutation = useMutation({
-    mutationFn: async (videoId: number) => {
-      if (!groupId) {
-        throw new Error('Group ID is required');
-      }
-      await apiClient.removeVideoFromGroup(groupId, videoId);
-      return videoId;
-    },
-    onSuccess: async () => {
-      await loadGroupData();
-    },
-  });
-
-  const reorderVideosMutation = useMutation({
-    mutationFn: async (videoIds: number[]) => {
-      if (!groupId) {
-        throw new Error('Group ID is required');
-      }
-      await apiClient.reorderVideosInGroup(groupId, videoIds);
-    },
-  });
-
-  const deleteGroupMutation = useMutation({
-    mutationFn: async () => {
-      if (!groupId) {
-        throw new Error('Group ID is required');
-      }
-      await apiClient.deleteVideoGroup(groupId);
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['videoGroups'] });
-      navigate('/videos/groups');
-    },
-  });
-
-  const updateGroupMutation = useMutation({
-    mutationFn: async () => {
-      if (!groupId) {
-        throw new Error('Group ID is required');
-      }
-      await apiClient.updateVideoGroup(groupId, {
-        name: editedName,
-        description: editedDescription,
-      });
-    },
-    onSuccess: async () => {
-      setIsEditing(false);
-      await loadGroupData();
-    },
+  const {
+    syncGroupDetail,
+    setGroupDetailCache,
+    removeVideoMutation,
+    reorderVideosMutation,
+    deleteGroupMutation,
+    updateGroupMutation,
+  } = useVideoGroupDetailMutations({
+    groupId,
+    onDeleteSuccess: () => navigate('/videos/groups'),
+    onUpdateSuccess: () => setIsEditing(false),
   });
 
   useEffect(() => {
@@ -692,14 +608,14 @@ export default function VideoGroupDetailPage() {
     if (oldIndex === -1 || newIndex === -1) return;
 
     const newVideos = arrayMove(group.videos, oldIndex, newIndex);
-    setGroupCache({ ...group, videos: newVideos });
+    setGroupDetailCache({ ...group, videos: newVideos });
 
     try {
       const videoIds = newVideos.map((v) => v.id);
       await reorderVideosMutation.mutateAsync(videoIds);
     } catch (err) {
       handleAsyncError(err, t('videos.groupDetail.orderUpdateError'), () => { });
-      await loadGroupData();
+      await syncGroupDetail();
     }
   };
 
@@ -717,6 +633,7 @@ export default function VideoGroupDetailPage() {
       setIsDeleting(false);
     }
   };
+  const isLoading = groupIsLoading || groupIsFetching;
   const isUpdating = updateGroupMutation.isPending;
   const updateError = updateGroupMutation.error instanceof Error ? updateGroupMutation.error.message : null;
 
@@ -788,7 +705,10 @@ export default function VideoGroupDetailPage() {
                 onNameChange={setEditedName}
                 onDescriptionChange={setEditedDescription}
                 onSave={() =>
-                  void updateGroupMutation.mutateAsync()
+                  void updateGroupMutation.mutateAsync({
+                    name: editedName,
+                    description: editedDescription,
+                  })
                 }
                 onCancel={handleCancelEdit}
               />
@@ -811,7 +731,6 @@ export default function VideoGroupDetailPage() {
                   onOpenChange={setIsAddModalOpen}
                   groupId={groupId}
                   group={group}
-                  onVideosAdded={loadGroupData}
                 />
               )}
 

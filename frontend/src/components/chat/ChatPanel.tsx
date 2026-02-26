@@ -1,14 +1,13 @@
 import { useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { apiClient, type ChatHistoryItem } from '@/lib/api';
+import { type ChatHistoryItem } from '@/lib/api';
 import { timeStringToSeconds } from '@/lib/utils/video';
 import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
 import { useChatMessages, type Message } from '@/hooks/useChatMessages';
-import { queryKeys } from '@/lib/queryKeys';
+import { useChatHistory } from '@/hooks/useChatHistory';
 
 interface ChatMessageBubbleProps {
   message: Message;
@@ -77,24 +76,21 @@ interface ChatPanelProps {
 }
 
 interface ChatHistoryModalProps {
-  groupId: number;
-  shareToken?: string;
   history: ChatHistoryItem[] | null;
   historyLoading: boolean;
+  exportHistoryCsv: () => Promise<void>;
+  isExportingHistoryCsv: boolean;
   onClose: () => void;
 }
 
-function ChatHistoryModal({ groupId, shareToken, history, historyLoading, onClose }: ChatHistoryModalProps) {
+function ChatHistoryModal({
+  history,
+  historyLoading,
+  exportHistoryCsv,
+  isExportingHistoryCsv,
+  onClose,
+}: ChatHistoryModalProps) {
   const { t } = useTranslation();
-
-  const exportHistoryCsv = async () => {
-    if (!groupId || !!shareToken) return;
-    try {
-      await apiClient.exportChatHistoryCsv(groupId);
-    } catch (e) {
-      console.error('Failed to export CSV', e);
-    }
-  };
 
   return (
     <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
@@ -103,7 +99,12 @@ function ChatHistoryModal({ groupId, shareToken, history, historyLoading, onClos
           <div className="font-semibold text-sm lg:text-base">{t('chat.history')}</div>
           <div className="flex items-center gap-2">
             {!historyLoading && (history?.length ?? 0) > 0 && (
-              <Button variant="outline" size="sm" onClick={exportHistoryCsv}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void exportHistoryCsv()}
+                disabled={isExportingHistoryCsv}
+              >
                 <span className="hidden lg:inline">{t('chat.exportCsv')}</span>
                 <span className="lg:hidden">{t('chat.exportCsvShort')}</span>
               </Button>
@@ -166,7 +167,6 @@ function ChatHistoryModal({ groupId, shareToken, history, historyLoading, onClos
 
 export function ChatPanel({ groupId, onVideoPlay, shareToken, className }: ChatPanelProps) {
   const { t } = useTranslation();
-  const queryClient = useQueryClient();
   const {
     messages,
     input,
@@ -181,24 +181,16 @@ export function ChatPanel({ groupId, onVideoPlay, shareToken, className }: ChatP
   } = useChatMessages({ groupId, shareToken });
 
   const [historyOpen, setHistoryOpen] = useState(false);
-  const historyQuery = useQuery<ChatHistoryItem[]>({
-    queryKey: queryKeys.chat.history(groupId ?? null, shareToken),
-    enabled: false,
-    queryFn: async () => {
-      if (!groupId || shareToken) {
-        return [];
-      }
-      return await apiClient.getChatHistory(groupId);
-    },
-  });
+  const { history, historyLoading, exportHistoryCsv, isExportingHistoryCsv, syncFeedbackInHistoryCache } =
+    useChatHistory({
+      groupId,
+      shareToken,
+      enabled: historyOpen,
+    });
 
-  const openHistory = async () => {
+  const openHistory = () => {
     if (!groupId || !!shareToken) return;
     setHistoryOpen(true);
-    const result = await historyQuery.refetch();
-    if (result.error) {
-      console.error('Failed to load history', result.error);
-    }
   };
 
   const navigateToVideo = (videoId: number, startTime: string) => {
@@ -212,18 +204,9 @@ export function ChatPanel({ groupId, onVideoPlay, shareToken, className }: ChatP
 
   const handleFeedbackWithSync = async (chatLogId: number, value: 'good' | 'bad') => {
     await handleFeedback(chatLogId, value);
-    // Sync feedback to history modal if open
     const targetMessage = messages.find((m) => m.chatLogId === chatLogId);
     if (targetMessage) {
-      queryClient.setQueryData<ChatHistoryItem[]>(
-        queryKeys.chat.history(groupId ?? null, shareToken),
-        (prev) =>
-        prev
-          ? prev.map((item) =>
-            item.id === chatLogId ? { ...item, feedback: targetMessage.feedback === value ? null : value } : item,
-          )
-          : prev,
-      );
+      syncFeedbackInHistoryCache(chatLogId, targetMessage.feedback === value ? null : value);
     }
   };
 
@@ -274,10 +257,10 @@ export function ChatPanel({ groupId, onVideoPlay, shareToken, className }: ChatP
 
       {historyOpen && (
         <ChatHistoryModal
-          groupId={groupId!}
-          shareToken={shareToken}
-          history={historyQuery.data ?? null}
-          historyLoading={historyQuery.isLoading || historyQuery.isFetching}
+          history={history}
+          historyLoading={historyLoading}
+          exportHistoryCsv={exportHistoryCsv}
+          isExportingHistoryCsv={isExportingHistoryCsv}
           onClose={() => setHistoryOpen(false)}
         />
       )}
