@@ -475,6 +475,22 @@
   },
   "settings": {
     "title": "設定",
+    "accountDeletion": {
+      "title": "アカウント削除",
+      "description": "アカウントを無効化し、関連データの削除を開始します。",
+      "warningLine1": "アカウントは即時に無効化され、ログアウトされます。",
+      "reasonLabel": "退会理由（任意）",
+      "reasonPlaceholder": "改善点があれば教えてください（任意）",
+      "confirmLabel": "{{keyword}} と入力して確認",
+      "confirmTitle": "削除の最終確認",
+      "confirmDescription": "データは完全に削除されます。続行する場合は確認してください。",
+      "confirmWarning": "この操作は取り消せません。データの復元はできません。",
+      "confirmCta": "はい、削除します",
+      "cancel": "キャンセル",
+      "cta": "アカウントを削除",
+      "deleting": "削除中...",
+      "error": "削除の開始に失敗しました。もう一度お試しください。"
+    },
     "openaiApiKey": {
       "title": "OpenAI APIキー",
       "description": "文字起こしとチャット機能を使用するには、OpenAI APIキーを設定してください。",
