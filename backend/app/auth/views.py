@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics, status
 from rest_framework.response import Response
@@ -11,9 +12,12 @@ from app.common.responses import create_error_response, create_success_response
 from app.common.throttles import (LoginIPThrottle, LoginUsernameThrottle,
                                   PasswordResetEmailThrottle,
                                   PasswordResetIPThrottle, SignupIPThrottle)
+from app.models import AccountDeletionRequest
+from app.tasks.account_deletion import delete_account_data
 from app.utils.mixins import AuthenticatedViewMixin, PublicViewMixin
 
-from .serializers import (EmailVerificationSerializer, LoginResponseSerializer,
+from .serializers import (AccountDeleteSerializer,
+                          EmailVerificationSerializer, LoginResponseSerializer,
                           LoginSerializer, MessageResponseSerializer,
                           PasswordResetConfirmSerializer,
                           PasswordResetRequestSerializer,
@@ -114,6 +118,59 @@ class LogoutView(AuthenticatedAPIView):
     def post(self, request):
         """Logout by deleting HttpOnly Cookie"""
         response = create_success_response(message="Logged out successfully")
+
+        # Delete HttpOnly Cookie
+        # Must use same samesite and secure values as set_cookie for proper deletion
+        samesite_value = "None" if settings.SECURE_COOKIES else "Lax"
+
+        response.delete_cookie(
+            key="access_token",
+            samesite=samesite_value,
+        )
+        response.delete_cookie(
+            key="refresh_token",
+            samesite=samesite_value,
+        )
+
+        return response
+
+
+class AccountDeleteView(AuthenticatedAPIView):
+    """Account delete (deactivate) view"""
+
+    serializer_class = AccountDeleteSerializer
+
+    @extend_schema(
+        request=AccountDeleteSerializer,
+        responses={200: MessageResponseSerializer},
+        summary="Account delete",
+        description=(
+            "Deactivate the current user, enqueue async data deletion, "
+            "and remove auth cookies."
+        ),
+    )
+    def delete(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        reason = serializer.validated_data.get("reason", "")
+
+        user = request.user
+
+        AccountDeletionRequest.objects.create(user=user, reason=reason)
+
+        now = timezone.now()
+        suffix = now.strftime("%Y%m%d%H%M%S")
+        user.is_active = False
+        user.deactivated_at = now
+        user.username = f"deleted__{user.id}__{suffix}"
+        user.email = f"deleted__{user.id}__{suffix}@invalid.local"
+        user.save(
+            update_fields=["is_active", "deactivated_at", "username", "email"]
+        )
+
+        delete_account_data.delay(user.id)
+
+        response = create_success_response(message="Account deletion started.")
 
         # Delete HttpOnly Cookie
         # Must use same samesite and secure values as set_cookie for proper deletion

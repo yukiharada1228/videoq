@@ -44,6 +44,10 @@ export interface PasswordResetConfirmRequest {
   new_password: string;
 }
 
+export interface AccountDeleteRequest {
+  reason?: string;
+}
+
 export interface LoginRequest {
   username: string;
   password: string;
@@ -459,6 +463,13 @@ class ApiClient {
     return this.request<User>('/auth/me');
   }
 
+  async deleteAccount(data?: AccountDeleteRequest): Promise<void> {
+    await this.request('/auth/account/', {
+      method: 'DELETE',
+      body: data ?? {},
+    });
+  }
+
   async chat(data: ChatRequest): Promise<ChatMessage> {
     const { share_token, ...bodyData } = data;
     const endpoint = share_token ? `/chat/?share_token=${share_token}` : '/chat/';
@@ -801,4 +812,3 @@ class ApiClient {
 }
 
 export const apiClient = new ApiClient();
-
