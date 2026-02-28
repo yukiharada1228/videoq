@@ -235,6 +235,8 @@ graph TB
         E20["LLM_PROVIDER<br/>(openai or ollama)"]
         E21["LLM_MODEL<br/>(LLM model for selected provider)"]
         E22["OLLAMA_BASE_URL<br/>(Ollama server URL)"]
+        E23["EMBEDDING_VECTOR_SIZE<br/>(must match EMBEDDING_MODEL)"]
+        E24["PGVECTOR_COLLECTION_NAME<br/>(vector storage table name)"]
     end
     
     subgraph Containers["Containers"]
@@ -274,6 +276,10 @@ graph TB
     E21 --> C2
     E22 --> C2
     E22 --> C3
+    E23 --> C2
+    E23 --> C3
+    E24 --> C2
+    E24 --> C3
 ```
 
 ## Optional: Scaling Configuration (production example)

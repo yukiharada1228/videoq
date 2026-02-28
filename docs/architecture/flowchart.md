@@ -281,3 +281,26 @@ flowchart TD
     ServerError --> NotifyAdmin[Notify Administrator]
     NotifyAdmin --> LogError
 ```
+
+## 7. Account Deactivation Processing Flow
+
+```mermaid
+flowchart TD
+    Start([Account Deactivation]) --> Navigate[Navigate to Settings Page]
+    Navigate --> ClickDelete[Click Account Deactivation]
+    ClickDelete --> ShowDialog[Show Confirmation Dialog]
+    ShowDialog --> InputPassword[Input Current Password]
+    InputPassword --> InputReason[Input Reason for Leaving]
+    InputReason --> Submit[Submit Deactivation Request]
+    Submit --> API[DELETE /api/auth/account/]
+    API --> ValidatePassword{Password Verification}
+    ValidatePassword -->|Invalid| Error1[400 Bad Request]
+    ValidatePassword -->|Valid| CreateRequest[(Database<br/>Create AccountDeletionRequest)]
+    CreateRequest --> DeactivateUser[(Database<br/>Update User<br/>is_active: False<br/>deactivated_at: now)]
+    DeactivateUser --> ClearCookies[Clear HttpOnly Cookies]
+    ClearCookies --> Redirect[Redirect to Home Page]
+    Redirect --> End([Complete])
+    
+    Error1 --> ShowError[Display Error Message]
+    ShowError --> InputPassword
+```

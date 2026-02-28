@@ -63,6 +63,8 @@ graph TB
 
     subgraph Settings["Settings"]
         UC31[View User Info]
+        UC33[Deactivate Account]
+        UC34[Request Account Deletion]
     end
 
     subgraph Administration["Administration"]
@@ -102,6 +104,8 @@ graph TB
     User --> UC30
     User --> UC31
     User --> UC32
+    User --> UC33
+    User --> UC34
     
     Guest --> UC29
     Guest --> UC30
@@ -164,6 +168,8 @@ graph TB
 
 ### Settings
 - **UC31 View User Info**: Display current user information
+- **UC33 Deactivate Account**: Deactivate user account (soft delete, sets `is_active=False` and records `deactivated_at`)
+- **UC34 Request Account Deletion**: Submit an account deletion request with a reason
 
 ### Administration
 - **UC35 Re-index Video Embeddings**: Re-generate all video embeddings with new model (superuser only)

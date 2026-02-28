@@ -32,6 +32,7 @@ erDiagram
         string first_name
         string last_name
         int video_limit
+        datetime deactivated_at
     }
     
     Video {
@@ -191,7 +192,13 @@ erDiagram
 - Unique Constraints: `username`, `email`, `share_token`
 
 ### Custom Indexes
+- `User(email, is_active)`: For login lookup
+- `User(date_joined, -id)`: For user listing
+- `User.deactivated_at`: For deactivated account queries
+- `User.video_limit`: For limit queries
 - `Video.uploaded_at`: For descending sort (Meta.ordering)
+- `Video(user, status, -uploaded_at)`: For filtered user video listing
+- `Video(user, title)`: For title search
 - `VideoGroup.created_at`: For descending sort (Meta.ordering)
 - `ChatLog.created_at`: For descending sort (Meta.ordering)
 - `VideoGroupMember(order, added_at)`: For order sorting (Meta.ordering)
