@@ -63,16 +63,30 @@ describe('ShortsButton', () => {
       ; (apiClient.getPopularScenes as any).mockResolvedValue(mockPopularScenes)
   })
 
-  it('should render button with correct text', () => {
+  it('should render button with correct text', async () => {
     render(<ShortsButton groupId={1} videos={mockVideos} />)
 
     expect(screen.getByText(/shorts.button/)).toBeInTheDocument()
+
+    await waitFor(() => {
+      expect(apiClient.getPopularScenes).toHaveBeenCalledTimes(1)
+    })
   })
 
   it('should not render when videos is empty', () => {
     const { container } = render(<ShortsButton groupId={1} videos={[]} />)
 
     expect(container.firstChild).toBeNull()
+  })
+
+  it('should hide button when there are no popular scenes', async () => {
+      ; (apiClient.getPopularScenes as any).mockResolvedValue([])
+
+    const { container } = render(<ShortsButton groupId={999} videos={mockVideos} />)
+
+    await waitFor(() => {
+      expect(container.firstChild).toBeNull()
+    })
   })
 
   it('should prefetch popular scenes on mount', async () => {
@@ -201,18 +215,26 @@ describe('ShortsButton', () => {
     })
   })
 
-  it('should render with sm size', () => {
+  it('should render with sm size', async () => {
     render(<ShortsButton groupId={1} videos={mockVideos} size="sm" />)
 
     const button = screen.getByRole('button')
     expect(button).toBeInTheDocument()
+
+    await waitFor(() => {
+      expect(apiClient.getPopularScenes).toHaveBeenCalledTimes(1)
+    })
   })
 
-  it('should render with default size', () => {
+  it('should render with default size', async () => {
     render(<ShortsButton groupId={1} videos={mockVideos} size="default" />)
 
     const button = screen.getByRole('button')
     expect(button).toBeInTheDocument()
+
+    await waitFor(() => {
+      expect(apiClient.getPopularScenes).toHaveBeenCalledTimes(1)
+    })
   })
 
   // --- New tests for client-side caching ---

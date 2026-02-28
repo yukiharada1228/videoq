@@ -431,6 +431,16 @@ def _build_popular_scenes_response(
     ]
 
 
+def _filter_group_scenes(scene_counter, group, limit):
+    """Keep only scenes that belong to videos currently in the group."""
+    valid_video_ids = {member.video_id for member in group.members.all()}
+    return [
+        (key, count)
+        for key, count in scene_counter.most_common()
+        if key[0] in valid_video_ids
+    ][:limit]
+
+
 class PopularScenesView(APIView):
     """
     Get popular scenes from chat logs for a group.
@@ -516,7 +526,7 @@ class PopularScenesView(APIView):
         )
 
         scene_counter, scene_info, scene_questions = _aggregate_scenes(chat_logs)
-        top_scenes = scene_counter.most_common(limit)
+        top_scenes = _filter_group_scenes(scene_counter, group, limit)
 
         video_ids = [key[0] for key, _ in top_scenes]
         video_file_map = _build_video_file_map(video_ids, group.user)
