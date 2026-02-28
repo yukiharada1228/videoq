@@ -17,6 +17,7 @@ classDiagram
         +bool is_staff
         +bool is_superuser
         +int video_limit (nullable)
+        +datetime deactivated_at (nullable)
     }
     
     class Video {
@@ -237,6 +238,18 @@ classDiagram
         +function onFilterChange
         +render()
     }
+
+    class ShortsButton {
+        +int groupId
+        +string shareToken
+        +render()
+    }
+
+    class ShortsPlayer {
+        +Scene[] scenes
+        +function onClose
+        +render()
+    }
     
     class LoadingState {
         +bool isLoading
@@ -308,6 +321,10 @@ classDiagram
     
     class ChatView {
         +post()
+    }
+    
+    class AccountDeleteView {
+        +delete()
     }
     
     class ChatHistoryView {

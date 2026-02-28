@@ -59,6 +59,7 @@ stateDiagram-v2
     Active --> LoggedOut: Logout
     LoggedOut --> Active: Login
     
+    Active --> Deactivated: Account Deactivation
     Active --> [*]: Account Deleted
     Inactive --> [*]: Account Deleted
     
@@ -85,6 +86,14 @@ stateDiagram-v2
         Logged Out
         - Session Terminated
         - Can Login Again
+    end note
+
+    note right of Deactivated
+        Deactivated
+        - is_active: False
+        - deactivated_at recorded
+        - Cannot Login
+        - Data retained for admin review
     end note
 ```
 

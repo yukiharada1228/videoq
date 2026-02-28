@@ -247,3 +247,28 @@ graph TB
 ### Scalability
 - File storage supports S3
 - Vector search is accelerated with pgvector
+
+## 7. Account Deactivation Data Flow
+
+```mermaid
+flowchart TD
+    Start([User]) --> Navigate[Navigate to Settings Page]
+    Navigate --> Frontend[Frontend]
+    Frontend --> API[DELETE /api/auth/account/]
+    
+    API --> Auth{Authentication Check}
+    Auth -->|Failed| Error1[Authentication Error]
+    Auth -->|Success| ValidatePassword{Password Verification}
+    
+    ValidatePassword -->|Invalid| Error2[Password Error]
+    ValidatePassword -->|Valid| CreateRequest[(Database<br/>Create AccountDeletionRequest)]
+    
+    CreateRequest --> DeactivateUser[(Database<br/>Update User<br/>is_active: False<br/>deactivated_at: now)]
+    DeactivateUser --> ClearCookies[Clear HttpOnly Cookies]
+    ClearCookies --> Response[204 No Content]
+    Response --> Frontend
+    Frontend --> End([User - Redirected to Home])
+    
+    Error1 --> Frontend
+    Error2 --> Frontend
+```
