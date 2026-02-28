@@ -137,7 +137,12 @@ export function useVideoGroupDetailMutations({
       await apiClient.removeVideoFromGroup(groupId, videoId);
       return videoId;
     },
-    onSuccess: syncGroupDetail,
+    onSuccess: async () => {
+      await syncGroupDetail();
+      if (groupId) {
+        await queryClient.invalidateQueries({ queryKey: ['popularScenes', groupId] });
+      }
+    },
   });
 
   const reorderVideosMutation = useMutation({

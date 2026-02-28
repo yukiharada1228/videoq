@@ -26,6 +26,9 @@ export function useVideoDetailPageMutations({
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.videos.all });
+      await queryClient.invalidateQueries({ queryKey: ['videoGroup'] });
+      await queryClient.invalidateQueries({ queryKey: ['sharedVideoGroup'] });
+      await queryClient.invalidateQueries({ queryKey: ['popularScenes'] });
       onDeleteSuccess();
     },
   });
