@@ -47,6 +47,11 @@ graph TB
             subgraph Chat["Chat Components"]
                 ChatPanel[ChatPanel]
             end
+
+            subgraph Shorts["Shorts Components"]
+                ShortsButton[ShortsButton]
+                ShortsPlayer[ShortsPlayer]
+            end
             
             subgraph Layout["Layout Components"]
                 PageLayout[PageLayout]

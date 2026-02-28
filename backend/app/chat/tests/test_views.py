@@ -792,3 +792,89 @@ class PopularScenesViewTests(APITestCase):
         # Should be limited to 3 questions max
         scene = response.data[0]
         self.assertLessEqual(len(scene["questions"]), 3)
+
+    def test_get_popular_scenes_excludes_deleted_videos(self):
+        """Test deleted videos are excluded from popular scenes results."""
+        deleted_video = Video.objects.create(
+            user=self.user,
+            title="Deleted Video",
+            description="To be deleted",
+            status="completed",
+        )
+        deleted_video_id = deleted_video.id
+        VideoGroupMember.objects.create(
+            group=self.group,
+            video=deleted_video,
+            order=2,
+        )
+        for index in range(4):
+            ChatLog.objects.create(
+                user=self.user,
+                group=self.group,
+                question=f"Deleted video question {index}",
+                answer=f"Deleted video answer {index}",
+                related_videos=[
+                    {
+                        "video_id": deleted_video_id,
+                        "title": "Deleted Video",
+                        "start_time": "00:05:00",
+                        "end_time": "00:06:00",
+                    },
+                ],
+            )
+        deleted_video.delete()
+
+        url = reverse("popular-scenes")
+        url += f"?group_id={self.group.id}"
+
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 2)
+        self.assertNotIn(
+            deleted_video_id,
+            [scene["video_id"] for scene in response.data],
+        )
+
+    def test_get_popular_scenes_excludes_removed_group_videos(self):
+        """Test videos removed from the group are excluded from popular scenes."""
+        removed_video = Video.objects.create(
+            user=self.user,
+            title="Removed Video",
+            description="Removed from group",
+            status="completed",
+        )
+        removed_video_id = removed_video.id
+        membership = VideoGroupMember.objects.create(
+            group=self.group,
+            video=removed_video,
+            order=2,
+        )
+        for index in range(4):
+            ChatLog.objects.create(
+                user=self.user,
+                group=self.group,
+                question=f"Removed video question {index}",
+                answer=f"Removed video answer {index}",
+                related_videos=[
+                    {
+                        "video_id": removed_video_id,
+                        "title": "Removed Video",
+                        "start_time": "00:07:00",
+                        "end_time": "00:08:00",
+                    },
+                ],
+            )
+        membership.delete()
+
+        url = reverse("popular-scenes")
+        url += f"?group_id={self.group.id}"
+
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 2)
+        self.assertNotIn(
+            removed_video_id,
+            [scene["video_id"] for scene in response.data],
+        )

@@ -156,3 +156,20 @@ flowchart TD
         Error2 --> ReorderEnd
     end
 ```
+
+## 6. Account Deactivation Flow
+
+```mermaid
+flowchart TD
+    Start([User Requests Account Deactivation]) --> InputPassword[Input Current Password]
+    InputPassword --> InputReason[Input Reason]
+    InputReason --> Submit[Submit Request]
+    Submit --> Validate{Password Verification}
+    Validate -->|Invalid| ShowError[Error Display]
+    ShowError --> InputPassword
+    Validate -->|Valid| CreateRequest[Create AccountDeletionRequest]
+    CreateRequest --> Deactivate[Deactivate Account<br/>is_active: False<br/>deactivated_at: now]
+    Deactivate --> ClearSession[Clear Auth Cookies]
+    ClearSession --> Redirect[Redirect to Home Page]
+    Redirect --> End([Complete])
+```

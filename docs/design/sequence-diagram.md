@@ -289,3 +289,31 @@ sequenceDiagram
     Note over Admin,DjangoAdmin: docker compose logs -f celery-worker
     DjangoAdmin-->>Admin: Display Progress Logs
 ```
+
+## 8. Account Deactivation Flow
+
+```mermaid
+sequenceDiagram
+    participant User as User
+    participant Frontend as Frontend
+    participant Backend as Backend API
+    participant DB as Database
+
+    User->>Frontend: Navigate to Settings Page
+    User->>Frontend: Request Account Deactivation
+    Frontend->>Frontend: Display Confirmation Dialog
+    User->>Frontend: Input Password + Reason
+    Frontend->>Backend: DELETE /api/auth/account/
+    Backend->>Backend: Verify Password
+    alt Password Invalid
+        Backend-->>Frontend: 400 Bad Request
+        Frontend-->>User: Error Display
+    else Password Valid
+        Backend->>DB: Create AccountDeletionRequest
+        DB-->>Backend: Request Created
+        Backend->>DB: Update User(is_active: False, deactivated_at: now)
+        DB-->>Backend: User Updated
+        Backend-->>Frontend: Clear HttpOnly Cookies<br/>(Access & Refresh Tokens)
+        Frontend-->>User: Redirect to Home Page
+    end
+```
