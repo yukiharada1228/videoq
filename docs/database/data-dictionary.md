@@ -33,11 +33,16 @@ Table that stores user information for the system.
 | first_name | VARCHAR(150) | NOT NULL | '' | First name |
 | last_name | VARCHAR(150) | NOT NULL | '' | Last name |
 | video_limit | INTEGER | NULL, CHECK (video_limit >= 0) | 0 | Max number of videos the user can upload (`NULL` = unlimited, `0` = uploads disabled) |
+| deactivated_at | TIMESTAMPTZ | NULL | NULL | Date and time when the account was deactivated (soft delete). `NULL` means the account is active. |
 
 ### Indexes
 - PRIMARY KEY: `id`
 - UNIQUE: `username`
 - UNIQUE: `email`
+- INDEX: `(email, is_active)` (for login lookup)
+- INDEX: `(date_joined, -id)` (for user listing)
+- INDEX: `deactivated_at` (for deactivated account queries)
+- INDEX: `video_limit` (for limit queries)
 
 ### Relations
 - `videos`: One-to-many relationship with Video table
@@ -285,7 +290,7 @@ Table that stores chat history.
 ## PGVector Collection
 
 ### Collection Name
-`video_scenes` (configurable)
+`videoq_scenes` (configurable via `PGVECTOR_COLLECTION_NAME` environment variable)
 
 ### Description
 Collection that stores vectorized video scenes.
@@ -295,7 +300,7 @@ Collection that stores vectorized video scenes.
 | Column Name | Data Type | Description |
 |------------|-----------|-------------|
 | id | UUID | Vector ID |
-| embedding | vector(1536) | Text embedding vector (configurable via `EMBEDDING_MODEL` env var, default: text-embedding-3-small) |
+| embedding | vector(1536) | Text embedding vector (dimension configurable via `EMBEDDING_VECTOR_SIZE` env var; model configurable via `EMBEDDING_MODEL` env var, default: text-embedding-3-small/1536) |
 | document | TEXT | Scene text content |
 | metadata | JSONB | Metadata |
 

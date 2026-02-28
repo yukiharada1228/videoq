@@ -261,3 +261,19 @@ flowchart TD
 ### Data Integrity
 - Transaction management using `transaction.atomic` to ensure data consistency
 - Referential integrity guarantee through CASCADE deletion
+
+## 8. Account Deactivation Process
+
+```mermaid
+flowchart TD
+    Start([Start]) --> RequestDelete[Request Account Deactivation]
+    RequestDelete --> InputPassword[Input Current Password]
+    InputPassword --> InputReason[Input Reason for Leaving]
+    InputReason --> Validate{Password Verification}
+    Validate -->|Invalid| ShowError[Error Display]
+    ShowError --> InputPassword
+    Validate -->|Valid| CreateRequest[Create AccountDeletionRequest]
+    CreateRequest --> DeactivateUser[Deactivate User<br/>is_active: False<br/>deactivated_at: now]
+    DeactivateUser --> ClearCookies[Clear Auth Cookies<br/>HttpOnly Cookie Deletion]
+    ClearCookies --> Complete([Account Deactivated])
+```

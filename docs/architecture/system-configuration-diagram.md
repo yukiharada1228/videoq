@@ -223,6 +223,9 @@ graph TB
             ShareToken["Share Token Authentication
             Temporary Access
             Guest Access"]
+            AccountDeactivation["Account Deactivation
+            Password Verification
+            Soft Delete (deactivated_at)"]
         end
 
         subgraph Authorization["Authorization"]

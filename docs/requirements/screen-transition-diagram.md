@@ -42,6 +42,9 @@ stateDiagram-v2
 
     Home --> SharePage: Share Token URL
     SharePage --> SharePage: Chat with Shared Group
+
+    VideoList --> Settings: Settings Menu
+    Settings --> VideoList: Back
     
     note right of Home
         Home Page
@@ -69,6 +72,12 @@ stateDiagram-v2
         - Chat functionality
         - Share link management
     end note
+
+    note right of Settings
+        Settings Page
+        - User info display
+        - Account deactivation
+    end note
 ```
 
 ## Screen List
@@ -92,6 +101,9 @@ stateDiagram-v2
 
 ### Sharing
 - **SharePage** (`/share/:token` or `/:locale/share/:token`): Share page (no authentication required)
+
+### Settings
+- **Settings** (`/settings` or `/:locale/settings`): Settings page (account info, deactivation)
 
 **Note**: This project implements locale-aware routing with React Router + react-i18next (not Next.js / next-intl) (`frontend/src/App.tsx`).
 - The default locale (`en`) has no prefix: `/videos`
