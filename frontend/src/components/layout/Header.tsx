@@ -67,13 +67,6 @@ export function Header({ children }: HeaderProps) {
                 >
                   {t('navigation.videoGroups')}
                 </button>
-                <span className="text-gray-300">|</span>
-                <button
-                  onClick={() => navigate('/settings')}
-                  className="text-gray-600 hover:text-gray-900 transition-colors"
-                >
-                  {t('navigation.settings')}
-                </button>
               </>
             )}
             {children}
@@ -84,6 +77,13 @@ export function Header({ children }: HeaderProps) {
               <span className="text-gray-600">
                 {t('navigation.welcome', { username: user.username })}
               </span>
+              <span className="text-gray-300">|</span>
+              <button
+                onClick={() => navigate('/settings')}
+                className="text-gray-600 hover:text-gray-900 transition-colors"
+              >
+                {t('navigation.settings')}
+              </button>
               <span className="text-gray-300">|</span>
               <button
                 onClick={handleLogout}
