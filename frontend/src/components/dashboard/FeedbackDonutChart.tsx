@@ -5,16 +5,22 @@ interface FeedbackDonutChartProps {
   data: { good: number; bad: number; none: number };
 }
 
-const COLORS = ['#22c55e', '#ef4444', '#d1d5db'];
+const FEEDBACK_ITEMS = [
+  { key: 'good' as const, color: '#22c55e' },
+  { key: 'bad' as const, color: '#ef4444' },
+  { key: 'none' as const, color: '#d1d5db' },
+];
 
 export function FeedbackDonutChart({ data }: FeedbackDonutChartProps) {
   const { t } = useTranslation();
 
-  const chartData = [
-    { name: t('dashboard.feedback.good'), value: data.good },
-    { name: t('dashboard.feedback.bad'), value: data.bad },
-    { name: t('dashboard.feedback.none'), value: data.none },
-  ].filter((d) => d.value > 0);
+  const chartData = FEEDBACK_ITEMS
+    .filter(({ key }) => data[key] > 0)
+    .map(({ key, color }) => ({
+      name: t(`dashboard.feedback.${key}`),
+      value: data[key],
+      color,
+    }));
 
   if (chartData.length === 0) return null;
 
@@ -34,11 +40,9 @@ export function FeedbackDonutChart({ data }: FeedbackDonutChartProps) {
             paddingAngle={2}
             dataKey="value"
           >
-            {chartData.map((entry, index) => {
-              const originalIndex = entry.name === t('dashboard.feedback.good') ? 0
-                : entry.name === t('dashboard.feedback.bad') ? 1 : 2;
-              return <Cell key={index} fill={COLORS[originalIndex]} />;
-            })}
+            {chartData.map((entry, index) => (
+              <Cell key={index} fill={entry.color} />
+            ))}
           </Pie>
           <Tooltip />
           <Legend />

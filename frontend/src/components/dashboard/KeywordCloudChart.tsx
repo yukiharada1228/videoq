@@ -14,8 +14,8 @@ export function KeywordCloudChart({ data }: KeywordCloudChartProps) {
     [data],
   );
 
-  const maxValue = useMemo(() => Math.max(...words.map((w) => w.value), 1), [words]);
-  const minValue = useMemo(() => Math.min(...words.map((w) => w.value), 1), [words]);
+  const maxValue = useMemo(() => Math.max(...words.map((w) => w.value)), [words]);
+  const minValue = useMemo(() => Math.min(...words.map((w) => w.value)), [words]);
 
   const fontSize = useMemo(
     () => (word: Word) => {
