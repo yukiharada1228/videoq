@@ -26,6 +26,7 @@ export const queryKeys = {
   },
   chat: {
     history: (groupId: number | null, shareToken?: string) => ['chatHistory', groupId, shareToken ?? null] as const,
+    analytics: (groupId: number) => ['chatAnalytics', groupId] as const,
   },
   shorts: {
     popularScenes: (groupId: number, shareToken?: string) => ['popularScenes', groupId, shareToken ?? null] as const,
