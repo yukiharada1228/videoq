@@ -544,8 +544,8 @@ _JA_NOUN_POS = ("名詞",)
 _JA_NOUN_EXCLUDE_SUBTYPES = ("非自立", "代名詞", "数", "接尾")
 _JA_CHAR_RE = re.compile(r"[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]")
 
-# English: NLTK POS tags for nouns
-_EN_NOUN_TAGS = {"NN", "NNS", "NNP", "NNPS"}
+# English: NLTK POS tags for content words (nouns + adjectives)
+_EN_CONTENT_TAGS = {"NN", "NNS", "NNP", "NNPS", "JJ", "JJR", "JJS"}
 
 _janome_tokenizer = None
 
@@ -570,13 +570,17 @@ def _extract_ja_nouns(text, tokenizer):
     return nouns
 
 
-def _extract_en_nouns(text):
-    """Extract English nouns using NLTK POS tagging."""
+def _extract_en_keywords(text):
+    """Extract English content words (nouns + adjectives) using NLTK POS tagging."""
     import nltk
 
-    tokens = nltk.word_tokenize(text)
+    tokens = nltk.word_tokenize(text.lower())
     tagged = nltk.pos_tag(tokens)
-    return [word for word, tag in tagged if tag in _EN_NOUN_TAGS and len(word) >= 2]
+    return [
+        word
+        for word, tag in tagged
+        if tag in _EN_CONTENT_TAGS and len(word) >= 2 and word.isalpha()
+    ]
 
 
 def _extract_keywords(questions, limit=30):
@@ -586,10 +590,10 @@ def _extract_keywords(questions, limit=30):
 
     for q in questions:
         if _JA_CHAR_RE.search(q):
-            nouns = _extract_ja_nouns(q, tokenizer)
+            words = _extract_ja_nouns(q, tokenizer)
         else:
-            nouns = _extract_en_nouns(q)
-        for noun in nouns:
+            words = _extract_en_keywords(q)
+        for noun in words:
             counter[noun] += 1
 
     return [{"word": word, "count": count} for word, count in counter.most_common(limit)]
