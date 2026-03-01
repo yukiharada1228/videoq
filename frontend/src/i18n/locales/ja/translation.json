@@ -538,5 +538,36 @@
     "referenceCount": "{{count}}回参照",
     "tapToPlay": "タップして再生",
     "question": "質問"
+  },
+  "dashboard": {
+    "button": "ダッシュボード",
+    "title": "教育改善ダッシュボード",
+    "totalQuestions": "質問数: {{count}}件",
+    "dateRange": "期間: {{first}} 〜 {{last}}",
+    "noData": "分析データがありません",
+    "empty": {
+      "title": "データがありません",
+      "description": "このグループにはまだ質問がありません。チャットで質問すると分析データが表示されます。"
+    },
+    "sceneDistribution": {
+      "title": "シーン別の質問分布",
+      "questions": "{{count}}件",
+      "coverage": "全{{count}}シーンを表示",
+      "share": "構成比 {{percentage}}",
+      "timeRange": "{{start}} - {{end}}"
+    },
+    "timeSeries": {
+      "title": "質問の推移",
+      "count": "質問数"
+    },
+    "feedback": {
+      "title": "フィードバック分析",
+      "good": "Good",
+      "bad": "Bad",
+      "none": "未評価"
+    },
+    "keywords": {
+      "title": "頻出キーワード"
+    }
   }
 }
