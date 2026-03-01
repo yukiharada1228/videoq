@@ -532,5 +532,36 @@
     "referenceCount": "{{count}} references",
     "tapToPlay": "Tap to play",
     "question": "Question"
+  },
+  "dashboard": {
+    "button": "Dashboard",
+    "title": "Educational Improvement Dashboard",
+    "totalQuestions": "{{count}} total questions",
+    "dateRange": "Period: {{first}} – {{last}}",
+    "noData": "No analytics data available",
+    "empty": {
+      "title": "No data yet",
+      "description": "There are no questions in this group yet. Start chatting to see analytics."
+    },
+    "sceneDistribution": {
+      "title": "Question Distribution by Scene",
+      "questions": "{{count}}",
+      "coverage": "Showing all {{count}} scenes",
+      "share": "{{percentage}} of total",
+      "timeRange": "{{start}} - {{end}}"
+    },
+    "timeSeries": {
+      "title": "Question Trends",
+      "count": "Questions"
+    },
+    "feedback": {
+      "title": "Feedback Analysis",
+      "good": "Good",
+      "bad": "Bad",
+      "none": "Not rated"
+    },
+    "keywords": {
+      "title": "Frequent Keywords"
+    }
   }
 }

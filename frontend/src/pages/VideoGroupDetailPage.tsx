@@ -24,6 +24,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { apiClient, type VideoGroup, type VideoInGroup } from '@/lib/api';
 import { ChatPanel } from '@/components/chat/ChatPanel';
 import { ShortsButton } from '@/components/shorts/ShortsButton';
+import { DashboardButton } from '@/components/dashboard/DashboardButton';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -740,6 +741,10 @@ export default function VideoGroupDetailPage() {
                   videos={group.videos}
                   size="sm"
                 />
+              )}
+
+              {!isEditing && groupId && (
+                <DashboardButton groupId={groupId} size="sm" />
               )}
 
               {!isEditing && (

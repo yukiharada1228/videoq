@@ -89,6 +89,23 @@ export interface ChatMessage {
   feedback?: 'good' | 'bad' | null;
 }
 
+export interface ChatAnalytics {
+  summary: {
+    total_questions: number;
+    date_range: { first?: string; last?: string };
+  };
+  scene_distribution: {
+    video_id: number;
+    title: string;
+    start_time: string;
+    end_time: string;
+    question_count: number;
+  }[];
+  time_series: { date: string; count: number }[];
+  feedback: { good: number; bad: number; none: number };
+  keywords: { word: string; count: number }[];
+}
+
 export interface ChatRequest {
   messages: ChatMessage[];
   group_id?: number;
@@ -807,6 +824,10 @@ class ApiClient {
       params.set('limit', String(limit));
     }
     return this.request<PopularScene[]>(`/chat/popular-scenes/?${params.toString()}`);
+  }
+
+  async getChatAnalytics(groupId: number): Promise<ChatAnalytics> {
+    return this.request<ChatAnalytics>(`/chat/analytics/?group_id=${groupId}`);
   }
 
 }
