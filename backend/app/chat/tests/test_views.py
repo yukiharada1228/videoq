@@ -962,6 +962,32 @@ class ChatAnalyticsViewTests(APITestCase):
         self.assertEqual(data["feedback"]["none"], 1)
         self.assertGreater(len(data["keywords"]), 0)
 
+    def test_analytics_returns_all_scenes(self):
+        """Test analytics endpoint does not truncate scene distribution"""
+        for i in range(25):
+            ChatLog.objects.create(
+                user=self.user,
+                group=self.group,
+                question=f"Question about scene {i}",
+                answer=f"Answer {i}",
+                related_videos=[
+                    {
+                        "video_id": self.video.id,
+                        "title": "Test Video",
+                        "start_time": f"00:{i + 3:02d}:00",
+                        "end_time": f"00:{i + 4:02d}:00",
+                    },
+                ],
+            )
+
+        url = reverse("chat-analytics")
+        url += f"?group_id={self.group.id}"
+
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data["scene_distribution"]), 26)
+
     def test_analytics_missing_group_id(self):
         """Test analytics without group_id returns 400"""
         url = reverse("chat-analytics")

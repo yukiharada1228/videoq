@@ -30,7 +30,6 @@ export function SceneDistributionChart({ data }: SceneDistributionChartProps) {
     }));
 
   const totalQuestions = data.reduce((sum, item) => sum + item.question_count, 0);
-  const topShare = rankedScenes.reduce((sum, item) => sum + item.question_count, 0);
   const maxCount = rankedScenes[0]?.question_count ?? 0;
 
   if (rankedScenes.length === 0) return null;
@@ -44,7 +43,6 @@ export function SceneDistributionChart({ data }: SceneDistributionChartProps) {
         <span className="text-xs text-gray-500">
           {t('dashboard.sceneDistribution.coverage', {
             count: rankedScenes.length,
-            percentage: `${Math.round((topShare / totalQuestions) * 100)}%`,
           })}
         </span>
       </div>

@@ -552,7 +552,7 @@
     "sceneDistribution": {
       "title": "シーン別の質問分布",
       "questions": "{{count}}件",
-      "coverage": "上位{{count}}シーンで全体の{{percentage}}",
+      "coverage": "全{{count}}シーンを表示",
       "share": "構成比 {{percentage}}",
       "timeRange": "{{start}} - {{end}}"
     },

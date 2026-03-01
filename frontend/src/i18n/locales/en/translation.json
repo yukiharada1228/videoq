@@ -546,7 +546,7 @@
     "sceneDistribution": {
       "title": "Question Distribution by Scene",
       "questions": "{{count}}",
-      "coverage": "Top {{count}} scenes cover {{percentage}} of all questions",
+      "coverage": "Showing all {{count}} scenes",
       "share": "{{percentage}} of total",
       "timeRange": "{{start}} - {{end}}"
     },
