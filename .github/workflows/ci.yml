@@ -100,6 +100,7 @@ jobs:
         run: |
           pip install -r requirements.txt
           pip install coverage
+          python -m nltk.downloader -d /usr/local/nltk_data averaged_perceptron_tagger_eng punkt_tab
       - name: Create pgvector extension
         run: |
           sudo apt-get update
