@@ -545,7 +545,10 @@
     },
     "sceneDistribution": {
       "title": "Question Distribution by Scene",
-      "questions": "{{count}}"
+      "questions": "{{count}}",
+      "coverage": "Top {{count}} scenes cover {{percentage}} of all questions",
+      "share": "{{percentage}} of total",
+      "timeRange": "{{start}} - {{end}}"
     },
     "timeSeries": {
       "title": "Question Trends",
