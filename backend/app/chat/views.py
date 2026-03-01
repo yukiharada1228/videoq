@@ -433,14 +433,15 @@ def _build_popular_scenes_response(
     ]
 
 
-def _filter_group_scenes(scene_counter, group, limit):
+def _filter_group_scenes(scene_counter, group, limit=None):
     """Keep only scenes that belong to videos currently in the group."""
     valid_video_ids = {member.video_id for member in group.members.all()}
-    return [
+    scenes = [
         (key, count)
         for key, count in scene_counter.most_common()
         if key[0] in valid_video_ids
-    ][:limit]
+    ]
+    return scenes[:limit] if limit is not None else scenes
 
 
 class PopularScenesView(APIView):
@@ -642,7 +643,7 @@ class ChatAnalyticsView(APIView):
         # Scene distribution (reuse existing helpers)
         logs_for_scenes = chat_logs_qs.values("question", "related_videos")
         scene_counter, scene_info, _ = _aggregate_scenes(logs_for_scenes)
-        top_scenes = _filter_group_scenes(scene_counter, group, 20)
+        top_scenes = _filter_group_scenes(scene_counter, group)
         scene_distribution = [
             {
                 "video_id": scene_info[key]["video_id"],
