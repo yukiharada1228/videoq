@@ -575,8 +575,21 @@ def _extract_en_keywords(text):
     """Extract English content words (nouns + adjectives) using NLTK POS tagging."""
     import nltk
 
-    tokens = nltk.word_tokenize(text.lower())
-    tagged = nltk.pos_tag(tokens)
+    normalized = text.lower()
+    basic_tokens = re.findall(r"[a-z]+", normalized)
+    if not basic_tokens:
+        return []
+
+    try:
+        tokens = nltk.word_tokenize(normalized)
+    except LookupError:
+        tokens = basic_tokens
+
+    try:
+        tagged = nltk.pos_tag(tokens)
+    except LookupError:
+        return [word for word in basic_tokens if len(word) >= 2]
+
     return [
         word
         for word, tag in tagged
