@@ -1,8 +1,10 @@
 import csv
 import json
+import re
 from collections import Counter
 
-from django.db.models import Prefetch
+from django.db.models import Count, Prefetch, Q
+from django.db.models.functions import TruncDate
 from django.http import HttpResponse
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import generics, status
@@ -535,3 +537,150 @@ class PopularScenesView(APIView):
             top_scenes, scene_info, scene_questions, video_file_map
         )
         return Response(result)
+
+
+# Japanese: janome noun filtering
+_JA_NOUN_POS = ("名詞",)
+_JA_NOUN_EXCLUDE_SUBTYPES = ("非自立", "代名詞", "数", "接尾")
+_JA_CHAR_RE = re.compile(r"[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]")
+
+# English: NLTK POS tags for nouns
+_EN_NOUN_TAGS = {"NN", "NNS", "NNP", "NNPS"}
+
+_janome_tokenizer = None
+
+
+def _get_janome_tokenizer():
+    global _janome_tokenizer
+    if _janome_tokenizer is None:
+        from janome.tokenizer import Tokenizer
+
+        _janome_tokenizer = Tokenizer()
+    return _janome_tokenizer
+
+
+def _extract_ja_nouns(text, tokenizer):
+    """Extract Japanese nouns using janome."""
+    nouns = []
+    for token in tokenizer.tokenize(text):
+        pos = token.part_of_speech.split(",")
+        if pos[0] in _JA_NOUN_POS and pos[1] not in _JA_NOUN_EXCLUDE_SUBTYPES:
+            if len(token.surface) >= 2:
+                nouns.append(token.surface)
+    return nouns
+
+
+def _extract_en_nouns(text):
+    """Extract English nouns using NLTK POS tagging."""
+    import nltk
+
+    tokens = nltk.word_tokenize(text)
+    tagged = nltk.pos_tag(tokens)
+    return [word for word, tag in tagged if tag in _EN_NOUN_TAGS and len(word) >= 2]
+
+
+def _extract_keywords(questions, limit=30):
+    """Extract top keywords using janome (Japanese) and NLTK (English)."""
+    counter: Counter = Counter()
+    tokenizer = _get_janome_tokenizer()
+
+    for q in questions:
+        if _JA_CHAR_RE.search(q):
+            nouns = _extract_ja_nouns(q, tokenizer)
+        else:
+            nouns = _extract_en_nouns(q)
+        for noun in nouns:
+            counter[noun] += 1
+
+    return [{"word": word, "count": count} for word, count in counter.most_common(limit)]
+
+
+class ChatAnalyticsView(APIView):
+    """
+    Analytics dashboard data for a chat group.
+    GET /api/chat/analytics/?group_id=123
+    """
+
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        group_id = request.query_params.get("group_id")
+        if not group_id:
+            return create_error_response(
+                "Group ID not specified", status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            group = _get_video_group_with_members(group_id, user_id=request.user.id)
+        except VideoGroup.DoesNotExist:
+            return create_error_response(
+                "Specified group not found", status.HTTP_404_NOT_FOUND
+            )
+
+        chat_logs_qs = ChatLog.objects.filter(group=group)
+
+        # Summary
+        total = chat_logs_qs.count()
+        date_range = {}
+        if total > 0:
+            first_log = chat_logs_qs.order_by("created_at").values_list(
+                "created_at", flat=True
+            ).first()
+            last_log = chat_logs_qs.order_by("-created_at").values_list(
+                "created_at", flat=True
+            ).first()
+            date_range = {
+                "first": first_log.isoformat() if first_log else None,
+                "last": last_log.isoformat() if last_log else None,
+            }
+
+        # Scene distribution (reuse existing helpers)
+        logs_for_scenes = chat_logs_qs.values("question", "related_videos")
+        scene_counter, scene_info, _ = _aggregate_scenes(logs_for_scenes)
+        top_scenes = _filter_group_scenes(scene_counter, group, 20)
+        scene_distribution = [
+            {
+                "video_id": scene_info[key]["video_id"],
+                "title": scene_info[key]["title"],
+                "start_time": scene_info[key]["start_time"],
+                "end_time": scene_info[key]["end_time"],
+                "question_count": count,
+            }
+            for key, count in top_scenes
+        ]
+
+        # Time series (daily)
+        time_series = list(
+            chat_logs_qs.annotate(date=TruncDate("created_at"))
+            .values("date")
+            .annotate(count=Count("id"))
+            .order_by("date")
+            .values("date", "count")
+        )
+        for entry in time_series:
+            entry["date"] = entry["date"].isoformat()
+
+        # Feedback
+        feedback_agg = chat_logs_qs.aggregate(
+            good=Count("id", filter=Q(feedback="good")),
+            bad=Count("id", filter=Q(feedback="bad")),
+            none=Count("id", filter=Q(feedback__isnull=True)),
+        )
+
+        # Keywords
+        questions = list(chat_logs_qs.values_list("question", flat=True))
+        keywords = _extract_keywords(questions)
+
+        return Response(
+            {
+                "summary": {
+                    "total_questions": total,
+                    "date_range": date_range,
+                },
+                "scene_distribution": scene_distribution,
+                "time_series": time_series,
+                "feedback": feedback_agg,
+                "keywords": keywords,
+            }
+        )

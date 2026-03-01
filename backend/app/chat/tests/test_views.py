@@ -878,3 +878,143 @@ class PopularScenesViewTests(APITestCase):
             removed_video_id,
             [scene["video_id"] for scene in response.data],
         )
+
+
+class ChatAnalyticsViewTests(APITestCase):
+    """Tests for ChatAnalyticsView"""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="testuser",
+            email="test@example.com",
+            password="testpass123",
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+
+        self.video = Video.objects.create(
+            user=self.user,
+            title="Test Video",
+            description="Test Description",
+            status="completed",
+        )
+        self.group = VideoGroup.objects.create(
+            user=self.user,
+            name="Test Group",
+            description="Test",
+        )
+        VideoGroupMember.objects.create(group=self.group, video=self.video, order=0)
+
+        ChatLog.objects.create(
+            user=self.user,
+            group=self.group,
+            question="What is gradient descent?",
+            answer="Answer 1",
+            feedback="good",
+            related_videos=[
+                {
+                    "video_id": self.video.id,
+                    "title": "Test Video",
+                    "start_time": "00:01:00",
+                    "end_time": "00:02:00",
+                },
+            ],
+        )
+        ChatLog.objects.create(
+            user=self.user,
+            group=self.group,
+            question="Explain gradient in detail",
+            answer="Answer 2",
+            feedback="bad",
+            related_videos=[
+                {
+                    "video_id": self.video.id,
+                    "title": "Test Video",
+                    "start_time": "00:01:00",
+                    "end_time": "00:02:00",
+                },
+            ],
+        )
+        ChatLog.objects.create(
+            user=self.user,
+            group=self.group,
+            question="How does backpropagation work?",
+            answer="Answer 3",
+        )
+
+    def test_analytics_with_data(self):
+        """Test analytics endpoint returns correct data"""
+        url = reverse("chat-analytics")
+        url += f"?group_id={self.group.id}"
+
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.data
+        self.assertEqual(data["summary"]["total_questions"], 3)
+        self.assertIn("first", data["summary"]["date_range"])
+        self.assertIn("last", data["summary"]["date_range"])
+        self.assertGreater(len(data["scene_distribution"]), 0)
+        self.assertEqual(data["scene_distribution"][0]["question_count"], 2)
+        self.assertGreater(len(data["time_series"]), 0)
+        self.assertEqual(data["feedback"]["good"], 1)
+        self.assertEqual(data["feedback"]["bad"], 1)
+        self.assertEqual(data["feedback"]["none"], 1)
+        self.assertGreater(len(data["keywords"]), 0)
+
+    def test_analytics_missing_group_id(self):
+        """Test analytics without group_id returns 400"""
+        url = reverse("chat-analytics")
+
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_analytics_group_not_found(self):
+        """Test analytics for non-existent group returns 404"""
+        url = reverse("chat-analytics")
+        url += "?group_id=99999"
+
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_analytics_wrong_user(self):
+        """Test analytics for group owned by another user returns 404"""
+        other_user = User.objects.create_user(
+            username="otheruser",
+            email="other@example.com",
+            password="testpass123",
+        )
+        other_group = VideoGroup.objects.create(
+            user=other_user, name="Other Group", description="Test"
+        )
+
+        url = reverse("chat-analytics")
+        url += f"?group_id={other_group.id}"
+
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_analytics_empty_group(self):
+        """Test analytics for group with no chat logs returns 200 with zero data"""
+        empty_group = VideoGroup.objects.create(
+            user=self.user, name="Empty Group", description="Test"
+        )
+
+        url = reverse("chat-analytics")
+        url += f"?group_id={empty_group.id}"
+
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.data
+        self.assertEqual(data["summary"]["total_questions"], 0)
+        self.assertEqual(data["summary"]["date_range"], {})
+        self.assertEqual(len(data["scene_distribution"]), 0)
+        self.assertEqual(len(data["time_series"]), 0)
+        self.assertEqual(data["feedback"]["good"], 0)
+        self.assertEqual(data["feedback"]["bad"], 0)
+        self.assertEqual(data["feedback"]["none"], 0)
+        self.assertEqual(len(data["keywords"]), 0)
