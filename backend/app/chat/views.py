@@ -593,8 +593,8 @@ def _extract_keywords(questions, limit=30):
             words = _extract_ja_nouns(q, tokenizer)
         else:
             words = _extract_en_keywords(q)
-        for noun in words:
-            counter[noun] += 1
+        for word in words:
+            counter[word] += 1
 
     return [{"word": word, "count": count} for word, count in counter.most_common(limit)]
 
