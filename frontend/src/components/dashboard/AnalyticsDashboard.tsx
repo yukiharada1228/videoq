@@ -42,12 +42,6 @@ export function AnalyticsDashboard({ data, isLoading }: AnalyticsDashboardProps)
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {data.scene_distribution.length > 0 && (
-          <div className="bg-white border border-gray-200 rounded-lg p-4">
-            <SceneDistributionChart data={data.scene_distribution} />
-          </div>
-        )}
-
         {data.time_series.length > 0 && (
           <div className="bg-white border border-gray-200 rounded-lg p-4">
             <QuestionTimeSeriesChart data={data.time_series} />
@@ -57,6 +51,12 @@ export function AnalyticsDashboard({ data, isLoading }: AnalyticsDashboardProps)
         <div className="bg-white border border-gray-200 rounded-lg p-4">
           <FeedbackDonutChart data={data.feedback} />
         </div>
+
+        {data.scene_distribution.length > 0 && (
+          <div className="bg-white border border-gray-200 rounded-lg p-4">
+            <SceneDistributionChart data={data.scene_distribution} />
+          </div>
+        )}
 
         {data.keywords.length > 0 && (
           <div className="bg-white border border-gray-200 rounded-lg p-4">
