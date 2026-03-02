@@ -45,7 +45,6 @@ erDiagram
         text transcript
         string status
         text error_message
-        string external_id UK
     }
     
     VideoGroup {

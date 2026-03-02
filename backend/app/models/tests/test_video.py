@@ -69,32 +69,6 @@ class VideoModelTests(TestCase):
 
         self.assertEqual(video.transcript, "")
 
-    def test_external_id_is_optional(self):
-        """Test that external_id is optional"""
-        video = Video.objects.create(
-            user=self.user,
-            title="Test Video",
-        )
-
-        self.assertIsNone(video.external_id)
-
-    def test_external_id_is_unique(self):
-        """Test that external_id must be unique when set"""
-        Video.objects.create(
-            user=self.user,
-            title="Video 1",
-            external_id="ext-123",
-        )
-
-        from django.db import IntegrityError
-
-        with self.assertRaises(IntegrityError):
-            Video.objects.create(
-                user=self.user,
-                title="Video 2",
-                external_id="ext-123",
-            )
-
     def test_uploaded_at_is_auto_set(self):
         """Test that uploaded_at is automatically set"""
         video = Video.objects.create(

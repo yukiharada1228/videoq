@@ -52,11 +52,8 @@ class CreateSceneMetadataTests(TestCase):
         self.assertEqual(result["end_sec"], 5.0)
         self.assertEqual(result["scene_index"], 1)
 
-    def test_includes_external_id_when_present(self):
-        """Test that external_id is included when present"""
-        self.video.external_id = "ext-123"
-        self.video.save()
-
+    def test_returns_only_expected_metadata_fields(self):
+        """Test that metadata includes only the current fields"""
         scene = {
             "start_time": "00:00:00,000",
             "end_time": "00:00:05,000",
@@ -67,21 +64,19 @@ class CreateSceneMetadataTests(TestCase):
 
         result = create_scene_metadata(self.video, scene)
 
-        self.assertEqual(result["external_id"], "ext-123")
-
-    def test_excludes_external_id_when_not_present(self):
-        """Test that external_id is not included when not present"""
-        scene = {
-            "start_time": "00:00:00,000",
-            "end_time": "00:00:05,000",
-            "start_sec": 0.0,
-            "end_sec": 5.0,
-            "index": 1,
-        }
-
-        result = create_scene_metadata(self.video, scene)
-
-        self.assertNotIn("external_id", result)
+        self.assertEqual(
+            set(result.keys()),
+            {
+                "video_id",
+                "user_id",
+                "video_title",
+                "start_time",
+                "end_time",
+                "start_sec",
+                "end_sec",
+                "scene_index",
+            },
+        )
 
 
 class IndexScenesToVectorstoreTests(TestCase):

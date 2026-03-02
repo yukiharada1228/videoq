@@ -159,37 +159,6 @@ class VideoCreateSerializerTests(TestCase):
 
         self.assertTrue(serializer.is_valid())
 
-    def test_normalizes_empty_external_id(self):
-        """Test that empty external_id is normalized to None"""
-        data = {
-            "file": self._create_video_file(),
-            "title": "Test Video",
-            "external_id": "",
-        }
-
-        serializer = VideoCreateSerializer(
-            data=data, context=self._get_request_context()
-        )
-
-        self.assertTrue(serializer.is_valid())
-        self.assertIsNone(serializer.validated_data.get("external_id"))
-
-    def test_normalizes_whitespace_external_id(self):
-        """Test that whitespace external_id is normalized to None"""
-        data = {
-            "file": self._create_video_file(),
-            "title": "Test Video",
-            "external_id": "   ",
-        }
-
-        serializer = VideoCreateSerializer(
-            data=data, context=self._get_request_context()
-        )
-
-        self.assertTrue(serializer.is_valid())
-        self.assertIsNone(serializer.validated_data.get("external_id"))
-
-
 class TagCreateSerializerTests(TestCase):
     """Tests for TagCreateSerializer"""
 

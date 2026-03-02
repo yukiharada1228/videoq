@@ -45,7 +45,6 @@ describe('VideoCard', () => {
     file: 'http://example.com/video.mp4',
     user: 1,
     description: 'Test description',
-    external_id: null as string | null,
   }
 
   it('should render video card with title', () => {
@@ -83,14 +82,6 @@ describe('VideoCard', () => {
     render(<VideoCard video={videoWithoutFile} />)
 
     expect(screen.getByText('Test Video')).toBeInTheDocument()
-  })
-
-  it('should render external_id text when external_id is provided', () => {
-    const videoWithExternalId = { ...mockVideo, external_id: 'ext-123', file: 'http://example.com/video.mp4' }
-    render(<VideoCard video={videoWithExternalId} />)
-
-    expect(screen.getByText('external_id')).toBeInTheDocument()
-    expect(screen.getByText('ext-123')).toBeInTheDocument()
   })
 
   it('should apply custom className', () => {
@@ -146,4 +137,3 @@ describe('VideoCard', () => {
     playSpy.mockRestore()
   })
 })
-

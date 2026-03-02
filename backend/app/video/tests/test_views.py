@@ -541,8 +541,8 @@ class ReorderVideosTests(APITestCase):
         self.assertEqual(member3.order, 0)
 
 
-class VideoUploadDeleteAfterProcessingTests(APITestCase):
-    """Tests for external_id in video upload"""
+class VideoUploadTests(APITestCase):
+    """Tests for video upload"""
 
     def setUp(self):
         self.user = User.objects.create_user(
@@ -555,8 +555,8 @@ class VideoUploadDeleteAfterProcessingTests(APITestCase):
         self.client.force_authenticate(user=self.user)
 
     @patch("app.video.serializers.transcribe_video.delay")
-    def test_upload_without_external_id(self, mock_task):
-        """Test video upload without external_id (default)"""
+    def test_upload(self, mock_task):
+        """Test video upload"""
         from io import BytesIO
 
         from django.core.files.uploadedfile import SimpleUploadedFile
@@ -581,34 +581,6 @@ class VideoUploadDeleteAfterProcessingTests(APITestCase):
 
         video = Video.objects.first()
         self.assertEqual(video.title, "Test Video")
-        self.assertIsNone(video.external_id)
-
-    @patch("app.video.serializers.transcribe_video.delay")
-    def test_upload_with_external_id(self, mock_task):
-        """Test video upload with external_id"""
-        from io import BytesIO
-
-        from django.core.files.uploadedfile import SimpleUploadedFile
-
-        video_file = SimpleUploadedFile(
-            "test_video.mp4",
-            BytesIO(b"fake video content").read(),
-            content_type="video/mp4",
-        )
-
-        url = reverse("video-list")
-        data = {
-            "file": video_file,
-            "title": "Test Video",
-            "description": "Test Description",
-            "external_id": "ext-123",
-        }
-
-        response = self.client.post(url, data, format="multipart")
-
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        video = Video.objects.first()
-        self.assertEqual(video.external_id, "ext-123")
 
 
 class VideoLimitTests(APITestCase):
