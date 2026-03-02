@@ -697,8 +697,8 @@ class PopularScenesViewTests(APITestCase):
 
         response = self.client.get(url)
 
-        # Invalid share token returns 401 (Unauthorized) not 404
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        # Invalid share token is rejected by the permission layer.
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_get_popular_scenes_empty_chat_logs(self):
         """Test getting popular scenes when no chat logs exist"""

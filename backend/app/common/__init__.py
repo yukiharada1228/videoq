@@ -1,6 +1,6 @@
 """Common modules shared across the application"""
 
-from .authentication import CookieJWTAuthentication
+from .authentication import APIKeyAuthentication, CookieJWTAuthentication
 from .permissions import (IsAuthenticatedOrSharedAccess,
                           ShareTokenAuthentication)
 from .responses import (create_created_response, create_error_response,
@@ -11,6 +11,7 @@ from .throttles import (AuthenticatedChatThrottle, LoginIPThrottle,
                         ShareTokenIPThrottle, SignupIPThrottle)
 
 __all__ = [
+    "APIKeyAuthentication",
     "CookieJWTAuthentication",
     "IsAuthenticatedOrSharedAccess",
     "ShareTokenAuthentication",

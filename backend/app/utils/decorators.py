@@ -13,9 +13,10 @@ def authenticated_api_view(methods):
 
         from app.utils.mixins import AuthenticatedViewMixin
 
-        return permission_classes(AuthenticatedViewMixin.permission_classes)(
+        wrapped_view = permission_classes(AuthenticatedViewMixin.permission_classes)(
             api_view(methods)(view_func)
         )
+        return wraps(view_func)(wrapped_view)
 
     return decorator
 

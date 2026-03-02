@@ -19,6 +19,24 @@ export interface User {
   video_count: number;
 }
 
+export interface IntegrationApiKey {
+  id: number;
+  name: string;
+  access_level: 'all' | 'read_only';
+  prefix: string;
+  last_used_at: string | null;
+  created_at: string;
+}
+
+export interface IntegrationApiKeyCreateRequest {
+  name: string;
+  access_level: 'all' | 'read_only';
+}
+
+export interface IntegrationApiKeyCreateResponse extends IntegrationApiKey {
+  api_key: string;
+}
+
 export interface SignupRequest {
   username: string;
   email: string;
@@ -122,7 +140,6 @@ export interface Video {
   transcript?: string;
   status: 'pending' | 'processing' | 'completed' | 'error';
   error_message?: string;
-  external_id?: string | null;
   tags?: { id: number; name: string; color: string }[];
 }
 
@@ -133,7 +150,6 @@ export interface VideoList {
   description: string;
   uploaded_at: string;
   status: 'pending' | 'processing' | 'completed' | 'error';
-  external_id?: string | null;
   tags?: { id: number; name: string; color: string }[];
 }
 
@@ -141,7 +157,6 @@ export interface VideoUploadRequest {
   file: File;
   title: string;
   description?: string;
-  external_id?: string;
 }
 
 export interface VideoUpdateRequest {
@@ -168,7 +183,6 @@ export interface VideoInGroup {
   uploaded_at: string;
   status: 'pending' | 'processing' | 'completed' | 'error';
   order: number;
-  external_id?: string | null;
 }
 
 export interface VideoGroupCreateRequest {
@@ -480,6 +494,25 @@ class ApiClient {
     return this.request<User>('/auth/me');
   }
 
+  async getIntegrationApiKeys(): Promise<IntegrationApiKey[]> {
+    return this.request<IntegrationApiKey[]>('/auth/api-keys/');
+  }
+
+  async createIntegrationApiKey(
+    data: IntegrationApiKeyCreateRequest,
+  ): Promise<IntegrationApiKeyCreateResponse> {
+    return this.request<IntegrationApiKeyCreateResponse>('/auth/api-keys/', {
+      method: 'POST',
+      body: data,
+    });
+  }
+
+  async revokeIntegrationApiKey(id: number): Promise<void> {
+    await this.request(`/auth/api-keys/${id}/`, {
+      method: 'DELETE',
+    });
+  }
+
   async deleteAccount(data?: AccountDeleteRequest): Promise<void> {
     await this.request('/auth/account/', {
       method: 'DELETE',
@@ -589,9 +622,6 @@ class ApiClient {
     formData.append('title', data.title);
     if (data.description) {
       formData.append('description', data.description);
-    }
-    if (data.external_id) {
-      formData.append('external_id', data.external_id);
     }
 
     const url = this.buildUrl('/videos/');
