@@ -474,67 +474,68 @@ export default function SettingsPage() {
           }
         }}
       >
-        <DialogContent className="sm:max-w-2xl" showCloseButton={false}>
-          <DialogHeader>
-            <DialogTitle>{t('settings.integrationApiKeys.generatedDialogTitle')}</DialogTitle>
-            <DialogDescription>
-              {t('settings.integrationApiKeys.generatedDialogDescription')}
-            </DialogDescription>
-          </DialogHeader>
-
+        <DialogContent className="sm:max-w-xl" showCloseButton={false}>
           {generatedApiKey && (
-            <div className="space-y-5">
+            <div className="space-y-6">
+              <DialogHeader className="space-y-3">
+                <DialogTitle>
+                  {t('settings.integrationApiKeys.generatedDialogTitle')}
+                </DialogTitle>
+                <DialogDescription className="leading-6 sm:text-left">
+                  {t('settings.integrationApiKeys.generatedDialogDescription')}
+                </DialogDescription>
+              </DialogHeader>
+
               {generatedDialogError && (
                 <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                   {generatedDialogError}
                 </div>
               )}
 
-              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                {t('settings.integrationApiKeys.generatedTitle')}
-              </div>
-
-              <div className="grid gap-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-                <div className="space-y-1">
-                  <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    {t('settings.integrationApiKeys.nameLabel')}
-                  </div>
-                  <div className="text-sm font-medium text-slate-900">{generatedApiKey.name}</div>
+              <div className="space-y-2">
+                <div className="text-sm font-medium text-gray-900">
+                  {t('settings.integrationApiKeys.secretKeyLabel')}
                 </div>
-                <div className="space-y-1">
-                  <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    {t('settings.integrationApiKeys.permissionsLabel')}
+                <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_112px] sm:items-center">
+                  <div className="min-w-0 rounded-md border border-gray-200 bg-gray-50 px-4 py-3 font-mono text-sm text-gray-900">
+                    <span className="block truncate">{generatedApiKey.api_key}</span>
                   </div>
-                  <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${getAccessLevelBadgeClasses(generatedApiKey.access_level)}`}>
-                    {getAccessLevelLabel(generatedApiKey.access_level)}
-                  </span>
+                  <Button
+                    variant={isCopyAcknowledged ? 'default' : 'secondary'}
+                    className={isCopyAcknowledged
+                      ? 'h-10 w-full'
+                      : 'h-10 w-full border border-gray-300 bg-white text-gray-900 hover:bg-gray-100'}
+                    onClick={handleCopyApiKey}
+                  >
+                    {isCopyAcknowledged
+                      ? t('settings.integrationApiKeys.copyDone')
+                      : t('settings.integrationApiKeys.copy')}
+                  </Button>
                 </div>
+                <p className="text-sm text-gray-500">
+                  {t('settings.integrationApiKeys.generatedTitle')}
+                </p>
               </div>
 
               <div className="space-y-2">
-                <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  {t('settings.integrationApiKeys.secretKeyLabel')}
+                <div className="text-sm font-medium text-gray-900">
+                  {t('settings.integrationApiKeys.permissionsLabel')}
                 </div>
-                <div className="break-all rounded-xl border border-slate-200 bg-slate-950 px-4 py-4 font-mono text-xs leading-6 text-slate-100">
-                  {generatedApiKey.api_key}
+                <div className="text-sm text-gray-900">
+                  {getAccessLevelLabel(generatedApiKey.access_level)}
                 </div>
-                <p className="text-xs text-slate-500">
-                  {t('settings.integrationApiKeys.secretKeyHelp')}
-                </p>
+                <div className="text-sm text-gray-500">
+                  {generatedApiKey.access_level === 'read_only'
+                    ? t('settings.integrationApiKeys.permissions.readOnlyDescription')
+                    : t('settings.integrationApiKeys.permissions.allDescription')}
+                </div>
               </div>
             </div>
           )}
 
-          <DialogFooter className="gap-2">
+          <DialogFooter>
             <Button
-              variant={isCopyAcknowledged ? 'default' : 'outline'}
-              onClick={handleCopyApiKey}
-            >
-              {isCopyAcknowledged
-                ? t('settings.integrationApiKeys.copyDone')
-                : t('settings.integrationApiKeys.copy')}
-            </Button>
-            <Button
+              variant="secondary"
               onClick={() => {
                 setGeneratedApiKey(null);
                 setIsCopyAcknowledged(false);
