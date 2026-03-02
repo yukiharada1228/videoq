@@ -59,10 +59,6 @@ def create_scene_metadata(video, scene):
         "scene_index": scene["index"],
     }
 
-    # Add external_id if it exists
-    if video.external_id:
-        metadata["external_id"] = video.external_id
-
     return metadata
 
 

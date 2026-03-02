@@ -188,7 +188,6 @@ class VideoListView(DynamicSerializerMixin, BaseVideoView, generics.ListCreateAP
         queryset = super().get_queryset()
         q = self.request.query_params.get("q", "").strip()
         status_value = self.request.query_params.get("status", "").strip()
-        external_id = self.request.query_params.get("external_id", "").strip()
         ordering = self.request.query_params.get("ordering", "").strip()
         tag_ids = self.request.query_params.get("tags", "").strip()
 
@@ -199,9 +198,6 @@ class VideoListView(DynamicSerializerMixin, BaseVideoView, generics.ListCreateAP
 
         if status_value:
             queryset = queryset.filter(status=status_value)
-
-        if external_id:
-            queryset = queryset.filter(external_id=external_id)
 
         # Filter by tags (AND condition)
         if tag_ids:

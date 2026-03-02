@@ -36,14 +36,12 @@ export function VideoUploadModal({ isOpen, onClose, onUploadSuccess }: VideoUplo
     file,
     title,
     description,
-    externalId,
     tagIds,
     isUploading,
     error,
     success,
     setTitle,
     setDescription,
-    setExternalId,
     setTagIds,
     handleFileChange,
     handleSubmit,
@@ -99,14 +97,12 @@ export function VideoUploadModal({ isOpen, onClose, onUploadSuccess }: VideoUplo
           <VideoUploadFormFields
             title={title}
             description={description}
-            externalId={externalId}
             isUploading={isUploading}
             disabled={false}
             error={error}
             success={success}
             setTitle={setTitle}
             setDescription={setDescription}
-            setExternalId={setExternalId}
             handleFileChange={handleFileChange}
             file={file}
             hideButtons={true}

@@ -43,7 +43,6 @@ class VideoSerializer(serializers.ModelSerializer):
             "transcript",
             "status",
             "error_message",
-            "external_id",
             "tags",
         ]
         read_only_fields = ["id", "user", "uploaded_at"]
@@ -82,7 +81,7 @@ class VideoCreateSerializer(UserOwnedSerializerMixin, serializers.ModelSerialize
 
     class Meta:
         model = Video
-        fields = ["id", "file", "title", "description", "external_id"]
+        fields = ["id", "file", "title", "description"]
         read_only_fields = ["id"]
 
     def validate_file(self, value):
@@ -104,16 +103,6 @@ class VideoCreateSerializer(UserOwnedSerializerMixin, serializers.ModelSerialize
                 f"Invalid content type: '{content_type}'. Only video files are allowed."
             )
 
-        return value
-
-    def validate_external_id(self, value):
-        """
-        Normalize empty string to None.
-
-        external_id is unique, so storing "" would prevent multiple uploads without a real ID.
-        """
-        if value is not None and str(value).strip() == "":
-            return None
         return value
 
     def validate(self, attrs):
@@ -182,7 +171,6 @@ class VideoListSerializer(serializers.ModelSerializer):
             "description",
             "uploaded_at",
             "status",
-            "external_id",
             "tags",
         ]
         read_only_fields = ["id", "uploaded_at"]

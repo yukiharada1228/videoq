@@ -305,12 +305,6 @@ export default function VideoDetailPage() {
                 <p className="text-sm font-medium text-gray-600">{t('videos.detail.labels.uploadedAt')}</p>
                 <p className="text-gray-900">{formatDate(video.uploaded_at, 'full', locale)}</p>
               </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">{t('videos.detail.labels.externalId')}</p>
-                <p className="text-gray-900 break-all">
-                  {video.external_id ? video.external_id : t('common.notProvided')}
-                </p>
-              </div>
               {!isEditing && video.tags && video.tags.length > 0 && (
                 <div>
                   <p className="text-sm font-medium text-gray-600 mb-2">{t('videos.detail.labels.tags', 'Tags')}</p>

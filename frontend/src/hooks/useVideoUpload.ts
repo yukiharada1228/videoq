@@ -7,14 +7,12 @@ interface UseVideoUploadReturn {
   file: File | null;
   title: string;
   description: string;
-  externalId: string;
   tagIds: number[];
   isUploading: boolean;
   error: string | null;
   success: boolean;
   setTitle: (title: string) => void;
   setDescription: (description: string) => void;
-  setExternalId: (externalId: string) => void;
   setTagIds: React.Dispatch<React.SetStateAction<number[]>>;
   handleFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleSubmit: (e: React.FormEvent, onSuccess?: () => void) => Promise<void>;
@@ -46,7 +44,6 @@ export function useVideoUpload(): UseVideoUploadReturn {
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [externalId, setExternalId] = useState('');
   const [tagIds, setTagIds] = useState<number[]>([]);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -61,7 +58,6 @@ export function useVideoUpload(): UseVideoUploadReturn {
         file: file!,
         title: finalTitle,
         description: description.trim() || undefined,
-        external_id: externalId.trim() || undefined,
       };
 
       const uploadedVideo = await apiClient.uploadVideo(request);
@@ -100,7 +96,6 @@ export function useVideoUpload(): UseVideoUploadReturn {
     setFile(null);
     setTitle('');
     setDescription('');
-    setExternalId('');
     setTagIds([]);
     setSuccess(false);
     setError(null);
@@ -128,14 +123,12 @@ export function useVideoUpload(): UseVideoUploadReturn {
     file,
     title,
     description,
-    externalId,
     tagIds,
     isUploading: uploadMutation.isPending,
     error,
     success,
     setTitle,
     setDescription,
-    setExternalId,
     setTagIds,
     handleFileChange,
     handleSubmit,
