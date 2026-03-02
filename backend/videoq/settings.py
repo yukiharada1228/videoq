@@ -197,6 +197,7 @@ AUTH_USER_MODEL = "app.User"
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
+        "app.common.authentication.APIKeyAuthentication",
         "app.common.authentication.CookieJWTAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
@@ -237,6 +238,7 @@ SPECTACULAR_SETTINGS = {
     "SERVE_INCLUDE_SCHEMA": False,
     "COMPONENT_SPLIT_REQUEST": True,
     "AUTHENTICATION_WHITELIST": [
+        "app.common.authentication.APIKeyAuthentication",
         "app.common.authentication.CookieJWTAuthentication",
     ],
     "SCHEMA_PATH_PREFIX": "/api/",

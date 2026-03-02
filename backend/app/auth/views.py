@@ -7,16 +7,20 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.exceptions import InvalidToken
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from app.common.authentication import APIKeyAuthentication, CookieJWTAuthentication
 from app.common.exceptions import ErrorCode
 from app.common.responses import create_error_response, create_success_response
 from app.common.throttles import (LoginIPThrottle, LoginUsernameThrottle,
                                   PasswordResetEmailThrottle,
                                   PasswordResetIPThrottle, SignupIPThrottle)
 from app.models import AccountDeletionRequest
+from app.models import UserApiKey
 from app.tasks.account_deletion import delete_account_data
 from app.utils.mixins import AuthenticatedViewMixin, PublicViewMixin
 
 from .serializers import (AccountDeleteSerializer,
+                          ApiKeyCreateResponseSerializer,
+                          ApiKeyCreateSerializer, ApiKeySerializer,
                           EmailVerificationSerializer, LoginResponseSerializer,
                           LoginSerializer, MessageResponseSerializer,
                           PasswordResetConfirmSerializer,
@@ -33,6 +37,8 @@ class PublicAPIView(PublicViewMixin, generics.GenericAPIView):
 
 class AuthenticatedAPIView(AuthenticatedViewMixin, generics.GenericAPIView):
     """API view that requires authentication"""
+
+    authentication_classes = [CookieJWTAuthentication]
 
 
 class UserSignupView(generics.CreateAPIView):
@@ -109,6 +115,8 @@ class LoginView(PublicAPIView):
 
 class LogoutView(AuthenticatedAPIView):
     """Logout view"""
+
+    serializer_class = MessageResponseSerializer
 
     @extend_schema(
         responses={200: MessageResponseSerializer},
@@ -304,6 +312,7 @@ class MeView(AuthenticatedAPIView, generics.RetrieveAPIView):
     """Current user information retrieval view"""
 
     serializer_class = UserSerializer
+    authentication_classes = [APIKeyAuthentication, CookieJWTAuthentication]
 
     def get_object(self):
         from django.db.models import Count
@@ -311,3 +320,68 @@ class MeView(AuthenticatedAPIView, generics.RetrieveAPIView):
         return User.objects.annotate(video_count=Count("videos")).get(
             pk=self.request.user.pk
         )
+
+
+class ApiKeyListCreateView(AuthenticatedAPIView, generics.ListCreateAPIView):
+    """List and create API keys for the current user."""
+
+    serializer_class = ApiKeySerializer
+
+    def get_queryset(self):
+        return UserApiKey.objects.filter(
+            user=self.request.user,
+            revoked_at__isnull=True,
+        )
+
+    def get_serializer_class(self):
+        if self.request.method == "POST":
+            return ApiKeyCreateSerializer
+        return ApiKeySerializer
+
+    @extend_schema(
+        responses={200: ApiKeySerializer(many=True)},
+        summary="List API keys",
+        description="List active API keys for the current user. Plain key values are never returned.",
+    )
+    def get(self, request, *args, **kwargs):
+        return self.list(request, *args, **kwargs)
+
+    @extend_schema(
+        request=ApiKeyCreateSerializer,
+        responses={201: ApiKeyCreateResponseSerializer},
+        summary="Create API key",
+        description="Create a new API key for server-to-server integrations. The plain key is returned only once.",
+    )
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        api_key, raw_key = UserApiKey.create_for_user(
+            user=request.user,
+            name=serializer.validated_data["name"],
+            access_level=serializer.validated_data["access_level"],
+        )
+        data = dict(ApiKeySerializer(api_key).data)
+        data["api_key"] = raw_key
+        return Response(data, status=status.HTTP_201_CREATED)
+
+
+class ApiKeyDetailView(AuthenticatedAPIView, generics.DestroyAPIView):
+    """Revoke an API key."""
+
+    serializer_class = ApiKeySerializer
+
+    def get_queryset(self):
+        return UserApiKey.objects.filter(
+            user=self.request.user,
+            revoked_at__isnull=True,
+        )
+
+    @extend_schema(
+        responses={200: MessageResponseSerializer},
+        summary="Revoke API key",
+        description="Revoke an active API key so it can no longer access the API.",
+    )
+    def delete(self, request, *args, **kwargs):
+        api_key = self.get_object()
+        api_key.revoke()
+        return create_success_response(message="API key revoked.")

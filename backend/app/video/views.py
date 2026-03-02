@@ -8,6 +8,7 @@ from rest_framework import generics, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from app.common.responses import create_error_response
 from app.models import Tag, Video, VideoGroup, VideoGroupMember, VideoTag
@@ -17,11 +18,13 @@ from app.utils.query_optimizer import QueryOptimizer
 
 from .serializers import (AddTagsToVideoRequestSerializer,
                           AddTagsToVideoResponseSerializer,
+                          AddVideoToGroupResponseSerializer,
                           AddVideosToGroupRequestSerializer,
                           AddVideosToGroupResponseSerializer,
-                          MessageResponseSerializer,
                           ReorderVideosRequestSerializer, TagCreateSerializer,
+                          ShareLinkResponseSerializer,
                           TagDetailSerializer, TagListSerializer,
+                          VideoActionMessageResponseSerializer,
                           TagUpdateSerializer, VideoCreateSerializer,
                           VideoGroupCreateSerializer,
                           VideoGroupDetailSerializer, VideoGroupListSerializer,
@@ -220,6 +223,29 @@ class VideoListView(DynamicSerializerMixin, BaseVideoView, generics.ListCreateAP
 
         return queryset
 
+    @extend_schema(
+        request=VideoCreateSerializer,
+        responses={201: VideoSerializer},
+        summary="Upload video",
+        description="Upload a video and return the created video resource.",
+    )
+    def create(self, request, *args, **kwargs):
+        """Return a full video representation after upload."""
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+
+        output_serializer = VideoSerializer(
+            serializer.instance,
+            context=self.get_serializer_context(),
+        )
+        headers = self.get_success_headers(output_serializer.data)
+        return Response(
+            output_serializer.data,
+            status=status.HTTP_201_CREATED,
+            headers=headers,
+        )
+
 
 class VideoDetailView(
     DynamicSerializerMixin, BaseVideoView, generics.RetrieveUpdateDestroyAPIView
@@ -238,6 +264,12 @@ class VideoDetailView(
     def should_include_transcript(self):
         return True
 
+    @extend_schema(
+        request=VideoUpdateSerializer,
+        responses={200: VideoSerializer},
+        summary="Update video",
+        description="Update a video and return the updated video resource.",
+    )
     @transaction.atomic
     def update(self, request, *args, **kwargs):
         """Update PGVector metadata when Video is updated"""
@@ -247,8 +279,13 @@ class VideoDetailView(
         # Save title before update
         old_title = instance.title
 
-        # Execute normal update process
-        response = super().update(request, *args, partial=partial, **kwargs)
+        serializer = self.get_serializer(
+            instance,
+            data=request.data,
+            partial=partial,
+        )
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
 
         # Refresh instance to get latest data
         instance.refresh_from_db()
@@ -257,7 +294,9 @@ class VideoDetailView(
         if old_title != instance.title:
             self._update_video_title_in_pgvector(instance.id, instance.title)
 
-        return response
+        return Response(
+            VideoSerializer(instance, context=self.get_serializer_context()).data
+        )
 
     def _update_video_title_in_pgvector(self, video_id, new_title):
         """Update video_title in PGVector metadata"""
@@ -308,6 +347,32 @@ class VideoGroupListView(
         """Return only current user's VideoGroups"""
         return self._get_filtered_queryset(annotate_only=True)
 
+    @extend_schema(
+        request=VideoGroupCreateSerializer,
+        responses={201: VideoGroupDetailSerializer},
+        summary="Create video group",
+        description="Create a video group and return the created group resource.",
+    )
+    def create(self, request, *args, **kwargs):
+        """Return a full group representation after creation."""
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+
+        instance = self._get_filtered_queryset(annotate_only=False).get(
+            pk=serializer.instance.pk
+        )
+        output_serializer = VideoGroupDetailSerializer(
+            instance,
+            context=self.get_serializer_context(),
+        )
+        headers = self.get_success_headers(output_serializer.data)
+        return Response(
+            output_serializer.data,
+            status=status.HTTP_201_CREATED,
+            headers=headers,
+        )
+
 
 class VideoGroupDetailView(
     DynamicSerializerMixin, BaseVideoGroupView, generics.RetrieveUpdateDestroyAPIView
@@ -324,17 +389,52 @@ class VideoGroupDetailView(
         """Return only current user's VideoGroups"""
         return self._get_filtered_queryset(annotate_only=False)
 
-
-@authenticated_view_with_error_handling(["POST"])
-def add_video_to_group(request, group_id, video_id):
-    """Add video to group"""
-    group, video, error = ResourceValidator.get_group_and_video(
-        request.user, group_id, video_id
+    @extend_schema(
+        request=VideoGroupUpdateSerializer,
+        responses={200: VideoGroupDetailSerializer},
+        summary="Update video group",
+        description="Update a video group and return the updated group resource.",
     )
-    if error:
-        return error
+    def update(self, request, *args, **kwargs):
+        """Return a detailed group representation after update."""
+        partial = kwargs.pop("partial", False)
+        instance = self.get_object()
+        serializer = self.get_serializer(
+            instance,
+            data=request.data,
+            partial=partial,
+        )
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
 
-    return VideoGroupMemberService.add_video_to_group(group, video)
+        instance = self.get_queryset().get(pk=instance.pk)
+        return Response(
+            VideoGroupDetailSerializer(
+                instance,
+                context=self.get_serializer_context(),
+            ).data
+        )
+
+
+class AddVideoToGroupView(AuthenticatedViewMixin, APIView):
+    """Add a single video to a group."""
+
+    serializer_class = AddVideoToGroupResponseSerializer
+
+    @extend_schema(
+        responses={201: AddVideoToGroupResponseSerializer},
+        summary="Add video to group",
+        description="Add a single video to a group.",
+        operation_id="video_groups_add_single_video",
+    )
+    def post(self, request, group_id, video_id):
+        group, video, error = ResourceValidator.get_group_and_video(
+            request.user, group_id, video_id
+        )
+        if error:
+            return error
+
+        return VideoGroupMemberService.add_video_to_group(group, video)
 
 
 @extend_schema(
@@ -342,6 +442,7 @@ def add_video_to_group(request, group_id, video_id):
     responses={201: AddVideosToGroupResponseSerializer},
     summary="Add multiple videos to group",
     description="Add multiple videos to a group. Videos already in the group will be skipped.",
+    operation_id="video_groups_add_multiple_videos",
 )
 @authenticated_view_with_error_handling(["POST"])
 @transaction.atomic
@@ -399,6 +500,11 @@ def add_videos_to_group(request, group_id):
     )
 
 
+@extend_schema(
+    responses={200: VideoActionMessageResponseSerializer},
+    summary="Remove video from group",
+    description="Remove a video from a group.",
+)
 @authenticated_view_with_error_handling(["DELETE"])
 def remove_video_from_group(request, group_id, video_id):
     """Remove video from group"""
@@ -420,7 +526,7 @@ def remove_video_from_group(request, group_id, video_id):
 
 @extend_schema(
     request=ReorderVideosRequestSerializer,
-    responses={200: MessageResponseSerializer},
+    responses={200: VideoActionMessageResponseSerializer},
     summary="Reorder videos in group",
     description="Update the order of videos in a group by providing video IDs in the desired order.",
 )
@@ -468,27 +574,40 @@ def reorder_videos_in_group(request, group_id):
     return Response({"message": "Video order updated"}, status=status.HTTP_200_OK)
 
 
-@authenticated_view_with_error_handling(["POST"])
-def create_share_link(request, group_id):
-    """Generate share link for group"""
-    group, error = ResourceValidator.validate_and_get_resource(
-        request.user, VideoGroup, group_id, "Group"
+class CreateShareLinkView(AuthenticatedViewMixin, APIView):
+    """Generate a share link for a group."""
+
+    serializer_class = ShareLinkResponseSerializer
+
+    @extend_schema(
+        responses={201: ShareLinkResponseSerializer},
+        summary="Create share link",
+        description="Generate a share link token for a group.",
     )
-    if error:
-        return error
+    def post(self, request, group_id):
+        group, error = ResourceValidator.validate_and_get_resource(
+            request.user, VideoGroup, group_id, "Group"
+        )
+        if error:
+            return error
 
-    share_token = secrets.token_urlsafe(32)
-    ShareLinkService.update_share_token(group, share_token)
+        share_token = secrets.token_urlsafe(32)
+        ShareLinkService.update_share_token(group, share_token)
 
-    return Response(
-        {
-            "message": "Share link generated",
-            "share_token": share_token,
-        },
-        status=status.HTTP_201_CREATED,
-    )
+        return Response(
+            {
+                "message": "Share link generated",
+                "share_token": share_token,
+            },
+            status=status.HTTP_201_CREATED,
+        )
 
 
+@extend_schema(
+    responses={200: VideoActionMessageResponseSerializer},
+    summary="Delete share link",
+    description="Disable the current share link for a group.",
+)
 @authenticated_view_with_error_handling(["DELETE"])
 def delete_share_link(request, group_id):
     """Disable share link for group"""
@@ -507,6 +626,11 @@ def delete_share_link(request, group_id):
     return Response({"message": "Share link disabled"}, status=status.HTTP_200_OK)
 
 
+@extend_schema(
+    responses={200: VideoGroupDetailSerializer},
+    summary="Get shared group",
+    description="Return a publicly shared group by share token.",
+)
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def get_shared_group(request, share_token):
@@ -556,6 +680,31 @@ class TagListView(DynamicSerializerMixin, BaseTagView, generics.ListCreateAPIVie
         "POST": TagCreateSerializer,
     }
 
+    @extend_schema(
+        request=TagCreateSerializer,
+        responses={201: TagListSerializer},
+        summary="Create tag",
+        description="Create a tag and return the created tag resource.",
+        operation_id="tags_create",
+    )
+    def create(self, request, *args, **kwargs):
+        """Return tag metadata after creation."""
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+
+        instance = self.get_queryset().get(pk=serializer.instance.pk)
+        output_serializer = TagListSerializer(
+            instance,
+            context=self.get_serializer_context(),
+        )
+        headers = self.get_success_headers(output_serializer.data)
+        return Response(
+            output_serializer.data,
+            status=status.HTTP_201_CREATED,
+            headers=headers,
+        )
+
 
 class TagDetailView(
     DynamicSerializerMixin, BaseTagView, generics.RetrieveUpdateDestroyAPIView
@@ -587,10 +736,37 @@ class TagDetailView(
             )
         )
 
+    @extend_schema(
+        request=TagUpdateSerializer,
+        responses={200: TagDetailSerializer},
+        summary="Update tag",
+        description="Update a tag and return the updated tag resource.",
+    )
+    def update(self, request, *args, **kwargs):
+        """Return a detailed tag representation after update."""
+        partial = kwargs.pop("partial", False)
+        instance = self.get_object()
+        serializer = self.get_serializer(
+            instance,
+            data=request.data,
+            partial=partial,
+        )
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        instance = self.get_queryset().get(pk=instance.pk)
+        return Response(
+            TagDetailSerializer(
+                instance,
+                context=self.get_serializer_context(),
+            ).data
+        )
+
 
 @extend_schema(
     request=AddTagsToVideoRequestSerializer,
     responses={201: AddTagsToVideoResponseSerializer},
+    operation_id="videos_add_tags",
 )
 @authenticated_view_with_error_handling(["POST"])
 @transaction.atomic
@@ -638,6 +814,11 @@ def add_tags_to_video(request, video_id):
     )
 
 
+@extend_schema(
+    responses={200: VideoActionMessageResponseSerializer},
+    summary="Remove tag from video",
+    description="Remove a tag from a video.",
+)
 @authenticated_view_with_error_handling(["DELETE"])
 def remove_tag_from_video(request, video_id, tag_id):
     """Remove tag from video"""
