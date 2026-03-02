@@ -11,6 +11,9 @@ from app.common.responses import create_error_response, create_success_response
 from app.common.throttles import (LoginIPThrottle, LoginUsernameThrottle,
                                   PasswordResetEmailThrottle,
                                   PasswordResetIPThrottle, SignupIPThrottle)
+from app.auth.adapters import (CurrentUserAdapter, PasswordResetConfirmAdapter,
+                               PasswordResetRequestAdapter, SignupUserAdapter,
+                               VerifyEmailAdapter)
 from app.models import UserApiKey
 from app.auth.services import (activate_user, authenticate_credentials,
                                confirm_password_reset,
@@ -23,6 +26,19 @@ from app.auth.services import (activate_user, authenticate_credentials,
                                resolve_email_verification_user,
                                resolve_password_reset_user,
                                revoke_active_api_key)
+from app.auth.use_cases import (ConfirmPasswordResetUseCase,
+                                CreateApiKeyCommand, CreateApiKeyUseCase,
+                                DeleteAccountCommand, DeleteAccountUseCase,
+                                GetCurrentUserQuery, GetCurrentUserUseCase,
+                                LoginCommand, LoginUserUseCase,
+                                PasswordResetConfirmCommand,
+                                PasswordResetRequestCommand,
+                                RefreshAccessTokenUseCase,
+                                RefreshCommand,
+                                RequestPasswordResetUseCase,
+                                RevokeApiKeyCommand, RevokeApiKeyUseCase,
+                                SignupCommand, SignupUserUseCase,
+                                VerifyEmailCommand, VerifyEmailUseCase)
 from app.utils.email import send_email_verification, send_password_reset_email
 from app.utils.mixins import AuthenticatedViewMixin, PublicViewMixin
 
@@ -98,12 +114,15 @@ class UserSignupView(generics.CreateAPIView):
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        try:
-            create_signup_user(
+        use_case = SignupUserUseCase(
+            signup_user_creator=SignupUserAdapter(
                 user_model=User,
-                validated_data=serializer.validated_data,
                 send_verification_email=send_email_verification,
+                signup_user_creator=create_signup_user,
             )
+        )
+        try:
+            use_case.execute(SignupCommand(**serializer.validated_data))
         except ValueError as exc:
             return create_error_response(str(exc), status.HTTP_400_BAD_REQUEST)
         return create_success_response(
@@ -129,21 +148,21 @@ class LoginView(PublicAPIView):
             data=request.data, context={"request": request}
         )
         serializer.is_valid(raise_exception=True)
+        use_case = LoginUserUseCase(
+            credential_authenticator=authenticate_credentials,
+            token_pair_issuer=create_token_pair,
+        )
         try:
-            user = authenticate_credentials(
-                username=serializer.validated_data["username"],
-                password=serializer.validated_data["password"],
+            result = use_case.execute(
+                LoginCommand(**serializer.validated_data),
             )
         except ValueError as exc:
             return create_error_response(str(exc), status.HTTP_400_BAD_REQUEST)
-
-        token_pair = create_token_pair(user=user)
-
-        response = Response(token_pair)
+        response = Response({"access": result.access, "refresh": result.refresh})
         _set_auth_cookies(
             response,
-            access_token=token_pair["access"],
-            refresh_token=token_pair["refresh"],
+            access_token=result.access,
+            refresh_token=result.refresh,
         )
 
         return response
@@ -184,8 +203,8 @@ class AccountDeleteView(AuthenticatedAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         reason = serializer.validated_data.get("reason", "")
-
-        deactivate_user_account(user=request.user, reason=reason)
+        use_case = DeleteAccountUseCase(account_deactivator=deactivate_user_account)
+        use_case.execute(DeleteAccountCommand(reason=reason), user=request.user)
 
         response = create_success_response(message="Account deletion started.")
         _clear_auth_cookies(response)
@@ -206,6 +225,7 @@ class RefreshView(PublicAPIView):
     def post(self, request):
         # Get refresh token from Cookie (priority)
         refresh_token = request.COOKIES.get("refresh_token")
+        use_case = RefreshAccessTokenUseCase(access_token_issuer=create_access_token)
 
         # Get from request body if not in Cookie (backward compatibility)
         if not refresh_token:
@@ -213,7 +233,7 @@ class RefreshView(PublicAPIView):
             serializer.is_valid(raise_exception=True)
             refresh_token = serializer.validated_data["refresh"]
             try:
-                access = create_access_token(refresh_token=refresh_token)
+                result = use_case.execute(RefreshCommand(refresh_token=refresh_token))
             except ValueError:
                 return create_error_response(
                     message="invalid refresh",
@@ -222,7 +242,7 @@ class RefreshView(PublicAPIView):
                 )
         else:
             try:
-                access = create_access_token(refresh_token=refresh_token)
+                result = use_case.execute(RefreshCommand(refresh_token=refresh_token))
             except ValueError:
                 return create_error_response(
                     message="Invalid refresh token",
@@ -230,8 +250,8 @@ class RefreshView(PublicAPIView):
                     code=ErrorCode.AUTHENTICATION_FAILED,
                 )
 
-        response = Response({"access": access})
-        _set_auth_cookies(response, access_token=access)
+        response = Response({"access": result.access})
+        _set_auth_cookies(response, access_token=result.access)
         return response
 
 
@@ -249,15 +269,17 @@ class EmailVerificationView(PublicAPIView):
     def post(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        try:
-            user = resolve_email_verification_user(
+        use_case = VerifyEmailUseCase(
+            email_verification_resolver=VerifyEmailAdapter(
                 user_model=User,
-                uid=serializer.validated_data["uid"],
-                token=serializer.validated_data["token"],
-            )
+                email_verification_resolver=resolve_email_verification_user,
+                user_activator=activate_user,
+            ),
+        )
+        try:
+            use_case.execute(VerifyEmailCommand(**serializer.validated_data))
         except ValueError as exc:
             return create_error_response(str(exc), status.HTTP_400_BAD_REQUEST)
-        activate_user(user)
         return create_success_response(
             message="Email verification completed. Please sign in."
         )
@@ -278,11 +300,14 @@ class PasswordResetRequestView(PublicAPIView):
     def post(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        request_password_reset(
-            user_model=User,
-            email=serializer.validated_data["email"],
-            send_reset_email=send_password_reset_email,
+        use_case = RequestPasswordResetUseCase(
+            password_reset_requester=PasswordResetRequestAdapter(
+                user_model=User,
+                send_reset_email=send_password_reset_email,
+                password_reset_requester=request_password_reset,
+            )
         )
+        use_case.execute(PasswordResetRequestCommand(**serializer.validated_data))
         return create_success_response(
             message="Password reset email sent. Please check your email."
         )
@@ -302,13 +327,15 @@ class PasswordResetConfirmView(PublicAPIView):
     def post(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        try:
-            user = resolve_password_reset_user(
+        use_case = ConfirmPasswordResetUseCase(
+            password_reset_resolver=PasswordResetConfirmAdapter(
                 user_model=User,
-                uid=serializer.validated_data["uid"],
-                token=serializer.validated_data["token"],
-                new_password=serializer.validated_data["new_password"],
-            )
+                password_reset_resolver=resolve_password_reset_user,
+                password_reset_confirmer=confirm_password_reset,
+            ),
+        )
+        try:
+            use_case.execute(PasswordResetConfirmCommand(**serializer.validated_data))
         except ValueError as exc:
             return create_error_response(str(exc), status.HTTP_400_BAD_REQUEST)
         except DjangoValidationError as exc:
@@ -317,11 +344,6 @@ class PasswordResetConfirmView(PublicAPIView):
                 status.HTTP_400_BAD_REQUEST,
                 fields={"new_password": exc.messages},
             )
-
-        confirm_password_reset(
-            user=user,
-            new_password=serializer.validated_data["new_password"],
-        )
         return create_success_response(
             message="Password reset successfully. Please sign in with your new password."
         )
@@ -334,10 +356,13 @@ class MeView(AuthenticatedAPIView, generics.RetrieveAPIView):
     authentication_classes = [APIKeyAuthentication, CookieJWTAuthentication]
 
     def get_object(self):
-        return get_current_user_with_video_count(
-            user_model=User,
-            user_id=self.request.user.pk,
+        use_case = GetCurrentUserUseCase(
+            current_user_loader=CurrentUserAdapter(
+                user_model=User,
+                current_user_loader=get_current_user_with_video_count,
+            )
         )
+        return use_case.execute(GetCurrentUserQuery(user_id=self.request.user.pk))
 
 
 class ApiKeyListCreateView(AuthenticatedAPIView, generics.ListCreateAPIView):
@@ -370,11 +395,14 @@ class ApiKeyListCreateView(AuthenticatedAPIView, generics.ListCreateAPIView):
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        use_case = CreateApiKeyUseCase(api_key_creator=create_integration_api_key)
         try:
-            api_key, raw_key = create_integration_api_key(
+            result = use_case.execute(
+                CreateApiKeyCommand(
+                    name=serializer.validated_data["name"],
+                    access_level=serializer.validated_data["access_level"],
+                ),
                 user=request.user,
-                name=serializer.validated_data["name"],
-                access_level=serializer.validated_data["access_level"],
             )
         except ValueError as exc:
             return create_error_response(
@@ -382,8 +410,8 @@ class ApiKeyListCreateView(AuthenticatedAPIView, generics.ListCreateAPIView):
                 status.HTTP_400_BAD_REQUEST,
                 fields={"name": [str(exc)]},
             )
-        data = dict(ApiKeySerializer(api_key).data)
-        data["api_key"] = raw_key
+        data = dict(ApiKeySerializer(result.api_key).data)
+        data["api_key"] = result.raw_key
         return Response(data, status=status.HTTP_201_CREATED)
 
 
@@ -401,8 +429,9 @@ class ApiKeyDetailView(AuthenticatedAPIView, generics.DestroyAPIView):
         description="Revoke an active API key so it can no longer access the API.",
     )
     def delete(self, request, *args, **kwargs):
+        use_case = RevokeApiKeyUseCase(api_key_revoker=revoke_active_api_key)
         try:
-            revoke_active_api_key(user=request.user, api_key_id=kwargs["pk"])
+            use_case.execute(RevokeApiKeyCommand(api_key_id=kwargs["pk"]), user=request.user)
         except UserApiKey.DoesNotExist:
             return create_error_response("Not found", status.HTTP_404_NOT_FOUND)
         return create_success_response(message="API key revoked.")

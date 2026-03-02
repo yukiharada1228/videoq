@@ -23,49 +23,18 @@ from .serializers import (ChatFeedbackRequestSerializer,
                           ChatAnalyticsResponseSerializer,
                           ChatFeedbackResponseSerializer, ChatLogSerializer,
                           ChatRequestSerializer, ChatResponseSerializer)
+from .adapters import (GetChatAnalyticsAdapter, GetPopularScenesAdapter,
+                       SendChatMessageAdapter, UpdateChatFeedbackAdapter)
 from .services import (ChatServiceError, RagChatService,
                        build_chat_analytics, build_popular_scenes,
                        create_chat_response_payload, get_chat_logs_queryset,
                        get_langchain_llm, get_video_group_with_members,
                        handle_langchain_exception, update_chat_feedback)
-
-
-def _resolve_chat_context(request):
-    """Resolve authentication context for chat request.
-
-    Returns:
-        tuple: (user, group, is_shared, error_response)
-        If error_response is not None, return it immediately.
-    """
-    share_token = request.query_params.get("share_token")
-    is_shared = share_token is not None
-
-    if is_shared:
-        group_id = request.data.get("group_id")
-        if not group_id:
-            return (
-                None,
-                None,
-                is_shared,
-                create_error_response(
-                    "Group ID not specified", status.HTTP_400_BAD_REQUEST
-                ),
-            )
-        try:
-            group = get_video_group_with_members(group_id, share_token=share_token)
-            return group.user, group, is_shared, None
-        except VideoGroup.DoesNotExist:
-            return (
-                None,
-                None,
-                is_shared,
-                create_error_response(
-                    "Shared group not found", status.HTTP_404_NOT_FOUND
-                ),
-            )
-    else:
-        return request.user, None, is_shared, None
-
+from .use_cases import (ChatFeedbackResult, GetChatAnalyticsQuery,
+                        GetChatAnalyticsUseCase, GetPopularScenesQuery,
+                        GetPopularScenesUseCase, SendChatMessageCommand,
+                        SendChatMessageUseCase, UpdateChatFeedbackCommand,
+                        UpdateChatFeedbackUseCase)
 
 class ChatView(generics.CreateAPIView):
     """Chat view (using LangChain, supports share token)"""
@@ -90,48 +59,29 @@ class ChatView(generics.CreateAPIView):
         description="Send a chat message and get AI response. Supports RAG when group_id is provided.",
     )
     def post(self, request):
-        user, group, is_shared, error_response = _resolve_chat_context(request)
-        if error_response:
-            return error_response
-
-        # Validate messages
-        messages = request.data.get("messages", [])
-        if not messages:
-            return create_error_response(
-                "Messages are empty", status.HTTP_400_BAD_REQUEST
-            )
-
-        group_id = request.data.get("group_id")
+        use_case = SendChatMessageUseCase(
+            chat_message_sender=SendChatMessageAdapter(
+                video_group_loader=get_video_group_with_members,
+                llm_loader=get_langchain_llm,
+                rag_chat_service_factory=RagChatService,
+                chat_response_payload_builder=create_chat_response_payload,
+            ),
+        )
         try:
-            llm = get_langchain_llm(user)
-
-            if group_id is not None and not is_shared:
-                try:
-                    group = get_video_group_with_members(group_id, user_id=user.id)
-                except VideoGroup.DoesNotExist:
-                    return create_error_response(
-                        "Specified group not found", status.HTTP_404_NOT_FOUND
-                    )
-
-            service = RagChatService(user=user, llm=llm)
-            accept_language = request.headers.get("Accept-Language", "")
-            request_locale = (
-                accept_language.split(",")[0].split(";")[0].strip()
-                if accept_language
-                else ""
-            ) or None
-
-            result = service.run(
-                messages=messages,
-                group=group if group_id is not None else None,
-                locale=request_locale,
+            result = use_case.execute(
+                SendChatMessageCommand(
+                    request_user=request.user,
+                    messages=request.data.get("messages", []),
+                    group_id=request.data.get("group_id"),
+                    share_token=request.query_params.get("share_token"),
+                    accept_language=request.headers.get("Accept-Language", ""),
+                )
             )
-
-            response_data = create_chat_response_payload(
-                result, group_id, group, user, is_shared
-            )
-            return Response(response_data)
-
+            return Response(result.response_data)
+        except ValueError as exc:
+            return create_error_response(str(exc), status.HTTP_400_BAD_REQUEST)
+        except LookupError as exc:
+            return create_error_response(str(exc), status.HTTP_404_NOT_FOUND)
         except ChatServiceError as exc:
             return create_error_response(exc.message, exc.status_code)
         except Exception as e:
@@ -154,46 +104,33 @@ class ChatFeedbackView(APIView):
         description="Submit feedback (good/bad) for a chat log. Supports share token authentication.",
     )
     def post(self, request):
-        share_token = request.query_params.get("share_token")
-        chat_log_id = request.data.get("chat_log_id")
-        feedback = request.data.get("feedback")
-
-        if chat_log_id is None:
-            return create_error_response(
-                "chat_log_id not specified", status.HTTP_400_BAD_REQUEST
+        use_case = UpdateChatFeedbackUseCase(
+            chat_feedback_updater=UpdateChatFeedbackAdapter(
+                chat_feedback_updater=update_chat_feedback
             )
-
-        if feedback == "":
-            feedback = None
-
-        valid_feedback = {
-            None,
-            ChatLog.FeedbackChoices.GOOD,
-            ChatLog.FeedbackChoices.BAD,
-        }
-
-        if feedback not in valid_feedback:
-            return create_error_response(
-                "feedback must be 'good', 'bad', or null (unspecified)",
-                status.HTTP_400_BAD_REQUEST,
-            )
+        )
 
         try:
-            chat_log = update_chat_feedback(
-                chat_log_id=chat_log_id,
-                feedback=feedback,
-                request_user=request.user,
-                share_token=share_token,
+            chat_log = use_case.execute(
+                UpdateChatFeedbackCommand(
+                    request_user=request.user,
+                    share_token=request.query_params.get("share_token"),
+                    chat_log_id=request.data.get("chat_log_id"),
+                    feedback=request.data.get("feedback"),
+                )
             )
+        except ValueError as exc:
+            return create_error_response(str(exc), status.HTTP_400_BAD_REQUEST)
         except LookupError as exc:
             return create_error_response(str(exc), status.HTTP_404_NOT_FOUND)
         except PermissionError as exc:
             return create_error_response(str(exc), status.HTTP_403_FORBIDDEN)
 
+        result = ChatFeedbackResult(chat_log_id=chat_log.id, feedback=chat_log.feedback)
         return Response(
             {
-                "chat_log_id": chat_log.id,
-                "feedback": chat_log.feedback,
+                "chat_log_id": result.chat_log_id,
+                "feedback": result.feedback,
             }
         )
 
@@ -355,8 +292,13 @@ class PopularScenesView(APIView):
         description="Returns frequently referenced scenes from chat logs for a video group.",
     )
     def get(self, request):
-        group_id = request.query_params.get("group_id")
         share_token = request.query_params.get("share_token")
+        use_case = GetPopularScenesUseCase(
+            popular_scenes_getter=GetPopularScenesAdapter(
+                video_group_loader=get_video_group_with_members,
+                popular_scenes_builder=build_popular_scenes,
+            )
+        )
         try:
             limit = int(request.query_params.get("limit", 20))
             limit = max(1, min(limit, 100))
@@ -365,25 +307,20 @@ class PopularScenesView(APIView):
                 "Invalid limit parameter", status.HTTP_400_BAD_REQUEST
             )
 
-        if not group_id:
-            return create_error_response(
-                "Group ID not specified", status.HTTP_400_BAD_REQUEST
-            )
-
         try:
-            if share_token:
-                group = get_video_group_with_members(
-                    group_id, share_token=share_token
+            result = use_case.execute(
+                GetPopularScenesQuery(
+                    request_user=request.user,
+                    group_id=request.query_params.get("group_id"),
+                    share_token=share_token,
+                    limit=limit,
                 )
-            else:
-                group = get_video_group_with_members(group_id, user_id=request.user.id)
-        except VideoGroup.DoesNotExist:
-            return create_error_response(
-                "Specified group not found", status.HTTP_404_NOT_FOUND
             )
-
-        result = build_popular_scenes(group, limit=limit)
-        return Response(result)
+            return Response(result)
+        except ValueError as exc:
+            return create_error_response(str(exc), status.HTTP_400_BAD_REQUEST)
+        except LookupError as exc:
+            return create_error_response(str(exc), status.HTTP_404_NOT_FOUND)
 
 
 class ChatAnalyticsView(APIView):
@@ -401,17 +338,21 @@ class ChatAnalyticsView(APIView):
         description="Return analytics dashboard data for a chat group.",
     )
     def get(self, request):
-        group_id = request.query_params.get("group_id")
-        if not group_id:
-            return create_error_response(
-                "Group ID not specified", status.HTTP_400_BAD_REQUEST
+        use_case = GetChatAnalyticsUseCase(
+            chat_analytics_getter=GetChatAnalyticsAdapter(
+                video_group_loader=get_video_group_with_members,
+                chat_analytics_builder=build_chat_analytics,
             )
-
+        )
         try:
-            group = get_video_group_with_members(group_id, user_id=request.user.id)
-        except VideoGroup.DoesNotExist:
-            return create_error_response(
-                "Specified group not found", status.HTTP_404_NOT_FOUND
+            result = use_case.execute(
+                GetChatAnalyticsQuery(
+                    request_user=request.user,
+                    group_id=request.query_params.get("group_id"),
+                )
             )
-
-        return Response(build_chat_analytics(group))
+            return Response(result)
+        except ValueError as exc:
+            return create_error_response(str(exc), status.HTTP_400_BAD_REQUEST)
+        except LookupError as exc:
+            return create_error_response(str(exc), status.HTTP_404_NOT_FOUND)

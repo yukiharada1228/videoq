@@ -14,9 +14,25 @@ from app.models import Tag, Video, VideoGroup, VideoGroupMember, VideoTag
 from app.utils.decorators import authenticated_view_with_error_handling
 from app.utils.mixins import AuthenticatedViewMixin, DynamicSerializerMixin
 from app.utils.query_optimizer import QueryOptimizer
+from app.video.adapters import (AddTagsToVideoAdapter, AddVideoToGroupAdapter,
+                                AddVideosToGroupAdapter, CreateShareLinkAdapter,
+                                DeleteShareLinkAdapter,
+                                ReorderVideosInGroupAdapter, UploadVideoAdapter)
 from app.video.services import (ResourceService, ShareLinkService,
                                 VideoGroupMemberService, VideoTagService,
                                 VideoUploadService)
+from app.video.use_cases import (AddTagsToVideoCommand, AddTagsToVideoUseCase,
+                                 AddVideoToGroupCommand,
+                                 AddVideoToGroupUseCase,
+                                 AddVideosToGroupCommand,
+                                 AddVideosToGroupUseCase,
+                                 CreateShareLinkCommand,
+                                 CreateShareLinkUseCase,
+                                 DeleteShareLinkCommand,
+                                 DeleteShareLinkUseCase,
+                                 ReorderVideosInGroupCommand,
+                                 ReorderVideosInGroupUseCase,
+                                 UploadVideoCommand, UploadVideoUseCase)
 
 from .serializers import (AddTagsToVideoRequestSerializer,
                           AddTagsToVideoResponseSerializer,
@@ -105,9 +121,13 @@ class VideoListView(DynamicSerializerMixin, BaseVideoView, generics.ListCreateAP
         """Return a full video representation after upload."""
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.instance = VideoUploadService.create_video(
-            user=request.user,
-            validated_data=serializer.validated_data,
+        serializer.instance = UploadVideoUseCase(
+            video_creator=UploadVideoAdapter(
+                user=request.user,
+                video_creator=VideoUploadService.create_video,
+            )
+        ).execute(
+            UploadVideoCommand(validated_data=serializer.validated_data),
         )
 
         output_serializer = VideoSerializer(
@@ -303,22 +323,29 @@ class AddVideoToGroupView(AuthenticatedViewMixin, APIView):
         operation_id="video_groups_add_single_video",
     )
     def post(self, request, group_id, video_id):
-        group = ResourceService.get_owned_resource(request.user, VideoGroup, group_id)
-        if not group:
-            return create_error_response("Group not found", status.HTTP_404_NOT_FOUND)
-
-        video = ResourceService.get_owned_resource(request.user, Video, video_id)
-        if not video:
-            return create_error_response("Video not found", status.HTTP_404_NOT_FOUND)
-
-        member = VideoGroupMemberService.add_video_to_group(group, video)
-        if member is None:
-            return create_error_response(
-                "This video is already added to the group", status.HTTP_400_BAD_REQUEST
+        use_case = AddVideoToGroupUseCase(
+            group_member_adder=AddVideoToGroupAdapter(
+                user=request.user,
+                group_model=VideoGroup,
+                video_model=Video,
+                owned_resource_loader=ResourceService.get_owned_resource,
+                group_member_adder=VideoGroupMemberService.add_video_to_group,
+            ),
+        )
+        try:
+            result = use_case.execute(
+                AddVideoToGroupCommand(
+                    group_id=group_id,
+                    video_id=video_id,
+                )
             )
+        except LookupError as exc:
+            return create_error_response(str(exc), status.HTTP_404_NOT_FOUND)
+        except ValueError as exc:
+            return create_error_response(str(exc), status.HTTP_400_BAD_REQUEST)
 
         return Response(
-            {"message": "Video added to group", "id": member.id},
+            {"message": "Video added to group", "id": result.member_id},
             status=status.HTTP_201_CREATED,
         )
 
@@ -334,27 +361,33 @@ class AddVideoToGroupView(AuthenticatedViewMixin, APIView):
 @transaction.atomic
 def add_videos_to_group(request, group_id):
     """Add multiple videos to group"""
-    group = ResourceService.get_owned_resource(request.user, VideoGroup, group_id)
-    if not group:
-        return create_error_response("Group not found", status.HTTP_404_NOT_FOUND)
-
-    video_ids = request.data.get("video_ids", [])
-    if not video_ids:
-        return create_error_response(
-            "Video ID not specified", status.HTTP_400_BAD_REQUEST
+    use_case = AddVideosToGroupUseCase(
+        group_members_adder=AddVideosToGroupAdapter(
+            user=request.user,
+            group_model=VideoGroup,
+            video_model=Video,
+            owned_resource_loader=ResourceService.get_owned_resource,
+            owned_resources_loader=ResourceService.get_owned_resources,
+            group_members_adder=VideoGroupMemberService.add_videos_to_group,
+        ),
+    )
+    try:
+        result = use_case.execute(
+            AddVideosToGroupCommand(
+                group_id=group_id,
+                video_ids=request.data.get("video_ids", []),
+            )
         )
-
-    videos = ResourceService.get_owned_resources(request.user, Video, video_ids)
-    if len(videos) != len(video_ids):
-        return create_error_response("Some videos not found", status.HTTP_404_NOT_FOUND)
-
-    result = VideoGroupMemberService.add_videos_to_group(group, videos, video_ids)
+    except LookupError as exc:
+        return create_error_response(str(exc), status.HTTP_404_NOT_FOUND)
+    except ValueError as exc:
+        return create_error_response(str(exc), status.HTTP_400_BAD_REQUEST)
 
     return Response(
         {
-            "message": f"Added {result['added_count']} videos to group",
-            "added_count": result["added_count"],
-            "skipped_count": result["skipped_count"],
+            "message": f"Added {result.added_count} videos to group",
+            "added_count": result.added_count,
+            "skipped_count": result.skipped_count,
         },
         status=status.HTTP_201_CREATED,
     )
@@ -396,10 +429,6 @@ def remove_video_from_group(request, group_id, video_id):
 @transaction.atomic
 def reorder_videos_in_group(request, group_id):
     """Update video order in group"""
-    group = ResourceService.get_owned_resource(request.user, VideoGroup, group_id)
-    if not group:
-        return create_error_response("Group not found", status.HTTP_404_NOT_FOUND)
-
     try:
         video_ids = request.data.get("video_ids", [])
         if not isinstance(video_ids, list):
@@ -411,8 +440,20 @@ def reorder_videos_in_group(request, group_id):
             "Failed to parse request body", status.HTTP_400_BAD_REQUEST
         )
 
+    use_case = ReorderVideosInGroupUseCase(
+        group_reorderer=ReorderVideosInGroupAdapter(
+            user=request.user,
+            group_model=VideoGroup,
+            owned_resource_loader=ResourceService.get_owned_resource,
+            group_reorderer=VideoGroupMemberService.reorder_videos,
+        ),
+    )
     try:
-        VideoGroupMemberService.reorder_videos(group, video_ids)
+        use_case.execute(
+            ReorderVideosInGroupCommand(group_id=group_id, video_ids=video_ids)
+        )
+    except LookupError as exc:
+        return create_error_response(str(exc), status.HTTP_404_NOT_FOUND)
     except ValueError as exc:
         return create_error_response(
             str(exc),
@@ -432,17 +473,26 @@ class CreateShareLinkView(AuthenticatedViewMixin, APIView):
         description="Generate a share link token for a group.",
     )
     def post(self, request, group_id):
-        group = ResourceService.get_owned_resource(request.user, VideoGroup, group_id)
-        if not group:
-            return create_error_response("Group not found", status.HTTP_404_NOT_FOUND)
-
-        share_token = secrets.token_urlsafe(32)
-        ShareLinkService.update_share_token(group, share_token)
+        use_case = CreateShareLinkUseCase(
+            share_token_updater=CreateShareLinkAdapter(
+                user=request.user,
+                group_model=VideoGroup,
+                owned_resource_loader=ResourceService.get_owned_resource,
+                token_generator=secrets.token_urlsafe,
+                share_token_updater=ShareLinkService.update_share_token,
+            ),
+        )
+        try:
+            result = use_case.execute(
+                CreateShareLinkCommand(group_id=group_id)
+            )
+        except LookupError as exc:
+            return create_error_response(str(exc), status.HTTP_404_NOT_FOUND)
 
         return Response(
             {
                 "message": "Share link generated",
-                "share_token": share_token,
+                "share_token": result.share_token,
             },
             status=status.HTTP_201_CREATED,
         )
@@ -456,16 +506,18 @@ class CreateShareLinkView(AuthenticatedViewMixin, APIView):
 @authenticated_view_with_error_handling(["DELETE"])
 def delete_share_link(request, group_id):
     """Disable share link for group"""
-    group = ResourceService.get_owned_resource(request.user, VideoGroup, group_id)
-    if not group:
-        return create_error_response("Group not found", status.HTTP_404_NOT_FOUND)
-
-    if not group.share_token:
-        return create_error_response(
-            "Share link is not configured", status.HTTP_404_NOT_FOUND
-        )
-
-    ShareLinkService.update_share_token(group, None)
+    use_case = DeleteShareLinkUseCase(
+        share_token_updater=DeleteShareLinkAdapter(
+            user=request.user,
+            group_model=VideoGroup,
+            owned_resource_loader=ResourceService.get_owned_resource,
+            share_token_updater=ShareLinkService.update_share_token,
+        ),
+    )
+    try:
+        use_case.execute(DeleteShareLinkCommand(group_id=group_id))
+    except LookupError as exc:
+        return create_error_response(str(exc), status.HTTP_404_NOT_FOUND)
     return Response({"message": "Share link disabled"}, status=status.HTTP_200_OK)
 
 
@@ -615,27 +667,33 @@ class TagDetailView(
 @transaction.atomic
 def add_tags_to_video(request, video_id):
     """Add multiple tags to video"""
-    video = ResourceService.get_owned_resource(request.user, Video, video_id)
-    if not video:
-        return create_error_response("Video not found", status.HTTP_404_NOT_FOUND)
-
-    tag_ids = request.data.get("tag_ids", [])
-    if not tag_ids:
-        return create_error_response(
-            "Tag IDs not specified", status.HTTP_400_BAD_REQUEST
+    use_case = AddTagsToVideoUseCase(
+        video_tags_adder=AddTagsToVideoAdapter(
+            user=request.user,
+            video_model=Video,
+            tag_model=Tag,
+            owned_resource_loader=ResourceService.get_owned_resource,
+            owned_resources_loader=ResourceService.get_owned_resources,
+            video_tags_adder=VideoTagService.add_tags_to_video,
+        ),
+    )
+    try:
+        result = use_case.execute(
+            AddTagsToVideoCommand(
+                video_id=video_id,
+                tag_ids=request.data.get("tag_ids", []),
+            )
         )
-
-    tags = list(Tag.objects.filter(user=request.user, id__in=tag_ids))
-    if len(tags) != len(tag_ids):
-        return create_error_response("Some tags not found", status.HTTP_404_NOT_FOUND)
-
-    result = VideoTagService.add_tags_to_video(video, tags, tag_ids)
+    except LookupError as exc:
+        return create_error_response(str(exc), status.HTTP_404_NOT_FOUND)
+    except ValueError as exc:
+        return create_error_response(str(exc), status.HTTP_400_BAD_REQUEST)
 
     return Response(
         {
-            "message": f"Added {result['added_count']} tags to video",
-            "added_count": result["added_count"],
-            "skipped_count": result["skipped_count"],
+            "message": f"Added {result.added_count} tags to video",
+            "added_count": result.added_count,
+            "skipped_count": result.skipped_count,
         },
         status=status.HTTP_201_CREATED,
     )

@@ -8,7 +8,9 @@ from rest_framework.views import APIView
 from app.common.authentication import APIKeyAuthentication, CookieJWTAuthentication
 from app.common.permissions import (IsAuthenticatedOrSharedAccess,
                                     ShareTokenAuthentication)
+from app.media.adapters import GetProtectedMediaAdapter
 from app.media.services import assert_video_access, resolve_protected_media
+from app.media.use_cases import GetProtectedMediaQuery, GetProtectedMediaUseCase
 
 
 class ProtectedMediaView(APIView):
@@ -32,16 +34,22 @@ class ProtectedMediaView(APIView):
         description="Stream a protected media file when the requester has access.",
     )
     def get(self, request, path: str):
-        file_path, video = resolve_protected_media(path)
         share_group = request.auth.get("group") if isinstance(request.auth, dict) else None
-        assert_video_access(
-            video=video,
-            request_user=request.user,
-            share_group=share_group,
+        result = GetProtectedMediaUseCase(
+            protected_media_getter=GetProtectedMediaAdapter(
+                protected_media_resolver=resolve_protected_media,
+                video_access_authorizer=assert_video_access,
+            ),
+        ).execute(
+            GetProtectedMediaQuery(
+                path=path,
+                request_user=request.user,
+                share_group=share_group,
+            )
         )
 
         response = HttpResponse()
-        content_type, _ = mimetypes.guess_type(file_path)
+        content_type, _ = mimetypes.guess_type(result.file_path)
         if content_type:
             response["Content-Type"] = content_type
         response["X-Accel-Redirect"] = f"/api/protected_media/{path}"
