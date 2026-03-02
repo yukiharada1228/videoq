@@ -155,7 +155,7 @@ describe('ApiClient', () => {
     });
 
     it('getIntegrationApiKeys should return api key summaries', async () => {
-      const mockKeys = [{ id: 1, name: 'integration', prefix: 'vq_123', last_used_at: null, created_at: '2026-03-02T00:00:00Z' }];
+      const mockKeys = [{ id: 1, name: 'integration', access_level: 'all', prefix: 'vq_123', last_used_at: null, created_at: '2026-03-02T00:00:00Z' }];
       fetchMock.mockResolvedValueOnce({
         ok: true,
         headers: new Headers({ 'content-type': 'application/json' }),
@@ -166,7 +166,7 @@ describe('ApiClient', () => {
 
       expect(result).toEqual(mockKeys);
       expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/api-keys/', expect.objectContaining({
-        method: 'GET',
+        credentials: 'include',
       }));
     });
 
@@ -174,6 +174,7 @@ describe('ApiClient', () => {
       const mockResponse = {
         id: 1,
         name: 'integration',
+        access_level: 'all',
         prefix: 'vq_123',
         last_used_at: null,
         created_at: '2026-03-02T00:00:00Z',
@@ -185,12 +186,12 @@ describe('ApiClient', () => {
         text: () => Promise.resolve(JSON.stringify(mockResponse)),
       });
 
-      const result = await apiClient.createIntegrationApiKey({ name: 'integration' });
+      const result = await apiClient.createIntegrationApiKey({ name: 'integration', access_level: 'all' });
 
       expect(result).toEqual(mockResponse);
       expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/api-keys/', expect.objectContaining({
         method: 'POST',
-        body: JSON.stringify({ name: 'integration' }),
+        body: JSON.stringify({ name: 'integration', access_level: 'all' }),
       }));
     });
 
