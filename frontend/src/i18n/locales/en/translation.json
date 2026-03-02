@@ -207,9 +207,6 @@
       "fileLabel": "File",
       "titleLabel": "Title *",
       "descriptionLabel": "Description",
-      "externalIdLabel": "external_id (optional)",
-      "externalIdPlaceholder": "e.g. course-123 / cmid-456",
-      "externalIdHelp": "If provided, the original video file will be deleted after processing, and the list thumbnail will show the external_id text.",
       "groupLabel": "Chat group (optional)",
       "groupNone": "Don't add to group",
       "groupHelp": "Add the video to the selected chat group.",
@@ -239,8 +236,7 @@
         "title": "Title",
         "description": "Description",
         "status": "Status",
-        "uploadedAt": "Uploaded at",
-        "externalId": "external_id"
+        "uploadedAt": "Uploaded at"
       },
       "editTitleLabel": "Title",
       "editDescriptionLabel": "Description",

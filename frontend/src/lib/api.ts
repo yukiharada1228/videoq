@@ -122,7 +122,6 @@ export interface Video {
   transcript?: string;
   status: 'pending' | 'processing' | 'completed' | 'error';
   error_message?: string;
-  external_id?: string | null;
   tags?: { id: number; name: string; color: string }[];
 }
 
@@ -133,7 +132,6 @@ export interface VideoList {
   description: string;
   uploaded_at: string;
   status: 'pending' | 'processing' | 'completed' | 'error';
-  external_id?: string | null;
   tags?: { id: number; name: string; color: string }[];
 }
 
@@ -141,7 +139,6 @@ export interface VideoUploadRequest {
   file: File;
   title: string;
   description?: string;
-  external_id?: string;
 }
 
 export interface VideoUpdateRequest {
@@ -168,7 +165,6 @@ export interface VideoInGroup {
   uploaded_at: string;
   status: 'pending' | 'processing' | 'completed' | 'error';
   order: number;
-  external_id?: string | null;
 }
 
 export interface VideoGroupCreateRequest {
@@ -589,9 +585,6 @@ class ApiClient {
     formData.append('title', data.title);
     if (data.description) {
       formData.append('description', data.description);
-    }
-    if (data.external_id) {
-      formData.append('external_id', data.external_id);
     }
 
     const url = this.buildUrl('/videos/');

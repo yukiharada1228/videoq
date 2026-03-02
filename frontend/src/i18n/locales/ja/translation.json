@@ -213,9 +213,6 @@
       "fileLabel": "ファイル",
       "titleLabel": "タイトル *",
       "descriptionLabel": "説明",
-      "externalIdLabel": "external_id（任意）",
-      "externalIdPlaceholder": "例: course-123 / cmid-456",
-      "externalIdHelp": "指定した場合、処理完了後に元動画ファイルは削除され、一覧ではexternal_idをサムネイルに表示します。",
       "groupLabel": "チャットグループ（任意）",
       "groupNone": "グループに追加しない",
       "groupHelp": "選択したチャットグループに動画を追加します。",
@@ -245,8 +242,7 @@
         "title": "タイトル",
         "description": "説明",
         "status": "ステータス",
-        "uploadedAt": "アップロード日時",
-        "externalId": "external_id"
+        "uploadedAt": "アップロード日時"
       },
       "editTitleLabel": "タイトル",
       "editDescriptionLabel": "説明",

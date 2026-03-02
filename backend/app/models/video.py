@@ -44,14 +44,6 @@ class Video(models.Model):
         max_length=20, choices=STATUS_CHOICES, default="pending", db_index=True
     )
     error_message = models.TextField(blank=True)
-    external_id = models.CharField(
-        max_length=255,
-        null=True,
-        blank=True,
-        unique=True,
-        db_index=True,
-        help_text="ID from external LMS (e.g., Moodle cm_id, Canvas content_id)",
-    )
     tags = models.ManyToManyField(
         "Tag", through="VideoTag", related_name="videos_through"
     )
@@ -61,11 +53,6 @@ class Video(models.Model):
         indexes = [
             models.Index(fields=["user", "status", "-uploaded_at"]),
             models.Index(fields=["user", "title"]),
-            models.Index(
-                fields=["external_id"],
-                condition=models.Q(external_id__isnull=False),
-                name="video_external_id_idx",
-            ),
         ]
 
     def __str__(self):
