@@ -80,45 +80,6 @@ docker compose exec backend python manage.py createsuperuser
 - **管理パネル:** [http://localhost/api/admin](http://localhost/api/admin) （ユーザー、動画の管理）
 - **API ドキュメント:** [http://localhost/api/docs/](http://localhost/api/docs/) （開発者向け）
 
-### 🔌 既存システムとのAPI連携
-
-既存の社内システムやバッチ処理から連携したい場合は、設定画面で連携用APIキーを発行できます。
-
-**手順:**
-1. VideoQ にログイン
-2. [http://localhost/settings](http://localhost/settings) を開く
-3. 「連携用APIキー」でキー名を入力して発行
-4. 表示されたキーを安全な場所に保存
-
-**認証ヘッダー:**
-- `X-API-Key: 発行したキー`
-- または `Authorization: ApiKey 発行したキー`
-
-**curl 例:**
-
-現在のユーザー情報を取得:
-```bash
-curl -H "X-API-Key: vq_your_key_here" \
-  http://localhost/api/auth/me/
-```
-
-動画一覧を取得:
-```bash
-curl -H "X-API-Key: vq_your_key_here" \
-  http://localhost/api/videos/
-```
-
-動画グループを作成:
-```bash
-curl -X POST \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: vq_your_key_here" \
-  -d '{"name":"External Integration Group","description":"created from external system"}' \
-  http://localhost/api/videos/groups/
-```
-
-レスポンスには `id` を含む作成済みリソースが返るため、そのまま次の更新・削除リクエストに使えます。
-
 ### 📋 ユーザー管理
 
 **重要:** 新規ユーザーは動画アップロード制限が0（アップロード不可）で作成されます。管理者として、管理パネルを通じてユーザーに適切な動画制限を設定する必要があります。
@@ -133,6 +94,125 @@ curl -X POST \
    - 空白 = 無制限アップロード
 
 この設計により、管理者がリソース使用量とユーザー権限を完全に制御できます。
+
+### 🔌 オプション： 既存システムとのAPI連携
+
+VideoQ では、既存の社内システム、外部の業務システム、定期実行バッチなどから API を呼び出すために、連携用の API キーを発行できます。  
+この API キーを使うと、ブラウザでログインしなくても、サーバー間通信で VideoQ の API にアクセスできます。
+
+**まず理解しておくこと:**
+1. API キーは、発行したユーザーの権限で動作します
+2. API キーは、設定画面で一度だけ平文表示されます
+3. 生成後は同じキーを再表示できないため、必ず安全な場所に保存してください
+4. 外部システムのバックエンドやバッチ処理で使うことを想定しています
+
+**どんなときに使うか:**
+1. 社内システムから動画一覧を取得したい
+2. 別システムから動画をアップロードしたい
+3. 外部バッチからチャット履歴や分析結果を取得したい
+4. 自社システムから RAG チャットを実行したい
+
+**API キーの発行手順:**
+1. VideoQ にログインします
+2. [http://localhost/settings](http://localhost/settings) を開きます
+3. 「連携用APIキー」の `新しいシークレットキーを作成` を押します
+4. キー名を入力します
+5. 権限を選びます
+6. `シークレットキーを作成` を押します
+7. 表示されたキーをコピーして、安全な場所に保存します
+
+**権限の違い:**
+1. `All`
+   読み取り、作成、更新、削除を含む通常の API 操作ができます
+2. `Read only`
+   読み取り系 API に加えて、`POST /api/chat/` によるチャット実行のみ許可されます  
+   動画・タグ・グループの作成や更新はできません
+
+**認証ヘッダー:**
+1. もっとも分かりやすい方法
+   `X-API-Key: 発行したキー`
+2. もう一つの指定方法
+   `Authorization: ApiKey 発行したキー`
+
+**最初にやる疎通確認:**
+以下で、キーが正しく使えるか確認できます。
+
+```bash
+curl -H "X-API-Key: vq_your_key_here" \
+  http://localhost/api/auth/me/
+```
+
+`200 OK` でユーザー情報が返れば、認証は成功です。
+
+**よく使う curl 例:**
+
+現在のユーザー情報を取得:
+```bash
+curl -H "X-API-Key: vq_your_key_here" \
+  http://localhost/api/auth/me/
+```
+
+動画一覧を取得:
+```bash
+curl -H "X-API-Key: vq_your_key_here" \
+  http://localhost/api/videos/
+```
+
+チャットグループ一覧を取得:
+```bash
+curl -H "X-API-Key: vq_your_key_here" \
+  http://localhost/api/videos/groups/
+```
+
+チャット分析を取得:
+```bash
+curl -H "X-API-Key: vq_your_key_here" \
+  "http://localhost/api/chat/analytics/?group_id=6"
+```
+
+チャットグループを作成 (`All` のみ):
+```bash
+curl -X POST \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: vq_your_key_here" \
+  -d '{"name":"External Integration Group","description":"created from external system"}' \
+  http://localhost/api/videos/groups/
+```
+
+RAG チャットを実行 (`All` と `Read only` のどちらでも可):
+```bash
+curl -X POST \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: vq_your_key_here" \
+  -d '{"group_id":6,"messages":[{"role":"user","content":"この動画の要点を教えてください。"}]}' \
+  http://localhost/api/chat/
+```
+
+動画をアップロード (`All` のみ):
+```bash
+curl -X POST \
+  -H "X-API-Key: vq_your_key_here" \
+  -F "title=Uploaded from external system" \
+  -F "description=uploaded by integration" \
+  -F "file=@/path/to/video.mp4;type=video/mp4" \
+  http://localhost/api/videos/
+```
+
+**レスポンスの見方:**
+1. 作成系 API は、作成したリソースの `id` を含む JSON を返します
+2. 返ってきた `id` は、そのまま次の更新・削除・詳細取得に使えます
+3. チャット API は `chat_log_id` を返すため、履歴やフィードバックに使えます
+
+**動画アップロード時の注意:**
+1. `curl` でアップロードするときは、ファイルの Content-Type を `video/mp4` など正しい動画 MIME type にしてください
+2. `application/octet-stream` のままだと、動画ではないファイルとしてバリデーションエラーになります
+
+**外部システム実装時のおすすめ:**
+1. まず `GET /api/auth/me/` で認証確認
+2. 次に、実際に使う API を 1 本ずつ `curl` で確認
+3. 問題なければ、外部システム側に組み込み
+4. 運用時は、API キーを環境変数やシークレットマネージャーで管理
+
 
 ## 📦 オプション：クラウドストレージの設定 (AWS S3 / Cloudflare R2)
 
