@@ -54,7 +54,7 @@ class UserApiKey(models.Model):
         *,
         user,
         name: str,
-        access_level: str = AccessLevel.ALL,
+        access_level: str = "all",
     ) -> tuple["UserApiKey", str]:
         raw_key = cls.generate_raw_key()
         api_key = cls.objects.create(

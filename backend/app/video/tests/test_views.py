@@ -393,7 +393,7 @@ class VideoDetailViewTests(APITestCase):
 
 
 class TagViewTests(APITestCase):
-    """Tests for tag create/update responses."""
+    """Tests for tag responses and related delete behaviors."""
 
     def setUp(self):
         self.user = User.objects.create_user(
@@ -403,6 +403,12 @@ class TagViewTests(APITestCase):
         )
         self.client = APIClient()
         self.client.force_authenticate(user=self.user)
+        self.video = Video.objects.create(
+            user=self.user,
+            title="Tag Test Video",
+            description="Video used in tag tests",
+            status="completed",
+        )
 
     def test_update_tag_returns_id(self):
         """Test tag update response includes id."""
