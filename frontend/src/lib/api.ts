@@ -19,6 +19,24 @@ export interface User {
   video_count: number;
 }
 
+export interface IntegrationApiKey {
+  id: number;
+  name: string;
+  access_level: 'all' | 'read_only';
+  prefix: string;
+  last_used_at: string | null;
+  created_at: string;
+}
+
+export interface IntegrationApiKeyCreateRequest {
+  name: string;
+  access_level: 'all' | 'read_only';
+}
+
+export interface IntegrationApiKeyCreateResponse extends IntegrationApiKey {
+  api_key: string;
+}
+
 export interface SignupRequest {
   username: string;
   email: string;
@@ -474,6 +492,25 @@ class ApiClient {
 
   async getMe(): Promise<User> {
     return this.request<User>('/auth/me');
+  }
+
+  async getIntegrationApiKeys(): Promise<IntegrationApiKey[]> {
+    return this.request<IntegrationApiKey[]>('/auth/api-keys/');
+  }
+
+  async createIntegrationApiKey(
+    data: IntegrationApiKeyCreateRequest,
+  ): Promise<IntegrationApiKeyCreateResponse> {
+    return this.request<IntegrationApiKeyCreateResponse>('/auth/api-keys/', {
+      method: 'POST',
+      body: data,
+    });
+  }
+
+  async revokeIntegrationApiKey(id: number): Promise<void> {
+    await this.request(`/auth/api-keys/${id}/`, {
+      method: 'DELETE',
+    });
   }
 
   async deleteAccount(data?: AccountDeleteRequest): Promise<void> {

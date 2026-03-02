@@ -2,6 +2,7 @@
 # Import signals to ensure they're registered
 from . import signals  # noqa: F401
 from .account_deletion import AccountDeletionRequest
+from .api_key import UserApiKey
 from .chat import ChatLog
 from .storage import (SafeFilenameMixin, SafeFileSystemStorage,
                       SafeS3Boto3Storage, get_default_storage)
@@ -20,6 +21,7 @@ __all__ = [
     "VideoGroupMember",
     "ChatLog",
     "AccountDeletionRequest",
+    "UserApiKey",
     "SafeFilenameMixin",
     "SafeFileSystemStorage",
     "SafeS3Boto3Storage",
