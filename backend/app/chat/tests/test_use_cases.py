@@ -1,9 +1,7 @@
-from unittest.mock import MagicMock, Mock
-
-from django.contrib.auth import get_user_model
+from unittest.mock import Mock
 from rest_framework.test import APITestCase
 
-from app.chat.use_cases import (GetChatAnalyticsQuery,
+from app.chat.use_cases import (ChatFeedbackResult, GetChatAnalyticsQuery,
                                 GetChatAnalyticsUseCase,
                                 GetPopularScenesQuery,
                                 GetPopularScenesUseCase,
@@ -12,12 +10,8 @@ from app.chat.use_cases import (GetChatAnalyticsQuery,
                                 UpdateChatFeedbackCommand,
                                 UpdateChatFeedbackUseCase)
 
-User = get_user_model()
-
-
 class SendChatMessageUseCaseTests(APITestCase):
     def test_execute_returns_payload(self):
-        user = User(username="tester")
         result_payload = {"role": "assistant", "content": "hello"}
         chat_message_sender = Mock(return_value=result_payload)
 
@@ -25,7 +19,7 @@ class SendChatMessageUseCaseTests(APITestCase):
             chat_message_sender=chat_message_sender,
         ).execute(
             SendChatMessageCommand(
-                request_user=user,
+                actor_id=1,
                 messages=[{"role": "user", "content": "hi"}],
                 accept_language="ja,en;q=0.8",
             )
@@ -43,19 +37,20 @@ class UpdateChatFeedbackUseCaseTests(APITestCase):
             chat_feedback_updater=updater
         ).execute(
             UpdateChatFeedbackCommand(
-                request_user="user",
+                actor_id=3,
                 share_token=None,
                 chat_log_id=7,
                 feedback="",
             )
         )
 
-        self.assertEqual(result.id, 7)
+        self.assertIsInstance(result, ChatFeedbackResult)
+        self.assertEqual(result.chat_log_id, 7)
         self.assertIsNone(result.feedback)
         command = updater.call_args.args[0]
         self.assertEqual(command.chat_log_id, 7)
         self.assertIsNone(command.feedback)
-        self.assertEqual(command.request_user, "user")
+        self.assertEqual(command.actor_id, 3)
         self.assertIsNone(command.share_token)
 
 
@@ -67,7 +62,7 @@ class GetPopularScenesUseCaseTests(APITestCase):
             popular_scenes_getter=popular_scenes_getter,
         ).execute(
             GetPopularScenesQuery(
-                request_user=type("ReqUser", (), {"id": 3})(),
+                actor_id=3,
                 group_id=5,
                 limit=10,
             )
@@ -86,7 +81,7 @@ class GetChatAnalyticsUseCaseTests(APITestCase):
             chat_analytics_getter=chat_analytics_getter,
         ).execute(
             GetChatAnalyticsQuery(
-                request_user=type("ReqUser", (), {"id": 3})(),
+                actor_id=3,
                 group_id=5,
             )
         )

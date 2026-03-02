@@ -1,6 +1,7 @@
 import csv
 import json
 
+from django.contrib.auth import get_user_model
 from django.http import HttpResponse
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import (OpenApiParameter, OpenApiResponse,
@@ -30,11 +31,19 @@ from .services import (ChatServiceError, RagChatService,
                        create_chat_response_payload, get_chat_logs_queryset,
                        get_langchain_llm, get_video_group_with_members,
                        handle_langchain_exception, update_chat_feedback)
-from .use_cases import (ChatFeedbackResult, GetChatAnalyticsQuery,
-                        GetChatAnalyticsUseCase, GetPopularScenesQuery,
-                        GetPopularScenesUseCase, SendChatMessageCommand,
-                        SendChatMessageUseCase, UpdateChatFeedbackCommand,
-                        UpdateChatFeedbackUseCase)
+from .use_cases import (GetChatAnalyticsQuery, GetChatAnalyticsUseCase,
+                        GetPopularScenesQuery, GetPopularScenesUseCase,
+                        SendChatMessageCommand, SendChatMessageUseCase,
+                        UpdateChatFeedbackCommand, UpdateChatFeedbackUseCase)
+
+User = get_user_model()
+
+
+def _actor_id_from_request(request):
+    user = getattr(request, "user", None)
+    if user is None or not getattr(user, "is_authenticated", False):
+        return None
+    return user.id
 
 class ChatView(generics.CreateAPIView):
     """Chat view (using LangChain, supports share token)"""
@@ -61,6 +70,7 @@ class ChatView(generics.CreateAPIView):
     def post(self, request):
         use_case = SendChatMessageUseCase(
             chat_message_sender=SendChatMessageAdapter(
+                user_model=User,
                 video_group_loader=get_video_group_with_members,
                 llm_loader=get_langchain_llm,
                 rag_chat_service_factory=RagChatService,
@@ -70,7 +80,7 @@ class ChatView(generics.CreateAPIView):
         try:
             result = use_case.execute(
                 SendChatMessageCommand(
-                    request_user=request.user,
+                    actor_id=_actor_id_from_request(request),
                     messages=request.data.get("messages", []),
                     group_id=request.data.get("group_id"),
                     share_token=request.query_params.get("share_token"),
@@ -106,14 +116,15 @@ class ChatFeedbackView(APIView):
     def post(self, request):
         use_case = UpdateChatFeedbackUseCase(
             chat_feedback_updater=UpdateChatFeedbackAdapter(
+                user_model=User,
                 chat_feedback_updater=update_chat_feedback
             )
         )
 
         try:
-            chat_log = use_case.execute(
+            result = use_case.execute(
                 UpdateChatFeedbackCommand(
-                    request_user=request.user,
+                    actor_id=_actor_id_from_request(request),
                     share_token=request.query_params.get("share_token"),
                     chat_log_id=request.data.get("chat_log_id"),
                     feedback=request.data.get("feedback"),
@@ -125,8 +136,6 @@ class ChatFeedbackView(APIView):
             return create_error_response(str(exc), status.HTTP_404_NOT_FOUND)
         except PermissionError as exc:
             return create_error_response(str(exc), status.HTTP_403_FORBIDDEN)
-
-        result = ChatFeedbackResult(chat_log_id=chat_log.id, feedback=chat_log.feedback)
         return Response(
             {
                 "chat_log_id": result.chat_log_id,
@@ -310,7 +319,7 @@ class PopularScenesView(APIView):
         try:
             result = use_case.execute(
                 GetPopularScenesQuery(
-                    request_user=request.user,
+                    actor_id=_actor_id_from_request(request),
                     group_id=request.query_params.get("group_id"),
                     share_token=share_token,
                     limit=limit,
@@ -347,7 +356,7 @@ class ChatAnalyticsView(APIView):
         try:
             result = use_case.execute(
                 GetChatAnalyticsQuery(
-                    request_user=request.user,
+                    actor_id=_actor_id_from_request(request),
                     group_id=request.query_params.get("group_id"),
                 )
             )

@@ -1,5 +1,6 @@
 import secrets
 
+from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.db.models import Prefetch, Q
 from drf_spectacular.utils import extend_schema
@@ -48,6 +49,8 @@ from .serializers import (AddTagsToVideoRequestSerializer,
                           VideoGroupDetailSerializer, VideoGroupListSerializer,
                           VideoGroupUpdateSerializer, VideoListSerializer,
                           VideoSerializer, VideoUpdateSerializer)
+
+User = get_user_model()
 
 class BaseVideoView(AuthenticatedViewMixin):
     """Common base Video view class"""
@@ -121,14 +124,18 @@ class VideoListView(DynamicSerializerMixin, BaseVideoView, generics.ListCreateAP
         """Return a full video representation after upload."""
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.instance = UploadVideoUseCase(
+        result = UploadVideoUseCase(
             video_creator=UploadVideoAdapter(
-                user=request.user,
+                user_model=User,
                 video_creator=VideoUploadService.create_video,
             )
         ).execute(
-            UploadVideoCommand(validated_data=serializer.validated_data),
+            UploadVideoCommand(
+                actor_id=request.user.id,
+                validated_data=serializer.validated_data,
+            ),
         )
+        serializer.instance = self.get_queryset().get(pk=result.video_id)
 
         output_serializer = VideoSerializer(
             serializer.instance,
@@ -325,7 +332,7 @@ class AddVideoToGroupView(AuthenticatedViewMixin, APIView):
     def post(self, request, group_id, video_id):
         use_case = AddVideoToGroupUseCase(
             group_member_adder=AddVideoToGroupAdapter(
-                user=request.user,
+                user_model=User,
                 group_model=VideoGroup,
                 video_model=Video,
                 owned_resource_loader=ResourceService.get_owned_resource,
@@ -335,6 +342,7 @@ class AddVideoToGroupView(AuthenticatedViewMixin, APIView):
         try:
             result = use_case.execute(
                 AddVideoToGroupCommand(
+                    actor_id=request.user.id,
                     group_id=group_id,
                     video_id=video_id,
                 )
@@ -363,7 +371,7 @@ def add_videos_to_group(request, group_id):
     """Add multiple videos to group"""
     use_case = AddVideosToGroupUseCase(
         group_members_adder=AddVideosToGroupAdapter(
-            user=request.user,
+            user_model=User,
             group_model=VideoGroup,
             video_model=Video,
             owned_resource_loader=ResourceService.get_owned_resource,
@@ -374,6 +382,7 @@ def add_videos_to_group(request, group_id):
     try:
         result = use_case.execute(
             AddVideosToGroupCommand(
+                actor_id=request.user.id,
                 group_id=group_id,
                 video_ids=request.data.get("video_ids", []),
             )
@@ -442,7 +451,7 @@ def reorder_videos_in_group(request, group_id):
 
     use_case = ReorderVideosInGroupUseCase(
         group_reorderer=ReorderVideosInGroupAdapter(
-            user=request.user,
+            user_model=User,
             group_model=VideoGroup,
             owned_resource_loader=ResourceService.get_owned_resource,
             group_reorderer=VideoGroupMemberService.reorder_videos,
@@ -450,7 +459,11 @@ def reorder_videos_in_group(request, group_id):
     )
     try:
         use_case.execute(
-            ReorderVideosInGroupCommand(group_id=group_id, video_ids=video_ids)
+            ReorderVideosInGroupCommand(
+                actor_id=request.user.id,
+                group_id=group_id,
+                video_ids=video_ids,
+            )
         )
     except LookupError as exc:
         return create_error_response(str(exc), status.HTTP_404_NOT_FOUND)
@@ -475,7 +488,7 @@ class CreateShareLinkView(AuthenticatedViewMixin, APIView):
     def post(self, request, group_id):
         use_case = CreateShareLinkUseCase(
             share_token_updater=CreateShareLinkAdapter(
-                user=request.user,
+                user_model=User,
                 group_model=VideoGroup,
                 owned_resource_loader=ResourceService.get_owned_resource,
                 token_generator=secrets.token_urlsafe,
@@ -484,7 +497,7 @@ class CreateShareLinkView(AuthenticatedViewMixin, APIView):
         )
         try:
             result = use_case.execute(
-                CreateShareLinkCommand(group_id=group_id)
+                CreateShareLinkCommand(actor_id=request.user.id, group_id=group_id)
             )
         except LookupError as exc:
             return create_error_response(str(exc), status.HTTP_404_NOT_FOUND)
@@ -508,14 +521,16 @@ def delete_share_link(request, group_id):
     """Disable share link for group"""
     use_case = DeleteShareLinkUseCase(
         share_token_updater=DeleteShareLinkAdapter(
-            user=request.user,
+            user_model=User,
             group_model=VideoGroup,
             owned_resource_loader=ResourceService.get_owned_resource,
             share_token_updater=ShareLinkService.update_share_token,
         ),
     )
     try:
-        use_case.execute(DeleteShareLinkCommand(group_id=group_id))
+        use_case.execute(
+            DeleteShareLinkCommand(actor_id=request.user.id, group_id=group_id)
+        )
     except LookupError as exc:
         return create_error_response(str(exc), status.HTTP_404_NOT_FOUND)
     return Response({"message": "Share link disabled"}, status=status.HTTP_200_OK)
@@ -669,7 +684,7 @@ def add_tags_to_video(request, video_id):
     """Add multiple tags to video"""
     use_case = AddTagsToVideoUseCase(
         video_tags_adder=AddTagsToVideoAdapter(
-            user=request.user,
+            user_model=User,
             video_model=Video,
             tag_model=Tag,
             owned_resource_loader=ResourceService.get_owned_resource,
@@ -680,6 +695,7 @@ def add_tags_to_video(request, video_id):
     try:
         result = use_case.execute(
             AddTagsToVideoCommand(
+                actor_id=request.user.id,
                 video_id=video_id,
                 tag_ids=request.data.get("tag_ids", []),
             )

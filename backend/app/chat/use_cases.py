@@ -6,7 +6,7 @@ from app.chat.ports import (ChatAnalyticsGetter, ChatFeedbackUpdater,
 
 @dataclass(frozen=True)
 class SendChatMessageCommand:
-    request_user: object
+    actor_id: int | None
     messages: list
     group_id: int | None = None
     share_token: str | None = None
@@ -29,7 +29,7 @@ class SendChatMessageUseCase:
 
 @dataclass(frozen=True)
 class UpdateChatFeedbackCommand:
-    request_user: object
+    actor_id: int | None
     chat_log_id: int | None
     feedback: str | None
     share_token: str | None = None
@@ -49,12 +49,13 @@ class UpdateChatFeedbackUseCase:
             raise ValueError("feedback must be 'good', 'bad', or null (unspecified)")
 
         normalized_command = UpdateChatFeedbackCommand(
-            request_user=command.request_user,
+            actor_id=command.actor_id,
             share_token=command.share_token,
             chat_log_id=command.chat_log_id,
             feedback=feedback,
         )
-        return self._chat_feedback_updater(normalized_command)
+        chat_log = self._chat_feedback_updater(normalized_command)
+        return ChatFeedbackResult(chat_log_id=chat_log.id, feedback=chat_log.feedback)
 
 
 @dataclass(frozen=True)
@@ -65,7 +66,7 @@ class ChatFeedbackResult:
 
 @dataclass(frozen=True)
 class GetPopularScenesQuery:
-    request_user: object
+    actor_id: int | None
     group_id: int | None
     share_token: str | None = None
     limit: int = 20
@@ -83,7 +84,7 @@ class GetPopularScenesUseCase:
 
 @dataclass(frozen=True)
 class GetChatAnalyticsQuery:
-    request_user: object
+    actor_id: int | None
     group_id: int | None
 
 

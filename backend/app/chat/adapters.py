@@ -14,11 +14,13 @@ class SendChatMessageAdapter:
     def __init__(
         self,
         *,
+        actor_loader,
         video_group_loader,
         llm_loader,
         rag_chat_service_factory,
         chat_response_payload_builder,
     ):
+        self._actor_loader = actor_loader
         self._video_group_loader = video_group_loader
         self._llm_loader = llm_loader
         self._rag_chat_service_factory = rag_chat_service_factory
@@ -38,7 +40,9 @@ class SendChatMessageAdapter:
                 raise LookupError("Shared group not found") from exc
             user = group.user
         else:
-            user = command.request_user
+            if command.actor_id is None:
+                raise ValueError("Authenticated user not found")
+            user = self._actor_loader(command.actor_id)
             group = None
 
         if not command.messages:
@@ -68,14 +72,20 @@ class SendChatMessageAdapter:
 
 
 class UpdateChatFeedbackAdapter:
-    def __init__(self, *, chat_feedback_updater):
+    def __init__(self, *, actor_loader, chat_feedback_updater):
+        self._actor_loader = actor_loader
         self._chat_feedback_updater = chat_feedback_updater
 
     def __call__(self, command: UpdateChatFeedbackCommand):
+        request_user = (
+            self._actor_loader(command.actor_id)
+            if command.actor_id is not None
+            else None
+        )
         return self._chat_feedback_updater(
             chat_log_id=command.chat_log_id,
             feedback=command.feedback,
-            request_user=command.request_user,
+            request_user=request_user,
             share_token=command.share_token,
         )
 
@@ -90,7 +100,7 @@ class GetPopularScenesAdapter:
             if query.share_token:
                 group = self._video_group_loader(query.group_id, share_token=query.share_token)
             else:
-                group = self._video_group_loader(query.group_id, user_id=query.request_user.id)
+                group = self._video_group_loader(query.group_id, user_id=query.actor_id)
         except Exception as exc:
             raise LookupError("Specified group not found") from exc
         return self._popular_scenes_builder(group, limit=query.limit)
@@ -103,7 +113,7 @@ class GetChatAnalyticsAdapter:
 
     def __call__(self, query: GetChatAnalyticsQuery):
         try:
-            group = self._video_group_loader(query.group_id, user_id=query.request_user.id)
+            group = self._video_group_loader(query.group_id, user_id=query.actor_id)
         except Exception as exc:
             raise LookupError("Specified group not found") from exc
         return self._chat_analytics_builder(group)

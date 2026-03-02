@@ -6,7 +6,7 @@ from app.media.ports import ProtectedMediaGetter
 @dataclass(frozen=True)
 class GetProtectedMediaQuery:
     path: str
-    request_user: object = None
+    actor_id: int | None = None
     share_group: object = None
 
 

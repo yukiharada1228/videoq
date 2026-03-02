@@ -38,7 +38,7 @@ class PasswordResetConfirmer(Protocol):
 
 
 class AccountDeactivator(Protocol):
-    def __call__(self, *, user, reason: str): ...
+    def __call__(self, command): ...
 
 
 class CurrentUserLoader(Protocol):
@@ -46,8 +46,8 @@ class CurrentUserLoader(Protocol):
 
 
 class ApiKeyCreator(Protocol):
-    def __call__(self, *, user, name: str, access_level: str): ...
+    def __call__(self, command): ...
 
 
 class ApiKeyRevoker(Protocol):
-    def __call__(self, *, user, api_key_id: int): ...
+    def __call__(self, command): ...

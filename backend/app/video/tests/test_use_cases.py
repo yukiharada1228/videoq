@@ -1,6 +1,5 @@
 from unittest.mock import Mock
 
-from django.contrib.auth import get_user_model
 from rest_framework.test import APITestCase
 
 from app.video.use_cases import (AddTagsToVideoCommand,
@@ -13,21 +12,17 @@ from app.video.use_cases import (AddTagsToVideoCommand,
                                  CreateShareLinkUseCase,
                                  UploadVideoCommand, UploadVideoUseCase)
 
-User = get_user_model()
-
-
 class UploadVideoUseCaseTests(APITestCase):
     def test_execute_delegates_to_creator(self):
-        user = User(username="tester")
-        video_creator = Mock(return_value="video")
+        video_creator = Mock(return_value=type("VideoObj", (), {"id": 17})())
 
         result = UploadVideoUseCase(video_creator=video_creator).execute(
-            UploadVideoCommand(validated_data={"title": "Demo"})
+            UploadVideoCommand(actor_id=1, validated_data={"title": "Demo"})
         )
 
-        self.assertEqual(result, "video")
+        self.assertEqual(result.video_id, 17)
         video_creator.assert_called_once_with(
-            UploadVideoCommand(validated_data={"title": "Demo"})
+            UploadVideoCommand(actor_id=1, validated_data={"title": "Demo"})
         )
 
 
@@ -38,10 +33,12 @@ class AddVideoToGroupUseCaseTests(APITestCase):
 
         result = AddVideoToGroupUseCase(
             group_member_adder=adder,
-        ).execute(AddVideoToGroupCommand(group_id=1, video_id=2))
+        ).execute(AddVideoToGroupCommand(actor_id=1, group_id=1, video_id=2))
 
         self.assertEqual(result.member_id, 42)
-        adder.assert_called_once_with(AddVideoToGroupCommand(group_id=1, video_id=2))
+        adder.assert_called_once_with(
+            AddVideoToGroupCommand(actor_id=1, group_id=1, video_id=2)
+        )
 
 
 class AddVideosToGroupUseCaseTests(APITestCase):
@@ -50,7 +47,7 @@ class AddVideosToGroupUseCaseTests(APITestCase):
 
         result = AddVideosToGroupUseCase(
             group_members_adder=group_members_adder,
-        ).execute(AddVideosToGroupCommand(group_id=1, video_ids=[10, 20]))
+        ).execute(AddVideosToGroupCommand(actor_id=1, group_id=1, video_ids=[10, 20]))
 
         self.assertEqual(result.added_count, 2)
         self.assertEqual(result.skipped_count, 0)
@@ -62,10 +59,12 @@ class CreateShareLinkUseCaseTests(APITestCase):
 
         result = CreateShareLinkUseCase(
             share_token_updater=share_token_updater,
-        ).execute(CreateShareLinkCommand(group_id=1))
+        ).execute(CreateShareLinkCommand(actor_id=1, group_id=1))
 
         self.assertEqual(result.share_token, "share-token")
-        share_token_updater.assert_called_once_with(CreateShareLinkCommand(group_id=1))
+        share_token_updater.assert_called_once_with(
+            CreateShareLinkCommand(actor_id=1, group_id=1)
+        )
 
 
 class AddTagsToVideoUseCaseTests(APITestCase):
@@ -74,7 +73,7 @@ class AddTagsToVideoUseCaseTests(APITestCase):
 
         result = AddTagsToVideoUseCase(
             video_tags_adder=video_tags_adder,
-        ).execute(AddTagsToVideoCommand(video_id=1, tag_ids=[99]))
+        ).execute(AddTagsToVideoCommand(actor_id=1, video_id=1, tag_ids=[99]))
 
         self.assertEqual(result.added_count, 1)
         self.assertEqual(result.skipped_count, 0)

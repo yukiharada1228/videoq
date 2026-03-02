@@ -15,7 +15,7 @@ class GetProtectedMediaUseCaseTests(APITestCase):
         ).execute(
             GetProtectedMediaQuery(
                 path="video.mp4",
-                request_user="user",
+                actor_id=1,
                 share_group="group",
             )
         )

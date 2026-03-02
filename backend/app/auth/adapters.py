@@ -1,5 +1,7 @@
-from app.auth.use_cases import (GetCurrentUserQuery, PasswordResetConfirmCommand,
-                                PasswordResetRequestCommand, SignupCommand,
+from app.auth.use_cases import (CreateApiKeyCommand, DeleteAccountCommand,
+                                GetCurrentUserQuery, PasswordResetConfirmCommand,
+                                PasswordResetRequestCommand,
+                                RevokeApiKeyCommand, SignupCommand,
                                 VerifyEmailCommand)
 
 
@@ -82,3 +84,37 @@ class CurrentUserAdapter:
 
     def __call__(self, query: GetCurrentUserQuery):
         return self._current_user_loader(user_model=self._user_model, user_id=query.user_id)
+
+
+class AccountDeactivationAdapter:
+    def __init__(self, *, actor_loader, account_deactivator):
+        self._actor_loader = actor_loader
+        self._account_deactivator = account_deactivator
+
+    def __call__(self, command: DeleteAccountCommand):
+        user = self._actor_loader(command.user_id)
+        return self._account_deactivator(user=user, reason=command.reason)
+
+
+class CreateApiKeyAdapter:
+    def __init__(self, *, actor_loader, api_key_creator):
+        self._actor_loader = actor_loader
+        self._api_key_creator = api_key_creator
+
+    def __call__(self, command: CreateApiKeyCommand):
+        user = self._actor_loader(command.user_id)
+        return self._api_key_creator(
+            user=user,
+            name=command.name,
+            access_level=command.access_level,
+        )
+
+
+class RevokeApiKeyAdapter:
+    def __init__(self, *, actor_loader, api_key_revoker):
+        self._actor_loader = actor_loader
+        self._api_key_revoker = api_key_revoker
+
+    def __call__(self, command: RevokeApiKeyCommand):
+        user = self._actor_loader(command.user_id)
+        return self._api_key_revoker(user=user, api_key_id=command.api_key_id)

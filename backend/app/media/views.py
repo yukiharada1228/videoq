@@ -1,5 +1,6 @@
 import mimetypes
 
+from django.contrib.auth import get_user_model
 from django.http import HttpResponse
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiResponse, extend_schema
@@ -11,6 +12,15 @@ from app.common.permissions import (IsAuthenticatedOrSharedAccess,
 from app.media.adapters import GetProtectedMediaAdapter
 from app.media.services import assert_video_access, resolve_protected_media
 from app.media.use_cases import GetProtectedMediaQuery, GetProtectedMediaUseCase
+
+User = get_user_model()
+
+
+def _actor_id_from_request(request):
+    user = getattr(request, "user", None)
+    if user is None or not getattr(user, "is_authenticated", False):
+        return None
+    return user.id
 
 
 class ProtectedMediaView(APIView):
@@ -37,13 +47,14 @@ class ProtectedMediaView(APIView):
         share_group = request.auth.get("group") if isinstance(request.auth, dict) else None
         result = GetProtectedMediaUseCase(
             protected_media_getter=GetProtectedMediaAdapter(
+                user_model=User,
                 protected_media_resolver=resolve_protected_media,
                 video_access_authorizer=assert_video_access,
             ),
         ).execute(
             GetProtectedMediaQuery(
                 path=path,
-                request_user=request.user,
+                actor_id=_actor_id_from_request(request),
                 share_group=share_group,
             )
         )

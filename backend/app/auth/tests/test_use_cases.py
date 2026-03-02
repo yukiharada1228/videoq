@@ -4,8 +4,10 @@ from django.contrib.auth import get_user_model
 from rest_framework.test import APITestCase
 
 from app.auth.use_cases import (CreateApiKeyCommand, CreateApiKeyUseCase,
+                                DeleteAccountCommand, DeleteAccountUseCase,
                                 LoginCommand, LoginUserUseCase,
                                 RefreshAccessTokenUseCase, RefreshCommand,
+                                RevokeApiKeyCommand, RevokeApiKeyUseCase,
                                 SignupCommand, SignupUserUseCase,
                                 VerifyEmailCommand, VerifyEmailUseCase)
 
@@ -46,7 +48,7 @@ class RefreshAccessTokenUseCaseTests(APITestCase):
 
 class SignupUserUseCaseTests(APITestCase):
     def test_execute_delegates_to_creator(self):
-        signup_user_creator = Mock(return_value="created-user")
+        signup_user_creator = Mock(return_value=type("UserObj", (), {"id": 11})())
 
         use_case = SignupUserUseCase(signup_user_creator=signup_user_creator)
         result = use_case.execute(
@@ -57,20 +59,21 @@ class SignupUserUseCaseTests(APITestCase):
             )
         )
 
-        self.assertEqual(result, "created-user")
+        self.assertEqual(result.user_id, 11)
         signup_user_creator.assert_called_once()
 
 
 class VerifyEmailUseCaseTests(APITestCase):
     def test_execute_resolves_and_activates(self):
-        user = User(username="tester")
+        user = User(id=5, username="tester", is_active=True)
         email_verification_resolver = Mock(return_value=user)
 
         result = VerifyEmailUseCase(
             email_verification_resolver=email_verification_resolver,
         ).execute(VerifyEmailCommand(uid="uid", token="token"))
 
-        self.assertEqual(result, user)
+        self.assertEqual(result.user_id, 5)
+        self.assertTrue(result.is_active)
         email_verification_resolver.assert_called_once_with(
             VerifyEmailCommand(uid="uid", token="token")
         )
@@ -78,18 +81,54 @@ class VerifyEmailUseCaseTests(APITestCase):
 
 class CreateApiKeyUseCaseTests(APITestCase):
     def test_execute_returns_wrapped_result(self):
-        api_key = object()
+        api_key = type(
+            "ApiKeyObj",
+            (),
+            {
+                "id": 9,
+                "name": "integration",
+                "access_level": "all",
+                "prefix": "integration.",
+                "last_used_at": None,
+                "created_at": None,
+            },
+        )()
         api_key_creator = Mock(return_value=(api_key, "raw-key"))
 
         result = CreateApiKeyUseCase(api_key_creator=api_key_creator).execute(
-            CreateApiKeyCommand(name="integration", access_level="all"),
-            user="user",
+            CreateApiKeyCommand(user_id=7, name="integration", access_level="all"),
         )
 
-        self.assertIs(result.api_key, api_key)
+        self.assertEqual(result.api_key.id, 9)
+        self.assertEqual(result.api_key.name, "integration")
         self.assertEqual(result.raw_key, "raw-key")
         api_key_creator.assert_called_once_with(
-            user="user",
-            name="integration",
-            access_level="all",
+            CreateApiKeyCommand(user_id=7, name="integration", access_level="all")
+        )
+
+
+class DeleteAccountUseCaseTests(APITestCase):
+    def test_execute_returns_user_id(self):
+        account_deactivator = Mock()
+
+        result = DeleteAccountUseCase(account_deactivator=account_deactivator).execute(
+            DeleteAccountCommand(user_id=3, reason="cleanup")
+        )
+
+        self.assertEqual(result.user_id, 3)
+        account_deactivator.assert_called_once_with(
+            DeleteAccountCommand(user_id=3, reason="cleanup")
+        )
+
+
+class RevokeApiKeyUseCaseTests(APITestCase):
+    def test_execute_delegates_to_revoker(self):
+        api_key_revoker = Mock()
+
+        RevokeApiKeyUseCase(api_key_revoker=api_key_revoker).execute(
+            RevokeApiKeyCommand(user_id=3, api_key_id=9)
+        )
+
+        api_key_revoker.assert_called_once_with(
+            RevokeApiKeyCommand(user_id=3, api_key_id=9)
         )

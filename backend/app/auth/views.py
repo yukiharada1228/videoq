@@ -11,8 +11,11 @@ from app.common.responses import create_error_response, create_success_response
 from app.common.throttles import (LoginIPThrottle, LoginUsernameThrottle,
                                   PasswordResetEmailThrottle,
                                   PasswordResetIPThrottle, SignupIPThrottle)
-from app.auth.adapters import (CurrentUserAdapter, PasswordResetConfirmAdapter,
-                               PasswordResetRequestAdapter, SignupUserAdapter,
+from app.auth.adapters import (AccountDeactivationAdapter,
+                               CreateApiKeyAdapter, CurrentUserAdapter,
+                               PasswordResetConfirmAdapter,
+                               PasswordResetRequestAdapter,
+                               RevokeApiKeyAdapter, SignupUserAdapter,
                                VerifyEmailAdapter)
 from app.models import UserApiKey
 from app.auth.services import (activate_user, authenticate_credentials,
@@ -202,9 +205,18 @@ class AccountDeleteView(AuthenticatedAPIView):
     def delete(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        reason = serializer.validated_data.get("reason", "")
-        use_case = DeleteAccountUseCase(account_deactivator=deactivate_user_account)
-        use_case.execute(DeleteAccountCommand(reason=reason), user=request.user)
+        use_case = DeleteAccountUseCase(
+            account_deactivator=AccountDeactivationAdapter(
+                user_model=User,
+                account_deactivator=deactivate_user_account,
+            )
+        )
+        use_case.execute(
+            DeleteAccountCommand(
+                user_id=request.user.id,
+                reason=serializer.validated_data.get("reason", ""),
+            )
+        )
 
         response = create_success_response(message="Account deletion started.")
         _clear_auth_cookies(response)
@@ -395,14 +407,19 @@ class ApiKeyListCreateView(AuthenticatedAPIView, generics.ListCreateAPIView):
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        use_case = CreateApiKeyUseCase(api_key_creator=create_integration_api_key)
+        use_case = CreateApiKeyUseCase(
+            api_key_creator=CreateApiKeyAdapter(
+                user_model=User,
+                api_key_creator=create_integration_api_key,
+            )
+        )
         try:
             result = use_case.execute(
                 CreateApiKeyCommand(
+                    user_id=request.user.id,
                     name=serializer.validated_data["name"],
                     access_level=serializer.validated_data["access_level"],
-                ),
-                user=request.user,
+                )
             )
         except ValueError as exc:
             return create_error_response(
@@ -429,9 +446,19 @@ class ApiKeyDetailView(AuthenticatedAPIView, generics.DestroyAPIView):
         description="Revoke an active API key so it can no longer access the API.",
     )
     def delete(self, request, *args, **kwargs):
-        use_case = RevokeApiKeyUseCase(api_key_revoker=revoke_active_api_key)
+        use_case = RevokeApiKeyUseCase(
+            api_key_revoker=RevokeApiKeyAdapter(
+                user_model=User,
+                api_key_revoker=revoke_active_api_key,
+            )
+        )
         try:
-            use_case.execute(RevokeApiKeyCommand(api_key_id=kwargs["pk"]), user=request.user)
+            use_case.execute(
+                RevokeApiKeyCommand(
+                    user_id=request.user.id,
+                    api_key_id=kwargs["pk"],
+                )
+            )
         except UserApiKey.DoesNotExist:
             return create_error_response("Not found", status.HTTP_404_NOT_FOUND)
         return create_success_response(message="API key revoked.")

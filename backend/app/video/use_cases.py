@@ -7,19 +7,27 @@ from app.video.ports import (GroupMemberAdder, GroupMembersAdder,
 
 @dataclass(frozen=True)
 class UploadVideoCommand:
+    actor_id: int
     validated_data: dict
+
+
+@dataclass(frozen=True)
+class UploadVideoResult:
+    video_id: int
 
 
 class UploadVideoUseCase:
     def __init__(self, *, video_creator: VideoCreator):
         self._video_creator = video_creator
 
-    def execute(self, command: UploadVideoCommand):
-        return self._video_creator(command)
+    def execute(self, command: UploadVideoCommand) -> UploadVideoResult:
+        video = self._video_creator(command)
+        return UploadVideoResult(video_id=video.id)
 
 
 @dataclass(frozen=True)
 class AddVideoToGroupCommand:
+    actor_id: int
     group_id: int
     video_id: int
 
@@ -42,6 +50,7 @@ class AddVideoToGroupUseCase:
 
 @dataclass(frozen=True)
 class AddVideosToGroupCommand:
+    actor_id: int
     group_id: int
     video_ids: list[int]
 
@@ -66,6 +75,7 @@ class AddVideosToGroupUseCase:
 
 @dataclass(frozen=True)
 class ReorderVideosInGroupCommand:
+    actor_id: int
     group_id: int
     video_ids: list[int]
 
@@ -80,6 +90,7 @@ class ReorderVideosInGroupUseCase:
 
 @dataclass(frozen=True)
 class CreateShareLinkCommand:
+    actor_id: int
     group_id: int
 
 
@@ -99,6 +110,7 @@ class CreateShareLinkUseCase:
 
 @dataclass(frozen=True)
 class DeleteShareLinkCommand:
+    actor_id: int
     group_id: int
 
 
@@ -112,6 +124,7 @@ class DeleteShareLinkUseCase:
 
 @dataclass(frozen=True)
 class AddTagsToVideoCommand:
+    actor_id: int
     video_id: int
     tag_ids: list[int]
 
