@@ -14,6 +14,8 @@ from django.utils.http import urlsafe_base64_encode
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+from app.models import UserApiKey
+
 User = get_user_model()
 
 
@@ -242,6 +244,62 @@ class MeViewTests(APITestCase):
         response = self.client.get(self.url)
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_get_current_user_with_api_key(self):
+        """Test getting current user information using API key auth."""
+        _, raw_key = UserApiKey.create_for_user(user=self.user, name="integration")
+        self.client.force_authenticate(user=None)
+
+        response = self.client.get(self.url, HTTP_X_API_KEY=raw_key)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["username"], "testuser")
+
+
+class ApiKeyViewTests(APITestCase):
+    """Tests for API key management views."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="apikeyuser",
+            email="apikey@example.com",
+            password="testpass123",
+        )
+        self.client.force_authenticate(user=self.user)
+        self.url = reverse("auth-api-keys")
+
+    def test_create_api_key(self):
+        """Test creating an API key."""
+        response = self.client.post(self.url, {"name": "integration"}, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertIn("api_key", response.data)
+        self.assertEqual(response.data["name"], "integration")
+
+        api_key = UserApiKey.objects.get(user=self.user, name="integration")
+        self.assertNotEqual(api_key.hashed_key, response.data["api_key"])
+        self.assertEqual(api_key.prefix, response.data["api_key"][:12])
+
+    def test_list_api_keys(self):
+        """Test listing active API keys."""
+        UserApiKey.create_for_user(user=self.user, name="integration")
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertNotIn("api_key", response.data[0])
+        self.assertEqual(response.data[0]["name"], "integration")
+
+    def test_revoke_api_key(self):
+        """Test revoking an API key."""
+        api_key, _ = UserApiKey.create_for_user(user=self.user, name="integration")
+
+        response = self.client.delete(reverse("auth-api-key-detail", args=[api_key.pk]))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        api_key.refresh_from_db()
+        self.assertIsNotNone(api_key.revoked_at)
 
 
 class AccountDeleteViewTests(APITestCase):

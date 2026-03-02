@@ -8,8 +8,7 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
 
 from app.models import Video
-from app.tasks.transcription import (cleanup_external_upload,
-                                     download_video_from_storage,
+from app.tasks.transcription import (download_video_from_storage,
                                      handle_transcription_error,
                                      save_transcription_result,
                                      transcribe_video)
@@ -99,32 +98,6 @@ class DownloadVideoFromStorageTests(TestCase):
                     )
 
                     self.assertIn("video_", path)
-
-
-class CleanupExternalUploadTests(TestCase):
-    """Tests for cleanup_external_upload function"""
-
-    def test_deletes_file_successfully(self):
-        """Test that file is deleted successfully"""
-        mock_file = MagicMock()
-
-        cleanup_external_upload(mock_file, 1)
-
-        mock_file.delete.assert_called_once_with(save=False)
-
-    def test_handles_none_file_gracefully(self):
-        """Test that None file is handled gracefully"""
-        # Should not raise any exception
-        cleanup_external_upload(None, 1)
-
-    def test_handles_delete_exception_gracefully(self):
-        """Test that delete exception is logged but not raised"""
-        mock_file = MagicMock()
-        mock_file.delete.side_effect = Exception("Delete failed")
-
-        # Should not raise any exception
-        cleanup_external_upload(mock_file, 1)
-
 
 class SaveTranscriptionResultTests(TestCase):
     """Tests for save_transcription_result function"""
@@ -340,7 +313,7 @@ class TranscribeVideoTaskTests(TestCase):
         "app.tasks.transcription.VideoTaskManager.validate_video_for_processing",
         return_value=(True, None),
     )
-    def test_external_id_triggers_file_cleanup(
+    def test_processing_keeps_original_file(
         self,
         mock_validate,
         mock_whisper_config,
@@ -352,57 +325,11 @@ class TranscribeVideoTaskTests(TestCase):
         mock_scene_split,
         mock_index,
     ):
-        """Test that external_id triggers file cleanup after processing"""
+        """Test that processing keeps the original file after completion"""
         video = Video.objects.create(
             user=self.user,
             title="Test Video",
             status="pending",
-            external_id="ext-123",
-        )
-
-        mock_file = MagicMock()
-        mock_get_model.return_value = "whisper-1"
-        mock_download.return_value = ("/tmp/video.mp4", mock_file)
-        mock_extract.return_value = [
-            {"path": "/tmp/audio.mp3", "start_time": 0, "end_time": 10}
-        ]
-        mock_transcribe.return_value = "1\n00:00:00,000 --> 00:00:10,000\nHello\n"
-        mock_scene_split.return_value = ("1\n00:00:00,000 --> 00:00:10,000\nHello\n", 1)
-
-        transcribe_video(video.id)
-
-        mock_file.delete.assert_called_once_with(save=False)
-
-    @patch("app.tasks.transcription.index_scenes_batch")
-    @patch("app.tasks.transcription.apply_scene_splitting")
-    @patch("app.tasks.transcription.transcribe_and_create_srt")
-    @patch("app.tasks.transcription.extract_and_split_audio")
-    @patch("app.tasks.transcription.download_video_from_storage")
-    @patch("app.tasks.transcription.create_whisper_client")
-    @patch("app.tasks.transcription.get_whisper_model_name")
-    @patch("app.tasks.transcription.WhisperConfig")
-    @patch(
-        "app.tasks.transcription.VideoTaskManager.validate_video_for_processing",
-        return_value=(True, None),
-    )
-    def test_no_external_id_keeps_file(
-        self,
-        mock_validate,
-        mock_whisper_config,
-        mock_get_model,
-        mock_create_client,
-        mock_download,
-        mock_extract,
-        mock_transcribe,
-        mock_scene_split,
-        mock_index,
-    ):
-        """Test that videos without external_id keep their files"""
-        video = Video.objects.create(
-            user=self.user,
-            title="Test Video",
-            status="pending",
-            external_id=None,
         )
 
         mock_file = MagicMock()

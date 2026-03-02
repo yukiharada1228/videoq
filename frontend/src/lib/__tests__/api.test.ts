@@ -153,6 +153,57 @@ describe('ApiClient', () => {
       const result = await apiClient.getMe();
       expect(result).toEqual(mockUser);
     });
+
+    it('getIntegrationApiKeys should return api key summaries', async () => {
+      const mockKeys = [{ id: 1, name: 'integration', access_level: 'all', prefix: 'vq_123', last_used_at: null, created_at: '2026-03-02T00:00:00Z' }];
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        text: () => Promise.resolve(JSON.stringify(mockKeys)),
+      });
+
+      const result = await apiClient.getIntegrationApiKeys();
+
+      expect(result).toEqual(mockKeys);
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/api-keys/', expect.objectContaining({
+        credentials: 'include',
+      }));
+    });
+
+    it('createIntegrationApiKey should create an api key', async () => {
+      const mockResponse = {
+        id: 1,
+        name: 'integration',
+        access_level: 'all',
+        prefix: 'vq_123',
+        last_used_at: null,
+        created_at: '2026-03-02T00:00:00Z',
+        api_key: 'vq_secret',
+      };
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        text: () => Promise.resolve(JSON.stringify(mockResponse)),
+      });
+
+      const result = await apiClient.createIntegrationApiKey({ name: 'integration', access_level: 'all' });
+
+      expect(result).toEqual(mockResponse);
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/api-keys/', expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ name: 'integration', access_level: 'all' }),
+      }));
+    });
+
+    it('revokeIntegrationApiKey should delete an api key', async () => {
+      fetchMock.mockResolvedValueOnce({ ok: true, headers: new Headers() });
+
+      await apiClient.revokeIntegrationApiKey(1);
+
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/api-keys/1/', expect.objectContaining({
+        method: 'DELETE',
+      }));
+    });
   });
 
   describe('Error Handling', () => {
@@ -269,7 +320,7 @@ describe('ApiClient', () => {
       });
 
       const file = new File(['content'], 'test.mp4', { type: 'video/mp4' });
-      await apiClient.uploadVideo({ file, title: 'Test', description: 'Desc', external_id: '123' });
+      await apiClient.uploadVideo({ file, title: 'Test', description: 'Desc' });
 
       // Verify FormData entries if possible, or just that it was called. 
       // Since checking FormData content is hard without a proper mock, coverage is the main goal.

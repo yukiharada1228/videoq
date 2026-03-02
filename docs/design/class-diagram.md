@@ -30,7 +30,6 @@ classDiagram
         +string transcript
         +string status
         +string error_message
-        +string external_id (unique, nullable)
         +__str__()
     }
     
