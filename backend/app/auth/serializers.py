@@ -6,9 +6,12 @@ from django.contrib.auth.tokens import default_token_generator
 from django.db import transaction
 from django.utils.encoding import force_str
 from django.utils.http import urlsafe_base64_decode
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from app.models import UserApiKey
 from app.utils.email import send_email_verification, send_password_reset_email
 
 logger = logging.getLogger(__name__)
@@ -93,7 +96,8 @@ class UserSerializer(serializers.ModelSerializer):
             "video_count",
         ]
 
-    def get_video_count(self, obj):
+    @extend_schema_field(OpenApiTypes.INT)
+    def get_video_count(self, obj) -> int:
         """Return the current user's video count"""
         # Use annotated video_count if available (to avoid N+1 query)
         return getattr(obj, "video_count", obj.videos.count())
@@ -219,3 +223,53 @@ class MessageResponseSerializer(serializers.Serializer):
 
 class AccountDeleteSerializer(serializers.Serializer):
     reason = serializers.CharField(required=False, allow_blank=True)
+
+
+class ApiKeySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserApiKey
+        fields = [
+            "id",
+            "name",
+            "access_level",
+            "prefix",
+            "last_used_at",
+            "created_at",
+        ]
+        read_only_fields = fields
+
+
+class ApiKeyCreateSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=100)
+    access_level = serializers.ChoiceField(
+        choices=UserApiKey.AccessLevel.choices,
+        default=UserApiKey.AccessLevel.ALL,
+    )
+
+    def validate_name(self, value: str) -> str:
+        name = value.strip()
+        if not name:
+            raise serializers.ValidationError("name is required")
+        return name
+
+    def validate(self, attrs):
+        user = self.context["request"].user
+        if UserApiKey.objects.filter(
+            user=user,
+            name=attrs["name"],
+            revoked_at__isnull=True,
+        ).exists():
+            raise serializers.ValidationError(
+                {"name": ["An active API key with this name already exists."]}
+            )
+        return attrs
+
+
+class ApiKeyCreateResponseSerializer(ApiKeySerializer):
+    api_key = serializers.CharField(
+        help_text="Plain API key. This is only returned once."
+    )
+
+    class Meta(ApiKeySerializer.Meta):
+        fields = [*ApiKeySerializer.Meta.fields, "api_key"]
+        read_only_fields = fields

@@ -80,6 +80,45 @@ docker compose exec backend python manage.py createsuperuser
 - **管理パネル:** [http://localhost/api/admin](http://localhost/api/admin) （ユーザー、動画の管理）
 - **API ドキュメント:** [http://localhost/api/docs/](http://localhost/api/docs/) （開発者向け）
 
+### 🔌 既存システムとのAPI連携
+
+既存の社内システムやバッチ処理から連携したい場合は、設定画面で連携用APIキーを発行できます。
+
+**手順:**
+1. VideoQ にログイン
+2. [http://localhost/settings](http://localhost/settings) を開く
+3. 「連携用APIキー」でキー名を入力して発行
+4. 表示されたキーを安全な場所に保存
+
+**認証ヘッダー:**
+- `X-API-Key: 発行したキー`
+- または `Authorization: ApiKey 発行したキー`
+
+**curl 例:**
+
+現在のユーザー情報を取得:
+```bash
+curl -H "X-API-Key: vq_your_key_here" \
+  http://localhost/api/auth/me/
+```
+
+動画一覧を取得:
+```bash
+curl -H "X-API-Key: vq_your_key_here" \
+  http://localhost/api/videos/
+```
+
+動画グループを作成:
+```bash
+curl -X POST \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: vq_your_key_here" \
+  -d '{"name":"External Integration Group","description":"created from external system"}' \
+  http://localhost/api/videos/groups/
+```
+
+レスポンスには `id` を含む作成済みリソースが返るため、そのまま次の更新・削除リクエストに使えます。
+
 ### 📋 ユーザー管理
 
 **重要:** 新規ユーザーは動画アップロード制限が0（アップロード不可）で作成されます。管理者として、管理パネルを通じてユーザーに適切な動画制限を設定する必要があります。

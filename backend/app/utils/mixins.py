@@ -2,14 +2,14 @@
 
 from rest_framework.permissions import AllowAny, IsAuthenticated
 
-from app.common.authentication import CookieJWTAuthentication
+from app.common.authentication import APIKeyAuthentication, CookieJWTAuthentication
 
 
 class AuthenticatedViewMixin:
     """Common mixin for authenticated views"""
 
     permission_classes = [IsAuthenticated]
-    authentication_classes = [CookieJWTAuthentication]
+    authentication_classes = [APIKeyAuthentication, CookieJWTAuthentication]
 
     def get_serializer_context(self):
         """Pass request context to serializer"""

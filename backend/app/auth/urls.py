@@ -1,9 +1,10 @@
 from django.conf import settings
 from django.urls import path
 
-from .views import (AccountDeleteView, EmailVerificationView, LoginView,
-                    LogoutView, MeView, PasswordResetConfirmView,
-                    PasswordResetRequestView, RefreshView, UserSignupView)
+from .views import (AccountDeleteView, ApiKeyDetailView, ApiKeyListCreateView,
+                    EmailVerificationView, LoginView, LogoutView, MeView,
+                    PasswordResetConfirmView, PasswordResetRequestView,
+                    RefreshView, UserSignupView)
 
 urlpatterns = [
     path("login/", LoginView.as_view(), name="auth-login"),
@@ -11,6 +12,12 @@ urlpatterns = [
     path("account/", AccountDeleteView.as_view(), name="auth-account-delete"),
     path("refresh/", RefreshView.as_view(), name="auth-refresh"),
     path("me/", MeView.as_view(), name="auth-me"),
+    path("api-keys/", ApiKeyListCreateView.as_view(), name="auth-api-keys"),
+    path(
+        "api-keys/<int:pk>/",
+        ApiKeyDetailView.as_view(),
+        name="auth-api-key-detail",
+    ),
     path("verify-email/", EmailVerificationView.as_view(), name="auth-verify-email"),
     path(
         "password-reset/",
