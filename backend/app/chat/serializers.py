@@ -82,3 +82,42 @@ class ChatLogSerializer(serializers.ModelSerializer):
             "feedback",
             "created_at",
         ]
+
+
+class ChatAnalyticsSummarySerializer(serializers.Serializer):
+    total_questions = serializers.IntegerField()
+    date_range = serializers.DictField(
+        child=serializers.CharField(allow_null=True),
+    )
+
+
+class ChatAnalyticsSceneSerializer(serializers.Serializer):
+    video_id = serializers.IntegerField()
+    title = serializers.CharField()
+    start_time = serializers.CharField()
+    end_time = serializers.CharField()
+    question_count = serializers.IntegerField()
+
+
+class ChatAnalyticsTimeSeriesSerializer(serializers.Serializer):
+    date = serializers.CharField()
+    count = serializers.IntegerField()
+
+
+class ChatAnalyticsFeedbackSerializer(serializers.Serializer):
+    good = serializers.IntegerField()
+    bad = serializers.IntegerField()
+    none = serializers.IntegerField()
+
+
+class ChatAnalyticsKeywordSerializer(serializers.Serializer):
+    word = serializers.CharField()
+    count = serializers.IntegerField()
+
+
+class ChatAnalyticsResponseSerializer(serializers.Serializer):
+    summary = ChatAnalyticsSummarySerializer()
+    scene_distribution = ChatAnalyticsSceneSerializer(many=True)
+    time_series = ChatAnalyticsTimeSeriesSerializer(many=True)
+    feedback = ChatAnalyticsFeedbackSerializer()
+    keywords = ChatAnalyticsKeywordSerializer(many=True)

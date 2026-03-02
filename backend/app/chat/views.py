@@ -6,13 +6,15 @@ from collections import Counter
 from django.db.models import Count, Prefetch, Q
 from django.db.models.functions import TruncDate
 from django.http import HttpResponse
-from drf_spectacular.utils import OpenApiParameter, extend_schema
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import (OpenApiParameter, OpenApiResponse,
+                                   extend_schema)
 from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from app.common.authentication import CookieJWTAuthentication
+from app.common.authentication import APIKeyAuthentication, CookieJWTAuthentication
 from app.common.permissions import (IsAuthenticatedOrSharedAccess,
                                     ShareTokenAuthentication)
 from app.common.responses import create_error_response
@@ -22,6 +24,7 @@ from app.common.throttles import (AuthenticatedChatThrottle,
 from app.models import ChatLog, Video, VideoGroup, VideoGroupMember
 
 from .serializers import (ChatFeedbackRequestSerializer,
+                          ChatAnalyticsResponseSerializer,
                           ChatFeedbackResponseSerializer, ChatLogSerializer,
                           ChatRequestSerializer, ChatResponseSerializer)
 from .services import (RagChatService, get_langchain_llm,
@@ -140,7 +143,11 @@ class ChatView(generics.CreateAPIView):
     """Chat view (using LangChain, supports share token)"""
 
     serializer_class = ChatRequestSerializer
-    authentication_classes = [CookieJWTAuthentication, ShareTokenAuthentication]
+    authentication_classes = [
+        APIKeyAuthentication,
+        CookieJWTAuthentication,
+        ShareTokenAuthentication,
+    ]
     permission_classes = [IsAuthenticatedOrSharedAccess]
     throttle_classes = [
         ShareTokenIPThrottle,
@@ -205,7 +212,11 @@ class ChatView(generics.CreateAPIView):
 
 
 class ChatFeedbackView(APIView):
-    authentication_classes = [CookieJWTAuthentication, ShareTokenAuthentication]
+    authentication_classes = [
+        APIKeyAuthentication,
+        CookieJWTAuthentication,
+        ShareTokenAuthentication,
+    ]
     permission_classes = [IsAuthenticatedOrSharedAccess]
 
     @extend_schema(
@@ -274,7 +285,7 @@ class ChatHistoryView(generics.ListAPIView):
     GET /api/chat/history/?group_id=123
     """
 
-    authentication_classes = [CookieJWTAuthentication]
+    authentication_classes = [APIKeyAuthentication, CookieJWTAuthentication]
     permission_classes = [IsAuthenticated]
     serializer_class = ChatLogSerializer
 
@@ -300,9 +311,19 @@ class ChatHistoryExportView(APIView):
     GET /api/chat/history/export/?group_id=123
     """
 
-    authentication_classes = [CookieJWTAuthentication]
+    authentication_classes = [APIKeyAuthentication, CookieJWTAuthentication]
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        responses={
+            200: OpenApiResponse(
+                response=OpenApiTypes.BINARY,
+                description="CSV export of chat history.",
+            )
+        },
+        summary="Export chat history CSV",
+        description="Export group conversation history as a CSV file.",
+    )
     def get(self, request):
         group_id = request.query_params.get("group_id")
         if not group_id:
@@ -451,7 +472,11 @@ class PopularScenesView(APIView):
     GET /api/chat/popular-scenes/?group_id=123
     """
 
-    authentication_classes = [CookieJWTAuthentication, ShareTokenAuthentication]
+    authentication_classes = [
+        APIKeyAuthentication,
+        CookieJWTAuthentication,
+        ShareTokenAuthentication,
+    ]
     permission_classes = [IsAuthenticatedOrSharedAccess]
 
     @extend_schema(
@@ -606,9 +631,14 @@ class ChatAnalyticsView(APIView):
     GET /api/chat/analytics/?group_id=123
     """
 
-    authentication_classes = [CookieJWTAuthentication]
+    authentication_classes = [APIKeyAuthentication, CookieJWTAuthentication]
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        responses={200: ChatAnalyticsResponseSerializer},
+        summary="Get chat analytics",
+        description="Return analytics dashboard data for a chat group.",
+    )
     def get(self, request):
         group_id = request.query_params.get("group_id")
         if not group_id:

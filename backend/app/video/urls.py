@@ -1,9 +1,9 @@
 from django.urls import path
 
-from .views import (TagDetailView, TagListView, VideoDetailView,
-                    VideoGroupDetailView, VideoGroupListView, VideoListView,
-                    add_tags_to_video, add_video_to_group, add_videos_to_group,
-                    create_share_link, delete_share_link, get_shared_group,
+from .views import (AddVideoToGroupView, CreateShareLinkView, TagDetailView,
+                    TagListView, VideoDetailView, VideoGroupDetailView,
+                    VideoGroupListView, VideoListView, add_tags_to_video,
+                    add_videos_to_group, delete_share_link, get_shared_group,
                     remove_tag_from_video, remove_video_from_group,
                     reorder_videos_in_group)
 
@@ -17,7 +17,7 @@ urlpatterns = [
     ),
     path(
         "groups/<int:group_id>/videos/<int:video_id>/",
-        add_video_to_group,
+        AddVideoToGroupView.as_view(),
         name="add-video-to-group",
     ),
     path(
@@ -33,7 +33,7 @@ urlpatterns = [
     # Share link related
     path(
         "groups/<int:group_id>/share/",
-        create_share_link,
+        CreateShareLinkView.as_view(),
         name="create-share-link",
     ),
     path(

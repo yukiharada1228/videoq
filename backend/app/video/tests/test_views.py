@@ -31,6 +31,13 @@ class VideoGroupAPITestCase(APITestCase):
         response = self.client.post(url, data, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertIn("id", response.data)
+        self.assertEqual(response.data["name"], "Test Group")
+        self.assertEqual(response.data["description"], "Test Description")
+        self.assertEqual(response.data["video_count"], 0)
+        self.assertIn("created_at", response.data)
+        self.assertIn("videos", response.data)
+        self.assertEqual(response.data["videos"], [])
         self.assertEqual(VideoGroup.objects.count(), 1)
         group = VideoGroup.objects.get()
         self.assertEqual(group.name, "Test Group")
@@ -70,6 +77,10 @@ class VideoGroupAPITestCase(APITestCase):
         response = self.client.patch(url, data, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["id"], group.id)
+        self.assertEqual(response.data["name"], "Updated Group")
+        self.assertIn("video_count", response.data)
+        self.assertIn("videos", response.data)
         group.refresh_from_db()
         self.assertEqual(group.name, "Updated Group")
         self.assertEqual(group.description, "Updated Description")
@@ -357,6 +368,10 @@ class VideoDetailViewTests(APITestCase):
         response = self.client.patch(url, data, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["id"], self.video.id)
+        self.assertEqual(response.data["title"], "Updated Title")
+        self.assertEqual(response.data["user"], self.user.id)
+        self.assertIn("status", response.data)
         self.video.refresh_from_db()
         self.assertEqual(self.video.title, "Updated Title")
         mock_update.assert_called_once_with(self.video.id, "Updated Title")
@@ -369,9 +384,61 @@ class VideoDetailViewTests(APITestCase):
         response = self.client.patch(url, data, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["id"], self.video.id)
+        self.assertEqual(response.data["description"], "Updated Description")
+        self.assertEqual(response.data["user"], self.user.id)
         self.video.refresh_from_db()
         self.assertEqual(self.video.description, "Updated Description")
         self.assertEqual(self.video.title, "Original Title")
+
+
+class TagViewTests(APITestCase):
+    """Tests for tag create/update responses."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="taguser",
+            email="taguser@example.com",
+            password="testpass123",
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+
+    def test_update_tag_returns_id(self):
+        """Test tag update response includes id."""
+        from app.models import Tag
+
+        tag = Tag.objects.create(user=self.user, name="Tag 1", color="#111111")
+        url = reverse("tag-detail", kwargs={"pk": tag.pk})
+
+        response = self.client.patch(
+            url,
+            {"name": "Tag 2", "color": "#222222"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["id"], tag.id)
+        self.assertEqual(response.data["name"], "Tag 2")
+        self.assertIn("created_at", response.data)
+        self.assertIn("videos", response.data)
+        self.assertEqual(response.data["videos"], [])
+
+    def test_create_tag_returns_metadata(self):
+        """Test tag create response includes metadata."""
+        url = reverse("tag-list")
+
+        response = self.client.post(
+            url,
+            {"name": "Tag 1", "color": "#111111"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertIn("id", response.data)
+        self.assertEqual(response.data["name"], "Tag 1")
+        self.assertIn("created_at", response.data)
+        self.assertEqual(response.data["video_count"], 0)
 
     @patch("app.utils.vector_manager.delete_video_vectors")
     def test_delete_video_deletes_vectors(self, mock_delete):
@@ -577,6 +644,10 @@ class VideoUploadTests(APITestCase):
         response = self.client.post(url, data, format="multipart")
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertIn("id", response.data)
+        self.assertEqual(response.data["title"], "Test Video")
+        self.assertEqual(response.data["user"], self.user.id)
+        self.assertIn("status", response.data)
         self.assertEqual(Video.objects.count(), 1)
 
         video = Video.objects.first()
