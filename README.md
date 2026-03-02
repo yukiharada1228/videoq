@@ -82,21 +82,26 @@ docker compose exec backend python manage.py createsuperuser
 3. 一般ユーザーには動画アップロード上限を設定
 4. 動画をアップロードして、文字起こし完了後にチャットを試す
 
-### 📋 ユーザー管理
+### 📋 先に確認：ユーザーのアップロード上限
 
-**重要:** 新規ユーザーは `video_limit=0`（アップロード不可）で作成されます。  
-そのため、管理者が管理パネルでアップロード可能本数を設定する必要があります。
+新規ユーザーは、作成しただけでは動画をアップロードできません。  
+初期値が `video_limit=0` になっているため、管理者がアップロード可能本数を設定してから使い始めてください。
 
-**動画制限を設定するには:**
+**設定場所**
 1. [管理パネル](http://localhost/api/admin) にアクセス
-2. 「Users」をクリック
-3. 編集するユーザーを選択
-4. `Video limit` を設定
-   - `0`: アップロード不可（デフォルト）
-   - 正の数: その本数までアップロード可能
-   - 空欄: 無制限
+2. `Users` を開く
+3. 対象ユーザーを選ぶ
+4. `Video limit` を設定して保存
 
-### 🔌 オプション：既存システムとのAPI連携
+**`Video limit` の意味**
+1. `0`: アップロード不可（初期値）
+2. 正の数: その本数までアップロード可能
+3. 空欄: 無制限
+
+この設定をしておくと、一般ユーザーがすぐに動画をアップロードして使い始められます。
+
+<details>
+<summary><strong>🔌 オプション：既存システムとのAPI連携</strong></summary>
 
 VideoQ は API キー認証に対応しているため、既存の社内システム、外部サービス、定期バッチから API を呼び出せます。  
 ブラウザでログインしなくても、サーバー間通信で利用できます。
@@ -231,7 +236,10 @@ curl -X POST \
 5. 問題なければ外部システム側に組み込み
 6. API キーは環境変数やシークレットマネージャーで管理
 
-### 📦 オプション：クラウドストレージの設定 (AWS S3 / Cloudflare R2)
+</details>
+
+<details>
+<summary><strong>📦 オプション：クラウドストレージの設定 (AWS S3 / Cloudflare R2)</strong></summary>
 
 **※このステップは必須ではありません。** デフォルトではローカルのファイルシステムに動画を保存しますが、AWS S3やCloudflare R2などのオブジェクトストレージを使用することも可能です。
 
@@ -252,7 +260,10 @@ AWS_S3_REGION_NAME=auto
 
 再起動: `docker compose restart backend celery-worker`
 
-### 💰 オプション：ローカルAIでコストを節約
+</details>
+
+<details>
+<summary><strong>💰 オプション：ローカルAIでコストを節約</strong></summary>
 
 **※このステップは必須ではありません。** デフォルトのOpenAI設定で問題ない場合は、スキップして構いません。
 
@@ -340,6 +351,8 @@ OLLAMA_BASE_URL=http://host.docker.internal:11434
 再起動: `docker compose restart backend celery-worker`
 
 **重要:** OpenAIからローカル埋め込みに切り替える場合、管理パネルで既存の動画を再インデックスする必要があります。
+
+</details>
 
 </details>
 
