@@ -1,10 +1,6 @@
 import csv
 import json
-import re
-from collections import Counter
 
-from django.db.models import Count, Prefetch, Q
-from django.db.models.functions import TruncDate
 from django.http import HttpResponse
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import (OpenApiParameter, OpenApiResponse,
@@ -21,56 +17,17 @@ from app.common.responses import create_error_response
 from app.common.throttles import (AuthenticatedChatThrottle,
                                   ShareTokenGlobalThrottle,
                                   ShareTokenIPThrottle)
-from app.models import ChatLog, Video, VideoGroup, VideoGroupMember
+from app.models import ChatLog, VideoGroup
 
 from .serializers import (ChatFeedbackRequestSerializer,
                           ChatAnalyticsResponseSerializer,
                           ChatFeedbackResponseSerializer, ChatLogSerializer,
                           ChatRequestSerializer, ChatResponseSerializer)
-from .services import (RagChatService, get_langchain_llm,
-                       handle_langchain_exception)
-
-
-def _get_chat_logs_queryset(group, ascending=True):
-    """
-    Get chat log queryset
-
-    Args:
-        group: VideoGroup instance
-        ascending: Whether to sort ascending (True: ascending, False: descending)
-
-    Returns:
-        QuerySet: Chat log queryset
-    """
-    order_field = "created_at" if ascending else "-created_at"
-    return group.chat_logs.select_related("user").order_by(order_field)
-
-
-def _get_video_group_with_members(group_id, user_id=None, share_token=None):
-    """
-    Get group and member information
-
-    Args:
-        group_id: Group ID
-        user_id: User ID (optional)
-        share_token: Share token (optional)
-
-    Returns:
-        VideoGroup: Group object
-    """
-    queryset = VideoGroup.objects.select_related("user").prefetch_related(
-        Prefetch(
-            "members",
-            queryset=VideoGroupMember.objects.select_related("video"),
-        )
-    )
-
-    if share_token:
-        return queryset.get(id=group_id, share_token=share_token)
-    elif user_id:
-        return queryset.get(id=group_id, user_id=user_id)
-    else:
-        return queryset.get(id=group_id)
+from .services import (ChatServiceError, RagChatService,
+                       build_chat_analytics, build_popular_scenes,
+                       create_chat_response_payload, get_chat_logs_queryset,
+                       get_langchain_llm, get_video_group_with_members,
+                       handle_langchain_exception, update_chat_feedback)
 
 
 def _resolve_chat_context(request):
@@ -95,7 +52,7 @@ def _resolve_chat_context(request):
                 ),
             )
         try:
-            group = _get_video_group_with_members(group_id, share_token=share_token)
+            group = get_video_group_with_members(group_id, share_token=share_token)
             return group.user, group, is_shared, None
         except VideoGroup.DoesNotExist:
             return (
@@ -108,35 +65,6 @@ def _resolve_chat_context(request):
             )
     else:
         return request.user, None, is_shared, None
-
-
-def _build_chat_response(result, group_id, group, user, is_shared):
-    """Build chat response data and optionally create ChatLog.
-
-    Returns:
-        dict: Response data for the chat endpoint.
-    """
-    response_data = {
-        "role": "assistant",
-        "content": result.llm_response.content,
-    }
-
-    if group_id is not None and result.related_videos:
-        response_data["related_videos"] = result.related_videos
-
-    if group_id is not None and group is not None:
-        chat_log = ChatLog.objects.create(
-            user=(group.user if is_shared else user),
-            group=group,
-            question=result.query_text,
-            answer=result.llm_response.content,
-            related_videos=result.related_videos or [],
-            is_shared_origin=is_shared,
-        )
-        response_data["chat_log_id"] = chat_log.id
-        response_data["feedback"] = chat_log.feedback
-
-    return response_data
 
 
 class ChatView(generics.CreateAPIView):
@@ -166,11 +94,6 @@ class ChatView(generics.CreateAPIView):
         if error_response:
             return error_response
 
-        # Get LangChain LLM
-        llm, error_response = get_langchain_llm(user)
-        if error_response:
-            return error_response
-
         # Validate messages
         messages = request.data.get("messages", [])
         if not messages:
@@ -180,9 +103,11 @@ class ChatView(generics.CreateAPIView):
 
         group_id = request.data.get("group_id")
         try:
+            llm = get_langchain_llm(user)
+
             if group_id is not None and not is_shared:
                 try:
-                    group = _get_video_group_with_members(group_id, user_id=user.id)
+                    group = get_video_group_with_members(group_id, user_id=user.id)
                 except VideoGroup.DoesNotExist:
                     return create_error_response(
                         "Specified group not found", status.HTTP_404_NOT_FOUND
@@ -202,13 +127,16 @@ class ChatView(generics.CreateAPIView):
                 locale=request_locale,
             )
 
-            response_data = _build_chat_response(
+            response_data = create_chat_response_payload(
                 result, group_id, group, user, is_shared
             )
             return Response(response_data)
 
+        except ChatServiceError as exc:
+            return create_error_response(exc.message, exc.status_code)
         except Exception as e:
-            return handle_langchain_exception(e)
+            error = handle_langchain_exception(e)
+            return create_error_response(error.message, error.status_code)
 
 
 class ChatFeedbackView(APIView):
@@ -251,25 +179,16 @@ class ChatFeedbackView(APIView):
             )
 
         try:
-            chat_log = ChatLog.objects.select_related("group").get(id=chat_log_id)
-        except ChatLog.DoesNotExist:
-            return create_error_response(
-                "Specified chat history not found", status.HTTP_404_NOT_FOUND
+            chat_log = update_chat_feedback(
+                chat_log_id=chat_log_id,
+                feedback=feedback,
+                request_user=request.user,
+                share_token=share_token,
             )
-
-        if share_token:
-            if chat_log.group.share_token != share_token:
-                return create_error_response(
-                    "Share token mismatch", status.HTTP_403_FORBIDDEN
-                )
-        else:
-            if chat_log.group.user_id != request.user.id:
-                return create_error_response(
-                    "No permission to access this history", status.HTTP_403_FORBIDDEN
-                )
-
-        chat_log.feedback = feedback
-        chat_log.save(update_fields=["feedback"])
+        except LookupError as exc:
+            return create_error_response(str(exc), status.HTTP_404_NOT_FOUND)
+        except PermissionError as exc:
+            return create_error_response(str(exc), status.HTTP_403_FORBIDDEN)
 
         return Response(
             {
@@ -295,13 +214,13 @@ class ChatHistoryView(generics.ListAPIView):
             return ChatLog.objects.none()
 
         try:
-            group = _get_video_group_with_members(
+            group = get_video_group_with_members(
                 group_id, user_id=self.request.user.id
             )
         except VideoGroup.DoesNotExist:
             return ChatLog.objects.none()
 
-        return _get_chat_logs_queryset(group, ascending=False)
+        return get_chat_logs_queryset(group, ascending=False)
 
 
 class ChatHistoryExportView(APIView):
@@ -332,13 +251,13 @@ class ChatHistoryExportView(APIView):
             )
 
         try:
-            group = _get_video_group_with_members(group_id, user_id=request.user.id)
+            group = get_video_group_with_members(group_id, user_id=request.user.id)
         except VideoGroup.DoesNotExist:
             return create_error_response(
                 "Specified group not found", status.HTTP_404_NOT_FOUND
             )
 
-        queryset = _get_chat_logs_queryset(group, ascending=True)
+        queryset = get_chat_logs_queryset(group, ascending=True)
 
         response = HttpResponse(content_type="text/csv; charset=utf-8")
         filename = f"chat_history_group_{group.id}.csv"
@@ -376,94 +295,6 @@ class ChatHistoryExportView(APIView):
             )
 
         return response
-
-
-def _aggregate_scenes(chat_logs):
-    """Aggregate scene references from chat logs.
-
-    Returns:
-        tuple: (scene_counter, scene_info, scene_questions)
-    """
-    scene_counter: Counter = Counter()
-    scene_info: dict = {}
-    scene_questions: dict = {}
-
-    for log in chat_logs:
-        related_videos = log.get("related_videos")
-        question = log.get("question", "")
-        if not related_videos:
-            continue
-        for rv in related_videos:
-            video_id = rv.get("video_id")
-            start_time = rv.get("start_time")
-            if not video_id or not start_time:
-                continue
-
-            key = (video_id, start_time)
-            scene_counter[key] += 1
-
-            if key not in scene_info:
-                scene_info[key] = {
-                    "video_id": video_id,
-                    "title": rv.get("title", ""),
-                    "start_time": start_time,
-                    "end_time": rv.get("end_time") or start_time,
-                }
-
-            if question:
-                if key not in scene_questions:
-                    scene_questions[key] = []
-                if (
-                    len(scene_questions[key]) < 3
-                    and question not in scene_questions[key]
-                ):
-                    scene_questions[key].append(question)
-
-    return scene_counter, scene_info, scene_questions
-
-
-def _build_video_file_map(video_ids, owner_user):
-    """Build video_id -> file URL mapping."""
-    video_file_map = {}
-    for video in Video.objects.filter(id__in=video_ids, user=owner_user):
-        if video.file:
-            try:
-                video_file_map[video.id] = video.file.url
-            except ValueError:
-                video_file_map[video.id] = None
-        else:
-            video_file_map[video.id] = None
-    return video_file_map
-
-
-def _build_popular_scenes_response(
-    top_scenes, scene_info, scene_questions, video_file_map
-):
-    """Build response list for popular scenes."""
-    return [
-        {
-            "video_id": scene_info[key]["video_id"],
-            "title": scene_info[key]["title"],
-            "start_time": scene_info[key]["start_time"],
-            "end_time": scene_info[key]["end_time"],
-            "reference_count": count,
-            "file": video_file_map.get(key[0]),
-            "questions": scene_questions.get(key, []),
-        }
-        for key, count in top_scenes
-    ]
-
-
-def _filter_group_scenes(scene_counter, group, limit=None):
-    """Keep only scenes that belong to videos currently in the group."""
-    valid_video_ids = {member.video_id for member in group.members.all()}
-    scenes = [
-        (key, count)
-        for key, count in scene_counter.most_common()
-        if key[0] in valid_video_ids
-    ]
-    return scenes[:limit] if limit is not None else scenes
-
 
 class PopularScenesView(APIView):
     """
@@ -541,88 +372,18 @@ class PopularScenesView(APIView):
 
         try:
             if share_token:
-                group = _get_video_group_with_members(group_id, share_token=share_token)
+                group = get_video_group_with_members(
+                    group_id, share_token=share_token
+                )
             else:
-                group = _get_video_group_with_members(group_id, user_id=request.user.id)
+                group = get_video_group_with_members(group_id, user_id=request.user.id)
         except VideoGroup.DoesNotExist:
             return create_error_response(
                 "Specified group not found", status.HTTP_404_NOT_FOUND
             )
 
-        chat_logs = ChatLog.objects.filter(group=group).values(
-            "question", "related_videos"
-        )
-
-        scene_counter, scene_info, scene_questions = _aggregate_scenes(chat_logs)
-        top_scenes = _filter_group_scenes(scene_counter, group, limit)
-
-        video_ids = [key[0] for key, _ in top_scenes]
-        video_file_map = _build_video_file_map(video_ids, group.user)
-
-        result = _build_popular_scenes_response(
-            top_scenes, scene_info, scene_questions, video_file_map
-        )
+        result = build_popular_scenes(group, limit=limit)
         return Response(result)
-
-
-# Japanese: janome noun filtering
-_JA_NOUN_POS = ("名詞",)
-_JA_NOUN_EXCLUDE_SUBTYPES = ("非自立", "代名詞", "数", "接尾")
-_JA_CHAR_RE = re.compile(r"[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]")
-
-# English: NLTK POS tags for content words (nouns + adjectives)
-_EN_CONTENT_TAGS = {"NN", "NNS", "NNP", "NNPS", "JJ", "JJR", "JJS"}
-
-_janome_tokenizer = None
-
-
-def _get_janome_tokenizer():
-    global _janome_tokenizer
-    if _janome_tokenizer is None:
-        from janome.tokenizer import Tokenizer
-
-        _janome_tokenizer = Tokenizer()
-    return _janome_tokenizer
-
-
-def _extract_ja_nouns(text, tokenizer):
-    """Extract Japanese nouns using janome."""
-    nouns = []
-    for token in tokenizer.tokenize(text):
-        pos = token.part_of_speech.split(",")
-        if pos[0] in _JA_NOUN_POS and pos[1] not in _JA_NOUN_EXCLUDE_SUBTYPES:
-            if len(token.surface) >= 2:
-                nouns.append(token.surface)
-    return nouns
-
-
-def _extract_en_keywords(text):
-    """Extract English content words (nouns + adjectives) using NLTK POS tagging."""
-    import nltk
-
-    tokens = nltk.word_tokenize(text.lower())
-    tagged = nltk.pos_tag(tokens)
-    return [
-        word
-        for word, tag in tagged
-        if tag in _EN_CONTENT_TAGS and len(word) >= 2 and word.isalpha()
-    ]
-
-
-def _extract_keywords(questions, limit=30):
-    """Extract top keywords using janome (Japanese) and NLTK (English)."""
-    counter: Counter = Counter()
-    tokenizer = _get_janome_tokenizer()
-
-    for q in questions:
-        if _JA_CHAR_RE.search(q):
-            words = _extract_ja_nouns(q, tokenizer)
-        else:
-            words = _extract_en_keywords(q)
-        for word in words:
-            counter[word] += 1
-
-    return [{"word": word, "count": count} for word, count in counter.most_common(limit)]
 
 
 class ChatAnalyticsView(APIView):
@@ -647,75 +408,10 @@ class ChatAnalyticsView(APIView):
             )
 
         try:
-            group = _get_video_group_with_members(group_id, user_id=request.user.id)
+            group = get_video_group_with_members(group_id, user_id=request.user.id)
         except VideoGroup.DoesNotExist:
             return create_error_response(
                 "Specified group not found", status.HTTP_404_NOT_FOUND
             )
 
-        chat_logs_qs = ChatLog.objects.filter(group=group)
-
-        # Summary
-        total = chat_logs_qs.count()
-        date_range = {}
-        if total > 0:
-            first_log = chat_logs_qs.order_by("created_at").values_list(
-                "created_at", flat=True
-            ).first()
-            last_log = chat_logs_qs.order_by("-created_at").values_list(
-                "created_at", flat=True
-            ).first()
-            date_range = {
-                "first": first_log.isoformat() if first_log else None,
-                "last": last_log.isoformat() if last_log else None,
-            }
-
-        # Scene distribution (reuse existing helpers)
-        logs_for_scenes = chat_logs_qs.values("question", "related_videos")
-        scene_counter, scene_info, _ = _aggregate_scenes(logs_for_scenes)
-        top_scenes = _filter_group_scenes(scene_counter, group)
-        scene_distribution = [
-            {
-                "video_id": scene_info[key]["video_id"],
-                "title": scene_info[key]["title"],
-                "start_time": scene_info[key]["start_time"],
-                "end_time": scene_info[key]["end_time"],
-                "question_count": count,
-            }
-            for key, count in top_scenes
-        ]
-
-        # Time series (daily)
-        time_series = list(
-            chat_logs_qs.annotate(date=TruncDate("created_at"))
-            .values("date")
-            .annotate(count=Count("id"))
-            .order_by("date")
-            .values("date", "count")
-        )
-        for entry in time_series:
-            entry["date"] = entry["date"].isoformat()
-
-        # Feedback
-        feedback_agg = chat_logs_qs.aggregate(
-            good=Count("id", filter=Q(feedback="good")),
-            bad=Count("id", filter=Q(feedback="bad")),
-            none=Count("id", filter=Q(feedback__isnull=True)),
-        )
-
-        # Keywords
-        questions = list(chat_logs_qs.values_list("question", flat=True))
-        keywords = _extract_keywords(questions)
-
-        return Response(
-            {
-                "summary": {
-                    "total_questions": total,
-                    "date_range": date_range,
-                },
-                "scene_distribution": scene_distribution,
-                "time_series": time_series,
-                "feedback": feedback_agg,
-                "keywords": keywords,
-            }
-        )
+        return Response(build_chat_analytics(group))

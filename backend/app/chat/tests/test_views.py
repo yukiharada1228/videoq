@@ -10,6 +10,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 
+from app.chat.services import ChatServiceError
 from app.models import ChatLog, Video, VideoGroup, VideoGroupMember
 
 User = get_user_model()
@@ -49,7 +50,7 @@ class ChatViewTests(APITestCase):
     def test_chat_with_group(self, mock_service_class, mock_get_llm):
         """Test chat with group_id"""
         mock_llm = MagicMock()
-        mock_get_llm.return_value = (mock_llm, None)
+        mock_get_llm.return_value = mock_llm
 
         mock_service = MagicMock()
         mock_result = MagicMock()
@@ -78,7 +79,7 @@ class ChatViewTests(APITestCase):
     def test_chat_without_group(self, mock_service_class, mock_get_llm):
         """Test chat without group_id"""
         mock_llm = MagicMock()
-        mock_get_llm.return_value = (mock_llm, None)
+        mock_get_llm.return_value = mock_llm
 
         mock_service = MagicMock()
         mock_result = MagicMock()
@@ -102,7 +103,7 @@ class ChatViewTests(APITestCase):
     def test_chat_empty_messages(self, mock_get_llm):
         """Test chat with empty messages"""
         mock_llm = MagicMock()
-        mock_get_llm.return_value = (mock_llm, None)
+        mock_get_llm.return_value = mock_llm
 
         url = reverse("chat")
         data = {"messages": []}
@@ -116,7 +117,7 @@ class ChatViewTests(APITestCase):
     def test_chat_missing_messages(self, mock_get_llm):
         """Test chat with missing messages"""
         mock_llm = MagicMock()
-        mock_get_llm.return_value = (mock_llm, None)
+        mock_get_llm.return_value = mock_llm
 
         url = reverse("chat")
         data = {}
@@ -129,7 +130,7 @@ class ChatViewTests(APITestCase):
     def test_chat_group_not_found(self, mock_get_llm):
         """Test chat with non-existent group"""
         mock_llm = MagicMock()
-        mock_get_llm.return_value = (mock_llm, None)
+        mock_get_llm.return_value = mock_llm
 
         url = reverse("chat")
         data = {
@@ -144,12 +145,9 @@ class ChatViewTests(APITestCase):
     @patch("app.chat.views.get_langchain_llm")
     def test_chat_llm_error(self, mock_get_llm):
         """Test chat with LLM error"""
-        from app.common.responses import create_error_response
-
-        error_response = create_error_response(
+        mock_get_llm.side_effect = ChatServiceError(
             "OpenAI API key is not configured", status.HTTP_400_BAD_REQUEST
         )
-        mock_get_llm.return_value = (None, error_response)
 
         url = reverse("chat")
         data = {"messages": [{"role": "user", "content": "Test question"}]}
@@ -165,7 +163,7 @@ class ChatViewTests(APITestCase):
 
         # Use group owner's user for LLM
         mock_llm = MagicMock()
-        mock_get_llm.return_value = (mock_llm, None)
+        mock_get_llm.return_value = mock_llm
 
         mock_service = MagicMock()
         mock_result = MagicMock()
@@ -196,7 +194,7 @@ class ChatViewTests(APITestCase):
     def test_chat_share_token_group_not_found(self, mock_get_llm):
         """Test chat with share token but group not found"""
         mock_llm = MagicMock()
-        mock_get_llm.return_value = (mock_llm, None)
+        mock_get_llm.return_value = mock_llm
 
         url = reverse("chat")
         url += "?share_token=invalid-token"
@@ -213,7 +211,7 @@ class ChatViewTests(APITestCase):
     def test_chat_share_token_missing_group_id(self, mock_get_llm):
         """Test chat with share token but missing group_id"""
         mock_llm = MagicMock()
-        mock_get_llm.return_value = (mock_llm, None)
+        mock_get_llm.return_value = mock_llm
 
         url = reverse("chat")
         url += f"?share_token={self.group.share_token}"

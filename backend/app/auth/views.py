@@ -1,11 +1,9 @@
-from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.utils import timezone
+from django.conf import settings
+from django.core.exceptions import ValidationError as DjangoValidationError
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics, status
 from rest_framework.response import Response
-from rest_framework_simplejwt.exceptions import InvalidToken
-from rest_framework_simplejwt.tokens import RefreshToken
 
 from app.common.authentication import APIKeyAuthentication, CookieJWTAuthentication
 from app.common.exceptions import ErrorCode
@@ -13,9 +11,19 @@ from app.common.responses import create_error_response, create_success_response
 from app.common.throttles import (LoginIPThrottle, LoginUsernameThrottle,
                                   PasswordResetEmailThrottle,
                                   PasswordResetIPThrottle, SignupIPThrottle)
-from app.models import AccountDeletionRequest
 from app.models import UserApiKey
-from app.tasks.account_deletion import delete_account_data
+from app.auth.services import (activate_user, authenticate_credentials,
+                               confirm_password_reset,
+                               create_access_token, create_integration_api_key,
+                               create_signup_user, create_token_pair,
+                               deactivate_user_account,
+                               get_active_api_keys,
+                               get_current_user_with_video_count,
+                               request_password_reset,
+                               resolve_email_verification_user,
+                               resolve_password_reset_user,
+                               revoke_active_api_key)
+from app.utils.email import send_email_verification, send_password_reset_email
 from app.utils.mixins import AuthenticatedViewMixin, PublicViewMixin
 
 from .serializers import (AccountDeleteSerializer,
@@ -29,6 +37,38 @@ from .serializers import (AccountDeleteSerializer,
                           UserSerializer, UserSignupSerializer)
 
 User = get_user_model()
+
+
+def _get_auth_cookie_samesite() -> str:
+    return "None" if settings.SECURE_COOKIES else "Lax"
+
+
+def _set_auth_cookies(response: Response, access_token: str, refresh_token: str | None = None):
+    samesite_value = _get_auth_cookie_samesite()
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=settings.SECURE_COOKIES,
+        samesite=samesite_value,
+        max_age=60 * 10,
+    )
+
+    if refresh_token is not None:
+        response.set_cookie(
+            key="refresh_token",
+            value=refresh_token,
+            httponly=True,
+            secure=settings.SECURE_COOKIES,
+            samesite=samesite_value,
+            max_age=60 * 60 * 24 * 14,
+        )
+
+
+def _clear_auth_cookies(response: Response):
+    samesite_value = _get_auth_cookie_samesite()
+    response.delete_cookie(key="access_token", samesite=samesite_value)
+    response.delete_cookie(key="refresh_token", samesite=samesite_value)
 
 
 class PublicAPIView(PublicViewMixin, generics.GenericAPIView):
@@ -58,7 +98,14 @@ class UserSignupView(generics.CreateAPIView):
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
+        try:
+            create_signup_user(
+                user_model=User,
+                validated_data=serializer.validated_data,
+                send_verification_email=send_email_verification,
+            )
+        except ValueError as exc:
+            return create_error_response(str(exc), status.HTTP_400_BAD_REQUEST)
         return create_success_response(
             message="Verification email sent. Please check your email.",
             status_code=status.HTTP_201_CREATED,
@@ -82,32 +129,21 @@ class LoginView(PublicAPIView):
             data=request.data, context={"request": request}
         )
         serializer.is_valid(raise_exception=True)
-        user = serializer.validated_data["user"]
-        refresh = RefreshToken.for_user(user)
+        try:
+            user = authenticate_credentials(
+                username=serializer.validated_data["username"],
+                password=serializer.validated_data["password"],
+            )
+        except ValueError as exc:
+            return create_error_response(str(exc), status.HTTP_400_BAD_REQUEST)
 
-        response = Response(
-            {"access": str(refresh.access_token), "refresh": str(refresh)}
-        )
+        token_pair = create_token_pair(user=user)
 
-        # Set JWT token in HttpOnly Cookie
-        # Use 'None' for SameSite when SECURE_COOKIES is True (cross-origin deployment)
-        samesite_value = "None" if settings.SECURE_COOKIES else "Lax"
-
-        response.set_cookie(
-            key="access_token",
-            value=str(refresh.access_token),
-            httponly=True,
-            secure=settings.SECURE_COOKIES,  # Controlled by SECURE_COOKIES env var
-            samesite=samesite_value,
-            max_age=60 * 10,  # 10 minutes (same as ACCESS_TOKEN_LIFETIME)
-        )
-        response.set_cookie(
-            key="refresh_token",
-            value=str(refresh),
-            httponly=True,
-            secure=settings.SECURE_COOKIES,  # Controlled by SECURE_COOKIES env var
-            samesite=samesite_value,
-            max_age=60 * 60 * 24 * 14,  # 14 days (same as REFRESH_TOKEN_LIFETIME)
+        response = Response(token_pair)
+        _set_auth_cookies(
+            response,
+            access_token=token_pair["access"],
+            refresh_token=token_pair["refresh"],
         )
 
         return response
@@ -126,20 +162,7 @@ class LogoutView(AuthenticatedAPIView):
     def post(self, request):
         """Logout by deleting HttpOnly Cookie"""
         response = create_success_response(message="Logged out successfully")
-
-        # Delete HttpOnly Cookie
-        # Must use same samesite and secure values as set_cookie for proper deletion
-        samesite_value = "None" if settings.SECURE_COOKIES else "Lax"
-
-        response.delete_cookie(
-            key="access_token",
-            samesite=samesite_value,
-        )
-        response.delete_cookie(
-            key="refresh_token",
-            samesite=samesite_value,
-        )
-
+        _clear_auth_cookies(response)
         return response
 
 
@@ -162,37 +185,10 @@ class AccountDeleteView(AuthenticatedAPIView):
         serializer.is_valid(raise_exception=True)
         reason = serializer.validated_data.get("reason", "")
 
-        user = request.user
-
-        AccountDeletionRequest.objects.create(user=user, reason=reason)
-
-        now = timezone.now()
-        suffix = now.strftime("%Y%m%d%H%M%S")
-        user.is_active = False
-        user.deactivated_at = now
-        user.username = f"deleted__{user.id}__{suffix}"
-        user.email = f"deleted__{user.id}__{suffix}@invalid.local"
-        user.save(
-            update_fields=["is_active", "deactivated_at", "username", "email"]
-        )
-
-        delete_account_data.delay(user.id)
+        deactivate_user_account(user=request.user, reason=reason)
 
         response = create_success_response(message="Account deletion started.")
-
-        # Delete HttpOnly Cookie
-        # Must use same samesite and secure values as set_cookie for proper deletion
-        samesite_value = "None" if settings.SECURE_COOKIES else "Lax"
-
-        response.delete_cookie(
-            key="access_token",
-            samesite=samesite_value,
-        )
-        response.delete_cookie(
-            key="refresh_token",
-            samesite=samesite_value,
-        )
-
+        _clear_auth_cookies(response)
         return response
 
 
@@ -215,35 +211,27 @@ class RefreshView(PublicAPIView):
         if not refresh_token:
             serializer = self.get_serializer(data=request.data)
             serializer.is_valid(raise_exception=True)
-            refresh = serializer.validated_data["refresh_obj"]
-        else:
-            # Verify token obtained from Cookie
+            refresh_token = serializer.validated_data["refresh"]
             try:
-                refresh = RefreshToken(refresh_token)
-            except InvalidToken:
+                access = create_access_token(refresh_token=refresh_token)
+            except ValueError:
+                return create_error_response(
+                    message="invalid refresh",
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    fields={"refresh": ["invalid refresh"]},
+                )
+        else:
+            try:
+                access = create_access_token(refresh_token=refresh_token)
+            except ValueError:
                 return create_error_response(
                     message="Invalid refresh token",
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     code=ErrorCode.AUTHENTICATION_FAILED,
                 )
 
-        access = refresh.access_token
-
-        response = Response({"access": str(access)})
-
-        # Set new access_token in HttpOnly Cookie
-        # Use 'None' for SameSite when SECURE_COOKIES is True (cross-origin deployment)
-        samesite_value = "None" if settings.SECURE_COOKIES else "Lax"
-
-        response.set_cookie(
-            key="access_token",
-            value=str(access),
-            httponly=True,
-            secure=settings.SECURE_COOKIES,  # Controlled by SECURE_COOKIES env var
-            samesite=samesite_value,
-            max_age=60 * 10,  # 10 minutes (same as ACCESS_TOKEN_LIFETIME)
-        )
-
+        response = Response({"access": access})
+        _set_auth_cookies(response, access_token=access)
         return response
 
 
@@ -261,7 +249,15 @@ class EmailVerificationView(PublicAPIView):
     def post(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        try:
+            user = resolve_email_verification_user(
+                user_model=User,
+                uid=serializer.validated_data["uid"],
+                token=serializer.validated_data["token"],
+            )
+        except ValueError as exc:
+            return create_error_response(str(exc), status.HTTP_400_BAD_REQUEST)
+        activate_user(user)
         return create_success_response(
             message="Email verification completed. Please sign in."
         )
@@ -282,7 +278,11 @@ class PasswordResetRequestView(PublicAPIView):
     def post(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        request_password_reset(
+            user_model=User,
+            email=serializer.validated_data["email"],
+            send_reset_email=send_password_reset_email,
+        )
         return create_success_response(
             message="Password reset email sent. Please check your email."
         )
@@ -302,7 +302,26 @@ class PasswordResetConfirmView(PublicAPIView):
     def post(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        try:
+            user = resolve_password_reset_user(
+                user_model=User,
+                uid=serializer.validated_data["uid"],
+                token=serializer.validated_data["token"],
+                new_password=serializer.validated_data["new_password"],
+            )
+        except ValueError as exc:
+            return create_error_response(str(exc), status.HTTP_400_BAD_REQUEST)
+        except DjangoValidationError as exc:
+            return create_error_response(
+                "Validation error",
+                status.HTTP_400_BAD_REQUEST,
+                fields={"new_password": exc.messages},
+            )
+
+        confirm_password_reset(
+            user=user,
+            new_password=serializer.validated_data["new_password"],
+        )
         return create_success_response(
             message="Password reset successfully. Please sign in with your new password."
         )
@@ -315,10 +334,9 @@ class MeView(AuthenticatedAPIView, generics.RetrieveAPIView):
     authentication_classes = [APIKeyAuthentication, CookieJWTAuthentication]
 
     def get_object(self):
-        from django.db.models import Count
-
-        return User.objects.annotate(video_count=Count("videos")).get(
-            pk=self.request.user.pk
+        return get_current_user_with_video_count(
+            user_model=User,
+            user_id=self.request.user.pk,
         )
 
 
@@ -328,10 +346,7 @@ class ApiKeyListCreateView(AuthenticatedAPIView, generics.ListCreateAPIView):
     serializer_class = ApiKeySerializer
 
     def get_queryset(self):
-        return UserApiKey.objects.filter(
-            user=self.request.user,
-            revoked_at__isnull=True,
-        )
+        return get_active_api_keys(user=self.request.user)
 
     def get_serializer_class(self):
         if self.request.method == "POST":
@@ -355,11 +370,18 @@ class ApiKeyListCreateView(AuthenticatedAPIView, generics.ListCreateAPIView):
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        api_key, raw_key = UserApiKey.create_for_user(
-            user=request.user,
-            name=serializer.validated_data["name"],
-            access_level=serializer.validated_data["access_level"],
-        )
+        try:
+            api_key, raw_key = create_integration_api_key(
+                user=request.user,
+                name=serializer.validated_data["name"],
+                access_level=serializer.validated_data["access_level"],
+            )
+        except ValueError as exc:
+            return create_error_response(
+                str(exc),
+                status.HTTP_400_BAD_REQUEST,
+                fields={"name": [str(exc)]},
+            )
         data = dict(ApiKeySerializer(api_key).data)
         data["api_key"] = raw_key
         return Response(data, status=status.HTTP_201_CREATED)
@@ -371,10 +393,7 @@ class ApiKeyDetailView(AuthenticatedAPIView, generics.DestroyAPIView):
     serializer_class = ApiKeySerializer
 
     def get_queryset(self):
-        return UserApiKey.objects.filter(
-            user=self.request.user,
-            revoked_at__isnull=True,
-        )
+        return get_active_api_keys(user=self.request.user)
 
     @extend_schema(
         responses={200: MessageResponseSerializer},
@@ -382,6 +401,8 @@ class ApiKeyDetailView(AuthenticatedAPIView, generics.DestroyAPIView):
         description="Revoke an active API key so it can no longer access the API.",
     )
     def delete(self, request, *args, **kwargs):
-        api_key = self.get_object()
-        api_key.revoke()
+        try:
+            revoke_active_api_key(user=request.user, api_key_id=kwargs["pk"])
+        except UserApiKey.DoesNotExist:
+            return create_error_response("Not found", status.HTTP_404_NOT_FOUND)
         return create_success_response(message="API key revoked.")

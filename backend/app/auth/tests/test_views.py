@@ -6,6 +6,7 @@ from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import default_token_generator
+from django.core.cache import cache
 from django.core import mail
 from django.test import override_settings
 from django.urls import reverse
@@ -19,13 +20,16 @@ from app.models import UserApiKey
 User = get_user_model()
 
 
-@override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+@override_settings(
+    EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+    ENABLE_SIGNUP=True,
+)
 class UserSignupViewTests(APITestCase):
     """Tests for UserSignupView"""
 
     def test_signup_success(self):
         """Test successful user signup"""
-        url = reverse("auth-signup")
+        url = reverse("signup")
         data = {
             "username": "newuser",
             "email": "newuser@example.com",
@@ -34,7 +38,10 @@ class UserSignupViewTests(APITestCase):
         response = self.client.post(url, data, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertIn("detail", response.data)
+        self.assertEqual(
+            response.data["message"],
+            "Verification email sent. Please check your email.",
+        )
         self.assertTrue(User.objects.filter(username="newuser").exists())
         self.assertEqual(len(mail.outbox), 1)
 
@@ -157,7 +164,7 @@ class EmailVerificationViewTests(APITestCase):
         )
         self.uid = urlsafe_base64_encode(force_bytes(self.user.pk))
         self.token = default_token_generator.make_token(self.user)
-        self.url = reverse("auth-email-verification")
+        self.url = reverse("auth-verify-email")
 
     def test_verify_email_success(self):
         """Test successful email verification"""
@@ -165,6 +172,10 @@ class EmailVerificationViewTests(APITestCase):
         response = self.client.post(self.url, data, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            response.data["message"],
+            "Email verification completed. Please sign in.",
+        )
         self.user.refresh_from_db()
         self.assertTrue(self.user.is_active)
 
@@ -173,6 +184,7 @@ class PasswordResetRequestViewTests(APITestCase):
     """Tests for PasswordResetRequestView"""
 
     def setUp(self):
+        cache.clear()
         self.user = User.objects.create_user(
             username="testuser",
             email="test@example.com",
@@ -187,6 +199,10 @@ class PasswordResetRequestViewTests(APITestCase):
         response = self.client.post(self.url, data, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            response.data["message"],
+            "Password reset email sent. Please check your email.",
+        )
         self.assertEqual(len(mail.outbox), 1)
 
 
@@ -214,6 +230,10 @@ class PasswordResetConfirmViewTests(APITestCase):
         response = self.client.post(self.url, data, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            response.data["message"],
+            "Password reset successfully. Please sign in with your new password.",
+        )
         self.user.refresh_from_db()
         self.assertTrue(self.user.check_password("NewSecurePass123"))
 
@@ -243,7 +263,7 @@ class MeViewTests(APITestCase):
         self.client.force_authenticate(user=None)
         response = self.client.get(self.url)
 
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_get_current_user_with_api_key(self):
         """Test getting current user information using API key auth."""
@@ -314,7 +334,7 @@ class AccountDeleteViewTests(APITestCase):
         self.client.force_authenticate(user=self.user)
         self.url = reverse("auth-account-delete")
 
-    @patch("app.tasks.account_deletion.delete_account_data.delay")
+    @patch("app.auth.services.delete_account_data.delay")
     def test_account_delete_marks_inactive_and_enqueues_task(self, mock_delay):
         """Test account delete marks user inactive and enqueues task"""
         response = self.client.delete(

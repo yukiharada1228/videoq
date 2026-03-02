@@ -1,5 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import default_token_generator
+from django.core.cache import cache
 from django.core import mail
 from django.test import override_settings
 from django.urls import reverse
@@ -14,6 +15,7 @@ User = get_user_model()
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
 class PasswordResetRequestTests(APITestCase):
     def setUp(self):
+        cache.clear()
         self.url = reverse("auth-password-reset")
         self.user = User.objects.create_user(
             username="alice",
@@ -27,7 +29,7 @@ class PasswordResetRequestTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(
-            response.data["detail"],
+            response.data["message"],
             "Password reset email sent. Please check your email.",
         )
         self.assertEqual(len(mail.outbox), 1)
@@ -64,7 +66,7 @@ class PasswordResetConfirmTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(
-            response.data["detail"],
+            response.data["message"],
             "Password reset successfully. Please sign in with your new password.",
         )
         self.user.refresh_from_db()
@@ -79,4 +81,4 @@ class PasswordResetConfirmTests(APITestCase):
         response = self.client.post(self.url, payload, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("Token is invalid", response.data["non_field_errors"][0])
+        self.assertIn("Token is invalid", response.data["error"]["message"])

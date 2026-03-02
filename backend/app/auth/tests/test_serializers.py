@@ -2,7 +2,7 @@
 Tests for auth serializers
 """
 
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import default_token_generator
@@ -13,6 +13,10 @@ from django.utils.http import urlsafe_base64_encode
 from rest_framework import serializers
 from rest_framework.test import APITestCase
 
+from app.auth.services import (confirm_password_reset, create_access_token,
+                               create_signup_user, request_password_reset,
+                               resolve_email_verification_user,
+                               resolve_password_reset_user)
 from app.auth.serializers import (CredentialsSerializerMixin,
                                   EmailVerificationSerializer, LoginSerializer,
                                   PasswordResetConfirmSerializer,
@@ -28,7 +32,7 @@ class UserSignupSerializerTests(APITestCase):
     """Tests for UserSignupSerializer"""
 
     def test_create_user_success(self):
-        """Test successful user creation"""
+        """Test successful signup payload validation and service execution"""
         data = {
             "username": "newuser",
             "email": "newuser@example.com",
@@ -36,7 +40,11 @@ class UserSignupSerializerTests(APITestCase):
         }
         serializer = UserSignupSerializer(data=data)
         self.assertTrue(serializer.is_valid())
-        user = serializer.save()
+        user = create_signup_user(
+            user_model=User,
+            validated_data=serializer.validated_data,
+            send_verification_email=lambda created_user: mail.outbox.append(created_user),
+        )
 
         self.assertEqual(user.username, "newuser")
         self.assertEqual(user.email, "newuser@example.com")
@@ -77,10 +85,9 @@ class UserSignupSerializerTests(APITestCase):
         self.assertFalse(serializer.is_valid())
         self.assertIn("email", serializer.errors)
 
-    @patch("app.auth.serializers.send_email_verification")
-    def test_create_user_email_send_failure(self, mock_send_email):
+    def test_create_user_email_send_failure(self):
         """Test user creation when email sending fails"""
-        mock_send_email.side_effect = Exception("Email service unavailable")
+        mock_send_email = Mock(side_effect=Exception("Email service unavailable"))
 
         data = {
             "username": "newuser",
@@ -90,16 +97,18 @@ class UserSignupSerializerTests(APITestCase):
         serializer = UserSignupSerializer(data=data)
         self.assertTrue(serializer.is_valid())
 
-        with self.assertRaises(serializers.ValidationError):
-            serializer.save()
+        with self.assertRaises(ValueError):
+            create_signup_user(
+                user_model=User,
+                validated_data=serializer.validated_data,
+                send_verification_email=mock_send_email,
+            )
 
         # User should be deleted if email sending fails
         self.assertFalse(User.objects.filter(username="newuser").exists())
 
-    @patch("app.auth.serializers.User.objects.create_user")
-    def test_create_user_database_error(self, mock_create_user):
-        """Test user creation when database error occurs"""
-        mock_create_user.side_effect = Exception("Database error")
+    def test_create_user_database_error(self):
+        """Test service raises when database write fails"""
 
         data = {
             "username": "newuser",
@@ -109,8 +118,13 @@ class UserSignupSerializerTests(APITestCase):
         serializer = UserSignupSerializer(data=data)
         self.assertTrue(serializer.is_valid())
 
-        with self.assertRaises(Exception):
-            serializer.save()
+        with patch.object(User.objects, "create_user", side_effect=Exception("Database error")):
+            with self.assertRaises(Exception):
+                create_signup_user(
+                    user_model=User,
+                    validated_data=serializer.validated_data,
+                    send_verification_email=lambda user: None,
+                )
 
 
 class LoginSerializerTests(APITestCase):
@@ -124,25 +138,24 @@ class LoginSerializerTests(APITestCase):
         )
 
     def test_login_success(self):
-        """Test successful login"""
+        """Test login payload validation"""
         data = {"username": "testuser", "password": "testpass123"}
         serializer = LoginSerializer(data=data)
         self.assertTrue(serializer.is_valid())
-        self.assertEqual(serializer.validated_data["user"], self.user)
+        self.assertEqual(serializer.validated_data["username"], "testuser")
+        self.assertEqual(serializer.validated_data["password"], "testpass123")
 
     def test_login_invalid_username(self):
-        """Test login with invalid username"""
+        """Serializer does not verify credentials"""
         data = {"username": "wronguser", "password": "testpass123"}
         serializer = LoginSerializer(data=data)
-        self.assertFalse(serializer.is_valid())
-        self.assertIn("non_field_errors", serializer.errors)
+        self.assertTrue(serializer.is_valid())
 
     def test_login_invalid_password(self):
-        """Test login with invalid password"""
+        """Serializer only validates shape, not password correctness"""
         data = {"username": "testuser", "password": "wrongpass"}
         serializer = LoginSerializer(data=data)
-        self.assertFalse(serializer.is_valid())
-        self.assertIn("non_field_errors", serializer.errors)
+        self.assertTrue(serializer.is_valid())
 
     def test_login_missing_credentials(self):
         """Test login with missing credentials"""
@@ -180,7 +193,7 @@ class RefreshSerializerTests(APITestCase):
         )
 
     def test_validate_refresh_token_valid(self):
-        """Test validation with valid refresh token"""
+        """Serializer accepts a non-empty refresh token string"""
         from rest_framework_simplejwt.tokens import RefreshToken
 
         refresh = RefreshToken.for_user(self.user)
@@ -188,10 +201,14 @@ class RefreshSerializerTests(APITestCase):
         self.assertTrue(serializer.is_valid())
 
     def test_validate_refresh_token_invalid(self):
-        """Test validation with invalid refresh token"""
+        """Refresh token parsing happens in the service layer"""
         serializer = RefreshSerializer(data={"refresh": "invalid-token"})
-        self.assertFalse(serializer.is_valid())
-        self.assertIn("refresh", serializer.errors)
+        self.assertTrue(serializer.is_valid())
+
+    def test_create_access_token_invalid(self):
+        """Service rejects invalid refresh tokens"""
+        with self.assertRaises(ValueError):
+            create_access_token(refresh_token="invalid-token")
 
     def test_validate_refresh_token_empty(self):
         """Test validation with empty refresh token"""
@@ -214,28 +231,41 @@ class EmailVerificationSerializerTests(APITestCase):
         self.token = default_token_generator.make_token(self.user)
 
     def test_verify_email_success(self):
-        """Test successful email verification"""
+        """Test successful email verification resolution"""
         data = {"uid": self.uid, "token": self.token}
         serializer = EmailVerificationSerializer(data=data)
         self.assertTrue(serializer.is_valid())
-        user = serializer.save()
+        user = resolve_email_verification_user(
+            user_model=User,
+            uid=serializer.validated_data["uid"],
+            token=serializer.validated_data["token"],
+        )
 
-        self.assertTrue(user.is_active)
         self.assertEqual(user, self.user)
 
     def test_verify_email_invalid_uid(self):
         """Test email verification with invalid uid"""
         data = {"uid": "invalid", "token": self.token}
         serializer = EmailVerificationSerializer(data=data)
-        self.assertFalse(serializer.is_valid())
-        self.assertIn("non_field_errors", serializer.errors)
+        self.assertTrue(serializer.is_valid())
+        with self.assertRaises(ValueError):
+            resolve_email_verification_user(
+                user_model=User,
+                uid=serializer.validated_data["uid"],
+                token=serializer.validated_data["token"],
+            )
 
     def test_verify_email_invalid_token(self):
         """Test email verification with invalid token"""
         data = {"uid": self.uid, "token": "invalid-token"}
         serializer = EmailVerificationSerializer(data=data)
-        self.assertFalse(serializer.is_valid())
-        self.assertIn("non_field_errors", serializer.errors)
+        self.assertTrue(serializer.is_valid())
+        with self.assertRaises(ValueError):
+            resolve_email_verification_user(
+                user_model=User,
+                uid=serializer.validated_data["uid"],
+                token=serializer.validated_data["token"],
+            )
 
     def test_verify_email_already_active(self):
         """Test email verification for already active user"""
@@ -245,7 +275,11 @@ class EmailVerificationSerializerTests(APITestCase):
         data = {"uid": self.uid, "token": self.token}
         serializer = EmailVerificationSerializer(data=data)
         self.assertTrue(serializer.is_valid())
-        user = serializer.save()
+        user = resolve_email_verification_user(
+            user_model=User,
+            uid=serializer.validated_data["uid"],
+            token=serializer.validated_data["token"],
+        )
 
         self.assertTrue(user.is_active)
 
@@ -267,7 +301,11 @@ class PasswordResetRequestSerializerTests(APITestCase):
         data = {"email": self.user.email}
         serializer = PasswordResetRequestSerializer(data=data)
         self.assertTrue(serializer.is_valid())
-        result = serializer.save()
+        result = request_password_reset(
+            user_model=User,
+            email=serializer.validated_data["email"],
+            send_reset_email=lambda created_user: mail.outbox.append(created_user),
+        )
 
         self.assertEqual(result, self.user)
         self.assertEqual(len(mail.outbox), 1)
@@ -277,7 +315,11 @@ class PasswordResetRequestSerializerTests(APITestCase):
         data = {"email": "nonexistent@example.com"}
         serializer = PasswordResetRequestSerializer(data=data)
         self.assertTrue(serializer.is_valid())
-        result = serializer.save()
+        result = request_password_reset(
+            user_model=User,
+            email=serializer.validated_data["email"],
+            send_reset_email=lambda created_user: mail.outbox.append(created_user),
+        )
 
         self.assertIsNone(result)
         self.assertEqual(len(mail.outbox), 0)
@@ -305,7 +347,16 @@ class PasswordResetConfirmSerializerTests(APITestCase):
         }
         serializer = PasswordResetConfirmSerializer(data=data)
         self.assertTrue(serializer.is_valid())
-        serializer.save()
+        user = resolve_password_reset_user(
+            user_model=User,
+            uid=serializer.validated_data["uid"],
+            token=serializer.validated_data["token"],
+            new_password=serializer.validated_data["new_password"],
+        )
+        confirm_password_reset(
+            user=user,
+            new_password=serializer.validated_data["new_password"],
+        )
 
         self.user.refresh_from_db()
         self.assertTrue(self.user.check_password("NewSecurePass123"))
@@ -318,8 +369,14 @@ class PasswordResetConfirmSerializerTests(APITestCase):
             "new_password": "NewSecurePass123",
         }
         serializer = PasswordResetConfirmSerializer(data=data)
-        self.assertFalse(serializer.is_valid())
-        self.assertIn("non_field_errors", serializer.errors)
+        self.assertTrue(serializer.is_valid())
+        with self.assertRaises(ValueError):
+            resolve_password_reset_user(
+                user_model=User,
+                uid=serializer.validated_data["uid"],
+                token=serializer.validated_data["token"],
+                new_password=serializer.validated_data["new_password"],
+            )
 
     def test_confirm_reset_invalid_token(self):
         """Test password reset confirmation with invalid token"""
@@ -329,8 +386,14 @@ class PasswordResetConfirmSerializerTests(APITestCase):
             "new_password": "NewSecurePass123",
         }
         serializer = PasswordResetConfirmSerializer(data=data)
-        self.assertFalse(serializer.is_valid())
-        self.assertIn("non_field_errors", serializer.errors)
+        self.assertTrue(serializer.is_valid())
+        with self.assertRaises(ValueError):
+            resolve_password_reset_user(
+                user_model=User,
+                uid=serializer.validated_data["uid"],
+                token=serializer.validated_data["token"],
+                new_password=serializer.validated_data["new_password"],
+            )
 
     def test_confirm_reset_weak_password(self):
         """Test password reset confirmation with weak password"""
