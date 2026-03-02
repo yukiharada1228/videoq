@@ -490,9 +490,9 @@
     "integrationApiKeys": {
       "title": "連携用APIキー",
       "description": "既存システム向けのシークレットキーを発行・管理します。",
-      "panelTitle": "APIキーはこのアカウントに紐づきます",
-      "panelDescription": "本番連携ではサーバー側だけで使い、シークレットマネージャーなど安全な場所に保管し、漏えい時はすぐにローテーションしてください。",
-      "panelBadge": "サーバー側専用",
+      "panelTitle": "APIキーはこのアカウントの権限で動作します",
+      "panelDescription": "外部システムのバックエンドやバッチ処理から利用してください。ブラウザやモバイルアプリに埋め込まず、シークレットマネージャーなど安全な場所に保管してください。",
+      "panelBadge": "ブラウザ埋め込み不可",
       "nameLabel": "キー名",
       "namePlaceholder": "例: production-crm",
       "nameHelp": "この名前は一覧にだけ表示されます。あとで見て分かる連携名にしてください。",
