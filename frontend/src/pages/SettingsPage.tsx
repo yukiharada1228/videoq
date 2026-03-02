@@ -198,22 +198,6 @@ export default function SettingsPage() {
             </div>
           </CardHeader>
           <CardContent className="space-y-5 bg-slate-50/60">
-            <div className="rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                <div className="space-y-1">
-                  <div className="text-sm font-semibold text-slate-900">
-                    {t('settings.integrationApiKeys.panelTitle')}
-                  </div>
-                  <p className="text-sm leading-6 text-slate-600">
-                    {t('settings.integrationApiKeys.panelDescription')}
-                  </p>
-                </div>
-                <div className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600">
-                  {t('settings.integrationApiKeys.panelBadge')}
-                </div>
-              </div>
-            </div>
-
             {statusMessage && (
               <div
                 className={

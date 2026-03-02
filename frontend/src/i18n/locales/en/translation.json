@@ -484,9 +484,6 @@
     "integrationApiKeys": {
       "title": "Integration API Keys",
       "description": "Create and manage secret keys for server-to-server access from your existing systems.",
-      "panelTitle": "API keys act with this account's permissions",
-      "panelDescription": "Use these keys from your backend services or batch jobs. Do not embed them in browser code or mobile apps, and store them in a secure secret manager.",
-      "panelBadge": "No browser embedding",
       "nameLabel": "Key name",
       "namePlaceholder": "e.g. production-crm",
       "nameHelp": "This name is only shown here, so use something that makes the integration easy to identify later.",
