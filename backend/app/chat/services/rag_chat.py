@@ -161,11 +161,6 @@ class RagChatService:
                 "end_time": metadata.get("end_time", ""),
             }
 
-            # Add external_id if it exists in metadata
-            external_id = metadata.get("external_id")
-            if external_id:
-                video_info["external_id"] = external_id
-
             related_videos.append(video_info)
 
         return related_videos

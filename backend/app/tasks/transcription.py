@@ -49,24 +49,6 @@ def download_video_from_storage(video, video_id, temp_manager):
         return temp_video_path, video_file
 
 
-def cleanup_external_upload(video_file, video_id):
-    """
-    Delete original video file after processing when external_id is specified.
-    Also clears the DB field so the frontend doesn't try to preview a missing file.
-    """
-    try:
-        if video_file:
-            # Delete actual file object from storage
-            video_file.delete(save=False)
-            logger.info(
-                f"Deleted original video file after processing (video ID: {video_id})"
-            )
-    except Exception as e:
-        logger.warning(
-            f"Failed to delete video file after processing (video ID: {video_id}): {e}"
-        )
-
-
 @transaction.atomic
 def save_transcription_result(video, scene_split_srt):
     """
@@ -105,9 +87,7 @@ def transcribe_video(self, video_id):
             video, error = VideoTaskManager.get_video_with_user(video_id)
             if error:
                 raise Exception(error)
-
             logger.info(f"Video found: {video.title}")
-            should_delete_original_video = bool(video.external_id)
 
             is_valid, validation_error = VideoTaskManager.validate_video_for_processing(
                 video
@@ -162,18 +142,6 @@ def transcribe_video(self, video_id):
             index_scenes_batch(scene_split_srt, video, api_key)
 
             logger.info(f"Successfully processed video {video_id}")
-
-            # Cleanup original video file if this is an external_id-based upload
-            if should_delete_original_video:
-                cleanup_external_upload(video_file, video_id)
-                # Persist clearing the file field so API won't return a broken URL
-                try:
-                    video.file = ""
-                    video.save(update_fields=["file"])
-                except Exception as e:
-                    logger.warning(
-                        f"Failed to clear video.file after deletion (video ID: {video_id}): {e}"
-                    )
 
             return scene_split_srt
 

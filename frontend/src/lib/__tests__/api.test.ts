@@ -269,7 +269,7 @@ describe('ApiClient', () => {
       });
 
       const file = new File(['content'], 'test.mp4', { type: 'video/mp4' });
-      await apiClient.uploadVideo({ file, title: 'Test', description: 'Desc', external_id: '123' });
+      await apiClient.uploadVideo({ file, title: 'Test', description: 'Desc' });
 
       // Verify FormData entries if possible, or just that it was called. 
       // Since checking FormData content is hard without a proper mock, coverage is the main goal.

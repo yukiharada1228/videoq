@@ -82,16 +82,7 @@ export function VideoCard({ video, showLink = true, className = '', onClick }: V
     <Card className={`h-full flex flex-col hover:shadow-md transition-all duration-200 cursor-pointer border-0 shadow-sm hover:shadow-lg overflow-hidden group ${className}`}>
       {/* Thumbnail */}
       <div ref={cardRef} className="relative w-full aspect-video bg-gray-900 overflow-hidden group">
-        {video.external_id ? (
-          <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-900 to-gray-700 px-3">
-            <div className="text-center">
-              <div className="text-xs text-gray-300 mb-1">external_id</div>
-              <div className="text-sm font-medium text-white break-all line-clamp-3">
-                {video.external_id}
-              </div>
-            </div>
-          </div>
-        ) : video.file ? (
+        {video.file ? (
           <>
             {isInView ? (
               <video
@@ -170,4 +161,3 @@ export function VideoCard({ video, showLink = true, className = '', onClick }: V
 
   return cardContent;
 }
-
