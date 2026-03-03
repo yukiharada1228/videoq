@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BarChart3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useChatAnalytics } from '@/hooks/useChatAnalytics';
 import { AnalyticsDashboard } from './AnalyticsDashboard';
 
@@ -32,6 +32,9 @@ export function DashboardButton({ groupId, size = 'default' }: DashboardButtonPr
         <DialogContent className="max-w-[95vw] lg:max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{t('dashboard.title')}</DialogTitle>
+            <DialogDescription className="sr-only">
+              {t('dashboard.dialogDescription', 'Displays analytics and trends for this chat group.')}
+            </DialogDescription>
           </DialogHeader>
           <AnalyticsDashboard data={data} isLoading={isLoading} />
         </DialogContent>

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import {
     Dialog,
     DialogContent,
+    DialogDescription,
     DialogHeader,
     DialogTitle,
     DialogFooter,
@@ -37,6 +38,9 @@ export function TagManagementModal({ isOpen, onClose }: TagManagementModalProps)
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
                     <DialogTitle>{t('tags.management.title', 'Tag Management')}</DialogTitle>
+                    <DialogDescription className="sr-only">
+                        {t('tags.management.description', 'Review existing tags and remove ones you no longer need.')}
+                    </DialogDescription>
                 </DialogHeader>
 
                 <div className="space-y-4 max-h-[60vh] overflow-y-auto py-4">
