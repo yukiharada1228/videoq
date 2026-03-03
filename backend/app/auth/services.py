@@ -9,6 +9,8 @@ from django.utils.http import urlsafe_base64_decode
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from typing import Any, cast
+
 from app.auth import repositories
 from app.models import UserApiKey
 from app.tasks.account_deletion import delete_account_data
@@ -37,7 +39,7 @@ def create_token_pair(*, user) -> dict[str, str]:
 def create_access_token(*, refresh_token: str) -> str:
     """Issue a new access token from an existing refresh token."""
     try:
-        refresh = RefreshToken(refresh_token)
+        refresh = RefreshToken(cast(Any, refresh_token))
     except (InvalidToken, TokenError) as exc:
         raise ValueError("Invalid refresh token") from exc
 
