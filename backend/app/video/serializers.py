@@ -1,23 +1,8 @@
-import logging
-
-from django.db import transaction
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from app.models import Tag, Video, VideoGroup
-from app.tasks import transcribe_video
-
-logger = logging.getLogger(__name__)
-
-
-class UserOwnedSerializerMixin:
-    """Common serializer base class for user-owned resources"""
-
-    def create(self, validated_data):
-        """Set user to current user"""
-        validated_data["user"] = self.context["request"].user
-        return super().create(validated_data)
 
 
 class BaseVideoGroupSerializer(serializers.ModelSerializer):
@@ -50,9 +35,7 @@ class VideoSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "user", "uploaded_at"]
 
-    @extend_schema_field(
-        serializers.ListField(child=serializers.DictField())
-    )
+    @extend_schema_field(serializers.ListField(child=serializers.DictField()))
     def get_tags(self, obj):
         """Get tags for the video"""
         video_tags = obj.video_tags.all()
@@ -60,7 +43,7 @@ class VideoSerializer(serializers.ModelSerializer):
         return [{"id": t.id, "name": t.name, "color": t.color} for t in tags]
 
 
-class VideoCreateSerializer(UserOwnedSerializerMixin, serializers.ModelSerializer):
+class VideoCreateSerializer(serializers.ModelSerializer):
     """Serializer for Video creation"""
 
     ALLOWED_VIDEO_EXTENSIONS = {
@@ -111,49 +94,6 @@ class VideoCreateSerializer(UserOwnedSerializerMixin, serializers.ModelSerialize
 
         return value
 
-    def validate(self, attrs):
-        """Validate video upload limit"""
-        user = self.context["request"].user
-
-        # Check video limit
-        video_limit = user.video_limit
-
-        # If video_limit is None, unlimited uploads are allowed
-        if video_limit is None:
-            return attrs
-
-        # Get current video count for the user
-        current_video_count = Video.objects.filter(user=user).count()
-
-        # If video_limit is 0, no uploads are allowed
-        # If video_limit is > 0, check if user has reached the limit
-        if current_video_count >= video_limit:
-            raise serializers.ValidationError(
-                f"Video upload limit reached. You can upload up to {video_limit} video(s)."
-            )
-
-        return attrs
-
-    @transaction.atomic
-    def create(self, validated_data):
-        """Start transcription task when Video is created"""
-        # Create Video instance
-        video = super().create(validated_data)
-
-        # Execute Celery task after transaction commits
-        # so the task can read the committed video record
-        def _dispatch_transcription():
-            logger.info(f"Starting transcription task for video ID: {video.id}")
-            try:
-                task = transcribe_video.delay(video.id)
-                logger.info(f"Transcription task created with ID: {task.id}")
-            except Exception as e:
-                logger.error(f"Failed to start transcription task: {e}")
-
-        transaction.on_commit(_dispatch_transcription)
-
-        return video
-
 
 class VideoUpdateSerializer(serializers.ModelSerializer):
     """Serializer for Video update"""
@@ -182,9 +122,7 @@ class VideoListSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "uploaded_at"]
 
-    @extend_schema_field(
-        serializers.ListField(child=serializers.DictField())
-    )
+    @extend_schema_field(serializers.ListField(child=serializers.DictField()))
     def get_tags(self, obj):
         """Get tags for the video"""
         video_tags = obj.video_tags.all()
@@ -229,9 +167,7 @@ class VideoGroupDetailSerializer(serializers.ModelSerializer):
             "share_token",
         ]
 
-    @extend_schema_field(
-        serializers.ListField(child=serializers.DictField())
-    )
+    @extend_schema_field(serializers.ListField(child=serializers.DictField()))
     def get_videos(self, obj):
         """Get video detailed information"""
         members = list(obj.members.all())
@@ -256,7 +192,7 @@ class VideoGroupDetailSerializer(serializers.ModelSerializer):
         ]
 
 
-class VideoGroupCreateSerializer(UserOwnedSerializerMixin, BaseVideoGroupSerializer):
+class VideoGroupCreateSerializer(BaseVideoGroupSerializer):
     """Serializer for VideoGroup creation"""
 
     id = serializers.IntegerField(read_only=True)
@@ -349,9 +285,7 @@ class TagDetailSerializer(serializers.ModelSerializer):
         fields = ["id", "name", "color", "created_at", "video_count", "videos"]
         read_only_fields = ["id", "created_at", "video_count"]
 
-    @extend_schema_field(
-        serializers.ListField(child=serializers.DictField())
-    )
+    @extend_schema_field(serializers.ListField(child=serializers.DictField()))
     def get_videos(self, obj):
         """Get videos with this tag"""
         video_tags = obj.video_tags.all()
@@ -359,7 +293,7 @@ class TagDetailSerializer(serializers.ModelSerializer):
         return VideoListSerializer(videos, many=True, context=self.context).data
 
 
-class TagCreateSerializer(UserOwnedSerializerMixin, serializers.ModelSerializer):
+class TagCreateSerializer(serializers.ModelSerializer):
     """Serializer for Tag creation"""
 
     class Meta:

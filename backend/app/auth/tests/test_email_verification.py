@@ -27,7 +27,7 @@ class EmailVerificationTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(
-            response.data["detail"],
+            response.data["message"],
             "Verification email sent. Please check your email.",
         )
 
@@ -56,7 +56,7 @@ class EmailVerificationTests(APITestCase):
 
         self.assertEqual(verify_response.status_code, status.HTTP_200_OK)
         self.assertEqual(
-            verify_response.data["detail"],
+            verify_response.data["message"],
             "Email verification completed. Please sign in.",
         )
 

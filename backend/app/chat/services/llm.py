@@ -1,7 +1,6 @@
 """LangChain helper functions"""
 
 import os
-from typing import Optional, Tuple
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -9,15 +8,20 @@ from langchain_core.language_models import BaseChatModel
 from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI
 from pydantic import SecretStr
-from rest_framework import status
-from rest_framework.response import Response
-
-from app.common.responses import create_error_response
 
 User = get_user_model()
 
 
-def get_langchain_llm(user) -> Tuple[Optional[BaseChatModel], Optional[Response]]:
+class ChatServiceError(Exception):
+    """Application-level chat error with HTTP metadata for the view layer."""
+
+    def __init__(self, message: str, status_code: int):
+        super().__init__(message)
+        self.message = message
+        self.status_code = status_code
+
+
+def get_langchain_llm(user) -> BaseChatModel:
     """
     Get the configured LLM model based on LLM_PROVIDER setting.
 
@@ -25,9 +29,7 @@ def get_langchain_llm(user) -> Tuple[Optional[BaseChatModel], Optional[Response]
         user: The user object (currently unused but kept for compatibility)
 
     Returns:
-        Tuple[Optional[BaseChatModel], Optional[Response]]:
-            A tuple of (LLM instance, error response). If successful, returns (llm, None).
-            If failed, returns (None, error_response).
+        BaseChatModel: Configured LLM instance.
     """
     provider = getattr(settings, "LLM_PROVIDER", "openai")
     temperature = 0.0  # Temperature is fixed at 0.0
@@ -38,9 +40,9 @@ def get_langchain_llm(user) -> Tuple[Optional[BaseChatModel], Optional[Response]
             "OPENAI_API_KEY"
         )
         if not api_key:
-            return None, create_error_response(
+            raise ChatServiceError(
                 "OpenAI API key is not configured. Please set OPENAI_API_KEY environment variable.",
-                status.HTTP_400_BAD_REQUEST,
+                400,
             )
 
         # Use LLM model from environment variable with fallback to default
@@ -48,53 +50,41 @@ def get_langchain_llm(user) -> Tuple[Optional[BaseChatModel], Optional[Response]
             "LLM_MODEL", "gpt-4o-mini"
         )
 
-        return (
-            ChatOpenAI(
-                model=model,
-                api_key=SecretStr(api_key),
-                temperature=temperature,
-            ),
-            None,
+        return ChatOpenAI(
+            model=model,
+            api_key=SecretStr(api_key),
+            temperature=temperature,
         )
 
-    elif provider == "ollama":
+    if provider == "ollama":
         # Use Ollama LLM
         base_url = getattr(
             settings, "OLLAMA_BASE_URL", "http://host.docker.internal:11434"
         )
         model = getattr(settings, "LLM_MODEL", "qwen3:0.6b")
 
-        return (
-            ChatOllama(
-                model=model,
-                base_url=base_url,
-                temperature=temperature,
-            ),
-            None,
+        return ChatOllama(
+            model=model,
+            base_url=base_url,
+            temperature=temperature,
         )
 
-    else:
-        return None, create_error_response(
-            f"Invalid LLM_PROVIDER: {provider}. Must be 'openai' or 'ollama'.",
-            status.HTTP_400_BAD_REQUEST,
-        )
+    raise ChatServiceError(
+        f"Invalid LLM_PROVIDER: {provider}. Must be 'openai' or 'ollama'.",
+        400,
+    )
 
 
-def handle_langchain_exception(exception: Exception) -> Response:
+def handle_langchain_exception(exception: Exception) -> ChatServiceError:
     error_message = str(exception)
 
     if (
         "invalid_api_key" in error_message.lower()
         or "authentication" in error_message.lower()
     ):
-        return create_error_response("Invalid API key", status.HTTP_401_UNAUTHORIZED)
+        return ChatServiceError("Invalid API key", 401)
 
     if "rate_limit" in error_message.lower():
-        return create_error_response(
-            "API rate limit reached", status.HTTP_429_TOO_MANY_REQUESTS
-        )
+        return ChatServiceError("API rate limit reached", 429)
 
-    return create_error_response(
-        f"OpenAI API error: {exception}",
-        status.HTTP_500_INTERNAL_SERVER_ERROR,
-    )
+    return ChatServiceError(f"OpenAI API error: {exception}", 500)

@@ -6,16 +6,16 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('app', '0014_user_deactivated_at_accountdeletionrequest'),
+        ("app", "0014_user_deactivated_at_accountdeletionrequest"),
     ]
 
     operations = [
         migrations.RemoveIndex(
-            model_name='video',
-            name='video_external_id_idx',
+            model_name="video",
+            name="video_external_id_idx",
         ),
         migrations.RemoveField(
-            model_name='video',
-            name='external_id',
+            model_name="video",
+            name="external_id",
         ),
     ]

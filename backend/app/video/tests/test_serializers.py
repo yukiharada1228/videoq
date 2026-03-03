@@ -15,6 +15,7 @@ from app.models import Tag, Video, VideoGroup, VideoGroupMember, VideoTag
 from app.video.serializers import (TagCreateSerializer, TagDetailSerializer,
                                    TagUpdateSerializer, VideoCreateSerializer,
                                    VideoGroupDetailSerializer, VideoSerializer)
+from app.video.services import VideoUploadService
 
 User = get_user_model()
 
@@ -47,8 +48,7 @@ class VideoCreateSerializerTests(TestCase):
         drf_request._user = self.user
         return {"request": drf_request}
 
-    @patch("app.video.serializers.transcribe_video.delay")
-    def test_valid_video_creation(self, mock_task):
+    def test_valid_video_creation(self):
         """Test valid video creation"""
         data = {
             "file": self._create_video_file(),
@@ -62,22 +62,39 @@ class VideoCreateSerializerTests(TestCase):
 
         self.assertTrue(serializer.is_valid())
 
-    @patch("app.video.serializers.transcribe_video.delay")
-    def test_starts_transcription_task_on_create(self, mock_task):
-        """Test that transcription task is started on create"""
-        data = {
+
+class VideoUploadServiceTests(TestCase):
+    """Tests for VideoUploadService"""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="uploaduser",
+            email="upload@example.com",
+            password="testpass123",
+        )
+
+    def _create_video_file(self):
+        return SimpleUploadedFile(
+            "upload_test.mp4",
+            BytesIO(b"fake video content").read(),
+            content_type="video/mp4",
+        )
+
+    @patch("app.video.services.transcribe_video.delay")
+    def test_create_video_starts_transcription_task(self, mock_task):
+        video_data = {
             "file": self._create_video_file(),
-            "title": "Test Video",
-            "description": "Test Description",
+            "title": "Uploaded Video",
+            "description": "Created by service",
         }
 
-        serializer = VideoCreateSerializer(
-            data=data, context=self._get_request_context()
-        )
-        self.assertTrue(serializer.is_valid())
         with self.captureOnCommitCallbacks(execute=True):
-            video = serializer.save()
+            video = VideoUploadService.create_video(
+                user=self.user,
+                validated_data=video_data,
+            )
 
+        self.assertEqual(video.user, self.user)
         mock_task.assert_called_once_with(video.id)
 
     def test_validates_video_limit_zero(self):
@@ -85,20 +102,11 @@ class VideoCreateSerializerTests(TestCase):
         self.user.video_limit = 0
         self.user.save()
 
-        data = {
-            "file": self._create_video_file(),
-            "title": "Test Video",
-        }
+        with self.assertRaises(ValueError) as cm:
+            VideoUploadService.validate_upload_allowed(user=self.user)
+        self.assertIn("Video upload limit reached", str(cm.exception))
 
-        serializer = VideoCreateSerializer(
-            data=data, context=self._get_request_context()
-        )
-
-        self.assertFalse(serializer.is_valid())
-        self.assertIn("Video upload limit reached", str(serializer.errors))
-
-    @patch("app.video.serializers.transcribe_video.delay")
-    def test_validates_video_limit_reached(self, mock_task):
+    def test_validates_video_limit_reached(self):
         """Test validation when video_limit is reached"""
         self.user.video_limit = 2
         self.user.save()
@@ -107,39 +115,20 @@ class VideoCreateSerializerTests(TestCase):
         Video.objects.create(user=self.user, title="Video 1")
         Video.objects.create(user=self.user, title="Video 2")
 
-        data = {
-            "file": self._create_video_file(),
-            "title": "Video 3",
-        }
+        with self.assertRaises(ValueError) as cm:
+            VideoUploadService.validate_upload_allowed(user=self.user)
+        self.assertIn("Video upload limit reached", str(cm.exception))
 
-        serializer = VideoCreateSerializer(
-            data=data, context=self._get_request_context()
-        )
-
-        self.assertFalse(serializer.is_valid())
-        self.assertIn("Video upload limit reached", str(serializer.errors))
-
-    @patch("app.video.serializers.transcribe_video.delay")
-    def test_allows_upload_when_within_limit(self, mock_task):
+    def test_allows_upload_when_within_limit(self):
         """Test that upload is allowed when within limit"""
         self.user.video_limit = 3
         self.user.save()
 
         Video.objects.create(user=self.user, title="Video 1")
+        # Should not raise exception
+        VideoUploadService.validate_upload_allowed(user=self.user)
 
-        data = {
-            "file": self._create_video_file(),
-            "title": "Video 2",
-        }
-
-        serializer = VideoCreateSerializer(
-            data=data, context=self._get_request_context()
-        )
-
-        self.assertTrue(serializer.is_valid())
-
-    @patch("app.video.serializers.transcribe_video.delay")
-    def test_allows_unlimited_uploads(self, mock_task):
+    def test_allows_unlimited_uploads(self):
         """Test that unlimited uploads are allowed when video_limit is None"""
         self.user.video_limit = None
         self.user.save()
@@ -148,16 +137,9 @@ class VideoCreateSerializerTests(TestCase):
         for i in range(10):
             Video.objects.create(user=self.user, title=f"Video {i}")
 
-        data = {
-            "file": self._create_video_file(),
-            "title": "Another Video",
-        }
+        # Should not raise exception
+        VideoUploadService.validate_upload_allowed(user=self.user)
 
-        serializer = VideoCreateSerializer(
-            data=data, context=self._get_request_context()
-        )
-
-        self.assertTrue(serializer.is_valid())
 
 class TagCreateSerializerTests(TestCase):
     """Tests for TagCreateSerializer"""

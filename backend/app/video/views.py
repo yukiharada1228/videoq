@@ -1,8 +1,5 @@
-import logging
-import secrets
-
 from django.db import transaction
-from django.db.models import Max, Prefetch, Q
+from django.db.models import Prefetch
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics, status
 from rest_framework.decorators import api_view, permission_classes
@@ -11,165 +8,69 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from app.common.responses import create_error_response
-from app.models import Tag, Video, VideoGroup, VideoGroupMember, VideoTag
+from app.models import Tag, VideoTag
 from app.utils.decorators import authenticated_view_with_error_handling
 from app.utils.mixins import AuthenticatedViewMixin, DynamicSerializerMixin
-from app.utils.query_optimizer import QueryOptimizer
+from app.video.factories import (add_tags_to_video_use_case,
+                                 add_video_to_group_use_case,
+                                 add_videos_to_group_use_case,
+                                 create_share_link_use_case,
+                                 create_tag_use_case,
+                                 create_video_group_use_case,
+                                 delete_share_link_use_case,
+                                 delete_tag_use_case,
+                                 delete_video_group_use_case,
+                                 delete_video_use_case,
+                                 get_shared_group_use_case,
+                                 list_video_groups_use_case,
+                                 list_videos_use_case,
+                                 remove_tag_from_video_use_case,
+                                 remove_video_from_group_use_case,
+                                 reorder_videos_in_group_use_case,
+                                 update_tag_use_case,
+                                 update_video_group_use_case,
+                                 update_video_use_case, upload_video_use_case)
+from app.video.use_cases import (AddTagsToVideoCommand,
+                                 AddVideosToGroupCommand,
+                                 AddVideoToGroupCommand,
+                                 CreateShareLinkCommand, CreateTagCommand,
+                                 CreateVideoGroupCommand,
+                                 DeleteShareLinkCommand, DeleteTagCommand,
+                                 DeleteVideoCommand, DeleteVideoGroupCommand,
+                                 GetSharedGroupQuery, ListVideoGroupsQuery,
+                                 ListVideosQuery, RemoveTagFromVideoCommand,
+                                 RemoveVideoFromGroupCommand,
+                                 ReorderVideosInGroupCommand, UpdateTagCommand,
+                                 UpdateVideoCommand, UpdateVideoGroupCommand,
+                                 UploadVideoCommand)
 
 from .serializers import (AddTagsToVideoRequestSerializer,
                           AddTagsToVideoResponseSerializer,
-                          AddVideoToGroupResponseSerializer,
                           AddVideosToGroupRequestSerializer,
                           AddVideosToGroupResponseSerializer,
-                          ReorderVideosRequestSerializer, TagCreateSerializer,
-                          ShareLinkResponseSerializer,
+                          AddVideoToGroupResponseSerializer,
+                          ReorderVideosRequestSerializer,
+                          ShareLinkResponseSerializer, TagCreateSerializer,
                           TagDetailSerializer, TagListSerializer,
+                          TagUpdateSerializer,
                           VideoActionMessageResponseSerializer,
-                          TagUpdateSerializer, VideoCreateSerializer,
-                          VideoGroupCreateSerializer,
+                          VideoCreateSerializer, VideoGroupCreateSerializer,
                           VideoGroupDetailSerializer, VideoGroupListSerializer,
                           VideoGroupUpdateSerializer, VideoListSerializer,
                           VideoSerializer, VideoUpdateSerializer)
-
-logger = logging.getLogger(__name__)
-
-
-class ResourceValidator:
-    """Handles validation and resource retrieval logic"""
-
-    @staticmethod
-    def validate_and_get_resource(
-        user, model_class, resource_id, entity_name, select_related_fields=None
-    ):
-        """Common resource retrieval and validation logic"""
-        queryset = model_class.objects.filter(user=user, id=resource_id)
-
-        if select_related_fields:
-            queryset = queryset.select_related(*select_related_fields)
-
-        resource = queryset.first()
-
-        if not resource:
-            return None, create_error_response(
-                f"{entity_name} not found", status.HTTP_404_NOT_FOUND
-            )
-
-        return resource, None
-
-    @staticmethod
-    def get_group_and_video(user, group_id, video_id, select_related_fields=None):
-        """Common group and video retrieval logic"""
-        group, error = ResourceValidator.validate_and_get_resource(
-            user, VideoGroup, group_id, "Group", select_related_fields
-        )
-        if error:
-            return None, None, error
-
-        video, error = ResourceValidator.validate_and_get_resource(
-            user, Video, video_id, "Video", select_related_fields
-        )
-        if error:
-            return None, None, error
-
-        return group, video, None
-
-    @staticmethod
-    def validate_video_ids(request, entity_name):
-        """Validate video_ids from request"""
-        video_ids = request.data.get("video_ids", [])
-        if not video_ids:
-            return None, create_error_response(
-                f"{entity_name} ID not specified", status.HTTP_400_BAD_REQUEST
-            )
-        return video_ids, None
-
-    @staticmethod
-    def validate_videos_count(videos, video_ids):
-        """Check video count matches"""
-        if len(videos) != len(video_ids):
-            return create_error_response(
-                "Some videos not found", status.HTTP_404_NOT_FOUND
-            )
-        return None
-
-
-class VideoGroupMemberService:
-    """Handles VideoGroupMember operations"""
-
-    @staticmethod
-    def get_member_queryset(group, video=None, select_related=False):
-        """Get VideoGroupMember queryset"""
-        queryset = VideoGroupMember.objects.filter(group=group)
-        if video:
-            queryset = queryset.filter(video=video)
-        if select_related:
-            queryset = queryset.select_related("video", "group")
-        return queryset
-
-    @staticmethod
-    def member_exists(group, video):
-        """Check if member exists"""
-        return VideoGroupMemberService.get_member_queryset(group, video).exists()
-
-    @staticmethod
-    def check_and_get_member(
-        group, video, error_message, status_code=status.HTTP_404_NOT_FOUND
-    ):
-        """Check member existence and retrieve"""
-        member = VideoGroupMemberService.get_member_queryset(group, video).first()
-        if not member:
-            return None, create_error_response(error_message, status_code)
-        return member, None
-
-    @staticmethod
-    def get_next_order(group):
-        """Get next order value for new member"""
-        max_order = (
-            VideoGroupMemberService.get_member_queryset(group)
-            .aggregate(max_order=Max("order"))
-            .get("max_order")
-        )
-        return (max_order if max_order is not None else -1) + 1
-
-    @staticmethod
-    @transaction.atomic
-    def add_video_to_group(group, video):
-        """Add video to group operation"""
-        if VideoGroupMemberService.get_member_queryset(group, video).first():
-            return create_error_response(
-                "This video is already added to the group", status.HTTP_400_BAD_REQUEST
-            )
-
-        next_order = VideoGroupMemberService.get_next_order(group)
-        member = VideoGroupMember.objects.create(
-            group=group, video=video, order=next_order
-        )
-
-        return Response(
-            {"message": "Video added to group", "id": member.id},
-            status=status.HTTP_201_CREATED,
-        )
-
-
-class ShareLinkService:
-    """Handles share link operations"""
-
-    @staticmethod
-    def update_share_token(group, token_value):
-        """Update share token for group"""
-        group.share_token = token_value
-        group.save(update_fields=["share_token"])
 
 
 class BaseVideoView(AuthenticatedViewMixin):
     """Common base Video view class"""
 
     def get_queryset(self):
-        """Common logic to return only current user's Videos"""
-        return QueryOptimizer.get_videos_with_metadata(
-            user_id=self.request.user.id,
-            include_transcript=self.should_include_transcript(),
-            include_groups=self.should_include_groups(),
+        """Common logic to return only current user's Videos via UseCase."""
+        return list_videos_use_case().execute(
+            ListVideosQuery(
+                user_id=self.request.user.id,
+                include_transcript=self.should_include_transcript(),
+                include_groups=self.should_include_groups(),
+            )
         )
 
     def should_include_groups(self):
@@ -187,41 +88,27 @@ class VideoListView(DynamicSerializerMixin, BaseVideoView, generics.ListCreateAP
         "POST": VideoCreateSerializer,
     }
 
+    def _parse_tag_ids(self):
+        raw = self.request.query_params.get("tags", "").strip()
+        if not raw:
+            return None
+        try:
+            return [int(tid) for tid in raw.split(",") if tid]
+        except ValueError:
+            return None
+
     def get_queryset(self):
-        queryset = super().get_queryset()
-        q = self.request.query_params.get("q", "").strip()
-        status_value = self.request.query_params.get("status", "").strip()
-        ordering = self.request.query_params.get("ordering", "").strip()
-        tag_ids = self.request.query_params.get("tags", "").strip()
-
-        if q:
-            queryset = queryset.filter(
-                Q(title__icontains=q) | Q(description__icontains=q)
+        return list_videos_use_case().execute(
+            ListVideosQuery(
+                user_id=self.request.user.id,
+                include_transcript=self.should_include_transcript(),
+                include_groups=self.should_include_groups(),
+                q=self.request.query_params.get("q", "").strip(),
+                status=self.request.query_params.get("status", "").strip(),
+                tag_ids=self._parse_tag_ids(),
+                ordering=self.request.query_params.get("ordering", "").strip(),
             )
-
-        if status_value:
-            queryset = queryset.filter(status=status_value)
-
-        # Filter by tags (AND condition)
-        if tag_ids:
-            try:
-                tag_id_list = [int(tid) for tid in tag_ids.split(",") if tid]
-                if tag_id_list:
-                    for tag_id in tag_id_list:
-                        queryset = queryset.filter(tags__id=tag_id)
-            except ValueError:
-                pass  # Ignore invalid tag IDs
-
-        ordering_map = {
-            "uploaded_at_desc": "-uploaded_at",
-            "uploaded_at_asc": "uploaded_at",
-            "title_asc": "title",
-            "title_desc": "-title",
-        }
-        if ordering in ordering_map:
-            queryset = queryset.order_by(ordering_map[ordering])
-
-        return queryset
+        )
 
     @extend_schema(
         request=VideoCreateSerializer,
@@ -233,10 +120,19 @@ class VideoListView(DynamicSerializerMixin, BaseVideoView, generics.ListCreateAP
         """Return a full video representation after upload."""
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
+        try:
+            result = upload_video_use_case().execute(
+                UploadVideoCommand(
+                    actor_id=request.user.id,
+                    validated_data=serializer.validated_data,
+                ),
+            )
+        except ValueError as exc:
+            return create_error_response(str(exc), status.HTTP_400_BAD_REQUEST)
+        instance = self.get_queryset().get(pk=result.video_id)
 
         output_serializer = VideoSerializer(
-            serializer.instance,
+            instance,
             context=self.get_serializer_context(),
         )
         headers = self.get_success_headers(output_serializer.data)
@@ -272,12 +168,8 @@ class VideoDetailView(
     )
     @transaction.atomic
     def update(self, request, *args, **kwargs):
-        """Update PGVector metadata when Video is updated"""
         partial = kwargs.pop("partial", False)
         instance = self.get_object()
-
-        # Save title before update
-        old_title = instance.title
 
         serializer = self.get_serializer(
             instance,
@@ -285,39 +177,35 @@ class VideoDetailView(
             partial=partial,
         )
         serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer)
 
-        # Refresh instance to get latest data
+        try:
+            update_video_use_case().execute(
+                UpdateVideoCommand(
+                    actor_id=request.user.id,
+                    video_id=instance.id,
+                    validated_data=serializer.validated_data,
+                )
+            )
+        except LookupError as exc:
+            return create_error_response(str(exc), status.HTTP_404_NOT_FOUND)
+
         instance.refresh_from_db()
-
-        # Update PGVector metadata if title has changed
-        if old_title != instance.title:
-            self._update_video_title_in_pgvector(instance.id, instance.title)
-
         return Response(
             VideoSerializer(instance, context=self.get_serializer_context()).data
         )
 
-    def _update_video_title_in_pgvector(self, video_id, new_title):
-        """Update video_title in PGVector metadata"""
-        from app.utils.vector_manager import update_video_title_in_vectors
-
-        update_video_title_in_vectors(video_id, new_title)
-
     @transaction.atomic
     def destroy(self, request, *args, **kwargs):
-        """Delete file and vector data when Video is deleted (hard delete)"""
         instance = self.get_object()
-
-        # Hard delete: delete the video record
-        # CASCADE will handle VideoGroupMember
-        # post_delete signal will handle vector deletion
-        instance.delete()
-
-        # Delete file after DB deletion succeeds
-        if instance.file:
-            transaction.on_commit(lambda: instance.file.delete(save=False))
-
+        try:
+            delete_video_use_case().execute(
+                DeleteVideoCommand(
+                    actor_id=request.user.id,
+                    video_id=instance.id,
+                )
+            )
+        except LookupError as exc:
+            return create_error_response(str(exc), status.HTTP_404_NOT_FOUND)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -325,11 +213,13 @@ class BaseVideoGroupView(AuthenticatedViewMixin):
     """Common base VideoGroup view class"""
 
     def _get_filtered_queryset(self, annotate_only=False):
-        """Common query retrieval logic"""
-        return QueryOptimizer.get_video_groups_with_videos(
-            user_id=self.request.user.id,
-            include_videos=not annotate_only,
-            annotate_video_count=True,
+        """Common query retrieval logic via UseCase."""
+        return list_video_groups_use_case().execute(
+            ListVideoGroupsQuery(
+                user_id=self.request.user.id,
+                include_videos=not annotate_only,
+                annotate_video_count=True,
+            )
         )
 
 
@@ -357,11 +247,15 @@ class VideoGroupListView(
         """Return a full group representation after creation."""
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
 
-        instance = self._get_filtered_queryset(annotate_only=False).get(
-            pk=serializer.instance.pk
+        group = create_video_group_use_case().execute(
+            CreateVideoGroupCommand(
+                actor_id=request.user.id,
+                validated_data=serializer.validated_data,
+            )
         )
+
+        instance = self._get_filtered_queryset(annotate_only=False).get(pk=group.pk)
         output_serializer = VideoGroupDetailSerializer(
             instance,
             context=self.get_serializer_context(),
@@ -405,7 +299,17 @@ class VideoGroupDetailView(
             partial=partial,
         )
         serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer)
+
+        try:
+            update_video_group_use_case().execute(
+                UpdateVideoGroupCommand(
+                    actor_id=request.user.id,
+                    group_id=instance.id,
+                    validated_data=serializer.validated_data,
+                )
+            )
+        except LookupError as exc:
+            return create_error_response(str(exc), status.HTTP_404_NOT_FOUND)
 
         instance = self.get_queryset().get(pk=instance.pk)
         return Response(
@@ -414,6 +318,19 @@ class VideoGroupDetailView(
                 context=self.get_serializer_context(),
             ).data
         )
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        try:
+            delete_video_group_use_case().execute(
+                DeleteVideoGroupCommand(
+                    actor_id=request.user.id,
+                    group_id=instance.id,
+                )
+            )
+        except LookupError as exc:
+            return create_error_response(str(exc), status.HTTP_404_NOT_FOUND)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class AddVideoToGroupView(AuthenticatedViewMixin, APIView):
@@ -428,13 +345,23 @@ class AddVideoToGroupView(AuthenticatedViewMixin, APIView):
         operation_id="video_groups_add_single_video",
     )
     def post(self, request, group_id, video_id):
-        group, video, error = ResourceValidator.get_group_and_video(
-            request.user, group_id, video_id
-        )
-        if error:
-            return error
+        try:
+            result = add_video_to_group_use_case().execute(
+                AddVideoToGroupCommand(
+                    actor_id=request.user.id,
+                    group_id=group_id,
+                    video_id=video_id,
+                )
+            )
+        except LookupError as exc:
+            return create_error_response(str(exc), status.HTTP_404_NOT_FOUND)
+        except ValueError as exc:
+            return create_error_response(str(exc), status.HTTP_400_BAD_REQUEST)
 
-        return VideoGroupMemberService.add_video_to_group(group, video)
+        return Response(
+            {"message": "Video added to group", "id": result.member_id},
+            status=status.HTTP_201_CREATED,
+        )
 
 
 @extend_schema(
@@ -448,53 +375,24 @@ class AddVideoToGroupView(AuthenticatedViewMixin, APIView):
 @transaction.atomic
 def add_videos_to_group(request, group_id):
     """Add multiple videos to group"""
-    group, error = ResourceValidator.validate_and_get_resource(
-        request.user, VideoGroup, group_id, "Group"
-    )
-    if error:
-        return error
-
-    video_ids, error = ResourceValidator.validate_video_ids(request, "Video")
-    if error:
-        return error
-
-    videos = list(Video.objects.filter(user=request.user, id__in=video_ids))
-
-    error = ResourceValidator.validate_videos_count(videos, video_ids)
-    if error:
-        return error
-
-    # Identify videos to add (exclude existing members)
-    video_ids_list = [v.id for v in videos]
-    existing_members = set(
-        VideoGroupMemberService.get_member_queryset(group)
-        .filter(video_id__in=video_ids_list)
-        .values_list("video_id", flat=True)
-    )
-
-    video_map = {video.id: video for video in videos}
-    videos_to_add = [
-        video_map[video_id]
-        for video_id in video_ids
-        if video_id in video_map and video_id not in existing_members
-    ]
-
-    # Bulk create members
-    base_order = VideoGroupMemberService.get_next_order(group) - 1
-    members_to_create = [
-        VideoGroupMember(group=group, video=video, order=base_order + index)
-        for index, video in enumerate(videos_to_add, start=1)
-    ]
-    VideoGroupMember.objects.bulk_create(members_to_create)
-
-    added_count = len(members_to_create)
-    skipped_count = len(video_ids) - added_count
+    try:
+        result = add_videos_to_group_use_case().execute(
+            AddVideosToGroupCommand(
+                actor_id=request.user.id,
+                group_id=group_id,
+                video_ids=request.data.get("video_ids", []),
+            )
+        )
+    except LookupError as exc:
+        return create_error_response(str(exc), status.HTTP_404_NOT_FOUND)
+    except ValueError as exc:
+        return create_error_response(str(exc), status.HTTP_400_BAD_REQUEST)
 
     return Response(
         {
-            "message": f"Added {added_count} videos to group",
-            "added_count": added_count,
-            "skipped_count": skipped_count,
+            "message": f"Added {result.added_count} videos to group",
+            "added_count": result.added_count,
+            "skipped_count": result.skipped_count,
         },
         status=status.HTTP_201_CREATED,
     )
@@ -508,19 +406,16 @@ def add_videos_to_group(request, group_id):
 @authenticated_view_with_error_handling(["DELETE"])
 def remove_video_from_group(request, group_id, video_id):
     """Remove video from group"""
-    group, video, error = ResourceValidator.get_group_and_video(
-        request.user, group_id, video_id
-    )
-    if error:
-        return error
-
-    member, error = VideoGroupMemberService.check_and_get_member(
-        group, video, "This video is not added to the group"
-    )
-    if error:
-        return error
-
-    member.delete()
+    try:
+        remove_video_from_group_use_case().execute(
+            RemoveVideoFromGroupCommand(
+                actor_id=request.user.id,
+                group_id=group_id,
+                video_id=video_id,
+            )
+        )
+    except LookupError as exc:
+        return create_error_response(str(exc), status.HTTP_404_NOT_FOUND)
     return Response({"message": "Video removed from group"}, status=status.HTTP_200_OK)
 
 
@@ -534,12 +429,6 @@ def remove_video_from_group(request, group_id, video_id):
 @transaction.atomic
 def reorder_videos_in_group(request, group_id):
     """Update video order in group"""
-    group, error = ResourceValidator.validate_and_get_resource(
-        request.user, VideoGroup, group_id, "Group"
-    )
-    if error:
-        return error
-
     try:
         video_ids = request.data.get("video_ids", [])
         if not isinstance(video_ids, list):
@@ -551,26 +440,21 @@ def reorder_videos_in_group(request, group_id):
             "Failed to parse request body", status.HTTP_400_BAD_REQUEST
         )
 
-    members = list(VideoGroupMember.objects.filter(group=group).select_related("video"))
-
-    # Validate video_ids match group members
-    group_video_ids = set(member.video_id for member in members)
-    if set(video_ids) != group_video_ids:
+    try:
+        reorder_videos_in_group_use_case().execute(
+            ReorderVideosInGroupCommand(
+                actor_id=request.user.id,
+                group_id=group_id,
+                video_ids=video_ids,
+            )
+        )
+    except LookupError as exc:
+        return create_error_response(str(exc), status.HTTP_404_NOT_FOUND)
+    except ValueError as exc:
         return create_error_response(
-            "Specified video IDs do not match videos in group",
+            str(exc),
             status.HTTP_400_BAD_REQUEST,
         )
-
-    # Bulk update order
-    member_dict = {member.video_id: member for member in members}
-    members_to_update = []
-
-    for index, video_id in enumerate(video_ids):
-        member = member_dict[video_id]
-        member.order = index
-        members_to_update.append(member)
-
-    VideoGroupMember.objects.bulk_update(members_to_update, ["order"])
     return Response({"message": "Video order updated"}, status=status.HTTP_200_OK)
 
 
@@ -585,19 +469,17 @@ class CreateShareLinkView(AuthenticatedViewMixin, APIView):
         description="Generate a share link token for a group.",
     )
     def post(self, request, group_id):
-        group, error = ResourceValidator.validate_and_get_resource(
-            request.user, VideoGroup, group_id, "Group"
-        )
-        if error:
-            return error
-
-        share_token = secrets.token_urlsafe(32)
-        ShareLinkService.update_share_token(group, share_token)
+        try:
+            result = create_share_link_use_case().execute(
+                CreateShareLinkCommand(actor_id=request.user.id, group_id=group_id)
+            )
+        except LookupError as exc:
+            return create_error_response(str(exc), status.HTTP_404_NOT_FOUND)
 
         return Response(
             {
                 "message": "Share link generated",
-                "share_token": share_token,
+                "share_token": result.share_token,
             },
             status=status.HTTP_201_CREATED,
         )
@@ -611,18 +493,12 @@ class CreateShareLinkView(AuthenticatedViewMixin, APIView):
 @authenticated_view_with_error_handling(["DELETE"])
 def delete_share_link(request, group_id):
     """Disable share link for group"""
-    group, error = ResourceValidator.validate_and_get_resource(
-        request.user, VideoGroup, group_id, "Group"
-    )
-    if error:
-        return error
-
-    if not group.share_token:
-        return create_error_response(
-            "Share link is not configured", status.HTTP_404_NOT_FOUND
+    try:
+        delete_share_link_use_case().execute(
+            DeleteShareLinkCommand(actor_id=request.user.id, group_id=group_id)
         )
-
-    ShareLinkService.update_share_token(group, None)
+    except LookupError as exc:
+        return create_error_response(str(exc), status.HTTP_404_NOT_FOUND)
     return Response({"message": "Share link disabled"}, status=status.HTTP_200_OK)
 
 
@@ -634,24 +510,14 @@ def delete_share_link(request, group_id):
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def get_shared_group(request, share_token):
-    """
-    Get group by share token (no authentication required)
+    """Get group by share token (no authentication required)"""
+    try:
+        group = get_shared_group_use_case().execute(
+            GetSharedGroupQuery(share_token=share_token)
+        )
+    except LookupError as exc:
+        return create_error_response(str(exc), status.HTTP_404_NOT_FOUND)
 
-    Public group accessible by anyone
-    """
-    queryset = VideoGroup.objects.filter(share_token=share_token)
-
-    group = QueryOptimizer.optimize_video_group_queryset(
-        queryset,
-        include_videos=True,
-        include_user=True,  # Required to get owner's API key information
-        annotate_video_count=True,
-    ).first()
-
-    if not group:
-        return create_error_response("Share link not found", status.HTTP_404_NOT_FOUND)
-
-    # Generate response using serializer
     serializer = VideoGroupDetailSerializer(group)
     return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -691,9 +557,15 @@ class TagListView(DynamicSerializerMixin, BaseTagView, generics.ListCreateAPIVie
         """Return tag metadata after creation."""
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
 
-        instance = self.get_queryset().get(pk=serializer.instance.pk)
+        tag = create_tag_use_case().execute(
+            CreateTagCommand(
+                actor_id=request.user.id,
+                validated_data=serializer.validated_data,
+            )
+        )
+
+        instance = self.get_queryset().get(pk=tag.pk)
         output_serializer = TagListSerializer(
             instance,
             context=self.get_serializer_context(),
@@ -752,7 +624,17 @@ class TagDetailView(
             partial=partial,
         )
         serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer)
+
+        try:
+            update_tag_use_case().execute(
+                UpdateTagCommand(
+                    actor_id=request.user.id,
+                    tag_id=instance.id,
+                    validated_data=serializer.validated_data,
+                )
+            )
+        except LookupError as exc:
+            return create_error_response(str(exc), status.HTTP_404_NOT_FOUND)
 
         instance = self.get_queryset().get(pk=instance.pk)
         return Response(
@@ -761,6 +643,19 @@ class TagDetailView(
                 context=self.get_serializer_context(),
             ).data
         )
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        try:
+            delete_tag_use_case().execute(
+                DeleteTagCommand(
+                    actor_id=request.user.id,
+                    tag_id=instance.id,
+                )
+            )
+        except LookupError as exc:
+            return create_error_response(str(exc), status.HTTP_404_NOT_FOUND)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 @extend_schema(
@@ -772,43 +667,24 @@ class TagDetailView(
 @transaction.atomic
 def add_tags_to_video(request, video_id):
     """Add multiple tags to video"""
-    video, error = ResourceValidator.validate_and_get_resource(
-        request.user, Video, video_id, "Video"
-    )
-    if error:
-        return error
-
-    tag_ids = request.data.get("tag_ids", [])
-    if not tag_ids:
-        return create_error_response(
-            "Tag IDs not specified", status.HTTP_400_BAD_REQUEST
+    try:
+        result = add_tags_to_video_use_case().execute(
+            AddTagsToVideoCommand(
+                actor_id=request.user.id,
+                video_id=video_id,
+                tag_ids=request.data.get("tag_ids", []),
+            )
         )
-
-    tags = list(Tag.objects.filter(user=request.user, id__in=tag_ids))
-    if len(tags) != len(tag_ids):
-        return create_error_response("Some tags not found", status.HTTP_404_NOT_FOUND)
-
-    # Get existing tags
-    existing_tags = set(
-        VideoTag.objects.filter(video=video, tag_id__in=tag_ids).values_list(
-            "tag_id", flat=True
-        )
-    )
-
-    tags_to_add = [tag for tag in tags if tag.id not in existing_tags]
-
-    # Bulk create
-    video_tags = [VideoTag(video=video, tag=tag) for tag in tags_to_add]
-    VideoTag.objects.bulk_create(video_tags)
-
-    added_count = len(tags_to_add)
-    skipped_count = len(tag_ids) - added_count
+    except LookupError as exc:
+        return create_error_response(str(exc), status.HTTP_404_NOT_FOUND)
+    except ValueError as exc:
+        return create_error_response(str(exc), status.HTTP_400_BAD_REQUEST)
 
     return Response(
         {
-            "message": f"Added {added_count} tags to video",
-            "added_count": added_count,
-            "skipped_count": skipped_count,
+            "message": f"Added {result.added_count} tags to video",
+            "added_count": result.added_count,
+            "skipped_count": result.skipped_count,
         },
         status=status.HTTP_201_CREATED,
     )
@@ -822,23 +698,14 @@ def add_tags_to_video(request, video_id):
 @authenticated_view_with_error_handling(["DELETE"])
 def remove_tag_from_video(request, video_id, tag_id):
     """Remove tag from video"""
-    video, error = ResourceValidator.validate_and_get_resource(
-        request.user, Video, video_id, "Video"
-    )
-    if error:
-        return error
-
-    tag, error = ResourceValidator.validate_and_get_resource(
-        request.user, Tag, tag_id, "Tag"
-    )
-    if error:
-        return error
-
-    video_tag = VideoTag.objects.filter(video=video, tag=tag).first()
-    if not video_tag:
-        return create_error_response(
-            "This tag is not attached to the video", status.HTTP_404_NOT_FOUND
+    try:
+        remove_tag_from_video_use_case().execute(
+            RemoveTagFromVideoCommand(
+                actor_id=request.user.id,
+                video_id=video_id,
+                tag_id=tag_id,
+            )
         )
-
-    video_tag.delete()
+    except LookupError as exc:
+        return create_error_response(str(exc), status.HTTP_404_NOT_FOUND)
     return Response({"message": "Tag removed from video"}, status=status.HTTP_200_OK)
