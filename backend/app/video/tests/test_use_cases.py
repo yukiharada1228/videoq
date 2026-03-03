@@ -314,7 +314,7 @@ class UpdateVideoGroupUseCaseTests(APITestCase):
         updated_group = _make_group()
         group_updater = Mock(return_value=updated_group)
 
-        result = UpdateVideoGroupUseCase(
+        UpdateVideoGroupUseCase(
             actor_loader=Mock(return_value=user),
             owned_group_loader=Mock(return_value=group),
             group_updater=group_updater,

@@ -5,7 +5,6 @@ Use Case factories now inject repository functions directly via ports.
 """
 
 from app.chat import repositories
-from app.models import VideoGroup
 
 
 def create_chat_response_payload(result, group_id, group, user, is_shared):
