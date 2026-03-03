@@ -45,8 +45,8 @@ class ChatViewTests(APITestCase):
         )
         VideoGroupMember.objects.create(group=self.group, video=self.video, order=0)
 
-    @patch("app.chat.views.get_langchain_llm")
-    @patch("app.chat.views.RagChatService")
+    @patch("app.chat.factories.get_langchain_llm")
+    @patch("app.chat.factories.RagChatService")
     def test_chat_with_group(self, mock_service_class, mock_get_llm):
         """Test chat with group_id"""
         mock_llm = MagicMock()
@@ -74,8 +74,8 @@ class ChatViewTests(APITestCase):
         self.assertIn("related_videos", response.data)
         self.assertIn("chat_log_id", response.data)
 
-    @patch("app.chat.views.get_langchain_llm")
-    @patch("app.chat.views.RagChatService")
+    @patch("app.chat.factories.get_langchain_llm")
+    @patch("app.chat.factories.RagChatService")
     def test_chat_without_group(self, mock_service_class, mock_get_llm):
         """Test chat without group_id"""
         mock_llm = MagicMock()
@@ -99,7 +99,7 @@ class ChatViewTests(APITestCase):
         self.assertNotIn("related_videos", response.data)
         self.assertNotIn("chat_log_id", response.data)
 
-    @patch("app.chat.views.get_langchain_llm")
+    @patch("app.chat.factories.get_langchain_llm")
     def test_chat_empty_messages(self, mock_get_llm):
         """Test chat with empty messages"""
         mock_llm = MagicMock()
@@ -113,7 +113,7 @@ class ChatViewTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("error", response.data)
 
-    @patch("app.chat.views.get_langchain_llm")
+    @patch("app.chat.factories.get_langchain_llm")
     def test_chat_missing_messages(self, mock_get_llm):
         """Test chat with missing messages"""
         mock_llm = MagicMock()
@@ -126,7 +126,7 @@ class ChatViewTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-    @patch("app.chat.views.get_langchain_llm")
+    @patch("app.chat.factories.get_langchain_llm")
     def test_chat_group_not_found(self, mock_get_llm):
         """Test chat with non-existent group"""
         mock_llm = MagicMock()
@@ -142,7 +142,7 @@ class ChatViewTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
-    @patch("app.chat.views.get_langchain_llm")
+    @patch("app.chat.factories.get_langchain_llm")
     def test_chat_llm_error(self, mock_get_llm):
         """Test chat with LLM error"""
         mock_get_llm.side_effect = ChatServiceError(
@@ -156,8 +156,8 @@ class ChatViewTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-    @patch("app.chat.views.get_langchain_llm")
-    @patch("app.chat.views.RagChatService")
+    @patch("app.chat.factories.get_langchain_llm")
+    @patch("app.chat.factories.RagChatService")
     def test_chat_with_share_token(self, mock_service_class, mock_get_llm):
         """Test chat with share token"""
 
@@ -190,7 +190,7 @@ class ChatViewTests(APITestCase):
         chat_log = ChatLog.objects.get(id=response.data["chat_log_id"])
         self.assertTrue(chat_log.is_shared_origin)
 
-    @patch("app.chat.views.get_langchain_llm")
+    @patch("app.chat.factories.get_langchain_llm")
     def test_chat_share_token_group_not_found(self, mock_get_llm):
         """Test chat with share token but group not found"""
         mock_llm = MagicMock()
@@ -207,7 +207,7 @@ class ChatViewTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
-    @patch("app.chat.views.get_langchain_llm")
+    @patch("app.chat.factories.get_langchain_llm")
     def test_chat_share_token_missing_group_id(self, mock_get_llm):
         """Test chat with share token but missing group_id"""
         mock_llm = MagicMock()

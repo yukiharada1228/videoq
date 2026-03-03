@@ -62,82 +62,6 @@ class VideoCreateSerializerTests(TestCase):
 
         self.assertTrue(serializer.is_valid())
 
-    def test_validates_video_limit_zero(self):
-        """Test validation when video_limit is 0"""
-        self.user.video_limit = 0
-        self.user.save()
-
-        data = {
-            "file": self._create_video_file(),
-            "title": "Test Video",
-        }
-
-        serializer = VideoCreateSerializer(
-            data=data, context=self._get_request_context()
-        )
-
-        self.assertFalse(serializer.is_valid())
-        self.assertIn("Video upload limit reached", str(serializer.errors))
-
-    def test_validates_video_limit_reached(self):
-        """Test validation when video_limit is reached"""
-        self.user.video_limit = 2
-        self.user.save()
-
-        # Create 2 videos
-        Video.objects.create(user=self.user, title="Video 1")
-        Video.objects.create(user=self.user, title="Video 2")
-
-        data = {
-            "file": self._create_video_file(),
-            "title": "Video 3",
-        }
-
-        serializer = VideoCreateSerializer(
-            data=data, context=self._get_request_context()
-        )
-
-        self.assertFalse(serializer.is_valid())
-        self.assertIn("Video upload limit reached", str(serializer.errors))
-
-    def test_allows_upload_when_within_limit(self):
-        """Test that upload is allowed when within limit"""
-        self.user.video_limit = 3
-        self.user.save()
-
-        Video.objects.create(user=self.user, title="Video 1")
-
-        data = {
-            "file": self._create_video_file(),
-            "title": "Video 2",
-        }
-
-        serializer = VideoCreateSerializer(
-            data=data, context=self._get_request_context()
-        )
-
-        self.assertTrue(serializer.is_valid())
-
-    def test_allows_unlimited_uploads(self):
-        """Test that unlimited uploads are allowed when video_limit is None"""
-        self.user.video_limit = None
-        self.user.save()
-
-        # Create many videos
-        for i in range(10):
-            Video.objects.create(user=self.user, title=f"Video {i}")
-
-        data = {
-            "file": self._create_video_file(),
-            "title": "Another Video",
-        }
-
-        serializer = VideoCreateSerializer(
-            data=data, context=self._get_request_context()
-        )
-
-        self.assertTrue(serializer.is_valid())
-
 
 class VideoUploadServiceTests(TestCase):
     """Tests for VideoUploadService"""
@@ -172,6 +96,50 @@ class VideoUploadServiceTests(TestCase):
 
         self.assertEqual(video.user, self.user)
         mock_task.assert_called_once_with(video.id)
+
+    def test_validates_video_limit_zero(self):
+        """Test validation when video_limit is 0"""
+        self.user.video_limit = 0
+        self.user.save()
+
+        with self.assertRaises(ValueError) as cm:
+            VideoUploadService.validate_upload_allowed(user=self.user)
+        self.assertIn("Video upload limit reached", str(cm.exception))
+
+    def test_validates_video_limit_reached(self):
+        """Test validation when video_limit is reached"""
+        self.user.video_limit = 2
+        self.user.save()
+
+        # Create 2 videos
+        Video.objects.create(user=self.user, title="Video 1")
+        Video.objects.create(user=self.user, title="Video 2")
+
+        with self.assertRaises(ValueError) as cm:
+            VideoUploadService.validate_upload_allowed(user=self.user)
+        self.assertIn("Video upload limit reached", str(cm.exception))
+
+    def test_allows_upload_when_within_limit(self):
+        """Test that upload is allowed when within limit"""
+        self.user.video_limit = 3
+        self.user.save()
+
+        Video.objects.create(user=self.user, title="Video 1")
+        # Should not raise exception
+        VideoUploadService.validate_upload_allowed(user=self.user)
+
+    def test_allows_unlimited_uploads(self):
+        """Test that unlimited uploads are allowed when video_limit is None"""
+        self.user.video_limit = None
+        self.user.save()
+
+        # Create many videos
+        for i in range(10):
+            Video.objects.create(user=self.user, title=f"Video {i}")
+
+        # Should not raise exception
+        VideoUploadService.validate_upload_allowed(user=self.user)
+
 
 class TagCreateSerializerTests(TestCase):
     """Tests for TagCreateSerializer"""

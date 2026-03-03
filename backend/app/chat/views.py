@@ -1,7 +1,3 @@
-import csv
-import json
-
-from django.contrib.auth import get_user_model
 from django.http import HttpResponse
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import (OpenApiParameter, OpenApiResponse,
@@ -11,32 +7,29 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from app.common.authentication import APIKeyAuthentication, CookieJWTAuthentication
+from app.chat.presenters import write_chat_history_csv
+from app.common.authentication import (APIKeyAuthentication,
+                                       CookieJWTAuthentication)
 from app.common.permissions import (IsAuthenticatedOrSharedAccess,
                                     ShareTokenAuthentication)
 from app.common.responses import create_error_response
 from app.common.throttles import (AuthenticatedChatThrottle,
                                   ShareTokenGlobalThrottle,
                                   ShareTokenIPThrottle)
-from app.models import ChatLog, VideoGroup
 
-from .serializers import (ChatFeedbackRequestSerializer,
-                          ChatAnalyticsResponseSerializer,
+from .factories import (export_chat_history_use_case,
+                        get_chat_analytics_use_case, get_chat_history_use_case,
+                        get_popular_scenes_use_case,
+                        send_chat_message_use_case,
+                        update_chat_feedback_use_case)
+from .serializers import (ChatAnalyticsResponseSerializer,
+                          ChatFeedbackRequestSerializer,
                           ChatFeedbackResponseSerializer, ChatLogSerializer,
                           ChatRequestSerializer, ChatResponseSerializer)
-from .adapters import (GetChatAnalyticsAdapter, GetPopularScenesAdapter,
-                       SendChatMessageAdapter, UpdateChatFeedbackAdapter)
-from .services import (ChatServiceError, RagChatService,
-                       build_chat_analytics, build_popular_scenes,
-                       create_chat_response_payload, get_chat_logs_queryset,
-                       get_langchain_llm, get_video_group_with_members,
-                       handle_langchain_exception, update_chat_feedback)
-from .use_cases import (GetChatAnalyticsQuery, GetChatAnalyticsUseCase,
-                        GetPopularScenesQuery, GetPopularScenesUseCase,
-                        SendChatMessageCommand, SendChatMessageUseCase,
-                        UpdateChatFeedbackCommand, UpdateChatFeedbackUseCase)
-
-User = get_user_model()
+from .services import ChatServiceError, handle_langchain_exception
+from .use_cases import (ExportChatHistoryQuery, GetChatAnalyticsQuery,
+                        GetChatHistoryQuery, GetPopularScenesQuery,
+                        SendChatMessageCommand, UpdateChatFeedbackCommand)
 
 
 def _actor_id_from_request(request):
@@ -44,6 +37,7 @@ def _actor_id_from_request(request):
     if user is None or not getattr(user, "is_authenticated", False):
         return None
     return user.id
+
 
 class ChatView(generics.CreateAPIView):
     """Chat view (using LangChain, supports share token)"""
@@ -68,17 +62,8 @@ class ChatView(generics.CreateAPIView):
         description="Send a chat message and get AI response. Supports RAG when group_id is provided.",
     )
     def post(self, request):
-        use_case = SendChatMessageUseCase(
-            chat_message_sender=SendChatMessageAdapter(
-                user_model=User,
-                video_group_loader=get_video_group_with_members,
-                llm_loader=get_langchain_llm,
-                rag_chat_service_factory=RagChatService,
-                chat_response_payload_builder=create_chat_response_payload,
-            ),
-        )
         try:
-            result = use_case.execute(
+            result = send_chat_message_use_case().execute(
                 SendChatMessageCommand(
                     actor_id=_actor_id_from_request(request),
                     messages=request.data.get("messages", []),
@@ -114,15 +99,8 @@ class ChatFeedbackView(APIView):
         description="Submit feedback (good/bad) for a chat log. Supports share token authentication.",
     )
     def post(self, request):
-        use_case = UpdateChatFeedbackUseCase(
-            chat_feedback_updater=UpdateChatFeedbackAdapter(
-                user_model=User,
-                chat_feedback_updater=update_chat_feedback
-            )
-        )
-
         try:
-            result = use_case.execute(
+            result = update_chat_feedback_use_case().execute(
                 UpdateChatFeedbackCommand(
                     actor_id=_actor_id_from_request(request),
                     share_token=request.query_params.get("share_token"),
@@ -156,17 +134,12 @@ class ChatHistoryView(generics.ListAPIView):
 
     def get_queryset(self):
         group_id = self.request.query_params.get("group_id")
-        if not group_id:
-            return ChatLog.objects.none()
-
-        try:
-            group = get_video_group_with_members(
-                group_id, user_id=self.request.user.id
+        return get_chat_history_use_case().execute(
+            GetChatHistoryQuery(
+                actor_id=self.request.user.id,
+                group_id=group_id,
             )
-        except VideoGroup.DoesNotExist:
-            return ChatLog.objects.none()
-
-        return get_chat_logs_queryset(group, ascending=False)
+        )
 
 
 class ChatHistoryExportView(APIView):
@@ -191,56 +164,29 @@ class ChatHistoryExportView(APIView):
     )
     def get(self, request):
         group_id = request.query_params.get("group_id")
-        if not group_id:
-            return create_error_response(
-                "Group ID not specified", status.HTTP_400_BAD_REQUEST
-            )
 
         try:
-            group = get_video_group_with_members(group_id, user_id=request.user.id)
-        except VideoGroup.DoesNotExist:
+            group, queryset = export_chat_history_use_case().execute(
+                ExportChatHistoryQuery(
+                    actor_id=request.user.id,
+                    group_id=group_id,
+                )
+            )
+        except ValueError as exc:
+            return create_error_response(str(exc), status.HTTP_400_BAD_REQUEST)
+        except Exception:
             return create_error_response(
                 "Specified group not found", status.HTTP_404_NOT_FOUND
             )
-
-        queryset = get_chat_logs_queryset(group, ascending=True)
 
         response = HttpResponse(content_type="text/csv; charset=utf-8")
         filename = f"chat_history_group_{group.id}.csv"
         response["Content-Disposition"] = f'attachment; filename="{filename}"'
 
-        writer = csv.writer(response)
-        # Header
-        writer.writerow(
-            [
-                "created_at",
-                "question",
-                "answer",
-                "is_shared_origin",
-                "related_videos",
-                "feedback",
-            ]
-        )
-
-        for log in queryset:
-            # related_videos is stored as JSON string
-            try:
-                related_videos_str = json.dumps(log.related_videos, ensure_ascii=False)
-            except Exception:
-                related_videos_str = "[]"
-
-            writer.writerow(
-                [
-                    log.created_at.isoformat(),
-                    log.question,
-                    log.answer,
-                    "true" if log.is_shared_origin else "false",
-                    related_videos_str,
-                    log.feedback or "",
-                ]
-            )
+        write_chat_history_csv(dest=response, chat_logs=queryset)
 
         return response
+
 
 class PopularScenesView(APIView):
     """
@@ -302,12 +248,6 @@ class PopularScenesView(APIView):
     )
     def get(self, request):
         share_token = request.query_params.get("share_token")
-        use_case = GetPopularScenesUseCase(
-            popular_scenes_getter=GetPopularScenesAdapter(
-                video_group_loader=get_video_group_with_members,
-                popular_scenes_builder=build_popular_scenes,
-            )
-        )
         try:
             limit = int(request.query_params.get("limit", 20))
             limit = max(1, min(limit, 100))
@@ -317,7 +257,7 @@ class PopularScenesView(APIView):
             )
 
         try:
-            result = use_case.execute(
+            result = get_popular_scenes_use_case().execute(
                 GetPopularScenesQuery(
                     actor_id=_actor_id_from_request(request),
                     group_id=request.query_params.get("group_id"),
@@ -347,14 +287,8 @@ class ChatAnalyticsView(APIView):
         description="Return analytics dashboard data for a chat group.",
     )
     def get(self, request):
-        use_case = GetChatAnalyticsUseCase(
-            chat_analytics_getter=GetChatAnalyticsAdapter(
-                video_group_loader=get_video_group_with_members,
-                chat_analytics_builder=build_chat_analytics,
-            )
-        )
         try:
-            result = use_case.execute(
+            result = get_chat_analytics_use_case().execute(
                 GetChatAnalyticsQuery(
                     actor_id=_actor_id_from_request(request),
                     group_id=request.query_params.get("group_id"),

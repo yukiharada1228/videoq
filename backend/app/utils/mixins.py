@@ -2,7 +2,8 @@
 
 from rest_framework.permissions import AllowAny, IsAuthenticated
 
-from app.common.authentication import APIKeyAuthentication, CookieJWTAuthentication
+from app.common.authentication import (APIKeyAuthentication,
+                                       CookieJWTAuthentication)
 
 
 class AuthenticatedViewMixin:

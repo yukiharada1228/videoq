@@ -21,9 +21,8 @@ services:
     env_file:
       - .env
     volumes:
+      - ./backend:/app
       - staticfiles:/app/staticfiles
-      - ./backend/media:/app/media
-      - ./backend/app/migrations:/app/app/migrations
     depends_on:
       - postgres
       - redis
@@ -37,7 +36,7 @@ services:
     env_file:
       - .env
     volumes:
-      - ./backend/media:/app/media
+      - ./backend:/app
     depends_on:
       - redis
       - postgres

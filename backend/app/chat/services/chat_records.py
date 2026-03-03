@@ -1,19 +1,11 @@
+"""Service functions that contain real business logic beyond simple repository calls.
+
+Thin wrappers around repository functions have been removed.
+Use Case factories now inject repository functions directly via ports.
+"""
+
 from app.chat import repositories
 from app.models import VideoGroup
-
-
-def get_chat_logs_queryset(group, ascending=True):
-    """Return chat logs for a group in the requested sort order."""
-    return repositories.get_chat_logs_queryset(group=group, ascending=ascending)
-
-
-def get_video_group_with_members(group_id, user_id=None, share_token=None):
-    """Load a group with owner and members preloaded."""
-    return repositories.get_video_group_with_members(
-        group_id=group_id,
-        user_id=user_id,
-        share_token=share_token,
-    )
 
 
 def create_chat_response_payload(result, group_id, group, user, is_shared):

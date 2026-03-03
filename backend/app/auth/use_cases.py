@@ -1,11 +1,13 @@
 from dataclasses import dataclass
 
 from app.auth.ports import (AccessTokenIssuer, AccountDeactivator,
-                            ApiKeyCreator, ApiKeyRevoker,
-                            CredentialAuthenticator, CurrentUserLoader,
-                            EmailVerificationResolver,
-                            PasswordResetRequester, PasswordResetResolver,
-                            SignupUserCreator, TokenPairIssuer)
+                            ActiveApiKeyRevoker, ActiveApiKeysLoader,
+                            ActorLoader, CredentialAuthenticator,
+                            CurrentUserWithVideoCountLoader,
+                            EmailVerificationUserResolver,
+                            IntegrationApiKeyCreator, PasswordResetEmailSender,
+                            PasswordResetter, PasswordResetUserResolver,
+                            TokenPairIssuer, UserActivator, UserCreator)
 
 
 @dataclass(frozen=True)
@@ -74,11 +76,15 @@ class SignupResult:
 
 
 class SignupUserUseCase:
-    def __init__(self, *, signup_user_creator: SignupUserCreator):
-        self._signup_user_creator = signup_user_creator
+    def __init__(self, *, user_creator: UserCreator):
+        self._user_creator = user_creator
 
     def execute(self, command: SignupCommand) -> SignupResult:
-        user = self._signup_user_creator(command)
+        user = self._user_creator(
+            username=command.username,
+            email=command.email,
+            password=command.password,
+        )
         return SignupResult(user_id=user.id)
 
 
@@ -95,11 +101,21 @@ class VerifyEmailResult:
 
 
 class VerifyEmailUseCase:
-    def __init__(self, *, email_verification_resolver: EmailVerificationResolver):
-        self._email_verification_resolver = email_verification_resolver
+    def __init__(
+        self,
+        *,
+        email_verification_user_resolver: EmailVerificationUserResolver,
+        user_activator: UserActivator,
+    ):
+        self._email_verification_user_resolver = email_verification_user_resolver
+        self._user_activator = user_activator
 
     def execute(self, command: VerifyEmailCommand) -> VerifyEmailResult:
-        user = self._email_verification_resolver(command)
+        user = self._email_verification_user_resolver(
+            uid=command.uid,
+            token=command.token,
+        )
+        user = self._user_activator(user)
         return VerifyEmailResult(user_id=user.id, is_active=user.is_active)
 
 
@@ -114,12 +130,14 @@ class PasswordResetRequestResult:
 
 
 class RequestPasswordResetUseCase:
-    def __init__(self, *, password_reset_requester: PasswordResetRequester):
-        self._password_reset_requester = password_reset_requester
+    def __init__(self, *, password_reset_email_sender: PasswordResetEmailSender):
+        self._password_reset_email_sender = password_reset_email_sender
 
-    def execute(self, command: PasswordResetRequestCommand) -> PasswordResetRequestResult:
-        user = self._password_reset_requester(command)
-        return PasswordResetRequestResult(email_sent=user is not None)
+    def execute(
+        self, command: PasswordResetRequestCommand
+    ) -> PasswordResetRequestResult:
+        result = self._password_reset_email_sender(email=command.email)
+        return PasswordResetRequestResult(email_sent=result is not None)
 
 
 @dataclass(frozen=True)
@@ -135,17 +153,30 @@ class PasswordResetConfirmResult:
 
 
 class ConfirmPasswordResetUseCase:
-    def __init__(self, *, password_reset_resolver: PasswordResetResolver):
-        self._password_reset_resolver = password_reset_resolver
+    def __init__(
+        self,
+        *,
+        password_reset_user_resolver: PasswordResetUserResolver,
+        password_resetter: PasswordResetter,
+    ):
+        self._password_reset_user_resolver = password_reset_user_resolver
+        self._password_resetter = password_resetter
 
-    def execute(self, command: PasswordResetConfirmCommand) -> PasswordResetConfirmResult:
-        user = self._password_reset_resolver(command)
+    def execute(
+        self, command: PasswordResetConfirmCommand
+    ) -> PasswordResetConfirmResult:
+        user = self._password_reset_user_resolver(
+            uid=command.uid,
+            token=command.token,
+            new_password=command.new_password,
+        )
+        self._password_resetter(user=user, new_password=command.new_password)
         return PasswordResetConfirmResult(user_id=user.id)
 
 
 @dataclass(frozen=True)
 class DeleteAccountCommand:
-    user_id: int
+    actor_id: int
     reason: str
 
 
@@ -155,12 +186,19 @@ class DeleteAccountResult:
 
 
 class DeleteAccountUseCase:
-    def __init__(self, *, account_deactivator: AccountDeactivator):
+    def __init__(
+        self,
+        *,
+        actor_loader: ActorLoader,
+        account_deactivator: AccountDeactivator,
+    ):
+        self._actor_loader = actor_loader
         self._account_deactivator = account_deactivator
 
     def execute(self, command: DeleteAccountCommand) -> DeleteAccountResult:
-        self._account_deactivator(command)
-        return DeleteAccountResult(user_id=command.user_id)
+        user = self._actor_loader(command.actor_id)
+        self._account_deactivator(user=user, reason=command.reason)
+        return DeleteAccountResult(user_id=command.actor_id)
 
 
 @dataclass(frozen=True)
@@ -178,11 +216,11 @@ class CurrentUserResult:
 
 
 class GetCurrentUserUseCase:
-    def __init__(self, *, current_user_loader: CurrentUserLoader):
+    def __init__(self, *, current_user_loader: CurrentUserWithVideoCountLoader):
         self._current_user_loader = current_user_loader
 
     def execute(self, query: GetCurrentUserQuery) -> CurrentUserResult:
-        user = self._current_user_loader(query)
+        user = self._current_user_loader(user_id=query.user_id)
         return CurrentUserResult(
             id=user.id,
             username=user.username,
@@ -210,17 +248,28 @@ class ApiKeyResult:
 
 @dataclass(frozen=True)
 class CreateApiKeyCommand:
-    user_id: int
+    actor_id: int
     name: str
     access_level: str
 
 
 class CreateApiKeyUseCase:
-    def __init__(self, *, api_key_creator: ApiKeyCreator):
+    def __init__(
+        self,
+        *,
+        actor_loader: ActorLoader,
+        api_key_creator: IntegrationApiKeyCreator,
+    ):
+        self._actor_loader = actor_loader
         self._api_key_creator = api_key_creator
 
     def execute(self, command: CreateApiKeyCommand) -> ApiKeyResult:
-        api_key, raw_key = self._api_key_creator(command)
+        user = self._actor_loader(command.actor_id)
+        api_key, raw_key = self._api_key_creator(
+            user=user,
+            name=command.name,
+            access_level=command.access_level,
+        )
         return ApiKeyResult(
             api_key=ApiKeyDetails(
                 id=api_key.id,
@@ -236,13 +285,40 @@ class CreateApiKeyUseCase:
 
 @dataclass(frozen=True)
 class RevokeApiKeyCommand:
-    user_id: int
+    actor_id: int
     api_key_id: int
 
 
 class RevokeApiKeyUseCase:
-    def __init__(self, *, api_key_revoker: ApiKeyRevoker):
+    def __init__(
+        self,
+        *,
+        actor_loader: ActorLoader,
+        api_key_revoker: ActiveApiKeyRevoker,
+    ):
+        self._actor_loader = actor_loader
         self._api_key_revoker = api_key_revoker
 
     def execute(self, command: RevokeApiKeyCommand):
-        return self._api_key_revoker(command)
+        user = self._actor_loader(command.actor_id)
+        return self._api_key_revoker(user=user, api_key_id=command.api_key_id)
+
+
+@dataclass(frozen=True)
+class ListApiKeysQuery:
+    actor_id: int
+
+
+class ListApiKeysUseCase:
+    def __init__(
+        self,
+        *,
+        actor_loader: ActorLoader,
+        api_keys_loader: ActiveApiKeysLoader,
+    ):
+        self._actor_loader = actor_loader
+        self._api_keys_loader = api_keys_loader
+
+    def execute(self, query: ListApiKeysQuery):
+        user = self._actor_loader(query.actor_id)
+        return self._api_keys_loader(user=user)

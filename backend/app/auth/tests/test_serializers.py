@@ -13,16 +13,16 @@ from django.utils.http import urlsafe_base64_encode
 from rest_framework import serializers
 from rest_framework.test import APITestCase
 
-from app.auth.services import (confirm_password_reset, create_access_token,
-                               create_signup_user, request_password_reset,
-                               resolve_email_verification_user,
-                               resolve_password_reset_user)
 from app.auth.serializers import (CredentialsSerializerMixin,
                                   EmailVerificationSerializer, LoginSerializer,
                                   PasswordResetConfirmSerializer,
                                   PasswordResetRequestSerializer,
                                   RefreshSerializer, UserSerializer,
                                   UserSignupSerializer)
+from app.auth.services import (confirm_password_reset, create_access_token,
+                               create_signup_user, request_password_reset,
+                               resolve_email_verification_user,
+                               resolve_password_reset_user)
 
 User = get_user_model()
 
@@ -43,7 +43,9 @@ class UserSignupSerializerTests(APITestCase):
         user = create_signup_user(
             user_model=User,
             validated_data=serializer.validated_data,
-            send_verification_email=lambda created_user: mail.outbox.append(created_user),
+            send_verification_email=lambda created_user: mail.outbox.append(
+                created_user
+            ),
         )
 
         self.assertEqual(user.username, "newuser")
@@ -118,7 +120,9 @@ class UserSignupSerializerTests(APITestCase):
         serializer = UserSignupSerializer(data=data)
         self.assertTrue(serializer.is_valid())
 
-        with patch.object(User.objects, "create_user", side_effect=Exception("Database error")):
+        with patch.object(
+            User.objects, "create_user", side_effect=Exception("Database error")
+        ):
             with self.assertRaises(Exception):
                 create_signup_user(
                     user_model=User,

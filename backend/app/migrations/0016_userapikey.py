@@ -29,7 +29,10 @@ class Migration(migrations.Migration):
                 ("prefix", models.CharField(db_index=True, max_length=12)),
                 ("hashed_key", models.CharField(max_length=64, unique=True)),
                 ("last_used_at", models.DateTimeField(blank=True, null=True)),
-                ("revoked_at", models.DateTimeField(blank=True, db_index=True, null=True)),
+                (
+                    "revoked_at",
+                    models.DateTimeField(blank=True, db_index=True, null=True),
+                ),
                 ("created_at", models.DateTimeField(auto_now_add=True)),
                 (
                     "user",

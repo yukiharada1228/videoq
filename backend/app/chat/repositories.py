@@ -4,12 +4,12 @@ from django.db.models.functions import TruncDate
 from app.models import ChatLog, Video, VideoGroup, VideoGroupMember
 
 
-def get_chat_logs_queryset(*, group, ascending=True):
+def get_chat_logs_queryset(group, *, ascending=True):
     order_field = "created_at" if ascending else "-created_at"
     return group.chat_logs.select_related("user").order_by(order_field)
 
 
-def get_video_group_with_members(*, group_id, user_id=None, share_token=None):
+def get_video_group_with_members(group_id, *, user_id=None, share_token=None):
     queryset = VideoGroup.objects.select_related("user").prefetch_related(
         Prefetch(
             "members",
@@ -71,8 +71,14 @@ def get_group_chat_date_range(*, group):
     if total == 0:
         return 0, {}
 
-    first_log = chat_logs_qs.order_by("created_at").values_list("created_at", flat=True).first()
-    last_log = chat_logs_qs.order_by("-created_at").values_list("created_at", flat=True).first()
+    first_log = (
+        chat_logs_qs.order_by("created_at").values_list("created_at", flat=True).first()
+    )
+    last_log = (
+        chat_logs_qs.order_by("-created_at")
+        .values_list("created_at", flat=True)
+        .first()
+    )
     return total, {
         "first": first_log.isoformat() if first_log else None,
         "last": last_log.isoformat() if last_log else None,

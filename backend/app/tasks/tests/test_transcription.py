@@ -99,6 +99,7 @@ class DownloadVideoFromStorageTests(TestCase):
 
                     self.assertIn("video_", path)
 
+
 class SaveTranscriptionResultTests(TestCase):
     """Tests for save_transcription_result function"""
 

@@ -3,16 +3,6 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from app.models import Tag, Video, VideoGroup
-from app.video.services import VideoUploadService
-
-
-class UserOwnedSerializerMixin:
-    """Common serializer base class for user-owned resources"""
-
-    def create(self, validated_data):
-        """Set user to current user"""
-        validated_data["user"] = self.context["request"].user
-        return super().create(validated_data)
 
 
 class BaseVideoGroupSerializer(serializers.ModelSerializer):
@@ -45,9 +35,7 @@ class VideoSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "user", "uploaded_at"]
 
-    @extend_schema_field(
-        serializers.ListField(child=serializers.DictField())
-    )
+    @extend_schema_field(serializers.ListField(child=serializers.DictField()))
     def get_tags(self, obj):
         """Get tags for the video"""
         video_tags = obj.video_tags.all()
@@ -106,15 +94,6 @@ class VideoCreateSerializer(serializers.ModelSerializer):
 
         return value
 
-    def validate(self, attrs):
-        """Validate video upload limit"""
-        user = self.context["request"].user
-        try:
-            VideoUploadService.validate_upload_allowed(user=user)
-        except ValueError as exc:
-            raise serializers.ValidationError(str(exc))
-
-        return attrs
 
 class VideoUpdateSerializer(serializers.ModelSerializer):
     """Serializer for Video update"""
@@ -143,9 +122,7 @@ class VideoListSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "uploaded_at"]
 
-    @extend_schema_field(
-        serializers.ListField(child=serializers.DictField())
-    )
+    @extend_schema_field(serializers.ListField(child=serializers.DictField()))
     def get_tags(self, obj):
         """Get tags for the video"""
         video_tags = obj.video_tags.all()
@@ -190,9 +167,7 @@ class VideoGroupDetailSerializer(serializers.ModelSerializer):
             "share_token",
         ]
 
-    @extend_schema_field(
-        serializers.ListField(child=serializers.DictField())
-    )
+    @extend_schema_field(serializers.ListField(child=serializers.DictField()))
     def get_videos(self, obj):
         """Get video detailed information"""
         members = list(obj.members.all())
@@ -217,7 +192,7 @@ class VideoGroupDetailSerializer(serializers.ModelSerializer):
         ]
 
 
-class VideoGroupCreateSerializer(UserOwnedSerializerMixin, BaseVideoGroupSerializer):
+class VideoGroupCreateSerializer(BaseVideoGroupSerializer):
     """Serializer for VideoGroup creation"""
 
     id = serializers.IntegerField(read_only=True)
@@ -310,9 +285,7 @@ class TagDetailSerializer(serializers.ModelSerializer):
         fields = ["id", "name", "color", "created_at", "video_count", "videos"]
         read_only_fields = ["id", "created_at", "video_count"]
 
-    @extend_schema_field(
-        serializers.ListField(child=serializers.DictField())
-    )
+    @extend_schema_field(serializers.ListField(child=serializers.DictField()))
     def get_videos(self, obj):
         """Get videos with this tag"""
         video_tags = obj.video_tags.all()
@@ -320,7 +293,7 @@ class TagDetailSerializer(serializers.ModelSerializer):
         return VideoListSerializer(videos, many=True, context=self.context).data
 
 
-class TagCreateSerializer(UserOwnedSerializerMixin, serializers.ModelSerializer):
+class TagCreateSerializer(serializers.ModelSerializer):
     """Serializer for Tag creation"""
 
     class Meta:

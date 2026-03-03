@@ -54,9 +54,7 @@ def deactivate_user_account(*, user, reason: str):
     user.deactivated_at = now
     user.username = f"deleted__{user.id}__{suffix}"
     user.email = f"deleted__{user.id}__{suffix}@invalid.local"
-    user.save(
-        update_fields=["is_active", "deactivated_at", "username", "email"]
-    )
+    user.save(update_fields=["is_active", "deactivated_at", "username", "email"])
 
     delete_account_data.delay(user.id)
 
@@ -147,16 +145,6 @@ def resolve_password_reset_user(*, user_model, uid: str, token: str, new_passwor
         raise
 
     return user
-
-
-def get_current_user_with_video_count(*, user_model, user_id: int):
-    """Return the current user annotated with their video count."""
-    return repositories.get_user_with_video_count(user_model=user_model, user_id=user_id)
-
-
-def get_active_api_keys(*, user):
-    """Return active API keys for the given user."""
-    return repositories.get_active_api_keys(user=user)
 
 
 def revoke_active_api_key(*, user, api_key_id: int):

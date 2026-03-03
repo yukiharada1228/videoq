@@ -1,19 +1,16 @@
 import mimetypes
 
-from django.contrib.auth import get_user_model
 from django.http import HttpResponse
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework.views import APIView
 
-from app.common.authentication import APIKeyAuthentication, CookieJWTAuthentication
+from app.common.authentication import (APIKeyAuthentication,
+                                       CookieJWTAuthentication)
 from app.common.permissions import (IsAuthenticatedOrSharedAccess,
                                     ShareTokenAuthentication)
-from app.media.adapters import GetProtectedMediaAdapter
-from app.media.services import assert_video_access, resolve_protected_media
-from app.media.use_cases import GetProtectedMediaQuery, GetProtectedMediaUseCase
-
-User = get_user_model()
+from app.media.factories import get_protected_media_use_case
+from app.media.use_cases import GetProtectedMediaQuery
 
 
 def _actor_id_from_request(request):
@@ -44,14 +41,10 @@ class ProtectedMediaView(APIView):
         description="Stream a protected media file when the requester has access.",
     )
     def get(self, request, path: str):
-        share_group = request.auth.get("group") if isinstance(request.auth, dict) else None
-        result = GetProtectedMediaUseCase(
-            protected_media_getter=GetProtectedMediaAdapter(
-                user_model=User,
-                protected_media_resolver=resolve_protected_media,
-                video_access_authorizer=assert_video_access,
-            ),
-        ).execute(
+        share_group = (
+            request.auth.get("group") if isinstance(request.auth, dict) else None
+        )
+        result = get_protected_media_use_case().execute(
             GetProtectedMediaQuery(
                 path=path,
                 actor_id=_actor_id_from_request(request),

@@ -84,7 +84,9 @@ def filter_group_scenes(scene_counter, group, limit=None):
 
 def build_popular_scenes(group, limit=None):
     """Return popular scenes derived from chat logs for a group."""
-    chat_logs = repositories.get_group_chat_log_values(group, "question", "related_videos")
+    chat_logs = repositories.get_group_chat_log_values(
+        group, "question", "related_videos"
+    )
     scene_counter, scene_info, scene_questions = aggregate_scenes(chat_logs)
     top_scenes = filter_group_scenes(scene_counter, group, limit)
     video_ids = [key[0] for key, _ in top_scenes]
@@ -148,7 +150,9 @@ def extract_keywords(questions, limit=30):
         for word in words:
             counter[word] += 1
 
-    return [{"word": word, "count": count} for word, count in counter.most_common(limit)]
+    return [
+        {"word": word, "count": count} for word, count in counter.most_common(limit)
+    ]
 
 
 def build_chat_analytics(group):

@@ -1,5 +1,7 @@
 from typing import Protocol
 
+from app.common.ports import ActorLoader  # noqa: F401 – re-exported
+
 
 class CredentialAuthenticator(Protocol):
     def __call__(self, *, username: str, password: str): ...
@@ -13,41 +15,45 @@ class AccessTokenIssuer(Protocol):
     def __call__(self, *, refresh_token: str) -> str: ...
 
 
-class SignupUserCreator(Protocol):
-    def __call__(self, command): ...
+class UserCreator(Protocol):
+    def __call__(self, *, username: str, email: str, password: str): ...
 
 
-class EmailVerificationResolver(Protocol):
-    def __call__(self, command): ...
+class EmailVerificationUserResolver(Protocol):
+    def __call__(self, *, uid: str, token: str): ...
 
 
 class UserActivator(Protocol):
     def __call__(self, user): ...
 
 
-class PasswordResetRequester(Protocol):
-    def __call__(self, command): ...
+class PasswordResetEmailSender(Protocol):
+    def __call__(self, *, email: str): ...
 
 
-class PasswordResetResolver(Protocol):
-    def __call__(self, command): ...
+class PasswordResetUserResolver(Protocol):
+    def __call__(self, *, uid: str, token: str, new_password: str): ...
 
 
-class PasswordResetConfirmer(Protocol):
+class PasswordResetter(Protocol):
     def __call__(self, *, user, new_password: str): ...
 
 
 class AccountDeactivator(Protocol):
-    def __call__(self, command): ...
+    def __call__(self, *, user, reason: str): ...
 
 
-class CurrentUserLoader(Protocol):
-    def __call__(self, query): ...
+class CurrentUserWithVideoCountLoader(Protocol):
+    def __call__(self, *, user_id: int): ...
 
 
-class ApiKeyCreator(Protocol):
-    def __call__(self, command): ...
+class IntegrationApiKeyCreator(Protocol):
+    def __call__(self, *, user, name: str, access_level: str): ...
 
 
-class ApiKeyRevoker(Protocol):
-    def __call__(self, command): ...
+class ActiveApiKeyRevoker(Protocol):
+    def __call__(self, *, user, api_key_id: int): ...
+
+
+class ActiveApiKeysLoader(Protocol):
+    def __call__(self, *, user): ...

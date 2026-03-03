@@ -9,29 +9,6 @@ from app.video import repositories
 logger = logging.getLogger(__name__)
 
 
-class ResourceService:
-    """Data-access helpers for user-owned resources."""
-
-    @staticmethod
-    def get_owned_resource(
-        user, model_class, resource_id, select_related_fields=None
-    ):
-        return repositories.get_owned_resource(
-            user=user,
-            model_class=model_class,
-            resource_id=resource_id,
-            select_related_fields=select_related_fields,
-        )
-
-    @staticmethod
-    def get_owned_resources(user, model_class, resource_ids):
-        return repositories.get_owned_resources(
-            user=user,
-            model_class=model_class,
-            resource_ids=resource_ids,
-        )
-
-
 class VideoUploadService:
     """Application service for video uploads."""
 
@@ -69,31 +46,15 @@ class VideoGroupMemberService:
     """Business operations for group membership."""
 
     @staticmethod
-    def get_member_queryset(group, video=None, select_related=False):
-        return repositories.get_member_queryset(
-            group=group,
-            video=video,
-            select_related=select_related,
-        )
-
-    @staticmethod
-    def get_member(group, video):
-        return repositories.get_member(group=group, video=video)
-
-    @staticmethod
-    def get_next_order(group):
-        return repositories.get_next_group_order(group=group)
-
-    @staticmethod
     @transaction.atomic
     def add_video_to_group(group, video):
-        if VideoGroupMemberService.get_member(group, video):
+        if repositories.get_member(group=group, video=video):
             return None
 
         member = repositories.create_group_member(
             group=group,
             video=video,
-            order=VideoGroupMemberService.get_next_order(group),
+            order=repositories.get_next_group_order(group=group),
         )
         return member
 
@@ -114,7 +75,7 @@ class VideoGroupMemberService:
             if video_id in video_map and video_id not in existing_members
         ]
 
-        base_order = VideoGroupMemberService.get_next_order(group) - 1
+        base_order = repositories.get_next_group_order(group=group) - 1
         members_to_create = [
             VideoGroupMember(group=group, video=video, order=base_order + index)
             for index, video in enumerate(videos_to_add, start=1)
@@ -172,7 +133,4 @@ class VideoTagService:
 
 class ShareLinkService:
     """Business operations for share links."""
-
-    @staticmethod
-    def update_share_token(group, token_value):
-        repositories.save_group_share_token(group=group, token_value=token_value)
+    pass

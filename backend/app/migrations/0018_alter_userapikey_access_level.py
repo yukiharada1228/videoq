@@ -6,13 +6,17 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('app', '0017_userapikey_access_level'),
+        ("app", "0017_userapikey_access_level"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='userapikey',
-            name='access_level',
-            field=models.CharField(choices=[('all', 'All'), ('read_only', 'Read Only')], default='all', max_length=20),
+            model_name="userapikey",
+            name="access_level",
+            field=models.CharField(
+                choices=[("all", "All"), ("read_only", "Read Only")],
+                default="all",
+                max_length=20,
+            ),
         ),
     ]
