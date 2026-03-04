@@ -7,9 +7,12 @@ from unittest.mock import MagicMock, patch
 
 from django.test import TestCase, override_settings
 
-from app.utils.vector_manager import (PGVectorManager, delete_all_vectors,
-                                      delete_video_vectors,
-                                      update_video_title_in_vectors)
+from app.infrastructure.external.vector_store import (
+    PGVectorManager,
+    delete_all_vectors,
+    delete_video_vectors,
+    update_video_title_in_vectors,
+)
 
 
 class PGVectorManagerTests(TestCase):
@@ -25,7 +28,7 @@ class PGVectorManagerTests(TestCase):
         PGVectorManager._engine = None
         PGVectorManager._table_initialized = False
 
-    @patch("app.utils.vector_manager.PGEngine.from_connection_string")
+    @patch("app.infrastructure.external.vector_store.PGEngine.from_connection_string")
     @patch.dict(
         os.environ, {"DATABASE_URL": "postgresql://test:test@localhost:5432/test"}
     )
@@ -41,7 +44,7 @@ class PGVectorManagerTests(TestCase):
             url="postgresql+psycopg://test:test@localhost:5432/test"
         )
 
-    @patch("app.utils.vector_manager.PGEngine.from_connection_string")
+    @patch("app.infrastructure.external.vector_store.PGEngine.from_connection_string")
     @patch.dict(os.environ, {}, clear=True)
     def test_get_engine_default_url(self, mock_from_conn):
         mock_from_conn.return_value = MagicMock()
@@ -52,7 +55,7 @@ class PGVectorManagerTests(TestCase):
             url="postgresql+psycopg://postgres:postgres@postgres:5432/postgres"
         )
 
-    @patch("app.utils.vector_manager.PGEngine.from_connection_string")
+    @patch("app.infrastructure.external.vector_store.PGEngine.from_connection_string")
     @patch.dict(
         os.environ, {"DATABASE_URL": "postgres://test:test@localhost:5432/test"}
     )
@@ -117,7 +120,7 @@ class PGVectorManagerTests(TestCase):
             PGVectorManager.ensure_table()
         self.assertFalse(PGVectorManager._table_initialized)
 
-    @patch("app.utils.vector_manager.PGVectorStore.create_sync")
+    @patch("app.infrastructure.external.vector_store.PGVectorStore.create_sync")
     @patch.object(PGVectorManager, "ensure_table")
     @patch.object(PGVectorManager, "get_engine")
     def test_create_vectorstore(self, mock_get_engine, mock_ensure, mock_create_sync):
@@ -152,7 +155,7 @@ class DeleteVideoVectorsTests(TestCase):
         mock_store.delete.assert_called_once_with(filter={"video_id": 123})
 
     @patch.object(PGVectorManager, "_get_management_store")
-    @patch("app.utils.vector_manager.logger")
+    @patch("app.infrastructure.external.vector_store.logger")
     def test_delete_video_vectors_error(self, mock_logger, mock_get_store):
         mock_get_store.side_effect = Exception("Database error")
 

@@ -55,7 +55,7 @@ class DeleteVideoVectorsSignalTests(TestCase):
             video_limit=None,
         )
 
-    @patch("app.utils.vector_manager.delete_video_vectors")
+    @patch("app.infrastructure.external.vector_store.delete_video_vectors")
     def test_signal_calls_delete_video_vectors(self, mock_delete):
         """Test that signal calls delete_video_vectors on video deletion"""
         video = Video.objects.create(
@@ -68,7 +68,7 @@ class DeleteVideoVectorsSignalTests(TestCase):
 
         mock_delete.assert_called_once_with(video_id)
 
-    @patch("app.utils.vector_manager.delete_video_vectors")
+    @patch("app.infrastructure.external.vector_store.delete_video_vectors")
     def test_signal_handles_error_gracefully(self, mock_delete):
         """Test that signal handles errors gracefully"""
         mock_delete.side_effect = Exception("Delete failed")
@@ -118,7 +118,7 @@ class HandleVideoLimitReductionSignalTests(TestCase):
 
         self.assertEqual(new_user.video_limit, 5)
 
-    @patch("app.utils.vector_manager.delete_video_vectors")
+    @patch("app.infrastructure.external.vector_store.delete_video_vectors")
     def test_deletes_oldest_videos_first(self, mock_delete):
         """Test that oldest videos are deleted first"""
         self.assertEqual(Video.objects.filter(user=self.user).count(), 5)
@@ -135,7 +135,7 @@ class HandleVideoLimitReductionSignalTests(TestCase):
         self.assertIn(self.videos[3].id, remaining_ids)
         self.assertIn(self.videos[4].id, remaining_ids)
 
-    @patch("app.utils.vector_manager.delete_video_vectors")
+    @patch("app.infrastructure.external.vector_store.delete_video_vectors")
     def test_keeps_correct_number_of_videos(self, mock_delete):
         """Test that correct number of videos is kept"""
         self.user.video_limit = 3
@@ -143,7 +143,7 @@ class HandleVideoLimitReductionSignalTests(TestCase):
 
         self.assertEqual(Video.objects.filter(user=self.user).count(), 3)
 
-    @patch("app.utils.vector_manager.delete_video_vectors")
+    @patch("app.infrastructure.external.vector_store.delete_video_vectors")
     def test_unlimited_to_limited_deletes_excess(self, mock_delete):
         """Test that going from unlimited to limited deletes excess"""
         self.assertEqual(Video.objects.filter(user=self.user).count(), 5)
@@ -153,7 +153,7 @@ class HandleVideoLimitReductionSignalTests(TestCase):
 
         self.assertEqual(Video.objects.filter(user=self.user).count(), 3)
 
-    @patch("app.utils.vector_manager.delete_video_vectors")
+    @patch("app.infrastructure.external.vector_store.delete_video_vectors")
     def test_limited_to_more_limited_deletes_excess(self, mock_delete):
         """Test that reducing limit deletes excess"""
         self.user.video_limit = 5
@@ -164,7 +164,7 @@ class HandleVideoLimitReductionSignalTests(TestCase):
 
         self.assertEqual(Video.objects.filter(user=self.user).count(), 2)
 
-    @patch("app.utils.vector_manager.delete_video_vectors")
+    @patch("app.infrastructure.external.vector_store.delete_video_vectors")
     def test_reduce_to_zero_deletes_all(self, mock_delete):
         """Test that reducing to 0 deletes all videos"""
         self.user.video_limit = 0
@@ -172,7 +172,7 @@ class HandleVideoLimitReductionSignalTests(TestCase):
 
         self.assertEqual(Video.objects.filter(user=self.user).count(), 0)
 
-    @patch("app.utils.vector_manager.delete_video_vectors")
+    @patch("app.infrastructure.external.vector_store.delete_video_vectors")
     def test_increase_limit_does_not_delete(self, mock_delete):
         """Test that increasing limit doesn't delete videos"""
         self.user.video_limit = 3
@@ -185,7 +185,7 @@ class HandleVideoLimitReductionSignalTests(TestCase):
 
         self.assertEqual(Video.objects.filter(user=self.user).count(), 3)
 
-    @patch("app.utils.vector_manager.delete_video_vectors")
+    @patch("app.infrastructure.external.vector_store.delete_video_vectors")
     def test_change_to_unlimited_does_not_delete(self, mock_delete):
         """Test that changing to unlimited doesn't delete videos"""
         self.user.video_limit = 3
@@ -198,7 +198,7 @@ class HandleVideoLimitReductionSignalTests(TestCase):
 
         self.assertEqual(Video.objects.filter(user=self.user).count(), 3)
 
-    @patch("app.utils.vector_manager.delete_video_vectors")
+    @patch("app.infrastructure.external.vector_store.delete_video_vectors")
     def test_same_limit_does_not_delete(self, mock_delete):
         """Test that setting same limit doesn't delete videos"""
         self.user.video_limit = 5
@@ -211,7 +211,7 @@ class HandleVideoLimitReductionSignalTests(TestCase):
 
         mock_delete.assert_not_called()
 
-    @patch("app.utils.vector_manager.delete_video_vectors")
+    @patch("app.infrastructure.external.vector_store.delete_video_vectors")
     def test_triggers_vector_cleanup(self, mock_delete):
         """Test that deletion triggers vector cleanup via signal"""
         self.user.video_limit = 2
@@ -220,7 +220,7 @@ class HandleVideoLimitReductionSignalTests(TestCase):
         # 3 videos should be deleted
         self.assertEqual(mock_delete.call_count, 3)
 
-    @patch("app.utils.vector_manager.delete_video_vectors")
+    @patch("app.infrastructure.external.vector_store.delete_video_vectors")
     def test_removes_videos_from_groups(self, mock_delete):
         """Test that deleted videos are removed from groups"""
         group = VideoGroup.objects.create(user=self.user, name="Test Group")
@@ -236,7 +236,7 @@ class HandleVideoLimitReductionSignalTests(TestCase):
         # Group should still exist
         self.assertTrue(VideoGroup.objects.filter(pk=group.pk).exists())
 
-    @patch("app.utils.vector_manager.delete_video_vectors")
+    @patch("app.infrastructure.external.vector_store.delete_video_vectors")
     def test_admin_update_works(self, mock_delete):
         """Test that admin-style updates work correctly"""
         # Simulate admin update

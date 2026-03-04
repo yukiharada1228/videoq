@@ -14,7 +14,7 @@ def delete_video_vectors_signal(sender, instance, **kwargs):
     If vector deletion fails, a warning is logged and the failure does not prevent the Video deletion.
     """
     try:
-        from app.utils.vector_manager import delete_video_vectors
+        from app.infrastructure.external.vector_store import delete_video_vectors
 
         delete_video_vectors(instance.id)
 

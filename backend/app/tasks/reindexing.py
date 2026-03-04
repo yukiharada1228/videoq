@@ -8,7 +8,7 @@ from celery import shared_task
 
 from app.models import Video
 from app.tasks.vector_indexing import index_scenes_batch
-from app.utils.vector_manager import delete_all_vectors
+from app.infrastructure.external.vector_store import delete_all_vectors
 
 logger = logging.getLogger(__name__)
 
