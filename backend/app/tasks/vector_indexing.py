@@ -6,7 +6,7 @@ import logging
 
 from app.tasks.srt_processing import parse_srt_scenes
 from app.utils.embeddings import get_embeddings
-from app.utils.vector_manager import PGVectorManager
+from app.infrastructure.external.vector_store import PGVectorManager
 
 logger = logging.getLogger(__name__)
 

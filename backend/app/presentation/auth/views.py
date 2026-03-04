@@ -1,0 +1,352 @@
+from django.conf import settings
+from django.contrib.auth import get_user_model
+from drf_spectacular.utils import extend_schema
+from rest_framework import generics, status
+from rest_framework.response import Response
+from rest_framework_simplejwt.exceptions import InvalidToken
+from rest_framework_simplejwt.tokens import RefreshToken
+
+from app.presentation.auth.serializers import (AccountDeleteSerializer,
+                                               ApiKeyCreateResponseSerializer,
+                                               ApiKeyCreateSerializer,
+                                               ApiKeySerializer,
+                                               EmailVerificationSerializer,
+                                               LoginResponseSerializer,
+                                               LoginSerializer,
+                                               MessageResponseSerializer,
+                                               PasswordResetConfirmSerializer,
+                                               PasswordResetRequestSerializer,
+                                               RefreshResponseSerializer,
+                                               RefreshSerializer,
+                                               UserSerializer,
+                                               UserSignupSerializer)
+from app.common.authentication import APIKeyAuthentication, CookieJWTAuthentication
+from app.common.exceptions import ErrorCode
+from app.common.responses import create_error_response, create_success_response
+from app.common.throttles import (LoginIPThrottle, LoginUsernameThrottle,
+                                   PasswordResetEmailThrottle,
+                                   PasswordResetIPThrottle, SignupIPThrottle)
+from app.models import UserApiKey
+from app.use_cases.auth.delete_account import AccountDeletionUseCase
+from app.utils.mixins import AuthenticatedViewMixin, PublicViewMixin
+
+User = get_user_model()
+
+
+class PublicAPIView(PublicViewMixin, generics.GenericAPIView):
+    """API view that doesn't require authentication"""
+
+
+class AuthenticatedAPIView(AuthenticatedViewMixin, generics.GenericAPIView):
+    """API view that requires authentication"""
+
+    authentication_classes = [CookieJWTAuthentication]
+
+
+class UserSignupView(generics.CreateAPIView):
+    """User registration view"""
+
+    queryset = User.objects.all()
+    serializer_class = UserSignupSerializer
+    permission_classes = PublicViewMixin.permission_classes
+    throttle_classes = [SignupIPThrottle]
+
+    @extend_schema(
+        request=UserSignupSerializer,
+        responses={201: MessageResponseSerializer},
+        summary="User signup",
+        description="Register a new user. Verification email will be sent.",
+    )
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        return create_success_response(
+            message="Verification email sent. Please check your email.",
+            status_code=status.HTTP_201_CREATED,
+        )
+
+
+class LoginView(PublicAPIView):
+    """Login view"""
+
+    serializer_class = LoginSerializer
+    throttle_classes = [LoginIPThrottle, LoginUsernameThrottle]
+
+    @extend_schema(
+        request=LoginSerializer,
+        responses={200: LoginResponseSerializer},
+        summary="User login",
+        description="Authenticate user and return JWT tokens. Tokens are also set in HttpOnly cookies.",
+    )
+    def post(self, request):
+        serializer = self.get_serializer(
+            data=request.data, context={"request": request}
+        )
+        serializer.is_valid(raise_exception=True)
+        user = serializer.validated_data["user"]
+        refresh = RefreshToken.for_user(user)
+
+        response = Response(
+            {"access": str(refresh.access_token), "refresh": str(refresh)}
+        )
+
+        samesite_value = "None" if settings.SECURE_COOKIES else "Lax"
+
+        response.set_cookie(
+            key="access_token",
+            value=str(refresh.access_token),
+            httponly=True,
+            secure=settings.SECURE_COOKIES,
+            samesite=samesite_value,
+            max_age=60 * 10,
+        )
+        response.set_cookie(
+            key="refresh_token",
+            value=str(refresh),
+            httponly=True,
+            secure=settings.SECURE_COOKIES,
+            samesite=samesite_value,
+            max_age=60 * 60 * 24 * 14,
+        )
+
+        return response
+
+
+class LogoutView(AuthenticatedAPIView):
+    """Logout view"""
+
+    serializer_class = MessageResponseSerializer
+
+    @extend_schema(
+        responses={200: MessageResponseSerializer},
+        summary="User logout",
+        description="Logout by deleting HttpOnly cookies.",
+    )
+    def post(self, request):
+        response = create_success_response(message="Logged out successfully")
+
+        samesite_value = "None" if settings.SECURE_COOKIES else "Lax"
+
+        response.delete_cookie(key="access_token", samesite=samesite_value)
+        response.delete_cookie(key="refresh_token", samesite=samesite_value)
+
+        return response
+
+
+class AccountDeleteView(AuthenticatedAPIView):
+    """Account delete (deactivate) view"""
+
+    serializer_class = AccountDeleteSerializer
+
+    @extend_schema(
+        request=AccountDeleteSerializer,
+        responses={200: MessageResponseSerializer},
+        summary="Account delete",
+        description=(
+            "Deactivate the current user, enqueue async data deletion, "
+            "and remove auth cookies."
+        ),
+    )
+    def delete(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        reason = serializer.validated_data.get("reason", "")
+
+        use_case = AccountDeletionUseCase()
+        use_case.execute(request.user, reason)
+
+        response = create_success_response(message="Account deletion started.")
+
+        samesite_value = "None" if settings.SECURE_COOKIES else "Lax"
+
+        response.delete_cookie(key="access_token", samesite=samesite_value)
+        response.delete_cookie(key="refresh_token", samesite=samesite_value)
+
+        return response
+
+
+class RefreshView(PublicAPIView):
+    """Token refresh view"""
+
+    serializer_class = RefreshSerializer
+
+    @extend_schema(
+        request=RefreshSerializer,
+        responses={200: RefreshResponseSerializer, 401: MessageResponseSerializer},
+        summary="Refresh access token",
+        description="Refresh access token using refresh token from cookie or request body.",
+    )
+    def post(self, request):
+        refresh_token = request.COOKIES.get("refresh_token")
+
+        if not refresh_token:
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            refresh = serializer.validated_data["refresh_obj"]
+        else:
+            try:
+                refresh = RefreshToken(refresh_token)
+            except InvalidToken:
+                return create_error_response(
+                    message="Invalid refresh token",
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    code=ErrorCode.AUTHENTICATION_FAILED,
+                )
+
+        access = refresh.access_token
+
+        response = Response({"access": str(access)})
+
+        samesite_value = "None" if settings.SECURE_COOKIES else "Lax"
+
+        response.set_cookie(
+            key="access_token",
+            value=str(access),
+            httponly=True,
+            secure=settings.SECURE_COOKIES,
+            samesite=samesite_value,
+            max_age=60 * 10,
+        )
+
+        return response
+
+
+class EmailVerificationView(PublicAPIView):
+    """Email verification completion view"""
+
+    serializer_class = EmailVerificationSerializer
+
+    @extend_schema(
+        request=EmailVerificationSerializer,
+        responses={200: MessageResponseSerializer},
+        summary="Verify email",
+        description="Complete email verification using uid and token from verification link.",
+    )
+    def post(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return create_success_response(
+            message="Email verification completed. Please sign in."
+        )
+
+
+class PasswordResetRequestView(PublicAPIView):
+    """Password reset request view"""
+
+    serializer_class = PasswordResetRequestSerializer
+    throttle_classes = [PasswordResetIPThrottle, PasswordResetEmailThrottle]
+
+    @extend_schema(
+        request=PasswordResetRequestSerializer,
+        responses={200: MessageResponseSerializer},
+        summary="Request password reset",
+        description="Send password reset email to the specified email address.",
+    )
+    def post(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return create_success_response(
+            message="Password reset email sent. Please check your email."
+        )
+
+
+class PasswordResetConfirmView(PublicAPIView):
+    """Password reset confirmation view"""
+
+    serializer_class = PasswordResetConfirmSerializer
+
+    @extend_schema(
+        request=PasswordResetConfirmSerializer,
+        responses={200: MessageResponseSerializer},
+        summary="Confirm password reset",
+        description="Reset password using uid, token, and new password from reset link.",
+    )
+    def post(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return create_success_response(
+            message="Password reset successfully. Please sign in with your new password."
+        )
+
+
+class MeView(AuthenticatedAPIView, generics.RetrieveAPIView):
+    """Current user information retrieval view"""
+
+    serializer_class = UserSerializer
+    authentication_classes = [APIKeyAuthentication, CookieJWTAuthentication]
+
+    def get_object(self):
+        from django.db.models import Count
+
+        return User.objects.annotate(video_count=Count("videos")).get(
+            pk=self.request.user.pk
+        )
+
+
+class ApiKeyListCreateView(AuthenticatedAPIView, generics.ListCreateAPIView):
+    """List and create API keys for the current user."""
+
+    serializer_class = ApiKeySerializer
+
+    def get_queryset(self):
+        return UserApiKey.objects.filter(
+            user=self.request.user,
+            revoked_at__isnull=True,
+        )
+
+    def get_serializer_class(self):
+        if self.request.method == "POST":
+            return ApiKeyCreateSerializer
+        return ApiKeySerializer
+
+    @extend_schema(
+        responses={200: ApiKeySerializer(many=True)},
+        summary="List API keys",
+        description="List active API keys for the current user. Plain key values are never returned.",
+    )
+    def get(self, request, *args, **kwargs):
+        return self.list(request, *args, **kwargs)
+
+    @extend_schema(
+        request=ApiKeyCreateSerializer,
+        responses={201: ApiKeyCreateResponseSerializer},
+        summary="Create API key",
+        description="Create a new API key for server-to-server integrations. The plain key is returned only once.",
+    )
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        api_key, raw_key = UserApiKey.create_for_user(
+            user=request.user,
+            name=serializer.validated_data["name"],
+            access_level=serializer.validated_data["access_level"],
+        )
+        data = dict(ApiKeySerializer(api_key).data)
+        data["api_key"] = raw_key
+        return Response(data, status=status.HTTP_201_CREATED)
+
+
+class ApiKeyDetailView(AuthenticatedAPIView, generics.DestroyAPIView):
+    """Revoke an API key."""
+
+    serializer_class = ApiKeySerializer
+
+    def get_queryset(self):
+        return UserApiKey.objects.filter(
+            user=self.request.user,
+            revoked_at__isnull=True,
+        )
+
+    @extend_schema(
+        responses={200: MessageResponseSerializer},
+        summary="Revoke API key",
+        description="Revoke an active API key so it can no longer access the API.",
+    )
+    def delete(self, request, *args, **kwargs):
+        api_key = self.get_object()
+        api_key.revoke()
+        return create_success_response(message="API key revoked.")
