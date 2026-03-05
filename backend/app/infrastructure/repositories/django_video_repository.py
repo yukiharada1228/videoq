@@ -8,6 +8,14 @@ from typing import Dict, List, Optional, Tuple
 from django.db import transaction
 from django.db.models import Count, Max, Prefetch
 
+from app.domain.video.dto import (
+    CreateGroupParams,
+    CreateTagParams,
+    CreateVideoParams,
+    UpdateGroupParams,
+    UpdateTagParams,
+    UpdateVideoParams,
+)
 from app.domain.video.entities import (
     TagEntity,
     VideoEntity,
@@ -170,8 +178,13 @@ class DjangoVideoRepository(VideoRepository):
 
         return [_video_to_entity(v) for v in queryset]
 
-    def create(self, user_id: int, validated_data: dict) -> VideoEntity:
-        video = Video.objects.create(user_id=user_id, **validated_data)
+    def create(self, user_id: int, params: CreateVideoParams) -> VideoEntity:
+        video = Video.objects.create(
+            user_id=user_id,
+            file=params.file,
+            title=params.title,
+            description=params.description,
+        )
         # Re-fetch with prefetch to populate tags (will be empty on creation)
         video = (
             Video.objects.filter(pk=video.pk)
@@ -182,11 +195,17 @@ class DjangoVideoRepository(VideoRepository):
         )
         return _video_to_entity(video)
 
-    def update(self, video: VideoEntity, validated_data: dict) -> VideoEntity:
+    def update(self, video: VideoEntity, params: UpdateVideoParams) -> VideoEntity:
         orm_video = Video.objects.get(pk=video.id)
-        for field, value in validated_data.items():
-            setattr(orm_video, field, value)
-        orm_video.save(update_fields=list(validated_data.keys()))
+        update_fields = []
+        if params.title is not None:
+            orm_video.title = params.title
+            update_fields.append("title")
+        if params.description is not None:
+            orm_video.description = params.description
+            update_fields.append("description")
+        if update_fields:
+            orm_video.save(update_fields=update_fields)
         # Re-fetch with prefetches
         orm_video = (
             Video.objects.filter(pk=video.id)
@@ -298,18 +317,28 @@ class DjangoVideoGroupRepository(VideoGroupRepository):
         )
         return [_group_to_entity(g, include_videos=include_videos) for g in queryset]
 
-    def create(self, user_id: int, validated_data: dict) -> VideoGroupEntity:
-        group = VideoGroup.objects.create(user_id=user_id, **validated_data)
+    def create(self, user_id: int, params: CreateGroupParams) -> VideoGroupEntity:
+        group = VideoGroup.objects.create(
+            user_id=user_id,
+            name=params.name,
+            description=params.description,
+        )
         group = VideoGroup.objects.annotate(
             video_count=Count("members__video", distinct=True)
         ).get(pk=group.pk)
         return _group_to_entity(group)
 
-    def update(self, group: VideoGroupEntity, validated_data: dict) -> VideoGroupEntity:
+    def update(self, group: VideoGroupEntity, params: UpdateGroupParams) -> VideoGroupEntity:
         orm_group = VideoGroup.objects.get(pk=group.id)
-        for field, value in validated_data.items():
-            setattr(orm_group, field, value)
-        orm_group.save(update_fields=list(validated_data.keys()))
+        update_fields = []
+        if params.name is not None:
+            orm_group.name = params.name
+            update_fields.append("name")
+        if params.description is not None:
+            orm_group.description = params.description
+            update_fields.append("description")
+        if update_fields:
+            orm_group.save(update_fields=update_fields)
         orm_group = VideoGroup.objects.annotate(
             video_count=Count("members__video", distinct=True)
         ).get(pk=group.id)
@@ -435,15 +464,21 @@ class DjangoTagRepository(TagRepository):
             return None
         return _tag_to_entity(tag, video_count=tag.video_count)
 
-    def create(self, user_id: int, validated_data: dict) -> TagEntity:
-        tag = Tag.objects.create(user_id=user_id, **validated_data)
+    def create(self, user_id: int, params: CreateTagParams) -> TagEntity:
+        tag = Tag.objects.create(user_id=user_id, name=params.name, color=params.color)
         return _tag_to_entity(tag, video_count=0)
 
-    def update(self, tag: TagEntity, validated_data: dict) -> TagEntity:
+    def update(self, tag: TagEntity, params: UpdateTagParams) -> TagEntity:
         orm_tag = Tag.objects.get(pk=tag.id)
-        for field, value in validated_data.items():
-            setattr(orm_tag, field, value)
-        orm_tag.save(update_fields=list(validated_data.keys()))
+        update_fields = []
+        if params.name is not None:
+            orm_tag.name = params.name
+            update_fields.append("name")
+        if params.color is not None:
+            orm_tag.color = params.color
+            update_fields.append("color")
+        if update_fields:
+            orm_tag.save(update_fields=update_fields)
         orm_tag = (
             Tag.objects.filter(pk=tag.id)
             .annotate(video_count=Count("video_tags"))

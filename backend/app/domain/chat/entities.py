@@ -9,6 +9,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+from app.domain.chat.value_objects import ChatSceneLog
+
 
 @dataclass
 class VideoGroupMemberRef:
@@ -70,7 +72,7 @@ class ChatAnalyticsRaw:
     total: int
     first_date: Optional[datetime]
     last_date: Optional[datetime]
-    logs_for_scenes: List[Dict]
+    logs_for_scenes: List[ChatSceneLog]
     time_series: List[Dict]
     feedback: Dict[str, int]
     questions: List[str]

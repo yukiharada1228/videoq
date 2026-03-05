@@ -2,8 +2,10 @@
 Use case: Update a video and sync PGVector metadata when the title changes.
 """
 
+from app.domain.video.dto import UpdateVideoParams
 from app.domain.video.gateways import VectorStoreGateway
 from app.domain.video.repositories import VideoRepository
+from app.use_cases.video.dto import UpdateVideoInput
 from app.use_cases.video.exceptions import ResourceNotFound
 
 
@@ -19,7 +21,7 @@ class UpdateVideoUseCase:
         self.video_repo = video_repo
         self.vector_gateway = vector_gateway
 
-    def execute(self, video_id: int, user_id: int, validated_data: dict):
+    def execute(self, video_id: int, user_id: int, input: UpdateVideoInput):
         """
         Returns:
             VideoEntity: The updated video entity.
@@ -32,9 +34,10 @@ class UpdateVideoUseCase:
             raise ResourceNotFound("Video")
 
         old_title = video.title
-        video = self.video_repo.update(video, validated_data)
+        params = UpdateVideoParams(title=input.title, description=input.description)
+        video = self.video_repo.update(video, params)
 
-        if "title" in validated_data and old_title != video.title:
+        if input.title is not None and old_title != video.title:
             self.vector_gateway.update_video_title(video.id, video.title)
 
         return video

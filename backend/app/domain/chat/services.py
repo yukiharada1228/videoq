@@ -8,9 +8,11 @@ and injected via the KeywordExtractor port (app.domain.chat.ports.KeywordExtract
 from collections import Counter
 from typing import Dict, List, Optional, Tuple
 
+from app.domain.chat.value_objects import ChatSceneLog
+
 
 def aggregate_scenes(
-    chat_logs,
+    chat_logs: List[ChatSceneLog],
 ) -> Tuple[Counter, Dict, Dict]:
     """
     Aggregate scene references from chat logs.
@@ -23,13 +25,12 @@ def aggregate_scenes(
     scene_questions: Dict = {}
 
     for log in chat_logs:
-        related_videos = log.get("related_videos")
-        question = log.get("question", "")
-        if not related_videos:
+        question = log.question
+        if not log.related_videos:
             continue
-        for rv in related_videos:
-            video_id = rv.get("video_id")
-            start_time = rv.get("start_time")
+        for rv in log.related_videos:
+            video_id = rv.video_id
+            start_time = rv.start_time
             if not video_id or not start_time:
                 continue
 
@@ -38,10 +39,10 @@ def aggregate_scenes(
 
             if key not in scene_info:
                 scene_info[key] = {
-                    "video_id": video_id,
-                    "title": rv.get("title", ""),
-                    "start_time": start_time,
-                    "end_time": rv.get("end_time") or start_time,
+                    "video_id": rv.video_id,
+                    "title": rv.title,
+                    "start_time": rv.start_time,
+                    "end_time": rv.end_time or rv.start_time,
                 }
 
             if question:
