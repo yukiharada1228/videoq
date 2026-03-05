@@ -79,4 +79,4 @@ class PasswordResetConfirmTests(APITestCase):
         response = self.client.post(self.url, payload, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("Token is invalid", response.data["error"]["message"])
+        self.assertIn("Invalid or expired reset link", response.data["error"]["message"])

@@ -8,9 +8,9 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 
 from app.models import Video
-from app.tasks.vector_indexing import (create_scene_metadata,
-                                       index_scenes_batch,
-                                       index_scenes_to_vectorstore)
+from app.infrastructure.external.scene_indexer import (create_scene_metadata,
+                                                        index_scenes_batch,
+                                                        index_scenes_to_vectorstore)
 
 User = get_user_model()
 
@@ -95,8 +95,8 @@ class IndexScenesToVectorstoreTests(TestCase):
             status="completed",
         )
 
-    @patch("app.tasks.vector_indexing.PGVectorManager")
-    @patch("app.tasks.vector_indexing.get_embeddings")
+    @patch("app.infrastructure.external.scene_indexer.PGVectorManager")
+    @patch("app.infrastructure.external.scene_indexer.get_embeddings")
     def test_indexes_scenes_successfully(
         self, mock_get_embeddings, mock_pgvector_manager
     ):
@@ -114,8 +114,8 @@ class IndexScenesToVectorstoreTests(TestCase):
 
         mock_store.add_texts.assert_called_once()
 
-    @patch("app.tasks.vector_indexing.PGVectorManager")
-    @patch("app.tasks.vector_indexing.get_embeddings")
+    @patch("app.infrastructure.external.scene_indexer.PGVectorManager")
+    @patch("app.infrastructure.external.scene_indexer.get_embeddings")
     def test_skips_empty_texts(self, mock_get_embeddings, mock_pgvector_manager):
         """Test that empty texts are skipped"""
         mock_store = MagicMock()
@@ -130,8 +130,8 @@ class IndexScenesToVectorstoreTests(TestCase):
         index_scenes_to_vectorstore(scene_docs, self.video, "test-api-key")
         mock_pgvector_manager.create_vectorstore.assert_not_called()
 
-    @patch("app.tasks.vector_indexing.PGVectorManager")
-    @patch("app.tasks.vector_indexing.get_embeddings")
+    @patch("app.infrastructure.external.scene_indexer.PGVectorManager")
+    @patch("app.infrastructure.external.scene_indexer.get_embeddings")
     def test_handles_indexing_error(self, mock_get_embeddings, mock_pgvector_manager):
         """Test that indexing errors are re-raised after logging"""
         mock_store = MagicMock()
@@ -162,11 +162,11 @@ class IndexScenesBatchTests(TestCase):
             status="completed",
         )
 
-    @patch("app.tasks.vector_indexing.index_scenes_to_vectorstore")
-    @patch("app.tasks.vector_indexing.parse_srt_scenes")
-    def test_parses_srt_and_indexes(self, mock_parse, mock_index):
+    @patch("app.infrastructure.external.scene_indexer.index_scenes_to_vectorstore")
+    @patch("app.infrastructure.external.scene_indexer.SubtitleParser")
+    def test_parses_srt_and_indexes(self, mock_parser, mock_index):
         """Test that SRT is parsed and indexed"""
-        mock_parse.return_value = [
+        mock_parser.parse_srt_scenes.return_value = [
             {
                 "text": "Hello world",
                 "start_time": "00:00:00,000",
@@ -181,14 +181,14 @@ class IndexScenesBatchTests(TestCase):
 
         index_scenes_batch(srt_content, self.video, "test-api-key")
 
-        mock_parse.assert_called_once_with(srt_content)
+        mock_parser.parse_srt_scenes.assert_called_once_with(srt_content)
         mock_index.assert_called_once()
 
-    @patch("app.tasks.vector_indexing.index_scenes_to_vectorstore")
-    @patch("app.tasks.vector_indexing.parse_srt_scenes")
-    def test_creates_correct_scene_docs(self, mock_parse, mock_index):
+    @patch("app.infrastructure.external.scene_indexer.index_scenes_to_vectorstore")
+    @patch("app.infrastructure.external.scene_indexer.SubtitleParser")
+    def test_creates_correct_scene_docs(self, mock_parser, mock_index):
         """Test that scene documents are created correctly"""
-        mock_parse.return_value = [
+        mock_parser.parse_srt_scenes.return_value = [
             {
                 "text": "Scene 1",
                 "start_time": "00:00:00,000",
@@ -221,10 +221,10 @@ class IndexScenesBatchTests(TestCase):
         self.assertIn("metadata", scene_docs[0])
         self.assertEqual(scene_docs[0]["metadata"]["video_id"], self.video.id)
 
-    @patch("app.tasks.vector_indexing.parse_srt_scenes")
-    def test_raises_on_parsing_error(self, mock_parse):
+    @patch("app.infrastructure.external.scene_indexer.SubtitleParser")
+    def test_raises_on_parsing_error(self, mock_parser):
         """Test that parsing errors are re-raised"""
-        mock_parse.side_effect = Exception("Parse failed")
+        mock_parser.parse_srt_scenes.side_effect = Exception("Parse failed")
 
         srt_content = "invalid srt"
 

@@ -19,7 +19,7 @@ class DjangoVectorIndexingGateway(VectorIndexingGateway):
     def index_video_transcript(
         self, video_id: int, user_id: int, title: str, transcript: str
     ) -> None:
-        from app.tasks.vector_indexing import index_scenes_batch
+        from app.infrastructure.external.scene_indexer import index_scenes_batch
 
         # Build a lightweight proxy so index_scenes_batch can access .id, .user_id, .title
         class _VideoProxy:

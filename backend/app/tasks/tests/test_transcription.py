@@ -1,166 +1,21 @@
 """
-Tests for transcription task
+Tests for transcription task (thin trigger).
+Business logic (audio extraction, Whisper, scene splitting) is tested separately
+at the infrastructure/use-case level.
 """
 
-from unittest.mock import MagicMock, PropertyMock, patch
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
 
 from app.models import Video
-from app.tasks.transcription import (download_video_from_storage,
-                                     handle_transcription_error,
-                                     save_transcription_result,
-                                     transcribe_video)
-from app.utils.task_helpers import TemporaryFileManager
+from app.tasks.transcription import transcribe_video
 
 User = get_user_model()
 
-
-class DownloadVideoFromStorageTests(TestCase):
-    """Tests for download_video_from_storage function"""
-
-    def setUp(self):
-        self.user = User.objects.create_user(
-            username="testuser",
-            email="test@example.com",
-            password="testpass123",
-            video_limit=None,
-        )
-        self.video = Video.objects.create(
-            user=self.user,
-            title="Test Video",
-            status="pending",
-        )
-
-    def test_local_file_returns_path_directly(self):
-        """Test that local files return path directly"""
-        with TemporaryFileManager() as temp_manager:
-            mock_file = MagicMock()
-            mock_file.path = "/local/path/video.mp4"
-            self.video.file = mock_file
-
-            path, file_obj = download_video_from_storage(
-                self.video, self.video.id, temp_manager
-            )
-
-            self.assertEqual(path, "/local/path/video.mp4")
-            self.assertEqual(file_obj, mock_file)
-
-    def test_remote_file_downloads_to_temp(self):
-        """Test that remote files (S3) are downloaded to temp directory"""
-        with TemporaryFileManager() as temp_manager:
-            mock_file = MagicMock()
-            mock_file.path = PropertyMock(side_effect=NotImplementedError)
-            mock_file.name = "test_video.mp4"
-
-            mock_remote_content = b"fake video content"
-            mock_file.open.return_value.__enter__ = MagicMock(
-                return_value=MagicMock(read=MagicMock(return_value=mock_remote_content))
-            )
-            mock_file.open.return_value.__exit__ = MagicMock(return_value=False)
-
-            self.video.file = mock_file
-
-            with patch("builtins.open", MagicMock()):
-                with patch("os.path.basename", return_value="test_video.mp4"):
-                    # Force NotImplementedError on path access
-                    type(mock_file).path = PropertyMock(side_effect=NotImplementedError)
-
-                    path, file_obj = download_video_from_storage(
-                        self.video, self.video.id, temp_manager
-                    )
-
-                    self.assertIn("video_", path)
-                    self.assertEqual(len(temp_manager.temp_files), 1)
-
-    def test_attribute_error_triggers_download(self):
-        """Test that AttributeError on path also triggers download"""
-        with TemporaryFileManager() as temp_manager:
-            mock_file = MagicMock(spec=["name", "open"])
-            mock_file.name = "test_video.mp4"
-
-            mock_remote_content = b"fake video content"
-            mock_file.open.return_value.__enter__ = MagicMock(
-                return_value=MagicMock(read=MagicMock(return_value=mock_remote_content))
-            )
-            mock_file.open.return_value.__exit__ = MagicMock(return_value=False)
-
-            with patch.object(
-                type(self.video),
-                "file",
-                new_callable=PropertyMock,
-                return_value=mock_file,
-            ):
-                with patch("builtins.open", MagicMock()):
-                    path, file_obj = download_video_from_storage(
-                        self.video, self.video.id, temp_manager
-                    )
-
-                    self.assertIn("video_", path)
-
-class SaveTranscriptionResultTests(TestCase):
-    """Tests for save_transcription_result function"""
-
-    def setUp(self):
-        self.user = User.objects.create_user(
-            username="testuser",
-            email="test@example.com",
-            password="testpass123",
-            video_limit=None,
-        )
-        self.video = Video.objects.create(
-            user=self.user,
-            title="Test Video",
-            status="processing",
-        )
-
-    def test_saves_transcript_and_updates_status(self):
-        """Test that transcript is saved and status is updated"""
-        srt_content = "1\n00:00:00,000 --> 00:00:05,000\nHello world\n"
-
-        save_transcription_result(self.video, srt_content)
-
-        self.video.refresh_from_db()
-        self.assertEqual(self.video.status, "completed")
-        self.assertEqual(self.video.transcript, srt_content)
-
-    def test_clears_error_message(self):
-        """Test that error message is cleared on success"""
-        self.video.error_message = "Previous error"
-        self.video.save()
-
-        save_transcription_result(self.video, "test transcript")
-
-        self.video.refresh_from_db()
-        self.assertEqual(self.video.error_message, "")
-
-
-class HandleTranscriptionErrorTests(TestCase):
-    """Tests for handle_transcription_error function"""
-
-    def setUp(self):
-        self.user = User.objects.create_user(
-            username="testuser",
-            email="test@example.com",
-            password="testpass123",
-            video_limit=None,
-        )
-        self.video = Video.objects.create(
-            user=self.user,
-            title="Test Video",
-            status="processing",
-        )
-
-    def test_sets_error_status_and_message(self):
-        """Test that error status and message are set"""
-        error_msg = "Transcription failed"
-
-        handle_transcription_error(self.video, error_msg)
-
-        self.video.refresh_from_db()
-        self.assertEqual(self.video.status, "error")
-        self.assertEqual(self.video.error_message, error_msg)
+_TRANSCRIBE = "app.infrastructure.external.transcription_gateway.WhisperTranscriptionGateway.run"
+_INDEX = "app.infrastructure.external.vector_gateway.DjangoVectorIndexingGateway.index_video_transcript"
 
 
 @override_settings(OPENAI_API_KEY="test-api-key")
@@ -175,188 +30,48 @@ class TranscribeVideoTaskTests(TestCase):
             video_limit=None,
         )
 
-    @patch("app.tasks.transcription.index_scenes_batch")
-    @patch("app.tasks.transcription.apply_scene_splitting")
-    @patch("app.tasks.transcription.transcribe_and_create_srt")
-    @patch("app.tasks.transcription.extract_and_split_audio")
-    @patch("app.tasks.transcription.download_video_from_storage")
-    @patch("app.tasks.transcription.create_whisper_client")
-    @patch("app.tasks.transcription.get_whisper_model_name")
-    @patch("app.tasks.transcription.WhisperConfig")
-    @patch(
-        "app.tasks.transcription.VideoTaskManager.validate_video_for_processing",
-        return_value=(True, None),
-    )
-    def test_successful_transcription_pipeline(
-        self,
-        mock_validate,
-        mock_whisper_config,
-        mock_get_model,
-        mock_create_client,
-        mock_download,
-        mock_extract,
-        mock_transcribe,
-        mock_scene_split,
-        mock_index,
-    ):
-        """Test successful transcription pipeline"""
-        video = Video.objects.create(
-            user=self.user,
-            title="Test Video",
-            status="pending",
-        )
+    @patch(_INDEX)
+    @patch(_TRANSCRIBE)
+    def test_successful_transcription_sets_completed_status(self, mock_transcribe, mock_index):
+        """Successful transcription sets video status to completed"""
+        srt = "1\n00:00:00,000 --> 00:00:10,000\nHello\n"
+        mock_transcribe.return_value = srt
 
-        # Setup mocks
-        mock_get_model.return_value = "whisper-1"
-        mock_download.return_value = ("/tmp/video.mp4", MagicMock())
-        mock_extract.return_value = [
-            {"path": "/tmp/audio.mp3", "start_time": 0, "end_time": 10}
-        ]
-        mock_transcribe.return_value = "1\n00:00:00,000 --> 00:00:10,000\nHello\n"
-        mock_scene_split.return_value = ("1\n00:00:00,000 --> 00:00:10,000\nHello\n", 1)
+        video = Video.objects.create(user=self.user, title="Test Video", status="pending")
 
-        result = transcribe_video(video.id)
+        transcribe_video(video.id)
 
         video.refresh_from_db()
         self.assertEqual(video.status, "completed")
-        self.assertIsNotNone(result)
+        self.assertEqual(video.transcript, srt)
 
-    @patch("app.tasks.transcription.extract_and_split_audio")
-    @patch("app.tasks.transcription.download_video_from_storage")
-    @patch("app.tasks.transcription.create_whisper_client")
-    @patch("app.tasks.transcription.get_whisper_model_name")
-    @patch("app.tasks.transcription.WhisperConfig")
-    @patch(
-        "app.tasks.transcription.VideoTaskManager.validate_video_for_processing",
-        return_value=(True, None),
-    )
-    def test_handles_empty_audio_segments(
-        self,
-        mock_validate,
-        mock_whisper_config,
-        mock_get_model,
-        mock_create_client,
-        mock_download,
-        mock_extract,
-    ):
-        """Test that empty audio segments result in error status"""
-        video = Video.objects.create(
-            user=self.user,
-            title="Test Video",
-            status="pending",
-        )
+    @patch(_INDEX)
+    @patch(_TRANSCRIBE)
+    def test_successful_transcription_triggers_indexing(self, mock_transcribe, mock_index):
+        """Successful transcription triggers vector indexing"""
+        mock_transcribe.return_value = "1\n00:00:00,000 --> 00:00:10,000\nHello\n"
 
-        mock_get_model.return_value = "whisper-1"
-        mock_download.return_value = ("/tmp/video.mp4", MagicMock())
-        mock_extract.return_value = []
+        video = Video.objects.create(user=self.user, title="Test Video", status="pending")
 
         transcribe_video(video.id)
 
-        video.refresh_from_db()
-        self.assertEqual(video.status, "error")
-        self.assertIn("Failed to extract audio", video.error_message)
+        mock_index.assert_called_once()
 
-    @patch("app.tasks.transcription.transcribe_and_create_srt")
-    @patch("app.tasks.transcription.extract_and_split_audio")
-    @patch("app.tasks.transcription.download_video_from_storage")
-    @patch("app.tasks.transcription.create_whisper_client")
-    @patch("app.tasks.transcription.get_whisper_model_name")
-    @patch("app.tasks.transcription.WhisperConfig")
-    @patch(
-        "app.tasks.transcription.VideoTaskManager.validate_video_for_processing",
-        return_value=(True, None),
-    )
-    def test_handles_transcription_failure(
-        self,
-        mock_validate,
-        mock_whisper_config,
-        mock_get_model,
-        mock_create_client,
-        mock_download,
-        mock_extract,
-        mock_transcribe,
-    ):
-        """Test that transcription failure results in error status"""
-        video = Video.objects.create(
-            user=self.user,
-            title="Test Video",
-            status="pending",
-        )
+    @patch(_TRANSCRIBE)
+    def test_transcription_failure_sets_error_status(self, mock_transcribe):
+        """Transcription failure sets video status to error"""
+        mock_transcribe.side_effect = RuntimeError("Transcription failed")
 
-        mock_get_model.return_value = "whisper-1"
-        mock_download.return_value = ("/tmp/video.mp4", MagicMock())
-        mock_extract.return_value = [
-            {"path": "/tmp/audio.mp3", "start_time": 0, "end_time": 10}
-        ]
-        mock_transcribe.return_value = None
+        video = Video.objects.create(user=self.user, title="Test Video", status="pending")
 
-        transcribe_video(video.id)
+        with self.assertRaises(Exception):
+            transcribe_video(video.id)
 
         video.refresh_from_db()
         self.assertEqual(video.status, "error")
-        self.assertIn("Failed to transcribe", video.error_message)
+        self.assertIn("Transcription failed", video.error_message)
 
     def test_handles_nonexistent_video(self):
-        """Test handling of non-existent video ID"""
+        """Non-existent video raises an exception"""
         with self.assertRaises(Exception):
             transcribe_video(99999)
-
-    @patch("app.tasks.transcription.index_scenes_batch")
-    @patch("app.tasks.transcription.apply_scene_splitting")
-    @patch("app.tasks.transcription.transcribe_and_create_srt")
-    @patch("app.tasks.transcription.extract_and_split_audio")
-    @patch("app.tasks.transcription.download_video_from_storage")
-    @patch("app.tasks.transcription.create_whisper_client")
-    @patch("app.tasks.transcription.get_whisper_model_name")
-    @patch("app.tasks.transcription.WhisperConfig")
-    @patch(
-        "app.tasks.transcription.VideoTaskManager.validate_video_for_processing",
-        return_value=(True, None),
-    )
-    def test_processing_keeps_original_file(
-        self,
-        mock_validate,
-        mock_whisper_config,
-        mock_get_model,
-        mock_create_client,
-        mock_download,
-        mock_extract,
-        mock_transcribe,
-        mock_scene_split,
-        mock_index,
-    ):
-        """Test that processing keeps the original file after completion"""
-        video = Video.objects.create(
-            user=self.user,
-            title="Test Video",
-            status="pending",
-        )
-
-        mock_file = MagicMock()
-        mock_get_model.return_value = "whisper-1"
-        mock_download.return_value = ("/tmp/video.mp4", mock_file)
-        mock_extract.return_value = [
-            {"path": "/tmp/audio.mp3", "start_time": 0, "end_time": 10}
-        ]
-        mock_transcribe.return_value = "1\n00:00:00,000 --> 00:00:10,000\nHello\n"
-        mock_scene_split.return_value = ("1\n00:00:00,000 --> 00:00:10,000\nHello\n", 1)
-
-        transcribe_video(video.id)
-
-        mock_file.delete.assert_not_called()
-
-    @patch("app.tasks.transcription.VideoTaskManager.validate_video_for_processing")
-    @patch("app.tasks.transcription.VideoTaskManager.get_video_with_user")
-    def test_invalid_video_raises_error(self, mock_get_video, mock_validate):
-        """Test that invalid video raises error"""
-        video = Video.objects.create(
-            user=self.user,
-            title="Test Video",
-            status="pending",
-        )
-
-        mock_get_video.return_value = (video, None)
-        mock_validate.return_value = (False, "Video has no file")
-
-        with self.assertRaises(ValueError):
-            transcribe_video(video.id)

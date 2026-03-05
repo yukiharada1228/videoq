@@ -21,7 +21,6 @@ class WhisperTranscriptionGateway(TranscriptionGateway):
         from app.models import Video
         from app.tasks.audio_processing import extract_and_split_audio
         from app.tasks.srt_processing import apply_scene_splitting, transcribe_and_create_srt
-        from app.tasks.vector_indexing import index_scenes_batch
         from app.utils.task_helpers import TemporaryFileManager
         from app.utils.whisper_client import (
             WhisperConfig,
