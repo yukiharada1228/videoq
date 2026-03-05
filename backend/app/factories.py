@@ -98,10 +98,11 @@ def get_reindex_all_videos_use_case() -> ReindexAllVideosUseCase:
 def get_run_transcription_use_case() -> RunTranscriptionUseCase:
     from app.infrastructure.external.transcription_gateway import WhisperTranscriptionGateway
     from app.infrastructure.external.vector_gateway import DjangoVectorIndexingGateway
+    from app.infrastructure.transcription.video_file_accessor import DjangoVideoFileAccessor
 
     return RunTranscriptionUseCase(
         DjangoVideoRepository(),
-        WhisperTranscriptionGateway(),
+        WhisperTranscriptionGateway(DjangoVideoFileAccessor()),
         DjangoVectorIndexingGateway(),
     )
 

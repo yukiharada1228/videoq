@@ -6,10 +6,14 @@ from unittest.mock import MagicMock, patch
 
 from django.test import TestCase, override_settings
 
-from app.tasks.srt_processing import (apply_scene_splitting, count_scenes,
-                                      create_srt_content, format_time_for_srt,
-                                      parse_srt_scenes,
-                                      transcribe_and_create_srt)
+from app.infrastructure.transcription.srt_processing import (
+    apply_scene_splitting,
+    count_scenes,
+    create_srt_content,
+    format_time_for_srt,
+    parse_srt_scenes,
+    transcribe_and_create_srt,
+)
 
 
 class FormatTimeForSrtTests(TestCase):
@@ -199,7 +203,7 @@ World
 class ApplySceneSplittingTests(TestCase):
     """Tests for apply_scene_splitting function"""
 
-    @patch("app.tasks.srt_processing.SceneSplitter")
+    @patch("app.infrastructure.transcription.srt_processing.SceneSplitter")
     def test_applies_scene_splitting(self, mock_splitter_class):
         """Test that scene splitting is applied"""
         mock_splitter = MagicMock()
@@ -215,7 +219,7 @@ class ApplySceneSplittingTests(TestCase):
         self.assertIn("Split scene", result_srt)
         mock_splitter.process.assert_called_once()
 
-    @patch("app.tasks.srt_processing.SceneSplitter")
+    @patch("app.infrastructure.transcription.srt_processing.SceneSplitter")
     def test_returns_original_on_error(self, mock_splitter_class):
         """Test that original SRT is returned on error"""
         mock_splitter = MagicMock()
@@ -243,7 +247,7 @@ class ApplySceneSplittingTests(TestCase):
 class TranscribeAndCreateSrtTests(TestCase):
     """Tests for transcribe_and_create_srt function"""
 
-    @patch("app.tasks.srt_processing.process_audio_segments_parallel")
+    @patch("app.infrastructure.transcription.srt_processing.process_audio_segments_parallel")
     def test_creates_srt_from_segments(self, mock_process):
         """Test that SRT is created from audio segments"""
         mock_process.return_value = [
@@ -259,7 +263,7 @@ class TranscribeAndCreateSrtTests(TestCase):
         self.assertIn("World", result)
         self.assertIn("00:00:00,000 --> 00:00:05,000", result)
 
-    @patch("app.tasks.srt_processing.process_audio_segments_parallel")
+    @patch("app.infrastructure.transcription.srt_processing.process_audio_segments_parallel")
     def test_returns_none_on_empty_segments(self, mock_process):
         """Test that None is returned when no segments are transcribed"""
         mock_process.return_value = []
@@ -270,7 +274,7 @@ class TranscribeAndCreateSrtTests(TestCase):
 
         self.assertIsNone(result)
 
-    @patch("app.tasks.srt_processing.process_audio_segments_parallel")
+    @patch("app.infrastructure.transcription.srt_processing.process_audio_segments_parallel")
     def test_uses_correct_model(self, mock_process):
         """Test that correct Whisper model is used"""
         mock_process.return_value = [{"start": 0, "end": 5, "text": "Test"}]

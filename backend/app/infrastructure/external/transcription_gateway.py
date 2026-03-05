@@ -1,15 +1,19 @@
 """
 Infrastructure implementation of TranscriptionGateway.
-Handles video download, audio extraction, Whisper transcription, and scene splitting.
+Handles audio extraction, Whisper transcription, and scene splitting.
 """
 
 import logging
-import os
-import tempfile
 
 from django.conf import settings
 
 from app.domain.video.gateways import TranscriptionGateway
+from app.infrastructure.transcription.audio_processing import extract_and_split_audio
+from app.infrastructure.transcription.srt_processing import (
+    apply_scene_splitting,
+    transcribe_and_create_srt,
+)
+from app.infrastructure.transcription.video_file_accessor import DjangoVideoFileAccessor
 
 logger = logging.getLogger(__name__)
 
@@ -17,10 +21,10 @@ logger = logging.getLogger(__name__)
 class WhisperTranscriptionGateway(TranscriptionGateway):
     """Implements TranscriptionGateway using Whisper API and ffmpeg."""
 
+    def __init__(self, video_file_accessor=None):
+        self._video_file_accessor = video_file_accessor or DjangoVideoFileAccessor()
+
     def run(self, video_id: int) -> str:
-        from app.models import Video
-        from app.tasks.audio_processing import extract_and_split_audio
-        from app.tasks.srt_processing import apply_scene_splitting, transcribe_and_create_srt
         from app.utils.task_helpers import TemporaryFileManager
         from app.utils.whisper_client import (
             WhisperConfig,
@@ -28,10 +32,10 @@ class WhisperTranscriptionGateway(TranscriptionGateway):
             get_whisper_model_name,
         )
 
-        video = Video.objects.select_related("user").get(id=video_id)
-
         with TemporaryFileManager() as temp_manager:
-            video_file_path = self._download(video, video_id, temp_manager)
+            video_file_path = self._video_file_accessor.get_local_path(
+                video_id, temp_manager
+            )
 
             api_key = settings.OPENAI_API_KEY
             whisper_config = WhisperConfig()
@@ -59,19 +63,3 @@ class WhisperTranscriptionGateway(TranscriptionGateway):
             )
 
         return scene_split_srt
-
-    def _download(self, video, video_id: int, temp_manager) -> str:
-        try:
-            return video.file.path
-        except (NotImplementedError, AttributeError):
-            temp_video_path = os.path.join(
-                tempfile.gettempdir(),
-                f"video_{video_id}_{os.path.basename(video.file.name)}",
-            )
-            logger.info("Downloading video from S3 to %s", temp_video_path)
-            with video.file.open("rb") as remote_file:
-                with open(temp_video_path, "wb") as local_file:
-                    local_file.write(remote_file.read())
-            temp_manager.temp_files.append(temp_video_path)
-            logger.info("Video downloaded successfully to %s", temp_video_path)
-            return temp_video_path
