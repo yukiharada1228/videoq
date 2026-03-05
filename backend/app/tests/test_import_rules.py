@@ -265,3 +265,39 @@ class ImportRulesTest(unittest.TestCase):
                 violations,
                 f"QuerySet found in app/{layer} files: {violations}",
             )
+
+    def test_domain_has_no_utils_imports(self):
+        """domain layer must not import from app.utils (domain must stay framework-free)."""
+        self._check("domain", ["app.utils"])
+
+    def test_infrastructure_external_has_no_tasks_imports(self):
+        """infrastructure/external must not import app.tasks (tasks are above infrastructure)."""
+        self._check("infrastructure/external", ["app.tasks"])
+
+    def test_utils_has_no_infrastructure_imports(self):
+        """utils must not import from app.infrastructure (utils are below infrastructure)."""
+        self._check("utils", ["app.infrastructure"])
+
+    def test_utils_has_no_presentation_imports(self):
+        """utils must not import from app.presentation."""
+        self._check("utils", ["app.presentation"])
+
+    def _check_single_file(self, rel_path, forbidden):
+        """Check a single file for forbidden imports."""
+        abs_path = os.path.join(BASE, "app", rel_path)
+        if not os.path.exists(abs_path):
+            return
+        v = check_forbidden_imports(abs_path, forbidden)
+        self.assertEqual(
+            [],
+            v,
+            f"Forbidden imports found in app/{rel_path}: {v}",
+        )
+
+    def test_factories_has_no_presentation_imports(self):
+        """factories.py must not import from app.presentation (presentation depends on factories, not vice versa)."""
+        self._check_single_file("factories.py", ["app.presentation"])
+
+    def test_container_has_no_presentation_imports(self):
+        """container.py must not import from app.presentation."""
+        self._check_single_file("container.py", ["app.presentation"])

@@ -10,15 +10,17 @@ from unittest.mock import MagicMock, patch
 
 from django.test import TestCase
 
-from app.tasks.audio_processing import (SUPPORTED_FORMATS,
-                                        _extract_audio_segment,
-                                        _extract_full_audio,
-                                        _get_video_duration,
-                                        _split_audio_into_segments,
-                                        extract_and_split_audio,
-                                        process_audio_segments_async,
-                                        process_audio_segments_parallel,
-                                        transcribe_audio_segment_async)
+from app.infrastructure.transcription.audio_processing import (
+    SUPPORTED_FORMATS,
+    _extract_audio_segment,
+    _extract_full_audio,
+    _get_video_duration,
+    _split_audio_into_segments,
+    extract_and_split_audio,
+    process_audio_segments_async,
+    process_audio_segments_parallel,
+    transcribe_audio_segment_async,
+)
 from app.utils.task_helpers import TemporaryFileManager
 
 
@@ -162,7 +164,7 @@ class ExtractAudioSegmentTests(TestCase):
 class SplitAudioIntoSegmentsTests(TestCase):
     """Tests for _split_audio_into_segments function"""
 
-    @patch("app.tasks.audio_processing._extract_audio_segment")
+    @patch("app.infrastructure.transcription.audio_processing._extract_audio_segment")
     def test_calculates_correct_number_of_segments(self, mock_extract):
         """Test that correct number of segments is calculated"""
         mock_extract.return_value = {
@@ -180,7 +182,7 @@ class SplitAudioIntoSegmentsTests(TestCase):
             # 50 / (24 * 0.8) = 50 / 19.2 = 2.6 -> 3 segments
             self.assertEqual(len(segments), 3)
 
-    @patch("app.tasks.audio_processing._extract_audio_segment")
+    @patch("app.infrastructure.transcription.audio_processing._extract_audio_segment")
     def test_segment_timestamps_are_sequential(self, mock_extract):
         """Test that segment timestamps are sequential"""
         call_count = [0]
@@ -210,8 +212,8 @@ class SplitAudioIntoSegmentsTests(TestCase):
 class ExtractAndSplitAudioTests(TestCase):
     """Tests for extract_and_split_audio function"""
 
-    @patch("app.tasks.audio_processing._extract_full_audio")
-    @patch("app.tasks.audio_processing._get_video_duration")
+    @patch("app.infrastructure.transcription.audio_processing._extract_full_audio")
+    @patch("app.infrastructure.transcription.audio_processing._get_video_duration")
     def test_no_split_when_within_limit(self, mock_duration, mock_extract):
         """Test that no splitting occurs when audio is within limit"""
         mock_duration.return_value = 60.0
@@ -224,9 +226,9 @@ class ExtractAndSplitAudioTests(TestCase):
         self.assertEqual(segments[0]["end_time"], 60.0)
 
     @patch("os.remove")
-    @patch("app.tasks.audio_processing._split_audio_into_segments")
-    @patch("app.tasks.audio_processing._extract_full_audio")
-    @patch("app.tasks.audio_processing._get_video_duration")
+    @patch("app.infrastructure.transcription.audio_processing._split_audio_into_segments")
+    @patch("app.infrastructure.transcription.audio_processing._extract_full_audio")
+    @patch("app.infrastructure.transcription.audio_processing._get_video_duration")
     def test_splits_when_exceeds_limit(
         self, mock_duration, mock_extract, mock_split, mock_remove
     ):
@@ -246,7 +248,7 @@ class ExtractAndSplitAudioTests(TestCase):
             "/tmp/audio.mp3"
         )  # Original should be deleted
 
-    @patch("app.tasks.audio_processing._get_video_duration")
+    @patch("app.infrastructure.transcription.audio_processing._get_video_duration")
     def test_handles_ffprobe_error(self, mock_duration):
         """Test that ffprobe errors are handled gracefully"""
         mock_duration.side_effect = subprocess.CalledProcessError(
@@ -257,8 +259,8 @@ class ExtractAndSplitAudioTests(TestCase):
 
         self.assertEqual(segments, [])
 
-    @patch("app.tasks.audio_processing._extract_full_audio")
-    @patch("app.tasks.audio_processing._get_video_duration")
+    @patch("app.infrastructure.transcription.audio_processing._extract_full_audio")
+    @patch("app.infrastructure.transcription.audio_processing._get_video_duration")
     def test_registers_temp_files_for_cleanup(self, mock_duration, mock_extract):
         """Test that temp files are registered for cleanup"""
         mock_duration.return_value = 60.0
@@ -270,7 +272,7 @@ class ExtractAndSplitAudioTests(TestCase):
             self.assertEqual(len(temp_manager.temp_files), 1)
             self.assertEqual(temp_manager.temp_files[0], "/tmp/audio.mp3")
 
-    @patch("app.tasks.audio_processing._get_video_duration")
+    @patch("app.infrastructure.transcription.audio_processing._get_video_duration")
     def test_handles_generic_exception(self, mock_duration):
         """Test that generic exceptions are handled gracefully"""
         mock_duration.side_effect = Exception("Unknown error")
@@ -393,8 +395,8 @@ class ProcessAudioSegmentsAsyncTests(TestCase):
 class ProcessAudioSegmentsParallelTests(TestCase):
     """Tests for process_audio_segments_parallel function"""
 
-    @patch("app.tasks.audio_processing.asyncio.run")
-    @patch("app.tasks.audio_processing.AsyncOpenAI")
+    @patch("app.infrastructure.transcription.audio_processing.asyncio.run")
+    @patch("app.infrastructure.transcription.audio_processing.AsyncOpenAI")
     def test_creates_async_client(self, mock_async_openai, mock_asyncio_run):
         """Test that async client is created from sync client"""
         mock_sync_client = MagicMock()
@@ -407,8 +409,8 @@ class ProcessAudioSegmentsParallelTests(TestCase):
 
         mock_async_openai.assert_called_once_with(api_key="test-key")
 
-    @patch("app.tasks.audio_processing.asyncio.run")
-    @patch("app.tasks.audio_processing.AsyncOpenAI")
+    @patch("app.infrastructure.transcription.audio_processing.asyncio.run")
+    @patch("app.infrastructure.transcription.audio_processing.AsyncOpenAI")
     def test_preserves_base_url_for_local_whisper(
         self, mock_async_openai, mock_asyncio_run
     ):
