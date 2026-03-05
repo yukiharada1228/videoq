@@ -1,5 +1,5 @@
 """
-Tests for media views
+Tests for presentation/media/views.py (ProtectedMediaView).
 """
 
 import os
@@ -162,7 +162,7 @@ class ProtectedMediaViewTests(APITestCase):
         if os.path.exists(file_path):
             os.remove(file_path)
 
-    @patch("app.media.views.mimetypes.guess_type")
+    @patch("app.presentation.media.views.mimetypes.guess_type")
     def test_get_media_content_type(self, mock_guess_type):
         """Test that Content-Type header is set correctly"""
         mock_guess_type.return_value = ("video/mp4", None)

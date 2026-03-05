@@ -73,6 +73,7 @@ from app.use_cases.video.manage_groups import (
     ReorderVideosInGroupUseCase,
 )
 from app.use_cases.video.manage_tags import AddTagsToVideoUseCase, RemoveTagFromVideoUseCase
+from app.use_cases.media.resolve_protected_media import ResolveProtectedMediaUseCase
 from app.use_cases.video.reindex_all_videos import ReindexAllVideosUseCase
 from app.use_cases.video.run_transcription import RunTranscriptionUseCase
 from app.use_cases.video.update_group import UpdateVideoGroupUseCase
@@ -315,6 +316,16 @@ def get_create_api_key_use_case() -> CreateApiKeyUseCase:
 
 def get_revoke_api_key_use_case() -> RevokeApiKeyUseCase:
     return RevokeApiKeyUseCase(DjangoApiKeyRepository())
+
+
+# ---------------------------------------------------------------------------
+# Media use cases
+# ---------------------------------------------------------------------------
+
+
+def get_resolve_protected_media_use_case() -> ResolveProtectedMediaUseCase:
+    from app.infrastructure.repositories.django_media_repository import DjangoMediaRepository
+    return ResolveProtectedMediaUseCase(DjangoMediaRepository())
 
 
 # ---------------------------------------------------------------------------

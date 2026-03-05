@@ -309,3 +309,8 @@ class ImportRulesTest(unittest.TestCase):
     def test_container_has_no_presentation_imports(self):
         """container.py must not import from app.presentation."""
         self._check_single_file("container.py", ["app.presentation"])
+
+    def test_media_has_no_direct_model_or_infrastructure_imports(self):
+        """app/media must not import app.models or app.infrastructure directly.
+        All ORM access for the media domain must go through infrastructure/repositories."""
+        self._check("media", ["app.models", "app.infrastructure"])
