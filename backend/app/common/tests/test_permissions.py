@@ -9,9 +9,10 @@ from django.test import RequestFactory
 from rest_framework.request import Request
 from rest_framework.test import APIRequestFactory, APITestCase
 
-from app.common.permissions import (IsAuthenticatedOrSharedAccess,
+from app.common.permissions import (ApiKeyScopePermission,
+                                    IsAuthenticatedOrSharedAccess,
                                     ShareTokenAuthentication)
-from app.models import VideoGroup
+from app.models import UserApiKey, VideoGroup
 
 User = get_user_model()
 
@@ -121,3 +122,72 @@ class IsAuthenticatedOrSharedAccessTests(APITestCase):
         result = self.permission.has_permission(request, None)
 
         self.assertFalse(result)
+
+
+class ApiKeyScopePermissionTests(APITestCase):
+    """Tests for ApiKeyScopePermission"""
+
+    class _DefaultView:
+        pass
+
+    class _ChatWriteView:
+        required_scope = "chat_write"
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="apikeyuser",
+            email="apikey@example.com",
+            password="testpass123",
+        )
+        self.permission = ApiKeyScopePermission()
+        self.factory = RequestFactory()
+        self.read_only_key, _ = UserApiKey.create_for_user(
+            user=self.user,
+            name="read-only",
+            access_level=UserApiKey.AccessLevel.READ_ONLY,
+        )
+        self.full_key, _ = UserApiKey.create_for_user(
+            user=self.user,
+            name="full-access",
+            access_level=UserApiKey.AccessLevel.ALL,
+        )
+
+    def test_read_only_allows_read_scope_by_default(self):
+        request = self.factory.get("/")
+        request.auth = self.read_only_key
+
+        result = self.permission.has_permission(request, self._DefaultView())
+
+        self.assertTrue(result)
+
+    def test_read_only_blocks_write_scope_by_default(self):
+        request = self.factory.post("/")
+        request.auth = self.read_only_key
+
+        result = self.permission.has_permission(request, self._DefaultView())
+
+        self.assertFalse(result)
+
+    def test_read_only_allows_chat_write_scope(self):
+        request = self.factory.post("/")
+        request.auth = self.read_only_key
+
+        result = self.permission.has_permission(request, self._ChatWriteView())
+
+        self.assertTrue(result)
+
+    def test_full_access_allows_write_scope(self):
+        request = self.factory.post("/")
+        request.auth = self.full_key
+
+        result = self.permission.has_permission(request, self._DefaultView())
+
+        self.assertTrue(result)
+
+    def test_non_api_key_auth_bypasses_scope_check(self):
+        request = self.factory.post("/")
+        request.auth = {"share_token": "x"}
+
+        result = self.permission.has_permission(request, self._DefaultView())
+
+        self.assertTrue(result)

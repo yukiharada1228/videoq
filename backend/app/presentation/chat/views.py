@@ -14,14 +14,24 @@ from rest_framework.views import APIView
 
 from app.common.authentication import APIKeyAuthentication, CookieJWTAuthentication
 from app.container import get_container
-from app.common.permissions import IsAuthenticatedOrSharedAccess, ShareTokenAuthentication
+from app.common.permissions import (
+    ApiKeyScopePermission,
+    IsAuthenticatedOrSharedAccess,
+    ShareTokenAuthentication,
+)
 from app.common.responses import create_error_response
 from app.common.throttles import (
     AuthenticatedChatThrottle,
     ShareTokenGlobalThrottle,
     ShareTokenIPThrottle,
 )
-from app.use_cases.chat.exceptions import LLMConfigurationError, LLMProviderError
+from app.use_cases.chat.exceptions import (
+    ChatNotFoundError,
+    FeedbackPermissionDenied,
+    InvalidFeedbackError,
+    LLMConfigurationError,
+    LLMProviderError,
+)
 from app.use_cases.shared.exceptions import ResourceNotFound
 from django.http import HttpResponse
 
@@ -51,7 +61,8 @@ class ChatView(APIView):
         CookieJWTAuthentication,
         ShareTokenAuthentication,
     ]
-    permission_classes = [IsAuthenticatedOrSharedAccess]
+    permission_classes = [IsAuthenticatedOrSharedAccess, ApiKeyScopePermission]
+    required_scope = "chat_write"
     throttle_classes = [
         ShareTokenIPThrottle,
         ShareTokenGlobalThrottle,
@@ -115,7 +126,8 @@ class ChatFeedbackView(APIView):
         CookieJWTAuthentication,
         ShareTokenAuthentication,
     ]
-    permission_classes = [IsAuthenticatedOrSharedAccess]
+    permission_classes = [IsAuthenticatedOrSharedAccess, ApiKeyScopePermission]
+    required_scope = "chat_write"
 
     @extend_schema(
         request=ChatFeedbackRequestSerializer,
@@ -135,13 +147,6 @@ class ChatFeedbackView(APIView):
         if feedback == "":
             feedback = None
 
-        valid_feedback = {None, "good", "bad"}
-        if feedback not in valid_feedback:
-            return create_error_response(
-                "feedback must be 'good', 'bad', or null (unspecified)",
-                status.HTTP_400_BAD_REQUEST,
-            )
-
         use_case = get_container().get_submit_feedback_use_case()
         try:
             log = use_case.execute(
@@ -150,9 +155,11 @@ class ChatFeedbackView(APIView):
                 user_id=getattr(request.user, "id", None),
                 share_token=share_token,
             )
-        except ValueError as e:
+        except InvalidFeedbackError as e:
+            return create_error_response(str(e), status.HTTP_400_BAD_REQUEST)
+        except ChatNotFoundError as e:
             return create_error_response(str(e), status.HTTP_404_NOT_FOUND)
-        except PermissionError as e:
+        except FeedbackPermissionDenied as e:
             return create_error_response(str(e), status.HTTP_403_FORBIDDEN)
 
         return Response({"chat_log_id": log.id, "feedback": log.feedback})
@@ -162,7 +169,7 @@ class ChatHistoryView(APIView):
     """Get conversation history for a group (owner only)."""
 
     authentication_classes = [APIKeyAuthentication, CookieJWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, ApiKeyScopePermission]
 
     def get(self, request, *args, **kwargs):
         group_id = request.query_params.get("group_id")
@@ -182,7 +189,7 @@ class ChatHistoryExportView(APIView):
     """Export group conversation history as CSV."""
 
     authentication_classes = [APIKeyAuthentication, CookieJWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, ApiKeyScopePermission]
 
     @extend_schema(
         responses={
@@ -225,7 +232,7 @@ class PopularScenesView(APIView):
         CookieJWTAuthentication,
         ShareTokenAuthentication,
     ]
-    permission_classes = [IsAuthenticatedOrSharedAccess]
+    permission_classes = [IsAuthenticatedOrSharedAccess, ApiKeyScopePermission]
 
     @extend_schema(
         parameters=[
@@ -293,7 +300,7 @@ class ChatAnalyticsView(APIView):
     """Analytics dashboard data for a chat group."""
 
     authentication_classes = [APIKeyAuthentication, CookieJWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, ApiKeyScopePermission]
 
     @extend_schema(
         responses={200: ChatAnalyticsResponseSerializer},

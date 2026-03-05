@@ -3,12 +3,13 @@
 from rest_framework.permissions import AllowAny, IsAuthenticated
 
 from app.common.authentication import APIKeyAuthentication, CookieJWTAuthentication
+from app.common.permissions import ApiKeyScopePermission
 
 
 class AuthenticatedViewMixin:
     """Common mixin for authenticated views"""
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, ApiKeyScopePermission]
     authentication_classes = [APIKeyAuthentication, CookieJWTAuthentication]
 
     def get_serializer_context(self):

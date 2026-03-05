@@ -24,6 +24,7 @@ from app.use_cases.auth.manage_api_keys import (
     ListApiKeysUseCase,
     RevokeApiKeyUseCase,
 )
+from app.use_cases.auth.authorize_api_key import AuthorizeApiKeyUseCase
 from app.use_cases.auth.refresh_token import RefreshTokenUseCase
 from app.use_cases.auth.reset_password import (
     ConfirmPasswordResetUseCase,
@@ -88,3 +89,7 @@ def get_create_api_key_use_case() -> CreateApiKeyUseCase:
 
 def get_revoke_api_key_use_case() -> RevokeApiKeyUseCase:
     return RevokeApiKeyUseCase(DjangoApiKeyRepository())
+
+
+def get_authorize_api_key_use_case() -> AuthorizeApiKeyUseCase:
+    return AuthorizeApiKeyUseCase()

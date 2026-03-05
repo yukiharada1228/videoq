@@ -18,3 +18,13 @@ class ProtectedMediaRepository(ABC):
     @abstractmethod
     def is_video_in_group(self, video_id: int, group_id: int) -> bool:
         """Return True if group_id has access to video_id."""
+
+
+class MediaStorageGateway(ABC):
+    @abstractmethod
+    def exists(self, path: str) -> bool:
+        """Return True if path exists in media storage."""
+
+    @abstractmethod
+    def open(self, path: str, mode: str = "rb"):
+        """Open a media file path and return a file-like object."""

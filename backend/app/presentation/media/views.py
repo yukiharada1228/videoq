@@ -1,14 +1,14 @@
-import mimetypes
-import os
-
-from django.conf import settings
 from django.http import Http404, HttpResponse
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework.views import APIView
 
 from app.common.authentication import APIKeyAuthentication, CookieJWTAuthentication
-from app.common.permissions import IsAuthenticatedOrSharedAccess, ShareTokenAuthentication
+from app.common.permissions import (
+    ApiKeyScopePermission,
+    IsAuthenticatedOrSharedAccess,
+    ShareTokenAuthentication,
+)
 from app.container import get_container
 from app.use_cases.media.resolve_protected_media import ResolveProtectedMediaInput
 from app.use_cases.shared.exceptions import ResourceNotFound
@@ -22,7 +22,7 @@ class ProtectedMediaView(APIView):
         CookieJWTAuthentication,
         ShareTokenAuthentication,
     ]
-    permission_classes = [IsAuthenticatedOrSharedAccess]
+    permission_classes = [IsAuthenticatedOrSharedAccess, ApiKeyScopePermission]
 
     @extend_schema(
         responses={
@@ -35,10 +35,6 @@ class ProtectedMediaView(APIView):
         description="Stream a protected media file when the requester has access.",
     )
     def get(self, request, path: str):
-        file_path = os.path.join(settings.MEDIA_ROOT, path)
-        if not os.path.exists(file_path):
-            raise Http404()
-
         user_id = None
         group_id = None
         if (
@@ -52,16 +48,15 @@ class ProtectedMediaView(APIView):
             user_id = request.user.id
 
         try:
-            get_container().get_resolve_protected_media_use_case().execute(
+            resolved = get_container().get_resolve_protected_media_use_case().execute(
                 ResolveProtectedMediaInput(path=path, user_id=user_id, group_id=group_id)
             )
         except ResourceNotFound:
             raise Http404()
 
         response = HttpResponse()
-        content_type, _ = mimetypes.guess_type(file_path)
-        if content_type:
-            response["Content-Type"] = content_type
-        response["X-Accel-Redirect"] = f"/api/protected_media/{path}"
+        if resolved.content_type:
+            response["Content-Type"] = resolved.content_type
+        response["X-Accel-Redirect"] = resolved.redirect_path
 
         return response
