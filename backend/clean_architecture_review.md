@@ -1,77 +1,48 @@
-# バックエンドのクリーンアーキテクチャレビュー
+# Clean Architecture Review (backend)
 
-## 結論
-**部分的にクリーンアーキテクチャになっていますが、完全ではありません。**
+## Findings (severity order)
 
-- 良い点: `domain / use_cases / infrastructure / presentation` のレイヤー分離があり、禁止インポートをCIテストで検証しています。
-- 課題: `auth` まわりでプレゼンテーション層に認証ロジックが残っており、`user` 系はユースケース境界でDjangoモデル依存が漏れています。
+### 1. High: Infrastructure layer depends on Use Case layer (dependency rule violation)
+- `infrastructure` が `use_cases` の例外型に依存しています。
+- Clean Architecture の依存方向（外側 -> 内側）としては、`infrastructure` は `domain`（必要なら application port）に依存し、`use_cases` への直接依存は避けるべきです。
 
-## 主要な指摘（重大度順）
+Evidence:
+- `app/infrastructure/external/llm.py:12` (`from app.use_cases.shared.exceptions import LLMConfigError`)
+- `app/infrastructure/external/rag_gateway.py:13` (`from app.use_cases.shared.exceptions import LLMConfigError`)
+- `app/infrastructure/auth/simplejwt_gateway.py:12` (`from app.use_cases.auth.exceptions import InvalidToken`)
 
-### 1. High: Auth の中核ロジックが presentation に残っている
-- 根拠:
-  - `LoginView` で `RefreshToken.for_user(user)` を直接実行し、トークン発行をViewが担当している。  
-    `app/presentation/auth/views.py:90-121`
-  - `RefreshView` でも `RefreshToken(...)` の検証とアクセストークン再発行をViewが担当している。  
-    `app/presentation/auth/views.py:188-220`
-  - `LoginSerializer` が `authenticate(...)` を直接呼んでいる。  
-    `app/presentation/auth/serializers.py:20-27`
-- 影響:
-  - 認証ユースケースが薄くなり、HTTP/DRF層の都合が業務ロジックに混在。
-  - 認証方式変更（JWT実装切替、外部IdP対応）の影響範囲がpresentationに広がる。
-- 改善案:
-  - `LoginUseCase` / `RefreshTokenUseCase` を追加し、presentationは入出力変換のみ担当。
-  - JWT操作は `domain.auth.gateways` のPort経由で隠蔽。
+Risk:
+- use case 層の変更が infrastructure 層に波及しやすくなり、レイヤ独立性が低下します。
+- 例外の責務境界が曖昧になり、拡張時に循環的な依存が発生しやすくなります。
 
-### 2. Medium: User ユースケース境界でDjangoモデル依存が漏れている
-- 根拠:
-  - `UserRepository` が返却型を定義しておらず（抽象が曖昧）、  
-    `app/domain/user/repositories.py:12-19`
-  - 実装はDjango `User` をそのまま返している。  
-    `app/infrastructure/repositories/django_user_repository.py:16-20`
-  - `GetCurrentUserUseCase` はその値を透過的に返却している。  
-    `app/use_cases/auth/get_current_user.py:12-13`
-- 影響:
-  - use_cases層が実質的にORMモデル表現へ依存。
-  - 将来の永続化差し替えやDTO契約の安定性が下がる。
-- 改善案:
-  - `domain.user.entities.UserEntity`（または `use_cases.auth.dto.CurrentUserDto`）を定義。
-  - repository実装でORM→Entity/DTO変換し、use caseはEntity/DTOのみ返す。
+Recommendation:
+- 例外型は `domain` 側（port/gateway 契約）へ寄せるか、`app/common` などの中立レイヤに移動する。
+- `use_cases` は domain 例外を必要に応じて変換する。
 
-### 3. Medium: DI経路が層ごとに不統一（container と factories が混在）
-- 根拠:
-  - `video` は `get_container()` を使用。  
-    `app/presentation/video/views.py:16`
-  - `auth` は `from app import factories` で直接取得。  
-    `app/presentation/auth/views.py:31`
-- 影響:
-  - 依存解決ルールが統一されず、テスト時の差し替え戦略が揺れる。
-- 改善案:
-  - presentation層の依存解決を `AppContainer` に一本化。
+### 2. Medium: Import rule tests do not guard the above violation
+- 依存ルールのテストは `domain/use_cases/presentation/tasks` を中心に制約していますが、`infrastructure -> use_cases` の禁止が含まれていません。
 
-### 4. Low: メール重複チェックの責務が二重化
-- 根拠:
-  - Serializerで重複チェック。  
-    `app/presentation/auth/serializers.py:35-38`
-  - UseCaseでも同じ重複チェック。  
-    `app/use_cases/auth/signup.py:25-27`
-- 影響:
-  - ルール変更時の重複修正漏れリスク。
-- 改善案:
-  - ビジネスルールはUseCase側を正とし、Serializerは形式検証中心にする。
+Evidence:
+- `app/tests/test_import_rules.py:204-206` は `infrastructure` に対して `rest_framework` のみ禁止
+- 同ファイル内に `infrastructure` の `app.use_cases` 依存禁止ルールがない
 
-## 良い実装（維持推奨）
-- 依存方向のガードテストがある。  
-  `app/tests/test_import_rules.py`
-- `tasks` が薄いトリガーとして実装され、ユースケースへ委譲できている。  
-  `app/tasks/transcription.py`, `app/tasks/reindexing.py`, `app/tasks/account_deletion.py`
-- 多くの `video/chat` ユースケースはPort（repository/gateway interface）経由で依存逆転できている。
+Risk:
+- CI で検知されず、同種の境界違反が増える可能性があります。
 
-## 総合評価
-- レイヤー分離の基盤はできています（**7/10**）。
-- ただし `auth` と `user` 境界に残るフレームワーク依存を整理しないと、クリーンアーキテクチャとしては「準拠途中」です。
+Recommendation:
+- `infrastructure` で `app.use_cases` を禁止するルールを追加する。
+- 可能であれば `app.common` の許可/禁止ポリシーも明文化する。
 
-## 優先アクション
-1. `auth` のログイン/リフレッシュをUseCase化し、JWT処理をGatewayへ移動。
-2. `UserEntity` or `CurrentUserDto` を導入し、`GetCurrentUserUseCase` の返却契約を固定。
-3. presentationの依存解決を `container` に統一。
+## Overall assessment
+- 結論: **部分的にはクリーンアーキテクチャだが、完全ではない**。
+- 良い点:
+  - `domain / use_cases / infrastructure / presentation` の層分離は明確。
+  - `presentation` が `container` 経由で use case を呼ぶ構成は一貫している。
+  - `use_cases` から ORM への直接依存は抑制されている（設計意図は明確）。
+- 課題:
+  - 本番コードで `infrastructure -> use_cases` 依存があり、依存方向ルールに穴がある。
+
+## Verification notes
+- ソースコードの静的レビューと grep ベースで確認。
+- `docker compose -f ../docker-compose.yml exec backend python manage.py test app.tests.test_import_rules --verbosity 2` を実行。
+- 実行結果: `Ran 8 tests ... OK`（import ルールテストはすべて成功）。

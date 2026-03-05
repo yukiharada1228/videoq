@@ -2,8 +2,6 @@ from django.conf import settings
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics, status
 from rest_framework.response import Response
-from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
-from rest_framework_simplejwt.tokens import RefreshToken
 
 from app.presentation.auth.serializers import (AccountDeleteSerializer,
                                                ApiKeyCreateResponseSerializer,
@@ -22,13 +20,14 @@ from app.presentation.auth.serializers import (AccountDeleteSerializer,
 from app.use_cases.auth.signup import EmailAlreadyRegistered
 from app.use_cases.auth.verify_email import InvalidVerificationLink
 from app.use_cases.auth.reset_password import InvalidResetLink
+from app.use_cases.auth.exceptions import AuthenticationFailed, InvalidToken
 from app.common.authentication import APIKeyAuthentication, CookieJWTAuthentication
 from app.common.exceptions import ErrorCode
 from app.common.responses import create_error_response, create_success_response
 from app.common.throttles import (LoginIPThrottle, LoginUsernameThrottle,
                                    PasswordResetEmailThrottle,
                                    PasswordResetIPThrottle, SignupIPThrottle)
-from app import factories
+from app.container import get_container
 from app.use_cases.shared.exceptions import ResourceNotFound
 from app.utils.mixins import AuthenticatedViewMixin, PublicViewMixin
 
@@ -59,7 +58,7 @@ class UserSignupView(PublicAPIView):
         serializer.is_valid(raise_exception=True)
         d = serializer.validated_data
         try:
-            factories.get_signup_use_case().execute(
+            get_container().get_signup_use_case().execute(
                 username=d["username"], email=d["email"], password=d["password"]
             )
         except EmailAlreadyRegistered as e:
@@ -88,22 +87,28 @@ class LoginView(PublicAPIView):
         description="Authenticate user and return JWT tokens. Tokens are also set in HttpOnly cookies.",
     )
     def post(self, request):
-        serializer = self.get_serializer(
-            data=request.data, context={"request": request}
-        )
+        serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        user = serializer.validated_data["user"]
-        refresh = RefreshToken.for_user(user)
+        d = serializer.validated_data
 
-        response = Response(
-            {"access": str(refresh.access_token), "refresh": str(refresh)}
-        )
+        try:
+            token_pair = get_container().get_login_use_case().execute(
+                username=d["username"], password=d["password"]
+            )
+        except AuthenticationFailed:
+            return create_error_response(
+                "Authentication failed",
+                status.HTTP_400_BAD_REQUEST,
+                code=ErrorCode.AUTHENTICATION_FAILED,
+            )
+
+        response = Response({"access": token_pair.access, "refresh": token_pair.refresh})
 
         samesite_value = "None" if settings.SECURE_COOKIES else "Lax"
 
         response.set_cookie(
             key="access_token",
-            value=str(refresh.access_token),
+            value=token_pair.access,
             httponly=True,
             secure=settings.SECURE_COOKIES,
             samesite=samesite_value,
@@ -111,7 +116,7 @@ class LoginView(PublicAPIView):
         )
         response.set_cookie(
             key="refresh_token",
-            value=str(refresh),
+            value=token_pair.refresh,
             httponly=True,
             secure=settings.SECURE_COOKIES,
             samesite=samesite_value,
@@ -161,8 +166,7 @@ class AccountDeleteView(AuthenticatedAPIView):
         serializer.is_valid(raise_exception=True)
         reason = serializer.validated_data.get("reason", "")
 
-        use_case = factories.get_delete_account_use_case()
-        use_case.execute(request.user.id, reason)
+        get_container().get_delete_account_use_case().execute(request.user.id, reason)
 
         response = create_success_response(message="Account deletion started.")
 
@@ -191,26 +195,24 @@ class RefreshView(PublicAPIView):
         if not refresh_token:
             serializer = self.get_serializer(data=request.data)
             serializer.is_valid(raise_exception=True)
-            refresh = serializer.validated_data["refresh_obj"]
-        else:
-            try:
-                refresh = RefreshToken(refresh_token)
-            except (InvalidToken, TokenError, ValueError):
-                return create_error_response(
-                    message="Invalid refresh token",
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    code=ErrorCode.AUTHENTICATION_FAILED,
-                )
+            refresh_token = serializer.validated_data["refresh"]
 
-        access = refresh.access_token
+        try:
+            token_pair = get_container().get_refresh_token_use_case().execute(refresh_token)
+        except InvalidToken:
+            return create_error_response(
+                message="Invalid refresh token",
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                code=ErrorCode.AUTHENTICATION_FAILED,
+            )
 
-        response = Response({"access": str(access)})
+        response = Response({"access": token_pair.access})
 
         samesite_value = "None" if settings.SECURE_COOKIES else "Lax"
 
         response.set_cookie(
             key="access_token",
-            value=str(access),
+            value=token_pair.access,
             httponly=True,
             secure=settings.SECURE_COOKIES,
             samesite=samesite_value,
@@ -236,7 +238,7 @@ class EmailVerificationView(PublicAPIView):
         serializer.is_valid(raise_exception=True)
         d = serializer.validated_data
         try:
-            factories.get_verify_email_use_case().execute(
+            get_container().get_verify_email_use_case().execute(
                 uidb64=d["uid"], token=d["token"]
             )
         except InvalidVerificationLink as e:
@@ -261,7 +263,7 @@ class PasswordResetRequestView(PublicAPIView):
     def post(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        factories.get_request_password_reset_use_case().execute(
+        get_container().get_request_password_reset_use_case().execute(
             email=serializer.validated_data["email"]
         )
         return create_success_response(
@@ -285,7 +287,7 @@ class PasswordResetConfirmView(PublicAPIView):
         serializer.is_valid(raise_exception=True)
         d = serializer.validated_data
         try:
-            factories.get_confirm_password_reset_use_case().execute(
+            get_container().get_confirm_password_reset_use_case().execute(
                 uidb64=d["uid"], token=d["token"], new_password=d["new_password"]
             )
         except InvalidResetLink as e:
@@ -302,7 +304,7 @@ class MeView(AuthenticatedAPIView, generics.RetrieveAPIView):
     authentication_classes = [APIKeyAuthentication, CookieJWTAuthentication]
 
     def get_object(self):
-        return factories.get_current_user_use_case().execute(self.request.user.id)
+        return get_container().get_current_user_use_case().execute(self.request.user.id)
 
 
 class ApiKeyListCreateView(AuthenticatedAPIView, generics.GenericAPIView):
@@ -314,7 +316,7 @@ class ApiKeyListCreateView(AuthenticatedAPIView, generics.GenericAPIView):
         description="List active API keys for the current user. Plain key values are never returned.",
     )
     def get(self, request, *args, **kwargs):
-        keys = factories.get_list_api_keys_use_case().execute(user_id=request.user.id)
+        keys = get_container().get_list_api_keys_use_case().execute(user_id=request.user.id)
         return Response(ApiKeySerializer(keys, many=True).data)
 
     @extend_schema(
@@ -329,7 +331,7 @@ class ApiKeyListCreateView(AuthenticatedAPIView, generics.GenericAPIView):
         serializer = ApiKeyCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:
-            result = factories.get_create_api_key_use_case().execute(
+            result = get_container().get_create_api_key_use_case().execute(
                 user_id=request.user.id,
                 name=serializer.validated_data["name"],
                 access_level=serializer.validated_data["access_level"],
@@ -352,7 +354,7 @@ class ApiKeyDetailView(AuthenticatedAPIView, generics.GenericAPIView):
     def delete(self, request, *args, **kwargs):
         pk = self.kwargs.get("pk")
         try:
-            factories.get_revoke_api_key_use_case().execute(
+            get_container().get_revoke_api_key_use_case().execute(
                 key_id=int(pk), user_id=request.user.id
             )
         except ResourceNotFound:

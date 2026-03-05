@@ -223,6 +223,28 @@ class ImportRulesTest(unittest.TestCase):
             ),
         )
 
+    def test_presentation_auth_has_no_simplejwt_imports(self):
+        """presentation/auth must not import simplejwt directly (JWT logic belongs in infrastructure)."""
+        abs_path = os.path.join(BASE, "app", "presentation", "auth")
+        all_violations = {}
+        for fp in sorted(get_python_files(abs_path)):
+            rel = os.path.relpath(fp, BASE)
+            v = check_forbidden_imports(fp, ["rest_framework_simplejwt"])
+            if v:
+                all_violations[rel] = v
+        self.assertEqual(
+            {},
+            all_violations,
+            "presentation/auth must not import rest_framework_simplejwt:\n"
+            + "\n".join(
+                f"  {f}: {vs}" for f, vs in all_violations.items()
+            ),
+        )
+
+    def test_presentation_has_no_factories_imports(self):
+        """presentation must resolve dependencies through get_container(), not factories directly."""
+        self._check("presentation", ["app.factories"])
+
     def test_no_queryset_in_domain_or_use_cases(self):
         """QuerySet must not appear in domain or use_cases source files."""
         for layer in ["domain", "use_cases"]:
