@@ -26,11 +26,11 @@ class AccountDeletionUseCase:
         self.deletion_gateway = deletion_gateway
         self.task_queue = task_queue
 
-    def execute(self, user, reason: str = "") -> None:
-        self.deletion_gateway.record_deletion_request(user.id, reason)
+    def execute(self, user_id: int, reason: str = "") -> None:
+        self.deletion_gateway.record_deletion_request(user_id, reason)
 
         suffix = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d%H%M%S")
-        self.deletion_gateway.deactivate_user(user, suffix)
+        self.deletion_gateway.deactivate_user(user_id, suffix)
 
-        self.task_queue.enqueue_account_deletion(user.id)
-        logger.info("Account deletion initiated for user %s", user.id)
+        self.task_queue.enqueue_account_deletion(user_id)
+        logger.info("Account deletion initiated for user %s", user_id)

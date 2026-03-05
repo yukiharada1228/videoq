@@ -3,8 +3,8 @@ CI test: detect forbidden cross-layer imports.
 
 Acceptance criteria:
   - app/domain/**   : no app.models, django, rest_framework, celery, app.infrastructure
-  - app/use_cases/**: no app.models, django, app.infrastructure
-  - app/presentation/**: no app.models, no app.infrastructure.repositories
+  - app/use_cases/**: no app.models, django, rest_framework, app.infrastructure
+  - app/presentation/**: no app.models, no app.infrastructure.*
   - QuerySet must not appear in domain or use_cases source files
 """
 
@@ -79,13 +79,13 @@ class ImportRulesTest(unittest.TestCase):
         )
 
     def test_use_cases_has_no_forbidden_imports(self):
-        """use_cases layer must not import from app.models, django, or app.infrastructure."""
-        self._check("use_cases", ["app.models", "django", "app.infrastructure"])
+        """use_cases layer must not import from app.models, django, rest_framework, or app.infrastructure."""
+        self._check("use_cases", ["app.models", "django", "rest_framework", "app.infrastructure"])
 
-    def test_presentation_has_no_model_imports(self):
-        """presentation layer must not import from app.models or app.infrastructure.repositories."""
+    def test_presentation_has_no_infrastructure_imports(self):
+        """presentation layer must not import from app.models or any app.infrastructure.*."""
         self._check(
-            "presentation", ["app.models", "app.infrastructure.repositories"]
+            "presentation", ["app.models", "app.infrastructure"]
         )
 
     def test_no_queryset_in_domain_or_use_cases(self):

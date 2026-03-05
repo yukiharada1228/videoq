@@ -40,7 +40,7 @@ class CreateVideoUseCaseTests(TestCase):
 
     def test_creates_video_successfully(self):
         """Use case returns a VideoEntity on success"""
-        video = self.use_case.execute(self.user, self._validated_data())
+        video = self.use_case.execute(self.user.id, self.user.video_limit, self._validated_data())
 
         self.assertIsNotNone(video.id)
         self.assertEqual(video.title, "Test Video")
@@ -48,13 +48,13 @@ class CreateVideoUseCaseTests(TestCase):
 
     def test_dispatches_transcription_task_on_commit(self):
         """Transcription task is enqueued via task_queue after creation"""
-        video = self.use_case.execute(self.user, self._validated_data())
+        video = self.use_case.execute(self.user.id, self.user.video_limit, self._validated_data())
 
         self.mock_task_queue.enqueue_transcription.assert_called_once_with(video.id)
 
     def test_transcription_task_called_with_video_id(self):
         """enqueue_transcription is called with the new video's ID"""
-        video = self.use_case.execute(self.user, self._validated_data())
+        video = self.use_case.execute(self.user.id, self.user.video_limit, self._validated_data())
 
         self.mock_task_queue.enqueue_transcription.assert_called_once_with(video.id)
 
@@ -64,7 +64,7 @@ class CreateVideoUseCaseTests(TestCase):
         self.user.save()
 
         with self.assertRaises(VideoLimitExceeded):
-            self.use_case.execute(self.user, self._validated_data())
+            self.use_case.execute(self.user.id, self.user.video_limit, self._validated_data())
 
     def test_raises_video_limit_exceeded_when_limit_reached(self):
         """VideoLimitExceeded raised when the user has hit their limit"""
@@ -75,7 +75,7 @@ class CreateVideoUseCaseTests(TestCase):
         Video.objects.create(user=self.user, title="Video 2")
 
         with self.assertRaises(VideoLimitExceeded):
-            self.use_case.execute(self.user, self._validated_data())
+            self.use_case.execute(self.user.id, self.user.video_limit, self._validated_data())
 
     def test_allows_upload_when_within_limit(self):
         """Upload succeeds when user is under their limit"""
@@ -84,7 +84,7 @@ class CreateVideoUseCaseTests(TestCase):
 
         Video.objects.create(user=self.user, title="Video 1")
 
-        video = self.use_case.execute(self.user, self._validated_data())
+        video = self.use_case.execute(self.user.id, self.user.video_limit, self._validated_data())
 
         self.assertIsNotNone(video.id)
 
@@ -96,6 +96,6 @@ class CreateVideoUseCaseTests(TestCase):
         for i in range(10):
             Video.objects.create(user=self.user, title=f"Video {i}")
 
-        video = self.use_case.execute(self.user, self._validated_data())
+        video = self.use_case.execute(self.user.id, self.user.video_limit, self._validated_data())
 
         self.assertIsNotNone(video.id)

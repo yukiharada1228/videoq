@@ -20,6 +20,9 @@ from app.presentation.auth.serializers import (AccountDeleteSerializer,
                                                RefreshSerializer,
                                                UserSerializer,
                                                UserSignupSerializer)
+from app.use_cases.auth.signup import EmailAlreadyRegistered
+from app.use_cases.auth.verify_email import InvalidVerificationLink
+from app.use_cases.auth.reset_password import InvalidResetLink
 from app.common.authentication import APIKeyAuthentication, CookieJWTAuthentication
 from app.common.exceptions import ErrorCode
 from app.common.responses import create_error_response, create_success_response
@@ -43,12 +46,10 @@ class AuthenticatedAPIView(AuthenticatedViewMixin, generics.GenericAPIView):
     authentication_classes = [CookieJWTAuthentication]
 
 
-class UserSignupView(generics.CreateAPIView):
+class UserSignupView(PublicAPIView):
     """User registration view"""
 
-    queryset = User.objects.all()
     serializer_class = UserSignupSerializer
-    permission_classes = PublicViewMixin.permission_classes
     throttle_classes = [SignupIPThrottle]
 
     @extend_schema(
@@ -57,10 +58,21 @@ class UserSignupView(generics.CreateAPIView):
         summary="User signup",
         description="Register a new user. Verification email will be sent.",
     )
-    def create(self, request, *args, **kwargs):
+    def post(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
+        d = serializer.validated_data
+        try:
+            factories.get_signup_use_case().execute(
+                username=d["username"], email=d["email"], password=d["password"]
+            )
+        except EmailAlreadyRegistered as e:
+            return create_error_response(str(e), status.HTTP_400_BAD_REQUEST)
+        except Exception:
+            return create_error_response(
+                "Failed to send verification email. Please try again later.",
+                status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
         return create_success_response(
             message="Verification email sent. Please check your email.",
             status_code=status.HTTP_201_CREATED,
@@ -154,7 +166,7 @@ class AccountDeleteView(AuthenticatedAPIView):
         reason = serializer.validated_data.get("reason", "")
 
         use_case = factories.get_delete_account_use_case()
-        use_case.execute(request.user, reason)
+        use_case.execute(request.user.id, reason)
 
         response = create_success_response(message="Account deletion started.")
 
@@ -226,7 +238,13 @@ class EmailVerificationView(PublicAPIView):
     def post(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        d = serializer.validated_data
+        try:
+            factories.get_verify_email_use_case().execute(
+                uidb64=d["uid"], token=d["token"]
+            )
+        except InvalidVerificationLink as e:
+            return create_error_response(str(e), status.HTTP_400_BAD_REQUEST)
         return create_success_response(
             message="Email verification completed. Please sign in."
         )
@@ -247,7 +265,9 @@ class PasswordResetRequestView(PublicAPIView):
     def post(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        factories.get_request_password_reset_use_case().execute(
+            email=serializer.validated_data["email"]
+        )
         return create_success_response(
             message="Password reset email sent. Please check your email."
         )
@@ -267,7 +287,13 @@ class PasswordResetConfirmView(PublicAPIView):
     def post(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        d = serializer.validated_data
+        try:
+            factories.get_confirm_password_reset_use_case().execute(
+                uidb64=d["uid"], token=d["token"], new_password=d["new_password"]
+            )
+        except InvalidResetLink as e:
+            return create_error_response(str(e), status.HTTP_400_BAD_REQUEST)
         return create_success_response(
             message="Password reset successfully. Please sign in with your new password."
         )

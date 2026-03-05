@@ -21,6 +21,7 @@ from app.common.throttles import (
     ShareTokenGlobalThrottle,
     ShareTokenIPThrottle,
 )
+from app.domain.chat.gateways import LLMConfigurationError, LLMProviderError
 from app.use_cases.video.exceptions import ResourceNotFound
 from django.http import HttpResponse
 
@@ -63,19 +64,15 @@ class ChatView(APIView):
         description="Send a chat message and get AI response. Supports RAG when group_id is provided.",
     )
     def post(self, request):
-        from app.infrastructure.external.llm import get_langchain_llm, handle_langchain_exception
-
         share_token = request.query_params.get("share_token")
         is_shared = share_token is not None
         group_id = request.data.get("group_id")
-        user = request.user
 
         if is_shared:
             if not group_id:
                 return create_error_response(
                     "Group ID not specified", status.HTTP_400_BAD_REQUEST
                 )
-            # Resolve the group owner for LLM setup
             try:
                 group_entity = factories.get_shared_group_use_case().execute(
                     share_token=share_token
@@ -84,22 +81,18 @@ class ChatView(APIView):
                 return create_error_response(
                     "Shared group not found", status.HTTP_404_NOT_FOUND
                 )
-            from django.contrib.auth import get_user_model
-            user = get_user_model().objects.get(id=group_entity.user_id)
+            user_id = group_entity.user_id
+        else:
+            user_id = request.user.id
 
         messages = request.data.get("messages", [])
         if not messages:
             return create_error_response("Messages are empty", status.HTTP_400_BAD_REQUEST)
 
-        llm, error_response = get_langchain_llm(user)
-        if error_response:
-            return error_response
-
         use_case = factories.get_send_message_use_case()
         try:
             result = use_case.execute(
-                user_id=user.id,
-                llm=llm,
+                user_id=user_id,
                 messages=messages,
                 group_id=group_id,
                 share_token=share_token,
@@ -108,8 +101,10 @@ class ChatView(APIView):
             )
         except ResourceNotFound as e:
             return create_error_response(str(e), status.HTTP_404_NOT_FOUND)
-        except Exception as e:
-            return handle_langchain_exception(e)
+        except LLMConfigurationError as e:
+            return create_error_response(str(e), status.HTTP_400_BAD_REQUEST)
+        except LLMProviderError as e:
+            return create_error_response(str(e), status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         response_data = {"role": "assistant", "content": result.content}
         if group_id is not None and result.related_videos:

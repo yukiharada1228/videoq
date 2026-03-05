@@ -8,6 +8,10 @@ from app.infrastructure.external.vector_gateway import DjangoVectorStoreGateway
 from app.infrastructure.repositories.django_account_deletion_repository import (
     DjangoAccountDeletionGateway,
 )
+from app.infrastructure.repositories.django_user_auth_gateway import (
+    DjangoEmailSenderGateway,
+    DjangoUserManagementGateway,
+)
 from app.infrastructure.repositories.django_api_key_repository import (
     DjangoApiKeyRepository,
 )
@@ -22,6 +26,12 @@ from app.infrastructure.repositories.django_video_repository import (
 )
 from app.infrastructure.tasks.task_gateway import CeleryTaskQueueGateway
 from app.use_cases.auth.delete_account import AccountDeletionUseCase
+from app.use_cases.auth.signup import SignupUserUseCase
+from app.use_cases.auth.verify_email import VerifyEmailUseCase
+from app.use_cases.auth.reset_password import (
+    RequestPasswordResetUseCase,
+    ConfirmPasswordResetUseCase,
+)
 from app.use_cases.auth.manage_api_keys import (
     CreateApiKeyUseCase,
     ListApiKeysUseCase,
@@ -36,6 +46,7 @@ from app.use_cases.chat.submit_feedback import SubmitFeedbackUseCase
 from app.use_cases.video.create_group import CreateVideoGroupUseCase
 from app.use_cases.video.create_tag import CreateTagUseCase
 from app.use_cases.video.create_video import CreateVideoUseCase
+from app.use_cases.video.get_video import GetVideoDetailUseCase
 from app.use_cases.video.delete_group import DeleteVideoGroupUseCase
 from app.use_cases.video.delete_tag import DeleteTagUseCase
 from app.use_cases.video.delete_video import DeleteVideoUseCase
@@ -59,29 +70,16 @@ from app.use_cases.video.update_video import UpdateVideoUseCase
 
 
 # ---------------------------------------------------------------------------
-# Repository accessors
-# ---------------------------------------------------------------------------
-
-
-def get_video_repository() -> DjangoVideoRepository:
-    return DjangoVideoRepository()
-
-
-def get_group_repository() -> DjangoVideoGroupRepository:
-    return DjangoVideoGroupRepository()
-
-
-def get_tag_repository() -> DjangoTagRepository:
-    return DjangoTagRepository()
-
-
-# ---------------------------------------------------------------------------
 # Video use cases
 # ---------------------------------------------------------------------------
 
 
 def get_list_videos_use_case() -> ListVideosUseCase:
     return ListVideosUseCase(DjangoVideoRepository())
+
+
+def get_video_detail_use_case() -> GetVideoDetailUseCase:
+    return GetVideoDetailUseCase(DjangoVideoRepository())
 
 
 def get_create_video_use_case() -> CreateVideoUseCase:
@@ -222,6 +220,24 @@ def get_export_history_use_case() -> ExportChatHistoryUseCase:
 # ---------------------------------------------------------------------------
 # Auth use cases
 # ---------------------------------------------------------------------------
+
+
+def get_signup_use_case() -> SignupUserUseCase:
+    return SignupUserUseCase(DjangoUserManagementGateway(), DjangoEmailSenderGateway())
+
+
+def get_verify_email_use_case() -> VerifyEmailUseCase:
+    return VerifyEmailUseCase(DjangoUserManagementGateway())
+
+
+def get_request_password_reset_use_case() -> RequestPasswordResetUseCase:
+    return RequestPasswordResetUseCase(
+        DjangoUserManagementGateway(), DjangoEmailSenderGateway()
+    )
+
+
+def get_confirm_password_reset_use_case() -> ConfirmPasswordResetUseCase:
+    return ConfirmPasswordResetUseCase(DjangoUserManagementGateway())
 
 
 def get_delete_account_use_case() -> AccountDeletionUseCase:
