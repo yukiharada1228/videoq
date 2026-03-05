@@ -1,0 +1,248 @@
+"""
+Composition root: creates fully-wired use case instances.
+Presentation layer imports from here instead of directly from infrastructure.
+"""
+
+from app.infrastructure.external.rag_gateway import RagChatGateway
+from app.infrastructure.external.vector_gateway import DjangoVectorStoreGateway
+from app.infrastructure.repositories.django_account_deletion_repository import (
+    DjangoAccountDeletionGateway,
+)
+from app.infrastructure.repositories.django_api_key_repository import (
+    DjangoApiKeyRepository,
+)
+from app.infrastructure.repositories.django_chat_repository import (
+    DjangoChatRepository,
+    DjangoVideoGroupQueryRepository,
+)
+from app.infrastructure.repositories.django_video_repository import (
+    DjangoTagRepository,
+    DjangoVideoGroupRepository,
+    DjangoVideoRepository,
+)
+from app.infrastructure.tasks.task_gateway import CeleryTaskQueueGateway
+from app.use_cases.auth.delete_account import AccountDeletionUseCase
+from app.use_cases.auth.manage_api_keys import (
+    CreateApiKeyUseCase,
+    ListApiKeysUseCase,
+    RevokeApiKeyUseCase,
+)
+from app.use_cases.chat.export_history import ExportChatHistoryUseCase
+from app.use_cases.chat.get_analytics import GetChatAnalyticsUseCase
+from app.use_cases.chat.get_history import GetChatHistoryUseCase
+from app.use_cases.chat.get_popular_scenes import GetPopularScenesUseCase
+from app.use_cases.chat.send_message import SendMessageUseCase
+from app.use_cases.chat.submit_feedback import SubmitFeedbackUseCase
+from app.use_cases.video.create_group import CreateVideoGroupUseCase
+from app.use_cases.video.create_tag import CreateTagUseCase
+from app.use_cases.video.create_video import CreateVideoUseCase
+from app.use_cases.video.delete_group import DeleteVideoGroupUseCase
+from app.use_cases.video.delete_tag import DeleteTagUseCase
+from app.use_cases.video.delete_video import DeleteVideoUseCase
+from app.use_cases.video.get_group import GetSharedGroupUseCase, GetVideoGroupUseCase
+from app.use_cases.video.get_tag import GetTagDetailUseCase
+from app.use_cases.video.list_groups import ListVideoGroupsUseCase
+from app.use_cases.video.list_tags import ListTagsUseCase
+from app.use_cases.video.list_videos import ListVideosUseCase
+from app.use_cases.video.manage_groups import (
+    AddVideoToGroupUseCase,
+    AddVideosToGroupUseCase,
+    CreateShareLinkUseCase,
+    DeleteShareLinkUseCase,
+    RemoveVideoFromGroupUseCase,
+    ReorderVideosInGroupUseCase,
+)
+from app.use_cases.video.manage_tags import AddTagsToVideoUseCase, RemoveTagFromVideoUseCase
+from app.use_cases.video.update_group import UpdateVideoGroupUseCase
+from app.use_cases.video.update_tag import UpdateTagUseCase
+from app.use_cases.video.update_video import UpdateVideoUseCase
+
+
+# ---------------------------------------------------------------------------
+# Repository accessors
+# ---------------------------------------------------------------------------
+
+
+def get_video_repository() -> DjangoVideoRepository:
+    return DjangoVideoRepository()
+
+
+def get_group_repository() -> DjangoVideoGroupRepository:
+    return DjangoVideoGroupRepository()
+
+
+def get_tag_repository() -> DjangoTagRepository:
+    return DjangoTagRepository()
+
+
+# ---------------------------------------------------------------------------
+# Video use cases
+# ---------------------------------------------------------------------------
+
+
+def get_list_videos_use_case() -> ListVideosUseCase:
+    return ListVideosUseCase(DjangoVideoRepository())
+
+
+def get_create_video_use_case() -> CreateVideoUseCase:
+    return CreateVideoUseCase(DjangoVideoRepository(), CeleryTaskQueueGateway())
+
+
+def get_update_video_use_case() -> UpdateVideoUseCase:
+    return UpdateVideoUseCase(DjangoVideoRepository(), DjangoVectorStoreGateway())
+
+
+def get_delete_video_use_case() -> DeleteVideoUseCase:
+    return DeleteVideoUseCase(DjangoVideoRepository())
+
+
+# ---------------------------------------------------------------------------
+# Video group use cases
+# ---------------------------------------------------------------------------
+
+
+def get_list_groups_use_case() -> ListVideoGroupsUseCase:
+    return ListVideoGroupsUseCase(DjangoVideoGroupRepository())
+
+
+def get_create_group_use_case() -> CreateVideoGroupUseCase:
+    return CreateVideoGroupUseCase(DjangoVideoGroupRepository())
+
+
+def get_update_group_use_case() -> UpdateVideoGroupUseCase:
+    return UpdateVideoGroupUseCase(DjangoVideoGroupRepository())
+
+
+def get_delete_group_use_case() -> DeleteVideoGroupUseCase:
+    return DeleteVideoGroupUseCase(DjangoVideoGroupRepository())
+
+
+def get_video_group_use_case() -> GetVideoGroupUseCase:
+    return GetVideoGroupUseCase(DjangoVideoGroupRepository())
+
+
+def get_shared_group_use_case() -> GetSharedGroupUseCase:
+    return GetSharedGroupUseCase(DjangoVideoGroupRepository())
+
+
+def get_add_video_to_group_use_case() -> AddVideoToGroupUseCase:
+    return AddVideoToGroupUseCase(DjangoVideoRepository(), DjangoVideoGroupRepository())
+
+
+def get_add_videos_to_group_use_case() -> AddVideosToGroupUseCase:
+    return AddVideosToGroupUseCase(DjangoVideoGroupRepository())
+
+
+def get_remove_video_from_group_use_case() -> RemoveVideoFromGroupUseCase:
+    return RemoveVideoFromGroupUseCase(DjangoVideoRepository(), DjangoVideoGroupRepository())
+
+
+def get_reorder_videos_use_case() -> ReorderVideosInGroupUseCase:
+    return ReorderVideosInGroupUseCase(DjangoVideoGroupRepository())
+
+
+def get_create_share_link_use_case() -> CreateShareLinkUseCase:
+    return CreateShareLinkUseCase(DjangoVideoGroupRepository())
+
+
+def get_delete_share_link_use_case() -> DeleteShareLinkUseCase:
+    return DeleteShareLinkUseCase(DjangoVideoGroupRepository())
+
+
+# ---------------------------------------------------------------------------
+# Tag use cases
+# ---------------------------------------------------------------------------
+
+
+def get_list_tags_use_case() -> ListTagsUseCase:
+    return ListTagsUseCase(DjangoTagRepository())
+
+
+def get_create_tag_use_case() -> CreateTagUseCase:
+    return CreateTagUseCase(DjangoTagRepository())
+
+
+def get_update_tag_use_case() -> UpdateTagUseCase:
+    return UpdateTagUseCase(DjangoTagRepository())
+
+
+def get_delete_tag_use_case() -> DeleteTagUseCase:
+    return DeleteTagUseCase(DjangoTagRepository())
+
+
+def get_tag_detail_use_case() -> GetTagDetailUseCase:
+    return GetTagDetailUseCase(DjangoTagRepository())
+
+
+def get_add_tags_to_video_use_case() -> AddTagsToVideoUseCase:
+    return AddTagsToVideoUseCase(DjangoVideoRepository(), DjangoTagRepository())
+
+
+def get_remove_tag_from_video_use_case() -> RemoveTagFromVideoUseCase:
+    return RemoveTagFromVideoUseCase(DjangoVideoRepository(), DjangoTagRepository())
+
+
+# ---------------------------------------------------------------------------
+# Chat use cases
+# ---------------------------------------------------------------------------
+
+
+def get_send_message_use_case() -> SendMessageUseCase:
+    return SendMessageUseCase(
+        DjangoChatRepository(),
+        DjangoVideoGroupQueryRepository(),
+        RagChatGateway(),
+    )
+
+
+def get_chat_history_use_case() -> GetChatHistoryUseCase:
+    return GetChatHistoryUseCase(DjangoChatRepository(), DjangoVideoGroupQueryRepository())
+
+
+def get_chat_analytics_use_case() -> GetChatAnalyticsUseCase:
+    return GetChatAnalyticsUseCase(DjangoChatRepository(), DjangoVideoGroupQueryRepository())
+
+
+def get_popular_scenes_use_case() -> GetPopularScenesUseCase:
+    return GetPopularScenesUseCase(
+        DjangoChatRepository(),
+        DjangoVideoGroupQueryRepository(),
+        DjangoVideoRepository(),
+    )
+
+
+def get_submit_feedback_use_case() -> SubmitFeedbackUseCase:
+    return SubmitFeedbackUseCase(DjangoChatRepository())
+
+
+def get_export_history_use_case() -> ExportChatHistoryUseCase:
+    return ExportChatHistoryUseCase(DjangoChatRepository(), DjangoVideoGroupQueryRepository())
+
+
+# ---------------------------------------------------------------------------
+# Auth use cases
+# ---------------------------------------------------------------------------
+
+
+def get_delete_account_use_case() -> AccountDeletionUseCase:
+    return AccountDeletionUseCase(
+        DjangoAccountDeletionGateway(),
+        CeleryTaskQueueGateway(),
+    )
+
+
+# ---------------------------------------------------------------------------
+# API key use cases
+# ---------------------------------------------------------------------------
+
+
+def get_list_api_keys_use_case() -> ListApiKeysUseCase:
+    return ListApiKeysUseCase(DjangoApiKeyRepository())
+
+
+def get_create_api_key_use_case() -> CreateApiKeyUseCase:
+    return CreateApiKeyUseCase(DjangoApiKeyRepository())
+
+
+def get_revoke_api_key_use_case() -> RevokeApiKeyUseCase:
+    return RevokeApiKeyUseCase(DjangoApiKeyRepository())

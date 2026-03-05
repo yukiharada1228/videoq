@@ -1,11 +1,9 @@
 """
 Presentation layer serializers for the chat domain.
-Copied from app/chat/serializers.py — pure I/O validation, no business logic.
+Pure I/O validation, no business logic.
 """
 
 from rest_framework import serializers
-
-from app.models import ChatLog
 
 
 class MessageSerializer(serializers.Serializer):
@@ -40,13 +38,17 @@ class ChatFeedbackResponseSerializer(serializers.Serializer):
     feedback = serializers.CharField(required=False, allow_null=True)
 
 
-class ChatLogSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = ChatLog
-        fields = [
-            "id", "group", "question", "answer",
-            "related_videos", "is_shared_origin", "feedback", "created_at",
-        ]
+class ChatLogSerializer(serializers.Serializer):
+    """Output serializer for ChatLogEntity."""
+
+    id = serializers.IntegerField()
+    group = serializers.IntegerField(source="group_id")
+    question = serializers.CharField()
+    answer = serializers.CharField()
+    related_videos = serializers.ListField(child=serializers.DictField())
+    is_shared_origin = serializers.BooleanField()
+    feedback = serializers.CharField(allow_null=True)
+    created_at = serializers.DateTimeField()
 
 
 class ChatAnalyticsSummarySerializer(serializers.Serializer):

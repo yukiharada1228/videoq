@@ -2,10 +2,8 @@
 Use case: Update a video and sync PGVector metadata when the title changes.
 """
 
-from django.db import transaction
-
+from app.domain.video.gateways import VectorStoreGateway
 from app.domain.video.repositories import VideoRepository
-from app.models import Video
 from app.use_cases.video.exceptions import ResourceNotFound
 
 
@@ -17,14 +15,14 @@ class UpdateVideoUseCase:
     3. Sync PGVector metadata if the title changed
     """
 
-    def __init__(self, video_repo: VideoRepository):
+    def __init__(self, video_repo: VideoRepository, vector_gateway: VectorStoreGateway):
         self.video_repo = video_repo
+        self.vector_gateway = vector_gateway
 
-    @transaction.atomic
-    def execute(self, video_id: int, user_id: int, validated_data: dict) -> Video:
+    def execute(self, video_id: int, user_id: int, validated_data: dict):
         """
         Returns:
-            Video: The updated Video instance.
+            VideoEntity: The updated video entity.
 
         Raises:
             ResourceNotFound: If the video does not exist or is not owned by the user.
@@ -37,12 +35,6 @@ class UpdateVideoUseCase:
         video = self.video_repo.update(video, validated_data)
 
         if "title" in validated_data and old_title != video.title:
-            self._sync_pgvector_title(video.id, video.title)
+            self.vector_gateway.update_video_title(video.id, video.title)
 
         return video
-
-    @staticmethod
-    def _sync_pgvector_title(video_id: int, new_title: str) -> None:
-        from app.infrastructure.external.vector_store import update_video_title_in_vectors
-
-        update_video_title_in_vectors(video_id, new_title)

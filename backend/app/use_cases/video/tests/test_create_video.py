@@ -3,7 +3,7 @@ Tests for CreateVideoUseCase — quota enforcement and task dispatch.
 """
 
 from io import BytesIO
-from unittest.mock import patch
+from unittest.mock import MagicMock
 
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -32,34 +32,31 @@ class CreateVideoUseCaseTests(TestCase):
             video_limit=None,
         )
         self.repo = DjangoVideoRepository()
-        self.use_case = CreateVideoUseCase(self.repo)
+        self.mock_task_queue = MagicMock()
+        self.use_case = CreateVideoUseCase(self.repo, self.mock_task_queue)
 
     def _validated_data(self):
         return {"file": _make_video_file(), "title": "Test Video", "description": ""}
 
-    @patch("app.use_cases.video.create_video.transaction.on_commit")
-    def test_creates_video_successfully(self, mock_on_commit):
-        """Use case returns a Video instance on success"""
+    def test_creates_video_successfully(self):
+        """Use case returns a VideoEntity on success"""
         video = self.use_case.execute(self.user, self._validated_data())
 
         self.assertIsNotNone(video.id)
         self.assertEqual(video.title, "Test Video")
-        self.assertTrue(Video.objects.filter(pk=video.pk).exists())
+        self.assertTrue(Video.objects.filter(pk=video.id).exists())
 
-    @patch("app.use_cases.video.create_video.transaction.on_commit")
-    def test_dispatches_transcription_task_on_commit(self, mock_on_commit):
-        """Transcription task is registered with on_commit after creation"""
-        self.use_case.execute(self.user, self._validated_data())
+    def test_dispatches_transcription_task_on_commit(self):
+        """Transcription task is enqueued via task_queue after creation"""
+        video = self.use_case.execute(self.user, self._validated_data())
 
-        mock_on_commit.assert_called_once()
+        self.mock_task_queue.enqueue_transcription.assert_called_once_with(video.id)
 
-    @patch("app.tasks.transcribe_video.delay")
-    def test_transcription_task_called_with_video_id(self, mock_delay):
-        """transcribe_video.delay is called with the new video's ID"""
-        with self.captureOnCommitCallbacks(execute=True):
-            video = self.use_case.execute(self.user, self._validated_data())
+    def test_transcription_task_called_with_video_id(self):
+        """enqueue_transcription is called with the new video's ID"""
+        video = self.use_case.execute(self.user, self._validated_data())
 
-        mock_delay.assert_called_once_with(video.id)
+        self.mock_task_queue.enqueue_transcription.assert_called_once_with(video.id)
 
     def test_raises_video_limit_exceeded_when_limit_zero(self):
         """VideoLimitExceeded raised when video_limit is 0"""
@@ -69,8 +66,7 @@ class CreateVideoUseCaseTests(TestCase):
         with self.assertRaises(VideoLimitExceeded):
             self.use_case.execute(self.user, self._validated_data())
 
-    @patch("app.use_cases.video.create_video.transaction.on_commit")
-    def test_raises_video_limit_exceeded_when_limit_reached(self, mock_on_commit):
+    def test_raises_video_limit_exceeded_when_limit_reached(self):
         """VideoLimitExceeded raised when the user has hit their limit"""
         self.user.video_limit = 2
         self.user.save()
@@ -81,8 +77,7 @@ class CreateVideoUseCaseTests(TestCase):
         with self.assertRaises(VideoLimitExceeded):
             self.use_case.execute(self.user, self._validated_data())
 
-    @patch("app.use_cases.video.create_video.transaction.on_commit")
-    def test_allows_upload_when_within_limit(self, mock_on_commit):
+    def test_allows_upload_when_within_limit(self):
         """Upload succeeds when user is under their limit"""
         self.user.video_limit = 3
         self.user.save()
@@ -93,8 +88,7 @@ class CreateVideoUseCaseTests(TestCase):
 
         self.assertIsNotNone(video.id)
 
-    @patch("app.use_cases.video.create_video.transaction.on_commit")
-    def test_allows_unlimited_uploads(self, mock_on_commit):
+    def test_allows_unlimited_uploads(self):
         """No limit enforced when video_limit is None"""
         self.user.video_limit = None
         self.user.save()

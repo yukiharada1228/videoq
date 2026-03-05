@@ -35,8 +35,8 @@ class ExportChatHistoryUseCase:
         if group is None:
             raise ResourceNotFound("Group")
 
-        queryset = self.chat_repo.get_logs_for_group(group, ascending=True)
-        return group.id, self._build_rows(queryset)
+        logs = self.chat_repo.get_logs_for_group(group.id, ascending=True)
+        return group.id, self._build_rows(logs)
 
     @staticmethod
     def _build_rows(queryset):

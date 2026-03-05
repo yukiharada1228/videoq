@@ -2,11 +2,10 @@
 Use case: Deactivate a user account and enqueue data cleanup.
 """
 
+import datetime
 import logging
 
-from django.utils import timezone
-
-from app.models import AccountDeletionRequest
+from app.domain.auth.gateways import AccountDeletionGateway, TaskQueueGateway
 
 logger = logging.getLogger(__name__)
 
@@ -19,18 +18,19 @@ class AccountDeletionUseCase:
     3. Dispatch async data cleanup task
     """
 
+    def __init__(
+        self,
+        deletion_gateway: AccountDeletionGateway,
+        task_queue: TaskQueueGateway,
+    ):
+        self.deletion_gateway = deletion_gateway
+        self.task_queue = task_queue
+
     def execute(self, user, reason: str = "") -> None:
-        AccountDeletionRequest.objects.create(user=user, reason=reason)
+        self.deletion_gateway.record_deletion_request(user.id, reason)
 
-        now = timezone.now()
-        suffix = now.strftime("%Y%m%d%H%M%S")
-        user.is_active = False
-        user.deactivated_at = now
-        user.username = f"deleted__{user.id}__{suffix}"
-        user.email = f"deleted__{user.id}__{suffix}@invalid.local"
-        user.save(update_fields=["is_active", "deactivated_at", "username", "email"])
+        suffix = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d%H%M%S")
+        self.deletion_gateway.deactivate_user(user, suffix)
 
-        from app.tasks.account_deletion import delete_account_data
-
-        delete_account_data.delay(user.id)
+        self.task_queue.enqueue_account_deletion(user.id)
         logger.info("Account deletion initiated for user %s", user.id)

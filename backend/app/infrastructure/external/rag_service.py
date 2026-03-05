@@ -48,9 +48,11 @@ class RagChatService:
         messages: Sequence[Dict[str, str]],
         group: Optional["VideoGroup"] = None,
         locale: Optional[str] = None,
+        video_ids: Optional[List[int]] = None,
     ) -> RagChatResult:
         query_text = self._extract_latest_user_query(messages)
-        retriever = self._get_retriever(group)
+        # video_ids takes precedence over group (allows gateway to pass IDs directly)
+        retriever = self._get_retriever(group, video_ids=video_ids)
 
         if retriever is not None:
             rag_chain = (
@@ -97,11 +99,19 @@ class RagChatService:
             return messages[-1].get("content", "") or ""
         return ""
 
-    def _get_retriever(self, group: Optional["VideoGroup"]) -> Optional[Any]:
-        if group is None:
+    def _get_retriever(
+        self,
+        group: Optional["VideoGroup"] = None,
+        video_ids: Optional[List[int]] = None,
+    ) -> Optional[Any]:
+        # Resolve the list of video IDs from whichever source is provided
+        if video_ids is not None:
+            group_video_ids = video_ids
+        elif group is not None:
+            group_video_ids = [member.video_id for member in group.members.all()]
+        else:
             return None
 
-        group_video_ids = [member.video_id for member in group.members.all()]
         if not group_video_ids:
             return None
 

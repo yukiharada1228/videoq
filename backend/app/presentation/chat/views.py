@@ -7,11 +7,12 @@ import csv
 
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
-from rest_framework import generics, status
+from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from app import factories
 from app.common.authentication import APIKeyAuthentication, CookieJWTAuthentication
 from app.common.permissions import IsAuthenticatedOrSharedAccess, ShareTokenAuthentication
 from app.common.responses import create_error_response
@@ -20,16 +21,6 @@ from app.common.throttles import (
     ShareTokenGlobalThrottle,
     ShareTokenIPThrottle,
 )
-from app.infrastructure.repositories.django_chat_repository import (
-    DjangoChatRepository,
-    DjangoVideoGroupQueryRepository,
-)
-from app.use_cases.chat.export_history import ExportChatHistoryUseCase
-from app.use_cases.chat.get_analytics import GetChatAnalyticsUseCase
-from app.use_cases.chat.get_history import GetChatHistoryUseCase
-from app.use_cases.chat.get_popular_scenes import GetPopularScenesUseCase
-from app.use_cases.chat.send_message import SendMessageUseCase
-from app.use_cases.chat.submit_feedback import SubmitFeedbackUseCase
 from app.use_cases.video.exceptions import ResourceNotFound
 from django.http import HttpResponse
 
@@ -50,14 +41,9 @@ def _get_locale(request) -> str | None:
     return None
 
 
-def _make_repos():
-    return DjangoChatRepository(), DjangoVideoGroupQueryRepository()
-
-
-class ChatView(generics.CreateAPIView):
+class ChatView(APIView):
     """Chat endpoint with optional RAG context via video groups."""
 
-    serializer_class = ChatRequestSerializer
     authentication_classes = [
         APIKeyAuthentication,
         CookieJWTAuthentication,
@@ -81,26 +67,25 @@ class ChatView(generics.CreateAPIView):
 
         share_token = request.query_params.get("share_token")
         is_shared = share_token is not None
-
-        # Resolve user and group for shared-access flow
-        group = None
-        user = request.user
         group_id = request.data.get("group_id")
+        user = request.user
 
         if is_shared:
             if not group_id:
                 return create_error_response(
                     "Group ID not specified", status.HTTP_400_BAD_REQUEST
                 )
-            group_query_repo = DjangoVideoGroupQueryRepository()
-            group = group_query_repo.get_with_members(
-                group_id=group_id, share_token=share_token
-            )
-            if group is None:
+            # Resolve the group owner for LLM setup
+            try:
+                group_entity = factories.get_shared_group_use_case().execute(
+                    share_token=share_token
+                )
+            except ResourceNotFound:
                 return create_error_response(
                     "Shared group not found", status.HTTP_404_NOT_FOUND
                 )
-            user = group.user
+            from django.contrib.auth import get_user_model
+            user = get_user_model().objects.get(id=group_entity.user_id)
 
         messages = request.data.get("messages", [])
         if not messages:
@@ -110,16 +95,14 @@ class ChatView(generics.CreateAPIView):
         if error_response:
             return error_response
 
-        chat_repo, group_query_repo = _make_repos()
-        use_case = SendMessageUseCase(chat_repo, group_query_repo)
-
+        use_case = factories.get_send_message_use_case()
         try:
             result = use_case.execute(
-                user=user,
+                user_id=user.id,
                 llm=llm,
                 messages=messages,
                 group_id=group_id,
-                group=group,
+                share_token=share_token,
                 is_shared=is_shared,
                 locale=_get_locale(request),
             )
@@ -166,17 +149,14 @@ class ChatFeedbackView(APIView):
         if feedback == "":
             feedback = None
 
-        from app.models import ChatLog
-
-        valid_feedback = {None, ChatLog.FeedbackChoices.GOOD, ChatLog.FeedbackChoices.BAD}
+        valid_feedback = {None, "good", "bad"}
         if feedback not in valid_feedback:
             return create_error_response(
                 "feedback must be 'good', 'bad', or null (unspecified)",
                 status.HTTP_400_BAD_REQUEST,
             )
 
-        chat_repo = DjangoChatRepository()
-        use_case = SubmitFeedbackUseCase(chat_repo)
+        use_case = factories.get_submit_feedback_use_case()
         try:
             log = use_case.execute(
                 chat_log_id=chat_log_id,
@@ -192,27 +172,24 @@ class ChatFeedbackView(APIView):
         return Response({"chat_log_id": log.id, "feedback": log.feedback})
 
 
-class ChatHistoryView(generics.ListAPIView):
+class ChatHistoryView(APIView):
     """Get conversation history for a group (owner only)."""
 
     authentication_classes = [APIKeyAuthentication, CookieJWTAuthentication]
     permission_classes = [IsAuthenticated]
-    serializer_class = ChatLogSerializer
 
-    def get_queryset(self):
-        group_id = self.request.query_params.get("group_id")
+    def get(self, request, *args, **kwargs):
+        group_id = request.query_params.get("group_id")
         if not group_id:
-            from app.models import ChatLog
+            return Response([])
 
-            return ChatLog.objects.none()
-
-        chat_repo, group_query_repo = _make_repos()
-        use_case = GetChatHistoryUseCase(chat_repo, group_query_repo)
-        return use_case.execute(
+        use_case = factories.get_chat_history_use_case()
+        logs = use_case.execute(
             group_id=int(group_id),
-            user_id=self.request.user.id,
+            user_id=request.user.id,
             ascending=False,
         )
+        return Response(ChatLogSerializer(logs, many=True).data)
 
 
 class ChatHistoryExportView(APIView):
@@ -238,8 +215,7 @@ class ChatHistoryExportView(APIView):
                 "Group ID not specified", status.HTTP_400_BAD_REQUEST
             )
 
-        chat_repo, group_query_repo = _make_repos()
-        use_case = ExportChatHistoryUseCase(chat_repo, group_query_repo)
+        use_case = factories.get_export_history_use_case()
         try:
             resolved_group_id, rows = use_case.execute(
                 group_id=int(group_id), user_id=request.user.id
@@ -307,8 +283,7 @@ class PopularScenesView(APIView):
         if not group_id:
             return create_error_response("Group ID not specified", status.HTTP_400_BAD_REQUEST)
 
-        chat_repo, group_query_repo = _make_repos()
-        use_case = GetPopularScenesUseCase(chat_repo, group_query_repo)
+        use_case = factories.get_popular_scenes_use_case()
         try:
             result = use_case.execute(
                 group_id=int(group_id),
@@ -338,8 +313,7 @@ class ChatAnalyticsView(APIView):
         if not group_id:
             return create_error_response("Group ID not specified", status.HTTP_400_BAD_REQUEST)
 
-        chat_repo, group_query_repo = _make_repos()
-        use_case = GetChatAnalyticsUseCase(chat_repo, group_query_repo)
+        use_case = factories.get_chat_analytics_use_case()
         try:
             data = use_case.execute(group_id=int(group_id), user_id=request.user.id)
         except ResourceNotFound as e:

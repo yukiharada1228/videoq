@@ -244,12 +244,24 @@ class VideoSerializerTests(TestCase):
 
     def test_includes_tags(self):
         """Test that tags are included in serialization"""
+        from app.domain.video.entities import TagEntity, VideoEntity
+
         tag1 = Tag.objects.create(user=self.user, name="Tag1", color="#FF0000")
         tag2 = Tag.objects.create(user=self.user, name="Tag2", color="#00FF00")
-        VideoTag.objects.create(video=self.video, tag=tag1)
-        VideoTag.objects.create(video=self.video, tag=tag2)
 
-        serializer = VideoSerializer(self.video)
+        video_entity = VideoEntity(
+            id=self.video.id,
+            user_id=self.user.id,
+            title="Test Video",
+            status="completed",
+            description="Test Description",
+            tags=[
+                TagEntity(id=tag1.id, user_id=self.user.id, name="Tag1", color="#FF0000"),
+                TagEntity(id=tag2.id, user_id=self.user.id, name="Tag2", color="#00FF00"),
+            ],
+        )
+
+        serializer = VideoSerializer(video_entity)
         data = serializer.data
 
         self.assertEqual(len(data["tags"]), 2)
@@ -282,19 +294,28 @@ class VideoGroupDetailSerializerTests(TestCase):
 
     def test_includes_videos_with_order(self):
         """Test that videos include order information"""
+        from app.domain.video.entities import VideoEntity, VideoGroupEntity, VideoGroupMemberEntity
+
         video1 = Video.objects.create(user=self.user, title="Video 1")
         video2 = Video.objects.create(user=self.user, title="Video 2")
-        VideoGroupMember.objects.create(group=self.group, video=video1, order=1)
-        VideoGroupMember.objects.create(group=self.group, video=video2, order=0)
 
-        from django.db.models import Count
+        v1_entity = VideoEntity(id=video1.id, user_id=self.user.id, title="Video 1", status="processing", description="")
+        v2_entity = VideoEntity(id=video2.id, user_id=self.user.id, title="Video 2", status="processing", description="")
 
-        group_with_count = VideoGroup.objects.annotate(
-            video_count=Count("members")
-        ).get(pk=self.group.pk)
+        group_entity = VideoGroupEntity(
+            id=self.group.id,
+            user_id=self.user.id,
+            name="Test Group",
+            description="Test Description",
+            video_count=2,
+            members=[
+                VideoGroupMemberEntity(id=1, group_id=self.group.id, video_id=video2.id, order=0, video=v2_entity),
+                VideoGroupMemberEntity(id=2, group_id=self.group.id, video_id=video1.id, order=1, video=v1_entity),
+            ],
+        )
 
         serializer = VideoGroupDetailSerializer(
-            group_with_count, context=self._get_request_context()
+            group_entity, context=self._get_request_context()
         )
         data = serializer.data
 
@@ -304,14 +325,19 @@ class VideoGroupDetailSerializerTests(TestCase):
 
     def test_empty_group_returns_empty_videos(self):
         """Test that empty group returns empty videos list"""
-        from django.db.models import Count
+        from app.domain.video.entities import VideoGroupEntity
 
-        group_with_count = VideoGroup.objects.annotate(
-            video_count=Count("members")
-        ).get(pk=self.group.pk)
+        group_entity = VideoGroupEntity(
+            id=self.group.id,
+            user_id=self.user.id,
+            name="Test Group",
+            description="Test Description",
+            video_count=0,
+            members=[],
+        )
 
         serializer = VideoGroupDetailSerializer(
-            group_with_count, context=self._get_request_context()
+            group_entity, context=self._get_request_context()
         )
         data = serializer.data
 
@@ -343,19 +369,25 @@ class TagDetailSerializerTests(TestCase):
 
     def test_includes_videos_with_tag(self):
         """Test that videos with this tag are included"""
+        from app.domain.video.entities import TagEntity, VideoEntity
+
         video1 = Video.objects.create(user=self.user, title="Video 1")
         video2 = Video.objects.create(user=self.user, title="Video 2")
-        VideoTag.objects.create(video=video1, tag=self.tag)
-        VideoTag.objects.create(video=video2, tag=self.tag)
 
-        from django.db.models import Count
-
-        tag_with_count = Tag.objects.annotate(video_count=Count("video_tags")).get(
-            pk=self.tag.pk
+        tag_entity = TagEntity(
+            id=self.tag.id,
+            user_id=self.user.id,
+            name="Test Tag",
+            color="#FF0000",
+            video_count=2,
+            videos=[
+                VideoEntity(id=video1.id, user_id=self.user.id, title="Video 1", status="processing", description=""),
+                VideoEntity(id=video2.id, user_id=self.user.id, title="Video 2", status="processing", description=""),
+            ],
         )
 
         serializer = TagDetailSerializer(
-            tag_with_count, context=self._get_request_context()
+            tag_entity, context=self._get_request_context()
         )
         data = serializer.data
 

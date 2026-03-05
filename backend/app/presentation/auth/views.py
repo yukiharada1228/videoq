@@ -3,7 +3,7 @@ from django.contrib.auth import get_user_model
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics, status
 from rest_framework.response import Response
-from rest_framework_simplejwt.exceptions import InvalidToken
+from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from app.presentation.auth.serializers import (AccountDeleteSerializer,
@@ -26,8 +26,8 @@ from app.common.responses import create_error_response, create_success_response
 from app.common.throttles import (LoginIPThrottle, LoginUsernameThrottle,
                                    PasswordResetEmailThrottle,
                                    PasswordResetIPThrottle, SignupIPThrottle)
-from app.models import UserApiKey
-from app.use_cases.auth.delete_account import AccountDeletionUseCase
+from app import factories
+from app.use_cases.video.exceptions import ResourceNotFound
 from app.utils.mixins import AuthenticatedViewMixin, PublicViewMixin
 
 User = get_user_model()
@@ -153,7 +153,7 @@ class AccountDeleteView(AuthenticatedAPIView):
         serializer.is_valid(raise_exception=True)
         reason = serializer.validated_data.get("reason", "")
 
-        use_case = AccountDeletionUseCase()
+        use_case = factories.get_delete_account_use_case()
         use_case.execute(request.user, reason)
 
         response = create_success_response(message="Account deletion started.")
@@ -187,7 +187,7 @@ class RefreshView(PublicAPIView):
         else:
             try:
                 refresh = RefreshToken(refresh_token)
-            except InvalidToken:
+            except (InvalidToken, TokenError, ValueError):
                 return create_error_response(
                     message="Invalid refresh token",
                     status_code=status.HTTP_401_UNAUTHORIZED,
@@ -287,21 +287,8 @@ class MeView(AuthenticatedAPIView, generics.RetrieveAPIView):
         )
 
 
-class ApiKeyListCreateView(AuthenticatedAPIView, generics.ListCreateAPIView):
+class ApiKeyListCreateView(AuthenticatedAPIView, generics.GenericAPIView):
     """List and create API keys for the current user."""
-
-    serializer_class = ApiKeySerializer
-
-    def get_queryset(self):
-        return UserApiKey.objects.filter(
-            user=self.request.user,
-            revoked_at__isnull=True,
-        )
-
-    def get_serializer_class(self):
-        if self.request.method == "POST":
-            return ApiKeyCreateSerializer
-        return ApiKeySerializer
 
     @extend_schema(
         responses={200: ApiKeySerializer(many=True)},
@@ -309,7 +296,8 @@ class ApiKeyListCreateView(AuthenticatedAPIView, generics.ListCreateAPIView):
         description="List active API keys for the current user. Plain key values are never returned.",
     )
     def get(self, request, *args, **kwargs):
-        return self.list(request, *args, **kwargs)
+        keys = factories.get_list_api_keys_use_case().execute(user_id=request.user.id)
+        return Response(ApiKeySerializer(keys, many=True).data)
 
     @extend_schema(
         request=ApiKeyCreateSerializer,
@@ -318,28 +306,25 @@ class ApiKeyListCreateView(AuthenticatedAPIView, generics.ListCreateAPIView):
         description="Create a new API key for server-to-server integrations. The plain key is returned only once.",
     )
     def post(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
+        from rest_framework.exceptions import ValidationError
+
+        serializer = ApiKeyCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        api_key, raw_key = UserApiKey.create_for_user(
-            user=request.user,
-            name=serializer.validated_data["name"],
-            access_level=serializer.validated_data["access_level"],
-        )
-        data = dict(ApiKeySerializer(api_key).data)
-        data["api_key"] = raw_key
+        try:
+            result = factories.get_create_api_key_use_case().execute(
+                user_id=request.user.id,
+                name=serializer.validated_data["name"],
+                access_level=serializer.validated_data["access_level"],
+            )
+        except ValueError as e:
+            raise ValidationError({"name": [str(e)]})
+        data = dict(ApiKeySerializer(result.api_key).data)
+        data["api_key"] = result.raw_key
         return Response(data, status=status.HTTP_201_CREATED)
 
 
-class ApiKeyDetailView(AuthenticatedAPIView, generics.DestroyAPIView):
+class ApiKeyDetailView(AuthenticatedAPIView, generics.GenericAPIView):
     """Revoke an API key."""
-
-    serializer_class = ApiKeySerializer
-
-    def get_queryset(self):
-        return UserApiKey.objects.filter(
-            user=self.request.user,
-            revoked_at__isnull=True,
-        )
 
     @extend_schema(
         responses={200: MessageResponseSerializer},
@@ -347,6 +332,11 @@ class ApiKeyDetailView(AuthenticatedAPIView, generics.DestroyAPIView):
         description="Revoke an active API key so it can no longer access the API.",
     )
     def delete(self, request, *args, **kwargs):
-        api_key = self.get_object()
-        api_key.revoke()
+        pk = self.kwargs.get("pk")
+        try:
+            factories.get_revoke_api_key_use_case().execute(
+                key_id=int(pk), user_id=request.user.id
+            )
+        except ResourceNotFound:
+            return create_error_response("API key not found", status.HTTP_404_NOT_FOUND)
         return create_success_response(message="API key revoked.")

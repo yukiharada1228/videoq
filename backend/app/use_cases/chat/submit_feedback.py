@@ -5,7 +5,6 @@ Use case: Submit feedback for a chat log.
 from typing import Optional
 
 from app.domain.chat.repositories import ChatRepository
-from app.models import ChatLog
 
 
 class SubmitFeedbackUseCase:
@@ -20,7 +19,7 @@ class SubmitFeedbackUseCase:
         feedback: Optional[str],
         user_id: Optional[int] = None,
         share_token: Optional[str] = None,
-    ) -> ChatLog:
+    ):
         """
         Args:
             chat_log_id: ID of the ChatLog to update.
@@ -29,7 +28,7 @@ class SubmitFeedbackUseCase:
             share_token: Share token (shared access flow).
 
         Returns:
-            Updated ChatLog instance.
+            Updated ChatLogEntity.
 
         Raises:
             ValueError: If the chat log is not found.
@@ -40,10 +39,10 @@ class SubmitFeedbackUseCase:
             raise ValueError("Specified chat history not found")
 
         if share_token:
-            if log.group.share_token != share_token:
+            if log.group_share_token != share_token:
                 raise PermissionError("Share token mismatch")
         else:
-            if log.group.user_id != user_id:
+            if log.group_user_id != user_id:
                 raise PermissionError("No permission to access this history")
 
         return self.chat_repo.update_feedback(log, feedback)

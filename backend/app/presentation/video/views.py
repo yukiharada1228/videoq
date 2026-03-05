@@ -5,8 +5,6 @@ Views are thin HTTP adapters: they validate input, delegate to use cases, and re
 
 import logging
 
-from django.db import transaction
-from django.db.models import Count, Prefetch
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics, status
 from rest_framework.decorators import api_view, permission_classes
@@ -14,29 +12,11 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from app import factories
 from app.common.responses import create_error_response
-from app.infrastructure.repositories.django_video_repository import (
-    DjangoTagRepository,
-    DjangoVideoGroupRepository,
-    DjangoVideoRepository,
-)
-from app.models import Tag, Video, VideoGroup, VideoTag
-from app.use_cases.video.create_video import CreateVideoUseCase
-from app.use_cases.video.delete_video import DeleteVideoUseCase
 from app.use_cases.video.exceptions import ResourceNotFound, VideoLimitExceeded
-from app.use_cases.video.manage_groups import (
-    AddVideoToGroupUseCase,
-    AddVideosToGroupUseCase,
-    CreateShareLinkUseCase,
-    DeleteShareLinkUseCase,
-    RemoveVideoFromGroupUseCase,
-    ReorderVideosInGroupUseCase,
-)
-from app.use_cases.video.manage_tags import AddTagsToVideoUseCase, RemoveTagFromVideoUseCase
-from app.use_cases.video.update_video import UpdateVideoUseCase
 from app.utils.decorators import authenticated_view_with_error_handling
-from app.utils.mixins import AuthenticatedViewMixin, DynamicSerializerMixin
-from app.utils.query_optimizer import QueryOptimizer
+from app.utils.mixins import AuthenticatedViewMixin
 
 from .serializers import (
     AddTagsToVideoRequestSerializer,
@@ -69,64 +49,40 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 
-class BaseVideoView(AuthenticatedViewMixin):
-    """Base view that provides the user-scoped video queryset."""
-
-    def get_queryset(self):
-        return QueryOptimizer.get_videos_with_metadata(
-            user_id=self.request.user.id,
-            include_transcript=self.should_include_transcript(),
-            include_groups=self.should_include_groups(),
-        )
-
-    def should_include_groups(self):
-        return False
-
-    def should_include_transcript(self):
-        return False
-
-
-class VideoListView(DynamicSerializerMixin, BaseVideoView, generics.ListCreateAPIView):
+class VideoListView(AuthenticatedViewMixin, generics.GenericAPIView):
     """List videos and upload a new video."""
 
-    serializer_map = {
-        "GET": VideoListSerializer,
-        "POST": VideoCreateSerializer,
-    }
+    serializer_class = VideoListSerializer
 
-    def get_queryset(self):
-        queryset = super().get_queryset()
-        q = self.request.query_params.get("q", "").strip()
-        status_value = self.request.query_params.get("status", "").strip()
-        ordering = self.request.query_params.get("ordering", "").strip()
-        tag_ids = self.request.query_params.get("tags", "").strip()
+    @extend_schema(
+        responses={200: VideoListSerializer(many=True)},
+        summary="List videos",
+        description="Return a filtered list of videos for the current user.",
+    )
+    def get(self, request, *args, **kwargs):
+        q = request.query_params.get("q", "").strip()
+        status_value = request.query_params.get("status", "").strip()
+        ordering = request.query_params.get("ordering", "").strip()
+        tag_ids_param = request.query_params.get("tags", "").strip()
 
-        from django.db.models import Q
-
-        if q:
-            queryset = queryset.filter(
-                Q(title__icontains=q) | Q(description__icontains=q)
-            )
-        if status_value:
-            queryset = queryset.filter(status=status_value)
-        if tag_ids:
+        tag_ids = None
+        if tag_ids_param:
             try:
-                tag_id_list = [int(tid) for tid in tag_ids.split(",") if tid]
-                for tag_id in tag_id_list:
-                    queryset = queryset.filter(tags__id=tag_id)
+                tag_ids = [int(tid) for tid in tag_ids_param.split(",") if tid]
             except ValueError:
                 pass
 
-        ordering_map = {
-            "uploaded_at_desc": "-uploaded_at",
-            "uploaded_at_asc": "uploaded_at",
-            "title_asc": "title",
-            "title_desc": "-title",
-        }
-        if ordering in ordering_map:
-            queryset = queryset.order_by(ordering_map[ordering])
-
-        return queryset
+        use_case = factories.get_list_videos_use_case()
+        videos = use_case.execute(
+            user_id=request.user.id,
+            q=q,
+            status=status_value,
+            ordering=ordering,
+            tag_ids=tag_ids,
+        )
+        return Response(
+            VideoListSerializer(videos, many=True, context={"request": request}).data
+        )
 
     @extend_schema(
         request=VideoCreateSerializer,
@@ -134,43 +90,38 @@ class VideoListView(DynamicSerializerMixin, BaseVideoView, generics.ListCreateAP
         summary="Upload video",
         description="Upload a video and return the created video resource.",
     )
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
+    def post(self, request, *args, **kwargs):
+        serializer = VideoCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        use_case = CreateVideoUseCase(DjangoVideoRepository())
+        use_case = factories.get_create_video_use_case()
         try:
             video = use_case.execute(request.user, serializer.validated_data)
         except VideoLimitExceeded as e:
             return create_error_response(str(e), status.HTTP_400_BAD_REQUEST)
 
-        output_serializer = VideoSerializer(
-            video, context=self.get_serializer_context()
-        )
-        headers = self.get_success_headers(output_serializer.data)
         return Response(
-            output_serializer.data,
+            VideoSerializer(video, context={"request": request}).data,
             status=status.HTTP_201_CREATED,
-            headers=headers,
         )
 
 
-class VideoDetailView(
-    DynamicSerializerMixin, BaseVideoView, generics.RetrieveUpdateDestroyAPIView
-):
+class VideoDetailView(AuthenticatedViewMixin, APIView):
     """Retrieve, update, and delete a video."""
 
-    serializer_map = {
-        "GET": VideoSerializer,
-        "PUT": VideoUpdateSerializer,
-        "PATCH": VideoUpdateSerializer,
-    }
+    def _get_video(self, pk, user_id):
+        return factories.get_video_repository().get_by_id(pk, user_id)
 
-    def should_include_groups(self):
-        return True
-
-    def should_include_transcript(self):
-        return True
+    @extend_schema(
+        responses={200: VideoSerializer},
+        summary="Get video",
+        description="Return a video by ID.",
+    )
+    def get(self, request, pk):
+        video = self._get_video(pk, request.user.id)
+        if video is None:
+            return create_error_response("Video not found", status.HTTP_404_NOT_FOUND)
+        return Response(VideoSerializer(video, context={"request": request}).data)
 
     @extend_schema(
         request=VideoUpdateSerializer,
@@ -178,30 +129,29 @@ class VideoDetailView(
         summary="Update video",
         description="Update a video and return the updated video resource.",
     )
-    def update(self, request, *args, **kwargs):
-        partial = kwargs.pop("partial", False)
-        instance = self.get_object()
+    def patch(self, request, pk):
+        video = self._get_video(pk, request.user.id)
+        if video is None:
+            return create_error_response("Video not found", status.HTTP_404_NOT_FOUND)
 
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer = VideoUpdateSerializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
 
-        use_case = UpdateVideoUseCase(DjangoVideoRepository())
+        use_case = factories.get_update_video_use_case()
         try:
-            updated_video = use_case.execute(
-                instance.id, request.user.id, serializer.validated_data
-            )
+            updated = use_case.execute(pk, request.user.id, serializer.validated_data)
         except ResourceNotFound:
             return create_error_response("Video not found", status.HTTP_404_NOT_FOUND)
 
-        return Response(
-            VideoSerializer(updated_video, context=self.get_serializer_context()).data
-        )
+        return Response(VideoSerializer(updated, context={"request": request}).data)
 
-    def destroy(self, request, *args, **kwargs):
-        instance = self.get_object()
-        use_case = DeleteVideoUseCase(DjangoVideoRepository())
+    def put(self, request, pk):
+        return self.patch(request, pk)
+
+    def delete(self, request, pk):
+        use_case = factories.get_delete_video_use_case()
         try:
-            use_case.execute(instance.id, request.user.id)
+            use_case.execute(pk, request.user.id)
         except ResourceNotFound:
             return create_error_response("Video not found", status.HTTP_404_NOT_FOUND)
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -212,29 +162,20 @@ class VideoDetailView(
 # ---------------------------------------------------------------------------
 
 
-class BaseVideoGroupView(AuthenticatedViewMixin):
-    """Base view for video group operations."""
-
-    def _get_filtered_queryset(self, annotate_only=False):
-        return QueryOptimizer.get_video_groups_with_videos(
-            user_id=self.request.user.id,
-            include_videos=not annotate_only,
-            annotate_video_count=True,
-        )
-
-
-class VideoGroupListView(
-    DynamicSerializerMixin, BaseVideoGroupView, generics.ListCreateAPIView
-):
+class VideoGroupListView(AuthenticatedViewMixin, generics.GenericAPIView):
     """List and create video groups."""
 
-    serializer_map = {
-        "GET": VideoGroupListSerializer,
-        "POST": VideoGroupCreateSerializer,
-    }
+    serializer_class = VideoGroupListSerializer
 
-    def get_queryset(self):
-        return self._get_filtered_queryset(annotate_only=True)
+    @extend_schema(
+        responses={200: VideoGroupListSerializer(many=True)},
+        summary="List video groups",
+        description="Return all video groups for the current user.",
+    )
+    def get(self, request, *args, **kwargs):
+        use_case = factories.get_list_groups_use_case()
+        groups = use_case.execute(user_id=request.user.id, annotate_only=True)
+        return Response(VideoGroupListSerializer(groups, many=True).data)
 
     @extend_schema(
         request=VideoGroupCreateSerializer,
@@ -242,36 +183,41 @@ class VideoGroupListView(
         summary="Create video group",
         description="Create a video group and return the created group resource.",
     )
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
+    def post(self, request, *args, **kwargs):
+        serializer = VideoGroupCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        group_repo = DjangoVideoGroupRepository()
-        group = group_repo.create(request.user.id, serializer.validated_data)
+        use_case = factories.get_create_group_use_case()
+        group = use_case.execute(request.user.id, serializer.validated_data)
 
-        instance = self._get_filtered_queryset(annotate_only=False).get(pk=group.pk)
-        output_serializer = VideoGroupDetailSerializer(
-            instance, context=self.get_serializer_context()
-        )
-        headers = self.get_success_headers(output_serializer.data)
+        # Re-fetch with videos for detail response
+        detail_use_case = factories.get_video_group_use_case()
+        try:
+            group = detail_use_case.execute(group.id, request.user.id, include_videos=True)
+        except ResourceNotFound:
+            pass
+
         return Response(
-            output_serializer.data, status=status.HTTP_201_CREATED, headers=headers
+            VideoGroupDetailSerializer(group).data,
+            status=status.HTTP_201_CREATED,
         )
 
 
-class VideoGroupDetailView(
-    DynamicSerializerMixin, BaseVideoGroupView, generics.RetrieveUpdateDestroyAPIView
-):
+class VideoGroupDetailView(AuthenticatedViewMixin, APIView):
     """Retrieve, update, and delete a video group."""
 
-    serializer_map = {
-        "GET": VideoGroupDetailSerializer,
-        "PUT": VideoGroupUpdateSerializer,
-        "PATCH": VideoGroupUpdateSerializer,
-    }
-
-    def get_queryset(self):
-        return self._get_filtered_queryset(annotate_only=False)
+    @extend_schema(
+        responses={200: VideoGroupDetailSerializer},
+        summary="Get video group",
+        description="Return a video group by ID.",
+    )
+    def get(self, request, pk):
+        use_case = factories.get_video_group_use_case()
+        try:
+            group = use_case.execute(pk, request.user.id, include_videos=True)
+        except ResourceNotFound:
+            return create_error_response("Group not found", status.HTTP_404_NOT_FOUND)
+        return Response(VideoGroupDetailSerializer(group).data)
 
     @extend_schema(
         request=VideoGroupUpdateSerializer,
@@ -279,19 +225,35 @@ class VideoGroupDetailView(
         summary="Update video group",
         description="Update a video group and return the updated group resource.",
     )
-    def update(self, request, *args, **kwargs):
-        partial = kwargs.pop("partial", False)
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+    def patch(self, request, pk):
+        serializer = VideoGroupUpdateSerializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
 
-        group_repo = DjangoVideoGroupRepository()
-        group_repo.update(instance, serializer.validated_data)
+        use_case = factories.get_update_group_use_case()
+        try:
+            use_case.execute(pk, request.user.id, serializer.validated_data)
+        except ResourceNotFound:
+            return create_error_response("Group not found", status.HTTP_404_NOT_FOUND)
 
-        instance = self.get_queryset().get(pk=instance.pk)
-        return Response(
-            VideoGroupDetailSerializer(instance, context=self.get_serializer_context()).data
-        )
+        # Re-fetch with videos
+        detail_use_case = factories.get_video_group_use_case()
+        try:
+            group = detail_use_case.execute(pk, request.user.id, include_videos=True)
+        except ResourceNotFound:
+            return create_error_response("Group not found", status.HTTP_404_NOT_FOUND)
+
+        return Response(VideoGroupDetailSerializer(group).data)
+
+    def put(self, request, pk):
+        return self.patch(request, pk)
+
+    def delete(self, request, pk):
+        use_case = factories.get_delete_group_use_case()
+        try:
+            use_case.execute(pk, request.user.id)
+        except ResourceNotFound:
+            return create_error_response("Group not found", status.HTTP_404_NOT_FOUND)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class AddVideoToGroupView(AuthenticatedViewMixin, APIView):
@@ -306,9 +268,7 @@ class AddVideoToGroupView(AuthenticatedViewMixin, APIView):
         operation_id="video_groups_add_single_video",
     )
     def post(self, request, group_id, video_id):
-        use_case = AddVideoToGroupUseCase(
-            DjangoVideoRepository(), DjangoVideoGroupRepository()
-        )
+        use_case = factories.get_add_video_to_group_use_case()
         try:
             member = use_case.execute(group_id, video_id, request.user.id)
         except ResourceNotFound as e:
@@ -330,16 +290,13 @@ class AddVideoToGroupView(AuthenticatedViewMixin, APIView):
     operation_id="video_groups_add_multiple_videos",
 )
 @authenticated_view_with_error_handling(["POST"])
-@transaction.atomic
 def add_videos_to_group(request, group_id):
     """Add multiple videos to group."""
     video_ids = request.data.get("video_ids", [])
     if not video_ids:
         return create_error_response("Video ID not specified", status.HTTP_400_BAD_REQUEST)
 
-    use_case = AddVideosToGroupUseCase(
-        DjangoVideoRepository(), DjangoVideoGroupRepository()
-    )
+    use_case = factories.get_add_videos_to_group_use_case()
     try:
         added_count, skipped_count = use_case.execute(group_id, video_ids, request.user.id)
     except ResourceNotFound as e:
@@ -363,9 +320,7 @@ def add_videos_to_group(request, group_id):
 @authenticated_view_with_error_handling(["DELETE"])
 def remove_video_from_group(request, group_id, video_id):
     """Remove video from group."""
-    use_case = RemoveVideoFromGroupUseCase(
-        DjangoVideoRepository(), DjangoVideoGroupRepository()
-    )
+    use_case = factories.get_remove_video_from_group_use_case()
     try:
         use_case.execute(group_id, video_id, request.user.id)
     except ResourceNotFound as e:
@@ -389,7 +344,7 @@ def reorder_videos_in_group(request, group_id):
     if not isinstance(video_ids, list):
         return create_error_response("video_ids must be an array", status.HTTP_400_BAD_REQUEST)
 
-    use_case = ReorderVideosInGroupUseCase(DjangoVideoGroupRepository())
+    use_case = factories.get_reorder_videos_use_case()
     try:
         use_case.execute(group_id, video_ids, request.user.id)
     except ResourceNotFound as e:
@@ -411,7 +366,7 @@ class CreateShareLinkView(AuthenticatedViewMixin, APIView):
         description="Generate a share link token for a group.",
     )
     def post(self, request, group_id):
-        use_case = CreateShareLinkUseCase(DjangoVideoGroupRepository())
+        use_case = factories.get_create_share_link_use_case()
         try:
             share_token = use_case.execute(group_id, request.user.id)
         except ResourceNotFound as e:
@@ -431,7 +386,7 @@ class CreateShareLinkView(AuthenticatedViewMixin, APIView):
 @authenticated_view_with_error_handling(["DELETE"])
 def delete_share_link(request, group_id):
     """Disable share link for group."""
-    use_case = DeleteShareLinkUseCase(DjangoVideoGroupRepository())
+    use_case = factories.get_delete_share_link_use_case()
     try:
         use_case.execute(group_id, request.user.id)
     except ResourceNotFound as e:
@@ -452,14 +407,13 @@ def delete_share_link(request, group_id):
 @permission_classes([AllowAny])
 def get_shared_group(request, share_token):
     """Get group by share token (no authentication required)."""
-    group_repo = DjangoVideoGroupRepository()
-    group = group_repo.get_by_share_token(share_token)
-
-    if not group:
+    use_case = factories.get_shared_group_use_case()
+    try:
+        group = use_case.execute(share_token)
+    except ResourceNotFound:
         return create_error_response("Share link not found", status.HTTP_404_NOT_FOUND)
 
-    serializer = VideoGroupDetailSerializer(group)
-    return Response(serializer.data, status=status.HTTP_200_OK)
+    return Response(VideoGroupDetailSerializer(group).data, status=status.HTTP_200_OK)
 
 
 # ---------------------------------------------------------------------------
@@ -467,22 +421,21 @@ def get_shared_group(request, share_token):
 # ---------------------------------------------------------------------------
 
 
-class BaseTagView(AuthenticatedViewMixin):
-    """Base view for tag operations."""
-
-    def get_queryset(self):
-        return Tag.objects.filter(user=self.request.user).annotate(
-            video_count=Count("video_tags")
-        )
-
-
-class TagListView(DynamicSerializerMixin, BaseTagView, generics.ListCreateAPIView):
+class TagListView(AuthenticatedViewMixin, generics.GenericAPIView):
     """List and create tags."""
 
-    serializer_map = {
-        "GET": TagListSerializer,
-        "POST": TagCreateSerializer,
-    }
+    serializer_class = TagListSerializer
+
+    @extend_schema(
+        responses={200: TagListSerializer(many=True)},
+        summary="List tags",
+        description="Return all tags for the current user.",
+        operation_id="tags_list",
+    )
+    def get(self, request, *args, **kwargs):
+        use_case = factories.get_list_tags_use_case()
+        tags = use_case.execute(user_id=request.user.id)
+        return Response(TagListSerializer(tags, many=True).data)
 
     @extend_schema(
         request=TagCreateSerializer,
@@ -491,50 +444,30 @@ class TagListView(DynamicSerializerMixin, BaseTagView, generics.ListCreateAPIVie
         description="Create a tag and return the created tag resource.",
         operation_id="tags_create",
     )
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
+    def post(self, request, *args, **kwargs):
+        serializer = TagCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        tag_repo = DjangoTagRepository()
-        tag = tag_repo.create(request.user.id, serializer.validated_data)
-
-        instance = self.get_queryset().get(pk=tag.pk)
-        output_serializer = TagListSerializer(
-            instance, context=self.get_serializer_context()
-        )
-        headers = self.get_success_headers(output_serializer.data)
-        return Response(
-            output_serializer.data, status=status.HTTP_201_CREATED, headers=headers
-        )
+        use_case = factories.get_create_tag_use_case()
+        tag = use_case.execute(request.user.id, serializer.validated_data)
+        return Response(TagListSerializer(tag).data, status=status.HTTP_201_CREATED)
 
 
-class TagDetailView(
-    DynamicSerializerMixin, BaseTagView, generics.RetrieveUpdateDestroyAPIView
-):
+class TagDetailView(AuthenticatedViewMixin, APIView):
     """Retrieve, update, and delete a tag."""
 
-    serializer_map = {
-        "GET": TagDetailSerializer,
-        "PUT": TagUpdateSerializer,
-        "PATCH": TagUpdateSerializer,
-    }
-
-    def get_queryset(self):
-        return (
-            Tag.objects.filter(user=self.request.user)
-            .annotate(video_count=Count("video_tags"))
-            .prefetch_related(
-                Prefetch(
-                    "video_tags",
-                    queryset=VideoTag.objects.select_related("video").prefetch_related(
-                        Prefetch(
-                            "video__video_tags",
-                            queryset=VideoTag.objects.select_related("tag"),
-                        )
-                    ),
-                )
-            )
-        )
+    @extend_schema(
+        responses={200: TagDetailSerializer},
+        summary="Get tag detail",
+        description="Return a tag with its associated videos.",
+    )
+    def get(self, request, pk):
+        use_case = factories.get_tag_detail_use_case()
+        try:
+            tag = use_case.execute(pk, request.user.id)
+        except ResourceNotFound:
+            return create_error_response("Tag not found", status.HTTP_404_NOT_FOUND)
+        return Response(TagDetailSerializer(tag, context={"request": request}).data)
 
     @extend_schema(
         request=TagUpdateSerializer,
@@ -542,19 +475,35 @@ class TagDetailView(
         summary="Update tag",
         description="Update a tag and return the updated tag resource.",
     )
-    def update(self, request, *args, **kwargs):
-        partial = kwargs.pop("partial", False)
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+    def patch(self, request, pk):
+        serializer = TagUpdateSerializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
 
-        tag_repo = DjangoTagRepository()
-        tag_repo.update(instance, serializer.validated_data)
+        use_case = factories.get_update_tag_use_case()
+        try:
+            use_case.execute(pk, request.user.id, serializer.validated_data)
+        except ResourceNotFound:
+            return create_error_response("Tag not found", status.HTTP_404_NOT_FOUND)
 
-        instance = self.get_queryset().get(pk=instance.pk)
-        return Response(
-            TagDetailSerializer(instance, context=self.get_serializer_context()).data
-        )
+        # Re-fetch with videos for detail response
+        detail_use_case = factories.get_tag_detail_use_case()
+        try:
+            tag = detail_use_case.execute(pk, request.user.id)
+        except ResourceNotFound:
+            return create_error_response("Tag not found", status.HTTP_404_NOT_FOUND)
+
+        return Response(TagDetailSerializer(tag, context={"request": request}).data)
+
+    def put(self, request, pk):
+        return self.patch(request, pk)
+
+    def delete(self, request, pk):
+        use_case = factories.get_delete_tag_use_case()
+        try:
+            use_case.execute(pk, request.user.id)
+        except ResourceNotFound:
+            return create_error_response("Tag not found", status.HTTP_404_NOT_FOUND)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 @extend_schema(
@@ -569,7 +518,7 @@ def add_tags_to_video(request, video_id):
     if not tag_ids:
         return create_error_response("Tag IDs not specified", status.HTTP_400_BAD_REQUEST)
 
-    use_case = AddTagsToVideoUseCase(DjangoVideoRepository(), DjangoTagRepository())
+    use_case = factories.get_add_tags_to_video_use_case()
     try:
         added_count, skipped_count = use_case.execute(video_id, tag_ids, request.user.id)
     except ResourceNotFound as e:
@@ -593,7 +542,7 @@ def add_tags_to_video(request, video_id):
 @authenticated_view_with_error_handling(["DELETE"])
 def remove_tag_from_video(request, video_id, tag_id):
     """Remove tag from video."""
-    use_case = RemoveTagFromVideoUseCase(DjangoVideoRepository(), DjangoTagRepository())
+    use_case = factories.get_remove_tag_from_video_use_case()
     try:
         use_case.execute(video_id, tag_id, request.user.id)
     except ResourceNotFound as e:

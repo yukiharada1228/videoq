@@ -4,8 +4,6 @@ Use cases for managing tags on videos.
 
 from typing import List, Tuple
 
-from django.db import transaction
-
 from app.domain.video.repositories import TagRepository, VideoRepository
 from app.use_cases.video.exceptions import ResourceNotFound
 
@@ -19,7 +17,6 @@ class AddTagsToVideoUseCase:
         self.video_repo = video_repo
         self.tag_repo = tag_repo
 
-    @transaction.atomic
     def execute(
         self, video_id: int, tag_ids: List[int], user_id: int
     ) -> Tuple[int, int]:

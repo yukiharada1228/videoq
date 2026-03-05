@@ -11,7 +11,7 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from app.models import UserApiKey
+from app.domain.auth.entities import ACCESS_LEVEL_ALL, ACCESS_LEVEL_CHOICES
 from app.utils.email import send_email_verification, send_password_reset_email
 
 logger = logging.getLogger(__name__)
@@ -225,25 +225,20 @@ class AccountDeleteSerializer(serializers.Serializer):
     reason = serializers.CharField(required=False, allow_blank=True)
 
 
-class ApiKeySerializer(serializers.ModelSerializer):
-    class Meta:
-        model = UserApiKey
-        fields = [
-            "id",
-            "name",
-            "access_level",
-            "prefix",
-            "last_used_at",
-            "created_at",
-        ]
-        read_only_fields = fields
+class ApiKeySerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    name = serializers.CharField()
+    access_level = serializers.CharField()
+    prefix = serializers.CharField()
+    last_used_at = serializers.DateTimeField(allow_null=True)
+    created_at = serializers.DateTimeField()
 
 
 class ApiKeyCreateSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=100)
     access_level = serializers.ChoiceField(
-        choices=UserApiKey.AccessLevel.choices,
-        default=UserApiKey.AccessLevel.ALL,
+        choices=ACCESS_LEVEL_CHOICES,
+        default=ACCESS_LEVEL_ALL,
     )
 
     def validate_name(self, value: str) -> str:
@@ -252,24 +247,8 @@ class ApiKeyCreateSerializer(serializers.Serializer):
             raise serializers.ValidationError("name is required")
         return name
 
-    def validate(self, attrs):
-        user = self.context["request"].user
-        if UserApiKey.objects.filter(
-            user=user,
-            name=attrs["name"],
-            revoked_at__isnull=True,
-        ).exists():
-            raise serializers.ValidationError(
-                {"name": ["An active API key with this name already exists."]}
-            )
-        return attrs
-
 
 class ApiKeyCreateResponseSerializer(ApiKeySerializer):
     api_key = serializers.CharField(
         help_text="Plain API key. This is only returned once."
     )
-
-    class Meta(ApiKeySerializer.Meta):
-        fields = [*ApiKeySerializer.Meta.fields, "api_key"]
-        read_only_fields = fields

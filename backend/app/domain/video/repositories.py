@@ -1,18 +1,24 @@
 """
 Abstract repository interfaces for the video domain.
+No Django / ORM / external service dependencies.
 """
 
 from abc import ABC, abstractmethod
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
-from app.models import Tag, Video, VideoGroup, VideoGroupMember
+from app.domain.video.entities import (
+    TagEntity,
+    VideoEntity,
+    VideoGroupEntity,
+    VideoGroupMemberEntity,
+)
 
 
 class VideoRepository(ABC):
     """Abstract interface for video data access."""
 
     @abstractmethod
-    def get_by_id(self, video_id: int, user_id: int) -> Optional[Video]:
+    def get_by_id(self, video_id: int, user_id: int) -> Optional[VideoEntity]:
         """Retrieve a video by ID owned by the given user."""
         ...
 
@@ -26,28 +32,35 @@ class VideoRepository(ABC):
         tag_ids: Optional[List[int]] = None,
         include_transcript: bool = False,
         include_groups: bool = False,
-    ) -> "QuerySet[Video]":
+    ) -> List[VideoEntity]:
         """List videos for a user with optional filters."""
         ...
 
     @abstractmethod
-    def create(self, user_id: int, validated_data: dict) -> Video:
+    def create(self, user_id: int, validated_data: dict) -> VideoEntity:
         """Create a new video record."""
         ...
 
     @abstractmethod
-    def update(self, video: Video, validated_data: dict) -> Video:
+    def update(self, video: VideoEntity, validated_data: dict) -> VideoEntity:
         """Update an existing video record."""
         ...
 
     @abstractmethod
-    def delete(self, video: Video) -> None:
-        """Delete a video record."""
+    def delete(self, video: VideoEntity) -> None:
+        """Delete a video record (including file cleanup after commit)."""
         ...
 
     @abstractmethod
     def count_for_user(self, user_id: int) -> int:
         """Return the number of videos owned by the user."""
+        ...
+
+    @abstractmethod
+    def get_file_urls_for_ids(
+        self, video_ids: List[int], user_id: int
+    ) -> Dict[int, Optional[str]]:
+        """Return a mapping of video_id → file URL (or None) for the given IDs."""
         ...
 
 
@@ -60,48 +73,53 @@ class VideoGroupRepository(ABC):
         group_id: int,
         user_id: int,
         include_videos: bool = False,
-    ) -> Optional[VideoGroup]:
+    ) -> Optional[VideoGroupEntity]:
         """Retrieve a group by ID owned by the given user."""
         ...
 
     @abstractmethod
     def list_for_user(
         self, user_id: int, annotate_only: bool = False
-    ) -> "QuerySet[VideoGroup]":
+    ) -> List[VideoGroupEntity]:
         """List video groups for a user."""
         ...
 
     @abstractmethod
-    def create(self, user_id: int, validated_data: dict) -> VideoGroup:
+    def create(self, user_id: int, validated_data: dict) -> VideoGroupEntity:
         """Create a new video group."""
         ...
 
     @abstractmethod
-    def update(self, group: VideoGroup, validated_data: dict) -> VideoGroup:
+    def update(self, group: VideoGroupEntity, validated_data: dict) -> VideoGroupEntity:
         """Update an existing video group."""
         ...
 
     @abstractmethod
-    def delete(self, group: VideoGroup) -> None:
+    def delete(self, group: VideoGroupEntity) -> None:
         """Delete a video group."""
         ...
 
     @abstractmethod
-    def get_by_share_token(self, share_token: str) -> Optional[VideoGroup]:
+    def get_by_share_token(self, share_token: str) -> Optional[VideoGroupEntity]:
         """Retrieve a group by its public share token."""
         ...
 
     @abstractmethod
-    def add_video(self, group: VideoGroup, video: Video) -> VideoGroupMember:
+    def add_video(
+        self, group: VideoGroupEntity, video: VideoEntity
+    ) -> VideoGroupMemberEntity:
         """Add a single video to a group. Raises ValueError if already a member."""
         ...
 
     @abstractmethod
     def add_videos_bulk(
-        self, group: VideoGroup, videos: List[Video], video_ids: List[int]
+        self, group: VideoGroupEntity, video_ids: List[int], user_id: int
     ) -> Tuple[int, int]:
         """
-        Add multiple videos to a group, skipping existing members.
+        Add multiple videos to a group, validating ownership, skipping existing members.
+
+        Raises:
+            ValueError: If some video_ids don't belong to user_id.
 
         Returns:
             (added_count, skipped_count)
@@ -109,18 +127,18 @@ class VideoGroupRepository(ABC):
         ...
 
     @abstractmethod
-    def remove_video(self, group: VideoGroup, video: Video) -> None:
+    def remove_video(self, group: VideoGroupEntity, video: VideoEntity) -> None:
         """Remove a video from a group. Raises ValueError if not a member."""
         ...
 
     @abstractmethod
-    def reorder_videos(self, group: VideoGroup, video_ids: List[int]) -> None:
+    def reorder_videos(self, group: VideoGroupEntity, video_ids: List[int]) -> None:
         """Reorder videos in a group according to the given ID list."""
         ...
 
     @abstractmethod
     def update_share_token(
-        self, group: VideoGroup, token: Optional[str]
+        self, group: VideoGroupEntity, token: Optional[str]
     ) -> None:
         """Set or clear the share token for a group."""
         ...
@@ -130,33 +148,33 @@ class TagRepository(ABC):
     """Abstract interface for tag data access."""
 
     @abstractmethod
-    def list_for_user(self, user_id: int) -> "QuerySet[Tag]":
+    def list_for_user(self, user_id: int) -> List[TagEntity]:
         """List tags for a user."""
         ...
 
     @abstractmethod
-    def get_by_id(self, tag_id: int, user_id: int) -> Optional[Tag]:
+    def get_by_id(self, tag_id: int, user_id: int) -> Optional[TagEntity]:
         """Retrieve a tag by ID owned by the given user."""
         ...
 
     @abstractmethod
-    def create(self, user_id: int, validated_data: dict) -> Tag:
+    def create(self, user_id: int, validated_data: dict) -> TagEntity:
         """Create a new tag."""
         ...
 
     @abstractmethod
-    def update(self, tag: Tag, validated_data: dict) -> Tag:
+    def update(self, tag: TagEntity, validated_data: dict) -> TagEntity:
         """Update an existing tag."""
         ...
 
     @abstractmethod
-    def delete(self, tag: Tag) -> None:
+    def delete(self, tag: TagEntity) -> None:
         """Delete a tag."""
         ...
 
     @abstractmethod
     def add_tags_to_video(
-        self, video: Video, tag_ids: List[int]
+        self, video: VideoEntity, tag_ids: List[int]
     ) -> Tuple[int, int]:
         """
         Add tags to a video, skipping already-attached tags.
@@ -167,6 +185,11 @@ class TagRepository(ABC):
         ...
 
     @abstractmethod
-    def remove_tag_from_video(self, video: Video, tag: Tag) -> None:
+    def remove_tag_from_video(self, video: VideoEntity, tag: TagEntity) -> None:
         """Remove a tag from a video. Raises ValueError if not attached."""
+        ...
+
+    @abstractmethod
+    def get_with_videos(self, tag_id: int, user_id: int) -> Optional[TagEntity]:
+        """Retrieve a tag with its associated videos pre-loaded."""
         ...

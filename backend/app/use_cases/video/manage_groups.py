@@ -4,11 +4,8 @@ Use cases for managing video groups: membership, ordering, and share links.
 
 from typing import List, Optional, Tuple
 
-from django.db import transaction
-
 from app.domain.video.repositories import VideoGroupRepository, VideoRepository
 from app.domain.video.services import ShareLinkService
-from app.models import Video, VideoGroup, VideoGroupMember
 from app.use_cases.video.exceptions import ResourceNotFound
 
 
@@ -21,13 +18,10 @@ class AddVideoToGroupUseCase:
         self.video_repo = video_repo
         self.group_repo = group_repo
 
-    @transaction.atomic
-    def execute(
-        self, group_id: int, video_id: int, user_id: int
-    ) -> VideoGroupMember:
+    def execute(self, group_id: int, video_id: int, user_id: int):
         """
         Returns:
-            VideoGroupMember: The newly created membership record.
+            VideoGroupMemberEntity: The newly created membership record.
 
         Raises:
             ResourceNotFound: If the group or video is not found.
@@ -47,13 +41,9 @@ class AddVideoToGroupUseCase:
 class AddVideosToGroupUseCase:
     """Bulk-add multiple videos to a group, skipping existing members."""
 
-    def __init__(
-        self, video_repo: VideoRepository, group_repo: VideoGroupRepository
-    ):
-        self.video_repo = video_repo
+    def __init__(self, group_repo: VideoGroupRepository):
         self.group_repo = group_repo
 
-    @transaction.atomic
     def execute(
         self, group_id: int, video_ids: List[int], user_id: int
     ) -> Tuple[int, int]:
@@ -68,11 +58,10 @@ class AddVideosToGroupUseCase:
         if group is None:
             raise ResourceNotFound("Group")
 
-        videos = list(Video.objects.filter(user_id=user_id, id__in=video_ids))
-        if len(videos) != len(video_ids):
-            raise ResourceNotFound("Some videos")
-
-        return self.group_repo.add_videos_bulk(group, videos, video_ids)
+        try:
+            return self.group_repo.add_videos_bulk(group, video_ids, user_id)
+        except ValueError as e:
+            raise ResourceNotFound("Some videos") from e
 
 
 class RemoveVideoFromGroupUseCase:
@@ -107,10 +96,7 @@ class ReorderVideosInGroupUseCase:
     def __init__(self, group_repo: VideoGroupRepository):
         self.group_repo = group_repo
 
-    @transaction.atomic
-    def execute(
-        self, group_id: int, video_ids: List[int], user_id: int
-    ) -> None:
+    def execute(self, group_id: int, video_ids: List[int], user_id: int) -> None:
         """
         Raises:
             ResourceNotFound: If the group is not found.
