@@ -1,6 +1,4 @@
-"""
-Common task processing utilities
-"""
+"""Common task processing utilities."""
 
 import logging
 import os
@@ -16,16 +14,11 @@ logger = logging.getLogger(__name__)
 
 
 class VideoTaskManager:
-    """Common management class for video task processing"""
+    """Common management class for video task processing."""
 
     @staticmethod
     def get_video_with_user(video_id: int) -> Tuple[Optional[Video], Optional[str]]:
-        """
-        Get video and user information at once
-
-        Returns:
-            (video, error_message)
-        """
+        """Get video and user information at once."""
         try:
             video = Video.objects.select_related("user").get(id=video_id)
             return video, None
@@ -40,12 +33,7 @@ class VideoTaskManager:
 
     @staticmethod
     def update_video_status(video: Video, status: str, error_message: str = "") -> bool:
-        """
-        Update video status
-
-        Returns:
-            bool: Whether update succeeded
-        """
+        """Update video status."""
         try:
             video.status = status
             video.error_message = error_message
@@ -58,23 +46,14 @@ class VideoTaskManager:
 
     @staticmethod
     def validate_video_for_processing(video: Video) -> Tuple[bool, Optional[str]]:
-        """
-        Validate video processability
-
-        Returns:
-            (is_valid, error_message)
-        """
+        """Validate video processability."""
         if not video.file:
             return False, "Video file is not available"
 
-        # S3 support: Check file existence
         try:
-            # Local filesystem case
             if not os.path.exists(video.file.path):
                 return False, f"Video file not found: {video.file.path}"
         except (NotImplementedError, AttributeError):
-            # Remote storage like S3 case
-            # Check if file object exists
             try:
                 video.file.open("rb").close()
             except Exception as e:
@@ -84,13 +63,13 @@ class VideoTaskManager:
 
 
 class TemporaryFileManager:
-    """Common temporary file management class"""
+    """Common temporary file management class."""
 
     def __init__(self):
         self.temp_files: List[str] = []
 
     def create_temp_file(self, suffix: str = "", prefix: str = "temp_") -> str:
-        """Create temporary file and add to management list"""
+        """Create temporary file and add to management list."""
         temp_file = tempfile.NamedTemporaryFile(
             suffix=suffix, prefix=prefix, delete=False
         )
@@ -99,7 +78,7 @@ class TemporaryFileManager:
         return temp_file.name
 
     def cleanup_all(self):
-        """Delete all managed temporary files"""
+        """Delete all managed temporary files."""
         for temp_file in self.temp_files:
             try:
                 if os.path.exists(temp_file):
@@ -117,24 +96,13 @@ class TemporaryFileManager:
 
 
 class BatchProcessor:
-    """Common batch processing class"""
+    """Common batch processing class."""
 
     @staticmethod
     def process_in_batches(
         items: List[Any], batch_size: int, process_func, *args, **kwargs
     ) -> List[Any]:
-        """
-        Process items in batches
-
-        Args:
-            items: List of items to process
-            batch_size: Batch size
-            process_func: Processing function
-            *args, **kwargs: Arguments to pass to processing function
-
-        Returns:
-            List of processing results
-        """
+        """Process items in batches."""
         results = []
         for i in range(0, len(items), batch_size):
             batch = items[i : i + batch_size]
@@ -145,7 +113,7 @@ class BatchProcessor:
     @staticmethod
     @contextmanager
     def database_transaction():
-        """Database transaction context manager"""
+        """Database transaction context manager."""
         try:
             with transaction.atomic():
                 yield
@@ -155,21 +123,13 @@ class BatchProcessor:
 
 
 class ErrorHandler:
-    """Common error handling class"""
+    """Common error handling class."""
 
     @staticmethod
     def handle_task_error(
         error: Exception, video_id: int, task_instance=None, max_retries: int = 3
     ) -> None:
-        """
-        Common task error handling
-
-        Args:
-            error: Occurred error
-            video_id: Video ID
-            task_instance: Celery task instance
-            max_retries: Maximum retry count
-        """
+        """Common task error handling."""
         logger.error(f"Error in task for video {video_id}: {error}", exc_info=True)
 
         try:
@@ -184,9 +144,7 @@ class ErrorHandler:
 
     @staticmethod
     def _handle_retry_logic(task_instance, error: Exception, max_retries: int) -> None:
-        """
-        Common retry logic
-        """
+        """Common retry logic."""
         if task_instance and task_instance.request.retries < max_retries:
             logger.info(
                 f"Retrying task (attempt {task_instance.request.retries + 1}/{max_retries})"
@@ -197,12 +155,7 @@ class ErrorHandler:
 
     @staticmethod
     def safe_execute(func, *args, **kwargs):
-        """
-        Safe function execution
-
-        Returns:
-            (result, error)
-        """
+        """Safe function execution."""
         try:
             result = func(*args, **kwargs)
             return result, None
@@ -212,27 +165,16 @@ class ErrorHandler:
 
     @staticmethod
     def handle_database_error(error: Exception, operation: str) -> None:
-        """
-        Common database error handling
-        """
+        """Common database error handling."""
         logger.error(f"Database error during {operation}: {error}", exc_info=True)
         raise error
 
     @staticmethod
     def validate_required_fields(data: dict, required_fields: list) -> tuple[bool, str]:
-        """
-        Validate required fields
-
-        Returns:
-            (is_valid, error_message)
-        """
-        from app.utils.response_utils import ValidationHelper
-
-        is_valid, errors = ValidationHelper.validate_required_fields(
-            data, required_fields
-        )
-        if not is_valid and errors:
-            # Convert dict format to string format for backward compatibility
-            missing_fields = list(errors.keys())
+        """Validate required fields."""
+        missing_fields = [
+            field for field in required_fields if field not in data or not data[field]
+        ]
+        if missing_fields:
             return False, f"Missing required fields: {', '.join(missing_fields)}"
         return True, ""

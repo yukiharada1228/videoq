@@ -23,8 +23,8 @@ from app.use_cases.video.dto import (
     UpdateVideoInput,
 )
 from app.use_cases.video.exceptions import ResourceNotFound, VideoLimitExceeded
-from app.utils.decorators import authenticated_view_with_error_handling
 from app.presentation.common.mixins import AuthenticatedViewMixin
+from app.presentation.common.decorators import authenticated_view_with_error_handling
 
 from .serializers import (
     AddTagsToVideoRequestSerializer,

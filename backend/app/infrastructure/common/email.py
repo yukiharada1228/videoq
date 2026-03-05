@@ -1,3 +1,5 @@
+"""Infrastructure helper for auth-related emails."""
+
 import logging
 from typing import Sequence
 
@@ -19,9 +21,7 @@ def build_email_verification_link(user: AbstractBaseUser) -> str:
 
 
 def send_email_verification(user: AbstractBaseUser) -> None:
-    """
-    Send an email verification mail to the specified user.
-    """
+    """Send an email verification mail to the specified user."""
     subject = "[VideoQ] Temporary Registration Complete"
     verification_link = build_email_verification_link(user)
     message_lines: Sequence[str] = [

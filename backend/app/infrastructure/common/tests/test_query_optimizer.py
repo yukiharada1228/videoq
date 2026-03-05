@@ -6,7 +6,7 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 
 from app.models import Video, VideoGroup, VideoGroupMember
-from app.utils.query_optimizer import (BatchProcessor, CacheOptimizer,
+from app.infrastructure.common.query_optimizer import (BatchProcessor, CacheOptimizer,
                                        QueryOptimizer)
 
 User = get_user_model()

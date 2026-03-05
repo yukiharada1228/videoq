@@ -217,12 +217,9 @@ class ImportRulesTest(unittest.TestCase):
         """infrastructure layer must not import app.use_cases (dependency direction violation)."""
         self._check("infrastructure", ["app.use_cases"])
 
-    def test_infrastructure_has_no_legacy_utils_imports(self):
-        """infrastructure must not depend on legacy app.utils modules moved to infrastructure/common."""
-        self._check(
-            "infrastructure",
-            ["app.utils.query_optimizer", "app.utils.embeddings", "app.utils.mixins"],
-        )
+    def test_infrastructure_has_no_utils_imports(self):
+        """infrastructure must not depend on app.utils."""
+        self._check("infrastructure", ["app.utils"])
 
     def test_presentation_auth_has_no_video_exceptions_imports(self):
         """presentation/auth must not import from use_cases/video (cross-context dependency)."""
@@ -264,12 +261,9 @@ class ImportRulesTest(unittest.TestCase):
         """presentation must resolve dependencies through get_container(), not factories directly."""
         self._check("presentation", ["app.factories"])
 
-    def test_presentation_has_no_legacy_utils_imports(self):
-        """presentation must not depend on legacy app.utils modules moved to presentation/common."""
-        self._check(
-            "presentation",
-            ["app.utils.query_optimizer", "app.utils.embeddings", "app.utils.mixins"],
-        )
+    def test_presentation_has_no_utils_imports(self):
+        """presentation must not depend on app.utils."""
+        self._check("presentation", ["app.utils"])
 
     def test_no_queryset_in_domain_or_use_cases(self):
         """QuerySet must not appear in domain or use_cases source files."""
@@ -295,14 +289,6 @@ class ImportRulesTest(unittest.TestCase):
     def test_infrastructure_external_has_no_tasks_imports(self):
         """infrastructure/external must not import app.tasks (tasks are above infrastructure)."""
         self._check("infrastructure/external", ["app.tasks"])
-
-    def test_utils_has_no_infrastructure_imports(self):
-        """utils must not import from app.infrastructure (utils are below infrastructure)."""
-        self._check("utils", ["app.infrastructure"])
-
-    def test_utils_has_no_presentation_imports(self):
-        """utils must not import from app.presentation."""
-        self._check("utils", ["app.presentation"])
 
     def _check_single_file(self, rel_path, forbidden):
         """Check a single file for forbidden imports."""
