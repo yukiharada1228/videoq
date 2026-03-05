@@ -42,7 +42,6 @@ class SendMessageUseCase:
     def execute(
         self,
         user_id: int,
-        llm,
         messages: List[Dict],
         group_id: Optional[int] = None,
         share_token: Optional[str] = None,
@@ -52,7 +51,6 @@ class SendMessageUseCase:
         """
         Args:
             user_id: ID of the authenticated user.
-            llm: LangChain-compatible LLM instance.
             messages: List of {"role": ..., "content": ...} dicts.
             group_id: Optional group ID for RAG retrieval.
             share_token: Optional share token (shared access flow).
@@ -81,7 +79,6 @@ class SendMessageUseCase:
         rag_result = self.rag_gateway.generate_reply(
             messages=messages,
             user_id=owner_user_id,
-            llm=llm,
             video_ids=video_ids,
             locale=locale,
         )

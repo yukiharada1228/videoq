@@ -96,7 +96,7 @@ class VideoListView(AuthenticatedViewMixin, generics.GenericAPIView):
 
         use_case = factories.get_create_video_use_case()
         try:
-            video = use_case.execute(request.user, serializer.validated_data)
+            video = use_case.execute(request.user.id, request.user.video_limit, serializer.validated_data)
         except VideoLimitExceeded as e:
             return create_error_response(str(e), status.HTTP_400_BAD_REQUEST)
 
@@ -110,7 +110,7 @@ class VideoDetailView(AuthenticatedViewMixin, APIView):
     """Retrieve, update, and delete a video."""
 
     def _get_video(self, pk, user_id):
-        return factories.get_video_repository().get_by_id(pk, user_id)
+        return factories.get_video_detail_use_case().execute(pk, user_id)
 
     @extend_schema(
         responses={200: VideoSerializer},

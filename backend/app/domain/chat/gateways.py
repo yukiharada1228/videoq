@@ -5,7 +5,15 @@ Abstract contracts for external services used by chat use cases.
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
+
+
+class LLMConfigurationError(Exception):
+    """Raised when the LLM cannot be configured (missing/invalid API key, unknown provider)."""
+
+
+class LLMProviderError(Exception):
+    """Raised when the LLM provider returns an error during generation."""
 
 
 @dataclass
@@ -25,7 +33,6 @@ class RagGateway(ABC):
         self,
         messages: List[Dict],
         user_id: int,
-        llm: Any,
         video_ids: Optional[List[int]] = None,
         locale: Optional[str] = None,
     ) -> RagResult:
@@ -35,11 +42,14 @@ class RagGateway(ABC):
         Args:
             messages: Conversation history as list of {"role": ..., "content": ...}.
             user_id: ID of the user making the request (for retrieval scoping).
-            llm: LangChain-compatible LLM instance (opaque to domain).
             video_ids: Optional list of video IDs to scope retrieval to.
             locale: Accept-Language locale string for response language hints.
 
         Returns:
             RagResult with content, query_text, and optional related_videos.
+
+        Raises:
+            LLMConfigurationError: If the LLM cannot be initialised.
+            LLMProviderError: If the LLM provider returns an error.
         """
         ...
