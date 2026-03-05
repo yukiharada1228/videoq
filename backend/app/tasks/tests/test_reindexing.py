@@ -12,6 +12,9 @@ from app.tasks.reindexing import reindex_all_videos_embeddings
 
 User = get_user_model()
 
+_INDEX = "app.infrastructure.external.vector_gateway.DjangoVectorIndexingGateway.index_video_transcript"
+_DELETE = "app.infrastructure.external.vector_gateway.DjangoVectorIndexingGateway.delete_all_vectors"
+
 
 class ReindexAllVideosEmbeddingsTests(TestCase):
     """Tests for reindex_all_videos_embeddings task"""
@@ -24,8 +27,8 @@ class ReindexAllVideosEmbeddingsTests(TestCase):
             video_limit=None,
         )
 
-    @patch("app.tasks.reindexing.index_scenes_batch")
-    @patch("app.tasks.reindexing.delete_all_vectors")
+    @patch(_INDEX)
+    @patch(_DELETE)
     def test_reindexes_completed_videos(self, mock_delete, mock_index):
         """Test that completed videos with transcripts are reindexed"""
         mock_delete.return_value = 10
@@ -57,8 +60,8 @@ class ReindexAllVideosEmbeddingsTests(TestCase):
         self.assertEqual(result["successful_count"], 1)
         self.assertEqual(result["failed_count"], 0)
 
-    @patch("app.tasks.reindexing.index_scenes_batch")
-    @patch("app.tasks.reindexing.delete_all_vectors")
+    @patch(_INDEX)
+    @patch(_DELETE)
     def test_skips_videos_without_transcript(self, mock_delete, mock_index):
         """Test that videos without transcripts are skipped"""
         mock_delete.return_value = 0
@@ -81,8 +84,8 @@ class ReindexAllVideosEmbeddingsTests(TestCase):
         self.assertEqual(result["total_videos"], 0)
         mock_index.assert_not_called()
 
-    @patch("app.tasks.reindexing.index_scenes_batch")
-    @patch("app.tasks.reindexing.delete_all_vectors")
+    @patch(_INDEX)
+    @patch(_DELETE)
     def test_handles_empty_video_set(self, mock_delete, mock_index):
         """Test handling of no videos to reindex"""
         mock_delete.return_value = 0
@@ -93,8 +96,8 @@ class ReindexAllVideosEmbeddingsTests(TestCase):
         self.assertEqual(result["total_videos"], 0)
         self.assertEqual(result["message"], "No videos to re-index")
 
-    @patch("app.tasks.reindexing.index_scenes_batch")
-    @patch("app.tasks.reindexing.delete_all_vectors")
+    @patch(_INDEX)
+    @patch(_DELETE)
     def test_continues_on_individual_video_error(self, mock_delete, mock_index):
         """Test that processing continues when individual video fails"""
         mock_delete.return_value = 10
@@ -123,8 +126,8 @@ class ReindexAllVideosEmbeddingsTests(TestCase):
         self.assertEqual(result["failed_count"], 1)
         self.assertEqual(len(result["failed_videos"]), 1)
 
-    @patch("app.tasks.reindexing.index_scenes_batch")
-    @patch("app.tasks.reindexing.delete_all_vectors")
+    @patch(_INDEX)
+    @patch(_DELETE)
     def test_deletes_all_vectors_before_reindexing(self, mock_delete, mock_index):
         """Test that all vectors are deleted before reindexing"""
         mock_delete.return_value = 50
@@ -139,10 +142,9 @@ class ReindexAllVideosEmbeddingsTests(TestCase):
         reindex_all_videos_embeddings()
 
         mock_delete.assert_called_once()
-        # Delete should be called before index
         self.assertTrue(mock_delete.call_count == 1)
 
-    @patch("app.tasks.reindexing.delete_all_vectors")
+    @patch(_DELETE)
     def test_handles_delete_error(self, mock_delete):
         """Test handling of delete_all_vectors error"""
         mock_delete.side_effect = Exception("Delete failed")
@@ -159,8 +161,8 @@ class ReindexAllVideosEmbeddingsTests(TestCase):
         self.assertEqual(result["status"], "failed")
         self.assertIn("Delete failed", result["error"])
 
-    @patch("app.tasks.reindexing.index_scenes_batch")
-    @patch("app.tasks.reindexing.delete_all_vectors")
+    @patch(_INDEX)
+    @patch(_DELETE)
     def test_reports_failed_videos_details(self, mock_delete, mock_index):
         """Test that failed video details are included in result"""
         mock_delete.return_value = 0
@@ -180,8 +182,8 @@ class ReindexAllVideosEmbeddingsTests(TestCase):
         self.assertEqual(result["failed_videos"][0]["title"], "Failing Video")
         self.assertIn("Specific error message", result["failed_videos"][0]["error"])
 
-    @patch("app.tasks.reindexing.index_scenes_batch")
-    @patch("app.tasks.reindexing.delete_all_vectors")
+    @patch(_INDEX)
+    @patch(_DELETE)
     def test_result_message_format(self, mock_delete, mock_index):
         """Test that result message has correct format"""
         mock_delete.return_value = 0

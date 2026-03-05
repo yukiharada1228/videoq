@@ -1,12 +1,12 @@
 """
-Vector indexing utilities for RAG
+Scene indexing utilities for RAG — infrastructure layer.
 """
 
 import logging
 
-from app.tasks.srt_processing import parse_srt_scenes
-from app.utils.embeddings import get_embeddings
 from app.infrastructure.external.vector_store import PGVectorManager
+from app.scene_otsu.parsers import SubtitleParser
+from app.utils.embeddings import get_embeddings
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +69,7 @@ def index_scenes_batch(scene_split_srt, video, api_key=None):
     """
     try:
         logger.info("Starting scene indexing to vectorstore...")
-        scenes = parse_srt_scenes(scene_split_srt)
+        scenes = SubtitleParser.parse_srt_scenes(scene_split_srt)
         logger.info("Parsed %d scenes from SRT", len(scenes))
 
         scene_docs = [
