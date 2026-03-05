@@ -8,10 +8,6 @@ from typing import Optional
 
 ACCESS_LEVEL_ALL = "all"
 ACCESS_LEVEL_READ_ONLY = "read_only"
-ACCESS_LEVEL_CHOICES = [
-    (ACCESS_LEVEL_ALL, "All"),
-    (ACCESS_LEVEL_READ_ONLY, "Read Only"),
-]
 
 
 @dataclass

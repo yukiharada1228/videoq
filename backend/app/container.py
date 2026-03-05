@@ -175,6 +175,13 @@ class AppContainer:
         return factories.get_reindex_all_videos_use_case()
 
     # ---------------------------------------------------------------------------
+    # Media use cases
+    # ---------------------------------------------------------------------------
+
+    def get_resolve_protected_media_use_case(self):
+        return factories.get_resolve_protected_media_use_case()
+
+    # ---------------------------------------------------------------------------
     # Infrastructure utilities
     # ---------------------------------------------------------------------------
 

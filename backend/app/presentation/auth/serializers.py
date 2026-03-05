@@ -5,7 +5,12 @@ from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
-from app.domain.auth.entities import ACCESS_LEVEL_ALL, ACCESS_LEVEL_CHOICES
+from app.domain.auth.entities import ACCESS_LEVEL_ALL, ACCESS_LEVEL_READ_ONLY
+
+ACCESS_LEVEL_CHOICES = [
+    (ACCESS_LEVEL_ALL, "All"),
+    (ACCESS_LEVEL_READ_ONLY, "Read Only"),
+]
 
 logger = logging.getLogger(__name__)
 
