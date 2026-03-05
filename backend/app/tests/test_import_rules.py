@@ -205,6 +205,10 @@ class ImportRulesTest(unittest.TestCase):
         """infrastructure layer must not import rest_framework (HTTP concerns belong in presentation)."""
         self._check("infrastructure", ["rest_framework"])
 
+    def test_infrastructure_has_no_use_cases_imports(self):
+        """infrastructure layer must not import app.use_cases (dependency direction violation)."""
+        self._check("infrastructure", ["app.use_cases"])
+
     def test_presentation_auth_has_no_video_exceptions_imports(self):
         """presentation/auth must not import from use_cases/video (cross-context dependency)."""
         abs_path = os.path.join(BASE, "app", "presentation", "auth")

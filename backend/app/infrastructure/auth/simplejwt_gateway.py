@@ -9,7 +9,7 @@ from rest_framework_simplejwt.settings import api_settings
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from app.domain.auth.ports import TokenGateway, TokenPairDto
-from app.use_cases.auth.exceptions import InvalidToken
+from app.domain.shared.exceptions import TokenInvalidError
 
 
 class SimpleJWTGateway(TokenGateway):
@@ -25,4 +25,4 @@ class SimpleJWTGateway(TokenGateway):
             token = RefreshToken(refresh_token)
             return TokenPairDto(access=str(token.access_token), refresh=str(token))
         except (JWTInvalidToken, TokenError, ValueError) as exc:
-            raise InvalidToken("Invalid or expired refresh token.") from exc
+            raise TokenInvalidError("Invalid or expired refresh token.") from exc

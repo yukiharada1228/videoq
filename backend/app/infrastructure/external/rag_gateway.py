@@ -10,7 +10,7 @@ from django.contrib.auth import get_user_model
 from app.domain.chat.gateways import LLMConfigurationError, LLMProviderError, RagGateway, RagResult
 from app.infrastructure.external.llm import get_langchain_llm
 from app.infrastructure.external.rag_service import RagChatService
-from app.use_cases.shared.exceptions import LLMConfigError
+from app.domain.shared.exceptions import LLMConfigError
 
 
 class RagChatGateway(RagGateway):

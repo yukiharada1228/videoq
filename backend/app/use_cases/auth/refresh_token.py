@@ -3,6 +3,8 @@ Use case: Refresh a JWT access token using a refresh token string.
 """
 
 from app.domain.auth.ports import TokenGateway, TokenPairDto
+from app.domain.shared.exceptions import TokenInvalidError
+from app.use_cases.auth.exceptions import InvalidToken
 
 
 class RefreshTokenUseCase:
@@ -10,5 +12,7 @@ class RefreshTokenUseCase:
         self.token_gateway = token_gateway
 
     def execute(self, refresh_token: str) -> TokenPairDto:
-        # InvalidToken is raised by the gateway and propagates to the caller.
-        return self.token_gateway.refresh(refresh_token)
+        try:
+            return self.token_gateway.refresh(refresh_token)
+        except TokenInvalidError as e:
+            raise InvalidToken(str(e)) from e
