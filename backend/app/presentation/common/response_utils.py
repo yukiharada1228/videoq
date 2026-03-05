@@ -1,6 +1,4 @@
-"""
-Common response processing utilities
-"""
+"""Common response processing utilities."""
 
 from typing import Any, Dict, List, Optional
 
@@ -9,7 +7,7 @@ from rest_framework.response import Response
 
 
 class ResponseBuilder:
-    """Common response building class"""
+    """Common response building class."""
 
     @staticmethod
     def success(
@@ -18,18 +16,7 @@ class ResponseBuilder:
         status_code: int = status.HTTP_200_OK,
         meta: Optional[Dict[str, Any]] = None,
     ) -> Response:
-        """
-        Build success response
-
-        Args:
-            data: Response data
-            message: Message
-            status_code: HTTP status code
-            meta: Metadata
-
-        Returns:
-            Built response
-        """
+        """Build success response."""
         response_data = {
             "success": True,
             "message": message,
@@ -48,18 +35,7 @@ class ResponseBuilder:
         errors: Optional[Dict[str, List[str]]] = None,
         details: Optional[Dict[str, Any]] = None,
     ) -> Response:
-        """
-        Build error response
-
-        Args:
-            message: Error message
-            status_code: HTTP status code
-            errors: Validation errors
-            details: Detailed information
-
-        Returns:
-            Built response
-        """
+        """Build error response."""
         response_data = {
             "success": False,
             "message": message,
@@ -81,19 +57,7 @@ class ResponseBuilder:
         total_count: int,
         message: str = "Data retrieved successfully",
     ) -> Response:
-        """
-        Build paginated response
-
-        Args:
-            data: Data list
-            page: Current page
-            page_size: Page size
-            total_count: Total count
-            message: Message
-
-        Returns:
-            Built response
-        """
+        """Build paginated response."""
         total_pages = (total_count + page_size - 1) // page_size
 
         meta = {
@@ -111,22 +75,13 @@ class ResponseBuilder:
 
 
 class ValidationHelper:
-    """Common validation helper"""
+    """Common validation helper."""
 
     @staticmethod
     def validate_required_fields(
         data: Dict[str, Any], required_fields: List[str]
     ) -> tuple[bool, Optional[Dict[str, List[str]]]]:
-        """
-        Validate required fields
-
-        Args:
-            data: Data to validate
-            required_fields: List of required fields
-
-        Returns:
-            (is_valid, errors)
-        """
+        """Validate required fields."""
         errors = {}
 
         for field in required_fields:
@@ -142,18 +97,7 @@ class ValidationHelper:
         min_length: Optional[int] = None,
         max_length: Optional[int] = None,
     ) -> Optional[str]:
-        """
-        Validate field length
-
-        Args:
-            data: Data to validate
-            field: Field name
-            min_length: Minimum length
-            max_length: Maximum length
-
-        Returns:
-            Error message (None if no error)
-        """
+        """Validate field length."""
         if field not in data:
             return None
 
@@ -169,15 +113,7 @@ class ValidationHelper:
 
     @staticmethod
     def validate_email_format(email: str) -> bool:
-        """
-        Validate email format
-
-        Args:
-            email: Email address
-
-        Returns:
-            True if valid
-        """
+        """Validate email format."""
         import re
 
         pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
@@ -185,47 +121,20 @@ class ValidationHelper:
 
 
 class CacheHelper:
-    """Common cache helper"""
+    """Common cache helper."""
 
     @staticmethod
     def get_cache_key(prefix: str, *args: Any) -> str:
-        """
-        Generate cache key
-
-        Args:
-            prefix: Prefix
-            *args: Key elements
-
-        Returns:
-            Generated cache key
-        """
+        """Generate cache key."""
         key_parts = [prefix] + [str(arg) for arg in args]
         return ":".join(key_parts)
 
     @staticmethod
     def get_user_cache_key(user_id: int, resource: str) -> str:
-        """
-        Generate user-specific cache key
-
-        Args:
-            user_id: User ID
-            resource: Resource name
-
-        Returns:
-            Generated cache key
-        """
+        """Generate user-specific cache key."""
         return CacheHelper.get_cache_key("user", user_id, resource)
 
     @staticmethod
     def get_resource_cache_key(resource: str, resource_id: int) -> str:
-        """
-        Generate resource-specific cache key
-
-        Args:
-            resource: Resource name
-            resource_id: Resource ID
-
-        Returns:
-            Generated cache key
-        """
+        """Generate resource-specific cache key."""
         return CacheHelper.get_cache_key("resource", resource, resource_id)

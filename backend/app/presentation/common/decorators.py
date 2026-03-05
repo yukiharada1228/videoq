@@ -1,3 +1,5 @@
+"""Presentation-layer view decorators."""
+
 from functools import wraps
 
 from rest_framework import status
@@ -6,7 +8,7 @@ from app.common.responses import create_error_response
 
 
 def authenticated_api_view(methods):
-    """Decorator for authenticated API views"""
+    """Decorator for authenticated API views."""
 
     def decorator(view_func):
         from rest_framework.decorators import (
@@ -14,9 +16,10 @@ def authenticated_api_view(methods):
             authentication_classes,
             permission_classes,
         )
+        from rest_framework.permissions import IsAuthenticated
+
         from app.common.authentication import APIKeyAuthentication, CookieJWTAuthentication
         from app.common.permissions import ApiKeyScopePermission
-        from rest_framework.permissions import IsAuthenticated
 
         wrapped_view = authentication_classes(
             [APIKeyAuthentication, CookieJWTAuthentication]
@@ -31,7 +34,7 @@ def authenticated_api_view(methods):
 
 
 def with_error_handling(view_func):
-    """Common error handling decorator"""
+    """Common error handling decorator."""
 
     @wraps(view_func)
     def wrapper(*args, **kwargs):
@@ -44,10 +47,9 @@ def with_error_handling(view_func):
 
 
 def authenticated_view_with_error_handling(methods):
-    """Decorator combining authentication and error handling"""
+    """Decorator combining authentication and error handling."""
 
     def decorator(view_func):
-        # Apply error handling first, then authentication
         wrapped = with_error_handling(view_func)
         return authenticated_api_view(methods)(wrapped)
 

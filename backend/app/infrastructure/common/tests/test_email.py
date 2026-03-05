@@ -8,7 +8,7 @@ from django.contrib.auth import get_user_model
 from django.core import mail
 from django.test import TestCase, override_settings
 
-from app.utils.email import (build_email_verification_link,
+from app.infrastructure.common.email import (build_email_verification_link,
                              build_password_reset_link,
                              send_email_verification,
                              send_password_reset_email)
@@ -52,7 +52,7 @@ class EmailVerificationTests(TestCase):
         self.assertIn("Temporary Registration Complete", email.subject)
         self.assertIn("verify-email", email.body)
 
-    @patch("app.utils.email.send_mail")
+    @patch("app.infrastructure.common.email.send_mail")
     def test_send_email_verification_failure(self, mock_send_mail):
         """Test email verification send failure"""
         mock_send_mail.side_effect = Exception("SMTP error")
@@ -99,7 +99,7 @@ class PasswordResetEmailTests(TestCase):
         self.assertIn("Password Reset Instructions", email.subject)
         self.assertIn("reset-password", email.body)
 
-    @patch("app.utils.email.send_mail")
+    @patch("app.infrastructure.common.email.send_mail")
     def test_send_password_reset_email_failure(self, mock_send_mail):
         """Test password reset email send failure"""
         mock_send_mail.side_effect = Exception("SMTP error")

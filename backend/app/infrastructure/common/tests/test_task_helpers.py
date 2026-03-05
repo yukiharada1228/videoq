@@ -10,7 +10,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 
 from app.models import Video
-from app.utils.task_helpers import (BatchProcessor, ErrorHandler,
+from app.infrastructure.common.task_helpers import (BatchProcessor, ErrorHandler,
                                     TemporaryFileManager, VideoTaskManager)
 
 User = get_user_model()
@@ -51,7 +51,7 @@ class VideoTaskManagerTests(TestCase):
         self.assertIsNotNone(error)
         self.assertIn("not found", error)
 
-    @patch("app.utils.task_helpers.logger")
+    @patch("app.infrastructure.common.task_helpers.logger")
     def test_get_video_with_user_error(self, mock_logger):
         """Test get_video_with_user with database error"""
         with patch.object(Video.objects, "select_related") as mock_select:
@@ -80,7 +80,7 @@ class VideoTaskManagerTests(TestCase):
         self.assertEqual(self.video.status, "error")
         self.assertEqual(self.video.error_message, "Test error")
 
-    @patch("app.utils.task_helpers.logger")
+    @patch("app.infrastructure.common.task_helpers.logger")
     def test_update_video_status_error(self, mock_logger):
         """Test update_video_status with error"""
         with patch.object(self.video, "save", side_effect=Exception("Save error")):
@@ -159,7 +159,7 @@ class TemporaryFileManagerTests(TestCase):
         # File should be cleaned up after context exit
         self.assertFalse(os.path.exists(temp_file))
 
-    @patch("app.utils.task_helpers.logger")
+    @patch("app.infrastructure.common.task_helpers.logger")
     def test_cleanup_all_with_error(self, mock_logger):
         """Test cleanup_all with error during cleanup"""
         manager = TemporaryFileManager()
@@ -239,8 +239,8 @@ class ErrorHandlerTests(TestCase):
             status="pending",
         )
 
-    @patch("app.utils.task_helpers.logger")
-    @patch("app.utils.task_helpers.VideoTaskManager.update_video_status")
+    @patch("app.infrastructure.common.task_helpers.logger")
+    @patch("app.infrastructure.common.task_helpers.VideoTaskManager.update_video_status")
     def test_handle_task_error(self, mock_update, mock_logger):
         """Test handle_task_error"""
         error = ValueError("Test error")
@@ -252,7 +252,7 @@ class ErrorHandlerTests(TestCase):
         mock_logger.error.assert_called()
         mock_update.assert_called_once()
 
-    @patch("app.utils.task_helpers.logger")
+    @patch("app.infrastructure.common.task_helpers.logger")
     def test_handle_task_error_with_retry(self, mock_logger):
         """Test handle_task_error with retry logic"""
         error = ValueError("Test error")
@@ -266,7 +266,7 @@ class ErrorHandlerTests(TestCase):
 
         task_instance.retry.assert_called_once()
 
-    @patch("app.utils.task_helpers.logger")
+    @patch("app.infrastructure.common.task_helpers.logger")
     def test_handle_task_error_max_retries(self, mock_logger):
         """Test handle_task_error with max retries reached"""
         error = ValueError("Test error")
@@ -303,7 +303,7 @@ class ErrorHandlerTests(TestCase):
         self.assertIsNotNone(error)
         self.assertIsInstance(error, ValueError)
 
-    @patch("app.utils.task_helpers.logger")
+    @patch("app.infrastructure.common.task_helpers.logger")
     def test_handle_database_error(self, mock_logger):
         """Test handle_database_error"""
         error = ValueError("Database error")

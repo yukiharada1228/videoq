@@ -70,14 +70,14 @@ class DjangoEmailSenderGateway(EmailSenderGateway):
 
     def send_verification(self, user_id: int) -> None:
         from django.contrib.auth import get_user_model
-        from app.utils.email import send_email_verification
+        from app.infrastructure.common.email import send_email_verification
         User = get_user_model()
         user = User.objects.get(pk=user_id)
         send_email_verification(user)
 
     def send_password_reset(self, user_id: int) -> None:
         from django.contrib.auth import get_user_model
-        from app.utils.email import send_password_reset_email
+        from app.infrastructure.common.email import send_password_reset_email
         User = get_user_model()
         user = User.objects.get(pk=user_id)
         send_password_reset_email(user)

@@ -1,9 +1,12 @@
 import logging
 
+from django.contrib.auth import authenticate, get_user_model
 from django.contrib.auth.password_validation import validate_password
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
+from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from app.domain.auth.entities import ACCESS_LEVEL_ALL, ACCESS_LEVEL_READ_ONLY
 
@@ -13,6 +16,21 @@ ACCESS_LEVEL_CHOICES = [
 ]
 
 logger = logging.getLogger(__name__)
+User = get_user_model()
+
+
+class CredentialsSerializerMixin:
+    """Shared credential validation for auth serializers."""
+
+    @staticmethod
+    def validate_credentials(username: str, password: str):
+        if not username or not password:
+            raise serializers.ValidationError("Username and password are required.")
+
+        user = authenticate(username=username, password=password)
+        if user is None:
+            raise serializers.ValidationError("Invalid credentials.")
+        return user
 
 
 class UserSignupSerializer(serializers.Serializer):
@@ -24,10 +42,24 @@ class UserSignupSerializer(serializers.Serializer):
         validate_password(value)
         return value
 
+    def validate_email(self, value: str) -> str:
+        email = value.strip()
+        if User.objects.filter(email__iexact=email).exists():
+            raise serializers.ValidationError("A user with this email already exists.")
+        return email
 
-class LoginSerializer(serializers.Serializer):
+
+class LoginSerializer(CredentialsSerializerMixin, serializers.Serializer):
     username = serializers.CharField()
     password = serializers.CharField(write_only=True, style={"input_type": "password"})
+
+    def validate(self, attrs):
+        user = self.validate_credentials(
+            username=attrs.get("username", ""),
+            password=attrs.get("password", ""),
+        )
+        attrs["user"] = user
+        return attrs
 
 
 class UserSerializer(serializers.Serializer):
@@ -35,11 +67,26 @@ class UserSerializer(serializers.Serializer):
     username = serializers.CharField()
     email = serializers.EmailField()
     video_limit = serializers.IntegerField()
-    video_count = serializers.IntegerField()
+    video_count = serializers.SerializerMethodField()
+
+    def get_video_count(self, obj) -> int:
+        if isinstance(obj, dict):
+            return int(obj.get("video_count", 0) or 0)
+        videos = getattr(obj, "videos", None)
+        if videos is None:
+            return 0
+        return videos.count()
 
 
 class RefreshSerializer(serializers.Serializer):
     refresh = serializers.CharField()
+
+    def validate_refresh(self, value: str) -> str:
+        try:
+            RefreshToken(value)
+        except TokenError as e:
+            raise serializers.ValidationError(str(e))
+        return value
 
 
 class EmailVerificationSerializer(serializers.Serializer):

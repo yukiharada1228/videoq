@@ -25,8 +25,8 @@ class WhisperTranscriptionGateway(TranscriptionGateway):
         self._video_file_accessor = video_file_accessor or DjangoVideoFileAccessor()
 
     def run(self, video_id: int) -> str:
-        from app.utils.task_helpers import TemporaryFileManager
-        from app.utils.whisper_client import (
+        from app.infrastructure.common.task_helpers import TemporaryFileManager
+        from app.infrastructure.common.whisper_client import (
             WhisperConfig,
             create_whisper_client,
             get_whisper_model_name,

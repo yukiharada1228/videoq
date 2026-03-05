@@ -6,7 +6,7 @@ from django.test import TestCase
 from rest_framework import status
 from rest_framework.response import Response
 
-from app.utils.response_utils import (CacheHelper, ResponseBuilder,
+from app.presentation.common.response_utils import (CacheHelper, ResponseBuilder,
                                       ValidationHelper)
 
 

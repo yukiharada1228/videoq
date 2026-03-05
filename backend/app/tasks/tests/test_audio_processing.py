@@ -21,7 +21,7 @@ from app.infrastructure.transcription.audio_processing import (
     process_audio_segments_parallel,
     transcribe_audio_segment_async,
 )
-from app.utils.task_helpers import TemporaryFileManager
+from app.infrastructure.common.task_helpers import TemporaryFileManager
 
 
 class SupportedFormatsTests(TestCase):

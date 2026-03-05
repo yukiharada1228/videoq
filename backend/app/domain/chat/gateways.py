@@ -5,7 +5,9 @@ Abstract contracts for external services used by chat use cases.
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import Optional, Sequence
+
+from app.domain.chat.dtos import ChatMessageDTO, RelatedVideoDTO
 
 
 class LLMConfigurationError(Exception):
@@ -22,7 +24,7 @@ class RagResult:
 
     content: str
     query_text: str
-    related_videos: Optional[List[Dict]] = field(default=None)
+    related_videos: Optional[Sequence[RelatedVideoDTO]] = field(default=None)
 
 
 class RagGateway(ABC):
@@ -31,16 +33,16 @@ class RagGateway(ABC):
     @abstractmethod
     def generate_reply(
         self,
-        messages: List[Dict],
+        messages: Sequence[ChatMessageDTO],
         user_id: int,
-        video_ids: Optional[List[int]] = None,
+        video_ids: Optional[Sequence[int]] = None,
         locale: Optional[str] = None,
     ) -> RagResult:
         """
         Execute the RAG pipeline and return the assistant's reply.
 
         Args:
-            messages: Conversation history as list of {"role": ..., "content": ...}.
+            messages: Conversation history as typed DTO messages.
             user_id: ID of the user making the request (for retrieval scoping).
             video_ids: Optional list of video IDs to scope retrieval to.
             locale: Accept-Language locale string for response language hints.
