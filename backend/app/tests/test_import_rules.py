@@ -12,6 +12,7 @@ Acceptance criteria:
 
 import ast
 import os
+import textwrap
 import unittest
 
 BASE = os.path.join(os.path.dirname(__file__), "..", "..")
@@ -32,20 +33,27 @@ def check_forbidden_imports(file_path, forbidden_patterns):
         source = f.read()
     try:
         tree = ast.parse(source)
-    except SyntaxError:
-        return []
+    except SyntaxError as e:
+        raise AssertionError(f"SyntaxError while parsing {file_path}: {e}") from e
 
     violations = []
     for node in ast.walk(tree):
         if isinstance(node, ast.ImportFrom):
             module = node.module or ""
-            names = [alias.name for alias in node.names]
-            for pattern in forbidden_patterns:
-                if module == pattern or module.startswith(pattern + "."):
-                    violations.append(
-                        (node.lineno, f"from {module} import {', '.join(names)}")
-                    )
-                    break
+            for alias in node.names:
+                # Normalize: "from app import models" → "app.models"
+                full_name = f"{module}.{alias.name}" if module else alias.name
+                for pattern in forbidden_patterns:
+                    if (
+                        module == pattern
+                        or module.startswith(pattern + ".")
+                        or full_name == pattern
+                        or full_name.startswith(pattern + ".")
+                    ):
+                        violations.append(
+                            (node.lineno, f"from {module} import {alias.name}")
+                        )
+                        break
         elif isinstance(node, ast.Import):
             for alias in node.names:
                 for pattern in forbidden_patterns:
@@ -53,6 +61,65 @@ def check_forbidden_imports(file_path, forbidden_patterns):
                         violations.append((node.lineno, f"import {alias.name}"))
                         break
     return violations
+
+
+class CheckForbiddenImportsTest(unittest.TestCase):
+    """Unit tests for check_forbidden_imports edge cases."""
+
+    def _check_source(self, source, forbidden_patterns):
+        """Parse source string and return violations."""
+        import tempfile
+        with tempfile.NamedTemporaryFile(suffix=".py", mode="w", delete=False) as f:
+            f.write(textwrap.dedent(source))
+            tmp_path = f.name
+        try:
+            return check_forbidden_imports(tmp_path, forbidden_patterns)
+        finally:
+            os.unlink(tmp_path)
+
+    def test_syntax_error_raises(self):
+        """SyntaxError in scanned file must raise AssertionError (not swallow it)."""
+        import tempfile
+        with tempfile.NamedTemporaryFile(suffix=".py", mode="w", delete=False) as f:
+            f.write("def broken(:\n    pass\n")
+            tmp_path = f.name
+        try:
+            with self.assertRaises(AssertionError):
+                check_forbidden_imports(tmp_path, ["app.models"])
+        finally:
+            os.unlink(tmp_path)
+
+    def test_import_dotted_caught(self):
+        """import app.models must be detected."""
+        violations = self._check_source("import app.models\n", ["app.models"])
+        self.assertTrue(violations, "Expected violation for 'import app.models'")
+
+    def test_import_dotted_as_caught(self):
+        """import app.models as m must be detected."""
+        violations = self._check_source("import app.models as m\n", ["app.models"])
+        self.assertTrue(violations, "Expected violation for 'import app.models as m'")
+
+    def test_from_module_import_name_caught(self):
+        """from app import models must be detected when app.models is forbidden."""
+        violations = self._check_source("from app import models\n", ["app.models"])
+        self.assertTrue(violations, "Expected violation for 'from app import models'")
+
+    def test_from_module_import_name_as_caught(self):
+        """from app import models as m must be detected."""
+        violations = self._check_source("from app import models as m\n", ["app.models"])
+        self.assertTrue(violations, "Expected violation for 'from app import models as m'")
+
+    def test_from_submodule_import_caught(self):
+        """from app.models import User must be detected."""
+        violations = self._check_source("from app.models import User\n", ["app.models"])
+        self.assertTrue(violations, "Expected violation for 'from app.models import User'")
+
+    def test_allowed_import_not_caught(self):
+        """from app.use_cases.shared import exceptions must NOT be flagged for app.models."""
+        violations = self._check_source(
+            "from app.use_cases.shared import exceptions\n", ["app.models"]
+        )
+        self.assertFalse(violations)
 
 
 class ImportRulesTest(unittest.TestCase):

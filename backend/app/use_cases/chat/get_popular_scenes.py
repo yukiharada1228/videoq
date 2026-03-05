@@ -7,6 +7,7 @@ from typing import List, Optional
 from app.domain.chat.repositories import ChatRepository, VideoGroupQueryRepository
 from app.domain.chat.services import aggregate_scenes, filter_group_scenes
 from app.domain.video.repositories import VideoRepository
+from app.use_cases.chat.dto import PopularSceneDTO
 from app.use_cases.shared.exceptions import ResourceNotFound
 
 
@@ -29,10 +30,10 @@ class GetPopularScenesUseCase:
         limit: int = 20,
         user_id: Optional[int] = None,
         share_token: Optional[str] = None,
-    ) -> List[dict]:
+    ) -> List[PopularSceneDTO]:
         """
         Returns:
-            List of scene dicts sorted by reference count.
+            List of PopularSceneDTO sorted by reference count.
 
         Raises:
             ResourceNotFound: If the group does not exist.
@@ -52,17 +53,17 @@ class GetPopularScenesUseCase:
         top_scenes = filter_group_scenes(scene_counter, valid_video_ids, limit)
 
         video_ids = [key[0] for key, _ in top_scenes]
-        video_file_map = self.video_repo.get_file_urls_for_ids(video_ids, group.user_id)
+        file_key_map = self.video_repo.get_file_keys_for_ids(video_ids, group.user_id)
 
         return [
-            {
-                "video_id": scene_info[key]["video_id"],
-                "title": scene_info[key]["title"],
-                "start_time": scene_info[key]["start_time"],
-                "end_time": scene_info[key]["end_time"],
-                "reference_count": count,
-                "file": video_file_map.get(key[0]),
-                "questions": scene_questions.get(key, []),
-            }
+            PopularSceneDTO(
+                video_id=scene_info[key]["video_id"],
+                title=scene_info[key]["title"],
+                start_time=scene_info[key]["start_time"],
+                end_time=scene_info[key]["end_time"],
+                reference_count=count,
+                file_key=file_key_map.get(key[0]),
+                questions=scene_questions.get(key, []),
+            )
             for key, count in top_scenes
         ]

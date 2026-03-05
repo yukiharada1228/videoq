@@ -19,16 +19,31 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 
+def _resolve_file_url(file_key):
+    """Resolve a storage file key to a URL using Django's default storage."""
+    if not file_key:
+        return None
+    from django.core.files.storage import default_storage
+    try:
+        return default_storage.url(file_key)
+    except Exception:
+        return None
+
+
 class VideoListSerializer(serializers.Serializer):
     """Serializer for video list view (reads VideoEntity attributes)."""
 
     id = serializers.IntegerField()
-    file = serializers.CharField(source="file_url", allow_null=True)
+    file = serializers.SerializerMethodField()
     title = serializers.CharField()
     description = serializers.CharField()
     uploaded_at = serializers.DateTimeField()
     status = serializers.CharField()
     tags = serializers.SerializerMethodField()
+
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_file(self, obj):
+        return _resolve_file_url(obj.file_key)
 
     @extend_schema_field(serializers.ListField(child=serializers.DictField()))
     def get_tags(self, obj):
@@ -43,7 +58,7 @@ class VideoSerializer(serializers.Serializer):
 
     id = serializers.IntegerField()
     user = serializers.IntegerField(source="user_id")
-    file = serializers.CharField(source="file_url", allow_null=True)
+    file = serializers.SerializerMethodField()
     title = serializers.CharField()
     description = serializers.CharField()
     uploaded_at = serializers.DateTimeField()
@@ -51,6 +66,10 @@ class VideoSerializer(serializers.Serializer):
     status = serializers.CharField()
     error_message = serializers.CharField(allow_null=True)
     tags = serializers.SerializerMethodField()
+
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_file(self, obj):
+        return _resolve_file_url(obj.file_key)
 
     @extend_schema_field(serializers.ListField(child=serializers.DictField()))
     def get_tags(self, obj):

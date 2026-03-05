@@ -137,6 +137,13 @@ class AppContainer:
     def get_reindex_all_videos_use_case(self):
         return factories.get_reindex_all_videos_use_case()
 
+    # ---------------------------------------------------------------------------
+    # Infrastructure utilities
+    # ---------------------------------------------------------------------------
+
+    def get_file_url_resolver(self):
+        return factories.get_file_url_resolver()
+
 
 _container: AppContainer | None = None
 

@@ -270,7 +270,7 @@ class PopularScenesView(APIView):
 
         use_case = get_container().get_popular_scenes_use_case()
         try:
-            result = use_case.execute(
+            scenes = use_case.execute(
                 group_id=int(group_id),
                 limit=limit,
                 user_id=getattr(request.user, "id", None),
@@ -279,7 +279,19 @@ class PopularScenesView(APIView):
         except ResourceNotFound as e:
             return create_error_response(str(e), status.HTTP_404_NOT_FOUND)
 
-        return Response(result)
+        file_url_resolver = get_container().get_file_url_resolver()
+        return Response([
+            {
+                "video_id": dto.video_id,
+                "title": dto.title,
+                "start_time": dto.start_time,
+                "end_time": dto.end_time,
+                "reference_count": dto.reference_count,
+                "file": file_url_resolver.resolve(dto.file_key) if dto.file_key else None,
+                "questions": dto.questions,
+            }
+            for dto in scenes
+        ])
 
 
 class ChatAnalyticsView(APIView):
@@ -300,8 +312,26 @@ class ChatAnalyticsView(APIView):
 
         use_case = get_container().get_chat_analytics_use_case()
         try:
-            data = use_case.execute(group_id=int(group_id), user_id=request.user.id)
+            dto = use_case.execute(group_id=int(group_id), user_id=request.user.id)
         except ResourceNotFound as e:
             return create_error_response(str(e), status.HTTP_404_NOT_FOUND)
 
-        return Response(data)
+        return Response({
+            "summary": {
+                "total_questions": dto.total_questions,
+                "date_range": dto.date_range,
+            },
+            "scene_distribution": [
+                {
+                    "video_id": s.video_id,
+                    "title": s.title,
+                    "start_time": s.start_time,
+                    "end_time": s.end_time,
+                    "question_count": s.question_count,
+                }
+                for s in dto.scene_distribution
+            ],
+            "time_series": dto.time_series,
+            "feedback": dto.feedback,
+            "keywords": dto.keywords,
+        })

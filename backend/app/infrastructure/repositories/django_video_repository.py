@@ -50,12 +50,7 @@ def _tag_to_entity(tag: Tag, video_count: int = 0) -> TagEntity:
 
 
 def _video_to_entity(video: Video) -> VideoEntity:
-    file_url: Optional[str] = None
-    if video.file:
-        try:
-            file_url = video.file.url
-        except Exception:
-            file_url = None
+    file_key: Optional[str] = video.file.name if video.file else None
 
     tags = [
         _tag_to_entity(vt.tag) for vt in video.video_tags.all() if vt.tag_id
@@ -67,7 +62,7 @@ def _video_to_entity(video: Video) -> VideoEntity:
         title=video.title,
         status=video.status,
         description=video.description,
-        file_url=file_url,
+        file_key=file_key,
         error_message=video.error_message or None,
         uploaded_at=video.uploaded_at,
         transcript=video.transcript or None,
@@ -229,22 +224,13 @@ class DjangoVideoRepository(VideoRepository):
     def count_for_user(self, user_id: int) -> int:
         return Video.objects.filter(user_id=user_id).count()
 
-    def get_file_urls_for_ids(
+    def get_file_keys_for_ids(
         self, video_ids: List[int], user_id: int
     ) -> Dict[int, Optional[str]]:
         videos = Video.objects.filter(id__in=video_ids, user_id=user_id).only(
             "id", "file"
         )
-        result: Dict[int, Optional[str]] = {}
-        for v in videos:
-            url: Optional[str] = None
-            if v.file:
-                try:
-                    url = v.file.url
-                except Exception:
-                    url = None
-            result[v.id] = url
-        return result
+        return {v.id: (v.file.name if v.file else None) for v in videos}
 
     def list_completed_with_transcript(self) -> List[VideoEntity]:
         videos = (

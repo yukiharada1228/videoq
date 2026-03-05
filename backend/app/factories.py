@@ -4,6 +4,7 @@ Presentation layer imports from here instead of directly from infrastructure.
 """
 
 from app.infrastructure.chat.keyword_extractor import JanomeNltkKeywordExtractor
+from app.infrastructure.external.file_url_resolver import DjangoFileUrlResolver
 from app.infrastructure.external.rag_gateway import RagChatGateway
 from app.infrastructure.external.vector_gateway import DjangoVectorStoreGateway
 from app.infrastructure.repositories.django_account_deletion_repository import (
@@ -301,3 +302,12 @@ def get_create_api_key_use_case() -> CreateApiKeyUseCase:
 
 def get_revoke_api_key_use_case() -> RevokeApiKeyUseCase:
     return RevokeApiKeyUseCase(DjangoApiKeyRepository())
+
+
+# ---------------------------------------------------------------------------
+# Infrastructure utilities
+# ---------------------------------------------------------------------------
+
+
+def get_file_url_resolver() -> DjangoFileUrlResolver:
+    return DjangoFileUrlResolver()

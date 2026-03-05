@@ -1,76 +1,77 @@
-# Clean Architecture Review
-
-対象: `videoq/backend`  
-レビュー日: 2026-03-05
+# バックエンドのクリーンアーキテクチャレビュー
 
 ## 結論
+**部分的にクリーンアーキテクチャになっていますが、完全ではありません。**
 
-このコードベースは**レイヤ分割自体は概ねできている**ものの、厳密なクリーンアーキテクチャとしては**部分的に未達**です。  
-特に「ルール検証の抜け道」と「UseCase/Domainへの配信表現（HTTP向けデータ形）の混入」が課題です。
+- 良い点: `domain / use_cases / infrastructure / presentation` のレイヤー分離があり、禁止インポートをCIテストで検証しています。
+- 課題: `auth` まわりでプレゼンテーション層に認証ロジックが残っており、`user` 系はユースケース境界でDjangoモデル依存が漏れています。
 
-## Findings (重要度順)
+## 主要な指摘（重大度順）
 
-### 1. High: 依存ルール検証が誤検知を見逃す実装になっている
-
+### 1. High: Auth の中核ロジックが presentation に残っている
 - 根拠:
-  - `app/tests/test_import_rules.py` の `check_forbidden_imports` は `SyntaxError` 時に `[]` を返しており、違反を検知できないまま通過する
-  - 同ファイルの `ImportFrom` 判定は `from app import models` のような形式を禁止パターン `app.models` で捕捉できない
-- 参照:
-  - `app/tests/test_import_rules.py:35-36`
-  - `app/tests/test_import_rules.py:40-47`
+  - `LoginView` で `RefreshToken.for_user(user)` を直接実行し、トークン発行をViewが担当している。  
+    `app/presentation/auth/views.py:90-121`
+  - `RefreshView` でも `RefreshToken(...)` の検証とアクセストークン再発行をViewが担当している。  
+    `app/presentation/auth/views.py:188-220`
+  - `LoginSerializer` が `authenticate(...)` を直接呼んでいる。  
+    `app/presentation/auth/serializers.py:20-27`
 - 影響:
-  - CI上で「レイヤ違反ゼロ」に見えても、実際は違反が混入する可能性がある
+  - 認証ユースケースが薄くなり、HTTP/DRF層の都合が業務ロジックに混在。
+  - 認証方式変更（JWT実装切替、外部IdP対応）の影響範囲がpresentationに広がる。
+- 改善案:
+  - `LoginUseCase` / `RefreshTokenUseCase` を追加し、presentationは入出力変換のみ担当。
+  - JWT操作は `domain.auth.gateways` のPort経由で隠蔽。
 
-### 2. Medium: UseCaseの出力がHTTPレスポンス形状に近い辞書へ寄っている
-
+### 2. Medium: User ユースケース境界でDjangoモデル依存が漏れている
 - 根拠:
-  - `GetPopularScenesUseCase` が `List[dict]` を返し、`"file"`, `"reference_count"`, `"questions"` などレスポンス向けキーを直接構築
-  - `GetChatAnalyticsUseCase` も `dict` を返し、`summary/scene_distribution/time_series/...` の出力整形をUseCaseで実施
-- 参照:
-  - `app/use_cases/chat/get_popular_scenes.py:32`
-  - `app/use_cases/chat/get_popular_scenes.py:57-67`
-  - `app/use_cases/chat/get_analytics.py:24`
-  - `app/use_cases/chat/get_analytics.py:65-74`
+  - `UserRepository` が返却型を定義しておらず（抽象が曖昧）、  
+    `app/domain/user/repositories.py:12-19`
+  - 実装はDjango `User` をそのまま返している。  
+    `app/infrastructure/repositories/django_user_repository.py:16-20`
+  - `GetCurrentUserUseCase` はその値を透過的に返却している。  
+    `app/use_cases/auth/get_current_user.py:12-13`
 - 影響:
-  - プレゼンテーション都合の変更がUseCaseへ波及しやすくなる
-  - 「業務ルール」と「返却フォーマット」の境界が曖昧になる
+  - use_cases層が実質的にORMモデル表現へ依存。
+  - 将来の永続化差し替えやDTO契約の安定性が下がる。
+- 改善案:
+  - `domain.user.entities.UserEntity`（または `use_cases.auth.dto.CurrentUserDto`）を定義。
+  - repository実装でORM→Entity/DTO変換し、use caseはEntity/DTOのみ返す。
 
-### 3. Medium: Domain契約に配信/フレームワーク寄り情報が含まれる
-
+### 3. Medium: DI経路が層ごとに不統一（container と factories が混在）
 - 根拠:
-  - `VideoEntity` が `file_url` を持つ（URLは配信・ストレージ解決側の関心）
-  - `VideoRepository` が `get_file_urls_for_ids` を公開している
-  - `CreateVideoInput.file` が `Any`（コメント上は Django `InMemoryUploadedFile` を想定）
-- 参照:
-  - `app/domain/video/entities.py:39`
-  - `app/domain/video/repositories.py:68-71`
-  - `app/use_cases/video/dto.py:16`
-  - 実装側の対応箇所: `app/infrastructure/repositories/django_video_repository.py:52-57`
+  - `video` は `get_container()` を使用。  
+    `app/presentation/video/views.py:16`
+  - `auth` は `from app import factories` で直接取得。  
+    `app/presentation/auth/views.py:31`
 - 影響:
-  - Domain/UseCase が外側（HTTP/Storage）都合に引っ張られやすい
-  - 将来の配信方式変更時に内側レイヤ修正が必要になりやすい
+  - 依存解決ルールが統一されず、テスト時の差し替え戦略が揺れる。
+- 改善案:
+  - presentation層の依存解決を `AppContainer` に一本化。
 
-## 良い点
+### 4. Low: メール重複チェックの責務が二重化
+- 根拠:
+  - Serializerで重複チェック。  
+    `app/presentation/auth/serializers.py:35-38`
+  - UseCaseでも同じ重複チェック。  
+    `app/use_cases/auth/signup.py:25-27`
+- 影響:
+  - ルール変更時の重複修正漏れリスク。
+- 改善案:
+  - ビジネスルールはUseCase側を正とし、Serializerは形式検証中心にする。
 
-- `domain/use_cases/presentation/infrastructure` の物理分離は明確
-- `factories.py` + `container.py` による Composition Root / DI 方向は妥当
-- `tasks` が `container` 経由でUseCaseへ委譲する方針は概ね守れている
+## 良い実装（維持推奨）
+- 依存方向のガードテストがある。  
+  `app/tests/test_import_rules.py`
+- `tasks` が薄いトリガーとして実装され、ユースケースへ委譲できている。  
+  `app/tasks/transcription.py`, `app/tasks/reindexing.py`, `app/tasks/account_deletion.py`
+- 多くの `video/chat` ユースケースはPort（repository/gateway interface）経由で依存逆転できている。
 
-## 総評
+## 総合評価
+- レイヤー分離の基盤はできています（**7/10**）。
+- ただし `auth` と `user` 境界に残るフレームワーク依存を整理しないと、クリーンアーキテクチャとしては「準拠途中」です。
 
-- 判定: **「クリーンアーキテクチャ風の構成はできているが、厳密運用はまだ」**
-- 優先改善順:
-  1. `test_import_rules.py` の検証強化（見逃し防止）
-  2. UseCase出力をDTO化して、レスポンス整形をPresentationへ寄せる
-  3. Domain契約から `file_url` 等の配信寄り概念を切り離す
-
-## 補足（今回のレビュー制約）
-
-- ローカル実行環境に `pytest` がないため、ホスト直実行は未実施。
-
-## テスト実行結果（Docker）
-
-- 実行日: 2026-03-05
-- 実行コマンド: `docker compose -f ../docker-compose.yml exec backend python manage.py test --keepdb --noinput`
-- 結果: `Ran 516 tests in 63.176s` / `OK`
-- 備考: 既存の `test_postgres` があるため、`--keepdb --noinput` で非対話実行
+## 優先アクション
+1. `auth` のログイン/リフレッシュをUseCase化し、JWT処理をGatewayへ移動。
+2. `UserEntity` or `CurrentUserDto` を導入し、`GetCurrentUserUseCase` の返却契約を固定。
+3. presentationの依存解決を `container` に統一。

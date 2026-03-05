@@ -6,14 +6,25 @@ These are the public API of the use cases — what callers (presentation layer) 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Optional, runtime_checkable
+from typing import Protocol
+
+
+@runtime_checkable
+class UploadedFile(Protocol):
+    """Minimal protocol for an uploaded file object.
+    Django's InMemoryUploadedFile satisfies this without modification.
+    """
+    name: str
+
+    def read(self) -> bytes: ...
 
 
 @dataclass(frozen=True)
 class CreateVideoInput:
     """Input for CreateVideoUseCase.execute()."""
 
-    file: Any  # InMemoryUploadedFile or similar
+    file: UploadedFile
     title: str
     description: str
 

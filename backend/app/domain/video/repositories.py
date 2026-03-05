@@ -65,10 +65,10 @@ class VideoRepository(ABC):
         ...
 
     @abstractmethod
-    def get_file_urls_for_ids(
+    def get_file_keys_for_ids(
         self, video_ids: List[int], user_id: int
     ) -> Dict[int, Optional[str]]:
-        """Return a mapping of video_id → file URL (or None) for the given IDs."""
+        """Return a mapping of video_id → storage file key (or None) for the given IDs."""
         ...
 
     @abstractmethod
