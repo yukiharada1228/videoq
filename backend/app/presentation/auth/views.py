@@ -29,7 +29,7 @@ from app.common.throttles import (LoginIPThrottle, LoginUsernameThrottle,
                                    PasswordResetEmailThrottle,
                                    PasswordResetIPThrottle, SignupIPThrottle)
 from app import factories
-from app.use_cases.video.exceptions import ResourceNotFound
+from app.use_cases.shared.exceptions import ResourceNotFound
 from app.utils.mixins import AuthenticatedViewMixin, PublicViewMixin
 
 class PublicAPIView(PublicViewMixin, generics.GenericAPIView):

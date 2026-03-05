@@ -68,22 +68,12 @@ class ChatView(APIView):
         is_shared = share_token is not None
         group_id = request.data.get("group_id")
 
-        if is_shared:
-            if not group_id:
-                return create_error_response(
-                    "Group ID not specified", status.HTTP_400_BAD_REQUEST
-                )
-            try:
-                group_entity = get_container().get_shared_group_use_case().execute(
-                    share_token=share_token
-                )
-            except ResourceNotFound:
-                return create_error_response(
-                    "Shared group not found", status.HTTP_404_NOT_FOUND
-                )
-            user_id = group_entity.user_id
-        else:
-            user_id = request.user.id
+        if is_shared and not group_id:
+            return create_error_response(
+                "Group ID not specified", status.HTTP_400_BAD_REQUEST
+            )
+
+        user_id = getattr(request.user, "id", None)
 
         messages = request.data.get("messages", [])
         if not messages:

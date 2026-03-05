@@ -1,7 +1,6 @@
 """LangChain helper functions"""
 
 import os
-from typing import Optional, Tuple
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -9,15 +8,13 @@ from langchain_core.language_models import BaseChatModel
 from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI
 from pydantic import SecretStr
-from rest_framework import status
-from rest_framework.response import Response
 
-from app.common.responses import create_error_response
+from app.use_cases.shared.exceptions import LLMConfigError
 
 User = get_user_model()
 
 
-def get_langchain_llm(user) -> Tuple[Optional[BaseChatModel], Optional[Response]]:
+def get_langchain_llm(user) -> BaseChatModel:
     """
     Get the configured LLM model based on LLM_PROVIDER setting.
 
@@ -25,9 +22,10 @@ def get_langchain_llm(user) -> Tuple[Optional[BaseChatModel], Optional[Response]
         user: The user object (currently unused but kept for compatibility)
 
     Returns:
-        Tuple[Optional[BaseChatModel], Optional[Response]]:
-            A tuple of (LLM instance, error response). If successful, returns (llm, None).
-            If failed, returns (None, error_response).
+        BaseChatModel: Configured LLM instance.
+
+    Raises:
+        LLMConfigError: If the LLM cannot be configured due to missing key or unknown provider.
     """
     provider = getattr(settings, "LLM_PROVIDER", "openai")
     temperature = 0.0  # Temperature is fixed at 0.0
@@ -38,9 +36,8 @@ def get_langchain_llm(user) -> Tuple[Optional[BaseChatModel], Optional[Response]
             "OPENAI_API_KEY"
         )
         if not api_key:
-            return None, create_error_response(
-                "OpenAI API key is not configured. Please set OPENAI_API_KEY environment variable.",
-                status.HTTP_400_BAD_REQUEST,
+            raise LLMConfigError(
+                "OpenAI API key is not configured. Please set OPENAI_API_KEY environment variable."
             )
 
         # Use LLM model from environment variable with fallback to default
@@ -48,13 +45,10 @@ def get_langchain_llm(user) -> Tuple[Optional[BaseChatModel], Optional[Response]
             "LLM_MODEL", "gpt-4o-mini"
         )
 
-        return (
-            ChatOpenAI(
-                model=model,
-                api_key=SecretStr(api_key),
-                temperature=temperature,
-            ),
-            None,
+        return ChatOpenAI(
+            model=model,
+            api_key=SecretStr(api_key),
+            temperature=temperature,
         )
 
     elif provider == "ollama":
@@ -64,37 +58,13 @@ def get_langchain_llm(user) -> Tuple[Optional[BaseChatModel], Optional[Response]
         )
         model = getattr(settings, "LLM_MODEL", "qwen3:0.6b")
 
-        return (
-            ChatOllama(
-                model=model,
-                base_url=base_url,
-                temperature=temperature,
-            ),
-            None,
+        return ChatOllama(
+            model=model,
+            base_url=base_url,
+            temperature=temperature,
         )
 
     else:
-        return None, create_error_response(
-            f"Invalid LLM_PROVIDER: {provider}. Must be 'openai' or 'ollama'.",
-            status.HTTP_400_BAD_REQUEST,
+        raise LLMConfigError(
+            f"Invalid LLM_PROVIDER: {provider}. Must be 'openai' or 'ollama'."
         )
-
-
-def handle_langchain_exception(exception: Exception) -> Response:
-    error_message = str(exception)
-
-    if (
-        "invalid_api_key" in error_message.lower()
-        or "authentication" in error_message.lower()
-    ):
-        return create_error_response("Invalid API key", status.HTTP_401_UNAUTHORIZED)
-
-    if "rate_limit" in error_message.lower():
-        return create_error_response(
-            "API rate limit reached", status.HTTP_429_TOO_MANY_REQUESTS
-        )
-
-    return create_error_response(
-        f"OpenAI API error: {exception}",
-        status.HTTP_500_INTERNAL_SERVER_ERROR,
-    )

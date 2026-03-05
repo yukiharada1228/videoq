@@ -7,7 +7,7 @@ import logging
 
 from celery import shared_task
 
-from app import factories
+from app.container import get_container
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ def reindex_all_videos_embeddings(self):
     """
     logger.info("Re-indexing task started")
     try:
-        result = factories.get_reindex_all_videos_use_case().execute()
+        result = get_container().get_reindex_all_videos_use_case().execute()
         logger.info("Re-indexing completed: %s", result.get("message"))
         return result
     except Exception as e:
