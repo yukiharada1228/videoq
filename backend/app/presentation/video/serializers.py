@@ -19,14 +19,6 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 
-def _resolve_file_url(file_key):
-    """Resolve a storage file key to a URL via the DI container's FileUrlResolver."""
-    if not file_key:
-        return None
-    from app.container import get_container
-    return get_container().get_file_url_resolver().resolve(file_key)
-
-
 class VideoListSerializer(serializers.Serializer):
     """Serializer for video list view (reads VideoEntity attributes)."""
 
@@ -40,7 +32,10 @@ class VideoListSerializer(serializers.Serializer):
 
     @extend_schema_field(serializers.CharField(allow_null=True))
     def get_file(self, obj):
-        return _resolve_file_url(obj.file_key)
+        resolver = self.context.get("file_url_resolver")
+        if resolver and obj.file_key:
+            return resolver.resolve(obj.file_key)
+        return None
 
     @extend_schema_field(serializers.ListField(child=serializers.DictField()))
     def get_tags(self, obj):
@@ -66,7 +61,10 @@ class VideoSerializer(serializers.Serializer):
 
     @extend_schema_field(serializers.CharField(allow_null=True))
     def get_file(self, obj):
-        return _resolve_file_url(obj.file_key)
+        resolver = self.context.get("file_url_resolver")
+        if resolver and obj.file_key:
+            return resolver.resolve(obj.file_key)
+        return None
 
     @extend_schema_field(serializers.ListField(child=serializers.DictField()))
     def get_tags(self, obj):

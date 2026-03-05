@@ -80,7 +80,8 @@ class VideoListView(AuthenticatedViewMixin, generics.GenericAPIView):
             except ValueError:
                 pass
 
-        use_case = get_container().get_list_videos_use_case()
+        container = get_container()
+        use_case = container.get_list_videos_use_case()
         videos = use_case.execute(
             user_id=request.user.id,
             q=q,
@@ -88,8 +89,9 @@ class VideoListView(AuthenticatedViewMixin, generics.GenericAPIView):
             ordering=ordering,
             tag_ids=tag_ids,
         )
+        ctx = {"request": request, "file_url_resolver": container.get_file_url_resolver()}
         return Response(
-            VideoListSerializer(videos, many=True, context={"request": request}).data
+            VideoListSerializer(videos, many=True, context=ctx).data
         )
 
     @extend_schema(
@@ -102,15 +104,17 @@ class VideoListView(AuthenticatedViewMixin, generics.GenericAPIView):
         serializer = VideoCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        use_case = get_container().get_create_video_use_case()
+        container = get_container()
+        use_case = container.get_create_video_use_case()
         try:
             input_dto = CreateVideoInput(**serializer.validated_data)
             video = use_case.execute(request.user.id, request.user.video_limit, input_dto)
         except VideoLimitExceeded as e:
             return create_error_response(str(e), status.HTTP_400_BAD_REQUEST)
 
+        ctx = {"request": request, "file_url_resolver": container.get_file_url_resolver()}
         return Response(
-            VideoSerializer(video, context={"request": request}).data,
+            VideoSerializer(video, context=ctx).data,
             status=status.HTTP_201_CREATED,
         )
 
@@ -130,7 +134,8 @@ class VideoDetailView(AuthenticatedViewMixin, APIView):
         video = self._get_video(pk, request.user.id)
         if video is None:
             return create_error_response("Video not found", status.HTTP_404_NOT_FOUND)
-        return Response(VideoSerializer(video, context={"request": request}).data)
+        ctx = {"request": request, "file_url_resolver": get_container().get_file_url_resolver()}
+        return Response(VideoSerializer(video, context=ctx).data)
 
     @extend_schema(
         request=VideoUpdateSerializer,
@@ -146,7 +151,8 @@ class VideoDetailView(AuthenticatedViewMixin, APIView):
         serializer = VideoUpdateSerializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
 
-        use_case = get_container().get_update_video_use_case()
+        container = get_container()
+        use_case = container.get_update_video_use_case()
         try:
             data = serializer.validated_data
             input_dto = UpdateVideoInput(
@@ -157,7 +163,8 @@ class VideoDetailView(AuthenticatedViewMixin, APIView):
         except ResourceNotFound:
             return create_error_response("Video not found", status.HTTP_404_NOT_FOUND)
 
-        return Response(VideoSerializer(updated, context={"request": request}).data)
+        ctx = {"request": request, "file_url_resolver": container.get_file_url_resolver()}
+        return Response(VideoSerializer(updated, context=ctx).data)
 
     def put(self, request, pk):
         return self.patch(request, pk)
@@ -201,19 +208,21 @@ class VideoGroupListView(AuthenticatedViewMixin, generics.GenericAPIView):
         serializer = VideoGroupCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        use_case = get_container().get_create_group_use_case()
+        container = get_container()
+        use_case = container.get_create_group_use_case()
         input_dto = CreateGroupInput(**serializer.validated_data)
         group = use_case.execute(request.user.id, input_dto)
 
         # Re-fetch with videos for detail response
-        detail_use_case = get_container().get_video_group_use_case()
+        detail_use_case = container.get_video_group_use_case()
         try:
             group = detail_use_case.execute(group.id, request.user.id, include_videos=True)
         except ResourceNotFound:
             pass
 
+        ctx = {"request": request, "file_url_resolver": container.get_file_url_resolver()}
         return Response(
-            VideoGroupDetailSerializer(group).data,
+            VideoGroupDetailSerializer(group, context=ctx).data,
             status=status.HTTP_201_CREATED,
         )
 
@@ -227,12 +236,14 @@ class VideoGroupDetailView(AuthenticatedViewMixin, APIView):
         description="Return a video group by ID.",
     )
     def get(self, request, pk):
-        use_case = get_container().get_video_group_use_case()
+        container = get_container()
+        use_case = container.get_video_group_use_case()
         try:
             group = use_case.execute(pk, request.user.id, include_videos=True)
         except ResourceNotFound:
             return create_error_response("Group not found", status.HTTP_404_NOT_FOUND)
-        return Response(VideoGroupDetailSerializer(group).data)
+        ctx = {"request": request, "file_url_resolver": container.get_file_url_resolver()}
+        return Response(VideoGroupDetailSerializer(group, context=ctx).data)
 
     @extend_schema(
         request=VideoGroupUpdateSerializer,
@@ -244,7 +255,8 @@ class VideoGroupDetailView(AuthenticatedViewMixin, APIView):
         serializer = VideoGroupUpdateSerializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
 
-        use_case = get_container().get_update_group_use_case()
+        container = get_container()
+        use_case = container.get_update_group_use_case()
         try:
             data = serializer.validated_data
             input_dto = UpdateGroupInput(
@@ -256,13 +268,14 @@ class VideoGroupDetailView(AuthenticatedViewMixin, APIView):
             return create_error_response("Group not found", status.HTTP_404_NOT_FOUND)
 
         # Re-fetch with videos
-        detail_use_case = get_container().get_video_group_use_case()
+        detail_use_case = container.get_video_group_use_case()
         try:
             group = detail_use_case.execute(pk, request.user.id, include_videos=True)
         except ResourceNotFound:
             return create_error_response("Group not found", status.HTTP_404_NOT_FOUND)
 
-        return Response(VideoGroupDetailSerializer(group).data)
+        ctx = {"request": request, "file_url_resolver": container.get_file_url_resolver()}
+        return Response(VideoGroupDetailSerializer(group, context=ctx).data)
 
     def put(self, request, pk):
         return self.patch(request, pk)
@@ -427,13 +440,15 @@ def delete_share_link(request, group_id):
 @permission_classes([AllowAny])
 def get_shared_group(request, share_token):
     """Get group by share token (no authentication required)."""
-    use_case = get_container().get_shared_group_use_case()
+    container = get_container()
+    use_case = container.get_shared_group_use_case()
     try:
         group = use_case.execute(share_token)
     except ResourceNotFound:
         return create_error_response("Share link not found", status.HTTP_404_NOT_FOUND)
 
-    return Response(VideoGroupDetailSerializer(group).data, status=status.HTTP_200_OK)
+    ctx = {"file_url_resolver": container.get_file_url_resolver()}
+    return Response(VideoGroupDetailSerializer(group, context=ctx).data, status=status.HTTP_200_OK)
 
 
 # ---------------------------------------------------------------------------
@@ -483,12 +498,14 @@ class TagDetailView(AuthenticatedViewMixin, APIView):
         description="Return a tag with its associated videos.",
     )
     def get(self, request, pk):
-        use_case = get_container().get_tag_detail_use_case()
+        container = get_container()
+        use_case = container.get_tag_detail_use_case()
         try:
             tag = use_case.execute(pk, request.user.id)
         except ResourceNotFound:
             return create_error_response("Tag not found", status.HTTP_404_NOT_FOUND)
-        return Response(TagDetailSerializer(tag, context={"request": request}).data)
+        ctx = {"request": request, "file_url_resolver": container.get_file_url_resolver()}
+        return Response(TagDetailSerializer(tag, context=ctx).data)
 
     @extend_schema(
         request=TagUpdateSerializer,
@@ -500,7 +517,8 @@ class TagDetailView(AuthenticatedViewMixin, APIView):
         serializer = TagUpdateSerializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
 
-        use_case = get_container().get_update_tag_use_case()
+        container = get_container()
+        use_case = container.get_update_tag_use_case()
         try:
             data = serializer.validated_data
             input_dto = UpdateTagInput(
@@ -512,13 +530,14 @@ class TagDetailView(AuthenticatedViewMixin, APIView):
             return create_error_response("Tag not found", status.HTTP_404_NOT_FOUND)
 
         # Re-fetch with videos for detail response
-        detail_use_case = get_container().get_tag_detail_use_case()
+        detail_use_case = container.get_tag_detail_use_case()
         try:
             tag = detail_use_case.execute(pk, request.user.id)
         except ResourceNotFound:
             return create_error_response("Tag not found", status.HTTP_404_NOT_FOUND)
 
-        return Response(TagDetailSerializer(tag, context={"request": request}).data)
+        ctx = {"request": request, "file_url_resolver": container.get_file_url_resolver()}
+        return Response(TagDetailSerializer(tag, context=ctx).data)
 
     def put(self, request, pk):
         return self.patch(request, pk)

@@ -303,8 +303,14 @@ class ImportRulesTest(unittest.TestCase):
         )
 
     def test_factories_has_no_presentation_imports(self):
-        """factories.py must not import from app.presentation (presentation depends on factories, not vice versa)."""
-        self._check_single_file("factories.py", ["app.presentation"])
+        """factories package must not import from app.presentation (presentation depends on factories, not vice versa)."""
+        # Check factories/ package (preferred) or legacy factories.py if package doesn't exist
+        import os
+        factories_pkg = os.path.join(BASE, "app", "factories")
+        if os.path.isdir(factories_pkg):
+            self._check("factories", ["app.presentation"])
+        else:
+            self._check_single_file("factories.py", ["app.presentation"])
 
     def test_container_has_no_presentation_imports(self):
         """container.py must not import from app.presentation."""
