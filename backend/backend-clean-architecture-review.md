@@ -1,80 +1,66 @@
-# Backend Clean Architecture Review
+# バックエンド Clean Architecture レビュー
 
-- Review date: 2026-03-06
-- Scope: `backend/app` (domain, use_cases, infrastructure, presentation, tasks, factories/container)
-- Method: static structure review + import rule test execution
+- 対象: `backend/app`
+- レビュー日: 2026-03-06
+- 結論: **概ねクリーンアーキテクチャに沿っていますが、厳密には未達**（境界漏れが3点）
 
-## Verdict
+## Findings（重要度順）
 
-**Mostly yes (partially compliant).**
+### 1. Medium: APIキー権限ポリシーがフレームワーク層に埋め込まれている
+- 現状:
+  - `APIKeyAuthentication` が `UserApiKey` を直接参照し、さらに「read_only でも `POST /api/chat` は許可」という業務ルールを保持しています。
+- 根拠:
+  - `backend/app/common/authentication.py:10`
+  - `backend/app/common/authentication.py:19`
+  - `backend/app/common/authentication.py:39`
+  - `backend/app/common/authentication.py:48`
+- 影響:
+  - 認可ルール変更時に DRF 認証実装へ直接修正が必要になり、ユースケース/ドメインに閉じた変更になりません。
+  - ルーティング文字列（`/api/chat`）への静的依存で、HTTP層の都合が認可ポリシーと強結合しています。
+- 改善案:
+  - 「アクセスレベルごとの許可判定」をユースケースまたは専用ポリシーサービスへ移し、`authentication` は本人確認のみに限定する。
 
-The backend has a clear layer split (`domain` / `use_cases` / `infrastructure` / `presentation`) and enforces dependency direction with automated tests. However, there are a few design points where dependency boundaries are weakened (mainly service-locator usage from serializers/views and a monolithic composition root).
+### 2. Medium: 保護メディアの認可判定が View と UseCase に分散している
+- 現状:
+  - View 側が `settings.MEDIA_ROOT` と `os.path.exists` でファイル存在判定を先に行い、その後 UseCase でもアクセス可否を判定しています。
+- 根拠:
+  - `backend/app/presentation/media/views.py:38`
+  - `backend/app/presentation/media/views.py:39`
+  - `backend/app/use_cases/media/resolve_protected_media.py:36`
+- 影響:
+  - 認可ロジックが1箇所に集約されず、将来ストレージ実装（S3等）を変えたときに修正ポイントが増えます。
+  - `settings.MEDIA_ROOT` 前提が Presentation に漏れており、インフラ詳細への依存が強いです。
+- 改善案:
+  - 存在確認を含めて UseCase + Repository 側へ寄せ、View は入出力変換のみにする。
 
-## Findings (severity order)
+### 3. Low: ユースケース例外契約が統一されていない（組み込み例外の露出）
+- 現状:
+  - `SubmitFeedbackUseCase` は `ValueError` / `PermissionError` を送出し、Presentation が直接HTTP変換しています。
+- 根拠:
+  - `backend/app/use_cases/chat/submit_feedback.py:34`
+  - `backend/app/use_cases/chat/submit_feedback.py:39`
+  - `backend/app/use_cases/chat/submit_feedback.py:43`
+  - `backend/app/presentation/chat/views.py:153`
+  - `backend/app/presentation/chat/views.py:155`
+- 影響:
+  - ユースケース境界の例外契約が曖昧になり、エラー変換ルールが散らばります。
+- 改善案:
+  - `use_cases.chat.exceptions` に専用例外を定義し、Presentation はその例外だけをHTTPにマップする。
 
-### 1. Medium: Service locator usage leaks dependency wiring into presentation internals
+## 良い点（Clean Architectureとして機能している点）
 
-`presentation` uses `get_container()` directly not only in view handlers but also inside serializer helper functions, which creates hidden runtime dependencies and makes adapter testing/composability harder.
+- `domain` は Django/DRF に依存していない。
+  - 例: `backend/app/domain/video/repositories.py:1`
+- `use_cases` は抽象ポート（Repository/Gateway）に依存しており、Django実装に直接依存していない。
+  - 例: `backend/app/use_cases/video/create_video.py:8`
+- ORM 実装は `infrastructure/repositories` に隔離され、Entityマッピングも同層に集約されている。
+  - 例: `backend/app/infrastructure/repositories/django_video_repository.py:120`
+- DI（`factories` + `container`）で具象実装の組み立て点が分離されている。
+  - 例: `backend/app/factories/video.py:67`
+  - 例: `backend/app/container.py:22`
 
-- Evidence:
-  - `backend/app/presentation/video/serializers.py:22-27` (`_resolve_file_url()` imports and calls container)
-  - `backend/app/presentation/chat/views.py:278-287` (view resolves file URL via container directly)
+## 総評
 
-Why this matters for clean architecture:
-- Clean architecture favors explicit dependency injection at boundaries.
-- Service locator pattern can obscure object graph and increase coupling to global state.
-
-### 2. Low: Composition root is concentrated in a single large module
-
-`factories.py` imports many infrastructure/use_case modules in one place and returns concrete implementations per function call.
-
-- Evidence:
-  - `backend/app/factories.py:6-81` (broad top-level imports)
-  - `backend/app/factories.py:89-220` (many concrete bindings)
-
-Why this matters:
-- Not a direct rule violation, but maintainability risk grows as contexts increase.
-- Changes in one bounded context can trigger import/load side effects for others.
-
-### 3. Low: Legacy transitional module remains (`app/media/views.py`)
-
-There is an empty legacy module kept for migration notes.
-
-- Evidence:
-  - `backend/app/media/views.py` (moved comment only)
-
-Why this matters:
-- Not a functional issue, but can confuse ownership of HTTP adapters (`app/media` vs `app/presentation/media`).
-
-## Positive evidence (what is working well)
-
-- Explicit architectural guardrails via tests:
-  - `backend/app/tests/test_import_rules.py:143-218` blocks forbidden imports for domain/use_cases/infrastructure/tasks.
-  - `backend/app/tests/test_import_rules.py:256-260` blocks direct `presentation -> factories` imports.
-- Use cases depend on domain ports/interfaces, not ORM/framework objects:
-  - `backend/app/use_cases/video/create_video.py:7-11,24-55`
-- Domain repository interfaces are framework-agnostic:
-  - `backend/app/domain/video/repositories.py:1-92`
-- Infrastructure implements domain ports and isolates ORM:
-  - `backend/app/infrastructure/repositories/django_video_repository.py:25-31,120-174`
-- Async task dispatch is abstracted via gateway and transaction-safe hook:
-  - `backend/app/infrastructure/tasks/task_gateway.py:12-20`
-
-## Validation performed
-
-Executed:
-
-```bash
-cd backend && python -m unittest -q app.tests.test_import_rules
-```
-
-Result:
-
-- `Ran 29 tests in 0.009s`
-- `OK`
-
-## Recommended next actions
-
-1. Replace serializer-level service locator calls with explicit resolver injection (e.g., pass resolved URLs from view/use case output DTO).
-2. Split `factories.py` by bounded context (`video_factories.py`, `chat_factories.py`, etc.) and keep one thin composition root aggregator.
-3. Remove or clearly deprecate legacy `app/media` module to reduce architectural ambiguity.
+現在の実装は、**層構造としては十分にクリーンアーキテクチャ寄り**です。  
+一方で、認可ポリシーと一部の存在判定が外側層に残っているため、厳密には「完全準拠」とは言い切れません。  
+上記3点を解消すれば、依存方向・責務分離ともにより明確になります。

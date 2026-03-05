@@ -186,7 +186,8 @@ class AppContainer:
     # ---------------------------------------------------------------------------
 
     def get_file_url_resolver(self):
-        return factories.get_file_url_resolver()
+        from app.infrastructure.external.file_url_resolver import DjangoFileUrlResolver
+        return DjangoFileUrlResolver()
 
 
 _container: AppContainer | None = None

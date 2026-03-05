@@ -275,7 +275,6 @@ class PopularScenesView(APIView):
         except ResourceNotFound as e:
             return create_error_response(str(e), status.HTTP_404_NOT_FOUND)
 
-        file_url_resolver = get_container().get_file_url_resolver()
         return Response([
             {
                 "video_id": dto.video_id,
@@ -283,7 +282,7 @@ class PopularScenesView(APIView):
                 "start_time": dto.start_time,
                 "end_time": dto.end_time,
                 "reference_count": dto.reference_count,
-                "file": file_url_resolver.resolve(dto.file_key) if dto.file_key else None,
+                "file": dto.file_url,
                 "questions": dto.questions,
             }
             for dto in scenes

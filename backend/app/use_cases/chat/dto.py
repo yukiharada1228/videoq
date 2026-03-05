@@ -29,7 +29,7 @@ class PopularSceneDTO:
     start_time: Optional[str]
     end_time: Optional[str]
     reference_count: int
-    file_key: Optional[str]  # storage path — presentation layer resolves to URL
+    file_url: Optional[str]  # resolved URL (or None if unavailable)
     questions: List[str] = field(default_factory=list)
 
 
