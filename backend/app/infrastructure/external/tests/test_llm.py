@@ -7,9 +7,9 @@ from unittest.mock import patch
 from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
 from pydantic import SecretStr
-from rest_framework import status
 
-from app.infrastructure.external.llm import get_langchain_llm, handle_langchain_exception
+from app.infrastructure.external.llm import get_langchain_llm
+from app.use_cases.shared.exceptions import LLMConfigError
 
 User = get_user_model()
 
@@ -30,10 +30,9 @@ class GetLangchainLLMTests(TestCase):
     )
     def test_get_langchain_llm_with_api_key(self, mock_chat_openai):
         """Test get_langchain_llm when API key is configured via environment"""
-        llm, error_response = get_langchain_llm(self.user)
+        llm = get_langchain_llm(self.user)
 
         self.assertIsNotNone(llm)
-        self.assertIsNone(error_response)
         mock_chat_openai.assert_called_once_with(
             model="gpt-4o-mini",
             api_key=SecretStr("test-api-key"),
@@ -46,10 +45,9 @@ class GetLangchainLLMTests(TestCase):
     )
     def test_get_langchain_llm_with_custom_model(self, mock_chat_openai):
         """Test get_langchain_llm with custom LLM model from environment"""
-        llm, error_response = get_langchain_llm(self.user)
+        llm = get_langchain_llm(self.user)
 
         self.assertIsNotNone(llm)
-        self.assertIsNone(error_response)
         mock_chat_openai.assert_called_once_with(
             model="gpt-4o",
             api_key=SecretStr("test-api-key"),
@@ -61,26 +59,20 @@ class GetLangchainLLMTests(TestCase):
     )
     @patch.dict("os.environ", {"OPENAI_API_KEY": ""}, clear=False)
     def test_get_langchain_llm_without_api_key(self):
-        """Test get_langchain_llm when API key is not configured"""
-        llm, error_response = get_langchain_llm(self.user)
-
-        self.assertIsNone(llm)
-        self.assertIsNotNone(error_response)
-        self.assertEqual(error_response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("OPENAI_API_KEY", str(error_response.data))
+        """Test get_langchain_llm raises LLMConfigError when API key is not configured"""
+        with self.assertRaises(LLMConfigError) as ctx:
+            get_langchain_llm(self.user)
+        self.assertIn("OPENAI_API_KEY", str(ctx.exception))
 
     @override_settings(
         LLM_PROVIDER="openai", OPENAI_API_KEY=None, LLM_MODEL="gpt-4o-mini"
     )
     @patch.dict("os.environ", {"OPENAI_API_KEY": ""}, clear=False)
     def test_get_langchain_llm_with_none_api_key(self):
-        """Test get_langchain_llm when API key is None"""
-        llm, error_response = get_langchain_llm(self.user)
-
-        self.assertIsNone(llm)
-        self.assertIsNotNone(error_response)
-        self.assertEqual(error_response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("OPENAI_API_KEY", str(error_response.data))
+        """Test get_langchain_llm raises LLMConfigError when API key is None"""
+        with self.assertRaises(LLMConfigError) as ctx:
+            get_langchain_llm(self.user)
+        self.assertIn("OPENAI_API_KEY", str(ctx.exception))
 
     @patch("app.infrastructure.external.llm.ChatOllama")
     @override_settings(
@@ -90,48 +82,18 @@ class GetLangchainLLMTests(TestCase):
     )
     def test_get_langchain_llm_with_ollama_provider(self, mock_chat_ollama):
         """Test get_langchain_llm with Ollama provider using LLM_MODEL"""
-        llm, error_response = get_langchain_llm(self.user)
+        llm = get_langchain_llm(self.user)
 
         self.assertIsNotNone(llm)
-        self.assertIsNone(error_response)
         mock_chat_ollama.assert_called_once_with(
             model="qwen3:8b",
             base_url="http://localhost:11434",
             temperature=0.0,
         )
 
-
-class HandleLangchainExceptionTests(TestCase):
-    """Tests for handle_langchain_exception function"""
-
-    def test_handle_langchain_exception_invalid_api_key(self):
-        """Test handle_langchain_exception with invalid API key error"""
-        exception = Exception("invalid_api_key: The API key provided is invalid")
-        response = handle_langchain_exception(exception)
-
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-        self.assertIn("Invalid API key", str(response.data))
-
-    def test_handle_langchain_exception_authentication_error(self):
-        """Test handle_langchain_exception with authentication error"""
-        exception = Exception("Authentication failed")
-        response = handle_langchain_exception(exception)
-
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-        self.assertIn("Invalid API key", str(response.data))
-
-    def test_handle_langchain_exception_rate_limit(self):
-        """Test handle_langchain_exception with rate limit error"""
-        exception = Exception("rate_limit: Too many requests")
-        response = handle_langchain_exception(exception)
-
-        self.assertEqual(response.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
-        self.assertIn("API rate limit reached", str(response.data))
-
-    def test_handle_langchain_exception_generic_error(self):
-        """Test handle_langchain_exception with generic error"""
-        exception = Exception("Something went wrong")
-        response = handle_langchain_exception(exception)
-
-        self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
-        self.assertIn("OpenAI API error", str(response.data))
+    @override_settings(LLM_PROVIDER="unknown_provider")
+    def test_get_langchain_llm_with_invalid_provider(self):
+        """Test get_langchain_llm raises LLMConfigError for unknown provider"""
+        with self.assertRaises(LLMConfigError) as ctx:
+            get_langchain_llm(self.user)
+        self.assertIn("Invalid LLM_PROVIDER", str(ctx.exception))

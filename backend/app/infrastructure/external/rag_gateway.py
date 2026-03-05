@@ -8,8 +8,9 @@ from typing import Dict, List, Optional
 from django.contrib.auth import get_user_model
 
 from app.domain.chat.gateways import LLMConfigurationError, LLMProviderError, RagGateway, RagResult
-from app.infrastructure.external.llm import get_langchain_llm, handle_langchain_exception
+from app.infrastructure.external.llm import get_langchain_llm
 from app.infrastructure.external.rag_service import RagChatService
+from app.use_cases.shared.exceptions import LLMConfigError
 
 
 class RagChatGateway(RagGateway):
@@ -25,9 +26,10 @@ class RagChatGateway(RagGateway):
         User = get_user_model()
         user = User.objects.get(pk=user_id)
 
-        llm, error_response = get_langchain_llm(user)
-        if error_response is not None:
-            raise LLMConfigurationError(error_response.data.get("error", "LLM not configured"))
+        try:
+            llm = get_langchain_llm(user)
+        except LLMConfigError as e:
+            raise LLMConfigurationError(str(e)) from e
 
         try:
             service = RagChatService(user=user, llm=llm)

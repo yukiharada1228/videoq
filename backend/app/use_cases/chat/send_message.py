@@ -44,7 +44,7 @@ class SendMessageUseCase:
 
     def execute(
         self,
-        user_id: int,
+        user_id: Optional[int],
         messages: List[Dict],
         group_id: Optional[int] = None,
         share_token: Optional[str] = None,

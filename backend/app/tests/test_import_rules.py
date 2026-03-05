@@ -134,6 +134,28 @@ class ImportRulesTest(unittest.TestCase):
         Tasks should only act as thin triggers delegating to use cases via factories."""
         self._check("tasks", ["app.models", "app.infrastructure"])
 
+    def test_infrastructure_has_no_drf_imports(self):
+        """infrastructure layer must not import rest_framework (HTTP concerns belong in presentation)."""
+        self._check("infrastructure", ["rest_framework"])
+
+    def test_presentation_auth_has_no_video_exceptions_imports(self):
+        """presentation/auth must not import from use_cases/video (cross-context dependency)."""
+        abs_path = os.path.join(BASE, "app", "presentation", "auth")
+        all_violations = {}
+        for fp in sorted(get_python_files(abs_path)):
+            rel = os.path.relpath(fp, BASE)
+            v = check_forbidden_imports(fp, ["app.use_cases.video"])
+            if v:
+                all_violations[rel] = v
+        self.assertEqual(
+            {},
+            all_violations,
+            "presentation/auth must not import from app.use_cases.video:\n"
+            + "\n".join(
+                f"  {f}: {vs}" for f, vs in all_violations.items()
+            ),
+        )
+
     def test_no_queryset_in_domain_or_use_cases(self):
         """QuerySet must not appear in domain or use_cases source files."""
         for layer in ["domain", "use_cases"]:

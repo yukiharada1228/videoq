@@ -11,3 +11,11 @@ class ResourceNotFound(Exception):
 
 class PermissionDenied(Exception):
     """Raised when the user lacks permission for an action."""
+
+
+class LLMConfigError(Exception):
+    """Raised when the LLM cannot be configured (missing/invalid API key, unknown provider)."""
+
+
+class LLMServiceError(Exception):
+    """Raised when the LLM provider returns an error during generation."""
