@@ -63,6 +63,26 @@ class VideoRepository(ABC):
         """Return a mapping of video_id → file URL (or None) for the given IDs."""
         ...
 
+    @abstractmethod
+    def list_completed_with_transcript(self) -> List[VideoEntity]:
+        """Return all videos that have completed transcription and have a non-empty transcript."""
+        ...
+
+    @abstractmethod
+    def get_by_id_for_task(self, video_id: int) -> Optional[VideoEntity]:
+        """Retrieve a video by ID without user ownership check (for internal task use)."""
+        ...
+
+    @abstractmethod
+    def update_status(self, video_id: int, status: str, error_message: str = "") -> None:
+        """Update the processing status of a video."""
+        ...
+
+    @abstractmethod
+    def save_transcript(self, video_id: int, transcript: str) -> None:
+        """Persist the transcription result for a video."""
+        ...
+
 
 class VideoGroupRepository(ABC):
     """Abstract interface for video group data access."""

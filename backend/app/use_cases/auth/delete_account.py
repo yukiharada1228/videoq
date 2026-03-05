@@ -5,7 +5,7 @@ Use case: Deactivate a user account and enqueue data cleanup.
 import datetime
 import logging
 
-from app.domain.auth.gateways import AccountDeletionGateway, TaskQueueGateway
+from app.domain.auth.gateways import AccountDeletionGateway, AuthTaskGateway
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +21,7 @@ class AccountDeletionUseCase:
     def __init__(
         self,
         deletion_gateway: AccountDeletionGateway,
-        task_queue: TaskQueueGateway,
+        task_queue: AuthTaskGateway,
     ):
         self.deletion_gateway = deletion_gateway
         self.task_queue = task_queue

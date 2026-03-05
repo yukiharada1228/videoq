@@ -20,13 +20,16 @@ from app.infrastructure.repositories.django_chat_repository import (
     DjangoChatRepository,
     DjangoVideoGroupQueryRepository,
 )
+from app.infrastructure.repositories.django_user_repository import DjangoUserRepository
 from app.infrastructure.repositories.django_video_repository import (
     DjangoTagRepository,
     DjangoVideoGroupRepository,
     DjangoVideoRepository,
 )
-from app.infrastructure.tasks.task_gateway import CeleryTaskQueueGateway
+from app.infrastructure.tasks.task_gateway import CeleryAuthTaskGateway, CeleryVideoTaskGateway
 from app.use_cases.auth.delete_account import AccountDeletionUseCase
+from app.use_cases.auth.delete_account_data import DeleteAccountDataUseCase
+from app.use_cases.auth.get_current_user import GetCurrentUserUseCase
 from app.use_cases.auth.signup import SignupUserUseCase
 from app.use_cases.auth.verify_email import VerifyEmailUseCase
 from app.use_cases.auth.reset_password import (
@@ -65,6 +68,8 @@ from app.use_cases.video.manage_groups import (
     ReorderVideosInGroupUseCase,
 )
 from app.use_cases.video.manage_tags import AddTagsToVideoUseCase, RemoveTagFromVideoUseCase
+from app.use_cases.video.reindex_all_videos import ReindexAllVideosUseCase
+from app.use_cases.video.run_transcription import RunTranscriptionUseCase
 from app.use_cases.video.update_group import UpdateVideoGroupUseCase
 from app.use_cases.video.update_tag import UpdateTagUseCase
 from app.use_cases.video.update_video import UpdateVideoUseCase
@@ -79,12 +84,29 @@ def get_list_videos_use_case() -> ListVideosUseCase:
     return ListVideosUseCase(DjangoVideoRepository())
 
 
+def get_reindex_all_videos_use_case() -> ReindexAllVideosUseCase:
+    from app.infrastructure.external.vector_gateway import DjangoVectorIndexingGateway
+
+    return ReindexAllVideosUseCase(DjangoVideoRepository(), DjangoVectorIndexingGateway())
+
+
+def get_run_transcription_use_case() -> RunTranscriptionUseCase:
+    from app.infrastructure.external.transcription_gateway import WhisperTranscriptionGateway
+    from app.infrastructure.external.vector_gateway import DjangoVectorIndexingGateway
+
+    return RunTranscriptionUseCase(
+        DjangoVideoRepository(),
+        WhisperTranscriptionGateway(),
+        DjangoVectorIndexingGateway(),
+    )
+
+
 def get_video_detail_use_case() -> GetVideoDetailUseCase:
     return GetVideoDetailUseCase(DjangoVideoRepository())
 
 
 def get_create_video_use_case() -> CreateVideoUseCase:
-    return CreateVideoUseCase(DjangoVideoRepository(), CeleryTaskQueueGateway())
+    return CreateVideoUseCase(DjangoVideoRepository(), CeleryVideoTaskGateway())
 
 
 def get_update_video_use_case() -> UpdateVideoUseCase:
@@ -227,6 +249,10 @@ def get_export_history_use_case() -> ExportChatHistoryUseCase:
 # ---------------------------------------------------------------------------
 
 
+def get_current_user_use_case() -> GetCurrentUserUseCase:
+    return GetCurrentUserUseCase(DjangoUserRepository())
+
+
 def get_signup_use_case() -> SignupUserUseCase:
     return SignupUserUseCase(DjangoUserManagementGateway(), DjangoEmailSenderGateway())
 
@@ -248,8 +274,16 @@ def get_confirm_password_reset_use_case() -> ConfirmPasswordResetUseCase:
 def get_delete_account_use_case() -> AccountDeletionUseCase:
     return AccountDeletionUseCase(
         DjangoAccountDeletionGateway(),
-        CeleryTaskQueueGateway(),
+        CeleryAuthTaskGateway(),
     )
+
+
+def get_delete_account_data_use_case() -> DeleteAccountDataUseCase:
+    from app.infrastructure.repositories.django_user_data_deletion_gateway import (
+        DjangoUserDataDeletionGateway,
+    )
+
+    return DeleteAccountDataUseCase(DjangoUserDataDeletionGateway())
 
 
 # ---------------------------------------------------------------------------

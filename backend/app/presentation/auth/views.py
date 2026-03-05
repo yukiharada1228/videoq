@@ -1,5 +1,4 @@
 from django.conf import settings
-from django.contrib.auth import get_user_model
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics, status
 from rest_framework.response import Response
@@ -32,9 +31,6 @@ from app.common.throttles import (LoginIPThrottle, LoginUsernameThrottle,
 from app import factories
 from app.use_cases.video.exceptions import ResourceNotFound
 from app.utils.mixins import AuthenticatedViewMixin, PublicViewMixin
-
-User = get_user_model()
-
 
 class PublicAPIView(PublicViewMixin, generics.GenericAPIView):
     """API view that doesn't require authentication"""
@@ -306,11 +302,7 @@ class MeView(AuthenticatedAPIView, generics.RetrieveAPIView):
     authentication_classes = [APIKeyAuthentication, CookieJWTAuthentication]
 
     def get_object(self):
-        from django.db.models import Count
-
-        return User.objects.annotate(video_count=Count("videos")).get(
-            pk=self.request.user.pk
-        )
+        return factories.get_current_user_use_case().execute(self.request.user.id)
 
 
 class ApiKeyListCreateView(AuthenticatedAPIView, generics.GenericAPIView):

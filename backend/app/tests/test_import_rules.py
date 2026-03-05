@@ -129,6 +129,11 @@ class ImportRulesTest(unittest.TestCase):
             ["app.use_cases.chat", "app.use_cases.auth"],
         )
 
+    def test_tasks_has_no_direct_model_or_infrastructure_imports(self):
+        """tasks/ must not import app.models or app.infrastructure directly.
+        Tasks should only act as thin triggers delegating to use cases via factories."""
+        self._check("tasks", ["app.models", "app.infrastructure"])
+
     def test_no_queryset_in_domain_or_use_cases(self):
         """QuerySet must not appear in domain or use_cases source files."""
         for layer in ["domain", "use_cases"]:

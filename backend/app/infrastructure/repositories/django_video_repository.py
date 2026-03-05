@@ -227,6 +227,37 @@ class DjangoVideoRepository(VideoRepository):
             result[v.id] = url
         return result
 
+    def list_completed_with_transcript(self) -> List[VideoEntity]:
+        videos = (
+            Video.objects.filter(status="completed")
+            .exclude(transcript__isnull=True)
+            .exclude(transcript="")
+            .select_related("user")
+            .prefetch_related(
+                Prefetch("video_tags", queryset=VideoTag.objects.select_related("tag"))
+            )
+        )
+        return [_video_to_entity(v) for v in videos]
+
+    def get_by_id_for_task(self, video_id: int) -> Optional[VideoEntity]:
+        video = (
+            Video.objects.filter(id=video_id)
+            .select_related("user")
+            .prefetch_related(
+                Prefetch("video_tags", queryset=VideoTag.objects.select_related("tag"))
+            )
+            .first()
+        )
+        if video is None:
+            return None
+        return _video_to_entity(video)
+
+    def update_status(self, video_id: int, status: str, error_message: str = "") -> None:
+        Video.objects.filter(id=video_id).update(status=status, error_message=error_message)
+
+    def save_transcript(self, video_id: int, transcript: str) -> None:
+        Video.objects.filter(id=video_id).update(transcript=transcript)
+
 
 # ---------------------------------------------------------------------------
 # DjangoVideoGroupRepository
