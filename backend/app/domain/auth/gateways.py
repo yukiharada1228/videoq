@@ -7,17 +7,36 @@ from abc import ABC, abstractmethod
 from typing import Optional
 
 
-class TaskQueueGateway(ABC):
-    """Abstract interface for enqueueing async background tasks."""
-
-    @abstractmethod
-    def enqueue_transcription(self, video_id: int) -> None:
-        """Enqueue a video transcription task (dispatched after DB commit)."""
-        ...
+class AuthTaskGateway(ABC):
+    """Abstract interface for enqueueing async auth background tasks."""
 
     @abstractmethod
     def enqueue_account_deletion(self, user_id: int) -> None:
         """Enqueue a background account data deletion task."""
+        ...
+
+
+class UserDataDeletionGateway(ABC):
+    """Abstract interface for deleting all data associated with a user."""
+
+    @abstractmethod
+    def delete_all_videos_for_user(self, user_id: int) -> None:
+        """Delete all videos (and their files) owned by the user."""
+        ...
+
+    @abstractmethod
+    def delete_chat_history_for_user(self, user_id: int) -> None:
+        """Delete all chat logs for the user."""
+        ...
+
+    @abstractmethod
+    def delete_video_groups_for_user(self, user_id: int) -> None:
+        """Delete all video groups owned by the user."""
+        ...
+
+    @abstractmethod
+    def delete_tags_for_user(self, user_id: int) -> None:
+        """Delete all tags owned by the user."""
         ...
 
 

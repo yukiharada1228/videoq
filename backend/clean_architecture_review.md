@@ -1,57 +1,49 @@
-# Clean Architecture Review (backend)
+# クリーンアーキテクチャレビュー（backend）
 
 ## 結論
-このバックエンドは**クリーンアーキテクチャを意識した構造になっているが、完全には徹底できていない**です。
+- 現状は **「概ねクリーンアーキテクチャに沿っているが、完全ではない」** です。
+- `domain / use_cases / presentation / infrastructure` の分離方針は明確ですが、少なくとも1件、定義済みルールに対する明確な逸脱があります。
 
-- 良い点: `domain / use_cases / infrastructure / presentation` の分割と、Repository/Gateway抽象の導入はできています。
-- 課題: 一部でレイヤ境界をまたぐ実装があり、将来的に依存方向が崩れやすい状態です。
+## 主要所見（重大度順）
 
-## 主要な指摘（重大度順）
+### High
+1. `tasks` レイヤの境界違反（ルールと実装の不一致）
+   - ルール上、`tasks` は `app.infrastructure` を直接 import してはいけません（`app/tests/test_import_rules.py:132-135`）。
+   - しかし `app/tasks/vector_indexing.py:9` で `from app.infrastructure.external.vector_store import PGVectorManager` を直接参照しています。
+   - さらに同ファイルはインデックス処理ロジック本体（`index_scenes_to_vectorstore` など）を持っており、`tasks` を「薄いトリガー」に限定する方針ともズレています。
 
-### 1. High: Presentation層で直接ORMを実行しており、UseCase経由の一貫性が崩れている
-- 対象: `app/presentation/auth/views.py`
-- 根拠: `MeView.get_object()` が `User.objects.annotate(...).get(...)` を直接実行しています（`302-313`行）。
-- 影響: エンドポイントごとにデータアクセス方針が分散し、ユースケース層に集約すべきアプリケーションルールが漏れます。
-- 推奨: `GetCurrentUserUseCase` のようなUseCaseを追加し、ORMアクセスはRepository/Gatewayへ移す。
+### Medium
+1. `use_cases` / `domain` のインターフェースに入力アダプタ（DRF）由来の語彙が混入
+   - 例: `app/domain/video/repositories.py:40,45,108,113` の `validated_data: dict`
+   - 例: `app/use_cases/video/create_video.py:26,31` で `validated_data` を受け取り、「serializer由来」であることを明記
+   - import依存は切れていますが、ユースケースの入力が「ドメインDTO」ではなく「シリアライザ結果dict」に寄っており、入力境界の独立性が弱いです。
 
-### 2. High: CeleryタスクがUseCaseを介さずにモデル/外部連携を直接操作している
-- 対象: `app/tasks/transcription.py`, `app/tasks/account_deletion.py`, `app/tasks/reindexing.py`
-- 根拠:
-  - `transcription.py` で状態更新・外部API呼び出し・インデックス作成までを直接オーケストレーション（`57-59`, `98-143`行）。
-  - `account_deletion.py` で `app.models` を直接操作（`10`, `16-36`行）。
-  - `reindexing.py` で `Video.objects` と `delete_all_vectors()` を直接操作（`9`, `27-58`行）。
-- 影響: ビジネスルールが `use_cases` 外にも分散し、変更時の影響範囲が読みづらくなります。
-- 推奨: タスクは「トリガー」に限定し、実処理は `use_cases` に寄せる（タスクからUseCaseを呼ぶ形へ）。
+2. presentationの一部が「薄いアダプタ」より厚め
+   - `app/presentation/chat/views.py` は `ChatRequestSerializer` / `ChatFeedbackRequestSerializer` を schema 用に宣言しつつ、実際には `request.data` を直接読んで手動検証しています（`app/presentation/chat/views.py:60-90,130-151`）。
+   - バリデーション責務が view に残っており、エンドポイント増加時に重複・不整合が生じやすい構造です。
 
-### 3. Medium: VideoユースケースがAuthドメインのGatewayに依存しており、コンテキスト境界が曖昧
-- 対象: `app/use_cases/video/create_video.py`, `app/domain/auth/gateways.py`
-- 根拠:
-  - `CreateVideoUseCase` が `app.domain.auth.gateways.TaskQueueGateway` を参照（`7`, `22`行）。
-  - `TaskQueueGateway` は `enqueue_transcription` と `enqueue_account_deletion` を同一インターフェースに持つ（`10-20`行）。
-- 影響: Video/Authの関心が1つのポートに混在し、将来的な分割や差し替えが難しくなります。
-- 推奨: `domain.shared` か各コンテキスト配下へGatewayを分離（例: `VideoTaskGateway`, `AccountDeletionTaskGateway`）。
+## 良い点
+- レイヤ依存の禁止ルールがテストとして明文化されている（`app/tests/test_import_rules.py`）。
+- `use_cases` は `domain` の repository/gateway 抽象に依存しており、Django ORM 直結になっていない（例: `app/use_cases/video/run_transcription.py`）。
+- `factories.py` を composition root として使い、presentation から infrastructure への直接依存を抑えている。
 
-### 4. Medium: importルールの自動検査範囲が限定的で、境界逸脱を取りこぼす可能性がある
-- 対象: `app/tests/test_import_rules.py`
-- 根拠:
-  - 検査対象は `domain/use_cases/presentation` 配下中心（`76-91`行）。
-  - `tests` ディレクトリは除外（`22-24`行）。
-  - `tasks`, `utils`, `factories` などはこのテストで境界検査されません。
-- 影響: 現在起きている `tasks` 側の層またぎのような問題をCIで自動検知できません。
-- 推奨: `tasks` を明示的にインフラ層として検査対象に加えるか、別ルールを追加する。
-
-## 良い点（維持推奨）
-- `domain` で抽象（Repository/Gateway）を定義し、`infrastructure` で実装する形は明確。
-- `presentation` から `app.models` / `app.infrastructure` への直接依存を禁止するテスト方針自体は有効。
-- `app/factories.py` をDIの組み立て点にしているため、依存生成箇所が集約されている。
-
-## 総評
-現状は「**クリーンアーキテクチャ準拠を目指した実装**」です。  
-ただし、`presentation` の一部直接ORMアクセスと、`tasks` 側のUseCase迂回があるため、厳密には「クリーンアーキテクチャになっている」と断言はできません。
+## 優先改善提案
+1. `app/tasks/vector_indexing.py` を `infrastructure` 側 gateway 実装へ移し、`tasks` は use case 呼び出しだけにする。
+2. `validated_data: dict` ベースをやめ、use case 入力DTO（dataclass など）を導入する。
+3. `chat/views.py` の入力検証を serializer に統一し、view では変換と例外マッピングのみ行う。
+4. CIで `app.tests.test_import_rules` を必須化し、境界逸脱を自動検出する。
 
 ## 検証メモ
-`docker compose exec` でコンテナ内テストを実行しました。
+- この環境では依存不足のためテスト実行ができませんでした。
+  - `python -m pytest -q app/tests/test_import_rules.py` → `No module named pytest`
+  - `python manage.py test app.tests.test_import_rules -v 2` → `No module named django`
 
-- `docker compose exec backend python -m unittest discover -s app/tests -p 'test_import_rules.py' -v` → `OK (4 tests)`
-- `docker compose exec backend python -m unittest discover -s app/tests -p 'test_*.py' -v` → `OK (4 tests)`
-- 補足: `docker compose exec backend python manage.py test app.tests.test_import_rules -v 2` は `app/tests.py` と `app/tests/` の名前衝突により失敗（`module 'app.tests' has no attribute 'test_import_rules'`）。
+## docker compose 実行結果（追記）
+- 実行日: 2026-03-05
+- コマンド:
+  - `docker compose exec backend python -m unittest discover -s app/tests -p 'test_import_rules.py' -v`
+  - 結果: **4 passed / 0 failed**
+- コマンド:
+  - `docker compose exec backend python manage.py test --keepdb --noinput -v 2`
+  - 結果: **517 tests, 7 failures, 7 errors**
+  - 主な失敗領域: `app.presentation.auth.tests.test_serializers`（`Serializer.save()` 時の `NotImplementedError: create() must be implemented.`、および検証期待値不一致）
