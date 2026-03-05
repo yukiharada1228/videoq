@@ -7,7 +7,7 @@ import logging
 
 from celery import shared_task
 
-from app import factories
+from app.container import get_container
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ def transcribe_video(self, video_id):
     """
     logger.info("Transcription task started for video ID: %d", video_id)
     try:
-        factories.get_run_transcription_use_case().execute(video_id)
+        get_container().get_run_transcription_use_case().execute(video_id)
         logger.info("Successfully processed video %d", video_id)
     except Exception as e:
         if self.request.retries < self.max_retries:

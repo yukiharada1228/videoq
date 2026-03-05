@@ -11,6 +11,7 @@ from app.domain.chat.entities import (
     ChatLogEntity,
     VideoGroupContextEntity,
 )
+from app.domain.chat.value_objects import ChatSceneLog
 
 
 class ChatRepository(ABC):
@@ -52,8 +53,8 @@ class ChatRepository(ABC):
         ...
 
     @abstractmethod
-    def get_logs_values_for_group(self, group_id: int) -> List[Dict]:
-        """Return a list of dicts with 'question' and 'related_videos' for analytics."""
+    def get_logs_values_for_group(self, group_id: int) -> List[ChatSceneLog]:
+        """Return scene logs (question + related_videos) for analytics aggregation."""
         ...
 
     @abstractmethod

@@ -4,8 +4,10 @@ Use case: Create a new video and dispatch transcription.
 
 import logging
 
+from app.domain.video.dto import CreateVideoParams
 from app.domain.video.gateways import VideoTaskGateway
 from app.domain.video.repositories import VideoRepository
+from app.use_cases.video.dto import CreateVideoInput
 from app.use_cases.video.exceptions import VideoLimitExceeded
 
 logger = logging.getLogger(__name__)
@@ -23,12 +25,12 @@ class CreateVideoUseCase:
         self.video_repo = video_repo
         self.task_queue = task_queue
 
-    def execute(self, user_id: int, video_limit, validated_data: dict):
+    def execute(self, user_id: int, video_limit, input: CreateVideoInput):
         """
         Args:
             user_id: ID of the authenticated user.
             video_limit: Maximum number of videos the user may upload (None = unlimited).
-            validated_data: Cleaned data from the serializer (without 'user' field).
+            input: Typed input DTO from the presentation layer.
 
         Returns:
             VideoEntity: The newly created video entity.
@@ -41,7 +43,12 @@ class CreateVideoUseCase:
             if current_count >= video_limit:
                 raise VideoLimitExceeded(video_limit)
 
-        video = self.video_repo.create(user_id, validated_data)
+        params = CreateVideoParams(
+            file=input.file,
+            title=input.title,
+            description=input.description,
+        )
+        video = self.video_repo.create(user_id, params)
 
         logger.info(f"Enqueueing transcription task for video ID: {video.id}")
         self.task_queue.enqueue_transcription(video.id)

@@ -14,6 +14,7 @@ from app.domain.chat.entities import (
     VideoGroupMemberRef,
 )
 from app.domain.chat.repositories import ChatRepository, VideoGroupQueryRepository
+from app.domain.chat.value_objects import ChatSceneLog, SceneReference
 from app.models import ChatLog, VideoGroup, VideoGroupMember
 
 
@@ -109,12 +110,22 @@ class DjangoChatRepository(ChatRepository):
         updated = ChatLog.objects.select_related("group").get(pk=log.id)
         return _chat_log_to_entity(updated, include_group_fields=True)
 
-    def get_logs_values_for_group(self, group_id: int) -> List[Dict]:
-        return list(
-            ChatLog.objects.filter(group_id=group_id).values(
-                "question", "related_videos"
-            )
-        )
+    def get_logs_values_for_group(self, group_id: int) -> List[ChatSceneLog]:
+        rows = ChatLog.objects.filter(group_id=group_id).values("question", "related_videos")
+        result = []
+        for row in rows:
+            refs = [
+                SceneReference(
+                    video_id=rv.get("video_id"),
+                    title=rv.get("title", ""),
+                    start_time=rv.get("start_time"),
+                    end_time=rv.get("end_time"),
+                )
+                for rv in (row["related_videos"] or [])
+                if rv.get("video_id") and rv.get("start_time")
+            ]
+            result.append(ChatSceneLog(question=row["question"], related_videos=refs))
+        return result
 
     def get_analytics_raw(self, group_id: int) -> ChatAnalyticsRaw:
         qs = ChatLog.objects.filter(group_id=group_id)
@@ -134,7 +145,22 @@ class DjangoChatRepository(ChatRepository):
                 .first()
             )
 
-        logs_for_scenes = list(qs.values("question", "related_videos"))
+        raw_rows = list(qs.values("question", "related_videos"))
+        logs_for_scenes = []
+        for row in raw_rows:
+            refs = [
+                SceneReference(
+                    video_id=rv.get("video_id"),
+                    title=rv.get("title", ""),
+                    start_time=rv.get("start_time"),
+                    end_time=rv.get("end_time"),
+                )
+                for rv in (row["related_videos"] or [])
+                if rv.get("video_id") and rv.get("start_time")
+            ]
+            logs_for_scenes.append(
+                ChatSceneLog(question=row["question"], related_videos=refs)
+            )
 
         time_series_qs = (
             qs.annotate(date=TruncDate("created_at"))

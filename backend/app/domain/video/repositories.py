@@ -6,6 +6,14 @@ No Django / ORM / external service dependencies.
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Tuple
 
+from app.domain.video.dto import (
+    CreateGroupParams,
+    CreateTagParams,
+    CreateVideoParams,
+    UpdateGroupParams,
+    UpdateTagParams,
+    UpdateVideoParams,
+)
 from app.domain.video.entities import (
     TagEntity,
     VideoEntity,
@@ -37,12 +45,12 @@ class VideoRepository(ABC):
         ...
 
     @abstractmethod
-    def create(self, user_id: int, validated_data: dict) -> VideoEntity:
+    def create(self, user_id: int, params: CreateVideoParams) -> VideoEntity:
         """Create a new video record."""
         ...
 
     @abstractmethod
-    def update(self, video: VideoEntity, validated_data: dict) -> VideoEntity:
+    def update(self, video: VideoEntity, params: UpdateVideoParams) -> VideoEntity:
         """Update an existing video record."""
         ...
 
@@ -105,12 +113,12 @@ class VideoGroupRepository(ABC):
         ...
 
     @abstractmethod
-    def create(self, user_id: int, validated_data: dict) -> VideoGroupEntity:
+    def create(self, user_id: int, params: CreateGroupParams) -> VideoGroupEntity:
         """Create a new video group."""
         ...
 
     @abstractmethod
-    def update(self, group: VideoGroupEntity, validated_data: dict) -> VideoGroupEntity:
+    def update(self, group: VideoGroupEntity, params: UpdateGroupParams) -> VideoGroupEntity:
         """Update an existing video group."""
         ...
 
@@ -178,12 +186,12 @@ class TagRepository(ABC):
         ...
 
     @abstractmethod
-    def create(self, user_id: int, validated_data: dict) -> TagEntity:
+    def create(self, user_id: int, params: CreateTagParams) -> TagEntity:
         """Create a new tag."""
         ...
 
     @abstractmethod
-    def update(self, tag: TagEntity, validated_data: dict) -> TagEntity:
+    def update(self, tag: TagEntity, params: UpdateTagParams) -> TagEntity:
         """Update an existing tag."""
         ...
 
