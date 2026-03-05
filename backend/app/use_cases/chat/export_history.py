@@ -6,7 +6,7 @@ import json
 from typing import Generator, List
 
 from app.domain.chat.repositories import ChatRepository, VideoGroupQueryRepository
-from app.use_cases.video.exceptions import ResourceNotFound
+from app.use_cases.shared.exceptions import ResourceNotFound
 
 
 class ExportChatHistoryUseCase:

@@ -2,9 +2,10 @@
 Use case: Build analytics dashboard data for a chat group.
 """
 
+from app.domain.chat.ports import KeywordExtractor
 from app.domain.chat.repositories import ChatRepository, VideoGroupQueryRepository
-from app.domain.chat.services import aggregate_scenes, extract_keywords, filter_group_scenes
-from app.use_cases.video.exceptions import ResourceNotFound
+from app.domain.chat.services import aggregate_scenes, filter_group_scenes
+from app.use_cases.shared.exceptions import ResourceNotFound
 
 
 class GetChatAnalyticsUseCase:
@@ -14,9 +15,11 @@ class GetChatAnalyticsUseCase:
         self,
         chat_repo: ChatRepository,
         group_query_repo: VideoGroupQueryRepository,
+        keyword_extractor: KeywordExtractor,
     ):
         self.chat_repo = chat_repo
         self.group_query_repo = group_query_repo
+        self.keyword_extractor = keyword_extractor
 
     def execute(self, group_id: int, user_id: int) -> dict:
         """
@@ -57,7 +60,7 @@ class GetChatAnalyticsUseCase:
             for key, count in top_scenes
         ]
 
-        keywords = extract_keywords(raw.questions)
+        keywords = self.keyword_extractor.extract(raw.questions)
 
         return {
             "summary": {

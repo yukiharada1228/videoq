@@ -6,6 +6,8 @@ Acceptance criteria:
   - app/use_cases/**: no app.models, django, rest_framework, app.infrastructure
   - app/presentation/**: no app.models, no app.infrastructure.*
   - QuerySet must not appear in domain or use_cases source files
+  - use_cases context isolation: video/chat/auth contexts must not import each other directly
+    (app.use_cases.shared is the only permitted cross-context import)
 """
 
 import ast
@@ -86,6 +88,45 @@ class ImportRulesTest(unittest.TestCase):
         """presentation layer must not import from app.models or any app.infrastructure.*."""
         self._check(
             "presentation", ["app.models", "app.infrastructure"]
+        )
+
+    def _check_cross_context(self, context_path, forbidden_contexts):
+        """Verify that a use_cases context does not import from other contexts directly."""
+        abs_path = os.path.join(BASE, "app", "use_cases", context_path)
+        all_violations = {}
+        for fp in sorted(get_python_files(abs_path)):
+            rel = os.path.relpath(fp, BASE)
+            v = check_forbidden_imports(fp, forbidden_contexts)
+            if v:
+                all_violations[rel] = v
+        self.assertEqual(
+            {},
+            all_violations,
+            f"Cross-context use_cases imports found in use_cases/{context_path}:\n"
+            + "\n".join(
+                f"  {f}: {vs}" for f, vs in all_violations.items()
+            ),
+        )
+
+    def test_use_cases_chat_no_cross_context_imports(self):
+        """use_cases/chat must not import from use_cases/video or use_cases/auth."""
+        self._check_cross_context(
+            "chat",
+            ["app.use_cases.video", "app.use_cases.auth"],
+        )
+
+    def test_use_cases_auth_no_cross_context_imports(self):
+        """use_cases/auth must not import from use_cases/video or use_cases/chat."""
+        self._check_cross_context(
+            "auth",
+            ["app.use_cases.video", "app.use_cases.chat"],
+        )
+
+    def test_use_cases_video_no_cross_context_imports(self):
+        """use_cases/video must not import from use_cases/chat or use_cases/auth."""
+        self._check_cross_context(
+            "video",
+            ["app.use_cases.chat", "app.use_cases.auth"],
         )
 
     def test_no_queryset_in_domain_or_use_cases(self):

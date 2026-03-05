@@ -3,7 +3,6 @@ Use case: Retrieve chat history for a group.
 """
 
 from app.domain.chat.repositories import ChatRepository, VideoGroupQueryRepository
-from app.use_cases.video.exceptions import ResourceNotFound
 
 
 class GetChatHistoryUseCase:

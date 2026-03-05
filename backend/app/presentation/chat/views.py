@@ -21,8 +21,8 @@ from app.common.throttles import (
     ShareTokenGlobalThrottle,
     ShareTokenIPThrottle,
 )
-from app.domain.chat.gateways import LLMConfigurationError, LLMProviderError
-from app.use_cases.video.exceptions import ResourceNotFound
+from app.use_cases.chat.exceptions import LLMConfigurationError, LLMProviderError
+from app.use_cases.shared.exceptions import ResourceNotFound
 from django.http import HttpResponse
 
 from .serializers import (

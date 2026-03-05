@@ -5,9 +5,12 @@ Use case: Send a chat message with optional RAG context.
 from dataclasses import dataclass
 from typing import Dict, List, Optional
 
+from app.domain.chat.gateways import LLMConfigurationError as _DomainLLMConfigError
+from app.domain.chat.gateways import LLMProviderError as _DomainLLMProviderError
 from app.domain.chat.gateways import RagGateway
 from app.domain.chat.repositories import ChatRepository, VideoGroupQueryRepository
-from app.use_cases.video.exceptions import ResourceNotFound
+from app.use_cases.chat.exceptions import LLMConfigurationError, LLMProviderError
+from app.use_cases.shared.exceptions import ResourceNotFound
 
 
 @dataclass
@@ -59,6 +62,11 @@ class SendMessageUseCase:
 
         Returns:
             SendMessageResult
+
+        Raises:
+            ResourceNotFound: If the specified group does not exist.
+            LLMConfigurationError: If the LLM cannot be configured.
+            LLMProviderError: If the LLM provider returns an error.
         """
         group = None
         if group_id is not None:
@@ -76,12 +84,17 @@ class SendMessageUseCase:
         owner_user_id = group.user_id if (is_shared and group) else user_id
         video_ids = group.member_video_ids if group else None
 
-        rag_result = self.rag_gateway.generate_reply(
-            messages=messages,
-            user_id=owner_user_id,
-            video_ids=video_ids,
-            locale=locale,
-        )
+        try:
+            rag_result = self.rag_gateway.generate_reply(
+                messages=messages,
+                user_id=owner_user_id,
+                video_ids=video_ids,
+                locale=locale,
+            )
+        except _DomainLLMConfigError as e:
+            raise LLMConfigurationError(str(e)) from e
+        except _DomainLLMProviderError as e:
+            raise LLMProviderError(str(e)) from e
 
         chat_log_id: Optional[int] = None
         feedback: Optional[str] = None

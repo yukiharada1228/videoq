@@ -7,7 +7,7 @@ from typing import List, Optional
 from app.domain.chat.repositories import ChatRepository, VideoGroupQueryRepository
 from app.domain.chat.services import aggregate_scenes, filter_group_scenes
 from app.domain.video.repositories import VideoRepository
-from app.use_cases.video.exceptions import ResourceNotFound
+from app.use_cases.shared.exceptions import ResourceNotFound
 
 
 class GetPopularScenesUseCase:
