@@ -6,7 +6,7 @@ from typing import List
 
 from app.domain.auth.entities import ApiKeyCreateResult, ApiKeyEntity
 from app.domain.auth.repositories import ApiKeyRepository
-from app.use_cases.video.exceptions import ResourceNotFound
+from app.use_cases.shared.exceptions import ResourceNotFound
 
 
 class ListApiKeysUseCase:

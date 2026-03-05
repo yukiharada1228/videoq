@@ -3,6 +3,7 @@ Composition root: creates fully-wired use case instances.
 Presentation layer imports from here instead of directly from infrastructure.
 """
 
+from app.infrastructure.chat.keyword_extractor import JanomeNltkKeywordExtractor
 from app.infrastructure.external.rag_gateway import RagChatGateway
 from app.infrastructure.external.vector_gateway import DjangoVectorStoreGateway
 from app.infrastructure.repositories.django_account_deletion_repository import (
@@ -198,7 +199,11 @@ def get_chat_history_use_case() -> GetChatHistoryUseCase:
 
 
 def get_chat_analytics_use_case() -> GetChatAnalyticsUseCase:
-    return GetChatAnalyticsUseCase(DjangoChatRepository(), DjangoVideoGroupQueryRepository())
+    return GetChatAnalyticsUseCase(
+        DjangoChatRepository(),
+        DjangoVideoGroupQueryRepository(),
+        JanomeNltkKeywordExtractor(),
+    )
 
 
 def get_popular_scenes_use_case() -> GetPopularScenesUseCase:
