@@ -55,6 +55,9 @@ class APIKeyAuthentication(BaseAuthentication):
         normalized_path = request.path_info.rstrip("/")
         return normalized_path in self.read_only_allowed_post_paths
 
+    def authenticate_header(self, request: Request) -> str:
+        return f"{self.keyword} realm=\"api\""
+
     def get_raw_key(self, request: Request) -> str | None:
         header_key = request.META.get(self.header_name)
         if header_key:

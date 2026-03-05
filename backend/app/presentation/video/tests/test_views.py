@@ -359,7 +359,7 @@ class VideoDetailViewTests(APITestCase):
             status="completed",
         )
 
-    @patch("app.infrastructure.external.vector_store.update_video_title_in_vectors")
+    @patch("app.infrastructure.external.vector_gateway.update_video_title_in_vectors")
     def test_update_video_title_updates_pgvector(self, mock_update):
         """Test that updating video title updates PGVector"""
         url = reverse("video-detail", kwargs={"pk": self.video.pk})

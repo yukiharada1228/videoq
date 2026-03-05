@@ -19,13 +19,16 @@ from app.models import UserApiKey
 User = get_user_model()
 
 
-@override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+@override_settings(
+    EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+    ENABLE_SIGNUP=True,
+)
 class UserSignupViewTests(APITestCase):
     """Tests for UserSignupView"""
 
     def test_signup_success(self):
         """Test successful user signup"""
-        url = reverse("auth-signup")
+        url = reverse("signup")
         data = {
             "username": "newuser",
             "email": "newuser@example.com",
@@ -34,7 +37,7 @@ class UserSignupViewTests(APITestCase):
         response = self.client.post(url, data, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertIn("detail", response.data)
+        self.assertIn("message", response.data)
         self.assertTrue(User.objects.filter(username="newuser").exists())
         self.assertEqual(len(mail.outbox), 1)
 
@@ -157,7 +160,7 @@ class EmailVerificationViewTests(APITestCase):
         )
         self.uid = urlsafe_base64_encode(force_bytes(self.user.pk))
         self.token = default_token_generator.make_token(self.user)
-        self.url = reverse("auth-email-verification")
+        self.url = reverse("auth-verify-email")
 
     def test_verify_email_success(self):
         """Test successful email verification"""

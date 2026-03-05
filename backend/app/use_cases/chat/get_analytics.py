@@ -2,14 +2,8 @@
 Use case: Build analytics dashboard data for a chat group.
 """
 
-from typing import Optional
-
-from django.db.models import Count, Q
-from django.db.models.functions import TruncDate
-
 from app.domain.chat.repositories import ChatRepository, VideoGroupQueryRepository
 from app.domain.chat.services import aggregate_scenes, extract_keywords, filter_group_scenes
-from app.models import ChatLog
 from app.use_cases.video.exceptions import ResourceNotFound
 
 
@@ -38,31 +32,19 @@ class GetChatAnalyticsUseCase:
         if group is None:
             raise ResourceNotFound("Group")
 
-        chat_logs_qs = ChatLog.objects.filter(group=group)
+        raw = self.chat_repo.get_analytics_raw(group_id)
 
         # Summary
-        total = chat_logs_qs.count()
         date_range = {}
-        if total > 0:
-            first_log = (
-                chat_logs_qs.order_by("created_at")
-                .values_list("created_at", flat=True)
-                .first()
-            )
-            last_log = (
-                chat_logs_qs.order_by("-created_at")
-                .values_list("created_at", flat=True)
-                .first()
-            )
+        if raw.total > 0:
             date_range = {
-                "first": first_log.isoformat() if first_log else None,
-                "last": last_log.isoformat() if last_log else None,
+                "first": raw.first_date.isoformat() if raw.first_date else None,
+                "last": raw.last_date.isoformat() if raw.last_date else None,
             }
 
         # Scene distribution
-        logs_for_scenes = chat_logs_qs.values("question", "related_videos")
-        scene_counter, scene_info, _ = aggregate_scenes(logs_for_scenes)
-        valid_video_ids = {member.video_id for member in group.members.all()}
+        scene_counter, scene_info, _ = aggregate_scenes(raw.logs_for_scenes)
+        valid_video_ids = {member.video_id for member in group.members}
         top_scenes = filter_group_scenes(scene_counter, valid_video_ids)
         scene_distribution = [
             {
@@ -75,35 +57,15 @@ class GetChatAnalyticsUseCase:
             for key, count in top_scenes
         ]
 
-        # Time series (daily)
-        time_series = list(
-            chat_logs_qs.annotate(date=TruncDate("created_at"))
-            .values("date")
-            .annotate(count=Count("id"))
-            .order_by("date")
-            .values("date", "count")
-        )
-        for entry in time_series:
-            entry["date"] = entry["date"].isoformat()
-
-        # Feedback aggregation
-        feedback_agg = chat_logs_qs.aggregate(
-            good=Count("id", filter=Q(feedback="good")),
-            bad=Count("id", filter=Q(feedback="bad")),
-            none=Count("id", filter=Q(feedback__isnull=True)),
-        )
-
-        # Keywords
-        questions = list(chat_logs_qs.values_list("question", flat=True))
-        keywords = extract_keywords(questions)
+        keywords = extract_keywords(raw.questions)
 
         return {
             "summary": {
-                "total_questions": total,
+                "total_questions": raw.total,
                 "date_range": date_range,
             },
             "scene_distribution": scene_distribution,
-            "time_series": time_series,
-            "feedback": feedback_agg,
+            "time_series": raw.time_series,
+            "feedback": raw.feedback,
             "keywords": keywords,
         }

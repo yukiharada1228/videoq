@@ -10,6 +10,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 
+from app.domain.chat.gateways import RagResult
 from app.models import ChatLog, Video, VideoGroup, VideoGroupMember
 
 User = get_user_model()
@@ -44,20 +45,17 @@ class ChatViewTests(APITestCase):
         )
         VideoGroupMember.objects.create(group=self.group, video=self.video, order=0)
 
+    @patch("app.infrastructure.external.rag_gateway.RagChatGateway.generate_reply")
     @patch("app.infrastructure.external.llm.get_langchain_llm")
-    @patch("app.use_cases.chat.send_message.RagChatService")
-    def test_chat_with_group(self, mock_service_class, mock_get_llm):
+    def test_chat_with_group(self, mock_get_llm, mock_generate_reply):
         """Test chat with group_id"""
         mock_llm = MagicMock()
         mock_get_llm.return_value = (mock_llm, None)
-
-        mock_service = MagicMock()
-        mock_result = MagicMock()
-        mock_result.llm_response.content = "Test response"
-        mock_result.query_text = "Test question"
-        mock_result.related_videos = [self.video.id]
-        mock_service.run.return_value = mock_result
-        mock_service_class.return_value = mock_service
+        mock_generate_reply.return_value = RagResult(
+            content="Test response",
+            query_text="Test question",
+            related_videos=[{"id": self.video.id}],
+        )
 
         url = reverse("chat")
         data = {
@@ -73,20 +71,17 @@ class ChatViewTests(APITestCase):
         self.assertIn("related_videos", response.data)
         self.assertIn("chat_log_id", response.data)
 
+    @patch("app.infrastructure.external.rag_gateway.RagChatGateway.generate_reply")
     @patch("app.infrastructure.external.llm.get_langchain_llm")
-    @patch("app.use_cases.chat.send_message.RagChatService")
-    def test_chat_without_group(self, mock_service_class, mock_get_llm):
+    def test_chat_without_group(self, mock_get_llm, mock_generate_reply):
         """Test chat without group_id"""
         mock_llm = MagicMock()
         mock_get_llm.return_value = (mock_llm, None)
-
-        mock_service = MagicMock()
-        mock_result = MagicMock()
-        mock_result.llm_response.content = "Test response"
-        mock_result.query_text = "Test question"
-        mock_result.related_videos = None
-        mock_service.run.return_value = mock_result
-        mock_service_class.return_value = mock_service
+        mock_generate_reply.return_value = RagResult(
+            content="Test response",
+            query_text="Test question",
+            related_videos=None,
+        )
 
         url = reverse("chat")
         data = {"messages": [{"role": "user", "content": "Test question"}]}
@@ -158,22 +153,19 @@ class ChatViewTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
+    @patch("app.infrastructure.external.rag_gateway.RagChatGateway.generate_reply")
     @patch("app.infrastructure.external.llm.get_langchain_llm")
-    @patch("app.use_cases.chat.send_message.RagChatService")
-    def test_chat_with_share_token(self, mock_service_class, mock_get_llm):
+    def test_chat_with_share_token(self, mock_get_llm, mock_generate_reply):
         """Test chat with share token"""
 
         # Use group owner's user for LLM
         mock_llm = MagicMock()
         mock_get_llm.return_value = (mock_llm, None)
-
-        mock_service = MagicMock()
-        mock_result = MagicMock()
-        mock_result.llm_response.content = "Test response"
-        mock_result.query_text = "Test question"
-        mock_result.related_videos = None
-        mock_service.run.return_value = mock_result
-        mock_service_class.return_value = mock_service
+        mock_generate_reply.return_value = RagResult(
+            content="Test response",
+            query_text="Test question",
+            related_videos=None,
+        )
 
         # Don't force authenticate - use share token instead
         self.client.force_authenticate(user=None)
@@ -697,8 +689,8 @@ class PopularScenesViewTests(APITestCase):
 
         response = self.client.get(url)
 
-        # Invalid share token is rejected by the permission layer.
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        # Invalid share token results in authentication failure (401).
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_get_popular_scenes_empty_chat_logs(self):
         """Test getting popular scenes when no chat logs exist"""

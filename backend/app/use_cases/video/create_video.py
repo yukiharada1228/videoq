@@ -4,8 +4,7 @@ Use case: Create a new video and dispatch transcription.
 
 import logging
 
-from django.db import transaction
-
+from app.domain.auth.gateways import TaskQueueGateway
 from app.domain.video.repositories import VideoRepository
 from app.use_cases.video.exceptions import VideoLimitExceeded
 
@@ -20,10 +19,10 @@ class CreateVideoUseCase:
     3. Dispatch transcription task after the transaction commits
     """
 
-    def __init__(self, video_repo: VideoRepository):
+    def __init__(self, video_repo: VideoRepository, task_queue: TaskQueueGateway):
         self.video_repo = video_repo
+        self.task_queue = task_queue
 
-    @transaction.atomic
     def execute(self, user, validated_data: dict):
         """
         Args:
@@ -31,7 +30,7 @@ class CreateVideoUseCase:
             validated_data: Cleaned data from the serializer (without 'user' field).
 
         Returns:
-            Video: The newly created Video instance.
+            VideoEntity: The newly created video entity.
 
         Raises:
             VideoLimitExceeded: If the user has reached their upload limit.
@@ -44,15 +43,7 @@ class CreateVideoUseCase:
 
         video = self.video_repo.create(user.id, validated_data)
 
-        def _dispatch_transcription():
-            from app.tasks import transcribe_video
+        logger.info(f"Enqueueing transcription task for video ID: {video.id}")
+        self.task_queue.enqueue_transcription(video.id)
 
-            logger.info(f"Starting transcription task for video ID: {video.id}")
-            try:
-                task = transcribe_video.delay(video.id)
-                logger.info(f"Transcription task created with ID: {task.id}")
-            except Exception as e:
-                logger.error(f"Failed to start transcription task: {e}")
-
-        transaction.on_commit(_dispatch_transcription)
         return video

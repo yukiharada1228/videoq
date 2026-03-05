@@ -20,14 +20,12 @@ class GetChatHistoryUseCase:
     def execute(self, group_id: int, user_id: int, ascending: bool = False):
         """
         Returns:
-            QuerySet of ChatLog (may be empty if group not found).
+            List[ChatLogEntity] (may be empty if group not found).
         """
-        from app.models import ChatLog
-
         group = self.group_query_repo.get_with_members(
             group_id=group_id, user_id=user_id
         )
         if group is None:
-            return ChatLog.objects.none()
+            return []
 
-        return self.chat_repo.get_logs_for_group(group, ascending=ascending)
+        return self.chat_repo.get_logs_for_group(group.id, ascending=ascending)

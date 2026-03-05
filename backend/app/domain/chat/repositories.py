@@ -1,11 +1,16 @@
 """
 Abstract repository interfaces for the chat domain.
+No Django / ORM / external service dependencies.
 """
 
 from abc import ABC, abstractmethod
-from typing import List, Optional
+from typing import Dict, List, Optional
 
-from app.models import ChatLog, VideoGroup
+from app.domain.chat.entities import (
+    ChatAnalyticsRaw,
+    ChatLogEntity,
+    VideoGroupContextEntity,
+)
 
 
 class ChatRepository(ABC):
@@ -13,41 +18,50 @@ class ChatRepository(ABC):
 
     @abstractmethod
     def get_logs_for_group(
-        self, group: VideoGroup, ascending: bool = True
-    ) -> "QuerySet[ChatLog]":
+        self, group_id: int, ascending: bool = True
+    ) -> List[ChatLogEntity]:
         """Retrieve ordered chat logs for a group."""
         ...
 
     @abstractmethod
     def create_log(
         self,
-        user,
-        group: VideoGroup,
+        user_id: int,
+        group_id: int,
         question: str,
         answer: str,
         related_videos: List[dict],
         is_shared: bool,
-    ) -> ChatLog:
+    ) -> ChatLogEntity:
         """Persist a new chat log entry."""
         ...
 
     @abstractmethod
-    def get_log_by_id(self, log_id: int) -> Optional[ChatLog]:
-        """Retrieve a single chat log by its ID."""
+    def get_log_by_id(self, log_id: int) -> Optional[ChatLogEntity]:
+        """
+        Retrieve a single chat log by its ID.
+        Eagerly loads group.share_token and group.user_id for access control.
+        """
         ...
 
     @abstractmethod
     def update_feedback(
-        self, log: ChatLog, feedback: Optional[str]
-    ) -> ChatLog:
+        self, log: ChatLogEntity, feedback: Optional[str]
+    ) -> ChatLogEntity:
         """Update the feedback field of a chat log."""
         ...
 
     @abstractmethod
-    def get_logs_values_for_group(
-        self, group: VideoGroup
-    ) -> "QuerySet":
-        """Return a values queryset (question, related_videos) for analytics."""
+    def get_logs_values_for_group(self, group_id: int) -> List[Dict]:
+        """Return a list of dicts with 'question' and 'related_videos' for analytics."""
+        ...
+
+    @abstractmethod
+    def get_analytics_raw(self, group_id: int) -> ChatAnalyticsRaw:
+        """
+        Fetch all raw data needed for analytics aggregation in a single call.
+        Runs aggregation queries at the persistence layer.
+        """
         ...
 
 
@@ -60,7 +74,7 @@ class VideoGroupQueryRepository(ABC):
         group_id: int,
         user_id: Optional[int] = None,
         share_token: Optional[str] = None,
-    ) -> Optional[VideoGroup]:
+    ) -> Optional[VideoGroupContextEntity]:
         """
         Fetch a group with its members pre-loaded.
 

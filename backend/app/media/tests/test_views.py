@@ -91,8 +91,8 @@ class ProtectedMediaViewTests(APITestCase):
 
         response = self.client.get(url)
 
-        # Unauthenticated requests are denied by the permission layer.
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        # Unauthenticated requests return 401 (authentication required).
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_get_media_wrong_user(self):
         """Test accessing media with wrong user"""
