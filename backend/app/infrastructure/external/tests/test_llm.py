@@ -9,7 +9,7 @@ from django.test import TestCase, override_settings
 from pydantic import SecretStr
 
 from app.infrastructure.external.llm import get_langchain_llm
-from app.use_cases.shared.exceptions import LLMConfigError
+from app.domain.shared.exceptions import LLMConfigError
 
 User = get_user_model()
 

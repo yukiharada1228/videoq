@@ -9,7 +9,7 @@ from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI
 from pydantic import SecretStr
 
-from app.use_cases.shared.exceptions import LLMConfigError
+from app.domain.shared.exceptions import LLMConfigError
 
 User = get_user_model()
 
