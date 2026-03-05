@@ -29,7 +29,7 @@ from app.common.throttles import (LoginIPThrottle, LoginUsernameThrottle,
                                    PasswordResetIPThrottle, SignupIPThrottle)
 from app.container import get_container
 from app.use_cases.shared.exceptions import ResourceNotFound
-from app.utils.mixins import AuthenticatedViewMixin, PublicViewMixin
+from app.presentation.common.mixins import AuthenticatedViewMixin, PublicViewMixin
 
 class PublicAPIView(PublicViewMixin, generics.GenericAPIView):
     """API view that doesn't require authentication"""

@@ -23,19 +23,12 @@ class VideoListSerializer(serializers.Serializer):
     """Serializer for video list view (reads VideoEntity attributes)."""
 
     id = serializers.IntegerField()
-    file = serializers.SerializerMethodField()
+    file = serializers.CharField(source="file_url", allow_null=True)
     title = serializers.CharField()
     description = serializers.CharField()
     uploaded_at = serializers.DateTimeField()
     status = serializers.CharField()
     tags = serializers.SerializerMethodField()
-
-    @extend_schema_field(serializers.CharField(allow_null=True))
-    def get_file(self, obj):
-        resolver = self.context.get("file_url_resolver")
-        if resolver and obj.file_key:
-            return resolver.resolve(obj.file_key)
-        return None
 
     @extend_schema_field(serializers.ListField(child=serializers.DictField()))
     def get_tags(self, obj):
@@ -50,7 +43,7 @@ class VideoSerializer(serializers.Serializer):
 
     id = serializers.IntegerField()
     user = serializers.IntegerField(source="user_id")
-    file = serializers.SerializerMethodField()
+    file = serializers.CharField(source="file_url", allow_null=True)
     title = serializers.CharField()
     description = serializers.CharField()
     uploaded_at = serializers.DateTimeField()
@@ -58,13 +51,6 @@ class VideoSerializer(serializers.Serializer):
     status = serializers.CharField()
     error_message = serializers.CharField(allow_null=True)
     tags = serializers.SerializerMethodField()
-
-    @extend_schema_field(serializers.CharField(allow_null=True))
-    def get_file(self, obj):
-        resolver = self.context.get("file_url_resolver")
-        if resolver and obj.file_key:
-            return resolver.resolve(obj.file_key)
-        return None
 
     @extend_schema_field(serializers.ListField(child=serializers.DictField()))
     def get_tags(self, obj):

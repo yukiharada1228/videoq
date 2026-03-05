@@ -4,6 +4,7 @@ Constructs fully-wired video, video group, and tag use case instances.
 """
 
 from app.infrastructure.external.vector_gateway import DjangoVectorStoreGateway
+from app.infrastructure.external.file_url_resolver import DjangoFileUrlResolver
 from app.infrastructure.repositories.django_video_repository import (
     DjangoTagRepository,
     DjangoVideoGroupRepository,
@@ -39,7 +40,7 @@ from app.use_cases.video.update_video import UpdateVideoUseCase
 
 
 def get_list_videos_use_case() -> ListVideosUseCase:
-    return ListVideosUseCase(DjangoVideoRepository())
+    return ListVideosUseCase(DjangoVideoRepository(), DjangoFileUrlResolver())
 
 
 def get_reindex_all_videos_use_case() -> ReindexAllVideosUseCase:
@@ -61,15 +62,19 @@ def get_run_transcription_use_case() -> RunTranscriptionUseCase:
 
 
 def get_video_detail_use_case() -> GetVideoDetailUseCase:
-    return GetVideoDetailUseCase(DjangoVideoRepository())
+    return GetVideoDetailUseCase(DjangoVideoRepository(), DjangoFileUrlResolver())
 
 
 def get_create_video_use_case() -> CreateVideoUseCase:
-    return CreateVideoUseCase(DjangoVideoRepository(), CeleryVideoTaskGateway())
+    return CreateVideoUseCase(
+        DjangoVideoRepository(), CeleryVideoTaskGateway(), DjangoFileUrlResolver()
+    )
 
 
 def get_update_video_use_case() -> UpdateVideoUseCase:
-    return UpdateVideoUseCase(DjangoVideoRepository(), DjangoVectorStoreGateway())
+    return UpdateVideoUseCase(
+        DjangoVideoRepository(), DjangoVectorStoreGateway(), DjangoFileUrlResolver()
+    )
 
 
 def get_delete_video_use_case() -> DeleteVideoUseCase:
@@ -98,11 +103,11 @@ def get_delete_group_use_case() -> DeleteVideoGroupUseCase:
 
 
 def get_video_group_use_case() -> GetVideoGroupUseCase:
-    return GetVideoGroupUseCase(DjangoVideoGroupRepository())
+    return GetVideoGroupUseCase(DjangoVideoGroupRepository(), DjangoFileUrlResolver())
 
 
 def get_shared_group_use_case() -> GetSharedGroupUseCase:
-    return GetSharedGroupUseCase(DjangoVideoGroupRepository())
+    return GetSharedGroupUseCase(DjangoVideoGroupRepository(), DjangoFileUrlResolver())
 
 
 def get_add_video_to_group_use_case() -> AddVideoToGroupUseCase:
@@ -151,7 +156,7 @@ def get_delete_tag_use_case() -> DeleteTagUseCase:
 
 
 def get_tag_detail_use_case() -> GetTagDetailUseCase:
-    return GetTagDetailUseCase(DjangoTagRepository())
+    return GetTagDetailUseCase(DjangoTagRepository(), DjangoFileUrlResolver())
 
 
 def get_add_tags_to_video_use_case() -> AddTagsToVideoUseCase:

@@ -28,7 +28,7 @@ from app.domain.video.repositories import (
     VideoRepository,
 )
 from app.models import Tag, Video, VideoGroup, VideoGroupMember, VideoTag
-from app.utils.query_optimizer import QueryOptimizer
+from app.infrastructure.common.query_optimizer import QueryOptimizer
 
 logger = logging.getLogger(__name__)
 

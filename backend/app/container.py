@@ -184,15 +184,6 @@ class AppContainer:
     def get_resolve_protected_media_use_case(self):
         return factories.get_resolve_protected_media_use_case()
 
-    # ---------------------------------------------------------------------------
-    # Infrastructure utilities
-    # ---------------------------------------------------------------------------
-
-    def get_file_url_resolver(self):
-        from app.infrastructure.external.file_url_resolver import DjangoFileUrlResolver
-        return DjangoFileUrlResolver()
-
-
 _container: AppContainer | None = None
 
 

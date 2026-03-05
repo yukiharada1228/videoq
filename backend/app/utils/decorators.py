@@ -9,12 +9,21 @@ def authenticated_api_view(methods):
     """Decorator for authenticated API views"""
 
     def decorator(view_func):
-        from rest_framework.decorators import api_view, permission_classes
+        from rest_framework.decorators import (
+            api_view,
+            authentication_classes,
+            permission_classes,
+        )
+        from app.common.authentication import APIKeyAuthentication, CookieJWTAuthentication
+        from app.common.permissions import ApiKeyScopePermission
+        from rest_framework.permissions import IsAuthenticated
 
-        from app.utils.mixins import AuthenticatedViewMixin
-
-        wrapped_view = permission_classes(AuthenticatedViewMixin.permission_classes)(
-            api_view(methods)(view_func)
+        wrapped_view = authentication_classes(
+            [APIKeyAuthentication, CookieJWTAuthentication]
+        )(
+            permission_classes([IsAuthenticated, ApiKeyScopePermission])(
+                api_view(methods)(view_func)
+            )
         )
         return wraps(view_func)(wrapped_view)
 
