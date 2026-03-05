@@ -151,6 +151,14 @@ class ImportRulesTest(unittest.TestCase):
         """use_cases layer must not import from app.models, django, rest_framework, or app.infrastructure."""
         self._check("use_cases", ["app.models", "django", "rest_framework", "app.infrastructure"])
 
+    def test_use_cases_has_no_common_imports(self):
+        """use_cases layer must not import from app.common (HTTP/auth concerns belong in presentation)."""
+        self._check("use_cases", ["app.common"])
+
+    def test_use_cases_has_no_utils_imports(self):
+        """use_cases layer must not import from app.utils (framework utilities belong outside core)."""
+        self._check("use_cases", ["app.utils"])
+
     def test_presentation_has_no_infrastructure_imports(self):
         """presentation layer must not import from app.models or any app.infrastructure.*."""
         self._check(

@@ -4,7 +4,20 @@ Decouples business logic output from HTTP response formatting.
 """
 
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import List, Optional
+
+
+@dataclass
+class ChatHistoryExportRow:
+    """A single row of chat history returned by ExportChatHistoryUseCase."""
+
+    created_at: datetime
+    question: str
+    answer: str
+    is_shared_origin: bool
+    related_videos: list
+    feedback: Optional[str]
 
 
 @dataclass

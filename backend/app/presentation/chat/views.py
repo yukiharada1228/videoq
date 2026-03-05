@@ -25,6 +25,7 @@ from app.use_cases.chat.exceptions import LLMConfigurationError, LLMProviderErro
 from app.use_cases.shared.exceptions import ResourceNotFound
 from django.http import HttpResponse
 
+from .exporters import write_chat_history_csv
 from .serializers import (
     ChatAnalyticsResponseSerializer,
     ChatFeedbackRequestSerializer,
@@ -212,12 +213,7 @@ class ChatHistoryExportView(APIView):
         response["Content-Disposition"] = (
             f'attachment; filename="chat_history_group_{resolved_group_id}.csv"'
         )
-        writer = csv.writer(response)
-        writer.writerow(
-            ["created_at", "question", "answer", "is_shared_origin", "related_videos", "feedback"]
-        )
-        for row in rows:
-            writer.writerow(row)
+        write_chat_history_csv(csv.writer(response), rows)
         return response
 
 
