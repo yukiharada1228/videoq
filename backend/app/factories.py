@@ -21,6 +21,8 @@ from app.infrastructure.repositories.django_chat_repository import (
     DjangoChatRepository,
     DjangoVideoGroupQueryRepository,
 )
+from app.infrastructure.auth.django_auth_gateway import DjangoUserAuthGateway
+from app.infrastructure.auth.simplejwt_gateway import SimpleJWTGateway
 from app.infrastructure.repositories.django_user_repository import DjangoUserRepository
 from app.infrastructure.repositories.django_video_repository import (
     DjangoTagRepository,
@@ -31,6 +33,8 @@ from app.infrastructure.tasks.task_gateway import CeleryAuthTaskGateway, CeleryV
 from app.use_cases.auth.delete_account import AccountDeletionUseCase
 from app.use_cases.auth.delete_account_data import DeleteAccountDataUseCase
 from app.use_cases.auth.get_current_user import GetCurrentUserUseCase
+from app.use_cases.auth.login import LoginUseCase
+from app.use_cases.auth.refresh_token import RefreshTokenUseCase
 from app.use_cases.auth.signup import SignupUserUseCase
 from app.use_cases.auth.verify_email import VerifyEmailUseCase
 from app.use_cases.auth.reset_password import (
@@ -248,6 +252,14 @@ def get_export_history_use_case() -> ExportChatHistoryUseCase:
 # ---------------------------------------------------------------------------
 # Auth use cases
 # ---------------------------------------------------------------------------
+
+
+def get_login_use_case() -> LoginUseCase:
+    return LoginUseCase(DjangoUserAuthGateway(), SimpleJWTGateway())
+
+
+def get_refresh_token_use_case() -> RefreshTokenUseCase:
+    return RefreshTokenUseCase(SimpleJWTGateway())
 
 
 def get_current_user_use_case() -> GetCurrentUserUseCase:
