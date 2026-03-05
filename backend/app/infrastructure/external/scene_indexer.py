@@ -6,7 +6,7 @@ import logging
 
 from app.infrastructure.external.vector_store import PGVectorManager
 from app.scene_otsu.parsers import SubtitleParser
-from app.utils.embeddings import get_embeddings
+from app.infrastructure.common.embeddings import get_embeddings
 
 logger = logging.getLogger(__name__)
 

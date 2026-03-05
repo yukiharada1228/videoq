@@ -3,12 +3,15 @@ Use case: Create a new video and dispatch transcription.
 """
 
 import logging
+from typing import Optional
 
 from app.domain.video.dto import CreateVideoParams
 from app.domain.video.gateways import VideoTaskGateway
+from app.domain.video.ports import FileUrlResolver
 from app.domain.video.repositories import VideoRepository
 from app.use_cases.video.dto import CreateVideoInput
 from app.use_cases.video.exceptions import VideoLimitExceeded
+from app.use_cases.video.file_url import resolve_video_file_urls
 
 logger = logging.getLogger(__name__)
 
@@ -21,9 +24,15 @@ class CreateVideoUseCase:
     3. Dispatch transcription task after the transaction commits
     """
 
-    def __init__(self, video_repo: VideoRepository, task_queue: VideoTaskGateway):
+    def __init__(
+        self,
+        video_repo: VideoRepository,
+        task_queue: VideoTaskGateway,
+        file_url_resolver: Optional[FileUrlResolver] = None,
+    ):
         self.video_repo = video_repo
         self.task_queue = task_queue
+        self.file_url_resolver = file_url_resolver
 
     def execute(self, user_id: int, video_limit, input: CreateVideoInput):
         """
@@ -53,4 +62,5 @@ class CreateVideoUseCase:
         logger.info(f"Enqueueing transcription task for video ID: {video.id}")
         self.task_queue.enqueue_transcription(video.id)
 
+        resolve_video_file_urls([video], self.file_url_resolver)
         return video

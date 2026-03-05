@@ -36,7 +36,8 @@ class VideoEntity:
     title: str
     status: str
     description: str = ""
-    file_key: Optional[str] = None  # storage path; presentation resolves to URL
+    file_key: Optional[str] = None  # storage path persisted in repository
+    file_url: Optional[str] = None  # public URL resolved in use cases
     error_message: Optional[str] = None
     uploaded_at: Optional[datetime] = None
     transcript: Optional[str] = None

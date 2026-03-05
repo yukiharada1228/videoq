@@ -2,11 +2,15 @@
 Use case: Update a video and sync PGVector metadata when the title changes.
 """
 
+from typing import Optional
+
 from app.domain.video.dto import UpdateVideoParams
 from app.domain.video.gateways import VectorStoreGateway
+from app.domain.video.ports import FileUrlResolver
 from app.domain.video.repositories import VideoRepository
 from app.use_cases.video.dto import UpdateVideoInput
 from app.use_cases.video.exceptions import ResourceNotFound
+from app.use_cases.video.file_url import resolve_video_file_urls
 
 
 class UpdateVideoUseCase:
@@ -17,9 +21,15 @@ class UpdateVideoUseCase:
     3. Sync PGVector metadata if the title changed
     """
 
-    def __init__(self, video_repo: VideoRepository, vector_gateway: VectorStoreGateway):
+    def __init__(
+        self,
+        video_repo: VideoRepository,
+        vector_gateway: VectorStoreGateway,
+        file_url_resolver: Optional[FileUrlResolver] = None,
+    ):
         self.video_repo = video_repo
         self.vector_gateway = vector_gateway
+        self.file_url_resolver = file_url_resolver
 
     def execute(self, video_id: int, user_id: int, input: UpdateVideoInput):
         """
@@ -40,4 +50,5 @@ class UpdateVideoUseCase:
         if input.title is not None and old_title != video.title:
             self.vector_gateway.update_video_title(video.id, video.title)
 
+        resolve_video_file_urls([video], self.file_url_resolver)
         return video

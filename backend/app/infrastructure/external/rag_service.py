@@ -15,7 +15,7 @@ from langchain_postgres import PGVectorStore
 
 from app.infrastructure.external.prompts import build_system_prompt
 from app.infrastructure.external.vector_store import PGVectorManager
-from app.utils.embeddings import get_embeddings
+from app.infrastructure.common.embeddings import get_embeddings
 
 if TYPE_CHECKING:  # pragma: no cover
     from app.models import VideoGroup

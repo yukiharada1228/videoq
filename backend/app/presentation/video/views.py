@@ -24,7 +24,7 @@ from app.use_cases.video.dto import (
 )
 from app.use_cases.video.exceptions import ResourceNotFound, VideoLimitExceeded
 from app.utils.decorators import authenticated_view_with_error_handling
-from app.utils.mixins import AuthenticatedViewMixin
+from app.presentation.common.mixins import AuthenticatedViewMixin
 
 from .serializers import (
     AddTagsToVideoRequestSerializer,
@@ -89,7 +89,7 @@ class VideoListView(AuthenticatedViewMixin, generics.GenericAPIView):
             ordering=ordering,
             tag_ids=tag_ids,
         )
-        ctx = {"request": request, "file_url_resolver": container.get_file_url_resolver()}
+        ctx = {"request": request}
         return Response(
             VideoListSerializer(videos, many=True, context=ctx).data
         )
@@ -112,7 +112,7 @@ class VideoListView(AuthenticatedViewMixin, generics.GenericAPIView):
         except VideoLimitExceeded as e:
             return create_error_response(str(e), status.HTTP_400_BAD_REQUEST)
 
-        ctx = {"request": request, "file_url_resolver": container.get_file_url_resolver()}
+        ctx = {"request": request}
         return Response(
             VideoSerializer(video, context=ctx).data,
             status=status.HTTP_201_CREATED,
@@ -134,7 +134,7 @@ class VideoDetailView(AuthenticatedViewMixin, APIView):
         video = self._get_video(pk, request.user.id)
         if video is None:
             return create_error_response("Video not found", status.HTTP_404_NOT_FOUND)
-        ctx = {"request": request, "file_url_resolver": get_container().get_file_url_resolver()}
+        ctx = {"request": request}
         return Response(VideoSerializer(video, context=ctx).data)
 
     @extend_schema(
@@ -163,7 +163,7 @@ class VideoDetailView(AuthenticatedViewMixin, APIView):
         except ResourceNotFound:
             return create_error_response("Video not found", status.HTTP_404_NOT_FOUND)
 
-        ctx = {"request": request, "file_url_resolver": container.get_file_url_resolver()}
+        ctx = {"request": request}
         return Response(VideoSerializer(updated, context=ctx).data)
 
     def put(self, request, pk):
@@ -220,7 +220,7 @@ class VideoGroupListView(AuthenticatedViewMixin, generics.GenericAPIView):
         except ResourceNotFound:
             pass
 
-        ctx = {"request": request, "file_url_resolver": container.get_file_url_resolver()}
+        ctx = {"request": request}
         return Response(
             VideoGroupDetailSerializer(group, context=ctx).data,
             status=status.HTTP_201_CREATED,
@@ -242,7 +242,7 @@ class VideoGroupDetailView(AuthenticatedViewMixin, APIView):
             group = use_case.execute(pk, request.user.id, include_videos=True)
         except ResourceNotFound:
             return create_error_response("Group not found", status.HTTP_404_NOT_FOUND)
-        ctx = {"request": request, "file_url_resolver": container.get_file_url_resolver()}
+        ctx = {"request": request}
         return Response(VideoGroupDetailSerializer(group, context=ctx).data)
 
     @extend_schema(
@@ -274,7 +274,7 @@ class VideoGroupDetailView(AuthenticatedViewMixin, APIView):
         except ResourceNotFound:
             return create_error_response("Group not found", status.HTTP_404_NOT_FOUND)
 
-        ctx = {"request": request, "file_url_resolver": container.get_file_url_resolver()}
+        ctx = {"request": request}
         return Response(VideoGroupDetailSerializer(group, context=ctx).data)
 
     def put(self, request, pk):
@@ -447,7 +447,7 @@ def get_shared_group(request, share_token):
     except ResourceNotFound:
         return create_error_response("Share link not found", status.HTTP_404_NOT_FOUND)
 
-    ctx = {"file_url_resolver": container.get_file_url_resolver()}
+    ctx = {}
     return Response(VideoGroupDetailSerializer(group, context=ctx).data, status=status.HTTP_200_OK)
 
 
@@ -504,7 +504,7 @@ class TagDetailView(AuthenticatedViewMixin, APIView):
             tag = use_case.execute(pk, request.user.id)
         except ResourceNotFound:
             return create_error_response("Tag not found", status.HTTP_404_NOT_FOUND)
-        ctx = {"request": request, "file_url_resolver": container.get_file_url_resolver()}
+        ctx = {"request": request}
         return Response(TagDetailSerializer(tag, context=ctx).data)
 
     @extend_schema(
@@ -536,7 +536,7 @@ class TagDetailView(AuthenticatedViewMixin, APIView):
         except ResourceNotFound:
             return create_error_response("Tag not found", status.HTTP_404_NOT_FOUND)
 
-        ctx = {"request": request, "file_url_resolver": container.get_file_url_resolver()}
+        ctx = {"request": request}
         return Response(TagDetailSerializer(tag, context=ctx).data)
 
     def put(self, request, pk):
