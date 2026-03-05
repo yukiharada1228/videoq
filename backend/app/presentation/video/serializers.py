@@ -20,14 +20,11 @@ logger = logging.getLogger(__name__)
 
 
 def _resolve_file_url(file_key):
-    """Resolve a storage file key to a URL using Django's default storage."""
+    """Resolve a storage file key to a URL via the DI container's FileUrlResolver."""
     if not file_key:
         return None
-    from django.core.files.storage import default_storage
-    try:
-        return default_storage.url(file_key)
-    except Exception:
-        return None
+    from app.container import get_container
+    return get_container().get_file_url_resolver().resolve(file_key)
 
 
 class VideoListSerializer(serializers.Serializer):

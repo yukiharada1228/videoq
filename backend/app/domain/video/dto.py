@@ -6,14 +6,16 @@ No Django / ORM / external service dependencies.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Optional
+
+from app.domain.video.types import UploadedFileLike
 
 
 @dataclass(frozen=True)
 class CreateVideoParams:
     """Parameters for creating a new video record."""
 
-    file: Any  # InMemoryUploadedFile or similar
+    file: UploadedFileLike
     title: str
     description: str
 
