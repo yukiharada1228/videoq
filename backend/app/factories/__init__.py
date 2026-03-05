@@ -4,6 +4,7 @@ All public factory functions are re-exported here for backwards compatibility.
 """
 
 from app.factories.auth import (
+    get_authorize_api_key_use_case,
     get_confirm_password_reset_use_case,
     get_create_api_key_use_case,
     get_current_user_use_case,
@@ -105,6 +106,7 @@ __all__ = [
     "get_list_api_keys_use_case",
     "get_create_api_key_use_case",
     "get_revoke_api_key_use_case",
+    "get_authorize_api_key_use_case",
     # media
     "get_resolve_protected_media_use_case",
 ]

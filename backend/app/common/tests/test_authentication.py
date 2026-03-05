@@ -141,14 +141,14 @@ class APIKeyAuthenticationTests(APITestCase):
         with self.assertRaises(AuthenticationFailed):
             self.auth.authenticate(request)
 
-    def test_read_only_api_key_allows_chat_post(self):
-        """Read-only keys should be allowed to POST to the chat endpoint."""
+    def test_read_only_api_key_authenticates_without_scope_check(self):
+        """Authentication layer should not apply read-only authorization rules."""
         read_only_key, raw_key = UserApiKey.create_for_user(
             user=self.user,
             name="read-only-chat",
             access_level=UserApiKey.AccessLevel.READ_ONLY,
         )
-        request = self.factory.post("/api/chat/", HTTP_X_API_KEY=raw_key)
+        request = self.factory.post("/api/videos/groups/", HTTP_X_API_KEY=raw_key)
 
         result = self.auth.authenticate(request)
 
@@ -156,15 +156,3 @@ class APIKeyAuthenticationTests(APITestCase):
         user, key_record = result
         self.assertEqual(user, self.user)
         self.assertEqual(key_record.pk, read_only_key.pk)
-
-    def test_read_only_api_key_blocks_non_chat_post(self):
-        """Read-only keys should still block other POST endpoints."""
-        _, raw_key = UserApiKey.create_for_user(
-            user=self.user,
-            name="read-only-non-chat",
-            access_level=UserApiKey.AccessLevel.READ_ONLY,
-        )
-        request = self.factory.post("/api/videos/groups/", HTTP_X_API_KEY=raw_key)
-
-        with self.assertRaises(AuthenticationFailed):
-            self.auth.authenticate(request)

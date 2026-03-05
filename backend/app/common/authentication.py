@@ -15,8 +15,6 @@ class APIKeyAuthentication(BaseAuthentication):
 
     keyword = "ApiKey"
     header_name = "HTTP_X_API_KEY"
-    read_only_allowed_methods = {"GET", "HEAD", "OPTIONS"}
-    read_only_allowed_post_paths = {"/api/chat", "/chat"}
 
     def authenticate(self, request: Request):
         raw_key = self.get_raw_key(request)
@@ -36,24 +34,8 @@ class APIKeyAuthentication(BaseAuthentication):
         if api_key is None:
             raise AuthenticationFailed(_("Invalid API key"))
 
-        if (
-            api_key.access_level == UserApiKey.AccessLevel.READ_ONLY
-            and not self.is_read_only_request_allowed(request)
-        ):
-            raise AuthenticationFailed(_("This API key is read-only"))
-
         api_key.mark_used()
         return api_key.user, api_key
-
-    def is_read_only_request_allowed(self, request: Request) -> bool:
-        if request.method in self.read_only_allowed_methods:
-            return True
-
-        if request.method != "POST":
-            return False
-
-        normalized_path = request.path_info.rstrip("/")
-        return normalized_path in self.read_only_allowed_post_paths
 
     def authenticate_header(self, request: Request) -> str:
         return f"{self.keyword} realm=\"api\""

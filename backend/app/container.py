@@ -161,6 +161,9 @@ class AppContainer:
     def get_revoke_api_key_use_case(self):
         return factories.get_revoke_api_key_use_case()
 
+    def get_authorize_api_key_use_case(self):
+        return factories.get_authorize_api_key_use_case()
+
     # ---------------------------------------------------------------------------
     # Task use cases
     # ---------------------------------------------------------------------------

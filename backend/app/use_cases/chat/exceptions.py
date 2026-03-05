@@ -7,3 +7,15 @@ class LLMConfigurationError(Exception):
 
 class LLMProviderError(Exception):
     """Raised when the LLM provider returns an error during generation."""
+
+
+class ChatNotFoundError(Exception):
+    """Raised when a chat log is not found."""
+
+
+class InvalidFeedbackError(Exception):
+    """Raised when the requested feedback value is invalid."""
+
+
+class FeedbackPermissionDenied(Exception):
+    """Raised when the caller cannot update feedback on the target chat log."""

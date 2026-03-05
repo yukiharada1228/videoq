@@ -162,7 +162,7 @@ class ProtectedMediaViewTests(APITestCase):
         if os.path.exists(file_path):
             os.remove(file_path)
 
-    @patch("app.presentation.media.views.mimetypes.guess_type")
+    @patch("app.use_cases.media.resolve_protected_media.mimetypes.guess_type")
     def test_get_media_content_type(self, mock_guess_type):
         """Test that Content-Type header is set correctly"""
         mock_guess_type.return_value = ("video/mp4", None)

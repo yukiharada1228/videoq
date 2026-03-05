@@ -3,9 +3,10 @@ Use case: resolve access to a protected media file.
 """
 
 from dataclasses import dataclass
+import mimetypes
 from typing import Optional
 
-from app.domain.media.ports import ProtectedMediaRepository
+from app.domain.media.ports import MediaStorageGateway, ProtectedMediaRepository
 from app.use_cases.shared.exceptions import ResourceNotFound
 
 
@@ -14,6 +15,13 @@ class ResolveProtectedMediaInput:
     path: str
     user_id: Optional[int] = None
     group_id: Optional[int] = None
+
+
+@dataclass(frozen=True)
+class ResolveProtectedMediaOutput:
+    path: str
+    redirect_path: str
+    content_type: Optional[str] = None
 
 
 class ResolveProtectedMediaUseCase:
@@ -29,10 +37,23 @@ class ResolveProtectedMediaUseCase:
     not owned by user) so the caller can map it uniformly to HTTP 404.
     """
 
-    def __init__(self, media_repo: ProtectedMediaRepository):
+    def __init__(
+        self,
+        media_repo: ProtectedMediaRepository,
+        media_storage: MediaStorageGateway,
+    ):
         self.media_repo = media_repo
+        self.media_storage = media_storage
 
-    def execute(self, input: ResolveProtectedMediaInput) -> None:
+    def execute(self, input: ResolveProtectedMediaInput) -> ResolveProtectedMediaOutput:
+        if not self.media_storage.exists(input.path):
+            raise ResourceNotFound("Media")
+        try:
+            with self.media_storage.open(input.path):
+                pass
+        except OSError:
+            raise ResourceNotFound("Media")
+
         video_id = self.media_repo.find_video_id_by_file_path(input.path)
         if video_id is None:
             raise ResourceNotFound("Media")
@@ -45,3 +66,10 @@ class ResolveProtectedMediaUseCase:
                 raise ResourceNotFound("Media")
         else:
             raise ResourceNotFound("Media")
+
+        content_type, _ = mimetypes.guess_type(input.path)
+        return ResolveProtectedMediaOutput(
+            path=input.path,
+            redirect_path=f"/api/protected_media/{input.path}",
+            content_type=content_type,
+        )
