@@ -43,3 +43,21 @@ class CurrentUserOutput:
     is_active: bool
     video_limit: int
     video_count: int
+
+
+@dataclass(frozen=True)
+class ResolvedShareTokenOutput:
+    """Use-case output DTO for resolved share-token auth context."""
+
+    share_token: str
+    group_id: int
+
+
+@dataclass(frozen=True)
+class ResolvedApiKeyOutput:
+    """Use-case output DTO for resolved API-key auth context."""
+
+    api_key_id: int
+    user_id: int
+    user_video_limit: int
+    access_level: str

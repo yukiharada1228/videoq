@@ -156,6 +156,51 @@ def check_forbidden_call_expressions(file_path, forbidden_calls):
     return violations
 
 
+def _import_alias_map(tree):
+    alias_map = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                key = alias.asname or alias.name.split(".")[0]
+                alias_map[key] = alias.name
+        elif isinstance(node, ast.ImportFrom):
+            module = node.module or ""
+            for alias in node.names:
+                key = alias.asname or alias.name
+                full = f"{module}.{alias.name}" if module else alias.name
+                alias_map[key] = full
+    return alias_map
+
+
+def _iter_annotation_refs(annotation):
+    if annotation is None:
+        return
+
+    if isinstance(annotation, ast.Constant) and isinstance(annotation.value, str):
+        try:
+            parsed = ast.parse(annotation.value, mode="eval")
+            yield from _iter_annotation_refs(parsed.body)
+        except SyntaxError:
+            return
+        return
+
+    for node in ast.walk(annotation):
+        if isinstance(node, ast.Name):
+            yield node.id
+        elif isinstance(node, ast.Attribute):
+            name = _call_name(node)
+            if name:
+                yield name
+
+
+def _resolve_annotation_ref(ref, alias_map):
+    if "." in ref:
+        head, tail = ref.split(".", 1)
+        if head in alias_map:
+            return f"{alias_map[head]}.{tail}"
+    return alias_map.get(ref, ref)
+
+
 class CheckForbiddenImportsTest(unittest.TestCase):
     """Unit tests for check_forbidden_imports edge cases."""
 
@@ -795,6 +840,35 @@ class ImportRulesTest(unittest.TestCase):
             [],
             violations,
             "UseCase.execute must have explicit return annotations:\n"
+            + "\n".join(f"  {v}" for v in violations),
+        )
+
+    def test_use_case_execute_return_annotations_have_no_domain_dtos(self):
+        """UseCase.execute return annotations must not expose app.domain.*.dtos."""
+        violations = []
+        for fp in sorted(self._iter_layer_source_files("use_cases")):
+            with open(fp) as f:
+                source = f.read()
+            tree = ast.parse(source)
+            alias_map = _import_alias_map(tree)
+            for node in ast.walk(tree):
+                if not isinstance(node, ast.ClassDef):
+                    continue
+                if not node.name.endswith("UseCase"):
+                    continue
+                for item in node.body:
+                    if not isinstance(item, ast.FunctionDef) or item.name != "execute":
+                        continue
+                    for ref in _iter_annotation_refs(item.returns):
+                        resolved = _resolve_annotation_ref(ref, alias_map)
+                        if resolved.startswith("app.domain.") and ".dtos" in resolved:
+                            rel = os.path.relpath(fp, BASE)
+                            violations.append(f"{rel}:{item.lineno} -> {resolved}")
+                            break
+        self.assertEqual(
+            [],
+            violations,
+            "UseCase.execute return annotation must not reference domain DTOs:\n"
             + "\n".join(f"  {v}" for v in violations),
         )
 
