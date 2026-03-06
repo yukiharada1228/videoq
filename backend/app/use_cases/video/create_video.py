@@ -10,8 +10,8 @@ from app.domain.video.entities import VideoEntity
 from app.domain.video.gateways import VideoTaskGateway
 from app.domain.video.ports import FileUrlResolver
 from app.domain.video.repositories import VideoRepository
-from app.use_cases.video.dto import CreateVideoInput
-from app.use_cases.video.file_url import resolve_video_file_urls
+from app.use_cases.video.dto import CreateVideoInput, VideoResponseDTO
+from app.use_cases.video.file_url import to_video_response_dto
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +34,7 @@ class CreateVideoUseCase:
         self.task_queue = task_queue
         self.file_url_resolver = file_url_resolver
 
-    def execute(self, user_id: int, video_limit, input: CreateVideoInput):
+    def execute(self, user_id: int, video_limit, input: CreateVideoInput) -> VideoResponseDTO:
         """
         Args:
             user_id: ID of the authenticated user.
@@ -42,7 +42,7 @@ class CreateVideoUseCase:
             input: Typed input DTO from the presentation layer.
 
         Returns:
-            VideoEntity: The newly created video entity.
+            VideoResponseDTO: The newly created video with resolved file_url.
 
         Raises:
             VideoLimitExceeded: If the user has reached their upload limit.
@@ -60,5 +60,4 @@ class CreateVideoUseCase:
         logger.info(f"Enqueueing transcription task for video ID: {video.id}")
         self.task_queue.enqueue_transcription(video.id)
 
-        resolve_video_file_urls([video], self.file_url_resolver)
-        return video
+        return to_video_response_dto(video, self.file_url_resolver)

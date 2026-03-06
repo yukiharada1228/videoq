@@ -1,11 +1,23 @@
 """
-Output DTOs for chat use cases.
-Decouples business logic output from HTTP response formatting.
+DTOs for chat use cases.
+- Input DTOs: public API for callers (presentation layer).
+- Output DTOs: decouples business logic output from HTTP response formatting.
 """
 
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import List, Optional
+
+
+@dataclass(frozen=True)
+class ChatMessageInput:
+    """
+    Input DTO for a single chat message at the presentation→use_case boundary.
+    Presentation constructs this; the use case maps it to ChatMessageDTO internally.
+    """
+
+    role: str
+    content: str
 
 
 @dataclass

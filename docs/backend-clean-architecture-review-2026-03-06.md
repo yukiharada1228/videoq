@@ -1,53 +1,56 @@
 # Backend Clean Architecture Review (2026-03-06)
 
-## Findings (Severity Order)
-
-### 1. Medium: Domain entity carries presentation-oriented data and is mutated in use cases
+## Scope
+- Target: `backend/app`
+- Goal: クリーンアーキテクチャ観点で依存方向・境界・運用性をレビュー
 - Evidence:
-  - `VideoEntity` has both persistence key and resolved URL fields: [backend/app/domain/video/entities.py](/Users/yukiharada/dev/videoq/backend/app/domain/video/entities.py:41), [backend/app/domain/video/entities.py](/Users/yukiharada/dev/videoq/backend/app/domain/video/entities.py:42)
-  - Use-case helper mutates `file_url` in place: [backend/app/use_cases/video/file_url.py](/Users/yukiharada/dev/videoq/backend/app/use_cases/video/file_url.py:14), [backend/app/use_cases/video/file_url.py](/Users/yukiharada/dev/videoq/backend/app/use_cases/video/file_url.py:17)
-- Why it matters:
-  - In clean architecture, entities ideally hold business state/invariants only. `file_url` is delivery/integration-oriented projection data, and in-place mutation in use cases mixes application mapping concerns into core objects.
-- Recommendation:
-  - Keep `VideoEntity` with `file_key` only, and map to response DTO/view-model in use case or presenter layer.
-
-### 2. Low: Presentation layer depends directly on domain chat DTO
-- Evidence:
-  - Direct import: [backend/app/presentation/chat/views.py](/Users/yukiharada/dev/videoq/backend/app/presentation/chat/views.py:15)
-  - Direct construction in view: [backend/app/presentation/chat/views.py](/Users/yukiharada/dev/videoq/backend/app/presentation/chat/views.py:95)
-- Why it matters:
-  - This couples HTTP adapter to domain contract. If domain message schema changes, presentation is directly impacted.
-- Recommendation:
-  - Define input DTO in `use_cases/chat/dto.py` and let use case map to domain DTO internally.
-
-### 3. Low: Repository contracts include query/UI-oriented knobs
-- Evidence:
-  - `VideoRepository.list_for_user` takes `q`, `ordering`, `include_transcript`, `include_groups`: [backend/app/domain/video/repositories.py](/Users/yukiharada/dev/videoq/backend/app/domain/video/repositories.py:34)
-  - `VideoGroupRepository.list_for_user` takes `annotate_only`: [backend/app/domain/video/repositories.py](/Users/yukiharada/dev/videoq/backend/app/domain/video/repositories.py:109)
-- Why it matters:
-  - Domain ports are trending toward ORM/query-optimization concerns instead of use-case language. It can make core contracts less stable and less intention-revealing.
-- Recommendation:
-  - Replace multiple flags with use-case-specific query objects or split read-model/query services from domain repositories.
-
-## What Is Working Well
-
-- Layering is explicit and consistent (`domain`, `use_cases`, `infrastructure`, `presentation`, `entrypoints`, `composition_root`).
-- Dependency direction is strongly guarded by import-rule tests:
-  - [backend/app/tests/test_import_rules.py](/Users/yukiharada/dev/videoq/backend/app/tests/test_import_rules.py:1)
-- DI wiring is centralized in composition root and consumed via dependencies adapters:
-  - [backend/app/composition_root/video.py](/Users/yukiharada/dev/videoq/backend/app/composition_root/video.py:1)
-  - [backend/app/dependencies/video.py](/Users/yukiharada/dev/videoq/backend/app/dependencies/video.py:1)
-- Presentation is mostly thin HTTP adapter code delegating to use cases.
-
-## Test Result Used for Review
-
-- Executed:
-  - `docker compose exec backend python manage.py test app.tests.test_import_rules -v 2 --keepdb`
-- Result:
-  - `36` tests passed, `0` failures.
+  - 静的確認（層間 import / DI 配線 / 代表実装）
+  - テスト実行: `docker compose exec backend python manage.py test app.tests.test_import_rules -v 2 --keepdb`
 
 ## Verdict
+バックエンドは**概ねクリーンアーキテクチャを満たしています**。  
+`domain/use_cases` から `django/infrastructure` への逆依存は確認されず、`composition_root` で依存注入が行われています。
 
-- Current backend is **largely aligned with clean architecture**.
-- No critical boundary break was found.
-- Addressing the medium finding (entity pollution with `file_url`) would improve architectural purity and long-term maintainability.
+## Findings (Severity順)
+
+### 1. Medium: Chat入力バリデーションがSerializerを実質バイパスしている
+- File: `backend/app/presentation/chat/views.py:73`, `backend/app/presentation/chat/views.py:91`, `backend/app/presentation/chat/views.py:95`
+- Detail:
+  - OpenAPI上は `ChatRequestSerializer` を要求している一方、`post()` 内では `request.data` を直接読み取り、`MessageSerializer` の `role` 制約などを通していません。
+  - その結果、プレゼンテーション層の責務（I/O妥当性検証）が弱まり、ユースケース側に不正データが流れ込みやすくなります。
+- Recommendation:
+  - `ChatRequestSerializer(data=request.data)` を必須化し、`validated_data` から `ChatMessageInput` を生成する。
+
+### 2. Low: 同じ「グループ未検出」でユースケース間の契約が不統一
+- File: `backend/app/use_cases/chat/get_history.py:27`, `backend/app/use_cases/chat/export_history.py:35`
+- Detail:
+  - `GetChatHistoryUseCase` は未検出時に `[]` を返却。
+  - `ExportChatHistoryUseCase` は未検出時に `ResourceNotFound` を送出。
+  - 同じコンテキストで失敗表現が分かれており、プレゼンテーション層の解釈負担と挙動差を生みます。
+- Recommendation:
+  - 「未検出は例外」または「未検出は空配列」に統一する。
+
+### 3. Low: ユースケース内ヘルパーの命名・型がORM漏れを連想させる
+- File: `backend/app/use_cases/chat/export_history.py:42`
+- Detail:
+  - `_build_rows(queryset)` は実体として `ChatLogEntity` の列を処理していますが、`queryset` という命名と未型注釈により、ORM依存が紛れ込んでも検知しづらい状態です。
+- Recommendation:
+  - 例: `_build_rows(logs: list[ChatLogEntity])` など、境界に沿った命名・型注釈へ変更。
+
+## Positive Evidence
+- `domain` と `use_cases` の import 方向が内向きに保たれている。
+- 依存注入は `composition_root` に集約（例: `backend/app/composition_root/video.py:1`）。
+- 境界ルールを自動検証するテストが存在（`backend/app/tests/test_import_rules.py:193` 以降）。
+- 上記 import ルールテストは **36件すべて成功**。
+
+## Test Result
+- Command:
+  - `docker compose exec backend python manage.py test app.tests.test_import_rules -v 2 --keepdb`
+- Result:
+  - `Ran 36 tests ... OK`
+
+## Summary
+- 現状評価: **Clean Architecture準拠（高）**
+- 優先対応:
+  1. `ChatView` の Serializer 経由バリデーションを徹底
+  2. chat系ユースケースの「未検出時契約」を統一

@@ -5,17 +5,16 @@ from unittest.mock import MagicMock
 
 from app.domain.chat.dtos import ChatMessageDTO, RelatedVideoDTO
 from app.domain.chat.gateways import RagResult
+from app.use_cases.chat.dto import ChatMessageInput
 from app.use_cases.chat.send_message import SendMessageUseCase
 from app.use_cases.shared.exceptions import PermissionDenied
 
 
 class ChatDTOTests(unittest.TestCase):
-    def test_chat_message_dict_to_dto(self):
-        raw = {"role": "user", "content": "hello"}
-        dto = ChatMessageDTO.from_dict(raw)
-        self.assertEqual(dto.role, "user")
-        self.assertEqual(dto.content, "hello")
-        self.assertEqual(dto.to_dict(), raw)
+    def test_chat_message_input_fields(self):
+        inp = ChatMessageInput(role="user", content="hello")
+        self.assertEqual(inp.role, "user")
+        self.assertEqual(inp.content, "hello")
 
     def test_related_video_dict_to_dto(self):
         raw = {
@@ -58,19 +57,19 @@ class SendMessageUseCaseBoundaryTests(unittest.TestCase):
         )
         return use_case, chat_repo, group_query_repo, rag_gateway
 
-    def test_execute_passes_dto_messages_to_gateway(self):
-        """UseCase must pass ChatMessageDTO list to rag_gateway, not raw dicts."""
+    def test_execute_converts_input_to_domain_dto_for_gateway(self):
+        """UseCase must convert ChatMessageInput to ChatMessageDTO before calling rag_gateway."""
         rag_result = RagResult(content="reply", query_text="q", related_videos=None)
         use_case, _, _, rag_gateway = self._make_use_case(rag_result)
 
-        message_dtos = [ChatMessageDTO(role="user", content="hello")]
-        use_case.execute(user_id=1, messages=message_dtos)
+        message_inputs = [ChatMessageInput(role="user", content="hello")]
+        use_case.execute(user_id=1, messages=message_inputs)
 
         call_args = rag_gateway.generate_reply.call_args
         passed_messages = call_args[1]["messages"]
         self.assertTrue(
             all(isinstance(m, ChatMessageDTO) for m in passed_messages),
-            "rag_gateway must receive ChatMessageDTO instances, not dicts",
+            "rag_gateway must receive ChatMessageDTO instances converted from ChatMessageInput",
         )
 
     def test_result_related_videos_are_dtos(self):
@@ -86,8 +85,8 @@ class SendMessageUseCaseBoundaryTests(unittest.TestCase):
         group_query_repo.get_with_members.return_value = group
         chat_repo.create_log.return_value = MagicMock(id=99, feedback=None)
 
-        message_dtos = [ChatMessageDTO(role="user", content="hello")]
-        result = use_case.execute(user_id=1, messages=message_dtos, group_id=10)
+        message_inputs = [ChatMessageInput(role="user", content="hello")]
+        result = use_case.execute(user_id=1, messages=message_inputs, group_id=10)
 
         self.assertIsNotNone(result.related_videos)
         self.assertTrue(
@@ -108,7 +107,7 @@ class SendMessageUseCaseBoundaryTests(unittest.TestCase):
         group_query_repo.get_with_members.return_value = group
         chat_repo.create_log.return_value = MagicMock(id=1, feedback=None)
 
-        use_case.execute(user_id=1, messages=[ChatMessageDTO(role="user", content="q")], group_id=5)
+        use_case.execute(user_id=1, messages=[ChatMessageInput(role="user", content="q")], group_id=5)
 
         call_kwargs = chat_repo.create_log.call_args[1]
         passed_videos = call_kwargs["related_videos"]
@@ -139,7 +138,7 @@ class SendMessageNullabilityTests(unittest.TestCase):
         with self.assertRaises(PermissionDenied):
             use_case.execute(
                 user_id=None,
-                messages=[ChatMessageDTO(role="user", content="hello")],
+                messages=[ChatMessageInput(role="user", content="hello")],
             )
 
         rag_gateway.generate_reply.assert_not_called()
@@ -149,7 +148,7 @@ class SendMessageNullabilityTests(unittest.TestCase):
         use_case, rag_gateway = self._make_use_case()
 
         try:
-            use_case.execute(user_id=None, messages=[ChatMessageDTO(role="user", content="x")])
+            use_case.execute(user_id=None, messages=[ChatMessageInput(role="user", content="x")])
         except PermissionDenied:
             pass
 

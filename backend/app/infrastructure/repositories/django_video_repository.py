@@ -15,6 +15,7 @@ from app.domain.video.dto import (
     UpdateGroupParams,
     UpdateTagParams,
     UpdateVideoParams,
+    VideoListQuery,
 )
 from app.domain.video.entities import (
     TagEntity,
@@ -135,31 +136,24 @@ class DjangoVideoRepository(VideoRepository):
     def list_for_user(
         self,
         user_id: int,
-        q: str = "",
-        status: str = "",
-        ordering: str = "",
-        tag_ids: Optional[List[int]] = None,
-        include_transcript: bool = False,
-        include_groups: bool = False,
+        query: Optional[VideoListQuery] = None,
     ) -> List[VideoEntity]:
         from django.db.models import Q
 
-        queryset = QueryOptimizer.get_videos_with_metadata(
-            user_id=user_id,
-            include_transcript=include_transcript,
-            include_groups=include_groups,
-        )
+        q_obj = query or VideoListQuery()
 
-        if q:
+        queryset = QueryOptimizer.get_videos_with_metadata(user_id=user_id)
+
+        if q_obj.q:
             queryset = queryset.filter(
-                Q(title__icontains=q) | Q(description__icontains=q)
+                Q(title__icontains=q_obj.q) | Q(description__icontains=q_obj.q)
             )
 
-        if status:
-            queryset = queryset.filter(status=status)
+        if q_obj.status:
+            queryset = queryset.filter(status=q_obj.status)
 
-        if tag_ids:
-            for tag_id in tag_ids:
+        if q_obj.tag_ids:
+            for tag_id in q_obj.tag_ids:
                 queryset = queryset.filter(tags__id=tag_id)
 
         ordering_map = {
@@ -168,8 +162,8 @@ class DjangoVideoRepository(VideoRepository):
             "title_asc": "title",
             "title_desc": "-title",
         }
-        if ordering in ordering_map:
-            queryset = queryset.order_by(ordering_map[ordering])
+        if q_obj.ordering in ordering_map:
+            queryset = queryset.order_by(ordering_map[q_obj.ordering])
 
         return [_video_to_entity(v) for v in queryset]
 

@@ -4,10 +4,11 @@ Use case: List videos for a user with optional filters.
 
 from typing import List, Optional
 
-from app.domain.video.entities import VideoEntity
+from app.domain.video.dto import VideoListQuery
 from app.domain.video.ports import FileUrlResolver
 from app.domain.video.repositories import VideoRepository
-from app.use_cases.video.file_url import resolve_video_file_urls
+from app.use_cases.video.dto import VideoResponseDTO
+from app.use_cases.video.file_url import to_video_response_dtos
 
 
 class ListVideosUseCase:
@@ -28,13 +29,7 @@ class ListVideosUseCase:
         status: str = "",
         ordering: str = "",
         tag_ids: Optional[List[int]] = None,
-    ) -> List[VideoEntity]:
-        videos = self.video_repo.list_for_user(
-            user_id=user_id,
-            q=q,
-            status=status,
-            ordering=ordering,
-            tag_ids=tag_ids,
-        )
-        resolve_video_file_urls(videos, self.file_url_resolver)
-        return videos
+    ) -> List[VideoResponseDTO]:
+        query = VideoListQuery(q=q, status=status, ordering=ordering, tag_ids=tag_ids)
+        videos = self.video_repo.list_for_user(user_id=user_id, query=query)
+        return to_video_response_dtos(videos, self.file_url_resolver)

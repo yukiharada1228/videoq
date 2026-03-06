@@ -6,8 +6,8 @@ from typing import Optional
 
 from app.domain.video.ports import FileUrlResolver
 from app.domain.video.repositories import VideoRepository
-from app.domain.video.entities import VideoEntity
-from app.use_cases.video.file_url import resolve_video_file_urls
+from app.use_cases.video.dto import VideoResponseDTO
+from app.use_cases.video.file_url import to_video_response_dto
 
 
 class GetVideoDetailUseCase:
@@ -19,9 +19,8 @@ class GetVideoDetailUseCase:
         self.video_repo = video_repo
         self.file_url_resolver = file_url_resolver
 
-    def execute(self, video_id: int, user_id: int) -> Optional[VideoEntity]:
+    def execute(self, video_id: int, user_id: int) -> Optional[VideoResponseDTO]:
         video = self.video_repo.get_by_id(video_id, user_id)
         if video is None:
             return None
-        resolve_video_file_urls([video], self.file_url_resolver)
-        return video
+        return to_video_response_dto(video, self.file_url_resolver)
