@@ -5,7 +5,6 @@ Django ORM implementations of video domain repository interfaces.
 import logging
 from typing import Dict, List, Optional, Tuple
 
-from django.core.files.base import ContentFile
 from django.db import transaction
 from django.db.models import Count, Max, Prefetch
 
@@ -26,6 +25,7 @@ from app.domain.video.entities import (
 )
 from app.domain.video.exceptions import (
     GroupVideoOrderMismatch,
+    InvalidVideoStatusTransition,
     SomeTagsNotFound,
     SomeVideosNotFound,
     TagNotAttachedToVideo,
@@ -37,6 +37,7 @@ from app.domain.video.repositories import (
     VideoGroupRepository,
     VideoRepository,
 )
+from app.domain.video.status import VideoStatus
 from app.models import Tag, Video, VideoGroup, VideoGroupMember, VideoTag
 from app.infrastructure.common.query_optimizer import QueryOptimizer
 
@@ -179,7 +180,7 @@ class DjangoVideoRepository(VideoRepository):
     def create(self, user_id: int, params: CreateVideoParams) -> VideoEntity:
         video = Video.objects.create(
             user_id=user_id,
-            file=ContentFile(params.file_bytes, name=params.file_name),
+            file=params.upload_file,
             title=params.title,
             description=params.description,
         )
@@ -260,14 +261,19 @@ class DjangoVideoRepository(VideoRepository):
             return None
         return _video_to_entity(video)
 
-    def mark_processing(self, video_id: int) -> None:
-        Video.objects.filter(id=video_id).update(status="processing", error_message="")
-
-    def mark_completed(self, video_id: int) -> None:
-        Video.objects.filter(id=video_id).update(status="completed", error_message="")
-
-    def mark_error(self, video_id: int, error_message: str) -> None:
-        Video.objects.filter(id=video_id).update(status="error", error_message=error_message)
+    def transition_status(
+        self,
+        video_id: int,
+        from_status: VideoStatus,
+        to_status: VideoStatus,
+        error_message: str = "",
+    ) -> None:
+        updated = Video.objects.filter(id=video_id, status=from_status.value).update(
+            status=to_status.value,
+            error_message=error_message,
+        )
+        if updated == 0:
+            raise InvalidVideoStatusTransition(from_status.value, to_status.value)
 
     def save_transcript(self, video_id: int, transcript: str) -> None:
         Video.objects.filter(id=video_id).update(transcript=transcript)

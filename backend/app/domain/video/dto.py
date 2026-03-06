@@ -6,7 +6,16 @@ No Django / ORM / external service dependencies.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import List, Optional, Protocol, runtime_checkable
+
+
+@runtime_checkable
+class UploadFileSource(Protocol):
+    """Minimal uploaded file contract accepted by repository create APIs."""
+
+    name: str
+
+    def read(self, size: int = -1) -> bytes: ...
 
 
 @dataclass(frozen=True)
@@ -27,8 +36,7 @@ class VideoSearchCriteria:
 class CreateVideoParams:
     """Parameters for creating a new video record."""
 
-    file_name: str
-    file_bytes: bytes
+    upload_file: UploadFileSource
     title: str
     description: str
 

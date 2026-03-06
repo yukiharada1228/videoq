@@ -4,6 +4,7 @@ from unittest import TestCase
 
 from app.domain.video.entities import VideoEntity
 from app.domain.video.exceptions import InvalidVideoStatusTransition
+from app.domain.video.status import VideoStatus
 from app.use_cases.video.run_transcription import RunTranscriptionUseCase
 
 
@@ -16,19 +17,17 @@ class _FakeVideoTranscriptionRepository:
             return None
         return self.video
 
-    def mark_processing(self, video_id: int) -> None:
+    def transition_status(
+        self,
+        video_id: int,
+        from_status: VideoStatus,
+        to_status: VideoStatus,
+        error_message: str = "",
+    ) -> None:
         if self.video and self.video.id == video_id:
-            self.video.status = "processing"
-            self.video.error_message = ""
-
-    def mark_completed(self, video_id: int) -> None:
-        if self.video and self.video.id == video_id:
-            self.video.status = "completed"
-            self.video.error_message = ""
-
-    def mark_error(self, video_id: int, error_message: str) -> None:
-        if self.video and self.video.id == video_id:
-            self.video.status = "error"
+            if self.video.status != from_status.value:
+                raise InvalidVideoStatusTransition(from_status.value, to_status.value)
+            self.video.status = to_status.value
             self.video.error_message = error_message
 
     def save_transcript(self, video_id: int, transcript: str) -> None:
@@ -99,4 +98,3 @@ class RunTranscriptionUseCaseTests(TestCase):
 
         with self.assertRaises(InvalidVideoStatusTransition):
             use_case.execute(video.id)
-
