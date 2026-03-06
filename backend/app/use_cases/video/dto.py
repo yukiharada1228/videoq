@@ -1,7 +1,7 @@
 """
 Use-case DTOs for the video domain.
 - Input DTOs: public API for callers (presentation layer).
-- Response DTOs: output boundary — entities + resolved file_url — consumed by serializers.
+- Response DTOs: output boundary — entities + resolved file_url.
 """
 
 from __future__ import annotations
@@ -81,7 +81,6 @@ class VideoResponseDTO:
     """
     Use-case output DTO for a single video.
     Carries all VideoEntity fields plus the resolved file_url.
-    Serializers consume this via duck-typed attribute access.
     """
 
     id: int
@@ -95,10 +94,6 @@ class VideoResponseDTO:
     uploaded_at: Optional[datetime] = None
     transcript: Optional[str] = None
     tags: List = field(default_factory=list)
-
-    @property
-    def pk(self) -> int:
-        return self.id
 
 
 @dataclass
@@ -130,10 +125,6 @@ class VideoGroupDetailResponseDTO:
     share_token: Optional[str] = None
     members: List[VideoGroupMemberResponseDTO] = field(default_factory=list)
 
-    @property
-    def pk(self) -> int:
-        return self.id
-
 
 @dataclass
 class TagDetailResponseDTO:
@@ -149,7 +140,3 @@ class TagDetailResponseDTO:
     video_count: int
     created_at: Optional[datetime] = None
     videos: List[VideoResponseDTO] = field(default_factory=list)
-
-    @property
-    def pk(self) -> int:
-        return self.id

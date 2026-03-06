@@ -13,7 +13,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from app.presentation.common.responses import create_error_response
-from app.dependencies import video as video_dependencies
+from app.composition_root import video as video_composition
 from app.use_cases.video.dto import (
     CreateGroupInput,
     CreateTagInput,
@@ -61,8 +61,8 @@ class VideoListView(AuthenticatedViewMixin, generics.GenericAPIView):
     """List videos and upload a new video."""
 
     serializer_class = VideoListSerializer
-    get_list_videos_use_case = staticmethod(video_dependencies.get_list_videos_use_case)
-    get_create_video_use_case = staticmethod(video_dependencies.get_create_video_use_case)
+    list_videos_use_case = video_composition.get_list_videos_use_case()
+    create_video_use_case = video_composition.get_create_video_use_case()
 
     @extend_schema(
         responses={200: VideoListSerializer(many=True)},
@@ -82,7 +82,7 @@ class VideoListView(AuthenticatedViewMixin, generics.GenericAPIView):
             except ValueError:
                 pass
 
-        use_case = self.get_list_videos_use_case()
+        use_case = self.list_videos_use_case
         videos = use_case.execute(
             user_id=request.user.id,
             q=q,
@@ -105,7 +105,7 @@ class VideoListView(AuthenticatedViewMixin, generics.GenericAPIView):
         serializer = VideoCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        use_case = self.get_create_video_use_case()
+        use_case = self.create_video_use_case
         try:
             input_dto = CreateVideoInput(**serializer.validated_data)
             video = use_case.execute(request.user.id, request.user.video_limit, input_dto)
@@ -122,12 +122,12 @@ class VideoListView(AuthenticatedViewMixin, generics.GenericAPIView):
 class VideoDetailView(AuthenticatedViewMixin, APIView):
     """Retrieve, update, and delete a video."""
 
-    get_video_detail_use_case = staticmethod(video_dependencies.get_video_detail_use_case)
-    get_update_video_use_case = staticmethod(video_dependencies.get_update_video_use_case)
-    get_delete_video_use_case = staticmethod(video_dependencies.get_delete_video_use_case)
+    video_detail_use_case = video_composition.get_video_detail_use_case()
+    update_video_use_case = video_composition.get_update_video_use_case()
+    delete_video_use_case = video_composition.get_delete_video_use_case()
 
     def _get_video(self, pk, user_id):
-        return self.get_video_detail_use_case().execute(pk, user_id)
+        return self.video_detail_use_case.execute(pk, user_id)
 
     @extend_schema(
         responses={200: VideoSerializer},
@@ -155,7 +155,7 @@ class VideoDetailView(AuthenticatedViewMixin, APIView):
         serializer = VideoUpdateSerializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
 
-        use_case = self.get_update_video_use_case()
+        use_case = self.update_video_use_case
         try:
             data = serializer.validated_data
             input_dto = UpdateVideoInput(
@@ -173,7 +173,7 @@ class VideoDetailView(AuthenticatedViewMixin, APIView):
         return self.patch(request, pk)
 
     def delete(self, request, pk):
-        use_case = self.get_delete_video_use_case()
+        use_case = self.delete_video_use_case
         try:
             use_case.execute(pk, request.user.id)
         except ResourceNotFound:
@@ -190,9 +190,9 @@ class VideoGroupListView(AuthenticatedViewMixin, generics.GenericAPIView):
     """List and create video groups."""
 
     serializer_class = VideoGroupListSerializer
-    get_list_groups_use_case = staticmethod(video_dependencies.get_list_groups_use_case)
-    get_create_group_use_case = staticmethod(video_dependencies.get_create_group_use_case)
-    get_video_group_use_case = staticmethod(video_dependencies.get_video_group_use_case)
+    list_groups_use_case = video_composition.get_list_groups_use_case()
+    create_group_use_case = video_composition.get_create_group_use_case()
+    video_group_use_case = video_composition.get_video_group_use_case()
 
     @extend_schema(
         responses={200: VideoGroupListSerializer(many=True)},
@@ -200,7 +200,7 @@ class VideoGroupListView(AuthenticatedViewMixin, generics.GenericAPIView):
         description="Return all video groups for the current user.",
     )
     def get(self, request, *args, **kwargs):
-        use_case = self.get_list_groups_use_case()
+        use_case = self.list_groups_use_case
         groups = use_case.execute(user_id=request.user.id, annotate_only=True)
         return Response(VideoGroupListSerializer(groups, many=True).data)
 
@@ -214,12 +214,12 @@ class VideoGroupListView(AuthenticatedViewMixin, generics.GenericAPIView):
         serializer = VideoGroupCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        use_case = self.get_create_group_use_case()
+        use_case = self.create_group_use_case
         input_dto = CreateGroupInput(**serializer.validated_data)
         group = use_case.execute(request.user.id, input_dto)
 
         # Re-fetch with videos for detail response
-        detail_use_case = self.get_video_group_use_case()
+        detail_use_case = self.video_group_use_case
         try:
             group = detail_use_case.execute(group.id, request.user.id, include_videos=True)
         except ResourceNotFound:
@@ -235,9 +235,9 @@ class VideoGroupListView(AuthenticatedViewMixin, generics.GenericAPIView):
 class VideoGroupDetailView(AuthenticatedViewMixin, APIView):
     """Retrieve, update, and delete a video group."""
 
-    get_video_group_use_case = staticmethod(video_dependencies.get_video_group_use_case)
-    get_update_group_use_case = staticmethod(video_dependencies.get_update_group_use_case)
-    get_delete_group_use_case = staticmethod(video_dependencies.get_delete_group_use_case)
+    video_group_use_case = video_composition.get_video_group_use_case()
+    update_group_use_case = video_composition.get_update_group_use_case()
+    delete_group_use_case = video_composition.get_delete_group_use_case()
 
     @extend_schema(
         responses={200: VideoGroupDetailSerializer},
@@ -245,7 +245,7 @@ class VideoGroupDetailView(AuthenticatedViewMixin, APIView):
         description="Return a video group by ID.",
     )
     def get(self, request, pk):
-        use_case = self.get_video_group_use_case()
+        use_case = self.video_group_use_case
         try:
             group = use_case.execute(pk, request.user.id, include_videos=True)
         except ResourceNotFound:
@@ -263,7 +263,7 @@ class VideoGroupDetailView(AuthenticatedViewMixin, APIView):
         serializer = VideoGroupUpdateSerializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
 
-        use_case = self.get_update_group_use_case()
+        use_case = self.update_group_use_case
         try:
             data = serializer.validated_data
             input_dto = UpdateGroupInput(
@@ -275,7 +275,7 @@ class VideoGroupDetailView(AuthenticatedViewMixin, APIView):
             return create_error_response("Group not found", status.HTTP_404_NOT_FOUND)
 
         # Re-fetch with videos
-        detail_use_case = self.get_video_group_use_case()
+        detail_use_case = self.video_group_use_case
         try:
             group = detail_use_case.execute(pk, request.user.id, include_videos=True)
         except ResourceNotFound:
@@ -288,7 +288,7 @@ class VideoGroupDetailView(AuthenticatedViewMixin, APIView):
         return self.patch(request, pk)
 
     def delete(self, request, pk):
-        use_case = self.get_delete_group_use_case()
+        use_case = self.delete_group_use_case
         try:
             use_case.execute(pk, request.user.id)
         except ResourceNotFound:
@@ -300,7 +300,7 @@ class AddVideoToGroupView(AuthenticatedViewMixin, APIView):
     """Add a single video to a group."""
 
     serializer_class = AddVideoToGroupResponseSerializer
-    get_add_video_to_group_use_case = staticmethod(video_dependencies.get_add_video_to_group_use_case)
+    add_video_to_group_use_case = video_composition.get_add_video_to_group_use_case()
 
     @extend_schema(
         responses={201: AddVideoToGroupResponseSerializer},
@@ -309,7 +309,7 @@ class AddVideoToGroupView(AuthenticatedViewMixin, APIView):
         operation_id="video_groups_add_single_video",
     )
     def post(self, request, group_id, video_id):
-        use_case = self.get_add_video_to_group_use_case()
+        use_case = self.add_video_to_group_use_case
         try:
             member = use_case.execute(group_id, video_id, request.user.id)
         except ResourceNotFound as e:
@@ -334,14 +334,14 @@ class AddVideoToGroupView(AuthenticatedViewMixin, APIView):
 def add_videos_to_group(
     request,
     group_id,
-    get_add_videos_to_group_use_case=video_dependencies.get_add_videos_to_group_use_case,
+    add_videos_to_group_use_case=video_composition.get_add_videos_to_group_use_case(),
 ):
     """Add multiple videos to group."""
     video_ids = request.data.get("video_ids", [])
     if not video_ids:
         return create_error_response("Video ID not specified", status.HTTP_400_BAD_REQUEST)
 
-    use_case = get_add_videos_to_group_use_case()
+    use_case = add_videos_to_group_use_case
     try:
         added_count, skipped_count = use_case.execute(group_id, video_ids, request.user.id)
     except ResourceNotFound as e:
@@ -367,10 +367,10 @@ def remove_video_from_group(
     request,
     group_id,
     video_id,
-    get_remove_video_from_group_use_case=video_dependencies.get_remove_video_from_group_use_case,
+    remove_video_from_group_use_case=video_composition.get_remove_video_from_group_use_case(),
 ):
     """Remove video from group."""
-    use_case = get_remove_video_from_group_use_case()
+    use_case = remove_video_from_group_use_case
     try:
         use_case.execute(group_id, video_id, request.user.id)
     except ResourceNotFound as e:
@@ -391,14 +391,14 @@ def remove_video_from_group(
 def reorder_videos_in_group(
     request,
     group_id,
-    get_reorder_videos_use_case=video_dependencies.get_reorder_videos_use_case,
+    reorder_videos_use_case=video_composition.get_reorder_videos_use_case(),
 ):
     """Update video order in group."""
     video_ids = request.data.get("video_ids", [])
     if not isinstance(video_ids, list):
         return create_error_response("video_ids must be an array", status.HTTP_400_BAD_REQUEST)
 
-    use_case = get_reorder_videos_use_case()
+    use_case = reorder_videos_use_case
     try:
         use_case.execute(group_id, video_ids, request.user.id)
     except ResourceNotFound as e:
@@ -413,7 +413,7 @@ class CreateShareLinkView(AuthenticatedViewMixin, APIView):
     """Generate a share link for a group."""
 
     serializer_class = ShareLinkResponseSerializer
-    get_create_share_link_use_case = staticmethod(video_dependencies.get_create_share_link_use_case)
+    create_share_link_use_case = video_composition.get_create_share_link_use_case()
 
     @extend_schema(
         responses={201: ShareLinkResponseSerializer},
@@ -421,7 +421,7 @@ class CreateShareLinkView(AuthenticatedViewMixin, APIView):
         description="Generate a share link token for a group.",
     )
     def post(self, request, group_id):
-        use_case = self.get_create_share_link_use_case()
+        use_case = self.create_share_link_use_case
         try:
             share_token = use_case.execute(group_id, request.user.id)
         except ResourceNotFound as e:
@@ -442,10 +442,10 @@ class CreateShareLinkView(AuthenticatedViewMixin, APIView):
 def delete_share_link(
     request,
     group_id,
-    get_delete_share_link_use_case=video_dependencies.get_delete_share_link_use_case,
+    delete_share_link_use_case=video_composition.get_delete_share_link_use_case(),
 ):
     """Disable share link for group."""
-    use_case = get_delete_share_link_use_case()
+    use_case = delete_share_link_use_case
     try:
         use_case.execute(group_id, request.user.id)
     except ResourceNotFound as e:
@@ -467,10 +467,10 @@ def delete_share_link(
 def get_shared_group(
     request,
     share_token,
-    get_shared_group_use_case=video_dependencies.get_shared_group_use_case,
+    shared_group_use_case=video_composition.get_shared_group_use_case(),
 ):
     """Get group by share token (no authentication required)."""
-    use_case = get_shared_group_use_case()
+    use_case = shared_group_use_case
     try:
         group = use_case.execute(share_token)
     except ResourceNotFound:
@@ -489,8 +489,8 @@ class TagListView(AuthenticatedViewMixin, generics.GenericAPIView):
     """List and create tags."""
 
     serializer_class = TagListSerializer
-    get_list_tags_use_case = staticmethod(video_dependencies.get_list_tags_use_case)
-    get_create_tag_use_case = staticmethod(video_dependencies.get_create_tag_use_case)
+    list_tags_use_case = video_composition.get_list_tags_use_case()
+    create_tag_use_case = video_composition.get_create_tag_use_case()
 
     @extend_schema(
         responses={200: TagListSerializer(many=True)},
@@ -499,7 +499,7 @@ class TagListView(AuthenticatedViewMixin, generics.GenericAPIView):
         operation_id="tags_list",
     )
     def get(self, request, *args, **kwargs):
-        use_case = self.get_list_tags_use_case()
+        use_case = self.list_tags_use_case
         tags = use_case.execute(user_id=request.user.id)
         return Response(TagListSerializer(tags, many=True).data)
 
@@ -514,7 +514,7 @@ class TagListView(AuthenticatedViewMixin, generics.GenericAPIView):
         serializer = TagCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        use_case = self.get_create_tag_use_case()
+        use_case = self.create_tag_use_case
         input_dto = CreateTagInput(**serializer.validated_data)
         tag = use_case.execute(request.user.id, input_dto)
         return Response(TagListSerializer(tag).data, status=status.HTTP_201_CREATED)
@@ -523,9 +523,9 @@ class TagListView(AuthenticatedViewMixin, generics.GenericAPIView):
 class TagDetailView(AuthenticatedViewMixin, APIView):
     """Retrieve, update, and delete a tag."""
 
-    get_tag_detail_use_case = staticmethod(video_dependencies.get_tag_detail_use_case)
-    get_update_tag_use_case = staticmethod(video_dependencies.get_update_tag_use_case)
-    get_delete_tag_use_case = staticmethod(video_dependencies.get_delete_tag_use_case)
+    tag_detail_use_case = video_composition.get_tag_detail_use_case()
+    update_tag_use_case = video_composition.get_update_tag_use_case()
+    delete_tag_use_case = video_composition.get_delete_tag_use_case()
 
     @extend_schema(
         responses={200: TagDetailSerializer},
@@ -533,7 +533,7 @@ class TagDetailView(AuthenticatedViewMixin, APIView):
         description="Return a tag with its associated videos.",
     )
     def get(self, request, pk):
-        use_case = self.get_tag_detail_use_case()
+        use_case = self.tag_detail_use_case
         try:
             tag = use_case.execute(pk, request.user.id)
         except ResourceNotFound:
@@ -551,7 +551,7 @@ class TagDetailView(AuthenticatedViewMixin, APIView):
         serializer = TagUpdateSerializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
 
-        use_case = self.get_update_tag_use_case()
+        use_case = self.update_tag_use_case
         try:
             data = serializer.validated_data
             input_dto = UpdateTagInput(
@@ -563,7 +563,7 @@ class TagDetailView(AuthenticatedViewMixin, APIView):
             return create_error_response("Tag not found", status.HTTP_404_NOT_FOUND)
 
         # Re-fetch with videos for detail response
-        detail_use_case = self.get_tag_detail_use_case()
+        detail_use_case = self.tag_detail_use_case
         try:
             tag = detail_use_case.execute(pk, request.user.id)
         except ResourceNotFound:
@@ -576,7 +576,7 @@ class TagDetailView(AuthenticatedViewMixin, APIView):
         return self.patch(request, pk)
 
     def delete(self, request, pk):
-        use_case = self.get_delete_tag_use_case()
+        use_case = self.delete_tag_use_case
         try:
             use_case.execute(pk, request.user.id)
         except ResourceNotFound:
@@ -593,14 +593,14 @@ class TagDetailView(AuthenticatedViewMixin, APIView):
 def add_tags_to_video(
     request,
     video_id,
-    get_add_tags_to_video_use_case=video_dependencies.get_add_tags_to_video_use_case,
+    add_tags_to_video_use_case=video_composition.get_add_tags_to_video_use_case(),
 ):
     """Add multiple tags to video."""
     tag_ids = request.data.get("tag_ids", [])
     if not tag_ids:
         return create_error_response("Tag IDs not specified", status.HTTP_400_BAD_REQUEST)
 
-    use_case = get_add_tags_to_video_use_case()
+    use_case = add_tags_to_video_use_case
     try:
         added_count, skipped_count = use_case.execute(video_id, tag_ids, request.user.id)
     except ResourceNotFound as e:
@@ -626,10 +626,10 @@ def remove_tag_from_video(
     request,
     video_id,
     tag_id,
-    get_remove_tag_from_video_use_case=video_dependencies.get_remove_tag_from_video_use_case,
+    remove_tag_from_video_use_case=video_composition.get_remove_tag_from_video_use_case(),
 ):
     """Remove tag from video."""
-    use_case = get_remove_tag_from_video_use_case()
+    use_case = remove_tag_from_video_use_case
     try:
         use_case.execute(video_id, tag_id, request.user.id)
     except ResourceNotFound as e:
