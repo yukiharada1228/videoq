@@ -14,7 +14,7 @@ class CookieJWTValidator(JWTAuthentication):
     def validate_raw_token(self, raw_token: str):
         """Validate a raw token string. Returns (user, validated_token) or None."""
         try:
-            validated_token = self.get_validated_token(raw_token)
+            validated_token = self.get_validated_token(raw_token.encode("utf-8"))
             user = self.get_user(validated_token)
             return user, validated_token
         except InvalidToken:

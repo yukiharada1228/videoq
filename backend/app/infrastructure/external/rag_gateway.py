@@ -72,8 +72,11 @@ class RagChatGateway(RagGateway):
                 for raw_video in result.related_videos
             ]
 
+        content = result.llm_response.content
+        content_text = content if isinstance(content, str) else str(content)
+
         return RagResult(
-            content=result.llm_response.content,
+            content=content_text,
             query_text=result.query_text,
             related_videos=related_videos,
         )
