@@ -1,28 +1,19 @@
-"""
-Use case: Send a chat message with optional RAG context.
-"""
+"""Use case: Send a chat message with optional RAG context."""
 
-from dataclasses import dataclass
-from typing import List, Optional, Sequence
+from typing import List, Optional
 
 from app.domain.chat.dtos import ChatMessageDTO
 from app.domain.chat.gateways import LLMConfigurationError as _DomainLLMConfigError
 from app.domain.chat.gateways import LLMProviderError as _DomainLLMProviderError
 from app.domain.chat.gateways import RagGateway
 from app.domain.chat.repositories import ChatRepository, VideoGroupQueryRepository
-from app.use_cases.chat.dto import ChatMessageInput, RelatedVideoResponseDTO
+from app.use_cases.chat.dto import (
+    ChatMessageInput,
+    RelatedVideoResponseDTO,
+    SendMessageResultDTO,
+)
 from app.use_cases.chat.exceptions import LLMConfigurationError, LLMProviderError
 from app.use_cases.shared.exceptions import PermissionDenied, ResourceNotFound
-
-
-@dataclass
-class SendMessageResult:
-    """Result returned from SendMessageUseCase."""
-
-    content: str
-    related_videos: Optional[Sequence[RelatedVideoResponseDTO]]
-    chat_log_id: Optional[int]
-    feedback: Optional[str]
 
 
 class SendMessageUseCase:
@@ -52,7 +43,7 @@ class SendMessageUseCase:
         share_token: Optional[str] = None,
         is_shared: bool = False,
         locale: Optional[str] = None,
-    ) -> SendMessageResult:
+    ) -> SendMessageResultDTO:
         """
         Args:
             user_id: ID of the authenticated user (None only for share-token flows).
@@ -63,7 +54,7 @@ class SendMessageUseCase:
             locale: Accept-Language locale string.
 
         Returns:
-            SendMessageResult
+            SendMessageResultDTO
 
         Raises:
             ResourceNotFound: If the specified group does not exist.
@@ -120,7 +111,7 @@ class SendMessageUseCase:
             chat_log_id = chat_log.id
             feedback = chat_log.feedback
 
-        return SendMessageResult(
+        return SendMessageResultDTO(
             content=rag_result.content,
             related_videos=(
                 [

@@ -4,9 +4,20 @@ Use cases for managing user API keys.
 
 from typing import List
 
-from app.domain.auth.entities import ApiKeyCreateResult, ApiKeyEntity
 from app.domain.auth.repositories import ApiKeyRepository
+from app.use_cases.auth.dto import ApiKeyCreateResultDTO, ApiKeyResponseDTO
 from app.use_cases.shared.exceptions import ResourceNotFound
+
+
+def _to_api_key_response_dto(entity) -> ApiKeyResponseDTO:
+    return ApiKeyResponseDTO(
+        id=entity.id,
+        name=entity.name,
+        prefix=entity.prefix,
+        access_level=entity.access_level,
+        last_used_at=entity.last_used_at,
+        created_at=entity.created_at,
+    )
 
 
 class ListApiKeysUseCase:
@@ -15,8 +26,10 @@ class ListApiKeysUseCase:
     def __init__(self, api_key_repo: ApiKeyRepository):
         self.api_key_repo = api_key_repo
 
-    def execute(self, user_id: int) -> List[ApiKeyEntity]:
-        return self.api_key_repo.list_for_user(user_id)
+    def execute(self, user_id: int) -> List[ApiKeyResponseDTO]:
+        return [
+            _to_api_key_response_dto(entity) for entity in self.api_key_repo.list_for_user(user_id)
+        ]
 
 
 class CreateApiKeyUseCase:
@@ -25,14 +38,18 @@ class CreateApiKeyUseCase:
     def __init__(self, api_key_repo: ApiKeyRepository):
         self.api_key_repo = api_key_repo
 
-    def execute(self, user_id: int, name: str, access_level: str) -> ApiKeyCreateResult:
+    def execute(self, user_id: int, name: str, access_level: str) -> ApiKeyCreateResultDTO:
         """
         Raises:
             ValueError: If an active key with this name already exists.
         """
         if self.api_key_repo.exists_active_with_name(user_id, name):
             raise ValueError("An active API key with this name already exists.")
-        return self.api_key_repo.create_for_user(user_id, name, access_level)
+        created = self.api_key_repo.create_for_user(user_id, name, access_level)
+        return ApiKeyCreateResultDTO(
+            api_key=_to_api_key_response_dto(created.api_key),
+            raw_key=created.raw_key,
+        )
 
 
 class RevokeApiKeyUseCase:

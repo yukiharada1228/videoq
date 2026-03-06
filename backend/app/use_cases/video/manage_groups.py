@@ -12,6 +12,7 @@ from app.domain.video.exceptions import (
 )
 from app.domain.video.repositories import VideoGroupRepository, VideoRepository
 from app.domain.video.services import ShareLinkService
+from app.use_cases.video.dto import VideoGroupMemberResponseDTO
 from app.use_cases.video.exceptions import (
     GroupVideoOrderMismatch,
     ResourceNotFound,
@@ -29,10 +30,12 @@ class AddVideoToGroupUseCase:
         self.video_repo = video_repo
         self.group_repo = group_repo
 
-    def execute(self, group_id: int, video_id: int, user_id: int):
+    def execute(
+        self, group_id: int, video_id: int, user_id: int
+    ) -> VideoGroupMemberResponseDTO:
         """
         Returns:
-            VideoGroupMemberEntity: The newly created membership record.
+            VideoGroupMemberResponseDTO: The newly created membership record.
 
         Raises:
             ResourceNotFound: If the group or video is not found.
@@ -47,7 +50,15 @@ class AddVideoToGroupUseCase:
             raise ResourceNotFound("Video")
 
         try:
-            return self.group_repo.add_video(group, video)
+            member = self.group_repo.add_video(group, video)
+            return VideoGroupMemberResponseDTO(
+                id=member.id,
+                group_id=member.group_id,
+                video_id=member.video_id,
+                order=member.order,
+                added_at=member.added_at,
+                video=None,
+            )
         except DomainVideoAlreadyInGroup as e:
             raise VideoAlreadyInGroup(str(e)) from e
 

@@ -59,7 +59,7 @@ class SendMessageUseCaseBoundaryTests(unittest.TestCase):
         )
 
     def test_result_related_videos_are_use_case_dtos(self):
-        """SendMessageResult.related_videos must contain RelatedVideoResponseDTO instances."""
+        """SendMessageResultDTO.related_videos must contain RelatedVideoResponseDTO instances."""
         related = [RelatedVideoDTO(video_id=1, title="T", start_time="0", end_time="1")]
         rag_result = RagResult(content="reply", query_text="q", related_videos=related)
         use_case, chat_repo, group_query_repo, _ = self._make_use_case(rag_result)
@@ -77,7 +77,7 @@ class SendMessageUseCaseBoundaryTests(unittest.TestCase):
         self.assertIsNotNone(result.related_videos)
         self.assertTrue(
             all(isinstance(v, RelatedVideoResponseDTO) for v in result.related_videos),
-            "SendMessageResult.related_videos must contain RelatedVideoResponseDTO instances",
+            "SendMessageResultDTO.related_videos must contain RelatedVideoResponseDTO instances",
         )
 
     def test_create_log_receives_dto_sequence(self):
@@ -160,14 +160,39 @@ class GetChatHistoryUseCaseContractTests(unittest.TestCase):
             use_case.execute(group_id=99, user_id=1)
 
     def test_returns_logs_when_group_exists(self):
+        from app.use_cases.chat.dto import ChatLogResponseDTO
+
         group = MagicMock()
         group.id = 7
         use_case, chat_repo = self._make_use_case(group=group)
-        chat_repo.get_logs_for_group.return_value = ["log1", "log2"]
+        log1 = MagicMock(
+            id=1,
+            group_id=7,
+            question="Q1",
+            answer="A1",
+            related_videos=[],
+            is_shared_origin=False,
+            feedback=None,
+            created_at=None,
+        )
+        log2 = MagicMock(
+            id=2,
+            group_id=7,
+            question="Q2",
+            answer="A2",
+            related_videos=[],
+            is_shared_origin=True,
+            feedback="good",
+            created_at=None,
+        )
+        chat_repo.get_logs_for_group.return_value = [log1, log2]
 
         result = use_case.execute(group_id=7, user_id=1)
 
-        self.assertEqual(result, ["log1", "log2"])
+        self.assertEqual(len(result), 2)
+        self.assertIsInstance(result[0], ChatLogResponseDTO)
+        self.assertEqual(result[0].question, "Q1")
+        self.assertEqual(result[1].feedback, "good")
         chat_repo.get_logs_for_group.assert_called_once_with(7, ascending=False)
 
 

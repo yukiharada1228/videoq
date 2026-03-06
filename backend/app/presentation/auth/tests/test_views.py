@@ -258,6 +258,12 @@ class MeViewTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["username"], "testuser")
 
+    def test_get_current_user_returns_404_when_user_is_missing(self):
+        """If authenticated user record is missing, endpoint should return 404."""
+        self.user.delete()
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
 
 class ApiKeyViewTests(APITestCase):
     """Tests for API key management views."""

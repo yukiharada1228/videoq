@@ -36,6 +36,9 @@ class UserSerializer(serializers.Serializer):
     video_count = serializers.SerializerMethodField()
 
     def get_video_count(self, obj) -> int:
+        # Prefer the explicit boundary field (UserEntity/User DTO).
+        if hasattr(obj, "video_count"):
+            return int(getattr(obj, "video_count") or 0)
         if isinstance(obj, dict):
             return int(obj.get("video_count", 0) or 0)
         videos = getattr(obj, "videos", None)

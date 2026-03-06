@@ -8,6 +8,7 @@ from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 from rest_framework.test import APITestCase
 
+from app.domain.user.entities import UserEntity
 from app.presentation.auth.serializers import (EmailVerificationSerializer,
                                                LoginSerializer,
                                                PasswordResetConfirmSerializer,
@@ -83,6 +84,19 @@ class UserSerializerTests(APITestCase):
         self.assertEqual(serializer.data["username"], "testuser")
         self.assertEqual(serializer.data["email"], "test@example.com")
         self.assertIn("id", serializer.data)
+
+    def test_serialize_user_entity_uses_video_count_field(self):
+        """UserEntity should serialize explicit video_count without ORM relation access."""
+        entity = UserEntity(
+            id=1,
+            username="entityuser",
+            email="entity@example.com",
+            is_active=True,
+            video_limit=10,
+            video_count=7,
+        )
+        serializer = UserSerializer(entity)
+        self.assertEqual(serializer.data["video_count"], 7)
 
 
 class RefreshSerializerTests(APITestCase):
