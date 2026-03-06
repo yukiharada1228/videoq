@@ -3,6 +3,8 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.admin import UserAdmin
 from django.db.models import Count
 
+from app.dependencies.admin import get_enforce_video_limit_use_case
+
 from .models import AccountDeletionRequest, Video, VideoGroup, VideoGroupMember
 
 User = get_user_model()
@@ -73,8 +75,6 @@ class CustomUserAdmin(UserAdmin):
         super().save_model(request, obj, form, change)
 
         if change and "video_limit" in form.changed_data:
-            from app.composition_root.video import get_enforce_video_limit_use_case
-
             deleted_count = get_enforce_video_limit_use_case().execute(
                 user_id=obj.pk,
                 video_limit=obj.video_limit,

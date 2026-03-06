@@ -507,6 +507,10 @@ class ImportRulesTest(unittest.TestCase):
         """admin must import task entrypoints from app.entrypoints.tasks only."""
         self._check_single_file("admin.py", ["app.presentation.tasks"])
 
+    def test_admin_has_no_composition_root_imports(self):
+        """admin must resolve use-cases via app.dependencies, not app.composition_root."""
+        self._check_single_file("admin.py", ["app.composition_root"])
+
     def test_chat_send_message_has_no_domain_output_dto_imports(self):
         """SendMessageUseCase output boundary must not expose domain chat DTOs."""
         self._check_single_file(
