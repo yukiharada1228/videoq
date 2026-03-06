@@ -8,7 +8,7 @@ import logging
 from celery import shared_task
 
 from app.dependencies.tasks import get_reindex_all_videos_use_case
-from app.entrypoints.tasks.task_names import REINDEX_ALL_VIDEOS_EMBEDDINGS_TASK
+from app.contracts.tasks import REINDEX_ALL_VIDEOS_EMBEDDINGS_TASK
 
 logger = logging.getLogger(__name__)
 

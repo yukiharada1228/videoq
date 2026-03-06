@@ -284,6 +284,15 @@ class ImportRulesTest(unittest.TestCase):
         """infrastructure must not depend on app.utils."""
         self._check("infrastructure", ["app.utils"])
 
+    def test_infrastructure_has_no_entrypoints_imports(self):
+        """infrastructure must not import from app.entrypoints (dependency direction violation).
+
+        Shared identifiers (e.g. task names) must live in app.contracts so that
+        both infrastructure and entrypoints can reference them without either
+        layer depending on the other.
+        """
+        self._check("infrastructure", ["app.entrypoints"])
+
     def test_presentation_auth_has_no_video_exceptions_imports(self):
         """presentation/auth must not import from use_cases/video (cross-context dependency)."""
         all_violations = {}
