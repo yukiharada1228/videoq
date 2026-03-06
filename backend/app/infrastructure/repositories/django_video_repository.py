@@ -236,7 +236,7 @@ class DjangoVideoRepository(VideoRepository):
 
     def list_completed_with_transcript(self) -> List[VideoEntity]:
         videos = (
-            Video.objects.filter(status="completed")
+            Video.objects.filter(status__in=["completed", "indexing"])
             .exclude(transcript__isnull=True)
             .exclude(transcript="")
             .select_related("user")

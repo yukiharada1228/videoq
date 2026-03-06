@@ -12,6 +12,7 @@ from app.dependencies.tasks import (
     IndexingExecutionFailedError,
     IndexingTargetMissingError,
     index_video_transcript,
+    mark_indexing_failed,
 )
 
 logger = logging.getLogger(__name__)
@@ -37,4 +38,6 @@ def index_video_transcript_task(self, video_id: int) -> None:
     except IndexingExecutionFailedError as e:
         if self.request.retries < self.max_retries:
             raise self.retry(exc=e, countdown=60 * (self.request.retries + 1))
+        logger.error("Indexing exhausted all retries for video %d; marking as ERROR", video_id)
+        mark_indexing_failed(video_id, reason=str(e))
         raise

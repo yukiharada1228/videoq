@@ -11,6 +11,7 @@ class VideoStatus(str, Enum):
 
     PENDING = "pending"
     PROCESSING = "processing"
+    INDEXING = "indexing"
     COMPLETED = "completed"
     ERROR = "error"
 
@@ -29,7 +30,8 @@ class VideoStatus(str, Enum):
 
 _ALLOWED_TRANSITIONS: Dict[VideoStatus, Set[VideoStatus]] = {
     VideoStatus.PENDING: {VideoStatus.PROCESSING},
-    VideoStatus.PROCESSING: {VideoStatus.COMPLETED, VideoStatus.ERROR},
+    VideoStatus.PROCESSING: {VideoStatus.INDEXING, VideoStatus.ERROR},
+    VideoStatus.INDEXING: {VideoStatus.COMPLETED, VideoStatus.ERROR},
     VideoStatus.COMPLETED: {VideoStatus.PROCESSING},
     VideoStatus.ERROR: {VideoStatus.PROCESSING},
 }

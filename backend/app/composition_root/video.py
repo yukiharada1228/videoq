@@ -54,6 +54,10 @@ def index_video_transcript(video_id: int) -> None:
         raise IndexingExecutionFailed(str(exc)) from exc
 
 
+def mark_indexing_failed(video_id: int, reason: str = "") -> None:
+    get_index_video_use_case().mark_failed(video_id, reason)
+
+
 def run_transcription(video_id: int) -> None:
     from app.use_cases.video.exceptions import (
         TranscriptionExecutionFailed as UseCaseTranscriptionExecutionFailed,
