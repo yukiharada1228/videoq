@@ -4,34 +4,25 @@ Use case: Return the most frequently referenced scenes from a group's chat logs.
 
 from typing import List, Optional
 
+from app.domain.chat.ports import SceneVideoInfoProvider
 from app.domain.chat.repositories import ChatRepository, VideoGroupQueryRepository
 from app.domain.chat.services import aggregate_scenes, filter_group_scenes
-from app.domain.video.ports import FileUrlResolver
-from app.domain.video.repositories import VideoRepository
 from app.use_cases.chat.dto import PopularSceneDTO
 from app.use_cases.shared.exceptions import ResourceNotFound
 
 
 class GetPopularScenesUseCase:
-    """Aggregate and rank scenes referenced across a group's chat history.
-
-    This use case intentionally depends on video-domain ports because a "scene"
-    is represented by video metadata/file keys owned by the video context.
-    The dependency stays at domain-contract level (no infra coupling), so the
-    Clean Architecture direction remains inward.
-    """
+    """Aggregate and rank scenes referenced across a group's chat history."""
 
     def __init__(
         self,
         chat_repo: ChatRepository,
         group_query_repo: VideoGroupQueryRepository,
-        video_repo: VideoRepository,
-        file_url_resolver: Optional[FileUrlResolver] = None,
+        scene_video_info_provider: SceneVideoInfoProvider,
     ):
         self.chat_repo = chat_repo
         self.group_query_repo = group_query_repo
-        self.video_repo = video_repo
-        self.file_url_resolver = file_url_resolver
+        self.scene_video_info_provider = scene_video_info_provider
 
     def execute(
         self,
@@ -62,14 +53,9 @@ class GetPopularScenesUseCase:
         top_scenes = filter_group_scenes(scene_counter, valid_video_ids, limit)
 
         video_ids = [key[0] for key, _ in top_scenes]
-        file_key_map = self.video_repo.get_file_keys_for_ids(video_ids, group.user_id)
-
-        def _resolve(file_key):
-            if not file_key:
-                return None
-            if self.file_url_resolver:
-                return self.file_url_resolver.resolve(file_key)
-            return None
+        file_url_map = self.scene_video_info_provider.get_file_urls_for_ids(
+            video_ids=video_ids, user_id=group.user_id
+        )
 
         return [
             PopularSceneDTO(
@@ -78,7 +64,7 @@ class GetPopularScenesUseCase:
                 start_time=scene_info[key]["start_time"],
                 end_time=scene_info[key]["end_time"],
                 reference_count=count,
-                file_url=_resolve(file_key_map.get(key[0])),
+                file_url=file_url_map.get(key[0]),
                 questions=scene_questions.get(key, []),
             )
             for key, count in top_scenes
