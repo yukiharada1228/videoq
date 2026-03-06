@@ -8,7 +8,7 @@ import logging
 from celery import shared_task
 
 from app.dependencies.tasks import get_delete_account_data_use_case
-from app.tasks.task_names import DELETE_ACCOUNT_DATA_TASK
+from app.entrypoints.tasks.task_names import DELETE_ACCOUNT_DATA_TASK
 
 logger = logging.getLogger(__name__)
 

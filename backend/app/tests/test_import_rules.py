@@ -418,14 +418,10 @@ class ImportRulesTest(unittest.TestCase):
             f"Forbidden imports found in app/{rel_path}: {v}",
         )
 
-    def test_factories_has_no_presentation_imports(self):
-        """factories package must not import from app.presentation (presentation depends on factories, not vice versa)."""
-        # Check factories/ package (preferred) or legacy factories.py if package doesn't exist
-        factories_pkg = APP_ROOT / "factories"
-        if factories_pkg.is_dir():
-            self._check("factories", ["app.presentation"])
-        else:
-            self._check_single_file("factories.py", ["app.presentation"])
+    def test_factories_package_removed(self):
+        """Legacy factories package should stay removed after dependency migration."""
+        self.assertFalse((APP_ROOT / "factories").exists(), "app/factories must not exist")
+        self.assertFalse((APP_ROOT / "factories.py").exists(), "app/factories.py must not exist")
 
     def _assert_no_get_container_calls(self, rel_paths):
         violations = []

@@ -1,46 +1,48 @@
-# Backend Clean Architectureレビュー（2026-03-06）
+# バックエンド Clean Architecture レビュー
 
-## Findings（重大度順）
+実施日: 2026-03-06  
+対象: `backend/app`
 
-### 1. [Low] DIエントリポイントが二重化しており、依存解決経路が増えている
+## 判定
+**概ねクリーンアーキテクチャになっています。**  
+`domain / use_cases / infrastructure / presentation / entrypoints` の責務分離は明確で、境界違反を検知するテストも整備されています。
+
+## Findings（重要度順）
+
+### 1. Medium: infrastructure が entrypoints に依存している（依存方向のにじみ）
 - 根拠:
-  - `app.dependencies.video` が `app.composition_root` のラッパーを提供: `backend/app/dependencies/video.py:1-99`
-  - 同様に `app.factories` も後方互換として同等の公開APIを維持: `backend/app/factories/__init__.py:1-114`
+  - `infrastructure` のタスクゲートウェイ実装が `entrypoints` 配下の定数を import  
+    - `backend/app/infrastructure/tasks/task_gateway.py:8`
+  - 参照先の定数は `entrypoints` 層に配置  
+    - `backend/app/entrypoints/tasks/task_names.py:1`
 - 影響:
-  - DIの入口が複数存在し、将来の変更時に「どちらを正とするか」が曖昧になりやすい。
-  - 片方だけ更新される設計ドリフトのリスクがある。
+  - infrastructure 実装が外側の entrypoints 層に結びつき、将来の入口（Celery以外）追加時に再利用性が下がる。
+  - 現在の import ルールではこの方向違反を検知できないため、再発防止が弱い。
 - 提案:
-  - `composition_root` + `dependencies/*` に一本化し、`factories` は段階的に廃止（deprecation期間を設ける）。
+  - タスク名定数を中立な契約モジュール（例: `app/contracts/tasks.py`）へ移し、entrypoints/infrastructure から参照する。
+  - import ルールに `infrastructure -> app.entrypoints` 禁止を追加する（必要な例外は最小化）。
 
-### 2. [Low] composition root が単一巨大モジュールで、変更衝突と保守コストが上がりやすい
+### 2. Low: `dependencies` が集約 `composition_root` 全体を参照し、文脈分離を弱める
 - 根拠:
-  - `backend/app/composition_root.py:9-87` で全コンテキストの実装・UseCaseを一括import。
-  - 同ファイルで多数の `get_*_use_case` を単一モジュールで管理: `backend/app/composition_root.py:90-220`（以降も継続）。
+  - 例: video 用 dependency provider が `from app import composition_root` を参照  
+    - `backend/app/dependencies/video.py:3`
+  - `composition_root` パッケージは auth/chat/media/video を一括 import  
+    - `backend/app/composition_root/__init__.py:10`
 - 影響:
-  - 機能追加時に同一ファイルへの集中変更が発生しやすく、競合・見通し悪化を招く。
+  - video 文脈の読み込みが auth/chat の wiring 変更に巻き込まれやすくなる。
+  - 文脈単位の独立性（変更影響範囲）が実運用で広がる可能性がある。
 - 提案:
-  - `composition_root/video.py`, `composition_root/auth.py` のようにコンテキスト分割し、`app/composition_root.py` は再エクスポートのみ行う。
+  - `dependencies/video.py` は `app.composition_root.video` を直接 import する形に限定し、文脈ごとの依存を局所化する。
 
-## 総評
-- 判定: **概ねクリーンアーキテクチャに沿っている**（重大な境界違反は確認できず）。
-- 特に良い点:
-  - レイヤ境界をCIテストで明示的に強制している。
-    - 例: domain/use_cases/presentation/infrastructure の禁止import規則
-      - `backend/app/tests/test_import_rules.py:193-231,275-285`
-    - use_cases間のコンテキスト分離
-      - `backend/app/tests/test_import_rules.py:254-273`
-    - サービスロケータ直呼び出し禁止
-      - `backend/app/tests/test_import_rules.py:430-459`
+## 良い点
+- 境界検証テストが充実している。  
+  - 実行: `docker compose exec backend python manage.py test app.tests.test_import_rules -v 2 --keepdb`
+  - 結果: **34 tests, all pass**
+- ルールは「ドメインのフレームワーク非依存」「use_case の文脈分離」「presentation の ORM/infra 直参照禁止」をカバーしている。  
+  - `backend/app/tests/test_import_rules.py`
+- use_cases のユニットテストが in-memory fake ベースで、層の純度を保っている。  
+  - `backend/app/use_cases/video/tests/test_create_video.py:1`
 
-## 実施した確認
-- 静的確認:
-  - `backend/app/domain` に `django/rest_framework/app.models/app.infrastructure` 依存がないことを検索で確認。
-  - `backend/app/use_cases` に `django/rest_framework/app.models/app.infrastructure` 依存がないことを検索で確認。
-  - `backend/app/presentation` に `app.models/app.infrastructure` 依存がないことを検索で確認。
-- テスト実行:
-  - `python -m pytest app/tests/test_import_rules.py -q` は `pytest` 未導入で未実行。
-  - `python manage.py test app.tests.test_import_rules -v 2` は `django` 未導入で未実行。
-
-## 制約
-- このレビューは、ローカル環境で依存パッケージが未導入のため、**実行確認なしの静的レビュー**。
-- CI上で `app/tests/test_import_rules.py` が通過していることを最終的な担保として確認するのが望ましい。
+## 結論
+現状は **「クリーンアーキテクチャとして実用的に成立している」** 状態です。  
+上記2点（特に `infrastructure -> entrypoints` 依存）を解消すると、依存方向の一貫性と将来の拡張性がさらに高まります。
