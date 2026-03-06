@@ -5,6 +5,8 @@ Use case: Deactivate a user account and enqueue data cleanup.
 import datetime
 import logging
 
+from django.db import transaction
+
 from app.domain.auth.gateways import AccountDeletionGateway, AuthTaskGateway
 
 logger = logging.getLogger(__name__)
@@ -27,10 +29,11 @@ class AccountDeletionUseCase:
         self.task_queue = task_queue
 
     def execute(self, user_id: int, reason: str = "") -> None:
-        self.deletion_gateway.record_deletion_request(user_id, reason)
+        with transaction.atomic():
+            self.deletion_gateway.record_deletion_request(user_id, reason)
 
-        suffix = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d%H%M%S")
-        self.deletion_gateway.deactivate_user(user_id, suffix)
+            suffix = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d%H%M%S")
+            self.deletion_gateway.deactivate_user(user_id, suffix)
+            transaction.on_commit(lambda: self.task_queue.enqueue_account_deletion(user_id))
 
-        self.task_queue.enqueue_account_deletion(user_id)
         logger.info("Account deletion initiated for user %s", user_id)

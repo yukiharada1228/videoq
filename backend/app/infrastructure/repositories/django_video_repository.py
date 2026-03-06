@@ -360,21 +360,25 @@ class DjangoVideoGroupRepository(VideoGroupRepository):
     def add_video(
         self, group: VideoGroupEntity, video: VideoEntity
     ) -> VideoGroupMemberEntity:
-        if VideoGroupMember.objects.filter(
-            group_id=group.id, video_id=video.id
-        ).exists():
-            raise VideoAlreadyInGroup()
+        with transaction.atomic():
+            # Serialize membership writes per group to avoid duplicate inserts/order collisions.
+            VideoGroup.objects.select_for_update().filter(pk=group.id).exists()
 
-        max_order = (
-            VideoGroupMember.objects.filter(group_id=group.id)
-            .aggregate(max_order=Max("order"))
-            .get("max_order")
-        )
-        next_order = (max_order if max_order is not None else -1) + 1
-        member = VideoGroupMember.objects.create(
-            group_id=group.id, video_id=video.id, order=next_order
-        )
-        return _member_to_entity(member)
+            if VideoGroupMember.objects.filter(
+                group_id=group.id, video_id=video.id
+            ).exists():
+                raise VideoAlreadyInGroup()
+
+            max_order = (
+                VideoGroupMember.objects.filter(group_id=group.id)
+                .aggregate(max_order=Max("order"))
+                .get("max_order")
+            )
+            next_order = (max_order if max_order is not None else -1) + 1
+            member = VideoGroupMember.objects.create(
+                group_id=group.id, video_id=video.id, order=next_order
+            )
+            return _member_to_entity(member)
 
     def add_videos_bulk(
         self, group: VideoGroupEntity, video_ids: List[int], user_id: int
@@ -382,44 +386,64 @@ class DjangoVideoGroupRepository(VideoGroupRepository):
         _ = user_id
         if not video_ids:
             return 0, 0
-        videos = list(Video.objects.filter(id__in=video_ids))
-        video_map = {video.id: video for video in videos}
-        videos_to_add = [video_map[video_id] for video_id in video_ids if video_id in video_map]
+        with transaction.atomic():
+            # Serialize membership writes per group to keep order allocation deterministic.
+            VideoGroup.objects.select_for_update().filter(pk=group.id).exists()
 
-        max_order = (
-            VideoGroupMember.objects.filter(group_id=group.id)
-            .aggregate(max_order=Max("order"))
-            .get("max_order")
-        )
-        base_order = max_order if max_order is not None else -1
+            videos = list(Video.objects.filter(id__in=video_ids))
+            video_map = {video.id: video for video in videos}
+            existing_video_ids = set(
+                VideoGroupMember.objects.filter(
+                    group_id=group.id,
+                    video_id__in=video_ids,
+                ).values_list("video_id", flat=True)
+            )
+            videos_to_add = [
+                video_map[video_id]
+                for video_id in video_ids
+                if video_id in video_map and video_id not in existing_video_ids
+            ]
 
-        members_to_create = [
-            VideoGroupMember(group_id=group.id, video=video, order=base_order + idx)
-            for idx, video in enumerate(videos_to_add, start=1)
-        ]
-        VideoGroupMember.objects.bulk_create(members_to_create)
+            max_order = (
+                VideoGroupMember.objects.filter(group_id=group.id)
+                .aggregate(max_order=Max("order"))
+                .get("max_order")
+            )
+            base_order = max_order if max_order is not None else -1
 
-        added_count = len(members_to_create)
-        skipped_count = len(video_ids) - added_count
-        return added_count, skipped_count
+            members_to_create = [
+                VideoGroupMember(group_id=group.id, video=video, order=base_order + idx)
+                for idx, video in enumerate(videos_to_add, start=1)
+            ]
+            VideoGroupMember.objects.bulk_create(members_to_create)
+
+            added_count = len(members_to_create)
+            skipped_count = len(video_ids) - added_count
+            return added_count, skipped_count
 
     def remove_video(self, group: VideoGroupEntity, video: VideoEntity) -> None:
-        member = VideoGroupMember.objects.filter(
-            group_id=group.id, video_id=video.id
-        ).first()
-        if not member:
-            raise VideoNotInGroup()
-        member.delete()
+        with transaction.atomic():
+            # Serialize membership writes per group to avoid conflicting updates.
+            VideoGroup.objects.select_for_update().filter(pk=group.id).exists()
+            member = VideoGroupMember.objects.filter(
+                group_id=group.id, video_id=video.id
+            ).first()
+            if not member:
+                raise VideoNotInGroup()
+            member.delete()
 
     def reorder_videos(self, group: VideoGroupEntity, video_ids: List[int]) -> None:
-        members = list(VideoGroupMember.objects.filter(group_id=group.id))
-        member_dict = {member.video_id: member for member in members}
-        members_to_update = []
-        for index, video_id in enumerate(video_ids):
-            member = member_dict[video_id]
-            member.order = index
-            members_to_update.append(member)
-        VideoGroupMember.objects.bulk_update(members_to_update, ["order"])
+        with transaction.atomic():
+            # Serialize membership writes per group to avoid order races.
+            VideoGroup.objects.select_for_update().filter(pk=group.id).exists()
+            members = list(VideoGroupMember.objects.filter(group_id=group.id))
+            member_dict = {member.video_id: member for member in members}
+            members_to_update = []
+            for index, video_id in enumerate(video_ids):
+                member = member_dict[video_id]
+                member.order = index
+                members_to_update.append(member)
+            VideoGroupMember.objects.bulk_update(members_to_update, ["order"])
 
     def update_share_token(
         self, group: VideoGroupEntity, token: Optional[str]
@@ -483,17 +507,21 @@ class DjangoTagRepository(TagRepository):
         if len(tags) != len(tag_ids):
             raise SomeTagsNotFound()
 
-        existing_tags = set(
-            VideoTag.objects.filter(
-                video_id=video.id, tag_id__in=tag_ids
-            ).values_list("tag_id", flat=True)
-        )
-        tags_to_add = [t for t in tags if t.id not in existing_tags]
-        VideoTag.objects.bulk_create(
-            [VideoTag(video_id=video.id, tag=t) for t in tags_to_add]
-        )
-        added_count = len(tags_to_add)
-        return added_count, len(tag_ids) - added_count
+        with transaction.atomic():
+            # Serialize tag attachment writes per video to avoid duplicate races.
+            Video.objects.select_for_update().filter(pk=video.id).exists()
+            existing_tags = set(
+                VideoTag.objects.filter(
+                    video_id=video.id, tag_id__in=tag_ids
+                ).values_list("tag_id", flat=True)
+            )
+            tags_to_add = [t for t in tags if t.id not in existing_tags]
+            VideoTag.objects.bulk_create(
+                [VideoTag(video_id=video.id, tag=t) for t in tags_to_add]
+            )
+
+            added_count = len(tags_to_add)
+            return added_count, len(tag_ids) - added_count
 
     def remove_tag_from_video(self, video: VideoEntity, tag: TagEntity) -> None:
         video_tag = VideoTag.objects.filter(
