@@ -1,0 +1,99 @@
+"""Video presentation dependency providers."""
+
+from app import factories
+
+
+def get_list_videos_use_case():
+    return factories.get_list_videos_use_case()
+
+
+def get_create_video_use_case():
+    return factories.get_create_video_use_case()
+
+
+def get_video_detail_use_case():
+    return factories.get_video_detail_use_case()
+
+
+def get_update_video_use_case():
+    return factories.get_update_video_use_case()
+
+
+def get_delete_video_use_case():
+    return factories.get_delete_video_use_case()
+
+
+def get_list_groups_use_case():
+    return factories.get_list_groups_use_case()
+
+
+def get_create_group_use_case():
+    return factories.get_create_group_use_case()
+
+
+def get_video_group_use_case():
+    return factories.get_video_group_use_case()
+
+
+def get_update_group_use_case():
+    return factories.get_update_group_use_case()
+
+
+def get_delete_group_use_case():
+    return factories.get_delete_group_use_case()
+
+
+def get_add_video_to_group_use_case():
+    return factories.get_add_video_to_group_use_case()
+
+
+def get_add_videos_to_group_use_case():
+    return factories.get_add_videos_to_group_use_case()
+
+
+def get_remove_video_from_group_use_case():
+    return factories.get_remove_video_from_group_use_case()
+
+
+def get_reorder_videos_use_case():
+    return factories.get_reorder_videos_use_case()
+
+
+def get_create_share_link_use_case():
+    return factories.get_create_share_link_use_case()
+
+
+def get_delete_share_link_use_case():
+    return factories.get_delete_share_link_use_case()
+
+
+def get_shared_group_use_case():
+    return factories.get_shared_group_use_case()
+
+
+def get_list_tags_use_case():
+    return factories.get_list_tags_use_case()
+
+
+def get_create_tag_use_case():
+    return factories.get_create_tag_use_case()
+
+
+def get_tag_detail_use_case():
+    return factories.get_tag_detail_use_case()
+
+
+def get_update_tag_use_case():
+    return factories.get_update_tag_use_case()
+
+
+def get_delete_tag_use_case():
+    return factories.get_delete_tag_use_case()
+
+
+def get_add_tags_to_video_use_case():
+    return factories.get_add_tags_to_video_use_case()
+
+
+def get_remove_tag_from_video_use_case():
+    return factories.get_remove_tag_from_video_use_case()

@@ -2,12 +2,8 @@
 
 import unittest
 
-from app.use_cases.auth.authorize_api_key import (
-    SCOPE_CHAT_WRITE,
-    SCOPE_READ,
-    SCOPE_WRITE,
-    AuthorizeApiKeyUseCase,
-)
+from app.domain.auth.scopes import SCOPE_CHAT_WRITE, SCOPE_READ, SCOPE_WRITE
+from app.use_cases.auth.authorize_api_key import AuthorizeApiKeyUseCase
 
 
 class AuthorizeApiKeyUseCaseTests(unittest.TestCase):
