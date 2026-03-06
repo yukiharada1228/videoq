@@ -8,7 +8,7 @@ from app.dependencies.auth import (
     get_authorize_api_key_use_case,
     get_resolve_share_token_use_case,
 )
-from app.domain.auth.scopes import SCOPE_READ, SCOPE_WRITE
+from app.use_cases.auth.dto import SCOPE_READ, SCOPE_WRITE
 
 
 class ShareTokenAuthentication(BaseAuthentication):
