@@ -14,11 +14,11 @@ from app.domain.auth.scopes import SCOPE_READ, SCOPE_WRITE
 class ShareTokenAuthentication(BaseAuthentication):
     """Simple authentication using share token."""
 
-    resolve_share_token_use_case_factory = staticmethod(get_resolve_share_token_use_case)
-
-    def __init__(self, resolve_share_token_use_case_factory=None):
-        if resolve_share_token_use_case_factory is not None:
-            self.resolve_share_token_use_case_factory = resolve_share_token_use_case_factory
+    def __init__(
+        self,
+        resolve_share_token_use_case_factory=get_resolve_share_token_use_case,
+    ):
+        self.resolve_share_token_use_case_factory = resolve_share_token_use_case_factory
 
     def authenticate(self, request: Request):
         share_token = request.query_params.get("share_token")
@@ -50,11 +50,12 @@ class ApiKeyScopePermission(BasePermission):
     """Authorize requests authenticated by API key using use-case policy."""
 
     message = "This API key does not have permission for this action."
-    authorize_api_key_use_case_factory = staticmethod(get_authorize_api_key_use_case)
 
-    def __init__(self, authorize_api_key_use_case_factory=None):
-        if authorize_api_key_use_case_factory is not None:
-            self.authorize_api_key_use_case_factory = authorize_api_key_use_case_factory
+    def __init__(
+        self,
+        authorize_api_key_use_case_factory=get_authorize_api_key_use_case,
+    ):
+        self.authorize_api_key_use_case_factory = authorize_api_key_use_case_factory
 
     def has_permission(self, request, view):
         auth = getattr(request, "auth", None)

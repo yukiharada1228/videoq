@@ -23,8 +23,8 @@ from app.domain.video.entities import (
 )
 
 
-class VideoRepository(ABC):
-    """Abstract interface for video data access."""
+class VideoQueryRepository(ABC):
+    """Read-side video repository operations."""
 
     @abstractmethod
     def get_by_id(self, video_id: int, user_id: int) -> Optional[VideoEntity]:
@@ -41,6 +41,22 @@ class VideoRepository(ABC):
         ...
 
     @abstractmethod
+    def count_for_user(self, user_id: int) -> int:
+        """Return the number of videos owned by the user."""
+        ...
+
+    @abstractmethod
+    def get_file_keys_for_ids(
+        self, video_ids: List[int], user_id: int
+    ) -> Dict[int, Optional[str]]:
+        """Return a mapping of video_id → storage file key (or None) for the given IDs."""
+        ...
+
+
+class VideoCommandRepository(ABC):
+    """Write-side video repository operations."""
+
+    @abstractmethod
     def create(self, user_id: int, params: CreateVideoParams) -> VideoEntity:
         """Create a new video record."""
         ...
@@ -55,17 +71,9 @@ class VideoRepository(ABC):
         """Delete a video record (including file cleanup after commit)."""
         ...
 
-    @abstractmethod
-    def count_for_user(self, user_id: int) -> int:
-        """Return the number of videos owned by the user."""
-        ...
 
-    @abstractmethod
-    def get_file_keys_for_ids(
-        self, video_ids: List[int], user_id: int
-    ) -> Dict[int, Optional[str]]:
-        """Return a mapping of video_id → storage file key (or None) for the given IDs."""
-        ...
+class VideoTranscriptionRepository(ABC):
+    """Video repository operations dedicated to transcription workflows."""
 
     @abstractmethod
     def list_completed_with_transcript(self) -> List[VideoEntity]:
@@ -78,14 +86,33 @@ class VideoRepository(ABC):
         ...
 
     @abstractmethod
-    def update_status(self, video_id: int, status: str, error_message: str = "") -> None:
-        """Update the processing status of a video."""
+    def mark_processing(self, video_id: int) -> None:
+        """Mark a video as being processed."""
+        ...
+
+    @abstractmethod
+    def mark_completed(self, video_id: int) -> None:
+        """Mark a video as completed."""
+        ...
+
+    @abstractmethod
+    def mark_error(self, video_id: int, error_message: str) -> None:
+        """Mark a video as failed with an error message."""
         ...
 
     @abstractmethod
     def save_transcript(self, video_id: int, transcript: str) -> None:
         """Persist the transcription result for a video."""
         ...
+
+
+class VideoRepository(
+    VideoQueryRepository,
+    VideoCommandRepository,
+    VideoTranscriptionRepository,
+    ABC,
+):
+    """Backward-compatible aggregate video repository port."""
 
 
 class VideoGroupRepository(ABC):

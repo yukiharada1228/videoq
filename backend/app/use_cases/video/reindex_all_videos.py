@@ -5,7 +5,7 @@ Use case: Regenerate embedding vectors for all completed videos.
 import logging
 
 from app.domain.video.gateways import VectorIndexingGateway
-from app.domain.video.repositories import VideoRepository
+from app.domain.video.repositories import VideoTranscriptionRepository
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ class ReindexAllVideosUseCase:
 
     def __init__(
         self,
-        video_repo: VideoRepository,
+        video_repo: VideoTranscriptionRepository,
         vector_indexing_gateway: VectorIndexingGateway,
     ):
         self.video_repo = video_repo
