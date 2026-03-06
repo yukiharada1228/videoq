@@ -5,7 +5,8 @@ Use case: Transcribe a video and index its scenes for RAG search.
 import logging
 
 from app.domain.video.gateways import TranscriptionGateway, VectorIndexingGateway
-from app.domain.video.repositories import VideoRepository
+from app.domain.video.repositories import VideoTranscriptionRepository
+from app.domain.video.status import VideoStatus
 
 logger = logging.getLogger(__name__)
 
@@ -14,16 +15,16 @@ class RunTranscriptionUseCase:
     """
     Orchestrates video transcription:
     1. Validate video exists and is ready for processing
-    2. Update status to "processing"
+    2. Transition status to processing
     3. Run transcription (audio extraction + Whisper + scene splitting)
-    4. Persist transcript and mark as "completed"
+    4. Persist transcript and transition status to completed
     5. Index scenes to vector store for RAG search
-    On error: update status to "error" and re-raise.
+    On error: transition status to error and re-raise.
     """
 
     def __init__(
         self,
-        video_repo: VideoRepository,
+        video_repo: VideoTranscriptionRepository,
         transcription_gateway: TranscriptionGateway,
         vector_indexing_gateway: VectorIndexingGateway,
     ):
@@ -36,13 +37,17 @@ class RunTranscriptionUseCase:
         if video is None:
             raise ValueError(f"Video {video_id} not found")
 
+        current_status = VideoStatus.from_value(video.status)
+        current_status.assert_transition_to(VideoStatus.PROCESSING)
+
         logger.info("Transcription started for video %d (%s)", video.id, video.title)
-        self.video_repo.update_status(video_id, "processing")
+        self.video_repo.mark_processing(video_id)
 
         try:
             transcript = self.transcription_gateway.run(video_id)
             self.video_repo.save_transcript(video_id, transcript)
-            self.video_repo.update_status(video_id, "completed")
+            VideoStatus.PROCESSING.assert_transition_to(VideoStatus.COMPLETED)
+            self.video_repo.mark_completed(video_id)
             self.vector_gateway.index_video_transcript(
                 video.id, video.user_id, video.title, transcript
             )
@@ -50,5 +55,6 @@ class RunTranscriptionUseCase:
         except Exception as e:
             error_msg = str(e)
             logger.error("Transcription failed for video %d: %s", video_id, error_msg)
-            self.video_repo.update_status(video_id, "error", error_msg)
+            VideoStatus.PROCESSING.assert_transition_to(VideoStatus.ERROR)
+            self.video_repo.mark_error(video_id, error_msg)
             raise

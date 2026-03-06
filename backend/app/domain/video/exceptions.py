@@ -11,6 +11,15 @@ class VideoLimitExceeded(Exception):
         )
 
 
+class InvalidVideoStatusTransition(Exception):
+    """Raised when a requested status transition is not allowed by domain rules."""
+
+    def __init__(self, current_status: str, requested_status: str):
+        super().__init__(
+            f"Cannot transition video status from '{current_status}' to '{requested_status}'"
+        )
+
+
 class VideoAlreadyInGroup(Exception):
     """Raised when adding a video that is already a member of the target group."""
 
