@@ -42,6 +42,10 @@ def index_video_transcript(video_id: int) -> None:
         raise IndexingExecutionFailedError(str(exc)) from exc
 
 
+def mark_indexing_failed(video_id: int, reason: str = "") -> None:
+    _cr_video.mark_indexing_failed(video_id, reason)
+
+
 def get_delete_account_data_use_case():
     return _cr_auth.get_delete_account_data_use_case()
 

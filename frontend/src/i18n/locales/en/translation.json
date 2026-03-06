@@ -49,6 +49,7 @@
     "status": {
       "pending": "Pending",
       "processing": "Processing",
+      "indexing": "Indexing",
       "completed": "Completed",
       "error": "Error"
     },

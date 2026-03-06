@@ -21,11 +21,11 @@ class RunTranscriptionUseCase:
     """
     Orchestrates video transcription:
     1. Validate video exists and is ready for processing
-    2. Transition status to processing
+    2. Transition status PENDING/ERROR → PROCESSING
     3. Run transcription (audio extraction + Whisper + scene splitting)
-    4. Persist transcript and transition status to completed
-    5. Index scenes to vector store for RAG search
-    On error: transition status to error and re-raise.
+    4. Persist transcript and transition status PROCESSING → INDEXING
+    5. Enqueue async indexing task (INDEXING → COMPLETED handled by IndexVideoTranscriptUseCase)
+    On error: transition status PROCESSING → ERROR and re-raise.
     """
 
     def __init__(
@@ -57,11 +57,11 @@ class RunTranscriptionUseCase:
             transcript = self.transcription_gateway.run(video_id)
             with transaction.atomic():
                 self.video_repo.save_transcript(video_id, transcript)
-                VideoStatus.PROCESSING.assert_transition_to(VideoStatus.COMPLETED)
+                VideoStatus.PROCESSING.assert_transition_to(VideoStatus.INDEXING)
                 self.video_repo.transition_status(
                     video_id=video_id,
                     from_status=VideoStatus.PROCESSING,
-                    to_status=VideoStatus.COMPLETED,
+                    to_status=VideoStatus.INDEXING,
                 )
                 self.task_queue.enqueue_indexing(video_id)
         except Exception as e:
@@ -76,15 +76,4 @@ class RunTranscriptionUseCase:
             )
             raise TranscriptionExecutionFailed(video_id=video_id, reason=error_msg) from e
 
-        try:
-            self.vector_gateway.index_video_transcript(
-                video.id, video.user_id, video.title, transcript
-            )
-        except Exception:
-            logger.warning(
-                "Failed to index transcript for video %d; vectors may be stale",
-                video_id,
-                exc_info=True,
-            )
-
-        logger.info("Transcription completed for video %d", video_id)
+        logger.info("Transcription completed for video %d; indexing task enqueued", video_id)

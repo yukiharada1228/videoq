@@ -50,6 +50,7 @@
     "status": {
       "pending": "待機中",
       "processing": "処理中",
+      "indexing": "インデックス中",
       "completed": "完了",
       "error": "エラー"
     },
