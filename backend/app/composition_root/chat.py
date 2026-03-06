@@ -1,6 +1,9 @@
 """Chat context DI wiring."""
 
 from app.infrastructure.chat.keyword_extractor import JanomeNltkKeywordExtractor
+from app.infrastructure.chat.scene_video_info_provider import (
+    DjangoSceneVideoInfoProvider,
+)
 from app.infrastructure.external.file_url_resolver import DjangoFileUrlResolver
 from app.infrastructure.external.rag_gateway import RagChatGateway
 from app.infrastructure.repositories.django_chat_repository import (
@@ -40,8 +43,10 @@ def get_popular_scenes_use_case() -> GetPopularScenesUseCase:
     return GetPopularScenesUseCase(
         DjangoChatRepository(),
         DjangoVideoGroupQueryRepository(),
-        DjangoVideoRepository(),
-        DjangoFileUrlResolver(),
+        DjangoSceneVideoInfoProvider(
+            video_repo=DjangoVideoRepository(),
+            file_url_resolver=DjangoFileUrlResolver(),
+        ),
     )
 
 
