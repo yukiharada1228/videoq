@@ -17,7 +17,7 @@ class DjangoUserDataDeletionGateway(UserDataDeletionGateway):
     """Deletes all user-owned data using Django ORM."""
 
     def delete_all_videos_for_user(self, user_id: int) -> None:
-        from app.models import Video
+        from app.infrastructure.models import Video
 
         videos = Video.objects.filter(user_id=user_id).order_by("id")
         for video in videos:
@@ -30,16 +30,16 @@ class DjangoUserDataDeletionGateway(UserDataDeletionGateway):
             delete_video_vectors(video_id)
 
     def delete_chat_history_for_user(self, user_id: int) -> None:
-        from app.models import ChatLog
+        from app.infrastructure.models import ChatLog
 
         ChatLog.objects.filter(user_id=user_id).delete()
 
     def delete_video_groups_for_user(self, user_id: int) -> None:
-        from app.models import VideoGroup
+        from app.infrastructure.models import VideoGroup
 
         VideoGroup.objects.filter(user_id=user_id).delete()
 
     def delete_tags_for_user(self, user_id: int) -> None:
-        from app.models import Tag
+        from app.infrastructure.models import Tag
 
         Tag.objects.filter(user_id=user_id).delete()

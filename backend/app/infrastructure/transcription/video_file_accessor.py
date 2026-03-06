@@ -14,7 +14,7 @@ class DjangoVideoFileAccessor:
     """Resolves a video_id to a local filesystem path, downloading from S3 if needed."""
 
     def get_local_path(self, video_id: int, temp_manager) -> str:
-        from app.models import Video
+        from app.infrastructure.models import Video
 
         video = Video.objects.get(id=video_id)
         try:

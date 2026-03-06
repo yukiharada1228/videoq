@@ -21,7 +21,7 @@ from app.domain.chat.value_objects import (
     SceneReference,
     TimeSeriesPoint,
 )
-from app.models import ChatLog, VideoGroup, VideoGroupMember
+from app.infrastructure.models import ChatLog, VideoGroup, VideoGroupMember
 
 
 # ---------------------------------------------------------------------------

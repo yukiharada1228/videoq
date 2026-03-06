@@ -8,7 +8,7 @@ import datetime
 from django.utils import timezone
 
 from app.domain.auth.gateways import AccountDeletionGateway
-from app.models import AccountDeletionRequest
+from app.infrastructure.models import AccountDeletionRequest
 
 
 class DjangoAccountDeletionGateway(AccountDeletionGateway):

@@ -8,7 +8,7 @@ from typing import Any, List, Optional, Tuple
 
 from django.db import transaction
 
-from app.models import Video
+from app.infrastructure.models import Video
 
 logger = logging.getLogger(__name__)
 

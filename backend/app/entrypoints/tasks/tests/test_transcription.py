@@ -9,9 +9,9 @@ from unittest.mock import patch
 from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
 
+from app.dependencies.tasks import TranscriptionTargetMissingError
 from app.entrypoints.tasks.transcription import transcribe_video
 from app.models import Video
-from app.use_cases.video.exceptions import TranscriptionTargetMissing
 
 User = get_user_model()
 
@@ -74,5 +74,5 @@ class TranscribeVideoTaskTests(TestCase):
 
     def test_handles_nonexistent_video(self):
         """Non-existent video raises an exception"""
-        with self.assertRaises(TranscriptionTargetMissing):
+        with self.assertRaises(TranscriptionTargetMissingError):
             transcribe_video(99999)

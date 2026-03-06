@@ -3,7 +3,7 @@ Django ORM implementation of API key resolver.
 """
 
 from app.domain.auth.dtos import ApiKeyAuthContextDTO
-from app.models import UserApiKey
+from app.infrastructure.models import UserApiKey
 
 
 class DjangoApiKeyResolver:

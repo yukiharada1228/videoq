@@ -7,7 +7,7 @@ import time
 from django.core.cache import cache
 from django.test import TestCase
 
-from app.models import User
+from app.infrastructure.models import User
 from app.infrastructure.common.performance_utils import (CacheManager, MemoryOptimizer,
                                          PerformanceOptimizer)
 
