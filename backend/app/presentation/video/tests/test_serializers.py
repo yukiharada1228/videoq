@@ -4,13 +4,13 @@ Tests for video serializers (presentation layer)
 
 from io import BytesIO
 
+from django.apps import apps
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from rest_framework.request import Request
 from rest_framework.test import APIRequestFactory, force_authenticate
 
-from app.models import Tag, Video, VideoGroup, VideoGroupMember, VideoTag
 from app.presentation.video.serializers import (
     TagCreateSerializer,
     TagDetailSerializer,
@@ -21,6 +21,11 @@ from app.presentation.video.serializers import (
 )
 
 User = get_user_model()
+Tag = apps.get_model("app", "Tag")
+Video = apps.get_model("app", "Video")
+VideoGroup = apps.get_model("app", "VideoGroup")
+VideoGroupMember = apps.get_model("app", "VideoGroupMember")
+VideoTag = apps.get_model("app", "VideoTag")
 
 
 class VideoCreateSerializerTests(TestCase):

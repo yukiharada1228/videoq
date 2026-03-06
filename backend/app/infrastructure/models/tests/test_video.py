@@ -5,7 +5,7 @@ Tests for Video model
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 
-from app.models import Video
+from app.infrastructure.models import Video
 
 User = get_user_model()
 

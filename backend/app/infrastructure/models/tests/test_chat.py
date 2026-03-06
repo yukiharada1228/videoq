@@ -5,7 +5,7 @@ Tests for ChatLog model
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 
-from app.models import ChatLog, VideoGroup
+from app.infrastructure.models import ChatLog, VideoGroup
 
 User = get_user_model()
 

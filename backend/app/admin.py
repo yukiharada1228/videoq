@@ -8,6 +8,7 @@ through app.dependencies to keep behavior aligned with API flows.
 from django.contrib import admin, messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.admin import UserAdmin
+from django.apps import apps
 from django.db import transaction
 from django.db.models import Count
 
@@ -15,10 +16,11 @@ from app.dependencies.admin import (
     get_enforce_video_limit_use_case,
     get_video_task_gateway,
 )
-
-from .models import AccountDeletionRequest, Video, VideoGroup, VideoGroupMember
-
 User = get_user_model()
+Video = apps.get_model("app", "Video")
+VideoGroup = apps.get_model("app", "VideoGroup")
+VideoGroupMember = apps.get_model("app", "VideoGroupMember")
+AccountDeletionRequest = apps.get_model("app", "AccountDeletionRequest")
 
 
 class BaseAdminMixin:

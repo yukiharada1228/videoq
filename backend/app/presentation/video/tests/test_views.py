@@ -1,13 +1,16 @@
 from unittest.mock import patch
 
+from django.apps import apps
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 
-from app.models import Video, VideoGroup, VideoGroupMember
-
 User = get_user_model()
+Tag = apps.get_model("app", "Tag")
+Video = apps.get_model("app", "Video")
+VideoGroup = apps.get_model("app", "VideoGroup")
+VideoGroupMember = apps.get_model("app", "VideoGroupMember")
 
 
 class VideoGroupAPITestCase(APITestCase):
@@ -411,8 +414,6 @@ class TagViewTests(APITestCase):
 
     def test_update_tag_returns_id(self):
         """Test tag update response includes id."""
-        from app.models import Tag
-
         tag = Tag.objects.create(user=self.user, name="Tag 1", color="#111111")
         url = reverse("tag-detail", kwargs={"pk": tag.pk})
 
@@ -844,4 +845,3 @@ class VideoLimitTests(APITestCase):
         response = self.client.post(url, data, format="multipart")
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(Video.objects.filter(user=user).count(), 2)
-

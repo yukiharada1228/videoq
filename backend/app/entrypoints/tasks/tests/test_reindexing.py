@@ -7,7 +7,7 @@ from unittest.mock import patch
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 
-from app.models import Video
+from app.infrastructure.models import Video
 from app.entrypoints.tasks.reindexing import reindex_all_videos_embeddings
 
 User = get_user_model()

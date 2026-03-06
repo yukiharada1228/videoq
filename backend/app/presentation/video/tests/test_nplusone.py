@@ -1,12 +1,16 @@
+from django.apps import apps
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from app.models import Tag, Video, VideoGroup, VideoGroupMember, VideoTag
-
 User = get_user_model()
+Tag = apps.get_model("app", "Tag")
+Video = apps.get_model("app", "Video")
+VideoGroup = apps.get_model("app", "VideoGroup")
+VideoGroupMember = apps.get_model("app", "VideoGroupMember")
+VideoTag = apps.get_model("app", "VideoTag")
 
 
 class NPlusOneTestCase(TestCase):

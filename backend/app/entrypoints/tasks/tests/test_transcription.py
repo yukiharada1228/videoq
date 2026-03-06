@@ -11,7 +11,7 @@ from django.test import TestCase, override_settings
 
 from app.dependencies.tasks import TranscriptionTargetMissingError
 from app.entrypoints.tasks.transcription import transcribe_video
-from app.models import Video
+from app.infrastructure.models import Video
 
 User = get_user_model()
 

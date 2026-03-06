@@ -6,7 +6,7 @@ from django.contrib.auth import get_user_model
 from django.db import IntegrityError
 from django.test import TestCase
 
-from app.models import Tag, Video, VideoTag
+from app.infrastructure.models import Tag, Video, VideoTag
 
 User = get_user_model()
 

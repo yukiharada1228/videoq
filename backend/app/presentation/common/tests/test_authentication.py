@@ -2,6 +2,7 @@
 Tests for common authentication module
 """
 
+from django.apps import apps
 from django.contrib.auth import get_user_model
 from django.test import RequestFactory
 from rest_framework.exceptions import AuthenticationFailed
@@ -9,9 +10,9 @@ from rest_framework.test import APITestCase
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from app.presentation.common.authentication import APIKeyAuthentication, CookieJWTAuthentication
-from app.models import UserApiKey
 
 User = get_user_model()
+UserApiKey = apps.get_model("app", "UserApiKey")
 
 
 class CookieJWTAuthenticationTests(APITestCase):

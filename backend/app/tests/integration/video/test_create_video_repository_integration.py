@@ -9,7 +9,7 @@ from django.test import TestCase
 
 from app.infrastructure.repositories.django_user_repository import DjangoUserRepository
 from app.infrastructure.repositories.django_video_repository import DjangoVideoRepository
-from app.models import Video
+from app.infrastructure.models import Video
 from app.use_cases.video.create_video import CreateVideoUseCase
 from app.use_cases.video.dto import CreateVideoInput
 from app.use_cases.video.exceptions import VideoLimitExceeded

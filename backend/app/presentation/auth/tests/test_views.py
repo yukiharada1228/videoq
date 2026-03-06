@@ -4,6 +4,7 @@ Tests for auth views
 
 from unittest.mock import MagicMock, patch
 
+from django.apps import apps
 from django.core.cache import cache
 from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import default_token_generator
@@ -15,10 +16,11 @@ from django.utils.http import urlsafe_base64_encode
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from app.models import UserApiKey
 from app.use_cases.auth.signup import VerificationEmailSendFailed
 
 User = get_user_model()
+UserApiKey = apps.get_model("app", "UserApiKey")
+AccountDeletionRequest = apps.get_model("app", "AccountDeletionRequest")
 
 
 @override_settings(
@@ -370,8 +372,6 @@ class AccountDeleteViewTests(APITestCase):
         # Check cookies are deleted
         self.assertEqual(response.cookies.get("access_token").value, "")
         self.assertEqual(response.cookies.get("refresh_token").value, "")
-
-        from app.models import AccountDeletionRequest
 
         self.assertTrue(
             AccountDeletionRequest.objects.filter(

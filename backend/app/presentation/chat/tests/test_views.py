@@ -5,6 +5,7 @@ Tests for chat views
 import secrets
 from unittest.mock import MagicMock, patch
 
+from django.apps import apps
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 from rest_framework import status
@@ -12,9 +13,12 @@ from rest_framework.test import APIClient, APITestCase
 
 from app.domain.chat.dtos import RelatedVideoDTO
 from app.domain.chat.gateways import LLMConfigurationError, RagResult
-from app.models import ChatLog, Video, VideoGroup, VideoGroupMember
 
 User = get_user_model()
+ChatLog = apps.get_model("app", "ChatLog")
+Video = apps.get_model("app", "Video")
+VideoGroup = apps.get_model("app", "VideoGroup")
+VideoGroupMember = apps.get_model("app", "VideoGroupMember")
 
 
 class ChatViewTests(APITestCase):
