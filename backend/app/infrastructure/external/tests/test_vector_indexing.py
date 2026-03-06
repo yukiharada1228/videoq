@@ -2,28 +2,34 @@
 Tests for vector indexing functions
 """
 
-import unittest
 from unittest.mock import MagicMock, patch
 
+from django.contrib.auth import get_user_model
+from django.test import TestCase
+
+from app.models import Video
 from app.infrastructure.external.scene_indexer import (create_scene_metadata,
                                                         index_scenes_batch,
                                                         index_scenes_to_vectorstore)
 
-
-def _make_video(video_id=1, user_id=10, title="Test Video"):
-    """Create a lightweight video-like object without touching the DB."""
-    video = MagicMock()
-    video.id = video_id
-    video.user_id = user_id
-    video.title = title
-    return video
+User = get_user_model()
 
 
-class CreateSceneMetadataTests(unittest.TestCase):
+class CreateSceneMetadataTests(TestCase):
     """Tests for create_scene_metadata function"""
 
     def setUp(self):
-        self.video = _make_video()
+        self.user = User.objects.create_user(
+            username="testuser",
+            email="test@example.com",
+            password="testpass123",
+            video_limit=None,
+        )
+        self.video = Video.objects.create(
+            user=self.user,
+            title="Test Video",
+            status="completed",
+        )
 
     def test_creates_basic_metadata(self):
         """Test that basic metadata is created correctly"""
@@ -38,7 +44,7 @@ class CreateSceneMetadataTests(unittest.TestCase):
         result = create_scene_metadata(self.video, scene)
 
         self.assertEqual(result["video_id"], self.video.id)
-        self.assertEqual(result["user_id"], self.video.user_id)
+        self.assertEqual(result["user_id"], self.user.id)
         self.assertEqual(result["video_title"], "Test Video")
         self.assertEqual(result["start_time"], "00:00:00,000")
         self.assertEqual(result["end_time"], "00:00:05,000")
@@ -73,11 +79,21 @@ class CreateSceneMetadataTests(unittest.TestCase):
         )
 
 
-class IndexScenesToVectorstoreTests(unittest.TestCase):
+class IndexScenesToVectorstoreTests(TestCase):
     """Tests for index_scenes_to_vectorstore function"""
 
     def setUp(self):
-        self.video = _make_video()
+        self.user = User.objects.create_user(
+            username="testuser",
+            email="test@example.com",
+            password="testpass123",
+            video_limit=None,
+        )
+        self.video = Video.objects.create(
+            user=self.user,
+            title="Test Video",
+            status="completed",
+        )
 
     @patch("app.infrastructure.external.scene_indexer.PGVectorManager")
     @patch("app.infrastructure.external.scene_indexer.get_embeddings")
@@ -130,11 +146,21 @@ class IndexScenesToVectorstoreTests(unittest.TestCase):
             index_scenes_to_vectorstore(scene_docs, self.video, "test-api-key")
 
 
-class IndexScenesBatchTests(unittest.TestCase):
+class IndexScenesBatchTests(TestCase):
     """Tests for index_scenes_batch function"""
 
     def setUp(self):
-        self.video = _make_video()
+        self.user = User.objects.create_user(
+            username="testuser",
+            email="test@example.com",
+            password="testpass123",
+            video_limit=None,
+        )
+        self.video = Video.objects.create(
+            user=self.user,
+            title="Test Video",
+            status="completed",
+        )
 
     @patch("app.infrastructure.external.scene_indexer.index_scenes_to_vectorstore")
     @patch("app.infrastructure.external.scene_indexer.SubtitleParser")

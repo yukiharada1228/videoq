@@ -2,20 +2,15 @@
 Tests for video serializers (presentation layer)
 """
 
-import unittest
 from io import BytesIO
-from unittest.mock import MagicMock
 
+from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import TestCase
 from rest_framework.request import Request
-from rest_framework.test import APIRequestFactory
+from rest_framework.test import APIRequestFactory, force_authenticate
 
-from app.domain.video.entities import (
-    TagEntity,
-    VideoEntity,
-    VideoGroupEntity,
-    VideoGroupMemberEntity,
-)
+from app.models import Tag, Video, VideoGroup, VideoGroupMember, VideoTag
 from app.presentation.video.serializers import (
     TagCreateSerializer,
     TagDetailSerializer,
@@ -25,23 +20,22 @@ from app.presentation.video.serializers import (
     VideoSerializer,
 )
 
-
-def _make_user(user_id=101):
-    user = MagicMock()
-    user.id = user_id
-    user.pk = user_id
-    user.is_authenticated = True
-    return user
+User = get_user_model()
 
 
-class VideoCreateSerializerTests(unittest.TestCase):
+class VideoCreateSerializerTests(TestCase):
     """Tests for VideoCreateSerializer — validates file type only.
     Quota enforcement and task dispatch are tested in use_cases/video/tests/.
     """
 
     def setUp(self):
         self.factory = APIRequestFactory()
-        self.user = _make_user()
+        self.user = User.objects.create_user(
+            username="testuser",
+            email="test@example.com",
+            password="testpass123",
+            video_limit=None,
+        )
 
     def _create_video_file(self, name="test_video.mp4", content_type="video/mp4"):
         return SimpleUploadedFile(
@@ -52,6 +46,7 @@ class VideoCreateSerializerTests(unittest.TestCase):
 
     def _get_request_context(self):
         request = self.factory.post("/videos/")
+        force_authenticate(request, user=self.user)
         drf_request = Request(request)
         drf_request._user = self.user
         return {"request": drf_request}
@@ -117,12 +112,16 @@ class VideoCreateSerializerTests(unittest.TestCase):
                 self.assertTrue(serializer.is_valid(), serializer.errors)
 
 
-class TagCreateSerializerTests(unittest.TestCase):
+class TagCreateSerializerTests(TestCase):
     """Tests for TagCreateSerializer"""
 
     def setUp(self):
         self.factory = APIRequestFactory()
-        self.user = _make_user()
+        self.user = User.objects.create_user(
+            username="testuser",
+            email="test@example.com",
+            password="testpass123",
+        )
 
     def _get_request_context(self):
         request = self.factory.post("/tags/")
@@ -205,7 +204,7 @@ class TagCreateSerializerTests(unittest.TestCase):
             self.assertIn("color", serializer.errors)
 
 
-class TagUpdateSerializerTests(unittest.TestCase):
+class TagUpdateSerializerTests(TestCase):
     """Tests for TagUpdateSerializer"""
 
     def test_validates_color_format(self):
@@ -226,20 +225,39 @@ class TagUpdateSerializerTests(unittest.TestCase):
         self.assertFalse(serializer.is_valid())
 
 
-class VideoSerializerTests(unittest.TestCase):
+class VideoSerializerTests(TestCase):
     """Tests for VideoSerializer"""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="testuser",
+            email="test@example.com",
+            password="testpass123",
+            video_limit=None,
+        )
+        self.video = Video.objects.create(
+            user=self.user,
+            title="Test Video",
+            description="Test Description",
+            status="completed",
+        )
 
     def test_includes_tags(self):
         """Test that tags are included in serialization"""
+        from app.domain.video.entities import TagEntity, VideoEntity
+
+        tag1 = Tag.objects.create(user=self.user, name="Tag1", color="#FF0000")
+        tag2 = Tag.objects.create(user=self.user, name="Tag2", color="#00FF00")
+
         video_entity = VideoEntity(
-            id=1,
-            user_id=10,
+            id=self.video.id,
+            user_id=self.user.id,
             title="Test Video",
             status="completed",
             description="Test Description",
             tags=[
-                TagEntity(id=100, user_id=10, name="Tag1", color="#FF0000"),
-                TagEntity(id=101, user_id=10, name="Tag2", color="#00FF00"),
+                TagEntity(id=tag1.id, user_id=self.user.id, name="Tag1", color="#FF0000"),
+                TagEntity(id=tag2.id, user_id=self.user.id, name="Tag2", color="#00FF00"),
             ],
         )
 
@@ -252,12 +270,22 @@ class VideoSerializerTests(unittest.TestCase):
         self.assertIn("color", data["tags"][0])
 
 
-class VideoGroupDetailSerializerTests(unittest.TestCase):
+class VideoGroupDetailSerializerTests(TestCase):
     """Tests for VideoGroupDetailSerializer"""
 
     def setUp(self):
         self.factory = APIRequestFactory()
-        self.user = _make_user()
+        self.user = User.objects.create_user(
+            username="testuser",
+            email="test@example.com",
+            password="testpass123",
+            video_limit=None,
+        )
+        self.group = VideoGroup.objects.create(
+            user=self.user,
+            name="Test Group",
+            description="Test Description",
+        )
 
     def _get_request_context(self):
         request = self.factory.get("/groups/")
@@ -266,18 +294,23 @@ class VideoGroupDetailSerializerTests(unittest.TestCase):
 
     def test_includes_videos_with_order(self):
         """Test that videos include order information"""
-        v1_entity = VideoEntity(id=1, user_id=10, title="Video 1", status="processing", description="")
-        v2_entity = VideoEntity(id=2, user_id=10, title="Video 2", status="processing", description="")
+        from app.domain.video.entities import VideoEntity, VideoGroupEntity, VideoGroupMemberEntity
+
+        video1 = Video.objects.create(user=self.user, title="Video 1")
+        video2 = Video.objects.create(user=self.user, title="Video 2")
+
+        v1_entity = VideoEntity(id=video1.id, user_id=self.user.id, title="Video 1", status="processing", description="")
+        v2_entity = VideoEntity(id=video2.id, user_id=self.user.id, title="Video 2", status="processing", description="")
 
         group_entity = VideoGroupEntity(
-            id=50,
-            user_id=10,
+            id=self.group.id,
+            user_id=self.user.id,
             name="Test Group",
             description="Test Description",
             video_count=2,
             members=[
-                VideoGroupMemberEntity(id=1, group_id=50, video_id=2, order=0, video=v2_entity),
-                VideoGroupMemberEntity(id=2, group_id=50, video_id=1, order=1, video=v1_entity),
+                VideoGroupMemberEntity(id=1, group_id=self.group.id, video_id=video2.id, order=0, video=v2_entity),
+                VideoGroupMemberEntity(id=2, group_id=self.group.id, video_id=video1.id, order=1, video=v1_entity),
             ],
         )
 
@@ -292,9 +325,11 @@ class VideoGroupDetailSerializerTests(unittest.TestCase):
 
     def test_empty_group_returns_empty_videos(self):
         """Test that empty group returns empty videos list"""
+        from app.domain.video.entities import VideoGroupEntity
+
         group_entity = VideoGroupEntity(
-            id=50,
-            user_id=10,
+            id=self.group.id,
+            user_id=self.user.id,
             name="Test Group",
             description="Test Description",
             video_count=0,
@@ -310,12 +345,22 @@ class VideoGroupDetailSerializerTests(unittest.TestCase):
         self.assertEqual(data["video_count"], 0)
 
 
-class TagDetailSerializerTests(unittest.TestCase):
+class TagDetailSerializerTests(TestCase):
     """Tests for TagDetailSerializer"""
 
     def setUp(self):
         self.factory = APIRequestFactory()
-        self.user = _make_user()
+        self.user = User.objects.create_user(
+            username="testuser",
+            email="test@example.com",
+            password="testpass123",
+            video_limit=None,
+        )
+        self.tag = Tag.objects.create(
+            user=self.user,
+            name="Test Tag",
+            color="#FF0000",
+        )
 
     def _get_request_context(self):
         request = self.factory.get("/tags/")
@@ -324,15 +369,20 @@ class TagDetailSerializerTests(unittest.TestCase):
 
     def test_includes_videos_with_tag(self):
         """Test that videos with this tag are included"""
+        from app.domain.video.entities import TagEntity, VideoEntity
+
+        video1 = Video.objects.create(user=self.user, title="Video 1")
+        video2 = Video.objects.create(user=self.user, title="Video 2")
+
         tag_entity = TagEntity(
-            id=100,
-            user_id=10,
+            id=self.tag.id,
+            user_id=self.user.id,
             name="Test Tag",
             color="#FF0000",
             video_count=2,
             videos=[
-                VideoEntity(id=1, user_id=10, title="Video 1", status="processing", description=""),
-                VideoEntity(id=2, user_id=10, title="Video 2", status="processing", description=""),
+                VideoEntity(id=video1.id, user_id=self.user.id, title="Video 1", status="processing", description=""),
+                VideoEntity(id=video2.id, user_id=self.user.id, title="Video 2", status="processing", description=""),
             ],
         )
 

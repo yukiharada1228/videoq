@@ -110,13 +110,12 @@ class CreateVideoUseCaseTests(TestCase):
     def setUp(self):
         self.user_id = 101
         self.user_repo = MagicMock()
-        self.user_repo.get_with_video_count.return_value = UserEntity(
+        self.user_repo.get_by_id.return_value = UserEntity(
             id=self.user_id,
             username="user",
             email="user@example.com",
             is_active=True,
             video_limit=None,
-            video_count=0,
         )
         self.repo = FakeVideoRepository()
         self.mock_task_queue = MagicMock()
@@ -158,22 +157,20 @@ class CreateVideoUseCaseTests(TestCase):
         self.mock_task_queue.enqueue_transcription.assert_called_once_with(video.id)
 
     def test_raises_video_limit_exceeded_when_limit_zero(self):
-        self.user_repo.get_with_video_count.return_value.video_limit = 0
+        self.user_repo.get_by_id.return_value.video_limit = 0
         with self.assertRaises(VideoLimitExceeded):
             self.use_case.execute(self.user_id, self._input())
 
     def test_raises_video_limit_exceeded_when_limit_reached(self):
+        self.user_repo.get_by_id.return_value.video_limit = 2
         self._seed_videos(2)
-        self.user_repo.get_with_video_count.return_value.video_limit = 2
-        self.user_repo.get_with_video_count.return_value.video_count = 2
 
         with self.assertRaises(VideoLimitExceeded):
             self.use_case.execute(self.user_id, self._input())
 
     def test_allows_upload_when_within_limit(self):
-        self.user_repo.get_with_video_count.return_value.video_limit = 3
+        self.user_repo.get_by_id.return_value.video_limit = 3
         self._seed_videos(1)
-        self.user_repo.get_with_video_count.return_value.video_count = 1
 
         video = self.use_case.execute(self.user_id, self._input())
 
@@ -189,7 +186,7 @@ class CreateVideoUseCaseTests(TestCase):
         self.assertEqual(self.repo.count_for_user(self.user_id), 11)
 
     def test_raises_when_user_not_found(self):
-        self.user_repo.get_with_video_count.return_value = None
+        self.user_repo.get_by_id.return_value = None
 
         with self.assertRaises(ResourceNotFound):
             self.use_case.execute(self.user_id, self._input())
