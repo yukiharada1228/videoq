@@ -9,6 +9,10 @@ class _UseCase:
         return None
 
 
+class _InvalidDependency:
+    pass
+
+
 class DependencyResolverMixinTests(SimpleTestCase):
     def test_resolve_dependency_raises_when_dependency_missing(self):
         with self.assertRaises(ImproperlyConfigured):
@@ -21,3 +25,11 @@ class DependencyResolverMixinTests(SimpleTestCase):
     def test_resolve_dependency_supports_factory(self):
         use_case = DependencyResolverMixin.resolve_dependency(lambda: _UseCase())
         self.assertIsInstance(use_case, _UseCase)
+
+    def test_resolve_dependency_raises_when_instance_lacks_execute(self):
+        with self.assertRaises(ImproperlyConfigured):
+            DependencyResolverMixin.resolve_dependency(_InvalidDependency())
+
+    def test_resolve_dependency_raises_when_factory_returns_invalid_dependency(self):
+        with self.assertRaises(ImproperlyConfigured):
+            DependencyResolverMixin.resolve_dependency(lambda: _InvalidDependency())
