@@ -7,6 +7,7 @@ from app.domain.auth.gateways import AuthTaskGateway
 from app.domain.video.gateways import VideoTaskGateway
 from app.contracts.tasks import (
     DELETE_ACCOUNT_DATA_TASK,
+    INDEX_VIDEO_TRANSCRIPT_TASK,
     REINDEX_ALL_VIDEOS_EMBEDDINGS_TASK,
     TRANSCRIBE_VIDEO_TASK,
 )
@@ -20,6 +21,15 @@ class CeleryVideoTaskGateway(VideoTaskGateway):
         transaction.on_commit(
             lambda: current_app.send_task(
                 TRANSCRIBE_VIDEO_TASK,
+                args=[video_id],
+            )
+        )
+
+    def enqueue_indexing(self, video_id: int) -> None:
+        """Dispatch vector indexing task after the current DB transaction commits."""
+        transaction.on_commit(
+            lambda: current_app.send_task(
+                INDEX_VIDEO_TRANSCRIPT_TASK,
                 args=[video_id],
             )
         )

@@ -14,3 +14,6 @@ DELETE_ACCOUNT_DATA_TASK = "app.entrypoints.tasks.account_deletion.delete_accoun
 REINDEX_ALL_VIDEOS_EMBEDDINGS_TASK = (
     "app.entrypoints.tasks.reindexing.reindex_all_videos_embeddings"
 )
+INDEX_VIDEO_TRANSCRIPT_TASK = (
+    "app.entrypoints.tasks.indexing.index_video_transcript"
+)
