@@ -2,14 +2,19 @@
 Use cases for managing video groups: membership, ordering, and share links.
 """
 
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 
+from app.domain.video.exceptions import (
+    GroupVideoOrderMismatch as DomainGroupVideoOrderMismatch,
+    SomeVideosNotFound,
+    VideoAlreadyInGroup as DomainVideoAlreadyInGroup,
+    VideoNotInGroup as DomainVideoNotInGroup,
+)
 from app.domain.video.repositories import VideoGroupRepository, VideoRepository
 from app.domain.video.services import ShareLinkService
 from app.use_cases.video.exceptions import (
     GroupVideoOrderMismatch,
     ResourceNotFound,
-    SomeVideosNotFound,
     VideoAlreadyInGroup,
     VideoNotInGroup,
 )
@@ -41,7 +46,10 @@ class AddVideoToGroupUseCase:
         if video is None:
             raise ResourceNotFound("Video")
 
-        return self.group_repo.add_video(group, video)
+        try:
+            return self.group_repo.add_video(group, video)
+        except DomainVideoAlreadyInGroup as e:
+            raise VideoAlreadyInGroup(str(e)) from e
 
 
 class AddVideosToGroupUseCase:
@@ -93,7 +101,10 @@ class RemoveVideoFromGroupUseCase:
         if video is None:
             raise ResourceNotFound("Video")
 
-        self.group_repo.remove_video(group, video)
+        try:
+            self.group_repo.remove_video(group, video)
+        except DomainVideoNotInGroup as e:
+            raise VideoNotInGroup(str(e)) from e
 
 
 class ReorderVideosInGroupUseCase:
@@ -112,7 +123,10 @@ class ReorderVideosInGroupUseCase:
         if group is None:
             raise ResourceNotFound("Group")
 
-        self.group_repo.reorder_videos(group, video_ids)
+        try:
+            self.group_repo.reorder_videos(group, video_ids)
+        except DomainGroupVideoOrderMismatch as e:
+            raise GroupVideoOrderMismatch(str(e)) from e
 
 
 class CreateShareLinkUseCase:

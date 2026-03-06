@@ -37,8 +37,7 @@ class CreateVideoUseCaseIntegrationTests(TestCase):
     def _input(self):
         file = _make_video_file()
         return CreateVideoInput(
-            file_name=file.name,
-            file_bytes=file.read(),
+            file=file,
             title="Test Video",
             description="",
         )

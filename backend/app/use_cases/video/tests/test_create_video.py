@@ -115,8 +115,7 @@ class CreateVideoUseCaseTests(TestCase):
     def _input(self):
         file = FakeUploadedFile()
         return CreateVideoInput(
-            file_name=file.name,
-            file_bytes=file.content,
+            file=file,
             title="Test Video",
             description="",
         )

@@ -3,29 +3,19 @@ Use case: Create a new video and dispatch transcription.
 """
 
 import logging
-from io import BytesIO
 from typing import Optional
 
 from app.domain.video.dto import CreateVideoParams
 from app.domain.video.entities import VideoEntity
+from app.domain.video.exceptions import VideoLimitExceeded as DomainVideoLimitExceeded
 from app.domain.video.gateways import VideoTaskGateway
 from app.domain.video.ports import FileUrlResolver
 from app.domain.video.repositories import VideoRepository
 from app.use_cases.video.dto import CreateVideoInput, VideoResponseDTO
+from app.use_cases.video.exceptions import VideoLimitExceeded
 from app.use_cases.video.file_url import to_video_response_dto
 
 logger = logging.getLogger(__name__)
-
-
-class _InMemoryBinarySource:
-    """Transport-agnostic binary source passed to the domain repository."""
-
-    def __init__(self, name: str, content: bytes):
-        self.name = name
-        self._buffer = BytesIO(content)
-
-    def read(self, size: int = -1) -> bytes:
-        return self._buffer.read(size)
 
 
 class CreateVideoUseCase:
@@ -60,13 +50,13 @@ class CreateVideoUseCase:
             VideoLimitExceeded: If the user has reached their upload limit.
         """
         current_count = self.video_repo.count_for_user(user_id)
-        VideoEntity.ensure_upload_within_limit(current_count, video_limit)
+        try:
+            VideoEntity.ensure_upload_within_limit(current_count, video_limit)
+        except DomainVideoLimitExceeded as e:
+            raise VideoLimitExceeded(e.limit) from e
 
         params = CreateVideoParams(
-            file=_InMemoryBinarySource(
-                name=input.file_name,
-                content=input.file_bytes,
-            ),
+            file=input.file,
             title=input.title,
             description=input.description,
         )

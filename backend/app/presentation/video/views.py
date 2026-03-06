@@ -115,8 +115,7 @@ class VideoListView(DependencyResolverMixin, AuthenticatedViewMixin, generics.Ge
             data = serializer.validated_data
             upload_file = data["file"]
             input_dto = CreateVideoInput(
-                file_name=upload_file.name,
-                file_bytes=upload_file.read(),
+                file=upload_file,
                 title=data["title"],
                 description=data["description"],
             )

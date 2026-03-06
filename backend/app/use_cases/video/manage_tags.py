@@ -4,12 +4,9 @@ Use cases for managing tags on videos.
 
 from typing import List, Tuple
 
+from app.domain.video.exceptions import SomeTagsNotFound, TagNotAttachedToVideo
 from app.domain.video.repositories import TagRepository, VideoRepository
-from app.use_cases.video.exceptions import (
-    ResourceNotFound,
-    SomeTagsNotFound,
-    TagNotAttachedToVideo,
-)
+from app.use_cases.video.exceptions import ResourceNotFound
 
 
 class AddTagsToVideoUseCase:

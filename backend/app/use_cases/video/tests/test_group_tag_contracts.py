@@ -6,12 +6,12 @@ from app.domain.video.entities import TagEntity, VideoEntity, VideoGroupEntity, 
 from app.domain.video.exceptions import (
     SomeTagsNotFound,
     TagNotAttachedToVideo,
-    VideoAlreadyInGroup,
-    VideoNotInGroup,
+    VideoAlreadyInGroup as DomainVideoAlreadyInGroup,
+    VideoNotInGroup as DomainVideoNotInGroup,
 )
 from app.use_cases.video.create_group_with_detail import CreateVideoGroupWithDetailUseCase
 from app.use_cases.video.dto import CreateGroupInput, UpdateGroupInput, UpdateTagInput
-from app.use_cases.video.exceptions import ResourceNotFound
+from app.use_cases.video.exceptions import ResourceNotFound, VideoAlreadyInGroup, VideoNotInGroup
 from app.use_cases.video.manage_groups import AddVideoToGroupUseCase, RemoveVideoFromGroupUseCase
 from app.use_cases.video.manage_tags import AddTagsToVideoUseCase, RemoveTagFromVideoUseCase
 from app.use_cases.video.update_group_with_detail import UpdateVideoGroupWithDetailUseCase
@@ -40,10 +40,10 @@ class _FakeGroupRepo:
         return None
 
     def add_video(self, group, video):
-        raise VideoAlreadyInGroup()
+        raise DomainVideoAlreadyInGroup()
 
     def remove_video(self, group, video):
-        raise VideoNotInGroup()
+        raise DomainVideoNotInGroup()
 
     def create(self, user_id: int, params):
         self.create_called = True
