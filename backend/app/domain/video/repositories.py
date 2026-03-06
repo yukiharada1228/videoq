@@ -130,9 +130,13 @@ class VideoGroupRepository(ABC):
 
     @abstractmethod
     def list_for_user(
-        self, user_id: int, annotate_only: bool = False
+        self, user_id: int, include_videos: bool = False
     ) -> List[VideoGroupEntity]:
-        """List video groups for a user."""
+        """List video groups for a user.
+
+        Args:
+            include_videos: When True, include member videos in each group.
+        """
         ...
 
     @abstractmethod

@@ -14,5 +14,5 @@ class ListVideoGroupsUseCase:
     def __init__(self, group_repo: VideoGroupRepository):
         self.group_repo = group_repo
 
-    def execute(self, user_id: int, annotate_only: bool = False) -> List[VideoGroupEntity]:
-        return self.group_repo.list_for_user(user_id=user_id, annotate_only=annotate_only)
+    def execute(self, user_id: int, include_videos: bool = False) -> List[VideoGroupEntity]:
+        return self.group_repo.list_for_user(user_id=user_id, include_videos=include_videos)

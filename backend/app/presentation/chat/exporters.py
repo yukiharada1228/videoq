@@ -13,7 +13,8 @@ def write_chat_history_csv(writer, rows) -> None:
     )
     for row in rows:
         try:
-            related_videos_str = json.dumps(row.related_videos, ensure_ascii=False)
+            related_videos = row.related_videos or []
+            related_videos_str = json.dumps(related_videos, ensure_ascii=False)
         except Exception:
             related_videos_str = "[]"
         writer.writerow([

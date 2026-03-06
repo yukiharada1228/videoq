@@ -212,7 +212,7 @@ class VideoGroupListView(DependencyResolverMixin, AuthenticatedViewMixin, generi
     )
     def get(self, request, *args, **kwargs):
         use_case = self.resolve_dependency(self.list_groups_use_case)
-        groups = use_case.execute(user_id=request.user.id, annotate_only=True)
+        groups = use_case.execute(user_id=request.user.id, include_videos=False)
         return Response(VideoGroupListSerializer(groups, many=True).data)
 
     @extend_schema(

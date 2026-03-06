@@ -7,8 +7,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
+from app.domain.chat.dtos import RelatedVideoDTO
 from app.domain.chat.value_objects import ChatSceneLog
 
 
@@ -52,7 +53,7 @@ class ChatLogEntity:
     group_share_token: Optional[str]
     question: str
     answer: str
-    related_videos: List[dict] = field(default_factory=list)
+    related_videos: List[RelatedVideoDTO] = field(default_factory=list)
     is_shared_origin: bool = False
     feedback: Optional[str] = None
     created_at: Optional[datetime] = None
