@@ -192,3 +192,32 @@ stateDiagram-v2
         - Waiting for New Token
     end note
 ```
+
+## API Key State Transition
+
+```mermaid
+stateDiagram-v2
+    [*] --> Active: API Key Created
+
+    Active --> Active: Used (last_used_at updated)
+    Active --> Revoked: Revoke API Key
+    Active --> [*]: User Deleted (CASCADE)
+
+    Revoked --> [*]: User Deleted (CASCADE)
+
+    note right of Active
+        Active
+        - revoked_at: NULL
+        - Can authenticate API requests
+        - last_used_at tracked
+        - Access level enforced (all / read_only)
+    end note
+
+    note right of Revoked
+        Revoked
+        - revoked_at set
+        - Cannot authenticate
+        - Record retained for audit
+        - Unique name constraint released
+    end note
+```

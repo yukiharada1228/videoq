@@ -35,7 +35,7 @@ Generate Answer (English or Japanese)
 
 ## Prompt Template Structure
 
-Prompts are defined in `backend/app/chat/prompts/prompts.json`.
+Prompts are defined in `backend/app/infrastructure/external/prompts/prompts.json`.
 
 ### Default Prompt (English)
 
@@ -72,7 +72,7 @@ A prompt for the Japanese locale (`ja`) is also defined and is automatically sel
 
 ### build_system_prompt Function
 
-The `build_system_prompt` function in `backend/app/chat/prompts/loader.py` combines the prompt template with search results to generate the final system prompt.
+The `build_system_prompt` function in `backend/app/infrastructure/external/prompts/loader.py` combines the prompt template with search results to generate the final system prompt.
 
 **Parameters:**
 - `locale`: Locale (e.g., `"ja"`, `"en"`). Uses default (English) if `None`
@@ -147,7 +147,7 @@ The backend extracts the first locale from this header and uses the correspondin
 
 ### Processing Search Results
 
-Documents retrieved from search are converted to reference information for prompts by the `_build_reference_entries` method:
+Documents retrieved from search are converted to reference information for prompts by the `_build_reference_entries` method in the RAG service:
 
 ```python
 def _build_reference_entries(self, docs: Sequence[Any]) -> List[str]:
@@ -170,7 +170,7 @@ def _build_reference_entries(self, docs: Sequence[Any]) -> List[str]:
 
 ### Editing Prompt Templates
 
-To customize prompts, edit `backend/app/chat/prompts/prompts.json`.
+To customize prompts, edit `backend/app/infrastructure/external/prompts/prompts.json`.
 
 **Notes:**
 - Maintain the existing key structure
@@ -197,7 +197,7 @@ To add a new locale (e.g., `fr`):
 
 ### Modifying Prompt Structure
 
-If you need to significantly modify the prompt structure, you will also need to update the `build_system_prompt` function in `backend/app/chat/prompts/loader.py`.
+If you need to significantly modify the prompt structure, you will also need to update the `build_system_prompt` function in `backend/app/infrastructure/external/prompts/loader.py`.
 
 ## Best Practices
 
@@ -219,7 +219,7 @@ If you need to significantly modify the prompt structure, you will also need to 
 To inspect prompt content:
 
 ```python
-from app.chat.prompts import build_system_prompt
+from app.infrastructure.external.prompts import build_system_prompt
 
 # Default locale
 prompt = build_system_prompt(
@@ -238,14 +238,16 @@ print(prompt_ja)
 
 ## Implementation Files
 
-- **Prompt Definition**: `backend/app/chat/prompts/prompts.json`
-- **Prompt Loader**: `backend/app/chat/prompts/loader.py`
-- **RAG Service**: `backend/app/chat/services/rag_chat.py`
-- **Tests**: `backend/app/chat/prompts/tests/test_loader.py`
+- **Prompt Definition**: `backend/app/infrastructure/external/prompts/prompts.json`
+- **Prompt Loader**: `backend/app/infrastructure/external/prompts/loader.py`
+- **RAG Service**: `backend/app/infrastructure/external/rag_service.py`
+- **RAG Gateway**: `backend/app/infrastructure/external/rag_gateway.py`
+- **RAG Domain Gateway**: `backend/app/domain/chat/gateways.py` (`RagGateway` ABC)
+- **Tests**: `backend/app/infrastructure/external/prompts/tests/test_loader.py`
 
 ## Related Documentation
 
 - [System Configuration Diagram](system-configuration-diagram.md)
-- [Scene Splitting](../../backend/app/tasks/srt_processing.py)
-- [Scene Detection (`scene_otsu`)](../../backend/app/scene_otsu/)
-- [Vector Management](../../backend/app/utils/vector_manager.py)
+- Scene Splitting: `backend/app/infrastructure/scene_otsu/`
+- Transcription Processing: `backend/app/infrastructure/transcription/`
+- Vector Store: `backend/app/infrastructure/external/vector_store.py`

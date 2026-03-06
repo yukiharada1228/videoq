@@ -45,12 +45,14 @@ graph TB
     
     subgraph External["External Network"]
         User[User]
+        ApiClient[API Client<br/>X-API-Key Auth]
         OpenAI[OpenAI API]
         EmailService[Email Service]
     end
 
     subgraph LocalServices["Optional Local Services"]
         WhisperLocal[whisper.cpp Server<br/>Local GPU-accelerated]
+        OllamaLocal[Ollama Server<br/>Local LLM & Embeddings]
     end
 
     User -->|HTTP/HTTPS| Nginx
@@ -64,8 +66,11 @@ graph TB
     CeleryWorker --> MediaFiles
     CeleryWorker -->|API Call| OpenAI
     CeleryWorker -.->|Optional| WhisperLocal
+    CeleryWorker -.->|Optional| OllamaLocal
     Django -->|API Call| OpenAI
+    Django -.->|Optional| OllamaLocal
     Django -->|SMTP| EmailService
+    ApiClient -->|HTTP/HTTPS| Nginx
     
     PostgreSQL -.->|Persist| PostgresData
     Django -.->|Static Files| StaticFiles
