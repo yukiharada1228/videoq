@@ -49,7 +49,10 @@ def get_add_video_to_group_use_case() -> AddVideoToGroupUseCase:
 
 
 def get_add_videos_to_group_use_case() -> AddVideosToGroupUseCase:
-    return AddVideosToGroupUseCase(shared.new_video_group_repository())
+    return AddVideosToGroupUseCase(
+        shared.new_video_repository(),
+        shared.new_video_group_repository(),
+    )
 
 
 def get_remove_video_from_group_use_case() -> RemoveVideoFromGroupUseCase:

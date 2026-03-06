@@ -1,13 +1,26 @@
-# Re-export all models for backward compatibility
-from .account_deletion import AccountDeletionRequest
-from .api_key import UserApiKey
-from .chat import ChatLog
-from .storage import (SafeFilenameMixin, SafeFileSystemStorage,
-                      SafeS3Boto3Storage, get_default_storage)
-from .tag import Tag, VideoTag
-from .user import User
-from .video import Video, user_directory_path
-from .video_group import VideoGroup, VideoGroupMember
+"""Backward-compatible model exports.
+
+Model implementations live under ``app.infrastructure.models``.
+This package remains as a compatibility facade for legacy imports
+(including historical migrations).
+"""
+
+from app.infrastructure.models import (
+    AccountDeletionRequest,
+    ChatLog,
+    SafeFilenameMixin,
+    SafeFileSystemStorage,
+    SafeS3Boto3Storage,
+    Tag,
+    User,
+    UserApiKey,
+    Video,
+    VideoGroup,
+    VideoGroupMember,
+    VideoTag,
+    get_default_storage,
+    user_directory_path,
+)
 
 __all__ = [
     "User",

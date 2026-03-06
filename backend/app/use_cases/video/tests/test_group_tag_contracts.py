@@ -19,8 +19,18 @@ from app.use_cases.video.dto import (
     UpdateTagInput,
     VideoGroupMemberResponseDTO,
 )
-from app.use_cases.video.exceptions import ResourceNotFound, VideoAlreadyInGroup, VideoNotInGroup
-from app.use_cases.video.manage_groups import AddVideoToGroupUseCase, RemoveVideoFromGroupUseCase
+from app.use_cases.video.exceptions import (
+    GroupVideoOrderMismatch,
+    ResourceNotFound,
+    VideoAlreadyInGroup,
+    VideoNotInGroup,
+)
+from app.use_cases.video.manage_groups import (
+    AddVideoToGroupUseCase,
+    AddVideosToGroupUseCase,
+    RemoveVideoFromGroupUseCase,
+    ReorderVideosInGroupUseCase,
+)
 from app.use_cases.video.manage_tags import AddTagsToVideoUseCase, RemoveTagFromVideoUseCase
 from app.use_cases.video.update_group import UpdateVideoGroupUseCase
 from app.use_cases.video.update_group_with_detail import UpdateVideoGroupWithDetailUseCase
@@ -30,11 +40,17 @@ from app.use_cases.video.update_tag_with_detail import UpdateTagWithDetailUseCas
 
 class _FakeVideoRepo:
     def __init__(self, video):
-        self.video = video
+        if isinstance(video, list):
+            self.videos = {v.id: v for v in video}
+        elif video is None:
+            self.videos = {}
+        else:
+            self.videos = {video.id: video}
 
     def get_by_id(self, video_id: int, user_id: int):
-        if self.video and self.video.id == video_id and self.video.user_id == user_id:
-            return self.video
+        video = self.videos.get(video_id)
+        if video and video.user_id == user_id:
+            return video
         return None
 
 
@@ -43,6 +59,8 @@ class _FakeGroupRepo:
         self.group = group
         self.create_called = False
         self.update_called = False
+        self.bulk_add_args = None
+        self.reorder_args = None
 
     def get_by_id(self, group_id: int, user_id: int, include_videos: bool = False):
         if self.group and self.group.id == group_id and self.group.user_id == user_id:
@@ -54,6 +72,13 @@ class _FakeGroupRepo:
 
     def remove_video(self, group, video):
         raise DomainVideoNotInGroup()
+
+    def add_videos_bulk(self, group, video_ids, user_id):
+        self.bulk_add_args = (group.id, list(video_ids), user_id)
+        return len(video_ids), 0
+
+    def reorder_videos(self, group, video_ids):
+        self.reorder_args = (group.id, list(video_ids))
 
     def create(self, user_id: int, params):
         self.create_called = True
@@ -136,6 +161,60 @@ class GroupTagContractsUseCaseTests(TestCase):
         use_case = AddTagsToVideoUseCase(_FakeVideoRepo(self.video), _FakeTagRepo(self.tag))
         with self.assertRaises(ResourceNotFound):
             use_case.execute(self.video.id, [1, 2], self.user_id)
+
+    def test_add_videos_bulk_resolves_rules_in_use_case_layer(self):
+        existing_member = VideoGroupMemberEntity(
+            id=1, group_id=self.group.id, video_id=self.video.id, order=0
+        )
+        group = VideoGroupEntity(
+            id=self.group.id,
+            user_id=self.user_id,
+            name=self.group.name,
+            members=[existing_member],
+        )
+        video2 = VideoEntity(id=11, user_id=self.user_id, title="v2", status="completed")
+        repo = _FakeGroupRepo(group)
+        use_case = AddVideosToGroupUseCase(
+            _FakeVideoRepo([self.video, video2]),
+            repo,
+        )
+
+        added_count, skipped_count = use_case.execute(group.id, [10, 11, 11], self.user_id)
+
+        self.assertEqual((added_count, skipped_count), (1, 2))
+        self.assertEqual(repo.bulk_add_args, (group.id, [11], self.user_id))
+
+    def test_add_videos_bulk_raises_not_found_when_any_video_is_missing(self):
+        use_case = AddVideosToGroupUseCase(_FakeVideoRepo(self.video), _FakeGroupRepo(self.group))
+
+        with self.assertRaises(ResourceNotFound):
+            use_case.execute(self.group.id, [self.video.id, 999], self.user_id)
+
+    def test_reorder_videos_validates_membership_in_use_case_layer(self):
+        video2 = VideoEntity(id=11, user_id=self.user_id, title="v2", status="completed")
+        group = VideoGroupEntity(
+            id=self.group.id,
+            user_id=self.user_id,
+            name=self.group.name,
+            members=[
+                VideoGroupMemberEntity(id=1, group_id=self.group.id, video_id=10, order=0),
+                VideoGroupMemberEntity(id=2, group_id=self.group.id, video_id=11, order=1),
+            ],
+        )
+        repo = _FakeGroupRepo(group)
+        use_case = ReorderVideosInGroupUseCase(repo)
+
+        use_case.execute(group.id, [11, 10], self.user_id)
+
+        self.assertEqual(repo.reorder_args, (group.id, [11, 10]))
+
+    def test_reorder_videos_raises_order_mismatch_before_repository(self):
+        repo = _FakeGroupRepo(self.group)
+        use_case = ReorderVideosInGroupUseCase(repo)
+
+        with self.assertRaises(GroupVideoOrderMismatch):
+            use_case.execute(self.group.id, [999], self.user_id)
+        self.assertIsNone(repo.reorder_args)
 
     def test_remove_tag_maps_not_attached_to_resource_not_found(self):
         use_case = RemoveTagFromVideoUseCase(_FakeVideoRepo(self.video), _FakeTagRepo(self.tag))

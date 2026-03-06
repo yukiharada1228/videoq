@@ -5,8 +5,6 @@ Use cases for managing video groups: membership, ordering, and share links.
 from typing import List, Tuple
 
 from app.domain.video.exceptions import (
-    GroupVideoOrderMismatch as DomainGroupVideoOrderMismatch,
-    SomeVideosNotFound,
     VideoAlreadyInGroup as DomainVideoAlreadyInGroup,
     VideoNotInGroup as DomainVideoNotInGroup,
 )
@@ -66,7 +64,10 @@ class AddVideoToGroupUseCase:
 class AddVideosToGroupUseCase:
     """Bulk-add multiple videos to a group, skipping existing members."""
 
-    def __init__(self, group_repo: VideoGroupRepository):
+    def __init__(
+        self, video_repo: VideoRepository, group_repo: VideoGroupRepository
+    ):
+        self.video_repo = video_repo
         self.group_repo = group_repo
 
     def execute(
@@ -79,14 +80,31 @@ class AddVideosToGroupUseCase:
         Raises:
             ResourceNotFound: If the group is not found or some videos are not found.
         """
-        group = self.group_repo.get_by_id(group_id, user_id)
+        group = self.group_repo.get_by_id(group_id, user_id, include_videos=True)
         if group is None:
             raise ResourceNotFound("Group")
 
-        try:
-            return self.group_repo.add_videos_bulk(group, video_ids, user_id)
-        except SomeVideosNotFound as e:
-            raise ResourceNotFound("Some videos") from e
+        requested_ids = list(dict.fromkeys(video_ids))
+        missing_ids = [
+            video_id
+            for video_id in requested_ids
+            if self.video_repo.get_by_id(video_id, user_id) is None
+        ]
+        if missing_ids:
+            raise ResourceNotFound("Some videos")
+
+        existing_ids = {member.video_id for member in group.members}
+        ids_to_add: List[int] = []
+        seen_ids = set(existing_ids)
+        for video_id in video_ids:
+            if video_id in seen_ids:
+                continue
+            ids_to_add.append(video_id)
+            seen_ids.add(video_id)
+
+        added_count, _ = self.group_repo.add_videos_bulk(group, ids_to_add, user_id)
+        skipped_count = len(video_ids) - len(ids_to_add)
+        return added_count, skipped_count
 
 
 class RemoveVideoFromGroupUseCase:
@@ -130,14 +148,15 @@ class ReorderVideosInGroupUseCase:
             ResourceNotFound: If the group is not found.
             GroupVideoOrderMismatch: If video_ids don't match the group's members.
         """
-        group = self.group_repo.get_by_id(group_id, user_id)
+        group = self.group_repo.get_by_id(group_id, user_id, include_videos=True)
         if group is None:
             raise ResourceNotFound("Group")
 
-        try:
-            self.group_repo.reorder_videos(group, video_ids)
-        except DomainGroupVideoOrderMismatch as e:
-            raise GroupVideoOrderMismatch(str(e)) from e
+        group_video_ids = {member.video_id for member in group.members}
+        if set(video_ids) != group_video_ids:
+            raise GroupVideoOrderMismatch()
+
+        self.group_repo.reorder_videos(group, video_ids)
 
 
 class CreateShareLinkUseCase:
