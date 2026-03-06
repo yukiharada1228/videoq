@@ -310,9 +310,8 @@ class DjangoVideoGroupRepository(VideoGroupRepository):
         return _group_to_entity(group, include_videos=include_videos)
 
     def list_for_user(
-        self, user_id: int, annotate_only: bool = False
+        self, user_id: int, include_videos: bool = False
     ) -> List[VideoGroupEntity]:
-        include_videos = not annotate_only
         queryset = QueryOptimizer.get_video_groups_with_videos(
             user_id=user_id,
             include_videos=include_videos,

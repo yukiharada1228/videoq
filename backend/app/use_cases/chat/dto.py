@@ -6,7 +6,7 @@ DTOs for chat use cases.
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 
 @dataclass(frozen=True)
@@ -28,7 +28,7 @@ class ChatHistoryExportRow:
     question: str
     answer: str
     is_shared_origin: bool
-    related_videos: list
+    related_videos: List[Dict[str, Any]]
     feedback: Optional[str]
 
 

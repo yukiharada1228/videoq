@@ -32,6 +32,9 @@ def _chat_log_to_entity(
     if include_group_fields and hasattr(log, "group") and log.group_id:
         group_user_id = log.group.user_id
         group_share_token = log.group.share_token
+    related_videos = [
+        RelatedVideoDTO.from_dict(item) for item in (log.related_videos or [])
+    ]
     return ChatLogEntity(
         id=log.id,
         user_id=log.user_id,
@@ -40,7 +43,7 @@ def _chat_log_to_entity(
         group_share_token=group_share_token,
         question=log.question,
         answer=log.answer,
-        related_videos=log.related_videos or [],
+        related_videos=related_videos,
         is_shared_origin=log.is_shared_origin,
         feedback=log.feedback,
         created_at=log.created_at,
