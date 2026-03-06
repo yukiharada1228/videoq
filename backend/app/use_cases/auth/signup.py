@@ -23,6 +23,7 @@ class SignupUserUseCase:
         self.email_sender = email_sender
 
     def execute(self, username: str, email: str, password: str) -> None:
+        email = email.strip()
         if self.user_gateway.email_exists(email):
             raise EmailAlreadyRegistered("This email address is already registered.")
 

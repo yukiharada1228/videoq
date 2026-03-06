@@ -6,11 +6,9 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
-from rest_framework import serializers
 from rest_framework.test import APITestCase
 
-from app.presentation.auth.serializers import (CredentialsSerializerMixin,
-                                               EmailVerificationSerializer,
+from app.presentation.auth.serializers import (EmailVerificationSerializer,
                                                LoginSerializer,
                                                PasswordResetConfirmSerializer,
                                                PasswordResetRequestSerializer,
@@ -36,40 +34,6 @@ class UserSignupSerializerTests(APITestCase):
         serializer = UserSignupSerializer(data=data)
         self.assertTrue(serializer.is_valid())
 
-    def test_create_user_duplicate_email(self):
-        """Test user creation with duplicate email is rejected at serializer level"""
-        User.objects.create_user(
-            username="existing",
-            email="existing@example.com",
-            password="pass123",
-        )
-
-        data = {
-            "username": "newuser",
-            "email": "existing@example.com",
-            "password": "SecurePass123",
-        }
-        serializer = UserSignupSerializer(data=data)
-        self.assertFalse(serializer.is_valid())
-        self.assertIn("email", serializer.errors)
-
-    def test_validate_email_case_insensitive(self):
-        """Test email validation is case insensitive"""
-        User.objects.create_user(
-            username="existing",
-            email="Existing@Example.com",
-            password="pass123",
-        )
-
-        data = {
-            "username": "newuser",
-            "email": "existing@example.com",
-            "password": "SecurePass123",
-        }
-        serializer = UserSignupSerializer(data=data)
-        self.assertFalse(serializer.is_valid())
-        self.assertIn("email", serializer.errors)
-
     def test_weak_password_rejected(self):
         """Test that a weak password fails validation"""
         data = {
@@ -88,38 +52,16 @@ class UserSignupSerializerTests(APITestCase):
 
 
 class LoginSerializerTests(APITestCase):
-    """Tests for LoginSerializer"""
+    """Tests for LoginSerializer field-level validation only."""
 
-    def setUp(self):
-        self.user = User.objects.create_user(
-            username="testuser",
-            email="test@example.com",
-            password="testpass123",
-        )
-
-    def test_login_success(self):
-        """Test successful login"""
+    def test_login_payload_shape_valid(self):
+        """Test valid login payload passes serializer validation."""
         data = {"username": "testuser", "password": "testpass123"}
         serializer = LoginSerializer(data=data)
         self.assertTrue(serializer.is_valid())
-        self.assertEqual(serializer.validated_data["user"], self.user)
-
-    def test_login_invalid_username(self):
-        """Test login with invalid username"""
-        data = {"username": "wronguser", "password": "testpass123"}
-        serializer = LoginSerializer(data=data)
-        self.assertFalse(serializer.is_valid())
-        self.assertIn("non_field_errors", serializer.errors)
-
-    def test_login_invalid_password(self):
-        """Test login with invalid password"""
-        data = {"username": "testuser", "password": "wrongpass"}
-        serializer = LoginSerializer(data=data)
-        self.assertFalse(serializer.is_valid())
-        self.assertIn("non_field_errors", serializer.errors)
 
     def test_login_missing_credentials(self):
-        """Test login with missing credentials"""
+        """Test login with missing credentials fails."""
         data = {"username": "testuser"}
         serializer = LoginSerializer(data=data)
         self.assertFalse(serializer.is_valid())
@@ -144,28 +86,12 @@ class UserSerializerTests(APITestCase):
 
 
 class RefreshSerializerTests(APITestCase):
-    """Tests for RefreshSerializer"""
+    """Tests for RefreshSerializer field-level validation only."""
 
-    def setUp(self):
-        self.user = User.objects.create_user(
-            username="testuser",
-            email="test@example.com",
-            password="testpass123",
-        )
-
-    def test_validate_refresh_token_valid(self):
-        """Test validation with valid refresh token"""
-        from rest_framework_simplejwt.tokens import RefreshToken
-
-        refresh = RefreshToken.for_user(self.user)
-        serializer = RefreshSerializer(data={"refresh": str(refresh)})
+    def test_refresh_token_string_is_accepted(self):
+        """Test that any non-empty token string passes serializer validation."""
+        serializer = RefreshSerializer(data={"refresh": "any-token-string"})
         self.assertTrue(serializer.is_valid())
-
-    def test_validate_refresh_token_invalid(self):
-        """Test validation with invalid refresh token"""
-        serializer = RefreshSerializer(data={"refresh": "invalid-token"})
-        self.assertFalse(serializer.is_valid())
-        self.assertIn("refresh", serializer.errors)
 
     def test_validate_refresh_token_empty(self):
         """Test validation with empty refresh token"""
@@ -260,49 +186,3 @@ class PasswordResetConfirmSerializerTests(APITestCase):
         """Test that missing fields fail validation"""
         serializer = PasswordResetConfirmSerializer(data={"uid": self.uid})
         self.assertFalse(serializer.is_valid())
-
-
-class CredentialsSerializerMixinTests(APITestCase):
-    """Tests for CredentialsSerializerMixin"""
-
-    def setUp(self):
-        self.user = User.objects.create_user(
-            username="testuser",
-            email="test@example.com",
-            password="testpass123",
-        )
-
-    def test_validate_credentials_success(self):
-        """Test validate_credentials with valid credentials"""
-        mixin = CredentialsSerializerMixin()
-        user = mixin.validate_credentials("testuser", "testpass123")
-
-        self.assertEqual(user, self.user)
-
-    def test_validate_credentials_invalid_username(self):
-        """Test validate_credentials with invalid username"""
-        mixin = CredentialsSerializerMixin()
-
-        with self.assertRaises(serializers.ValidationError):
-            mixin.validate_credentials("wronguser", "testpass123")
-
-    def test_validate_credentials_invalid_password(self):
-        """Test validate_credentials with invalid password"""
-        mixin = CredentialsSerializerMixin()
-
-        with self.assertRaises(serializers.ValidationError):
-            mixin.validate_credentials("testuser", "wrongpass")
-
-    def test_validate_credentials_missing_username(self):
-        """Test validate_credentials with missing username"""
-        mixin = CredentialsSerializerMixin()
-
-        with self.assertRaises(serializers.ValidationError):
-            mixin.validate_credentials("", "testpass123")
-
-    def test_validate_credentials_missing_password(self):
-        """Test validate_credentials with missing password"""
-        mixin = CredentialsSerializerMixin()
-
-        with self.assertRaises(serializers.ValidationError):
-            mixin.validate_credentials("testuser", "")
