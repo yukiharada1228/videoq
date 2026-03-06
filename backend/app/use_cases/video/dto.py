@@ -8,25 +8,15 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import List, Optional, runtime_checkable
-from typing import Protocol
-
-
-@runtime_checkable
-class UploadedFile(Protocol):
-    """Minimal protocol for an uploaded file object.
-    Django's InMemoryUploadedFile satisfies this without modification.
-    """
-    name: str
-
-    def read(self) -> bytes: ...
+from typing import List, Optional
 
 
 @dataclass(frozen=True)
 class CreateVideoInput:
     """Input for CreateVideoUseCase.execute()."""
 
-    file: UploadedFile
+    file_name: str
+    file_bytes: bytes
     title: str
     description: str
 

@@ -35,8 +35,10 @@ class CreateVideoUseCaseIntegrationTests(TestCase):
         self.use_case = CreateVideoUseCase(self.repo, self.mock_task_queue)
 
     def _input(self):
+        file = _make_video_file()
         return CreateVideoInput(
-            file=_make_video_file(),
+            file_name=file.name,
+            file_bytes=file.read(),
             title="Test Video",
             description="",
         )

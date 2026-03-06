@@ -112,7 +112,14 @@ class VideoListView(DependencyResolverMixin, AuthenticatedViewMixin, generics.Ge
 
         use_case = self.resolve_dependency(self.create_video_use_case)
         try:
-            input_dto = CreateVideoInput(**serializer.validated_data)
+            data = serializer.validated_data
+            upload_file = data["file"]
+            input_dto = CreateVideoInput(
+                file_name=upload_file.name,
+                file_bytes=upload_file.read(),
+                title=data["title"],
+                description=data["description"],
+            )
             video = use_case.execute(request.user.id, request.user.video_limit, input_dto)
         except VideoLimitExceeded as e:
             return create_error_response(str(e), status.HTTP_400_BAD_REQUEST)
