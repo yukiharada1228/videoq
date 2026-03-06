@@ -6,7 +6,7 @@ All ORM access for the media domain is isolated here.
 from typing import Optional
 
 from app.domain.media.ports import ProtectedMediaRepository
-from app.models import Video, VideoGroupMember
+from app.infrastructure.models import Video, VideoGroupMember
 
 
 class DjangoMediaRepository(ProtectedMediaRepository):

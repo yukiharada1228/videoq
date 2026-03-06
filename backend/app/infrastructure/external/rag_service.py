@@ -18,7 +18,7 @@ from app.infrastructure.external.vector_store import PGVectorManager
 from app.infrastructure.common.embeddings import get_embeddings
 
 if TYPE_CHECKING:  # pragma: no cover
-    from app.models import VideoGroup
+    from app.infrastructure.models import VideoGroup
 
 
 @dataclass

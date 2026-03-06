@@ -15,7 +15,7 @@ from app.domain.chat.gateways import (
 )
 from app.infrastructure.external.rag_gateway import RagChatGateway
 from app.infrastructure.external.rag_service import RagChatService
-from app.models import Video, VideoGroup
+from app.infrastructure.models import Video, VideoGroup
 
 User = get_user_model()
 

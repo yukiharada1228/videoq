@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 
-from app.models import Video
+from app.infrastructure.models import Video
 from app.infrastructure.external.scene_indexer import (create_scene_metadata,
                                                         index_scenes_batch,
                                                         index_scenes_to_vectorstore)

@@ -8,7 +8,7 @@ from django.contrib.auth import get_user_model
 
 from app.domain.auth.entities import ACCESS_LEVEL_ALL, ApiKeyCreateResult, ApiKeyEntity
 from app.domain.auth.repositories import ApiKeyRepository
-from app.models import UserApiKey
+from app.infrastructure.models import UserApiKey
 
 
 def _key_to_entity(key: UserApiKey) -> ApiKeyEntity:

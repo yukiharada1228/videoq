@@ -637,6 +637,25 @@ class ImportRulesTest(unittest.TestCase):
         """infrastructure/external must not import app.presentation.tasks."""
         self._check("infrastructure/external", ["app.presentation.tasks"])
 
+    def test_infrastructure_has_no_direct_app_models_imports(self):
+        """infrastructure must use app.infrastructure.models as ORM import gateway."""
+        all_violations = {}
+        for fp in sorted(self._iter_layer_source_files("infrastructure")):
+            rel = os.path.relpath(fp, BASE)
+            if rel == "app/infrastructure/models/__init__.py":
+                continue
+            violations = check_forbidden_imports(fp, ["app.models"])
+            if violations:
+                all_violations[rel] = violations
+        self.assertEqual(
+            {},
+            all_violations,
+            "infrastructure must not import app.models directly:\n"
+            + "\n".join(
+                f"  {f}: {vs}" for f, vs in all_violations.items()
+            ),
+        )
+
     def test_infrastructure_has_no_presentation_string_dependencies(self):
         """infrastructure must not contain string literals referencing app.presentation.*."""
         forbidden_substring = "app.presentation."

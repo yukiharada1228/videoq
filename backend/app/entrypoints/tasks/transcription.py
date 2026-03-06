@@ -9,9 +9,9 @@ from celery import shared_task
 
 from app.contracts.tasks import TRANSCRIBE_VIDEO_TASK
 from app.dependencies.tasks import (
-    get_run_transcription_use_case,
-    get_transcription_execution_failed_exception,
-    get_transcription_target_missing_exception,
+    TranscriptionExecutionFailedError,
+    TranscriptionTargetMissingError,
+    run_transcription,
 )
 
 logger = logging.getLogger(__name__)
@@ -28,16 +28,13 @@ def transcribe_video(self, video_id):
     Retry up to 3 times on failure (60s, 120s, 180s backoff).
     """
     logger.info("Transcription task started for video ID: %d", video_id)
-    run_transcription_use_case = get_run_transcription_use_case()
-    transcription_target_missing = get_transcription_target_missing_exception()
-    transcription_execution_failed = get_transcription_execution_failed_exception()
     try:
-        run_transcription_use_case.execute(video_id)
+        run_transcription(video_id)
         logger.info("Successfully processed video %d", video_id)
-    except transcription_target_missing:
+    except TranscriptionTargetMissingError:
         logger.warning("Transcription target video not found: %d", video_id)
         raise
-    except transcription_execution_failed as e:
+    except TranscriptionExecutionFailedError as e:
         if self.request.retries < self.max_retries:
             raise self.retry(exc=e, countdown=60 * (self.request.retries + 1))
         raise

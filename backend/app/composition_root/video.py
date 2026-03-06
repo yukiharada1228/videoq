@@ -45,6 +45,14 @@ from app.use_cases.video.update_tag_with_detail import UpdateTagWithDetailUseCas
 from app.use_cases.video.update_video import UpdateVideoUseCase
 
 
+class TranscriptionTargetMissing(Exception):
+    """Composition-root boundary error for missing transcription target."""
+
+
+class TranscriptionExecutionFailed(Exception):
+    """Composition-root boundary error for failed transcription execution."""
+
+
 def _new_video_repository() -> DjangoVideoRepository:
     return DjangoVideoRepository()
 
@@ -109,16 +117,18 @@ def get_run_transcription_use_case() -> RunTranscriptionUseCase:
     )
 
 
-def get_transcription_target_missing_exception():
-    from app.use_cases.video.exceptions import TranscriptionTargetMissing
+def run_transcription(video_id: int) -> None:
+    from app.use_cases.video.exceptions import (
+        TranscriptionExecutionFailed as UseCaseTranscriptionExecutionFailed,
+        TranscriptionTargetMissing as UseCaseTranscriptionTargetMissing,
+    )
 
-    return TranscriptionTargetMissing
-
-
-def get_transcription_execution_failed_exception():
-    from app.use_cases.video.exceptions import TranscriptionExecutionFailed
-
-    return TranscriptionExecutionFailed
+    try:
+        get_run_transcription_use_case().execute(video_id)
+    except UseCaseTranscriptionTargetMissing as exc:
+        raise TranscriptionTargetMissing(str(exc)) from exc
+    except UseCaseTranscriptionExecutionFailed as exc:
+        raise TranscriptionExecutionFailed(str(exc)) from exc
 
 
 def get_video_detail_use_case() -> GetVideoDetailUseCase:

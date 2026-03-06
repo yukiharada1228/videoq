@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional
 
 from django.db.models import Count, Prefetch, QuerySet
 
-from app.models import Video, VideoGroup, VideoGroupMember, VideoTag
+from app.infrastructure.models import Video, VideoGroup, VideoGroupMember, VideoTag
 
 
 class QueryOptimizer:
