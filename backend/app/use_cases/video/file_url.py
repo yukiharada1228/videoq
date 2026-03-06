@@ -11,6 +11,7 @@ from app.domain.video.entities import TagEntity, VideoEntity, VideoGroupEntity, 
 from app.domain.video.ports import FileUrlResolver
 from app.use_cases.video.dto import (
     TagDetailResponseDTO,
+    TagResponseDTO,
     VideoGroupDetailResponseDTO,
     VideoGroupMemberResponseDTO,
     VideoResponseDTO,
@@ -21,6 +22,17 @@ def _resolve_url(file_key: Optional[str], resolver: Optional[FileUrlResolver]) -
     if resolver and file_key:
         return resolver.resolve(file_key)
     return None
+
+
+def _to_tag_response_dto(tag: TagEntity) -> TagResponseDTO:
+    return TagResponseDTO(
+        id=tag.id,
+        user_id=tag.user_id,
+        name=tag.name,
+        color=tag.color,
+        video_count=tag.video_count,
+        created_at=tag.created_at,
+    )
 
 
 def to_video_response_dto(
@@ -38,7 +50,7 @@ def to_video_response_dto(
         error_message=video.error_message,
         uploaded_at=video.uploaded_at,
         transcript=video.transcript,
-        tags=video.tags,
+        tags=[_to_tag_response_dto(tag) for tag in video.tags],
     )
 
 

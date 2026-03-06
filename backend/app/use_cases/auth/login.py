@@ -2,7 +2,8 @@
 Use case: Authenticate a user and issue a JWT token pair.
 """
 
-from app.domain.auth.ports import TokenGateway, TokenPairDto, UserAuthGateway
+from app.domain.auth.dtos import TokenPairDto
+from app.domain.auth.ports import TokenGateway, UserAuthGateway
 from app.use_cases.auth.exceptions import AuthenticationFailed
 
 

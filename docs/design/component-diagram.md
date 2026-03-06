@@ -222,11 +222,9 @@ graph TB
             ReindexTask[reindexing.py]
         end
 
-        subgraph Container["Composition Root / DI"]
-            Factories[factories.py]
-            ContainerClass[container.py]
-            Dependencies[dependencies/*.py]
-            CompRoot[composition_root/*.py]
+        subgraph Container["Dependency Providers / Composition Root"]
+            Dependencies[dependencies/*.py - provider functions]
+            CompRoot[composition_root/*.py - wiring and assembly]
             Contracts[contracts/ - task name constants]
         end
     end

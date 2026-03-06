@@ -8,7 +8,8 @@ from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.settings import api_settings
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from app.domain.auth.ports import TokenGateway, TokenPairDto
+from app.domain.auth.dtos import TokenPairDto
+from app.domain.auth.ports import TokenGateway
 from app.domain.shared.exceptions import TokenInvalidError
 
 
