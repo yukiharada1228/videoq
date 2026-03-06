@@ -8,6 +8,7 @@ through app.dependencies to keep behavior aligned with API flows.
 from django.contrib import admin, messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.admin import UserAdmin
+from django.db import transaction
 from django.db.models import Count
 
 from app.dependencies.admin import (
@@ -64,8 +65,11 @@ class CustomUserAdmin(UserAdmin):
 
     def save_model(self, request, obj, form, change):
         """Warn and enforce `video_limit` through the dedicated use case."""
-        if change and "video_limit" in form.changed_data:
-            estimate = get_enforce_video_limit_use_case().estimate_deleted_count(
+        should_enforce_video_limit = change and "video_limit" in form.changed_data
+        use_case = get_enforce_video_limit_use_case() if should_enforce_video_limit else None
+
+        if should_enforce_video_limit:
+            estimate = use_case.estimate_deleted_count(
                 user_id=obj.pk,
                 video_limit=obj.video_limit,
             )
@@ -76,19 +80,22 @@ class CustomUserAdmin(UserAdmin):
                     f"{estimate} oldest video(s) for user {obj.username}.",
                 )
 
-        super().save_model(request, obj, form, change)
-
-        if change and "video_limit" in form.changed_data:
-            deleted_count = get_enforce_video_limit_use_case().execute(
-                user_id=obj.pk,
-                video_limit=obj.video_limit,
-            )
-            if deleted_count > 0:
-                messages.warning(
-                    request,
-                    f"Deleted {deleted_count} oldest video(s) to enforce "
-                    f"video_limit={obj.video_limit} for user {obj.username}.",
+        if should_enforce_video_limit:
+            with transaction.atomic():
+                super().save_model(request, obj, form, change)
+                deleted_count = use_case.execute(
+                    user_id=obj.pk,
+                    video_limit=obj.video_limit,
                 )
+                if deleted_count > 0:
+                    messages.warning(
+                        request,
+                        f"Deleted {deleted_count} oldest video(s) to enforce "
+                        f"video_limit={obj.video_limit} for user {obj.username}.",
+                    )
+            return
+
+        super().save_model(request, obj, form, change)
 
 
 @admin.register(Video)

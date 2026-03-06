@@ -62,4 +62,9 @@ class DependencyResolverMixin:
                 "Dependency provider returned None. "
                 "Check dependencies/composition_root wiring."
             )
+        if not callable(getattr(dependency, "execute", None)):
+            raise ImproperlyConfigured(
+                "Resolved dependency must expose a callable execute(). "
+                "Check URL kwargs and dependency provider wiring."
+            )
         return dependency

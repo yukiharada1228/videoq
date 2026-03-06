@@ -21,6 +21,14 @@ def _path_calls(tree: ast.Module) -> list[ast.Call]:
     return calls
 
 
+def _provider_name_from_node(node: ast.AST) -> str | None:
+    if isinstance(node, ast.Attribute):
+        return node.attr
+    if isinstance(node, ast.Name):
+        return node.id
+    return None
+
+
 class PresentationDiWiringTests(unittest.TestCase):
     def test_class_view_injections_are_not_none(self):
         for rel in ("presentation/chat/urls.py", "presentation/video/urls.py"):
@@ -36,6 +44,17 @@ class PresentationDiWiringTests(unittest.TestCase):
                     self.assertFalse(
                         isinstance(kw.value, ast.Constant) and kw.value.value is None,
                         f"{rel}:{node.lineno} has None injection for {kw.arg}",
+                    )
+                    provider_name = _provider_name_from_node(kw.value)
+                    self.assertIsNotNone(
+                        provider_name,
+                        f"{rel}:{node.lineno} injection for {kw.arg} "
+                        "must reference a provider symbol.",
+                    )
+                    self.assertTrue(
+                        provider_name.startswith("get_"),
+                        f"{rel}:{node.lineno} injection for {kw.arg} must use get_* provider, "
+                        f"got: {provider_name}",
                     )
 
     def test_function_view_injections_are_not_none_and_use_case_named(self):
@@ -63,8 +82,18 @@ class PresentationDiWiringTests(unittest.TestCase):
                     isinstance(value_node, ast.Constant) and value_node.value is None,
                     f"{rel}:{call.lineno} has None injection for {key_name}",
                 )
+                provider_name = _provider_name_from_node(value_node)
+                self.assertIsNotNone(
+                    provider_name,
+                    f"{rel}:{call.lineno} injection for {key_name} "
+                    "must reference a provider symbol.",
+                )
+                self.assertTrue(
+                    provider_name.startswith("get_"),
+                    f"{rel}:{call.lineno} injection for {key_name} must use get_* provider, "
+                    f"got: {provider_name}",
+                )
 
 
 if __name__ == "__main__":
     unittest.main()
-
