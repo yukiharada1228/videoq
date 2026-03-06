@@ -4,13 +4,6 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
 
-from app.contracts.auth import (
-    ACCESS_LEVEL_ALL,
-    ACCESS_LEVEL_READ_ONLY,
-    SCOPE_READ,
-    SCOPE_WRITE,
-)
-
 
 @dataclass(frozen=True)
 class TokenPairOutput:
