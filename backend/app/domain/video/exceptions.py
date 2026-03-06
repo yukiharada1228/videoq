@@ -62,11 +62,3 @@ class TagNotAttachedToVideo(Exception):
 
     def __init__(self, message: str = "This tag is not attached to the video"):
         super().__init__(message)
-
-
-class ShareLinkNotFound(Exception):
-    """Raised when trying to disable sharing on a group that has no active share link."""
-
-    def __init__(self, message: str = "This group does not have an active share link"):
-        super().__init__(message)
-

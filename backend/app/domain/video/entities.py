@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import List, Optional
 
-from app.domain.video.exceptions import ShareLinkNotFound
+from app.domain.video.exceptions import VideoLimitExceeded
 
 
 @dataclass
@@ -48,39 +48,11 @@ class VideoEntity:
     def pk(self) -> int:
         return self.id
 
-    # ------------------------------------------------------------------
-    # Status transition methods
-    # ------------------------------------------------------------------
-
-    def _get_video_status(self) -> "VideoStatus":
-        """Return the current status as a VideoStatus enum value."""
-        from app.domain.video.status import VideoStatus
-
-        return VideoStatus.from_value(self.status)
-
-    def start_processing(self) -> None:
-        """Transition status to PROCESSING."""
-        from app.domain.video.status import VideoStatus
-
-        self._get_video_status().assert_transition_to(VideoStatus.PROCESSING)
-        self.status = VideoStatus.PROCESSING.value
-        self.error_message = ""
-
-    def complete(self) -> None:
-        """Transition status to COMPLETED."""
-        from app.domain.video.status import VideoStatus
-
-        self._get_video_status().assert_transition_to(VideoStatus.COMPLETED)
-        self.status = VideoStatus.COMPLETED.value
-        self.error_message = ""
-
-    def fail(self, error_message: str) -> None:
-        """Transition status to ERROR with an error message."""
-        from app.domain.video.status import VideoStatus
-
-        self._get_video_status().assert_transition_to(VideoStatus.ERROR)
-        self.status = VideoStatus.ERROR.value
-        self.error_message = error_message
+    @staticmethod
+    def ensure_upload_within_limit(current_count: int, video_limit: Optional[int]) -> None:
+        """Enforce per-user upload limits as a domain invariant."""
+        if video_limit is not None and current_count >= video_limit:
+            raise VideoLimitExceeded(video_limit)
 
 
 @dataclass
@@ -117,22 +89,3 @@ class VideoGroupEntity:
     @property
     def pk(self) -> int:
         return self.id
-
-    # ------------------------------------------------------------------
-    # Share link management
-    # ------------------------------------------------------------------
-
-    @property
-    def is_shared(self) -> bool:
-        """Whether this group has an active share link."""
-        return self.share_token is not None
-
-    def enable_sharing(self, token: str) -> None:
-        """Set the share token for this group."""
-        self.share_token = token
-
-    def disable_sharing(self) -> None:
-        """Remove the share token. Raises ShareLinkNotFound if not shared."""
-        if not self.is_shared:
-            raise ShareLinkNotFound()
-        self.share_token = None

@@ -6,6 +6,7 @@ import logging
 
 from app.domain.video.gateways import TranscriptionGateway, VectorIndexingGateway
 from app.domain.video.repositories import VideoTranscriptionRepository
+from app.domain.video.status import VideoStatus
 
 logger = logging.getLogger(__name__)
 
@@ -14,11 +15,11 @@ class RunTranscriptionUseCase:
     """
     Orchestrates video transcription:
     1. Validate video exists and is ready for processing
-    2. Transition status to processing (via entity method)
+    2. Transition status to processing
     3. Run transcription (audio extraction + Whisper + scene splitting)
-    4. Persist transcript and transition status to completed (via entity method)
+    4. Persist transcript and transition status to completed
     5. Index scenes to vector store for RAG search
-    On error: transition status to error (via entity method) and re-raise.
+    On error: transition status to error and re-raise.
     """
 
     def __init__(
@@ -36,17 +37,17 @@ class RunTranscriptionUseCase:
         if video is None:
             raise ValueError(f"Video {video_id} not found")
 
-        # Domain entity validates and performs the transition
-        video.start_processing()
+        current_status = VideoStatus.from_value(video.status)
+        current_status.assert_transition_to(VideoStatus.PROCESSING)
 
         logger.info("Transcription started for video %d (%s)", video.id, video.title)
-        self.video_repo.save(video)
+        self.video_repo.mark_processing(video_id)
 
         try:
             transcript = self.transcription_gateway.run(video_id)
             self.video_repo.save_transcript(video_id, transcript)
-            video.complete()
-            self.video_repo.save(video)
+            VideoStatus.PROCESSING.assert_transition_to(VideoStatus.COMPLETED)
+            self.video_repo.mark_completed(video_id)
             self.vector_gateway.index_video_transcript(
                 video.id, video.user_id, video.title, transcript
             )
@@ -54,8 +55,6 @@ class RunTranscriptionUseCase:
         except Exception as e:
             error_msg = str(e)
             logger.error("Transcription failed for video %d: %s", video_id, error_msg)
-            video.fail(error_msg)
-            self.video_repo.save(video)
+            VideoStatus.PROCESSING.assert_transition_to(VideoStatus.ERROR)
+            self.video_repo.mark_error(video_id, error_msg)
             raise
-
-

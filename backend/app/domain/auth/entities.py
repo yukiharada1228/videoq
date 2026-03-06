@@ -20,19 +20,8 @@ class ApiKeyEntity:
     created_at: datetime
     revoked_at: Optional[datetime] = None
 
-    @property
-    def is_revoked(self) -> bool:
-        """Whether this API key has been revoked."""
-        return self.revoked_at is not None
-
-    @property
-    def is_active(self) -> bool:
-        """Whether this API key is currently active (not revoked)."""
-        return not self.is_revoked
-
 
 @dataclass
 class ApiKeyCreateResult:
     api_key: ApiKeyEntity
     raw_key: str
-

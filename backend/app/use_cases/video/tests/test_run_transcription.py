@@ -16,8 +16,20 @@ class _FakeVideoTranscriptionRepository:
             return None
         return self.video
 
-    def save(self, video) -> None:
-        pass
+    def mark_processing(self, video_id: int) -> None:
+        if self.video and self.video.id == video_id:
+            self.video.status = "processing"
+            self.video.error_message = ""
+
+    def mark_completed(self, video_id: int) -> None:
+        if self.video and self.video.id == video_id:
+            self.video.status = "completed"
+            self.video.error_message = ""
+
+    def mark_error(self, video_id: int, error_message: str) -> None:
+        if self.video and self.video.id == video_id:
+            self.video.status = "error"
+            self.video.error_message = error_message
 
     def save_transcript(self, video_id: int, transcript: str) -> None:
         if self.video and self.video.id == video_id:
@@ -87,5 +99,4 @@ class RunTranscriptionUseCaseTests(TestCase):
 
         with self.assertRaises(InvalidVideoStatusTransition):
             use_case.execute(video.id)
-
 
