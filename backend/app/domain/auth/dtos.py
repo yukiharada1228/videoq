@@ -21,5 +21,3 @@ class ApiKeyAuthContextDTO:
     user_id: int
     user_video_limit: int
     access_level: str
-    scopes: list[str]
-    is_read_only: bool

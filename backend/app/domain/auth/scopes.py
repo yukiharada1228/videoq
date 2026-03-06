@@ -1,7 +1,5 @@
 """API key scope policy constants."""
 
-SCOPE_READ = "read"
-SCOPE_WRITE = "write"
-SCOPE_CHAT_WRITE = "chat_write"
+from app.contracts.auth import SCOPE_CHAT_WRITE, SCOPE_READ, SCOPE_WRITE
 
 READ_ONLY_ALLOWED_SCOPES = frozenset({SCOPE_READ, SCOPE_CHAT_WRITE})

@@ -121,9 +121,7 @@ class APIKeyAuthenticationTests(APITestCase):
         self.assertEqual(user.video_limit, self.user.video_limit)
         self.assertEqual(auth_data["api_key_id"], self.api_key.pk)
         self.assertEqual(auth_data["user_id"], self.user.id)
-        self.assertIn("read", auth_data["scopes"])
-        self.assertIn("write", auth_data["scopes"])
-        self.assertFalse(auth_data["is_read_only"])
+        self.assertEqual(auth_data["access_level"], self.api_key.access_level)
 
     def test_authenticate_with_authorization_header(self):
         """Test authentication using Authorization header."""
@@ -162,6 +160,4 @@ class APIKeyAuthenticationTests(APITestCase):
         self.assertEqual(user.id, self.user.id)
         self.assertEqual(auth_data["api_key_id"], read_only_key.pk)
         self.assertEqual(auth_data["user_id"], self.user.id)
-        self.assertIn("read", auth_data["scopes"])
-        self.assertNotIn("write", auth_data["scopes"])
-        self.assertTrue(auth_data["is_read_only"])
+        self.assertEqual(auth_data["access_level"], read_only_key.access_level)

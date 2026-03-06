@@ -51,8 +51,6 @@ class APIKeyAuthentication(BaseAuthentication):
             "api_key_id": resolved.api_key_id,
             "user_id": resolved.user_id,
             "access_level": resolved.access_level,
-            "is_read_only": resolved.is_read_only,
-            "scopes": resolved.scopes,
         }
 
     def authenticate_header(self, request: Request) -> str:

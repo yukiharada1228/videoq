@@ -4,11 +4,12 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
 
-# Shared boundary constants for auth use cases/presentation.
-ACCESS_LEVEL_ALL = "all"
-ACCESS_LEVEL_READ_ONLY = "read_only"
-SCOPE_READ = "read"
-SCOPE_WRITE = "write"
+from app.contracts.auth import (
+    ACCESS_LEVEL_ALL,
+    ACCESS_LEVEL_READ_ONLY,
+    SCOPE_READ,
+    SCOPE_WRITE,
+)
 
 
 @dataclass(frozen=True)
