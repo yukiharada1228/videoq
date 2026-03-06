@@ -3,7 +3,7 @@ Tests for chat views
 """
 
 import secrets
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from django.apps import apps
 from django.contrib.auth import get_user_model

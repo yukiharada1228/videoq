@@ -9,7 +9,6 @@ from django.test import TestCase, override_settings
 
 from app.domain.chat.dtos import ChatMessageDTO
 from app.domain.chat.gateways import (
-    LLMConfigurationError,
     LLMProviderError,
     RagUserNotFoundError,
 )

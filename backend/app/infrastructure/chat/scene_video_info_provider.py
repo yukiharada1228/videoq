@@ -25,9 +25,10 @@ class DjangoSceneVideoInfoProvider(SceneVideoInfoProvider):
         if not self.file_url_resolver:
             return {video_id: None for video_id in video_ids}
 
-        return {
-            video_id: self.file_url_resolver.resolve(file_key_map.get(video_id))
-            if file_key_map.get(video_id)
-            else None
-            for video_id in video_ids
-        }
+        resolved: Dict[int, Optional[str]] = {}
+        for video_id in video_ids:
+            file_key = file_key_map.get(video_id)
+            resolved[video_id] = (
+                self.file_url_resolver.resolve(file_key) if file_key is not None else None
+            )
+        return resolved

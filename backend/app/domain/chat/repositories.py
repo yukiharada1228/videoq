@@ -4,7 +4,7 @@ No Django / ORM / external service dependencies.
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, Sequence
+from typing import List, Optional, Sequence
 
 from app.domain.chat.dtos import RelatedVideoDTO
 from app.domain.chat.entities import (

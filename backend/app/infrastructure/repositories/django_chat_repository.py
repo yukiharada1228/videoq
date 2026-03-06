@@ -2,7 +2,7 @@
 Django ORM implementations of chat domain repository interfaces.
 """
 
-from typing import Dict, List, Optional, Sequence
+from typing import List, Optional, Sequence
 
 from django.db.models import Count, Prefetch, Q
 from django.db.models.functions import TruncDate

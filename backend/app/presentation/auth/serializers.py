@@ -32,7 +32,7 @@ class UserSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     username = serializers.CharField()
     email = serializers.EmailField()
-    video_limit = serializers.IntegerField()
+    video_limit = serializers.IntegerField(allow_null=True)
     video_count = serializers.SerializerMethodField()
 
     def get_video_count(self, obj) -> int:

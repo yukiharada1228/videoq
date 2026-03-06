@@ -29,12 +29,12 @@ class DjangoVectorIndexingGateway(VectorIndexingGateway):
 
         # Build a lightweight proxy so index_scenes_batch can access .id, .user_id, .title
         class _VideoProxy:
-            pass
+            def __init__(self, id: int, user_id: int, title: str):
+                self.id = id
+                self.user_id = user_id
+                self.title = title
 
-        proxy = _VideoProxy()
-        proxy.id = video_id
-        proxy.user_id = user_id
-        proxy.title = title
+        proxy = _VideoProxy(id=video_id, user_id=user_id, title=title)
 
         index_scenes_batch(transcript, proxy)
 

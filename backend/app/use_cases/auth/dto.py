@@ -41,7 +41,7 @@ class CurrentUserOutput:
     username: str
     email: str
     is_active: bool
-    video_limit: int
+    video_limit: int | None
     video_count: int
 
 
