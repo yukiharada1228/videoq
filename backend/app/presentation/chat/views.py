@@ -29,6 +29,7 @@ from app.presentation.common.throttles import (
 from app.use_cases.chat.exceptions import (
     ChatNotFoundError,
     FeedbackPermissionDenied,
+    InvalidChatRequestError,
     InvalidFeedbackError,
     LLMConfigurationError,
     LLMProviderError,
@@ -86,17 +87,9 @@ class ChatView(DependencyResolverMixin, APIView):
 
         group_id = serializer.validated_data.get("group_id")
 
-        if is_shared and not group_id:
-            return create_error_response(
-                "Group ID not specified", status.HTTP_400_BAD_REQUEST
-            )
-
         user_id = getattr(request.user, "id", None)
 
         validated_messages = serializer.validated_data.get("messages", [])
-        if not validated_messages:
-            return create_error_response("Messages are empty", status.HTTP_400_BAD_REQUEST)
-
         message_dtos = [
             ChatMessageInput(role=m["role"], content=m["content"])
             for m in validated_messages
@@ -112,6 +105,8 @@ class ChatView(DependencyResolverMixin, APIView):
                 is_shared=is_shared,
                 locale=_get_locale(request),
             )
+        except InvalidChatRequestError as e:
+            return create_error_response(str(e), status.HTTP_400_BAD_REQUEST)
         except ResourceNotFound as e:
             return create_error_response(str(e), status.HTTP_404_NOT_FOUND)
         except PermissionDenied as e:

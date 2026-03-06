@@ -7,7 +7,13 @@ from typing import Optional, Sequence
 
 from django.contrib.auth import get_user_model
 
-from app.domain.chat.gateways import LLMConfigurationError, LLMProviderError, RagGateway, RagResult
+from app.domain.chat.gateways import (
+    LLMConfigurationError,
+    LLMProviderError,
+    RagGateway,
+    RagResult,
+    RagUserNotFoundError,
+)
 from app.domain.chat.dtos import ChatMessageDTO, RelatedVideoDTO
 from app.infrastructure.external.llm import get_langchain_llm
 from app.infrastructure.external.rag_service import RagChatService
@@ -25,8 +31,10 @@ class RagChatGateway(RagGateway):
         locale: Optional[str] = None,
     ) -> RagResult:
         User = get_user_model()
-        # Let DoesNotExist propagate — a missing user is a data/auth bug, not an LLM error.
-        user = User.objects.get(pk=user_id)
+        try:
+            user = User.objects.get(pk=user_id)
+        except User.DoesNotExist as exc:
+            raise RagUserNotFoundError(f"User not found: {user_id}") from exc
 
         try:
             llm = get_langchain_llm(user)

@@ -331,14 +331,14 @@ class AddVideoToGroupView(DependencyResolverMixin, AuthenticatedViewMixin, APIVi
 def add_videos_to_group(
     request,
     group_id,
-    add_videos_to_group_use_case_factory,
+    add_videos_to_group_use_case,
 ):
     """Add multiple videos to group."""
     video_ids = request.data.get("video_ids", [])
     if not video_ids:
         return create_error_response("Video ID not specified", status.HTTP_400_BAD_REQUEST)
 
-    use_case = add_videos_to_group_use_case_factory()
+    use_case = DependencyResolverMixin.resolve_dependency(add_videos_to_group_use_case)
     try:
         added_count, skipped_count = use_case.execute(group_id, video_ids, request.user.id)
     except ResourceNotFound as e:
@@ -364,10 +364,10 @@ def remove_video_from_group(
     request,
     group_id,
     video_id,
-    remove_video_from_group_use_case_factory,
+    remove_video_from_group_use_case,
 ):
     """Remove video from group."""
-    use_case = remove_video_from_group_use_case_factory()
+    use_case = DependencyResolverMixin.resolve_dependency(remove_video_from_group_use_case)
     try:
         use_case.execute(group_id, video_id, request.user.id)
     except ResourceNotFound as e:
@@ -388,14 +388,14 @@ def remove_video_from_group(
 def reorder_videos_in_group(
     request,
     group_id,
-    reorder_videos_use_case_factory,
+    reorder_videos_use_case,
 ):
     """Update video order in group."""
     video_ids = request.data.get("video_ids", [])
     if not isinstance(video_ids, list):
         return create_error_response("video_ids must be an array", status.HTTP_400_BAD_REQUEST)
 
-    use_case = reorder_videos_use_case_factory()
+    use_case = DependencyResolverMixin.resolve_dependency(reorder_videos_use_case)
     try:
         use_case.execute(group_id, video_ids, request.user.id)
     except ResourceNotFound as e:
@@ -439,10 +439,10 @@ class CreateShareLinkView(DependencyResolverMixin, AuthenticatedViewMixin, APIVi
 def delete_share_link(
     request,
     group_id,
-    delete_share_link_use_case_factory,
+    delete_share_link_use_case,
 ):
     """Disable share link for group."""
-    use_case = delete_share_link_use_case_factory()
+    use_case = DependencyResolverMixin.resolve_dependency(delete_share_link_use_case)
     try:
         use_case.execute(group_id, request.user.id)
     except ResourceNotFound as e:
@@ -464,10 +464,10 @@ def delete_share_link(
 def get_shared_group(
     request,
     share_token,
-    shared_group_use_case_factory,
+    shared_group_use_case,
 ):
     """Get group by share token (no authentication required)."""
-    use_case = shared_group_use_case_factory()
+    use_case = DependencyResolverMixin.resolve_dependency(shared_group_use_case)
     try:
         group = use_case.execute(share_token)
     except ResourceNotFound:
@@ -583,14 +583,14 @@ class TagDetailView(DependencyResolverMixin, AuthenticatedViewMixin, APIView):
 def add_tags_to_video(
     request,
     video_id,
-    add_tags_to_video_use_case_factory,
+    add_tags_to_video_use_case,
 ):
     """Add multiple tags to video."""
     tag_ids = request.data.get("tag_ids", [])
     if not tag_ids:
         return create_error_response("Tag IDs not specified", status.HTTP_400_BAD_REQUEST)
 
-    use_case = add_tags_to_video_use_case_factory()
+    use_case = DependencyResolverMixin.resolve_dependency(add_tags_to_video_use_case)
     try:
         added_count, skipped_count = use_case.execute(video_id, tag_ids, request.user.id)
     except ResourceNotFound as e:
@@ -616,10 +616,10 @@ def remove_tag_from_video(
     request,
     video_id,
     tag_id,
-    remove_tag_from_video_use_case_factory,
+    remove_tag_from_video_use_case,
 ):
     """Remove tag from video."""
-    use_case = remove_tag_from_video_use_case_factory()
+    use_case = DependencyResolverMixin.resolve_dependency(remove_tag_from_video_use_case)
     try:
         use_case.execute(video_id, tag_id, request.user.id)
     except ResourceNotFound as e:

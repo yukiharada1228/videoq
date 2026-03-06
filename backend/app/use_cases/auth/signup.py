@@ -13,6 +13,10 @@ class EmailAlreadyRegistered(Exception):
     pass
 
 
+class VerificationEmailSendFailed(Exception):
+    """Raised when sending verification email fails."""
+
+
 class SignupUserUseCase:
     def __init__(
         self,
@@ -31,6 +35,8 @@ class SignupUserUseCase:
 
         try:
             self.email_sender.send_verification(user_id)
-        except Exception:
+        except Exception as exc:
             logger.exception("Failed to send verification email for user %s", user_id)
-            raise
+            raise VerificationEmailSendFailed(
+                "Failed to send verification email."
+            ) from exc
