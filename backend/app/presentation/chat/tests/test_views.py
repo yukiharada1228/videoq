@@ -10,6 +10,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 
+from app.domain.chat.dtos import RelatedVideoDTO
 from app.domain.chat.gateways import LLMConfigurationError, RagResult
 from app.models import ChatLog, Video, VideoGroup, VideoGroupMember
 
@@ -51,7 +52,11 @@ class ChatViewTests(APITestCase):
         mock_generate_reply.return_value = RagResult(
             content="Test response",
             query_text="Test question",
-            related_videos=[{"id": self.video.id}],
+            related_videos=[
+                RelatedVideoDTO(
+                    video_id=self.video.id, title="Test Video", start_time=None, end_time=None
+                )
+            ],
         )
 
         url = reverse("chat")
@@ -184,3 +189,33 @@ class ChatViewTests(APITestCase):
         response = self.client.post(url, data, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    @patch("app.infrastructure.external.rag_gateway.RagChatGateway.generate_reply")
+    def test_chat_related_videos_serialized_as_dicts(self, mock_generate_reply):
+        """related_videos in HTTP response must be plain dicts, not DTO objects."""
+        mock_generate_reply.return_value = RagResult(
+            content="reply",
+            query_text="q",
+            related_videos=[
+                RelatedVideoDTO(
+                    video_id=self.video.id,
+                    title="Test Video",
+                    start_time="00:00:10",
+                    end_time="00:00:20",
+                )
+            ],
+        )
+
+        url = reverse("chat")
+        data = {
+            "messages": [{"role": "user", "content": "q"}],
+            "group_id": self.group.id,
+        }
+
+        response = self.client.post(url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        related = response.data["related_videos"]
+        self.assertIsInstance(related[0], dict)
+        self.assertEqual(related[0]["video_id"], self.video.id)
+        self.assertEqual(related[0]["start_time"], "00:00:10")

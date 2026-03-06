@@ -2,11 +2,12 @@
 Django ORM implementations of chat domain repository interfaces.
 """
 
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Sequence
 
 from django.db.models import Count, Prefetch, Q
 from django.db.models.functions import TruncDate
 
+from app.domain.chat.dtos import RelatedVideoDTO
 from app.domain.chat.entities import (
     ChatAnalyticsRaw,
     ChatLogEntity,
@@ -80,15 +81,16 @@ class DjangoChatRepository(ChatRepository):
         group_id: int,
         question: str,
         answer: str,
-        related_videos: List[dict],
+        related_videos: Optional[Sequence[RelatedVideoDTO]],
         is_shared: bool,
     ) -> ChatLogEntity:
+        related_video_dicts = [dto.to_dict() for dto in (related_videos or [])]
         log = ChatLog.objects.create(
             user_id=user_id,
             group_id=group_id,
             question=question,
             answer=answer,
-            related_videos=related_videos,
+            related_videos=related_video_dicts,
             is_shared_origin=is_shared,
         )
         return _chat_log_to_entity(log)
