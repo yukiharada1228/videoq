@@ -124,6 +124,7 @@ graph TB
                 MediaViews[ProtectedMediaView]
             end
             CommonPres[common/ - auth, permissions, throttles]
+            AdminPres[admin.py - operational privileged path]
         end
 
         subgraph UseCasesLayer["use_cases/ — Business logic"]
@@ -230,6 +231,7 @@ graph TB
     end
 
     PresentationLayer --> Container
+    AdminPres --> Container
     Container --> UseCasesLayer
     Container --> InfraLayer
     UseCasesLayer --> DomainLayer
@@ -297,11 +299,11 @@ graph TB
 - **Components** → **UI Components**: Use common UI components
 
 ### Backend
-- **API Layer** → **Models**: API uses models
-- **API Layer** → **Services**: API uses service layer
-- **Tasks** → **Models**: Tasks use models
-- **Tasks** → **Services**: Tasks use service layer
-- **Models** → **Storage**: Models use storage
+- **Presentation (`presentation/*`, `admin.py`)** → **Dependencies (`dependencies/*.py`)**: framework entrypoints resolve providers only via dependencies
+- **Dependencies** → **Composition Root (`composition_root/*.py`)**: provider functions delegate 1:1 to wiring functions
+- **Composition Root** → **Use Cases / Infrastructure**: assembles concrete adapters and use case instances
+- **Use Cases** → **Domain ports/entities**: business logic depends only on domain abstractions
+- **Infrastructure** → **Domain + ORM/External**: adapter implementations bridge domain ports to Django ORM and external services
 
 ### System-Wide
 - **Client** → **Gateway**: Client accesses via gateway

@@ -139,7 +139,7 @@ graph TB
     subgraph Presentation["presentation/"]
         PV[Views - thin HTTP layer]
         PS[Serializers]
-        PC[get_container - DI entry point]
+        PA[Django Admin - operational privileged path]
     end
 
     subgraph UseCases["use_cases/"]
@@ -168,7 +168,6 @@ graph TB
     end
 
     subgraph Container["Composition Root"]
-        CF[factories.py + container.py]
         CDI[dependencies/*.py]
         CCR[composition_root/*.py]
         CK[contracts/ - task name constants]
@@ -182,10 +181,11 @@ graph TB
         I5[Celery Tasks]
     end
 
-    PV --> PC
-    PC --> CF
-    CF --> UseCases
-    CF --> Infrastructure
+    PV --> CDI
+    PA --> CDI
+    CDI --> CCR
+    CCR --> UseCases
+    CCR --> Infrastructure
     UseCases --> Domain
     Infrastructure --> Domain
     Infrastructure --> I1

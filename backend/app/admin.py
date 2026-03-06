@@ -1,3 +1,10 @@
+"""Django Admin configuration.
+
+Admin is treated as an operational privileged path.
+When admin actions apply business invariants, they should delegate to use cases
+through app.dependencies to keep behavior aligned with API flows.
+"""
+
 from django.contrib import admin, messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.admin import UserAdmin
@@ -53,23 +60,17 @@ class CustomUserAdmin(UserAdmin):
     add_fieldsets = UserAdmin.add_fieldsets
 
     def save_model(self, request, obj, form, change):
-        """Override to show warning and enforce video_limit reductions."""
+        """Warn and enforce `video_limit` through the dedicated use case."""
         if change and "video_limit" in form.changed_data:
-            old_user = User.objects.get(pk=obj.pk)
-            old_limit = old_user.video_limit
-            new_limit = obj.video_limit
-
-            # Check if reduction will trigger deletions
-            if self._will_delete_videos(old_limit, new_limit, obj):
-                current_count = Video.objects.filter(user=obj).count()
-                videos_to_delete = current_count - (
-                    new_limit if new_limit is not None else 0
-                )
-
+            estimate = get_enforce_video_limit_use_case().estimate_deleted_count(
+                user_id=obj.pk,
+                video_limit=obj.video_limit,
+            )
+            if estimate > 0:
                 messages.warning(
                     request,
                     f"Warning: Reducing video_limit will delete "
-                    f"{videos_to_delete} oldest video(s) for user {obj.username}.",
+                    f"{estimate} oldest video(s) for user {obj.username}.",
                 )
 
         super().save_model(request, obj, form, change)
@@ -85,15 +86,6 @@ class CustomUserAdmin(UserAdmin):
                     f"Deleted {deleted_count} oldest video(s) to enforce "
                     f"video_limit={obj.video_limit} for user {obj.username}.",
                 )
-
-    def _will_delete_videos(self, old_limit, new_limit, user):
-        """Check if limit reduction will trigger deletions"""
-        if old_limit == new_limit or new_limit is None:
-            return False
-        if old_limit is None or new_limit < old_limit:
-            current_count = Video.objects.filter(user=user).count()
-            return current_count > (new_limit if new_limit is not None else 0)
-        return False
 
 
 @admin.register(Video)

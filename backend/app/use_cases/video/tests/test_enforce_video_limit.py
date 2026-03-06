@@ -31,18 +31,21 @@ class EnforceVideoLimitUseCaseTests(TestCase):
         deleted = self.use_case.execute(user_id=10, video_limit=None)
 
         self.assertEqual(deleted, 0)
+        self.video_repo.count_for_user.assert_not_called()
         self.video_repo.list_for_user.assert_not_called()
 
     def test_noop_when_within_limit(self):
-        self.video_repo.list_for_user.return_value = self._videos(2)
+        self.video_repo.count_for_user.return_value = 2
 
         deleted = self.use_case.execute(user_id=10, video_limit=3)
 
         self.assertEqual(deleted, 0)
+        self.video_repo.list_for_user.assert_not_called()
         self.video_repo.delete.assert_not_called()
 
     def test_deletes_oldest_excess_videos(self):
         videos = self._videos(5)
+        self.video_repo.count_for_user.return_value = 5
         self.video_repo.list_for_user.return_value = videos
 
         deleted = self.use_case.execute(user_id=10, video_limit=2)
@@ -56,6 +59,7 @@ class EnforceVideoLimitUseCaseTests(TestCase):
 
     def test_vector_cleanup_failure_is_non_fatal(self):
         videos = self._videos(3)
+        self.video_repo.count_for_user.return_value = 3
         self.video_repo.list_for_user.return_value = videos
         self.vector_gateway.delete_video_vectors.side_effect = RuntimeError("boom")
 
@@ -63,3 +67,10 @@ class EnforceVideoLimitUseCaseTests(TestCase):
 
         self.assertEqual(deleted, 2)
         self.assertEqual(self.video_repo.delete.call_count, 2)
+
+    def test_estimate_deleted_count(self):
+        self.video_repo.count_for_user.return_value = 7
+
+        estimate = self.use_case.estimate_deleted_count(user_id=10, video_limit=3)
+
+        self.assertEqual(estimate, 4)
