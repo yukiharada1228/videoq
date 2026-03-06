@@ -1,25 +1,28 @@
-"""Infrastructure-facing ORM facade.
+"""Infrastructure-facing ORM models.
 
-Infrastructure modules should import ORM models from this module instead of
-`app.models`, so persistence details stay physically grouped under
-`app.infrastructure`.
+Persistence implementations should import ORM models from this package.
 """
 
-from app.models import (
-    AccountDeletionRequest,
-    ChatLog,
-    Tag,
-    User,
-    UserApiKey,
-    Video,
-    VideoGroup,
-    VideoGroupMember,
-    VideoTag,
+from .account_deletion import AccountDeletionRequest
+from .api_key import UserApiKey
+from .chat import ChatLog
+from .storage import (
+    SafeFilenameMixin,
+    SafeFileSystemStorage,
+    SafeS3Boto3Storage,
+    get_default_storage,
 )
+from .tag import Tag, VideoTag
+from .user import User
+from .video import Video, user_directory_path
+from .video_group import VideoGroup, VideoGroupMember
 
 __all__ = [
     "AccountDeletionRequest",
     "ChatLog",
+    "SafeFilenameMixin",
+    "SafeFileSystemStorage",
+    "SafeS3Boto3Storage",
     "Tag",
     "User",
     "UserApiKey",
@@ -27,4 +30,6 @@ __all__ = [
     "VideoGroup",
     "VideoGroupMember",
     "VideoTag",
+    "get_default_storage",
+    "user_directory_path",
 ]

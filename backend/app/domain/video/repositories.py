@@ -172,10 +172,8 @@ class VideoGroupRepository(ABC):
         self, group: VideoGroupEntity, video_ids: List[int], user_id: int
     ) -> Tuple[int, int]:
         """
-        Add multiple videos to a group, validating ownership, skipping existing members.
-
-        Raises:
-            SomeVideosNotFound: If some video_ids don't belong to user_id.
+        Persist multiple videos as group members in the given order.
+        Business validations (existence/membership) are handled in use cases.
 
         Returns:
             (added_count, skipped_count)
@@ -193,11 +191,7 @@ class VideoGroupRepository(ABC):
 
     @abstractmethod
     def reorder_videos(self, group: VideoGroupEntity, video_ids: List[int]) -> None:
-        """Reorder videos in a group according to the given ID list.
-
-        Raises:
-            GroupVideoOrderMismatch: If video_ids do not match current group members.
-        """
+        """Persist video order in a group according to the given ID list."""
         ...
 
     @abstractmethod

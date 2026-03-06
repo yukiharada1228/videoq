@@ -24,10 +24,8 @@ from app.domain.video.entities import (
     VideoGroupMemberEntity,
 )
 from app.domain.video.exceptions import (
-    GroupVideoOrderMismatch,
     InvalidVideoStatusTransition,
     SomeTagsNotFound,
-    SomeVideosNotFound,
     TagNotAttachedToVideo,
     VideoAlreadyInGroup,
     VideoNotInGroup,
@@ -381,23 +379,12 @@ class DjangoVideoGroupRepository(VideoGroupRepository):
     def add_videos_bulk(
         self, group: VideoGroupEntity, video_ids: List[int], user_id: int
     ) -> Tuple[int, int]:
-        videos = list(Video.objects.filter(id__in=video_ids, user_id=user_id))
-        found_ids = {v.id for v in videos}
-        if any(video_id not in found_ids for video_id in video_ids):
-            raise SomeVideosNotFound()
-
-        existing_members = set(
-            VideoGroupMember.objects.filter(
-                group_id=group.id, video_id__in=[v.id for v in videos]
-            ).values_list("video_id", flat=True)
-        )
-
-        video_map = {v.id: v for v in videos}
-        videos_to_add = [
-            video_map[vid]
-            for vid in video_ids
-            if vid in video_map and vid not in existing_members
-        ]
+        _ = user_id
+        if not video_ids:
+            return 0, 0
+        videos = list(Video.objects.filter(id__in=video_ids))
+        video_map = {video.id: video for video in videos}
+        videos_to_add = [video_map[video_id] for video_id in video_ids if video_id in video_map]
 
         max_order = (
             VideoGroupMember.objects.filter(group_id=group.id)
@@ -426,10 +413,6 @@ class DjangoVideoGroupRepository(VideoGroupRepository):
 
     def reorder_videos(self, group: VideoGroupEntity, video_ids: List[int]) -> None:
         members = list(VideoGroupMember.objects.filter(group_id=group.id))
-        group_video_ids = {member.video_id for member in members}
-        if set(video_ids) != group_video_ids:
-            raise GroupVideoOrderMismatch()
-
         member_dict = {member.video_id: member for member in members}
         members_to_update = []
         for index, video_id in enumerate(video_ids):
