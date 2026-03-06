@@ -5,6 +5,10 @@ from unittest import TestCase
 from app.domain.video.entities import VideoEntity
 from app.domain.video.exceptions import InvalidVideoStatusTransition
 from app.domain.video.status import VideoStatus
+from app.use_cases.video.exceptions import (
+    TranscriptionFailed,
+    TranscriptionTargetNotFound,
+)
 from app.use_cases.video.run_transcription import RunTranscriptionUseCase
 
 
@@ -82,12 +86,22 @@ class RunTranscriptionUseCaseTests(TestCase):
         vector = _FakeVectorIndexingGateway()
         use_case = RunTranscriptionUseCase(repo, transcription, vector)
 
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(TranscriptionFailed) as exc:
             use_case.execute(video.id)
 
         self.assertEqual(video.status, "error")
         self.assertEqual(video.error_message, "boom")
         self.assertEqual(vector.calls, [])
+        self.assertEqual(exc.exception.video_id, video.id)
+
+    def test_raises_transcription_target_not_found_for_missing_video(self):
+        repo = _FakeVideoTranscriptionRepository(video=None)
+        transcription = _FakeTranscriptionGateway(transcript="hello")
+        vector = _FakeVectorIndexingGateway()
+        use_case = RunTranscriptionUseCase(repo, transcription, vector)
+
+        with self.assertRaises(TranscriptionTargetNotFound):
+            use_case.execute(99999)
 
     def test_raises_when_transition_to_processing_is_invalid(self):
         video = VideoEntity(id=1, user_id=10, title="v1", status="processing")

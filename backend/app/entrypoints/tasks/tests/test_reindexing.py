@@ -156,10 +156,9 @@ class ReindexAllVideosEmbeddingsTests(TestCase):
             transcript="transcript",
         )
 
-        result = reindex_all_videos_embeddings()
-
-        self.assertEqual(result["status"], "failed")
-        self.assertIn("Delete failed", result["error"])
+        with self.assertRaises(Exception) as exc:
+            reindex_all_videos_embeddings()
+        self.assertIn("Delete failed", str(exc.exception))
 
     @patch(_INDEX)
     @patch(_DELETE)

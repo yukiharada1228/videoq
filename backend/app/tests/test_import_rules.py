@@ -541,6 +541,10 @@ class ImportRulesTest(unittest.TestCase):
         """
         self._check("infrastructure", ["app.entrypoints"])
 
+    def test_infrastructure_has_no_presentation_imports(self):
+        """infrastructure must not import from app.presentation (dependency direction violation)."""
+        self._check("infrastructure", ["app.presentation"])
+
     def test_presentation_auth_has_no_video_exceptions_imports(self):
         """presentation/auth must not import from use_cases/video (cross-context dependency)."""
         all_violations = {}
