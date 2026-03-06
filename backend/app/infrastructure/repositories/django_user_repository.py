@@ -33,6 +33,8 @@ class DjangoUserRepository(UserRepository):
             return None
         return _to_entity(user)
 
-    def get_with_video_count(self, user_id: int) -> UserEntity:
-        user = User.objects.annotate(video_count=Count("videos")).get(pk=user_id)
+    def get_with_video_count(self, user_id: int) -> Optional[UserEntity]:
+        user = User.objects.annotate(video_count=Count("videos")).filter(pk=user_id).first()
+        if user is None:
+            return None
         return _to_entity(user, video_count=user.video_count)

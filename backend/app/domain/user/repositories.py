@@ -17,6 +17,6 @@ class UserRepository(ABC):
         ...
 
     @abstractmethod
-    def get_with_video_count(self, user_id: int) -> UserEntity:
+    def get_with_video_count(self, user_id: int) -> Optional[UserEntity]:
         """Retrieve a user annotated with their video count."""
         ...

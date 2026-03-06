@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.http import Http404
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics, status
 from rest_framework.response import Response
@@ -326,7 +327,10 @@ class MeView(AuthenticatedAPIView, generics.RetrieveAPIView):
 
     def get_object(self):
         use_case = self.resolve_dependency(self.current_user_use_case)
-        return use_case.execute(self.request.user.id)
+        try:
+            return use_case.execute(self.request.user.id)
+        except ResourceNotFound as e:
+            raise Http404(str(e)) from e
 
 
 class ApiKeyListCreateView(AuthenticatedAPIView, generics.GenericAPIView):

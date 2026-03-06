@@ -6,7 +6,7 @@ DTOs for chat use cases.
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Sequence
 
 
 @dataclass(frozen=True)
@@ -31,6 +31,16 @@ class RelatedVideoResponseDTO:
 
 
 @dataclass
+class SendMessageResultDTO:
+    """Use-case output DTO for SendMessageUseCase."""
+
+    content: str
+    related_videos: Optional[Sequence[RelatedVideoResponseDTO]]
+    chat_log_id: Optional[int]
+    feedback: Optional[str]
+
+
+@dataclass
 class ChatHistoryExportRow:
     """A single row of chat history returned by ExportChatHistoryUseCase."""
 
@@ -39,6 +49,28 @@ class ChatHistoryExportRow:
     answer: str
     is_shared_origin: bool
     related_videos: List[Dict[str, Any]]
+    feedback: Optional[str]
+
+
+@dataclass
+class ChatLogResponseDTO:
+    """Use-case output DTO for chat history entries."""
+
+    id: int
+    group_id: int
+    question: str
+    answer: str
+    related_videos: List[Dict[str, Any]]
+    is_shared_origin: bool
+    feedback: Optional[str]
+    created_at: Optional[datetime] = None
+
+
+@dataclass(frozen=True)
+class ChatFeedbackResultDTO:
+    """Use-case output DTO for feedback updates."""
+
+    id: int
     feedback: Optional[str]
 
 

@@ -12,7 +12,13 @@ from app.domain.video.exceptions import (
 from app.use_cases.video.create_group_with_detail import CreateVideoGroupWithDetailUseCase
 from app.use_cases.video.create_group import CreateVideoGroupUseCase
 from app.use_cases.video.create_tag import CreateTagUseCase
-from app.use_cases.video.dto import CreateGroupInput, CreateTagInput, UpdateGroupInput, UpdateTagInput
+from app.use_cases.video.dto import (
+    CreateGroupInput,
+    CreateTagInput,
+    UpdateGroupInput,
+    UpdateTagInput,
+    VideoGroupMemberResponseDTO,
+)
 from app.use_cases.video.exceptions import ResourceNotFound, VideoAlreadyInGroup, VideoNotInGroup
 from app.use_cases.video.manage_groups import AddVideoToGroupUseCase, RemoveVideoFromGroupUseCase
 from app.use_cases.video.manage_tags import AddTagsToVideoUseCase, RemoveTagFromVideoUseCase
@@ -102,6 +108,24 @@ class GroupTagContractsUseCaseTests(TestCase):
         use_case = AddVideoToGroupUseCase(_FakeVideoRepo(self.video), _FakeGroupRepo(self.group))
         with self.assertRaises(VideoAlreadyInGroup):
             use_case.execute(self.group.id, self.video.id, self.user_id)
+
+    def test_add_video_to_group_returns_use_case_dto(self):
+        class _SuccessGroupRepo(_FakeGroupRepo):
+            def add_video(self, group, video):
+                return VideoGroupMemberEntity(
+                    id=99,
+                    group_id=group.id,
+                    video_id=video.id,
+                    order=0,
+                )
+
+        use_case = AddVideoToGroupUseCase(_FakeVideoRepo(self.video), _SuccessGroupRepo(self.group))
+        result = use_case.execute(self.group.id, self.video.id, self.user_id)
+
+        self.assertIsInstance(result, VideoGroupMemberResponseDTO)
+        self.assertEqual(result.id, 99)
+        self.assertEqual(result.group_id, self.group.id)
+        self.assertEqual(result.video_id, self.video.id)
 
     def test_remove_video_from_group_raises_explicit_business_exception(self):
         use_case = RemoveVideoFromGroupUseCase(_FakeVideoRepo(self.video), _FakeGroupRepo(self.group))

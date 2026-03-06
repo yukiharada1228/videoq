@@ -570,6 +570,68 @@ class ImportRulesTest(unittest.TestCase):
             ["app.domain.video.entities.VideoGroupEntity"],
         )
 
+    def test_video_manage_groups_has_no_domain_entity_imports(self):
+        """ManageGroups use cases should expose use_cases DTOs, not domain entities."""
+        self._check_single_file(
+            "use_cases/video/manage_groups.py",
+            ["app.domain.video.entities.VideoGroupMemberEntity"],
+        )
+
+    def test_auth_manage_api_keys_has_no_domain_entity_imports(self):
+        """API key use cases should expose auth use-case DTOs, not domain entities."""
+        self._check_single_file(
+            "use_cases/auth/manage_api_keys.py",
+            ["app.domain.auth.entities.ApiKeyEntity", "app.domain.auth.entities.ApiKeyCreateResult"],
+        )
+
+    def test_chat_get_history_has_no_domain_entity_imports(self):
+        """GetChatHistoryUseCase should expose use-case DTOs, not domain entities."""
+        self._check_single_file(
+            "use_cases/chat/get_history.py",
+            ["app.domain.chat.entities.ChatLogEntity"],
+        )
+
+    def test_auth_get_current_user_has_no_domain_entity_imports(self):
+        """GetCurrentUserUseCase should expose auth use-case DTOs, not domain entities."""
+        self._check_single_file(
+            "use_cases/auth/get_current_user.py",
+            ["app.domain.user.entities.UserEntity"],
+        )
+
+    def test_chat_submit_feedback_has_no_domain_entity_imports(self):
+        """SubmitFeedbackUseCase should expose use-case DTOs, not domain entities."""
+        self._check_single_file(
+            "use_cases/chat/submit_feedback.py",
+            ["app.domain.chat.entities.ChatLogEntity"],
+        )
+
+    def test_use_case_execute_methods_have_return_annotations(self):
+        """All UseCase.execute methods must declare return types."""
+        violations = []
+        for fp in sorted(self._iter_layer_source_files("use_cases")):
+            with open(fp) as f:
+                source = f.read()
+            tree = ast.parse(source)
+            for node in ast.walk(tree):
+                if not isinstance(node, ast.ClassDef):
+                    continue
+                if not node.name.endswith("UseCase"):
+                    continue
+                for item in node.body:
+                    if (
+                        isinstance(item, ast.FunctionDef)
+                        and item.name == "execute"
+                        and item.returns is None
+                    ):
+                        rel = os.path.relpath(fp, BASE)
+                        violations.append(f"{rel}:{item.lineno}")
+        self.assertEqual(
+            [],
+            violations,
+            "UseCase.execute must have explicit return annotations:\n"
+            + "\n".join(f"  {v}" for v in violations),
+        )
+
     def test_presentation_tasks_has_no_task_implementations(self):
         """presentation/tasks must stay empty (entrypoints own all Celery task implementations)."""
         tasks_dir = APP_ROOT / "presentation" / "tasks"

@@ -2,9 +2,8 @@
 Use case: Export chat history for a group as domain rows.
 """
 
-from typing import Generator, List
+from typing import Generator, Iterable
 
-from app.domain.chat.entities import ChatLogEntity
 from app.domain.chat.repositories import ChatRepository, VideoGroupQueryRepository
 from app.use_cases.chat.dto import ChatHistoryExportRow
 from app.use_cases.shared.exceptions import ResourceNotFound
@@ -21,7 +20,9 @@ class ExportChatHistoryUseCase:
         self.chat_repo = chat_repo
         self.group_query_repo = group_query_repo
 
-    def execute(self, group_id: int, user_id: int):
+    def execute(
+        self, group_id: int, user_id: int
+    ) -> tuple[int, Generator[ChatHistoryExportRow, None, None]]:
         """
         Returns:
             tuple: (group_id, rows_generator)
@@ -40,7 +41,7 @@ class ExportChatHistoryUseCase:
         return group.id, self._build_rows(logs)
 
     @staticmethod
-    def _build_rows(logs: List[ChatLogEntity]) -> Generator[ChatHistoryExportRow, None, None]:
+    def _build_rows(logs: Iterable) -> Generator[ChatHistoryExportRow, None, None]:
         for log in logs:
             yield ChatHistoryExportRow(
                 created_at=log.created_at,

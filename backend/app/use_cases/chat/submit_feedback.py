@@ -5,6 +5,7 @@ Use case: Submit feedback for a chat log.
 from typing import Optional
 
 from app.domain.chat.repositories import ChatRepository
+from app.use_cases.chat.dto import ChatFeedbackResultDTO
 from app.use_cases.chat.exceptions import (
     ChatNotFoundError,
     FeedbackPermissionDenied,
@@ -24,7 +25,7 @@ class SubmitFeedbackUseCase:
         feedback: Optional[str],
         user_id: Optional[int] = None,
         share_token: Optional[str] = None,
-    ):
+    ) -> ChatFeedbackResultDTO:
         """
         Args:
             chat_log_id: ID of the ChatLog to update.
@@ -33,7 +34,7 @@ class SubmitFeedbackUseCase:
             share_token: Share token (shared access flow).
 
         Returns:
-            Updated ChatLogEntity.
+            ChatFeedbackResultDTO
 
         Raises:
             InvalidFeedbackError: If feedback is not one of "good", "bad", or None.
@@ -54,4 +55,5 @@ class SubmitFeedbackUseCase:
             if log.group_user_id != user_id:
                 raise FeedbackPermissionDenied("No permission to access this history")
 
-        return self.chat_repo.update_feedback(log, feedback)
+        updated = self.chat_repo.update_feedback(log, feedback)
+        return ChatFeedbackResultDTO(id=updated.id, feedback=updated.feedback)
