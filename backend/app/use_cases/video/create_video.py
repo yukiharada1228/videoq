@@ -3,6 +3,7 @@ Use case: Create a new video and dispatch transcription.
 """
 
 import logging
+from io import BytesIO
 from typing import Optional
 
 from app.domain.video.dto import CreateVideoParams
@@ -14,6 +15,17 @@ from app.use_cases.video.dto import CreateVideoInput, VideoResponseDTO
 from app.use_cases.video.file_url import to_video_response_dto
 
 logger = logging.getLogger(__name__)
+
+
+class _InMemoryBinarySource:
+    """Transport-agnostic binary source passed to the domain repository."""
+
+    def __init__(self, name: str, content: bytes):
+        self.name = name
+        self._buffer = BytesIO(content)
+
+    def read(self, size: int = -1) -> bytes:
+        return self._buffer.read(size)
 
 
 class CreateVideoUseCase:
@@ -51,7 +63,10 @@ class CreateVideoUseCase:
         VideoEntity.ensure_upload_within_limit(current_count, video_limit)
 
         params = CreateVideoParams(
-            file=input.file,
+            file=_InMemoryBinarySource(
+                name=input.file_name,
+                content=input.file_bytes,
+            ),
             title=input.title,
             description=input.description,
         )

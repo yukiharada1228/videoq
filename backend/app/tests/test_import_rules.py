@@ -2,7 +2,7 @@
 CI test: detect forbidden cross-layer imports.
 
 Acceptance criteria:
-  - app/domain/**   : no app.models, django, rest_framework, celery, app.infrastructure
+  - app/domain/**   : no app.models, django, rest_framework, celery, app.infrastructure, app.use_cases
   - app/use_cases/**: no app.models, django, rest_framework, app.infrastructure
   - app/presentation/**: no app.models, no app.infrastructure.*
   - app/dependencies/**: no app.models, django, rest_framework, app.infrastructure
@@ -194,10 +194,17 @@ class ImportRulesTest(unittest.TestCase):
         )
 
     def test_domain_has_no_forbidden_imports(self):
-        """domain layer must not import from app.models, django, rest_framework, celery, app.infrastructure."""
+        """domain layer must not import from app.models, django, rest_framework, celery, app.infrastructure, or app.use_cases."""
         self._check(
             "domain",
-            ["app.models", "django", "rest_framework", "celery", "app.infrastructure"],
+            [
+                "app.models",
+                "django",
+                "rest_framework",
+                "celery",
+                "app.infrastructure",
+                "app.use_cases",
+            ],
         )
 
     def test_layer_scan_counts_are_non_zero(self):
