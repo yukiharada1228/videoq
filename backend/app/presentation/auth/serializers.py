@@ -3,7 +3,7 @@ import logging
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 
-from app.use_cases.auth.dto import ACCESS_LEVEL_ALL, ACCESS_LEVEL_READ_ONLY
+from app.contracts.auth import ACCESS_LEVEL_ALL, ACCESS_LEVEL_READ_ONLY
 
 ACCESS_LEVEL_CHOICES = [
     (ACCESS_LEVEL_ALL, "All"),

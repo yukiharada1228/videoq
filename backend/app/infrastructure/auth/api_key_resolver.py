@@ -2,19 +2,8 @@
 Django ORM implementation of API key resolver.
 """
 
-from app.domain.auth.entities import ACCESS_LEVEL_READ_ONLY
 from app.domain.auth.dtos import ApiKeyAuthContextDTO
 from app.models import UserApiKey
-
-SCOPE_READ = "read"
-SCOPE_WRITE = "write"
-SCOPE_CHAT_WRITE = "chat_write"
-
-
-def _scopes_for_access_level(access_level: str) -> list[str]:
-    if access_level == ACCESS_LEVEL_READ_ONLY:
-        return [SCOPE_READ, SCOPE_CHAT_WRITE]
-    return [SCOPE_READ, SCOPE_WRITE, SCOPE_CHAT_WRITE]
 
 
 class DjangoApiKeyResolver:
@@ -38,6 +27,4 @@ class DjangoApiKeyResolver:
             user_id=key.user_id,
             user_video_limit=key.user.video_limit,
             access_level=key.access_level,
-            scopes=_scopes_for_access_level(key.access_level),
-            is_read_only=(key.access_level == ACCESS_LEVEL_READ_ONLY),
         )
