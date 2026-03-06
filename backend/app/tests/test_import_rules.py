@@ -14,18 +14,28 @@ import ast
 import os
 import textwrap
 import unittest
+from pathlib import Path
 
-BASE = os.path.join(os.path.dirname(__file__), "..", "..")
+BASE = Path(__file__).resolve().parents[2]
+APP_ROOT = BASE / "app"
+APP_TESTS_ROOT = APP_ROOT / "tests"
 
 
 def get_python_files(base_path):
+    base_path = Path(base_path).resolve()
     for root, _, files in os.walk(base_path):
-        # Skip test directories — test files legitimately import from all layers
-        if "tests" in root.split(os.sep):
+        root_path = Path(root).resolve()
+        # Skip only app/tests subtree. Do not skip every path segment named "tests".
+        if root_path == APP_TESTS_ROOT or APP_TESTS_ROOT in root_path.parents:
             continue
         for f in files:
             if f.endswith(".py"):
-                yield os.path.join(root, f)
+                yield str(root_path / f)
+
+
+def is_test_file_path(file_path):
+    path = Path(file_path).resolve()
+    return "tests" in path.parts
 
 
 def check_forbidden_imports(file_path, forbidden_patterns):
@@ -123,10 +133,19 @@ class CheckForbiddenImportsTest(unittest.TestCase):
 
 
 class ImportRulesTest(unittest.TestCase):
+    def _iter_layer_source_files(self, layer_path):
+        abs_path = APP_ROOT / layer_path
+        for fp in get_python_files(abs_path):
+            if is_test_file_path(fp):
+                continue
+            yield fp
+
+    def _count_python_files(self, layer_path):
+        return sum(1 for _ in self._iter_layer_source_files(layer_path))
+
     def _check(self, layer_path, forbidden):
-        abs_path = os.path.join(BASE, "app", layer_path)
         all_violations = {}
-        for fp in sorted(get_python_files(abs_path)):
+        for fp in sorted(self._iter_layer_source_files(layer_path)):
             rel = os.path.relpath(fp, BASE)
             v = check_forbidden_imports(fp, forbidden)
             if v:
@@ -146,6 +165,22 @@ class ImportRulesTest(unittest.TestCase):
             "domain",
             ["app.models", "django", "rest_framework", "celery", "app.infrastructure"],
         )
+
+    def test_layer_scan_counts_are_non_zero(self):
+        counts = {
+            "domain": self._count_python_files("domain"),
+            "use_cases": self._count_python_files("use_cases"),
+            "presentation": self._count_python_files("presentation"),
+            "infrastructure": self._count_python_files("infrastructure"),
+            "tasks": self._count_python_files("tasks"),
+        }
+        print("scan_counts", counts)
+        for layer, count in counts.items():
+            self.assertGreater(
+                count,
+                0,
+                f"Expected app/{layer} scan count > 0 to prevent no-op import checks.",
+            )
 
     def test_use_cases_has_no_forbidden_imports(self):
         """use_cases layer must not import from app.models, django, rest_framework, or app.infrastructure."""
@@ -167,9 +202,8 @@ class ImportRulesTest(unittest.TestCase):
 
     def _check_cross_context(self, context_path, forbidden_contexts):
         """Verify that a use_cases context does not import from other contexts directly."""
-        abs_path = os.path.join(BASE, "app", "use_cases", context_path)
         all_violations = {}
-        for fp in sorted(get_python_files(abs_path)):
+        for fp in sorted(self._iter_layer_source_files(f"use_cases/{context_path}")):
             rel = os.path.relpath(fp, BASE)
             v = check_forbidden_imports(fp, forbidden_contexts)
             if v:
@@ -223,9 +257,8 @@ class ImportRulesTest(unittest.TestCase):
 
     def test_presentation_auth_has_no_video_exceptions_imports(self):
         """presentation/auth must not import from use_cases/video (cross-context dependency)."""
-        abs_path = os.path.join(BASE, "app", "presentation", "auth")
         all_violations = {}
-        for fp in sorted(get_python_files(abs_path)):
+        for fp in sorted(self._iter_layer_source_files("presentation/auth")):
             rel = os.path.relpath(fp, BASE)
             v = check_forbidden_imports(fp, ["app.use_cases.video"])
             if v:
@@ -241,9 +274,8 @@ class ImportRulesTest(unittest.TestCase):
 
     def test_presentation_auth_has_no_simplejwt_imports(self):
         """presentation/auth must not import simplejwt directly (JWT logic belongs in infrastructure)."""
-        abs_path = os.path.join(BASE, "app", "presentation", "auth")
         all_violations = {}
-        for fp in sorted(get_python_files(abs_path)):
+        for fp in sorted(self._iter_layer_source_files("presentation/auth")):
             rel = os.path.relpath(fp, BASE)
             v = check_forbidden_imports(fp, ["rest_framework_simplejwt"])
             if v:
@@ -257,6 +289,41 @@ class ImportRulesTest(unittest.TestCase):
             ),
         )
 
+    def test_presentation_auth_has_no_authenticate_imports(self):
+        """presentation/auth must not import django.contrib.auth.authenticate."""
+        all_violations = {}
+        for fp in sorted(self._iter_layer_source_files("presentation/auth")):
+            rel = os.path.relpath(fp, BASE)
+            v = check_forbidden_imports(fp, ["django.contrib.auth.authenticate"])
+            if v:
+                all_violations[rel] = v
+        self.assertEqual(
+            {},
+            all_violations,
+            "presentation/auth must not import django.contrib.auth.authenticate:\n"
+            + "\n".join(
+                f"  {f}: {vs}" for f, vs in all_violations.items()
+            ),
+        )
+
+    def test_presentation_auth_has_no_orm_objects_usage(self):
+        """presentation/auth must not access ORM manager (.objects)."""
+        violations = []
+        for fp in sorted(self._iter_layer_source_files("presentation/auth")):
+            with open(fp) as f:
+                source = f.read()
+            tree = ast.parse(source)
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Attribute) and node.attr == "objects":
+                    rel = os.path.relpath(fp, BASE)
+                    violations.append(f"{rel}:{node.lineno}")
+        self.assertEqual(
+            [],
+            violations,
+            "presentation/auth must not reference ORM manager '.objects':\n"
+            + "\n".join(f"  {v}" for v in violations),
+        )
+
     def test_presentation_has_no_factories_imports(self):
         """presentation must resolve dependencies through get_container(), not factories directly."""
         self._check("presentation", ["app.factories"])
@@ -268,9 +335,8 @@ class ImportRulesTest(unittest.TestCase):
     def test_no_queryset_in_domain_or_use_cases(self):
         """QuerySet must not appear in domain or use_cases source files."""
         for layer in ["domain", "use_cases"]:
-            abs_path = os.path.join(BASE, "app", layer)
             violations = []
-            for fp in sorted(get_python_files(abs_path)):
+            for fp in sorted(self._iter_layer_source_files(layer)):
                 with open(fp) as f:
                     content = f.read()
                 if "QuerySet" in content:
@@ -292,10 +358,10 @@ class ImportRulesTest(unittest.TestCase):
 
     def _check_single_file(self, rel_path, forbidden):
         """Check a single file for forbidden imports."""
-        abs_path = os.path.join(BASE, "app", rel_path)
-        if not os.path.exists(abs_path):
+        abs_path = APP_ROOT / rel_path
+        if not abs_path.exists():
             return
-        v = check_forbidden_imports(abs_path, forbidden)
+        v = check_forbidden_imports(str(abs_path), forbidden)
         self.assertEqual(
             [],
             v,
@@ -305,9 +371,8 @@ class ImportRulesTest(unittest.TestCase):
     def test_factories_has_no_presentation_imports(self):
         """factories package must not import from app.presentation (presentation depends on factories, not vice versa)."""
         # Check factories/ package (preferred) or legacy factories.py if package doesn't exist
-        import os
-        factories_pkg = os.path.join(BASE, "app", "factories")
-        if os.path.isdir(factories_pkg):
+        factories_pkg = APP_ROOT / "factories"
+        if factories_pkg.is_dir():
             self._check("factories", ["app.presentation"])
         else:
             self._check_single_file("factories.py", ["app.presentation"])
