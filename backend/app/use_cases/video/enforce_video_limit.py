@@ -4,6 +4,8 @@ Use case: Enforce a user's video_limit by deleting oldest excess videos.
 
 import logging
 
+from django.db import transaction
+
 from app.domain.video.dto import VideoSearchCriteria
 from app.domain.video.gateways import VectorStoreGateway
 from app.domain.video.repositories import VideoRepository
@@ -48,17 +50,24 @@ class EnforceVideoLimitUseCase:
         )
 
         deleted_count = 0
+        deleted_video_ids: list[int] = []
         for video in videos[:excess_count]:
             self.video_repo.delete(video)
             deleted_count += 1
-            try:
-                self.vector_gateway.delete_video_vectors(video.id)
-            except Exception:
-                logger.warning(
-                    "Failed to delete vectors for video %s during limit enforcement",
-                    video.id,
-                    exc_info=True,
-                )
+            deleted_video_ids.append(video.id)
+
+        def _cleanup_vectors() -> None:
+            for video_id in deleted_video_ids:
+                try:
+                    self.vector_gateway.delete_video_vectors(video_id)
+                except Exception:
+                    logger.warning(
+                        "Failed to delete vectors for video %s during limit enforcement",
+                        video_id,
+                        exc_info=True,
+                    )
+
+        transaction.on_commit(_cleanup_vectors)
 
         logger.info(
             "Deleted %s excess videos for user_id=%s to enforce video_limit=%s",

@@ -353,9 +353,10 @@ class AccountDeleteViewTests(APITestCase):
     @patch("app.infrastructure.tasks.task_gateway.current_app.send_task")
     def test_account_delete_marks_inactive_and_enqueues_task(self, mock_delay):
         """Test account delete marks user inactive and enqueues task"""
-        response = self.client.delete(
-            self.url, {"reason": "no longer needed"}, format="json"
-        )
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.delete(
+                self.url, {"reason": "no longer needed"}, format="json"
+            )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.user.refresh_from_db()
