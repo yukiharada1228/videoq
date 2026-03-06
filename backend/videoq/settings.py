@@ -197,8 +197,8 @@ AUTH_USER_MODEL = "app.User"
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "app.common.authentication.APIKeyAuthentication",
-        "app.common.authentication.CookieJWTAuthentication",
+        "app.presentation.common.authentication.APIKeyAuthentication",
+        "app.presentation.common.authentication.CookieJWTAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
@@ -208,7 +208,7 @@ REST_FRAMEWORK = {
         "rest_framework.renderers.JSONRenderer",
     ],
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
-    "EXCEPTION_HANDLER": "app.common.exceptions.custom_exception_handler",
+    "EXCEPTION_HANDLER": "app.presentation.common.exceptions.custom_exception_handler",
     # Rate limiting: accurate client IP behind reverse proxies
     "NUM_PROXIES": int(os.environ.get("NUM_PROXIES", "1")),
     "DEFAULT_THROTTLE_RATES": {
@@ -238,8 +238,8 @@ SPECTACULAR_SETTINGS = {
     "SERVE_INCLUDE_SCHEMA": False,
     "COMPONENT_SPLIT_REQUEST": True,
     "AUTHENTICATION_WHITELIST": [
-        "app.common.authentication.APIKeyAuthentication",
-        "app.common.authentication.CookieJWTAuthentication",
+        "app.presentation.common.authentication.APIKeyAuthentication",
+        "app.presentation.common.authentication.CookieJWTAuthentication",
     ],
     "SCHEMA_PATH_PREFIX": "/api/",
 }
@@ -328,7 +328,7 @@ if USE_S3_STORAGE:
             },
         },
         "default": {  # Media file storage
-            "BACKEND": "app.models.storage.SafeS3Boto3Storage",
+            "BACKEND": "app.infrastructure.models.storage.SafeS3Boto3Storage",
             "OPTIONS": {
                 "location": "media",
                 "default_acl": "private",
@@ -346,7 +346,7 @@ else:
     # Use custom storage for media files (with timestamp-based filename conversion)
     STORAGES = {
         "default": {
-            "BACKEND": "app.models.storage.SafeFileSystemStorage",
+            "BACKEND": "app.infrastructure.models.storage.SafeFileSystemStorage",
         },
         "staticfiles": {
             "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
