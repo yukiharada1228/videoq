@@ -8,23 +8,16 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import List, Optional, Protocol, runtime_checkable
+from typing import List, Optional
 
-
-@runtime_checkable
-class UploadedBinarySource(Protocol):
-    """Minimal interface for uploaded binary inputs handled by use cases."""
-
-    name: str
-
-    def read(self, size: int = -1) -> bytes: ...
+from app.domain.video.dto import UploadFileSource
 
 
 @dataclass(frozen=True)
 class CreateVideoInput:
     """Input for CreateVideoUseCase.execute()."""
 
-    file: UploadedBinarySource
+    file: UploadFileSource
     title: str
     description: str
 
