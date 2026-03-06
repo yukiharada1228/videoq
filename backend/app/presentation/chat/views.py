@@ -13,8 +13,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from app.presentation.common.authentication import APIKeyAuthentication, CookieJWTAuthentication
-from app.dependencies import chat as chat_dependencies
 from app.use_cases.chat.dto import ChatMessageInput
+from app.presentation.common.mixins import DependencyResolverMixin
 from app.presentation.common.permissions import (
     ApiKeyScopePermission,
     IsAuthenticatedOrSharedAccess,
@@ -54,7 +54,7 @@ def _get_locale(request) -> str | None:
     return None
 
 
-class ChatView(APIView):
+class ChatView(DependencyResolverMixin, APIView):
     """Chat endpoint with optional RAG context via video groups."""
 
     authentication_classes = [
@@ -69,6 +69,7 @@ class ChatView(APIView):
         ShareTokenGlobalThrottle,
         AuthenticatedChatThrottle,
     ]
+    send_message_use_case = None
 
     @extend_schema(
         request=ChatRequestSerializer,
@@ -101,7 +102,7 @@ class ChatView(APIView):
             for m in validated_messages
         ]
 
-        use_case = chat_dependencies.get_send_message_use_case()
+        use_case = self.resolve_dependency(self.send_message_use_case)
         try:
             result = use_case.execute(
                 user_id=user_id,
@@ -130,7 +131,7 @@ class ChatView(APIView):
         return Response(response_data)
 
 
-class ChatFeedbackView(APIView):
+class ChatFeedbackView(DependencyResolverMixin, APIView):
     """Submit feedback for a chat log entry."""
 
     authentication_classes = [
@@ -140,6 +141,7 @@ class ChatFeedbackView(APIView):
     ]
     permission_classes = [IsAuthenticatedOrSharedAccess, ApiKeyScopePermission]
     required_scope = "chat_write"
+    submit_feedback_use_case = None
 
     @extend_schema(
         request=ChatFeedbackRequestSerializer,
@@ -159,7 +161,7 @@ class ChatFeedbackView(APIView):
         if feedback == "":
             feedback = None
 
-        use_case = chat_dependencies.get_submit_feedback_use_case()
+        use_case = self.resolve_dependency(self.submit_feedback_use_case)
         try:
             log = use_case.execute(
                 chat_log_id=chat_log_id,
@@ -177,18 +179,19 @@ class ChatFeedbackView(APIView):
         return Response({"chat_log_id": log.id, "feedback": log.feedback})
 
 
-class ChatHistoryView(APIView):
+class ChatHistoryView(DependencyResolverMixin, APIView):
     """Get conversation history for a group (owner only)."""
 
     authentication_classes = [APIKeyAuthentication, CookieJWTAuthentication]
     permission_classes = [IsAuthenticated, ApiKeyScopePermission]
+    chat_history_use_case = None
 
     def get(self, request, *args, **kwargs):
         group_id = request.query_params.get("group_id")
         if not group_id:
             return Response([])
 
-        use_case = chat_dependencies.get_chat_history_use_case()
+        use_case = self.resolve_dependency(self.chat_history_use_case)
         try:
             logs = use_case.execute(
                 group_id=int(group_id),
@@ -200,11 +203,12 @@ class ChatHistoryView(APIView):
         return Response(ChatLogSerializer(logs, many=True).data)
 
 
-class ChatHistoryExportView(APIView):
+class ChatHistoryExportView(DependencyResolverMixin, APIView):
     """Export group conversation history as CSV."""
 
     authentication_classes = [APIKeyAuthentication, CookieJWTAuthentication]
     permission_classes = [IsAuthenticated, ApiKeyScopePermission]
+    export_history_use_case = None
 
     @extend_schema(
         responses={
@@ -223,7 +227,7 @@ class ChatHistoryExportView(APIView):
                 "Group ID not specified", status.HTTP_400_BAD_REQUEST
             )
 
-        use_case = chat_dependencies.get_export_history_use_case()
+        use_case = self.resolve_dependency(self.export_history_use_case)
         try:
             resolved_group_id, rows = use_case.execute(
                 group_id=int(group_id), user_id=request.user.id
@@ -239,7 +243,7 @@ class ChatHistoryExportView(APIView):
         return response
 
 
-class PopularScenesView(APIView):
+class PopularScenesView(DependencyResolverMixin, APIView):
     """Get popular scenes referenced across a group's chat history."""
 
     authentication_classes = [
@@ -248,6 +252,7 @@ class PopularScenesView(APIView):
         ShareTokenAuthentication,
     ]
     permission_classes = [IsAuthenticatedOrSharedAccess, ApiKeyScopePermission]
+    popular_scenes_use_case = None
 
     @extend_schema(
         parameters=[
@@ -286,7 +291,7 @@ class PopularScenesView(APIView):
         if not group_id:
             return create_error_response("Group ID not specified", status.HTTP_400_BAD_REQUEST)
 
-        use_case = chat_dependencies.get_popular_scenes_use_case()
+        use_case = self.resolve_dependency(self.popular_scenes_use_case)
         try:
             scenes = use_case.execute(
                 group_id=int(group_id),
@@ -311,11 +316,12 @@ class PopularScenesView(APIView):
         ])
 
 
-class ChatAnalyticsView(APIView):
+class ChatAnalyticsView(DependencyResolverMixin, APIView):
     """Analytics dashboard data for a chat group."""
 
     authentication_classes = [APIKeyAuthentication, CookieJWTAuthentication]
     permission_classes = [IsAuthenticated, ApiKeyScopePermission]
+    chat_analytics_use_case = None
 
     @extend_schema(
         responses={200: ChatAnalyticsResponseSerializer},
@@ -327,7 +333,7 @@ class ChatAnalyticsView(APIView):
         if not group_id:
             return create_error_response("Group ID not specified", status.HTTP_400_BAD_REQUEST)
 
-        use_case = chat_dependencies.get_chat_analytics_use_case()
+        use_case = self.resolve_dependency(self.chat_analytics_use_case)
         try:
             dto = use_case.execute(group_id=int(group_id), user_id=request.user.id)
         except ResourceNotFound as e:

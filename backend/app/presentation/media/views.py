@@ -9,12 +9,12 @@ from app.presentation.common.permissions import (
     IsAuthenticatedOrSharedAccess,
     ShareTokenAuthentication,
 )
-from app.dependencies import media as media_dependencies
+from app.presentation.common.mixins import DependencyResolverMixin
 from app.use_cases.media.resolve_protected_media import ResolveProtectedMediaInput
 from app.use_cases.shared.exceptions import ResourceNotFound
 
 
-class ProtectedMediaView(APIView):
+class ProtectedMediaView(DependencyResolverMixin, APIView):
     """View to serve media files protected by JWT authentication or share token"""
 
     authentication_classes = [
@@ -23,6 +23,7 @@ class ProtectedMediaView(APIView):
         ShareTokenAuthentication,
     ]
     permission_classes = [IsAuthenticatedOrSharedAccess, ApiKeyScopePermission]
+    resolve_protected_media_use_case = None
 
     @extend_schema(
         responses={
@@ -47,7 +48,8 @@ class ProtectedMediaView(APIView):
             user_id = request.user.id
 
         try:
-            resolved = media_dependencies.get_resolve_protected_media_use_case().execute(
+            use_case = self.resolve_dependency(self.resolve_protected_media_use_case)
+            resolved = use_case.execute(
                 ResolveProtectedMediaInput(path=path, user_id=user_id, group_id=group_id)
             )
         except ResourceNotFound:
