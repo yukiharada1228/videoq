@@ -27,14 +27,10 @@ class BaseAdminMixin:
     """Unified management of common admin settings"""
 
     @staticmethod
-    def get_optimized_queryset(
-        request, model_class, select_related_fields=None, annotate_fields=None
-    ):
+    def optimize_queryset(queryset, select_related_fields=None, annotate_fields=None):
         """
         Get optimized queryset
         """
-        queryset = model_class.objects.all()
-
         if select_related_fields:
             queryset = queryset.select_related(*select_related_fields)
 
@@ -110,8 +106,8 @@ class VideoAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         """Preload user relation"""
-        return BaseAdminMixin.get_optimized_queryset(
-            request, Video, select_related_fields=["user"]
+        return BaseAdminMixin.optimize_queryset(
+            super().get_queryset(request), select_related_fields=["user"]
         )
 
     @admin.action(description="Re-index video embeddings")
@@ -143,9 +139,8 @@ class VideoGroupAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         """Preload user relation and video_count"""
-        return BaseAdminMixin.get_optimized_queryset(
-            request,
-            VideoGroup,
+        return BaseAdminMixin.optimize_queryset(
+            super().get_queryset(request),
             select_related_fields=["user"],
             annotate_fields={"video_count": Count("members__video")},
         )
@@ -165,9 +160,8 @@ class VideoGroupMemberAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         """Preload group and video relations"""
-        return BaseAdminMixin.get_optimized_queryset(
-            request,
-            VideoGroupMember,
+        return BaseAdminMixin.optimize_queryset(
+            super().get_queryset(request),
             select_related_fields=["group", "video", "group__user", "video__user"],
         )
 
@@ -180,6 +174,6 @@ class AccountDeletionRequestAdmin(admin.ModelAdmin):
     readonly_fields = ("requested_at",)
 
     def get_queryset(self, request):
-        return BaseAdminMixin.get_optimized_queryset(
-            request, AccountDeletionRequest, select_related_fields=["user"]
+        return BaseAdminMixin.optimize_queryset(
+            super().get_queryset(request), select_related_fields=["user"]
         )

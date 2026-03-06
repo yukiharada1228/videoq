@@ -22,6 +22,18 @@ from pathlib import Path
 BASE = Path(__file__).resolve().parents[2]
 APP_ROOT = BASE / "app"
 APP_TESTS_ROOT = APP_ROOT / "tests"
+LAYER_ROOTS = {
+    "domain",
+    "use_cases",
+    "presentation",
+    "infrastructure",
+    "dependencies",
+    "composition_root",
+    "entrypoints",
+    "contracts",
+    "tests",
+    "migrations",
+}
 
 # Service locator is prohibited in framework entrypoints.
 # Keep this allowlist empty by default; if temporary exceptions are needed,
@@ -689,6 +701,15 @@ class ImportRulesTest(unittest.TestCase):
             f"Forbidden imports found in app/{rel_path}: {v}",
         )
 
+    def _iter_app_source_relpaths(self):
+        for fp in get_python_files(APP_ROOT):
+            if is_test_file_path(fp):
+                continue
+            rel = os.path.relpath(fp, APP_ROOT).replace(os.sep, "/")
+            if rel.startswith("migrations/"):
+                continue
+            yield rel
+
     def test_factories_package_removed(self):
         """Legacy factories package should stay removed after dependency migration."""
         self.assertFalse((APP_ROOT / "factories").exists(), "app/factories must not exist")
@@ -746,6 +767,81 @@ class ImportRulesTest(unittest.TestCase):
     def test_admin_has_no_infrastructure_imports(self):
         """admin must not import app.infrastructure directly."""
         self._check_single_file("admin.py", ["app.infrastructure"])
+
+    def test_non_layer_modules_are_explicitly_governed(self):
+        """Files outside standard layer roots must stay in an explicit governed set."""
+        governed_modules = {
+            "__init__.py",
+            "admin.py",
+            "apps.py",
+            "celery_config.py",
+            "urls.py",
+        }
+        non_layer_files = {
+            rel
+            for rel in self._iter_app_source_relpaths()
+            if rel.split("/", 1)[0] not in LAYER_ROOTS
+        }
+        self.assertEqual(
+            governed_modules,
+            non_layer_files,
+            "New non-layer app modules found. Add explicit boundary tests for:\n"
+            + "\n".join(f"  app/{p}" for p in sorted(non_layer_files - governed_modules)),
+        )
+
+    def test_urls_has_no_core_layer_imports(self):
+        """app.urls stays as HTTP routing edge and must not depend on core/infrastructure layers."""
+        self._check_single_file(
+            "urls.py",
+            [
+                "app.domain",
+                "app.use_cases",
+                "app.infrastructure",
+                "app.composition_root",
+                "app.entrypoints",
+            ],
+        )
+
+    def test_apps_has_no_core_layer_imports(self):
+        """app.apps stays as framework bootstrap and must avoid direct core layer imports."""
+        self._check_single_file(
+            "apps.py",
+            [
+                "app.domain",
+                "app.use_cases",
+                "app.dependencies",
+                "app.composition_root",
+                "app.entrypoints",
+            ],
+        )
+
+    def test_celery_config_has_no_core_layer_imports(self):
+        """Celery config must not import core layers directly."""
+        self._check_single_file(
+            "celery_config.py",
+            [
+                "app.domain",
+                "app.use_cases",
+                "app.dependencies",
+                "app.composition_root",
+                "app.infrastructure",
+                "app.presentation",
+            ],
+        )
+
+    def test_contracts_has_no_runtime_layer_imports(self):
+        """contracts must stay dependency-light and avoid runtime layer wiring."""
+        self._check(
+            "contracts",
+            [
+                "app.use_cases",
+                "app.infrastructure",
+                "app.presentation",
+                "app.composition_root",
+                "app.dependencies",
+                "app.entrypoints",
+            ],
+        )
 
     def test_chat_send_message_has_no_domain_output_dto_imports(self):
         """SendMessageUseCase output boundary must not expose domain chat DTOs."""
