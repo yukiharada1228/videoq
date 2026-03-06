@@ -27,6 +27,7 @@ APP_TESTS_ROOT = APP_ROOT / "tests"
 # Keep this allowlist empty by default; if temporary exceptions are needed,
 # add minimal file paths and a removal note per entry.
 ALLOWED_SERVICE_LOCATOR_FILES = set()
+ALLOWED_DYNAMIC_IMPORT_FILES = set()
 
 
 def get_python_files(base_path):
@@ -107,6 +108,54 @@ def check_forbidden_string_literals(file_path, forbidden_substrings):
     return violations
 
 
+def _call_name(node):
+    if isinstance(node, ast.Name):
+        return node.id
+    if isinstance(node, ast.Attribute):
+        parent = _call_name(node.value)
+        if parent:
+            return f"{parent}.{node.attr}"
+        return node.attr
+    return None
+
+
+def check_forbidden_call_expressions(file_path, forbidden_calls):
+    with open(file_path) as f:
+        source = f.read()
+    try:
+        tree = ast.parse(source)
+    except SyntaxError as e:
+        raise AssertionError(f"SyntaxError while parsing {file_path}: {e}") from e
+
+    alias_map = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                key = alias.asname or alias.name.split(".")[0]
+                alias_map[key] = alias.name
+        elif isinstance(node, ast.ImportFrom):
+            module = node.module or ""
+            for alias in node.names:
+                key = alias.asname or alias.name
+                full = f"{module}.{alias.name}" if module else alias.name
+                alias_map[key] = full
+
+    violations = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        called = _call_name(node.func)
+        if called and "." in called:
+            head, tail = called.split(".", 1)
+            if head in alias_map:
+                called = f"{alias_map[head]}.{tail}"
+        elif called in alias_map:
+            called = alias_map[called]
+        if called in forbidden_calls:
+            violations.append((node.lineno, called))
+    return violations
+
+
 class CheckForbiddenImportsTest(unittest.TestCase):
     """Unit tests for check_forbidden_imports edge cases."""
 
@@ -165,6 +214,43 @@ class CheckForbiddenImportsTest(unittest.TestCase):
         )
         self.assertFalse(violations)
 
+    def test_dynamic_import_call_caught(self):
+        import tempfile
+        with tempfile.NamedTemporaryFile(suffix=".py", mode="w", delete=False) as f:
+            f.write("import importlib\nimportlib.import_module('app.foo')\n")
+            tmp_path = f.name
+        try:
+            found = check_forbidden_call_expressions(
+                tmp_path, {"importlib.import_module"}
+            )
+            self.assertTrue(found)
+        finally:
+            os.unlink(tmp_path)
+
+    def test_dynamic_import_alias_call_caught(self):
+        import tempfile
+        with tempfile.NamedTemporaryFile(suffix=".py", mode="w", delete=False) as f:
+            f.write("import importlib as il\nil.import_module('app.foo')\n")
+            tmp_path = f.name
+        try:
+            found = check_forbidden_call_expressions(
+                tmp_path, {"importlib.import_module"}
+            )
+            self.assertTrue(found)
+        finally:
+            os.unlink(tmp_path)
+
+    def test_builtin_dunder_import_call_caught(self):
+        import tempfile
+        with tempfile.NamedTemporaryFile(suffix=".py", mode="w", delete=False) as f:
+            f.write("__import__('app.foo')\n")
+            tmp_path = f.name
+        try:
+            found = check_forbidden_call_expressions(tmp_path, {"__import__"})
+            self.assertTrue(found)
+        finally:
+            os.unlink(tmp_path)
+
 
 class ImportRulesTest(unittest.TestCase):
     def _iter_layer_source_files(self, layer_path):
@@ -176,6 +262,31 @@ class ImportRulesTest(unittest.TestCase):
 
     def _count_python_files(self, layer_path):
         return sum(1 for _ in self._iter_layer_source_files(layer_path))
+
+    def _iter_layer_test_files(self, layer_path):
+        abs_path = APP_ROOT / layer_path
+        for fp in get_python_files(abs_path):
+            if not is_test_file_path(fp):
+                continue
+            yield fp
+
+    def _check_forbidden_calls_in_files(self, file_paths, forbidden_calls):
+        all_violations = {}
+        for fp in sorted(file_paths):
+            rel = os.path.relpath(fp, BASE)
+            if rel.replace(os.sep, "/") in ALLOWED_DYNAMIC_IMPORT_FILES:
+                continue
+            v = check_forbidden_call_expressions(fp, forbidden_calls)
+            if v:
+                all_violations[rel] = v
+        self.assertEqual(
+            {},
+            all_violations,
+            "Forbidden dynamic import calls found:\n"
+            + "\n".join(
+                f"  {f}: {vs}" for f, vs in all_violations.items()
+            ),
+        )
 
     def _check(self, layer_path, forbidden):
         all_violations = {}
@@ -228,6 +339,49 @@ class ImportRulesTest(unittest.TestCase):
     def test_use_cases_has_no_forbidden_imports(self):
         """use_cases layer must not import from app.models, django, rest_framework, or app.infrastructure."""
         self._check("use_cases", ["app.models", "django", "rest_framework", "app.infrastructure"])
+
+    def test_core_layers_have_no_dynamic_import_calls(self):
+        """Dynamic imports are disallowed in app layers guarded by import rules."""
+        forbidden_calls = {"importlib.import_module", "__import__"}
+        file_paths = []
+        for layer in [
+            "domain",
+            "use_cases",
+            "presentation",
+            "dependencies",
+            "composition_root",
+            "entrypoints",
+            "infrastructure",
+        ]:
+            file_paths.extend(self._iter_layer_source_files(layer))
+        self._check_forbidden_calls_in_files(file_paths, forbidden_calls)
+
+    def test_presentation_tests_have_lightweight_boundary_rules(self):
+        """presentation tests should avoid direct wiring to inner implementation layers."""
+        all_violations = {}
+        for fp in sorted(self._iter_layer_test_files("presentation")):
+            rel = os.path.relpath(fp, BASE)
+            v = check_forbidden_imports(
+                fp,
+                ["app.composition_root", "app.infrastructure", "app.entrypoints"],
+            )
+            if v:
+                all_violations[rel] = v
+        self.assertEqual(
+            {},
+            all_violations,
+            "Forbidden imports found in app/presentation/**/tests:\n"
+            + "\n".join(
+                f"  {f}: {vs}" for f, vs in all_violations.items()
+            ),
+        )
+
+    def test_presentation_and_use_cases_tests_have_no_dynamic_import_calls(self):
+        """Major test layers should avoid dynamic import indirection."""
+        forbidden_calls = {"importlib.import_module", "__import__"}
+        file_paths = list(self._iter_layer_test_files("presentation"))
+        file_paths.extend(self._iter_layer_test_files("use_cases"))
+        self._check_forbidden_calls_in_files(file_paths, forbidden_calls)
 
     def test_use_cases_has_no_common_imports(self):
         """use_cases layer must not import presentation HTTP/auth concerns."""
