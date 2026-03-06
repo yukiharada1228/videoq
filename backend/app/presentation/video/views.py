@@ -21,7 +21,13 @@ from app.use_cases.video.dto import (
     UpdateTagInput,
     UpdateVideoInput,
 )
-from app.use_cases.video.exceptions import ResourceNotFound, VideoLimitExceeded
+from app.use_cases.video.exceptions import (
+    GroupVideoOrderMismatch,
+    ResourceNotFound,
+    VideoAlreadyInGroup,
+    VideoLimitExceeded,
+    VideoNotInGroup,
+)
 from app.presentation.common.mixins import AuthenticatedViewMixin, DependencyResolverMixin
 from app.presentation.common.decorators import authenticated_view_with_error_handling
 
@@ -192,7 +198,6 @@ class VideoGroupListView(DependencyResolverMixin, AuthenticatedViewMixin, generi
     serializer_class = VideoGroupListSerializer
     list_groups_use_case = None
     create_group_use_case = None
-    video_group_use_case = None
 
     @extend_schema(
         responses={200: VideoGroupListSerializer(many=True)},
@@ -217,13 +222,6 @@ class VideoGroupListView(DependencyResolverMixin, AuthenticatedViewMixin, generi
         use_case = self.resolve_dependency(self.create_group_use_case)
         input_dto = CreateGroupInput(**serializer.validated_data)
         group = use_case.execute(request.user.id, input_dto)
-
-        # Re-fetch with videos for detail response
-        detail_use_case = self.resolve_dependency(self.video_group_use_case)
-        try:
-            group = detail_use_case.execute(group.id, request.user.id, include_videos=True)
-        except ResourceNotFound:
-            pass
 
         ctx = {"request": request}
         return Response(
@@ -270,14 +268,7 @@ class VideoGroupDetailView(DependencyResolverMixin, AuthenticatedViewMixin, APIV
                 name=data.get("name"),
                 description=data.get("description"),
             )
-            use_case.execute(pk, request.user.id, input_dto)
-        except ResourceNotFound:
-            return create_error_response("Group not found", status.HTTP_404_NOT_FOUND)
-
-        # Re-fetch with videos
-        detail_use_case = self.resolve_dependency(self.video_group_use_case)
-        try:
-            group = detail_use_case.execute(pk, request.user.id, include_videos=True)
+            group = use_case.execute(pk, request.user.id, input_dto)
         except ResourceNotFound:
             return create_error_response("Group not found", status.HTTP_404_NOT_FOUND)
 
@@ -314,7 +305,7 @@ class AddVideoToGroupView(DependencyResolverMixin, AuthenticatedViewMixin, APIVi
             member = use_case.execute(group_id, video_id, request.user.id)
         except ResourceNotFound as e:
             return create_error_response(str(e), status.HTTP_404_NOT_FOUND)
-        except ValueError as e:
+        except VideoAlreadyInGroup as e:
             return create_error_response(str(e), status.HTTP_400_BAD_REQUEST)
 
         return Response(
@@ -375,7 +366,7 @@ def remove_video_from_group(
         use_case.execute(group_id, video_id, request.user.id)
     except ResourceNotFound as e:
         return create_error_response(str(e), status.HTTP_404_NOT_FOUND)
-    except ValueError as e:
+    except VideoNotInGroup as e:
         return create_error_response(str(e), status.HTTP_404_NOT_FOUND)
 
     return Response({"message": "Video removed from group"}, status=status.HTTP_200_OK)
@@ -403,7 +394,7 @@ def reorder_videos_in_group(
         use_case.execute(group_id, video_ids, request.user.id)
     except ResourceNotFound as e:
         return create_error_response(str(e), status.HTTP_404_NOT_FOUND)
-    except ValueError as e:
+    except GroupVideoOrderMismatch as e:
         return create_error_response(str(e), status.HTTP_400_BAD_REQUEST)
 
     return Response({"message": "Video order updated"}, status=status.HTTP_200_OK)
@@ -558,14 +549,7 @@ class TagDetailView(DependencyResolverMixin, AuthenticatedViewMixin, APIView):
                 name=data.get("name"),
                 color=data.get("color"),
             )
-            use_case.execute(pk, request.user.id, input_dto)
-        except ResourceNotFound:
-            return create_error_response("Tag not found", status.HTTP_404_NOT_FOUND)
-
-        # Re-fetch with videos for detail response
-        detail_use_case = self.resolve_dependency(self.tag_detail_use_case)
-        try:
-            tag = detail_use_case.execute(pk, request.user.id)
+            tag = use_case.execute(pk, request.user.id, input_dto)
         except ResourceNotFound:
             return create_error_response("Tag not found", status.HTTP_404_NOT_FOUND)
 

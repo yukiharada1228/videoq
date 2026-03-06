@@ -5,7 +5,11 @@ Use cases for managing tags on videos.
 from typing import List, Tuple
 
 from app.domain.video.repositories import TagRepository, VideoRepository
-from app.use_cases.video.exceptions import ResourceNotFound
+from app.use_cases.video.exceptions import (
+    ResourceNotFound,
+    SomeTagsNotFound,
+    TagNotAttachedToVideo,
+)
 
 
 class AddTagsToVideoUseCase:
@@ -33,7 +37,7 @@ class AddTagsToVideoUseCase:
 
         try:
             return self.tag_repo.add_tags_to_video(video, tag_ids)
-        except ValueError as e:
+        except SomeTagsNotFound as e:
             raise ResourceNotFound("Some tags") from e
 
 
@@ -61,5 +65,5 @@ class RemoveTagFromVideoUseCase:
 
         try:
             self.tag_repo.remove_tag_from_video(video, tag)
-        except ValueError as e:
+        except TagNotAttachedToVideo as e:
             raise ResourceNotFound("Tag attachment") from e

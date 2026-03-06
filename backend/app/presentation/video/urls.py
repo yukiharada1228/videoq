@@ -43,7 +43,6 @@ urlpatterns = [
         VideoGroupListView.as_view(
             list_groups_use_case=video_dependencies.get_list_groups_use_case,
             create_group_use_case=video_dependencies.get_create_group_use_case,
-            video_group_use_case=video_dependencies.get_video_group_use_case,
         ),
         name="video-group-list",
     ),

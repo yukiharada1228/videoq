@@ -8,7 +8,7 @@ from app.infrastructure.repositories.django_video_repository import (
     DjangoVideoRepository,
 )
 from app.infrastructure.tasks.task_gateway import CeleryVideoTaskGateway
-from app.use_cases.video.create_group import CreateVideoGroupUseCase
+from app.use_cases.video.create_group_with_detail import CreateVideoGroupWithDetailUseCase
 from app.use_cases.video.create_tag import CreateTagUseCase
 from app.use_cases.video.create_video import CreateVideoUseCase
 from app.use_cases.video.delete_group import DeleteVideoGroupUseCase
@@ -31,8 +31,8 @@ from app.use_cases.video.manage_groups import (
 from app.use_cases.video.manage_tags import AddTagsToVideoUseCase, RemoveTagFromVideoUseCase
 from app.use_cases.video.reindex_all_videos import ReindexAllVideosUseCase
 from app.use_cases.video.run_transcription import RunTranscriptionUseCase
-from app.use_cases.video.update_group import UpdateVideoGroupUseCase
-from app.use_cases.video.update_tag import UpdateTagUseCase
+from app.use_cases.video.update_group_with_detail import UpdateVideoGroupWithDetailUseCase
+from app.use_cases.video.update_tag_with_detail import UpdateTagWithDetailUseCase
 from app.use_cases.video.update_video import UpdateVideoUseCase
 
 
@@ -82,12 +82,16 @@ def get_list_groups_use_case() -> ListVideoGroupsUseCase:
     return ListVideoGroupsUseCase(DjangoVideoGroupRepository())
 
 
-def get_create_group_use_case() -> CreateVideoGroupUseCase:
-    return CreateVideoGroupUseCase(DjangoVideoGroupRepository())
+def get_create_group_use_case() -> CreateVideoGroupWithDetailUseCase:
+    return CreateVideoGroupWithDetailUseCase(
+        DjangoVideoGroupRepository(), DjangoFileUrlResolver()
+    )
 
 
-def get_update_group_use_case() -> UpdateVideoGroupUseCase:
-    return UpdateVideoGroupUseCase(DjangoVideoGroupRepository())
+def get_update_group_use_case() -> UpdateVideoGroupWithDetailUseCase:
+    return UpdateVideoGroupWithDetailUseCase(
+        DjangoVideoGroupRepository(), DjangoFileUrlResolver()
+    )
 
 
 def get_delete_group_use_case() -> DeleteVideoGroupUseCase:
@@ -134,8 +138,8 @@ def get_create_tag_use_case() -> CreateTagUseCase:
     return CreateTagUseCase(DjangoTagRepository())
 
 
-def get_update_tag_use_case() -> UpdateTagUseCase:
-    return UpdateTagUseCase(DjangoTagRepository())
+def get_update_tag_use_case() -> UpdateTagWithDetailUseCase:
+    return UpdateTagWithDetailUseCase(DjangoTagRepository(), DjangoFileUrlResolver())
 
 
 def get_delete_tag_use_case() -> DeleteTagUseCase:
