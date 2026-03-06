@@ -6,7 +6,7 @@ from django.contrib.auth import get_user_model
 from django.db import IntegrityError
 from django.test import TestCase
 
-from app.models import Video, VideoGroup, VideoGroupMember
+from app.infrastructure.models import Video, VideoGroup, VideoGroupMember
 
 User = get_user_model()
 

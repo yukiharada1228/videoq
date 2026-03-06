@@ -3,6 +3,7 @@
 import secrets
 from unittest.mock import patch
 
+from django.apps import apps
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.test import override_settings
@@ -11,6 +12,7 @@ from rest_framework.test import APITestCase
 from rest_framework.throttling import SimpleRateThrottle
 
 User = get_user_model()
+VideoGroup = apps.get_model("app", "VideoGroup")
 
 # Use LocMemCache so we don't need a running Redis
 _TEST_CACHES = {
@@ -43,8 +45,6 @@ class ShareTokenIPThrottleTest(APITestCase):
         self.user = User.objects.create_user(
             username="owner", email="owner@example.com", password="pass1234"
         )
-        from app.models import VideoGroup
-
         self.group = VideoGroup.objects.create(
             user=self.user,
             name="test group",
@@ -81,8 +81,6 @@ class ShareTokenGlobalThrottleTest(APITestCase):
         self.user = User.objects.create_user(
             username="owner", email="owner@example.com", password="pass1234"
         )
-        from app.models import VideoGroup
-
         self.group = VideoGroup.objects.create(
             user=self.user,
             name="test group",

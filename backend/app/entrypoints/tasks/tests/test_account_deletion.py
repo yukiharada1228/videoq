@@ -9,7 +9,7 @@ from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 
-from app.models import ChatLog, Tag, Video, VideoGroup
+from app.infrastructure.models import ChatLog, Tag, Video, VideoGroup
 from app.entrypoints.tasks.account_deletion import delete_account_data
 
 User = get_user_model()

@@ -328,7 +328,7 @@ if USE_S3_STORAGE:
             },
         },
         "default": {  # Media file storage
-            "BACKEND": "app.models.storage.SafeS3Boto3Storage",
+            "BACKEND": "app.infrastructure.models.storage.SafeS3Boto3Storage",
             "OPTIONS": {
                 "location": "media",
                 "default_acl": "private",
@@ -346,7 +346,7 @@ else:
     # Use custom storage for media files (with timestamp-based filename conversion)
     STORAGES = {
         "default": {
-            "BACKEND": "app.models.storage.SafeFileSystemStorage",
+            "BACKEND": "app.infrastructure.models.storage.SafeFileSystemStorage",
         },
         "staticfiles": {
             "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",

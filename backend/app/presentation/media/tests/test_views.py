@@ -6,6 +6,7 @@ import os
 import tempfile
 from unittest.mock import patch
 
+from django.apps import apps
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import override_settings
@@ -13,9 +14,10 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 
-from app.models import Video, VideoGroup, VideoGroupMember
-
 User = get_user_model()
+Video = apps.get_model("app", "Video")
+VideoGroup = apps.get_model("app", "VideoGroup")
+VideoGroupMember = apps.get_model("app", "VideoGroupMember")
 
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())

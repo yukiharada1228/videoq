@@ -2,7 +2,7 @@
 
 from django.db import migrations, models
 
-import app.models
+import app.infrastructure.models
 
 
 class Migration(migrations.Migration):
@@ -24,6 +24,6 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name="video",
             name="file",
-            field=models.FileField(upload_to=app.models.user_directory_path),
+            field=models.FileField(upload_to=app.infrastructure.models.user_directory_path),
         ),
     ]
