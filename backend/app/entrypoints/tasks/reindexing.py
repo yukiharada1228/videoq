@@ -8,11 +8,12 @@ import logging
 from celery import shared_task
 
 from app.dependencies.tasks import get_reindex_all_videos_use_case
+from app.tasks.task_names import REINDEX_ALL_VIDEOS_EMBEDDINGS_TASK
 
 logger = logging.getLogger(__name__)
 
 
-@shared_task(bind=True, name="app.presentation.tasks.reindexing.reindex_all_videos_embeddings")
+@shared_task(bind=True, name=REINDEX_ALL_VIDEOS_EMBEDDINGS_TASK)
 def reindex_all_videos_embeddings(self):
     """
     Regenerate embedding vectors for all videos.

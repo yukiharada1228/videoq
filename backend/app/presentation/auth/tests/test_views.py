@@ -333,7 +333,7 @@ class AccountDeleteViewTests(APITestCase):
         self.assertTrue(self.user.username.startswith("deleted__"))
         self.assertTrue(self.user.email.startswith("deleted__"))
         mock_delay.assert_called_once_with(
-            "app.presentation.tasks.account_deletion.delete_account_data",
+            "app.entrypoints.tasks.account_deletion.delete_account_data",
             args=[self.user.id],
         )
         # Check cookies are deleted

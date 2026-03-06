@@ -8,7 +8,7 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 
 from app.models import Video
-from app.presentation.tasks.reindexing import reindex_all_videos_embeddings
+from app.entrypoints.tasks.reindexing import reindex_all_videos_embeddings
 
 User = get_user_model()
 

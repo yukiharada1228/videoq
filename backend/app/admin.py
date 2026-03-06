@@ -107,7 +107,7 @@ class VideoAdmin(admin.ModelAdmin):
             return
 
         # Start Celery task
-        from app.presentation.tasks.reindexing import reindex_all_videos_embeddings
+        from app.entrypoints.tasks.reindexing import reindex_all_videos_embeddings
 
         task = reindex_all_videos_embeddings.delay()
 
