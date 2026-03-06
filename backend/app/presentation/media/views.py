@@ -42,8 +42,7 @@ class ProtectedMediaView(APIView):
             and isinstance(request.auth, dict)
             and "share_token" in request.auth
         ):
-            group = request.auth.get("group")
-            group_id = group.id if group else None
+            group_id = request.auth.get("group_id")
         elif request.user and request.user.is_authenticated:
             user_id = request.user.id
 

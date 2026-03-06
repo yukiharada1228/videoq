@@ -164,6 +164,12 @@ class AppContainer:
     def get_authorize_api_key_use_case(self):
         return factories.get_authorize_api_key_use_case()
 
+    def get_resolve_share_token_use_case(self):
+        return factories.get_resolve_share_token_use_case()
+
+    def get_resolve_api_key_use_case(self):
+        return factories.get_resolve_api_key_use_case()
+
     # ---------------------------------------------------------------------------
     # Task use cases
     # ---------------------------------------------------------------------------

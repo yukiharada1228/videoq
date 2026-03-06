@@ -12,7 +12,7 @@ from rest_framework.test import APIRequestFactory, APITestCase
 from app.common.permissions import (ApiKeyScopePermission,
                                     IsAuthenticatedOrSharedAccess,
                                     ShareTokenAuthentication)
-from app.models import UserApiKey, VideoGroup
+from app.models import VideoGroup
 
 User = get_user_model()
 
@@ -48,7 +48,7 @@ class ShareTokenAuthenticationTests(APITestCase):
         user, auth_data = result
         self.assertIsNone(user)
         self.assertEqual(auth_data["share_token"], self.group.share_token)
-        self.assertEqual(auth_data["group"], self.group)
+        self.assertEqual(auth_data["group_id"], self.group.id)
 
     def test_authenticate_with_invalid_token(self):
         """Test authentication with invalid share token"""
@@ -97,7 +97,7 @@ class IsAuthenticatedOrSharedAccessTests(APITestCase):
         )
         request = self.factory.get("/")
         request.user = None
-        request.auth = {"share_token": group.share_token, "group": group}
+        request.auth = {"share_token": group.share_token, "group_id": group.id}
 
         result = self.permission.has_permission(request, None)
 
@@ -141,20 +141,20 @@ class ApiKeyScopePermissionTests(APITestCase):
         )
         self.permission = ApiKeyScopePermission()
         self.factory = RequestFactory()
-        self.read_only_key, _ = UserApiKey.create_for_user(
-            user=self.user,
-            name="read-only",
-            access_level=UserApiKey.AccessLevel.READ_ONLY,
-        )
-        self.full_key, _ = UserApiKey.create_for_user(
-            user=self.user,
-            name="full-access",
-            access_level=UserApiKey.AccessLevel.ALL,
-        )
+        self.read_only_auth = {
+            "api_key_id": 1,
+            "user_id": self.user.id,
+            "access_level": "read_only",
+        }
+        self.full_auth = {
+            "api_key_id": 2,
+            "user_id": self.user.id,
+            "access_level": "all",
+        }
 
     def test_read_only_allows_read_scope_by_default(self):
         request = self.factory.get("/")
-        request.auth = self.read_only_key
+        request.auth = self.read_only_auth
 
         result = self.permission.has_permission(request, self._DefaultView())
 
@@ -162,7 +162,7 @@ class ApiKeyScopePermissionTests(APITestCase):
 
     def test_read_only_blocks_write_scope_by_default(self):
         request = self.factory.post("/")
-        request.auth = self.read_only_key
+        request.auth = self.read_only_auth
 
         result = self.permission.has_permission(request, self._DefaultView())
 
@@ -170,7 +170,7 @@ class ApiKeyScopePermissionTests(APITestCase):
 
     def test_read_only_allows_chat_write_scope(self):
         request = self.factory.post("/")
-        request.auth = self.read_only_key
+        request.auth = self.read_only_auth
 
         result = self.permission.has_permission(request, self._ChatWriteView())
 
@@ -178,7 +178,7 @@ class ApiKeyScopePermissionTests(APITestCase):
 
     def test_full_access_allows_write_scope(self):
         request = self.factory.post("/")
-        request.auth = self.full_key
+        request.auth = self.full_auth
 
         result = self.permission.has_permission(request, self._DefaultView())
 

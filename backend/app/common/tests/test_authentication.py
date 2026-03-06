@@ -116,9 +116,14 @@ class APIKeyAuthenticationTests(APITestCase):
         result = self.auth.authenticate(request)
 
         self.assertIsNotNone(result)
-        user, key_record = result
-        self.assertEqual(user, self.user)
-        self.assertEqual(key_record.pk, self.api_key.pk)
+        user, auth_data = result
+        self.assertEqual(user.id, self.user.id)
+        self.assertEqual(user.video_limit, self.user.video_limit)
+        self.assertEqual(auth_data["api_key_id"], self.api_key.pk)
+        self.assertEqual(auth_data["user_id"], self.user.id)
+        self.assertIn("read", auth_data["scopes"])
+        self.assertIn("write", auth_data["scopes"])
+        self.assertFalse(auth_data["is_read_only"])
 
     def test_authenticate_with_authorization_header(self):
         """Test authentication using Authorization header."""
@@ -130,9 +135,9 @@ class APIKeyAuthenticationTests(APITestCase):
         result = self.auth.authenticate(request)
 
         self.assertIsNotNone(result)
-        user, key_record = result
-        self.assertEqual(user, self.user)
-        self.assertEqual(key_record.pk, self.api_key.pk)
+        user, auth_data = result
+        self.assertEqual(user.id, self.user.id)
+        self.assertEqual(auth_data["api_key_id"], self.api_key.pk)
 
     def test_authenticate_with_invalid_api_key(self):
         """Test authentication failure with invalid API key."""
@@ -153,6 +158,10 @@ class APIKeyAuthenticationTests(APITestCase):
         result = self.auth.authenticate(request)
 
         self.assertIsNotNone(result)
-        user, key_record = result
-        self.assertEqual(user, self.user)
-        self.assertEqual(key_record.pk, read_only_key.pk)
+        user, auth_data = result
+        self.assertEqual(user.id, self.user.id)
+        self.assertEqual(auth_data["api_key_id"], read_only_key.pk)
+        self.assertEqual(auth_data["user_id"], self.user.id)
+        self.assertIn("read", auth_data["scopes"])
+        self.assertNotIn("write", auth_data["scopes"])
+        self.assertTrue(auth_data["is_read_only"])
