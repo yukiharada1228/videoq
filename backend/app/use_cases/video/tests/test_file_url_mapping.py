@@ -1,15 +1,10 @@
-"""Unit tests for file_url mapper helpers."""
+"""Unit tests for video DTO mapper helpers."""
 
 from unittest import TestCase
 
 from app.domain.video.entities import TagEntity, VideoEntity
 from app.use_cases.video.dto import TagResponseDTO
 from app.use_cases.video.file_url import to_video_response_dto
-
-
-class _FakeResolver:
-    def resolve(self, file_key: str):
-        return f"https://cdn.example.com/{file_key}"
 
 
 class FileUrlMappingTests(TestCase):
@@ -26,11 +21,10 @@ class FileUrlMappingTests(TestCase):
             ],
         )
 
-        dto = to_video_response_dto(video, _FakeResolver())
+        dto = to_video_response_dto(video)
 
-        self.assertEqual(dto.file_url, "https://cdn.example.com/videos/a.mp4")
+        self.assertEqual(dto.file_key, "videos/a.mp4")
         self.assertEqual(len(dto.tags), 2)
         self.assertIsInstance(dto.tags[0], TagResponseDTO)
         self.assertEqual(dto.tags[0].id, 100)
         self.assertEqual(dto.tags[0].name, "Tag1")
-

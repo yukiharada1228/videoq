@@ -1,14 +1,13 @@
 """
-Helpers for mapping VideoEntity → VideoResponseDTO with resolved file_url.
+Helpers for mapping domain entities to video use-case DTOs.
 No in-place mutation of domain entities.
 """
 
 from __future__ import annotations
 
-from typing import Iterable, List, Optional
+from typing import Iterable, List
 
 from app.domain.video.entities import TagEntity, VideoEntity, VideoGroupEntity, VideoGroupMemberEntity
-from app.domain.video.ports import FileUrlResolver
 from app.use_cases.video.dto import (
     TagDetailResponseDTO,
     TagResponseDTO,
@@ -17,12 +16,6 @@ from app.use_cases.video.dto import (
     VideoGroupMemberResponseDTO,
     VideoResponseDTO,
 )
-
-
-def _resolve_url(file_key: Optional[str], resolver: Optional[FileUrlResolver]) -> Optional[str]:
-    if resolver and file_key:
-        return resolver.resolve(file_key)
-    return None
 
 
 def _to_tag_response_dto(tag: TagEntity) -> TagResponseDTO:
@@ -37,9 +30,9 @@ def _to_tag_response_dto(tag: TagEntity) -> TagResponseDTO:
 
 
 def to_video_response_dto(
-    video: VideoEntity, file_url_resolver: Optional[FileUrlResolver]
+    video: VideoEntity,
 ) -> VideoResponseDTO:
-    """Create a VideoResponseDTO from a VideoEntity with the resolved file_url."""
+    """Create a VideoResponseDTO from a VideoEntity."""
     return VideoResponseDTO(
         id=video.id,
         user_id=video.user_id,
@@ -47,7 +40,6 @@ def to_video_response_dto(
         status=video.status,
         description=video.description,
         file_key=video.file_key,
-        file_url=_resolve_url(video.file_key, file_url_resolver),
         error_message=video.error_message,
         uploaded_at=video.uploaded_at,
         transcript=video.transcript,
@@ -56,10 +48,10 @@ def to_video_response_dto(
 
 
 def to_video_response_dtos(
-    videos: Iterable[VideoEntity], file_url_resolver: Optional[FileUrlResolver]
+    videos: Iterable[VideoEntity],
 ) -> List[VideoResponseDTO]:
     """Convert a sequence of VideoEntity to VideoResponseDTO list."""
-    return [to_video_response_dto(v, file_url_resolver) for v in videos]
+    return [to_video_response_dto(v) for v in videos]
 
 
 def to_tag_response_dtos(tags: Iterable[TagEntity]) -> List[TagResponseDTO]:
@@ -68,10 +60,10 @@ def to_tag_response_dtos(tags: Iterable[TagEntity]) -> List[TagResponseDTO]:
 
 
 def _member_to_response_dto(
-    member: VideoGroupMemberEntity, file_url_resolver: Optional[FileUrlResolver]
+    member: VideoGroupMemberEntity,
 ) -> VideoGroupMemberResponseDTO:
     video_dto = (
-        to_video_response_dto(member.video, file_url_resolver)
+        to_video_response_dto(member.video)
         if member.video is not None
         else None
     )
@@ -86,10 +78,10 @@ def _member_to_response_dto(
 
 
 def to_group_detail_response_dto(
-    group: VideoGroupEntity, file_url_resolver: Optional[FileUrlResolver]
+    group: VideoGroupEntity,
 ) -> VideoGroupDetailResponseDTO:
-    """Create a VideoGroupDetailResponseDTO from a VideoGroupEntity with resolved file URLs."""
-    members = [_member_to_response_dto(m, file_url_resolver) for m in group.members]
+    """Create a VideoGroupDetailResponseDTO from a VideoGroupEntity."""
+    members = [_member_to_response_dto(m) for m in group.members]
     return VideoGroupDetailResponseDTO(
         id=group.id,
         user_id=group.user_id,
@@ -124,9 +116,9 @@ def to_group_list_response_dto(group: VideoGroupEntity) -> VideoGroupListRespons
 
 
 def to_tag_detail_response_dto(
-    tag: TagEntity, file_url_resolver: Optional[FileUrlResolver]
+    tag: TagEntity,
 ) -> TagDetailResponseDTO:
-    """Create a TagDetailResponseDTO from a TagEntity with resolved file URLs."""
+    """Create a TagDetailResponseDTO from a TagEntity."""
     return TagDetailResponseDTO(
         id=tag.id,
         user_id=tag.user_id,
@@ -134,5 +126,5 @@ def to_tag_detail_response_dto(
         color=tag.color,
         video_count=tag.video_count,
         created_at=tag.created_at,
-        videos=to_video_response_dtos(tag.videos, file_url_resolver),
+        videos=to_video_response_dtos(tag.videos),
     )

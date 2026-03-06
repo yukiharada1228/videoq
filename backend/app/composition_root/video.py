@@ -7,7 +7,6 @@ Lifecycle policy:
 
 from functools import lru_cache
 
-from app.infrastructure.external.file_url_resolver import DjangoFileUrlResolver
 from app.infrastructure.external.vector_gateway import DjangoVectorStoreGateway
 from app.infrastructure.repositories.django_video_repository import (
     DjangoTagRepository,
@@ -70,11 +69,6 @@ def _new_vector_store_gateway() -> DjangoVectorStoreGateway:
 
 
 @lru_cache(maxsize=1)
-def _get_file_url_resolver() -> DjangoFileUrlResolver:
-    return DjangoFileUrlResolver()
-
-
-@lru_cache(maxsize=1)
 def _get_vector_indexing_gateway():
     from app.infrastructure.external.vector_gateway import DjangoVectorIndexingGateway
 
@@ -96,7 +90,7 @@ def _get_whisper_transcription_gateway():
 
 
 def get_list_videos_use_case() -> ListVideosUseCase:
-    return ListVideosUseCase(_new_video_repository(), _get_file_url_resolver())
+    return ListVideosUseCase(_new_video_repository())
 
 
 def get_reindex_all_videos_use_case() -> ReindexAllVideosUseCase:
@@ -115,7 +109,7 @@ def get_run_transcription_use_case() -> RunTranscriptionUseCase:
 
 
 def get_video_detail_use_case() -> GetVideoDetailUseCase:
-    return GetVideoDetailUseCase(_new_video_repository(), _get_file_url_resolver())
+    return GetVideoDetailUseCase(_new_video_repository())
 
 
 def get_create_video_use_case() -> CreateVideoUseCase:
@@ -123,7 +117,6 @@ def get_create_video_use_case() -> CreateVideoUseCase:
         _new_user_repository(),
         _new_video_repository(),
         _new_video_task_gateway(),
-        _get_file_url_resolver(),
     )
 
 
@@ -131,7 +124,6 @@ def get_update_video_use_case() -> UpdateVideoUseCase:
     return UpdateVideoUseCase(
         _new_video_repository(),
         _new_vector_store_gateway(),
-        _get_file_url_resolver(),
     )
 
 
@@ -148,17 +140,11 @@ def get_list_groups_use_case() -> ListVideoGroupsUseCase:
 
 
 def get_create_group_use_case() -> CreateVideoGroupWithDetailUseCase:
-    return CreateVideoGroupWithDetailUseCase(
-        _new_video_group_repository(),
-        _get_file_url_resolver(),
-    )
+    return CreateVideoGroupWithDetailUseCase(_new_video_group_repository())
 
 
 def get_update_group_use_case() -> UpdateVideoGroupWithDetailUseCase:
-    return UpdateVideoGroupWithDetailUseCase(
-        _new_video_group_repository(),
-        _get_file_url_resolver(),
-    )
+    return UpdateVideoGroupWithDetailUseCase(_new_video_group_repository())
 
 
 def get_delete_group_use_case() -> DeleteVideoGroupUseCase:
@@ -166,11 +152,11 @@ def get_delete_group_use_case() -> DeleteVideoGroupUseCase:
 
 
 def get_video_group_use_case() -> GetVideoGroupUseCase:
-    return GetVideoGroupUseCase(_new_video_group_repository(), _get_file_url_resolver())
+    return GetVideoGroupUseCase(_new_video_group_repository())
 
 
 def get_shared_group_use_case() -> GetSharedGroupUseCase:
-    return GetSharedGroupUseCase(_new_video_group_repository(), _get_file_url_resolver())
+    return GetSharedGroupUseCase(_new_video_group_repository())
 
 
 def get_add_video_to_group_use_case() -> AddVideoToGroupUseCase:
@@ -212,7 +198,7 @@ def get_create_tag_use_case() -> CreateTagUseCase:
 
 
 def get_update_tag_use_case() -> UpdateTagWithDetailUseCase:
-    return UpdateTagWithDetailUseCase(_new_tag_repository(), _get_file_url_resolver())
+    return UpdateTagWithDetailUseCase(_new_tag_repository())
 
 
 def get_delete_tag_use_case() -> DeleteTagUseCase:
@@ -220,7 +206,7 @@ def get_delete_tag_use_case() -> DeleteTagUseCase:
 
 
 def get_tag_detail_use_case() -> GetTagDetailUseCase:
-    return GetTagDetailUseCase(_new_tag_repository(), _get_file_url_resolver())
+    return GetTagDetailUseCase(_new_tag_repository())
 
 
 def get_add_tags_to_video_use_case() -> AddTagsToVideoUseCase:

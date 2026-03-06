@@ -17,6 +17,7 @@ from app.use_cases.video.dto import (
     CreateGroupInput,
     CreateTagInput,
     CreateVideoInput,
+    ListVideosInput,
     UpdateGroupInput,
     UpdateTagInput,
     UpdateVideoInput,
@@ -56,6 +57,18 @@ from .serializers import (
 
 logger = logging.getLogger(__name__)
 
+NOT_FOUND_MESSAGES = {
+    "Group": "Group not found",
+    "Share link": "Share link is not configured",
+    "Some videos": "Some videos not found",
+    "Tag": "Tag not found",
+    "Video": "Video not found",
+}
+
+
+def _not_found_message(exc: ResourceNotFound) -> str:
+    return NOT_FOUND_MESSAGES.get(exc.entity_name, "Resource not found")
+
 
 # ---------------------------------------------------------------------------
 # Video views
@@ -88,12 +101,15 @@ class VideoListView(DependencyResolverMixin, AuthenticatedViewMixin, generics.Ge
                 pass
 
         use_case = self.resolve_dependency(self.list_videos_use_case)
+        input_dto = ListVideosInput(
+            keyword=q,
+            status_filter=status_value,
+            sort_key=ordering,
+            tag_ids=tag_ids,
+        )
         videos = use_case.execute(
             user_id=request.user.id,
-            q=q,
-            status=status_value,
-            ordering=ordering,
-            tag_ids=tag_ids,
+            input=input_dto,
         )
         ctx = {"request": request}
         return Response(
@@ -120,8 +136,11 @@ class VideoListView(DependencyResolverMixin, AuthenticatedViewMixin, generics.Ge
                 description=data["description"],
             )
             video = use_case.execute(request.user.id, input_dto)
-        except VideoLimitExceeded as e:
-            return create_error_response(str(e), status.HTTP_400_BAD_REQUEST)
+        except VideoLimitExceeded:
+            return create_error_response(
+                "Video upload limit reached",
+                status.HTTP_400_BAD_REQUEST,
+            )
 
         ctx = {"request": request}
         return Response(
@@ -310,9 +329,12 @@ class AddVideoToGroupView(DependencyResolverMixin, AuthenticatedViewMixin, APIVi
         try:
             member = use_case.execute(group_id, video_id, request.user.id)
         except ResourceNotFound as e:
-            return create_error_response(str(e), status.HTTP_404_NOT_FOUND)
-        except VideoAlreadyInGroup as e:
-            return create_error_response(str(e), status.HTTP_400_BAD_REQUEST)
+            return create_error_response(_not_found_message(e), status.HTTP_404_NOT_FOUND)
+        except VideoAlreadyInGroup:
+            return create_error_response(
+                "This video is already added to the group",
+                status.HTTP_400_BAD_REQUEST,
+            )
 
         return Response(
             {"message": "Video added to group", "id": member.id},
@@ -342,7 +364,7 @@ def add_videos_to_group(
     try:
         added_count, skipped_count = use_case.execute(group_id, video_ids, request.user.id)
     except ResourceNotFound as e:
-        return create_error_response(str(e), status.HTTP_404_NOT_FOUND)
+        return create_error_response(_not_found_message(e), status.HTTP_404_NOT_FOUND)
 
     return Response(
         {
@@ -371,9 +393,9 @@ def remove_video_from_group(
     try:
         use_case.execute(group_id, video_id, request.user.id)
     except ResourceNotFound as e:
-        return create_error_response(str(e), status.HTTP_404_NOT_FOUND)
-    except VideoNotInGroup as e:
-        return create_error_response(str(e), status.HTTP_404_NOT_FOUND)
+        return create_error_response(_not_found_message(e), status.HTTP_404_NOT_FOUND)
+    except VideoNotInGroup:
+        return create_error_response("This video is not added to the group", status.HTTP_404_NOT_FOUND)
 
     return Response({"message": "Video removed from group"}, status=status.HTTP_200_OK)
 
@@ -399,9 +421,12 @@ def reorder_videos_in_group(
     try:
         use_case.execute(group_id, video_ids, request.user.id)
     except ResourceNotFound as e:
-        return create_error_response(str(e), status.HTTP_404_NOT_FOUND)
-    except GroupVideoOrderMismatch as e:
-        return create_error_response(str(e), status.HTTP_400_BAD_REQUEST)
+        return create_error_response(_not_found_message(e), status.HTTP_404_NOT_FOUND)
+    except GroupVideoOrderMismatch:
+        return create_error_response(
+            "Specified video IDs do not match videos in group",
+            status.HTTP_400_BAD_REQUEST,
+        )
 
     return Response({"message": "Video order updated"}, status=status.HTTP_200_OK)
 
@@ -422,7 +447,7 @@ class CreateShareLinkView(DependencyResolverMixin, AuthenticatedViewMixin, APIVi
         try:
             share_token = use_case.execute(group_id, request.user.id)
         except ResourceNotFound as e:
-            return create_error_response(str(e), status.HTTP_404_NOT_FOUND)
+            return create_error_response(_not_found_message(e), status.HTTP_404_NOT_FOUND)
 
         return Response(
             {"message": "Share link generated", "share_token": share_token},
@@ -446,10 +471,7 @@ def delete_share_link(
     try:
         use_case.execute(group_id, request.user.id)
     except ResourceNotFound as e:
-        msg = str(e)
-        if "Share link" in msg:
-            return create_error_response("Share link is not configured", status.HTTP_404_NOT_FOUND)
-        return create_error_response(msg, status.HTTP_404_NOT_FOUND)
+        return create_error_response(_not_found_message(e), status.HTTP_404_NOT_FOUND)
 
     return Response({"message": "Share link disabled"}, status=status.HTTP_200_OK)
 
@@ -594,7 +616,7 @@ def add_tags_to_video(
     try:
         added_count, skipped_count = use_case.execute(video_id, tag_ids, request.user.id)
     except ResourceNotFound as e:
-        return create_error_response(str(e), status.HTTP_404_NOT_FOUND)
+        return create_error_response(_not_found_message(e), status.HTTP_404_NOT_FOUND)
 
     return Response(
         {
@@ -623,6 +645,6 @@ def remove_tag_from_video(
     try:
         use_case.execute(video_id, tag_id, request.user.id)
     except ResourceNotFound as e:
-        return create_error_response(str(e), status.HTTP_404_NOT_FOUND)
+        return create_error_response(_not_found_message(e), status.HTTP_404_NOT_FOUND)
 
     return Response({"message": "Tag removed from video"}, status=status.HTTP_200_OK)

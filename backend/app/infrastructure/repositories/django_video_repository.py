@@ -16,7 +16,7 @@ from app.domain.video.dto import (
     UpdateGroupParams,
     UpdateTagParams,
     UpdateVideoParams,
-    VideoListQuery,
+    VideoSearchCriteria,
 )
 from app.domain.video.entities import (
     TagEntity,
@@ -78,14 +78,6 @@ def _video_to_entity(video: Video) -> VideoEntity:
         transcript=video.transcript or None,
         tags=tags,
     )
-
-
-def _to_django_file(file_source):
-    """Normalize a binary source into an object assignable to Django FileField."""
-    if hasattr(file_source, "chunks"):
-        return file_source
-    file_name = getattr(file_source, "name", "upload.bin")
-    return ContentFile(file_source.read(), name=file_name)
 
 
 def _member_to_entity(
@@ -153,24 +145,24 @@ class DjangoVideoRepository(VideoRepository):
     def list_for_user(
         self,
         user_id: int,
-        query: Optional[VideoListQuery] = None,
+        criteria: Optional[VideoSearchCriteria] = None,
     ) -> List[VideoEntity]:
         from django.db.models import Q
 
-        q_obj = query or VideoListQuery()
+        search = criteria or VideoSearchCriteria()
 
         queryset = QueryOptimizer.get_videos_with_metadata(user_id=user_id)
 
-        if q_obj.q:
+        if search.keyword:
             queryset = queryset.filter(
-                Q(title__icontains=q_obj.q) | Q(description__icontains=q_obj.q)
+                Q(title__icontains=search.keyword) | Q(description__icontains=search.keyword)
             )
 
-        if q_obj.status:
-            queryset = queryset.filter(status=q_obj.status)
+        if search.status_filter:
+            queryset = queryset.filter(status=search.status_filter)
 
-        if q_obj.tag_ids:
-            for tag_id in q_obj.tag_ids:
+        if search.tag_ids:
+            for tag_id in search.tag_ids:
                 queryset = queryset.filter(tags__id=tag_id)
 
         ordering_map = {
@@ -179,15 +171,15 @@ class DjangoVideoRepository(VideoRepository):
             "title_asc": "title",
             "title_desc": "-title",
         }
-        if q_obj.ordering in ordering_map:
-            queryset = queryset.order_by(ordering_map[q_obj.ordering])
+        if search.sort_key in ordering_map:
+            queryset = queryset.order_by(ordering_map[search.sort_key])
 
         return [_video_to_entity(v) for v in queryset]
 
     def create(self, user_id: int, params: CreateVideoParams) -> VideoEntity:
         video = Video.objects.create(
             user_id=user_id,
-            file=_to_django_file(params.file),
+            file=ContentFile(params.file_bytes, name=params.file_name),
             title=params.title,
             description=params.description,
         )

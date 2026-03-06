@@ -8,6 +8,7 @@ import logging
 import os
 import re
 
+from django.conf import settings
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
@@ -23,7 +24,7 @@ class VideoListSerializer(serializers.Serializer):
     """Serializer for video list view (reads VideoEntity attributes)."""
 
     id = serializers.IntegerField()
-    file = serializers.CharField(source="file_url", allow_null=True)
+    file = serializers.SerializerMethodField()
     title = serializers.CharField()
     description = serializers.CharField()
     uploaded_at = serializers.DateTimeField()
@@ -37,13 +38,27 @@ class VideoListSerializer(serializers.Serializer):
             for t in obj.tags
         ]
 
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_file(self, obj):
+        file_key = getattr(obj, "file_key", None)
+        if not file_key:
+            return None
+        if str(file_key).startswith(("http://", "https://")):
+            return str(file_key)
+
+        request = self.context.get("request")
+        if request is None:
+            return None
+        media_url = settings.MEDIA_URL or "/media/"
+        return request.build_absolute_uri(f"{media_url}{str(file_key).lstrip('/')}")
+
 
 class VideoSerializer(serializers.Serializer):
     """Serializer for Video full detail (reads VideoEntity attributes)."""
 
     id = serializers.IntegerField()
     user = serializers.IntegerField(source="user_id")
-    file = serializers.CharField(source="file_url", allow_null=True)
+    file = serializers.SerializerMethodField()
     title = serializers.CharField()
     description = serializers.CharField()
     uploaded_at = serializers.DateTimeField()
@@ -58,6 +73,20 @@ class VideoSerializer(serializers.Serializer):
             {"id": t.id, "name": t.name, "color": t.color}
             for t in obj.tags
         ]
+
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_file(self, obj):
+        file_key = getattr(obj, "file_key", None)
+        if not file_key:
+            return None
+        if str(file_key).startswith(("http://", "https://")):
+            return str(file_key)
+
+        request = self.context.get("request")
+        if request is None:
+            return None
+        media_url = settings.MEDIA_URL or "/media/"
+        return request.build_absolute_uri(f"{media_url}{str(file_key).lstrip('/')}")
 
 
 class VideoGroupListSerializer(serializers.Serializer):

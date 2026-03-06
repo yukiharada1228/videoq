@@ -2,10 +2,7 @@
 Use case: Update a video group and return detail DTO.
 """
 
-from typing import Optional
-
 from app.domain.video.dto import UpdateGroupParams
-from app.domain.video.ports import FileUrlResolver
 from app.domain.video.repositories import VideoGroupRepository
 from app.use_cases.video.dto import UpdateGroupInput, VideoGroupDetailResponseDTO
 from app.use_cases.video.exceptions import ResourceNotFound
@@ -18,10 +15,8 @@ class UpdateVideoGroupWithDetailUseCase:
     def __init__(
         self,
         group_repo: VideoGroupRepository,
-        file_url_resolver: Optional[FileUrlResolver] = None,
     ):
         self.group_repo = group_repo
-        self.file_url_resolver = file_url_resolver
 
     def execute(
         self, group_id: int, user_id: int, input: UpdateGroupInput
@@ -38,4 +33,4 @@ class UpdateVideoGroupWithDetailUseCase:
         )
         if detail is None:
             raise ResourceNotFound("Group")
-        return to_group_detail_response_dto(detail, self.file_url_resolver)
+        return to_group_detail_response_dto(detail)

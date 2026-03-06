@@ -39,14 +39,9 @@ class FakeVideoRepository:
     def list_for_user(
         self,
         user_id: int,
-        q: str = "",
-        status: str = "",
-        ordering: str = "",
-        tag_ids=None,
-        include_transcript: bool = False,
-        include_groups: bool = False,
+        criteria=None,
     ):
-        del q, status, ordering, tag_ids, include_transcript, include_groups
+        del criteria
         return [video for video in self._videos.values() if video.user_id == user_id]
 
     def create(self, user_id: int, params: CreateVideoParams) -> VideoEntity:
@@ -56,7 +51,7 @@ class FakeVideoRepository:
             title=params.title,
             description=params.description,
             status="pending",
-            file_key=getattr(params.file, "name", None),
+            file_key=params.file_name,
         )
         self._videos[self._next_id] = video
         self._next_id += 1
@@ -138,7 +133,8 @@ class CreateVideoUseCaseTests(TestCase):
             self.repo.create(
                 self.user_id,
                 CreateVideoParams(
-                    file=FakeUploadedFile(name=f"seed-{i}.mp4"),
+                    file_name=f"seed-{i}.mp4",
+                    file_bytes=b"seed",
                     title=f"Seed {i}",
                     description="",
                 ),
