@@ -3,8 +3,6 @@ Infrastructure implementation of AccountDeletionGateway.
 Handles persistence of deletion requests and user deactivation.
 """
 
-import datetime
-
 from django.utils import timezone
 
 from app.domain.auth.gateways import AccountDeletionGateway

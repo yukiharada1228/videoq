@@ -38,8 +38,8 @@ LAYER_ROOTS = {
 # Service locator is prohibited in framework entrypoints.
 # Keep this allowlist empty by default; if temporary exceptions are needed,
 # add minimal file paths and a removal note per entry.
-ALLOWED_SERVICE_LOCATOR_FILES = set()
-ALLOWED_DYNAMIC_IMPORT_FILES = set()
+ALLOWED_SERVICE_LOCATOR_FILES: set[str] = set()
+ALLOWED_DYNAMIC_IMPORT_FILES: set[str] = set()
 
 
 def get_python_files(base_path):

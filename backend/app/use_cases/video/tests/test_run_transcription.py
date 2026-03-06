@@ -1,6 +1,7 @@
 """Unit tests for RunTranscriptionUseCase using in-memory fakes."""
 
 from unittest import TestCase
+from typing import Optional
 
 from app.domain.video.entities import VideoEntity
 from app.domain.video.exceptions import InvalidVideoStatusTransition
@@ -43,10 +44,10 @@ class _FakeVideoTranscriptionRepository:
 
 
 class _FakeTranscriptionGateway:
-    def __init__(self, transcript: str = "srt text", error: Exception = None):
+    def __init__(self, transcript: str = "srt text", error: Optional[Exception] = None):
         self.transcript = transcript
         self.error = error
-        self.calls = []
+        self.calls: list[int] = []
 
     def run(self, video_id: int) -> str:
         self.calls.append(video_id)

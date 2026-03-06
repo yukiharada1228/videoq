@@ -191,7 +191,6 @@ class GroupTagContractsUseCaseTests(TestCase):
             use_case.execute(self.group.id, [self.video.id, 999], self.user_id)
 
     def test_reorder_videos_validates_membership_in_use_case_layer(self):
-        video2 = VideoEntity(id=11, user_id=self.user_id, title="v2", status="completed")
         group = VideoGroupEntity(
             id=self.group.id,
             user_id=self.user_id,

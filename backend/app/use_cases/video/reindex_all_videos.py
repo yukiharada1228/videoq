@@ -49,6 +49,8 @@ class ReindexAllVideosUseCase:
 
         for index, video in enumerate(videos, start=1):
             try:
+                if video.transcript is None:
+                    raise ValueError("Transcript is missing")
                 self.vector_gateway.index_video_transcript(
                     video.id, video.user_id, video.title, video.transcript
                 )

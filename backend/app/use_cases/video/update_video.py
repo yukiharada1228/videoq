@@ -2,8 +2,6 @@
 Use case: Update a video and sync PGVector metadata when the title changes.
 """
 
-from typing import Optional
-
 from app.domain.video.dto import UpdateVideoParams
 from app.domain.video.gateways import VectorStoreGateway
 from app.domain.video.repositories import VideoRepository
