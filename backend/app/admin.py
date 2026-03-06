@@ -10,7 +10,10 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.admin import UserAdmin
 from django.db.models import Count
 
-from app.dependencies.admin import get_enforce_video_limit_use_case
+from app.dependencies.admin import (
+    get_enforce_video_limit_use_case,
+    get_video_task_gateway,
+)
 
 from .models import AccountDeletionRequest, Video, VideoGroup, VideoGroupMember
 
@@ -112,15 +115,12 @@ class VideoAdmin(admin.ModelAdmin):
             messages.error(request, "This action is only available to superusers.")
             return
 
-        # Start Celery task
-        from app.entrypoints.tasks.reindexing import reindex_all_videos_embeddings
-
-        task = reindex_all_videos_embeddings.delay()
+        task_id = get_video_task_gateway().enqueue_reindex_all_videos_embeddings()
 
         messages.success(
             request,
             f"Started re-indexing video embeddings. "
-            f"Task ID: {task.id}. "
+            f"Task ID: {task_id}. "
             f"This may take some time. Check Celery worker logs for progress.",
         )
 

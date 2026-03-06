@@ -4,10 +4,13 @@ Use case: Transcribe a video and index its scenes for RAG search.
 
 import logging
 
-from app.domain.video.exceptions import TranscriptionFailed, TranscriptionTargetNotFound
 from app.domain.video.gateways import TranscriptionGateway, VectorIndexingGateway
 from app.domain.video.repositories import VideoTranscriptionRepository
 from app.domain.video.status import VideoStatus
+from app.use_cases.video.exceptions import (
+    TranscriptionExecutionFailed,
+    TranscriptionTargetMissing,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +39,7 @@ class RunTranscriptionUseCase:
     def execute(self, video_id: int) -> None:
         video = self.video_repo.get_by_id_for_task(video_id)
         if video is None:
-            raise TranscriptionTargetNotFound(video_id)
+            raise TranscriptionTargetMissing(video_id)
 
         current_status = VideoStatus.from_value(video.status)
         current_status.assert_transition_to(VideoStatus.PROCESSING)
@@ -71,4 +74,4 @@ class RunTranscriptionUseCase:
                 to_status=VideoStatus.ERROR,
                 error_message=error_msg,
             )
-            raise TranscriptionFailed(video_id=video_id, reason=error_msg) from e
+            raise TranscriptionExecutionFailed(video_id=video_id, reason=error_msg) from e

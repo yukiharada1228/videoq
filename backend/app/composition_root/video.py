@@ -7,6 +7,7 @@ Lifecycle policy:
 
 from functools import lru_cache
 
+from app.domain.video.gateways import VideoTaskGateway
 from app.infrastructure.external.vector_gateway import DjangoVectorStoreGateway
 from app.infrastructure.repositories.django_video_repository import (
     DjangoTagRepository,
@@ -108,6 +109,18 @@ def get_run_transcription_use_case() -> RunTranscriptionUseCase:
     )
 
 
+def get_transcription_target_missing_exception():
+    from app.use_cases.video.exceptions import TranscriptionTargetMissing
+
+    return TranscriptionTargetMissing
+
+
+def get_transcription_execution_failed_exception():
+    from app.use_cases.video.exceptions import TranscriptionExecutionFailed
+
+    return TranscriptionExecutionFailed
+
+
 def get_video_detail_use_case() -> GetVideoDetailUseCase:
     return GetVideoDetailUseCase(_new_video_repository())
 
@@ -118,6 +131,10 @@ def get_create_video_use_case() -> CreateVideoUseCase:
         _new_video_repository(),
         _new_video_task_gateway(),
     )
+
+
+def get_video_task_gateway() -> VideoTaskGateway:
+    return _new_video_task_gateway()
 
 
 def get_update_video_use_case() -> UpdateVideoUseCase:
