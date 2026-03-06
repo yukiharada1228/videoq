@@ -123,7 +123,15 @@ class ChatView(DependencyResolverMixin, APIView):
 
         response_data = {"role": "assistant", "content": result.content}
         if group_id is not None and result.related_videos:
-            response_data["related_videos"] = [v.to_dict() for v in result.related_videos]
+            response_data["related_videos"] = [
+                {
+                    "video_id": v.video_id,
+                    "title": v.title,
+                    "start_time": v.start_time,
+                    "end_time": v.end_time,
+                }
+                for v in result.related_videos
+            ]
         if result.chat_log_id is not None:
             response_data["chat_log_id"] = result.chat_log_id
             response_data["feedback"] = result.feedback

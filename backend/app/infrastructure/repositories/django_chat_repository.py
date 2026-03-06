@@ -33,7 +33,13 @@ def _chat_log_to_entity(
         group_user_id = log.group.user_id
         group_share_token = log.group.share_token
     related_videos = [
-        RelatedVideoDTO.from_dict(item) for item in (log.related_videos or [])
+        RelatedVideoDTO(
+            video_id=int(item.get("video_id", 0) or 0),
+            title=str(item.get("title", "")),
+            start_time=item.get("start_time"),
+            end_time=item.get("end_time"),
+        )
+        for item in (log.related_videos or [])
     ]
     return ChatLogEntity(
         id=log.id,
@@ -87,7 +93,15 @@ class DjangoChatRepository(ChatRepository):
         related_videos: Optional[Sequence[RelatedVideoDTO]],
         is_shared: bool,
     ) -> ChatLogEntity:
-        related_video_dicts = [dto.to_dict() for dto in (related_videos or [])]
+        related_video_dicts = [
+            {
+                "video_id": dto.video_id,
+                "title": dto.title,
+                "start_time": dto.start_time,
+                "end_time": dto.end_time,
+            }
+            for dto in (related_videos or [])
+        ]
         log = ChatLog.objects.create(
             user_id=user_id,
             group_id=group_id,

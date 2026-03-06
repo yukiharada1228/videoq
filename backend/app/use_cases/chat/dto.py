@@ -20,6 +20,16 @@ class ChatMessageInput:
     content: str
 
 
+@dataclass(frozen=True)
+class RelatedVideoResponseDTO:
+    """Use-case output DTO for a related video reference."""
+
+    video_id: int
+    title: str
+    start_time: Optional[str]
+    end_time: Optional[str]
+
+
 @dataclass
 class ChatHistoryExportRow:
     """A single row of chat history returned by ExportChatHistoryUseCase."""

@@ -3,10 +3,10 @@ Use case: Update a tag.
 """
 
 from app.domain.video.dto import UpdateTagParams
-from app.domain.video.entities import TagEntity
 from app.domain.video.repositories import TagRepository
-from app.use_cases.video.dto import UpdateTagInput
+from app.use_cases.video.dto import TagResponseDTO, UpdateTagInput
 from app.use_cases.video.exceptions import ResourceNotFound
+from app.use_cases.video.file_url import to_tag_response_dtos
 
 
 class UpdateTagUseCase:
@@ -15,7 +15,7 @@ class UpdateTagUseCase:
     def __init__(self, tag_repo: TagRepository):
         self.tag_repo = tag_repo
 
-    def execute(self, tag_id: int, user_id: int, input: UpdateTagInput) -> TagEntity:
+    def execute(self, tag_id: int, user_id: int, input: UpdateTagInput) -> TagResponseDTO:
         """
         Raises:
             ResourceNotFound: If the tag does not exist.
@@ -24,4 +24,5 @@ class UpdateTagUseCase:
         if tag is None:
             raise ResourceNotFound("Tag")
         params = UpdateTagParams(name=input.name, color=input.color)
-        return self.tag_repo.update(tag=tag, params=params)
+        updated = self.tag_repo.update(tag=tag, params=params)
+        return to_tag_response_dtos([updated])[0]

@@ -3,10 +3,10 @@ Use case: Update a video group.
 """
 
 from app.domain.video.dto import UpdateGroupParams
-from app.domain.video.entities import VideoGroupEntity
 from app.domain.video.repositories import VideoGroupRepository
-from app.use_cases.video.dto import UpdateGroupInput
+from app.use_cases.video.dto import UpdateGroupInput, VideoGroupListResponseDTO
 from app.use_cases.video.exceptions import ResourceNotFound
+from app.use_cases.video.file_url import to_group_list_response_dto
 
 
 class UpdateVideoGroupUseCase:
@@ -17,7 +17,7 @@ class UpdateVideoGroupUseCase:
 
     def execute(
         self, group_id: int, user_id: int, input: UpdateGroupInput
-    ) -> VideoGroupEntity:
+    ) -> VideoGroupListResponseDTO:
         """
         Raises:
             ResourceNotFound: If the group does not exist.
@@ -26,4 +26,5 @@ class UpdateVideoGroupUseCase:
         if group is None:
             raise ResourceNotFound("Group")
         params = UpdateGroupParams(name=input.name, description=input.description)
-        return self.group_repo.update(group=group, params=params)
+        updated = self.group_repo.update(group=group, params=params)
+        return to_group_list_response_dto(updated)

@@ -507,6 +507,69 @@ class ImportRulesTest(unittest.TestCase):
         """admin must import task entrypoints from app.entrypoints.tasks only."""
         self._check_single_file("admin.py", ["app.presentation.tasks"])
 
+    def test_chat_send_message_has_no_domain_output_dto_imports(self):
+        """SendMessageUseCase output boundary must not expose domain chat DTOs."""
+        self._check_single_file(
+            "use_cases/chat/send_message.py",
+            ["app.domain.chat.dtos.RelatedVideoDTO"],
+        )
+
+    def test_auth_login_has_no_domain_token_dto_imports(self):
+        """LoginUseCase must return use_cases DTOs, not domain token DTOs."""
+        self._check_single_file(
+            "use_cases/auth/login.py",
+            ["app.domain.auth.dtos.TokenPairDto"],
+        )
+
+    def test_auth_refresh_has_no_domain_token_dto_imports(self):
+        """RefreshTokenUseCase must return use_cases DTOs, not domain token DTOs."""
+        self._check_single_file(
+            "use_cases/auth/refresh_token.py",
+            ["app.domain.auth.dtos.TokenPairDto"],
+        )
+
+    def test_video_list_groups_has_no_domain_entity_imports(self):
+        """ListVideoGroupsUseCase should expose use_cases DTOs, not domain entities."""
+        self._check_single_file(
+            "use_cases/video/list_groups.py",
+            ["app.domain.video.entities.VideoGroupEntity"],
+        )
+
+    def test_video_list_tags_has_no_domain_entity_imports(self):
+        """ListTagsUseCase should expose use_cases DTOs, not domain entities."""
+        self._check_single_file(
+            "use_cases/video/list_tags.py",
+            ["app.domain.video.entities.TagEntity"],
+        )
+
+    def test_video_create_tag_has_no_domain_entity_imports(self):
+        """CreateTagUseCase should expose use_cases DTOs, not domain entities."""
+        self._check_single_file(
+            "use_cases/video/create_tag.py",
+            ["app.domain.video.entities.TagEntity"],
+        )
+
+    def test_video_update_tag_has_no_domain_entity_imports(self):
+        """UpdateTagUseCase should expose use_cases DTOs, not domain entities."""
+        self._check_single_file(
+            "use_cases/video/update_tag.py",
+            ["app.domain.video.entities.TagEntity"],
+        )
+
+    def test_video_create_group_has_no_domain_entity_imports(self):
+        """CreateVideoGroupUseCase should expose use_cases DTOs, not domain entities."""
+        self._check_single_file(
+            "use_cases/video/create_group.py",
+            ["app.domain.video.entities.VideoGroupEntity"],
+        )
+
+    def test_video_update_group_has_no_domain_entity_imports(self):
+        """UpdateVideoGroupUseCase should expose use_cases DTOs, not domain entities."""
+        self._check_single_file(
+            "use_cases/video/update_group.py",
+            ["app.domain.video.entities.VideoGroupEntity"],
+        )
+
     def test_presentation_tasks_has_no_task_implementations(self):
         """presentation/tasks must stay empty (entrypoints own all Celery task implementations)."""
         tasks_dir = APP_ROOT / "presentation" / "tasks"
