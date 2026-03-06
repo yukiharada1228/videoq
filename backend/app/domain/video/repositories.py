@@ -132,7 +132,11 @@ class VideoGroupRepository(ABC):
     def add_video(
         self, group: VideoGroupEntity, video: VideoEntity
     ) -> VideoGroupMemberEntity:
-        """Add a single video to a group. Raises ValueError if already a member."""
+        """Add a single video to a group.
+
+        Raises:
+            VideoAlreadyInGroup: If the video is already a member of the group.
+        """
         ...
 
     @abstractmethod
@@ -143,7 +147,7 @@ class VideoGroupRepository(ABC):
         Add multiple videos to a group, validating ownership, skipping existing members.
 
         Raises:
-            ValueError: If some video_ids don't belong to user_id.
+            SomeVideosNotFound: If some video_ids don't belong to user_id.
 
         Returns:
             (added_count, skipped_count)
@@ -152,12 +156,20 @@ class VideoGroupRepository(ABC):
 
     @abstractmethod
     def remove_video(self, group: VideoGroupEntity, video: VideoEntity) -> None:
-        """Remove a video from a group. Raises ValueError if not a member."""
+        """Remove a video from a group.
+
+        Raises:
+            VideoNotInGroup: If the video is not a member of the group.
+        """
         ...
 
     @abstractmethod
     def reorder_videos(self, group: VideoGroupEntity, video_ids: List[int]) -> None:
-        """Reorder videos in a group according to the given ID list."""
+        """Reorder videos in a group according to the given ID list.
+
+        Raises:
+            GroupVideoOrderMismatch: If video_ids do not match current group members.
+        """
         ...
 
     @abstractmethod
@@ -203,6 +215,9 @@ class TagRepository(ABC):
         """
         Add tags to a video, skipping already-attached tags.
 
+        Raises:
+            SomeTagsNotFound: If some tag IDs do not belong to the user.
+
         Returns:
             (added_count, skipped_count)
         """
@@ -210,7 +225,11 @@ class TagRepository(ABC):
 
     @abstractmethod
     def remove_tag_from_video(self, video: VideoEntity, tag: TagEntity) -> None:
-        """Remove a tag from a video. Raises ValueError if not attached."""
+        """Remove a tag from a video.
+
+        Raises:
+            TagNotAttachedToVideo: If the tag is not attached to the video.
+        """
         ...
 
     @abstractmethod

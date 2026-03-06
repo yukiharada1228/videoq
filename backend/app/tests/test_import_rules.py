@@ -5,6 +5,9 @@ Acceptance criteria:
   - app/domain/**   : no app.models, django, rest_framework, celery, app.infrastructure
   - app/use_cases/**: no app.models, django, rest_framework, app.infrastructure
   - app/presentation/**: no app.models, no app.infrastructure.*
+  - app/dependencies/**: no app.models, django, rest_framework, app.infrastructure
+  - app/composition_root/**: no app.models, django, rest_framework, app.presentation
+  - app/entrypoints/**: no app.use_cases, app.composition_root, app.infrastructure
   - QuerySet must not appear in domain or use_cases source files
   - use_cases context isolation: video/chat/auth contexts must not import each other directly
     (app.use_cases.shared is the only permitted cross-context import)
@@ -203,6 +206,9 @@ class ImportRulesTest(unittest.TestCase):
             "use_cases": self._count_python_files("use_cases"),
             "presentation": self._count_python_files("presentation"),
             "infrastructure": self._count_python_files("infrastructure"),
+            "dependencies": self._count_python_files("dependencies"),
+            "composition_root": self._count_python_files("composition_root"),
+            "entrypoints": self._count_python_files("entrypoints"),
         }
         print("scan_counts", counts)
         for layer, count in counts.items():
@@ -233,6 +239,35 @@ class ImportRulesTest(unittest.TestCase):
     def test_presentation_has_no_common_imports(self):
         """presentation must import from app.presentation.common, not app.common."""
         self._check("presentation", ["app.common"])
+
+    def test_dependencies_has_no_forbidden_imports(self):
+        """dependencies layer must stay as DI provider wrappers only."""
+        self._check(
+            "dependencies",
+            [
+                "app.models",
+                "django",
+                "rest_framework",
+                "app.infrastructure",
+                "app.presentation",
+                "app.use_cases",
+                "app.entrypoints",
+            ],
+        )
+
+    def test_composition_root_has_no_presentation_imports(self):
+        """composition_root must not depend on presentation, models, or framework APIs."""
+        self._check(
+            "composition_root",
+            ["app.presentation", "app.models", "django", "rest_framework"],
+        )
+
+    def test_entrypoints_has_no_inner_layer_imports(self):
+        """entrypoints must call dependencies/contracts, not use_cases/composition_root/infrastructure."""
+        self._check(
+            "entrypoints",
+            ["app.use_cases", "app.composition_root", "app.infrastructure"],
+        )
 
     def _check_cross_context(self, context_path, forbidden_contexts):
         """Verify that a use_cases context does not import from other contexts directly."""

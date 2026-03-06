@@ -24,6 +24,14 @@ from app.domain.video.entities import (
     VideoGroupEntity,
     VideoGroupMemberEntity,
 )
+from app.domain.video.exceptions import (
+    GroupVideoOrderMismatch,
+    SomeTagsNotFound,
+    SomeVideosNotFound,
+    TagNotAttachedToVideo,
+    VideoAlreadyInGroup,
+    VideoNotInGroup,
+)
 from app.domain.video.repositories import (
     TagRepository,
     VideoGroupRepository,
@@ -354,7 +362,7 @@ class DjangoVideoGroupRepository(VideoGroupRepository):
         if VideoGroupMember.objects.filter(
             group_id=group.id, video_id=video.id
         ).exists():
-            raise ValueError("This video is already added to the group")
+            raise VideoAlreadyInGroup()
 
         max_order = (
             VideoGroupMember.objects.filter(group_id=group.id)
@@ -371,6 +379,10 @@ class DjangoVideoGroupRepository(VideoGroupRepository):
         self, group: VideoGroupEntity, video_ids: List[int], user_id: int
     ) -> Tuple[int, int]:
         videos = list(Video.objects.filter(id__in=video_ids, user_id=user_id))
+        found_ids = {v.id for v in videos}
+        if any(video_id not in found_ids for video_id in video_ids):
+            raise SomeVideosNotFound()
+
         existing_members = set(
             VideoGroupMember.objects.filter(
                 group_id=group.id, video_id__in=[v.id for v in videos]
@@ -406,14 +418,14 @@ class DjangoVideoGroupRepository(VideoGroupRepository):
             group_id=group.id, video_id=video.id
         ).first()
         if not member:
-            raise ValueError("This video is not added to the group")
+            raise VideoNotInGroup()
         member.delete()
 
     def reorder_videos(self, group: VideoGroupEntity, video_ids: List[int]) -> None:
         members = list(VideoGroupMember.objects.filter(group_id=group.id))
         group_video_ids = {member.video_id for member in members}
         if set(video_ids) != group_video_ids:
-            raise ValueError("Specified video IDs do not match videos in group")
+            raise GroupVideoOrderMismatch()
 
         member_dict = {member.video_id: member for member in members}
         members_to_update = []
@@ -483,7 +495,7 @@ class DjangoTagRepository(TagRepository):
     ) -> Tuple[int, int]:
         tags = list(Tag.objects.filter(user_id=video.user_id, id__in=tag_ids))
         if len(tags) != len(tag_ids):
-            raise ValueError("Some tags not found")
+            raise SomeTagsNotFound()
 
         existing_tags = set(
             VideoTag.objects.filter(
@@ -502,7 +514,7 @@ class DjangoTagRepository(TagRepository):
             video_id=video.id, tag_id=tag.id
         ).first()
         if not video_tag:
-            raise ValueError("This tag is not attached to the video")
+            raise TagNotAttachedToVideo()
         video_tag.delete()
 
     def get_with_videos(self, tag_id: int, user_id: int) -> Optional[TagEntity]:

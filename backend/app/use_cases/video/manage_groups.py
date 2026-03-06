@@ -6,7 +6,13 @@ from typing import List, Optional, Tuple
 
 from app.domain.video.repositories import VideoGroupRepository, VideoRepository
 from app.domain.video.services import ShareLinkService
-from app.use_cases.video.exceptions import ResourceNotFound
+from app.use_cases.video.exceptions import (
+    GroupVideoOrderMismatch,
+    ResourceNotFound,
+    SomeVideosNotFound,
+    VideoAlreadyInGroup,
+    VideoNotInGroup,
+)
 
 
 class AddVideoToGroupUseCase:
@@ -25,7 +31,7 @@ class AddVideoToGroupUseCase:
 
         Raises:
             ResourceNotFound: If the group or video is not found.
-            ValueError: If the video is already in the group.
+            VideoAlreadyInGroup: If the video is already in the group.
         """
         group = self.group_repo.get_by_id(group_id, user_id)
         if group is None:
@@ -60,7 +66,7 @@ class AddVideosToGroupUseCase:
 
         try:
             return self.group_repo.add_videos_bulk(group, video_ids, user_id)
-        except ValueError as e:
+        except SomeVideosNotFound as e:
             raise ResourceNotFound("Some videos") from e
 
 
@@ -77,7 +83,7 @@ class RemoveVideoFromGroupUseCase:
         """
         Raises:
             ResourceNotFound: If the group or video is not found.
-            ValueError: If the video is not in the group.
+            VideoNotInGroup: If the video is not in the group.
         """
         group = self.group_repo.get_by_id(group_id, user_id)
         if group is None:
@@ -100,7 +106,7 @@ class ReorderVideosInGroupUseCase:
         """
         Raises:
             ResourceNotFound: If the group is not found.
-            ValueError: If video_ids don't match the group's members.
+            GroupVideoOrderMismatch: If video_ids don't match the group's members.
         """
         group = self.group_repo.get_by_id(group_id, user_id)
         if group is None:
