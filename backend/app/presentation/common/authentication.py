@@ -6,10 +6,8 @@ from django.utils.translation import gettext_lazy as _
 from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.request import Request
-from rest_framework_simplejwt.authentication import JWTAuthentication
-from rest_framework_simplejwt.exceptions import InvalidToken
 
-from app.dependencies.common import get_resolve_api_key_use_case
+from app.dependencies.common import get_cookie_jwt_validator, get_resolve_api_key_use_case
 
 
 @dataclass(frozen=True)
@@ -80,21 +78,33 @@ class APIKeyAuthentication(BaseAuthentication):
         return value.strip() or None
 
 
-class CookieJWTAuthentication(JWTAuthentication):
-    """Authentication class that retrieves JWT token from cookie or authorization header."""
+class CookieJWTAuthentication(BaseAuthentication):
+    """Authentication class that retrieves JWT token from cookie or authorization header.
+
+    JWT validation is delegated to CookieJWTValidator (infrastructure/auth) via DI,
+    keeping simplejwt details out of the presentation layer.
+    """
+
+    cookie_jwt_validator_factory = staticmethod(get_cookie_jwt_validator)
+
+    def __init__(self, cookie_jwt_validator_factory=None):
+        if cookie_jwt_validator_factory is not None:
+            self.cookie_jwt_validator_factory = cookie_jwt_validator_factory
 
     def authenticate(self, request: Request):
-        header_auth = super().authenticate(request)
-        if header_auth is not None:
-            return header_auth
+        validator = self.cookie_jwt_validator_factory()
 
+        # Try Bearer header first
+        result = validator.authenticate_from_request(request)
+        if result is not None:
+            return result
+
+        # Fall back to cookie
         raw_token = request.COOKIES.get("access_token")
         if raw_token is None:
             return None
 
-        try:
-            validated_token = self.get_validated_token(raw_token)
-            user = self.get_user(validated_token)
-            return user, validated_token
-        except InvalidToken:
-            return None
+        return validator.validate_raw_token(raw_token)
+
+    def authenticate_header(self, request: Request) -> str:
+        return 'Bearer realm="api"'
