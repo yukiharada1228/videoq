@@ -511,6 +511,14 @@ class ImportRulesTest(unittest.TestCase):
         """admin must resolve use-cases via app.dependencies, not app.composition_root."""
         self._check_single_file("admin.py", ["app.composition_root"])
 
+    def test_admin_has_no_use_cases_imports(self):
+        """admin must not import app.use_cases directly."""
+        self._check_single_file("admin.py", ["app.use_cases"])
+
+    def test_admin_has_no_infrastructure_imports(self):
+        """admin must not import app.infrastructure directly."""
+        self._check_single_file("admin.py", ["app.infrastructure"])
+
     def test_chat_send_message_has_no_domain_output_dto_imports(self):
         """SendMessageUseCase output boundary must not expose domain chat DTOs."""
         self._check_single_file(

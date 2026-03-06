@@ -1,4 +1,11 @@
-"""Video context DI wiring."""
+"""Video context DI wiring.
+
+Lifecycle policy:
+- Repositories/task gateways are created per use-case resolution (request/resolve scoped).
+- Stateless adapters shared across use-cases are process-scoped via cache.
+"""
+
+from functools import lru_cache
 
 from app.infrastructure.external.file_url_resolver import DjangoFileUrlResolver
 from app.infrastructure.external.vector_gateway import DjangoVectorStoreGateway
@@ -38,130 +45,187 @@ from app.use_cases.video.update_tag_with_detail import UpdateTagWithDetailUseCas
 from app.use_cases.video.update_video import UpdateVideoUseCase
 
 
+def _new_video_repository() -> DjangoVideoRepository:
+    return DjangoVideoRepository()
+
+
+def _new_video_group_repository() -> DjangoVideoGroupRepository:
+    return DjangoVideoGroupRepository()
+
+
+def _new_tag_repository() -> DjangoTagRepository:
+    return DjangoTagRepository()
+
+
+def _new_user_repository() -> DjangoUserRepository:
+    return DjangoUserRepository()
+
+
+def _new_video_task_gateway() -> CeleryVideoTaskGateway:
+    return CeleryVideoTaskGateway()
+
+
+def _new_vector_store_gateway() -> DjangoVectorStoreGateway:
+    return DjangoVectorStoreGateway()
+
+
+@lru_cache(maxsize=1)
+def _get_file_url_resolver() -> DjangoFileUrlResolver:
+    return DjangoFileUrlResolver()
+
+
+@lru_cache(maxsize=1)
+def _get_vector_indexing_gateway():
+    from app.infrastructure.external.vector_gateway import DjangoVectorIndexingGateway
+
+    return DjangoVectorIndexingGateway()
+
+
+@lru_cache(maxsize=1)
+def _get_video_file_accessor():
+    from app.infrastructure.transcription.video_file_accessor import DjangoVideoFileAccessor
+
+    return DjangoVideoFileAccessor()
+
+
+@lru_cache(maxsize=1)
+def _get_whisper_transcription_gateway():
+    from app.infrastructure.external.transcription_gateway import WhisperTranscriptionGateway
+
+    return WhisperTranscriptionGateway(_get_video_file_accessor())
+
+
 def get_list_videos_use_case() -> ListVideosUseCase:
-    return ListVideosUseCase(DjangoVideoRepository(), DjangoFileUrlResolver())
+    return ListVideosUseCase(_new_video_repository(), _get_file_url_resolver())
 
 
 def get_reindex_all_videos_use_case() -> ReindexAllVideosUseCase:
-    from app.infrastructure.external.vector_gateway import DjangoVectorIndexingGateway
-
-    return ReindexAllVideosUseCase(DjangoVideoRepository(), DjangoVectorIndexingGateway())
+    return ReindexAllVideosUseCase(
+        _new_video_repository(),
+        _get_vector_indexing_gateway(),
+    )
 
 
 def get_run_transcription_use_case() -> RunTranscriptionUseCase:
-    from app.infrastructure.external.transcription_gateway import WhisperTranscriptionGateway
-    from app.infrastructure.external.vector_gateway import DjangoVectorIndexingGateway
-    from app.infrastructure.transcription.video_file_accessor import DjangoVideoFileAccessor
-
     return RunTranscriptionUseCase(
-        DjangoVideoRepository(),
-        WhisperTranscriptionGateway(DjangoVideoFileAccessor()),
-        DjangoVectorIndexingGateway(),
+        _new_video_repository(),
+        _get_whisper_transcription_gateway(),
+        _get_vector_indexing_gateway(),
     )
 
 
 def get_video_detail_use_case() -> GetVideoDetailUseCase:
-    return GetVideoDetailUseCase(DjangoVideoRepository(), DjangoFileUrlResolver())
+    return GetVideoDetailUseCase(_new_video_repository(), _get_file_url_resolver())
 
 
 def get_create_video_use_case() -> CreateVideoUseCase:
     return CreateVideoUseCase(
-        DjangoUserRepository(),
-        DjangoVideoRepository(),
-        CeleryVideoTaskGateway(),
-        DjangoFileUrlResolver(),
+        _new_user_repository(),
+        _new_video_repository(),
+        _new_video_task_gateway(),
+        _get_file_url_resolver(),
     )
 
 
 def get_update_video_use_case() -> UpdateVideoUseCase:
     return UpdateVideoUseCase(
-        DjangoVideoRepository(), DjangoVectorStoreGateway(), DjangoFileUrlResolver()
+        _new_video_repository(),
+        _new_vector_store_gateway(),
+        _get_file_url_resolver(),
     )
 
 
 def get_delete_video_use_case() -> DeleteVideoUseCase:
-    return DeleteVideoUseCase(DjangoVideoRepository(), DjangoVectorStoreGateway())
+    return DeleteVideoUseCase(_new_video_repository(), _new_vector_store_gateway())
 
 
 def get_enforce_video_limit_use_case() -> EnforceVideoLimitUseCase:
-    return EnforceVideoLimitUseCase(DjangoVideoRepository(), DjangoVectorStoreGateway())
+    return EnforceVideoLimitUseCase(_new_video_repository(), _new_vector_store_gateway())
 
 
 def get_list_groups_use_case() -> ListVideoGroupsUseCase:
-    return ListVideoGroupsUseCase(DjangoVideoGroupRepository())
+    return ListVideoGroupsUseCase(_new_video_group_repository())
 
 
 def get_create_group_use_case() -> CreateVideoGroupWithDetailUseCase:
     return CreateVideoGroupWithDetailUseCase(
-        DjangoVideoGroupRepository(), DjangoFileUrlResolver()
+        _new_video_group_repository(),
+        _get_file_url_resolver(),
     )
 
 
 def get_update_group_use_case() -> UpdateVideoGroupWithDetailUseCase:
     return UpdateVideoGroupWithDetailUseCase(
-        DjangoVideoGroupRepository(), DjangoFileUrlResolver()
+        _new_video_group_repository(),
+        _get_file_url_resolver(),
     )
 
 
 def get_delete_group_use_case() -> DeleteVideoGroupUseCase:
-    return DeleteVideoGroupUseCase(DjangoVideoGroupRepository())
+    return DeleteVideoGroupUseCase(_new_video_group_repository())
 
 
 def get_video_group_use_case() -> GetVideoGroupUseCase:
-    return GetVideoGroupUseCase(DjangoVideoGroupRepository(), DjangoFileUrlResolver())
+    return GetVideoGroupUseCase(_new_video_group_repository(), _get_file_url_resolver())
 
 
 def get_shared_group_use_case() -> GetSharedGroupUseCase:
-    return GetSharedGroupUseCase(DjangoVideoGroupRepository(), DjangoFileUrlResolver())
+    return GetSharedGroupUseCase(_new_video_group_repository(), _get_file_url_resolver())
 
 
 def get_add_video_to_group_use_case() -> AddVideoToGroupUseCase:
-    return AddVideoToGroupUseCase(DjangoVideoRepository(), DjangoVideoGroupRepository())
+    return AddVideoToGroupUseCase(
+        _new_video_repository(),
+        _new_video_group_repository(),
+    )
 
 
 def get_add_videos_to_group_use_case() -> AddVideosToGroupUseCase:
-    return AddVideosToGroupUseCase(DjangoVideoGroupRepository())
+    return AddVideosToGroupUseCase(_new_video_group_repository())
 
 
 def get_remove_video_from_group_use_case() -> RemoveVideoFromGroupUseCase:
-    return RemoveVideoFromGroupUseCase(DjangoVideoRepository(), DjangoVideoGroupRepository())
+    return RemoveVideoFromGroupUseCase(
+        _new_video_repository(),
+        _new_video_group_repository(),
+    )
 
 
 def get_reorder_videos_use_case() -> ReorderVideosInGroupUseCase:
-    return ReorderVideosInGroupUseCase(DjangoVideoGroupRepository())
+    return ReorderVideosInGroupUseCase(_new_video_group_repository())
 
 
 def get_create_share_link_use_case() -> CreateShareLinkUseCase:
-    return CreateShareLinkUseCase(DjangoVideoGroupRepository())
+    return CreateShareLinkUseCase(_new_video_group_repository())
 
 
 def get_delete_share_link_use_case() -> DeleteShareLinkUseCase:
-    return DeleteShareLinkUseCase(DjangoVideoGroupRepository())
+    return DeleteShareLinkUseCase(_new_video_group_repository())
 
 
 def get_list_tags_use_case() -> ListTagsUseCase:
-    return ListTagsUseCase(DjangoTagRepository())
+    return ListTagsUseCase(_new_tag_repository())
 
 
 def get_create_tag_use_case() -> CreateTagUseCase:
-    return CreateTagUseCase(DjangoTagRepository())
+    return CreateTagUseCase(_new_tag_repository())
 
 
 def get_update_tag_use_case() -> UpdateTagWithDetailUseCase:
-    return UpdateTagWithDetailUseCase(DjangoTagRepository(), DjangoFileUrlResolver())
+    return UpdateTagWithDetailUseCase(_new_tag_repository(), _get_file_url_resolver())
 
 
 def get_delete_tag_use_case() -> DeleteTagUseCase:
-    return DeleteTagUseCase(DjangoTagRepository())
+    return DeleteTagUseCase(_new_tag_repository())
 
 
 def get_tag_detail_use_case() -> GetTagDetailUseCase:
-    return GetTagDetailUseCase(DjangoTagRepository(), DjangoFileUrlResolver())
+    return GetTagDetailUseCase(_new_tag_repository(), _get_file_url_resolver())
 
 
 def get_add_tags_to_video_use_case() -> AddTagsToVideoUseCase:
-    return AddTagsToVideoUseCase(DjangoVideoRepository(), DjangoTagRepository())
+    return AddTagsToVideoUseCase(_new_video_repository(), _new_tag_repository())
 
 
 def get_remove_tag_from_video_use_case() -> RemoveTagFromVideoUseCase:
-    return RemoveTagFromVideoUseCase(DjangoVideoRepository(), DjangoTagRepository())
+    return RemoveTagFromVideoUseCase(_new_video_repository(), _new_tag_repository())
