@@ -1,7 +1,4 @@
-"""Celery task names shared across layers.
-
-Official public names are `app.entrypoints.tasks.*`.
-"""
+"""Celery task names shared across entrypoints and infrastructure."""
 
 # Official task names (single source of truth).
 TRANSCRIBE_VIDEO_TASK = "app.entrypoints.tasks.transcription.transcribe_video"
