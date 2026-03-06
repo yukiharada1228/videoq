@@ -6,13 +6,18 @@ from app.domain.chat.dtos import ChatMessageDTO
 from app.domain.chat.gateways import LLMConfigurationError as _DomainLLMConfigError
 from app.domain.chat.gateways import LLMProviderError as _DomainLLMProviderError
 from app.domain.chat.gateways import RagGateway
+from app.domain.chat.gateways import RagUserNotFoundError as _DomainRagUserNotFoundError
 from app.domain.chat.repositories import ChatRepository, VideoGroupQueryRepository
 from app.use_cases.chat.dto import (
     ChatMessageInput,
     RelatedVideoResponseDTO,
     SendMessageResultDTO,
 )
-from app.use_cases.chat.exceptions import LLMConfigurationError, LLMProviderError
+from app.use_cases.chat.exceptions import (
+    InvalidChatRequestError,
+    LLMConfigurationError,
+    LLMProviderError,
+)
 from app.use_cases.shared.exceptions import PermissionDenied, ResourceNotFound
 
 
@@ -57,11 +62,17 @@ class SendMessageUseCase:
             SendMessageResultDTO
 
         Raises:
+            InvalidChatRequestError: If required input preconditions are not met.
             ResourceNotFound: If the specified group does not exist.
             PermissionDenied: If owner user cannot be resolved (unauthenticated without share context).
             LLMConfigurationError: If the LLM cannot be configured.
             LLMProviderError: If the LLM provider returns an error.
         """
+        if not messages:
+            raise InvalidChatRequestError("Messages are empty.")
+        if is_shared and group_id is None:
+            raise InvalidChatRequestError("Group ID not specified.")
+
         # Map input DTOs to domain DTOs before passing to gateway
         domain_messages = [ChatMessageDTO(role=m.role, content=m.content) for m in messages]
 
@@ -91,6 +102,8 @@ class SendMessageUseCase:
                 video_ids=video_ids,
                 locale=locale,
             )
+        except _DomainRagUserNotFoundError as e:
+            raise ResourceNotFound("User") from e
         except _DomainLLMConfigError as e:
             raise LLMConfigurationError(str(e)) from e
         except _DomainLLMProviderError as e:

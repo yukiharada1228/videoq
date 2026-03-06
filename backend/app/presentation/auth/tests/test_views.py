@@ -2,8 +2,9 @@
 Tests for auth views
 """
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
+from django.core.cache import cache
 from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import default_token_generator
 from django.core import mail
@@ -15,6 +16,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from app.models import UserApiKey
+from app.use_cases.auth.signup import VerificationEmailSendFailed
 
 User = get_user_model()
 
@@ -25,6 +27,9 @@ User = get_user_model()
 )
 class UserSignupViewTests(APITestCase):
     """Tests for UserSignupView"""
+
+    def setUp(self):
+        cache.clear()
 
     def test_signup_success(self):
         """Test successful user signup"""
@@ -40,6 +45,26 @@ class UserSignupViewTests(APITestCase):
         self.assertIn("message", response.data)
         self.assertTrue(User.objects.filter(username="newuser").exists())
         self.assertEqual(len(mail.outbox), 1)
+
+    @patch("app.presentation.auth.views.UserSignupView.resolve_dependency")
+    def test_signup_email_send_failed_returns_500(self, mock_resolve_dependency):
+        """Verification mail send failure should be handled as expected 500 response."""
+        use_case = MagicMock()
+        use_case.execute.side_effect = VerificationEmailSendFailed(
+            "Failed to send verification email."
+        )
+        mock_resolve_dependency.return_value = use_case
+
+        url = reverse("signup")
+        data = {
+            "username": "newuser",
+            "email": "newuser@example.com",
+            "password": "SecurePass123",
+        }
+        response = self.client.post(url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        self.assertIn("error", response.data)
 
 
 class LoginViewTests(APITestCase):

@@ -19,3 +19,7 @@ class InvalidFeedbackError(Exception):
 
 class FeedbackPermissionDenied(Exception):
     """Raised when the caller cannot update feedback on the target chat log."""
+
+
+class InvalidChatRequestError(Exception):
+    """Raised when chat request preconditions are not satisfied."""

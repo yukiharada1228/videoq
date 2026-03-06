@@ -8,7 +8,11 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
 
 from app.domain.chat.dtos import ChatMessageDTO
-from app.domain.chat.gateways import LLMConfigurationError, LLMProviderError
+from app.domain.chat.gateways import (
+    LLMConfigurationError,
+    LLMProviderError,
+    RagUserNotFoundError,
+)
 from app.infrastructure.external.rag_gateway import RagChatGateway
 from app.infrastructure.external.rag_service import RagChatService
 from app.models import Video, VideoGroup
@@ -128,12 +132,9 @@ class RagChatGatewayExceptionTests(TestCase):
 
     @patch("app.infrastructure.external.rag_gateway.get_langchain_llm")
     def test_user_does_not_exist_propagates_naturally(self, mock_get_llm):
-        """DoesNotExist from User.objects.get must NOT be converted to LLMProviderError."""
-        from django.contrib.auth import get_user_model
-        User = get_user_model()
-
+        """Missing user must be normalized to domain gateway error."""
         gateway = RagChatGateway()
         messages = [ChatMessageDTO(role="user", content="hello")]
 
-        with self.assertRaises(User.DoesNotExist):
+        with self.assertRaises(RagUserNotFoundError):
             gateway.generate_reply(messages=messages, user_id=999999)

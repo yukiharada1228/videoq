@@ -1,5 +1,6 @@
 """Presentation-layer view mixins."""
 
+from django.core.exceptions import ImproperlyConfigured
 from rest_framework.permissions import AllowAny, IsAuthenticated
 
 from app.presentation.common.authentication import APIKeyAuthentication, CookieJWTAuthentication
@@ -50,7 +51,15 @@ class DependencyResolverMixin:
     @staticmethod
     def resolve_dependency(dependency):
         if dependency is None:
-            return None
+            raise ImproperlyConfigured(
+                "Required dependency is not configured. "
+                "Ensure the view is wired via as_view(...) or URL kwargs."
+            )
         if callable(dependency) and not hasattr(dependency, "execute"):
-            return dependency()
+            dependency = dependency()
+        if dependency is None:
+            raise ImproperlyConfigured(
+                "Dependency provider returned None. "
+                "Check dependencies/composition_root wiring."
+            )
         return dependency

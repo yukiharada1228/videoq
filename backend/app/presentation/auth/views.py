@@ -18,7 +18,7 @@ from app.presentation.auth.serializers import (AccountDeleteSerializer,
                                                RefreshSerializer,
                                                UserSerializer,
                                                UserSignupSerializer)
-from app.use_cases.auth.signup import EmailAlreadyRegistered
+from app.use_cases.auth.signup import EmailAlreadyRegistered, VerificationEmailSendFailed
 from app.use_cases.auth.verify_email import InvalidVerificationLink
 from app.use_cases.auth.reset_password import InvalidResetLink
 from app.use_cases.auth.exceptions import AuthenticationFailed, InvalidToken
@@ -72,7 +72,7 @@ class UserSignupView(PublicAPIView):
             )
         except EmailAlreadyRegistered as e:
             return create_error_response(str(e), status.HTTP_400_BAD_REQUEST)
-        except Exception:
+        except VerificationEmailSendFailed:
             return create_error_response(
                 "Failed to send verification email. Please try again later.",
                 status.HTTP_500_INTERNAL_SERVER_ERROR,

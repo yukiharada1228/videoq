@@ -18,6 +18,10 @@ class LLMProviderError(Exception):
     """Raised when the LLM provider returns an error during generation."""
 
 
+class RagUserNotFoundError(Exception):
+    """Raised when the user context required by RAG does not exist."""
+
+
 @dataclass
 class RagResult:
     """Result returned from the RAG gateway."""
@@ -51,6 +55,7 @@ class RagGateway(ABC):
             RagResult with content, query_text, and optional related_videos.
 
         Raises:
+            RagUserNotFoundError: If the user context does not exist.
             LLMConfigurationError: If the LLM cannot be initialised.
             LLMProviderError: If the LLM provider returns an error.
         """
