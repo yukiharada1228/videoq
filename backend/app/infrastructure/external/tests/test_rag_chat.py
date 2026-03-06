@@ -6,7 +6,6 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from django.test import SimpleTestCase, override_settings
-from django.test import TestCase as DjangoTestCase
 
 from app.domain.chat.dtos import ChatMessageDTO
 from app.domain.chat.gateways import LLMConfigurationError, LLMProviderError
