@@ -12,6 +12,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from app.domain.chat.dtos import ChatMessageDTO
 from app.presentation.common.authentication import APIKeyAuthentication, CookieJWTAuthentication
 from app.dependencies import chat as chat_dependencies
 from app.presentation.common.permissions import (
@@ -32,7 +33,7 @@ from app.use_cases.chat.exceptions import (
     LLMConfigurationError,
     LLMProviderError,
 )
-from app.use_cases.shared.exceptions import ResourceNotFound
+from app.use_cases.shared.exceptions import PermissionDenied, ResourceNotFound
 from django.http import HttpResponse
 
 from .exporters import write_chat_history_csv
@@ -87,15 +88,17 @@ class ChatView(APIView):
 
         user_id = getattr(request.user, "id", None)
 
-        messages = request.data.get("messages", [])
-        if not messages:
+        raw_messages = request.data.get("messages", [])
+        if not raw_messages:
             return create_error_response("Messages are empty", status.HTTP_400_BAD_REQUEST)
+
+        message_dtos = [ChatMessageDTO.from_dict(m) for m in raw_messages]
 
         use_case = chat_dependencies.get_send_message_use_case()
         try:
             result = use_case.execute(
                 user_id=user_id,
-                messages=messages,
+                messages=message_dtos,
                 group_id=group_id,
                 share_token=share_token,
                 is_shared=is_shared,
@@ -103,6 +106,8 @@ class ChatView(APIView):
             )
         except ResourceNotFound as e:
             return create_error_response(str(e), status.HTTP_404_NOT_FOUND)
+        except PermissionDenied as e:
+            return create_error_response(str(e), status.HTTP_403_FORBIDDEN)
         except LLMConfigurationError as e:
             return create_error_response(str(e), status.HTTP_400_BAD_REQUEST)
         except LLMProviderError as e:
@@ -110,7 +115,7 @@ class ChatView(APIView):
 
         response_data = {"role": "assistant", "content": result.content}
         if group_id is not None and result.related_videos:
-            response_data["related_videos"] = result.related_videos
+            response_data["related_videos"] = [v.to_dict() for v in result.related_videos]
         if result.chat_log_id is not None:
             response_data["chat_log_id"] = result.chat_log_id
             response_data["feedback"] = result.feedback

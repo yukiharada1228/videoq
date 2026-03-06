@@ -25,6 +25,7 @@ class RagChatGateway(RagGateway):
         locale: Optional[str] = None,
     ) -> RagResult:
         User = get_user_model()
+        # Let DoesNotExist propagate — a missing user is a data/auth bug, not an LLM error.
         user = User.objects.get(pk=user_id)
 
         try:
@@ -32,16 +33,20 @@ class RagChatGateway(RagGateway):
         except LLMConfigError as e:
             raise LLMConfigurationError(str(e)) from e
 
+        service = RagChatService(user=user, llm=llm)
+        raw_messages = [message.to_dict() for message in messages]
+        raw_video_ids = list(video_ids) if video_ids is not None else None
+
         try:
-            service = RagChatService(user=user, llm=llm)
-            raw_messages = [message.to_dict() for message in messages]
-            raw_video_ids = list(video_ids) if video_ids is not None else None
             result = service.run(
                 messages=raw_messages,
                 video_ids=raw_video_ids,
                 locale=locale,
             )
         except Exception as exc:
+            # Wrap LLM execution failures (API errors, network issues, etc.) as provider errors.
+            # Implementation bugs (e.g. TypeError) should not normally reach here;
+            # if they do, they surface with the original traceback via __cause__.
             raise LLMProviderError(str(exc)) from exc
 
         related_videos = None
