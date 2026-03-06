@@ -23,6 +23,13 @@ class EnforceVideoLimitUseCase:
         self.video_repo = video_repo
         self.vector_gateway = vector_gateway
 
+    def estimate_deleted_count(self, user_id: int, video_limit: int | None) -> int:
+        """Return how many videos would be deleted to satisfy the new limit."""
+        if video_limit is None:
+            return 0
+        current_count = self.video_repo.count_for_user(user_id)
+        return max(0, current_count - video_limit)
+
     def execute(self, user_id: int, video_limit: int | None) -> int:
         """
         Returns:
@@ -31,13 +38,14 @@ class EnforceVideoLimitUseCase:
         if video_limit is None:
             return 0
 
+        excess_count = self.estimate_deleted_count(user_id=user_id, video_limit=video_limit)
+        if excess_count <= 0:
+            return 0
+
         videos = self.video_repo.list_for_user(
             user_id=user_id,
             query=VideoListQuery(ordering="uploaded_at_asc"),
         )
-        excess_count = len(videos) - video_limit
-        if excess_count <= 0:
-            return 0
 
         deleted_count = 0
         for video in videos[:excess_count]:
