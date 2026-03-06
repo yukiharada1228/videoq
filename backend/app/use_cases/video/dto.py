@@ -10,13 +10,15 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import List, Optional
 
+from app.domain.video.entities import TagEntity
+from app.domain.video.types import BinarySource
+
 
 @dataclass(frozen=True)
 class CreateVideoInput:
     """Input for CreateVideoUseCase.execute()."""
 
-    file_name: str
-    file_bytes: bytes
+    file: BinarySource
     title: str
     description: str
 
@@ -83,7 +85,7 @@ class VideoResponseDTO:
     error_message: Optional[str] = None
     uploaded_at: Optional[datetime] = None
     transcript: Optional[str] = None
-    tags: List = field(default_factory=list)
+    tags: List[TagEntity] = field(default_factory=list)
 
 
 @dataclass
