@@ -3,8 +3,6 @@ SimpleJWT implementation of the TokenGateway port.
 All JWT token creation and validation logic is isolated here.
 """
 
-from typing import Any, cast
-
 from rest_framework_simplejwt.exceptions import InvalidToken as JWTInvalidToken
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.settings import api_settings
@@ -25,7 +23,7 @@ class SimpleJWTGateway(TokenGateway):
 
     def refresh(self, refresh_token: str) -> TokenPairDto:
         try:
-            token = RefreshToken(cast(Any, refresh_token))
+            token = RefreshToken(refresh_token)
             return TokenPairDto(access=str(token.access_token), refresh=str(token))
         except (JWTInvalidToken, TokenError, ValueError) as exc:
             raise TokenInvalidError("Invalid or expired refresh token.") from exc
