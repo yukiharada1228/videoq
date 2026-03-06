@@ -272,6 +272,13 @@ class ImportRulesTest(unittest.TestCase):
             ["app.use_cases.chat", "app.use_cases.auth"],
         )
 
+    def test_use_cases_media_no_cross_context_imports(self):
+        """use_cases/media must not import from use_cases/video, use_cases/auth, or use_cases/chat."""
+        self._check_cross_context(
+            "media",
+            ["app.use_cases.video", "app.use_cases.auth", "app.use_cases.chat"],
+        )
+
     def test_infrastructure_has_no_drf_imports(self):
         """infrastructure layer must not import rest_framework (HTTP concerns belong in presentation)."""
         self._check("infrastructure", ["rest_framework"])
@@ -310,22 +317,9 @@ class ImportRulesTest(unittest.TestCase):
             ),
         )
 
-    def test_presentation_auth_has_no_simplejwt_imports(self):
-        """presentation/auth must not import simplejwt directly (JWT logic belongs in infrastructure)."""
-        all_violations = {}
-        for fp in sorted(self._iter_layer_source_files("presentation/auth")):
-            rel = os.path.relpath(fp, BASE)
-            v = check_forbidden_imports(fp, ["rest_framework_simplejwt"])
-            if v:
-                all_violations[rel] = v
-        self.assertEqual(
-            {},
-            all_violations,
-            "presentation/auth must not import rest_framework_simplejwt:\n"
-            + "\n".join(
-                f"  {f}: {vs}" for f, vs in all_violations.items()
-            ),
-        )
+    def test_presentation_has_no_simplejwt_imports(self):
+        """presentation layer must not import simplejwt directly (JWT logic belongs in infrastructure)."""
+        self._check("presentation", ["rest_framework_simplejwt"])
 
     def test_presentation_auth_has_no_authenticate_imports(self):
         """presentation/auth must not import django.contrib.auth.authenticate."""

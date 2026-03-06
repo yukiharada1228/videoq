@@ -102,3 +102,9 @@ def get_resolve_share_token_use_case() -> ResolveShareTokenUseCase:
 
 def get_resolve_api_key_use_case() -> ResolveApiKeyUseCase:
     return ResolveApiKeyUseCase(DjangoApiKeyResolver())
+
+
+def get_cookie_jwt_validator():
+    from app.infrastructure.auth.cookie_jwt_validator import CookieJWTValidator
+
+    return CookieJWTValidator()
