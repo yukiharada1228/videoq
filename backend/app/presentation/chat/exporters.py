@@ -13,7 +13,15 @@ def write_chat_history_csv(writer, rows) -> None:
     )
     for row in rows:
         try:
-            related_videos = row.related_videos or []
+            related_videos = [
+                {
+                    "video_id": rv.video_id,
+                    "title": rv.title,
+                    "start_time": rv.start_time,
+                    "end_time": rv.end_time,
+                }
+                for rv in (row.related_videos or [])
+            ]
             related_videos_str = json.dumps(related_videos, ensure_ascii=False)
         except Exception:
             related_videos_str = "[]"

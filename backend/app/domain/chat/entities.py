@@ -7,10 +7,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 from app.domain.chat.dtos import RelatedVideoDTO
-from app.domain.chat.value_objects import ChatSceneLog
+from app.domain.chat.value_objects import (
+    ChatSceneLog,
+    FeedbackSummary,
+    TimeSeriesPoint,
+)
 
 
 @dataclass
@@ -64,6 +68,6 @@ class ChatAnalyticsRaw:
     first_date: Optional[datetime]
     last_date: Optional[datetime]
     logs_for_scenes: List[ChatSceneLog]
-    time_series: List[Dict]
-    feedback: Dict[str, int]
+    time_series: List[TimeSeriesPoint]
+    feedback: FeedbackSummary
     questions: List[str]

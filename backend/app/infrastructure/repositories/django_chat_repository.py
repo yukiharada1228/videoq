@@ -15,7 +15,12 @@ from app.domain.chat.entities import (
     VideoGroupMemberRef,
 )
 from app.domain.chat.repositories import ChatRepository, VideoGroupQueryRepository
-from app.domain.chat.value_objects import ChatSceneLog, SceneReference
+from app.domain.chat.value_objects import (
+    ChatSceneLog,
+    FeedbackSummary,
+    SceneReference,
+    TimeSeriesPoint,
+)
 from app.models import ChatLog, VideoGroup, VideoGroupMember
 
 
@@ -188,16 +193,24 @@ class DjangoChatRepository(ChatRepository):
             .order_by("date")
             .values("date", "count")
         )
-        time_series = []
+        time_series: List[TimeSeriesPoint] = []
         for entry in time_series_qs:
             time_series.append(
-                {"date": entry["date"].isoformat(), "count": entry["count"]}
+                TimeSeriesPoint(
+                    date=entry["date"].isoformat(),
+                    count=entry["count"],
+                )
             )
 
-        feedback = qs.aggregate(
+        feedback_counts = qs.aggregate(
             good=Count("id", filter=Q(feedback="good")),
             bad=Count("id", filter=Q(feedback="bad")),
             none=Count("id", filter=Q(feedback__isnull=True)),
+        )
+        feedback = FeedbackSummary(
+            good=feedback_counts.get("good", 0) or 0,
+            bad=feedback_counts.get("bad", 0) or 0,
+            none=feedback_counts.get("none", 0) or 0,
         )
 
         questions = list(qs.values_list("question", flat=True))

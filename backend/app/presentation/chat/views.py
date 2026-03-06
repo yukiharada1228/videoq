@@ -345,7 +345,10 @@ class ChatAnalyticsView(DependencyResolverMixin, APIView):
         return Response({
             "summary": {
                 "total_questions": dto.total_questions,
-                "date_range": dto.date_range,
+                "date_range": {
+                    "first": dto.date_range.first,
+                    "last": dto.date_range.last,
+                },
             },
             "scene_distribution": [
                 {
@@ -357,7 +360,17 @@ class ChatAnalyticsView(DependencyResolverMixin, APIView):
                 }
                 for s in dto.scene_distribution
             ],
-            "time_series": dto.time_series,
-            "feedback": dto.feedback,
-            "keywords": dto.keywords,
+            "time_series": [
+                {"date": item.date, "count": item.count}
+                for item in dto.time_series
+            ],
+            "feedback": {
+                "good": dto.feedback.good,
+                "bad": dto.feedback.bad,
+                "none": dto.feedback.none,
+            },
+            "keywords": [
+                {"word": item.word, "count": item.count}
+                for item in dto.keywords
+            ],
         })

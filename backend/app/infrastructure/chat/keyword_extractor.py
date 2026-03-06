@@ -4,9 +4,10 @@ Infrastructure implementation of KeywordExtractor using janome (Japanese) and NL
 
 import re
 from collections import Counter
-from typing import Dict, List
+from typing import List
 
 from app.domain.chat.ports import KeywordExtractor
+from app.domain.chat.value_objects import KeywordCount
 
 _JA_NOUN_POS = ("名詞",)
 _JA_NOUN_EXCLUDE_SUBTYPES = ("非自立", "代名詞", "数", "接尾")
@@ -50,7 +51,7 @@ def _extract_en_keywords(text: str) -> List[str]:
 class JanomeNltkKeywordExtractor(KeywordExtractor):
     """Extract keywords using janome for Japanese and NLTK for English."""
 
-    def extract(self, questions: List[str], limit: int = 30) -> List[Dict]:
+    def extract(self, questions: List[str], limit: int = 30) -> List[KeywordCount]:
         counter: Counter = Counter()
         tokenizer = _get_janome_tokenizer()
 
@@ -62,4 +63,4 @@ class JanomeNltkKeywordExtractor(KeywordExtractor):
             for word in words:
                 counter[word] += 1
 
-        return [{"word": word, "count": count} for word, count in counter.most_common(limit)]
+        return [KeywordCount(word=word, count=count) for word, count in counter.most_common(limit)]

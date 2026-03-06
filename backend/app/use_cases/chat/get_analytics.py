@@ -5,7 +5,14 @@ Use case: Build analytics dashboard data for a chat group.
 from app.domain.chat.ports import KeywordExtractor
 from app.domain.chat.repositories import ChatRepository, VideoGroupQueryRepository
 from app.domain.chat.services import aggregate_scenes, filter_group_scenes
-from app.use_cases.chat.dto import ChatAnalyticsDTO, SceneDistributionItemDTO
+from app.use_cases.chat.dto import (
+    ChatAnalyticsDTO,
+    DateRangeDTO,
+    FeedbackSummaryDTO,
+    KeywordCountDTO,
+    SceneDistributionItemDTO,
+    TimeSeriesPointDTO,
+)
 from app.use_cases.shared.exceptions import ResourceNotFound
 
 
@@ -38,12 +45,10 @@ class GetChatAnalyticsUseCase:
 
         raw = self.chat_repo.get_analytics_raw(group_id)
 
-        date_range = {}
-        if raw.total > 0:
-            date_range = {
-                "first": raw.first_date.isoformat() if raw.first_date else None,
-                "last": raw.last_date.isoformat() if raw.last_date else None,
-            }
+        date_range = DateRangeDTO(
+            first=raw.first_date.isoformat() if raw.first_date else None,
+            last=raw.last_date.isoformat() if raw.last_date else None,
+        )
 
         scene_counter, scene_info, _ = aggregate_scenes(raw.logs_for_scenes)
         valid_video_ids = {member.video_id for member in group.members}
@@ -65,7 +70,17 @@ class GetChatAnalyticsUseCase:
             total_questions=raw.total,
             date_range=date_range,
             scene_distribution=scene_distribution,
-            time_series=raw.time_series,
-            feedback=raw.feedback,
-            keywords=keywords,
+            time_series=[
+                TimeSeriesPointDTO(date=item.date, count=item.count)
+                for item in raw.time_series
+            ],
+            feedback=FeedbackSummaryDTO(
+                good=raw.feedback.good,
+                bad=raw.feedback.bad,
+                none=raw.feedback.none,
+            ),
+            keywords=[
+                KeywordCountDTO(word=item.word, count=item.count)
+                for item in keywords
+            ],
         )
