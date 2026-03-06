@@ -457,3 +457,23 @@ class ImportRulesTest(unittest.TestCase):
 
     def test_presentation_has_no_get_container_calls(self):
         self._assert_no_get_container_calls(self._rel_paths_for_layer("presentation"))
+
+    def test_admin_has_no_presentation_tasks_imports(self):
+        """admin must import task entrypoints from app.entrypoints.tasks only."""
+        self._check_single_file("admin.py", ["app.presentation.tasks"])
+
+    def test_presentation_tasks_has_no_task_implementations(self):
+        """presentation/tasks must stay empty (entrypoints own all Celery task implementations)."""
+        tasks_dir = APP_ROOT / "presentation" / "tasks"
+        disallowed_files = []
+        for fp in get_python_files(tasks_dir):
+            rel = os.path.relpath(fp, APP_ROOT).replace(os.sep, "/")
+            if rel == "presentation/tasks/__init__.py":
+                continue
+            disallowed_files.append(rel)
+        self.assertEqual(
+            [],
+            disallowed_files,
+            "No files other than app/presentation/tasks/__init__.py are allowed:\n"
+            + "\n".join(f"  {v}" for v in disallowed_files),
+        )

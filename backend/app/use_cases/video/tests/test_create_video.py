@@ -1,102 +1,169 @@
-"""
-Tests for CreateVideoUseCase — quota enforcement and task dispatch.
-"""
+"""Unit tests for CreateVideoUseCase using in-memory fakes only."""
 
-from io import BytesIO
+from dataclasses import dataclass
+from unittest import TestCase
 from unittest.mock import MagicMock
 
-from django.contrib.auth import get_user_model
-from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase
-
-from app.infrastructure.repositories.django_video_repository import DjangoVideoRepository
-from app.models import Video
+from app.domain.video.dto import CreateVideoParams, UpdateVideoParams
+from app.domain.video.entities import VideoEntity
 from app.use_cases.video.create_video import CreateVideoUseCase
 from app.use_cases.video.dto import CreateVideoInput
 from app.use_cases.video.exceptions import VideoLimitExceeded
 
-User = get_user_model()
+
+@dataclass
+class FakeUploadedFile:
+    name: str = "test.mp4"
+    content: bytes = b"fake video content"
+    size: int = 18
+
+    def read(self, size: int = -1) -> bytes:
+        return self.content if size < 0 else self.content[:size]
+
+    def chunks(self):
+        yield self.content
 
 
-def _make_video_file():
-    return SimpleUploadedFile(
-        "test.mp4", BytesIO(b"fake video content").read(), content_type="video/mp4"
-    )
+class FakeVideoRepository:
+    def __init__(self):
+        self._videos = {}
+        self._next_id = 1
+
+    def get_by_id(self, video_id: int, user_id: int):
+        video = self._videos.get(video_id)
+        if video is None or video.user_id != user_id:
+            return None
+        return video
+
+    def list_for_user(
+        self,
+        user_id: int,
+        q: str = "",
+        status: str = "",
+        ordering: str = "",
+        tag_ids=None,
+        include_transcript: bool = False,
+        include_groups: bool = False,
+    ):
+        del q, status, ordering, tag_ids, include_transcript, include_groups
+        return [video for video in self._videos.values() if video.user_id == user_id]
+
+    def create(self, user_id: int, params: CreateVideoParams) -> VideoEntity:
+        video = VideoEntity(
+            id=self._next_id,
+            user_id=user_id,
+            title=params.title,
+            description=params.description,
+            status="pending",
+            file_key=getattr(params.file, "name", None),
+        )
+        self._videos[self._next_id] = video
+        self._next_id += 1
+        return video
+
+    def update(self, video: VideoEntity, params: UpdateVideoParams) -> VideoEntity:
+        if params.title is not None:
+            video.title = params.title
+        if params.description is not None:
+            video.description = params.description
+        return video
+
+    def delete(self, video: VideoEntity) -> None:
+        self._videos.pop(video.id, None)
+
+    def count_for_user(self, user_id: int) -> int:
+        return len([v for v in self._videos.values() if v.user_id == user_id])
+
+    def get_file_keys_for_ids(self, video_ids, user_id: int):
+        return {
+            v.id: v.file_key
+            for v in self._videos.values()
+            if v.id in video_ids and v.user_id == user_id
+        }
+
+    def list_completed_with_transcript(self):
+        return [
+            v
+            for v in self._videos.values()
+            if v.status == "completed" and (v.transcript or "") != ""
+        ]
+
+    def get_by_id_for_task(self, video_id: int):
+        return self._videos.get(video_id)
+
+    def update_status(self, video_id: int, status: str, error_message: str = "") -> None:
+        video = self._videos.get(video_id)
+        if video is None:
+            return
+        video.status = status
+        video.error_message = error_message
+
+    def save_transcript(self, video_id: int, transcript: str) -> None:
+        video = self._videos.get(video_id)
+        if video is None:
+            return
+        video.transcript = transcript
 
 
 class CreateVideoUseCaseTests(TestCase):
     def setUp(self):
-        self.user = User.objects.create_user(
-            username="testuser",
-            email="test@example.com",
-            password="testpass123",
-            video_limit=None,
-        )
-        self.repo = DjangoVideoRepository()
+        self.user_id = 101
+        self.repo = FakeVideoRepository()
         self.mock_task_queue = MagicMock()
         self.use_case = CreateVideoUseCase(self.repo, self.mock_task_queue)
 
     def _input(self):
-        return CreateVideoInput(file=_make_video_file(), title="Test Video", description="")
+        return CreateVideoInput(
+            file=FakeUploadedFile(),
+            title="Test Video",
+            description="",
+        )
+
+    def _seed_videos(self, count: int) -> None:
+        for i in range(count):
+            self.repo.create(
+                self.user_id,
+                CreateVideoParams(
+                    file=FakeUploadedFile(name=f"seed-{i}.mp4"),
+                    title=f"Seed {i}",
+                    description="",
+                ),
+            )
 
     def test_creates_video_successfully(self):
-        """Use case returns a VideoEntity on success"""
-        video = self.use_case.execute(self.user.id, self.user.video_limit, self._input())
+        video = self.use_case.execute(self.user_id, None, self._input())
 
         self.assertIsNotNone(video.id)
         self.assertEqual(video.title, "Test Video")
-        self.assertTrue(Video.objects.filter(pk=video.id).exists())
+        self.assertEqual(self.repo.count_for_user(self.user_id), 1)
 
-    def test_dispatches_transcription_task_on_commit(self):
-        """Transcription task is enqueued via task_queue after creation"""
-        video = self.use_case.execute(self.user.id, self.user.video_limit, self._input())
-
-        self.mock_task_queue.enqueue_transcription.assert_called_once_with(video.id)
-
-    def test_transcription_task_called_with_video_id(self):
-        """enqueue_transcription is called with the new video's ID"""
-        video = self.use_case.execute(self.user.id, self.user.video_limit, self._input())
+    def test_dispatches_transcription_task(self):
+        video = self.use_case.execute(self.user_id, None, self._input())
 
         self.mock_task_queue.enqueue_transcription.assert_called_once_with(video.id)
 
     def test_raises_video_limit_exceeded_when_limit_zero(self):
-        """VideoLimitExceeded raised when video_limit is 0"""
-        self.user.video_limit = 0
-        self.user.save()
-
         with self.assertRaises(VideoLimitExceeded):
-            self.use_case.execute(self.user.id, self.user.video_limit, self._input())
+            self.use_case.execute(self.user_id, 0, self._input())
 
     def test_raises_video_limit_exceeded_when_limit_reached(self):
-        """VideoLimitExceeded raised when the user has hit their limit"""
-        self.user.video_limit = 2
-        self.user.save()
-
-        Video.objects.create(user=self.user, title="Video 1")
-        Video.objects.create(user=self.user, title="Video 2")
+        self._seed_videos(2)
 
         with self.assertRaises(VideoLimitExceeded):
-            self.use_case.execute(self.user.id, self.user.video_limit, self._input())
+            self.use_case.execute(self.user_id, 2, self._input())
 
     def test_allows_upload_when_within_limit(self):
-        """Upload succeeds when user is under their limit"""
-        self.user.video_limit = 3
-        self.user.save()
+        self._seed_videos(1)
 
-        Video.objects.create(user=self.user, title="Video 1")
-
-        video = self.use_case.execute(self.user.id, self.user.video_limit, self._input())
+        video = self.use_case.execute(self.user_id, 3, self._input())
 
         self.assertIsNotNone(video.id)
+        self.assertEqual(self.repo.count_for_user(self.user_id), 2)
 
     def test_allows_unlimited_uploads(self):
-        """No limit enforced when video_limit is None"""
-        self.user.video_limit = None
-        self.user.save()
+        self._seed_videos(10)
 
-        for i in range(10):
-            Video.objects.create(user=self.user, title=f"Video {i}")
-
-        video = self.use_case.execute(self.user.id, self.user.video_limit, self._input())
+        video = self.use_case.execute(self.user_id, None, self._input())
 
         self.assertIsNotNone(video.id)
+        self.assertEqual(self.repo.count_for_user(self.user_id), 11)

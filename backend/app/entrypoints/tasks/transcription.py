@@ -8,6 +8,7 @@ import logging
 from celery import shared_task
 
 from app.dependencies.tasks import get_run_transcription_use_case
+from app.tasks.task_names import TRANSCRIBE_VIDEO_TASK
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +16,7 @@ logger = logging.getLogger(__name__)
 @shared_task(
     bind=True,
     max_retries=3,
-    name="app.presentation.tasks.transcription.transcribe_video",
+    name=TRANSCRIBE_VIDEO_TASK,
 )
 def transcribe_video(self, video_id):
     """
