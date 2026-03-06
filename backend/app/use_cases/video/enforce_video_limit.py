@@ -51,23 +51,24 @@ class EnforceVideoLimitUseCase:
 
         deleted_count = 0
         deleted_video_ids: list[int] = []
-        for video in videos[:excess_count]:
-            self.video_repo.delete(video)
-            deleted_count += 1
-            deleted_video_ids.append(video.id)
+        with transaction.atomic():
+            for video in videos[:excess_count]:
+                self.video_repo.delete(video)
+                deleted_count += 1
+                deleted_video_ids.append(video.id)
 
-        def _cleanup_vectors() -> None:
-            for video_id in deleted_video_ids:
-                try:
-                    self.vector_gateway.delete_video_vectors(video_id)
-                except Exception:
-                    logger.warning(
-                        "Failed to delete vectors for video %s during limit enforcement",
-                        video_id,
-                        exc_info=True,
-                    )
+            def _cleanup_vectors() -> None:
+                for video_id in deleted_video_ids:
+                    try:
+                        self.vector_gateway.delete_video_vectors(video_id)
+                    except Exception:
+                        logger.warning(
+                            "Failed to delete vectors for video %s during limit enforcement",
+                            video_id,
+                            exc_info=True,
+                        )
 
-        transaction.on_commit(_cleanup_vectors)
+            transaction.on_commit(_cleanup_vectors)
 
         logger.info(
             "Deleted %s excess videos for user_id=%s to enforce video_limit=%s",

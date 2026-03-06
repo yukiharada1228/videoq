@@ -34,6 +34,6 @@ class AccountDeletionUseCase:
 
             suffix = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d%H%M%S")
             self.deletion_gateway.deactivate_user(user_id, suffix)
-            transaction.on_commit(lambda: self.task_queue.enqueue_account_deletion(user_id))
+            self.task_queue.enqueue_account_deletion(user_id)
 
         logger.info("Account deletion initiated for user %s", user_id)

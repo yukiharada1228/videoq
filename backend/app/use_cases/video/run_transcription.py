@@ -4,6 +4,8 @@ Use case: Transcribe a video and index its scenes for RAG search.
 
 import logging
 
+from django.db import transaction
+
 from app.domain.video.gateways import TranscriptionGateway, VectorIndexingGateway
 from app.domain.video.repositories import VideoTranscriptionRepository
 from app.domain.video.status import VideoStatus
@@ -53,17 +55,14 @@ class RunTranscriptionUseCase:
 
         try:
             transcript = self.transcription_gateway.run(video_id)
-            self.video_repo.save_transcript(video_id, transcript)
-            VideoStatus.PROCESSING.assert_transition_to(VideoStatus.COMPLETED)
-            self.video_repo.transition_status(
-                video_id=video_id,
-                from_status=VideoStatus.PROCESSING,
-                to_status=VideoStatus.COMPLETED,
-            )
-            self.vector_gateway.index_video_transcript(
-                video.id, video.user_id, video.title, transcript
-            )
-            logger.info("Transcription completed for video %d", video_id)
+            with transaction.atomic():
+                self.video_repo.save_transcript(video_id, transcript)
+                VideoStatus.PROCESSING.assert_transition_to(VideoStatus.COMPLETED)
+                self.video_repo.transition_status(
+                    video_id=video_id,
+                    from_status=VideoStatus.PROCESSING,
+                    to_status=VideoStatus.COMPLETED,
+                )
         except Exception as e:
             error_msg = str(e)
             logger.error("Transcription failed for video %d: %s", video_id, error_msg)
@@ -75,3 +74,16 @@ class RunTranscriptionUseCase:
                 error_message=error_msg,
             )
             raise TranscriptionExecutionFailed(video_id=video_id, reason=error_msg) from e
+
+        try:
+            self.vector_gateway.index_video_transcript(
+                video.id, video.user_id, video.title, transcript
+            )
+        except Exception:
+            logger.warning(
+                "Failed to index transcript for video %d; vectors may be stale",
+                video_id,
+                exc_info=True,
+            )
+
+        logger.info("Transcription completed for video %d", video_id)
