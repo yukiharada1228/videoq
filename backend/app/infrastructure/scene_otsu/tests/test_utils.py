@@ -4,7 +4,7 @@ Tests for scene_otsu utility functions
 
 from django.test import TestCase
 
-from app.scene_otsu.utils import TimestampConverter
+from app.infrastructure.scene_otsu.utils import TimestampConverter
 
 
 class TimestampConverterSecondsToTimestampTests(TestCase):

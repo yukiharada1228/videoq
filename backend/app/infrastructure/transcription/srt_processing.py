@@ -6,7 +6,7 @@ import logging
 
 from django.conf import settings
 
-from app.scene_otsu import SceneSplitter, SubtitleParser
+from app.infrastructure.scene_otsu import SceneSplitter, SubtitleParser
 from app.infrastructure.transcription.audio_processing import process_audio_segments_parallel
 
 logger = logging.getLogger(__name__)

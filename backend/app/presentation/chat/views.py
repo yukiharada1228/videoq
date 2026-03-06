@@ -12,15 +12,15 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from app.common.authentication import APIKeyAuthentication, CookieJWTAuthentication
-from app.container import get_container
-from app.common.permissions import (
+from app.presentation.common.authentication import APIKeyAuthentication, CookieJWTAuthentication
+from app.dependencies import chat as chat_dependencies
+from app.presentation.common.permissions import (
     ApiKeyScopePermission,
     IsAuthenticatedOrSharedAccess,
     ShareTokenAuthentication,
 )
-from app.common.responses import create_error_response
-from app.common.throttles import (
+from app.presentation.common.responses import create_error_response
+from app.presentation.common.throttles import (
     AuthenticatedChatThrottle,
     ShareTokenGlobalThrottle,
     ShareTokenIPThrottle,
@@ -91,7 +91,7 @@ class ChatView(APIView):
         if not messages:
             return create_error_response("Messages are empty", status.HTTP_400_BAD_REQUEST)
 
-        use_case = get_container().get_send_message_use_case()
+        use_case = chat_dependencies.get_send_message_use_case()
         try:
             result = use_case.execute(
                 user_id=user_id,
@@ -147,7 +147,7 @@ class ChatFeedbackView(APIView):
         if feedback == "":
             feedback = None
 
-        use_case = get_container().get_submit_feedback_use_case()
+        use_case = chat_dependencies.get_submit_feedback_use_case()
         try:
             log = use_case.execute(
                 chat_log_id=chat_log_id,
@@ -176,7 +176,7 @@ class ChatHistoryView(APIView):
         if not group_id:
             return Response([])
 
-        use_case = get_container().get_chat_history_use_case()
+        use_case = chat_dependencies.get_chat_history_use_case()
         logs = use_case.execute(
             group_id=int(group_id),
             user_id=request.user.id,
@@ -208,7 +208,7 @@ class ChatHistoryExportView(APIView):
                 "Group ID not specified", status.HTTP_400_BAD_REQUEST
             )
 
-        use_case = get_container().get_export_history_use_case()
+        use_case = chat_dependencies.get_export_history_use_case()
         try:
             resolved_group_id, rows = use_case.execute(
                 group_id=int(group_id), user_id=request.user.id
@@ -271,7 +271,7 @@ class PopularScenesView(APIView):
         if not group_id:
             return create_error_response("Group ID not specified", status.HTTP_400_BAD_REQUEST)
 
-        use_case = get_container().get_popular_scenes_use_case()
+        use_case = chat_dependencies.get_popular_scenes_use_case()
         try:
             scenes = use_case.execute(
                 group_id=int(group_id),
@@ -312,7 +312,7 @@ class ChatAnalyticsView(APIView):
         if not group_id:
             return create_error_response("Group ID not specified", status.HTTP_400_BAD_REQUEST)
 
-        use_case = get_container().get_chat_analytics_use_case()
+        use_case = chat_dependencies.get_chat_analytics_use_case()
         try:
             dto = use_case.execute(group_id=int(group_id), user_id=request.user.id)
         except ResourceNotFound as e:

@@ -4,7 +4,7 @@ from functools import wraps
 
 from rest_framework import status
 
-from app.common.responses import create_error_response
+from app.presentation.common.responses import create_error_response
 
 
 def authenticated_api_view(methods):
@@ -18,8 +18,8 @@ def authenticated_api_view(methods):
         )
         from rest_framework.permissions import IsAuthenticated
 
-        from app.common.authentication import APIKeyAuthentication, CookieJWTAuthentication
-        from app.common.permissions import ApiKeyScopePermission
+        from app.presentation.common.authentication import APIKeyAuthentication, CookieJWTAuthentication
+        from app.presentation.common.permissions import ApiKeyScopePermission
 
         wrapped_view = authentication_classes(
             [APIKeyAuthentication, CookieJWTAuthentication]

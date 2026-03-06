@@ -1,4 +1,4 @@
-"""Custom exception handler for unified error responses"""
+"""Presentation-layer exception handler for unified error responses."""
 
 from rest_framework import status
 from rest_framework.response import Response
@@ -6,8 +6,6 @@ from rest_framework.views import exception_handler
 
 
 class ErrorCode:
-    """Error code constants for machine-readable error identification"""
-
     VALIDATION_ERROR = "VALIDATION_ERROR"
     AUTHENTICATION_FAILED = "AUTHENTICATION_FAILED"
     PERMISSION_DENIED = "PERMISSION_DENIED"
@@ -18,18 +16,6 @@ class ErrorCode:
 
 
 def custom_exception_handler(exc, context):
-    """
-    Custom exception handler that returns unified error format.
-
-    Response format:
-    {
-        "error": {
-            "code": "ERROR_CODE",
-            "message": "Human readable message",
-            "fields": {"fieldname": ["Error 1", "Error 2"]}  # optional
-        }
-    }
-    """
     response = exception_handler(exc, context)
 
     if response is None:
@@ -49,7 +35,6 @@ def custom_exception_handler(exc, context):
 
     new_response = Response({"error": error_data}, status=response.status_code)
 
-    # Preserve headers from the original DRF response (e.g. Retry-After)
     for key, value in response.items():
         if key not in new_response:
             new_response[key] = value
@@ -58,7 +43,6 @@ def custom_exception_handler(exc, context):
 
 
 def _extract_dict_detail(detail: dict) -> str | None:
-    """Extract message from dict-type DRF error detail."""
     if "detail" in detail:
         return str(detail["detail"])
 
@@ -67,17 +51,16 @@ def _extract_dict_detail(detail: dict) -> str | None:
         if isinstance(errors, list) and errors:
             return str(errors[0])
 
-    for key, value in detail.items():
+    for _, value in detail.items():
         if isinstance(value, list) and value:
             return str(value[0])
-        elif isinstance(value, str):
+        if isinstance(value, str):
             return value
 
     return None
 
 
 def _extract_list_detail(detail: list) -> str | None:
-    """Extract message from list-type DRF error detail."""
     if not detail:
         return None
     first_error = detail[0]
@@ -85,24 +68,22 @@ def _extract_list_detail(detail: list) -> str | None:
 
 
 def _get_error_code(status_code: int, exc) -> str:
-    """Determine error code based on status code and exception type"""
     if status_code == status.HTTP_400_BAD_REQUEST:
         return ErrorCode.VALIDATION_ERROR
-    elif status_code == status.HTTP_401_UNAUTHORIZED:
+    if status_code == status.HTTP_401_UNAUTHORIZED:
         return ErrorCode.AUTHENTICATION_FAILED
-    elif status_code == status.HTTP_403_FORBIDDEN:
+    if status_code == status.HTTP_403_FORBIDDEN:
         return ErrorCode.PERMISSION_DENIED
-    elif status_code == status.HTTP_404_NOT_FOUND:
+    if status_code == status.HTTP_404_NOT_FOUND:
         return ErrorCode.NOT_FOUND
-    elif status_code == status.HTTP_429_TOO_MANY_REQUESTS:
+    if status_code == status.HTTP_429_TOO_MANY_REQUESTS:
         return ErrorCode.LIMIT_EXCEEDED
-    elif status_code >= 500:
+    if status_code >= 500:
         return ErrorCode.INTERNAL_ERROR
     return ErrorCode.VALIDATION_ERROR
 
 
 def _get_error_message(exc, response) -> str:
-    """Extract human-readable message from exception"""
     if hasattr(exc, "detail"):
         detail = exc.detail
 
@@ -119,15 +100,10 @@ def _get_error_message(exc, response) -> str:
             if result:
                 return result
 
-    return (
-        response.status_text
-        if hasattr(response, "status_text")
-        else "An error occurred"
-    )
+    return response.status_text if hasattr(response, "status_text") else "An error occurred"
 
 
 def _get_field_errors(exc) -> dict | None:
-    """Extract field-specific errors from validation exception"""
     if not hasattr(exc, "detail"):
         return None
 
@@ -138,7 +114,6 @@ def _get_field_errors(exc) -> dict | None:
 
     fields = {}
     for key, value in detail.items():
-        # Skip non-field errors and detail key
         if key in ("non_field_errors", "detail"):
             continue
 

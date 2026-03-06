@@ -10,7 +10,7 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
 
 from app.models import Video
-from app.tasks.transcription import transcribe_video
+from app.presentation.tasks.transcription import transcribe_video
 
 User = get_user_model()
 

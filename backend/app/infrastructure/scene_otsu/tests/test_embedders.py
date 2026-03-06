@@ -10,11 +10,11 @@ from django.test import TestCase, override_settings
 class BaseEmbedderTests(TestCase):
     """Tests for BaseEmbedder class"""
 
-    @patch("app.scene_otsu.embedders.OpenAIEmbeddings")
-    @patch("app.scene_otsu.embedders.tiktoken.encoding_for_model")
+    @patch("app.infrastructure.scene_otsu.embedders.OpenAIEmbeddings")
+    @patch("app.infrastructure.scene_otsu.embedders.tiktoken.encoding_for_model")
     def test_count_tokens(self, mock_tiktoken, mock_openai_embeddings):
         """Test token counting"""
-        from app.scene_otsu.embedders import OpenAIEmbedder
+        from app.infrastructure.scene_otsu.embedders import OpenAIEmbedder
 
         mock_encoding = MagicMock()
         mock_encoding.encode.return_value = [1, 2, 3, 4, 5]
@@ -27,11 +27,11 @@ class BaseEmbedderTests(TestCase):
         self.assertEqual(count, 5)
         mock_encoding.encode.assert_called_once_with("Hello world")
 
-    @patch("app.scene_otsu.embedders.OpenAIEmbeddings")
-    @patch("app.scene_otsu.embedders.tiktoken.encoding_for_model")
+    @patch("app.infrastructure.scene_otsu.embedders.OpenAIEmbeddings")
+    @patch("app.infrastructure.scene_otsu.embedders.tiktoken.encoding_for_model")
     def test_get_embeddings_batches(self, mock_tiktoken, mock_openai_embeddings):
         """Test that get_embeddings processes in batches"""
-        from app.scene_otsu.embedders import OpenAIEmbedder
+        from app.infrastructure.scene_otsu.embedders import OpenAIEmbedder
 
         mock_encoding = MagicMock()
         mock_tiktoken.return_value = mock_encoding
@@ -59,11 +59,11 @@ class BaseEmbedderTests(TestCase):
 class OpenAIEmbedderTests(TestCase):
     """Tests for OpenAIEmbedder class"""
 
-    @patch("app.scene_otsu.embedders.OpenAIEmbeddings")
-    @patch("app.scene_otsu.embedders.tiktoken.encoding_for_model")
+    @patch("app.infrastructure.scene_otsu.embedders.OpenAIEmbeddings")
+    @patch("app.infrastructure.scene_otsu.embedders.tiktoken.encoding_for_model")
     def test_initialization(self, mock_tiktoken, mock_openai_embeddings):
         """Test OpenAIEmbedder initialization"""
-        from app.scene_otsu.embedders import OpenAIEmbedder
+        from app.infrastructure.scene_otsu.embedders import OpenAIEmbedder
 
         embedder = OpenAIEmbedder(
             api_key="test-api-key",
@@ -75,13 +75,13 @@ class OpenAIEmbedderTests(TestCase):
         self.assertEqual(embedder.batch_size, 16)
         mock_openai_embeddings.assert_called_once()
 
-    @patch("app.scene_otsu.embedders.OpenAIEmbeddings")
-    @patch("app.scene_otsu.embedders.tiktoken.encoding_for_model")
+    @patch("app.infrastructure.scene_otsu.embedders.OpenAIEmbeddings")
+    @patch("app.infrastructure.scene_otsu.embedders.tiktoken.encoding_for_model")
     def test_uses_correct_model_for_tiktoken(
         self, mock_tiktoken, mock_openai_embeddings
     ):
         """Test that correct model is used for tiktoken"""
-        from app.scene_otsu.embedders import OpenAIEmbedder
+        from app.infrastructure.scene_otsu.embedders import OpenAIEmbedder
 
         OpenAIEmbedder(api_key="test-key", model="text-embedding-ada-002")
 
@@ -91,11 +91,11 @@ class OpenAIEmbedderTests(TestCase):
 class OllamaEmbedderTests(TestCase):
     """Tests for OllamaEmbedder class"""
 
-    @patch("app.scene_otsu.embedders.OllamaEmbeddings")
-    @patch("app.scene_otsu.embedders.tiktoken.get_encoding")
+    @patch("app.infrastructure.scene_otsu.embedders.OllamaEmbeddings")
+    @patch("app.infrastructure.scene_otsu.embedders.tiktoken.get_encoding")
     def test_initialization(self, mock_tiktoken, mock_ollama_embeddings):
         """Test OllamaEmbedder initialization"""
-        from app.scene_otsu.embedders import OllamaEmbedder
+        from app.infrastructure.scene_otsu.embedders import OllamaEmbedder
 
         embedder = OllamaEmbedder(
             model="qwen3-embedding:0.6b",
@@ -107,11 +107,11 @@ class OllamaEmbedderTests(TestCase):
         self.assertEqual(embedder.base_url, "http://localhost:11434")
         self.assertEqual(embedder.batch_size, 8)
 
-    @patch("app.scene_otsu.embedders.OllamaEmbeddings")
-    @patch("app.scene_otsu.embedders.tiktoken.get_encoding")
+    @patch("app.infrastructure.scene_otsu.embedders.OllamaEmbeddings")
+    @patch("app.infrastructure.scene_otsu.embedders.tiktoken.get_encoding")
     def test_uses_cl100k_base_encoding(self, mock_tiktoken, mock_ollama_embeddings):
         """Test that cl100k_base encoding is used for Ollama"""
-        from app.scene_otsu.embedders import OllamaEmbedder
+        from app.infrastructure.scene_otsu.embedders import OllamaEmbedder
 
         OllamaEmbedder()
 
@@ -124,10 +124,10 @@ class OllamaEmbedderTests(TestCase):
 class CreateEmbedderOpenAITests(TestCase):
     """Tests for create_embedder function with OpenAI"""
 
-    @patch("app.scene_otsu.embedders.OpenAIEmbedder")
+    @patch("app.infrastructure.scene_otsu.embedders.OpenAIEmbedder")
     def test_creates_openai_embedder(self, mock_openai_embedder):
         """Test that OpenAI embedder is created"""
-        from app.scene_otsu.embedders import create_embedder
+        from app.infrastructure.scene_otsu.embedders import create_embedder
 
         create_embedder(api_key="test-key")
 
@@ -139,7 +139,7 @@ class CreateEmbedderOpenAITests(TestCase):
 
     def test_raises_without_api_key(self):
         """Test that ValueError is raised without API key"""
-        from app.scene_otsu.embedders import create_embedder
+        from app.infrastructure.scene_otsu.embedders import create_embedder
 
         with self.assertRaises(ValueError) as context:
             create_embedder(api_key=None)
@@ -155,10 +155,10 @@ class CreateEmbedderOpenAITests(TestCase):
 class CreateEmbedderOllamaTests(TestCase):
     """Tests for create_embedder function with Ollama"""
 
-    @patch("app.scene_otsu.embedders.OllamaEmbedder")
+    @patch("app.infrastructure.scene_otsu.embedders.OllamaEmbedder")
     def test_creates_ollama_embedder(self, mock_ollama_embedder):
         """Test that Ollama embedder is created"""
-        from app.scene_otsu.embedders import create_embedder
+        from app.infrastructure.scene_otsu.embedders import create_embedder
 
         create_embedder()
 
@@ -168,10 +168,10 @@ class CreateEmbedderOllamaTests(TestCase):
             batch_size=16,
         )
 
-    @patch("app.scene_otsu.embedders.OllamaEmbedder")
+    @patch("app.infrastructure.scene_otsu.embedders.OllamaEmbedder")
     def test_does_not_require_api_key(self, mock_ollama_embedder):
         """Test that API key is not required for Ollama"""
-        from app.scene_otsu.embedders import create_embedder
+        from app.infrastructure.scene_otsu.embedders import create_embedder
 
         # Should not raise
         create_embedder(api_key=None)
@@ -183,7 +183,7 @@ class CreateEmbedderInvalidTests(TestCase):
 
     def test_raises_for_invalid_provider(self):
         """Test that ValueError is raised for invalid provider"""
-        from app.scene_otsu.embedders import create_embedder
+        from app.infrastructure.scene_otsu.embedders import create_embedder
 
         with self.assertRaises(ValueError) as context:
             create_embedder(api_key="test-key")

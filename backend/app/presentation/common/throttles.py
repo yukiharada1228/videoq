@@ -1,27 +1,15 @@
-"""Rate limiting throttle classes for API protection.
-
-Two-tier throttling strategy:
-- Chat (share_token): IP-based + token-based limits to prevent API cost abuse
-- Chat (authenticated): Per-user limits
-- Auth endpoints: IP-based + identifier-based limits to prevent brute force
-"""
+"""Presentation-layer rate limiting throttles."""
 
 from rest_framework.throttling import SimpleRateThrottle
 
-# ---------------------------------------------------------------------------
-# Chat throttles (share_token — two-tier)
-# ---------------------------------------------------------------------------
-
 
 class ShareTokenIPThrottle(SimpleRateThrottle):
-    """Per-IP rate limit for share_token chat requests."""
-
     scope = "chat_share_token_ip"
 
     def get_cache_key(self, request, view):
         share_token = request.query_params.get("share_token")
         if not share_token:
-            return None  # skip — not a share_token request
+            return None
         return self.cache_format % {
             "scope": self.scope,
             "ident": self.get_ident(request),
@@ -29,47 +17,31 @@ class ShareTokenIPThrottle(SimpleRateThrottle):
 
 
 class ShareTokenGlobalThrottle(SimpleRateThrottle):
-    """Per-token rate limit for share_token chat requests."""
-
     scope = "chat_share_token_global"
 
     def get_cache_key(self, request, view):
         share_token = request.query_params.get("share_token")
         if not share_token:
-            return None  # skip — not a share_token request
+            return None
         return self.cache_format % {
             "scope": self.scope,
             "ident": share_token,
         }
 
 
-# ---------------------------------------------------------------------------
-# Chat throttle (authenticated user)
-# ---------------------------------------------------------------------------
-
-
 class AuthenticatedChatThrottle(SimpleRateThrottle):
-    """Per-user rate limit for authenticated chat requests."""
-
     scope = "chat_authenticated"
 
     def get_cache_key(self, request, view):
         if not request.user or not request.user.is_authenticated:
-            return None  # skip — not an authenticated request
+            return None
         return self.cache_format % {
             "scope": self.scope,
             "ident": request.user.pk,
         }
 
 
-# ---------------------------------------------------------------------------
-# Login throttles (two-tier)
-# ---------------------------------------------------------------------------
-
-
 class LoginIPThrottle(SimpleRateThrottle):
-    """Per-IP rate limit for login attempts."""
-
     scope = "login_ip"
 
     def get_cache_key(self, request, view):
@@ -80,8 +52,6 @@ class LoginIPThrottle(SimpleRateThrottle):
 
 
 class LoginUsernameThrottle(SimpleRateThrottle):
-    """Per-username rate limit for login attempts."""
-
     scope = "login_username"
 
     def get_cache_key(self, request, view):
@@ -97,14 +67,7 @@ class LoginUsernameThrottle(SimpleRateThrottle):
         }
 
 
-# ---------------------------------------------------------------------------
-# Signup throttle
-# ---------------------------------------------------------------------------
-
-
 class SignupIPThrottle(SimpleRateThrottle):
-    """Per-IP rate limit for signup requests."""
-
     scope = "signup_ip"
 
     def get_cache_key(self, request, view):
@@ -114,14 +77,7 @@ class SignupIPThrottle(SimpleRateThrottle):
         }
 
 
-# ---------------------------------------------------------------------------
-# Password reset throttles (two-tier)
-# ---------------------------------------------------------------------------
-
-
 class PasswordResetIPThrottle(SimpleRateThrottle):
-    """Per-IP rate limit for password reset requests."""
-
     scope = "password_reset_ip"
 
     def get_cache_key(self, request, view):
@@ -132,8 +88,6 @@ class PasswordResetIPThrottle(SimpleRateThrottle):
 
 
 class PasswordResetEmailThrottle(SimpleRateThrottle):
-    """Per-email rate limit for password reset requests."""
-
     scope = "password_reset_email"
 
     def get_cache_key(self, request, view):

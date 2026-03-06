@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 from django.test import TestCase, override_settings
 
-from app.scene_otsu.splitter import SceneSplitter
+from app.infrastructure.scene_otsu.splitter import SceneSplitter
 
 
 @override_settings(
@@ -16,14 +16,14 @@ from app.scene_otsu.splitter import SceneSplitter
 class SceneSplitterInitializationTests(TestCase):
     """Tests for SceneSplitter initialization"""
 
-    @patch("app.scene_otsu.splitter.create_embedder")
+    @patch("app.infrastructure.scene_otsu.splitter.create_embedder")
     def test_initialization_with_api_key(self, mock_create_embedder):
         """Test initialization with API key"""
         SceneSplitter(api_key="test-key")
 
         mock_create_embedder.assert_called_once_with(api_key="test-key", batch_size=16)
 
-    @patch("app.scene_otsu.splitter.create_embedder")
+    @patch("app.infrastructure.scene_otsu.splitter.create_embedder")
     def test_initialization_with_custom_batch_size(self, mock_create_embedder):
         """Test initialization with custom batch size"""
         SceneSplitter(api_key="test-key", batch_size=32)
@@ -37,7 +37,7 @@ class SceneSplitterInitializationTests(TestCase):
 class SceneSplitterOtsuThresholdTests(TestCase):
     """Tests for SceneSplitter._find_otsu_threshold"""
 
-    @patch("app.scene_otsu.splitter.create_embedder")
+    @patch("app.infrastructure.scene_otsu.splitter.create_embedder")
     def test_returns_zero_for_single_embedding(self, mock_create_embedder):
         """Test that zero is returned for single embedding"""
         splitter = SceneSplitter(api_key="test-key")
@@ -48,7 +48,7 @@ class SceneSplitterOtsuThresholdTests(TestCase):
 
         self.assertEqual(result, 0)
 
-    @patch("app.scene_otsu.splitter.create_embedder")
+    @patch("app.infrastructure.scene_otsu.splitter.create_embedder")
     def test_finds_threshold_for_two_embeddings(self, mock_create_embedder):
         """Test finding threshold for two embeddings"""
         splitter = SceneSplitter(api_key="test-key")
@@ -64,7 +64,7 @@ class SceneSplitterOtsuThresholdTests(TestCase):
 
         self.assertEqual(result, 1)  # Should split after first embedding
 
-    @patch("app.scene_otsu.splitter.create_embedder")
+    @patch("app.infrastructure.scene_otsu.splitter.create_embedder")
     def test_finds_optimal_split_point(self, mock_create_embedder):
         """Test finding optimal split point in sequence"""
         splitter = SceneSplitter(api_key="test-key")
@@ -92,7 +92,7 @@ class SceneSplitterOtsuThresholdTests(TestCase):
 class SceneSplitterSplitLongTextTests(TestCase):
     """Tests for SceneSplitter._split_long_text"""
 
-    @patch("app.scene_otsu.splitter.create_embedder")
+    @patch("app.infrastructure.scene_otsu.splitter.create_embedder")
     def test_returns_single_scene_if_within_limit(self, mock_create_embedder):
         """Test returning single scene if text is within limit"""
         mock_embedder = MagicMock()
@@ -113,7 +113,7 @@ class SceneSplitterSplitLongTextTests(TestCase):
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0].subtitles, ["Short text"])
 
-    @patch("app.scene_otsu.splitter.create_embedder")
+    @patch("app.infrastructure.scene_otsu.splitter.create_embedder")
     def test_splits_long_text_into_chunks(self, mock_create_embedder):
         """Test splitting long text into chunks"""
         mock_embedder = MagicMock()
@@ -142,7 +142,7 @@ class SceneSplitterSplitLongTextTests(TestCase):
 class SceneSplitterProcessTests(TestCase):
     """Tests for SceneSplitter.process"""
 
-    @patch("app.scene_otsu.splitter.create_embedder")
+    @patch("app.infrastructure.scene_otsu.splitter.create_embedder")
     def test_returns_empty_string_for_empty_input(self, mock_create_embedder):
         """Test returning empty string for empty input"""
         splitter = SceneSplitter(api_key="test-key")
@@ -151,8 +151,8 @@ class SceneSplitterProcessTests(TestCase):
 
         self.assertEqual(result, "")
 
-    @patch("app.scene_otsu.splitter.create_embedder")
-    @patch("app.scene_otsu.splitter.SubtitleParser.parse_srt_string")
+    @patch("app.infrastructure.scene_otsu.splitter.create_embedder")
+    @patch("app.infrastructure.scene_otsu.splitter.SubtitleParser.parse_srt_string")
     def test_returns_empty_string_for_no_subtitles(
         self, mock_parse, mock_create_embedder
     ):
@@ -165,8 +165,8 @@ class SceneSplitterProcessTests(TestCase):
 
         self.assertEqual(result, "")
 
-    @patch("app.scene_otsu.splitter.normalize")
-    @patch("app.scene_otsu.splitter.create_embedder")
+    @patch("app.infrastructure.scene_otsu.splitter.normalize")
+    @patch("app.infrastructure.scene_otsu.splitter.create_embedder")
     def test_processes_srt_and_returns_split(
         self, mock_create_embedder, mock_normalize
     ):
@@ -202,8 +202,8 @@ Test content"""
         self.assertIsInstance(result, str)
         self.assertIn("-->", result)
 
-    @patch("app.scene_otsu.splitter.normalize")
-    @patch("app.scene_otsu.splitter.create_embedder")
+    @patch("app.infrastructure.scene_otsu.splitter.normalize")
+    @patch("app.infrastructure.scene_otsu.splitter.create_embedder")
     def test_handles_single_subtitle(self, mock_create_embedder, mock_normalize):
         """Test handling single subtitle"""
         mock_embedder = MagicMock()
@@ -229,7 +229,7 @@ Single subtitle"""
 class SceneSplitterTokenPrefixSumTests(TestCase):
     """Tests for SceneSplitter._calculate_token_prefix_sum"""
 
-    @patch("app.scene_otsu.splitter.create_embedder")
+    @patch("app.infrastructure.scene_otsu.splitter.create_embedder")
     def test_calculates_prefix_sum(self, mock_create_embedder):
         """Test calculating token prefix sum"""
         mock_embedder = MagicMock()
@@ -243,7 +243,7 @@ class SceneSplitterTokenPrefixSumTests(TestCase):
 
         self.assertEqual(result, [0, 10, 30, 60])
 
-    @patch("app.scene_otsu.splitter.create_embedder")
+    @patch("app.infrastructure.scene_otsu.splitter.create_embedder")
     def test_empty_texts_returns_zero(self, mock_create_embedder):
         """Test that empty texts returns [0]"""
         splitter = SceneSplitter(api_key="test-key")

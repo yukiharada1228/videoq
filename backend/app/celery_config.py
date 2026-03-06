@@ -18,8 +18,8 @@ app = Celery("videoq")
 # Load Celery settings from Django settings
 app.config_from_object("django.conf:settings", namespace="CELERY")
 
-# Auto-discover tasks in application
-app.autodiscover_tasks()
+# Auto-discover task modules under the presentation boundary.
+app.autodiscover_tasks(["app.presentation"])
 
 logger.info("Celery app configured")
 

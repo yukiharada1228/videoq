@@ -317,7 +317,7 @@ class AccountDeleteViewTests(APITestCase):
         self.client.force_authenticate(user=self.user)
         self.url = reverse("auth-account-delete")
 
-    @patch("app.tasks.account_deletion.delete_account_data.delay")
+    @patch("app.infrastructure.tasks.task_gateway.current_app.send_task")
     def test_account_delete_marks_inactive_and_enqueues_task(self, mock_delay):
         """Test account delete marks user inactive and enqueues task"""
         response = self.client.delete(
@@ -332,7 +332,10 @@ class AccountDeleteViewTests(APITestCase):
         self.assertNotEqual(self.user.email, "delete@example.com")
         self.assertTrue(self.user.username.startswith("deleted__"))
         self.assertTrue(self.user.email.startswith("deleted__"))
-        mock_delay.assert_called_once_with(self.user.id)
+        mock_delay.assert_called_once_with(
+            "app.presentation.tasks.account_deletion.delete_account_data",
+            args=[self.user.id],
+        )
         # Check cookies are deleted
         self.assertEqual(response.cookies.get("access_token").value, "")
         self.assertEqual(response.cookies.get("refresh_token").value, "")
