@@ -6,7 +6,7 @@ import logging
 
 from django.db import transaction
 
-from app.domain.video.gateways import TranscriptionGateway, VectorIndexingGateway
+from app.domain.video.gateways import TranscriptionGateway, VideoTaskGateway
 from app.domain.video.repositories import VideoTranscriptionRepository
 from app.domain.video.status import VideoStatus
 from app.use_cases.video.exceptions import (
@@ -32,11 +32,11 @@ class RunTranscriptionUseCase:
         self,
         video_repo: VideoTranscriptionRepository,
         transcription_gateway: TranscriptionGateway,
-        vector_indexing_gateway: VectorIndexingGateway,
+        task_queue: VideoTaskGateway,
     ):
         self.video_repo = video_repo
         self.transcription_gateway = transcription_gateway
-        self.vector_gateway = vector_indexing_gateway
+        self.task_queue = task_queue
 
     def execute(self, video_id: int) -> None:
         video = self.video_repo.get_by_id_for_task(video_id)
@@ -63,6 +63,7 @@ class RunTranscriptionUseCase:
                     from_status=VideoStatus.PROCESSING,
                     to_status=VideoStatus.COMPLETED,
                 )
+                self.task_queue.enqueue_indexing(video_id)
         except Exception as e:
             error_msg = str(e)
             logger.error("Transcription failed for video %d: %s", video_id, error_msg)

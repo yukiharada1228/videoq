@@ -4,6 +4,7 @@ from app.use_cases.video.create_video import CreateVideoUseCase
 from app.use_cases.video.delete_video import DeleteVideoUseCase
 from app.use_cases.video.enforce_video_limit import EnforceVideoLimitUseCase
 from app.use_cases.video.get_video import GetVideoDetailUseCase
+from app.use_cases.video.index_video import IndexVideoTranscriptUseCase
 from app.use_cases.video.list_videos import ListVideosUseCase
 from app.use_cases.video.reindex_all_videos import ReindexAllVideosUseCase
 from app.use_cases.video.run_transcription import RunTranscriptionUseCase
@@ -27,6 +28,13 @@ def get_run_transcription_use_case() -> RunTranscriptionUseCase:
     return RunTranscriptionUseCase(
         shared.new_video_repository(),
         shared.get_whisper_transcription_gateway(),
+        shared.new_video_task_gateway(),
+    )
+
+
+def get_index_video_use_case() -> IndexVideoTranscriptUseCase:
+    return IndexVideoTranscriptUseCase(
+        shared.new_video_repository(),
         shared.get_vector_indexing_gateway(),
     )
 

@@ -28,6 +28,32 @@ def get_run_transcription_use_case():
     return core.get_run_transcription_use_case()
 
 
+def get_index_video_use_case():
+    return core.get_index_video_use_case()
+
+
+class IndexingTargetMissing(Exception):
+    """Composition-root boundary error for missing indexing target."""
+
+
+class IndexingExecutionFailed(Exception):
+    """Composition-root boundary error for failed vector indexing."""
+
+
+def index_video_transcript(video_id: int) -> None:
+    from app.use_cases.video.exceptions import (
+        IndexingExecutionFailed as UseCaseIndexingExecutionFailed,
+        IndexingTargetMissing as UseCaseIndexingTargetMissing,
+    )
+
+    try:
+        get_index_video_use_case().execute(video_id)
+    except UseCaseIndexingTargetMissing as exc:
+        raise IndexingTargetMissing(str(exc)) from exc
+    except UseCaseIndexingExecutionFailed as exc:
+        raise IndexingExecutionFailed(str(exc)) from exc
+
+
 def run_transcription(video_id: int) -> None:
     from app.use_cases.video.exceptions import (
         TranscriptionExecutionFailed as UseCaseTranscriptionExecutionFailed,
