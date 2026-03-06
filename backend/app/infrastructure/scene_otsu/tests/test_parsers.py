@@ -4,8 +4,8 @@ Tests for scene_otsu parser functions
 
 from django.test import TestCase
 
-from app.scene_otsu.parsers import SubtitleParser, scenes_to_srt_string
-from app.scene_otsu.types import SceneSegment
+from app.infrastructure.scene_otsu.parsers import SubtitleParser, scenes_to_srt_string
+from app.infrastructure.scene_otsu.types import SceneSegment
 
 
 class SubtitleParserParseSrtStringTests(TestCase):

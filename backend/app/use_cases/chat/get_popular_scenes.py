@@ -13,7 +13,13 @@ from app.use_cases.shared.exceptions import ResourceNotFound
 
 
 class GetPopularScenesUseCase:
-    """Aggregate and rank scenes referenced across a group's chat history."""
+    """Aggregate and rank scenes referenced across a group's chat history.
+
+    This use case intentionally depends on video-domain ports because a "scene"
+    is represented by video metadata/file keys owned by the video context.
+    The dependency stays at domain-contract level (no infra coupling), so the
+    Clean Architecture direction remains inward.
+    """
 
     def __init__(
         self,

@@ -8,7 +8,7 @@ from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.test import APITestCase
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from app.common.authentication import APIKeyAuthentication, CookieJWTAuthentication
+from app.presentation.common.authentication import APIKeyAuthentication, CookieJWTAuthentication
 from app.models import UserApiKey
 
 User = get_user_model()

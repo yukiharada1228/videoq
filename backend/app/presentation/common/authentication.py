@@ -1,4 +1,4 @@
-"""Common authentication utilities"""
+"""Presentation-layer authentication utilities."""
 
 from dataclasses import dataclass
 
@@ -9,7 +9,7 @@ from rest_framework.request import Request
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.exceptions import InvalidToken
 
-from app.container import get_container
+from app.dependencies.common import get_resolve_api_key_use_case
 
 
 @dataclass(frozen=True)
@@ -33,13 +33,18 @@ class APIKeyAuthentication(BaseAuthentication):
 
     keyword = "ApiKey"
     header_name = "HTTP_X_API_KEY"
+    resolve_api_key_use_case_factory = staticmethod(get_resolve_api_key_use_case)
+
+    def __init__(self, resolve_api_key_use_case_factory=None):
+        if resolve_api_key_use_case_factory is not None:
+            self.resolve_api_key_use_case_factory = resolve_api_key_use_case_factory
 
     def authenticate(self, request: Request):
         raw_key = self.get_raw_key(request)
         if raw_key is None:
             return None
 
-        resolved = get_container().get_resolve_api_key_use_case().execute(raw_key)
+        resolved = self.resolve_api_key_use_case_factory().execute(raw_key)
         if resolved is None:
             raise AuthenticationFailed(_("Invalid API key"))
 
@@ -53,7 +58,7 @@ class APIKeyAuthentication(BaseAuthentication):
         }
 
     def authenticate_header(self, request: Request) -> str:
-        return f"{self.keyword} realm=\"api\""
+        return f'{self.keyword} realm="api"'
 
     def get_raw_key(self, request: Request) -> str | None:
         header_key = request.META.get(self.header_name)
@@ -76,7 +81,7 @@ class APIKeyAuthentication(BaseAuthentication):
 
 
 class CookieJWTAuthentication(JWTAuthentication):
-    """Authentication class that retrieves JWT token from Cookie or Authorization header"""
+    """Authentication class that retrieves JWT token from cookie or authorization header."""
 
     def authenticate(self, request: Request):
         header_auth = super().authenticate(request)

@@ -3,13 +3,13 @@ from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework.views import APIView
 
-from app.common.authentication import APIKeyAuthentication, CookieJWTAuthentication
-from app.common.permissions import (
+from app.presentation.common.authentication import APIKeyAuthentication, CookieJWTAuthentication
+from app.presentation.common.permissions import (
     ApiKeyScopePermission,
     IsAuthenticatedOrSharedAccess,
     ShareTokenAuthentication,
 )
-from app.container import get_container
+from app.dependencies import media as media_dependencies
 from app.use_cases.media.resolve_protected_media import ResolveProtectedMediaInput
 from app.use_cases.shared.exceptions import ResourceNotFound
 
@@ -47,7 +47,7 @@ class ProtectedMediaView(APIView):
             user_id = request.user.id
 
         try:
-            resolved = get_container().get_resolve_protected_media_use_case().execute(
+            resolved = media_dependencies.get_resolve_protected_media_use_case().execute(
                 ResolveProtectedMediaInput(path=path, user_id=user_id, group_id=group_id)
             )
         except ResourceNotFound:

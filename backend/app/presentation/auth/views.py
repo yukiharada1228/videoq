@@ -21,13 +21,13 @@ from app.use_cases.auth.signup import EmailAlreadyRegistered
 from app.use_cases.auth.verify_email import InvalidVerificationLink
 from app.use_cases.auth.reset_password import InvalidResetLink
 from app.use_cases.auth.exceptions import AuthenticationFailed, InvalidToken
-from app.common.authentication import APIKeyAuthentication, CookieJWTAuthentication
-from app.common.exceptions import ErrorCode
-from app.common.responses import create_error_response, create_success_response
-from app.common.throttles import (LoginIPThrottle, LoginUsernameThrottle,
-                                   PasswordResetEmailThrottle,
-                                   PasswordResetIPThrottle, SignupIPThrottle)
-from app.container import get_container
+from app.presentation.common.authentication import APIKeyAuthentication, CookieJWTAuthentication
+from app.presentation.common.exceptions import ErrorCode
+from app.presentation.common.responses import create_error_response, create_success_response
+from app.presentation.common.throttles import (LoginIPThrottle, LoginUsernameThrottle,
+                                               PasswordResetEmailThrottle,
+                                               PasswordResetIPThrottle, SignupIPThrottle)
+from app.dependencies import auth as auth_dependencies
 from app.use_cases.shared.exceptions import ResourceNotFound
 from app.presentation.common.mixins import AuthenticatedViewMixin, PublicViewMixin
 
@@ -58,7 +58,7 @@ class UserSignupView(PublicAPIView):
         serializer.is_valid(raise_exception=True)
         d = serializer.validated_data
         try:
-            get_container().get_signup_use_case().execute(
+            auth_dependencies.get_signup_use_case().execute(
                 username=d["username"], email=d["email"], password=d["password"]
             )
         except EmailAlreadyRegistered as e:
@@ -92,7 +92,7 @@ class LoginView(PublicAPIView):
         d = serializer.validated_data
 
         try:
-            token_pair = get_container().get_login_use_case().execute(
+            token_pair = auth_dependencies.get_login_use_case().execute(
                 username=d["username"], password=d["password"]
             )
         except AuthenticationFailed:
@@ -166,7 +166,7 @@ class AccountDeleteView(AuthenticatedAPIView):
         serializer.is_valid(raise_exception=True)
         reason = serializer.validated_data.get("reason", "")
 
-        get_container().get_delete_account_use_case().execute(request.user.id, reason)
+        auth_dependencies.get_delete_account_use_case().execute(request.user.id, reason)
 
         response = create_success_response(message="Account deletion started.")
 
@@ -198,7 +198,7 @@ class RefreshView(PublicAPIView):
             refresh_token = serializer.validated_data["refresh"]
 
         try:
-            token_pair = get_container().get_refresh_token_use_case().execute(refresh_token)
+            token_pair = auth_dependencies.get_refresh_token_use_case().execute(refresh_token)
         except InvalidToken:
             return create_error_response(
                 message="Invalid refresh token",
@@ -238,7 +238,7 @@ class EmailVerificationView(PublicAPIView):
         serializer.is_valid(raise_exception=True)
         d = serializer.validated_data
         try:
-            get_container().get_verify_email_use_case().execute(
+            auth_dependencies.get_verify_email_use_case().execute(
                 uidb64=d["uid"], token=d["token"]
             )
         except InvalidVerificationLink as e:
@@ -263,7 +263,7 @@ class PasswordResetRequestView(PublicAPIView):
     def post(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        get_container().get_request_password_reset_use_case().execute(
+        auth_dependencies.get_request_password_reset_use_case().execute(
             email=serializer.validated_data["email"]
         )
         return create_success_response(
@@ -287,7 +287,7 @@ class PasswordResetConfirmView(PublicAPIView):
         serializer.is_valid(raise_exception=True)
         d = serializer.validated_data
         try:
-            get_container().get_confirm_password_reset_use_case().execute(
+            auth_dependencies.get_confirm_password_reset_use_case().execute(
                 uidb64=d["uid"], token=d["token"], new_password=d["new_password"]
             )
         except InvalidResetLink as e:
@@ -304,7 +304,7 @@ class MeView(AuthenticatedAPIView, generics.RetrieveAPIView):
     authentication_classes = [APIKeyAuthentication, CookieJWTAuthentication]
 
     def get_object(self):
-        return get_container().get_current_user_use_case().execute(self.request.user.id)
+        return auth_dependencies.get_current_user_use_case().execute(self.request.user.id)
 
 
 class ApiKeyListCreateView(AuthenticatedAPIView, generics.GenericAPIView):
@@ -316,7 +316,7 @@ class ApiKeyListCreateView(AuthenticatedAPIView, generics.GenericAPIView):
         description="List active API keys for the current user. Plain key values are never returned.",
     )
     def get(self, request, *args, **kwargs):
-        keys = get_container().get_list_api_keys_use_case().execute(user_id=request.user.id)
+        keys = auth_dependencies.get_list_api_keys_use_case().execute(user_id=request.user.id)
         return Response(ApiKeySerializer(keys, many=True).data)
 
     @extend_schema(
@@ -331,7 +331,7 @@ class ApiKeyListCreateView(AuthenticatedAPIView, generics.GenericAPIView):
         serializer = ApiKeyCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:
-            result = get_container().get_create_api_key_use_case().execute(
+            result = auth_dependencies.get_create_api_key_use_case().execute(
                 user_id=request.user.id,
                 name=serializer.validated_data["name"],
                 access_level=serializer.validated_data["access_level"],
@@ -354,7 +354,7 @@ class ApiKeyDetailView(AuthenticatedAPIView, generics.GenericAPIView):
     def delete(self, request, *args, **kwargs):
         pk = self.kwargs.get("pk")
         try:
-            get_container().get_revoke_api_key_use_case().execute(
+            auth_dependencies.get_revoke_api_key_use_case().execute(
                 key_id=int(pk), user_id=request.user.id
             )
         except ResourceNotFound:

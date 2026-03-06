@@ -12,7 +12,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from app.common.responses import create_error_response
+from app.presentation.common.responses import create_error_response
 from app.dependencies import video as video_dependencies
 from app.use_cases.video.dto import (
     CreateGroupInput,

@@ -1,10 +1,10 @@
-"""OpenAPI extensions for custom authentication classes."""
+"""OpenAPI extensions for presentation-layer authentication classes."""
 
 from drf_spectacular.extensions import OpenApiAuthenticationExtension
 
 
 class APIKeyAuthenticationScheme(OpenApiAuthenticationExtension):
-    target_class = "app.common.authentication.APIKeyAuthentication"
+    target_class = "app.presentation.common.authentication.APIKeyAuthentication"
     name = "ApiKeyAuth"
 
     def get_security_definition(self, auto_schema):
@@ -17,7 +17,7 @@ class APIKeyAuthenticationScheme(OpenApiAuthenticationExtension):
 
 
 class CookieJWTAuthenticationScheme(OpenApiAuthenticationExtension):
-    target_class = "app.common.authentication.CookieJWTAuthentication"
+    target_class = "app.presentation.common.authentication.CookieJWTAuthentication"
     name = "BearerAuth"
 
     def get_security_definition(self, auto_schema):

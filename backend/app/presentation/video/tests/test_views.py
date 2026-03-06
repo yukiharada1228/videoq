@@ -627,7 +627,7 @@ class VideoUploadTests(APITestCase):
         self.client = APIClient()
         self.client.force_authenticate(user=self.user)
 
-    @patch("app.tasks.transcribe_video.delay")
+    @patch("app.infrastructure.tasks.task_gateway.current_app.send_task")
     def test_upload(self, mock_task):
         """Test video upload"""
         from io import BytesIO
@@ -678,7 +678,7 @@ class VideoLimitTests(APITestCase):
             content_type="video/mp4",
         )
 
-    @patch("app.tasks.transcribe_video.delay")
+    @patch("app.infrastructure.tasks.task_gateway.current_app.send_task")
     def test_upload_with_unlimited_video_limit(self, mock_task):
         """Test video upload when video_limit is None (unlimited)"""
         user = User.objects.create_user(
@@ -702,7 +702,7 @@ class VideoLimitTests(APITestCase):
 
         self.assertEqual(Video.objects.filter(user=user).count(), 3)
 
-    @patch("app.tasks.transcribe_video.delay")
+    @patch("app.infrastructure.tasks.task_gateway.current_app.send_task")
     def test_upload_with_zero_video_limit(self, mock_task):
         """Test video upload when video_limit is 0 (no uploads allowed)"""
         user = User.objects.create_user(
@@ -725,7 +725,7 @@ class VideoLimitTests(APITestCase):
         self.assertIn("Video upload limit reached", str(response.data))
         self.assertEqual(Video.objects.filter(user=user).count(), 0)
 
-    @patch("app.tasks.transcribe_video.delay")
+    @patch("app.infrastructure.tasks.task_gateway.current_app.send_task")
     def test_upload_within_video_limit(self, mock_task):
         """Test video upload within the limit"""
         user = User.objects.create_user(
@@ -749,7 +749,7 @@ class VideoLimitTests(APITestCase):
 
         self.assertEqual(Video.objects.filter(user=user).count(), 2)
 
-    @patch("app.tasks.transcribe_video.delay")
+    @patch("app.infrastructure.tasks.task_gateway.current_app.send_task")
     def test_upload_at_exact_video_limit(self, mock_task):
         """Test video upload at exact limit"""
         user = User.objects.create_user(
@@ -773,7 +773,7 @@ class VideoLimitTests(APITestCase):
 
         self.assertEqual(Video.objects.filter(user=user).count(), 2)
 
-    @patch("app.tasks.transcribe_video.delay")
+    @patch("app.infrastructure.tasks.task_gateway.current_app.send_task")
     def test_upload_exceeds_video_limit(self, mock_task):
         """Test video upload when limit is exceeded"""
         user = User.objects.create_user(
@@ -808,7 +808,7 @@ class VideoLimitTests(APITestCase):
         self.assertIn("Video upload limit reached", str(response.data))
         self.assertEqual(Video.objects.filter(user=user).count(), 2)
 
-    @patch("app.tasks.transcribe_video.delay")
+    @patch("app.infrastructure.tasks.task_gateway.current_app.send_task")
     def test_upload_after_deleting_video_within_limit(self, mock_task):
         """Test video upload after deleting a video to free up space"""
         user = User.objects.create_user(

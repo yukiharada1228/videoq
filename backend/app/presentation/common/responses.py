@@ -1,4 +1,4 @@
-"""Common response helpers"""
+"""Presentation-layer response helpers."""
 
 from typing import Any
 
@@ -12,18 +12,7 @@ def create_error_response(
     code: str = "VALIDATION_ERROR",
     fields: dict | None = None,
 ) -> Response:
-    """
-    Generate unified error response.
-
-    Response format:
-    {
-        "error": {
-            "code": "ERROR_CODE",
-            "message": "Human readable message",
-            "fields": {"fieldname": ["Error 1", "Error 2"]}  # optional
-        }
-    }
-    """
+    """Generate unified error response."""
     error_data: dict[str, Any] = {
         "code": code,
         "message": message,
@@ -40,7 +29,7 @@ def create_success_response(
     message: str | None = None,
     status_code: int = status.HTTP_200_OK,
 ) -> Response:
-    """Generate success response"""
+    """Generate success response."""
 
     response_data: dict = {}
     if data:
@@ -54,12 +43,12 @@ def create_created_response(
     data: dict | None = None,
     message: str = "Created successfully",
 ) -> Response:
-    """Generate created success response"""
+    """Generate created success response."""
 
     return create_success_response(data, message, status.HTTP_201_CREATED)
 
 
 def create_no_content_response() -> Response:
-    """No Content response"""
+    """No Content response."""
 
     return Response(status=status.HTTP_204_NO_CONTENT)

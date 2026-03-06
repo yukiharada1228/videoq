@@ -9,9 +9,9 @@ from django.test import RequestFactory
 from rest_framework.request import Request
 from rest_framework.test import APIRequestFactory, APITestCase
 
-from app.common.permissions import (ApiKeyScopePermission,
-                                    IsAuthenticatedOrSharedAccess,
-                                    ShareTokenAuthentication)
+from app.presentation.common.permissions import (ApiKeyScopePermission,
+                                                 IsAuthenticatedOrSharedAccess,
+                                                 ShareTokenAuthentication)
 from app.models import VideoGroup
 
 User = get_user_model()

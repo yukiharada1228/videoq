@@ -1,8 +1,6 @@
-"""
-Infrastructure implementations of task queue gateways.
-Dispatches async tasks via Celery, using Django's transaction.on_commit where appropriate.
-"""
+"""Infrastructure implementations of task queue gateways."""
 
+from celery import current_app
 from django.db import transaction
 
 from app.domain.auth.gateways import AuthTaskGateway
@@ -14,9 +12,12 @@ class CeleryVideoTaskGateway(VideoTaskGateway):
 
     def enqueue_transcription(self, video_id: int) -> None:
         """Dispatch transcription task after the current DB transaction commits."""
-        from app.tasks import transcribe_video
-
-        transaction.on_commit(lambda: transcribe_video.delay(video_id))
+        transaction.on_commit(
+            lambda: current_app.send_task(
+                "app.presentation.tasks.transcription.transcribe_video",
+                args=[video_id],
+            )
+        )
 
 
 class CeleryAuthTaskGateway(AuthTaskGateway):
@@ -24,6 +25,7 @@ class CeleryAuthTaskGateway(AuthTaskGateway):
 
     def enqueue_account_deletion(self, user_id: int) -> None:
         """Dispatch account data deletion task immediately."""
-        from app.tasks.account_deletion import delete_account_data
-
-        delete_account_data.delay(user_id)
+        current_app.send_task(
+            "app.presentation.tasks.account_deletion.delete_account_data",
+            args=[user_id],
+        )

@@ -5,7 +5,6 @@ Acceptance criteria:
   - app/domain/**   : no app.models, django, rest_framework, celery, app.infrastructure
   - app/use_cases/**: no app.models, django, rest_framework, app.infrastructure
   - app/presentation/**: no app.models, no app.infrastructure.*
-  - app/common/**: no app.models, no app.infrastructure.*
   - QuerySet must not appear in domain or use_cases source files
   - use_cases context isolation: video/chat/auth contexts must not import each other directly
     (app.use_cases.shared is the only permitted cross-context import)
@@ -20,6 +19,11 @@ from pathlib import Path
 BASE = Path(__file__).resolve().parents[2]
 APP_ROOT = BASE / "app"
 APP_TESTS_ROOT = APP_ROOT / "tests"
+
+# Service locator is prohibited in framework entrypoints.
+# Keep this allowlist empty by default; if temporary exceptions are needed,
+# add minimal file paths and a removal note per entry.
+ALLOWED_SERVICE_LOCATOR_FILES = set()
 
 
 def get_python_files(base_path):
@@ -173,8 +177,6 @@ class ImportRulesTest(unittest.TestCase):
             "use_cases": self._count_python_files("use_cases"),
             "presentation": self._count_python_files("presentation"),
             "infrastructure": self._count_python_files("infrastructure"),
-            "tasks": self._count_python_files("tasks"),
-            "common": self._count_python_files("common"),
         }
         print("scan_counts", counts)
         for layer, count in counts.items():
@@ -189,8 +191,8 @@ class ImportRulesTest(unittest.TestCase):
         self._check("use_cases", ["app.models", "django", "rest_framework", "app.infrastructure"])
 
     def test_use_cases_has_no_common_imports(self):
-        """use_cases layer must not import from app.common (HTTP/auth concerns belong in presentation)."""
-        self._check("use_cases", ["app.common"])
+        """use_cases layer must not import presentation HTTP/auth concerns."""
+        self._check("use_cases", ["app.common", "app.presentation.common"])
 
     def test_use_cases_has_no_utils_imports(self):
         """use_cases layer must not import from app.utils (framework utilities belong outside core)."""
@@ -202,9 +204,9 @@ class ImportRulesTest(unittest.TestCase):
             "presentation", ["app.models", "app.infrastructure"]
         )
 
-    def test_common_has_no_model_or_infrastructure_imports(self):
-        """common must not import app.models or app.infrastructure directly."""
-        self._check("common", ["app.models", "app.infrastructure"])
+    def test_presentation_has_no_common_imports(self):
+        """presentation must import from app.presentation.common, not app.common."""
+        self._check("presentation", ["app.common"])
 
     def _check_cross_context(self, context_path, forbidden_contexts):
         """Verify that a use_cases context does not import from other contexts directly."""
@@ -243,11 +245,6 @@ class ImportRulesTest(unittest.TestCase):
             "video",
             ["app.use_cases.chat", "app.use_cases.auth"],
         )
-
-    def test_tasks_has_no_direct_model_or_infrastructure_imports(self):
-        """tasks/ must not import app.models or app.infrastructure directly.
-        Tasks should only act as thin triggers delegating to use cases via factories."""
-        self._check("tasks", ["app.models", "app.infrastructure"])
 
     def test_infrastructure_has_no_drf_imports(self):
         """infrastructure layer must not import rest_framework (HTTP concerns belong in presentation)."""
@@ -331,7 +328,7 @@ class ImportRulesTest(unittest.TestCase):
         )
 
     def test_presentation_has_no_factories_imports(self):
-        """presentation must resolve dependencies through get_container(), not factories directly."""
+        """presentation must resolve dependencies through app.dependencies, not factories directly."""
         self._check("presentation", ["app.factories"])
 
     def test_presentation_has_no_utils_imports(self):
@@ -358,9 +355,9 @@ class ImportRulesTest(unittest.TestCase):
         """domain layer must not import from app.utils (domain must stay framework-free)."""
         self._check("domain", ["app.utils"])
 
-    def test_infrastructure_external_has_no_tasks_imports(self):
-        """infrastructure/external must not import app.tasks (tasks are above infrastructure)."""
-        self._check("infrastructure/external", ["app.tasks"])
+    def test_infrastructure_external_has_no_presentation_tasks_imports(self):
+        """infrastructure/external must not import app.presentation.tasks."""
+        self._check("infrastructure/external", ["app.presentation.tasks"])
 
     def _check_single_file(self, rel_path, forbidden):
         """Check a single file for forbidden imports."""
@@ -383,36 +380,11 @@ class ImportRulesTest(unittest.TestCase):
         else:
             self._check_single_file("factories.py", ["app.presentation"])
 
-    def test_container_has_no_presentation_imports(self):
-        """container.py must not import from app.presentation."""
-        self._check_single_file("container.py", ["app.presentation"])
-
-    def test_media_has_no_direct_model_or_infrastructure_imports(self):
-        """app/media must not import app.models or app.infrastructure directly.
-        All ORM access for the media domain must go through infrastructure/repositories."""
-        self._check("media", ["app.models", "app.infrastructure"])
-
-    def test_common_has_no_orm_objects_usage(self):
-        """common must not access ORM manager (.objects)."""
-        violations = []
-        for fp in sorted(self._iter_layer_source_files("common")):
-            with open(fp) as f:
-                source = f.read()
-            tree = ast.parse(source)
-            for node in ast.walk(tree):
-                if isinstance(node, ast.Attribute) and node.attr == "objects":
-                    rel = os.path.relpath(fp, BASE)
-                    violations.append(f"{rel}:{node.lineno}")
-        self.assertEqual(
-            [],
-            violations,
-            "common must not reference ORM manager '.objects':\n"
-            + "\n".join(f"  {v}" for v in violations),
-        )
-
     def _assert_no_get_container_calls(self, rel_paths):
         violations = []
         for rel_path in rel_paths:
+            if rel_path in ALLOWED_SERVICE_LOCATOR_FILES:
+                continue
             abs_path = APP_ROOT / rel_path
             if not abs_path.exists():
                 continue
@@ -425,15 +397,16 @@ class ImportRulesTest(unittest.TestCase):
         self.assertEqual(
             [],
             violations,
-            "Direct get_container usage is forbidden in migrated entrypoints:\n"
+            "Direct get_container usage is forbidden in presentation:\n"
             + "\n".join(f"  {v}" for v in violations),
         )
 
-    def test_migrated_presentation_has_no_get_container_calls(self):
-        self._assert_no_get_container_calls(["presentation/video/views.py"])
+    def _rel_paths_for_layer(self, layer_path):
+        paths = []
+        for fp in sorted(self._iter_layer_source_files(layer_path)):
+            rel = os.path.relpath(fp, APP_ROOT).replace(os.sep, "/")
+            paths.append(rel)
+        return paths
 
-    def test_migrated_common_has_no_get_container_calls(self):
-        self._assert_no_get_container_calls(["common/permissions.py"])
-
-    def test_migrated_tasks_has_no_get_container_calls(self):
-        self._assert_no_get_container_calls(["tasks/transcription.py"])
+    def test_presentation_has_no_get_container_calls(self):
+        self._assert_no_get_container_calls(self._rel_paths_for_layer("presentation"))
