@@ -62,3 +62,20 @@ class TagNotAttachedToVideo(Exception):
 
     def __init__(self, message: str = "This tag is not attached to the video"):
         super().__init__(message)
+
+
+class TranscriptionTargetNotFound(Exception):
+    """Raised when transcription target video does not exist."""
+
+    def __init__(self, video_id: int):
+        self.video_id = video_id
+        super().__init__(f"Video {video_id} not found")
+
+
+class TranscriptionFailed(Exception):
+    """Raised when transcription processing fails for a video."""
+
+    def __init__(self, video_id: int, reason: str):
+        self.video_id = video_id
+        self.reason = reason
+        super().__init__(f"Transcription failed for video {video_id}: {reason}")

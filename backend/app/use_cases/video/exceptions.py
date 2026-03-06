@@ -1,5 +1,6 @@
 """Application-level exceptions exposed by video use cases."""
 
+from app.domain.video.exceptions import TranscriptionFailed, TranscriptionTargetNotFound
 from app.use_cases.shared.exceptions import PermissionDenied, ResourceNotFound
 
 
@@ -40,6 +41,8 @@ __all__ = [
     "GroupVideoOrderMismatch",
     "PermissionDenied",
     "ResourceNotFound",
+    "TranscriptionFailed",
+    "TranscriptionTargetNotFound",
     "VideoAlreadyInGroup",
     "VideoLimitExceeded",
     "VideoNotInGroup",

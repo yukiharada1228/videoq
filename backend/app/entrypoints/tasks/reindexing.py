@@ -26,8 +26,4 @@ def reindex_all_videos_embeddings(self):
         return result
     except Exception as e:
         logger.error("Re-indexing task failed: %s", e, exc_info=True)
-        return {
-            "status": "failed",
-            "error": str(e),
-            "message": "Re-indexing task encountered an error",
-        }
+        raise
