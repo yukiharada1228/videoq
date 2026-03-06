@@ -1,4 +1,11 @@
-"""Auth context DI wiring."""
+"""Auth context DI wiring.
+
+Lifecycle policy:
+- Repository/task gateway adapters are created per use-case resolution.
+- Stateless auth adapters shared across use-cases are process-scoped via cache.
+"""
+
+from functools import lru_cache
 
 from app.infrastructure.auth.api_key_resolver import DjangoApiKeyResolver
 from app.infrastructure.auth.django_auth_gateway import DjangoUserAuthGateway
@@ -35,40 +42,91 @@ from app.use_cases.auth.signup import SignupUserUseCase
 from app.use_cases.auth.verify_email import VerifyEmailUseCase
 
 
+def _new_user_auth_gateway() -> DjangoUserAuthGateway:
+    return DjangoUserAuthGateway()
+
+
+def _new_user_repository() -> DjangoUserRepository:
+    return DjangoUserRepository()
+
+
+def _new_user_management_gateway() -> DjangoUserManagementGateway:
+    return DjangoUserManagementGateway()
+
+
+def _new_email_sender_gateway() -> DjangoEmailSenderGateway:
+    return DjangoEmailSenderGateway()
+
+
+def _new_account_deletion_gateway() -> DjangoAccountDeletionGateway:
+    return DjangoAccountDeletionGateway()
+
+
+def _new_auth_task_gateway() -> CeleryAuthTaskGateway:
+    return CeleryAuthTaskGateway()
+
+
+def _new_api_key_repository() -> DjangoApiKeyRepository:
+    return DjangoApiKeyRepository()
+
+
+@lru_cache(maxsize=1)
+def _get_simplejwt_gateway() -> SimpleJWTGateway:
+    return SimpleJWTGateway()
+
+
+@lru_cache(maxsize=1)
+def _get_share_token_resolver() -> DjangoShareTokenResolver:
+    return DjangoShareTokenResolver()
+
+
+@lru_cache(maxsize=1)
+def _get_api_key_resolver() -> DjangoApiKeyResolver:
+    return DjangoApiKeyResolver()
+
+
+@lru_cache(maxsize=1)
+def _get_cookie_jwt_validator():
+    from app.infrastructure.auth.cookie_jwt_validator import CookieJWTValidator
+
+    return CookieJWTValidator()
+
+
 def get_login_use_case() -> LoginUseCase:
-    return LoginUseCase(DjangoUserAuthGateway(), SimpleJWTGateway())
+    return LoginUseCase(_new_user_auth_gateway(), _get_simplejwt_gateway())
 
 
 def get_refresh_token_use_case() -> RefreshTokenUseCase:
-    return RefreshTokenUseCase(SimpleJWTGateway())
+    return RefreshTokenUseCase(_get_simplejwt_gateway())
 
 
 def get_current_user_use_case() -> GetCurrentUserUseCase:
-    return GetCurrentUserUseCase(DjangoUserRepository())
+    return GetCurrentUserUseCase(_new_user_repository())
 
 
 def get_signup_use_case() -> SignupUserUseCase:
-    return SignupUserUseCase(DjangoUserManagementGateway(), DjangoEmailSenderGateway())
+    return SignupUserUseCase(_new_user_management_gateway(), _new_email_sender_gateway())
 
 
 def get_verify_email_use_case() -> VerifyEmailUseCase:
-    return VerifyEmailUseCase(DjangoUserManagementGateway())
+    return VerifyEmailUseCase(_new_user_management_gateway())
 
 
 def get_request_password_reset_use_case() -> RequestPasswordResetUseCase:
     return RequestPasswordResetUseCase(
-        DjangoUserManagementGateway(), DjangoEmailSenderGateway()
+        _new_user_management_gateway(),
+        _new_email_sender_gateway(),
     )
 
 
 def get_confirm_password_reset_use_case() -> ConfirmPasswordResetUseCase:
-    return ConfirmPasswordResetUseCase(DjangoUserManagementGateway())
+    return ConfirmPasswordResetUseCase(_new_user_management_gateway())
 
 
 def get_delete_account_use_case() -> AccountDeletionUseCase:
     return AccountDeletionUseCase(
-        DjangoAccountDeletionGateway(),
-        CeleryAuthTaskGateway(),
+        _new_account_deletion_gateway(),
+        _new_auth_task_gateway(),
     )
 
 
@@ -81,15 +139,15 @@ def get_delete_account_data_use_case() -> DeleteAccountDataUseCase:
 
 
 def get_list_api_keys_use_case() -> ListApiKeysUseCase:
-    return ListApiKeysUseCase(DjangoApiKeyRepository())
+    return ListApiKeysUseCase(_new_api_key_repository())
 
 
 def get_create_api_key_use_case() -> CreateApiKeyUseCase:
-    return CreateApiKeyUseCase(DjangoApiKeyRepository())
+    return CreateApiKeyUseCase(_new_api_key_repository())
 
 
 def get_revoke_api_key_use_case() -> RevokeApiKeyUseCase:
-    return RevokeApiKeyUseCase(DjangoApiKeyRepository())
+    return RevokeApiKeyUseCase(_new_api_key_repository())
 
 
 def get_authorize_api_key_use_case() -> AuthorizeApiKeyUseCase:
@@ -97,14 +155,12 @@ def get_authorize_api_key_use_case() -> AuthorizeApiKeyUseCase:
 
 
 def get_resolve_share_token_use_case() -> ResolveShareTokenUseCase:
-    return ResolveShareTokenUseCase(DjangoShareTokenResolver())
+    return ResolveShareTokenUseCase(_get_share_token_resolver())
 
 
 def get_resolve_api_key_use_case() -> ResolveApiKeyUseCase:
-    return ResolveApiKeyUseCase(DjangoApiKeyResolver())
+    return ResolveApiKeyUseCase(_get_api_key_resolver())
 
 
 def get_cookie_jwt_validator():
-    from app.infrastructure.auth.cookie_jwt_validator import CookieJWTValidator
-
-    return CookieJWTValidator()
+    return _get_cookie_jwt_validator()
