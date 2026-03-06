@@ -3,6 +3,7 @@ Use case: Retrieve chat history for a group.
 """
 
 from app.domain.chat.repositories import ChatRepository, VideoGroupQueryRepository
+from app.use_cases.shared.exceptions import ResourceNotFound
 
 
 class GetChatHistoryUseCase:
@@ -19,12 +20,15 @@ class GetChatHistoryUseCase:
     def execute(self, group_id: int, user_id: int, ascending: bool = False):
         """
         Returns:
-            List[ChatLogEntity] (may be empty if group not found).
+            List[ChatLogEntity]
+
+        Raises:
+            ResourceNotFound: If the group does not exist or belongs to another user.
         """
         group = self.group_query_repo.get_with_members(
             group_id=group_id, user_id=user_id
         )
         if group is None:
-            return []
+            raise ResourceNotFound("Group")
 
         return self.chat_repo.get_logs_for_group(group.id, ascending=ascending)

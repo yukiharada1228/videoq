@@ -2,8 +2,9 @@
 Use case: Export chat history for a group as domain rows.
 """
 
-from typing import Generator
+from typing import Generator, List
 
+from app.domain.chat.entities import ChatLogEntity
 from app.domain.chat.repositories import ChatRepository, VideoGroupQueryRepository
 from app.use_cases.chat.dto import ChatHistoryExportRow
 from app.use_cases.shared.exceptions import ResourceNotFound
@@ -39,8 +40,8 @@ class ExportChatHistoryUseCase:
         return group.id, self._build_rows(logs)
 
     @staticmethod
-    def _build_rows(queryset) -> Generator[ChatHistoryExportRow, None, None]:
-        for log in queryset:
+    def _build_rows(logs: List[ChatLogEntity]) -> Generator[ChatHistoryExportRow, None, None]:
+        for log in logs:
             yield ChatHistoryExportRow(
                 created_at=log.created_at,
                 question=log.question,

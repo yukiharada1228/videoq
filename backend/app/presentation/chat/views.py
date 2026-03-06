@@ -79,7 +79,11 @@ class ChatView(APIView):
     def post(self, request):
         share_token = request.query_params.get("share_token")
         is_shared = share_token is not None
-        group_id = request.data.get("group_id")
+
+        serializer = ChatRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        group_id = serializer.validated_data.get("group_id")
 
         if is_shared and not group_id:
             return create_error_response(
@@ -88,11 +92,14 @@ class ChatView(APIView):
 
         user_id = getattr(request.user, "id", None)
 
-        raw_messages = request.data.get("messages", [])
-        if not raw_messages:
+        validated_messages = serializer.validated_data.get("messages", [])
+        if not validated_messages:
             return create_error_response("Messages are empty", status.HTTP_400_BAD_REQUEST)
 
-        message_dtos = [ChatMessageInput(role=str(m.get("role", "")), content=str(m.get("content", ""))) for m in raw_messages]
+        message_dtos = [
+            ChatMessageInput(role=m["role"], content=m["content"])
+            for m in validated_messages
+        ]
 
         use_case = chat_dependencies.get_send_message_use_case()
         try:
@@ -182,11 +189,14 @@ class ChatHistoryView(APIView):
             return Response([])
 
         use_case = chat_dependencies.get_chat_history_use_case()
-        logs = use_case.execute(
-            group_id=int(group_id),
-            user_id=request.user.id,
-            ascending=False,
-        )
+        try:
+            logs = use_case.execute(
+                group_id=int(group_id),
+                user_id=request.user.id,
+                ascending=False,
+            )
+        except ResourceNotFound as e:
+            return create_error_response(str(e), status.HTTP_404_NOT_FOUND)
         return Response(ChatLogSerializer(logs, many=True).data)
 
 

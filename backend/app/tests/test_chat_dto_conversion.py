@@ -155,5 +155,73 @@ class SendMessageNullabilityTests(unittest.TestCase):
         rag_gateway.generate_reply.assert_not_called()
 
 
+class GetChatHistoryUseCaseContractTests(unittest.TestCase):
+    """Verify that GetChatHistoryUseCase raises ResourceNotFound when the group is missing."""
+
+    def _make_use_case(self, group=None):
+        from app.use_cases.chat.get_history import GetChatHistoryUseCase
+
+        chat_repo = MagicMock()
+        group_query_repo = MagicMock()
+        group_query_repo.get_with_members.return_value = group
+        return GetChatHistoryUseCase(chat_repo=chat_repo, group_query_repo=group_query_repo), chat_repo
+
+    def test_raises_resource_not_found_when_group_missing(self):
+        from app.use_cases.shared.exceptions import ResourceNotFound
+
+        use_case, _ = self._make_use_case(group=None)
+        with self.assertRaises(ResourceNotFound):
+            use_case.execute(group_id=99, user_id=1)
+
+    def test_returns_logs_when_group_exists(self):
+        group = MagicMock()
+        group.id = 7
+        use_case, chat_repo = self._make_use_case(group=group)
+        chat_repo.get_logs_for_group.return_value = ["log1", "log2"]
+
+        result = use_case.execute(group_id=7, user_id=1)
+
+        self.assertEqual(result, ["log1", "log2"])
+        chat_repo.get_logs_for_group.assert_called_once_with(7, ascending=False)
+
+
+class ExportChatHistoryBuildRowsTests(unittest.TestCase):
+    """Verify _build_rows accepts ChatLogEntity and yields ChatHistoryExportRow DTOs."""
+
+    def test_build_rows_yields_export_row_dtos(self):
+        from datetime import datetime
+
+        from app.domain.chat.entities import ChatLogEntity
+        from app.use_cases.chat.dto import ChatHistoryExportRow
+        from app.use_cases.chat.export_history import ExportChatHistoryUseCase
+
+        log = ChatLogEntity(
+            id=1,
+            user_id=2,
+            group_id=3,
+            group_user_id=2,
+            group_share_token=None,
+            question="Q?",
+            answer="A.",
+            related_videos=[],
+            is_shared_origin=False,
+            feedback=None,
+            created_at=datetime(2026, 1, 1),
+        )
+
+        rows = list(ExportChatHistoryUseCase._build_rows([log]))
+
+        self.assertEqual(len(rows), 1)
+        self.assertIsInstance(rows[0], ChatHistoryExportRow)
+        self.assertEqual(rows[0].question, "Q?")
+        self.assertEqual(rows[0].answer, "A.")
+
+    def test_build_rows_empty_list_yields_nothing(self):
+        from app.use_cases.chat.export_history import ExportChatHistoryUseCase
+
+        rows = list(ExportChatHistoryUseCase._build_rows([]))
+        self.assertEqual(rows, [])
+
+
 if __name__ == "__main__":
     unittest.main()
