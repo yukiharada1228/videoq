@@ -8,20 +8,18 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import List, Optional
 
-from app.domain.video.types import BinarySource
-
 
 @dataclass(frozen=True)
-class VideoListQuery:
+class VideoSearchCriteria:
     """
     Query object for VideoRepository.list_for_user.
     Groups all filtering / ordering options into a single, intention-revealing parameter
     instead of a flat list of keyword arguments.
     """
 
-    q: str = ""
-    status: str = ""
-    ordering: str = ""
+    keyword: str = ""
+    status_filter: str = ""
+    sort_key: str = ""
     tag_ids: Optional[List[int]] = field(default=None)
 
 
@@ -29,7 +27,8 @@ class VideoListQuery:
 class CreateVideoParams:
     """Parameters for creating a new video record."""
 
-    file: BinarySource
+    file_name: str
+    file_bytes: bytes
     title: str
     description: str
 

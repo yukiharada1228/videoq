@@ -3,14 +3,12 @@ Use case: Create a new video and dispatch transcription.
 """
 
 import logging
-from typing import Optional
 
 from app.domain.user.repositories import UserRepository
 from app.domain.video.dto import CreateVideoParams
 from app.domain.video.entities import VideoEntity
 from app.domain.video.exceptions import VideoLimitExceeded as DomainVideoLimitExceeded
 from app.domain.video.gateways import VideoTaskGateway
-from app.domain.video.ports import FileUrlResolver
 from app.domain.video.repositories import VideoRepository
 from app.use_cases.video.dto import CreateVideoInput, VideoResponseDTO
 from app.use_cases.video.exceptions import ResourceNotFound, VideoLimitExceeded
@@ -32,12 +30,10 @@ class CreateVideoUseCase:
         user_repo: UserRepository,
         video_repo: VideoRepository,
         task_queue: VideoTaskGateway,
-        file_url_resolver: Optional[FileUrlResolver] = None,
     ):
         self.user_repo = user_repo
         self.video_repo = video_repo
         self.task_queue = task_queue
-        self.file_url_resolver = file_url_resolver
 
     def execute(self, user_id: int, input: CreateVideoInput) -> VideoResponseDTO:
         """
@@ -46,7 +42,7 @@ class CreateVideoUseCase:
             input: Typed input DTO from the presentation layer.
 
         Returns:
-            VideoResponseDTO: The newly created video with resolved file_url.
+            VideoResponseDTO: The newly created video.
 
         Raises:
             ResourceNotFound: If the target user does not exist.
@@ -64,7 +60,8 @@ class CreateVideoUseCase:
             raise VideoLimitExceeded(e.limit) from e
 
         params = CreateVideoParams(
-            file=input.file,
+            file_name=input.file.name,
+            file_bytes=input.file.read(),
             title=input.title,
             description=input.description,
         )
@@ -73,4 +70,4 @@ class CreateVideoUseCase:
         logger.info(f"Enqueueing transcription task for video ID: {video.id}")
         self.task_queue.enqueue_transcription(video.id)
 
-        return to_video_response_dto(video, self.file_url_resolver)
+        return to_video_response_dto(video)

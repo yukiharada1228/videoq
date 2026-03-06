@@ -37,11 +37,6 @@ class VideoGroupContextEntity:
     def member_video_ids(self) -> List[int]:
         return [m.video_id for m in self.members]
 
-    @property
-    def pk(self) -> int:
-        return self.id
-
-
 @dataclass
 class ChatLogEntity:
     """Represents a chat log entry in the domain."""
@@ -57,11 +52,6 @@ class ChatLogEntity:
     is_shared_origin: bool = False
     feedback: Optional[str] = None
     created_at: Optional[datetime] = None
-
-    @property
-    def pk(self) -> int:
-        return self.id
-
 
 @dataclass
 class ChatAnalyticsRaw:

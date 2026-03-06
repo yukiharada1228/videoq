@@ -24,11 +24,6 @@ class TagEntity:
     created_at: Optional[datetime] = None
     videos: List["VideoEntity"] = field(default_factory=list)
 
-    @property
-    def pk(self) -> int:
-        return self.id
-
-
 @dataclass
 class VideoEntity:
     """Represents a video in the domain."""
@@ -43,10 +38,6 @@ class VideoEntity:
     uploaded_at: Optional[datetime] = None
     transcript: Optional[str] = None
     tags: List[TagEntity] = field(default_factory=list)
-
-    @property
-    def pk(self) -> int:
-        return self.id
 
     @staticmethod
     def ensure_upload_within_limit(current_count: int, video_limit: Optional[int]) -> None:
@@ -66,11 +57,6 @@ class VideoGroupMemberEntity:
     added_at: Optional[datetime] = None
     video: Optional[VideoEntity] = None
 
-    @property
-    def pk(self) -> int:
-        return self.id
-
-
 @dataclass
 class VideoGroupEntity:
     """Represents a video group in the domain."""
@@ -85,7 +71,3 @@ class VideoGroupEntity:
     video_count: int = 0
     videos: List[VideoEntity] = field(default_factory=list)
     members: List[VideoGroupMemberEntity] = field(default_factory=list)
-
-    @property
-    def pk(self) -> int:
-        return self.id

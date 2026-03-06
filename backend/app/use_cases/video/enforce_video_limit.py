@@ -4,7 +4,7 @@ Use case: Enforce a user's video_limit by deleting oldest excess videos.
 
 import logging
 
-from app.domain.video.dto import VideoListQuery
+from app.domain.video.dto import VideoSearchCriteria
 from app.domain.video.gateways import VectorStoreGateway
 from app.domain.video.repositories import VideoRepository
 
@@ -44,7 +44,7 @@ class EnforceVideoLimitUseCase:
 
         videos = self.video_repo.list_for_user(
             user_id=user_id,
-            query=VideoListQuery(ordering="uploaded_at_asc"),
+            criteria=VideoSearchCriteria(sort_key="uploaded_at_asc"),
         )
 
         deleted_count = 0

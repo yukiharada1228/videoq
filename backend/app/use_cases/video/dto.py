@@ -1,23 +1,30 @@
 """
 Use-case DTOs for the video domain.
 - Input DTOs: public API for callers (presentation layer).
-- Response DTOs: output boundary with resolved file_url.
+- Response DTOs: output boundary for presentation adapters.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Protocol, runtime_checkable
 
-from app.domain.video.types import BinarySource
+
+@runtime_checkable
+class UploadedBinarySource(Protocol):
+    """Minimal interface for uploaded binary inputs handled by use cases."""
+
+    name: str
+
+    def read(self, size: int = -1) -> bytes: ...
 
 
 @dataclass(frozen=True)
 class CreateVideoInput:
     """Input for CreateVideoUseCase.execute()."""
 
-    file: BinarySource
+    file: UploadedBinarySource
     title: str
     description: str
 
@@ -62,6 +69,16 @@ class UpdateTagInput:
     color: Optional[str] = None
 
 
+@dataclass(frozen=True)
+class ListVideosInput:
+    """Input for ListVideosUseCase.execute()."""
+
+    keyword: str = ""
+    status_filter: str = ""
+    sort_key: str = ""
+    tag_ids: Optional[List[int]] = None
+
+
 # ---------------------------------------------------------------------------
 # Response DTOs (use-case output boundary)
 # ---------------------------------------------------------------------------
@@ -83,7 +100,7 @@ class TagResponseDTO:
 class VideoResponseDTO:
     """
     Use-case output DTO for a single video.
-    Carries all video fields plus the resolved file_url.
+    Carries all video fields for presentation adapters.
     """
 
     id: int
@@ -92,7 +109,6 @@ class VideoResponseDTO:
     status: str
     description: str = ""
     file_key: Optional[str] = None
-    file_url: Optional[str] = None
     error_message: Optional[str] = None
     uploaded_at: Optional[datetime] = None
     transcript: Optional[str] = None
@@ -115,7 +131,7 @@ class VideoGroupMemberResponseDTO:
 class VideoGroupDetailResponseDTO:
     """
     Use-case output DTO for video group detail.
-    Mirrors VideoGroupEntity fields but carries VideoResponseDTO members (with file_url).
+    Mirrors VideoGroupEntity fields but carries VideoResponseDTO members.
     """
 
     id: int
@@ -145,7 +161,7 @@ class VideoGroupListResponseDTO:
 class TagDetailResponseDTO:
     """
     Use-case output DTO for tag detail.
-    Mirrors TagEntity fields but carries VideoResponseDTO list (with file_url).
+    Mirrors TagEntity fields but carries VideoResponseDTO list.
     """
 
     id: int

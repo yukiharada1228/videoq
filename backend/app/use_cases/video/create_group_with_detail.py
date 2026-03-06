@@ -2,10 +2,7 @@
 Use case: Create a new video group and return detail DTO.
 """
 
-from typing import Optional
-
 from app.domain.video.dto import CreateGroupParams
-from app.domain.video.ports import FileUrlResolver
 from app.domain.video.repositories import VideoGroupRepository
 from app.use_cases.video.dto import CreateGroupInput, VideoGroupDetailResponseDTO
 from app.use_cases.video.exceptions import ResourceNotFound
@@ -18,10 +15,8 @@ class CreateVideoGroupWithDetailUseCase:
     def __init__(
         self,
         group_repo: VideoGroupRepository,
-        file_url_resolver: Optional[FileUrlResolver] = None,
     ):
         self.group_repo = group_repo
-        self.file_url_resolver = file_url_resolver
 
     def execute(self, user_id: int, input: CreateGroupInput) -> VideoGroupDetailResponseDTO:
         params = CreateGroupParams(name=input.name, description=input.description)
@@ -31,4 +26,4 @@ class CreateVideoGroupWithDetailUseCase:
         )
         if detail is None:
             raise ResourceNotFound("Group")
-        return to_group_detail_response_dto(detail, self.file_url_resolver)
+        return to_group_detail_response_dto(detail)
