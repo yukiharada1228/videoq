@@ -1,9 +1,11 @@
 """
-Composition root: thin aggregator importing from bounded-context factory modules.
-All public factory functions are re-exported here for backwards compatibility.
+Backward-compatible factory exports.
+
+`app.composition_root` is the canonical wiring location. This module keeps the
+legacy `app.factories.*` API stable for callers that still import it.
 """
 
-from app.factories.auth import (
+from app.composition_root import (
     get_authorize_api_key_use_case,
     get_confirm_password_reset_use_case,
     get_create_api_key_use_case,
@@ -19,17 +21,13 @@ from app.factories.auth import (
     get_revoke_api_key_use_case,
     get_signup_use_case,
     get_verify_email_use_case,
-)
-from app.factories.chat import (
     get_chat_analytics_use_case,
     get_chat_history_use_case,
     get_export_history_use_case,
     get_popular_scenes_use_case,
     get_send_message_use_case,
     get_submit_feedback_use_case,
-)
-from app.factories.media import get_resolve_protected_media_use_case
-from app.factories.video import (
+    get_resolve_protected_media_use_case,
     get_add_tags_to_video_use_case,
     get_add_video_to_group_use_case,
     get_add_videos_to_group_use_case,

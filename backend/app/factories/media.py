@@ -1,13 +1,7 @@
-"""
-Media bounded context factories.
-Constructs fully-wired media use case instances.
-"""
+"""Media factory wrappers kept for backward compatibility."""
 
-from app.use_cases.media.resolve_protected_media import ResolveProtectedMediaUseCase
+from app import composition_root
 
 
-def get_resolve_protected_media_use_case() -> ResolveProtectedMediaUseCase:
-    from app.infrastructure.repositories.django_media_repository import DjangoMediaRepository
-    from app.infrastructure.storage.local_media_storage import LocalMediaStorage
-
-    return ResolveProtectedMediaUseCase(DjangoMediaRepository(), LocalMediaStorage())
+def get_resolve_protected_media_use_case():
+    return composition_root.get_resolve_protected_media_use_case()
