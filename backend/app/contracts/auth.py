@@ -1,9 +1,12 @@
 """Cross-layer auth constants shared by boundaries."""
 
-ACCESS_LEVEL_ALL = "all"
-ACCESS_LEVEL_READ_ONLY = "read_only"
+from app.domain.auth.entities import ACCESS_LEVEL_ALL, ACCESS_LEVEL_READ_ONLY
+from app.domain.auth.scopes import SCOPE_CHAT_WRITE, SCOPE_READ, SCOPE_WRITE
 
-SCOPE_READ = "read"
-SCOPE_WRITE = "write"
-SCOPE_CHAT_WRITE = "chat_write"
-
+__all__ = [
+    "ACCESS_LEVEL_ALL",
+    "ACCESS_LEVEL_READ_ONLY",
+    "SCOPE_READ",
+    "SCOPE_WRITE",
+    "SCOPE_CHAT_WRITE",
+]
