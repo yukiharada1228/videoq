@@ -2,7 +2,7 @@
 Tests for response_utils module
 """
 
-from django.test import TestCase
+import unittest
 from rest_framework import status
 from rest_framework.response import Response
 
@@ -10,7 +10,7 @@ from app.presentation.common.response_utils import (CacheHelper, ResponseBuilder
                                       ValidationHelper)
 
 
-class ResponseBuilderTests(TestCase):
+class ResponseBuilderTests(unittest.TestCase):
     """Tests for ResponseBuilder class"""
 
     def test_success_response_with_data(self):
@@ -113,7 +113,7 @@ class ResponseBuilderTests(TestCase):
         self.assertTrue(pagination["has_previous"])
 
 
-class ValidationHelperTests(TestCase):
+class ValidationHelperTests(unittest.TestCase):
     """Tests for ValidationHelper class"""
 
     def test_validate_required_fields_all_present(self):
@@ -213,7 +213,7 @@ class ValidationHelperTests(TestCase):
             self.assertFalse(ValidationHelper.validate_email_format(email))
 
 
-class CacheHelperTests(TestCase):
+class CacheHelperTests(unittest.TestCase):
     """Tests for CacheHelper class"""
 
     def test_get_cache_key_simple(self):

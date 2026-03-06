@@ -5,7 +5,7 @@ Tests for vector_manager module
 import os
 from unittest.mock import MagicMock, patch
 
-from django.test import TestCase, override_settings
+from django.test import SimpleTestCase, override_settings
 
 from app.infrastructure.external.vector_store import (
     PGVectorManager,
@@ -15,7 +15,7 @@ from app.infrastructure.external.vector_store import (
 )
 
 
-class PGVectorManagerTests(TestCase):
+class PGVectorManagerTests(SimpleTestCase):
     """Tests for PGVectorManager class"""
 
     def setUp(self):
@@ -142,7 +142,7 @@ class PGVectorManagerTests(TestCase):
         )
 
 
-class DeleteVideoVectorsTests(TestCase):
+class DeleteVideoVectorsTests(SimpleTestCase):
     """Tests for delete_video_vectors function"""
 
     @patch.object(PGVectorManager, "_get_management_store")
@@ -164,7 +164,7 @@ class DeleteVideoVectorsTests(TestCase):
         mock_logger.warning.assert_called()
 
 
-class UpdateVideoTitleTests(TestCase):
+class UpdateVideoTitleTests(SimpleTestCase):
     """Tests for update_video_title_in_vectors function"""
 
     @patch("django.db.connection")
@@ -195,7 +195,7 @@ class UpdateVideoTitleTests(TestCase):
         self.assertEqual(result, 0)
 
 
-class DeleteAllVectorsTests(TestCase):
+class DeleteAllVectorsTests(SimpleTestCase):
     """Tests for delete_all_vectors function"""
 
     @patch("django.db.connection")

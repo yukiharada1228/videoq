@@ -5,7 +5,7 @@ Tests for scene_otsu SceneSplitter class
 from unittest.mock import MagicMock, patch
 
 import numpy as np
-from django.test import TestCase, override_settings
+from django.test import SimpleTestCase, override_settings
 
 from app.infrastructure.scene_otsu.splitter import SceneSplitter
 
@@ -13,7 +13,7 @@ from app.infrastructure.scene_otsu.splitter import SceneSplitter
 @override_settings(
     EMBEDDING_PROVIDER="openai", EMBEDDING_MODEL="text-embedding-3-small"
 )
-class SceneSplitterInitializationTests(TestCase):
+class SceneSplitterInitializationTests(SimpleTestCase):
     """Tests for SceneSplitter initialization"""
 
     @patch("app.infrastructure.scene_otsu.splitter.create_embedder")
@@ -34,7 +34,7 @@ class SceneSplitterInitializationTests(TestCase):
 @override_settings(
     EMBEDDING_PROVIDER="openai", EMBEDDING_MODEL="text-embedding-3-small"
 )
-class SceneSplitterOtsuThresholdTests(TestCase):
+class SceneSplitterOtsuThresholdTests(SimpleTestCase):
     """Tests for SceneSplitter._find_otsu_threshold"""
 
     @patch("app.infrastructure.scene_otsu.splitter.create_embedder")
@@ -89,7 +89,7 @@ class SceneSplitterOtsuThresholdTests(TestCase):
 @override_settings(
     EMBEDDING_PROVIDER="openai", EMBEDDING_MODEL="text-embedding-3-small"
 )
-class SceneSplitterSplitLongTextTests(TestCase):
+class SceneSplitterSplitLongTextTests(SimpleTestCase):
     """Tests for SceneSplitter._split_long_text"""
 
     @patch("app.infrastructure.scene_otsu.splitter.create_embedder")
@@ -139,7 +139,7 @@ class SceneSplitterSplitLongTextTests(TestCase):
 @override_settings(
     EMBEDDING_PROVIDER="openai", EMBEDDING_MODEL="text-embedding-3-small"
 )
-class SceneSplitterProcessTests(TestCase):
+class SceneSplitterProcessTests(SimpleTestCase):
     """Tests for SceneSplitter.process"""
 
     @patch("app.infrastructure.scene_otsu.splitter.create_embedder")
@@ -226,7 +226,7 @@ Single subtitle"""
 @override_settings(
     EMBEDDING_PROVIDER="openai", EMBEDDING_MODEL="text-embedding-3-small"
 )
-class SceneSplitterTokenPrefixSumTests(TestCase):
+class SceneSplitterTokenPrefixSumTests(SimpleTestCase):
     """Tests for SceneSplitter._calculate_token_prefix_sum"""
 
     @patch("app.infrastructure.scene_otsu.splitter.create_embedder")

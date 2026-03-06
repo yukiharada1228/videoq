@@ -2,7 +2,7 @@
 Tests for common responses module
 """
 
-from django.test import TestCase
+import unittest
 from rest_framework import status
 
 from app.presentation.common.responses import (create_created_response,
@@ -11,7 +11,7 @@ from app.presentation.common.responses import (create_created_response,
                                                create_success_response)
 
 
-class ResponseHelpersTests(TestCase):
+class ResponseHelpersTests(unittest.TestCase):
     """Tests for response helper functions"""
 
     def test_create_error_response(self):

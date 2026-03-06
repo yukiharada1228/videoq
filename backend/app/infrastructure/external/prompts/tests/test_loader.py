@@ -7,13 +7,13 @@ import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
-from django.test import TestCase
+from django.test import SimpleTestCase
 
 from app.infrastructure.external.prompts.loader import (PromptConfigurationError,
                                                          build_system_prompt)
 
 
-class PromptLoaderTests(TestCase):
+class PromptLoaderTests(SimpleTestCase):
     """Tests for prompt loader functions"""
 
     def setUp(self):
