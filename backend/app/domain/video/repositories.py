@@ -86,18 +86,8 @@ class VideoTranscriptionRepository(ABC):
         ...
 
     @abstractmethod
-    def mark_processing(self, video_id: int) -> None:
-        """Mark a video as being processed."""
-        ...
-
-    @abstractmethod
-    def mark_completed(self, video_id: int) -> None:
-        """Mark a video as completed."""
-        ...
-
-    @abstractmethod
-    def mark_error(self, video_id: int, error_message: str) -> None:
-        """Mark a video as failed with an error message."""
+    def save(self, video: VideoEntity) -> None:
+        """Persist the current state of a video entity (status, error_message, transcript)."""
         ...
 
     @abstractmethod

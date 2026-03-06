@@ -6,6 +6,7 @@ from typing import List, Tuple
 
 from app.domain.video.exceptions import (
     GroupVideoOrderMismatch as DomainGroupVideoOrderMismatch,
+    ShareLinkNotFound as DomainShareLinkNotFound,
     SomeVideosNotFound,
     VideoAlreadyInGroup as DomainVideoAlreadyInGroup,
     VideoNotInGroup as DomainVideoNotInGroup,
@@ -159,7 +160,8 @@ class CreateShareLinkUseCase:
             raise ResourceNotFound("Group")
 
         share_token = ShareLinkService.generate_token()
-        self.group_repo.update_share_token(group, share_token)
+        group.enable_sharing(share_token)
+        self.group_repo.update_share_token(group, group.share_token)
         return share_token
 
 
@@ -178,7 +180,9 @@ class DeleteShareLinkUseCase:
         if group is None:
             raise ResourceNotFound("Group")
 
-        if not group.share_token:
+        try:
+            group.disable_sharing()
+        except DomainShareLinkNotFound:
             raise ResourceNotFound("Share link")
 
         self.group_repo.update_share_token(group, None)

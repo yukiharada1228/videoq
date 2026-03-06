@@ -268,14 +268,11 @@ class DjangoVideoRepository(VideoRepository):
             return None
         return _video_to_entity(video)
 
-    def mark_processing(self, video_id: int) -> None:
-        Video.objects.filter(id=video_id).update(status="processing", error_message="")
-
-    def mark_completed(self, video_id: int) -> None:
-        Video.objects.filter(id=video_id).update(status="completed", error_message="")
-
-    def mark_error(self, video_id: int, error_message: str) -> None:
-        Video.objects.filter(id=video_id).update(status="error", error_message=error_message)
+    def save(self, video: VideoEntity) -> None:
+        Video.objects.filter(id=video.id).update(
+            status=video.status,
+            error_message=video.error_message or "",
+        )
 
     def save_transcript(self, video_id: int, transcript: str) -> None:
         Video.objects.filter(id=video_id).update(transcript=transcript)
