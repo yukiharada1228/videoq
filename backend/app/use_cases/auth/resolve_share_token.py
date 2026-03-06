@@ -2,7 +2,8 @@
 Use case: resolve share token authentication context.
 """
 
-from app.domain.auth.ports import ShareAuthContextDTO, ShareTokenResolverPort
+from app.domain.auth.dtos import ShareAuthContextDTO
+from app.domain.auth.ports import ShareTokenResolverPort
 
 
 class ResolveShareTokenUseCase:

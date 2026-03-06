@@ -1,7 +1,7 @@
 """
 Use-case DTOs for the video domain.
 - Input DTOs: public API for callers (presentation layer).
-- Response DTOs: output boundary — entities + resolved file_url.
+- Response DTOs: output boundary with resolved file_url.
 """
 
 from __future__ import annotations
@@ -10,7 +10,6 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import List, Optional
 
-from app.domain.video.entities import TagEntity
 from app.domain.video.types import BinarySource
 
 
@@ -68,11 +67,23 @@ class UpdateTagInput:
 # ---------------------------------------------------------------------------
 
 
+@dataclass(frozen=True)
+class TagResponseDTO:
+    """Use-case output DTO for a tag attached to a video."""
+
+    id: int
+    user_id: int
+    name: str
+    color: str
+    video_count: int = 0
+    created_at: Optional[datetime] = None
+
+
 @dataclass
 class VideoResponseDTO:
     """
     Use-case output DTO for a single video.
-    Carries all VideoEntity fields plus the resolved file_url.
+    Carries all video fields plus the resolved file_url.
     """
 
     id: int
@@ -85,7 +96,7 @@ class VideoResponseDTO:
     error_message: Optional[str] = None
     uploaded_at: Optional[datetime] = None
     transcript: Optional[str] = None
-    tags: List[TagEntity] = field(default_factory=list)
+    tags: List[TagResponseDTO] = field(default_factory=list)
 
 
 @dataclass

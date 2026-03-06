@@ -2,7 +2,8 @@
 Use case: resolve API key authentication context.
 """
 
-from app.domain.auth.ports import ApiKeyAuthContextDTO, ApiKeyResolverPort
+from app.domain.auth.dtos import ApiKeyAuthContextDTO
+from app.domain.auth.ports import ApiKeyResolverPort
 
 
 class ResolveApiKeyUseCase:

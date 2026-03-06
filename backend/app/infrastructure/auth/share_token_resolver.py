@@ -2,7 +2,7 @@
 Django ORM implementation of share-token resolver.
 """
 
-from app.domain.auth.ports import ShareAuthContextDTO
+from app.domain.auth.dtos import ShareAuthContextDTO
 from app.models import VideoGroup
 
 

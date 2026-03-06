@@ -2,7 +2,8 @@
 Use case: Refresh a JWT access token using a refresh token string.
 """
 
-from app.domain.auth.ports import TokenGateway, TokenPairDto
+from app.domain.auth.dtos import TokenPairDto
+from app.domain.auth.ports import TokenGateway
 from app.domain.shared.exceptions import TokenInvalidError
 from app.use_cases.auth.exceptions import InvalidToken
 

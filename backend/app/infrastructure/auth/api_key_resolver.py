@@ -3,7 +3,7 @@ Django ORM implementation of API key resolver.
 """
 
 from app.domain.auth.entities import ACCESS_LEVEL_READ_ONLY
-from app.domain.auth.ports import ApiKeyAuthContextDTO
+from app.domain.auth.dtos import ApiKeyAuthContextDTO
 from app.models import UserApiKey
 
 SCOPE_READ = "read"
