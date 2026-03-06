@@ -13,6 +13,7 @@ from app.domain.video.dto import (
     UpdateGroupParams,
     UpdateTagParams,
     UpdateVideoParams,
+    VideoListQuery,
 )
 from app.domain.video.entities import (
     TagEntity,
@@ -34,14 +35,9 @@ class VideoRepository(ABC):
     def list_for_user(
         self,
         user_id: int,
-        q: str = "",
-        status: str = "",
-        ordering: str = "",
-        tag_ids: Optional[List[int]] = None,
-        include_transcript: bool = False,
-        include_groups: bool = False,
+        query: Optional[VideoListQuery] = None,
     ) -> List[VideoEntity]:
-        """List videos for a user with optional filters."""
+        """List videos for a user with optional filters specified via VideoListQuery."""
         ...
 
     @abstractmethod

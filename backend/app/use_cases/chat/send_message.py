@@ -10,6 +10,7 @@ from app.domain.chat.gateways import LLMConfigurationError as _DomainLLMConfigEr
 from app.domain.chat.gateways import LLMProviderError as _DomainLLMProviderError
 from app.domain.chat.gateways import RagGateway
 from app.domain.chat.repositories import ChatRepository, VideoGroupQueryRepository
+from app.use_cases.chat.dto import ChatMessageInput
 from app.use_cases.chat.exceptions import LLMConfigurationError, LLMProviderError
 from app.use_cases.shared.exceptions import PermissionDenied, ResourceNotFound
 
@@ -46,7 +47,7 @@ class SendMessageUseCase:
     def execute(
         self,
         user_id: Optional[int],
-        messages: List[ChatMessageDTO],
+        messages: List[ChatMessageInput],
         group_id: Optional[int] = None,
         share_token: Optional[str] = None,
         is_shared: bool = False,
@@ -55,7 +56,7 @@ class SendMessageUseCase:
         """
         Args:
             user_id: ID of the authenticated user (None only for share-token flows).
-            messages: Conversation history as typed DTO messages.
+            messages: Conversation history as ChatMessageInput (use-case boundary DTO).
             group_id: Optional group ID for RAG retrieval.
             share_token: Optional share token (shared access flow).
             is_shared: Whether the request originates from a share token.
@@ -70,6 +71,9 @@ class SendMessageUseCase:
             LLMConfigurationError: If the LLM cannot be configured.
             LLMProviderError: If the LLM provider returns an error.
         """
+        # Map input DTOs to domain DTOs before passing to gateway
+        domain_messages = [ChatMessageDTO(role=m.role, content=m.content) for m in messages]
+
         group = None
         if group_id is not None:
             if is_shared and share_token:
@@ -91,7 +95,7 @@ class SendMessageUseCase:
 
         try:
             rag_result = self.rag_gateway.generate_reply(
-                messages=messages,
+                messages=domain_messages,
                 user_id=owner_user_id,
                 video_ids=video_ids,
                 locale=locale,

@@ -5,10 +5,24 @@ No Django / ORM / external service dependencies.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Optional
+from dataclasses import dataclass, field
+from typing import List, Optional
 
 from app.domain.video.types import UploadedFileLike
+
+
+@dataclass(frozen=True)
+class VideoListQuery:
+    """
+    Query object for VideoRepository.list_for_user.
+    Groups all filtering / ordering options into a single, intention-revealing parameter
+    instead of a flat list of keyword arguments.
+    """
+
+    q: str = ""
+    status: str = ""
+    ordering: str = ""
+    tag_ids: Optional[List[int]] = field(default=None)
 
 
 @dataclass(frozen=True)

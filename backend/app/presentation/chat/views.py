@@ -12,9 +12,9 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from app.domain.chat.dtos import ChatMessageDTO
 from app.presentation.common.authentication import APIKeyAuthentication, CookieJWTAuthentication
 from app.dependencies import chat as chat_dependencies
+from app.use_cases.chat.dto import ChatMessageInput
 from app.presentation.common.permissions import (
     ApiKeyScopePermission,
     IsAuthenticatedOrSharedAccess,
@@ -92,7 +92,7 @@ class ChatView(APIView):
         if not raw_messages:
             return create_error_response("Messages are empty", status.HTTP_400_BAD_REQUEST)
 
-        message_dtos = [ChatMessageDTO.from_dict(m) for m in raw_messages]
+        message_dtos = [ChatMessageInput(role=str(m.get("role", "")), content=str(m.get("content", ""))) for m in raw_messages]
 
         use_case = chat_dependencies.get_send_message_use_case()
         try:

@@ -109,62 +109,90 @@ graph TB
 
 ## Layer-by-Layer Detailed Configuration
 
+### Frontend
+
 ```mermaid
 graph TB
-    subgraph Presentation["Presentation Layer"]
+    subgraph Presentation["Presentation Layer (Frontend)"]
         P1[React Components]
         P2[React Router Routes]
         P3[UI Components]
         P4[Custom Hooks]
     end
-    
-    subgraph API["API Layer"]
-        A1[REST API Endpoints]
-        A2[Serializers]
-        A3[View Classes]
-        A4[Authentication]
+
+    subgraph Lib["Libraries"]
+        L1[apiClient]
+        L2[TanStack Query]
     end
-    
-    subgraph Business["Business Logic Layer"]
-        B1[Services]
-        B2[Tasks]
-        B3[Utils]
-        B4[Managers]
-    end
-    
-    subgraph DataAccess["Data Access Layer"]
-        D1[Django ORM]
-        D2[Models]
-        D3[Query Optimizers]
-        D4[Vector Manager]
-    end
-    
-    subgraph Infrastructure["Infrastructure Layer"]
-        I1[PostgreSQL]
-        I2[Redis]
-        I3[File Storage]
-        I4[pgvector]
-    end
-    
+
     P1 --> P2
     P2 --> P3
     P3 --> P4
-    P4 --> A1
-    A1 --> A2
-    A2 --> A3
-    A3 --> A4
-    A3 --> B1
-    B1 --> B2
-    B2 --> B3
-    B3 --> B4
-    B4 --> D1
-    D1 --> D2
-    D2 --> D3
-    D3 --> D4
-    D4 --> I1
-    D4 --> I4
-    B2 --> I2
-    B1 --> I3
+    P4 --> L1
+    P4 --> L2
+```
+
+### Backend (Clean Architecture)
+
+```mermaid
+graph TB
+    subgraph Presentation["presentation/"]
+        PV[Views - thin HTTP layer]
+        PS[Serializers]
+        PC[get_container - DI entry point]
+    end
+
+    subgraph UseCases["use_cases/"]
+        UV[video/ - CreateVideo, GetVideo, ListVideos, UpdateVideo, FileUrl, GetGroup, GetTag, ReindexAllVideos, RunTranscription]
+        UC[chat/ - SendMessage]
+        UA[auth/ - Login, Signup, VerifyEmail, ResetPassword, GetCurrentUser, DeleteAccount, APIKeys]
+        UM[media/ - ResolveProtectedMedia]
+        US[shared/ - ResourceNotFound, PermissionDenied]
+    end
+
+    subgraph Domain["domain/"]
+        DV[video/ - VideoEntity, VideoRepository ABC, VideoTaskGateway, VectorIndexingGateway, TranscriptionGateway]
+        DC[chat/ - ChatRepository ABC, RagGateway ABC]
+        DA[auth/ - UserRepository ABC, TokenGateway, UserAuthGateway, UserManagementGateway, AuthTaskGateway]
+        DM[media/ - ProtectedMediaRepository ABC]
+        DU[user/ - UserEntity]
+    end
+
+    subgraph Infrastructure["infrastructure/"]
+        IR[repositories/ - DjangoVideoRepository, DjangoChatRepository, DjangoUserRepository, DjangoMediaRepository]
+        IE[external/ - RagChatGateway, DjangoVectorIndexingGateway, WhisperTranscriptionGateway, scene_indexer]
+        IT[transcription/ - WhisperTranscriptionGateway, audio_processing, srt_processing, DjangoVideoFileAccessor]
+        IA[auth/ - SimpleJWTGateway, DjangoUserAuthGateway, CookieJWTValidator]
+        ITk[tasks/ - CeleryVideoTaskGateway, CeleryAuthTaskGateway]
+        IC[chat/ - JanomeNltkKeywordExtractor]
+    end
+
+    subgraph Container["Composition Root"]
+        CF[factories.py + container.py]
+        CDI[dependencies/*.py]
+        CCR[composition_root/*.py]
+        CK[contracts/ - task name constants]
+    end
+
+    subgraph Infra["Infrastructure (external)"]
+        I1[(PostgreSQL + pgvector)]
+        I2[(Redis)]
+        I3[File Storage / S3]
+        I4[OpenAI / Ollama API]
+        I5[Celery Tasks]
+    end
+
+    PV --> PC
+    PC --> CF
+    CF --> UseCases
+    CF --> Infrastructure
+    UseCases --> Domain
+    Infrastructure --> Domain
+    Infrastructure --> I1
+    Infrastructure --> I2
+    Infrastructure --> I3
+    Infrastructure --> I4
+    Infrastructure --> I5
 ```
 
 ## Network Configuration

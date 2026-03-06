@@ -280,68 +280,112 @@ classDiagram
     QueryProvider --> I18nProvider : wraps
 ```
 
-## Backend Views (Django REST Framework)
+## Backend Use Cases & Views (Clean Architecture)
+
+### Use Case Interfaces
 
 ```mermaid
 classDiagram
-    class BaseVideoView {
-        +get_queryset()
-        +should_include_groups()
-        +should_include_transcript()
+    class CreateVideoUseCase {
+        +execute(user_id, video_limit, validated_data) VideoOutputDTO
     }
-    
+    class GetVideoUseCase {
+        +execute(video_id, user_id) VideoOutputDTO
+    }
+    class ListVideosUseCase {
+        +execute(user_id, filters) list~VideoOutputDTO~
+    }
+    class UpdateVideoUseCase {
+        +execute(video_id, user_id, data) VideoOutputDTO
+    }
+    class GetGroupUseCase {
+        +execute(group_id, user_id) GroupOutputDTO
+    }
+    class GetTagUseCase {
+        +execute(user_id) list~TagOutputDTO~
+    }
+    class SendMessageUseCase {
+        +execute(user_id, messages, group_id, locale) ChatOutputDTO
+    }
+    class LoginUseCase {
+        +execute(username, password) TokenPairDto
+    }
+    class SignupUserUseCase {
+        +execute(validated_data) UserEntity
+    }
+    class GetCurrentUserUseCase {
+        +execute(user_id) UserEntity
+    }
+    class AccountDeletionUseCase {
+        +execute(user_id, reason) None
+    }
+    class ResolveProtectedMediaUseCase {
+        +execute(path, user) str
+    }
+    class RunTranscriptionUseCase {
+        +execute(video_id) None
+    }
+    class ReindexAllVideosUseCase {
+        +execute() None
+    }
+```
+
+### Presentation Views (thin — delegate to use cases via container)
+
+```mermaid
+classDiagram
     class VideoListView {
-        +serializer_map
-        +get_queryset()
-        +create()
+        +get() list response
+        +post() created response
     }
-    
     class VideoDetailView {
-        +serializer_map
-        +should_include_groups()
-        +should_include_transcript()
-        +update()
-        +destroy()
+        +get() detail response
+        +patch() updated response
+        +delete() success response
     }
-    
-    class BaseVideoGroupView {
-        +_get_filtered_queryset()
-    }
-    
     class VideoGroupListView {
-        +serializer_map
-        +get_queryset()
+        +get() list response
+        +post() created response
     }
-    
     class VideoGroupDetailView {
-        +serializer_map
-        +get_queryset()
+        +get() detail response
+        +patch() updated response
+        +delete() success response
     }
-    
     class ChatView {
-        +post()
+        +post() answer response
     }
-    
-    class AccountDeleteView {
-        +delete()
-    }
-    
     class ChatHistoryView {
-        +get_queryset()
+        +get() history list response
     }
-    
     class LoginView {
-        +post()
+        +post() sets JWT cookies
     }
-    
+    class RefreshView {
+        +post() refreshes JWT cookies
+    }
     class UserSignupView {
-        +create()
+        +post() created response
     }
-    
-    BaseVideoView <|-- VideoListView
-    BaseVideoView <|-- VideoDetailView
-    BaseVideoGroupView <|-- VideoGroupListView
-    BaseVideoGroupView <|-- VideoGroupDetailView
+    class AccountDeleteView {
+        +delete() deactivates account, clears cookies
+    }
+    class CurrentUserView {
+        +get() user detail response
+    }
+    class ProtectedMediaView {
+        +get() redirects to signed media URL
+    }
+
+    VideoListView ..> CreateVideoUseCase : delegates
+    VideoListView ..> ListVideosUseCase : delegates
+    VideoDetailView ..> GetVideoUseCase : delegates
+    VideoDetailView ..> UpdateVideoUseCase : delegates
+    ChatView ..> SendMessageUseCase : delegates
+    LoginView ..> LoginUseCase : delegates
+    AccountDeleteView ..> AccountDeletionUseCase : delegates
+    CurrentUserView ..> GetCurrentUserUseCase : delegates
+    ProtectedMediaView ..> ResolveProtectedMediaUseCase : delegates
 ```
 
 ## Key Relationships
@@ -352,6 +396,9 @@ classDiagram
 - **VideoGroup** relates to multiple **Video** instances through **VideoGroupMember**
 - **ChatLog** is associated with **User** and **VideoGroup**
 - **Video** uses **SafeFileSystemStorage** or **SafeS3Boto3Storage**
+- **Presentation views** delegate to **Use Cases** via `get_container()` (never import infrastructure directly)
+- **Use Cases** depend only on **Domain** abstractions (ABCs / ports)
+- **Infrastructure** implements **Domain** ports (repositories, gateways)
 
 ### Frontend
 - **PageLayout** contains **Header** and **Footer**
