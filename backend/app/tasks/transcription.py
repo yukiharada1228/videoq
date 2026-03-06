@@ -7,7 +7,7 @@ import logging
 
 from celery import shared_task
 
-from app.container import get_container
+from app.dependencies.tasks import get_run_transcription_use_case
 
 logger = logging.getLogger(__name__)
 
@@ -19,8 +19,9 @@ def transcribe_video(self, video_id):
     Retry up to 3 times on failure (60s, 120s, 180s backoff).
     """
     logger.info("Transcription task started for video ID: %d", video_id)
+    run_transcription_use_case = get_run_transcription_use_case()
     try:
-        get_container().get_run_transcription_use_case().execute(video_id)
+        run_transcription_use_case.execute(video_id)
         logger.info("Successfully processed video %d", video_id)
     except Exception as e:
         if self.request.retries < self.max_retries:

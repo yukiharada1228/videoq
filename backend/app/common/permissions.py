@@ -4,19 +4,28 @@ from rest_framework.authentication import BaseAuthentication
 from rest_framework.permissions import BasePermission
 from rest_framework.request import Request
 
-from app.container import get_container
-from app.use_cases.auth.authorize_api_key import SCOPE_READ, SCOPE_WRITE
+from app.dependencies.auth import (
+    get_authorize_api_key_use_case,
+    get_resolve_share_token_use_case,
+)
+from app.domain.auth.scopes import SCOPE_READ, SCOPE_WRITE
 
 
 class ShareTokenAuthentication(BaseAuthentication):
     """Simple authentication using share token"""
+
+    resolve_share_token_use_case_factory = staticmethod(get_resolve_share_token_use_case)
+
+    def __init__(self, resolve_share_token_use_case_factory=None):
+        if resolve_share_token_use_case_factory is not None:
+            self.resolve_share_token_use_case_factory = resolve_share_token_use_case_factory
 
     def authenticate(self, request: Request):
         share_token = request.query_params.get("share_token")
         if not share_token:
             return None
 
-        resolved = get_container().get_resolve_share_token_use_case().execute(share_token)
+        resolved = self.resolve_share_token_use_case_factory().execute(share_token)
         if resolved is None:
             return None
 
@@ -41,6 +50,11 @@ class ApiKeyScopePermission(BasePermission):
     """Authorize requests authenticated by API key using use-case policy."""
 
     message = "This API key does not have permission for this action."
+    authorize_api_key_use_case_factory = staticmethod(get_authorize_api_key_use_case)
+
+    def __init__(self, authorize_api_key_use_case_factory=None):
+        if authorize_api_key_use_case_factory is not None:
+            self.authorize_api_key_use_case_factory = authorize_api_key_use_case_factory
 
     def has_permission(self, request, view):
         auth = getattr(request, "auth", None)
@@ -55,7 +69,7 @@ class ApiKeyScopePermission(BasePermission):
         if not required_scope:
             return True
 
-        use_case = get_container().get_authorize_api_key_use_case()
+        use_case = self.authorize_api_key_use_case_factory()
         return use_case.execute(
             access_level=auth["access_level"],
             required_scope=required_scope,

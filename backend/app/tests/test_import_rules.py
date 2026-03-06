@@ -409,3 +409,31 @@ class ImportRulesTest(unittest.TestCase):
             "common must not reference ORM manager '.objects':\n"
             + "\n".join(f"  {v}" for v in violations),
         )
+
+    def _assert_no_get_container_calls(self, rel_paths):
+        violations = []
+        for rel_path in rel_paths:
+            abs_path = APP_ROOT / rel_path
+            if not abs_path.exists():
+                continue
+            with open(abs_path) as f:
+                source = f.read()
+            tree = ast.parse(source)
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Name) and node.id == "get_container":
+                    violations.append(f"app/{rel_path}:{node.lineno}")
+        self.assertEqual(
+            [],
+            violations,
+            "Direct get_container usage is forbidden in migrated entrypoints:\n"
+            + "\n".join(f"  {v}" for v in violations),
+        )
+
+    def test_migrated_presentation_has_no_get_container_calls(self):
+        self._assert_no_get_container_calls(["presentation/video/views.py"])
+
+    def test_migrated_common_has_no_get_container_calls(self):
+        self._assert_no_get_container_calls(["common/permissions.py"])
+
+    def test_migrated_tasks_has_no_get_container_calls(self):
+        self._assert_no_get_container_calls(["tasks/transcription.py"])
