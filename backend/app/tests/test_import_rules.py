@@ -703,6 +703,12 @@ class ImportRulesTest(unittest.TestCase):
             paths.append(rel)
         return paths
 
+    def _iter_use_case_dto_files(self):
+        for fp in sorted(self._iter_layer_source_files("use_cases")):
+            name = Path(fp).name
+            if name in {"dto.py", "dtos.py"}:
+                yield fp
+
     def test_presentation_has_no_get_container_calls(self):
         self._assert_no_get_container_calls(self._rel_paths_for_layer("presentation"))
 
@@ -873,6 +879,75 @@ class ImportRulesTest(unittest.TestCase):
             [],
             violations,
             "UseCase.execute return annotation must not reference domain DTOs:\n"
+            + "\n".join(f"  {v}" for v in violations),
+        )
+
+    def test_use_case_dto_annotations_have_no_any_or_bare_builtin_collections(self):
+        """
+        Use-case DTO type annotations must avoid Any and bare built-in collections.
+
+        Disallowed in annotation refs:
+          - Any
+          - list / dict / set / tuple (without explicit type args)
+        """
+        violations = []
+        disallowed_bare = {"list", "dict", "set", "tuple"}
+
+        def _is_any_name(n):
+            return (
+                isinstance(n, ast.Name)
+                and n.id == "Any"
+            ) or (
+                isinstance(n, ast.Attribute)
+                and n.attr == "Any"
+            )
+
+        def _is_bare_builtin_collection(n):
+            return isinstance(n, ast.Name) and n.id in disallowed_bare
+
+        def _annotation_has_disallowed(n):
+            if n is None:
+                return None
+            if _is_any_name(n):
+                return "Any"
+            if _is_bare_builtin_collection(n):
+                return n.id
+            if isinstance(n, ast.Subscript):
+                # Typed collections like list[str] are allowed;
+                # only inspect their type arguments.
+                return _annotation_has_disallowed(n.slice)
+            if isinstance(n, ast.Tuple):
+                for elt in n.elts:
+                    bad = _annotation_has_disallowed(elt)
+                    if bad:
+                        return bad
+                return None
+            if isinstance(n, ast.BinOp) and isinstance(n.op, ast.BitOr):
+                left_bad = _annotation_has_disallowed(n.left)
+                if left_bad:
+                    return left_bad
+                return _annotation_has_disallowed(n.right)
+            return None
+
+        for fp in self._iter_use_case_dto_files():
+            with open(fp) as f:
+                source = f.read()
+            tree = ast.parse(source)
+            for node in ast.walk(tree):
+                if not isinstance(node, (ast.AnnAssign, ast.arg)):
+                    continue
+                annotation = node.annotation
+                if annotation is None:
+                    continue
+                bad = _annotation_has_disallowed(annotation)
+                if bad:
+                    rel = os.path.relpath(fp, BASE)
+                    lineno = getattr(node, "lineno", 1)
+                    violations.append(f"{rel}:{lineno} -> {bad}")
+        self.assertEqual(
+            [],
+            violations,
+            "Use-case DTO annotations must not use Any or bare list/dict/set/tuple:\n"
             + "\n".join(f"  {v}" for v in violations),
         )
 

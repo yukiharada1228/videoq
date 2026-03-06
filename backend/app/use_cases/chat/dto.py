@@ -6,7 +6,7 @@ DTOs for chat use cases.
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Sequence
+from typing import List, Optional, Sequence
 
 
 @dataclass(frozen=True)
@@ -48,7 +48,7 @@ class ChatHistoryExportRow:
     question: str
     answer: str
     is_shared_origin: bool
-    related_videos: List[Dict[str, Any]]
+    related_videos: List[RelatedVideoResponseDTO]
     feedback: Optional[str]
 
 
@@ -60,7 +60,7 @@ class ChatLogResponseDTO:
     group_id: int
     question: str
     answer: str
-    related_videos: List[Dict[str, Any]]
+    related_videos: List[RelatedVideoResponseDTO]
     is_shared_origin: bool
     feedback: Optional[str]
     created_at: Optional[datetime] = None
@@ -103,8 +103,41 @@ class ChatAnalyticsDTO:
     """Output of GetChatAnalyticsUseCase."""
 
     total_questions: int
-    date_range: dict  # {"first": iso_str|None, "last": iso_str|None} or {}
+    date_range: "DateRangeDTO"
     scene_distribution: List[SceneDistributionItemDTO]
-    time_series: list
-    feedback: dict
-    keywords: list
+    time_series: List["TimeSeriesPointDTO"]
+    feedback: "FeedbackSummaryDTO"
+    keywords: List["KeywordCountDTO"]
+
+
+@dataclass(frozen=True)
+class DateRangeDTO:
+    """Date range metadata in ISO format."""
+
+    first: Optional[str]
+    last: Optional[str]
+
+
+@dataclass(frozen=True)
+class TimeSeriesPointDTO:
+    """A time-series data point for analytics."""
+
+    date: str
+    count: int
+
+
+@dataclass(frozen=True)
+class FeedbackSummaryDTO:
+    """Feedback counters used in analytics responses."""
+
+    good: int
+    bad: int
+    none: int
+
+
+@dataclass(frozen=True)
+class KeywordCountDTO:
+    """Keyword count pair used in analytics responses."""
+
+    word: str
+    count: int

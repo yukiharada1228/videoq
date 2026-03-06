@@ -5,7 +5,7 @@ Use case: Export chat history for a group as domain rows.
 from typing import Generator, Iterable
 
 from app.domain.chat.repositories import ChatRepository, VideoGroupQueryRepository
-from app.use_cases.chat.dto import ChatHistoryExportRow
+from app.use_cases.chat.dto import ChatHistoryExportRow, RelatedVideoResponseDTO
 from app.use_cases.shared.exceptions import ResourceNotFound
 
 
@@ -49,12 +49,12 @@ class ExportChatHistoryUseCase:
                 answer=log.answer,
                 is_shared_origin=log.is_shared_origin,
                 related_videos=[
-                    {
-                        "video_id": video.video_id,
-                        "title": video.title,
-                        "start_time": video.start_time,
-                        "end_time": video.end_time,
-                    }
+                    RelatedVideoResponseDTO(
+                        video_id=video.video_id,
+                        title=video.title,
+                        start_time=video.start_time,
+                        end_time=video.end_time,
+                    )
                     for video in log.related_videos
                 ],
                 feedback=log.feedback,

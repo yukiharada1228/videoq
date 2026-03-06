@@ -26,6 +26,13 @@ class ChatResponseSerializer(serializers.Serializer):
     feedback = serializers.CharField(required=False, allow_null=True)
 
 
+class RelatedVideoSerializer(serializers.Serializer):
+    video_id = serializers.IntegerField()
+    title = serializers.CharField()
+    start_time = serializers.CharField(allow_null=True, required=False)
+    end_time = serializers.CharField(allow_null=True, required=False)
+
+
 class ChatFeedbackRequestSerializer(serializers.Serializer):
     chat_log_id = serializers.IntegerField()
     feedback = serializers.ChoiceField(
@@ -45,7 +52,7 @@ class ChatLogSerializer(serializers.Serializer):
     group = serializers.IntegerField(source="group_id")
     question = serializers.CharField()
     answer = serializers.CharField()
-    related_videos = serializers.ListField(child=serializers.DictField())
+    related_videos = RelatedVideoSerializer(many=True)
     is_shared_origin = serializers.BooleanField()
     feedback = serializers.CharField(allow_null=True)
     created_at = serializers.DateTimeField()

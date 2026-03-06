@@ -76,7 +76,7 @@ class GetChatHistoryUseCaseTests(unittest.TestCase):
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0].id, 10)
         self.assertEqual(result[0].group_id, 5)
-        self.assertEqual(result[0].related_videos[0]["video_id"], 100)
+        self.assertEqual(result[0].related_videos[0].video_id, 100)
 
     def test_execute_raises_when_group_not_found(self):
         use_case = GetChatHistoryUseCase(
