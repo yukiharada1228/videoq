@@ -42,3 +42,15 @@ class DynamicSerializerMixin:
             return serializer_class
 
         return next(iter(self.serializer_map.values()))
+
+
+class DependencyResolverMixin:
+    """Resolve injected dependencies that may be instances or factory callables."""
+
+    @staticmethod
+    def resolve_dependency(dependency):
+        if dependency is None:
+            return None
+        if callable(dependency) and not hasattr(dependency, "execute"):
+            return dependency()
+        return dependency

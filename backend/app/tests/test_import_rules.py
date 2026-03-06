@@ -364,6 +364,10 @@ class ImportRulesTest(unittest.TestCase):
         """presentation must not depend on app.utils."""
         self._check("presentation", ["app.utils"])
 
+    def test_presentation_has_no_composition_root_imports(self):
+        """presentation must resolve wiring through app.dependencies, not app.composition_root."""
+        self._check("presentation", ["app.composition_root"])
+
     def test_no_queryset_in_domain_or_use_cases(self):
         """QuerySet must not appear in domain or use_cases source files."""
         for layer in ["domain", "use_cases"]:
