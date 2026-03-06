@@ -15,6 +15,20 @@ from rest_framework import serializers
 logger = logging.getLogger(__name__)
 
 
+def _resolve_file_url(file_key, context):
+    """Build an absolute media URL from file_key and serializer context."""
+    if not file_key:
+        return None
+    if str(file_key).startswith(("http://", "https://")):
+        return str(file_key)
+
+    request = context.get("request")
+    if request is None:
+        return None
+    media_url = settings.MEDIA_URL or "/media/"
+    return request.build_absolute_uri(f"{media_url}{str(file_key).lstrip('/')}")
+
+
 # ---------------------------------------------------------------------------
 # Output serializers (work with entity attributes)
 # ---------------------------------------------------------------------------
@@ -40,17 +54,7 @@ class VideoListSerializer(serializers.Serializer):
 
     @extend_schema_field(serializers.CharField(allow_null=True))
     def get_file(self, obj):
-        file_key = getattr(obj, "file_key", None)
-        if not file_key:
-            return None
-        if str(file_key).startswith(("http://", "https://")):
-            return str(file_key)
-
-        request = self.context.get("request")
-        if request is None:
-            return None
-        media_url = settings.MEDIA_URL or "/media/"
-        return request.build_absolute_uri(f"{media_url}{str(file_key).lstrip('/')}")
+        return _resolve_file_url(getattr(obj, "file_key", None), self.context)
 
 
 class VideoSerializer(serializers.Serializer):
@@ -76,17 +80,7 @@ class VideoSerializer(serializers.Serializer):
 
     @extend_schema_field(serializers.CharField(allow_null=True))
     def get_file(self, obj):
-        file_key = getattr(obj, "file_key", None)
-        if not file_key:
-            return None
-        if str(file_key).startswith(("http://", "https://")):
-            return str(file_key)
-
-        request = self.context.get("request")
-        if request is None:
-            return None
-        media_url = settings.MEDIA_URL or "/media/"
-        return request.build_absolute_uri(f"{media_url}{str(file_key).lstrip('/')}")
+        return _resolve_file_url(getattr(obj, "file_key", None), self.context)
 
 
 class VideoGroupListSerializer(serializers.Serializer):

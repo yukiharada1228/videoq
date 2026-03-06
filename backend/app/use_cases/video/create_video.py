@@ -60,8 +60,7 @@ class CreateVideoUseCase:
             raise VideoLimitExceeded(e.limit) from e
 
         params = CreateVideoParams(
-            file_name=input.file.name,
-            file_bytes=input.file.read(),
+            upload_file=input.file,
             title=input.title,
             description=input.description,
         )

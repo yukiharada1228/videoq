@@ -41,13 +41,21 @@ class RunTranscriptionUseCase:
         current_status.assert_transition_to(VideoStatus.PROCESSING)
 
         logger.info("Transcription started for video %d (%s)", video.id, video.title)
-        self.video_repo.mark_processing(video_id)
+        self.video_repo.transition_status(
+            video_id=video_id,
+            from_status=current_status,
+            to_status=VideoStatus.PROCESSING,
+        )
 
         try:
             transcript = self.transcription_gateway.run(video_id)
             self.video_repo.save_transcript(video_id, transcript)
             VideoStatus.PROCESSING.assert_transition_to(VideoStatus.COMPLETED)
-            self.video_repo.mark_completed(video_id)
+            self.video_repo.transition_status(
+                video_id=video_id,
+                from_status=VideoStatus.PROCESSING,
+                to_status=VideoStatus.COMPLETED,
+            )
             self.vector_gateway.index_video_transcript(
                 video.id, video.user_id, video.title, transcript
             )
@@ -56,5 +64,10 @@ class RunTranscriptionUseCase:
             error_msg = str(e)
             logger.error("Transcription failed for video %d: %s", video_id, error_msg)
             VideoStatus.PROCESSING.assert_transition_to(VideoStatus.ERROR)
-            self.video_repo.mark_error(video_id, error_msg)
+            self.video_repo.transition_status(
+                video_id=video_id,
+                from_status=VideoStatus.PROCESSING,
+                to_status=VideoStatus.ERROR,
+                error_message=error_msg,
+            )
             raise

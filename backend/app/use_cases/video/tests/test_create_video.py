@@ -51,7 +51,7 @@ class FakeVideoRepository:
             title=params.title,
             description=params.description,
             status="pending",
-            file_key=params.file_name,
+            file_key=params.upload_file.name,
         )
         self._videos[self._next_id] = video
         self._next_id += 1
@@ -133,8 +133,10 @@ class CreateVideoUseCaseTests(TestCase):
             self.repo.create(
                 self.user_id,
                 CreateVideoParams(
-                    file_name=f"seed-{i}.mp4",
-                    file_bytes=b"seed",
+                    upload_file=FakeUploadedFile(
+                        name=f"seed-{i}.mp4",
+                        content=b"seed",
+                    ),
                     title=f"Seed {i}",
                     description="",
                 ),

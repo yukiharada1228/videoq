@@ -15,6 +15,7 @@ from app.domain.video.dto import (
     UpdateVideoParams,
     VideoSearchCriteria,
 )
+from app.domain.video.status import VideoStatus
 from app.domain.video.entities import (
     TagEntity,
     VideoEntity,
@@ -86,18 +87,14 @@ class VideoTranscriptionRepository(ABC):
         ...
 
     @abstractmethod
-    def mark_processing(self, video_id: int) -> None:
-        """Mark a video as being processed."""
-        ...
-
-    @abstractmethod
-    def mark_completed(self, video_id: int) -> None:
-        """Mark a video as completed."""
-        ...
-
-    @abstractmethod
-    def mark_error(self, video_id: int, error_message: str) -> None:
-        """Mark a video as failed with an error message."""
+    def transition_status(
+        self,
+        video_id: int,
+        from_status: VideoStatus,
+        to_status: VideoStatus,
+        error_message: str = "",
+    ) -> None:
+        """Transition status atomically while validating current persisted status."""
         ...
 
     @abstractmethod
