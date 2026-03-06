@@ -5,12 +5,12 @@ Use case: Send a chat message with optional RAG context.
 from dataclasses import dataclass
 from typing import List, Optional, Sequence
 
-from app.domain.chat.dtos import ChatMessageDTO, RelatedVideoDTO
+from app.domain.chat.dtos import ChatMessageDTO
 from app.domain.chat.gateways import LLMConfigurationError as _DomainLLMConfigError
 from app.domain.chat.gateways import LLMProviderError as _DomainLLMProviderError
 from app.domain.chat.gateways import RagGateway
 from app.domain.chat.repositories import ChatRepository, VideoGroupQueryRepository
-from app.use_cases.chat.dto import ChatMessageInput
+from app.use_cases.chat.dto import ChatMessageInput, RelatedVideoResponseDTO
 from app.use_cases.chat.exceptions import LLMConfigurationError, LLMProviderError
 from app.use_cases.shared.exceptions import PermissionDenied, ResourceNotFound
 
@@ -20,7 +20,7 @@ class SendMessageResult:
     """Result returned from SendMessageUseCase."""
 
     content: str
-    related_videos: Optional[Sequence[RelatedVideoDTO]]
+    related_videos: Optional[Sequence[RelatedVideoResponseDTO]]
     chat_log_id: Optional[int]
     feedback: Optional[str]
 
@@ -122,7 +122,19 @@ class SendMessageUseCase:
 
         return SendMessageResult(
             content=rag_result.content,
-            related_videos=rag_result.related_videos if group_id is not None else None,
+            related_videos=(
+                [
+                    RelatedVideoResponseDTO(
+                        video_id=v.video_id,
+                        title=v.title,
+                        start_time=v.start_time,
+                        end_time=v.end_time,
+                    )
+                    for v in (rag_result.related_videos or [])
+                ]
+                if group_id is not None
+                else None
+            ),
             chat_log_id=chat_log_id,
             feedback=feedback,
         )

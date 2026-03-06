@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 
 from app.domain.chat.dtos import ChatMessageDTO, RelatedVideoDTO
 from app.domain.chat.gateways import RagResult
-from app.use_cases.chat.dto import ChatMessageInput
+from app.use_cases.chat.dto import ChatMessageInput, RelatedVideoResponseDTO
 from app.use_cases.chat.send_message import SendMessageUseCase
 from app.use_cases.shared.exceptions import PermissionDenied
 
@@ -16,28 +16,14 @@ class ChatDTOTests(unittest.TestCase):
         self.assertEqual(inp.role, "user")
         self.assertEqual(inp.content, "hello")
 
-    def test_related_video_dict_to_dto(self):
-        raw = {
-            "video_id": 10,
-            "title": "Intro",
-            "start_time": "00:00:05",
-            "end_time": "00:00:15",
-        }
-        dto = RelatedVideoDTO.from_dict(raw)
-        self.assertEqual(dto.video_id, 10)
-        self.assertEqual(dto.title, "Intro")
-        self.assertEqual(dto.start_time, "00:00:05")
-        self.assertEqual(dto.end_time, "00:00:15")
-        self.assertEqual(dto.to_dict(), raw)
-
-    def test_related_video_to_dict_roundtrip(self):
+    def test_related_video_dto_fields(self):
         dto = RelatedVideoDTO(
             video_id=42, title="Clip", start_time="00:01:00", end_time="00:01:20"
         )
-        self.assertEqual(
-            dto.to_dict(),
-            {"video_id": 42, "title": "Clip", "start_time": "00:01:00", "end_time": "00:01:20"},
-        )
+        self.assertEqual(dto.video_id, 42)
+        self.assertEqual(dto.title, "Clip")
+        self.assertEqual(dto.start_time, "00:01:00")
+        self.assertEqual(dto.end_time, "00:01:20")
 
 
 class SendMessageUseCaseBoundaryTests(unittest.TestCase):
@@ -72,8 +58,8 @@ class SendMessageUseCaseBoundaryTests(unittest.TestCase):
             "rag_gateway must receive ChatMessageDTO instances converted from ChatMessageInput",
         )
 
-    def test_result_related_videos_are_dtos(self):
-        """SendMessageResult.related_videos must contain RelatedVideoDTO instances."""
+    def test_result_related_videos_are_use_case_dtos(self):
+        """SendMessageResult.related_videos must contain RelatedVideoResponseDTO instances."""
         related = [RelatedVideoDTO(video_id=1, title="T", start_time="0", end_time="1")]
         rag_result = RagResult(content="reply", query_text="q", related_videos=related)
         use_case, chat_repo, group_query_repo, _ = self._make_use_case(rag_result)
@@ -90,8 +76,8 @@ class SendMessageUseCaseBoundaryTests(unittest.TestCase):
 
         self.assertIsNotNone(result.related_videos)
         self.assertTrue(
-            all(isinstance(v, RelatedVideoDTO) for v in result.related_videos),
-            "SendMessageResult.related_videos must contain RelatedVideoDTO instances",
+            all(isinstance(v, RelatedVideoResponseDTO) for v in result.related_videos),
+            "SendMessageResult.related_videos must contain RelatedVideoResponseDTO instances",
         )
 
     def test_create_log_receives_dto_sequence(self):

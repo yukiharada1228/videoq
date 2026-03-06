@@ -129,6 +129,18 @@ class VideoGroupDetailResponseDTO:
     members: List[VideoGroupMemberResponseDTO] = field(default_factory=list)
 
 
+@dataclass(frozen=True)
+class VideoGroupListResponseDTO:
+    """Use-case output DTO for video group list items."""
+
+    id: int
+    user_id: int
+    name: str
+    description: str
+    video_count: int
+    created_at: Optional[datetime] = None
+
+
 @dataclass
 class TagDetailResponseDTO:
     """

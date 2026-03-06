@@ -34,7 +34,10 @@ class RagChatGateway(RagGateway):
             raise LLMConfigurationError(str(e)) from e
 
         service = RagChatService(user=user, llm=llm)
-        raw_messages = [message.to_dict() for message in messages]
+        raw_messages = [
+            {"role": message.role, "content": message.content}
+            for message in messages
+        ]
         raw_video_ids = list(video_ids) if video_ids is not None else None
 
         try:
@@ -52,7 +55,12 @@ class RagChatGateway(RagGateway):
         related_videos = None
         if result.related_videos:
             related_videos = [
-                RelatedVideoDTO.from_dict(raw_video)
+                RelatedVideoDTO(
+                    video_id=int(raw_video.get("video_id", 0) or 0),
+                    title=str(raw_video.get("title", "")),
+                    start_time=raw_video.get("start_time"),
+                    end_time=raw_video.get("end_time"),
+                )
                 for raw_video in result.related_videos
             ]
 

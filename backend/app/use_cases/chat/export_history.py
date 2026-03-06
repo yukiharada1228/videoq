@@ -47,6 +47,14 @@ class ExportChatHistoryUseCase:
                 question=log.question,
                 answer=log.answer,
                 is_shared_origin=log.is_shared_origin,
-                related_videos=[video.to_dict() for video in log.related_videos],
+                related_videos=[
+                    {
+                        "video_id": video.video_id,
+                        "title": video.title,
+                        "start_time": video.start_time,
+                        "end_time": video.end_time,
+                    }
+                    for video in log.related_videos
+                ],
                 feedback=log.feedback,
             )

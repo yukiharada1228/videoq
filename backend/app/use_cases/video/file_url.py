@@ -13,6 +13,7 @@ from app.use_cases.video.dto import (
     TagDetailResponseDTO,
     TagResponseDTO,
     VideoGroupDetailResponseDTO,
+    VideoGroupListResponseDTO,
     VideoGroupMemberResponseDTO,
     VideoResponseDTO,
 )
@@ -61,6 +62,11 @@ def to_video_response_dtos(
     return [to_video_response_dto(v, file_url_resolver) for v in videos]
 
 
+def to_tag_response_dtos(tags: Iterable[TagEntity]) -> List[TagResponseDTO]:
+    """Convert a sequence of TagEntity to TagResponseDTO list."""
+    return [_to_tag_response_dto(t) for t in tags]
+
+
 def _member_to_response_dto(
     member: VideoGroupMemberEntity, file_url_resolver: Optional[FileUrlResolver]
 ) -> VideoGroupMemberResponseDTO:
@@ -95,6 +101,26 @@ def to_group_detail_response_dto(
         share_token=group.share_token,
         members=members,
     )
+
+
+def to_group_list_response_dtos(groups: Iterable[VideoGroupEntity]) -> List[VideoGroupListResponseDTO]:
+    """Convert a sequence of VideoGroupEntity to list-friendly DTOs."""
+    return [
+        VideoGroupListResponseDTO(
+            id=g.id,
+            user_id=g.user_id,
+            name=g.name,
+            description=g.description,
+            video_count=g.video_count,
+            created_at=g.created_at,
+        )
+        for g in groups
+    ]
+
+
+def to_group_list_response_dto(group: VideoGroupEntity) -> VideoGroupListResponseDTO:
+    """Convert a single VideoGroupEntity to VideoGroupListResponseDTO."""
+    return to_group_list_response_dtos([group])[0]
 
 
 def to_tag_detail_response_dto(
