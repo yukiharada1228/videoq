@@ -5,6 +5,7 @@ Acceptance criteria:
   - app/domain/**   : no app.models, django, rest_framework, celery, app.infrastructure
   - app/use_cases/**: no app.models, django, rest_framework, app.infrastructure
   - app/presentation/**: no app.models, no app.infrastructure.*
+  - app/common/**: no app.models, no app.infrastructure.*
   - QuerySet must not appear in domain or use_cases source files
   - use_cases context isolation: video/chat/auth contexts must not import each other directly
     (app.use_cases.shared is the only permitted cross-context import)
@@ -173,6 +174,7 @@ class ImportRulesTest(unittest.TestCase):
             "presentation": self._count_python_files("presentation"),
             "infrastructure": self._count_python_files("infrastructure"),
             "tasks": self._count_python_files("tasks"),
+            "common": self._count_python_files("common"),
         }
         print("scan_counts", counts)
         for layer, count in counts.items():
@@ -199,6 +201,10 @@ class ImportRulesTest(unittest.TestCase):
         self._check(
             "presentation", ["app.models", "app.infrastructure"]
         )
+
+    def test_common_has_no_model_or_infrastructure_imports(self):
+        """common must not import app.models or app.infrastructure directly."""
+        self._check("common", ["app.models", "app.infrastructure"])
 
     def _check_cross_context(self, context_path, forbidden_contexts):
         """Verify that a use_cases context does not import from other contexts directly."""
@@ -385,3 +391,21 @@ class ImportRulesTest(unittest.TestCase):
         """app/media must not import app.models or app.infrastructure directly.
         All ORM access for the media domain must go through infrastructure/repositories."""
         self._check("media", ["app.models", "app.infrastructure"])
+
+    def test_common_has_no_orm_objects_usage(self):
+        """common must not access ORM manager (.objects)."""
+        violations = []
+        for fp in sorted(self._iter_layer_source_files("common")):
+            with open(fp) as f:
+                source = f.read()
+            tree = ast.parse(source)
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Attribute) and node.attr == "objects":
+                    rel = os.path.relpath(fp, BASE)
+                    violations.append(f"{rel}:{node.lineno}")
+        self.assertEqual(
+            [],
+            violations,
+            "common must not reference ORM manager '.objects':\n"
+            + "\n".join(f"  {v}" for v in violations),
+        )

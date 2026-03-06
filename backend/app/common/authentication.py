@@ -1,5 +1,7 @@
 """Common authentication utilities"""
 
+from dataclasses import dataclass
+
 from django.utils.translation import gettext_lazy as _
 from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import AuthenticationFailed
@@ -7,7 +9,23 @@ from rest_framework.request import Request
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.exceptions import InvalidToken
 
-from app.models import UserApiKey
+from app.container import get_container
+
+
+@dataclass(frozen=True)
+class APIKeyPrincipal:
+    """Minimal authenticated principal for API key requests."""
+
+    id: int
+    video_limit: int
+
+    @property
+    def pk(self) -> int:
+        return self.id
+
+    @property
+    def is_authenticated(self) -> bool:
+        return True
 
 
 class APIKeyAuthentication(BaseAuthentication):
@@ -21,21 +39,18 @@ class APIKeyAuthentication(BaseAuthentication):
         if raw_key is None:
             return None
 
-        hashed_key = UserApiKey.hash_key(raw_key)
-        api_key = (
-            UserApiKey.objects.select_related("user")
-            .filter(
-                hashed_key=hashed_key,
-                revoked_at__isnull=True,
-                user__is_active=True,
-            )
-            .first()
-        )
-        if api_key is None:
+        resolved = get_container().get_resolve_api_key_use_case().execute(raw_key)
+        if resolved is None:
             raise AuthenticationFailed(_("Invalid API key"))
 
-        api_key.mark_used()
-        return api_key.user, api_key
+        principal = APIKeyPrincipal(id=resolved.user_id, video_limit=resolved.user_video_limit)
+        return principal, {
+            "api_key_id": resolved.api_key_id,
+            "user_id": resolved.user_id,
+            "access_level": resolved.access_level,
+            "is_read_only": resolved.is_read_only,
+            "scopes": resolved.scopes,
+        }
 
     def authenticate_header(self, request: Request) -> str:
         return f"{self.keyword} realm=\"api\""

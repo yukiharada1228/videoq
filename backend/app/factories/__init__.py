@@ -13,6 +13,8 @@ from app.factories.auth import (
     get_list_api_keys_use_case,
     get_login_use_case,
     get_refresh_token_use_case,
+    get_resolve_api_key_use_case,
+    get_resolve_share_token_use_case,
     get_request_password_reset_use_case,
     get_revoke_api_key_use_case,
     get_signup_use_case,
@@ -107,6 +109,8 @@ __all__ = [
     "get_create_api_key_use_case",
     "get_revoke_api_key_use_case",
     "get_authorize_api_key_use_case",
+    "get_resolve_share_token_use_case",
+    "get_resolve_api_key_use_case",
     # media
     "get_resolve_protected_media_use_case",
 ]

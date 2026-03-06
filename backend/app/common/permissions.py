@@ -4,7 +4,7 @@ from rest_framework.authentication import BaseAuthentication
 from rest_framework.permissions import BasePermission
 from rest_framework.request import Request
 
-from app.models import VideoGroup
+from app.container import get_container
 from app.use_cases.auth.authorize_api_key import SCOPE_READ, SCOPE_WRITE
 
 
@@ -16,11 +16,11 @@ class ShareTokenAuthentication(BaseAuthentication):
         if not share_token:
             return None
 
-        group = VideoGroup.objects.filter(share_token=share_token).first()
-        if not group:
+        resolved = get_container().get_resolve_share_token_use_case().execute(share_token)
+        if resolved is None:
             return None
 
-        return (None, {"share_token": share_token, "group": group})
+        return (None, {"share_token": resolved.share_token, "group_id": resolved.group_id})
 
 
 class IsAuthenticatedOrSharedAccess(BasePermission):
@@ -43,19 +43,21 @@ class ApiKeyScopePermission(BasePermission):
     message = "This API key does not have permission for this action."
 
     def has_permission(self, request, view):
-        api_key = getattr(request, "auth", None)
-        if not (hasattr(api_key, "access_level") and hasattr(api_key, "hashed_key")):
+        auth = getattr(request, "auth", None)
+        if not (
+            isinstance(auth, dict)
+            and "api_key_id" in auth
+            and "access_level" in auth
+        ):
             return True
 
         required_scope = self._get_required_scope(request, view)
         if not required_scope:
             return True
 
-        from app.container import get_container
-
         use_case = get_container().get_authorize_api_key_use_case()
         return use_case.execute(
-            access_level=api_key.access_level,
+            access_level=auth["access_level"],
             required_scope=required_scope,
         )
 

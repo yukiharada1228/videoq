@@ -4,13 +4,39 @@ Port interfaces for auth token and credential operations.
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Protocol
 
 
 @dataclass
 class TokenPairDto:
     access: str
     refresh: str
+
+
+@dataclass
+class ShareAuthContextDTO:
+    share_token: str
+    group_id: int
+
+
+@dataclass
+class ApiKeyAuthContextDTO:
+    api_key_id: int
+    user_id: int
+    user_video_limit: int
+    access_level: str
+    scopes: list[str]
+    is_read_only: bool
+
+
+class ShareTokenResolverPort(Protocol):
+    def resolve(self, token: str) -> Optional[ShareAuthContextDTO]:
+        ...
+
+
+class ApiKeyResolverPort(Protocol):
+    def resolve(self, api_key: str) -> Optional[ApiKeyAuthContextDTO]:
+        ...
 
 
 class UserAuthGateway(ABC):

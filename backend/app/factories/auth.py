@@ -5,6 +5,8 @@ Constructs fully-wired auth and API key use case instances.
 
 from app.infrastructure.auth.django_auth_gateway import DjangoUserAuthGateway
 from app.infrastructure.auth.simplejwt_gateway import SimpleJWTGateway
+from app.infrastructure.auth.api_key_resolver import DjangoApiKeyResolver
+from app.infrastructure.auth.share_token_resolver import DjangoShareTokenResolver
 from app.infrastructure.repositories.django_account_deletion_repository import (
     DjangoAccountDeletionGateway,
 )
@@ -26,6 +28,8 @@ from app.use_cases.auth.manage_api_keys import (
 )
 from app.use_cases.auth.authorize_api_key import AuthorizeApiKeyUseCase
 from app.use_cases.auth.refresh_token import RefreshTokenUseCase
+from app.use_cases.auth.resolve_api_key import ResolveApiKeyUseCase
+from app.use_cases.auth.resolve_share_token import ResolveShareTokenUseCase
 from app.use_cases.auth.reset_password import (
     ConfirmPasswordResetUseCase,
     RequestPasswordResetUseCase,
@@ -93,3 +97,11 @@ def get_revoke_api_key_use_case() -> RevokeApiKeyUseCase:
 
 def get_authorize_api_key_use_case() -> AuthorizeApiKeyUseCase:
     return AuthorizeApiKeyUseCase()
+
+
+def get_resolve_share_token_use_case() -> ResolveShareTokenUseCase:
+    return ResolveShareTokenUseCase(DjangoShareTokenResolver())
+
+
+def get_resolve_api_key_use_case() -> ResolveApiKeyUseCase:
+    return ResolveApiKeyUseCase(DjangoApiKeyResolver())
