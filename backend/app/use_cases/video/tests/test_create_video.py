@@ -4,11 +4,12 @@ from dataclasses import dataclass
 from unittest import TestCase
 from unittest.mock import MagicMock
 
+from app.domain.user.entities import UserEntity
 from app.domain.video.dto import CreateVideoParams, UpdateVideoParams
 from app.domain.video.entities import VideoEntity
 from app.use_cases.video.create_video import CreateVideoUseCase
 from app.use_cases.video.dto import CreateVideoInput
-from app.use_cases.video.exceptions import VideoLimitExceeded
+from app.use_cases.video.exceptions import ResourceNotFound, VideoLimitExceeded
 
 
 @dataclass
@@ -108,9 +109,21 @@ class FakeVideoRepository:
 class CreateVideoUseCaseTests(TestCase):
     def setUp(self):
         self.user_id = 101
+        self.user_repo = MagicMock()
+        self.user_repo.get_by_id.return_value = UserEntity(
+            id=self.user_id,
+            username="user",
+            email="user@example.com",
+            is_active=True,
+            video_limit=None,
+        )
         self.repo = FakeVideoRepository()
         self.mock_task_queue = MagicMock()
-        self.use_case = CreateVideoUseCase(self.repo, self.mock_task_queue)
+        self.use_case = CreateVideoUseCase(
+            self.user_repo,
+            self.repo,
+            self.mock_task_queue,
+        )
 
     def _input(self):
         file = FakeUploadedFile()
@@ -132,31 +145,34 @@ class CreateVideoUseCaseTests(TestCase):
             )
 
     def test_creates_video_successfully(self):
-        video = self.use_case.execute(self.user_id, None, self._input())
+        video = self.use_case.execute(self.user_id, self._input())
 
         self.assertIsNotNone(video.id)
         self.assertEqual(video.title, "Test Video")
         self.assertEqual(self.repo.count_for_user(self.user_id), 1)
 
     def test_dispatches_transcription_task(self):
-        video = self.use_case.execute(self.user_id, None, self._input())
+        video = self.use_case.execute(self.user_id, self._input())
 
         self.mock_task_queue.enqueue_transcription.assert_called_once_with(video.id)
 
     def test_raises_video_limit_exceeded_when_limit_zero(self):
+        self.user_repo.get_by_id.return_value.video_limit = 0
         with self.assertRaises(VideoLimitExceeded):
-            self.use_case.execute(self.user_id, 0, self._input())
+            self.use_case.execute(self.user_id, self._input())
 
     def test_raises_video_limit_exceeded_when_limit_reached(self):
+        self.user_repo.get_by_id.return_value.video_limit = 2
         self._seed_videos(2)
 
         with self.assertRaises(VideoLimitExceeded):
-            self.use_case.execute(self.user_id, 2, self._input())
+            self.use_case.execute(self.user_id, self._input())
 
     def test_allows_upload_when_within_limit(self):
+        self.user_repo.get_by_id.return_value.video_limit = 3
         self._seed_videos(1)
 
-        video = self.use_case.execute(self.user_id, 3, self._input())
+        video = self.use_case.execute(self.user_id, self._input())
 
         self.assertIsNotNone(video.id)
         self.assertEqual(self.repo.count_for_user(self.user_id), 2)
@@ -164,7 +180,13 @@ class CreateVideoUseCaseTests(TestCase):
     def test_allows_unlimited_uploads(self):
         self._seed_videos(10)
 
-        video = self.use_case.execute(self.user_id, None, self._input())
+        video = self.use_case.execute(self.user_id, self._input())
 
         self.assertIsNotNone(video.id)
         self.assertEqual(self.repo.count_for_user(self.user_id), 11)
+
+    def test_raises_when_user_not_found(self):
+        self.user_repo.get_by_id.return_value = None
+
+        with self.assertRaises(ResourceNotFound):
+            self.use_case.execute(self.user_id, self._input())

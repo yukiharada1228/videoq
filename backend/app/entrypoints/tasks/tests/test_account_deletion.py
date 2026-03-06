@@ -18,7 +18,7 @@ User = get_user_model()
 class AccountDeletionTaskTests(TestCase):
     """Tests for delete_account_data task"""
 
-    @patch("app.infrastructure.external.vector_store.delete_video_vectors")
+    @patch("app.infrastructure.repositories.django_user_data_deletion_gateway.delete_video_vectors")
     def test_delete_account_data_removes_related_objects(self, _mock_delete_vectors):
         user = User.objects.create_user(
             username="deleteuser",

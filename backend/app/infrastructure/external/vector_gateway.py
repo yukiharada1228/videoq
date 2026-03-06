@@ -3,7 +3,10 @@ Infrastructure implementations of vector store gateway interfaces.
 """
 
 from app.domain.video.gateways import VectorIndexingGateway, VectorStoreGateway
-from app.infrastructure.external.vector_store import update_video_title_in_vectors
+from app.infrastructure.external.vector_store import (
+    delete_video_vectors,
+    update_video_title_in_vectors,
+)
 
 
 class DjangoVectorStoreGateway(VectorStoreGateway):
@@ -11,6 +14,9 @@ class DjangoVectorStoreGateway(VectorStoreGateway):
 
     def update_video_title(self, video_id: int, new_title: str) -> None:
         update_video_title_in_vectors(video_id, new_title)
+
+    def delete_video_vectors(self, video_id: int) -> None:
+        delete_video_vectors(video_id)
 
 
 class DjangoVectorIndexingGateway(VectorIndexingGateway):

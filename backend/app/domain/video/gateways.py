@@ -14,6 +14,11 @@ class VectorStoreGateway(ABC):
         """Update the video title stored in the vector metadata."""
         ...
 
+    @abstractmethod
+    def delete_video_vectors(self, video_id: int) -> None:
+        """Delete all vectors associated with a video."""
+        ...
+
 
 class VideoTaskGateway(ABC):
     """Abstract interface for enqueueing async video background tasks."""
