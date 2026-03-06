@@ -143,34 +143,68 @@ graph TB
     end
 
     subgraph UseCases["use_cases/"]
-        UV[video/ - CreateVideo, GetVideo, ListVideos, UpdateVideo, FileUrl, GetGroup, GetTag, ReindexAllVideos, RunTranscription]
-        UC[chat/ - SendMessage]
-        UA[auth/ - Login, Signup, VerifyEmail, ResetPassword, GetCurrentUser, DeleteAccount, APIKeys]
+        UV["video/ - CreateVideo, GetVideo, ListVideos, UpdateVideo, DeleteVideo,
+        FileUrl, GetGroup, ListGroups, CreateGroup, UpdateGroup, DeleteGroup,
+        GetTag, ListTags, CreateTag, UpdateTag, DeleteTag,
+        ManageGroups, ManageTags, EnforceVideoLimit,
+        ReindexAllVideos, RunTranscription"]
+        UC["chat/ - SendMessage, GetHistory, ExportHistory,
+        SubmitFeedback, GetAnalytics, GetPopularScenes"]
+        UA["auth/ - Login, Signup, VerifyEmail, ResetPassword,
+        GetCurrentUser, DeleteAccount, DeleteAccountData,
+        ManageApiKeys, AuthorizeApiKey, ResolveApiKey,
+        ResolveShareToken, RefreshToken"]
         UM[media/ - ResolveProtectedMedia]
         US[shared/ - ResourceNotFound, PermissionDenied]
     end
 
     subgraph Domain["domain/"]
-        DV[video/ - VideoEntity, VideoRepository ABC, VideoTaskGateway, VectorIndexingGateway, TranscriptionGateway]
-        DC[chat/ - ChatRepository ABC, RagGateway ABC]
-        DA[auth/ - UserRepository ABC, TokenGateway, UserAuthGateway, UserManagementGateway, AuthTaskGateway]
+        DV["video/ - VideoEntity, VideoRepository ABC (Query/Command/Transcription),
+        VideoGroupRepository, TagRepository,
+        VectorStoreGateway, VideoTaskGateway, VectorIndexingGateway,
+        TranscriptionGateway, FileUrlResolver"]
+        DC["chat/ - ChatRepository ABC, VideoGroupQueryRepository,
+        RagGateway ABC, KeywordExtractor, SceneVideoInfoProvider,
+        ChatLogEntity, ChatAnalyticsRaw, value_objects, services"]
+        DA["auth/ - ApiKeyRepository ABC,
+        TokenGateway, UserAuthGateway,
+        AccountDeletionGateway, UserManagementGateway,
+        UserDataDeletionGateway, EmailSenderGateway, AuthTaskGateway,
+        ShareTokenResolverPort, ApiKeyResolverPort"]
         DM[media/ - ProtectedMediaRepository ABC]
-        DU[user/ - UserEntity]
+        DU[user/ - UserEntity, UserRepository ABC]
     end
 
     subgraph Infrastructure["infrastructure/"]
-        IR[repositories/ - DjangoVideoRepository, DjangoChatRepository, DjangoUserRepository, DjangoMediaRepository]
-        IE[external/ - RagChatGateway, DjangoVectorIndexingGateway, WhisperTranscriptionGateway, scene_indexer]
-        IT[transcription/ - WhisperTranscriptionGateway, audio_processing, srt_processing, DjangoVideoFileAccessor]
-        IA[auth/ - SimpleJWTGateway, DjangoUserAuthGateway, CookieJWTValidator]
-        ITk[tasks/ - CeleryVideoTaskGateway, CeleryAuthTaskGateway]
-        IC[chat/ - JanomeNltkKeywordExtractor]
+        IR["repositories/ - DjangoVideoRepository, DjangoChatRepository,
+        DjangoUserRepository, DjangoMediaRepository,
+        DjangoAccountDeletionRepository, DjangoApiKeyRepository,
+        DjangoUserAuthGateway, DjangoUserDataDeletionGateway"]
+        IE["external/ - RagChatGateway, DjangoVectorIndexingGateway,
+        WhisperTranscriptionGateway, scene_indexer,
+        vector_store, rag_service, llm, prompts"]
+        IT[transcription/ - audio_processing, srt_processing, DjangoVideoFileAccessor]
+        IA["auth/ - SimpleJWTGateway, DjangoAuthGateway,
+        CookieJWTValidator, ApiKeyResolver, ShareTokenResolver"]
+        ITk[tasks/ - CeleryTaskGateway]
+        IC["chat/ - JanomeNltkKeywordExtractor, SceneVideoInfoProvider"]
+        ICo["common/ - email, embeddings, whisper_client,
+        query_optimizer, performance_utils, task_helpers"]
+        ISo[scene_otsu/ - splitter, parsers, embedders, utils]
+        ISt[storage/ - LocalMediaStorage]
+        IM["models/ - User, Video, VideoGroup, VideoGroupMember,
+        ChatLog, Tag, VideoTag, AccountDeletionRequest, UserApiKey,
+        SafeFileSystemStorage, SafeS3Boto3Storage"]
     end
 
     subgraph Container["Composition Root"]
         CDI[dependencies/*.py]
         CCR[composition_root/*.py]
         CK[contracts/ - task name constants]
+    end
+
+    subgraph Entrypoints["Celery Entrypoints"]
+        ET[entrypoints/tasks/ - transcription, account_deletion, reindexing]
     end
 
     subgraph Infra["Infrastructure (external)"]
@@ -193,6 +227,8 @@ graph TB
     Infrastructure --> I3
     Infrastructure --> I4
     Infrastructure --> I5
+    Entrypoints --> UseCases
+    Entrypoints --> CK
 ```
 
 ## Network Configuration
@@ -248,6 +284,11 @@ graph TB
             Refresh Token: 14 days
             Automatic Refresh
             Secure Cookie Flag (env configurable)"]
+            ApiKey["API Key Authentication
+            SHA-256 hashed storage
+            Prefix-based lookup
+            Access level: all / read_only
+            Revocable"]
             ShareToken["Share Token Authentication
             Temporary Access
             Guest Access"]
@@ -259,7 +300,8 @@ graph TB
         subgraph Authorization["Authorization"]
             Permissions["Permission Management
             Ownership Check
-            Resource Access Control"]
+            Resource Access Control
+            API Key Access Level Check"]
         end
 
         subgraph Encryption["Encryption"]
@@ -280,6 +322,7 @@ graph TB
     end
 
     JWT --> Permissions
+    ApiKey --> Permissions
     ShareToken --> Permissions
     HTTPS --> Protection
     CSRF --> Protection
