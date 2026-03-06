@@ -7,6 +7,7 @@ from app.infrastructure.repositories.django_video_repository import (
     DjangoVideoGroupRepository,
     DjangoVideoRepository,
 )
+from app.infrastructure.repositories.django_user_repository import DjangoUserRepository
 from app.infrastructure.tasks.task_gateway import CeleryVideoTaskGateway
 from app.use_cases.video.create_group_with_detail import CreateVideoGroupWithDetailUseCase
 from app.use_cases.video.create_tag import CreateTagUseCase
@@ -14,6 +15,7 @@ from app.use_cases.video.create_video import CreateVideoUseCase
 from app.use_cases.video.delete_group import DeleteVideoGroupUseCase
 from app.use_cases.video.delete_tag import DeleteTagUseCase
 from app.use_cases.video.delete_video import DeleteVideoUseCase
+from app.use_cases.video.enforce_video_limit import EnforceVideoLimitUseCase
 from app.use_cases.video.get_group import GetSharedGroupUseCase, GetVideoGroupUseCase
 from app.use_cases.video.get_tag import GetTagDetailUseCase
 from app.use_cases.video.get_video import GetVideoDetailUseCase
@@ -64,7 +66,10 @@ def get_video_detail_use_case() -> GetVideoDetailUseCase:
 
 def get_create_video_use_case() -> CreateVideoUseCase:
     return CreateVideoUseCase(
-        DjangoVideoRepository(), CeleryVideoTaskGateway(), DjangoFileUrlResolver()
+        DjangoUserRepository(),
+        DjangoVideoRepository(),
+        CeleryVideoTaskGateway(),
+        DjangoFileUrlResolver(),
     )
 
 
@@ -75,7 +80,11 @@ def get_update_video_use_case() -> UpdateVideoUseCase:
 
 
 def get_delete_video_use_case() -> DeleteVideoUseCase:
-    return DeleteVideoUseCase(DjangoVideoRepository())
+    return DeleteVideoUseCase(DjangoVideoRepository(), DjangoVectorStoreGateway())
+
+
+def get_enforce_video_limit_use_case() -> EnforceVideoLimitUseCase:
+    return EnforceVideoLimitUseCase(DjangoVideoRepository(), DjangoVectorStoreGateway())
 
 
 def get_list_groups_use_case() -> ListVideoGroupsUseCase:

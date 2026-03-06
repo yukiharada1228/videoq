@@ -119,7 +119,7 @@ class VideoListView(DependencyResolverMixin, AuthenticatedViewMixin, generics.Ge
                 title=data["title"],
                 description=data["description"],
             )
-            video = use_case.execute(request.user.id, request.user.video_limit, input_dto)
+            video = use_case.execute(request.user.id, input_dto)
         except VideoLimitExceeded as e:
             return create_error_response(str(e), status.HTTP_400_BAD_REQUEST)
 

@@ -51,7 +51,7 @@ class CustomUserAdmin(UserAdmin):
     add_fieldsets = UserAdmin.add_fieldsets
 
     def save_model(self, request, obj, form, change):
-        """Override to show warning when reducing video_limit"""
+        """Override to show warning and enforce video_limit reductions."""
         if change and "video_limit" in form.changed_data:
             old_user = User.objects.get(pk=obj.pk)
             old_limit = old_user.video_limit
@@ -66,11 +66,25 @@ class CustomUserAdmin(UserAdmin):
 
                 messages.warning(
                     request,
-                    f"Warning: Reducing video_limit will automatically delete "
+                    f"Warning: Reducing video_limit will delete "
                     f"{videos_to_delete} oldest video(s) for user {obj.username}.",
                 )
 
         super().save_model(request, obj, form, change)
+
+        if change and "video_limit" in form.changed_data:
+            from app.composition_root.video import get_enforce_video_limit_use_case
+
+            deleted_count = get_enforce_video_limit_use_case().execute(
+                user_id=obj.pk,
+                video_limit=obj.video_limit,
+            )
+            if deleted_count > 0:
+                messages.warning(
+                    request,
+                    f"Deleted {deleted_count} oldest video(s) to enforce "
+                    f"video_limit={obj.video_limit} for user {obj.username}.",
+                )
 
     def _will_delete_videos(self, old_limit, new_limit, user):
         """Check if limit reduction will trigger deletions"""

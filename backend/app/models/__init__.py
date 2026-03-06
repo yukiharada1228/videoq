@@ -1,6 +1,4 @@
 # Re-export all models for backward compatibility
-# Import signals to ensure they're registered
-from . import signals  # noqa: F401
 from .account_deletion import AccountDeletionRequest
 from .api_key import UserApiKey
 from .chat import ChatLog
