@@ -9,6 +9,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import List, Optional
 
+from app.domain.video.exceptions import VideoLimitExceeded
+
 
 @dataclass
 class TagEntity:
@@ -46,6 +48,12 @@ class VideoEntity:
     @property
     def pk(self) -> int:
         return self.id
+
+    @staticmethod
+    def ensure_upload_within_limit(current_count: int, video_limit: Optional[int]) -> None:
+        """Enforce per-user upload limits as a domain invariant."""
+        if video_limit is not None and current_count >= video_limit:
+            raise VideoLimitExceeded(video_limit)
 
 
 @dataclass

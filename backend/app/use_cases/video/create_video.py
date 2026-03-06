@@ -6,11 +6,11 @@ import logging
 from typing import Optional
 
 from app.domain.video.dto import CreateVideoParams
+from app.domain.video.entities import VideoEntity
 from app.domain.video.gateways import VideoTaskGateway
 from app.domain.video.ports import FileUrlResolver
 from app.domain.video.repositories import VideoRepository
 from app.use_cases.video.dto import CreateVideoInput
-from app.use_cases.video.exceptions import VideoLimitExceeded
 from app.use_cases.video.file_url import resolve_video_file_urls
 
 logger = logging.getLogger(__name__)
@@ -47,10 +47,8 @@ class CreateVideoUseCase:
         Raises:
             VideoLimitExceeded: If the user has reached their upload limit.
         """
-        if video_limit is not None:
-            current_count = self.video_repo.count_for_user(user_id)
-            if current_count >= video_limit:
-                raise VideoLimitExceeded(video_limit)
+        current_count = self.video_repo.count_for_user(user_id)
+        VideoEntity.ensure_upload_within_limit(current_count, video_limit)
 
         params = CreateVideoParams(
             file=input.file,

@@ -1,18 +1,5 @@
-"""
-Account deletion task trigger.
-Delegates all data deletion logic to DeleteAccountDataUseCase.
-"""
+"""Backward-compatible wrapper for account deletion Celery entrypoint."""
 
-import logging
+from app.entrypoints.tasks.account_deletion import delete_account_data
 
-from celery import shared_task
-
-from app.dependencies.tasks import get_delete_account_data_use_case
-
-logger = logging.getLogger(__name__)
-
-
-@shared_task(bind=True)
-def delete_account_data(self, user_id: int) -> None:
-    logger.info("Account deletion task started for user %s", user_id)
-    get_delete_account_data_use_case().execute(user_id)
+__all__ = ["delete_account_data"]
