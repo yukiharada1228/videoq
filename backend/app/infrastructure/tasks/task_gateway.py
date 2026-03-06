@@ -5,7 +5,7 @@ from django.db import transaction
 
 from app.domain.auth.gateways import AuthTaskGateway
 from app.domain.video.gateways import VideoTaskGateway
-from app.entrypoints.tasks.task_names import (
+from app.contracts.tasks import (
     DELETE_ACCOUNT_DATA_TASK,
     TRANSCRIBE_VIDEO_TASK,
 )

@@ -8,7 +8,7 @@ import logging
 from celery import shared_task
 
 from app.dependencies.tasks import get_run_transcription_use_case
-from app.entrypoints.tasks.task_names import TRANSCRIBE_VIDEO_TASK
+from app.contracts.tasks import TRANSCRIBE_VIDEO_TASK
 
 logger = logging.getLogger(__name__)
 

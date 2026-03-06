@@ -1,7 +1,7 @@
 """Common layer dependency providers."""
 
-from app import composition_root
+from app.composition_root import auth as _cr
 
 
 def get_resolve_api_key_use_case():
-    return composition_root.get_resolve_api_key_use_case()
+    return _cr.get_resolve_api_key_use_case()
