@@ -4,10 +4,10 @@ Tests for scene_otsu embedder classes
 
 from unittest.mock import MagicMock, patch
 
-from django.test import TestCase, override_settings
+from django.test import SimpleTestCase, override_settings
 
 
-class BaseEmbedderTests(TestCase):
+class BaseEmbedderTests(SimpleTestCase):
     """Tests for BaseEmbedder class"""
 
     @patch("app.infrastructure.scene_otsu.embedders.OpenAIEmbeddings")
@@ -56,7 +56,7 @@ class BaseEmbedderTests(TestCase):
             self.assertEqual(mock_embed_batch.call_count, 2)
 
 
-class OpenAIEmbedderTests(TestCase):
+class OpenAIEmbedderTests(SimpleTestCase):
     """Tests for OpenAIEmbedder class"""
 
     @patch("app.infrastructure.scene_otsu.embedders.OpenAIEmbeddings")
@@ -88,7 +88,7 @@ class OpenAIEmbedderTests(TestCase):
         mock_tiktoken.assert_called_once_with("text-embedding-ada-002")
 
 
-class OllamaEmbedderTests(TestCase):
+class OllamaEmbedderTests(SimpleTestCase):
     """Tests for OllamaEmbedder class"""
 
     @patch("app.infrastructure.scene_otsu.embedders.OllamaEmbeddings")
@@ -121,7 +121,7 @@ class OllamaEmbedderTests(TestCase):
 @override_settings(
     EMBEDDING_PROVIDER="openai", EMBEDDING_MODEL="text-embedding-3-small"
 )
-class CreateEmbedderOpenAITests(TestCase):
+class CreateEmbedderOpenAITests(SimpleTestCase):
     """Tests for create_embedder function with OpenAI"""
 
     @patch("app.infrastructure.scene_otsu.embedders.OpenAIEmbedder")
@@ -152,7 +152,7 @@ class CreateEmbedderOpenAITests(TestCase):
     EMBEDDING_MODEL="qwen3-embedding:0.6b",
     OLLAMA_BASE_URL="http://localhost:11434",
 )
-class CreateEmbedderOllamaTests(TestCase):
+class CreateEmbedderOllamaTests(SimpleTestCase):
     """Tests for create_embedder function with Ollama"""
 
     @patch("app.infrastructure.scene_otsu.embedders.OllamaEmbedder")
@@ -178,7 +178,7 @@ class CreateEmbedderOllamaTests(TestCase):
 
 
 @override_settings(EMBEDDING_PROVIDER="invalid")
-class CreateEmbedderInvalidTests(TestCase):
+class CreateEmbedderInvalidTests(SimpleTestCase):
     """Tests for create_embedder function with invalid provider"""
 
     def test_raises_for_invalid_provider(self):

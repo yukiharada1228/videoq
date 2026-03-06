@@ -8,7 +8,7 @@ import subprocess
 import tempfile
 from unittest.mock import MagicMock, patch
 
-from django.test import TestCase
+import unittest
 
 from app.infrastructure.transcription.audio_processing import (
     SUPPORTED_FORMATS,
@@ -24,7 +24,7 @@ from app.infrastructure.transcription.audio_processing import (
 from app.infrastructure.common.task_helpers import TemporaryFileManager
 
 
-class SupportedFormatsTests(TestCase):
+class SupportedFormatsTests(unittest.TestCase):
     """Tests for supported audio formats"""
 
     def test_common_formats_supported(self):
@@ -38,7 +38,7 @@ class SupportedFormatsTests(TestCase):
         self.assertIn(".webm", SUPPORTED_FORMATS)
 
 
-class GetVideoDurationTests(TestCase):
+class GetVideoDurationTests(unittest.TestCase):
     """Tests for _get_video_duration function"""
 
     @patch("subprocess.run")
@@ -80,7 +80,7 @@ class GetVideoDurationTests(TestCase):
         self.assertEqual(duration, 300.0)
 
 
-class ExtractFullAudioTests(TestCase):
+class ExtractFullAudioTests(unittest.TestCase):
     """Tests for _extract_full_audio function"""
 
     @patch("os.path.getsize")
@@ -124,7 +124,7 @@ class ExtractFullAudioTests(TestCase):
             self.assertEqual(size_mb, 5.0)
 
 
-class ExtractAudioSegmentTests(TestCase):
+class ExtractAudioSegmentTests(unittest.TestCase):
     """Tests for _extract_audio_segment function"""
 
     @patch("subprocess.run")
@@ -161,7 +161,7 @@ class ExtractAudioSegmentTests(TestCase):
             self.assertIn("audio_segment_5", result["path"])
 
 
-class SplitAudioIntoSegmentsTests(TestCase):
+class SplitAudioIntoSegmentsTests(unittest.TestCase):
     """Tests for _split_audio_into_segments function"""
 
     @patch("app.infrastructure.transcription.audio_processing._extract_audio_segment")
@@ -209,7 +209,7 @@ class SplitAudioIntoSegmentsTests(TestCase):
                 )
 
 
-class ExtractAndSplitAudioTests(TestCase):
+class ExtractAndSplitAudioTests(unittest.TestCase):
     """Tests for extract_and_split_audio function"""
 
     @patch("app.infrastructure.transcription.audio_processing._extract_full_audio")
@@ -282,7 +282,7 @@ class ExtractAndSplitAudioTests(TestCase):
         self.assertEqual(segments, [])
 
 
-class TranscribeAudioSegmentAsyncTests(TestCase):
+class TranscribeAudioSegmentAsyncTests(unittest.TestCase):
     """Tests for transcribe_audio_segment_async function"""
 
     def test_successful_transcription(self):
@@ -329,7 +329,7 @@ class TranscribeAudioSegmentAsyncTests(TestCase):
             self.assertIsNotNone(error)
 
 
-class ProcessAudioSegmentsAsyncTests(TestCase):
+class ProcessAudioSegmentsAsyncTests(unittest.TestCase):
     """Tests for process_audio_segments_async function"""
 
     def test_adjusts_timestamps_for_segments(self):
@@ -392,7 +392,7 @@ class ProcessAudioSegmentsAsyncTests(TestCase):
             self.assertEqual(len(result), 1)
 
 
-class ProcessAudioSegmentsParallelTests(TestCase):
+class ProcessAudioSegmentsParallelTests(unittest.TestCase):
     """Tests for process_audio_segments_parallel function"""
 
     @patch("app.infrastructure.transcription.audio_processing.asyncio.run")

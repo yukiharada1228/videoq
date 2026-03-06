@@ -2,12 +2,12 @@
 Tests for scene_otsu utility functions
 """
 
-from django.test import TestCase
+import unittest
 
 from app.infrastructure.scene_otsu.utils import TimestampConverter
 
 
-class TimestampConverterSecondsToTimestampTests(TestCase):
+class TimestampConverterSecondsToTimestampTests(unittest.TestCase):
     """Tests for TimestampConverter.seconds_to_timestamp"""
 
     def test_zero_seconds(self):
@@ -41,7 +41,7 @@ class TimestampConverterSecondsToTimestampTests(TestCase):
         self.assertEqual(result, "10:00:00,000")
 
 
-class TimestampConverterParseTimestampTests(TestCase):
+class TimestampConverterParseTimestampTests(unittest.TestCase):
     """Tests for TimestampConverter.parse_timestamp"""
 
     def test_parse_zero_timestamp(self):
@@ -75,7 +75,7 @@ class TimestampConverterParseTimestampTests(TestCase):
         self.assertEqual(result, 90.0)
 
 
-class TimestampConverterCalculateDurationTests(TestCase):
+class TimestampConverterCalculateDurationTests(unittest.TestCase):
     """Tests for TimestampConverter.calculate_duration"""
 
     def test_calculate_simple_duration(self):

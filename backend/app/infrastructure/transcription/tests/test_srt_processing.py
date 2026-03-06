@@ -4,7 +4,7 @@ Tests for SRT processing functions
 
 from unittest.mock import MagicMock, patch
 
-from django.test import TestCase, override_settings
+from django.test import SimpleTestCase, override_settings
 
 from app.infrastructure.transcription.srt_processing import (
     apply_scene_splitting,
@@ -16,7 +16,7 @@ from app.infrastructure.transcription.srt_processing import (
 )
 
 
-class FormatTimeForSrtTests(TestCase):
+class FormatTimeForSrtTests(SimpleTestCase):
     """Tests for format_time_for_srt function"""
 
     def test_formats_zero_seconds(self):
@@ -51,7 +51,7 @@ class FormatTimeForSrtTests(TestCase):
         self.assertIn(",999", result)
 
 
-class CreateSrtContentTests(TestCase):
+class CreateSrtContentTests(SimpleTestCase):
     """Tests for create_srt_content function"""
 
     def test_creates_single_segment_srt(self):
@@ -113,7 +113,7 @@ class CreateSrtContentTests(TestCase):
         self.assertEqual(seq_numbers, ["1", "2", "3", "4", "5"])
 
 
-class CountScenesTests(TestCase):
+class CountScenesTests(SimpleTestCase):
     """Tests for count_scenes function"""
 
     def test_counts_single_scene(self):
@@ -158,7 +158,7 @@ Test
         self.assertEqual(result, 1)  # Only "1" is counted, not "Hello123"
 
 
-class ParseSrtScenesTests(TestCase):
+class ParseSrtScenesTests(SimpleTestCase):
     """Tests for parse_srt_scenes function"""
 
     def test_parses_single_scene(self):
@@ -200,7 +200,7 @@ World
 
 
 @override_settings(EMBEDDING_PROVIDER="openai")
-class ApplySceneSplittingTests(TestCase):
+class ApplySceneSplittingTests(SimpleTestCase):
     """Tests for apply_scene_splitting function"""
 
     @patch("app.infrastructure.transcription.srt_processing.SceneSplitter")
@@ -244,7 +244,7 @@ class ApplySceneSplittingTests(TestCase):
         self.assertEqual(scene_count, 1)
 
 
-class TranscribeAndCreateSrtTests(TestCase):
+class TranscribeAndCreateSrtTests(SimpleTestCase):
     """Tests for transcribe_and_create_srt function"""
 
     @patch("app.infrastructure.transcription.srt_processing.process_audio_segments_parallel")

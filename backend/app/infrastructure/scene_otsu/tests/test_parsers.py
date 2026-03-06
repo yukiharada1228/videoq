@@ -2,13 +2,13 @@
 Tests for scene_otsu parser functions
 """
 
-from django.test import TestCase
+import unittest
 
 from app.infrastructure.scene_otsu.parsers import SubtitleParser, scenes_to_srt_string
 from app.infrastructure.scene_otsu.types import SceneSegment
 
 
-class SubtitleParserParseSrtStringTests(TestCase):
+class SubtitleParserParseSrtStringTests(unittest.TestCase):
     """Tests for SubtitleParser.parse_srt_string"""
 
     def test_parse_single_subtitle(self):
@@ -89,7 +89,7 @@ Also valid"""
         self.assertEqual(len(result), 1)
 
 
-class SubtitleParserParseSrtToItemsTests(TestCase):
+class SubtitleParserParseSrtToItemsTests(unittest.TestCase):
     """Tests for SubtitleParser.parse_srt_to_items"""
 
     def test_returns_subtitle_items(self):
@@ -118,7 +118,7 @@ Test"""
         self.assertEqual(result[0].end_sec, 120.0)
 
 
-class SubtitleParserParseSrtScenesTests(TestCase):
+class SubtitleParserParseSrtScenesTests(unittest.TestCase):
     """Tests for SubtitleParser.parse_srt_scenes"""
 
     def test_returns_dict_format(self):
@@ -160,7 +160,7 @@ Scene three"""
         self.assertEqual(result[2]["text"], "Scene three")
 
 
-class ScenesToSrtStringTests(TestCase):
+class ScenesToSrtStringTests(unittest.TestCase):
     """Tests for scenes_to_srt_string function"""
 
     def test_single_scene(self):
