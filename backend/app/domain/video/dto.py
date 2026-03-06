@@ -8,7 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import List, Optional
 
-from app.domain.video.types import UploadedFileLike
+from app.domain.video.types import BinarySource
 
 
 @dataclass(frozen=True)
@@ -29,7 +29,7 @@ class VideoListQuery:
 class CreateVideoParams:
     """Parameters for creating a new video record."""
 
-    file: UploadedFileLike
+    file: BinarySource
     title: str
     description: str
 

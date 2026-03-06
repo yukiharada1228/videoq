@@ -7,12 +7,9 @@ from typing import Protocol, runtime_checkable
 
 
 @runtime_checkable
-class UploadedFileLike(Protocol):
-    """Minimal interface for an uploaded file object."""
+class BinarySource(Protocol):
+    """Minimal interface for a readable binary source."""
 
     name: str
-    size: int
 
     def read(self, size: int = -1) -> bytes: ...
-
-    def chunks(self): ...

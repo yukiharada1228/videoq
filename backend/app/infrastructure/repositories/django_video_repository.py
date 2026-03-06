@@ -5,6 +5,7 @@ Django ORM implementations of video domain repository interfaces.
 import logging
 from typing import Dict, List, Optional, Tuple
 
+from django.core.files.base import ContentFile
 from django.db import transaction
 from django.db.models import Count, Max, Prefetch
 
@@ -69,6 +70,14 @@ def _video_to_entity(video: Video) -> VideoEntity:
         transcript=video.transcript or None,
         tags=tags,
     )
+
+
+def _to_django_file(file_source):
+    """Normalize a binary source into an object assignable to Django FileField."""
+    if hasattr(file_source, "chunks"):
+        return file_source
+    file_name = getattr(file_source, "name", "upload.bin")
+    return ContentFile(file_source.read(), name=file_name)
 
 
 def _member_to_entity(
@@ -170,7 +179,7 @@ class DjangoVideoRepository(VideoRepository):
     def create(self, user_id: int, params: CreateVideoParams) -> VideoEntity:
         video = Video.objects.create(
             user_id=user_id,
-            file=params.file,
+            file=_to_django_file(params.file),
             title=params.title,
             description=params.description,
         )
