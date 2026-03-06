@@ -28,6 +28,11 @@ class VideoTaskGateway(ABC):
         """Enqueue a video transcription task (dispatched after DB commit)."""
         ...
 
+    @abstractmethod
+    def enqueue_reindex_all_videos_embeddings(self) -> str:
+        """Enqueue full re-indexing task and return the created task id."""
+        ...
+
 
 class VectorIndexingGateway(ABC):
     """Abstract interface for vector store indexing operations."""

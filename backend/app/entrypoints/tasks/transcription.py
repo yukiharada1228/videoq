@@ -8,8 +8,11 @@ import logging
 from celery import shared_task
 
 from app.contracts.tasks import TRANSCRIBE_VIDEO_TASK
-from app.dependencies.tasks import get_run_transcription_use_case
-from app.domain.video.exceptions import TranscriptionFailed, TranscriptionTargetNotFound
+from app.dependencies.tasks import (
+    get_run_transcription_use_case,
+    get_transcription_execution_failed_exception,
+    get_transcription_target_missing_exception,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -26,13 +29,15 @@ def transcribe_video(self, video_id):
     """
     logger.info("Transcription task started for video ID: %d", video_id)
     run_transcription_use_case = get_run_transcription_use_case()
+    transcription_target_missing = get_transcription_target_missing_exception()
+    transcription_execution_failed = get_transcription_execution_failed_exception()
     try:
         run_transcription_use_case.execute(video_id)
         logger.info("Successfully processed video %d", video_id)
-    except TranscriptionTargetNotFound:
+    except transcription_target_missing:
         logger.warning("Transcription target video not found: %d", video_id)
         raise
-    except TranscriptionFailed as e:
+    except transcription_execution_failed as e:
         if self.request.retries < self.max_retries:
             raise self.retry(exc=e, countdown=60 * (self.request.retries + 1))
         raise

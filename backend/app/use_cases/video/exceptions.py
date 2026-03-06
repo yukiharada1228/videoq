@@ -1,6 +1,5 @@
 """Application-level exceptions exposed by video use cases."""
 
-from app.domain.video.exceptions import TranscriptionFailed, TranscriptionTargetNotFound
 from app.use_cases.shared.exceptions import PermissionDenied, ResourceNotFound
 
 
@@ -37,12 +36,29 @@ class GroupVideoOrderMismatch(Exception):
         super().__init__(message)
 
 
+class TranscriptionTargetMissing(Exception):
+    """Raised when transcription target video cannot be resolved."""
+
+    def __init__(self, video_id: int):
+        self.video_id = video_id
+        super().__init__(f"Video {video_id} not found")
+
+
+class TranscriptionExecutionFailed(Exception):
+    """Raised when transcription processing fails inside the use-case boundary."""
+
+    def __init__(self, video_id: int, reason: str):
+        self.video_id = video_id
+        self.reason = reason
+        super().__init__(f"Transcription failed for video {video_id}: {reason}")
+
+
 __all__ = [
     "GroupVideoOrderMismatch",
     "PermissionDenied",
     "ResourceNotFound",
-    "TranscriptionFailed",
-    "TranscriptionTargetNotFound",
+    "TranscriptionExecutionFailed",
+    "TranscriptionTargetMissing",
     "VideoAlreadyInGroup",
     "VideoLimitExceeded",
     "VideoNotInGroup",
