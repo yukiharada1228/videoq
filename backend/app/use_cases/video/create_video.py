@@ -4,6 +4,8 @@ Use case: Create a new video and dispatch transcription.
 
 import logging
 
+from django.db import transaction
+
 from app.domain.user.repositories import UserRepository
 from app.domain.video.dto import CreateVideoParams
 from app.domain.video.entities import VideoEntity
@@ -53,20 +55,21 @@ class CreateVideoUseCase:
             raise ResourceNotFound("User")
         video_limit: int | None = user.video_limit
 
-        current_count = self.video_repo.count_for_user(user_id)
-        try:
-            VideoEntity.ensure_upload_within_limit(current_count, video_limit)
-        except DomainVideoLimitExceeded as e:
-            raise VideoLimitExceeded(e.limit) from e
+        with transaction.atomic():
+            current_count = self.video_repo.count_for_user(user_id)
+            try:
+                VideoEntity.ensure_upload_within_limit(current_count, video_limit)
+            except DomainVideoLimitExceeded as e:
+                raise VideoLimitExceeded(e.limit) from e
 
-        params = CreateVideoParams(
-            upload_file=input.file,
-            title=input.title,
-            description=input.description,
-        )
-        video = self.video_repo.create(user_id, params)
+            params = CreateVideoParams(
+                upload_file=input.file,
+                title=input.title,
+                description=input.description,
+            )
+            video = self.video_repo.create(user_id, params)
 
-        logger.info(f"Enqueueing transcription task for video ID: {video.id}")
-        self.task_queue.enqueue_transcription(video.id)
+            logger.info(f"Enqueueing transcription task for video ID: {video.id}")
+            self.task_queue.enqueue_transcription(video.id)
 
         return to_video_response_dto(video)
