@@ -78,6 +78,32 @@ def check_forbidden_imports(file_path, forbidden_patterns):
     return violations
 
 
+def check_forbidden_string_literals(file_path, forbidden_substrings):
+    with open(file_path) as f:
+        source = f.read()
+    try:
+        tree = ast.parse(source)
+    except SyntaxError as e:
+        raise AssertionError(f"SyntaxError while parsing {file_path}: {e}") from e
+
+    violations = []
+    for node in ast.walk(tree):
+        value = None
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            value = node.value
+        elif hasattr(ast, "Str") and isinstance(node, ast.Str):
+            value = node.s
+
+        if value is None:
+            continue
+
+        for forbidden in forbidden_substrings:
+            if forbidden in value:
+                violations.append((node.lineno, value))
+                break
+    return violations
+
+
 class CheckForbiddenImportsTest(unittest.TestCase):
     """Unit tests for check_forbidden_imports edge cases."""
 
@@ -358,6 +384,27 @@ class ImportRulesTest(unittest.TestCase):
     def test_infrastructure_external_has_no_presentation_tasks_imports(self):
         """infrastructure/external must not import app.presentation.tasks."""
         self._check("infrastructure/external", ["app.presentation.tasks"])
+
+    def test_infrastructure_has_no_presentation_string_dependencies(self):
+        """infrastructure must not contain string literals referencing app.presentation.*."""
+        forbidden_substring = "app.presentation."
+        all_violations = {}
+        for fp in sorted(self._iter_layer_source_files("infrastructure")):
+            rel = os.path.relpath(fp, BASE)
+            violations = check_forbidden_string_literals(fp, [forbidden_substring])
+            if violations:
+                all_violations[rel] = violations
+
+        if all_violations:
+            details = []
+            for rel, violations in all_violations.items():
+                for _, literal in violations:
+                    details.append(
+                        "Forbidden string dependency detected:\n"
+                        f"{rel}\n"
+                        f'-> "{literal}"'
+                    )
+            self.fail("\n".join(details))
 
     def _check_single_file(self, rel_path, forbidden):
         """Check a single file for forbidden imports."""
