@@ -4,6 +4,12 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
 
+# Shared boundary constants for auth use cases/presentation.
+ACCESS_LEVEL_ALL = "all"
+ACCESS_LEVEL_READ_ONLY = "read_only"
+SCOPE_READ = "read"
+SCOPE_WRITE = "write"
+
 
 @dataclass(frozen=True)
 class TokenPairOutput:

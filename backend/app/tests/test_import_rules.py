@@ -238,9 +238,9 @@ class ImportRulesTest(unittest.TestCase):
         self._check("use_cases", ["app.utils"])
 
     def test_presentation_has_no_infrastructure_imports(self):
-        """presentation layer must not import from app.models or any app.infrastructure.*."""
+        """presentation layer must not import from app.models, app.domain, or app.infrastructure.*."""
         self._check(
-            "presentation", ["app.models", "app.infrastructure"]
+            "presentation", ["app.models", "app.domain", "app.infrastructure"]
         )
 
     def test_presentation_has_no_common_imports(self):
