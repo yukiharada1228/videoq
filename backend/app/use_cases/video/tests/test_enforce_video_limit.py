@@ -1,6 +1,8 @@
 """Unit tests for EnforceVideoLimitUseCase."""
 
+from contextlib import contextmanager
 from datetime import datetime, timedelta
+from typing import Callable
 from unittest import TestCase
 from unittest.mock import MagicMock
 
@@ -8,11 +10,22 @@ from app.domain.video.entities import VideoEntity
 from app.use_cases.video.enforce_video_limit import EnforceVideoLimitUseCase
 
 
+class _FakeTransactionPort:
+    @contextmanager
+    def atomic(self):
+        yield
+
+    def on_commit(self, fn: Callable[[], None]) -> None:
+        fn()
+
+
 class EnforceVideoLimitUseCaseTests(TestCase):
     def setUp(self):
         self.video_repo = MagicMock()
         self.vector_gateway = MagicMock()
-        self.use_case = EnforceVideoLimitUseCase(self.video_repo, self.vector_gateway)
+        self.use_case = EnforceVideoLimitUseCase(
+            self.video_repo, self.vector_gateway, _FakeTransactionPort()
+        )
 
     def _videos(self, count: int):
         base = datetime(2026, 1, 1)

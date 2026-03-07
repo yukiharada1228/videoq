@@ -1,5 +1,6 @@
 """Video core use-case providers."""
 
+from app.infrastructure.common.django_transaction import DjangoTransactionPort
 from app.use_cases.video.create_video import CreateVideoUseCase
 from app.use_cases.video.delete_video import DeleteVideoUseCase
 from app.use_cases.video.enforce_video_limit import EnforceVideoLimitUseCase
@@ -29,6 +30,7 @@ def get_run_transcription_use_case() -> RunTranscriptionUseCase:
         shared.new_video_repository(),
         shared.get_whisper_transcription_gateway(),
         shared.new_video_task_gateway(),
+        DjangoTransactionPort(),
     )
 
 
@@ -48,6 +50,7 @@ def get_create_video_use_case() -> CreateVideoUseCase:
         shared.new_user_repository(),
         shared.new_video_repository(),
         shared.new_video_task_gateway(),
+        DjangoTransactionPort(),
     )
 
 
@@ -69,4 +72,5 @@ def get_enforce_video_limit_use_case() -> EnforceVideoLimitUseCase:
     return EnforceVideoLimitUseCase(
         shared.new_video_repository(),
         shared.new_vector_store_gateway(),
+        DjangoTransactionPort(),
     )

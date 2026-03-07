@@ -4,8 +4,7 @@ Use case: Transcribe a video and index its scenes for RAG search.
 
 import logging
 
-from django.db import transaction
-
+from app.domain.shared.transaction import TransactionPort
 from app.domain.video.gateways import TranscriptionGateway, VideoTaskGateway
 from app.domain.video.repositories import VideoTranscriptionRepository
 from app.domain.video.status import VideoStatus
@@ -33,10 +32,12 @@ class RunTranscriptionUseCase:
         video_repo: VideoTranscriptionRepository,
         transcription_gateway: TranscriptionGateway,
         task_queue: VideoTaskGateway,
+        tx: TransactionPort,
     ):
         self.video_repo = video_repo
         self.transcription_gateway = transcription_gateway
         self.task_queue = task_queue
+        self.tx = tx
 
     def execute(self, video_id: int) -> None:
         video = self.video_repo.get_by_id_for_task(video_id)
@@ -55,7 +56,7 @@ class RunTranscriptionUseCase:
 
         try:
             transcript = self.transcription_gateway.run(video_id)
-            with transaction.atomic():
+            with self.tx.atomic():
                 self.video_repo.save_transcript(video_id, transcript)
                 VideoStatus.PROCESSING.assert_transition_to(VideoStatus.INDEXING)
                 self.video_repo.transition_status(
