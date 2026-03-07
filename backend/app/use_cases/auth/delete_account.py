@@ -5,9 +5,8 @@ Use case: Deactivate a user account and enqueue data cleanup.
 import datetime
 import logging
 
-from django.db import transaction
-
 from app.domain.auth.gateways import AccountDeletionGateway, AuthTaskGateway
+from app.domain.shared.transaction import TransactionPort
 
 logger = logging.getLogger(__name__)
 
@@ -24,12 +23,14 @@ class AccountDeletionUseCase:
         self,
         deletion_gateway: AccountDeletionGateway,
         task_queue: AuthTaskGateway,
+        tx: TransactionPort,
     ):
         self.deletion_gateway = deletion_gateway
         self.task_queue = task_queue
+        self.tx = tx
 
     def execute(self, user_id: int, reason: str = "") -> None:
-        with transaction.atomic():
+        with self.tx.atomic():
             self.deletion_gateway.record_deletion_request(user_id, reason)
 
             suffix = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d%H%M%S")

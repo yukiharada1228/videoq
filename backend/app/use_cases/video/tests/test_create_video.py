@@ -1,6 +1,8 @@
 """Unit tests for CreateVideoUseCase using in-memory fakes only."""
 
+from contextlib import contextmanager
 from dataclasses import dataclass
+from typing import Callable
 from unittest import TestCase
 from unittest.mock import MagicMock
 
@@ -101,6 +103,15 @@ class FakeVideoRepository:
         video.transcript = transcript
 
 
+class _FakeTransactionPort:
+    @contextmanager
+    def atomic(self):
+        yield
+
+    def on_commit(self, fn: Callable[[], None]) -> None:
+        fn()
+
+
 class CreateVideoUseCaseTests(TestCase):
     def setUp(self):
         self.user_id = 101
@@ -118,6 +129,7 @@ class CreateVideoUseCaseTests(TestCase):
             self.user_repo,
             self.repo,
             self.mock_task_queue,
+            _FakeTransactionPort(),
         )
 
     def _input(self):
