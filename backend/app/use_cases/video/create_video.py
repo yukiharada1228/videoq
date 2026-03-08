@@ -7,7 +7,6 @@ import logging
 from app.domain.shared.transaction import TransactionPort
 from app.domain.user.repositories import UserRepository
 from app.domain.video.dto import CreateVideoParams
-from app.domain.video.entities import VideoEntity
 from app.domain.video.exceptions import VideoLimitExceeded as DomainVideoLimitExceeded
 from app.domain.video.gateways import VideoTaskGateway
 from app.domain.video.repositories import VideoRepository
@@ -59,7 +58,7 @@ class CreateVideoUseCase:
         with self.tx.atomic():
             current_count = self.video_repo.count_for_user(user_id)
             try:
-                VideoEntity.ensure_upload_within_limit(current_count, video_limit)
+                user.assert_can_upload_video(current_count)
             except DomainVideoLimitExceeded as e:
                 raise VideoLimitExceeded(e.limit) from e
 

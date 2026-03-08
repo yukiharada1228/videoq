@@ -36,6 +36,13 @@ class GroupVideoOrderMismatch(Exception):
         super().__init__(message)
 
 
+class InvalidTagInput(Exception):
+    """Raised when tag input violates domain validation rules."""
+
+    def __init__(self, message: str):
+        super().__init__(message)
+
+
 class TranscriptionTargetMissing(Exception):
     """Raised when transcription target video cannot be resolved."""
 
@@ -74,6 +81,7 @@ __all__ = [
     "GroupVideoOrderMismatch",
     "IndexingExecutionFailed",
     "IndexingTargetMissing",
+    "InvalidTagInput",
     "PermissionDenied",
     "ResourceNotFound",
     "TranscriptionExecutionFailed",

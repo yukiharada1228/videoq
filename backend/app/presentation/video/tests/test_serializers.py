@@ -156,8 +156,8 @@ class TagCreateSerializerTests(TestCase):
         self.assertFalse(serializer.is_valid())
         self.assertIn("name", serializer.errors)
 
-    def test_validates_whitespace_name(self):
-        """Test that whitespace-only name is invalid"""
+    def test_allows_whitespace_name_at_boundary(self):
+        """Whitespace-only checks are enforced in use-cases/domain."""
         data = {
             "name": "   ",
             "color": "#FF0000",
@@ -165,10 +165,10 @@ class TagCreateSerializerTests(TestCase):
 
         serializer = TagCreateSerializer(data=data, context=self._get_request_context())
 
-        self.assertFalse(serializer.is_valid())
+        self.assertTrue(serializer.is_valid())
 
-    def test_strips_name_whitespace(self):
-        """Test that name whitespace is stripped"""
+    def test_preserves_name_as_provided(self):
+        """Normalization is handled by use-cases/domain."""
         data = {
             "name": "  Important  ",
             "color": "#FF0000",
@@ -177,49 +177,27 @@ class TagCreateSerializerTests(TestCase):
         serializer = TagCreateSerializer(data=data, context=self._get_request_context())
 
         self.assertTrue(serializer.is_valid())
-        self.assertEqual(serializer.validated_data["name"], "Important")
+        self.assertEqual(serializer.validated_data["name"], "  Important  ")
 
-    def test_validates_color_format_valid(self):
-        """Test valid color formats"""
-        valid_colors = ["#FF0000", "#00ff00", "#0000FF", "#123456", "#ABCDEF"]
-
-        for color in valid_colors:
-            data = {"name": "Test", "color": color}
-            serializer = TagCreateSerializer(
-                data=data, context=self._get_request_context()
-            )
-            self.assertTrue(serializer.is_valid(), f"Color {color} should be valid")
-
-    def test_validates_color_format_invalid(self):
-        """Test invalid color formats"""
-        invalid_colors = [
-            "#FFF",      # Too short
-            "#FFFFFFF",  # Too long
-            "FF0000",    # Missing #
-            "#GGGGGG",   # Invalid hex
-            "red",       # Named color
-        ]
-
-        for color in invalid_colors:
-            data = {"name": "Test", "color": color}
-            serializer = TagCreateSerializer(
-                data=data, context=self._get_request_context()
-            )
-            self.assertFalse(serializer.is_valid(), f"Color {color} should be invalid")
-            self.assertIn("color", serializer.errors)
+    def test_accepts_arbitrary_color_string_at_boundary(self):
+        """Color format validation is enforced in use-cases/domain."""
+        data = {"name": "Test", "color": "red"}
+        serializer = TagCreateSerializer(
+            data=data, context=self._get_request_context()
+        )
+        self.assertTrue(serializer.is_valid())
 
 
 class TagUpdateSerializerTests(TestCase):
     """Tests for TagUpdateSerializer"""
 
-    def test_validates_color_format(self):
-        """Test color format validation on update"""
+    def test_accepts_arbitrary_color_string_on_update(self):
+        """Color format validation is enforced in use-cases/domain."""
         data = {"color": "invalid"}
 
         serializer = TagUpdateSerializer(data=data, partial=True)
 
-        self.assertFalse(serializer.is_valid())
-        self.assertIn("color", serializer.errors)
+        self.assertTrue(serializer.is_valid())
 
     def test_validates_empty_name_on_update(self):
         """Test that empty name is invalid on update"""

@@ -7,7 +7,7 @@ import logging
 from app.domain.shared.transaction import TransactionPort
 from app.domain.video.gateways import TranscriptionGateway, VideoTaskGateway
 from app.domain.video.repositories import VideoTranscriptionRepository
-from app.domain.video.status import VideoStatus
+from app.domain.video.services import VideoTranscriptionLifecycle
 from app.use_cases.video.exceptions import (
     TranscriptionExecutionFailed,
     TranscriptionTargetMissing,
@@ -44,35 +44,34 @@ class RunTranscriptionUseCase:
         if video is None:
             raise TranscriptionTargetMissing(video_id)
 
-        current_status = VideoStatus.from_value(video.status)
-        current_status.assert_transition_to(VideoStatus.PROCESSING)
+        from_status, to_status = VideoTranscriptionLifecycle.plan_start(video.status)
 
         logger.info("Transcription started for video %d (%s)", video.id, video.title)
         self.video_repo.transition_status(
             video_id=video_id,
-            from_status=current_status,
-            to_status=VideoStatus.PROCESSING,
+            from_status=from_status,
+            to_status=to_status,
         )
 
         try:
             transcript = self.transcription_gateway.run(video_id)
             with self.tx.atomic():
                 self.video_repo.save_transcript(video_id, transcript)
-                VideoStatus.PROCESSING.assert_transition_to(VideoStatus.INDEXING)
+                from_status, to_status = VideoTranscriptionLifecycle.plan_success()
                 self.video_repo.transition_status(
                     video_id=video_id,
-                    from_status=VideoStatus.PROCESSING,
-                    to_status=VideoStatus.INDEXING,
+                    from_status=from_status,
+                    to_status=to_status,
                 )
                 self.task_queue.enqueue_indexing(video_id)
         except Exception as e:
             error_msg = str(e)
             logger.error("Transcription failed for video %d: %s", video_id, error_msg)
-            VideoStatus.PROCESSING.assert_transition_to(VideoStatus.ERROR)
+            from_status, to_status = VideoTranscriptionLifecycle.plan_failure()
             self.video_repo.transition_status(
                 video_id=video_id,
-                from_status=VideoStatus.PROCESSING,
-                to_status=VideoStatus.ERROR,
+                from_status=from_status,
+                to_status=to_status,
                 error_message=error_msg,
             )
             raise TranscriptionExecutionFailed(video_id=video_id, reason=error_msg) from e

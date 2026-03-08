@@ -6,7 +6,6 @@ Business logic (quota enforcement, task dispatch) lives in use cases.
 
 import logging
 import os
-import re
 
 from django.conf import settings
 from drf_spectacular.utils import extend_schema_field
@@ -249,32 +248,12 @@ class TagCreateSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=50)
     color = serializers.CharField()
 
-    def validate_name(self, value):
-        if not value or not value.strip():
-            raise serializers.ValidationError("Tag name cannot be empty")
-        return value.strip()
-
-    def validate_color(self, value):
-        if not re.match(r"^#[0-9A-Fa-f]{6}$", value):
-            raise serializers.ValidationError("Invalid color format. Use #RRGGBB")
-        return value
-
 
 class TagUpdateSerializer(serializers.Serializer):
     """Serializer for tag updates (input validation)."""
 
     name = serializers.CharField(max_length=50, required=False)
     color = serializers.CharField(required=False)
-
-    def validate_name(self, value):
-        if not value or not value.strip():
-            raise serializers.ValidationError("Tag name cannot be empty")
-        return value.strip()
-
-    def validate_color(self, value):
-        if not re.match(r"^#[0-9A-Fa-f]{6}$", value):
-            raise serializers.ValidationError("Invalid color format. Use #RRGGBB")
-        return value
 
 
 class AddTagsToVideoRequestSerializer(serializers.Serializer):

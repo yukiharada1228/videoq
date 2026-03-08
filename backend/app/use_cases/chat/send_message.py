@@ -8,6 +8,13 @@ from app.domain.chat.gateways import LLMProviderError as _DomainLLMProviderError
 from app.domain.chat.gateways import RagGateway
 from app.domain.chat.gateways import RagUserNotFoundError as _DomainRagUserNotFoundError
 from app.domain.chat.repositories import ChatRepository, VideoGroupQueryRepository
+from app.domain.chat.services import (
+    ChatRequestPolicy,
+    GroupContextNotFound as _DomainGroupContextNotFound,
+    InvalidSendMessageRequest as _DomainInvalidSendMessageRequest,
+    OwnerUserResolutionError as _DomainOwnerUserResolutionError,
+    require_group_context,
+)
 from app.use_cases.chat.dto import (
     ChatMessageInput,
     RelatedVideoResponseDTO,
@@ -68,30 +75,36 @@ class SendMessageUseCase:
             LLMConfigurationError: If the LLM cannot be configured.
             LLMProviderError: If the LLM provider returns an error.
         """
-        if not messages:
-            raise InvalidChatRequestError("Messages are empty.")
-        if is_shared and group_id is None:
-            raise InvalidChatRequestError("Group ID not specified.")
+        policy = ChatRequestPolicy(
+            is_shared=is_shared,
+            authenticated_user_id=user_id,
+            share_token=share_token,
+            group_id=group_id,
+        )
+        try:
+            policy.validate_send_message_preconditions(messages_count=len(messages))
+        except _DomainInvalidSendMessageRequest as e:
+            raise InvalidChatRequestError(str(e)) from e
 
         # Map input DTOs to domain DTOs before passing to gateway
         domain_messages = [ChatMessageDTO(role=m.role, content=m.content) for m in messages]
 
         group = None
         if group_id is not None:
-            if is_shared and share_token:
-                group = self.group_query_repo.get_with_members(
-                    group_id=group_id, share_token=share_token
+            lookup_params = policy.build_group_lookup_params()
+            try:
+                group = require_group_context(
+                    self.group_query_repo.get_with_members(group_id=group_id, **lookup_params)
                 )
-            else:
-                group = self.group_query_repo.get_with_members(
-                    group_id=group_id, user_id=user_id
-                )
-            if group is None:
+            except _DomainGroupContextNotFound:
                 raise ResourceNotFound("Group")
 
-        owner_user_id = group.user_id if (is_shared and group) else user_id
-        if owner_user_id is None:
-            raise PermissionDenied("Authentication is required to send messages.")
+        try:
+            owner_user_id = policy.resolve_owner_user_id(
+                group_user_id=group.user_id if group is not None else None
+            )
+        except _DomainOwnerUserResolutionError as e:
+            raise PermissionDenied(str(e)) from e
 
         video_ids = group.member_video_ids if group else None
 

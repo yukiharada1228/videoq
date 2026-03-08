@@ -64,6 +64,27 @@ class TagNotAttachedToVideo(Exception):
         super().__init__(message)
 
 
+class ShareLinkNotActive(Exception):
+    """Raised when deleting a share link on a group that has no active token."""
+
+    def __init__(self, message: str = "Share link is not active"):
+        super().__init__(message)
+
+
+class InvalidTagName(Exception):
+    """Raised when a tag name is empty after normalization."""
+
+    def __init__(self, message: str = "Tag name cannot be empty"):
+        super().__init__(message)
+
+
+class InvalidTagColor(Exception):
+    """Raised when a tag color is not a #RRGGBB hex value."""
+
+    def __init__(self, message: str = "Invalid color format. Use #RRGGBB"):
+        super().__init__(message)
+
+
 class TranscriptionTargetNotFound(Exception):
     """Raised when transcription target video does not exist."""
 
