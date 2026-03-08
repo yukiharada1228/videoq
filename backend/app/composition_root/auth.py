@@ -20,6 +20,7 @@ from app.infrastructure.repositories.django_user_auth_gateway import (
     DjangoUserManagementGateway,
 )
 from app.infrastructure.repositories.django_user_repository import DjangoUserRepository
+from app.infrastructure.common.django_transaction import DjangoTransactionPort
 from app.infrastructure.tasks.task_gateway import CeleryAuthTaskGateway
 from app.use_cases.auth.authorize_api_key import AuthorizeApiKeyUseCase
 from app.use_cases.auth.delete_account import AccountDeletionUseCase
@@ -127,6 +128,7 @@ def get_delete_account_use_case() -> AccountDeletionUseCase:
     return AccountDeletionUseCase(
         _new_account_deletion_gateway(),
         _new_auth_task_gateway(),
+        DjangoTransactionPort(),
     )
 
 

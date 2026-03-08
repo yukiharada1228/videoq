@@ -51,7 +51,6 @@ flowchart TD
     Error2 --> End
     Error4 --> End
     Error3 --> ErrorHandle[Update status: error<br/>Save Error Message]
-    Error5 --> ErrorHandle
     ErrorHandle --> End
 ```
 
@@ -75,7 +74,7 @@ flowchart TD
     ValidateGroup -->|Exists| VectorSearch[PGVector<br/>Vector Search]
     VectorSearch --> GetScenes[Get Related Scenes]
     GetScenes --> BuildContext[Build Context]
-    BuildContext --> CallLLM[OpenAI LLM<br/>API Call]
+    BuildContext --> CallLLM[OpenAI / Ollama LLM<br/>API Call]
     NoContext --> CallLLM
     CallLLM --> CheckResponse{"Response<br>Success?"}
     CheckResponse -->|Failed| Error5[LLM Error]
@@ -87,7 +86,6 @@ flowchart TD
     
     Error1 --> End
     Error2 --> End
-    Error3 --> End
     Error4 --> End
     Error5 --> End
     Error6 --> End
@@ -265,12 +263,14 @@ flowchart TD
     Classify -->|Permission Error| PermissionError[403 Forbidden]
     Classify -->|Resource Not Found| NotFoundError[404 Not Found]
     Classify -->|Validation Error| ValidationError[400 Bad Request]
+    Classify -->|Rate Limit Error| RateLimitError[429 Too Many Requests]
     Classify -->|Server Error| ServerError[500 Internal Server Error]
     
     AuthError --> LogError[Log Error]
     PermissionError --> LogError
     NotFoundError --> LogError
     ValidationError --> LogError
+    RateLimitError --> LogError
     ServerError --> LogError
     
     LogError --> CreateResponse[Generate Error Response]
@@ -303,4 +303,157 @@ flowchart TD
     
     Error1 --> ShowError[Display Error Message]
     ShowError --> InputPassword
+```
+
+## 8. Tag Management Flow
+
+```mermaid
+flowchart TD
+    Start([Tag Management]) --> Action{Select Operation}
+    Action -->|Create Tag| CreateTag[Create Tag]
+    Action -->|Edit Tag| EditTag[Edit Tag]
+    Action -->|Delete Tag| DeleteTag[Delete Tag]
+    Action -->|Add to Video| AddToVideo[Add Tag to Video]
+    Action -->|Remove from Video| RemoveFromVideo[Remove Tag from Video]
+    Action -->|Filter by Tag| FilterByTag[Filter Videos by Tag]
+
+    CreateTag --> InputTag[Input Tag Name + Color]
+    InputTag --> ValidateTag{"Input Validation<br>+ Unique Name Check"}
+    ValidateTag -->|Invalid| ErrorTag[Error Display]
+    ValidateTag -->|Valid| SaveTag[(Database<br/>Create Tag)]
+    SaveTag --> SuccessCreate[Create Success]
+    SuccessCreate --> End([Complete])
+
+    EditTag --> SelectTag[Select Tag]
+    SelectTag --> InputEdit[Input New Name / Color]
+    InputEdit --> ValidateEdit{Input Validation}
+    ValidateEdit -->|Invalid| ErrorEdit[Error Display]
+    ValidateEdit -->|Valid| UpdateTag[(Database<br/>Update Tag)]
+    UpdateTag --> SuccessEdit[Update Success]
+    SuccessEdit --> End
+
+    DeleteTag --> SelectTag2[Select Tag]
+    SelectTag2 --> ConfirmDelete{Delete Confirmation}
+    ConfirmDelete -->|Cancel| Cancel[Cancel]
+    ConfirmDelete -->|Confirm| ExecuteDelete[(Database<br/>Delete Tag + VideoTags CASCADE)]
+    ExecuteDelete --> SuccessDelete[Delete Success]
+    SuccessDelete --> End
+    Cancel --> End
+
+    AddToVideo --> SelectVideo[Select Video]
+    SelectVideo --> SelectTags[Select Tags to Add]
+    SelectTags --> ValidateOwnership{Ownership Verification}
+    ValidateOwnership -->|Invalid| ErrorOwnership[Error: Not Owner]
+    ValidateOwnership -->|Valid| CheckDup{Already Attached?}
+    CheckDup -->|Yes| SkipTag[Skip]
+    CheckDup -->|No| CreateVideoTag[(Database<br/>Create VideoTag)]
+    CreateVideoTag --> SuccessAdd[Add Success]
+    SuccessAdd --> End
+    SkipTag --> End
+    ErrorOwnership --> End
+
+    RemoveFromVideo --> SelectVideo2[Select Video]
+    SelectVideo2 --> SelectTagRemove[Select Tag to Remove]
+    SelectTagRemove --> DeleteVideoTag[(Database<br/>Delete VideoTag)]
+    DeleteVideoTag --> SuccessRemove[Remove Success]
+    SuccessRemove --> End
+
+    FilterByTag --> SelectFilterTags[Select Filter Tags]
+    SelectFilterTags --> QueryVideos[(Database<br/>Query Videos by Tags)]
+    QueryVideos --> DisplayFiltered[Display Filtered Videos]
+    DisplayFiltered --> End
+
+    ErrorTag --> End
+    ErrorEdit --> End
+```
+
+## 9. API Key Management Flow
+
+```mermaid
+flowchart TD
+    Start([API Key Management]) --> Action{Select Operation}
+    Action -->|List Keys| ListKeys[List API Keys]
+    Action -->|Create Key| CreateKey[Create API Key]
+    Action -->|Revoke Key| RevokeKey[Revoke API Key]
+
+    ListKeys --> FetchKeys[(Database<br/>Query Active Keys<br/>revoked_at IS NULL)]
+    FetchKeys --> DisplayKeys[Display Key List<br/>prefix, name, access_level, created_at]
+    DisplayKeys --> End([Complete])
+
+    CreateKey --> InputName[Input Key Name]
+    InputName --> SelectAccess[Select Access Level<br/>all / read_only]
+    SelectAccess --> ValidateName{"Duplicate Name<br>Check (active keys)"}
+    ValidateName -->|Duplicate| ErrorDup[Error: Name Already Exists]
+    ValidateName -->|OK| GenerateKey[Generate Raw Key<br/>vq_ + token_urlsafe]
+    GenerateKey --> HashKey[SHA-256 Hash]
+    HashKey --> SaveKey[(Database<br/>Create UserApiKey<br/>prefix + hashed_key)]
+    SaveKey --> ShowRawKey[Display Raw Key<br/>One-time only]
+    ShowRawKey --> End
+
+    RevokeKey --> SelectKey[Select API Key]
+    SelectKey --> ConfirmRevoke{"Confirm<br>Revocation?"}
+    ConfirmRevoke -->|Cancel| End
+    ConfirmRevoke -->|Confirm| SetRevoked[(Database<br/>Set revoked_at = now)]
+    SetRevoked --> SuccessRevoke[Revoke Success]
+    SuccessRevoke --> End
+
+    ErrorDup --> InputName
+```
+
+## 10. API Key Authentication Flow
+
+```mermaid
+flowchart TD
+    Start([API Request with X-API-Key]) --> ExtractKey[Extract API Key from Header]
+    ExtractKey --> HashKey[SHA-256 Hash Key]
+    HashKey --> LookupKey[(Database<br/>Lookup by hashed_key<br/>+ revoked_at IS NULL)]
+    LookupKey --> CheckFound{"Key Found?"}
+    CheckFound -->|Not Found| Error401[401 Unauthorized]
+    CheckFound -->|Found| MarkUsed[Update last_used_at]
+    MarkUsed --> CheckAccess{"access_level vs<br>Request Method?"}
+    CheckAccess -->|read_only + Write Request| Error403[403 Forbidden]
+    CheckAccess -->|Allowed| ProcessRequest[Process Request as User]
+    ProcessRequest --> Response[Success Response]
+    Response --> End([Complete])
+    
+    Error401 --> End
+    Error403 --> End
+```
+
+## 11. Chat Analytics & Feedback Flow
+
+```mermaid
+flowchart TD
+    Start([Chat Analytics]) --> Action{Select Operation}
+    Action -->|Submit Feedback| SubmitFeedback[Submit Feedback]
+    Action -->|View Analytics| ViewAnalytics[View Analytics]
+    Action -->|View Popular Scenes| ViewScenes[View Popular Scenes]
+    Action -->|Export History| ExportHistory[Export History]
+
+    SubmitFeedback --> SelectResponse[Select Chat Response]
+    SelectResponse --> ChooseFeedback{Choose Feedback}
+    ChooseFeedback -->|Good| SetGood[feedback: good]
+    ChooseFeedback -->|Bad| SetBad[feedback: bad]
+    ChooseFeedback -->|Remove| ClearFeedback[feedback: null]
+    SetGood --> SaveFeedback[(Database<br/>Update ChatLog.feedback)]
+    SetBad --> SaveFeedback
+    ClearFeedback --> SaveFeedback
+    SaveFeedback --> End([Complete])
+
+    ViewAnalytics --> FetchRawData[(Database<br/>Aggregated Queries)]
+    FetchRawData --> ComputeMetrics[Compute Analytics<br/>feedback distribution, time series]
+    ComputeMetrics --> DisplayCharts[Display Charts<br/>FeedbackDonut<br/>QuestionTimeSeries]
+    DisplayCharts --> End
+
+    ViewScenes --> FetchSceneLogs[(Database<br/>Get Scene Logs)]
+    FetchSceneLogs --> AggregateScenes[Aggregate Scene References<br/>aggregate_scenes]
+    AggregateScenes --> FilterScenes[Filter Group Scenes<br/>filter_group_scenes]
+    FilterScenes --> ExtractKeywords[Extract Keywords<br/>JanomeNltkKeywordExtractor]
+    ExtractKeywords --> DisplayScenes[Display Popular Scenes<br/>+ KeywordCloudChart<br/>+ SceneDistributionChart]
+    DisplayScenes --> End
+
+    ExportHistory --> FetchAllLogs[(Database<br/>Get All ChatLogs)]
+    FetchAllLogs --> FormatCSV[Format as CSV]
+    FormatCSV --> DownloadCSV[Download CSV File]
+    DownloadCSV --> End
 ```

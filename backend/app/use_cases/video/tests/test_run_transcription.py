@@ -1,7 +1,8 @@
 """Unit tests for RunTranscriptionUseCase using in-memory fakes."""
 
+from contextlib import contextmanager
+from typing import Callable, Optional
 from unittest import TestCase
-from typing import Optional
 
 from app.domain.video.entities import VideoEntity
 from app.domain.video.exceptions import InvalidVideoStatusTransition
@@ -56,50 +57,66 @@ class _FakeTranscriptionGateway:
         return self.transcript
 
 
-class _FakeVectorIndexingGateway:
+class _FakeVideoTaskGateway:
     def __init__(self):
-        self.calls = []
+        self.enqueue_indexing_calls: list[int] = []
 
-    def index_video_transcript(
-        self, video_id: int, user_id: int, title: str, transcript: str
-    ) -> None:
-        self.calls.append((video_id, user_id, title, transcript))
+    def enqueue_indexing(self, video_id: int) -> None:
+        self.enqueue_indexing_calls.append(video_id)
+
+    def enqueue_transcription(self, video_id: int) -> None:
+        pass
+
+    def enqueue_reindex_all_videos_embeddings(self) -> str:
+        return ""
+
+
+class _FakeTransactionPort:
+    @contextmanager
+    def atomic(self):
+        yield
+
+    def on_commit(self, fn: Callable[[], None]) -> None:
+        fn()
 
 
 class RunTranscriptionUseCaseTests(TestCase):
-    def test_success_sets_completed_and_indexes_transcript(self):
+    def test_success_sets_indexing_status_and_enqueues_task(self):
         video = VideoEntity(id=1, user_id=10, title="v1", status="pending")
         repo = _FakeVideoTranscriptionRepository(video)
         transcription = _FakeTranscriptionGateway(transcript="hello")
-        vector = _FakeVectorIndexingGateway()
-        use_case = RunTranscriptionUseCase(repo, transcription, vector)
+        task_gateway = _FakeVideoTaskGateway()
+        tx = _FakeTransactionPort()
+        use_case = RunTranscriptionUseCase(repo, transcription, task_gateway, tx)
 
         use_case.execute(video.id)
 
-        self.assertEqual(video.status, "completed")
+        self.assertEqual(video.status, "indexing")
         self.assertEqual(video.transcript, "hello")
-        self.assertEqual(len(vector.calls), 1)
+        self.assertEqual(task_gateway.enqueue_indexing_calls, [video.id])
 
     def test_failure_sets_error_status(self):
         video = VideoEntity(id=1, user_id=10, title="v1", status="pending")
         repo = _FakeVideoTranscriptionRepository(video)
         transcription = _FakeTranscriptionGateway(error=RuntimeError("boom"))
-        vector = _FakeVectorIndexingGateway()
-        use_case = RunTranscriptionUseCase(repo, transcription, vector)
+        task_gateway = _FakeVideoTaskGateway()
+        tx = _FakeTransactionPort()
+        use_case = RunTranscriptionUseCase(repo, transcription, task_gateway, tx)
 
         with self.assertRaises(TranscriptionExecutionFailed) as exc:
             use_case.execute(video.id)
 
         self.assertEqual(video.status, "error")
         self.assertEqual(video.error_message, "boom")
-        self.assertEqual(vector.calls, [])
+        self.assertEqual(task_gateway.enqueue_indexing_calls, [])
         self.assertEqual(exc.exception.video_id, video.id)
 
     def test_raises_transcription_target_not_found_for_missing_video(self):
         repo = _FakeVideoTranscriptionRepository(video=None)
         transcription = _FakeTranscriptionGateway(transcript="hello")
-        vector = _FakeVectorIndexingGateway()
-        use_case = RunTranscriptionUseCase(repo, transcription, vector)
+        task_gateway = _FakeVideoTaskGateway()
+        tx = _FakeTransactionPort()
+        use_case = RunTranscriptionUseCase(repo, transcription, task_gateway, tx)
 
         with self.assertRaises(TranscriptionTargetMissing):
             use_case.execute(99999)
@@ -108,8 +125,9 @@ class RunTranscriptionUseCaseTests(TestCase):
         video = VideoEntity(id=1, user_id=10, title="v1", status="processing")
         repo = _FakeVideoTranscriptionRepository(video)
         transcription = _FakeTranscriptionGateway(transcript="hello")
-        vector = _FakeVectorIndexingGateway()
-        use_case = RunTranscriptionUseCase(repo, transcription, vector)
+        task_gateway = _FakeVideoTaskGateway()
+        tx = _FakeTransactionPort()
+        use_case = RunTranscriptionUseCase(repo, transcription, task_gateway, tx)
 
         with self.assertRaises(InvalidVideoStatusTransition):
             use_case.execute(video.id)

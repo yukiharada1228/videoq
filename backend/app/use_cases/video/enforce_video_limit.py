@@ -4,6 +4,7 @@ Use case: Enforce a user's video_limit by deleting oldest excess videos.
 
 import logging
 
+from app.domain.shared.transaction import TransactionPort
 from app.domain.video.dto import VideoSearchCriteria
 from app.domain.video.gateways import VectorStoreGateway
 from app.domain.video.repositories import VideoRepository
@@ -19,9 +20,15 @@ class EnforceVideoLimitUseCase:
     3. Best-effort cleanup of vector data for deleted videos
     """
 
-    def __init__(self, video_repo: VideoRepository, vector_gateway: VectorStoreGateway):
+    def __init__(
+        self,
+        video_repo: VideoRepository,
+        vector_gateway: VectorStoreGateway,
+        tx: TransactionPort,
+    ):
         self.video_repo = video_repo
         self.vector_gateway = vector_gateway
+        self.tx = tx
 
     def estimate_deleted_count(self, user_id: int, video_limit: int | None) -> int:
         """Return how many videos would be deleted to satisfy the new limit."""
@@ -48,17 +55,25 @@ class EnforceVideoLimitUseCase:
         )
 
         deleted_count = 0
-        for video in videos[:excess_count]:
-            self.video_repo.delete(video)
-            deleted_count += 1
-            try:
-                self.vector_gateway.delete_video_vectors(video.id)
-            except Exception:
-                logger.warning(
-                    "Failed to delete vectors for video %s during limit enforcement",
-                    video.id,
-                    exc_info=True,
-                )
+        deleted_video_ids: list[int] = []
+        with self.tx.atomic():
+            for video in videos[:excess_count]:
+                self.video_repo.delete(video)
+                deleted_count += 1
+                deleted_video_ids.append(video.id)
+
+            def _cleanup_vectors() -> None:
+                for video_id in deleted_video_ids:
+                    try:
+                        self.vector_gateway.delete_video_vectors(video_id)
+                    except Exception:
+                        logger.warning(
+                            "Failed to delete vectors for video %s during limit enforcement",
+                            video_id,
+                            exc_info=True,
+                        )
+
+            self.tx.on_commit(_cleanup_vectors)
 
         logger.info(
             "Deleted %s excess videos for user_id=%s to enforce video_limit=%s",

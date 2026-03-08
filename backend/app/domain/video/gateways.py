@@ -29,6 +29,11 @@ class VideoTaskGateway(ABC):
         ...
 
     @abstractmethod
+    def enqueue_indexing(self, video_id: int) -> None:
+        """Enqueue a vector indexing task for a single video (dispatched after DB commit)."""
+        ...
+
+    @abstractmethod
     def enqueue_reindex_all_videos_embeddings(self) -> str:
         """Enqueue full re-indexing task and return the created task id."""
         ...

@@ -84,6 +84,30 @@ classDiagram
         +datetime added_at
         +__str__()
     }
+
+    class UserApiKey {
+        +int id
+        +ForeignKey user
+        +string name
+        +string access_level
+        +string prefix
+        +string hashed_key
+        +datetime last_used_at
+        +datetime revoked_at
+        +datetime created_at
+        +generate_raw_key()$
+        +hash_key(raw_key)$
+        +create_for_user(user, name, access_level)$
+        +mark_used()
+        +revoke()
+    }
+
+    class AccountDeletionRequest {
+        +int id
+        +ForeignKey user
+        +string reason
+        +datetime requested_at
+    }
     
     class SafeFilenameMixin {
         +get_available_name()
@@ -103,6 +127,8 @@ classDiagram
     User "1" --> "*" VideoGroup : owns
     User "1" --> "*" ChatLog : creates
     User "1" --> "*" Tag : owns
+    User "1" --> "*" UserApiKey : owns
+    User "1" --> "*" AccountDeletionRequest : creates
     VideoGroup "1" --> "*" VideoGroupMember : contains
     Video "1" --> "*" VideoGroupMember : belongs_to
     Video "1" --> "*" VideoTag : has
@@ -120,21 +146,8 @@ classDiagram
         +get_video_groups_with_videos()
     }
     
-    class ValidationHelper {
-        +validate_required_fields()
-        +validate_field_length()
-        +validate_email_format()
-    }
-    
-    class ErrorHandler {
-        +handle_task_error()
-        +validate_required_fields()
-        +safe_execute()
-    }
-    
     QueryOptimizer --> Video : optimizes
     QueryOptimizer --> VideoGroup : optimizes
-    ErrorHandler --> ValidationHelper : uses
 ```
 
 ## Frontend Components (React/TypeScript)
@@ -249,6 +262,16 @@ classDiagram
         +function onClose
         +render()
     }
+
+    class AnalyticsDashboard {
+        +int groupId
+        +render()
+    }
+
+    class DashboardButton {
+        +int groupId
+        +render()
+    }
     
     class LoadingState {
         +bool isLoading
@@ -280,7 +303,94 @@ classDiagram
     QueryProvider --> I18nProvider : wraps
 ```
 
-## Backend Use Cases & Views (Clean Architecture)
+## Backend Domain Layer (Clean Architecture)
+
+### Domain Abstractions
+
+```mermaid
+classDiagram
+    class VideoQueryRepository {
+        <<abstract>>
+        +get_by_id(video_id, user_id) VideoEntity
+        +list_for_user(user_id, criteria) list~VideoEntity~
+        +count_for_user(user_id) int
+        +get_file_keys_for_ids(video_ids, user_id) Dict
+    }
+    class VideoCommandRepository {
+        <<abstract>>
+        +create(user_id, params) VideoEntity
+        +update(video, params) VideoEntity
+        +delete(video) None
+    }
+    class VideoTranscriptionRepository {
+        <<abstract>>
+        +list_completed_with_transcript() list~VideoEntity~
+        +get_by_id_for_task(video_id) VideoEntity
+        +transition_status(video_id, from, to, error) None
+        +save_transcript(video_id, transcript) None
+    }
+    class VideoRepository {
+        <<abstract>>
+    }
+    class VideoGroupRepository {
+        <<abstract>>
+        +get_by_id(group_id, user_id, include_videos) VideoGroupEntity
+        +list_for_user(user_id, include_videos) list~VideoGroupEntity~
+        +create(user_id, params) VideoGroupEntity
+        +update(group, params) VideoGroupEntity
+        +delete(group) None
+        +get_by_share_token(token) VideoGroupEntity
+        +add_video(group, video) VideoGroupMemberEntity
+        +add_videos_bulk(group, video_ids, user_id) tuple
+        +remove_video(group, video) None
+        +reorder_videos(group, video_ids) None
+        +update_share_token(group, token) None
+    }
+    class TagRepository {
+        <<abstract>>
+        +list_for_user(user_id) list~TagEntity~
+        +get_by_id(tag_id, user_id) TagEntity
+        +create(user_id, params) TagEntity
+        +update(tag, params) TagEntity
+        +delete(tag) None
+        +add_tags_to_video(video, tag_ids) tuple
+        +remove_tag_from_video(video, tag) None
+        +get_with_videos(tag_id, user_id) TagEntity
+    }
+    class ChatRepository {
+        <<abstract>>
+        +get_logs_for_group(group_id, ascending) list~ChatLogEntity~
+        +create_log(user_id, group_id, question, answer, related_videos, is_shared) ChatLogEntity
+        +get_log_by_id(log_id) ChatLogEntity
+        +update_feedback(log, feedback) ChatLogEntity
+        +get_logs_values_for_group(group_id) list~ChatSceneLog~
+        +get_analytics_raw(group_id) ChatAnalyticsRaw
+    }
+    class ApiKeyRepository {
+        <<abstract>>
+        +list_for_user(user_id) list~ApiKeyEntity~
+        +create_for_user(user_id, name, access_level) ApiKeyCreateResult
+        +get_active_by_id(key_id, user_id) ApiKeyEntity
+        +revoke(key_id, user_id) bool
+        +exists_active_with_name(user_id, name) bool
+    }
+    class RagGateway {
+        <<abstract>>
+        +generate_reply(messages, user_id, video_ids, locale) RagResult
+    }
+    class KeywordExtractor {
+        <<abstract>>
+        +extract(questions, limit) list~KeywordCount~
+    }
+    class SceneVideoInfoProvider {
+        <<abstract>>
+        +get_file_urls_for_ids(video_ids, user_id) Dict
+    }
+
+    VideoRepository --|> VideoQueryRepository
+    VideoRepository --|> VideoCommandRepository
+    VideoRepository --|> VideoTranscriptionRepository
+```
 
 ### Use Case Interfaces
 
@@ -298,14 +408,61 @@ classDiagram
     class UpdateVideoUseCase {
         +execute(video_id, user_id, data) VideoOutputDTO
     }
+    class DeleteVideoUseCase {
+        +execute(video_id, user_id) None
+    }
     class GetGroupUseCase {
         +execute(group_id, user_id) GroupOutputDTO
     }
+    class ListGroupsUseCase {
+        +execute(user_id) list~GroupOutputDTO~
+    }
+    class CreateGroupUseCase {
+        +execute(user_id, data) GroupOutputDTO
+    }
+    class DeleteGroupUseCase {
+        +execute(group_id, user_id) None
+    }
+    class ManageGroupsUseCase {
+        +add_video(group_id, user_id, video_ids) result
+        +remove_video(group_id, user_id, video_id) None
+        +reorder_videos(group_id, user_id, video_ids) None
+        +create_share_token(group_id, user_id) str
+        +delete_share_token(group_id, user_id) None
+    }
     class GetTagUseCase {
+        +execute(tag_id, user_id) TagOutputDTO
+    }
+    class ListTagsUseCase {
         +execute(user_id) list~TagOutputDTO~
+    }
+    class CreateTagUseCase {
+        +execute(user_id, data) TagOutputDTO
+    }
+    class DeleteTagUseCase {
+        +execute(tag_id, user_id) None
+    }
+    class ManageTagsUseCase {
+        +add_tags_to_video(video_id, user_id, tag_ids) result
+        +remove_tag_from_video(video_id, user_id, tag_id) None
     }
     class SendMessageUseCase {
         +execute(user_id, messages, group_id, locale) ChatOutputDTO
+    }
+    class GetHistoryUseCase {
+        +execute(group_id, user_id, ascending) list~ChatLogDTO~
+    }
+    class ExportHistoryUseCase {
+        +execute(group_id, user_id) str
+    }
+    class SubmitFeedbackUseCase {
+        +execute(log_id, feedback, user_id, share_token) ChatLogDTO
+    }
+    class GetAnalyticsUseCase {
+        +execute(group_id, user_id) AnalyticsDTO
+    }
+    class GetPopularScenesUseCase {
+        +execute(group_id, user_id) list~PopularSceneDTO~
     }
     class LoginUseCase {
         +execute(username, password) TokenPairDto
@@ -318,6 +475,17 @@ classDiagram
     }
     class AccountDeletionUseCase {
         +execute(user_id, reason) None
+    }
+    class DeleteAccountDataUseCase {
+        +execute(user_id) None
+    }
+    class ManageApiKeysUseCase {
+        +list(user_id) list~ApiKeyEntity~
+        +create(user_id, name, access_level) ApiKeyCreateResult
+        +revoke(key_id, user_id) bool
+    }
+    class RefreshTokenUseCase {
+        +execute(refresh_token) TokenPairDto
     }
     class ResolveProtectedMediaUseCase {
         +execute(path, user) str
@@ -358,6 +526,18 @@ classDiagram
     class ChatHistoryView {
         +get() history list response
     }
+    class ChatFeedbackView {
+        +patch() feedback response
+    }
+    class ChatAnalyticsView {
+        +get() analytics response
+    }
+    class PopularScenesView {
+        +get() scenes response
+    }
+    class ExportHistoryView {
+        +get() CSV response
+    }
     class LoginView {
         +post() sets JWT cookies
     }
@@ -373,6 +553,13 @@ classDiagram
     class CurrentUserView {
         +get() user detail response
     }
+    class ApiKeyListView {
+        +get() list response
+        +post() created response
+    }
+    class ApiKeyDetailView {
+        +delete() revokes API key
+    }
     class ProtectedMediaView {
         +get() redirects to signed media URL
     }
@@ -381,10 +568,18 @@ classDiagram
     VideoListView ..> ListVideosUseCase : delegates
     VideoDetailView ..> GetVideoUseCase : delegates
     VideoDetailView ..> UpdateVideoUseCase : delegates
+    VideoDetailView ..> DeleteVideoUseCase : delegates
     ChatView ..> SendMessageUseCase : delegates
+    ChatHistoryView ..> GetHistoryUseCase : delegates
+    ChatFeedbackView ..> SubmitFeedbackUseCase : delegates
+    ChatAnalyticsView ..> GetAnalyticsUseCase : delegates
+    PopularScenesView ..> GetPopularScenesUseCase : delegates
+    ExportHistoryView ..> ExportHistoryUseCase : delegates
     LoginView ..> LoginUseCase : delegates
     AccountDeleteView ..> AccountDeletionUseCase : delegates
     CurrentUserView ..> GetCurrentUserUseCase : delegates
+    ApiKeyListView ..> ManageApiKeysUseCase : delegates
+    ApiKeyDetailView ..> ManageApiKeysUseCase : delegates
     ProtectedMediaView ..> ResolveProtectedMediaUseCase : delegates
 ```
 
@@ -393,15 +588,18 @@ classDiagram
 ### Backend
 - **User** owns multiple **Video** instances
 - **User** owns multiple **VideoGroup** instances
+- **User** owns multiple **UserApiKey** instances
 - **VideoGroup** relates to multiple **Video** instances through **VideoGroupMember**
 - **ChatLog** is associated with **User** and **VideoGroup**
 - **Video** uses **SafeFileSystemStorage** or **SafeS3Boto3Storage**
 - **Presentation views** delegate to **Use Cases** via `get_container()` (never import infrastructure directly)
 - **Use Cases** depend only on **Domain** abstractions (ABCs / ports)
 - **Infrastructure** implements **Domain** ports (repositories, gateways)
+- **Entrypoints** (Celery tasks) delegate to **Use Cases** via composition root
 
 ### Frontend
 - **PageLayout** contains **Header** and **Footer**
 - **AuthForm** contains multiple **FormField** instances
 - **VideoList** contains multiple **VideoCard** instances
+- **AnalyticsDashboard** contains chart components (FeedbackDonut, KeywordCloud, QuestionTimeSeries, SceneDistribution)
 - **I18nProvider** wraps the entire application

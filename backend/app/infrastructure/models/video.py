@@ -22,6 +22,7 @@ class Video(models.Model):
     STATUS_CHOICES = [
         ("pending", "Pending"),
         ("processing", "Processing"),
+        ("indexing", "Indexing"),
         ("completed", "Completed"),
         ("error", "Error"),
     ]

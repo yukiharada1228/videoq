@@ -7,6 +7,7 @@ from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 
+from app.infrastructure.common.django_transaction import DjangoTransactionPort
 from app.infrastructure.repositories.django_user_repository import DjangoUserRepository
 from app.infrastructure.repositories.django_video_repository import DjangoVideoRepository
 from app.infrastructure.models import Video
@@ -38,6 +39,7 @@ class CreateVideoUseCaseIntegrationTests(TestCase):
             self.user_repo,
             self.repo,
             self.mock_task_queue,
+            DjangoTransactionPort(),
         )
 
     def _input(self):
