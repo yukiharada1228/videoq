@@ -30,6 +30,12 @@ describe('video utils', () => {
       expect(result).toContain('text-red-800');
     });
 
+    it('should return correct class for indexing status', () => {
+      const result = getStatusBadgeClassName('indexing');
+      expect(result).toContain('bg-purple-100');
+      expect(result).toContain('text-purple-800');
+    });
+
     it('should return default class for unknown status', () => {
       const result = getStatusBadgeClassName('unknown');
       expect(result).toContain('bg-gray-100');
@@ -42,6 +48,7 @@ describe('video utils', () => {
       expect(getStatusLabel('completed')).toBe('common.status.completed');
       expect(getStatusLabel('pending')).toBe('common.status.pending');
       expect(getStatusLabel('processing')).toBe('common.status.processing');
+      expect(getStatusLabel('indexing')).toBe('common.status.indexing');
       expect(getStatusLabel('error')).toBe('common.status.error');
     });
   });

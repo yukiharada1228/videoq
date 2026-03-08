@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 
-export type VideoStatus = 'pending' | 'processing' | 'completed' | 'error';
+export type VideoStatus = 'pending' | 'processing' | 'indexing' | 'completed' | 'error';
 
 export interface VideoLike {
   status: VideoStatus;
@@ -11,6 +11,7 @@ export interface VideoStats {
   completed: number;
   pending: number;
   processing: number;
+  indexing: number;
   error: number;
 }
 
@@ -26,6 +27,7 @@ export function useVideoStats<T extends VideoLike>(videos: T[]): VideoStats {
       completed: 0,
       pending: 0,
       processing: 0,
+      indexing: 0,
       error: 0,
     };
 
@@ -40,6 +42,9 @@ export function useVideoStats<T extends VideoLike>(videos: T[]): VideoStats {
         case 'processing':
           stats.processing++;
           break;
+        case 'indexing':
+          stats.indexing++;
+          break;
         case 'error':
           stats.error++;
           break;
@@ -49,4 +54,3 @@ export function useVideoStats<T extends VideoLike>(videos: T[]): VideoStats {
     return stats;
   }, [videos]);
 }
-
