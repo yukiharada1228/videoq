@@ -33,7 +33,12 @@ class AddTagsToVideoUseCase:
             raise ResourceNotFound("Video")
 
         try:
-            return self.tag_repo.add_tags_to_video(video, tag_ids)
+            ids_to_add, skipped_before_persist = video.plan_tag_attachment(tag_ids)
+            if not ids_to_add:
+                return 0, skipped_before_persist
+
+            added_count, skipped_in_persist = self.tag_repo.add_tags_to_video(video, ids_to_add)
+            return added_count, skipped_before_persist + skipped_in_persist
         except SomeTagsNotFound as e:
             raise ResourceNotFound("Some tags") from e
 
@@ -61,6 +66,7 @@ class RemoveTagFromVideoUseCase:
             raise ResourceNotFound("Tag")
 
         try:
+            video.assert_has_tag(tag.id)
             self.tag_repo.remove_tag_from_video(video, tag)
         except TagNotAttachedToVideo as e:
             raise ResourceNotFound("Tag attachment") from e

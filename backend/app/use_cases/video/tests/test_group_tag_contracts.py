@@ -21,6 +21,7 @@ from app.use_cases.video.dto import (
 )
 from app.use_cases.video.exceptions import (
     GroupVideoOrderMismatch,
+    InvalidTagInput,
     ResourceNotFound,
     VideoAlreadyInGroup,
     VideoNotInGroup,
@@ -52,6 +53,13 @@ class _FakeVideoRepo:
         if video and video.user_id == user_id:
             return video
         return None
+
+    def get_existing_ids_for_user(self, video_ids, user_id: int):
+        return {
+            video_id
+            for video_id in video_ids
+            if (video := self.videos.get(video_id)) is not None and video.user_id == user_id
+        }
 
 
 class _FakeGroupRepo:
@@ -144,12 +152,19 @@ class GroupTagContractsUseCaseTests(TestCase):
                     order=0,
                 )
 
-        use_case = AddVideoToGroupUseCase(_FakeVideoRepo(self.video), _SuccessGroupRepo(self.group))
-        result = use_case.execute(self.group.id, self.video.id, self.user_id)
+        empty_group = VideoGroupEntity(
+            id=self.group.id,
+            user_id=self.user_id,
+            name=self.group.name,
+            members=[],
+            video_count=0,
+        )
+        use_case = AddVideoToGroupUseCase(_FakeVideoRepo(self.video), _SuccessGroupRepo(empty_group))
+        result = use_case.execute(empty_group.id, self.video.id, self.user_id)
 
         self.assertIsInstance(result, VideoGroupMemberResponseDTO)
         self.assertEqual(result.id, 99)
-        self.assertEqual(result.group_id, self.group.id)
+        self.assertEqual(result.group_id, empty_group.id)
         self.assertEqual(result.video_id, self.video.id)
 
     def test_remove_video_from_group_raises_explicit_business_exception(self):
@@ -161,6 +176,35 @@ class GroupTagContractsUseCaseTests(TestCase):
         use_case = AddTagsToVideoUseCase(_FakeVideoRepo(self.video), _FakeTagRepo(self.tag))
         with self.assertRaises(ResourceNotFound):
             use_case.execute(self.video.id, [1, 2], self.user_id)
+
+    def test_add_tags_skips_attached_and_duplicate_ids_before_repository(self):
+        class _SuccessTagRepo(_FakeTagRepo):
+            def __init__(self, tag):
+                super().__init__(tag)
+                self.received_tag_ids = None
+
+            def add_tags_to_video(self, video, tag_ids):
+                self.received_tag_ids = list(tag_ids)
+                return len(tag_ids), 0
+
+        video_with_existing_tag = VideoEntity(
+            id=self.video.id,
+            user_id=self.user_id,
+            title=self.video.title,
+            status=self.video.status,
+            tags=[self.tag],
+        )
+        tag_repo = _SuccessTagRepo(self.tag)
+        use_case = AddTagsToVideoUseCase(_FakeVideoRepo(video_with_existing_tag), tag_repo)
+
+        added_count, skipped_count = use_case.execute(
+            self.video.id,
+            [self.tag.id, 999, 999],
+            self.user_id,
+        )
+
+        self.assertEqual(tag_repo.received_tag_ids, [999])
+        self.assertEqual((added_count, skipped_count), (1, 2))
 
     def test_add_videos_bulk_resolves_rules_in_use_case_layer(self):
         existing_member = VideoGroupMemberEntity(
@@ -279,6 +323,15 @@ class GroupTagContractsUseCaseTests(TestCase):
         self.assertEqual(result.id, self.tag.id)
         self.assertEqual(result.name, self.tag.name)
 
+    def test_create_tag_raises_invalid_tag_input_for_invalid_color(self):
+        repo = _FakeTagRepo(self.tag)
+        use_case = CreateTagUseCase(repo)
+        with self.assertRaises(InvalidTagInput):
+            use_case.execute(
+                self.user_id,
+                CreateTagInput(name="tag", color="red"),
+            )
+
     def test_update_tag_returns_tag_response_dto(self):
         repo = _FakeTagRepo(self.tag)
         use_case = UpdateTagUseCase(repo)
@@ -290,3 +343,13 @@ class GroupTagContractsUseCaseTests(TestCase):
         self.assertEqual(result.id, self.tag.id)
         self.assertEqual(result.name, self.tag.name)
         self.assertTrue(repo.update_called)
+
+    def test_update_tag_raises_invalid_tag_input_for_whitespace_name(self):
+        repo = _FakeTagRepo(self.tag)
+        use_case = UpdateTagUseCase(repo)
+        with self.assertRaises(InvalidTagInput):
+            use_case.execute(
+                self.tag.id,
+                self.user_id,
+                UpdateTagInput(name="   ", color="#222222"),
+            )

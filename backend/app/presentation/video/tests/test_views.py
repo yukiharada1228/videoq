@@ -446,6 +446,31 @@ class TagViewTests(APITestCase):
         self.assertIn("created_at", response.data)
         self.assertEqual(response.data["video_count"], 0)
 
+    def test_create_tag_returns_400_for_invalid_color(self):
+        """Invalid tag color should be rejected at use-case/domain boundary."""
+        url = reverse("tag-list")
+        response = self.client.post(
+            url,
+            {"name": "Tag 1", "color": "red"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["error"], "Invalid color format. Use #RRGGBB")
+
+    def test_update_tag_returns_400_for_whitespace_name(self):
+        """Whitespace-only tag name should be rejected at use-case/domain boundary."""
+        tag = Tag.objects.create(user=self.user, name="Tag 1", color="#111111")
+        url = reverse("tag-detail", kwargs={"pk": tag.pk})
+        response = self.client.patch(
+            url,
+            {"name": "   "},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["error"], "Tag name cannot be empty")
+
     @patch("app.infrastructure.external.vector_gateway.delete_video_vectors")
     def test_delete_video_deletes_vectors(self, mock_delete):
         """Test that deleting video deletes vectors and performs hard delete"""

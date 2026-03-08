@@ -5,11 +5,14 @@ Use cases for managing video groups: membership, ordering, and share links.
 from typing import List, Tuple
 
 from app.domain.video.exceptions import (
+    GroupVideoOrderMismatch as DomainGroupVideoOrderMismatch,
+    ShareLinkNotActive as DomainShareLinkNotActive,
+    SomeVideosNotFound as DomainSomeVideosNotFound,
     VideoAlreadyInGroup as DomainVideoAlreadyInGroup,
     VideoNotInGroup as DomainVideoNotInGroup,
 )
 from app.domain.video.repositories import VideoGroupRepository, VideoRepository
-from app.domain.video.services import ShareLinkService
+from app.domain.video.services import ShareLinkService, VideoGroupMembershipService
 from app.use_cases.video.dto import VideoGroupMemberResponseDTO
 from app.use_cases.video.exceptions import (
     GroupVideoOrderMismatch,
@@ -39,7 +42,7 @@ class AddVideoToGroupUseCase:
             ResourceNotFound: If the group or video is not found.
             VideoAlreadyInGroup: If the video is already in the group.
         """
-        group = self.group_repo.get_by_id(group_id, user_id)
+        group = self.group_repo.get_by_id(group_id, user_id, include_videos=True)
         if group is None:
             raise ResourceNotFound("Group")
 
@@ -48,6 +51,10 @@ class AddVideoToGroupUseCase:
             raise ResourceNotFound("Video")
 
         try:
+            VideoGroupMembershipService.ensure_can_add_video(
+                group=group,
+                video_id=video.id,
+            )
             member = self.group_repo.add_video(group, video)
             return VideoGroupMemberResponseDTO(
                 id=member.id,
@@ -84,26 +91,19 @@ class AddVideosToGroupUseCase:
         if group is None:
             raise ResourceNotFound("Group")
 
-        requested_ids = list(dict.fromkeys(video_ids))
-        missing_ids = [
-            video_id
-            for video_id in requested_ids
-            if self.video_repo.get_by_id(video_id, user_id) is None
-        ]
-        if missing_ids:
-            raise ResourceNotFound("Some videos")
-
-        existing_ids = {member.video_id for member in group.members}
-        ids_to_add: List[int] = []
-        seen_ids = set(existing_ids)
-        for video_id in video_ids:
-            if video_id in seen_ids:
-                continue
-            ids_to_add.append(video_id)
-            seen_ids.add(video_id)
-
+        existing_video_ids = self.video_repo.get_existing_ids_for_user(
+            video_ids=list(dict.fromkeys(video_ids)),
+            user_id=user_id,
+        )
+        try:
+            ids_to_add, skipped_count = VideoGroupMembershipService.plan_bulk_add(
+                group=group,
+                requested_video_ids=video_ids,
+                existing_video_ids=existing_video_ids,
+            )
+        except DomainSomeVideosNotFound as e:
+            raise ResourceNotFound("Some videos") from e
         added_count, _ = self.group_repo.add_videos_bulk(group, ids_to_add, user_id)
-        skipped_count = len(video_ids) - len(ids_to_add)
         return added_count, skipped_count
 
 
@@ -122,7 +122,7 @@ class RemoveVideoFromGroupUseCase:
             ResourceNotFound: If the group or video is not found.
             VideoNotInGroup: If the video is not in the group.
         """
-        group = self.group_repo.get_by_id(group_id, user_id)
+        group = self.group_repo.get_by_id(group_id, user_id, include_videos=True)
         if group is None:
             raise ResourceNotFound("Group")
 
@@ -131,6 +131,10 @@ class RemoveVideoFromGroupUseCase:
             raise ResourceNotFound("Video")
 
         try:
+            VideoGroupMembershipService.ensure_contains_video(
+                group=group,
+                video_id=video.id,
+            )
             self.group_repo.remove_video(group, video)
         except DomainVideoNotInGroup as e:
             raise VideoNotInGroup(str(e)) from e
@@ -152,8 +156,12 @@ class ReorderVideosInGroupUseCase:
         if group is None:
             raise ResourceNotFound("Group")
 
-        group_video_ids = {member.video_id for member in group.members}
-        if set(video_ids) != group_video_ids:
+        try:
+            VideoGroupMembershipService.ensure_reorder_matches_members(
+                group=group,
+                requested_video_ids=video_ids,
+            )
+        except DomainGroupVideoOrderMismatch:
             raise GroupVideoOrderMismatch()
 
         self.group_repo.reorder_videos(group, video_ids)
@@ -197,7 +205,9 @@ class DeleteShareLinkUseCase:
         if group is None:
             raise ResourceNotFound("Group")
 
-        if not group.share_token:
+        try:
+            group.assert_share_link_active()
+        except DomainShareLinkNotActive:
             raise ResourceNotFound("Share link")
 
         self.group_repo.update_share_token(group, None)

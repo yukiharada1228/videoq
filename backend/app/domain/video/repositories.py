@@ -53,6 +53,11 @@ class VideoQueryRepository(ABC):
         """Return a mapping of video_id → storage file key (or None) for the given IDs."""
         ...
 
+    @abstractmethod
+    def get_existing_ids_for_user(self, video_ids: List[int], user_id: int) -> set[int]:
+        """Return the subset of given IDs that belong to the user."""
+        ...
+
 
 class VideoCommandRepository(ABC):
     """Write-side video repository operations."""
