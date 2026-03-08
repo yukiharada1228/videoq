@@ -94,7 +94,7 @@ stateDiagram-v2
 ### Authentication Related
 - **Home** (`/` or `/:locale`): Home page (e.g., `/`, `/en`, `/ja`)
 - **Login** (`/login` or `/:locale/login`): Login page
-- **Signup** (`/signup` or `/:locale/signup`): Sign up page
+- **Signup** (`/signup` or `/:locale/signup`): Sign up page (only when `ENABLE_SIGNUP=true`)
 - **CheckEmail** (`/signup/check-email` or `/:locale/signup/check-email`): Email confirmation waiting page
 - **VerifyEmail** (`/verify-email` or `/:locale/verify-email`): Email verification page
 - **ForgotPassword** (`/forgot-password` or `/:locale/forgot-password`): Password reset request page
@@ -124,6 +124,9 @@ stateDiagram-v2
 ### Transitions Based on Authentication Status
 - **Unauthenticated User**: Home → Login/Signup → After authentication → VideoList
 - **Authenticated User**: Home → VideoList (direct transition)
+
+### Feature Flags
+- When `ENABLE_SIGNUP=false`, `/api/auth/signup/` is disabled and the signup flow is unavailable.
 
 ### Transitions via Share Links
 - **Share Token URL**: Direct access to SharePage (no authentication required)

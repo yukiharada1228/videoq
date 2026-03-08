@@ -319,7 +319,7 @@ Table that stores API keys for server-to-server integrations. API keys allow pro
 
 ### access_level Values
 - `all`: Full read/write access
-- `read_only`: Read-only access
+- `read_only`: Read scope + `chat_write` scope (allows `POST /api/chat/`, but blocks other write operations)
 
 ### Indexes
 - PRIMARY KEY: `id`
