@@ -413,8 +413,8 @@ flowchart TD
     LookupKey --> CheckFound{"Key Found?"}
     CheckFound -->|Not Found| Error401[401 Unauthorized]
     CheckFound -->|Found| MarkUsed[Update last_used_at]
-    MarkUsed --> CheckAccess{"access_level vs<br>Request Method?"}
-    CheckAccess -->|read_only + Write Request| Error403[403 Forbidden]
+    MarkUsed --> CheckAccess{"access_level vs<br>required_scope?"}
+    CheckAccess -->|read_only + write<br>(except chat_write)| Error403[403 Forbidden]
     CheckAccess -->|Allowed| ProcessRequest[Process Request as User]
     ProcessRequest --> Response[Success Response]
     Response --> End([Complete])

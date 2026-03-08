@@ -358,7 +358,7 @@ sequenceDiagram
     Frontend->>Backend: DELETE /api/auth/api-keys/{id}/
     Backend->>DB: Set revoked_at = now()
     DB-->>Backend: Revoked
-    Backend-->>Frontend: 204 No Content
+    Backend-->>Frontend: 200 OK (API key revoked)
     Frontend-->>User: Remove Key from List
 ```
 
@@ -380,8 +380,8 @@ sequenceDiagram
         Backend-->>Client: 401 Unauthorized
     else Key Valid
         Backend->>DB: Update last_used_at
-        Backend->>Backend: Check access_level vs request method
-        alt Read-only key + write request
+        Backend->>Backend: Check access_level vs required_scope
+        alt Read-only key + write scope (except chat_write)
             Backend-->>Client: 403 Forbidden
         else Access allowed
             Backend->>Backend: Process Request as User
@@ -401,7 +401,7 @@ sequenceDiagram
 
     %% Submit Feedback
     User->>Frontend: Click Feedback (good/bad) on Chat Response
-    Frontend->>Backend: PATCH /api/chat/{log_id}/feedback/
+    Frontend->>Backend: POST /api/chat/feedback/ (chat_log_id, feedback)
     Backend->>DB: Get ChatLog by ID
     DB-->>Backend: ChatLog
     Backend->>Backend: Verify ownership (user_id or share_token)
@@ -429,7 +429,7 @@ sequenceDiagram
 
     %% Export History
     User->>Frontend: Click Export History
-    Frontend->>Backend: GET /api/chat/export/?group_id={id}
+    Frontend->>Backend: GET /api/chat/history/export/?group_id={id}
     Backend->>DB: Get All ChatLogs for Group
     DB-->>Backend: ChatLog List
     Backend->>Backend: Format as CSV

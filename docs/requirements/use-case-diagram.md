@@ -202,6 +202,8 @@ graph TB
 
 **Note:**
 - LLM and embedding configuration is managed globally via environment variables (`LLM_PROVIDER`, `LLM_MODEL`, `EMBEDDING_PROVIDER`, `EMBEDDING_MODEL`).
+- Signup is controlled by `ENABLE_SIGNUP`; when disabled, `POST /api/auth/signup/` is not routed.
 - When using local whisper.cpp server (WHISPER_BACKEND=whisper.cpp), OpenAI API key is not required for transcription.
 - Re-indexing uses the global `OPENAI_API_KEY` or `OLLAMA_BASE_URL` environment variable (depending on `EMBEDDING_PROVIDER`) and is required when switching embedding providers (OpenAI ↔ Ollama) or models.
 - API keys enable server-to-server integrations. The raw key is shown only once at creation; only the SHA-256 hash is stored.
+- `read_only` API keys can access read scopes and `chat_write` scope (`POST /api/chat/`), but cannot perform other write operations.

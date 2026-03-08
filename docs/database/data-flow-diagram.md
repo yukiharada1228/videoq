@@ -271,7 +271,8 @@ flowchart TD
     
     CreateRequest --> DeactivateUser[(Database<br/>Update User<br/>is_active: False<br/>deactivated_at: now)]
     DeactivateUser --> ClearCookies[Clear HttpOnly Cookies]
-    ClearCookies --> Response[204 No Content]
+    ClearCookies --> EnqueueTask[Enqueue async account data deletion task]
+    EnqueueTask --> Response[200 OK<br/>Account deletion started]
     Response --> Frontend
     Frontend --> End([User - Redirected to Home])
     
@@ -305,7 +306,7 @@ flowchart TD
     Response2 --> Frontend
 
     API3 --> SetRevoked[(Database<br/>Set revoked_at)]
-    SetRevoked --> Response3[204 No Content]
+    SetRevoked --> Response3[200 OK<br/>API key revoked]
     Response3 --> Frontend
 
     Frontend --> End([User])
@@ -322,7 +323,7 @@ flowchart TD
     Action -->|Popular Scenes| Scenes[View Popular Scenes]
     Action -->|Export| Export[Export History]
 
-    Feedback --> API1[PATCH /api/chat/<id>/feedback/]
+    Feedback --> API1[POST /api/chat/feedback/]
     API1 --> GetLog[(Database<br/>Get ChatLog)]
     GetLog --> VerifyAccess{Ownership Check}
     VerifyAccess -->|Valid| UpdateFeedback[(Database<br/>Update feedback)]
@@ -341,7 +342,7 @@ flowchart TD
     AggregateScenes --> Response3[Popular Scenes + Keywords]
     Response3 --> Frontend
 
-    Export --> API4[GET /api/chat/export/?group_id=<id>]
+    Export --> API4[GET /api/chat/history/export/?group_id=<id>]
     API4 --> GetAllLogs[(Database<br/>All ChatLogs)]
     GetAllLogs --> FormatCSV[Format as CSV]
     FormatCSV --> Response4[CSV Download]
