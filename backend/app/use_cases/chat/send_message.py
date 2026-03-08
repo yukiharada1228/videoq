@@ -91,11 +91,18 @@ class SendMessageUseCase:
 
         group = None
         if group_id is not None:
-            lookup_params = policy.build_group_lookup_params()
-            try:
-                group = require_group_context(
-                    self.group_query_repo.get_with_members(group_id=group_id, **lookup_params)
+            if is_shared and share_token:
+                group_candidate = self.group_query_repo.get_with_members(
+                    group_id=group_id,
+                    share_token=share_token,
                 )
+            else:
+                group_candidate = self.group_query_repo.get_with_members(
+                    group_id=group_id,
+                    user_id=user_id,
+                )
+            try:
+                group = require_group_context(group_candidate)
             except _DomainGroupContextNotFound:
                 raise ResourceNotFound("Group")
 

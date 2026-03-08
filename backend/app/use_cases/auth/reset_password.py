@@ -29,7 +29,7 @@ class RequestPasswordResetUseCase:
         policy = PasswordResetRequestPolicy(email=email)
         normalized_email = policy.normalized_email()
         user_id = self.user_gateway.find_active_user_id_by_email(normalized_email)
-        if not policy.should_send(user_id=user_id):
+        if not policy.should_send(user_id=user_id) or user_id is None:
             return  # Silent — don't reveal whether email is registered
         self.email_sender.send_password_reset(user_id)
 
