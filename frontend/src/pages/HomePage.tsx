@@ -78,7 +78,7 @@ export default function HomePage() {
           </Card>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <Card>
             <CardContent className="pt-6 text-center">
               <div className="text-4xl font-bold text-green-600">{videoStats.completed}</div>
@@ -97,6 +97,13 @@ export default function HomePage() {
             <CardContent className="pt-6 text-center">
               <div className="text-4xl font-bold text-yellow-600">{videoStats.processing}</div>
               <p className="text-sm text-gray-600 mt-2">{t('home.stats.processing')}</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-6 text-center">
+              <div className="text-4xl font-bold text-purple-600">{videoStats.indexing}</div>
+              <p className="text-sm text-gray-600 mt-2">{t('home.stats.indexing')}</p>
             </CardContent>
           </Card>
 

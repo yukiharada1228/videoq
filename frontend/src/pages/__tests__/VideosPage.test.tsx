@@ -5,6 +5,7 @@ const mockVideos = [
   { id: 1, title: 'Video 1', status: 'completed', file: 'test1.mp4', uploaded_at: '2024-01-01' },
   { id: 2, title: 'Video 2', status: 'pending', file: 'test2.mp4', uploaded_at: '2024-01-02' },
   { id: 3, title: 'Video 3', status: 'processing', file: 'test3.mp4', uploaded_at: '2024-01-03' },
+  { id: 4, title: 'Video 4', status: 'indexing', file: 'test4.mp4', uploaded_at: '2024-01-04' },
 ]
 
 const mockLoadVideos = vi.fn()
@@ -21,10 +22,11 @@ vi.mock('@/hooks/useVideos', () => ({
 
 vi.mock('@/hooks/useVideoStats', () => ({
   useVideoStats: () => ({
-    total: 3,
+    total: 4,
     completed: 1,
     pending: 1,
     processing: 1,
+    indexing: 1,
     error: 0,
   }),
 }))
@@ -96,6 +98,7 @@ describe('VideosPage', () => {
     expect(screen.getByText('videos.list.stats.completed')).toBeInTheDocument()
     expect(screen.getByText('videos.list.stats.pending')).toBeInTheDocument()
     expect(screen.getByText('videos.list.stats.processing')).toBeInTheDocument()
+    expect(screen.getByText('videos.list.stats.indexing')).toBeInTheDocument()
   })
 
   it('should render video list', () => {
@@ -105,6 +108,7 @@ describe('VideosPage', () => {
     expect(screen.getByText('Video 1')).toBeInTheDocument()
     expect(screen.getByText('Video 2')).toBeInTheDocument()
     expect(screen.getByText('Video 3')).toBeInTheDocument()
+    expect(screen.getByText('Video 4')).toBeInTheDocument()
   })
 
   it('should render tag filter panel', () => {

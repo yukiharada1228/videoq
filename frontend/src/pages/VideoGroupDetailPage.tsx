@@ -410,6 +410,7 @@ function AddVideosDialog({ isOpen, onOpenChange, groupId, group, onVideosAdded }
                 <option value="">{t('videos.groupDetail.statusFilter.all')}</option>
                 <option value="completed">{t('videos.groupDetail.statusFilter.completed')}</option>
                 <option value="processing">{t('videos.groupDetail.statusFilter.processing')}</option>
+                <option value="indexing">{t('videos.groupDetail.statusFilter.indexing')}</option>
                 <option value="pending">{t('videos.groupDetail.statusFilter.pending')}</option>
                 <option value="error">{t('videos.groupDetail.statusFilter.error')}</option>
               </select>

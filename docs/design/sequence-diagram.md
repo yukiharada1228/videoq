@@ -21,7 +21,7 @@ sequenceDiagram
     Backend->>Backend: Validate request (file, User.video_limit)
     Backend->>DB: Create Video(status: pending)
     DB-->>Backend: Video Saved
-    Backend->>Celery: transcribe_video.delay(video_id)
+    Backend->>Celery: enqueue_transcription(video_id)
     Backend-->>Frontend: 201 Created
     Frontend-->>User: Upload Success Display
 
@@ -37,6 +37,8 @@ sequenceDiagram
         Celery->>Celery: Convert to SRT Format
         Celery->>Celery: Scene Splitting Process
         Celery->>DB: Save transcript
+        Celery->>DB: Update status(indexing)
+        Celery->>Celery: enqueue_indexing(video_id)
         Celery->>PGVector: Vectorize and Save
         Celery->>DB: Update status(completed)
     else WHISPER_BACKEND=openai (default)
@@ -46,6 +48,8 @@ sequenceDiagram
         Celery->>Celery: Convert to SRT Format
         Celery->>Celery: Scene Splitting Process
         Celery->>DB: Save transcript
+        Celery->>DB: Update status(indexing)
+        Celery->>Celery: enqueue_indexing(video_id)
         Celery->>PGVector: Vectorize and Save
         Celery->>DB: Update status(completed)
     end
@@ -316,4 +320,119 @@ sequenceDiagram
         Backend-->>Frontend: Clear HttpOnly Cookies<br/>(Access & Refresh Tokens)
         Frontend-->>User: Redirect to Home Page
     end
+```
+
+## 9. API Key Management Flow
+
+```mermaid
+sequenceDiagram
+    participant User as User
+    participant Frontend as Frontend
+    participant Backend as Backend API
+    participant DB as Database
+
+    User->>Frontend: Navigate to Settings Page
+    User->>Frontend: Open API Keys Section
+
+    %% List API Keys
+    Frontend->>Backend: GET /api/auth/api-keys/
+    Backend->>DB: Query Active API Keys for User
+    DB-->>Backend: API Key List
+    Backend-->>Frontend: API Keys (prefix, name, access_level, created_at)
+    Frontend-->>User: Display API Key List
+
+    %% Create API Key
+    User->>Frontend: Create New API Key (name, access_level)
+    Frontend->>Backend: POST /api/auth/api-keys/
+    Backend->>DB: Check Duplicate Name
+    DB-->>Backend: No Duplicate
+    Backend->>Backend: Generate Raw Key (vq_...)
+    Backend->>Backend: Hash Key (SHA-256)
+    Backend->>DB: Create UserApiKey (prefix, hashed_key)
+    DB-->>Backend: API Key Created
+    Backend-->>Frontend: API Key Details + Raw Key
+    Frontend-->>User: Display Raw Key (one-time only)
+
+    %% Revoke API Key
+    User->>Frontend: Revoke API Key
+    Frontend->>Backend: DELETE /api/auth/api-keys/{id}/
+    Backend->>DB: Set revoked_at = now()
+    DB-->>Backend: Revoked
+    Backend-->>Frontend: 200 OK (API key revoked)
+    Frontend-->>User: Remove Key from List
+```
+
+## 10. API Key Authentication Flow
+
+```mermaid
+sequenceDiagram
+    participant Client as API Client
+    participant Backend as Backend API
+    participant DB as Database
+
+    Client->>Backend: Request with X-API-Key header
+    Backend->>Backend: Extract API Key from header
+    Backend->>Backend: Hash Key (SHA-256)
+    Backend->>DB: Lookup by hashed_key + revoked_at IS NULL
+    DB-->>Backend: UserApiKey + User
+
+    alt Key Not Found or Revoked
+        Backend-->>Client: 401 Unauthorized
+    else Key Valid
+        Backend->>DB: Update last_used_at
+        Backend->>Backend: Check access_level vs required_scope
+        alt Read-only key + write scope (except chat_write)
+            Backend-->>Client: 403 Forbidden
+        else Access allowed
+            Backend->>Backend: Process Request as User
+            Backend-->>Client: Success Response
+        end
+    end
+```
+
+## 11. Chat Analytics & Feedback Flow
+
+```mermaid
+sequenceDiagram
+    participant User as User
+    participant Frontend as Frontend
+    participant Backend as Backend API
+    participant DB as Database
+
+    %% Submit Feedback
+    User->>Frontend: Click Feedback (good/bad) on Chat Response
+    Frontend->>Backend: POST /api/chat/feedback/ (chat_log_id, feedback)
+    Backend->>DB: Get ChatLog by ID
+    DB-->>Backend: ChatLog
+    Backend->>Backend: Verify ownership (user_id or share_token)
+    Backend->>DB: Update feedback field
+    DB-->>Backend: Updated ChatLog
+    Backend-->>Frontend: Updated Feedback
+    Frontend-->>User: Display Feedback State
+
+    %% View Analytics
+    User->>Frontend: Open Analytics Dashboard
+    Frontend->>Backend: GET /api/chat/analytics/?group_id={id}
+    Backend->>DB: Get ChatAnalyticsRaw (aggregated queries)
+    DB-->>Backend: Raw Analytics Data
+    Backend->>Backend: Compute analytics (feedback distribution, time series)
+    Backend-->>Frontend: Analytics Response
+    Frontend-->>User: Display Charts (Feedback Donut, Question TimeSeries)
+
+    %% View Popular Scenes
+    Frontend->>Backend: GET /api/chat/popular-scenes/?group_id={id}
+    Backend->>DB: Get ChatLogs with related_videos
+    DB-->>Backend: Scene Logs
+    Backend->>Backend: Aggregate scenes, extract keywords
+    Backend-->>Frontend: Popular Scenes + Keywords
+    Frontend-->>User: Display Scene Distribution & Keyword Cloud
+
+    %% Export History
+    User->>Frontend: Click Export History
+    Frontend->>Backend: GET /api/chat/history/export/?group_id={id}
+    Backend->>DB: Get All ChatLogs for Group
+    DB-->>Backend: ChatLog List
+    Backend->>Backend: Format as CSV
+    Backend-->>Frontend: CSV Download
+    Frontend-->>User: Download CSV File
 ```

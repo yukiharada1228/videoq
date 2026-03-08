@@ -37,11 +37,15 @@ stateDiagram-v2
     VideoGroupDetail --> VideoGroupList: Back
     VideoGroupDetail --> VideoDetail: Select Video
     VideoGroupDetail --> SharePage: Generate Share Link
+
+    VideoGroupDetail --> VideoGroupDetail: Open Analytics Dashboard
+    VideoGroupDetail --> VideoGroupDetail: Open Shorts Player
     
     SharePage --> VideoGroupDetail: Back
 
     Home --> SharePage: Share Token URL
     SharePage --> SharePage: Chat with Shared Group
+    SharePage --> SharePage: Open Shorts Player
 
     VideoList --> Settings: Settings Menu
     Settings --> VideoList: Back
@@ -57,6 +61,7 @@ stateDiagram-v2
         - Video list display
         - Upload functionality
         - Search & Filter
+        - Tag filtering
     end note
     
     note right of VideoDetail
@@ -64,6 +69,7 @@ stateDiagram-v2
         - Video information display
         - Transcript display
         - Add to group
+        - Tag management
     end note
     
     note right of VideoGroupDetail
@@ -71,12 +77,15 @@ stateDiagram-v2
         - Group video list
         - Chat functionality
         - Share link management
+        - Analytics dashboard
+        - Shorts player
     end note
 
     note right of Settings
         Settings Page
         - User info display
         - Account deactivation
+        - API key management
     end note
 ```
 
@@ -85,7 +94,7 @@ stateDiagram-v2
 ### Authentication Related
 - **Home** (`/` or `/:locale`): Home page (e.g., `/`, `/en`, `/ja`)
 - **Login** (`/login` or `/:locale/login`): Login page
-- **Signup** (`/signup` or `/:locale/signup`): Sign up page
+- **Signup** (`/signup` or `/:locale/signup`): Sign up page (only when `ENABLE_SIGNUP=true`)
 - **CheckEmail** (`/signup/check-email` or `/:locale/signup/check-email`): Email confirmation waiting page
 - **VerifyEmail** (`/verify-email` or `/:locale/verify-email`): Email verification page
 - **ForgotPassword** (`/forgot-password` or `/:locale/forgot-password`): Password reset request page
@@ -103,7 +112,7 @@ stateDiagram-v2
 - **SharePage** (`/share/:token` or `/:locale/share/:token`): Share page (no authentication required)
 
 ### Settings
-- **Settings** (`/settings` or `/:locale/settings`): Settings page (account info, deactivation)
+- **Settings** (`/settings` or `/:locale/settings`): Settings page (account info, deactivation, API key management)
 
 **Note**: This project implements locale-aware routing with React Router + react-i18next (not Next.js / next-intl) (`frontend/src/App.tsx`).
 - The default locale (`en`) has no prefix: `/videos`
@@ -116,10 +125,38 @@ stateDiagram-v2
 - **Unauthenticated User**: Home → Login/Signup → After authentication → VideoList
 - **Authenticated User**: Home → VideoList (direct transition)
 
+### Feature Flags
+- When `ENABLE_SIGNUP=false`, `/api/auth/signup/` is disabled and the signup flow is unavailable.
+
 ### Transitions via Share Links
 - **Share Token URL**: Direct access to SharePage (no authentication required)
+
+### Transitions via API Key
+- **API Client**: No screen transitions — API keys are used for server-to-server integrations, not browser-based access
 
 ### Error Handling
 - Authentication Error: Any page → Login
 - 404 Error: Non-existent resource → Appropriate error page
 - Permission Error: Inaccessible resource → Error message display
+
+## In-Page Interactions (No Route Change)
+
+The following interactions happen within a page (modals, panels, drawers) without navigating to a new route:
+
+### VideoGroupDetail
+- **Analytics Dashboard**: Opens as a modal/panel within the group detail page
+- **Shorts Player**: Opens as a full-screen overlay from the group detail page
+- **Chat Panel**: Inline panel for chatting with the group's videos
+
+### VideoDetail
+- **Tag Management**: Tag selector and create dialog are inline modals
+- **Add to Group**: Modal to add the video to a group
+
+### VideoList
+- **Video Upload**: Modal for uploading a new video
+- **Tag Filter Panel**: Inline panel for filtering by tags
+
+### Settings
+- **API Key Creation**: Form within the settings page for creating new API keys
+- **API Key Revocation**: Confirmation dialog within the settings page
+- **Account Deactivation**: Form and confirmation dialog within the settings page

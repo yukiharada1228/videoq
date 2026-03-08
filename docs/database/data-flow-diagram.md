@@ -37,7 +37,10 @@ flowchart TD
     SRT --> SceneSplit[Scene Splitting]
     
     SceneSplit --> SaveTranscript[Database<br/>Save transcript]
-    SaveTranscript --> Vectorize[PGVector<br/>Vectorize and Save]
+    SaveTranscript --> UpdateIndexing[Update status: indexing]
+    UpdateIndexing --> QueueIndexing[Queue indexing task]
+    QueueIndexing --> IndexWorker[Celery Worker<br/>Indexing]
+    IndexWorker --> Vectorize[PGVector<br/>Vectorize and Save]
     Vectorize --> UpdateComplete[Update status: completed]
     UpdateComplete --> SaveDB3[(Database<br/>Final Update)]
     
@@ -202,6 +205,9 @@ graph TB
         D3[VideoGroup]
         D4[VideoGroupMember]
         D5[ChatLog]
+        D6[Tag / VideoTag]
+        D7[AccountDeletionRequest]
+        D8[UserApiKey]
     end
     
     subgraph VectorData["Vector Data (PGVector)"]
@@ -265,10 +271,82 @@ flowchart TD
     
     CreateRequest --> DeactivateUser[(Database<br/>Update User<br/>is_active: False<br/>deactivated_at: now)]
     DeactivateUser --> ClearCookies[Clear HttpOnly Cookies]
-    ClearCookies --> Response[204 No Content]
+    ClearCookies --> EnqueueTask[Enqueue async account data deletion task]
+    EnqueueTask --> Response[200 OK<br/>Account deletion started]
     Response --> Frontend
     Frontend --> End([User - Redirected to Home])
     
     Error1 --> Frontend
     Error2 --> Frontend
+```
+
+## 8. API Key Data Flow
+
+```mermaid
+flowchart TD
+    Start([User]) --> Action{Operation}
+
+    Action -->|List| List[List API Keys]
+    Action -->|Create| Create[Create API Key]
+    Action -->|Revoke| Revoke[Revoke API Key]
+
+    List --> API1[GET /api/auth/api-keys/]
+    Create --> API2[POST /api/auth/api-keys/]
+    Revoke --> API3[DELETE /api/auth/api-keys/<id>/]
+
+    API1 --> QueryKeys[(Database<br/>Query Active Keys)]
+    QueryKeys --> Response1[Return Key List<br/>prefix, name, access_level]
+    Response1 --> Frontend
+
+    API2 --> CheckDup[(Database<br/>Check Duplicate Name)]
+    CheckDup --> GenKey[Generate Raw Key<br/>vq_...]
+    GenKey --> HashKey[SHA-256 Hash]
+    HashKey --> SaveKey[(Database<br/>Create UserApiKey)]
+    SaveKey --> Response2[Return Key Details<br/>+ Raw Key (one-time)]
+    Response2 --> Frontend
+
+    API3 --> SetRevoked[(Database<br/>Set revoked_at)]
+    SetRevoked --> Response3[200 OK<br/>API key revoked]
+    Response3 --> Frontend
+
+    Frontend --> End([User])
+```
+
+## 9. Chat Analytics & Feedback Data Flow
+
+```mermaid
+flowchart TD
+    Start([User]) --> Action{Operation}
+
+    Action -->|Feedback| Feedback[Submit Feedback]
+    Action -->|Analytics| Analytics[View Analytics]
+    Action -->|Popular Scenes| Scenes[View Popular Scenes]
+    Action -->|Export| Export[Export History]
+
+    Feedback --> API1[POST /api/chat/feedback/]
+    API1 --> GetLog[(Database<br/>Get ChatLog)]
+    GetLog --> VerifyAccess{Ownership Check}
+    VerifyAccess -->|Valid| UpdateFeedback[(Database<br/>Update feedback)]
+    UpdateFeedback --> Response1[Updated ChatLog]
+    Response1 --> Frontend
+
+    Analytics --> API2[GET /api/chat/analytics/?group_id=<id>]
+    API2 --> GetRawData[(Database<br/>Aggregated Queries)]
+    GetRawData --> ComputeAnalytics[Compute Analytics<br/>feedback distribution, time series]
+    ComputeAnalytics --> Response2[Analytics Response]
+    Response2 --> Frontend
+
+    Scenes --> API3[GET /api/chat/popular-scenes/?group_id=<id>]
+    API3 --> GetSceneLogs[(Database<br/>Scene Logs)]
+    GetSceneLogs --> AggregateScenes[Aggregate Scenes<br/>+ Keyword Extraction]
+    AggregateScenes --> Response3[Popular Scenes + Keywords]
+    Response3 --> Frontend
+
+    Export --> API4[GET /api/chat/history/export/?group_id=<id>]
+    API4 --> GetAllLogs[(Database<br/>All ChatLogs)]
+    GetAllLogs --> FormatCSV[Format as CSV]
+    FormatCSV --> Response4[CSV Download]
+    Response4 --> Frontend
+
+    Frontend --> End([User])
 ```

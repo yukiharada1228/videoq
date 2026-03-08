@@ -1,0 +1,72 @@
+"""
+Use cases for managing tags on videos.
+"""
+
+from typing import List, Tuple
+
+from app.domain.video.exceptions import SomeTagsNotFound, TagNotAttachedToVideo
+from app.domain.video.repositories import TagRepository, VideoRepository
+from app.use_cases.video.exceptions import ResourceNotFound
+
+
+class AddTagsToVideoUseCase:
+    """Attach tags to a video, skipping already-attached ones."""
+
+    def __init__(
+        self, video_repo: VideoRepository, tag_repo: TagRepository
+    ):
+        self.video_repo = video_repo
+        self.tag_repo = tag_repo
+
+    def execute(
+        self, video_id: int, tag_ids: List[int], user_id: int
+    ) -> Tuple[int, int]:
+        """
+        Returns:
+            (added_count, skipped_count)
+
+        Raises:
+            ResourceNotFound: If the video or some tags are not found.
+        """
+        video = self.video_repo.get_by_id(video_id, user_id)
+        if video is None:
+            raise ResourceNotFound("Video")
+
+        try:
+            ids_to_add, skipped_before_persist = video.plan_tag_attachment(tag_ids)
+            if not ids_to_add:
+                return 0, skipped_before_persist
+
+            added_count, skipped_in_persist = self.tag_repo.add_tags_to_video(video, ids_to_add)
+            return added_count, skipped_before_persist + skipped_in_persist
+        except SomeTagsNotFound as e:
+            raise ResourceNotFound("Some tags") from e
+
+
+class RemoveTagFromVideoUseCase:
+    """Remove a tag from a video."""
+
+    def __init__(
+        self, video_repo: VideoRepository, tag_repo: TagRepository
+    ):
+        self.video_repo = video_repo
+        self.tag_repo = tag_repo
+
+    def execute(self, video_id: int, tag_id: int, user_id: int) -> None:
+        """
+        Raises:
+            ResourceNotFound: If the video or tag is not found, or the tag is not attached.
+        """
+        video = self.video_repo.get_by_id(video_id, user_id)
+        if video is None:
+            raise ResourceNotFound("Video")
+
+        tag = self.tag_repo.get_by_id(tag_id, user_id)
+        if tag is None:
+            raise ResourceNotFound("Tag")
+
+        try:
+            video.assert_has_tag(tag.id)
+            self.tag_repo.remove_tag_from_video(video, tag)
+        except TagNotAttachedToVideo as e:
+            raise ResourceNotFound("Tag attachment") from e

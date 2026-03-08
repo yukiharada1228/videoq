@@ -109,62 +109,126 @@ graph TB
 
 ## Layer-by-Layer Detailed Configuration
 
+### Frontend
+
 ```mermaid
 graph TB
-    subgraph Presentation["Presentation Layer"]
+    subgraph Presentation["Presentation Layer (Frontend)"]
         P1[React Components]
         P2[React Router Routes]
         P3[UI Components]
         P4[Custom Hooks]
     end
-    
-    subgraph API["API Layer"]
-        A1[REST API Endpoints]
-        A2[Serializers]
-        A3[View Classes]
-        A4[Authentication]
+
+    subgraph Lib["Libraries"]
+        L1[apiClient]
+        L2[TanStack Query]
     end
-    
-    subgraph Business["Business Logic Layer"]
-        B1[Services]
-        B2[Tasks]
-        B3[Utils]
-        B4[Managers]
-    end
-    
-    subgraph DataAccess["Data Access Layer"]
-        D1[Django ORM]
-        D2[Models]
-        D3[Query Optimizers]
-        D4[Vector Manager]
-    end
-    
-    subgraph Infrastructure["Infrastructure Layer"]
-        I1[PostgreSQL]
-        I2[Redis]
-        I3[File Storage]
-        I4[pgvector]
-    end
-    
+
     P1 --> P2
     P2 --> P3
     P3 --> P4
-    P4 --> A1
-    A1 --> A2
-    A2 --> A3
-    A3 --> A4
-    A3 --> B1
-    B1 --> B2
-    B2 --> B3
-    B3 --> B4
-    B4 --> D1
-    D1 --> D2
-    D2 --> D3
-    D3 --> D4
-    D4 --> I1
-    D4 --> I4
-    B2 --> I2
-    B1 --> I3
+    P4 --> L1
+    P4 --> L2
+```
+
+### Backend (Clean Architecture)
+
+```mermaid
+graph TB
+    subgraph Presentation["presentation/"]
+        PV[Views - thin HTTP layer]
+        PS[Serializers]
+        PA[Django Admin - operational privileged path]
+    end
+
+    subgraph UseCases["use_cases/"]
+        UV["video/ - CreateVideo, GetVideo, ListVideos, UpdateVideo, DeleteVideo,
+        FileUrl, GetGroup, ListGroups, CreateGroup, UpdateGroup, DeleteGroup,
+        GetTag, ListTags, CreateTag, UpdateTag, DeleteTag,
+        ManageGroups, ManageTags, EnforceVideoLimit,
+        ReindexAllVideos, RunTranscription"]
+        UC["chat/ - SendMessage, GetHistory, ExportHistory,
+        SubmitFeedback, GetAnalytics, GetPopularScenes"]
+        UA["auth/ - Login, Signup, VerifyEmail, ResetPassword,
+        GetCurrentUser, DeleteAccount, DeleteAccountData,
+        ManageApiKeys, AuthorizeApiKey, ResolveApiKey,
+        ResolveShareToken, RefreshToken"]
+        UM[media/ - ResolveProtectedMedia]
+        US[shared/ - ResourceNotFound, PermissionDenied]
+    end
+
+    subgraph Domain["domain/"]
+        DV["video/ - VideoEntity, VideoRepository ABC (Query/Command/Transcription),
+        VideoGroupRepository, TagRepository,
+        VectorStoreGateway, VideoTaskGateway, VectorIndexingGateway,
+        TranscriptionGateway, FileUrlResolver"]
+        DC["chat/ - ChatRepository ABC, VideoGroupQueryRepository,
+        RagGateway ABC, KeywordExtractor, SceneVideoInfoProvider,
+        ChatLogEntity, ChatAnalyticsRaw, value_objects, services"]
+        DA["auth/ - ApiKeyRepository ABC,
+        TokenGateway, UserAuthGateway,
+        AccountDeletionGateway, UserManagementGateway,
+        UserDataDeletionGateway, EmailSenderGateway, AuthTaskGateway,
+        ShareTokenResolverPort, ApiKeyResolverPort"]
+        DM[media/ - ProtectedMediaRepository ABC]
+        DU[user/ - UserEntity, UserRepository ABC]
+    end
+
+    subgraph Infrastructure["infrastructure/"]
+        IR["repositories/ - DjangoVideoRepository, DjangoChatRepository,
+        DjangoUserRepository, DjangoMediaRepository,
+        DjangoAccountDeletionRepository, DjangoApiKeyRepository,
+        DjangoUserAuthGateway, DjangoUserDataDeletionGateway"]
+        IE["external/ - RagChatGateway, DjangoVectorIndexingGateway,
+        WhisperTranscriptionGateway, scene_indexer,
+        vector_store, rag_service, llm, prompts"]
+        IT[transcription/ - audio_processing, srt_processing, DjangoVideoFileAccessor]
+        IA["auth/ - SimpleJWTGateway, DjangoAuthGateway,
+        CookieJWTValidator, ApiKeyResolver, ShareTokenResolver"]
+        ITk[tasks/ - CeleryTaskGateway]
+        IC["chat/ - JanomeNltkKeywordExtractor, SceneVideoInfoProvider"]
+        ICo["common/ - email, embeddings, whisper_client,
+        query_optimizer, performance_utils, task_helpers"]
+        ISo[scene_otsu/ - splitter, parsers, embedders, utils]
+        ISt[storage/ - LocalMediaStorage]
+        IM["models/ - User, Video, VideoGroup, VideoGroupMember,
+        ChatLog, Tag, VideoTag, AccountDeletionRequest, UserApiKey,
+        SafeFileSystemStorage, SafeS3Boto3Storage"]
+    end
+
+    subgraph Container["Composition Root"]
+        CDI[dependencies/*.py]
+        CCR[composition_root/*.py]
+        CK[contracts/ - task name constants]
+    end
+
+    subgraph Entrypoints["Celery Entrypoints"]
+        ET[entrypoints/tasks/ - transcription, account_deletion, reindexing]
+    end
+
+    subgraph Infra["Infrastructure (external)"]
+        I1[(PostgreSQL + pgvector)]
+        I2[(Redis)]
+        I3[File Storage / S3]
+        I4[OpenAI / Ollama API]
+        I5[Celery Tasks]
+    end
+
+    PV --> CDI
+    PA --> CDI
+    CDI --> CCR
+    CCR --> UseCases
+    CCR --> Infrastructure
+    UseCases --> Domain
+    Infrastructure --> Domain
+    Infrastructure --> I1
+    Infrastructure --> I2
+    Infrastructure --> I3
+    Infrastructure --> I4
+    Infrastructure --> I5
+    Entrypoints --> UseCases
+    Entrypoints --> CK
 ```
 
 ## Network Configuration
@@ -220,6 +284,11 @@ graph TB
             Refresh Token: 14 days
             Automatic Refresh
             Secure Cookie Flag (env configurable)"]
+            ApiKey["API Key Authentication
+            SHA-256 hashed storage
+            Prefix-based lookup
+            Access level: all / read_only
+            Revocable"]
             ShareToken["Share Token Authentication
             Temporary Access
             Guest Access"]
@@ -231,7 +300,8 @@ graph TB
         subgraph Authorization["Authorization"]
             Permissions["Permission Management
             Ownership Check
-            Resource Access Control"]
+            Resource Access Control
+            API Key Access Level Check"]
         end
 
         subgraph Encryption["Encryption"]
@@ -252,6 +322,7 @@ graph TB
     end
 
     JWT --> Permissions
+    ApiKey --> Permissions
     ShareToken --> Permissions
     HTTPS --> Protection
     CSRF --> Protection

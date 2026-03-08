@@ -1,3 +1,5 @@
+from importlib import import_module
+
 from django.apps import AppConfig as DjangoAppConfig
 
 
@@ -5,8 +7,12 @@ class AppConfig(DjangoAppConfig):
     default_auto_field = "django.db.models.BigAutoField"
     name = "app"
 
+    def import_models(self):
+        super().import_models()
+        import_module("app.infrastructure.models")
+
     def ready(self):
         """Initialize Celery app when application is ready"""
         # Import Celery app (to avoid circular import)
         import app.celery_config  # noqa
-        import app.common.openapi  # noqa
+        import app.presentation.common.openapi  # noqa
