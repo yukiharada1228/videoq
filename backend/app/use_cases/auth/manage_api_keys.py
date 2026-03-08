@@ -4,6 +4,11 @@ Use cases for managing user API keys.
 
 from typing import List
 
+from app.domain.auth.entities import (
+    assert_api_key_name_available,
+    assert_valid_api_key_access_level,
+    normalize_api_key_name,
+)
 from app.domain.auth.repositories import ApiKeyRepository
 from app.use_cases.auth.dto import ApiKeyCreateResultDTO, ApiKeyResponseDTO
 from app.use_cases.shared.exceptions import ResourceNotFound
@@ -41,11 +46,17 @@ class CreateApiKeyUseCase:
     def execute(self, user_id: int, name: str, access_level: str) -> ApiKeyCreateResultDTO:
         """
         Raises:
-            ValueError: If an active key with this name already exists.
+            DuplicateApiKeyName: If an active key with this name already exists.
         """
-        if self.api_key_repo.exists_active_with_name(user_id, name):
-            raise ValueError("An active API key with this name already exists.")
-        created = self.api_key_repo.create_for_user(user_id, name, access_level)
+        normalized_name = normalize_api_key_name(name)
+        assert_api_key_name_available(
+            name=normalized_name,
+            exists_active_with_name=self.api_key_repo.exists_active_with_name(
+                user_id, normalized_name
+            ),
+        )
+        assert_valid_api_key_access_level(access_level)
+        created = self.api_key_repo.create_for_user(user_id, normalized_name, access_level)
         return ApiKeyCreateResultDTO(
             api_key=_to_api_key_response_dto(created.api_key),
             raw_key=created.raw_key,

@@ -24,6 +24,7 @@ from app.use_cases.video.dto import (
 )
 from app.use_cases.video.exceptions import (
     GroupVideoOrderMismatch,
+    InvalidTagInput,
     ResourceNotFound,
     VideoAlreadyInGroup,
     VideoLimitExceeded,
@@ -535,7 +536,10 @@ class TagListView(DependencyResolverMixin, AuthenticatedViewMixin, generics.Gene
 
         use_case = self.resolve_dependency(self.create_tag_use_case)
         input_dto = CreateTagInput(**serializer.validated_data)
-        tag = use_case.execute(request.user.id, input_dto)
+        try:
+            tag = use_case.execute(request.user.id, input_dto)
+        except InvalidTagInput as e:
+            return create_error_response(str(e), status.HTTP_400_BAD_REQUEST)
         return Response(TagListSerializer(tag).data, status=status.HTTP_201_CREATED)
 
 
@@ -578,6 +582,8 @@ class TagDetailView(DependencyResolverMixin, AuthenticatedViewMixin, APIView):
                 color=data.get("color"),
             )
             tag = use_case.execute(pk, request.user.id, input_dto)
+        except InvalidTagInput as e:
+            return create_error_response(str(e), status.HTTP_400_BAD_REQUEST)
         except ResourceNotFound:
             return create_error_response("Tag not found", status.HTTP_404_NOT_FOUND)
 
