@@ -1,5 +1,6 @@
 """Unit tests for SignupUserUseCase."""
 
+from typing import Optional
 from unittest import TestCase
 
 from app.domain.auth.gateways import EmailSenderGateway, UserManagementGateway
@@ -14,7 +15,7 @@ class _StubUserManagementGateway(UserManagementGateway):
     def __init__(self, email_exists: bool = False, user_id: int = 1):
         self._email_exists = email_exists
         self._user_id = user_id
-        self.created_args = None
+        self.created_args: Optional[tuple[str, str, str]] = None
 
     def email_exists(self, email: str) -> bool:
         return self._email_exists
@@ -39,7 +40,7 @@ class _StubUserManagementGateway(UserManagementGateway):
 class _StubEmailSenderGateway(EmailSenderGateway):
     def __init__(self, should_fail: bool = False):
         self._should_fail = should_fail
-        self.sent_user_id = None
+        self.sent_user_id: Optional[int] = None
 
     def send_verification(self, user_id: int) -> None:
         if self._should_fail:

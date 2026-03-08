@@ -53,7 +53,6 @@ class CreateVideoUseCase:
         user = self.user_repo.get_by_id(user_id)
         if user is None:
             raise ResourceNotFound("User")
-        video_limit: int | None = user.video_limit
 
         with self.tx.atomic():
             current_count = self.video_repo.count_for_user(user_id)
