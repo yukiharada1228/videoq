@@ -10,6 +10,7 @@ describe('useVideoStats', () => {
       completed: 0,
       pending: 0,
       processing: 0,
+      indexing: 0,
       error: 0,
     })
   })
@@ -20,16 +21,18 @@ describe('useVideoStats', () => {
       { status: 'completed' as const },
       { status: 'pending' as const },
       { status: 'processing' as const },
+      { status: 'indexing' as const },
       { status: 'error' as const },
     ]
     
     const { result } = renderHook(() => useVideoStats(videos))
     
     expect(result.current).toEqual({
-      total: 5,
+      total: 6,
       completed: 2,
       pending: 1,
       processing: 1,
+      indexing: 1,
       error: 1,
     })
   })
@@ -37,7 +40,7 @@ describe('useVideoStats', () => {
   it('should recalculate when videos change', () => {
     const { result, rerender } = renderHook<
       ReturnType<typeof useVideoStats>,
-      { videos: Array<{ status: 'completed' | 'pending' | 'processing' | 'error' }> }
+      { videos: Array<{ status: 'completed' | 'pending' | 'processing' | 'indexing' | 'error' }> }
     >(
       ({ videos }) => useVideoStats(videos),
       {
@@ -62,4 +65,3 @@ describe('useVideoStats', () => {
     expect(result.current.pending).toBe(1)
   })
 })
-

@@ -138,7 +138,7 @@ export interface Video {
   description: string;
   uploaded_at: string;
   transcript?: string;
-  status: 'pending' | 'processing' | 'completed' | 'error';
+  status: 'pending' | 'processing' | 'indexing' | 'completed' | 'error';
   error_message?: string;
   tags?: { id: number; name: string; color: string }[];
 }
@@ -149,7 +149,7 @@ export interface VideoList {
   title: string;
   description: string;
   uploaded_at: string;
-  status: 'pending' | 'processing' | 'completed' | 'error';
+  status: 'pending' | 'processing' | 'indexing' | 'completed' | 'error';
   tags?: { id: number; name: string; color: string }[];
 }
 
@@ -181,7 +181,7 @@ export interface VideoInGroup {
   description: string;
   file: string | null;
   uploaded_at: string;
-  status: 'pending' | 'processing' | 'completed' | 'error';
+  status: 'pending' | 'processing' | 'indexing' | 'completed' | 'error';
   order: number;
 }
 
