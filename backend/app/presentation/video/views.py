@@ -495,7 +495,7 @@ def get_shared_group(
     except ResourceNotFound:
         return create_error_response("Share link not found", status.HTTP_404_NOT_FOUND)
 
-    ctx = {}
+    ctx = {"request": request}
     return Response(VideoGroupDetailSerializer(group, context=ctx).data, status=status.HTTP_200_OK)
 
 

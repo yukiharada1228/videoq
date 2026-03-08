@@ -53,8 +53,27 @@ class TranscriptionExecutionFailed(Exception):
         super().__init__(f"Transcription failed for video {video_id}: {reason}")
 
 
+class IndexingTargetMissing(Exception):
+    """Raised when the video to index cannot be found or has no transcript."""
+
+    def __init__(self, video_id: int):
+        self.video_id = video_id
+        super().__init__(f"Video {video_id} not found or has no transcript")
+
+
+class IndexingExecutionFailed(Exception):
+    """Raised when vector indexing fails inside the use-case boundary."""
+
+    def __init__(self, video_id: int, reason: str):
+        self.video_id = video_id
+        self.reason = reason
+        super().__init__(f"Indexing failed for video {video_id}: {reason}")
+
+
 __all__ = [
     "GroupVideoOrderMismatch",
+    "IndexingExecutionFailed",
+    "IndexingTargetMissing",
     "PermissionDenied",
     "ResourceNotFound",
     "TranscriptionExecutionFailed",

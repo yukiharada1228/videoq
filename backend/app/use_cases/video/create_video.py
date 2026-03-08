@@ -4,6 +4,7 @@ Use case: Create a new video and dispatch transcription.
 
 import logging
 
+from app.domain.shared.transaction import TransactionPort
 from app.domain.user.repositories import UserRepository
 from app.domain.video.dto import CreateVideoParams
 from app.domain.video.entities import VideoEntity
@@ -30,10 +31,12 @@ class CreateVideoUseCase:
         user_repo: UserRepository,
         video_repo: VideoRepository,
         task_queue: VideoTaskGateway,
+        tx: TransactionPort,
     ):
         self.user_repo = user_repo
         self.video_repo = video_repo
         self.task_queue = task_queue
+        self.tx = tx
 
     def execute(self, user_id: int, input: CreateVideoInput) -> VideoResponseDTO:
         """
@@ -53,20 +56,21 @@ class CreateVideoUseCase:
             raise ResourceNotFound("User")
         video_limit: int | None = user.video_limit
 
-        current_count = self.video_repo.count_for_user(user_id)
-        try:
-            VideoEntity.ensure_upload_within_limit(current_count, video_limit)
-        except DomainVideoLimitExceeded as e:
-            raise VideoLimitExceeded(e.limit) from e
+        with self.tx.atomic():
+            current_count = self.video_repo.count_for_user(user_id)
+            try:
+                VideoEntity.ensure_upload_within_limit(current_count, video_limit)
+            except DomainVideoLimitExceeded as e:
+                raise VideoLimitExceeded(e.limit) from e
 
-        params = CreateVideoParams(
-            upload_file=input.file,
-            title=input.title,
-            description=input.description,
-        )
-        video = self.video_repo.create(user_id, params)
+            params = CreateVideoParams(
+                upload_file=input.file,
+                title=input.title,
+                description=input.description,
+            )
+            video = self.video_repo.create(user_id, params)
 
-        logger.info(f"Enqueueing transcription task for video ID: {video.id}")
-        self.task_queue.enqueue_transcription(video.id)
+            logger.info(f"Enqueueing transcription task for video ID: {video.id}")
+            self.task_queue.enqueue_transcription(video.id)
 
         return to_video_response_dto(video)

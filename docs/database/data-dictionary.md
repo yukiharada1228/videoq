@@ -7,7 +7,7 @@ This document provides definitions of database tables and columns for the VideoQ
 **Notes**
 - This project uses **PostgreSQL** and Django's `BigAutoField` by default, so primary keys are typically `BIGINT`.
 - Django `DateTimeField` values are stored as `TIMESTAMPTZ` (timestamp with time zone) in PostgreSQL when time zones are enabled.
-- The most up-to-date reference is the code: `backend/app/models.py` and `backend/app/migrations/`.
+- The most up-to-date reference is the code: `backend/app/infrastructure/models/` and `backend/app/migrations/`.
 
 ## User Table
 
@@ -50,6 +50,7 @@ Table that stores user information for the system.
 - `chat_logs`: One-to-many relationship with ChatLog table
 - `tags`: One-to-many relationship with Tag table
 - `account_deletion_requests`: One-to-many relationship with AccountDeletionRequest table
+- `api_keys`: One-to-many relationship with UserApiKey table
 
 ---
 
@@ -285,6 +286,45 @@ Table that stores chat history.
 
 ---
 
+## UserApiKey Table
+
+### Table Name
+`app_userapikey`
+
+### Description
+Table that stores API keys for server-to-server integrations. API keys allow programmatic access to the VideoQ API without JWT cookie-based authentication.
+
+### Column Definitions
+
+| Column Name | Data Type | Constraints | Default Value | Description |
+|------------|-----------|-------------|---------------|-------------|
+| id | BIGINT | PRIMARY KEY, AUTO_INCREMENT | - | API key ID |
+| user_id | BIGINT | FOREIGN KEY, NOT NULL | - | Owner's user ID |
+| name | VARCHAR(100) | NOT NULL | - | Human-readable name for the API key |
+| access_level | VARCHAR(20) | NOT NULL | 'all' | Permission level ('all' or 'read_only') |
+| prefix | VARCHAR(12) | NOT NULL | - | First 12 characters of the raw key (for display identification) |
+| hashed_key | VARCHAR(64) | UNIQUE, NOT NULL | - | SHA-256 hash of the raw API key |
+| last_used_at | TIMESTAMPTZ | NULL | NULL | Last time the key was used |
+| revoked_at | TIMESTAMPTZ | NULL | NULL | Time the key was revoked (`NULL` = active) |
+| created_at | TIMESTAMPTZ | NOT NULL | now() | Creation date and time |
+
+### access_level Values
+- `all`: Full read/write access
+- `read_only`: Read-only access
+
+### Indexes
+- PRIMARY KEY: `id`
+- FOREIGN KEY: `user_id` → `app_user.id` (CASCADE)
+- UNIQUE: `hashed_key`
+- UNIQUE (partial): `(user_id, name)` WHERE `revoked_at IS NULL` (active API key names are unique per user)
+- INDEX: `prefix` (for API key lookup by prefix)
+- INDEX: `revoked_at` (for active/revoked key queries)
+
+### Relations
+- `user`: Many-to-one relationship with User table
+
+---
+
 ## PGVector Collection
 
 ### Collection Name
@@ -362,7 +402,10 @@ All foreign keys have `ON DELETE CASCADE` set, so child records are automaticall
 - `User.email`: Email address is unique
 - `VideoGroup.share_token`: Share token is unique (NULL allowed)
 - `VideoGroupMember(group_id, video_id)`: Cannot add the same video to the same group multiple times
+- `UserApiKey.hashed_key`: Hashed API key is unique
+- `UserApiKey(user, name)` WHERE `revoked_at IS NULL`: Active API key names are unique per user
 
 ### Check Constraints
 - `Video.status`: Only specified values allowed
 - `ChatLog.feedback`: Only specified values or NULL allowed
+- `UserApiKey.access_level`: Only 'all' or 'read_only' allowed

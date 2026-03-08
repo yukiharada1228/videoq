@@ -11,6 +11,7 @@ graph TB
     User[User]
     Guest[Guest User]
     Admin[Administrator]
+    ApiClient[API Client]
 
     subgraph Authentication["Authentication"]
         UC1[Sign Up]
@@ -52,6 +53,7 @@ graph TB
         UC25[Export Chat History]
         UC26[Send Feedback]
         UC32[View Popular Scenes]
+        UC40[View Chat Analytics]
     end
 
     subgraph Sharing["Sharing Features"]
@@ -65,6 +67,12 @@ graph TB
         UC31[View User Info]
         UC33[Deactivate Account]
         UC34[Request Account Deletion]
+    end
+
+    subgraph ApiKeyManagement["API Key Management"]
+        UC37[List API Keys]
+        UC38[Create API Key]
+        UC39[Revoke API Key]
     end
 
     subgraph Administration["Administration"]
@@ -106,9 +114,19 @@ graph TB
     User --> UC32
     User --> UC33
     User --> UC34
+    User --> UC37
+    User --> UC38
+    User --> UC39
+    User --> UC40
     
     Guest --> UC29
     Guest --> UC30
+
+    ApiClient --> UC8
+    ApiClient --> UC9
+    ApiClient --> UC16
+    ApiClient --> UC17
+    ApiClient --> UC23
 
     Admin --> UC35
     Admin --> UC36
@@ -119,6 +137,7 @@ graph TB
     UC20 --> UC23
     UC27 --> UC29
     UC29 --> UC30
+    UC38 -.->|Enables| ApiClient
 ```
 
 ## Use Case Descriptions
@@ -159,6 +178,7 @@ graph TB
 - **UC25 Export Chat History**: Export chat history as CSV
 - **UC26 Send Feedback**: Provide feedback on chat response
 - **UC32 View Popular Scenes**: View popular scenes referenced in chat
+- **UC40 View Chat Analytics**: View analytics dashboard with feedback distribution, keyword cloud, question time series, and scene distribution charts
 
 ### Sharing Features
 - **UC27 Generate Share Link**: Generate share link for group
@@ -171,6 +191,11 @@ graph TB
 - **UC33 Deactivate Account**: Deactivate user account (soft delete, sets `is_active=False` and records `deactivated_at`)
 - **UC34 Request Account Deletion**: Submit an account deletion request with a reason
 
+### API Key Management
+- **UC37 List API Keys**: List all active API keys for the user
+- **UC38 Create API Key**: Create a new API key with name and access level (`all` or `read_only`)
+- **UC39 Revoke API Key**: Revoke (soft delete) an API key
+
 ### Administration
 - **UC35 Re-index Video Embeddings**: Re-generate all video embeddings with new model (superuser only)
 - **UC36 Monitor Re-indexing Progress**: Monitor re-indexing task progress via Celery logs
@@ -179,3 +204,4 @@ graph TB
 - LLM and embedding configuration is managed globally via environment variables (`LLM_PROVIDER`, `LLM_MODEL`, `EMBEDDING_PROVIDER`, `EMBEDDING_MODEL`).
 - When using local whisper.cpp server (WHISPER_BACKEND=whisper.cpp), OpenAI API key is not required for transcription.
 - Re-indexing uses the global `OPENAI_API_KEY` or `OLLAMA_BASE_URL` environment variable (depending on `EMBEDDING_PROVIDER`) and is required when switching embedding providers (OpenAI ↔ Ollama) or models.
+- API keys enable server-to-server integrations. The raw key is shown only once at creation; only the SHA-256 hash is stored.

@@ -277,3 +277,70 @@ flowchart TD
     DeactivateUser --> ClearCookies[Clear Auth Cookies<br/>HttpOnly Cookie Deletion]
     ClearCookies --> Complete([Account Deactivated])
 ```
+
+## 9. API Key Management Process
+
+```mermaid
+flowchart TD
+    Start([Start]) --> SelectAction{Select Operation}
+    SelectAction -->|List| ListKeys[List API Keys]
+    SelectAction -->|Create| CreateKey[Create API Key]
+    SelectAction -->|Revoke| RevokeKey[Revoke API Key]
+
+    ListKeys --> FetchKeys[Fetch Active Keys<br/>from Database]
+    FetchKeys --> DisplayKeys[Display Key List<br/>prefix, name, access_level]
+    DisplayKeys --> Complete([Complete])
+
+    CreateKey --> InputName[Input Key Name]
+    InputName --> SelectAccess[Select Access Level<br/>all / read_only]
+    SelectAccess --> CheckDup{Duplicate Name Check}
+    CheckDup -->|Duplicate| ShowError[Error: Name Already Exists]
+    ShowError --> InputName
+    CheckDup -->|OK| GenerateKey[Generate Raw Key<br/>vq_...]
+    GenerateKey --> HashAndSave[SHA-256 Hash + Save to DB]
+    HashAndSave --> ShowRawKey[Display Raw Key<br/>One-Time Only]
+    ShowRawKey --> Complete
+
+    RevokeKey --> SelectKey[Select API Key]
+    SelectKey --> ConfirmRevoke{Confirm Revocation}
+    ConfirmRevoke -->|Cancel| Complete
+    ConfirmRevoke -->|Confirm| SetRevoked[Set revoked_at<br/>Soft Delete]
+    SetRevoked --> Complete
+```
+
+## 10. Chat Analytics Process
+
+```mermaid
+flowchart TD
+    Start([Start]) --> SelectAction{Select Operation}
+    SelectAction -->|View Analytics| ViewAnalytics[View Analytics Dashboard]
+    SelectAction -->|Submit Feedback| SubmitFeedback[Submit Chat Feedback]
+    SelectAction -->|View Popular Scenes| ViewScenes[View Popular Scenes]
+    SelectAction -->|Export History| ExportHistory[Export Chat History]
+
+    ViewAnalytics --> FetchAnalytics[Fetch Analytics Data<br/>Aggregated Queries]
+    FetchAnalytics --> ComputeMetrics[Compute Metrics<br/>feedback distribution, time series]
+    ComputeMetrics --> DisplayCharts[Display Charts<br/>Donut, TimeSeries, KeywordCloud]
+    DisplayCharts --> Complete([Complete])
+
+    SubmitFeedback --> SelectLog[Select Chat Response]
+    SelectLog --> ChooseFeedback{Choose Feedback}
+    ChooseFeedback -->|Good| SetGood[Set feedback: good]
+    ChooseFeedback -->|Bad| SetBad[Set feedback: bad]
+    ChooseFeedback -->|Remove| ClearFeedback[Set feedback: null]
+    SetGood --> SaveFeedback[(Database<br/>Update feedback)]
+    SetBad --> SaveFeedback
+    ClearFeedback --> SaveFeedback
+    SaveFeedback --> Complete
+
+    ViewScenes --> FetchSceneLogs[Fetch Scene Logs]
+    FetchSceneLogs --> AggregateScenes[Aggregate Scene References]
+    AggregateScenes --> ExtractKeywords[Extract Keywords<br/>Janome/NLTK]
+    ExtractKeywords --> DisplayScenes[Display Popular Scenes<br/>+ Keyword Cloud]
+    DisplayScenes --> Complete
+
+    ExportHistory --> FetchAllLogs[Fetch All ChatLogs]
+    FetchAllLogs --> FormatCSV[Format as CSV]
+    FormatCSV --> DownloadFile[Download CSV File]
+    DownloadFile --> Complete
+```
