@@ -4,7 +4,13 @@ Use case: Build analytics dashboard data for a chat group.
 
 from app.domain.chat.ports import KeywordExtractor
 from app.domain.chat.repositories import ChatRepository, VideoGroupQueryRepository
-from app.domain.chat.services import aggregate_scenes, filter_group_scenes
+from app.domain.chat.services import (
+    GroupContextNotFound as _DomainGroupContextNotFound,
+    aggregate_scenes,
+    filter_group_scenes,
+    member_video_id_set,
+    require_group_context,
+)
 from app.use_cases.chat.dto import (
     ChatAnalyticsDTO,
     DateRangeDTO,
@@ -37,10 +43,11 @@ class GetChatAnalyticsUseCase:
         Raises:
             ResourceNotFound: If the group does not exist.
         """
-        group = self.group_query_repo.get_with_members(
-            group_id=group_id, user_id=user_id
-        )
-        if group is None:
+        try:
+            group = require_group_context(
+                self.group_query_repo.get_with_members(group_id=group_id, user_id=user_id)
+            )
+        except _DomainGroupContextNotFound:
             raise ResourceNotFound("Group")
 
         raw = self.chat_repo.get_analytics_raw(group_id)
@@ -51,7 +58,7 @@ class GetChatAnalyticsUseCase:
         )
 
         scene_counter, scene_info, _ = aggregate_scenes(raw.logs_for_scenes)
-        valid_video_ids = {member.video_id for member in group.members}
+        valid_video_ids = member_video_id_set(group)
         top_scenes = filter_group_scenes(scene_counter, valid_video_ids)
         scene_distribution = [
             SceneDistributionItemDTO(

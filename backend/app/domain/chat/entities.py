@@ -10,6 +10,7 @@ from datetime import datetime
 from typing import List, Optional
 
 from app.domain.chat.dtos import RelatedVideoDTO
+from app.domain.chat.exceptions import FeedbackAccessDenied, InvalidFeedbackValue
 from app.domain.chat.value_objects import (
     ChatSceneLog,
     FeedbackSummary,
@@ -56,6 +57,24 @@ class ChatLogEntity:
     is_shared_origin: bool = False
     feedback: Optional[str] = None
     created_at: Optional[datetime] = None
+
+    @staticmethod
+    def validate_feedback_value(feedback: Optional[str]) -> None:
+        if feedback not in {None, "good", "bad"}:
+            raise InvalidFeedbackValue("feedback must be 'good', 'bad', or null (unspecified)")
+
+    def assert_feedback_access(
+        self,
+        *,
+        user_id: Optional[int] = None,
+        share_token: Optional[str] = None,
+    ) -> None:
+        if share_token:
+            if self.group_share_token != share_token:
+                raise FeedbackAccessDenied("Share token mismatch")
+            return
+        if self.group_user_id != user_id:
+            raise FeedbackAccessDenied("No permission to access this history")
 
 @dataclass
 class ChatAnalyticsRaw:

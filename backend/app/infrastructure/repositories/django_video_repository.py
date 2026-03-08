@@ -234,6 +234,11 @@ class DjangoVideoRepository(VideoRepository):
         )
         return {v.id: (v.file.name if v.file else None) for v in videos}
 
+    def get_existing_ids_for_user(self, video_ids: List[int], user_id: int) -> set[int]:
+        return set(
+            Video.objects.filter(id__in=video_ids, user_id=user_id).values_list("id", flat=True)
+        )
+
     def list_completed_with_transcript(self) -> List[VideoEntity]:
         videos = (
             Video.objects.filter(status__in=["completed", "indexing"])

@@ -3,6 +3,10 @@ Use case: Retrieve chat history for a group.
 """
 
 from app.domain.chat.repositories import ChatRepository, VideoGroupQueryRepository
+from app.domain.chat.services import (
+    GroupContextNotFound as _DomainGroupContextNotFound,
+    require_group_context,
+)
 from app.use_cases.chat.dto import ChatLogResponseDTO, RelatedVideoResponseDTO
 from app.use_cases.shared.exceptions import ResourceNotFound
 
@@ -28,10 +32,11 @@ class GetChatHistoryUseCase:
         Raises:
             ResourceNotFound: If the group does not exist or belongs to another user.
         """
-        group = self.group_query_repo.get_with_members(
-            group_id=group_id, user_id=user_id
-        )
-        if group is None:
+        try:
+            group = require_group_context(
+                self.group_query_repo.get_with_members(group_id=group_id, user_id=user_id)
+            )
+        except _DomainGroupContextNotFound:
             raise ResourceNotFound("Group")
 
         logs = self.chat_repo.get_logs_for_group(group.id, ascending=ascending)
