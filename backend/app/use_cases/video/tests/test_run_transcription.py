@@ -1,7 +1,7 @@
 """Unit tests for RunTranscriptionUseCase using in-memory fakes."""
 
 from contextlib import contextmanager
-from typing import Callable, Optional
+from typing import Callable, Generator, Optional
 from unittest import TestCase
 
 from app.domain.video.entities import VideoEntity
@@ -58,7 +58,7 @@ class _FakeTranscriptionGateway:
 
 
 class _FakeVideoTaskGateway:
-    def __init__(self):
+    def __init__(self) -> None:
         self.enqueue_indexing_calls: list[int] = []
 
     def enqueue_indexing(self, video_id: int) -> None:
@@ -73,7 +73,7 @@ class _FakeVideoTaskGateway:
 
 class _FakeTransactionPort:
     @contextmanager
-    def atomic(self):
+    def atomic(self) -> Generator[None, None, None]:
         yield
 
     def on_commit(self, fn: Callable[[], None]) -> None:

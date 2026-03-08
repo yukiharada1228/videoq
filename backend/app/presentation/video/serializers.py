@@ -245,14 +245,14 @@ class ShareLinkResponseSerializer(serializers.Serializer):
 class TagCreateSerializer(serializers.Serializer):
     """Serializer for tag creation (input validation)."""
 
-    name = serializers.CharField(max_length=50)
+    name = serializers.CharField(max_length=50, trim_whitespace=False)
     color = serializers.CharField()
 
 
 class TagUpdateSerializer(serializers.Serializer):
     """Serializer for tag updates (input validation)."""
 
-    name = serializers.CharField(max_length=50, required=False)
+    name = serializers.CharField(max_length=50, required=False, trim_whitespace=False)
     color = serializers.CharField(required=False)
 
 

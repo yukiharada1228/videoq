@@ -456,7 +456,9 @@ class TagViewTests(APITestCase):
         )
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(response.data["error"], "Invalid color format. Use #RRGGBB")
+        self.assertEqual(
+            response.data["error"]["message"], "Invalid color format. Use #RRGGBB"
+        )
 
     def test_update_tag_returns_400_for_whitespace_name(self):
         """Whitespace-only tag name should be rejected at use-case/domain boundary."""
@@ -469,7 +471,7 @@ class TagViewTests(APITestCase):
         )
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(response.data["error"], "Tag name cannot be empty")
+        self.assertEqual(response.data["error"]["message"], "Tag name cannot be empty")
 
     @patch("app.infrastructure.external.vector_gateway.delete_video_vectors")
     def test_delete_video_deletes_vectors(self, mock_delete):
