@@ -8,8 +8,8 @@ from app.domain.chat.exceptions import (
     FeedbackAccessDenied as _DomainFeedbackAccessDenied,
     InvalidFeedbackValue as _DomainInvalidFeedbackValue,
 )
-from app.domain.chat.entities import ChatLogEntity
 from app.domain.chat.repositories import ChatRepository
+from app.domain.chat.services import validate_feedback_value
 from app.use_cases.chat.dto import ChatFeedbackResultDTO
 from app.use_cases.chat.exceptions import (
     ChatNotFoundError,
@@ -47,7 +47,7 @@ class SubmitFeedbackUseCase:
             FeedbackPermissionDenied: If the caller lacks access.
         """
         try:
-            ChatLogEntity.validate_feedback_value(feedback)
+            validate_feedback_value(feedback)
         except _DomainInvalidFeedbackValue as e:
             raise InvalidFeedbackError(str(e)) from e
 

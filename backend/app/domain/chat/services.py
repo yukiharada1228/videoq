@@ -9,6 +9,7 @@ from collections import Counter
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 
+from app.domain.chat.exceptions import InvalidFeedbackValue
 from app.domain.chat.value_objects import ChatSceneLog
 
 if TYPE_CHECKING:
@@ -25,6 +26,12 @@ class OwnerUserResolutionError(Exception):
 
 class GroupContextNotFound(Exception):
     """Raised when the target video group cannot be resolved for a request."""
+
+
+def validate_feedback_value(feedback: Optional[str]) -> None:
+    """Validate allowed feedback values."""
+    if feedback not in {None, "good", "bad"}:
+        raise InvalidFeedbackValue("feedback must be 'good', 'bad', or null (unspecified)")
 
 
 @dataclass(frozen=True)
