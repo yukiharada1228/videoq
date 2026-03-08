@@ -106,6 +106,7 @@ Table that stores information about uploaded videos.
 ### status Values
 - `pending`: Waiting for processing
 - `processing`: Processing
+- `indexing`: Transcript saved; vector indexing in progress
 - `completed`: Completed
 - `error`: Error
 
@@ -113,6 +114,8 @@ Table that stores information about uploaded videos.
 - PRIMARY KEY: `id`
 - FOREIGN KEY: `user_id` → `app_user.id` (CASCADE)
 - INDEX: `uploaded_at` (for descending sort)
+- INDEX: `(user_id, status, -uploaded_at)` (for filtered listings)
+- INDEX: `(user_id, title)` (for per-user title search)
 
 ### Relations
 - `user`: Many-to-one relationship with User table
@@ -146,7 +149,8 @@ Table for grouping videos.
 - PRIMARY KEY: `id`
 - FOREIGN KEY: `user_id` → `app_user.id` (CASCADE)
 - UNIQUE: `share_token` (NULL allowed)
-- INDEX: `created_at` (for descending sort)
+- INDEX: `(user_id, -created_at)` (for owner listing)
+- INDEX (partial): `share_token` WHERE `share_token IS NOT NULL` (share lookup)
 
 ### Relations
 - `user`: Many-to-one relationship with User table
@@ -178,7 +182,8 @@ Intermediate table that manages the relationship between videos and groups.
 - FOREIGN KEY: `group_id` → `app_videogroup.id` (CASCADE)
 - FOREIGN KEY: `video_id` → `app_video.id` (CASCADE)
 - UNIQUE: `(group_id, video_id)` (cannot add the same video to the same group multiple times)
-- INDEX: `(order, added_at)` (for order sorting)
+- INDEX: `(group_id, order)` (for group playback/order retrieval)
+- INDEX: `(video_id, group_id)` (for membership lookups)
 
 ### Relations
 - `group`: Many-to-one relationship with VideoGroup table
@@ -208,7 +213,7 @@ Table that stores user-defined tags for organizing videos.
 - PRIMARY KEY: `id`
 - FOREIGN KEY: `user_id` → `app_user.id` (CASCADE)
 - UNIQUE: `(user_id, name)` (per-user unique tag names)
-- INDEX: `name` (for ordering)
+- INDEX: `(user_id, name)` (list/sort tags per user)
 
 ### Relations
 - `user`: Many-to-one relationship with User table
@@ -239,7 +244,8 @@ Intermediate table for many-to-many relationship between Video and Tag.
 - FOREIGN KEY: `video_id` → `app_video.id` (CASCADE)
 - FOREIGN KEY: `tag_id` → `app_tag.id` (CASCADE)
 - UNIQUE: `(video_id, tag_id)` (prevent duplicate tag assignments)
-- INDEX: `tag__name` (for ordering by tag name)
+- INDEX: `(video_id, tag_id)` (join/lookups from video)
+- INDEX: `(tag_id, -added_at)` (recent usage by tag)
 
 ### Relations
 - `video`: Many-to-one relationship with Video table
@@ -279,6 +285,9 @@ Table that stores chat history.
 - FOREIGN KEY: `user_id` → `app_user.id` (CASCADE)
 - FOREIGN KEY: `group_id` → `app_videogroup.id` (CASCADE)
 - INDEX: `created_at` (for descending sort)
+- INDEX: `(user_id, -created_at)` (user history)
+- INDEX: `(group_id, -created_at)` (group history)
+- INDEX (partial): `feedback` WHERE `feedback IS NOT NULL` (feedback analytics)
 
 ### Relations
 - `user`: Many-to-one relationship with User table

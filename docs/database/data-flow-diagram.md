@@ -37,7 +37,10 @@ flowchart TD
     SRT --> SceneSplit[Scene Splitting]
     
     SceneSplit --> SaveTranscript[Database<br/>Save transcript]
-    SaveTranscript --> Vectorize[PGVector<br/>Vectorize and Save]
+    SaveTranscript --> UpdateIndexing[Update status: indexing]
+    UpdateIndexing --> QueueIndexing[Queue indexing task]
+    QueueIndexing --> IndexWorker[Celery Worker<br/>Indexing]
+    IndexWorker --> Vectorize[PGVector<br/>Vectorize and Save]
     Vectorize --> UpdateComplete[Update status: completed]
     UpdateComplete --> SaveDB3[(Database<br/>Final Update)]
     

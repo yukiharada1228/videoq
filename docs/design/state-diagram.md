@@ -11,8 +11,12 @@ stateDiagram-v2
     [*] --> Pending: Video Upload
     
     Pending --> Processing: Celery Task Starts
-    Processing --> Completed: Transcription Success
+    Processing --> Indexing: Transcription Success
+    Indexing --> Completed: Vector Indexing Success
     Processing --> Error: Transcription Failure
+    Indexing --> Error: Indexing Failure
+    Completed --> Processing: Re-transcription Triggered
+    Error --> Processing: Retry Triggered
     
     Completed --> [*]: Video Deleted
     Error --> [*]: Video Deleted
@@ -28,7 +32,12 @@ stateDiagram-v2
         Processing
         - Extracting Audio
         - Running Transcription (Whisper API or local server)
-        - Vectorizing
+    end note
+
+    note right of Indexing
+        Indexing
+        - Transcript already saved
+        - Async vector indexing in progress
     end note
     
     note right of Completed
@@ -42,7 +51,7 @@ stateDiagram-v2
         Error
         - Processing Failed
         - Error Message Saved
-        - Re-upload is required to retry (no dedicated reprocess endpoint)
+        - Can transition back to Processing via retry/reprocess trigger
     end note
 ```
 

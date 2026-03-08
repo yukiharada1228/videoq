@@ -58,9 +58,11 @@ flowchart TD
     UpdateErrorStatus --> NotifyError[Error Notification]
     NotifyError --> End
     
-    CreateTranscript --> Vectorize[Vectorization Process]
+    CreateTranscript --> MarkIndexing[Update Status: Indexing]
+    MarkIndexing --> QueueIndexTask[Enqueue Indexing Task]
+    QueueIndexTask --> Vectorize[Vectorization Process]
     Vectorize --> SaveVector[Save Vector Data]
-    SaveVector --> UpdateStatus[Update Completion Status]
+    SaveVector --> UpdateStatus[Update Status: Completed]
     UpdateStatus --> NotifyComplete[Completion Notification]
     NotifyComplete --> End
 ```

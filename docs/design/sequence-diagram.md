@@ -21,7 +21,7 @@ sequenceDiagram
     Backend->>Backend: Validate request (file, User.video_limit)
     Backend->>DB: Create Video(status: pending)
     DB-->>Backend: Video Saved
-    Backend->>Celery: transcribe_video.delay(video_id)
+    Backend->>Celery: enqueue_transcription(video_id)
     Backend-->>Frontend: 201 Created
     Frontend-->>User: Upload Success Display
 
@@ -37,6 +37,8 @@ sequenceDiagram
         Celery->>Celery: Convert to SRT Format
         Celery->>Celery: Scene Splitting Process
         Celery->>DB: Save transcript
+        Celery->>DB: Update status(indexing)
+        Celery->>Celery: enqueue_indexing(video_id)
         Celery->>PGVector: Vectorize and Save
         Celery->>DB: Update status(completed)
     else WHISPER_BACKEND=openai (default)
@@ -46,6 +48,8 @@ sequenceDiagram
         Celery->>Celery: Convert to SRT Format
         Celery->>Celery: Scene Splitting Process
         Celery->>DB: Save transcript
+        Celery->>DB: Update status(indexing)
+        Celery->>Celery: enqueue_indexing(video_id)
         Celery->>PGVector: Vectorize and Save
         Celery->>DB: Update status(completed)
     end
