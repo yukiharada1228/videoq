@@ -4,6 +4,7 @@ Use case: Delete a video (hard delete) and clean up its file.
 
 import logging
 
+from app.domain.shared.transaction import TransactionPort
 from app.domain.video.gateways import VectorStoreGateway
 from app.domain.video.repositories import VideoRepository
 from app.use_cases.video.exceptions import ResourceNotFound
@@ -20,9 +21,15 @@ class DeleteVideoUseCase:
     4. File cleanup is handled by the repository after the transaction commits
     """
 
-    def __init__(self, video_repo: VideoRepository, vector_gateway: VectorStoreGateway):
+    def __init__(
+        self,
+        video_repo: VideoRepository,
+        vector_gateway: VectorStoreGateway,
+        tx: TransactionPort,
+    ):
         self.video_repo = video_repo
         self.vector_gateway = vector_gateway
+        self.tx = tx
 
     def execute(self, video_id: int, user_id: int) -> None:
         """
@@ -33,12 +40,17 @@ class DeleteVideoUseCase:
         if video is None:
             raise ResourceNotFound("Video")
 
-        self.video_repo.delete(video)
-        try:
-            self.vector_gateway.delete_video_vectors(video.id)
-        except Exception:
-            logger.warning(
-                "Failed to delete vectors for video %s after video deletion",
-                video.id,
-                exc_info=True,
-            )
+        with self.tx.atomic():
+            self.video_repo.delete(video)
+
+            def _cleanup_vectors() -> None:
+                try:
+                    self.vector_gateway.delete_video_vectors(video.id)
+                except Exception:
+                    logger.warning(
+                        "Failed to delete vectors for video %s after video deletion",
+                        video.id,
+                        exc_info=True,
+                    )
+
+            self.tx.on_commit(_cleanup_vectors)
