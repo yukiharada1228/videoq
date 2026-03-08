@@ -3,7 +3,7 @@
 from unittest import TestCase
 
 from app.domain.user.entities import UserEntity
-from app.domain.video.exceptions import VideoLimitExceeded
+from app.domain.user.exceptions import UserVideoLimitExceeded
 
 
 class UserEntityTests(TestCase):
@@ -16,7 +16,7 @@ class UserEntityTests(TestCase):
             video_limit=2,
             video_count=2,
         )
-        with self.assertRaises(VideoLimitExceeded):
+        with self.assertRaises(UserVideoLimitExceeded):
             user.assert_can_upload_video()
 
     def test_assert_can_upload_video_uses_current_count_when_given(self):
@@ -28,7 +28,7 @@ class UserEntityTests(TestCase):
             video_limit=3,
             video_count=0,
         )
-        with self.assertRaises(VideoLimitExceeded):
+        with self.assertRaises(UserVideoLimitExceeded):
             user.assert_can_upload_video(current_count=3)
 
     def test_assert_can_upload_video_allows_unlimited_users(self):
