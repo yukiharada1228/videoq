@@ -103,13 +103,13 @@ The `build_system_prompt` function in `backend/app/infrastructure/external/promp
 Each related scene is included in the prompt in the following format:
 
 ```
-[1] [Video Title] [Start Time] - [End Time]
+[Video Title] [Start Time] - [End Time]
 [Scene Transcription Content]
 ```
 
 Example:
 ```
-[1] Project Overview Video 00:01:23 - 00:02:45
+Project Overview Video 00:01:23 - 00:02:45
 This project is a web application that provides video transcription and AI chat features.
 Main features include video upload, automatic transcription, and AI chat.
 ```
@@ -153,7 +153,7 @@ Documents retrieved from search are converted to reference information for promp
 def _build_reference_entries(self, docs: Sequence[Any]) -> List[str]:
     """Generate reference information list for detailed prompt from documents"""
     reference_entries = []
-    for idx, doc in enumerate(docs, start=1):
+    for doc in docs:
         metadata = getattr(doc, "metadata", {}) or {}
         title = metadata.get("video_title", "")
         start_time = metadata.get("start_time", "")
@@ -161,7 +161,7 @@ def _build_reference_entries(self, docs: Sequence[Any]) -> List[str]:
         page_content = getattr(doc, "page_content", "")
         
         reference_entries.append(
-            f"[{idx}] {title} {start_time} - {end_time}\n{page_content}"
+            f"{title} {start_time} - {end_time}\n{page_content}"
         )
     return reference_entries
 ```
@@ -224,14 +224,14 @@ from app.infrastructure.external.prompts import build_system_prompt
 # Default locale
 prompt = build_system_prompt(
     locale=None,
-    references=["[1] Test Video 00:00:00 - 00:01:00\nTest content"]
+    references=["Test Video 00:00:00 - 00:01:00\nTest content"]
 )
 print(prompt)
 
 # Japanese locale
 prompt_ja = build_system_prompt(
     locale="ja",
-    references=["[1] テスト動画 00:00:00 - 00:01:00\nテスト内容"]
+    references=["テスト動画 00:00:00 - 00:01:00\nテスト内容"]
 )
 print(prompt_ja)
 ```

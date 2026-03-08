@@ -200,7 +200,7 @@ erDiagram
 - Referential integrity is guaranteed
 
 ### Check Constraints
-- `Video.status`: Must be one of 'pending', 'processing', 'completed', 'error'
+- `Video.status`: Must be one of 'pending', 'processing', 'indexing', 'completed', 'error'
 - `ChatLog.feedback`: Must be 'good', 'bad', or NULL
 - `UserApiKey.access_level`: Must be one of 'all', 'read_only'
 
@@ -219,11 +219,17 @@ erDiagram
 - `Video.uploaded_at`: For descending sort (Meta.ordering)
 - `Video(user, status, -uploaded_at)`: For filtered user video listing
 - `Video(user, title)`: For title search
-- `VideoGroup.created_at`: For descending sort (Meta.ordering)
+- `VideoGroup(user, -created_at)`: For owner group listing
+- `VideoGroup.share_token` (partial where NOT NULL): For share-token lookup
 - `ChatLog.created_at`: For descending sort (Meta.ordering)
-- `VideoGroupMember(order, added_at)`: For order sorting (Meta.ordering)
-- `Tag.name`: For alphabetical ordering (Meta.ordering)
-- `VideoTag.tag__name`: For ordering by tag name (Meta.ordering)
+- `ChatLog(user, -created_at)`: For per-user chat history
+- `ChatLog(group, -created_at)`: For per-group chat history
+- `ChatLog.feedback` (partial where NOT NULL): For feedback analytics
+- `VideoGroupMember(group, order)`: For group ordering reads
+- `VideoGroupMember(video, group)`: For membership lookups
+- `Tag(user, name)`: For per-user alphabetical ordering
+- `VideoTag(video, tag)`: For tag assignment lookup
+- `VideoTag(tag, -added_at)`: For recent tag usage
 - `UserApiKey.prefix`: For API key prefix lookup
 - `UserApiKey.revoked_at`: For active/revoked key queries
 - `UserApiKey(-created_at, -id)`: For ordering (Meta.ordering)
