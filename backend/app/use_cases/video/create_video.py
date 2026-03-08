@@ -5,9 +5,9 @@ Use case: Create a new video and dispatch transcription.
 import logging
 
 from app.domain.shared.transaction import TransactionPort
+from app.domain.user.exceptions import UserVideoLimitExceeded
 from app.domain.user.repositories import UserRepository
 from app.domain.video.dto import CreateVideoParams
-from app.domain.video.exceptions import VideoLimitExceeded as DomainVideoLimitExceeded
 from app.domain.video.gateways import VideoTaskGateway
 from app.domain.video.repositories import VideoRepository
 from app.use_cases.video.dto import CreateVideoInput, VideoResponseDTO
@@ -58,7 +58,7 @@ class CreateVideoUseCase:
             current_count = self.video_repo.count_for_user(user_id)
             try:
                 user.assert_can_upload_video(current_count)
-            except DomainVideoLimitExceeded as e:
+            except UserVideoLimitExceeded as e:
                 raise VideoLimitExceeded(e.limit) from e
 
             params = CreateVideoParams(
