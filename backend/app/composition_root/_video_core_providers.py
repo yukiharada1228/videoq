@@ -58,6 +58,7 @@ def get_update_video_use_case() -> UpdateVideoUseCase:
     return UpdateVideoUseCase(
         shared.new_video_repository(),
         shared.new_vector_store_gateway(),
+        DjangoTransactionPort(),
     )
 
 
@@ -65,6 +66,7 @@ def get_delete_video_use_case() -> DeleteVideoUseCase:
     return DeleteVideoUseCase(
         shared.new_video_repository(),
         shared.new_vector_store_gateway(),
+        DjangoTransactionPort(),
     )
 
 

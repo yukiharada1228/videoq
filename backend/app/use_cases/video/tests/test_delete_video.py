@@ -1,5 +1,7 @@
 """Unit tests for DeleteVideoUseCase."""
 
+from contextlib import contextmanager
+from typing import Callable
 from unittest import TestCase
 from unittest.mock import MagicMock
 
@@ -8,11 +10,24 @@ from app.use_cases.video.delete_video import DeleteVideoUseCase
 from app.use_cases.video.exceptions import ResourceNotFound
 
 
+class _FakeTransactionPort:
+    @contextmanager
+    def atomic(self):
+        yield
+
+    def on_commit(self, fn: Callable[[], None]) -> None:
+        fn()
+
+
 class DeleteVideoUseCaseTests(TestCase):
     def setUp(self):
         self.video_repo = MagicMock()
         self.vector_gateway = MagicMock()
-        self.use_case = DeleteVideoUseCase(self.video_repo, self.vector_gateway)
+        self.use_case = DeleteVideoUseCase(
+            self.video_repo,
+            self.vector_gateway,
+            _FakeTransactionPort(),
+        )
 
     def test_raises_when_video_not_found(self):
         self.video_repo.get_by_id.return_value = None
