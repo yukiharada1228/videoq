@@ -20,7 +20,7 @@ import { TagManagementModal } from '@/components/video/TagManagementModal';
  * Render the Videos management page with listing, filtering, statistics, and upload/tag modals.
  *
  * Displays a scrollable video list with loading and error states, a tag filter panel with management,
- * statistic cards for total/completed/pending/processing counts, an upload button (disabled when the
+ * statistic cards for total/completed/pending/processing/indexing counts, an upload button (disabled when the
  * current user cannot upload), and a warning when the user's upload limit is reached. The upload modal
  * can be opened via UI or the `upload=true` query parameter; successful uploads reload videos and refresh
  * user data.
@@ -127,7 +127,7 @@ export default function VideosPage() {
 
 
           {stats.total > 0 && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
               <div className="bg-blue-50 rounded-lg p-4 border border-blue-100">
                 <div className="text-2xl font-bold text-blue-600">{stats.total}</div>
                 <div className="text-sm text-blue-600">{t('videos.list.stats.total')}</div>
@@ -143,6 +143,10 @@ export default function VideosPage() {
               <div className="bg-purple-50 rounded-lg p-4 border border-purple-100">
                 <div className="text-2xl font-bold text-purple-600">{stats.processing}</div>
                 <div className="text-sm text-purple-600">{t('videos.list.stats.processing')}</div>
+              </div>
+              <div className="bg-indigo-50 rounded-lg p-4 border border-indigo-100">
+                <div className="text-2xl font-bold text-indigo-600">{stats.indexing}</div>
+                <div className="text-sm text-indigo-600">{t('videos.list.stats.indexing')}</div>
               </div>
             </div>
           )}
