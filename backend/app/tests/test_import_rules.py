@@ -504,6 +504,23 @@ class ImportRulesTest(unittest.TestCase):
             ),
         )
 
+    def _check_domain_cross_context(self, context_path, forbidden_contexts):
+        """Verify that a domain context does not import from other domain contexts directly."""
+        all_violations = {}
+        for fp in sorted(self._iter_layer_source_files(f"domain/{context_path}")):
+            rel = os.path.relpath(fp, BASE)
+            v = check_forbidden_imports(fp, forbidden_contexts)
+            if v:
+                all_violations[rel] = v
+        self.assertEqual(
+            {},
+            all_violations,
+            f"Cross-context domain imports found in domain/{context_path}:\n"
+            + "\n".join(
+                f"  {f}: {vs}" for f, vs in all_violations.items()
+            ),
+        )
+
     def test_use_cases_chat_no_cross_context_imports(self):
         """use_cases/chat must not import from use_cases/video or use_cases/auth."""
         self._check_cross_context(
@@ -530,6 +547,13 @@ class ImportRulesTest(unittest.TestCase):
         self._check_cross_context(
             "media",
             ["app.use_cases.video", "app.use_cases.auth", "app.use_cases.chat"],
+        )
+
+    def test_domain_user_no_cross_context_imports(self):
+        """domain/user must not import app.domain.video/auth/chat/media directly."""
+        self._check_domain_cross_context(
+            "user",
+            ["app.domain.video", "app.domain.auth", "app.domain.chat", "app.domain.media"],
         )
 
     def test_infrastructure_has_no_drf_imports(self):

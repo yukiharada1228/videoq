@@ -367,7 +367,8 @@ class VideoDetailViewTests(APITestCase):
         url = reverse("video-detail", kwargs={"pk": self.video.pk})
         data = {"title": "Updated Title"}
 
-        response = self.client.patch(url, data, format="json")
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.patch(url, data, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["id"], self.video.id)
@@ -479,7 +480,8 @@ class TagViewTests(APITestCase):
         url = reverse("video-detail", kwargs={"pk": self.video.pk})
         video_id = self.video.id
 
-        response = self.client.delete(url)
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.delete(url)
 
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         # Video should be hard deleted (record no longer exists)
@@ -494,7 +496,8 @@ class TagViewTests(APITestCase):
         mock_delete.side_effect = Exception("Vector deletion failed")
         url = reverse("video-detail", kwargs={"pk": self.video.pk})
 
-        response = self.client.delete(url)
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.delete(url)
 
         # Video should still be hard deleted even if vector deletion fails
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
@@ -514,7 +517,8 @@ class TagViewTests(APITestCase):
         self.assertEqual(VideoGroupMember.objects.filter(video=self.video).count(), 2)
 
         url = reverse("video-detail", kwargs={"pk": self.video.pk})
-        response = self.client.delete(url)
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.delete(url)
 
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         # Video should be removed from all groups
