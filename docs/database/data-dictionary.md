@@ -7,7 +7,7 @@ This document provides definitions of database tables and columns for the VideoQ
 **Notes**
 - This project uses **PostgreSQL** and Django's `BigAutoField` by default, so primary keys are typically `BIGINT`.
 - Django `DateTimeField` values are stored as `TIMESTAMPTZ` (timestamp with time zone) in PostgreSQL when time zones are enabled.
-- The most up-to-date reference is the code: `backend/app/models.py` and `backend/app/migrations/`.
+- The most up-to-date reference is the code: `backend/app/infrastructure/models/` and `backend/app/migrations/`.
 
 ## User Table
 
@@ -50,6 +50,7 @@ Table that stores user information for the system.
 - `chat_logs`: One-to-many relationship with ChatLog table
 - `tags`: One-to-many relationship with Tag table
 - `account_deletion_requests`: One-to-many relationship with AccountDeletionRequest table
+- `api_keys`: One-to-many relationship with UserApiKey table
 
 ---
 
@@ -105,6 +106,7 @@ Table that stores information about uploaded videos.
 ### status Values
 - `pending`: Waiting for processing
 - `processing`: Processing
+- `indexing`: Transcript saved; vector indexing in progress
 - `completed`: Completed
 - `error`: Error
 
@@ -112,6 +114,8 @@ Table that stores information about uploaded videos.
 - PRIMARY KEY: `id`
 - FOREIGN KEY: `user_id` → `app_user.id` (CASCADE)
 - INDEX: `uploaded_at` (for descending sort)
+- INDEX: `(user_id, status, -uploaded_at)` (for filtered listings)
+- INDEX: `(user_id, title)` (for per-user title search)
 
 ### Relations
 - `user`: Many-to-one relationship with User table
@@ -145,7 +149,8 @@ Table for grouping videos.
 - PRIMARY KEY: `id`
 - FOREIGN KEY: `user_id` → `app_user.id` (CASCADE)
 - UNIQUE: `share_token` (NULL allowed)
-- INDEX: `created_at` (for descending sort)
+- INDEX: `(user_id, -created_at)` (for owner listing)
+- INDEX (partial): `share_token` WHERE `share_token IS NOT NULL` (share lookup)
 
 ### Relations
 - `user`: Many-to-one relationship with User table
@@ -177,7 +182,8 @@ Intermediate table that manages the relationship between videos and groups.
 - FOREIGN KEY: `group_id` → `app_videogroup.id` (CASCADE)
 - FOREIGN KEY: `video_id` → `app_video.id` (CASCADE)
 - UNIQUE: `(group_id, video_id)` (cannot add the same video to the same group multiple times)
-- INDEX: `(order, added_at)` (for order sorting)
+- INDEX: `(group_id, order)` (for group playback/order retrieval)
+- INDEX: `(video_id, group_id)` (for membership lookups)
 
 ### Relations
 - `group`: Many-to-one relationship with VideoGroup table
@@ -207,7 +213,7 @@ Table that stores user-defined tags for organizing videos.
 - PRIMARY KEY: `id`
 - FOREIGN KEY: `user_id` → `app_user.id` (CASCADE)
 - UNIQUE: `(user_id, name)` (per-user unique tag names)
-- INDEX: `name` (for ordering)
+- INDEX: `(user_id, name)` (list/sort tags per user)
 
 ### Relations
 - `user`: Many-to-one relationship with User table
@@ -238,7 +244,8 @@ Intermediate table for many-to-many relationship between Video and Tag.
 - FOREIGN KEY: `video_id` → `app_video.id` (CASCADE)
 - FOREIGN KEY: `tag_id` → `app_tag.id` (CASCADE)
 - UNIQUE: `(video_id, tag_id)` (prevent duplicate tag assignments)
-- INDEX: `tag__name` (for ordering by tag name)
+- INDEX: `(video_id, tag_id)` (join/lookups from video)
+- INDEX: `(tag_id, -added_at)` (recent usage by tag)
 
 ### Relations
 - `video`: Many-to-one relationship with Video table
@@ -278,10 +285,52 @@ Table that stores chat history.
 - FOREIGN KEY: `user_id` → `app_user.id` (CASCADE)
 - FOREIGN KEY: `group_id` → `app_videogroup.id` (CASCADE)
 - INDEX: `created_at` (for descending sort)
+- INDEX: `(user_id, -created_at)` (user history)
+- INDEX: `(group_id, -created_at)` (group history)
+- INDEX (partial): `feedback` WHERE `feedback IS NOT NULL` (feedback analytics)
 
 ### Relations
 - `user`: Many-to-one relationship with User table
 - `group`: Many-to-one relationship with VideoGroup table
+
+---
+
+## UserApiKey Table
+
+### Table Name
+`app_userapikey`
+
+### Description
+Table that stores API keys for server-to-server integrations. API keys allow programmatic access to the VideoQ API without JWT cookie-based authentication.
+
+### Column Definitions
+
+| Column Name | Data Type | Constraints | Default Value | Description |
+|------------|-----------|-------------|---------------|-------------|
+| id | BIGINT | PRIMARY KEY, AUTO_INCREMENT | - | API key ID |
+| user_id | BIGINT | FOREIGN KEY, NOT NULL | - | Owner's user ID |
+| name | VARCHAR(100) | NOT NULL | - | Human-readable name for the API key |
+| access_level | VARCHAR(20) | NOT NULL | 'all' | Permission level ('all' or 'read_only') |
+| prefix | VARCHAR(12) | NOT NULL | - | First 12 characters of the raw key (for display identification) |
+| hashed_key | VARCHAR(64) | UNIQUE, NOT NULL | - | SHA-256 hash of the raw API key |
+| last_used_at | TIMESTAMPTZ | NULL | NULL | Last time the key was used |
+| revoked_at | TIMESTAMPTZ | NULL | NULL | Time the key was revoked (`NULL` = active) |
+| created_at | TIMESTAMPTZ | NOT NULL | now() | Creation date and time |
+
+### access_level Values
+- `all`: Full read/write access
+- `read_only`: Read scope + `chat_write` scope (allows `POST /api/chat/`, but blocks other write operations)
+
+### Indexes
+- PRIMARY KEY: `id`
+- FOREIGN KEY: `user_id` → `app_user.id` (CASCADE)
+- UNIQUE: `hashed_key`
+- UNIQUE (partial): `(user_id, name)` WHERE `revoked_at IS NULL` (active API key names are unique per user)
+- INDEX: `prefix` (for API key lookup by prefix)
+- INDEX: `revoked_at` (for active/revoked key queries)
+
+### Relations
+- `user`: Many-to-one relationship with User table
 
 ---
 
@@ -362,7 +411,10 @@ All foreign keys have `ON DELETE CASCADE` set, so child records are automaticall
 - `User.email`: Email address is unique
 - `VideoGroup.share_token`: Share token is unique (NULL allowed)
 - `VideoGroupMember(group_id, video_id)`: Cannot add the same video to the same group multiple times
+- `UserApiKey.hashed_key`: Hashed API key is unique
+- `UserApiKey(user, name)` WHERE `revoked_at IS NULL`: Active API key names are unique per user
 
 ### Check Constraints
 - `Video.status`: Only specified values allowed
 - `ChatLog.feedback`: Only specified values or NULL allowed
+- `UserApiKey.access_level`: Only 'all' or 'read_only' allowed

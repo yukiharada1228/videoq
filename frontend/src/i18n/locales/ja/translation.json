@@ -50,6 +50,7 @@
     "status": {
       "pending": "待機中",
       "processing": "処理中",
+      "indexing": "インデックス中",
       "completed": "完了",
       "error": "エラー"
     },
@@ -59,6 +60,7 @@
       "groupNotFound": "チャットグループが見つかりません",
       "transcriptionPending": "文字起こし処理はまだ開始されていません。",
       "transcriptionProcessing": "文字起こしを処理しています...",
+      "transcriptionIndexing": "文字起こし結果をインデックス化しています...",
       "transcriptionUnavailable": "文字起こしはまだ利用できません。",
       "transcriptionError": "文字起こしの処理中にエラーが発生しました。",
       "browserNoVideoSupport": "お使いのブラウザは動画タグをサポートしていません。",
@@ -152,6 +154,7 @@
       "completed": "処理完了",
       "pending": "待機中",
       "processing": "処理中",
+      "indexing": "インデックス中",
       "error": "エラー"
     },
     "account": {
@@ -191,7 +194,8 @@
         "total": "総動画数",
         "completed": "完了",
         "pending": "待機中",
-        "processing": "処理中"
+        "processing": "処理中",
+        "indexing": "インデックス中"
       },
       "noVideos": "動画がありません",
       "noVideosHint": "上部の「動画をアップロード」ボタンから動画を追加できます。",
@@ -296,6 +300,7 @@
         "all": "すべてのステータス",
         "completed": "完了",
         "processing": "処理中",
+        "indexing": "インデックス中",
         "pending": "待機中",
         "error": "エラー"
       },

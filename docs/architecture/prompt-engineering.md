@@ -35,7 +35,7 @@ Generate Answer (English or Japanese)
 
 ## Prompt Template Structure
 
-Prompts are defined in `backend/app/chat/prompts/prompts.json`.
+Prompts are defined in `backend/app/infrastructure/external/prompts/prompts.json`.
 
 ### Default Prompt (English)
 
@@ -72,7 +72,7 @@ A prompt for the Japanese locale (`ja`) is also defined and is automatically sel
 
 ### build_system_prompt Function
 
-The `build_system_prompt` function in `backend/app/chat/prompts/loader.py` combines the prompt template with search results to generate the final system prompt.
+The `build_system_prompt` function in `backend/app/infrastructure/external/prompts/loader.py` combines the prompt template with search results to generate the final system prompt.
 
 **Parameters:**
 - `locale`: Locale (e.g., `"ja"`, `"en"`). Uses default (English) if `None`
@@ -103,13 +103,13 @@ The `build_system_prompt` function in `backend/app/chat/prompts/loader.py` combi
 Each related scene is included in the prompt in the following format:
 
 ```
-[1] [Video Title] [Start Time] - [End Time]
+[Video Title] [Start Time] - [End Time]
 [Scene Transcription Content]
 ```
 
 Example:
 ```
-[1] Project Overview Video 00:01:23 - 00:02:45
+Project Overview Video 00:01:23 - 00:02:45
 This project is a web application that provides video transcription and AI chat features.
 Main features include video upload, automatic transcription, and AI chat.
 ```
@@ -147,13 +147,13 @@ The backend extracts the first locale from this header and uses the correspondin
 
 ### Processing Search Results
 
-Documents retrieved from search are converted to reference information for prompts by the `_build_reference_entries` method:
+Documents retrieved from search are converted to reference information for prompts by the `_build_reference_entries` method in the RAG service:
 
 ```python
 def _build_reference_entries(self, docs: Sequence[Any]) -> List[str]:
     """Generate reference information list for detailed prompt from documents"""
     reference_entries = []
-    for idx, doc in enumerate(docs, start=1):
+    for doc in docs:
         metadata = getattr(doc, "metadata", {}) or {}
         title = metadata.get("video_title", "")
         start_time = metadata.get("start_time", "")
@@ -161,7 +161,7 @@ def _build_reference_entries(self, docs: Sequence[Any]) -> List[str]:
         page_content = getattr(doc, "page_content", "")
         
         reference_entries.append(
-            f"[{idx}] {title} {start_time} - {end_time}\n{page_content}"
+            f"{title} {start_time} - {end_time}\n{page_content}"
         )
     return reference_entries
 ```
@@ -170,7 +170,7 @@ def _build_reference_entries(self, docs: Sequence[Any]) -> List[str]:
 
 ### Editing Prompt Templates
 
-To customize prompts, edit `backend/app/chat/prompts/prompts.json`.
+To customize prompts, edit `backend/app/infrastructure/external/prompts/prompts.json`.
 
 **Notes:**
 - Maintain the existing key structure
@@ -197,7 +197,7 @@ To add a new locale (e.g., `fr`):
 
 ### Modifying Prompt Structure
 
-If you need to significantly modify the prompt structure, you will also need to update the `build_system_prompt` function in `backend/app/chat/prompts/loader.py`.
+If you need to significantly modify the prompt structure, you will also need to update the `build_system_prompt` function in `backend/app/infrastructure/external/prompts/loader.py`.
 
 ## Best Practices
 
@@ -219,33 +219,35 @@ If you need to significantly modify the prompt structure, you will also need to 
 To inspect prompt content:
 
 ```python
-from app.chat.prompts import build_system_prompt
+from app.infrastructure.external.prompts import build_system_prompt
 
 # Default locale
 prompt = build_system_prompt(
     locale=None,
-    references=["[1] Test Video 00:00:00 - 00:01:00\nTest content"]
+    references=["Test Video 00:00:00 - 00:01:00\nTest content"]
 )
 print(prompt)
 
 # Japanese locale
 prompt_ja = build_system_prompt(
     locale="ja",
-    references=["[1] テスト動画 00:00:00 - 00:01:00\nテスト内容"]
+    references=["テスト動画 00:00:00 - 00:01:00\nテスト内容"]
 )
 print(prompt_ja)
 ```
 
 ## Implementation Files
 
-- **Prompt Definition**: `backend/app/chat/prompts/prompts.json`
-- **Prompt Loader**: `backend/app/chat/prompts/loader.py`
-- **RAG Service**: `backend/app/chat/services/rag_chat.py`
-- **Tests**: `backend/app/chat/prompts/tests/test_loader.py`
+- **Prompt Definition**: `backend/app/infrastructure/external/prompts/prompts.json`
+- **Prompt Loader**: `backend/app/infrastructure/external/prompts/loader.py`
+- **RAG Service**: `backend/app/infrastructure/external/rag_service.py`
+- **RAG Gateway**: `backend/app/infrastructure/external/rag_gateway.py`
+- **RAG Domain Gateway**: `backend/app/domain/chat/gateways.py` (`RagGateway` ABC)
+- **Tests**: `backend/app/infrastructure/external/prompts/tests/test_loader.py`
 
 ## Related Documentation
 
 - [System Configuration Diagram](system-configuration-diagram.md)
-- [Scene Splitting](../../backend/app/tasks/srt_processing.py)
-- [Scene Detection (`scene_otsu`)](../../backend/app/scene_otsu/)
-- [Vector Management](../../backend/app/utils/vector_manager.py)
+- Scene Splitting: `backend/app/infrastructure/scene_otsu/`
+- Transcription Processing: `backend/app/infrastructure/transcription/`
+- Vector Store: `backend/app/infrastructure/external/vector_store.py`

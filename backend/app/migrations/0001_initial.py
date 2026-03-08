@@ -7,7 +7,7 @@ import django.utils.timezone
 from django.conf import settings
 from django.db import migrations, models
 
-import app.models
+import app.infrastructure.models
 
 
 class Migration(migrations.Migration):
@@ -167,8 +167,8 @@ class Migration(migrations.Migration):
                 (
                     "file",
                     models.FileField(
-                        storage=app.models.SafeFileSystemStorage(),
-                        upload_to=app.models.user_directory_path,
+                        storage=app.infrastructure.models.SafeFileSystemStorage(),
+                        upload_to=app.infrastructure.models.user_directory_path,
                     ),
                 ),
                 ("title", models.CharField(max_length=255)),

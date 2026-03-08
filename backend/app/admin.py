@@ -1,25 +1,36 @@
+"""Django Admin configuration.
+
+Admin is treated as an operational privileged path.
+When admin actions apply business invariants, they should delegate to use cases
+through app.dependencies to keep behavior aligned with API flows.
+"""
+
 from django.contrib import admin, messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.admin import UserAdmin
+from django.apps import apps
+from django.db import transaction
 from django.db.models import Count
 
-from .models import AccountDeletionRequest, Video, VideoGroup, VideoGroupMember
-
+from app.dependencies.admin import (
+    get_enforce_video_limit_use_case,
+    get_video_task_gateway,
+)
 User = get_user_model()
+Video = apps.get_model("app", "Video")
+VideoGroup = apps.get_model("app", "VideoGroup")
+VideoGroupMember = apps.get_model("app", "VideoGroupMember")
+AccountDeletionRequest = apps.get_model("app", "AccountDeletionRequest")
 
 
 class BaseAdminMixin:
     """Unified management of common admin settings"""
 
     @staticmethod
-    def get_optimized_queryset(
-        request, model_class, select_related_fields=None, annotate_fields=None
-    ):
+    def optimize_queryset(queryset, select_related_fields=None, annotate_fields=None):
         """
         Get optimized queryset
         """
-        queryset = model_class.objects.all()
-
         if select_related_fields:
             queryset = queryset.select_related(*select_related_fields)
 
@@ -51,35 +62,38 @@ class CustomUserAdmin(UserAdmin):
     add_fieldsets = UserAdmin.add_fieldsets
 
     def save_model(self, request, obj, form, change):
-        """Override to show warning when reducing video_limit"""
-        if change and "video_limit" in form.changed_data:
-            old_user = User.objects.get(pk=obj.pk)
-            old_limit = old_user.video_limit
-            new_limit = obj.video_limit
+        """Warn and enforce `video_limit` through the dedicated use case."""
+        should_enforce_video_limit = change and "video_limit" in form.changed_data
+        use_case = get_enforce_video_limit_use_case() if should_enforce_video_limit else None
 
-            # Check if reduction will trigger deletions
-            if self._will_delete_videos(old_limit, new_limit, obj):
-                current_count = Video.objects.filter(user=obj).count()
-                videos_to_delete = current_count - (
-                    new_limit if new_limit is not None else 0
-                )
-
+        if should_enforce_video_limit:
+            estimate = use_case.estimate_deleted_count(
+                user_id=obj.pk,
+                video_limit=obj.video_limit,
+            )
+            if estimate > 0:
                 messages.warning(
                     request,
-                    f"Warning: Reducing video_limit will automatically delete "
-                    f"{videos_to_delete} oldest video(s) for user {obj.username}.",
+                    f"Warning: Reducing video_limit will delete "
+                    f"{estimate} oldest video(s) for user {obj.username}.",
                 )
 
-        super().save_model(request, obj, form, change)
+        if should_enforce_video_limit:
+            with transaction.atomic():
+                super().save_model(request, obj, form, change)
+                deleted_count = use_case.execute(
+                    user_id=obj.pk,
+                    video_limit=obj.video_limit,
+                )
+                if deleted_count > 0:
+                    messages.warning(
+                        request,
+                        f"Deleted {deleted_count} oldest video(s) to enforce "
+                        f"video_limit={obj.video_limit} for user {obj.username}.",
+                    )
+            return
 
-    def _will_delete_videos(self, old_limit, new_limit, user):
-        """Check if limit reduction will trigger deletions"""
-        if old_limit == new_limit or new_limit is None:
-            return False
-        if old_limit is None or new_limit < old_limit:
-            current_count = Video.objects.filter(user=user).count()
-            return current_count > (new_limit if new_limit is not None else 0)
-        return False
+        super().save_model(request, obj, form, change)
 
 
 @admin.register(Video)
@@ -92,8 +106,8 @@ class VideoAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         """Preload user relation"""
-        return BaseAdminMixin.get_optimized_queryset(
-            request, Video, select_related_fields=["user"]
+        return BaseAdminMixin.optimize_queryset(
+            super().get_queryset(request), select_related_fields=["user"]
         )
 
     @admin.action(description="Re-index video embeddings")
@@ -106,15 +120,12 @@ class VideoAdmin(admin.ModelAdmin):
             messages.error(request, "This action is only available to superusers.")
             return
 
-        # Start Celery task
-        from app.tasks.reindexing import reindex_all_videos_embeddings
-
-        task = reindex_all_videos_embeddings.delay()
+        task_id = get_video_task_gateway().enqueue_reindex_all_videos_embeddings()
 
         messages.success(
             request,
             f"Started re-indexing video embeddings. "
-            f"Task ID: {task.id}. "
+            f"Task ID: {task_id}. "
             f"This may take some time. Check Celery worker logs for progress.",
         )
 
@@ -128,9 +139,8 @@ class VideoGroupAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         """Preload user relation and video_count"""
-        return BaseAdminMixin.get_optimized_queryset(
-            request,
-            VideoGroup,
+        return BaseAdminMixin.optimize_queryset(
+            super().get_queryset(request),
             select_related_fields=["user"],
             annotate_fields={"video_count": Count("members__video")},
         )
@@ -150,9 +160,8 @@ class VideoGroupMemberAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         """Preload group and video relations"""
-        return BaseAdminMixin.get_optimized_queryset(
-            request,
-            VideoGroupMember,
+        return BaseAdminMixin.optimize_queryset(
+            super().get_queryset(request),
             select_related_fields=["group", "video", "group__user", "video__user"],
         )
 
@@ -165,6 +174,6 @@ class AccountDeletionRequestAdmin(admin.ModelAdmin):
     readonly_fields = ("requested_at",)
 
     def get_queryset(self, request):
-        return BaseAdminMixin.get_optimized_queryset(
-            request, AccountDeletionRequest, select_related_fields=["user"]
+        return BaseAdminMixin.optimize_queryset(
+            super().get_queryset(request), select_related_fields=["user"]
         )

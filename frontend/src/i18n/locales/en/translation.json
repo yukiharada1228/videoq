@@ -49,6 +49,7 @@
     "status": {
       "pending": "Pending",
       "processing": "Processing",
+      "indexing": "Indexing",
       "completed": "Completed",
       "error": "Error"
     },
@@ -58,6 +59,7 @@
       "groupNotFound": "Chat group not found",
       "transcriptionPending": "Transcription has not started yet.",
       "transcriptionProcessing": "Transcription is currently processing...",
+      "transcriptionIndexing": "Transcription results are being indexed...",
       "transcriptionUnavailable": "Transcription is not available yet.",
       "transcriptionError": "An error occurred while processing the transcription.",
       "browserNoVideoSupport": "Your browser does not support the video tag.",
@@ -146,6 +148,7 @@
       "completed": "Completed",
       "pending": "Pending",
       "processing": "Processing",
+      "indexing": "Indexing",
       "error": "Error"
     },
     "account": {
@@ -185,7 +188,8 @@
         "total": "Total videos",
         "completed": "Completed",
         "pending": "Pending",
-        "processing": "Processing"
+        "processing": "Processing",
+        "indexing": "Indexing"
       },
       "noVideos": "No videos yet",
       "noVideosHint": "Use the \"Upload video\" button above to add videos.",
@@ -290,6 +294,7 @@
         "all": "All statuses",
         "completed": "Completed",
         "processing": "Processing",
+        "indexing": "Indexing",
         "pending": "Pending",
         "error": "Error"
       },

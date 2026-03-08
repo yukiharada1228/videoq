@@ -13,6 +13,7 @@ erDiagram
     User ||--o{ ChatLog : creates
     User ||--o{ Tag : owns
     User ||--o{ AccountDeletionRequest : creates
+    User ||--o{ UserApiKey : owns
     VideoGroup ||--o{ VideoGroupMember : contains
     Video ||--o{ VideoGroupMember : belongs_to
     Video ||--o{ VideoTag : has
@@ -98,6 +99,18 @@ erDiagram
         text reason
         datetime requested_at
     }
+
+    UserApiKey {
+        int id PK
+        int user_id FK
+        string name
+        string access_level
+        string prefix
+        string hashed_key UK
+        datetime last_used_at
+        datetime revoked_at
+        datetime created_at
+    }
 ```
 
 ## Relationship Details
@@ -126,6 +139,11 @@ erDiagram
 - **Relationship**: One user can have multiple account deletion requests
 - **Foreign Key**: `AccountDeletionRequest.user_id` → `User.id`
 - **Delete Action**: CASCADE (requests are deleted when user is deleted)
+
+### User - UserApiKey (1:N)
+- **Relationship**: One user can have multiple API keys
+- **Foreign Key**: `UserApiKey.user_id` → `User.id`
+- **Delete Action**: CASCADE (API keys are deleted when user is deleted)
 
 ### Video - VideoTag (1:N)
 - **Relationship**: One video can have multiple tags
@@ -174,21 +192,24 @@ erDiagram
 - `VideoGroupMember(group_id, video_id)`: Cannot add the same video to the same group multiple times
 - `Tag(user_id, name)`: Tag names are unique per user
 - `VideoTag(video_id, tag_id)`: Cannot assign the same tag to the same video multiple times
+- `UserApiKey.hashed_key`: Hashed API key is unique
+- `UserApiKey(user, name)` where `revoked_at IS NULL`: Active API key names are unique per user (partial unique constraint)
 
 ### Foreign Key Constraints
 - All foreign keys have CASCADE delete set
 - Referential integrity is guaranteed
 
 ### Check Constraints
-- `Video.status`: Must be one of 'pending', 'processing', 'completed', 'error'
+- `Video.status`: Must be one of 'pending', 'processing', 'indexing', 'completed', 'error'
 - `ChatLog.feedback`: Must be 'good', 'bad', or NULL
+- `UserApiKey.access_level`: Must be one of 'all', 'read_only'
 
 ## Indexes
 
 ### Automatic Indexes
 - Primary Key: All `id` columns
 - Foreign Keys: All foreign key columns
-- Unique Constraints: `username`, `email`, `share_token`
+- Unique Constraints: `username`, `email`, `share_token`, `hashed_key`
 
 ### Custom Indexes
 - `User(email, is_active)`: For login lookup
@@ -198,11 +219,20 @@ erDiagram
 - `Video.uploaded_at`: For descending sort (Meta.ordering)
 - `Video(user, status, -uploaded_at)`: For filtered user video listing
 - `Video(user, title)`: For title search
-- `VideoGroup.created_at`: For descending sort (Meta.ordering)
+- `VideoGroup(user, -created_at)`: For owner group listing
+- `VideoGroup.share_token` (partial where NOT NULL): For share-token lookup
 - `ChatLog.created_at`: For descending sort (Meta.ordering)
-- `VideoGroupMember(order, added_at)`: For order sorting (Meta.ordering)
-- `Tag.name`: For alphabetical ordering (Meta.ordering)
-- `VideoTag.tag__name`: For ordering by tag name (Meta.ordering)
+- `ChatLog(user, -created_at)`: For per-user chat history
+- `ChatLog(group, -created_at)`: For per-group chat history
+- `ChatLog.feedback` (partial where NOT NULL): For feedback analytics
+- `VideoGroupMember(group, order)`: For group ordering reads
+- `VideoGroupMember(video, group)`: For membership lookups
+- `Tag(user, name)`: For per-user alphabetical ordering
+- `VideoTag(video, tag)`: For tag assignment lookup
+- `VideoTag(tag, -added_at)`: For recent tag usage
+- `UserApiKey.prefix`: For API key prefix lookup
+- `UserApiKey.revoked_at`: For active/revoked key queries
+- `UserApiKey(-created_at, -id)`: For ordering (Meta.ordering)
 
 ## pgvector Extension
 
