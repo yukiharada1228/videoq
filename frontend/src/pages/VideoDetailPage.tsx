@@ -106,6 +106,7 @@ function TranscriptSection({ transcript, status }: TranscriptSectionProps) {
   const statusMessages: Record<string, { key: string; className: string }> = {
     pending: { key: 'common.messages.transcriptionPending', className: 'text-gray-500 italic' },
     processing: { key: 'common.messages.transcriptionProcessing', className: 'text-gray-500 italic' },
+    indexing: { key: 'common.messages.transcriptionIndexing', className: 'text-gray-500 italic' },
     completed: { key: 'common.messages.transcriptionUnavailable', className: 'text-gray-500 italic' },
     error: { key: 'common.messages.transcriptionError', className: 'text-red-600 italic' },
   };

@@ -9,7 +9,8 @@ const mockVideos = [
   { id: 1, title: 'Video 1', status: 'completed' },
   { id: 2, title: 'Video 2', status: 'pending' },
   { id: 3, title: 'Video 3', status: 'processing' },
-  { id: 4, title: 'Video 4', status: 'error' },
+  { id: 4, title: 'Video 4', status: 'indexing' },
+  { id: 5, title: 'Video 5', status: 'error' },
 ]
 
 const mockGroups = [
@@ -88,6 +89,7 @@ describe('HomePage', () => {
       expect(screen.getByText('home.stats.completed')).toBeInTheDocument()
       expect(screen.getByText('home.stats.pending')).toBeInTheDocument()
       expect(screen.getByText('home.stats.processing')).toBeInTheDocument()
+      expect(screen.getByText('home.stats.indexing')).toBeInTheDocument()
       expect(screen.getByText('home.stats.error')).toBeInTheDocument()
     })
   })
