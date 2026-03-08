@@ -4,7 +4,8 @@ import logging
 import os
 import tempfile
 from contextlib import contextmanager
-from typing import Any, List, Optional, Tuple
+from types import TracebackType
+from typing import Any, Callable, Generator, List, Optional, Tuple
 
 from django.db import transaction
 
@@ -65,7 +66,7 @@ class VideoTaskManager:
 class TemporaryFileManager:
     """Common temporary file management class."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.temp_files: List[str] = []
 
     def create_temp_file(self, suffix: str = "", prefix: str = "temp_") -> str:
@@ -77,7 +78,7 @@ class TemporaryFileManager:
         self.temp_files.append(temp_file.name)
         return temp_file.name
 
-    def cleanup_all(self):
+    def cleanup_all(self) -> None:
         """Delete all managed temporary files."""
         for temp_file in self.temp_files:
             try:
@@ -88,10 +89,15 @@ class TemporaryFileManager:
                 logger.warning(f"Error cleaning up temporary file {temp_file}: {e}")
         self.temp_files.clear()
 
-    def __enter__(self):
+    def __enter__(self) -> "TemporaryFileManager":
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
         self.cleanup_all()
 
 
@@ -112,7 +118,7 @@ class BatchProcessor:
 
     @staticmethod
     @contextmanager
-    def database_transaction():
+    def database_transaction() -> Generator[None, None, None]:
         """Database transaction context manager."""
         try:
             with transaction.atomic():
@@ -154,7 +160,9 @@ class ErrorHandler:
             )
 
     @staticmethod
-    def safe_execute(func, *args, **kwargs):
+    def safe_execute(
+        func: Callable[..., Any], *args: Any, **kwargs: Any
+    ) -> tuple[Any | None, Exception | None]:
         """Safe function execution."""
         try:
             result = func(*args, **kwargs)
