@@ -204,34 +204,6 @@ class VideoQMcpServer:
                     handler=self._list_tags,
                 ),
                 ToolDefinition(
-                    name="search_related_scenes",
-                    description="Search related scenes in a group without generating an LLM answer.",
-                    input_schema={
-                        "type": "object",
-                        "properties": {
-                            "group_id": {"type": "integer"},
-                            "query_text": {"type": "string"},
-                        },
-                        "required": ["group_id", "query_text"],
-                        "additionalProperties": False,
-                    },
-                    handler=self._search_related_scenes,
-                ),
-                ToolDefinition(
-                    name="ask_videoq",
-                    description="Ask VideoQ a question. Optionally scope retrieval to a group_id.",
-                    input_schema={
-                        "type": "object",
-                        "properties": {
-                            "question": {"type": "string"},
-                            "group_id": {"type": "integer"},
-                        },
-                        "required": ["question"],
-                        "additionalProperties": False,
-                    },
-                    handler=self._ask_videoq,
-                ),
-                ToolDefinition(
                     name="get_chat_history",
                     description="Get chat history for a group.",
                     input_schema={
@@ -276,23 +248,6 @@ class VideoQMcpServer:
         del arguments
         tags = self.api.get("/videos/tags/")
         return {"count": len(tags), "tags": tags}
-
-    def _search_related_scenes(self, arguments: JSON) -> JSON:
-        return self.api.post(
-            "/chat/search/",
-            payload={
-                "group_id": int(arguments["group_id"]),
-                "query_text": arguments["query_text"],
-            },
-        )
-
-    def _ask_videoq(self, arguments: JSON) -> JSON:
-        payload = {
-            "messages": [{"role": "user", "content": arguments["question"]}],
-        }
-        if "group_id" in arguments and arguments["group_id"] is not None:
-            payload["group_id"] = int(arguments["group_id"])
-        return self.api.post("/chat/", payload=payload)
 
     def _get_chat_history(self, arguments: JSON) -> JSON:
         group_id = int(arguments["group_id"])
