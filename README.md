@@ -4,6 +4,8 @@
 
 VideoQは、動画を自動で文字起こしし、自然言語で動画と会話できるAI搭載の動画ナビゲーターです。
 
+![VideoQ Application Screenshot](assets/screenshot.gif)
+
 ## 開発者向けAPI連携
 
 VideoQ は API キー認証に対応しており、既存システムやバッチからサーバー間通信で利用できます。  
@@ -31,10 +33,6 @@ Claude Desktop には次のように設定できます。事前に VideoQ 側で
   }
 }
 ```
-
-以下の手順でローカル環境にセットアップできます。
-
-![VideoQ Application Screenshot](assets/screenshot.gif)
 
 ## ✨ できること
 
