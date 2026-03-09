@@ -646,7 +646,7 @@
       "title": "VideoQ Developer Docs",
       "subtitle": "Reference docs for integrating with VideoQ APIs and automations.",
       "quickLinksTitle": "Quick links",
-      "quickLinksDescription": "Open official API documentation and create an integration key.",
+      "quickLinksDescription": "Review the official API docs and issue an integration API key from Settings.",
       "createApiKey": "Create API key in Settings"
     },
     "section": {
