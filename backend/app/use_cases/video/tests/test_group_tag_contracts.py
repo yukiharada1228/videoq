@@ -21,6 +21,7 @@ from app.use_cases.video.dto import (
 )
 from app.use_cases.video.exceptions import (
     GroupVideoOrderMismatch,
+    InvalidGroupInput,
     InvalidTagInput,
     ResourceNotFound,
     VideoAlreadyInGroup,
@@ -29,6 +30,8 @@ from app.use_cases.video.exceptions import (
 from app.use_cases.video.manage_groups import (
     AddVideoToGroupUseCase,
     AddVideosToGroupUseCase,
+    CreateShareLinkUseCase,
+    DeleteShareLinkUseCase,
     RemoveVideoFromGroupUseCase,
     ReorderVideosInGroupUseCase,
 )
@@ -69,6 +72,7 @@ class _FakeGroupRepo:
         self.update_called = False
         self.bulk_add_args = None
         self.reorder_args = None
+        self.updated_share_token = None
 
     def get_by_id(self, group_id: int, user_id: int, include_videos: bool = False):
         if self.group and self.group.id == group_id and self.group.user_id == user_id:
@@ -87,6 +91,11 @@ class _FakeGroupRepo:
 
     def reorder_videos(self, group, video_ids):
         self.reorder_args = (group.id, list(video_ids))
+
+    def update_share_token(self, group, token):
+        self.updated_share_token = token
+        if self.group is not None:
+            self.group.share_token = token
 
     def create(self, user_id: int, params):
         self.create_called = True
@@ -259,6 +268,31 @@ class GroupTagContractsUseCaseTests(TestCase):
             use_case.execute(self.group.id, [999], self.user_id)
         self.assertIsNone(repo.reorder_args)
 
+    def test_create_share_link_updates_token_via_domain_entity(self):
+        repo = _FakeGroupRepo(self.group)
+        use_case = CreateShareLinkUseCase(repo)
+
+        token = use_case.execute(self.group.id, self.user_id)
+
+        self.assertIsNotNone(token)
+        self.assertEqual(repo.updated_share_token, token)
+        self.assertEqual(self.group.share_token, token)
+
+    def test_delete_share_link_clears_token_via_domain_entity(self):
+        group_with_share = VideoGroupEntity(
+            id=self.group.id,
+            user_id=self.user_id,
+            name=self.group.name,
+            share_token="share-abc",
+        )
+        repo = _FakeGroupRepo(group_with_share)
+        use_case = DeleteShareLinkUseCase(repo)
+
+        use_case.execute(group_with_share.id, self.user_id)
+
+        self.assertIsNone(repo.updated_share_token)
+        self.assertIsNone(group_with_share.share_token)
+
     def test_remove_tag_maps_not_attached_to_resource_not_found(self):
         use_case = RemoveTagFromVideoUseCase(_FakeVideoRepo(self.video), _FakeTagRepo(self.tag))
         with self.assertRaises(ResourceNotFound):
@@ -271,6 +305,12 @@ class GroupTagContractsUseCaseTests(TestCase):
         self.assertEqual(result.id, self.group.id)
         self.assertTrue(repo.create_called)
 
+    def test_create_group_with_detail_raises_invalid_group_input_for_whitespace_name(self):
+        repo = _FakeGroupRepo(self.group)
+        use_case = CreateVideoGroupWithDetailUseCase(repo)
+        with self.assertRaises(InvalidGroupInput):
+            use_case.execute(self.user_id, CreateGroupInput(name="   ", description=""))
+
     def test_update_group_with_detail_returns_detail_dto(self):
         repo = _FakeGroupRepo(self.group)
         use_case = UpdateVideoGroupWithDetailUseCase(repo)
@@ -281,6 +321,16 @@ class GroupTagContractsUseCaseTests(TestCase):
         )
         self.assertEqual(result.id, self.group.id)
         self.assertTrue(repo.update_called)
+
+    def test_update_group_with_detail_raises_invalid_group_input_for_whitespace_name(self):
+        repo = _FakeGroupRepo(self.group)
+        use_case = UpdateVideoGroupWithDetailUseCase(repo)
+        with self.assertRaises(InvalidGroupInput):
+            use_case.execute(
+                self.group.id,
+                self.user_id,
+                UpdateGroupInput(name="   ", description="desc"),
+            )
 
     def test_update_tag_with_detail_returns_detail_dto(self):
         repo = _FakeTagRepo(self.tag)
@@ -301,6 +351,12 @@ class GroupTagContractsUseCaseTests(TestCase):
         self.assertEqual(result.name, self.group.name)
         self.assertTrue(repo.create_called)
 
+    def test_create_group_raises_invalid_group_input_for_whitespace_name(self):
+        repo = _FakeGroupRepo(self.group)
+        use_case = CreateVideoGroupUseCase(repo)
+        with self.assertRaises(InvalidGroupInput):
+            use_case.execute(self.user_id, CreateGroupInput(name="   ", description=""))
+
     def test_update_group_returns_list_response_dto(self):
         repo = _FakeGroupRepo(self.group)
         use_case = UpdateVideoGroupUseCase(repo)
@@ -312,6 +368,16 @@ class GroupTagContractsUseCaseTests(TestCase):
         self.assertEqual(result.id, self.group.id)
         self.assertEqual(result.name, self.group.name)
         self.assertTrue(repo.update_called)
+
+    def test_update_group_raises_invalid_group_input_for_whitespace_name(self):
+        repo = _FakeGroupRepo(self.group)
+        use_case = UpdateVideoGroupUseCase(repo)
+        with self.assertRaises(InvalidGroupInput):
+            use_case.execute(
+                self.group.id,
+                self.user_id,
+                UpdateGroupInput(name="   ", description="desc"),
+            )
 
     def test_create_tag_returns_tag_response_dto(self):
         repo = _FakeTagRepo(self.tag)

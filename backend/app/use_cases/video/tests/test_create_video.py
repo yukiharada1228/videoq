@@ -104,12 +104,26 @@ class FakeVideoRepository:
 
 
 class _FakeTransactionPort:
+    def __init__(self):
+        self._on_commit_callbacks: list[Callable[[], None]] = []
+        self.in_atomic = False
+        self.on_commit_execution_states: list[bool] = []
+
     @contextmanager
     def atomic(self):
-        yield
+        self.in_atomic = True
+        try:
+            yield
+        finally:
+            self.in_atomic = False
+            callbacks = list(self._on_commit_callbacks)
+            self._on_commit_callbacks.clear()
+            for fn in callbacks:
+                self.on_commit_execution_states.append(self.in_atomic)
+                fn()
 
     def on_commit(self, fn: Callable[[], None]) -> None:
-        fn()
+        self._on_commit_callbacks.append(fn)
 
 
 class CreateVideoUseCaseTests(TestCase):
@@ -125,11 +139,12 @@ class CreateVideoUseCaseTests(TestCase):
         )
         self.repo = FakeVideoRepository()
         self.mock_task_queue = MagicMock()
+        self.tx = _FakeTransactionPort()
         self.use_case = CreateVideoUseCase(
             self.user_repo,
             self.repo,
             self.mock_task_queue,
-            _FakeTransactionPort(),
+            self.tx,
         )
 
     def _input(self):
@@ -165,6 +180,7 @@ class CreateVideoUseCaseTests(TestCase):
         video = self.use_case.execute(self.user_id, self._input())
 
         self.mock_task_queue.enqueue_transcription.assert_called_once_with(video.id)
+        self.assertEqual(self.tx.on_commit_execution_states, [False])
 
     def test_raises_video_limit_exceeded_when_limit_zero(self):
         self.user_repo.get_by_id.return_value.video_limit = 0

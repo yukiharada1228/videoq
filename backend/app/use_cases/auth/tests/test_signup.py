@@ -6,6 +6,7 @@ from unittest import TestCase
 from app.domain.auth.gateways import EmailSenderGateway, UserManagementGateway
 from app.use_cases.auth.signup import (
     EmailAlreadyRegistered,
+    InvalidSignupRequest,
     SignupUserUseCase,
     VerificationEmailSendFailed,
 )
@@ -57,13 +58,25 @@ class SignupUserUseCaseTests(TestCase):
         email_sender = _StubEmailSenderGateway()
         use_case = SignupUserUseCase(user_gateway, email_sender)
 
-        use_case.execute("alice", "  alice@example.com  ", "password")
+        use_case.execute("  alice  ", "  alice@example.com  ", "password")
 
         self.assertEqual(
             user_gateway.created_args,
             ("alice", "alice@example.com", "password"),
         )
         self.assertEqual(email_sender.sent_user_id, 10)
+
+    def test_execute_raises_when_required_fields_missing(self):
+        user_gateway = _StubUserManagementGateway(email_exists=False, user_id=10)
+        use_case = SignupUserUseCase(
+            user_gateway,
+            _StubEmailSenderGateway(),
+        )
+
+        with self.assertRaises(InvalidSignupRequest):
+            use_case.execute("   ", "alice@example.com", "password")
+
+        self.assertIsNone(user_gateway.created_args)
 
     def test_execute_raises_when_email_already_registered(self):
         use_case = SignupUserUseCase(

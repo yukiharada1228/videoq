@@ -1,0 +1,139 @@
+name: Backend Spec Discussion
+description: Discuss backend specification changes with ubiquitous language checks
+title: "[Backend Spec] "
+labels:
+  - spec
+  - backend
+body:
+  - type: dropdown
+    id: context
+    attributes:
+      label: Backend Context
+      description: Select a backend bounded context for this discussion
+      options:
+        - Video (Recommended)
+        - Chat
+        - Auth
+    validations:
+      required: true
+
+  - type: dropdown
+    id: change_type
+    attributes:
+      label: Change Type
+      description: Select the main type of specification change
+      options:
+        - Behavior Contract Update (Recommended)
+        - New Domain Term
+        - Naming / Vocabulary Update
+        - State Transition Update
+        - Boundary / Responsibility Clarification
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: Describe the intended behavior and scope
+      placeholder: |
+        Include concrete user-facing behavior and constraints.
+        Use context-qualified terms such as Video group / Chat group context when needed.
+    validations:
+      required: true
+
+  - type: textarea
+    id: impacted_terms
+    attributes:
+      label: Added/Changed Core Terms (Backend)
+      description: Define terms as behavior contracts, not only names
+      placeholder: |
+        - Term:
+          Context:
+          Definition:
+          Responsibilities:
+          Invariants:
+          Allowed operations / transitions:
+          Out of scope:
+          Replaced/Deprecated term (if any):
+    validations:
+      required: true
+
+  - type: textarea
+    id: boundary_delta
+    attributes:
+      label: Boundary Delta (Domain / Application / External)
+      description: Explain where this change belongs and what layers are affected
+      placeholder: |
+        - Domain model change:
+        - Use-case boundary change:
+        - External/API contract change:
+        - Why this boundary is correct:
+    validations:
+      required: true
+
+  - type: textarea
+    id: api_mapping_delta
+    attributes:
+      label: API to Internal Mapping Delta
+      description: Required when external terms or request/response fields change
+      placeholder: |
+        - External term:
+          Internal term:
+          Mapping rule:
+          Backward compatibility impact:
+    validations:
+      required: false
+
+  - type: textarea
+    id: transition_delta
+    attributes:
+      label: State Transition Delta
+      description: Required for lifecycle/status changes
+      placeholder: |
+        - State machine:
+        - Added allowed transitions:
+        - Removed allowed transitions:
+        - Newly forbidden transitions:
+        - Retry / terminal semantics:
+    validations:
+      required: false
+
+  - type: textarea
+    id: error_nouns
+    attributes:
+      label: Error Noun Alignment
+      description: List user-facing/domain-facing noun changes (if any)
+      placeholder: |
+        - Old noun:
+          New noun:
+          Affected endpoint/use case:
+    validations:
+      required: false
+
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: Acceptance Criteria
+      description: Concrete checks required to consider this spec accepted
+      placeholder: |
+        - [ ] Expected behavior:
+        - [ ] Invariant preserved:
+        - [ ] Error vocabulary aligned:
+        - [ ] Tests to update/add:
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: language_checks
+    attributes:
+      label: Ubiquitous Language Checks (Backend)
+      options:
+        - label: I avoided ambiguous terms (`group`, `token`, `user`) without context.
+          required: true
+        - label: I used context-qualified nouns consistently (for example, `Video group` / `Chat group context`).
+          required: true
+        - label: I checked consistency with `docs/architecture/ubiquitous-language.md`.
+          required: true
+        - label: I will update `docs/architecture/domain-model-map.md` if context boundaries or interactions change.
+          required: false

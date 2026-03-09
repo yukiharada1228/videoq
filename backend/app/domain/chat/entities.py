@@ -10,9 +10,10 @@ from datetime import datetime
 from typing import List, Optional
 
 from app.domain.chat.dtos import RelatedVideoDTO
-from app.domain.chat.exceptions import FeedbackAccessDenied, InvalidFeedbackValue
+from app.domain.chat.exceptions import FeedbackAccessDenied
 from app.domain.chat.value_objects import (
     ChatSceneLog,
+    FeedbackValue,
     FeedbackSummary,
     TimeSeriesPoint,
 )
@@ -60,8 +61,21 @@ class ChatLogEntity:
 
     @staticmethod
     def validate_feedback_value(feedback: Optional[str]) -> None:
-        if feedback not in {None, "good", "bad"}:
-            raise InvalidFeedbackValue("feedback must be 'good', 'bad', or null (unspecified)")
+        FeedbackValue.normalize_optional(feedback)
+
+    def plan_feedback_update(
+        self,
+        *,
+        feedback: Optional[str],
+        user_id: Optional[int] = None,
+        share_token: Optional[str] = None,
+    ) -> Optional[str]:
+        """
+        Validate feedback update request against domain rules.
+        Returns the accepted feedback value to persist.
+        """
+        self.assert_feedback_access(user_id=user_id, share_token=share_token)
+        return FeedbackValue.normalize_optional(feedback)
 
     def assert_feedback_access(
         self,

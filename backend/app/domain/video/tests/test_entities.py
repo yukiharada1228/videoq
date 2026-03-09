@@ -10,6 +10,7 @@ from app.domain.video.entities import (
 )
 from app.domain.video.exceptions import (
     GroupVideoOrderMismatch,
+    InvalidShareToken,
     ShareLinkNotActive,
     SomeVideosNotFound,
     TagNotAttachedToVideo,
@@ -114,6 +115,27 @@ class VideoGroupEntityTests(TestCase):
 
         with self.assertRaises(ShareLinkNotActive):
             group.assert_share_link_active()
+
+    def test_activate_share_link_sets_token(self):
+        group = VideoGroupEntity(id=1, user_id=1, name="group", share_token=None)
+
+        token = group.activate_share_link(" token-123 ")
+
+        self.assertEqual(token, "token-123")
+        self.assertEqual(group.share_token, "token-123")
+
+    def test_activate_share_link_rejects_blank_token(self):
+        group = VideoGroupEntity(id=1, user_id=1, name="group", share_token=None)
+
+        with self.assertRaises(InvalidShareToken):
+            group.activate_share_link("   ")
+
+    def test_deactivate_share_link_clears_token(self):
+        group = VideoGroupEntity(id=1, user_id=1, name="group", share_token="token-123")
+
+        group.deactivate_share_link()
+
+        self.assertIsNone(group.share_token)
 
     def test_assert_can_add_video_raises_when_already_member(self):
         group = VideoGroupEntity(

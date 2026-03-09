@@ -4,10 +4,16 @@ from unittest import TestCase
 
 from app.domain.video.entities import VideoGroupEntity, VideoGroupMemberEntity
 from app.domain.video.exceptions import InvalidVideoStatusTransition
+from app.domain.video.exceptions import InvalidGroupName
 from app.domain.video.exceptions import InvalidTagColor, InvalidTagName
 from app.domain.video.exceptions import SomeVideosNotFound
 from app.domain.video.exceptions import VideoAlreadyInGroup, VideoNotInGroup, GroupVideoOrderMismatch
-from app.domain.video.services import TagPolicy, VideoGroupMembershipService, VideoTranscriptionLifecycle
+from app.domain.video.services import (
+    TagPolicy,
+    VideoGroupMembershipService,
+    VideoGroupPolicy,
+    VideoTranscriptionLifecycle,
+)
 from app.domain.video.status import VideoStatus
 
 
@@ -109,3 +115,15 @@ class TagPolicyTests(TestCase):
     def test_validate_color_rejects_invalid_format(self):
         with self.assertRaises(InvalidTagColor):
             TagPolicy.validate_color("red")
+
+
+class VideoGroupPolicyTests(TestCase):
+    def test_normalize_name_trims_spaces(self):
+        self.assertEqual(VideoGroupPolicy.normalize_name("  my group  "), "my group")
+
+    def test_normalize_name_rejects_blank(self):
+        with self.assertRaises(InvalidGroupName):
+            VideoGroupPolicy.normalize_name("   ")
+
+    def test_normalize_optional_name_allows_none(self):
+        self.assertIsNone(VideoGroupPolicy.normalize_optional_name(None))

@@ -28,7 +28,7 @@ class GetVideoGroupUseCase:
             group_id=group_id, user_id=user_id, include_videos=include_videos
         )
         if group is None:
-            raise ResourceNotFound("Group")
+            raise ResourceNotFound("Video group")
         return to_group_detail_response_dto(group)
 
 
@@ -48,5 +48,5 @@ class GetSharedGroupUseCase:
         """
         group = self.group_repo.get_by_share_token(share_token=share_token)
         if group is None:
-            raise ResourceNotFound("Group")
+            raise ResourceNotFound("Video group")
         return to_group_detail_response_dto(group)

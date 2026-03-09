@@ -9,6 +9,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import List, Optional
 
+from app.domain.chat.exceptions import InvalidFeedbackValue
+
 
 @dataclass(frozen=True)
 class SceneReference:
@@ -51,3 +53,21 @@ class KeywordCount:
 
     word: str
     count: int
+
+
+@dataclass(frozen=True)
+class FeedbackValue:
+    """Normalized optional feedback value."""
+
+    value: Optional[str]
+    _ALLOWED = {"good", "bad"}
+    _ERROR_MESSAGE = "feedback must be 'good', 'bad', or null (unspecified)"
+
+    @classmethod
+    def normalize_optional(cls, raw: Optional[str]) -> Optional[str]:
+        if raw is None:
+            return None
+        normalized = raw.strip().lower()
+        if normalized not in cls._ALLOWED:
+            raise InvalidFeedbackValue(cls._ERROR_MESSAGE)
+        return normalized

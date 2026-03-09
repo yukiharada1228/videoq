@@ -24,6 +24,7 @@ from app.use_cases.video.dto import (
 )
 from app.use_cases.video.exceptions import (
     GroupVideoOrderMismatch,
+    InvalidGroupInput,
     InvalidTagInput,
     ResourceNotFound,
     VideoAlreadyInGroup,
@@ -59,9 +60,9 @@ from .serializers import (
 logger = logging.getLogger(__name__)
 
 NOT_FOUND_MESSAGES = {
-    "Group": "Group not found",
+    "Video group": "Video group not found",
     "Share link": "Share link is not configured",
-    "Some videos": "Some videos not found",
+    "Requested videos": "Requested videos not found",
     "Tag": "Tag not found",
     "Video": "Video not found",
 }
@@ -239,15 +240,18 @@ class VideoGroupListView(DependencyResolverMixin, AuthenticatedViewMixin, generi
         request=VideoGroupCreateSerializer,
         responses={201: VideoGroupDetailSerializer},
         summary="Create video group",
-        description="Create a video group and return the created group resource.",
+        description="Create a video group and return the created video group resource.",
     )
     def post(self, request, *args, **kwargs):
         serializer = VideoGroupCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         use_case = self.resolve_dependency(self.create_group_use_case)
-        input_dto = CreateGroupInput(**serializer.validated_data)
-        group = use_case.execute(request.user.id, input_dto)
+        try:
+            input_dto = CreateGroupInput(**serializer.validated_data)
+            group = use_case.execute(request.user.id, input_dto)
+        except InvalidGroupInput as e:
+            return create_error_response(str(e), status.HTTP_400_BAD_REQUEST)
 
         ctx = {"request": request}
         return Response(
@@ -273,7 +277,7 @@ class VideoGroupDetailView(DependencyResolverMixin, AuthenticatedViewMixin, APIV
         try:
             group = use_case.execute(pk, request.user.id, include_videos=True)
         except ResourceNotFound:
-            return create_error_response("Group not found", status.HTTP_404_NOT_FOUND)
+            return create_error_response("Video group not found", status.HTTP_404_NOT_FOUND)
         ctx = {"request": request}
         return Response(VideoGroupDetailSerializer(group, context=ctx).data)
 
@@ -281,7 +285,7 @@ class VideoGroupDetailView(DependencyResolverMixin, AuthenticatedViewMixin, APIV
         request=VideoGroupUpdateSerializer,
         responses={200: VideoGroupDetailSerializer},
         summary="Update video group",
-        description="Update a video group and return the updated group resource.",
+        description="Update a video group and return the updated video group resource.",
     )
     def patch(self, request, pk):
         serializer = VideoGroupUpdateSerializer(data=request.data, partial=True)
@@ -295,8 +299,10 @@ class VideoGroupDetailView(DependencyResolverMixin, AuthenticatedViewMixin, APIV
                 description=data.get("description"),
             )
             group = use_case.execute(pk, request.user.id, input_dto)
+        except InvalidGroupInput as e:
+            return create_error_response(str(e), status.HTTP_400_BAD_REQUEST)
         except ResourceNotFound:
-            return create_error_response("Group not found", status.HTTP_404_NOT_FOUND)
+            return create_error_response("Video group not found", status.HTTP_404_NOT_FOUND)
 
         ctx = {"request": request}
         return Response(VideoGroupDetailSerializer(group, context=ctx).data)
@@ -309,20 +315,20 @@ class VideoGroupDetailView(DependencyResolverMixin, AuthenticatedViewMixin, APIV
         try:
             use_case.execute(pk, request.user.id)
         except ResourceNotFound:
-            return create_error_response("Group not found", status.HTTP_404_NOT_FOUND)
+            return create_error_response("Video group not found", status.HTTP_404_NOT_FOUND)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class AddVideoToGroupView(DependencyResolverMixin, AuthenticatedViewMixin, APIView):
-    """Add a single video to a group."""
+    """Add a single video to a video group."""
 
     serializer_class = AddVideoToGroupResponseSerializer
     add_video_to_group_use_case = None
 
     @extend_schema(
         responses={201: AddVideoToGroupResponseSerializer},
-        summary="Add video to group",
-        description="Add a single video to a group.",
+        summary="Add video to video group",
+        description="Add a single video to a video group.",
         operation_id="video_groups_add_single_video",
     )
     def post(self, request, group_id, video_id):
@@ -333,12 +339,12 @@ class AddVideoToGroupView(DependencyResolverMixin, AuthenticatedViewMixin, APIVi
             return create_error_response(_not_found_message(e), status.HTTP_404_NOT_FOUND)
         except VideoAlreadyInGroup:
             return create_error_response(
-                "This video is already added to the group",
+                "This video is already added to the video group",
                 status.HTTP_400_BAD_REQUEST,
             )
 
         return Response(
-            {"message": "Video added to group", "id": member.id},
+            {"message": "Video added to video group", "id": member.id},
             status=status.HTTP_201_CREATED,
         )
 
@@ -346,8 +352,11 @@ class AddVideoToGroupView(DependencyResolverMixin, AuthenticatedViewMixin, APIVi
 @extend_schema(
     request=AddVideosToGroupRequestSerializer,
     responses={201: AddVideosToGroupResponseSerializer},
-    summary="Add multiple videos to group",
-    description="Add multiple videos to a group. Videos already in the group will be skipped.",
+    summary="Add multiple videos to video group",
+    description=(
+        "Add multiple videos to a video group. "
+        "Videos already in the video group will be skipped."
+    ),
     operation_id="video_groups_add_multiple_videos",
 )
 @authenticated_view_with_error_handling(["POST"])
@@ -356,7 +365,7 @@ def add_videos_to_group(
     group_id,
     add_videos_to_group_use_case,
 ):
-    """Add multiple videos to group."""
+    """Add multiple videos to video group."""
     video_ids = request.data.get("video_ids", [])
     if not video_ids:
         return create_error_response("Video ID not specified", status.HTTP_400_BAD_REQUEST)
@@ -369,7 +378,7 @@ def add_videos_to_group(
 
     return Response(
         {
-            "message": f"Added {added_count} videos to group",
+            "message": f"Added {added_count} videos to video group",
             "added_count": added_count,
             "skipped_count": skipped_count,
         },
@@ -379,8 +388,8 @@ def add_videos_to_group(
 
 @extend_schema(
     responses={200: VideoActionMessageResponseSerializer},
-    summary="Remove video from group",
-    description="Remove a video from a group.",
+    summary="Remove video from video group",
+    description="Remove a video from a video group.",
 )
 @authenticated_view_with_error_handling(["DELETE"])
 def remove_video_from_group(
@@ -389,23 +398,26 @@ def remove_video_from_group(
     video_id,
     remove_video_from_group_use_case,
 ):
-    """Remove video from group."""
+    """Remove video from video group."""
     use_case = DependencyResolverMixin.resolve_dependency(remove_video_from_group_use_case)
     try:
         use_case.execute(group_id, video_id, request.user.id)
     except ResourceNotFound as e:
         return create_error_response(_not_found_message(e), status.HTTP_404_NOT_FOUND)
     except VideoNotInGroup:
-        return create_error_response("This video is not added to the group", status.HTTP_404_NOT_FOUND)
+        return create_error_response("This video is not added to the video group", status.HTTP_404_NOT_FOUND)
 
-    return Response({"message": "Video removed from group"}, status=status.HTTP_200_OK)
+    return Response({"message": "Video removed from video group"}, status=status.HTTP_200_OK)
 
 
 @extend_schema(
     request=ReorderVideosRequestSerializer,
     responses={200: VideoActionMessageResponseSerializer},
-    summary="Reorder videos in group",
-    description="Update the order of videos in a group by providing video IDs in the desired order.",
+    summary="Reorder videos in video group",
+    description=(
+        "Update the order of videos in a video group "
+        "by providing video IDs in the desired order."
+    ),
 )
 @authenticated_view_with_error_handling(["PATCH"])
 def reorder_videos_in_group(
@@ -413,7 +425,7 @@ def reorder_videos_in_group(
     group_id,
     reorder_videos_use_case,
 ):
-    """Update video order in group."""
+    """Update video order in video group."""
     video_ids = request.data.get("video_ids", [])
     if not isinstance(video_ids, list):
         return create_error_response("video_ids must be an array", status.HTTP_400_BAD_REQUEST)
@@ -425,7 +437,7 @@ def reorder_videos_in_group(
         return create_error_response(_not_found_message(e), status.HTTP_404_NOT_FOUND)
     except GroupVideoOrderMismatch:
         return create_error_response(
-            "Specified video IDs do not match videos in group",
+            "Specified video IDs do not match videos in the video group",
             status.HTTP_400_BAD_REQUEST,
         )
 
@@ -433,7 +445,7 @@ def reorder_videos_in_group(
 
 
 class CreateShareLinkView(DependencyResolverMixin, AuthenticatedViewMixin, APIView):
-    """Generate a share link for a group."""
+    """Generate a share link for a video group."""
 
     serializer_class = ShareLinkResponseSerializer
     create_share_link_use_case = None
@@ -441,7 +453,7 @@ class CreateShareLinkView(DependencyResolverMixin, AuthenticatedViewMixin, APIVi
     @extend_schema(
         responses={201: ShareLinkResponseSerializer},
         summary="Create share link",
-        description="Generate a share link token for a group.",
+        description="Generate a share link token for a video group.",
     )
     def post(self, request, group_id):
         use_case = self.resolve_dependency(self.create_share_link_use_case)
@@ -459,7 +471,7 @@ class CreateShareLinkView(DependencyResolverMixin, AuthenticatedViewMixin, APIVi
 @extend_schema(
     responses={200: VideoActionMessageResponseSerializer},
     summary="Delete share link",
-    description="Disable the current share link for a group.",
+    description="Disable the current share link for a video group.",
 )
 @authenticated_view_with_error_handling(["DELETE"])
 def delete_share_link(
@@ -467,7 +479,7 @@ def delete_share_link(
     group_id,
     delete_share_link_use_case,
 ):
-    """Disable share link for group."""
+    """Disable share link for video group."""
     use_case = DependencyResolverMixin.resolve_dependency(delete_share_link_use_case)
     try:
         use_case.execute(group_id, request.user.id)
@@ -479,8 +491,8 @@ def delete_share_link(
 
 @extend_schema(
     responses={200: VideoGroupDetailSerializer},
-    summary="Get shared group",
-    description="Return a publicly shared group by share token.",
+    summary="Get shared video group",
+    description="Return a publicly shared video group by share token.",
 )
 @api_view(["GET"])
 @permission_classes([AllowAny])
@@ -489,7 +501,7 @@ def get_shared_group(
     share_token,
     shared_group_use_case,
 ):
-    """Get group by share token (no authentication required)."""
+    """Get video group by share token (no authentication required)."""
     use_case = DependencyResolverMixin.resolve_dependency(shared_group_use_case)
     try:
         group = use_case.execute(share_token)

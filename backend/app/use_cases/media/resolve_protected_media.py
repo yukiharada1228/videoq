@@ -47,25 +47,25 @@ class ResolveProtectedMediaUseCase:
 
     def execute(self, input: ResolveProtectedMediaInput) -> ResolveProtectedMediaOutput:
         if not self.media_storage.exists(input.path):
-            raise ResourceNotFound("Media")
+            raise ResourceNotFound("Protected media file")
         try:
             with self.media_storage.open(input.path):
                 pass
         except OSError:
-            raise ResourceNotFound("Media")
+            raise ResourceNotFound("Protected media file")
 
         video_id = self.media_repo.find_video_id_by_file_path(input.path)
         if video_id is None:
-            raise ResourceNotFound("Media")
+            raise ResourceNotFound("Protected media file")
 
         if input.group_id is not None:
             if not self.media_repo.is_video_in_group(video_id, input.group_id):
-                raise ResourceNotFound("Media")
+                raise ResourceNotFound("Protected media file")
         elif input.user_id is not None:
             if not self.media_repo.is_video_owned_by_user(video_id, input.user_id):
-                raise ResourceNotFound("Media")
+                raise ResourceNotFound("Protected media file")
         else:
-            raise ResourceNotFound("Media")
+            raise ResourceNotFound("Protected media file")
 
         content_type, _ = mimetypes.guess_type(input.path)
         return ResolveProtectedMediaOutput(

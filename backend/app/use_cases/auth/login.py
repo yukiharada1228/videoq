@@ -2,11 +2,11 @@
 Use case: Authenticate a user and issue a JWT token pair.
 """
 
-from app.domain.auth.ports import TokenGateway, UserAuthGateway
-from app.domain.auth.services import (
+from app.domain.auth.entities import (
     InvalidCredentials as _DomainInvalidCredentials,
+    LoginAttempt,
 )
-from app.domain.auth.services import require_authenticated_user_id
+from app.domain.auth.ports import TokenGateway, UserAuthGateway
 from app.use_cases.auth.dto import TokenPairOutput
 from app.use_cases.auth.exceptions import AuthenticationFailed
 
@@ -18,8 +18,13 @@ class LoginUseCase:
 
     def execute(self, username: str, password: str) -> TokenPairOutput:
         try:
-            user_id = require_authenticated_user_id(
-                user_id=self.user_auth_gateway.authenticate(username, password)
+            login_attempt = LoginAttempt(
+                username=username,
+                password=password,
+            )
+            normalized_username = login_attempt.require_valid_input()
+            user_id = login_attempt.require_authenticated_user_id(
+                user_id=self.user_auth_gateway.authenticate(normalized_username, password)
             )
         except _DomainInvalidCredentials as exc:
             raise AuthenticationFailed(str(exc)) from exc

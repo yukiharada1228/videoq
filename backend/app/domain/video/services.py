@@ -3,12 +3,11 @@ Domain services for the video domain.
 Pure business logic with no external dependencies.
 """
 
-import re
 import secrets
 
-from app.domain.video.exceptions import InvalidTagColor, InvalidTagName
 from app.domain.video.entities import VideoGroupEntity
 from app.domain.video.status import VideoStatus
+from app.domain.video.value_objects import GroupName, ShareToken, TagColor, TagName
 
 
 class ShareLinkService:
@@ -17,7 +16,7 @@ class ShareLinkService:
     @staticmethod
     def generate_token() -> str:
         """Generate a cryptographically secure URL-safe share token."""
-        return secrets.token_urlsafe(32)
+        return ShareToken.from_raw(secrets.token_urlsafe(32)).value
 
 
 class VideoTranscriptionLifecycle:
@@ -78,14 +77,9 @@ class VideoGroupMembershipService:
 class TagPolicy:
     """Domain policy for tag normalization and validation."""
 
-    _HEX_COLOR_PATTERN = re.compile(r"^#[0-9A-Fa-f]{6}$")
-
     @staticmethod
     def normalize_name(name: str) -> str:
-        normalized = name.strip()
-        if not normalized:
-            raise InvalidTagName()
-        return normalized
+        return TagName.from_raw(name).value
 
     @classmethod
     def normalize_optional_name(cls, name: str | None) -> str | None:
@@ -95,12 +89,24 @@ class TagPolicy:
 
     @classmethod
     def validate_color(cls, color: str) -> str:
-        if not cls._HEX_COLOR_PATTERN.match(color):
-            raise InvalidTagColor()
-        return color
+        return TagColor.from_raw(color).value
 
     @classmethod
     def validate_optional_color(cls, color: str | None) -> str | None:
         if color is None:
             return None
         return cls.validate_color(color)
+
+
+class VideoGroupPolicy:
+    """Domain policy for video-group normalization and validation."""
+
+    @staticmethod
+    def normalize_name(name: str) -> str:
+        return GroupName.from_raw(name).value
+
+    @classmethod
+    def normalize_optional_name(cls, name: str | None) -> str | None:
+        if name is None:
+            return None
+        return cls.normalize_name(name)

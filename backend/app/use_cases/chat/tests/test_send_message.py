@@ -31,7 +31,15 @@ class _StubChatRepository(ChatRepository):
 
 
 class _StubGroupRepository(VideoGroupQueryRepository):
+    def __init__(self):
+        self.last_call = None
+
     def get_with_members(self, group_id: int, user_id=None, share_token=None):
+        self.last_call = {
+            "group_id": group_id,
+            "user_id": user_id,
+            "share_token": share_token,
+        }
         return None
 
 
@@ -42,9 +50,10 @@ class _RagGatewayUserNotFound(RagGateway):
 
 class SendMessageUseCaseTests(unittest.TestCase):
     def setUp(self):
+        self.group_repo = _StubGroupRepository()
         self.use_case = SendMessageUseCase(
             chat_repo=_StubChatRepository(),
-            group_query_repo=_StubGroupRepository(),
+            group_query_repo=self.group_repo,
             rag_gateway=_RagGatewayUserNotFound(),
         )
 
@@ -62,7 +71,7 @@ class SendMessageUseCaseTests(unittest.TestCase):
                 share_token="token",
                 is_shared=True,
             )
-        self.assertEqual(str(cm.exception), "Group ID not specified.")
+        self.assertEqual(str(cm.exception), "Chat group context ID not specified.")
 
     def test_execute_maps_rag_user_not_found_to_resource_not_found(self):
         with self.assertRaises(ResourceNotFound) as cm:
@@ -70,4 +79,33 @@ class SendMessageUseCaseTests(unittest.TestCase):
                 user_id=123,
                 messages=[ChatMessageInput(role="user", content="hello")],
             )
-        self.assertEqual(str(cm.exception), "User not found.")
+        self.assertEqual(str(cm.exception), "Owner user not found.")
+
+    def test_execute_uses_share_token_lookup_for_shared_group_access(self):
+        with self.assertRaises(ResourceNotFound) as cm:
+            self.use_case.execute(
+                user_id=None,
+                messages=[ChatMessageInput(role="user", content="hello")],
+                group_id=10,
+                share_token="share-abc",
+                is_shared=True,
+            )
+        self.assertEqual(str(cm.exception), "Chat group context not found.")
+        self.assertEqual(
+            self.group_repo.last_call,
+            {"group_id": 10, "user_id": None, "share_token": "share-abc"},
+        )
+
+    def test_execute_uses_user_lookup_for_authenticated_group_access(self):
+        with self.assertRaises(ResourceNotFound) as cm:
+            self.use_case.execute(
+                user_id=123,
+                messages=[ChatMessageInput(role="user", content="hello")],
+                group_id=20,
+                is_shared=False,
+            )
+        self.assertEqual(str(cm.exception), "Chat group context not found.")
+        self.assertEqual(
+            self.group_repo.last_call,
+            {"group_id": 20, "user_id": 123, "share_token": None},
+        )

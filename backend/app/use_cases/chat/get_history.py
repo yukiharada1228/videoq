@@ -37,7 +37,7 @@ class GetChatHistoryUseCase:
                 self.group_query_repo.get_with_members(group_id=group_id, user_id=user_id)
             )
         except _DomainGroupContextNotFound:
-            raise ResourceNotFound("Group")
+            raise ResourceNotFound("Chat group context")
 
         logs = self.chat_repo.get_logs_for_group(group.id, ascending=ascending)
         return [

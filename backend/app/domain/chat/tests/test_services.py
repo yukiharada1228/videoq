@@ -11,12 +11,23 @@ from app.domain.chat.services import (
     member_video_id_set,
     require_group_context,
     resolve_owner_user_id,
+    validate_feedback_value,
     validate_send_message_preconditions,
 )
 from app.domain.chat.entities import VideoGroupContextEntity, VideoGroupMemberRef
+from app.domain.chat.exceptions import InvalidFeedbackValue
 
 
 class ChatDomainServicesTests(TestCase):
+    def test_validate_feedback_value_accepts_normalized_values(self):
+        validate_feedback_value("good")
+        validate_feedback_value("bad")
+        validate_feedback_value(None)
+
+    def test_validate_feedback_value_rejects_invalid_value(self):
+        with self.assertRaises(InvalidFeedbackValue):
+            validate_feedback_value("excellent")
+
     def test_chat_request_policy_validates_non_empty_messages(self):
         policy = ChatRequestPolicy(
             is_shared=False,

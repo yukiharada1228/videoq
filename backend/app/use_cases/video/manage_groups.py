@@ -44,7 +44,7 @@ class AddVideoToGroupUseCase:
         """
         group = self.group_repo.get_by_id(group_id, user_id, include_videos=True)
         if group is None:
-            raise ResourceNotFound("Group")
+            raise ResourceNotFound("Video group")
 
         video = self.video_repo.get_by_id(video_id, user_id)
         if video is None:
@@ -85,11 +85,11 @@ class AddVideosToGroupUseCase:
             (added_count, skipped_count)
 
         Raises:
-            ResourceNotFound: If the group is not found or some videos are not found.
+            ResourceNotFound: If the group is not found or requested videos are not found.
         """
         group = self.group_repo.get_by_id(group_id, user_id, include_videos=True)
         if group is None:
-            raise ResourceNotFound("Group")
+            raise ResourceNotFound("Video group")
 
         existing_video_ids = self.video_repo.get_existing_ids_for_user(
             video_ids=list(dict.fromkeys(video_ids)),
@@ -102,7 +102,7 @@ class AddVideosToGroupUseCase:
                 existing_video_ids=existing_video_ids,
             )
         except DomainSomeVideosNotFound as e:
-            raise ResourceNotFound("Some videos") from e
+            raise ResourceNotFound("Requested videos") from e
         added_count, _ = self.group_repo.add_videos_bulk(group, ids_to_add, user_id)
         return added_count, skipped_count
 
@@ -124,7 +124,7 @@ class RemoveVideoFromGroupUseCase:
         """
         group = self.group_repo.get_by_id(group_id, user_id, include_videos=True)
         if group is None:
-            raise ResourceNotFound("Group")
+            raise ResourceNotFound("Video group")
 
         video = self.video_repo.get_by_id(video_id, user_id)
         if video is None:
@@ -154,7 +154,7 @@ class ReorderVideosInGroupUseCase:
         """
         group = self.group_repo.get_by_id(group_id, user_id, include_videos=True)
         if group is None:
-            raise ResourceNotFound("Group")
+            raise ResourceNotFound("Video group")
 
         try:
             VideoGroupMembershipService.ensure_reorder_matches_members(
@@ -183,10 +183,11 @@ class CreateShareLinkUseCase:
         """
         group = self.group_repo.get_by_id(group_id, user_id)
         if group is None:
-            raise ResourceNotFound("Group")
+            raise ResourceNotFound("Video group")
 
         share_token = ShareLinkService.generate_token()
-        self.group_repo.update_share_token(group, share_token)
+        group.activate_share_link(share_token)
+        self.group_repo.update_share_token(group, group.share_token)
         return share_token
 
 
@@ -203,11 +204,11 @@ class DeleteShareLinkUseCase:
         """
         group = self.group_repo.get_by_id(group_id, user_id)
         if group is None:
-            raise ResourceNotFound("Group")
+            raise ResourceNotFound("Video group")
 
         try:
-            group.assert_share_link_active()
+            group.deactivate_share_link()
         except DomainShareLinkNotActive:
             raise ResourceNotFound("Share link")
 
-        self.group_repo.update_share_token(group, None)
+        self.group_repo.update_share_token(group, group.share_token)

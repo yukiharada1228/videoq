@@ -9,8 +9,7 @@ from collections import Counter
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 
-from app.domain.chat.exceptions import InvalidFeedbackValue
-from app.domain.chat.value_objects import ChatSceneLog
+from app.domain.chat.value_objects import ChatSceneLog, FeedbackValue
 
 if TYPE_CHECKING:
     from app.domain.chat.entities import VideoGroupContextEntity
@@ -30,8 +29,7 @@ class GroupContextNotFound(Exception):
 
 def validate_feedback_value(feedback: Optional[str]) -> None:
     """Validate allowed feedback values."""
-    if feedback not in {None, "good", "bad"}:
-        raise InvalidFeedbackValue("feedback must be 'good', 'bad', or null (unspecified)")
+    FeedbackValue.normalize_optional(feedback)
 
 
 @dataclass(frozen=True)
@@ -47,7 +45,7 @@ class ChatRequestPolicy:
         if messages_count == 0:
             raise InvalidSendMessageRequest("Messages are empty.")
         if self.is_shared and self.group_id is None:
-            raise InvalidSendMessageRequest("Group ID not specified.")
+            raise InvalidSendMessageRequest("Chat group context ID not specified.")
 
     def resolve_owner_user_id(self, *, group_user_id: Optional[int]) -> int:
         owner_user_id = (
@@ -108,7 +106,7 @@ def require_group_context(
     group: Optional["VideoGroupContextEntity"],
 ) -> "VideoGroupContextEntity":
     if group is None:
-        raise GroupContextNotFound("Group")
+        raise GroupContextNotFound("Chat group context")
     return group
 
 

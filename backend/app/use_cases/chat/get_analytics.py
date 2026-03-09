@@ -48,7 +48,7 @@ class GetChatAnalyticsUseCase:
                 self.group_query_repo.get_with_members(group_id=group_id, user_id=user_id)
             )
         except _DomainGroupContextNotFound:
-            raise ResourceNotFound("Group")
+            raise ResourceNotFound("Chat group context")
 
         raw = self.chat_repo.get_analytics_raw(group_id)
 

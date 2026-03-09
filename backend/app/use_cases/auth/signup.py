@@ -4,11 +4,12 @@ Use case: Register a new user and send email verification.
 
 import logging
 
-from app.domain.auth.gateways import EmailSenderGateway, UserManagementGateway
-from app.domain.auth.services import (
-    SignupPolicy,
+from app.domain.auth.entities import (
+    InvalidSignupInput as _DomainInvalidSignupInput,
     SignupEmailAlreadyRegistered as _DomainSignupEmailAlreadyRegistered,
+    SignupRequest,
 )
+from app.domain.auth.gateways import EmailSenderGateway, UserManagementGateway
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +22,10 @@ class VerificationEmailSendFailed(Exception):
     """Raised when sending verification email fails."""
 
 
+class InvalidSignupRequest(Exception):
+    """Raised when signup input is invalid."""
+
+
 class SignupUserUseCase:
     def __init__(
         self,
@@ -31,17 +36,23 @@ class SignupUserUseCase:
         self.email_sender = email_sender
 
     def execute(self, username: str, email: str, password: str) -> None:
-        policy = SignupPolicy(email=email)
-        normalized_email = policy.normalized_email()
         try:
-            policy.assert_email_available(
+            signup = SignupRequest(
+                username=username,
+                email=email,
+                password=password,
+            )
+            normalized_username, normalized_email, password = signup.normalized()
+            signup.assert_email_available(
                 email_exists=self.user_gateway.email_exists(normalized_email)
             )
+        except _DomainInvalidSignupInput as exc:
+            raise InvalidSignupRequest(str(exc)) from exc
         except _DomainSignupEmailAlreadyRegistered as exc:
             raise EmailAlreadyRegistered(str(exc)) from exc
 
         user_id = self.user_gateway.create_inactive_user(
-            username, normalized_email, password
+            normalized_username, normalized_email, password
         )
 
         try:

@@ -388,14 +388,13 @@ class DjangoVideoGroupRepository(VideoGroupRepository):
     def add_videos_bulk(
         self, group: VideoGroupEntity, video_ids: List[int], user_id: int
     ) -> Tuple[int, int]:
-        _ = user_id
         if not video_ids:
             return 0, 0
         with transaction.atomic():
             # Serialize membership writes per group to keep order allocation deterministic.
             VideoGroup.objects.select_for_update().filter(pk=group.id).exists()
 
-            videos = list(Video.objects.filter(id__in=video_ids))
+            videos = list(Video.objects.filter(id__in=video_ids, user_id=user_id))
             video_map = {video.id: video for video in videos}
             existing_video_ids = set(
                 VideoGroupMember.objects.filter(

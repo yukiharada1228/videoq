@@ -9,7 +9,6 @@ from app.domain.chat.exceptions import (
     InvalidFeedbackValue as _DomainInvalidFeedbackValue,
 )
 from app.domain.chat.repositories import ChatRepository
-from app.domain.chat.services import validate_feedback_value
 from app.use_cases.chat.dto import ChatFeedbackResultDTO
 from app.use_cases.chat.exceptions import (
     ChatNotFoundError,
@@ -46,19 +45,20 @@ class SubmitFeedbackUseCase:
             ChatNotFoundError: If the chat log is not found.
             FeedbackPermissionDenied: If the caller lacks access.
         """
-        try:
-            validate_feedback_value(feedback)
-        except _DomainInvalidFeedbackValue as e:
-            raise InvalidFeedbackError(str(e)) from e
-
         log = self.chat_repo.get_log_by_id(chat_log_id)
         if log is None:
             raise ChatNotFoundError("Specified chat history not found")
 
         try:
-            log.assert_feedback_access(user_id=user_id, share_token=share_token)
+            planned_feedback = log.plan_feedback_update(
+                feedback=feedback,
+                user_id=user_id,
+                share_token=share_token,
+            )
+        except _DomainInvalidFeedbackValue as e:
+            raise InvalidFeedbackError(str(e)) from e
         except _DomainFeedbackAccessDenied as e:
             raise FeedbackPermissionDenied(str(e)) from e
 
-        updated = self.chat_repo.update_feedback(log, feedback)
+        updated = self.chat_repo.update_feedback(log, planned_feedback)
         return ChatFeedbackResultDTO(id=updated.id, feedback=updated.feedback)

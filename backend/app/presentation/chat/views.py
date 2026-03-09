@@ -183,7 +183,7 @@ class ChatFeedbackView(DependencyResolverMixin, APIView):
 
 
 class ChatHistoryView(DependencyResolverMixin, APIView):
-    """Get conversation history for a group (owner only)."""
+    """Get conversation history for a video group (owner only)."""
 
     authentication_classes = [APIKeyAuthentication, CookieJWTAuthentication]
     permission_classes = [IsAuthenticated, ApiKeyScopePermission]
@@ -207,7 +207,7 @@ class ChatHistoryView(DependencyResolverMixin, APIView):
 
 
 class ChatHistoryExportView(DependencyResolverMixin, APIView):
-    """Export group conversation history as CSV."""
+    """Export video group conversation history as CSV."""
 
     authentication_classes = [APIKeyAuthentication, CookieJWTAuthentication]
     permission_classes = [IsAuthenticated, ApiKeyScopePermission]
@@ -221,13 +221,13 @@ class ChatHistoryExportView(DependencyResolverMixin, APIView):
             )
         },
         summary="Export chat history CSV",
-        description="Export group conversation history as a CSV file.",
+        description="Export video group conversation history as a CSV file.",
     )
     def get(self, request):
         group_id = request.query_params.get("group_id")
         if not group_id:
             return create_error_response(
-                "Group ID not specified", status.HTTP_400_BAD_REQUEST
+                "Chat group context ID not specified", status.HTTP_400_BAD_REQUEST
             )
 
         use_case = self.resolve_dependency(self.export_history_use_case)
@@ -247,7 +247,7 @@ class ChatHistoryExportView(DependencyResolverMixin, APIView):
 
 
 class PopularScenesView(DependencyResolverMixin, APIView):
-    """Get popular scenes referenced across a group's chat history."""
+    """Get popular scenes referenced across a video group's chat history."""
 
     authentication_classes = [
         APIKeyAuthentication,
@@ -292,7 +292,7 @@ class PopularScenesView(DependencyResolverMixin, APIView):
             return create_error_response("Invalid limit parameter", status.HTTP_400_BAD_REQUEST)
 
         if not group_id:
-            return create_error_response("Group ID not specified", status.HTTP_400_BAD_REQUEST)
+            return create_error_response("Chat group context ID not specified", status.HTTP_400_BAD_REQUEST)
 
         use_case = self.resolve_dependency(self.popular_scenes_use_case)
         try:
@@ -320,7 +320,7 @@ class PopularScenesView(DependencyResolverMixin, APIView):
 
 
 class ChatAnalyticsView(DependencyResolverMixin, APIView):
-    """Analytics dashboard data for a chat group."""
+    """Analytics dashboard data for a chat group context."""
 
     authentication_classes = [APIKeyAuthentication, CookieJWTAuthentication]
     permission_classes = [IsAuthenticated, ApiKeyScopePermission]
@@ -329,12 +329,12 @@ class ChatAnalyticsView(DependencyResolverMixin, APIView):
     @extend_schema(
         responses={200: ChatAnalyticsResponseSerializer},
         summary="Get chat analytics",
-        description="Return analytics dashboard data for a chat group.",
+        description="Return analytics dashboard data for a chat group context.",
     )
     def get(self, request):
         group_id = request.query_params.get("group_id")
         if not group_id:
-            return create_error_response("Group ID not specified", status.HTTP_400_BAD_REQUEST)
+            return create_error_response("Chat group context ID not specified", status.HTTP_400_BAD_REQUEST)
 
         use_case = self.resolve_dependency(self.chat_analytics_use_case)
         try:

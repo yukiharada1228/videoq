@@ -11,8 +11,10 @@ from app.use_cases.auth.login import LoginUseCase
 class _StubUserAuthGateway(UserAuthGateway):
     def __init__(self, user_id):
         self._user_id = user_id
+        self.calls = []
 
     def authenticate(self, username: str, password: str):
+        self.calls.append((username, password))
         return self._user_id
 
 
@@ -44,3 +46,20 @@ class LoginUseCaseTests(TestCase):
 
         with self.assertRaises(AuthenticationFailed):
             use_case.execute("user", "wrong")
+
+    def test_execute_normalizes_username_before_authentication(self):
+        user_gateway = _StubUserAuthGateway(user_id=12)
+        use_case = LoginUseCase(user_gateway, _StubTokenGateway())
+
+        use_case.execute("  user  ", "pass")
+
+        self.assertEqual(user_gateway.calls, [("user", "pass")])
+
+    def test_execute_rejects_blank_username_before_gateway(self):
+        user_gateway = _StubUserAuthGateway(user_id=12)
+        use_case = LoginUseCase(user_gateway, _StubTokenGateway())
+
+        with self.assertRaises(AuthenticationFailed):
+            use_case.execute("   ", "pass")
+
+        self.assertEqual(user_gateway.calls, [])

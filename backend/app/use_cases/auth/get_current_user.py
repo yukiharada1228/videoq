@@ -14,7 +14,7 @@ class GetCurrentUserUseCase:
     def execute(self, user_id: int) -> CurrentUserOutput:
         user = self.user_repository.get_with_video_count(user_id)
         if user is None:
-            raise ResourceNotFound("User")
+            raise ResourceNotFound("Authenticated user")
         return CurrentUserOutput(
             id=user.id,
             username=user.username,

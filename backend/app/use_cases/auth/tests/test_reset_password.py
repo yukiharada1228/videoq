@@ -15,6 +15,7 @@ class _StubUserGateway(UserManagementGateway):
         self._active_user_id_by_email = active_user_id_by_email
         self._uid_token_user_id = uid_token_user_id
         self.password_reset_for = None
+        self.uid_token_lookup_args = None
 
     def email_exists(self, email: str) -> bool:
         raise NotImplementedError
@@ -26,6 +27,7 @@ class _StubUserGateway(UserManagementGateway):
         raise NotImplementedError
 
     def get_user_id_by_uid_token(self, uidb64: str, token: str):
+        self.uid_token_lookup_args = (uidb64, token)
         return self._uid_token_user_id
 
     def find_active_user_id_by_email(self, email: str):
@@ -82,3 +84,20 @@ class PasswordResetUseCaseTests(TestCase):
         use_case.execute("uid", "token", "newpass123")
 
         self.assertEqual(user_gateway.password_reset_for, (5, "newpass123"))
+
+    def test_confirm_reset_normalizes_uid_token_before_lookup(self):
+        user_gateway = _StubUserGateway(uid_token_user_id=5)
+        use_case = ConfirmPasswordResetUseCase(user_gateway)
+
+        use_case.execute("  uid  ", "  token  ", "newpass123")
+
+        self.assertEqual(user_gateway.uid_token_lookup_args, ("uid", "token"))
+
+    def test_confirm_reset_raises_when_uid_token_input_blank(self):
+        user_gateway = _StubUserGateway(uid_token_user_id=5)
+        use_case = ConfirmPasswordResetUseCase(user_gateway)
+
+        with self.assertRaises(InvalidResetLink):
+            use_case.execute("   ", "token", "newpass123")
+
+        self.assertIsNone(user_gateway.uid_token_lookup_args)

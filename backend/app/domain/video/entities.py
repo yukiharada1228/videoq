@@ -17,6 +17,7 @@ from app.domain.video.exceptions import (
     VideoLimitExceeded,
 )
 from app.domain.video.exceptions import VideoAlreadyInGroup, VideoNotInGroup
+from app.domain.video.value_objects import ShareToken
 
 
 @dataclass
@@ -153,3 +154,12 @@ class VideoGroupEntity:
     def assert_share_link_active(self) -> None:
         if not self.share_token:
             raise ShareLinkNotActive()
+
+    def activate_share_link(self, token: str) -> str:
+        normalized = ShareToken.from_raw(token).value
+        self.share_token = normalized
+        return normalized
+
+    def deactivate_share_link(self) -> None:
+        self.assert_share_link_active()
+        self.share_token = None

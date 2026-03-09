@@ -53,7 +53,7 @@ class GetPopularScenesUseCase:
                 )
             )
         except _DomainGroupContextNotFound:
-            raise ResourceNotFound("Group")
+            raise ResourceNotFound("Chat group context")
 
         chat_logs = self.chat_repo.get_logs_values_for_group(group.id)
         scene_counter, scene_info, scene_questions = aggregate_scenes(chat_logs)

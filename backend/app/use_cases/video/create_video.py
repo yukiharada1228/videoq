@@ -52,7 +52,7 @@ class CreateVideoUseCase:
         """
         user = self.user_repo.get_by_id(user_id)
         if user is None:
-            raise ResourceNotFound("User")
+            raise ResourceNotFound("Authenticated user")
 
         with self.tx.atomic():
             current_count = self.video_repo.count_for_user(user_id)
@@ -68,7 +68,10 @@ class CreateVideoUseCase:
             )
             video = self.video_repo.create(user_id, params)
 
-            logger.info(f"Enqueueing transcription task for video ID: {video.id}")
-            self.task_queue.enqueue_transcription(video.id)
+            def _enqueue_transcription() -> None:
+                logger.info(f"Enqueueing transcription task for video ID: {video.id}")
+                self.task_queue.enqueue_transcription(video.id)
+
+            self.tx.on_commit(_enqueue_transcription)
 
         return to_video_response_dto(video)

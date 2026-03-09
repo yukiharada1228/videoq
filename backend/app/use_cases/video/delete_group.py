@@ -19,5 +19,5 @@ class DeleteVideoGroupUseCase:
         """
         group = self.group_repo.get_by_id(group_id=group_id, user_id=user_id)
         if group is None:
-            raise ResourceNotFound("Group")
+            raise ResourceNotFound("Video group")
         self.group_repo.delete(group)

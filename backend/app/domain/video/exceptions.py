@@ -23,14 +23,14 @@ class InvalidVideoStatusTransition(Exception):
 class VideoAlreadyInGroup(Exception):
     """Raised when adding a video that is already a member of the target group."""
 
-    def __init__(self, message: str = "This video is already added to the group"):
+    def __init__(self, message: str = "This video is already added to the video group"):
         super().__init__(message)
 
 
 class VideoNotInGroup(Exception):
     """Raised when removing a video that is not a member of the target group."""
 
-    def __init__(self, message: str = "This video is not added to the group"):
+    def __init__(self, message: str = "This video is not added to the video group"):
         super().__init__(message)
 
 
@@ -38,7 +38,7 @@ class GroupVideoOrderMismatch(Exception):
     """Raised when the provided video order does not match group members."""
 
     def __init__(
-        self, message: str = "Specified video IDs do not match videos in group"
+        self, message: str = "Specified video IDs do not match videos in the video group"
     ):
         super().__init__(message)
 
@@ -46,7 +46,7 @@ class GroupVideoOrderMismatch(Exception):
 class SomeVideosNotFound(Exception):
     """Raised when one or more target videos cannot be resolved."""
 
-    def __init__(self, message: str = "Some videos not found"):
+    def __init__(self, message: str = "Requested videos not found"):
         super().__init__(message)
 
 
@@ -82,6 +82,20 @@ class InvalidTagColor(Exception):
     """Raised when a tag color is not a #RRGGBB hex value."""
 
     def __init__(self, message: str = "Invalid color format. Use #RRGGBB"):
+        super().__init__(message)
+
+
+class InvalidGroupName(Exception):
+    """Raised when a group name is empty after normalization."""
+
+    def __init__(self, message: str = "Video group name cannot be empty"):
+        super().__init__(message)
+
+
+class InvalidShareToken(Exception):
+    """Raised when a share token is empty after normalization."""
+
+    def __init__(self, message: str = "Share token cannot be empty"):
         super().__init__(message)
 
 

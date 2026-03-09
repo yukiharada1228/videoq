@@ -38,3 +38,18 @@ class ChatLogEntityTests(TestCase):
         log = self._sample_log()
         with self.assertRaises(FeedbackAccessDenied):
             log.assert_feedback_access(user_id=999)
+
+    def test_plan_feedback_update_validates_and_returns_value(self):
+        log = self._sample_log()
+        planned = log.plan_feedback_update(feedback="good", user_id=10)
+        self.assertEqual(planned, "good")
+
+    def test_plan_feedback_update_normalizes_feedback(self):
+        log = self._sample_log()
+        planned = log.plan_feedback_update(feedback="  GOOD  ", user_id=10)
+        self.assertEqual(planned, "good")
+
+    def test_plan_feedback_update_raises_for_invalid_value(self):
+        log = self._sample_log()
+        with self.assertRaises(InvalidFeedbackValue):
+            log.plan_feedback_update(feedback="excellent", user_id=10)

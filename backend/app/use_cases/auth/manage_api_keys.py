@@ -76,4 +76,4 @@ class RevokeApiKeyUseCase:
         """
         found = self.api_key_repo.revoke(key_id, user_id)
         if not found:
-            raise ResourceNotFound("ApiKey")
+            raise ResourceNotFound("API key")

@@ -91,20 +91,15 @@ class SendMessageUseCase:
 
         group = None
         if group_id is not None:
-            if is_shared and share_token:
-                group_candidate = self.group_query_repo.get_with_members(
-                    group_id=group_id,
-                    share_token=share_token,
-                )
-            else:
-                group_candidate = self.group_query_repo.get_with_members(
-                    group_id=group_id,
-                    user_id=user_id,
-                )
+            lookup_params = policy.build_group_lookup_params()
+            group_candidate = self.group_query_repo.get_with_members(
+                group_id=group_id,
+                **lookup_params,
+            )
             try:
                 group = require_group_context(group_candidate)
             except _DomainGroupContextNotFound:
-                raise ResourceNotFound("Group")
+                raise ResourceNotFound("Chat group context")
 
         try:
             owner_user_id = policy.resolve_owner_user_id(
@@ -123,7 +118,7 @@ class SendMessageUseCase:
                 locale=locale,
             )
         except _DomainRagUserNotFoundError as e:
-            raise ResourceNotFound("User") from e
+            raise ResourceNotFound("Owner user") from e
         except _DomainLLMConfigError as e:
             raise LLMConfigurationError(str(e)) from e
         except _DomainLLMProviderError as e:

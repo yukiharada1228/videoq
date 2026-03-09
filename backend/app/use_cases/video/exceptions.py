@@ -16,14 +16,14 @@ class VideoLimitExceeded(Exception):
 class VideoAlreadyInGroup(Exception):
     """Raised when adding a video already included in the target group."""
 
-    def __init__(self, message: str = "This video is already added to the group"):
+    def __init__(self, message: str = "This video is already added to the video group"):
         super().__init__(message)
 
 
 class VideoNotInGroup(Exception):
     """Raised when removing a video not included in the target group."""
 
-    def __init__(self, message: str = "This video is not added to the group"):
+    def __init__(self, message: str = "This video is not added to the video group"):
         super().__init__(message)
 
 
@@ -31,13 +31,20 @@ class GroupVideoOrderMismatch(Exception):
     """Raised when provided video order does not match group membership."""
 
     def __init__(
-        self, message: str = "Specified video IDs do not match videos in group"
+        self, message: str = "Specified video IDs do not match videos in the video group"
     ):
         super().__init__(message)
 
 
 class InvalidTagInput(Exception):
     """Raised when tag input violates domain validation rules."""
+
+    def __init__(self, message: str):
+        super().__init__(message)
+
+
+class InvalidGroupInput(Exception):
+    """Raised when group input violates domain validation rules."""
 
     def __init__(self, message: str):
         super().__init__(message)
@@ -81,6 +88,7 @@ __all__ = [
     "GroupVideoOrderMismatch",
     "IndexingExecutionFailed",
     "IndexingTargetMissing",
+    "InvalidGroupInput",
     "InvalidTagInput",
     "PermissionDenied",
     "ResourceNotFound",
