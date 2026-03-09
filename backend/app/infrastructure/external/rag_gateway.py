@@ -80,3 +80,39 @@ class RagChatGateway(RagGateway):
             query_text=result.query_text,
             related_videos=related_videos,
         )
+
+    def search_related_videos(
+        self,
+        query_text: str,
+        user_id: int,
+        video_ids: Optional[Sequence[int]] = None,
+    ) -> Optional[Sequence[RelatedVideoDTO]]:
+        User = get_user_model()
+        try:
+            user = User.objects.get(pk=user_id)
+        except User.DoesNotExist as exc:
+            raise RagUserNotFoundError(f"User not found: {user_id}") from exc
+
+        service = RagChatService(user=user)
+        raw_video_ids = list(video_ids) if video_ids is not None else None
+
+        try:
+            related_videos = service.search_related_videos(
+                query_text=query_text,
+                video_ids=raw_video_ids,
+            )
+        except Exception as exc:
+            raise LLMProviderError(str(exc)) from exc
+
+        if not related_videos:
+            return None
+
+        return [
+            RelatedVideoDTO(
+                video_id=int(raw_video.get("video_id", 0) or 0),
+                title=str(raw_video.get("title", "")),
+                start_time=raw_video.get("start_time"),
+                end_time=raw_video.get("end_time"),
+            )
+            for raw_video in related_videos
+        ]
