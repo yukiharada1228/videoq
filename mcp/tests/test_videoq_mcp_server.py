@@ -58,7 +58,8 @@ class VideoQMcpServerTests(unittest.TestCase):
     def test_tool_definitions_include_expected_tools(self):
         server = VideoQMcpServer()
         self.assertIn("list_videos", server.tools)
-        self.assertIn("ask_videoq", server.tools)
+        self.assertIn("get_chat_history", server.tools)
+        self.assertEqual(len(server.tools), 6)
 
 
 if __name__ == "__main__":
