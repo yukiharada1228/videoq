@@ -26,6 +26,18 @@ class ChatResponseSerializer(serializers.Serializer):
     feedback = serializers.CharField(required=False, allow_null=True)
 
 
+class ChatSearchRequestSerializer(serializers.Serializer):
+    query_text = serializers.CharField()
+    group_id = serializers.IntegerField(required=True)
+
+
+class ChatSearchResponseSerializer(serializers.Serializer):
+    query_text = serializers.CharField()
+    related_videos = serializers.ListField(
+        child=serializers.DictField(), required=False, allow_null=True
+    )
+
+
 class RelatedVideoSerializer(serializers.Serializer):
     video_id = serializers.IntegerField()
     title = serializers.CharField()
