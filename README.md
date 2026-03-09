@@ -4,6 +4,15 @@
 
 VideoQは、動画を自動で文字起こしし、自然言語で動画と会話できるAI搭載の動画ナビゲーターです。
 
+## 開発者向けAPI連携
+
+VideoQ は API キー認証に対応しており、既存システムやバッチからサーバー間通信で利用できます。  
+連携手順・認証・エンドポイント別サンプルコード（cURL / JavaScript / TypeScript / Python / Go / Java / C# / PHP / Ruby）は、アプリ内の開発者Docsを参照してください。
+
+- **開発者Docs:** [http://localhost/docs](http://localhost/docs)
+- **OpenAPI (Swagger UI):** [http://localhost/api/docs/](http://localhost/api/docs/)
+- **ReDoc:** [http://localhost/api/redoc/](http://localhost/api/redoc/)
+
 以下の手順でローカル環境にセットアップできます。
 
 ![VideoQ Application Screenshot](assets/screenshot.gif)
@@ -99,160 +108,6 @@ docker compose exec backend python manage.py createsuperuser
 3. 空欄: 無制限
 
 この設定をしておくと、一般ユーザーがすぐに動画をアップロードして使い始められます。
-
-<details>
-<summary><strong>🔌 オプション：既存システムとのAPI連携</strong></summary>
-
-VideoQ は API キー認証に対応しているため、既存の社内システム、外部サービス、定期バッチから API を呼び出せます。  
-ブラウザでログインしなくても、サーバー間通信で利用できます。
-
-外部システムに組み込むときは、まず「API キーを発行する」「認証できることを確認する」「必要な API を 1 本ずつ試す」の順で進めると分かりやすいです。
-
-**1. まず知っておくこと**
-1. API キーは、発行したユーザーと同じ権限で動作します
-2. キーは発行時に一度だけ表示されます
-3. 再表示できないため、その場で安全な場所に保存してください
-4. 外部システムのバックエンドやバッチで使う前提です
-
-**2. よくある用途**
-1. 社内システムから動画一覧を取得したい
-2. 別システムから動画をアップロードしたい
-3. 外部バッチからチャット履歴や分析結果を取得したい
-4. 自社システムから RAG チャットを実行したい
-
-**3. API キーの発行手順**
-1. VideoQ にログイン
-2. [http://localhost/settings](http://localhost/settings) を開く
-3. 「連携用APIキー」の `新しいシークレットキーを作成` を押す
-4. キー名を入力
-5. 権限を選択
-6. `シークレットキーを作成` を押します
-7. 表示されたキーをコピーして保存
-
-**4. 権限の違い**
-1. `All`
-   読み取り、作成、更新、削除を含む通常の API 操作が可能
-2. `Read only`
-   読み取り系 API と `POST /api/chat/` のみ可能  
-   動画・タグ・グループの作成や更新は不可
-
-**5. 認証ヘッダー**
-1. 推奨
-   `X-API-Key: 発行したキー`
-2. 代替
-   `Authorization: ApiKey 発行したキー`
-
-**5.5. チャットの回答言語**
-1. `POST /api/chat/` の回答言語は、URL の `/ja/...` や `/en/...` では切り替わりません
-2. 回答言語は、HTTP ヘッダー `Accept-Language` の値で決まります
-3. `Accept-Language: ja` を付けると日本語プロンプトで応答します
-4. ヘッダーを付けない場合は、デフォルトで英語プロンプトになることがあります
-
-**6. 最初の疎通確認**
-
-```bash
-curl -H "X-API-Key: vq_your_key_here" \
-  http://localhost/api/auth/me/
-```
-
-`200 OK` でユーザー情報が返れば、認証は成功です。
-
-**7. `group_id` について**
-1. `group_id` は自動では付きません
-2. 先に `POST /api/videos/groups/` でチャットグループを作成します
-3. 返ってきた `id` を `group_id` として使います
-4. RAG チャットは、その `group_id` に紐づく動画を対象に検索します
-
-**8. よく使う `curl` 例**
-
-現在のユーザー情報を取得:
-```bash
-curl -H "X-API-Key: vq_your_key_here" \
-  http://localhost/api/auth/me/
-```
-
-動画一覧を取得:
-```bash
-curl -H "X-API-Key: vq_your_key_here" \
-  http://localhost/api/videos/
-```
-
-チャットグループ一覧を取得:
-```bash
-curl -H "X-API-Key: vq_your_key_here" \
-  http://localhost/api/videos/groups/
-```
-
-チャット分析を取得:
-```bash
-curl -H "X-API-Key: vq_your_key_here" \
-  "http://localhost/api/chat/analytics/?group_id=6"
-```
-
-チャットグループを作成 (`All` のみ):
-```bash
-curl -X POST \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: vq_your_key_here" \
-  -d '{"name":"External Integration Group","description":"created from external system"}' \
-  http://localhost/api/videos/groups/
-```
-
-レスポンス例:
-```json
-{"id":11,"name":"External Integration Group", ...}
-```
-
-この場合、以後は `group_id=11` を使います。
-
-RAG チャットを実行 (`All` と `Read only` のどちらでも可):
-```bash
-curl -X POST \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: vq_your_key_here" \
-  -d '{"group_id":6,"messages":[{"role":"user","content":"Please tell me the key points of this video."}]}' \
-  http://localhost/api/chat/
-```
-
-日本語で RAG チャットを実行:
-```bash
-curl -X POST \
-  -H "Content-Type: application/json" \
-  -H "Accept-Language: ja" \
-  -H "X-API-Key: vq_your_key_here" \
-  -d '{"group_id":6,"messages":[{"role":"user","content":"この動画の要点を教えてください。"}]}' \
-  http://localhost/api/chat/
-```
-
-動画をアップロード (`All` のみ):
-```bash
-curl -X POST \
-  -H "X-API-Key: vq_your_key_here" \
-  -F "title=Uploaded from external system" \
-  -F "description=uploaded by integration" \
-  -F "file=@/path/to/video.mp4;type=video/mp4" \
-  http://localhost/api/videos/
-```
-
-**9. レスポンスの見方**
-1. 作成系 API は、作成したリソースの `id` を含む JSON を返します
-2. 返ってきた `id` は、そのまま次の更新・削除・詳細取得に使えます
-3. チャット API は `chat_log_id` を返すため、履歴やフィードバックに使えます
-4. `group_id` は「自分で作ったチャットグループの ID」です
-
-**10. 動画アップロード時の注意**
-1. `curl` でアップロードするときは、ファイルの Content-Type を `video/mp4` など正しい動画 MIME type にしてください
-2. `application/octet-stream` のままだと、動画ではないファイルとしてバリデーションエラーになります
-
-**11. 外部システム実装時のおすすめ順序**
-1. まず `GET /api/auth/me/` で認証確認
-2. 次に `POST /api/videos/groups/` でグループ作成
-3. 返ってきた `id` を使って `group_id` を決める
-4. 必要な API を 1 本ずつ `curl` で確認
-5. 問題なければ外部システム側に組み込み
-6. API キーは環境変数やシークレットマネージャーで管理
-
-</details>
 
 <details>
 <summary><strong>📦 オプション：クラウドストレージの設定 (AWS S3 / Cloudflare R2)</strong></summary>
