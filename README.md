@@ -4,10 +4,10 @@
 
 VideoQは、動画を自動で文字起こしし、自然言語で動画と会話できるAI搭載の動画ナビゲーターです。
 
-## 🧑‍💻 開発者向け
+## オプション：既存システムとのAPI連携
 
-VideoQ は外部システム連携向けの API キー認証に対応しています。  
-連携を検討している場合は、まず開発者Docsを確認してください。
+VideoQ は API キー認証に対応しており、既存システムやバッチからサーバー間通信で利用できます。  
+連携手順・認証・エンドポイント別サンプルコード（cURL / JavaScript / TypeScript / Python / Go / Java / C# / PHP / Ruby）は、アプリ内の開発者Docsを参照してください。
 
 - **開発者Docs:** [http://localhost/docs](http://localhost/docs)
 - **OpenAPI (Swagger UI):** [http://localhost/api/docs/](http://localhost/api/docs/)
@@ -108,18 +108,6 @@ docker compose exec backend python manage.py createsuperuser
 3. 空欄: 無制限
 
 この設定をしておくと、一般ユーザーがすぐに動画をアップロードして使い始められます。
-
-<details>
-<summary><strong>🔌 オプション：既存システムとのAPI連携</strong></summary>
-
-VideoQ は API キー認証に対応しており、既存システムやバッチからサーバー間通信で利用できます。  
-連携手順・認証・エンドポイント別サンプルコード（cURL / JavaScript / TypeScript / Python / Go / Java / C# / PHP / Ruby）は、アプリ内の **開発者Docs** を参照してください。
-
-- **開発者Docs:** [http://localhost/docs](http://localhost/docs)
-- **OpenAPI (Swagger UI):** [http://localhost/api/docs/](http://localhost/api/docs/)
-- **ReDoc:** [http://localhost/api/redoc/](http://localhost/api/redoc/)
-
-</details>
 
 <details>
 <summary><strong>📦 オプション：クラウドストレージの設定 (AWS S3 / Cloudflare R2)</strong></summary>
