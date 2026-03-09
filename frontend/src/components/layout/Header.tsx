@@ -72,27 +72,40 @@ export function Header({ children }: HeaderProps) {
             {children}
           </div>
 
-          {user && (
-            <div className="flex items-center gap-6">
-              <span className="text-gray-600">
-                {t('navigation.welcome', { username: user.username })}
-              </span>
-              <span className="text-gray-300">|</span>
-              <button
-                onClick={() => navigate('/settings')}
-                className="text-gray-600 hover:text-gray-900 transition-colors"
-              >
-                {t('navigation.settings')}
-              </button>
-              <span className="text-gray-300">|</span>
-              <button
-                onClick={handleLogout}
-                className="text-gray-600 hover:text-gray-900 transition-colors"
-              >
-                {t('navigation.logout')}
-              </button>
-            </div>
-          )}
+          <div className="flex items-center gap-6">
+            {user && (
+              <>
+                <span className="text-gray-600">
+                  {t('navigation.welcome', { username: user.username })}
+                </span>
+                <span className="text-gray-300">|</span>
+              </>
+            )}
+            <button
+              onClick={() => navigate('/docs')}
+              className="text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              {t('navigation.docs')}
+            </button>
+            {user && (
+              <>
+                <span className="text-gray-300">|</span>
+                <button
+                  onClick={() => navigate('/settings')}
+                  className="text-gray-600 hover:text-gray-900 transition-colors"
+                >
+                  {t('navigation.settings')}
+                </button>
+                <span className="text-gray-300">|</span>
+                <button
+                  onClick={handleLogout}
+                  className="text-gray-600 hover:text-gray-900 transition-colors"
+                >
+                  {t('navigation.logout')}
+                </button>
+              </>
+            )}
+          </div>
         </nav>
 
         {/* Mobile navigation */}
@@ -156,6 +169,15 @@ export function Header({ children }: HeaderProps) {
                 className="block w-full text-left px-2 py-2 text-gray-600 hover:bg-gray-50 rounded transition-colors"
               >
                 {t('navigation.videoGroups')}
+              </button>
+              <button
+                onClick={() => {
+                  navigate('/docs');
+                  closeMobileMenu();
+                }}
+                className="block w-full text-left px-2 py-2 text-gray-600 hover:bg-gray-50 rounded transition-colors"
+              >
+                {t('navigation.docs')}
               </button>
               <button
                 onClick={() => {
