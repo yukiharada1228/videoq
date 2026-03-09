@@ -39,6 +39,9 @@ class _RagGatewayUserNotFound(RagGateway):
     def generate_reply(self, messages, user_id, video_ids=None, locale=None):
         raise RagUserNotFoundError(f"User not found: {user_id}")
 
+    def search_related_videos(self, query_text, user_id, video_ids=None):
+        raise NotImplementedError
+
 
 class SendMessageUseCaseTests(unittest.TestCase):
     def setUp(self):

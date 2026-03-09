@@ -33,7 +33,7 @@ class RagChatResult:
 class RagChatService:
     """Service class that handles RAG logic for chat."""
 
-    def __init__(self, user, llm):
+    def __init__(self, user, llm=None):
         self.user = user
         self.llm = llm
         self.prompt = ChatPromptTemplate.from_messages(
@@ -50,6 +50,9 @@ class RagChatService:
         locale: Optional[str] = None,
         video_ids: Optional[List[int]] = None,
     ) -> RagChatResult:
+        if self.llm is None:
+            raise RuntimeError("LLM is required for full RAG response generation.")
+
         query_text = self._extract_latest_user_query(messages)
         # video_ids takes precedence over group (allows gateway to pass IDs directly)
         retriever = self._get_retriever(group, video_ids=video_ids)
@@ -90,6 +93,23 @@ class RagChatService:
             query_text=query_text,
             related_videos=related_videos,
         )
+
+    def search_related_videos(
+        self,
+        query_text: str,
+        group: Optional["VideoGroup"] = None,
+        video_ids: Optional[List[int]] = None,
+    ) -> Optional[List[Dict[str, str]]]:
+        if not query_text.strip():
+            return None
+
+        retriever = self._get_retriever(group, video_ids=video_ids)
+        if retriever is None:
+            return None
+
+        docs_obj = retriever.invoke(query_text)
+        docs = cast(Sequence[Any], docs_obj or [])
+        return self._extract_related_videos(docs)
 
     def _extract_latest_user_query(self, messages: Sequence[Dict[str, str]]) -> str:
         for msg in reversed(messages):

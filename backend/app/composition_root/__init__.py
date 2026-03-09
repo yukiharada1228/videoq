@@ -29,6 +29,7 @@ from app.composition_root.chat import (
     get_chat_history_use_case,
     get_export_history_use_case,
     get_popular_scenes_use_case,
+    get_search_related_videos_use_case,
     get_send_message_use_case,
     get_submit_feedback_use_case,
 )
@@ -98,6 +99,7 @@ __all__ = [
     "get_remove_tag_from_video_use_case",
     # chat
     "get_send_message_use_case",
+    "get_search_related_videos_use_case",
     "get_chat_history_use_case",
     "get_chat_analytics_use_case",
     "get_popular_scenes_use_case",
