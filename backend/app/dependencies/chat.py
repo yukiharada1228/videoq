@@ -7,6 +7,10 @@ def get_send_message_use_case():
     return _cr.get_send_message_use_case()
 
 
+def get_search_related_videos_use_case():
+    return _cr.get_search_related_videos_use_case()
+
+
 def get_submit_feedback_use_case():
     return _cr.get_submit_feedback_use_case()
 

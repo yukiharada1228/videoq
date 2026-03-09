@@ -45,6 +45,8 @@ from .serializers import (
     ChatLogSerializer,
     ChatRequestSerializer,
     ChatResponseSerializer,
+    ChatSearchRequestSerializer,
+    ChatSearchResponseSerializer,
 )
 
 
@@ -130,6 +132,72 @@ class ChatView(DependencyResolverMixin, APIView):
         if result.chat_log_id is not None:
             response_data["chat_log_id"] = result.chat_log_id
             response_data["feedback"] = result.feedback
+
+        return Response(response_data)
+
+
+class ChatSearchView(DependencyResolverMixin, APIView):
+    """Retrieval-only endpoint for related video scenes."""
+
+    authentication_classes = [
+        APIKeyAuthentication,
+        CookieJWTAuthentication,
+        ShareTokenAuthentication,
+    ]
+    permission_classes = [IsAuthenticatedOrSharedAccess, ApiKeyScopePermission]
+    required_scope = "read"
+    throttle_classes = [
+        ShareTokenIPThrottle,
+        ShareTokenGlobalThrottle,
+        AuthenticatedChatThrottle,
+    ]
+    search_related_videos_use_case = None
+
+    @extend_schema(
+        request=ChatSearchRequestSerializer,
+        responses={200: ChatSearchResponseSerializer},
+        summary="Search related scenes",
+        description=(
+            "Run retrieval-only search for related scenes within a group. "
+            "No LLM answer generation is performed."
+        ),
+    )
+    def post(self, request):
+        share_token = request.query_params.get("share_token")
+        is_shared = share_token is not None
+
+        serializer = ChatSearchRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        use_case = self.resolve_dependency(self.search_related_videos_use_case)
+        try:
+            result = use_case.execute(
+                user_id=getattr(request.user, "id", None),
+                query_text=serializer.validated_data["query_text"],
+                group_id=serializer.validated_data["group_id"],
+                share_token=share_token,
+                is_shared=is_shared,
+            )
+        except InvalidChatRequestError as e:
+            return create_error_response(str(e), status.HTTP_400_BAD_REQUEST)
+        except ResourceNotFound as e:
+            return create_error_response(str(e), status.HTTP_404_NOT_FOUND)
+        except PermissionDenied as e:
+            return create_error_response(str(e), status.HTTP_403_FORBIDDEN)
+        except LLMProviderError as e:
+            return create_error_response(str(e), status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        response_data = {"query_text": result.query_text}
+        if result.related_videos:
+            response_data["related_videos"] = [
+                {
+                    "video_id": v.video_id,
+                    "title": v.title,
+                    "start_time": v.start_time,
+                    "end_time": v.end_time,
+                }
+                for v in result.related_videos
+            ]
 
         return Response(response_data)
 
