@@ -4,6 +4,15 @@
 
 VideoQは、動画を自動で文字起こしし、自然言語で動画と会話できるAI搭載の動画ナビゲーターです。
 
+## 🧑‍💻 開発者向け
+
+VideoQ は外部システム連携向けの API キー認証に対応しています。  
+連携を検討している場合は、まず開発者Docsを確認してください。
+
+- **開発者Docs:** [http://localhost/docs](http://localhost/docs)
+- **OpenAPI (Swagger UI):** [http://localhost/api/docs/](http://localhost/api/docs/)
+- **ReDoc:** [http://localhost/api/redoc/](http://localhost/api/redoc/)
+
 以下の手順でローカル環境にセットアップできます。
 
 ![VideoQ Application Screenshot](assets/screenshot.gif)
