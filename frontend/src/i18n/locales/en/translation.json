@@ -111,6 +111,7 @@
   },
   "navigation": {
     "brand": "VideoQ",
+    "docs": "Developer Docs",
     "videos": "Videos",
     "videoGroups": "Chat groups",
     "settings": "Settings",
@@ -621,6 +622,67 @@
     },
     "keywords": {
       "title": "Frequent Keywords"
+    }
+  },
+  "docs": {
+    "backToHome": "Back to docs home",
+    "api": {
+      "loading": "Loading OpenAPI schema...",
+      "empty": "No endpoints found for this section.",
+      "error": "Failed to load OpenAPI schema: {{message}}",
+      "tabs": {
+        "curl": "cURL",
+        "python": "Python",
+        "typescript": "TypeScript",
+        "javascript": "JavaScript",
+        "go": "Go",
+        "java": "Java",
+        "csharp": "C#",
+        "php": "PHP",
+        "ruby": "Ruby"
+      }
+    },
+    "home": {
+      "title": "VideoQ Developer Docs",
+      "subtitle": "Reference docs for integrating with VideoQ APIs and automations.",
+      "quickLinksTitle": "Quick links",
+      "quickLinksDescription": "Open official API documentation and create an integration key.",
+      "createApiKey": "Create API key in Settings"
+    },
+    "section": {
+      "checklistTitle": "Implementation checklist",
+      "checklistDescription": "Validate these points before coding your integration.",
+      "autoExampleTitle": "Auto-generated endpoint samples",
+      "autoExampleDescription": "These cURL examples are generated from /api/schema/."
+    },
+    "sections": {
+      "auth": {
+        "title": "Authentication",
+        "description": "How to issue and use integration API keys.",
+        "bullets": [
+          "Create a key in Settings and store it securely",
+          "Use X-API-Key header in server-to-server calls",
+          "Verify with GET /api/auth/me/ before full integration"
+        ]
+      },
+      "videos": {
+        "title": "Videos API",
+        "description": "Upload videos and manage video groups for retrieval.",
+        "bullets": [
+          "Create a group first and keep group_id for later calls",
+          "Upload videos with supported MIME types",
+          "Poll list/detail endpoints to track processing/indexing status"
+        ]
+      },
+      "chat": {
+        "title": "Chat API",
+        "description": "Run RAG chat and collect analytics for each group.",
+        "bullets": [
+          "Send messages with group_id to target indexed videos",
+          "Use Accept-Language when you need response language control",
+          "Store chat_log_id and analytics outputs for downstream systems"
+        ]
+      }
     }
   }
 }
