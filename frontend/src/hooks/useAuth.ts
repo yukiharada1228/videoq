@@ -39,6 +39,7 @@ export function useAuth(options: UseAuthOptions = {}): UseAuthReturn {
     '/reset-password',
     '/verify-email',
     '/share',
+    '/docs',
   ];
   const authRequired = !publicPaths.some((path) => pathname.startsWith(path));
 
