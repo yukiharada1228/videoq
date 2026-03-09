@@ -117,6 +117,7 @@
   },
   "navigation": {
     "brand": "VideoQ",
+    "docs": "開発者Docs",
     "videos": "動画一覧",
     "videoGroups": "チャットグループ",
     "settings": "設定",
@@ -627,6 +628,67 @@
     },
     "keywords": {
       "title": "頻出キーワード"
+    }
+  },
+  "docs": {
+    "backToHome": "docs トップへ戻る",
+    "api": {
+      "loading": "OpenAPI スキーマを読み込み中...",
+      "empty": "このセクションに該当するエンドポイントがありません。",
+      "error": "OpenAPI スキーマの読み込みに失敗しました: {{message}}",
+      "tabs": {
+        "curl": "cURL",
+        "python": "Python",
+        "typescript": "TypeScript",
+        "javascript": "JavaScript",
+        "go": "Go",
+        "java": "Java",
+        "csharp": "C#",
+        "php": "PHP",
+        "ruby": "Ruby"
+      }
+    },
+    "home": {
+      "title": "VideoQ Developer Docs",
+      "subtitle": "VideoQ API 連携と自動化のための開発者向けリファレンス。",
+      "quickLinksTitle": "クイックリンク",
+      "quickLinksDescription": "公式 API ドキュメントを確認したり、設定画面で連携用 API キーを発行したりできます。",
+      "createApiKey": "設定で API キーを発行"
+    },
+    "section": {
+      "checklistTitle": "実装チェックリスト",
+      "checklistDescription": "連携実装前に確認しておくべき項目です。",
+      "autoExampleTitle": "自動生成エンドポイント例",
+      "autoExampleDescription": "以下の cURL は /api/schema/ から自動生成しています。"
+    },
+    "sections": {
+      "auth": {
+        "title": "認証",
+        "description": "連携用 API キーの発行と利用方法。",
+        "bullets": [
+          "設定画面でキーを作成し、安全に保管する",
+          "サーバー間通信は X-API-Key ヘッダーを利用する",
+          "本実装前に GET /api/auth/me/ で認証確認する"
+        ]
+      },
+      "videos": {
+        "title": "Videos API",
+        "description": "動画アップロードとグループ管理の連携手順。",
+        "bullets": [
+          "最初にグループを作成し group_id を保持する",
+          "対応 MIME type で動画をアップロードする",
+          "一覧/詳細 API で処理状態を監視する"
+        ]
+      },
+      "chat": {
+        "title": "Chat API",
+        "description": "RAG チャット実行と分析データ取得。",
+        "bullets": [
+          "group_id を指定して対象動画群に質問する",
+          "回答言語を固定したい場合は Accept-Language を指定する",
+          "chat_log_id と分析結果を外部システムに保存する"
+        ]
+      }
     }
   }
 }

@@ -3,9 +3,10 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link, useI18nNavigate } from '@/lib/i18n';
 import { useAuth } from '@/hooks/useAuth';
-import { apiClient } from '@/lib/api';
+import { apiClient, type User } from '@/lib/api';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { queryKeys } from '@/lib/queryKeys';
 
 interface HeaderProps {
   children?: React.ReactNode;
@@ -15,6 +16,8 @@ export function Header({ children }: HeaderProps) {
   const navigate = useI18nNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuth({ redirectToLogin: false });
+  const cachedUser = queryClient.getQueryData<User | null>(queryKeys.auth.me) ?? null;
+  const currentUser = user ?? cachedUser;
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { t } = useTranslation();
   const logoutMutation = useMutation({
@@ -52,7 +55,7 @@ export function Header({ children }: HeaderProps) {
             <Link href="/" className="text-xl font-bold text-gray-900">
               {t('navigation.brand')}
             </Link>
-            {user && (
+            {currentUser && (
               <>
                 <button
                   onClick={() => navigate('/videos')}
@@ -72,27 +75,40 @@ export function Header({ children }: HeaderProps) {
             {children}
           </div>
 
-          {user && (
-            <div className="flex items-center gap-6">
-              <span className="text-gray-600">
-                {t('navigation.welcome', { username: user.username })}
-              </span>
-              <span className="text-gray-300">|</span>
-              <button
-                onClick={() => navigate('/settings')}
-                className="text-gray-600 hover:text-gray-900 transition-colors"
-              >
-                {t('navigation.settings')}
-              </button>
-              <span className="text-gray-300">|</span>
-              <button
-                onClick={handleLogout}
-                className="text-gray-600 hover:text-gray-900 transition-colors"
-              >
-                {t('navigation.logout')}
-              </button>
-            </div>
-          )}
+          <div className="flex items-center gap-6">
+            {currentUser && (
+              <>
+                <span className="text-gray-600">
+                  {t('navigation.welcome', { username: currentUser.username })}
+                </span>
+                <span className="text-gray-300">|</span>
+              </>
+            )}
+            <button
+              onClick={() => navigate('/docs')}
+              className="text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              {t('navigation.docs')}
+            </button>
+            {currentUser && (
+              <>
+                <span className="text-gray-300">|</span>
+                <button
+                  onClick={() => navigate('/settings')}
+                  className="text-gray-600 hover:text-gray-900 transition-colors"
+                >
+                  {t('navigation.settings')}
+                </button>
+                <span className="text-gray-300">|</span>
+                <button
+                  onClick={handleLogout}
+                  className="text-gray-600 hover:text-gray-900 transition-colors"
+                >
+                  {t('navigation.logout')}
+                </button>
+              </>
+            )}
+          </div>
         </nav>
 
         {/* Mobile navigation */}
@@ -101,7 +117,7 @@ export function Header({ children }: HeaderProps) {
             <Link href="/" className="text-xl font-bold text-gray-900">
               {t('navigation.brand')}
             </Link>
-            {user && (
+            {currentUser && (
               <button
                 onClick={toggleMobileMenu}
                 className="p-2 text-gray-600 hover:text-gray-900 transition-colors"
@@ -134,10 +150,10 @@ export function Header({ children }: HeaderProps) {
           </div>
 
           {/* Mobile menu */}
-          {isMobileMenuOpen && user && (
+          {isMobileMenuOpen && currentUser && (
             <div className="mt-3 pt-3 border-t border-gray-200 space-y-2">
               <div className="px-2 py-2 text-sm text-gray-600 border-b border-gray-100">
-                {t('navigation.welcome', { username: user.username })}
+                {t('navigation.welcome', { username: currentUser.username })}
               </div>
               <button
                 onClick={() => {
@@ -156,6 +172,15 @@ export function Header({ children }: HeaderProps) {
                 className="block w-full text-left px-2 py-2 text-gray-600 hover:bg-gray-50 rounded transition-colors"
               >
                 {t('navigation.videoGroups')}
+              </button>
+              <button
+                onClick={() => {
+                  navigate('/docs');
+                  closeMobileMenu();
+                }}
+                className="block w-full text-left px-2 py-2 text-gray-600 hover:bg-gray-50 rounded transition-colors"
+              >
+                {t('navigation.docs')}
               </button>
               <button
                 onClick={() => {

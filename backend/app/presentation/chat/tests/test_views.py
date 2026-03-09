@@ -223,3 +223,84 @@ class ChatViewTests(APITestCase):
         self.assertIsInstance(related[0], dict)
         self.assertEqual(related[0]["video_id"], self.video.id)
         self.assertEqual(related[0]["start_time"], "00:00:10")
+
+
+class ChatSearchViewTests(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="searchuser",
+            email="search@example.com",
+            password="testpass123",
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+
+        self.video = Video.objects.create(
+            user=self.user,
+            title="Search Video",
+            description="Search Description",
+            status="completed",
+        )
+        share_token = secrets.token_urlsafe(32)
+        self.group = VideoGroup.objects.create(
+            user=self.user,
+            name="Search Group",
+            description="Test",
+            share_token=share_token,
+        )
+        VideoGroupMember.objects.create(group=self.group, video=self.video, order=0)
+
+    @patch("app.infrastructure.external.rag_gateway.RagChatGateway.search_related_videos")
+    def test_search_related_scenes(self, mock_search_related_videos):
+        mock_search_related_videos.return_value = [
+            RelatedVideoDTO(
+                video_id=self.video.id,
+                title=self.video.title,
+                start_time="00:00:30",
+                end_time="00:00:45",
+            )
+        ]
+
+        response = self.client.post(
+            reverse("chat-search"),
+            {
+                "query_text": "この部分の説明を探して",
+                "group_id": self.group.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["query_text"], "この部分の説明を探して")
+        self.assertEqual(response.data["related_videos"][0]["video_id"], self.video.id)
+
+    def test_search_related_scenes_rejects_empty_query(self):
+        response = self.client.post(
+            reverse("chat-search"),
+            {"query_text": "", "group_id": self.group.id},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("error", response.data)
+
+    def test_search_related_scenes_group_not_found(self):
+        response = self.client.post(
+            reverse("chat-search"),
+            {"query_text": "q", "group_id": 99999},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    @patch("app.infrastructure.external.rag_gateway.RagChatGateway.search_related_videos")
+    def test_search_related_scenes_with_share_token(self, mock_search_related_videos):
+        mock_search_related_videos.return_value = []
+        self.client.force_authenticate(user=None)
+
+        response = self.client.post(
+            f"{reverse('chat-search')}?share_token={self.group.share_token}",
+            {"query_text": "q", "group_id": self.group.id},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["query_text"], "q")

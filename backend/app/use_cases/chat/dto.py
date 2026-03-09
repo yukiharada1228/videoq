@@ -41,6 +41,14 @@ class SendMessageResultDTO:
 
 
 @dataclass
+class SearchRelatedVideosResultDTO:
+    """Use-case output DTO for retrieval-only related video search."""
+
+    query_text: str
+    related_videos: Optional[Sequence[RelatedVideoResponseDTO]]
+
+
+@dataclass
 class ChatHistoryExportRow:
     """A single row of chat history returned by ExportChatHistoryUseCase."""
 
