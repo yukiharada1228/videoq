@@ -48,8 +48,20 @@ describe('useAuth', () => {
       expect(result.current.loading).toBe(false)
     })
 
-    // For public routes, getMe should not be called
-    // Note: This test may need adjustment based on actual behavior
+    expect(apiClient.getMe).not.toHaveBeenCalled()
+  })
+
+  it('should not load user data for docs routes', async () => {
+    ;(globalThis as any).__setMockPathname?.('/docs')
+    window.history.pushState({}, '', '/docs')
+
+    const { result } = renderHook(() => useAuth())
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false)
+    })
+
+    expect(apiClient.getMe).not.toHaveBeenCalled()
   })
 
   it('should redirect to login on authentication error', async () => {
@@ -110,4 +122,3 @@ describe('useAuth', () => {
     })
   })
 })
-
