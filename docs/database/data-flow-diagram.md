@@ -1,10 +1,10 @@
-# Data Flow Diagram
+# データフロー図
 
-## Overview
+## 概要
 
-This diagram represents the data flow in the VideoQ system.
+VideoQシステムのデータフローを示す図です。
 
-## 1. Data Flow from Video Upload to Transcription
+## 1. 動画アップロードから文字起こしまでのデータフロー
 
 ```mermaid
 flowchart TD
@@ -49,7 +49,7 @@ flowchart TD
     Frontend --> End([User])
 ```
 
-## 2. Chat Processing (RAG) Data Flow
+## 2. チャット処理（RAG）データフロー
 
 ```mermaid
 flowchart TD
@@ -76,7 +76,7 @@ flowchart TD
     Error1 --> Frontend
 ```
 
-## 3. Group Management Data Flow
+## 3. グループ管理データフロー
 
 ```mermaid
 flowchart TD
@@ -118,7 +118,7 @@ flowchart TD
     Error3 --> Frontend
 ```
 
-## 4. Sharing Feature Data Flow
+## 4. 共有機能データフロー
 
 ```mermaid
 flowchart TD
@@ -152,7 +152,7 @@ flowchart TD
     Frontend --> Guest
 ```
 
-## 5. Authentication Data Flow
+## 5. 認証データフロー
 
 ```mermaid
 flowchart TD
@@ -195,7 +195,7 @@ flowchart TD
     Frontend --> End([User])
 ```
 
-## 6. Data Storage Types
+## 6. データストレージ種別
 
 ```mermaid
 graph TB
@@ -236,25 +236,25 @@ graph TB
     D5 --> V1
 ```
 
-## Data Flow Characteristics
+## データフロー特性
 
-### Asynchronous Processing
-- Video transcription is processed asynchronously by Celery Worker
-- Redis is used as message broker
+### 非同期処理
+- 動画の文字起こしはCelery Workerによって非同期に処理されます
+- Redisをメッセージブローカーとして使用
 
-### Vector Search
-- Similarity search using PGVector
-- Search related scenes for RAG
+### ベクトル検索
+- PGVectorを使用した類似検索
+- RAG用に関連シーンを検索
 
-### Data Integrity
-- Referential integrity through foreign key constraints
-- Consistency guarantee through `transaction.atomic`
+### データ整合性
+- 外部キー制約による参照整合性
+- `transaction.atomic` による整合性保証
 
-### Scalability
-- File storage supports S3
-- Vector search is accelerated with pgvector
+### スケーラビリティ
+- ファイルストレージはS3に対応
+- ベクトル検索はpgvectorで高速化
 
-## 7. Account Deactivation Data Flow
+## 7. アカウント無効化データフロー
 
 ```mermaid
 flowchart TD
@@ -280,7 +280,7 @@ flowchart TD
     Error2 --> Frontend
 ```
 
-## 8. API Key Data Flow
+## 8. APIキーデータフロー
 
 ```mermaid
 flowchart TD
@@ -312,7 +312,7 @@ flowchart TD
     Frontend --> End([User])
 ```
 
-## 9. Chat Analytics & Feedback Data Flow
+## 9. チャット分析・フィードバックデータフロー
 
 ```mermaid
 flowchart TD
@@ -350,3 +350,13 @@ flowchart TD
 
     Frontend --> End([User])
 ```
+
+---
+
+## Related Documentation
+
+- [📖 ドキュメント一覧](../README.md)
+- [ER図](er-diagram.md) — エンティティ関連図
+- [データ辞書](data-dictionary.md) — テーブル・カラム定義
+- [シーケンス図](../design/sequence-diagram.md) — 処理シーケンスの詳細
+- [フローチャート](../architecture/flowchart.md) — 処理フロー

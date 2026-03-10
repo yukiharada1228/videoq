@@ -1,10 +1,10 @@
-# Activity Diagram
+# アクティビティ図
 
-## Overview
+## 概要
 
-This diagram represents the main business flows of the VideoQ system.
+VideoQシステムの主要な業務フローを示す図です。
 
-## 1. Flow from Video Upload to Transcription Completion
+## 1. 動画アップロードから文字起こし完了までのフロー
 
 ```mermaid
 flowchart TD
@@ -45,7 +45,7 @@ flowchart TD
     UpdateError --> End
 ```
 
-## 2. Chat Processing Flow (RAG)
+## 2. チャット処理フロー（RAG）
 
 ```mermaid
 flowchart TD
@@ -77,7 +77,7 @@ flowchart TD
     Error2 --> End
 ```
 
-## 3. User Registration Flow
+## 3. ユーザー登録フロー
 
 ```mermaid
 flowchart TD
@@ -105,7 +105,7 @@ flowchart TD
     Error1 --> End
 ```
 
-## 4. Group Sharing Flow
+## 4. グループ共有フロー
 
 ```mermaid
 flowchart TD
@@ -134,7 +134,7 @@ flowchart TD
     end
 ```
 
-## 5. Video Group Management Flow
+## 5. 動画グループ管理フロー
 
 ```mermaid
 flowchart TD
@@ -163,7 +163,7 @@ flowchart TD
     end
 ```
 
-## 6. Account Deactivation Flow
+## 6. アカウント無効化フロー
 
 ```mermaid
 flowchart TD
@@ -180,7 +180,7 @@ flowchart TD
     Redirect --> End([Complete])
 ```
 
-## 7. API Key Management Flow
+## 7. APIキー管理フロー
 
 ```mermaid
 flowchart TD
@@ -207,7 +207,7 @@ flowchart TD
     SetRevoked --> End
 ```
 
-## 8. Chat Analytics & Feedback Flow
+## 8. チャット分析・フィードバックフロー
 
 ```mermaid
 flowchart TD
@@ -239,3 +239,12 @@ flowchart TD
     FormatCSV --> DownloadCSV[Download CSV File]
     DownloadCSV --> End
 ```
+
+## Related Documentation
+
+- [📖 ドキュメント一覧](../README.md)
+- [ユースケース図](use-case-diagram.md) — ユーザー操作一覧
+- [画面遷移図](screen-transition-diagram.md) — フロントエンドの画面遷移
+- [フローチャート](../architecture/flowchart.md) — 処理フローの詳細
+- [BPMN](../architecture/bpmn.md) — ビジネスプロセス
+- [シーケンス図](../design/sequence-diagram.md) — 処理シーケンスの詳細

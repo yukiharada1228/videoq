@@ -1,10 +1,10 @@
-# State Diagram
+# 状態遷移図
 
-## Overview
+## 概要
 
-This diagram represents the state transitions of the main objects in the VideoQ system.
+VideoQシステムの主要オブジェクトの状態遷移を示す図です。
 
-## Video State Transition
+## 動画の状態遷移
 
 ```mermaid
 stateDiagram-v2
@@ -55,7 +55,7 @@ stateDiagram-v2
     end note
 ```
 
-## User State Transition
+## ユーザーの状態遷移
 
 ```mermaid
 stateDiagram-v2
@@ -106,7 +106,7 @@ stateDiagram-v2
     end note
 ```
 
-## Video Group Sharing State Transition
+## 動画グループ共有の状態遷移
 
 ```mermaid
 stateDiagram-v2
@@ -133,7 +133,7 @@ stateDiagram-v2
     end note
 ```
 
-## Chat Log Feedback State Transition
+## チャットログフィードバックの状態遷移
 
 ```mermaid
 stateDiagram-v2
@@ -167,7 +167,7 @@ stateDiagram-v2
     end note
 ```
 
-## Authentication Token State Transition
+## 認証トークンの状態遷移
 
 ```mermaid
 stateDiagram-v2
@@ -202,7 +202,7 @@ stateDiagram-v2
     end note
 ```
 
-## API Key State Transition
+## APIキーの状態遷移
 
 ```mermaid
 stateDiagram-v2
@@ -230,3 +230,13 @@ stateDiagram-v2
         - Unique name constraint released
     end note
 ```
+
+---
+
+## Related Documentation
+
+- [📖 ドキュメント一覧](../README.md)
+- [シーケンス図](sequence-diagram.md) — 処理シーケンスの詳細
+- [ER図](../database/er-diagram.md) — エンティティ関連
+- [画面遷移図](../requirements/screen-transition-diagram.md) — フロントエンドの画面遷移
+- [アクティビティ図](../requirements/activity-diagram.md) — 業務フロー

@@ -1,21 +1,21 @@
-# RAG Prompt Engineering
+# RAGプロンプトエンジニアリング
 
-## Overview
+## 概要
 
-VideoQ's AI chat feature uses RAG (Retrieval-Augmented Generation) architecture to generate answers based on video transcription data. This document describes the design and implementation of prompt engineering used in RAG.
+VideoQのAIチャット機能は、RAG（Retrieval-Augmented Generation）アーキテクチャを使用して、動画の文字起こしデータに基づいて回答を生成します。このドキュメントでは、RAGで使用されるプロンプトエンジニアリングの設計と実装について説明します。
 
-## Architecture
+## アーキテクチャ
 
-### Prompt Components
+### プロンプトの構成要素
 
-The system prompt for RAG chat consists of the following elements:
+RAGチャットのシステムプロンプトは以下の要素で構成されます:
 
-1. **Header**: Defines the assistant's role and authoritative scope of knowledge.
-2. **Rules**: Strict constraints for answer generation (e.g., grounding, handling premises, uncertainty handling).
-3. **Format Instruction**: Specifies natural sentence output and avoidance of bullet points.
-4. **Reference Materials**: Relevant scene information retrieved from vector search.
+1. **ヘッダー**: アシスタントの役割と知識の権威範囲を定義
+2. **ルール**: 回答生成の厳密な制約（例: 根拠、前提の取り扱い、不確実性の処理）
+3. **フォーマット指示**: 自然な文章出力と箇条書きの回避を指定
+4. **参考資料**: ベクトル検索から取得した関連シーン情報
 
-### Prompt Generation Flow
+### プロンプト生成フロー
 
 ```
 User Query
@@ -33,11 +33,11 @@ Send to LLM (OpenAI / Ollama)
 Generate Answer (English or Japanese)
 ```
 
-## Prompt Template Structure
+## プロンプトテンプレート構成
 
-Prompts are defined in `backend/app/infrastructure/external/prompts/prompts.json`.
+プロンプトは `backend/app/infrastructure/external/prompts/prompts.json` で定義されています。
 
-### Default Prompt (English)
+### デフォルトプロンプト（英語）
 
 ```json
 {
@@ -64,21 +64,21 @@ Prompts are defined in `backend/app/infrastructure/external/prompts/prompts.json
 }
 ```
 
-### Japanese Prompt
+### 日本語プロンプト
 
-A prompt for the Japanese locale (`ja`) is also defined and is automatically selected based on the `Accept-Language` header.
+日本語ロケール（`ja`）用のプロンプトも定義されており、`Accept-Language` ヘッダーに基づいて自動選択されます。
 
-## Prompt Generation Details
+## プロンプト生成の詳細
 
-### build_system_prompt Function
+### build_system_prompt 関数
 
-The `build_system_prompt` function in `backend/app/infrastructure/external/prompts/loader.py` combines the prompt template with search results to generate the final system prompt.
+`backend/app/infrastructure/external/prompts/loader.py` の `build_system_prompt` 関数は、プロンプトテンプレートと検索結果を組み合わせて最終的なシステムプロンプトを生成します。
 
-**Parameters:**
-- `locale`: Locale (e.g., `"ja"`, `"en"`). Uses default (English) if `None`
-- `references`: List of related scenes retrieved from vector search
+**パラメータ:**
+- `locale`: ロケール（例: `"ja"`、`"en"`）。`None` の場合はデフォルト（英語）を使用
+- `references`: ベクトル検索から取得した関連シーンのリスト
 
-**Generated Prompt Structure:**
+**生成されるプロンプト構成:**
 
 ```
 [Header]
@@ -98,9 +98,9 @@ The `build_system_prompt` function in `backend/app/infrastructure/external/promp
 [Reference Footer]
 ```
 
-### Reference Information Format
+### 参考情報のフォーマット
 
-Each related scene is included in the prompt in the following format:
+各関連シーンは以下のフォーマットでプロンプトに含まれます:
 
 ```
 [Video Title] [Start Time] - [End Time]
@@ -114,40 +114,40 @@ This project is a web application that provides video transcription and AI chat 
 Main features include video upload, automatic transcription, and AI chat.
 ```
 
-## Locale Support
+## ロケールサポート
 
-Prompts support multiple languages with the following locales:
+プロンプトは以下のロケールで多言語対応しています:
 
-- `default` (English): Default prompt
-- `ja` (Japanese): Japanese prompt
+- `default`（英語）: デフォルトプロンプト
+- `ja`（日本語）: 日本語プロンプト
 
-Locale resolution follows this priority order:
+ロケール解決は以下の優先順序に従います:
 
-1. Specified locale (e.g., `"ja-JP"`)
-2. Language part of locale (e.g., `"ja"`)
-3. Default (`"default"`)
+1. 指定されたロケール（例: `"ja-JP"`）
+2. ロケールの言語部分（例: `"ja"`）
+3. デフォルト（`"default"`）
 
-### Specifying Locale
+### ロケールの指定
 
-Clients can specify the locale using the `Accept-Language` HTTP header:
+クライアントは `Accept-Language` HTTPヘッダーでロケールを指定できます:
 
 ```http
 Accept-Language: ja,en;q=0.9
 ```
 
-The backend extracts the first locale from this header and uses the corresponding prompt.
+バックエンドはこのヘッダーから最初のロケールを抽出し、対応するプロンプトを使用します。
 
-## Integration with Vector Search
+## ベクトル検索との統合
 
-### Search Parameters
+### 検索パラメータ
 
-- **Search Count (k)**: Retrieves up to 6 related scenes
-- **Filter**: Filtered by user ID and video IDs within the video group
-- **Embedding Model**: Configurable via `EMBEDDING_MODEL` environment variable (default: `text-embedding-3-small`)
+- **検索数（k）**: 最大6件の関連シーンを取得
+- **フィルター**: ユーザーIDと動画グループ内の動画IDでフィルタリング
+- **エンベディングモデル**: `EMBEDDING_MODEL` 環境変数で設定可能（デフォルト: `text-embedding-3-small`）
 
-### Processing Search Results
+### 検索結果の処理
 
-Documents retrieved from search are converted to reference information for prompts by the `_build_reference_entries` method in the RAG service:
+検索から取得したドキュメントは、RAGサービスの `_build_reference_entries` メソッドによってプロンプトの参考情報に変換されます:
 
 ```python
 def _build_reference_entries(self, docs: Sequence[Any]) -> List[str]:
@@ -166,20 +166,20 @@ def _build_reference_entries(self, docs: Sequence[Any]) -> List[str]:
     return reference_entries
 ```
 
-## Customizing Prompts
+## プロンプトのカスタマイズ
 
-### Editing Prompt Templates
+### プロンプトテンプレートの編集
 
-To customize prompts, edit `backend/app/infrastructure/external/prompts/prompts.json`.
+プロンプトをカスタマイズするには、`backend/app/infrastructure/external/prompts/prompts.json` を編集してください。
 
-**Notes:**
-- Maintain the existing key structure
-- Include required fields (`header`, `role`, `background`, `request`, `format_instruction`)
-- When adding a new locale, it will be merged with `default` using `_deep_merge`
+**注意事項:**
+- 既存のキー構成を維持してください
+- 必須フィールド（`header`, `role`, `background`, `request`, `format_instruction`）を含めてください
+- 新しいロケールを追加すると、`_deep_merge` を使用して `default` とマージされます
 
-### Adding a New Locale
+### 新しいロケールの追加
 
-To add a new locale (e.g., `fr`):
+新しいロケール（例: `fr`）を追加するには:
 
 ```json
 {
@@ -195,28 +195,28 @@ To add a new locale (e.g., `fr`):
 }
 ```
 
-### Modifying Prompt Structure
+### プロンプト構成の変更
 
-If you need to significantly modify the prompt structure, you will also need to update the `build_system_prompt` function in `backend/app/infrastructure/external/prompts/loader.py`.
+プロンプト構成を大幅に変更する必要がある場合は、`backend/app/infrastructure/external/prompts/loader.py` の `build_system_prompt` 関数も更新する必要があります。
 
-## Best Practices
+## ベストプラクティス
 
-### Prompt Design Principles
+### プロンプト設計原則
 
-1. **Clear Role Definition**: Clearly define the assistant's role
-2. **Context Emphasis**: Instruct to prioritize provided scene information
-3. **Uncertainty Handling**: When uncertain, state that clearly instead of speculating
-4. **Output Format Specification**: Specify a consistent output format
+1. **明確な役割定義**: アシスタントの役割を明確に定義
+2. **コンテキストの強調**: 提供されたシーン情報を優先するよう指示
+3. **不確実性の処理**: 不確実な場合は、憶測ではなくそのことを明確に述べる
+4. **出力フォーマットの指定**: 一貫した出力フォーマットを指定
 
-### Performance Optimization
+### パフォーマンス最適化
 
-- **Adjust Search Count**: Adjust the `k` parameter (currently 6) to balance prompt size and accuracy
-- **Token Limits**: Each scene is limited to a maximum of 512 tokens (via the `scene_otsu` module)
-- **Caching**: Prompt configuration is cached with `@lru_cache`
+- **検索数の調整**: `k` パラメータ（現在 6）を調整してプロンプトサイズと精度のバランスを取る
+- **トークン制限**: 各シーンは最大 512 トークンに制限（`scene_otsu` モジュール経由）
+- **キャッシュ**: プロンプト設定は `@lru_cache` でキャッシュされます
 
-### Debugging
+### デバッグ
 
-To inspect prompt content:
+プロンプト内容を確認するには:
 
 ```python
 from app.infrastructure.external.prompts import build_system_prompt
@@ -236,18 +236,21 @@ prompt_ja = build_system_prompt(
 print(prompt_ja)
 ```
 
-## Implementation Files
+## 実装ファイル
 
-- **Prompt Definition**: `backend/app/infrastructure/external/prompts/prompts.json`
-- **Prompt Loader**: `backend/app/infrastructure/external/prompts/loader.py`
-- **RAG Service**: `backend/app/infrastructure/external/rag_service.py`
-- **RAG Gateway**: `backend/app/infrastructure/external/rag_gateway.py`
-- **RAG Domain Gateway**: `backend/app/domain/chat/gateways.py` (`RagGateway` ABC)
-- **Tests**: `backend/app/infrastructure/external/prompts/tests/test_loader.py`
+- **プロンプト定義**: `backend/app/infrastructure/external/prompts/prompts.json`
+- **プロンプトローダー**: `backend/app/infrastructure/external/prompts/loader.py`
+- **RAGサービス**: `backend/app/infrastructure/external/rag_service.py`
+- **RAGゲートウェイ**: `backend/app/infrastructure/external/rag_gateway.py`
+- **RAGドメインゲートウェイ**: `backend/app/domain/chat/gateways.py`（`RagGateway` ABC）
+- **テスト**: `backend/app/infrastructure/external/prompts/tests/test_loader.py`
 
 ## Related Documentation
 
-- [System Configuration Diagram](system-configuration-diagram.md)
+- [📖 ドキュメント一覧](../README.md)
+- [システム構成図](system-configuration-diagram.md) — 全体アーキテクチャ
+- [シーケンス図](../design/sequence-diagram.md) — チャット処理シーケンス
+- [フローチャート](flowchart.md) — チャット処理フロー
 - Scene Splitting: `backend/app/infrastructure/scene_otsu/`
 - Transcription Processing: `backend/app/infrastructure/transcription/`
 - Vector Store: `backend/app/infrastructure/external/vector_store.py`
