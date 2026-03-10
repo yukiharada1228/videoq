@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { Link, useI18nNavigate, useLocale } from '@/lib/i18n';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -15,6 +15,7 @@ import { InlineSpinner } from '@/components/common/InlineSpinner';
 import { getStatusBadgeClassName, getStatusLabel, formatDate } from '@/lib/utils/video';
 import { TagBadge } from '@/components/video/TagBadge';
 import { TagSelector } from '@/components/video/TagSelector';
+import { TagCreateDialog } from '@/components/video/TagCreateDialog';
 import { useTags } from '@/hooks/useTags';
 import { useVideoEditing } from '@/hooks/useVideoEditing';
 import { useVideoDetailPageMutations } from '@/hooks/useVideoDetailPageData';
@@ -141,6 +142,7 @@ export default function VideoDetailPage() {
 
   const { video, isLoading, error } = useVideo(videoId);
   const { tags, createTag } = useTags();
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
 
   const {
     isEditing,
@@ -153,8 +155,12 @@ export default function VideoDetailPage() {
     startEditing,
     cancelEditing,
     handleUpdateVideo,
-    handleCreateTag,
-  } = useVideoEditing({ video, videoId, createTag });
+  } = useVideoEditing({ video, videoId });
+
+  const handleCreateTag = useCallback(async (name: string, color: string) => {
+    const newTag = await createTag(name, color);
+    setEditedTagIds((prev) => (prev.includes(newTag.id) ? prev : [...prev, newTag.id]));
+  }, [createTag, setEditedTagIds]);
 
   const handleVideoLoaded = () => {
     if (videoRef.current && startTime) {
@@ -280,7 +286,7 @@ export default function VideoDetailPage() {
                         : [...prev, tagId]
                     );
                   }}
-                  onCreateTag={handleCreateTag}
+                  onCreateTag={() => setIsCreateDialogOpen(true)}
                   onSave={() => void updateMutation.mutateAsync()}
                   onCancel={cancelEditing}
                 />
@@ -357,6 +363,11 @@ export default function VideoDetailPage() {
           )}
         </div>
       </div>
+      <TagCreateDialog
+        isOpen={isCreateDialogOpen}
+        onClose={() => setIsCreateDialogOpen(false)}
+        onCreate={handleCreateTag}
+      />
     </PageLayout>
   );
 }
