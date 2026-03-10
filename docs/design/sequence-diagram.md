@@ -1,10 +1,10 @@
-# Sequence Diagram
+# シーケンス図
 
-## Overview
+## 概要
 
-This diagram represents the main processing flows of the VideoQ system.
+VideoQシステムの主要な処理フローを示す図です。
 
-## 1. Video Upload and Transcription Processing
+## 1. 動画アップロードと文字起こし処理
 
 ```mermaid
 sequenceDiagram
@@ -62,7 +62,7 @@ sequenceDiagram
     Frontend-->>User: Display Transcription Result
 ```
 
-## 2. Chat Processing (RAG)
+## 2. チャット処理（RAG）
 
 ```mermaid
 sequenceDiagram
@@ -90,7 +90,7 @@ sequenceDiagram
     Frontend-->>User: Display Answer
 ```
 
-## 3. User Authentication Flow
+## 3. ユーザー認証フロー
 
 ```mermaid
 sequenceDiagram
@@ -129,7 +129,7 @@ sequenceDiagram
     Frontend-->>User: Redirect to Home Page
 ```
 
-## 4. Group Sharing Flow
+## 4. グループ共有フロー
 
 ```mermaid
 sequenceDiagram
@@ -168,7 +168,7 @@ sequenceDiagram
     Frontend-->>Guest: Display Answer
 ```
 
-## 5. Video Group Management
+## 5. 動画グループ管理
 
 ```mermaid
 sequenceDiagram
@@ -203,7 +203,7 @@ sequenceDiagram
     Frontend-->>User: Display Updated Order
 ```
 
-## 6. Password Reset Flow
+## 6. パスワードリセットフロー
 
 ```mermaid
 sequenceDiagram
@@ -233,7 +233,7 @@ sequenceDiagram
     Frontend-->>User: Redirect to Login Page
 ```
 
-## 7. Re-indexing Video Embeddings (Admin)
+## 7. 動画エンベディング再インデックス（管理者）
 
 ```mermaid
 sequenceDiagram
@@ -294,7 +294,7 @@ sequenceDiagram
     DjangoAdmin-->>Admin: Display Progress Logs
 ```
 
-## 8. Account Deactivation Flow
+## 8. アカウント無効化フロー
 
 ```mermaid
 sequenceDiagram
@@ -322,7 +322,7 @@ sequenceDiagram
     end
 ```
 
-## 9. API Key Management Flow
+## 9. APIキー管理フロー
 
 ```mermaid
 sequenceDiagram
@@ -362,7 +362,7 @@ sequenceDiagram
     Frontend-->>User: Remove Key from List
 ```
 
-## 10. API Key Authentication Flow
+## 10. APIキー認証フロー
 
 ```mermaid
 sequenceDiagram
@@ -390,7 +390,7 @@ sequenceDiagram
     end
 ```
 
-## 11. Chat Analytics & Feedback Flow
+## 11. チャット分析・フィードバックフロー
 
 ```mermaid
 sequenceDiagram
@@ -436,3 +436,13 @@ sequenceDiagram
     Backend-->>Frontend: CSV Download
     Frontend-->>User: Download CSV File
 ```
+
+---
+
+## Related Documentation
+
+- [📖 ドキュメント一覧](../README.md)
+- [フローチャート](../architecture/flowchart.md) — 処理フローの概要
+- [データフロー図](../database/data-flow-diagram.md) — データの流れ
+- [アクティビティ図](../requirements/activity-diagram.md) — 業務フロー
+- [状態遷移図](state-diagram.md) — 状態遷移の詳細

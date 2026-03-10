@@ -1,10 +1,10 @@
-# Flowchart
+# フローチャート
 
-## Overview
+## 概要
 
-This flowchart represents the main processing flows of the VideoQ system.
+VideoQシステムの主要な処理フローを示す図です。
 
-## 1. Video Upload Processing Flow
+## 1. 動画アップロード処理フロー
 
 ```mermaid
 flowchart TD
@@ -57,7 +57,7 @@ flowchart TD
     ErrorHandle --> End
 ```
 
-## 2. Chat Processing Flow (RAG)
+## 2. チャット処理フロー（RAG）
 
 ```mermaid
 flowchart TD
@@ -94,7 +94,7 @@ flowchart TD
     Error6 --> End
 ```
 
-## 3. User Authentication Flow
+## 3. ユーザー認証フロー
 
 ```mermaid
 flowchart TD
@@ -154,7 +154,7 @@ flowchart TD
     ErrorRateLimit --> End
 ```
 
-## 4. Group Management Flow
+## 4. グループ管理フロー
 
 ```mermaid
 flowchart TD
@@ -213,7 +213,7 @@ flowchart TD
     ErrorOrder --> End
 ```
 
-## 5. Sharing Feature Flow
+## 5. 共有機能フロー
 
 ```mermaid
 flowchart TD
@@ -255,7 +255,7 @@ flowchart TD
     ErrorToken --> End
 ```
 
-## 6. Error Handling Flow
+## 6. エラーハンドリングフロー
 
 ```mermaid
 flowchart TD
@@ -285,7 +285,7 @@ flowchart TD
     NotifyAdmin --> LogError
 ```
 
-## 7. Account Deactivation Processing Flow
+## 7. アカウント無効化処理フロー
 
 ```mermaid
 flowchart TD
@@ -308,7 +308,7 @@ flowchart TD
     ShowError --> InputPassword
 ```
 
-## 8. Tag Management Flow
+## 8. タグ管理フロー
 
 ```mermaid
 flowchart TD
@@ -370,7 +370,7 @@ flowchart TD
     ErrorEdit --> End
 ```
 
-## 9. API Key Management Flow
+## 9. APIキー管理フロー
 
 ```mermaid
 flowchart TD
@@ -403,7 +403,7 @@ flowchart TD
     ErrorDup --> InputName
 ```
 
-## 10. API Key Authentication Flow
+## 10. APIキー認証フロー
 
 ```mermaid
 flowchart TD
@@ -423,7 +423,7 @@ flowchart TD
     Error403 --> End
 ```
 
-## 11. Chat Analytics & Feedback Flow
+## 11. チャット分析・フィードバックフロー
 
 ```mermaid
 flowchart TD
@@ -460,3 +460,13 @@ flowchart TD
     FormatCSV --> DownloadCSV[Download CSV File]
     DownloadCSV --> End
 ```
+
+---
+
+## Related Documentation
+
+- [📖 ドキュメント一覧](../README.md)
+- [アクティビティ図](../requirements/activity-diagram.md) — 業務フロー概要
+- [BPMN](bpmn.md) — ビジネスプロセスモデル
+- [シーケンス図](../design/sequence-diagram.md) — 処理シーケンスの詳細
+- [データフロー図](../database/data-flow-diagram.md) — データの流れ
