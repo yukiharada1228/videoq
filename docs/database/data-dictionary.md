@@ -1,25 +1,25 @@
-# Data Dictionary
+# データ辞書
 
-## Overview
+## 概要
 
-This document provides definitions of database tables and columns for the VideoQ system.
+VideoQシステムのデータベーステーブルとカラムの定義を提供するドキュメントです。
 
-**Notes**
-- This project uses **PostgreSQL** and Django's `BigAutoField` by default, so primary keys are typically `BIGINT`.
-- Django `DateTimeField` values are stored as `TIMESTAMPTZ` (timestamp with time zone) in PostgreSQL when time zones are enabled.
-- The most up-to-date reference is the code: `backend/app/infrastructure/models/` and `backend/app/migrations/`.
+**注記**
+- このプロジェクトは **PostgreSQL** と Django の `BigAutoField` をデフォルトで使用しているため、主キーは通常 `BIGINT` です。
+- Djangoの `DateTimeField` の値は、タイムゾーンが有効な場合、PostgreSQLでは `TIMESTAMPTZ`（タイムゾーン付きタイムスタンプ）として保存されます。
+- 最新のリファレンスはコード: `backend/app/infrastructure/models/` および `backend/app/migrations/` です。
 
-## User Table
+## Userテーブル
 
-### Table Name
+### テーブル名
 `app_user` (custom user model, inherits from Django's `AbstractUser`)
 
-### Description
-Table that stores user information for the system.
+### 説明
+システムのユーザー情報を保存するテーブルです。
 
-### Column Definitions
+### カラム定義
 
-| Column Name | Data Type | Constraints | Default Value | Description |
+| カラム名 | データ型 | 制約 | デフォルト値 | 説明 |
 |------------|-----------|-------------|---------------|-------------|
 | id | BIGINT | PRIMARY KEY, AUTO_INCREMENT | - | User ID |
 | username | VARCHAR(150) | UNIQUE, NOT NULL | - | Username |
@@ -35,7 +35,7 @@ Table that stores user information for the system.
 | video_limit | INTEGER | NULL, CHECK (video_limit >= 0) | 0 | Max number of videos the user can upload (`NULL` = unlimited, `0` = uploads disabled) |
 | deactivated_at | TIMESTAMPTZ | NULL | NULL | Date and time when the account was deactivated (soft delete). `NULL` means the account is active. |
 
-### Indexes
+### インデックス
 - PRIMARY KEY: `id`
 - UNIQUE: `username`
 - UNIQUE: `email`
@@ -44,7 +44,7 @@ Table that stores user information for the system.
 - INDEX: `deactivated_at` (for deactivated account queries)
 - INDEX: `video_limit` (for limit queries)
 
-### Relations
+### リレーション
 - `videos`: One-to-many relationship with Video table
 - `video_groups`: One-to-many relationship with VideoGroup table
 - `chat_logs`: One-to-many relationship with ChatLog table
@@ -54,44 +54,44 @@ Table that stores user information for the system.
 
 ---
 
-## AccountDeletionRequest Table
+## AccountDeletionRequestテーブル
 
-### Table Name
+### テーブル名
 `app_accountdeletionrequest`
 
-### Description
-Table that stores user requests for account deletion and reasons.
+### 説明
+アカウント削除リクエストと理由を保存するテーブルです。
 
-### Column Definitions
+### カラム定義
 
-| Column Name | Data Type | Constraints | Default Value | Description |
+| カラム名 | データ型 | 制約 | デフォルト値 | 説明 |
 |------------|-----------|-------------|---------------|-------------|
 | id | BIGINT | PRIMARY KEY, AUTO_INCREMENT | - | Request ID |
 | user_id | BIGINT | FOREIGN KEY, NOT NULL | - | User ID |
 | reason | TEXT | NOT NULL | '' | Reason for deletion |
 | requested_at | TIMESTAMPTZ | NOT NULL | now() | Requested date and time |
 
-### Indexes
+### インデックス
 - PRIMARY KEY: `id`
 - FOREIGN KEY: `user_id` → `app_user.id` (CASCADE)
-- INDEX: `(user_id, -requested_at)` (for monitoring latest requests)
+- INDEX: `(user_id, -requested_at)`（最新リクエスト監視用）
 
-### Relations
-- `user`: Many-to-one relationship with User table
+### リレーション
+- `user`: Userテーブルとの多対1リレーション
 
 ---
 
-## Video Table
+## Videoテーブル
 
-### Table Name
+### テーブル名
 `app_video`
 
-### Description
-Table that stores information about uploaded videos.
+### 説明
+アップロードされた動画の情報を保存するテーブルです。
 
-### Column Definitions
+### カラム定義
 
-| Column Name | Data Type | Constraints | Default Value | Description |
+| カラム名 | データ型 | 制約 | デフォルト値 | 説明 |
 |------------|-----------|-------------|---------------|-------------|
 | id | BIGINT | PRIMARY KEY, AUTO_INCREMENT | - | Video ID |
 | user_id | BIGINT | FOREIGN KEY, NOT NULL | - | Owner's user ID |
@@ -103,39 +103,39 @@ Table that stores information about uploaded videos.
 | status | VARCHAR(20) | NOT NULL | 'pending' | Processing status |
 | error_message | TEXT | NOT NULL | '' | Error message (when error occurs) |
 
-### status Values
-- `pending`: Waiting for processing
-- `processing`: Processing
-- `indexing`: Transcript saved; vector indexing in progress
-- `completed`: Completed
-- `error`: Error
+### statusの値
+- `pending`: 処理待ち
+- `processing`: 処理中
+- `indexing`: 文字起こし保存済み; ベクトルインデックス作成中
+- `completed`: 完了
+- `error`: エラー
 
-### Indexes
+### インデックス
 - PRIMARY KEY: `id`
 - FOREIGN KEY: `user_id` → `app_user.id` (CASCADE)
-- INDEX: `uploaded_at` (for descending sort)
-- INDEX: `(user_id, status, -uploaded_at)` (for filtered listings)
-- INDEX: `(user_id, title)` (for per-user title search)
+- INDEX: `uploaded_at`（降順ソート用）
+- INDEX: `(user_id, status, -uploaded_at)`（フィルタ付き一覧用）
+- INDEX: `(user_id, title)`（ユーザー別タイトル検索用）
 
-### Relations
-- `user`: Many-to-one relationship with User table
-- `groups`: Many-to-many relationship through VideoGroupMember table
-- `video_tags`: One-to-many relationship with VideoTag table
-- `tags`: Many-to-many relationship through VideoTag table
+### リレーション
+- `user`: Userテーブルとの多対1リレーション
+- `groups`: VideoGroupMemberテーブル経由の多対多リレーション
+- `video_tags`: VideoTagテーブルとの1対多リレーション
+- `tags`: VideoTagテーブル経由の多対多リレーション
 
 ---
 
-## VideoGroup Table
+## VideoGroupテーブル
 
-### Table Name
+### テーブル名
 `app_videogroup`
 
-### Description
-Table for grouping videos.
+### 説明
+動画をグループ化するためのテーブルです。
 
-### Column Definitions
+### カラム定義
 
-| Column Name | Data Type | Constraints | Default Value | Description |
+| カラム名 | データ型 | 制約 | デフォルト値 | 説明 |
 |------------|-----------|-------------|---------------|-------------|
 | id | BIGINT | PRIMARY KEY, AUTO_INCREMENT | - | Group ID |
 | user_id | BIGINT | FOREIGN KEY, NOT NULL | - | Owner's user ID |
@@ -145,31 +145,31 @@ Table for grouping videos.
 | updated_at | TIMESTAMPTZ | NOT NULL | now() | Update date and time |
 | share_token | VARCHAR(64) | UNIQUE, NULL | NULL | Share token |
 
-### Indexes
+### インデックス
 - PRIMARY KEY: `id`
 - FOREIGN KEY: `user_id` → `app_user.id` (CASCADE)
-- UNIQUE: `share_token` (NULL allowed)
-- INDEX: `(user_id, -created_at)` (for owner listing)
-- INDEX (partial): `share_token` WHERE `share_token IS NOT NULL` (share lookup)
+- UNIQUE: `share_token`（NULL許容）
+- INDEX: `(user_id, -created_at)`（オーナー一覧用）
+- INDEX（部分）: `share_token` WHERE `share_token IS NOT NULL`（共有トークン検索用）
 
-### Relations
-- `user`: Many-to-one relationship with User table
-- `videos`: Many-to-many relationship through VideoGroupMember table
-- `chat_logs`: One-to-many relationship with ChatLog table
+### リレーション
+- `user`: Userテーブルとの多対1リレーション
+- `videos`: VideoGroupMemberテーブル経由の多対多リレーション
+- `chat_logs`: ChatLogテーブルとの1対多リレーション
 
 ---
 
-## VideoGroupMember Table
+## VideoGroupMemberテーブル
 
-### Table Name
+### テーブル名
 `app_videogroupmember`
 
-### Description
-Intermediate table that manages the relationship between videos and groups.
+### 説明
+動画とグループの関連を管理する中間テーブルです。
 
-### Column Definitions
+### カラム定義
 
-| Column Name | Data Type | Constraints | Default Value | Description |
+| カラム名 | データ型 | 制約 | デフォルト値 | 説明 |
 |------------|-----------|-------------|---------------|-------------|
 | id | BIGINT | PRIMARY KEY, AUTO_INCREMENT | - | Member ID |
 | group_id | BIGINT | FOREIGN KEY, NOT NULL | - | Group ID |
@@ -177,181 +177,180 @@ Intermediate table that manages the relationship between videos and groups.
 | added_at | TIMESTAMPTZ | NOT NULL | now() | Addition date and time |
 | order | INTEGER | NOT NULL | 0 | Order within group |
 
-### Indexes
+### インデックス
 - PRIMARY KEY: `id`
 - FOREIGN KEY: `group_id` → `app_videogroup.id` (CASCADE)
 - FOREIGN KEY: `video_id` → `app_video.id` (CASCADE)
-- UNIQUE: `(group_id, video_id)` (cannot add the same video to the same group multiple times)
-- INDEX: `(group_id, order)` (for group playback/order retrieval)
-- INDEX: `(video_id, group_id)` (for membership lookups)
+- UNIQUE: `(group_id, video_id)`（同じ動画を同じグループに複数回追加不可）
+- INDEX: `(group_id, order)`（グループ再生/順序取得用）
+- INDEX: `(video_id, group_id)`（メンバーシップ検索用）
 
-### Relations
-- `group`: Many-to-one relationship with VideoGroup table
-- `video`: Many-to-one relationship with Video table
+### リレーション
+- `group`: VideoGroupテーブルとの多対1リレーション
+- `video`: Videoテーブルとの多対1リレーション
 
 ---
 
-## Tag Table
+## Tagテーブル
 
-### Table Name
+### テーブル名
 `app_tag`
 
-### Description
-Table that stores user-defined tags for organizing videos.
+### 説明
+動画を整理するためのユーザー定義タグを保存するテーブルです。
 
-### Column Definitions
+### カラム定義
 
-| Column Name | Data Type | Constraints | Default Value | Description |
+| カラム名 | データ型 | 制約 | デフォルト値 | 説明 |
 |------------|-----------|-------------|---------------|-------------|
 | id | BIGINT | PRIMARY KEY, AUTO_INCREMENT | - | Tag ID |
-| user_id | BIGINT | FOREIGN KEY, NOT NULL | - | Owner's user ID |
-| name | VARCHAR(50) | NOT NULL | - | Tag name |
-| color | VARCHAR(7) | NOT NULL | '#3B82F6' | Tag color in hex format (#RRGGBB) |
-| created_at | TIMESTAMPTZ | NOT NULL | now() | Creation date and time |
+| user_id | BIGINT | FOREIGN KEY, NOT NULL | - | オーナーのユーザーID |
+| name | VARCHAR(50) | NOT NULL | - | タグ名 |
+| color | VARCHAR(7) | NOT NULL | '#3B82F6' | タグの色（16進数形式 #RRGGBB） |
+| created_at | TIMESTAMPTZ | NOT NULL | now() | 作成日時 |
 
-### Indexes
+### インデックス
 - PRIMARY KEY: `id`
 - FOREIGN KEY: `user_id` → `app_user.id` (CASCADE)
-- UNIQUE: `(user_id, name)` (per-user unique tag names)
-- INDEX: `(user_id, name)` (list/sort tags per user)
+- UNIQUE: `(user_id, name)`（ユーザーごとにユニークなタグ名）
+- INDEX: `(user_id, name)`（ユーザー別タグ一覧/ソート用）
 
-### Relations
-- `user`: Many-to-one relationship with User table
-- `video_tags`: One-to-many relationship with VideoTag table
-- `videos_through`: Many-to-many relationship through VideoTag table
+### リレーション
+- `user`: Userテーブルとの多対1リレーション
+- `video_tags`: VideoTagテーブルとの1対多リレーション
+- `videos_through`: VideoTagテーブル経由の多対多リレーション
 
 ---
 
-## VideoTag Table
+## VideoTagテーブル
 
-### Table Name
+### テーブル名
 `app_videotag`
 
-### Description
-Intermediate table for many-to-many relationship between Video and Tag.
+### 説明
+VideoとTagの多対多リレーションの中間テーブルです。
 
-### Column Definitions
+### カラム定義
 
-| Column Name | Data Type | Constraints | Default Value | Description |
+| カラム名 | データ型 | 制約 | デフォルト値 | 説明 |
 |------------|-----------|-------------|---------------|-------------|
 | id | BIGINT | PRIMARY KEY, AUTO_INCREMENT | - | VideoTag ID |
-| video_id | BIGINT | FOREIGN KEY, NOT NULL | - | Video ID |
-| tag_id | BIGINT | FOREIGN KEY, NOT NULL | - | Tag ID |
-| added_at | TIMESTAMPTZ | NOT NULL | now() | Tag assignment date and time |
+| video_id | BIGINT | FOREIGN KEY, NOT NULL | - | 動画ID |
+| tag_id | BIGINT | FOREIGN KEY, NOT NULL | - | タグID |
+| added_at | TIMESTAMPTZ | NOT NULL | now() | タグ付与日時 |
 
-### Indexes
+### インデックス
 - PRIMARY KEY: `id`
 - FOREIGN KEY: `video_id` → `app_video.id` (CASCADE)
 - FOREIGN KEY: `tag_id` → `app_tag.id` (CASCADE)
-- UNIQUE: `(video_id, tag_id)` (prevent duplicate tag assignments)
-- INDEX: `(video_id, tag_id)` (join/lookups from video)
-- INDEX: `(tag_id, -added_at)` (recent usage by tag)
+- UNIQUE: `(video_id, tag_id)`（重複タグ付与防止）
+- INDEX: `(video_id, tag_id)`（動画からの結合/検索用）
+- INDEX: `(tag_id, -added_at)`（タグ別最新使用用）
 
-### Relations
-- `video`: Many-to-one relationship with Video table
-- `tag`: Many-to-one relationship with Tag table
+### リレーション
+- `video`: Videoテーブルとの多対1リレーション
+- `tag`: Tagテーブルとの多対1リレーション
 
 ---
 
-## ChatLog Table
+## ChatLogテーブル
 
-### Table Name
+### テーブル名
 `app_chatlog`
 
-### Description
-Table that stores chat history.
+### 説明
+チャット履歴を保存するテーブルです。
 
-### Column Definitions
+### カラム定義
 
-| Column Name | Data Type | Constraints | Default Value | Description |
+| カラム名 | データ型 | 制約 | デフォルト値 | 説明 |
 |------------|-----------|-------------|---------------|-------------|
-| id | BIGINT | PRIMARY KEY, AUTO_INCREMENT | - | Chat log ID |
-| user_id | BIGINT | FOREIGN KEY, NOT NULL | - | User ID (owner or owner when accessed via share) |
-| group_id | BIGINT | FOREIGN KEY, NOT NULL | - | Group ID |
-| question | TEXT | NOT NULL | - | Question text |
-| answer | TEXT | NOT NULL | - | Answer text |
-| related_videos | JSONB | NOT NULL | [] | List of related video IDs |
-| is_shared_origin | BOOLEAN | NOT NULL | False | Whether chat was via share link |
-| feedback | VARCHAR(4) | NULL | NULL | Feedback ('good', 'bad', NULL) |
-| created_at | TIMESTAMPTZ | NOT NULL | now() | Creation date and time |
+| id | BIGINT | PRIMARY KEY, AUTO_INCREMENT | - | チャットログID |
+| user_id | BIGINT | FOREIGN KEY, NOT NULL | - | ユーザーID |
+| group_id | BIGINT | FOREIGN KEY, NOT NULL | - | グループID |
+| question | TEXT | NOT NULL | - | 質問テキスト |
+| answer | TEXT | NOT NULL | - | 回答テキスト |
+| related_videos | JSONB | NOT NULL | [] | 関連動画IDのリスト |
+| is_shared_origin | BOOLEAN | NOT NULL | False | 共有リンク経由のチャットかどうか |
+| feedback | VARCHAR(4) | NULL | NULL | フィードバック ('good', 'bad', NULL) |
+| created_at | TIMESTAMPTZ | NOT NULL | now() | 作成日時 |
 
-### feedback Values
-- `good`: Good rating
-- `bad`: Bad rating
-- `NULL`: No feedback
+### feedbackの値
+- `good`: 良い評価
+- `bad`: 悪い評価
+- `NULL`: フィードバックなし
 
-### Indexes
+### インデックス
 - PRIMARY KEY: `id`
 - FOREIGN KEY: `user_id` → `app_user.id` (CASCADE)
 - FOREIGN KEY: `group_id` → `app_videogroup.id` (CASCADE)
-- INDEX: `created_at` (for descending sort)
-- INDEX: `(user_id, -created_at)` (user history)
-- INDEX: `(group_id, -created_at)` (group history)
-- INDEX (partial): `feedback` WHERE `feedback IS NOT NULL` (feedback analytics)
+- INDEX: `created_at`（降順ソート用）
+- INDEX: `(user_id, -created_at)`（ユーザー履歴用）
+- INDEX: `(group_id, -created_at)`（グループ履歴用）
+- INDEX（部分）: `feedback` WHERE `feedback IS NOT NULL`（フィードバック分析用）
 
-### Relations
-- `user`: Many-to-one relationship with User table
-- `group`: Many-to-one relationship with VideoGroup table
+### リレーション
+- `user`: Userテーブルとの多対1リレーション
+- `group`: VideoGroupテーブルとの多対1リレーション
 
 ---
 
-## UserApiKey Table
+## UserApiKeyテーブル
 
-### Table Name
+### テーブル名
 `app_userapikey`
 
-### Description
-Table that stores API keys for server-to-server integrations. API keys allow programmatic access to the VideoQ API without JWT cookie-based authentication.
+### 説明
+サーバー間連携用のAPIキーを保存するテーブルです。APIキーにより、JWTクッキーベースの認証なしでVideoQ APIへのプログラマティックアクセスが可能になります。
 
-### Column Definitions
+### カラム定義
 
-| Column Name | Data Type | Constraints | Default Value | Description |
+| カラム名 | データ型 | 制約 | デフォルト値 | 説明 |
 |------------|-----------|-------------|---------------|-------------|
-| id | BIGINT | PRIMARY KEY, AUTO_INCREMENT | - | API key ID |
-| user_id | BIGINT | FOREIGN KEY, NOT NULL | - | Owner's user ID |
-| name | VARCHAR(100) | NOT NULL | - | Human-readable name for the API key |
-| access_level | VARCHAR(20) | NOT NULL | 'all' | Permission level ('all' or 'read_only') |
-| prefix | VARCHAR(12) | NOT NULL | - | First 12 characters of the raw key (for display identification) |
-| hashed_key | VARCHAR(64) | UNIQUE, NOT NULL | - | SHA-256 hash of the raw API key |
-| last_used_at | TIMESTAMPTZ | NULL | NULL | Last time the key was used |
-| revoked_at | TIMESTAMPTZ | NULL | NULL | Time the key was revoked (`NULL` = active) |
-| created_at | TIMESTAMPTZ | NOT NULL | now() | Creation date and time |
+| id | BIGINT | PRIMARY KEY, AUTO_INCREMENT | - | APIキーID |
+| user_id | BIGINT | FOREIGN KEY, NOT NULL | - | オーナーのユーザーID |
+| name | VARCHAR(100) | NOT NULL | - | APIキーの識別名 |
+| access_level | VARCHAR(20) | NOT NULL | 'all' | 権限レベル ('all' または 'read_only') |
+| prefix | VARCHAR(12) | NOT NULL | - | 生キーの先頭12文字（表示識別用） |
+| hashed_key | VARCHAR(64) | UNIQUE, NOT NULL | - | 生 APIキーのSHA-256ハッシュ |
+| last_used_at | TIMESTAMPTZ | NULL | NULL | キーの最終使用日時 |
+| revoked_at | TIMESTAMPTZ | NULL | NULL | キーの失効日時（`NULL` = アクティブ） |
+| created_at | TIMESTAMPTZ | NOT NULL | now() | 作成日時 |
 
-### access_level Values
-- `all`: Full read/write access
-- `read_only`: Read scope + `chat_write` scope (allows `POST /api/chat/`, but blocks other write operations)
+### access_levelの値
+- `all`: 全読み書きアクセス
+- `read_only`: readスコープ + `chat_write` スコープ（`POST /api/chat/` は許可、その他の書き込み操作はブロック）
 
-### Indexes
+### インデックス
 - PRIMARY KEY: `id`
 - FOREIGN KEY: `user_id` → `app_user.id` (CASCADE)
 - UNIQUE: `hashed_key`
-- UNIQUE (partial): `(user_id, name)` WHERE `revoked_at IS NULL` (active API key names are unique per user)
-- INDEX: `prefix` (for API key lookup by prefix)
-- INDEX: `revoked_at` (for active/revoked key queries)
+- UNIQUE（部分）: `(user_id, name)` WHERE `revoked_at IS NULL`（アクティブなAPIキー名はユーザーごとにユニーク）
+- INDEX: `prefix`（APIキープレフィックス検索用）
+- INDEX: `revoked_at`（アクティブ/失効キークエリ用）
 
-### Relations
-- `user`: Many-to-one relationship with User table
+### リレーション
+- `user`: Userテーブルとの多対1リレーション
 
 ---
 
-## PGVector Collection
+## PGVectorコレクション
 
-### Collection Name
-`videoq_scenes` (configurable via `PGVECTOR_COLLECTION_NAME` environment variable)
+### コレクション名
+`videoq_scenes`（`PGVECTOR_COLLECTION_NAME` 環境変数で設定可能）
 
-### Description
-Collection that stores vectorized video scenes.
+### 説明ベクトル化された動画シーンを保存するコレクションです。
 
-### Schema
+### スキーマ
 
-| Column Name | Data Type | Description |
+| カラム名 | データ型 | 説明 |
 |------------|-----------|-------------|
-| id | UUID | Vector ID |
-| embedding | vector(1536) | Text embedding vector (dimension configurable via `EMBEDDING_VECTOR_SIZE` env var; model configurable via `EMBEDDING_MODEL` env var, default: text-embedding-3-small/1536) |
-| document | TEXT | Scene text content |
-| metadata | JSONB | Metadata |
+| id | UUID | ベクトルID |
+| embedding | vector(1536) | テキストエンベディングベクトル（次元数は `EMBEDDING_VECTOR_SIZE` 環境変数で設定可能; モデルは `EMBEDDING_MODEL` 環境変数で設定可能、デフォルト: text-embedding-3-small/1536） |
+| document | TEXT | シーンテキスト内容 |
+| metadata | JSONB | メタデータ |
 
-### metadata Structure
+### metadata構成
 ```json
 {
   "video_id": 123,
@@ -365,56 +364,66 @@ Collection that stores vectorized video scenes.
 }
 ```
 
-### Indexes
+### インデックス
 - PRIMARY KEY: `id`
-- INDEX: `embedding` (for vector search, HNSW or IVFFlat)
+- INDEX: `embedding`（ベクトル検索用、HNSW または IVFFlat）
 
-### Purpose
-- Related scene search for RAG (Retrieval-Augmented Generation)
-- Context building through similarity search
-
----
-
-## Data Type Details
-
-### String Types
-- `VARCHAR(n)`: Variable-length string with maximum n characters
-- `TEXT`: Unlimited string
-
-### Numeric Types
-- `INTEGER`: 32-bit integer
-- `BIGINT`: 64-bit integer
-- `BOOLEAN`: Boolean value
-
-### DateTime Types
-- `TIMESTAMPTZ`: Timestamp with time zone (PostgreSQL)
-
-### JSON Types
-- `JSON`: JSON data (PostgreSQL 9.2+)
-- `JSONB`: Binary JSON (fast searchable)
-
-### Vector Types
-- `vector(n)`: n-dimensional vector (pgvector extension)
+### 目的
+- RAG（Retrieval-Augmented Generation）のための関連シーン検索
+- 類似検索によるコンテキスト構築
 
 ---
 
-## Constraint Details
+## データ型詳細
 
-### Primary Key Constraints
-All tables have `id` set as the primary key.
+### 文字列型
+- `VARCHAR(n)`: 最大n文字の可変長文字列
+- `TEXT`: 無制限の文字列
 
-### Foreign Key Constraints
-All foreign keys have `ON DELETE CASCADE` set, so child records are automatically deleted when parent records are deleted.
+### 数値型
+- `INTEGER`: 32ビット整数
+- `BIGINT`: 64ビット整数
+- `BOOLEAN`: ブール値
 
-### Unique Constraints
-- `User.username`: Username is unique
-- `User.email`: Email address is unique
-- `VideoGroup.share_token`: Share token is unique (NULL allowed)
-- `VideoGroupMember(group_id, video_id)`: Cannot add the same video to the same group multiple times
-- `UserApiKey.hashed_key`: Hashed API key is unique
-- `UserApiKey(user, name)` WHERE `revoked_at IS NULL`: Active API key names are unique per user
+### 日時型
+- `TIMESTAMPTZ`: タイムゾーン付きタイムスタンプ（PostgreSQL）
 
-### Check Constraints
-- `Video.status`: Only specified values allowed
-- `ChatLog.feedback`: Only specified values or NULL allowed
-- `UserApiKey.access_level`: Only 'all' or 'read_only' allowed
+### JSON型
+- `JSON`: JSONデータ（PostgreSQL 9.2+）
+- `JSONB`: バイナリJSON（高速検索可能）
+
+### ベクトル型
+- `vector(n)`: n次元ベクトル（pgvector拡張）
+
+---
+
+## 制約詳細
+
+### 主キー制約
+全テーブルで `id` が主キーとして設定されています。
+
+### 外部キー制約
+全外部キーに `ON DELETE CASCADE` が設定されており、親レコード削除時に子レコードが自動的に削除されます。
+
+### ユニーク制約
+- `User.username`: ユーザー名はユニーク
+- `User.email`: メールアドレスはユニーク
+- `VideoGroup.share_token`: 共有トークンはユニーク（NULL許容）
+- `VideoGroupMember(group_id, video_id)`: 同じ動画を同じグループに複数回追加不可
+- `UserApiKey.hashed_key`: ハッシュ済みAPIキーはユニーク
+- `UserApiKey(user, name)` WHERE `revoked_at IS NULL`: アクティブなAPIキー名はユーザーごとにユニーク
+
+### チェック制約
+- `Video.status`: 指定された値のみ許可
+- `ChatLog.feedback`: 指定された値またはNULLのみ許可
+- `UserApiKey.access_level`: 'all' または 'read_only' のみ許可
+
+---
+
+## Related Documentation
+
+- [📖 ドキュメント一覧](../README.md)
+- [ER図](er-diagram.md) — エンティティ関連図
+- [データフロー図](data-flow-diagram.md) — 機能ごとのデータの流れ
+- [クラス図](../design/class-diagram.md) — モデルクラスの詳細
+- [コンポーネント図](../design/component-diagram.md) — バックエンドコンポーネント構成

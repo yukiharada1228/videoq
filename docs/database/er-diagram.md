@@ -1,10 +1,10 @@
-# ER Diagram
+# ER図
 
-## Overview
+## 概要
 
-This diagram represents the database entities and relationships of the VideoQ system.
+VideoQシステムのデータベースエンティティとリレーションを示す図です。
 
-## ER Diagram
+## ER図
 
 ```mermaid
 erDiagram
@@ -113,131 +113,141 @@ erDiagram
     }
 ```
 
-## Relationship Details
+## リレーション詳細
 
-### User - Video (1:N)
-- **Relationship**: One user owns multiple videos
-- **Foreign Key**: `Video.user_id` → `User.id`
-- **Delete Action**: CASCADE (videos are deleted when user is deleted)
+### User - Video（1:N）
+- **リレーション**: 1人のユーザーが複数の動画を所有
+- **外部キー**: `Video.user_id` → `User.id`
+- **削除アクション**: CASCADE（ユーザー削除時に動画も削除）
 
-### User - VideoGroup (1:N)
-- **Relationship**: One user owns multiple video groups
-- **Foreign Key**: `VideoGroup.user_id` → `User.id`
-- **Delete Action**: CASCADE (groups are deleted when user is deleted)
+### User - VideoGroup（1:N）
+- **リレーション**: 1人のユーザーが複数の動画グループを所有
+- **外部キー**: `VideoGroup.user_id` → `User.id`
+- **削除アクション**: CASCADE（ユーザー削除時にグループも削除）
 
-### User - ChatLog (1:N)
-- **Relationship**: One user creates multiple chat logs
-- **Foreign Key**: `ChatLog.user_id` → `User.id`
-- **Delete Action**: CASCADE (chat logs are deleted when user is deleted)
+### User - ChatLog（1:N）
+- **リレーション**: 1人のユーザーが複数のチャットログを作成
+- **外部キー**: `ChatLog.user_id` → `User.id`
+- **削除アクション**: CASCADE（ユーザー削除時にチャットログも削除）
 
-### User - Tag (1:N)
-- **Relationship**: One user owns multiple tags
-- **Foreign Key**: `Tag.user_id` → `User.id`
-- **Delete Action**: CASCADE (tags are deleted when user is deleted)
+### User - Tag（1:N）
+- **リレーション**: 1人のユーザーが複数のタグを所有
+- **外部キー**: `Tag.user_id` → `User.id`
+- **削除アクション**: CASCADE（ユーザー削除時にタグも削除）
 
-### User - AccountDeletionRequest (1:N)
-- **Relationship**: One user can have multiple account deletion requests
-- **Foreign Key**: `AccountDeletionRequest.user_id` → `User.id`
-- **Delete Action**: CASCADE (requests are deleted when user is deleted)
+### User - AccountDeletionRequest（1:N）
+- **リレーション**: 1人のユーザーが複数のアカウント削除リクエストを作成可能
+- **外部キー**: `AccountDeletionRequest.user_id` → `User.id`
+- **削除アクション**: CASCADE（ユーザー削除時にリクエストも削除）
 
-### User - UserApiKey (1:N)
-- **Relationship**: One user can have multiple API keys
-- **Foreign Key**: `UserApiKey.user_id` → `User.id`
-- **Delete Action**: CASCADE (API keys are deleted when user is deleted)
+### User - UserApiKey（1:N）
+- **リレーション**: 1人のユーザーが複数のAPIキーを所有可能
+- **外部キー**: `UserApiKey.user_id` → `User.id`
+- **削除アクション**: CASCADE（ユーザー削除時にAPIキーも削除）
 
-### Video - VideoTag (1:N)
-- **Relationship**: One video can have multiple tags
-- **Foreign Key**: `VideoTag.video_id` → `Video.id`
-- **Delete Action**: CASCADE (video tags are deleted when video is deleted)
+### Video - VideoTag（1:N）
+- **リレーション**: 1つの動画に複数のタグを付与可能
+- **外部キー**: `VideoTag.video_id` → `Video.id`
+- **削除アクション**: CASCADE（動画削除時にタグ付与も削除）
 
-### Tag - VideoTag (1:N)
-- **Relationship**: One tag can be assigned to multiple videos
-- **Foreign Key**: `VideoTag.tag_id` → `Tag.id`
-- **Delete Action**: CASCADE (video tags are deleted when tag is deleted)
+### Tag - VideoTag（1:N）
+- **リレーション**: 1つのタグを複数の動画に付与可能
+- **外部キー**: `VideoTag.tag_id` → `Tag.id`
+- **削除アクション**: CASCADE（タグ削除時にタグ付与も削除）
 
-### VideoGroup - VideoGroupMember (1:N)
-- **Relationship**: One group has multiple members
-- **Foreign Key**: `VideoGroupMember.group_id` → `VideoGroup.id`
-- **Delete Action**: CASCADE (members are deleted when group is deleted)
+### VideoGroup - VideoGroupMember（1:N）
+- **リレーション**: 1つのグループが複数のメンバーを持つ
+- **外部キー**: `VideoGroupMember.group_id` → `VideoGroup.id`
+- **削除アクション**: CASCADE（グループ削除時にメンバーも削除）
 
-### Video - VideoGroupMember (1:N)
-- **Relationship**: One video can belong to multiple groups
-- **Foreign Key**: `VideoGroupMember.video_id` → `Video.id`
-- **Delete Action**: CASCADE (memberships are deleted when video is deleted)
+### Video - VideoGroupMember（1:N）
+- **リレーション**: 1つの動画が複数のグループに所属可能
+- **外部キー**: `VideoGroupMember.video_id` → `Video.id`
+- **削除アクション**: CASCADE（動画削除時にメンバーシップも削除）
 
-### VideoGroup - ChatLog (1:N)
-- **Relationship**: One group has multiple chat logs
-- **Foreign Key**: `ChatLog.group_id` → `VideoGroup.id`
-- **Delete Action**: CASCADE (chat logs are deleted when group is deleted)
+### VideoGroup - ChatLog（1:N）
+- **リレーション**: 1つのグループが複数のチャットログを持つ
+- **外部キー**: `ChatLog.group_id` → `VideoGroup.id`
+- **削除アクション**: CASCADE（グループ削除時にチャットログも削除）
 
-### VideoGroup - Video (N:M through VideoGroupMember)
-- **Relationship**: Many-to-many relationship (via intermediate table)
-- **Intermediate Table**: `VideoGroupMember`
-- **Additional Attributes**: `order` (order within group)
+### VideoGroup - Video（N:M — VideoGroupMember経由）
+- **リレーション**: 多対多のリレーション（中間テーブル経由）
+- **中間テーブル**: `VideoGroupMember`
+- **追加属性**: `order`（グループ内の順序）
 
-### Video - Tag (N:M through VideoTag)
-- **Relationship**: Many-to-many relationship (via intermediate table)
-- **Intermediate Table**: `VideoTag`
-- **Additional Attributes**: `added_at` (timestamp of tag assignment)
+### Video - Tag（N:M — VideoTag経由）
+- **リレーション**: 多対多のリレーション（中間テーブル経由）
+- **中間テーブル**: `VideoTag`
+- **追加属性**: `added_at`（タグ付与日時）
 
-## Constraints
+## 制約
 
-### Primary Key
-- All tables have `id` as the primary key
+### 主キー
+- 全テーブルで `id` が主キー
 
-### Unique Constraints
-- `User.username`: Username is unique
-- `User.email`: Email address is unique
-- `VideoGroup.share_token`: Share token is unique (NULL allowed)
-- `VideoGroupMember(group_id, video_id)`: Cannot add the same video to the same group multiple times
-- `Tag(user_id, name)`: Tag names are unique per user
-- `VideoTag(video_id, tag_id)`: Cannot assign the same tag to the same video multiple times
-- `UserApiKey.hashed_key`: Hashed API key is unique
-- `UserApiKey(user, name)` where `revoked_at IS NULL`: Active API key names are unique per user (partial unique constraint)
+### ユニーク制約
+- `User.username`: ユーザー名はユニーク
+- `User.email`: メールアドレスはユニーク
+- `VideoGroup.share_token`: 共有トークンはユニーク（NULL許容）
+- `VideoGroupMember(group_id, video_id)`: 同じ動画を同じグループに複数回追加不可
+- `Tag(user_id, name)`: タグ名はユーザーごとにユニーク
+- `VideoTag(video_id, tag_id)`: 同じタグを同じ動画に複数回付与不可
+- `UserApiKey.hashed_key`: ハッシュ済みAPIキーはユニーク
+- `UserApiKey(user, name)` WHERE `revoked_at IS NULL`: アクティブなAPIキー名はユーザーごとにユニーク（部分ユニーク制約）
 
-### Foreign Key Constraints
-- All foreign keys have CASCADE delete set
-- Referential integrity is guaranteed
+### 外部キー制約
+- 全外部キーにCASCADE削除が設定済み
+- 参照整合性を保証
 
-### Check Constraints
-- `Video.status`: Must be one of 'pending', 'processing', 'indexing', 'completed', 'error'
-- `ChatLog.feedback`: Must be 'good', 'bad', or NULL
-- `UserApiKey.access_level`: Must be one of 'all', 'read_only'
+### チェック制約
+- `Video.status`: 'pending', 'processing', 'indexing', 'completed', 'error' のいずれか
+- `ChatLog.feedback`: 'good', 'bad', または NULL
+- `UserApiKey.access_level`: 'all' または 'read_only'
 
-## Indexes
+## インデックス
 
-### Automatic Indexes
-- Primary Key: All `id` columns
-- Foreign Keys: All foreign key columns
-- Unique Constraints: `username`, `email`, `share_token`, `hashed_key`
+### 自動インデックス
+- 主キー: 全 `id` カラム
+- 外部キー: 全外部キーカラム
+- ユニーク制約: `username`, `email`, `share_token`, `hashed_key`
 
-### Custom Indexes
-- `User(email, is_active)`: For login lookup
-- `User(date_joined, -id)`: For user listing
-- `User.deactivated_at`: For deactivated account queries
-- `User.video_limit`: For limit queries
-- `Video.uploaded_at`: For descending sort (Meta.ordering)
-- `Video(user, status, -uploaded_at)`: For filtered user video listing
-- `Video(user, title)`: For title search
-- `VideoGroup(user, -created_at)`: For owner group listing
-- `VideoGroup.share_token` (partial where NOT NULL): For share-token lookup
-- `ChatLog.created_at`: For descending sort (Meta.ordering)
-- `ChatLog(user, -created_at)`: For per-user chat history
-- `ChatLog(group, -created_at)`: For per-group chat history
-- `ChatLog.feedback` (partial where NOT NULL): For feedback analytics
-- `VideoGroupMember(group, order)`: For group ordering reads
-- `VideoGroupMember(video, group)`: For membership lookups
-- `Tag(user, name)`: For per-user alphabetical ordering
-- `VideoTag(video, tag)`: For tag assignment lookup
-- `VideoTag(tag, -added_at)`: For recent tag usage
-- `UserApiKey.prefix`: For API key prefix lookup
-- `UserApiKey.revoked_at`: For active/revoked key queries
-- `UserApiKey(-created_at, -id)`: For ordering (Meta.ordering)
+### カスタムインデックス
+- `User(email, is_active)`: ログイン検索用
+- `User(date_joined, -id)`: ユーザー一覧用
+- `User.deactivated_at`: 無効化アカウントのクエリ用
+- `User.video_limit`: 制限クエリ用
+- `Video.uploaded_at`: 降順ソート用（Meta.ordering）
+- `Video(user, status, -uploaded_at)`: フィルタ付きユーザー動画一覧用
+- `Video(user, title)`: タイトル検索用
+- `VideoGroup(user, -created_at)`: オーナーのグループ一覧用
+- `VideoGroup.share_token`（部分: NOT NULL）: 共有トークン検索用
+- `ChatLog.created_at`: 降順ソート用（Meta.ordering）
+- `ChatLog(user, -created_at)`: ユーザー別チャット履歴用
+- `ChatLog(group, -created_at)`: グループ別チャット履歴用
+- `ChatLog.feedback`（部分: NOT NULL）: フィードバック分析用
+- `VideoGroupMember(group, order)`: グループの順序読み取り用
+- `VideoGroupMember(video, group)`: メンバーシップ検索用
+- `Tag(user, name)`: ユーザー別アルファベット順ソート用
+- `VideoTag(video, tag)`: タグ付与検索用
+- `VideoTag(tag, -added_at)`: 最新タグ使用用
+- `UserApiKey.prefix`: APIキープレフィックス検索用
+- `UserApiKey.revoked_at`: アクティブ/失効キークエリ用
+- `UserApiKey(-created_at, -id)`: ソート用（Meta.ordering）
 
-## pgvector Extension
+## pgvector拡張
 
-### Vector Storage
-- Uses PostgreSQL's pgvector extension
-- Stores vectorized text for each video scene
-- Stores metadata such as `video_id`, `user_id`, `video_title`, `start_time`, `end_time`
-- Used for RAG (Retrieval-Augmented Generation)
+### ベクトルストレージ
+- PostgreSQLのpgvector拡張を使用
+- 各動画シーンのベクトル化されたテキストを保存
+- `video_id`、`user_id`、`video_title`、`start_time`、`end_time` などのメタデータを保存
+- RAG（Retrieval-Augmented Generation）に使用
+
+---
+
+## Related Documentation
+
+- [📖 ドキュメント一覧](../README.md)
+- [データ辞書](data-dictionary.md) — テーブル・カラム定義の詳細
+- [データフロー図](data-flow-diagram.md) — 機能ごとのデータの流れ
+- [クラス図](../design/class-diagram.md) — モデルクラスの詳細
+- [システム構成図](../architecture/system-configuration-diagram.md) — 全体アーキテクチャ

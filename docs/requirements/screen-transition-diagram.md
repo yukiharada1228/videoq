@@ -1,10 +1,10 @@
-# Screen Transition Diagram
+# 画面遷移図
 
-## Overview
+## 概要
 
-This diagram represents the frontend screen transitions of the VideoQ application.
+VideoQアプリケーションのフロントエンドの画面遷移を示す図です。
 
-## Screen Transition Diagram
+## 画面遷移図
 
 ```mermaid
 stateDiagram-v2
@@ -89,74 +89,84 @@ stateDiagram-v2
     end note
 ```
 
-## Screen List
+## 画面一覧
 
-### Authentication Related
-- **Home** (`/` or `/:locale`): Home page (e.g., `/`, `/en`, `/ja`)
-- **Login** (`/login` or `/:locale/login`): Login page
-- **Signup** (`/signup` or `/:locale/signup`): Sign up page (only when `ENABLE_SIGNUP=true`)
-- **CheckEmail** (`/signup/check-email` or `/:locale/signup/check-email`): Email confirmation waiting page
-- **VerifyEmail** (`/verify-email` or `/:locale/verify-email`): Email verification page
-- **ForgotPassword** (`/forgot-password` or `/:locale/forgot-password`): Password reset request page
-- **ResetPassword** (`/reset-password` or `/:locale/reset-password`): Password reset page
+### 認証関連
+- **Home** (`/` または `/:locale`): ホームページ（例: `/`、`/en`、`/ja`）
+- **Login** (`/login` または `/:locale/login`): ログインページ
+- **Signup** (`/signup` または `/:locale/signup`): サインアップページ（`ENABLE_SIGNUP=true` の場合のみ）
+- **CheckEmail** (`/signup/check-email` または `/:locale/signup/check-email`): メール確認待ちページ
+- **VerifyEmail** (`/verify-email` または `/:locale/verify-email`): メール確認ページ
+- **ForgotPassword** (`/forgot-password` または `/:locale/forgot-password`): パスワードリセットリクエストページ
+- **ResetPassword** (`/reset-password` または `/:locale/reset-password`): パスワードリセットページ
 
-### Video Management
-- **VideoList** (`/videos` or `/:locale/videos`): Video list page
-- **VideoDetail** (`/videos/:id` or `/:locale/videos/:id`): Video detail page
+### 動画管理
+- **VideoList** (`/videos` または `/:locale/videos`): 動画一覧ページ
+- **VideoDetail** (`/videos/:id` または `/:locale/videos/:id`): 動画詳細ページ
 
-### Group Management
-- **VideoGroupList** (`/videos/groups` or `/:locale/videos/groups`): Group list page
-- **VideoGroupDetail** (`/videos/groups/:id` or `/:locale/videos/groups/:id`): Group detail page
+### グループ管理
+- **VideoGroupList** (`/videos/groups` または `/:locale/videos/groups`): グループ一覧ページ
+- **VideoGroupDetail** (`/videos/groups/:id` または `/:locale/videos/groups/:id`): グループ詳細ページ
 
-### Sharing
-- **SharePage** (`/share/:token` or `/:locale/share/:token`): Share page (no authentication required)
+### 共有
+- **SharePage** (`/share/:token` または `/:locale/share/:token`): 共有ページ（認証不要）
 
-### Settings
-- **Settings** (`/settings` or `/:locale/settings`): Settings page (account info, deactivation, API key management)
+### 設定
+- **Settings** (`/settings` または `/:locale/settings`): 設定ページ（アカウント情報、無効化、APIキー管理）
 
-**Note**: This project implements locale-aware routing with React Router + react-i18next (not Next.js / next-intl) (`frontend/src/App.tsx`).
-- The default locale (`en`) has no prefix: `/videos`
-- Other locales use the `/:locale` prefix: `/ja/videos`
-- If `/:locale` is missing and the user's preferred locale is not the default, the app automatically redirects to `/:locale/...`
+**注記**: このプロジェクトはReact Router + react-i18next（Next.js / next-intl ではない）でロケール対応ルーティングを実装しています（`frontend/src/App.tsx`）。
+- デフォルトロケール（`en`）はプレフィックスなし: `/videos`
+- その他のロケールは `/:locale` プレフィックスを使用: `/ja/videos`
+- `/:locale` が欠落しており、ユーザーの優先ロケールがデフォルトでない場合、アプリは自動的に `/:locale/...` にリダイレクトします
 
-## Transition Conditions
+## 遷移条件
 
-### Transitions Based on Authentication Status
-- **Unauthenticated User**: Home → Login/Signup → After authentication → VideoList
-- **Authenticated User**: Home → VideoList (direct transition)
+### 認証状態による遷移
+- **未認証ユーザー**: Home → Login/Signup → 認証後 → VideoList
+- **認証済みユーザー**: Home → VideoList（直接遷移）
 
-### Feature Flags
-- When `ENABLE_SIGNUP=false`, `/api/auth/signup/` is disabled and the signup flow is unavailable.
+### 機能フラグ
+- `ENABLE_SIGNUP=false` の場合、`/api/auth/signup/` が無効化され、サインアップフローは利用不可になります。
 
-### Transitions via Share Links
-- **Share Token URL**: Direct access to SharePage (no authentication required)
+### 共有リンクによる遷移
+- **共有トークンURL**: SharePageへの直接アクセス（認証不要）
 
-### Transitions via API Key
-- **API Client**: No screen transitions — API keys are used for server-to-server integrations, not browser-based access
+### APIキーによる遷移
+- **APIクライアント**: 画面遷移なし — APIキーはサーバー間連携用であり、ブラウザベースのアクセスではありません
 
-### Error Handling
-- Authentication Error: Any page → Login
-- 404 Error: Non-existent resource → Appropriate error page
-- Permission Error: Inaccessible resource → Error message display
+### エラーハンドリング
+- 認証エラー: 任意のページ → Login
+- 404エラー: 存在しないリソース → 適切なエラーページ
+- 権限エラー: アクセス不可なリソース → エラーメッセージ表示
 
-## In-Page Interactions (No Route Change)
+## ページ内インタラクション（ルート変更なし）
 
-The following interactions happen within a page (modals, panels, drawers) without navigating to a new route:
+以下のインタラクションは、新しいルートに移動せず、ページ内（モーダル、パネル、ドロワー）で発生します:
 
 ### VideoGroupDetail
-- **Analytics Dashboard**: Opens as a modal/panel within the group detail page
-- **Shorts Player**: Opens as a full-screen overlay from the group detail page
-- **Chat Panel**: Inline panel for chatting with the group's videos
+- **分析ダッシュボード**: グループ詳細ページ内のモーダル/パネルとして開く
+- **ショートプレイヤー**: グループ詳細ページからフルスクリーンオーバーレイで開く
+- **チャットパネル**: グループの動画とチャットするためのインラインパネル
 
 ### VideoDetail
-- **Tag Management**: Tag selector and create dialog are inline modals
-- **Add to Group**: Modal to add the video to a group
+- **タグ管理**: タグセレクターと作成ダイアログはインラインモーダル
+- **グループに追加**: 動画をグループに追加するモーダル
 
 ### VideoList
-- **Video Upload**: Modal for uploading a new video
-- **Tag Filter Panel**: Inline panel for filtering by tags
+- **動画アップロード**: 新しい動画をアップロードするモーダル
+- **タグフィルターパネル**: タグでフィルタリングするためのインラインパネル
 
 ### Settings
-- **API Key Creation**: Form within the settings page for creating new API keys
-- **API Key Revocation**: Confirmation dialog within the settings page
-- **Account Deactivation**: Form and confirmation dialog within the settings page
+- **APIキー作成**: 設定ページ内の新規APIキー作成フォーム
+- **APIキー失効**: 設定ページ内の確認ダイアログ
+- **アカウント無効化**: 設定ページ内のフォームと確認ダイアログ
+
+---
+
+## Related Documentation
+
+- [📖 ドキュメント一覧](../README.md)
+- [ユースケース図](use-case-diagram.md) — ユーザー操作一覧
+- [アクティビティ図](activity-diagram.md) — 主要な業務フロー
+- [コンポーネント図](../design/component-diagram.md) — フロントエンドコンポーネント構成
+- [状態遷移図](../design/state-diagram.md) — 状態遷移の詳細
