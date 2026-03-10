@@ -1,10 +1,10 @@
-# Component Diagram
+# コンポーネント図
 
-## Overview
+## 概要
 
-This diagram shows the major components of VideoQ's frontend and backend.
+VideoQのフロントエンドとバックエンドの主要コンポーネントを示す図です。
 
-## Frontend Component Structure
+## フロントエンドコンポーネント構成
 
 ```mermaid
 graph TB
@@ -125,7 +125,7 @@ graph TB
     Lib --> apiClient
 ```
 
-## Backend Component Structure (Clean Architecture)
+## バックエンドコンポーネント構成（クリーンアーキテクチャ）
 
 ```mermaid
 graph TB
@@ -344,7 +344,7 @@ graph TB
     Tasks --> Contracts
 ```
 
-## System-Wide Component Structure
+## システム全体のコンポーネント構成
 
 ```mermaid
 graph TB
@@ -393,24 +393,34 @@ graph TB
     DjangoAPI --> PostgreSQL
 ```
 
-## Component Dependencies
+## コンポーネント依存関係
 
-### Frontend
-- **Pages** → **Components**: Pages use components
-- **Components** → **Hooks**: Components use custom hooks
-- **Hooks** → **Lib**: Hooks use libraries
-- **Components** → **UI Components**: Use common UI components
+### フロントエンド
+- **Pages** → **Components**: ページがコンポーネントを使用
+- **Components** → **Hooks**: コンポーネントがカスタムフックを使用
+- **Hooks** → **Lib**: フックがライブラリを使用
+- **Components** → **UI Components**: 共通UIコンポーネントを使用
 
-### Backend
-- **Presentation (`presentation/*`, `admin.py`)** → **Dependencies (`dependencies/*.py`)**: framework entrypoints resolve providers only via dependencies
-- **Dependencies** → **Composition Root (`composition_root/*.py`)**: provider functions delegate 1:1 to wiring functions
-- **Composition Root** → **Use Cases / Infrastructure**: assembles concrete adapters and use case instances
-- **Use Cases** → **Domain ports/entities**: business logic depends only on domain abstractions
-- **Infrastructure** → **Domain + ORM/External**: adapter implementations bridge domain ports to Django ORM and external services
-- **Entrypoints (`entrypoints/tasks/`)** → **Use Cases**: Celery task entrypoints delegate to use cases via composition root
+### バックエンド
+- **Presentation (`presentation/*`, `admin.py`)** → **Dependencies (`dependencies/*.py`)**: フレームワークのエントリーポイントはdependencies経由でのみプロバイダーを解決
+- **Dependencies** → **Composition Root (`composition_root/*.py`)**: プロバイダー関数は1:1で配線関数に委譲
+- **Composition Root** → **Use Cases / Infrastructure**: 具体的なアダプターとユースケースインスタンスを組み立て
+- **Use Cases** → **Domain ports/entities**: ビジネスロジックはドメインの抽象のみに依存
+- **Infrastructure** → **Domain + ORM/External**: アダプター実装がドメインポートとDjango ORM/外部サービスを橋渡し
+- **Entrypoints (`entrypoints/tasks/`)** → **Use Cases**: Celeryタスクエントリーポイントがcomposition root経由でユースケースに委譲
 
-### System-Wide
-- **Client** → **Gateway**: Client accesses via gateway
-- **Gateway** → **Frontend/Backend**: Gateway routes requests
-- **Backend** → **Data**: Backend uses data layer
-- **Backend** → **External**: Backend uses external services
+### システム全体
+- **Client** → **Gateway**: クライアントがゲートウェイ経由でアクセス
+- **Gateway** → **Frontend/Backend**: ゲートウェイがリクエストをルーティング
+- **Backend** → **Data**: バックエンドがデータ層を使用
+- **Backend** → **External**: バックエンドが外部サービスを使用
+
+---
+
+## Related Documentation
+
+- [📖 ドキュメント一覧](../README.md)
+- [クラス図](class-diagram.md) — モデル・ユースケース・ビューの詳細
+- [システム構成図](../architecture/system-configuration-diagram.md) — 全体アーキテクチャ
+- [画面遷移図](../requirements/screen-transition-diagram.md) — フロントエンドの画面遷移
+- [デプロイメント図](deployment-diagram.md) — Docker Compose構成

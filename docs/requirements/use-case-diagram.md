@@ -1,10 +1,10 @@
-# Use Case Diagram
+# ユースケース図
 
-## Overview
+## 概要
 
-This diagram represents the main use cases of the VideoQ system.
+VideoQシステムの主要なユースケースを示す図です。
 
-## Use Case Diagram
+## ユースケース図
 
 ```mermaid
 graph TB
@@ -140,70 +140,80 @@ graph TB
     UC38 -.->|Enables| ApiClient
 ```
 
-## Use Case Descriptions
+## ユースケース詳細
 
-### Authentication
-- **UC1 Sign Up**: New user registration
-- **UC2 Email Verification**: Email address confirmation
-- **UC3 Login**: User authentication
-- **UC4 Logout**: Session termination
-- **UC5 Password Reset**: Password reset
-- **UC6 Token Refresh**: JWT token refresh
+### 認証
+- **UC1 サインアップ**: 新規ユーザー登録
+- **UC2 メール確認**: メールアドレスの確認
+- **UC3 ログイン**: ユーザー認証
+- **UC4 ログアウト**: セッション終了
+- **UC5 パスワードリセット**: パスワードの再設定
+- **UC6 トークンリフレッシュ**: JWTトークンの更新
 
-### Video Management
-- **UC7 Upload Video**: Upload video file
-- **UC8 List Videos**: List uploaded videos
-- **UC9 View Video Details**: Display video details
-- **UC10 Edit Video**: Edit title and description
-- **UC11 Delete Video**: Delete video
-- **UC12 View Transcript**: View transcription results
+### 動画管理
+- **UC7 動画アップロード**: 動画ファイルのアップロード
+- **UC8 動画一覧**: アップロード済み動画の一覧表示
+- **UC9 動画詳細表示**: 動画の詳細情報を表示
+- **UC10 動画編集**: タイトルと説明の編集
+- **UC11 動画削除**: 動画の削除
+- **UC12 文字起こし表示**: 文字起こし結果の閲覧
 
-### Transcription Processing
-- **UC13 Auto Transcription**: Automatic transcription after upload (background)
-- **UC14 Check Transcription Status**: Check processing status
+### 文字起こし処理
+- **UC13 自動文字起こし**: アップロード後の自動文字起こし（バックグラウンド）
+- **UC14 文字起こしステータス確認**: 処理状況の確認
 
-### Group Management
-- **UC15 Create Group**: Create video group
-- **UC16 List Groups**: Display group list
-- **UC17 View Group Details**: Display group details
-- **UC18 Edit Group**: Edit group name and description
-- **UC19 Delete Group**: Delete group
-- **UC20 Add Video to Group**: Add video to group
-- **UC21 Remove Video from Group**: Remove video from group
-- **UC22 Reorder Videos in Group**: Change video order in group
+### グループ管理
+- **UC15 グループ作成**: 動画グループの作成
+- **UC16 グループ一覧**: グループリストの表示
+- **UC17 グループ詳細表示**: グループの詳細情報表示
+- **UC18 グループ編集**: グループ名と説明の編集
+- **UC19 グループ削除**: グループの削除
+- **UC20 動画をグループに追加**: グループへの動画追加
+- **UC21 動画をグループから削除**: グループからの動画削除
+- **UC22 グループ内動画の並べ替え**: グループ内の動画順序を変更
 
-### Chat Features
-- **UC23 Send Chat**: Send question to AI chat
-- **UC24 View Chat History**: Display past chat history
-- **UC25 Export Chat History**: Export chat history as CSV
-- **UC26 Send Feedback**: Provide feedback on chat response
-- **UC32 View Popular Scenes**: View popular scenes referenced in chat
-- **UC40 View Chat Analytics**: View analytics dashboard with feedback distribution, keyword cloud, question time series, and scene distribution charts
+### チャット機能
+- **UC23 チャット送信**: AIチャットに質問を送信
+- **UC24 チャット履歴表示**: 過去のチャット履歴を表示
+- **UC25 チャット履歴エクスポート**: チャット履歴をCSVでエクスポート
+- **UC26 フィードバック送信**: チャット回答へのフィードバック
+- **UC32 人気シーン表示**: チャットで参照された人気シーンを表示
+- **UC40 チャット分析表示**: フィードバック分布、キーワードクラウド、質問時系列、シーン分布チャートを含む分析ダッシュボードを表示
 
-### Sharing Features
-- **UC27 Generate Share Link**: Generate share link for group
-- **UC28 Delete Share Link**: Disable share link
-- **UC29 View Shared Group**: View group via share link (no authentication required)
-- **UC30 Chat with Shared Group**: Chat with shared group (no authentication required)
+### 共有機能
+- **UC27 共有リンク生成**: グループの共有リンクを生成
+- **UC28 共有リンク削除**: 共有リンクを無効化
+- **UC29 共有グループ表示**: 共有リンクでグループを閲覧（認証不要）
+- **UC30 共有グループとチャット**: 共有グループでチャット（認証不要）
 
-### Settings
-- **UC31 View User Info**: Display current user information
-- **UC33 Deactivate Account**: Deactivate user account (soft delete, sets `is_active=False` and records `deactivated_at`)
-- **UC34 Request Account Deletion**: Submit an account deletion request with a reason
+### 設定
+- **UC31 ユーザー情報表示**: 現在のユーザー情報を表示
+- **UC33 アカウント無効化**: ユーザーアカウントを無効化（論理削除、`is_active=False` に設定し `deactivated_at` を記録）
+- **UC34 アカウント削除リクエスト**: 理由を添えてアカウント削除を申請
 
-### API Key Management
-- **UC37 List API Keys**: List all active API keys for the user
-- **UC38 Create API Key**: Create a new API key with name and access level (`all` or `read_only`)
-- **UC39 Revoke API Key**: Revoke (soft delete) an API key
+### APIキー管理
+- **UC37 APIキー一覧**: ユーザーのアクティブなAPIキーを一覧表示
+- **UC38 APIキー作成**: 名前とアクセスレベル（`all` または `read_only`）を指定してAPIキーを作成
+- **UC39 APIキー失効**: APIキーを失効（論理削除）
 
-### Administration
-- **UC35 Re-index Video Embeddings**: Re-generate all video embeddings with new model (superuser only)
-- **UC36 Monitor Re-indexing Progress**: Monitor re-indexing task progress via Celery logs
+### 管理機能
+- **UC35 動画エンベディング再インデックス**: 新しいモデルで全動画のエンベディングを再生成（スーパーユーザーのみ）
+- **UC36 再インデックス進捗監視**: Celeryログで再インデックスタスクの進捗を監視
 
-**Note:**
-- LLM and embedding configuration is managed globally via environment variables (`LLM_PROVIDER`, `LLM_MODEL`, `EMBEDDING_PROVIDER`, `EMBEDDING_MODEL`).
-- Signup is controlled by `ENABLE_SIGNUP`; when disabled, `POST /api/auth/signup/` is not routed.
-- When using local whisper.cpp server (WHISPER_BACKEND=whisper.cpp), OpenAI API key is not required for transcription.
-- Re-indexing uses the global `OPENAI_API_KEY` or `OLLAMA_BASE_URL` environment variable (depending on `EMBEDDING_PROVIDER`) and is required when switching embedding providers (OpenAI ↔ Ollama) or models.
-- API keys enable server-to-server integrations. The raw key is shown only once at creation; only the SHA-256 hash is stored.
-- `read_only` API keys can access read scopes and `chat_write` scope (`POST /api/chat/`), but cannot perform other write operations.
+**注記:**
+- LLMとエンベディングの設定は環境変数（`LLM_PROVIDER`、`LLM_MODEL`、`EMBEDDING_PROVIDER`、`EMBEDDING_MODEL`）でグローバルに管理されます。
+- サインアップは `ENABLE_SIGNUP` で制御されます。無効時は `POST /api/auth/signup/` がルーティングされません。
+- ローカル whisper.cpp サーバー（WHISPER_BACKEND=whisper.cpp）使用時は、文字起こしにOpenAI APIキーは不要です。
+- 再インデックスはグローバルな `OPENAI_API_KEY` または `OLLAMA_BASE_URL` 環境変数（`EMBEDDING_PROVIDER` に依存）を使用し、エンベディングプロバイダー（OpenAI ↔ Ollama）やモデルの切り替え時に必要です。
+- APIキーはサーバー間連携を可能にします。生のキーは作成時に1回のみ表示され、SHA-256ハッシュのみが保存されます。
+- `read_only` APIキーはreadスコープと `chat_write` スコープ（`POST /api/chat/`）にアクセスできますが、その他の書き込み操作はできません。
+
+---
+
+## Related Documentation
+
+- [📖 ドキュメント一覧](../README.md)
+- [アクティビティ図](activity-diagram.md) — 主要な業務フロー
+- [画面遷移図](screen-transition-diagram.md) — フロントエンドの画面遷移
+- [システム構成図](../architecture/system-configuration-diagram.md) — 全体アーキテクチャ
+- [ER図](../database/er-diagram.md) — エンティティ関連

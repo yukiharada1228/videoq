@@ -1,10 +1,10 @@
-# Class Diagram
+# クラス図
 
-## Overview
+## 概要
 
-This diagram shows the backend models and frontend components of the VideoQ system.
+VideoQシステムのバックエンドモデルとフロントエンドコンポーネントを示す図です。
 
-## Backend Models (Django)
+## バックエンドモデル（Django）
 
 ```mermaid
 classDiagram
@@ -150,7 +150,7 @@ classDiagram
     QueryOptimizer --> VideoGroup : optimizes
 ```
 
-## Frontend Components (React/TypeScript)
+## フロントエンドコンポーネント（React/TypeScript）
 
 ```mermaid
 classDiagram
@@ -303,9 +303,9 @@ classDiagram
     QueryProvider --> I18nProvider : wraps
 ```
 
-## Backend Domain Layer (Clean Architecture)
+## バックエンドドメイン層（クリーンアーキテクチャ）
 
-### Domain Abstractions
+### ドメイン抽象
 
 ```mermaid
 classDiagram
@@ -392,7 +392,7 @@ classDiagram
     VideoRepository --|> VideoTranscriptionRepository
 ```
 
-### Use Case Interfaces
+### ユースケースインターフェース
 
 ```mermaid
 classDiagram
@@ -498,7 +498,7 @@ classDiagram
     }
 ```
 
-### Presentation Views (thin — delegate to use cases via container)
+### プレゼンテーションビュー（薄い層 — コンテナ経由でユースケースに委譲）
 
 ```mermaid
 classDiagram
@@ -583,23 +583,33 @@ classDiagram
     ProtectedMediaView ..> ResolveProtectedMediaUseCase : delegates
 ```
 
-## Key Relationships
+## 主要なリレーション
 
-### Backend
-- **User** owns multiple **Video** instances
-- **User** owns multiple **VideoGroup** instances
-- **User** owns multiple **UserApiKey** instances
-- **VideoGroup** relates to multiple **Video** instances through **VideoGroupMember**
-- **ChatLog** is associated with **User** and **VideoGroup**
-- **Video** uses **SafeFileSystemStorage** or **SafeS3Boto3Storage**
-- **Presentation views** delegate to **Use Cases** via `get_container()` (never import infrastructure directly)
-- **Use Cases** depend only on **Domain** abstractions (ABCs / ports)
-- **Infrastructure** implements **Domain** ports (repositories, gateways)
-- **Entrypoints** (Celery tasks) delegate to **Use Cases** via composition root
+### バックエンド
+- **User** は複数の **Video** インスタンスを所有
+- **User** は複数の **VideoGroup** インスタンスを所有
+- **User** は複数の **UserApiKey** インスタンスを所有
+- **VideoGroup** は **VideoGroupMember** を通じて複数の **Video** に関連
+- **ChatLog** は **User** と **VideoGroup** に関連付け
+- **Video** は **SafeFileSystemStorage** または **SafeS3Boto3Storage** を使用
+- **Presentation views** は `get_container()` 経由で **Use Cases** に委譲（infrastructureを直接インポートしない）
+- **Use Cases** は **Domain** の抽象（ABCs / ports）のみに依存
+- **Infrastructure** は **Domain** のポートを実装（リポジトリ、ゲートウェイ）
+- **Entrypoints**（Celeryタスク）はcomposition root経由で **Use Cases** に委譲
 
-### Frontend
-- **PageLayout** contains **Header** and **Footer**
-- **AuthForm** contains multiple **FormField** instances
-- **VideoList** contains multiple **VideoCard** instances
-- **AnalyticsDashboard** contains chart components (FeedbackDonut, KeywordCloud, QuestionTimeSeries, SceneDistribution)
-- **I18nProvider** wraps the entire application
+### フロントエンド
+- **PageLayout** は **Header** と **Footer** を含む
+- **AuthForm** は複数の **FormField** インスタンスを含む
+- **VideoList** は複数の **VideoCard** インスタンスを含む
+- **AnalyticsDashboard** はチャートコンポーネント（FeedbackDonut, KeywordCloud, QuestionTimeSeries, SceneDistribution）を含む
+- **I18nProvider** がアプリケーション全体をラップ
+
+---
+
+## Related Documentation
+
+- [📖 ドキュメント一覧](../README.md)
+- [コンポーネント図](component-diagram.md) — フロントエンド・バックエンドのコンポーネント構成
+- [ER図](../database/er-diagram.md) — エンティティ関連図
+- [データ辞書](../database/data-dictionary.md) — テーブル・カラム定義
+- [シーケンス図](sequence-diagram.md) — 処理シーケンスの詳細

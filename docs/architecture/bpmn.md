@@ -1,10 +1,10 @@
-# BPMN Diagram
+# BPMN図
 
-## Overview
+## 概要
 
-This diagram represents the business processes of the VideoQ system using BPMN (Business Process Model and Notation).
+BPMN（Business Process Model and Notation）を使用したVideoQシステムのビジネスプロセスを示す図です。
 
-## 1. User Registration Process
+## 1. ユーザー登録プロセス
 
 ```mermaid
 flowchart TD
@@ -31,7 +31,7 @@ flowchart TD
     ActivateAccount --> Complete([Registration Complete])
 ```
 
-## 2. Video Upload & Transcription Process
+## 2. 動画アップロード・文字起こしプロセス
 
 ```mermaid
 flowchart TD
@@ -67,7 +67,7 @@ flowchart TD
     NotifyComplete --> End
 ```
 
-## 3. Chat Question & Answer Process
+## 3. チャット質問応答プロセス
 
 ```mermaid
 flowchart TD
@@ -105,7 +105,7 @@ flowchart TD
     SaveFeedback --> Complete([Complete])
 ```
 
-## 4. Group Sharing Process
+## 4. グループ共有プロセス
 
 ```mermaid
 flowchart TD
@@ -140,7 +140,7 @@ flowchart TD
     InvalidateLink --> Complete
 ```
 
-## 5. Video Group Management Process
+## 5. 動画グループ管理プロセス
 
 ```mermaid
 flowchart TD
@@ -194,7 +194,7 @@ flowchart TD
     UpdateOrder --> Complete
 ```
 
-## 6. Password Reset Process
+## 6. パスワードリセットプロセス
 
 ```mermaid
 flowchart TD
@@ -228,7 +228,7 @@ flowchart TD
     ShowError --> Complete
 ```
 
-## 7. Video Deletion Process
+## 7. 動画削除プロセス
 
 ```mermaid
 flowchart TD
@@ -246,25 +246,25 @@ flowchart TD
     DeleteRecord --> Complete([Deletion Complete])
 ```
 
-## Process Characteristics
+## プロセス特性
 
-### Asynchronous Processing
-- Video transcription is processed asynchronously in the background
-- Task queue management by Celery Worker
+### 非同期処理
+- 動画の文字起こしはバックグラウンドで非同期に処理されます
+- Celery Workerによるタスクキュー管理
 
-### Error Handling
-- Appropriate error handling in each process
-- User-friendly error messages
+### エラーハンドリング
+- 各プロセスで適切なエラーハンドリングを実施
+- ユーザーフレンドリーなエラーメッセージ
 
-### Security
-- Authentication and authorization checks in each process
-- Secure token-based authentication
+### セキュリティ
+- 各プロセスで認証・認可チェックを実施
+- 安全なトークンベースの認証
 
-### Data Integrity
-- Transaction management using `transaction.atomic` to ensure data consistency
-- Referential integrity guarantee through CASCADE deletion
+### データ整合性
+- `transaction.atomic` によるトランザクション管理でデータの整合性を保証
+- CASCADE削除による参照整合性の保証
 
-## 8. Account Deactivation Process
+## 8. アカウント無効化プロセス
 
 ```mermaid
 flowchart TD
@@ -280,7 +280,7 @@ flowchart TD
     ClearCookies --> Complete([Account Deactivated])
 ```
 
-## 9. API Key Management Process
+## 9. APIキー管理プロセス
 
 ```mermaid
 flowchart TD
@@ -310,7 +310,7 @@ flowchart TD
     SetRevoked --> Complete
 ```
 
-## 10. Chat Analytics Process
+## 10. チャット分析プロセス
 
 ```mermaid
 flowchart TD
@@ -346,3 +346,13 @@ flowchart TD
     FormatCSV --> DownloadFile[Download CSV File]
     DownloadFile --> Complete
 ```
+
+---
+
+## Related Documentation
+
+- [📖 ドキュメント一覧](../README.md)
+- [フローチャート](flowchart.md) — 処理フローの詳細
+- [アクティビティ図](../requirements/activity-diagram.md) — 業務フロー概要
+- [シーケンス図](../design/sequence-diagram.md) — 処理シーケンスの詳細
+- [ユースケース図](../requirements/use-case-diagram.md) — ユーザー操作一覧

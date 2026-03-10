@@ -1,10 +1,10 @@
-# System Configuration Diagram
+# システム構成図
 
-## Overview
+## 概要
 
-This diagram shows VideoQ's overall architecture and the default (Docker Compose) configuration.
+VideoQの全体アーキテクチャとデフォルト（Docker Compose）構成を示す図です。
 
-## Overall System Configuration
+## 全体システム構成
 
 ```mermaid
 graph TB
@@ -107,9 +107,9 @@ graph TB
     Celery -.->|Optional| WhisperLocal
 ```
 
-## Layer-by-Layer Detailed Configuration
+## レイヤー別詳細構成
 
-### Frontend
+### フロントエンド
 
 ```mermaid
 graph TB
@@ -132,7 +132,7 @@ graph TB
     P4 --> L2
 ```
 
-### Backend (Clean Architecture)
+### バックエンド（クリーンアーキテクチャ）
 
 ```mermaid
 graph TB
@@ -231,7 +231,7 @@ graph TB
     Entrypoints --> CK
 ```
 
-## Network Configuration
+## ネットワーク構成
 
 ```mermaid
 graph TB
@@ -269,10 +269,10 @@ graph TB
     Worker -->|PostgreSQL| DB
 ```
 
-> Note: The diagram above matches the default `docker-compose.yml` (single instance per service).
-> If you need horizontal scaling (multiple frontend/backend/worker instances, DB replicas, etc.), treat it as a production architecture concern.
+> 注記: 上図はデフォルトの `docker-compose.yml`（サービスごとに単一インスタンス）に対応しています。
+> 水平スケーリング（複数のフロントエンド/バックエンド/ワーカーインスタンス、DBレプリカ等）が必要な場合は、本番環境アーキテクチャとして検討してください。
 
-## Security Configuration
+## セキュリティ構成
 
 ```mermaid
 graph TB
@@ -330,7 +330,7 @@ graph TB
     RateLimit --> Protection
 ```
 
-## Scalability Configuration
+## スケーラビリティ構成
 
 ```mermaid
 graph TB
@@ -373,7 +373,7 @@ graph TB
     C2 --> H1
 ```
 
-## Monitoring & Logging Configuration
+## モニタリング・ログ構成
 
 ```mermaid
 graph TB
@@ -411,7 +411,7 @@ graph TB
     Met4 --> A3
 ```
 
-## Deployment Configuration
+## デプロイ構成
 
 ```mermaid
 graph TB
@@ -452,3 +452,13 @@ graph TB
     CI3 --> CI4
     CI4 --> Prod2
 ```
+
+---
+
+## Related Documentation
+
+- [📖 ドキュメント一覧](../README.md)
+- [コンポーネント図](../design/component-diagram.md) — フロントエンド・バックエンドのコンポーネント構成
+- [デプロイメント図](../design/deployment-diagram.md) — Docker Compose構成の詳細
+- [フローチャート](flowchart.md) — 主要処理フロー
+- [ER図](../database/er-diagram.md) — データモデル
