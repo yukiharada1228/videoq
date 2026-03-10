@@ -1,13 +1,11 @@
 import { useState, useCallback } from 'react';
-import { useTranslation } from 'react-i18next';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiClient, type Tag, type Video } from '@/lib/api';
+import { apiClient, type Video } from '@/lib/api';
 import { queryKeys } from '@/lib/queryKeys';
 
 interface UseVideoEditingOptions {
   video: Video | null;
   videoId: number | null;
-  createTag: (name: string) => Promise<unknown>;
 }
 
 interface UseVideoEditingReturn {
@@ -21,11 +19,9 @@ interface UseVideoEditingReturn {
   startEditing: () => void;
   cancelEditing: () => void;
   handleUpdateVideo: () => Promise<void>;
-  handleCreateTag: () => Promise<void>;
 }
 
-export function useVideoEditing({ video, videoId, createTag }: UseVideoEditingOptions): UseVideoEditingReturn {
-  const { t } = useTranslation();
+export function useVideoEditing({ video, videoId }: UseVideoEditingOptions): UseVideoEditingReturn {
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
   const [editedTitle, setEditedTitle] = useState('');
@@ -83,21 +79,6 @@ export function useVideoEditing({ video, videoId, createTag }: UseVideoEditingOp
     await saveVideoMutation.mutateAsync();
   }, [videoId, video, saveVideoMutation]);
 
-  const handleCreateTag = useCallback(async () => {
-    const tagName = prompt(t('tags.create.prompt', 'Enter new tag name:'));
-    if (tagName && tagName.trim()) {
-      try {
-        const newTag = (await createTag(tagName.trim())) as Tag;
-        if (newTag) {
-          setEditedTagIds(prev => [...prev, newTag.id]);
-        }
-      } catch (error) {
-        console.error('Failed to create tag:', error);
-        alert(t('tags.create.error', 'Failed to create tag'));
-      }
-    }
-  }, [createTag, t]);
-
   return {
     isEditing,
     editedTitle,
@@ -109,6 +90,5 @@ export function useVideoEditing({ video, videoId, createTag }: UseVideoEditingOp
     startEditing,
     cancelEditing,
     handleUpdateVideo,
-    handleCreateTag,
   };
 }
