@@ -146,17 +146,19 @@ graph TB
     end
 
     subgraph UseCases["use_cases/"]
-        UV["video/ - CreateVideo, GetVideo, ListVideos, UpdateVideo, DeleteVideo,
-        FileUrl, GetGroup, ListGroups, CreateGroup, UpdateGroup, DeleteGroup,
-        GetTag, ListTags, CreateTag, UpdateTag, DeleteTag,
-        ManageGroups, ManageTags, EnforceVideoLimit,
-        ReindexAllVideos, RunTranscription"]
-        UC["chat/ - SendMessage, GetHistory, ExportHistory,
-        SubmitFeedback, GetAnalytics, GetPopularScenes"]
-        UA["auth/ - Login, Signup, VerifyEmail, ResetPassword,
+        UV["video/ - CreateVideo, GetVideoDetail, ListVideos, UpdateVideo, DeleteVideo,
+        FileUrl, GetVideoGroup, GetSharedGroup, ListVideoGroups,
+        CreateVideoGroup, UpdateVideoGroup, DeleteVideoGroup,
+        CreateTag, GetTagDetail, ListTags, UpdateTag, DeleteTag,
+        AddVideoToGroup, AddVideosToGroup, RemoveVideoFromGroup, ReorderVideosInGroup,
+        CreateShareLink, DeleteShareLink, AddTagsToVideo, RemoveTagFromVideo,
+        EnforceVideoLimit, IndexVideoTranscript, ReindexAllVideos, RunTranscription"]
+        UC["chat/ - SendMessage, SearchRelatedVideos, GetChatHistory, ExportChatHistory,
+        SubmitFeedback, GetChatAnalytics, GetPopularScenes"]
+        UA["auth/ - Login, Signup, VerifyEmail, RequestPasswordReset, ConfirmPasswordReset,
         GetCurrentUser, DeleteAccount, DeleteAccountData,
-        ManageApiKeys, AuthorizeApiKey, ResolveApiKey,
-        ResolveShareToken, RefreshToken"]
+        ListApiKeys, CreateApiKey, RevokeApiKey,
+        AuthorizeApiKey, ResolveApiKey, ResolveShareToken, RefreshToken"]
         UM[media/ - ResolveProtectedMedia]
         US[shared/ - ResourceNotFound, PermissionDenied]
     end
@@ -296,8 +298,8 @@ graph TB
             Temporary Access
             Guest Access"]
             AccountDeactivation["Account Deactivation
-            Password Verification
-            Soft Delete (deactivated_at)"]
+            Soft Delete (deactivated_at)
+            Async Data Deletion Task"]
         end
 
         subgraph Authorization["Authorization"]
