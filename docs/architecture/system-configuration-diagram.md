@@ -120,16 +120,19 @@ graph TB
         P4[Custom Hooks]
     end
 
-    subgraph Lib["Libraries"]
-        L1[apiClient]
-        L2[TanStack Query]
+    subgraph FrontendModules["Frontend Internal Modules"]
+        F1[apiClient]
+    end
+
+    subgraph Lib["External Libraries"]
+        L1[TanStack Query]
     end
 
     P1 --> P2
     P2 --> P3
     P3 --> P4
+    P4 --> F1
     P4 --> L1
-    P4 --> L2
 ```
 
 ### バックエンド（クリーンアーキテクチャ）

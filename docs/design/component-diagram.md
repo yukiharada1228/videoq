@@ -105,10 +105,14 @@ graph TB
             QueryHooks[TanStack Query Hooks]
         end
         
-        subgraph Lib["Libraries"]
+        subgraph FrontendModules["Frontend Internal Modules"]
             apiClient[apiClient]
             errorUtils[errorUtils]
             formUtils[formUtils]
+        end
+
+        subgraph Lib["External Libraries"]
+            TanStackQuery[TanStack Query]
         end
         
         subgraph Providers["Providers"]
@@ -119,10 +123,11 @@ graph TB
     
     Pages --> Components
     Components --> Hooks
-    Components --> Lib
+    Components --> FrontendModules
     Components --> Providers
+    Hooks --> FrontendModules
     Hooks --> Lib
-    Lib --> apiClient
+    Providers --> Lib
 ```
 
 ## バックエンドコンポーネント構成（クリーンアーキテクチャ）
