@@ -49,6 +49,9 @@ stateDiagram-v2
 
     VideoList --> Settings: Settings Menu
     Settings --> VideoList: Back
+    Home --> DeveloperDocs: Open Developer Docs
+    DeveloperDocs --> DeveloperDocsSection: Select API Section
+    DeveloperDocsSection --> DeveloperDocs: Back
     
     note right of Home
         Home Page
@@ -113,6 +116,10 @@ stateDiagram-v2
 
 ### 設定
 - **Settings** (`/settings` または `/:locale/settings`): 設定ページ（アカウント情報、無効化、APIキー管理）
+
+### 開発者向け
+- **DeveloperDocs** (`/docs` または `/:locale/docs`): 開発者ドキュメントのトップ
+- **DeveloperDocsSection** (`/docs/:section` または `/:locale/docs/:section`): セクション別APIドキュメント
 
 **注記**: このプロジェクトはReact Router + react-i18next（Next.js / next-intl ではない）でロケール対応ルーティングを実装しています（`frontend/src/App.tsx`）。
 - デフォルトロケール（`en`）はプレフィックスなし: `/videos`

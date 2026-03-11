@@ -13,12 +13,18 @@ graph TB
             Home[Home Page]
             Login[Login Page]
             Signup[Signup Page]
+            SignupCheckEmail[Signup Check Email Page]
+            ForgotPassword[Forgot Password Page]
+            ResetPassword[Reset Password Page]
+            VerifyEmail[Verify Email Page]
             Videos[Video List Page]
             VideoDetail[Video Detail Page]
             Groups[Group List Page]
             GroupDetail[Group Detail Page]
             Share[Share Page]
             Settings[Settings Page]
+            DevDocs[Developer Docs Page]
+            DevDocsSection[Developer Docs Section Page]
         end
         
         subgraph Components["Components"]
@@ -137,20 +143,25 @@ graph TB
     subgraph Backend["Backend (Django - Clean Architecture)"]
         subgraph PresentationLayer["presentation/ — Thin HTTP layer"]
             subgraph AuthPres["auth/"]
-                AuthViews["Views - Login, Signup, VerifyEmail,
-                PasswordReset, CurrentUser, DeleteAccount,
-                APIKeys, Refresh, Logout"]
+                AuthViews["Views - Login, Logout, Signup, VerifyEmail,
+                PasswordResetRequest, PasswordResetConfirm,
+                Me, DeleteAccount, ApiKeyListCreate,
+                ApiKeyDetail, Refresh"]
                 AuthSer[Serializers]
             end
             subgraph VideoPres["video/"]
                 VideoViews["Views - VideoList, VideoDetail,
-                VideoGroup, Tag, ManageGroups, ManageTags"]
+                VideoGroupList, VideoGroupDetail,
+                AddVideoToGroup, AddVideosToGroup,
+                ReorderVideosInGroup, ShareLink, SharedGroup,
+                TagList, TagDetail, AddTagsToVideo,
+                RemoveVideoFromGroup, RemoveTagFromVideo"]
                 VideoSer[Serializers]
             end
             subgraph ChatPres["chat/"]
-                ChatViews["Views - ChatView, ChatHistoryView,
+                ChatViews["Views - ChatView, ChatSearchView, ChatHistoryView,
                 ChatFeedbackView, ChatAnalyticsView,
-                PopularScenesView, ExportHistoryView"]
+                PopularScenesView, ChatHistoryExportView"]
                 ChatSer[Serializers]
             end
             subgraph MediaPres["media/"]
@@ -165,44 +176,49 @@ graph TB
         subgraph UseCasesLayer["use_cases/ — Business logic"]
             subgraph VideoUC["video/"]
                 CreateVideo[CreateVideoUseCase]
-                GetVideo[GetVideoUseCase]
+                GetVideo[GetVideoDetailUseCase]
                 ListVideos[ListVideosUseCase]
                 UpdateVideo[UpdateVideoUseCase]
                 DeleteVideo[DeleteVideoUseCase]
                 FileUrl[GetVideoFileUrlUseCase]
                 EnforceLimit[EnforceVideoLimitUseCase]
-                CreateGroup[CreateGroup / CreateGroupWithDetail]
-                GetGroup[GetGroupUseCase]
-                ListGroups[ListGroupsUseCase]
-                UpdateGroup[UpdateGroup / UpdateGroupWithDetail]
-                DeleteGroup[DeleteGroupUseCase]
-                ManageGroups[ManageGroupsUseCase]
+                CreateGroup[CreateVideoGroup / CreateVideoGroupWithDetail]
+                GetGroup[GetVideoGroupUseCase / GetSharedGroupUseCase]
+                ListGroups[ListVideoGroupsUseCase]
+                UpdateGroup[UpdateVideoGroup / UpdateVideoGroupWithDetail]
+                DeleteGroup[DeleteVideoGroupUseCase]
+                ManageGroups["AddVideoToGroup, AddVideosToGroup,
+                RemoveVideoFromGroup, ReorderVideosInGroup,
+                CreateShareLink, DeleteShareLink"]
                 CreateTag[CreateTagUseCase]
-                GetTag[GetTagUseCase]
+                GetTag[GetTagDetailUseCase]
                 ListTags[ListTagsUseCase]
                 UpdateTag[UpdateTag / UpdateTagWithDetail]
                 DeleteTag[DeleteTagUseCase]
-                ManageTags[ManageTagsUseCase]
+                ManageTags[AddTagsToVideo / RemoveTagFromVideo]
                 RunTrans[RunTranscriptionUseCase]
+                IndexTrans[IndexVideoTranscriptUseCase]
                 ReindexAll[ReindexAllVideosUseCase]
             end
             subgraph ChatUC["chat/"]
                 SendMsg[SendMessageUseCase]
-                GetHistory[GetHistoryUseCase]
-                ExportHistory[ExportHistoryUseCase]
+                SearchRelated[SearchRelatedVideosUseCase]
+                GetHistory[GetChatHistoryUseCase]
+                ExportHistory[ExportChatHistoryUseCase]
                 SubmitFeedback[SubmitFeedbackUseCase]
-                GetAnalytics[GetAnalyticsUseCase]
+                GetAnalytics[GetChatAnalyticsUseCase]
                 GetPopularScenes[GetPopularScenesUseCase]
             end
             subgraph AuthUC["auth/"]
                 LoginUC[LoginUseCase]
                 SignupUC[SignupUserUseCase]
                 VerifyEmailUC[VerifyEmailUseCase]
+                RequestResetUC[RequestPasswordResetUseCase]
                 ResetPassUC[ConfirmPasswordResetUseCase]
                 GetUserUC[GetCurrentUserUseCase]
                 DeleteAccUC[AccountDeletionUseCase]
                 DeleteAccDataUC[DeleteAccountDataUseCase]
-                ManageApiKeysUC[ManageApiKeysUseCase]
+                ApiKeysUC[ListApiKeys / CreateApiKey / RevokeApiKey]
                 AuthorizeApiKeyUC[AuthorizeApiKeyUseCase]
                 ResolveApiKeyUC[ResolveApiKeyUseCase]
                 ResolveShareUC[ResolveShareTokenUseCase]
