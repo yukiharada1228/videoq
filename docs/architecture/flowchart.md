@@ -67,9 +67,9 @@ flowchart TD
     Validate1 -->|Valid| Send[Send API Request]
     Send --> RateLimit{"Rate Limit<br>Check"}
     RateLimit -->|Exceeded| Error6[Rate Limit Error<br/>429 Too Many Requests]
-    RateLimit -->|OK| Auth{Authentication Check}
-    Auth -->|Failed| Error2[Authentication Error]
-    Auth -->|Success| CheckGroup{Group Specified?}
+    RateLimit -->|OK| Auth{Authenticated or Share Token?}
+    Auth -->|No| Error2[Authentication Error]
+    Auth -->|Yes| CheckGroup{Group Specified?}
     CheckGroup -->|No| NoContext[No Context]
     CheckGroup -->|Yes| GetGroup[(Database<br/>Get VideoGroup)]
     GetGroup --> ValidateGroup{"Group Exists<br>Check"}
@@ -133,11 +133,11 @@ flowchart TD
     Reset --> InputEmail[Input Email Address]
     InputEmail --> RateLimitReset{"Rate Limit<br>Check"}
     RateLimitReset -->|Exceeded| ErrorRateLimit[Rate Limit Error<br/>429 Too Many Requests]
-    RateLimitReset -->|OK| ValidateEmail{"Email Address<br>Exists Check"}
-    ValidateEmail -->|Not Exists| ErrorEmail[Error Display]
-    ValidateEmail -->|Exists| GenerateResetToken[Generate Reset Token]
-    GenerateResetToken --> SendResetEmail[Send Reset Email]
-    SendResetEmail --> WaitReset[User Checks Email]
+    RateLimitReset -->|OK| ReceiveResetRequest[Receive Password Reset Request]
+    ReceiveResetRequest --> TryGenerateResetToken[Generate Reset Token<br/>(only if account exists)]
+    TryGenerateResetToken --> SendResetEmail[Send Reset Email<br/>(if applicable)]
+    SendResetEmail --> ShowResetMessage[Always return success message]
+    ShowResetMessage --> WaitReset[User Checks Email]
     WaitReset --> ClickResetLink[Click Reset Link]
     ClickResetLink --> VerifyResetToken{Token Verification}
     VerifyResetToken -->|Invalid| ErrorResetToken[Token Invalid]
@@ -149,7 +149,6 @@ flowchart TD
     ErrorSignup --> End
     ErrorToken --> End
     ErrorLogin --> End
-    ErrorEmail --> End
     ErrorResetToken --> End
     ErrorRateLimit --> End
 ```
@@ -292,20 +291,15 @@ flowchart TD
     Start([Account Deactivation]) --> Navigate[Navigate to Settings Page]
     Navigate --> ClickDelete[Click Account Deactivation]
     ClickDelete --> ShowDialog[Show Confirmation Dialog]
-    ShowDialog --> InputPassword[Input Current Password]
-    InputPassword --> InputReason[Input Reason for Leaving]
+    ShowDialog --> InputReason[Input Reason for Leaving]
     InputReason --> Submit[Submit Deactivation Request]
     Submit --> API[DELETE /api/auth/account/]
-    API --> ValidatePassword{Password Verification}
-    ValidatePassword -->|Invalid| Error1[400 Bad Request]
-    ValidatePassword -->|Valid| CreateRequest[(Database<br/>Create AccountDeletionRequest)]
+    API --> CreateRequest[(Database<br/>Create AccountDeletionRequest)]
     CreateRequest --> DeactivateUser[(Database<br/>Update User<br/>is_active: False<br/>deactivated_at: now)]
-    DeactivateUser --> ClearCookies[Clear HttpOnly Cookies]
+    DeactivateUser --> EnqueueTask[Enqueue Account Deletion Task]
+    EnqueueTask --> ClearCookies[Clear HttpOnly Cookies]
     ClearCookies --> Redirect[Redirect to Home Page]
     Redirect --> End([Complete])
-    
-    Error1 --> ShowError[Display Error Message]
-    ShowError --> InputPassword
 ```
 
 ## 8. タグ管理フロー

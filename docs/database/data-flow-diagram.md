@@ -57,19 +57,23 @@ flowchart TD
     Input --> Frontend[Frontend]
     Frontend --> API[Backend API<br/>/api/chat/]
     
-    API --> Auth{Authentication Check}
+    API --> Auth{Authenticated or Share Token?}
     Auth -->|Failed| Error1[Authentication Error]
-    Auth -->|Success| GetGroup[(Database<br/>Get VideoGroup)]
-    
+    Auth -->|Success| CheckGroup{group_id specified?}
+    CheckGroup -->|Yes| GetGroup[(Database<br/>Get VideoGroup)]
+    CheckGroup -->|No| LLM[OpenAI / Ollama<br/>LLM Call (No Context)]
+
     GetGroup --> VectorSearch[PGVector<br/>Vector Search]
     VectorSearch --> RelatedScenes[Get Related Scenes]
     RelatedScenes --> BuildContext[Build Context]
     
-    BuildContext --> LLM[OpenAI API<br/>LLM Call]
+    BuildContext --> LLM
     LLM --> Answer[Generate Answer]
-    
-    Answer --> SaveLog[(Database<br/>Save ChatLog)]
-    SaveLog --> Response[Generate Response]
+
+    Answer --> SaveLog{group_id specified?}
+    SaveLog -->|Yes| PersistLog[(Database<br/>Save ChatLog)]
+    SaveLog -->|No| Response[Generate Response]
+    PersistLog --> Response
     Response --> Frontend
     Frontend --> End([User])
     
@@ -87,8 +91,8 @@ flowchart TD
     Action -->|Reorder| Reorder[Reorder]
     
     Create --> API1[POST /api/videos/groups/]
-    Add --> API2[POST /api/videos/groups/<id>/videos/]
-    Reorder --> API3[PATCH /api/videos/groups/<id>/reorder/]
+    Add --> API2[POST /api/videos/groups/<group_id>/videos/]
+    Reorder --> API3[PATCH /api/videos/groups/<group_id>/reorder/]
     
     API1 --> Validate1{Validation}
     API2 --> Validate2{Validation}
@@ -264,20 +268,16 @@ flowchart TD
     
     API --> Auth{Authentication Check}
     Auth -->|Failed| Error1[Authentication Error]
-    Auth -->|Success| ValidatePassword{Password Verification}
-    
-    ValidatePassword -->|Invalid| Error2[Password Error]
-    ValidatePassword -->|Valid| CreateRequest[(Database<br/>Create AccountDeletionRequest)]
-    
-    CreateRequest --> DeactivateUser[(Database<br/>Update User<br/>is_active: False<br/>deactivated_at: now)]
-    DeactivateUser --> ClearCookies[Clear HttpOnly Cookies]
-    ClearCookies --> EnqueueTask[Enqueue async account data deletion task]
-    EnqueueTask --> Response[200 OK<br/>Account deletion started]
+    Auth -->|Success| CreateRequest[(Database<br/>Create AccountDeletionRequest)]
+
+    CreateRequest --> DeactivateUser[(Database<br/>Deactivate + Anonymize User<br/>is_active: False<br/>deactivated_at: now<br/>username/email rewritten)]
+    DeactivateUser --> EnqueueTask[Enqueue async account data deletion task]
+    EnqueueTask --> ClearCookies[Clear HttpOnly Cookies]
+    ClearCookies --> Response[200 OK<br/>Account deletion started]
     Response --> Frontend
     Frontend --> End([User - Redirected to Home])
     
     Error1 --> Frontend
-    Error2 --> Frontend
 ```
 
 ## 8. APIキーデータフロー
@@ -338,8 +338,8 @@ flowchart TD
 
     Scenes --> API3[GET /api/chat/popular-scenes/?group_id=<id>]
     API3 --> GetSceneLogs[(Database<br/>Scene Logs)]
-    GetSceneLogs --> AggregateScenes[Aggregate Scenes<br/>+ Keyword Extraction]
-    AggregateScenes --> Response3[Popular Scenes + Keywords]
+    GetSceneLogs --> AggregateScenes[Aggregate Scenes<br/>+ Related Questions]
+    AggregateScenes --> Response3[Popular Scenes]
     Response3 --> Frontend
 
     Export --> API4[GET /api/chat/history/export/?group_id=<id>]
