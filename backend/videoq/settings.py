@@ -76,14 +76,15 @@ DJANGO_ENV = os.environ.get("DJANGO_ENV", "development").lower()
 IS_PRODUCTION = DJANGO_ENV == "production"
 
 _secret_key = os.environ.get("SECRET_KEY")
-if IS_PRODUCTION and not _secret_key:
-    raise ImproperlyConfigured(
-        "SECRET_KEY must be set when DJANGO_ENV=production."
-    )
-if IS_PRODUCTION and not _secret_key.strip():
-    raise ImproperlyConfigured(
-        "SECRET_KEY must not be blank when DJANGO_ENV=production."
-    )
+if IS_PRODUCTION:
+    if _secret_key is None:
+        raise ImproperlyConfigured(
+            "SECRET_KEY must be set when DJANGO_ENV=production."
+        )
+    if not _secret_key.strip():
+        raise ImproperlyConfigured(
+            "SECRET_KEY must not be blank when DJANGO_ENV=production."
+        )
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = _secret_key if _secret_key else DefaultSettings.SECRET_KEY
