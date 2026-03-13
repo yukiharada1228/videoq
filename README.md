@@ -225,6 +225,9 @@ DJANGO_ENV=production
 SECRET_KEY=<十分にランダムな長い文字列>
 ```
 
+リバースプロキシ/ロードバランサで TLS 終端する構成では、`X-Forwarded-Proto=https` をバックエンドへ確実に転送してください。  
+VideoQ の Django 設定は production で `SECURE_PROXY_SSL_HEADER=("HTTP_X_FORWARDED_PROTO", "https")` を使って HTTPS 判定します。
+
 `DJANGO_ENV=production` で `SECRET_KEY` が未設定または空文字の場合、バックエンドは起動時に明示的にエラー終了します。
 
 `SECRET_KEY` は次のコマンドで生成できます。
