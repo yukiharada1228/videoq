@@ -3,6 +3,8 @@ import os
 import sys
 import unittest
 
+from django.core.exceptions import ImproperlyConfigured
+
 
 class SecuritySettingsTests(unittest.TestCase):
     SETTINGS_MODULE = "videoq.settings"
@@ -12,6 +14,7 @@ class SecuritySettingsTests(unittest.TestCase):
         "SECURE_HSTS_SECONDS",
         "SECURE_HSTS_INCLUDE_SUBDOMAINS",
         "SECURE_HSTS_PRELOAD",
+        "SECRET_KEY",
     ]
 
     def setUp(self):
@@ -34,7 +37,9 @@ class SecuritySettingsTests(unittest.TestCase):
         return importlib.import_module(self.SETTINGS_MODULE)
 
     def test_production_defaults_enable_https_hardening(self):
-        settings = self._load_settings(DJANGO_ENV="production")
+        settings = self._load_settings(
+            DJANGO_ENV="production", SECRET_KEY="test-production-secret-key"
+        )
 
         self.assertTrue(settings.SECURE_COOKIES)
         self.assertTrue(settings.SESSION_COOKIE_SECURE)
@@ -62,6 +67,7 @@ class SecuritySettingsTests(unittest.TestCase):
     def test_security_env_overrides_are_ignored(self):
         production_settings = self._load_settings(
             DJANGO_ENV="production",
+            SECRET_KEY="test-production-secret-key",
             SECURE_SSL_REDIRECT="false",
             SECURE_HSTS_SECONDS="0",
             SECURE_HSTS_INCLUDE_SUBDOMAINS="false",
@@ -91,6 +97,18 @@ class SecuritySettingsTests(unittest.TestCase):
         self.assertEqual(development_settings.SECURE_HSTS_SECONDS, 0)
         self.assertFalse(development_settings.SECURE_HSTS_INCLUDE_SUBDOMAINS)
         self.assertFalse(development_settings.SECURE_HSTS_PRELOAD)
+
+    def test_production_raises_when_secret_key_is_missing(self):
+        with self.assertRaises(ImproperlyConfigured):
+            self._load_settings(DJANGO_ENV="production")
+
+    def test_production_raises_when_secret_key_is_blank(self):
+        with self.assertRaises(ImproperlyConfigured):
+            self._load_settings(DJANGO_ENV="production", SECRET_KEY="   ")
+
+    def test_development_allows_missing_secret_key(self):
+        settings = self._load_settings(DJANGO_ENV="development")
+        self.assertEqual(settings.SECRET_KEY, settings.DefaultSettings.SECRET_KEY)
 
 
 if __name__ == "__main__":
