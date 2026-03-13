@@ -3,6 +3,8 @@ SimpleJWT implementation of the TokenGateway port.
 All JWT token creation and validation logic is isolated here.
 """
 
+from typing import Any
+
 from rest_framework_simplejwt.exceptions import InvalidToken as JWTInvalidToken
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
@@ -42,6 +44,8 @@ class SimpleJWTGateway(TokenGateway):
 
     def invalidate_refresh_token(self, refresh_token: str) -> None:
         try:
-            RefreshToken(refresh_token).blacklist()
+            # Runtime accepts encoded JWT strings; type hints are stricter.
+            encoded_token: Any = refresh_token
+            RefreshToken(encoded_token).blacklist()
         except TokenError:
             return
