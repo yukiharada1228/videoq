@@ -3,7 +3,6 @@ SimpleJWT implementation of the TokenGateway port.
 All JWT token creation and validation logic is isolated here.
 """
 
-from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework_simplejwt.exceptions import InvalidToken as JWTInvalidToken
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
@@ -32,5 +31,17 @@ class SimpleJWTGateway(TokenGateway):
                 access=str(data["access"]),
                 refresh=str(data.get("refresh") or refresh_token),
             )
-        except (JWTInvalidToken, DRFValidationError, TokenError, ValueError) as exc:
-            raise TokenInvalidError("Invalid or expired refresh token.") from exc
+        except Exception as exc:
+            # TokenRefreshSerializer may raise DRF ValidationError; avoid importing
+            # rest_framework in this infrastructure adapter to preserve layer rules.
+            if isinstance(exc, (JWTInvalidToken, TokenError, ValueError)) or (
+                exc.__class__.__module__.startswith("rest_framework.")
+            ):
+                raise TokenInvalidError("Invalid or expired refresh token.") from exc
+            raise
+
+    def invalidate_refresh_token(self, refresh_token: str) -> None:
+        try:
+            RefreshToken(refresh_token).blacklist()
+        except TokenError:
+            return
