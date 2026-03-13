@@ -80,6 +80,7 @@ class LoginResponseSerializer(serializers.Serializer):
 
 class RefreshResponseSerializer(serializers.Serializer):
     access = serializers.CharField(help_text="New access token")
+    refresh = serializers.CharField(help_text="New refresh token")
 
 
 class MessageResponseSerializer(serializers.Serializer):
