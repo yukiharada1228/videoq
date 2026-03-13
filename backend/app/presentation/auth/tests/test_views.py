@@ -121,6 +121,23 @@ class LogoutViewTests(APITestCase):
         self.assertEqual(response.cookies.get("access_token").value, "")
         self.assertEqual(response.cookies.get("refresh_token").value, "")
 
+    def test_logout_invalidates_refresh_token_on_server(self):
+        """Test logout invalidates refresh token for future reuse"""
+        from rest_framework_simplejwt.tokens import RefreshToken
+
+        refresh = RefreshToken.for_user(self.user)
+        refresh_token = str(refresh)
+        self.client.cookies["refresh_token"] = refresh_token
+
+        response = self.client.post(self.url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        refresh_url = reverse("auth-refresh")
+        refresh_response = self.client.post(
+            refresh_url, {"refresh": refresh_token}, format="json"
+        )
+        self.assertEqual(refresh_response.status_code, status.HTTP_401_UNAUTHORIZED)
+
 
 class RefreshViewTests(APITestCase):
     """Tests for RefreshView"""
@@ -173,6 +190,26 @@ class RefreshViewTests(APITestCase):
         response = self.client.post(self.url, {"refresh": ""}, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_refresh_rotates_token_and_rejects_reuse_of_old_token(self):
+        """Refresh should rotate token and reject old refresh token reuse"""
+        from rest_framework_simplejwt.tokens import RefreshToken
+
+        original_refresh = str(RefreshToken.for_user(self.user))
+        first_response = self.client.post(
+            self.url, {"refresh": original_refresh}, format="json"
+        )
+        self.assertEqual(first_response.status_code, status.HTTP_200_OK)
+        self.assertIn("refresh_token", first_response.cookies)
+
+        rotated_refresh = first_response.cookies["refresh_token"].value
+        self.assertNotEqual(rotated_refresh, original_refresh)
+
+        self.client.cookies["refresh_token"] = ""
+        reuse_response = self.client.post(
+            self.url, {"refresh": original_refresh}, format="json"
+        )
+        self.assertEqual(reuse_response.status_code, status.HTTP_401_UNAUTHORIZED)
 
 
 class EmailVerificationViewTests(APITestCase):
