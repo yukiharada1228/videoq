@@ -39,3 +39,8 @@ class TokenGateway(ABC):
     def refresh(self, refresh_token: str) -> TokenPairDto:
         """Return a new access token from a valid refresh token string."""
         ...
+
+    @abstractmethod
+    def invalidate_refresh_token(self, refresh_token: str) -> None:
+        """Invalidate a refresh token so it cannot be reused."""
+        ...

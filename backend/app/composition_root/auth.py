@@ -27,6 +27,7 @@ from app.use_cases.auth.delete_account import AccountDeletionUseCase
 from app.use_cases.auth.delete_account_data import DeleteAccountDataUseCase
 from app.use_cases.auth.get_current_user import GetCurrentUserUseCase
 from app.use_cases.auth.login import LoginUseCase
+from app.use_cases.auth.logout import LogoutUseCase
 from app.use_cases.auth.manage_api_keys import (
     CreateApiKeyUseCase,
     ListApiKeysUseCase,
@@ -99,6 +100,10 @@ def get_login_use_case() -> LoginUseCase:
 
 def get_refresh_token_use_case() -> RefreshTokenUseCase:
     return RefreshTokenUseCase(_get_simplejwt_gateway())
+
+
+def get_logout_use_case() -> LogoutUseCase:
+    return LogoutUseCase(_get_simplejwt_gateway())
 
 
 def get_current_user_use_case() -> GetCurrentUserUseCase:

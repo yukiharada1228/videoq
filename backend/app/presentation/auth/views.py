@@ -141,13 +141,19 @@ class LogoutView(AuthenticatedAPIView):
     """Logout view"""
 
     serializer_class = MessageResponseSerializer
+    logout_use_case = None
 
     @extend_schema(
         responses={200: MessageResponseSerializer},
         summary="User logout",
-        description="Logout by deleting HttpOnly cookies.",
+        description="Logout by invalidating refresh token and deleting HttpOnly cookies.",
     )
     def post(self, request):
+        refresh_token = request.COOKIES.get("refresh_token")
+        if refresh_token:
+            use_case = self.resolve_dependency(self.logout_use_case)
+            use_case.execute(refresh_token)
+
         response = create_success_response(message="Logged out successfully")
 
         samesite_value = "None" if settings.SECURE_COOKIES else "Lax"
@@ -201,7 +207,10 @@ class RefreshView(PublicAPIView):
         request=RefreshSerializer,
         responses={200: RefreshResponseSerializer, 401: MessageResponseSerializer},
         summary="Refresh access token",
-        description="Refresh access token using refresh token from cookie or request body.",
+        description=(
+            "Refresh access token using refresh token from cookie or request body. "
+            "Refresh token is rotated and old token is invalidated."
+        ),
     )
     def post(self, request):
         refresh_token = request.COOKIES.get("refresh_token")
@@ -221,7 +230,7 @@ class RefreshView(PublicAPIView):
                 code=ErrorCode.AUTHENTICATION_FAILED,
             )
 
-        response = Response({"access": token_pair.access})
+        response = Response({"access": token_pair.access, "refresh": token_pair.refresh})
 
         samesite_value = "None" if settings.SECURE_COOKIES else "Lax"
 
@@ -232,6 +241,14 @@ class RefreshView(PublicAPIView):
             secure=settings.SECURE_COOKIES,
             samesite=samesite_value,
             max_age=60 * 10,
+        )
+        response.set_cookie(
+            key="refresh_token",
+            value=token_pair.refresh,
+            httponly=True,
+            secure=settings.SECURE_COOKIES,
+            samesite=samesite_value,
+            max_age=60 * 60 * 24 * 14,
         )
 
         return response

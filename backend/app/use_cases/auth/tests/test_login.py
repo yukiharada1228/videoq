@@ -23,6 +23,9 @@ class _StubTokenGateway(TokenGateway):
     def refresh(self, refresh_token: str) -> TokenPairDto:
         raise NotImplementedError
 
+    def invalidate_refresh_token(self, refresh_token: str) -> None:
+        raise NotImplementedError
+
 
 class LoginUseCaseTests(TestCase):
     def test_execute_returns_token_pair_when_credentials_valid(self):
