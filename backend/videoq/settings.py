@@ -15,6 +15,7 @@ from datetime import timedelta
 from pathlib import Path
 
 import dj_database_url
+from django.core.exceptions import ImproperlyConfigured
 
 
 class DefaultSettings:
@@ -71,9 +72,21 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
+DJANGO_ENV = os.environ.get("DJANGO_ENV", "development").lower()
+IS_PRODUCTION = DJANGO_ENV == "production"
+
+_secret_key = os.environ.get("SECRET_KEY")
+if IS_PRODUCTION and not _secret_key:
+    raise ImproperlyConfigured(
+        "SECRET_KEY must be set when DJANGO_ENV=production."
+    )
+if IS_PRODUCTION and not _secret_key.strip():
+    raise ImproperlyConfigured(
+        "SECRET_KEY must not be blank when DJANGO_ENV=production."
+    )
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get("SECRET_KEY", DefaultSettings.SECRET_KEY)
+SECRET_KEY = _secret_key if _secret_key else DefaultSettings.SECRET_KEY
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
@@ -275,8 +288,6 @@ CELERY_TASK_SOFT_TIME_LIMIT = 25 * 60  # 25 minutes
 ENABLE_SIGNUP = os.environ.get("ENABLE_SIGNUP", "true").lower() == "true"
 
 # Security profile: enforce secure defaults for production deployments.
-DJANGO_ENV = os.environ.get("DJANGO_ENV", "development").lower()
-IS_PRODUCTION = DJANGO_ENV == "production"
 
 SECURE_COOKIES = IS_PRODUCTION
 SECURE_SSL_REDIRECT = IS_PRODUCTION

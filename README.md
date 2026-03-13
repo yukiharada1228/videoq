@@ -47,15 +47,19 @@ cd videoq
 cp .env.example .env
 ```
 
-`.env` ファイルを開いて、最低限次の2つを設定します。
+`.env` ファイルを開いて、まずは次を設定します。
 
 ```bash
-# SECRET_KEYを生成して設定（必須）
-docker compose run --rm backend python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
-
 # .env に設定する値
-SECRET_KEY=ここに生成した値
 OPENAI_API_KEY=sk-your-key-here
+```
+
+`SECRET_KEY` は `development` では省略可能です（`settings.py` の開発用デフォルトへフォールバック）。  
+ただし `DJANGO_ENV=production` では必須なので、次で生成して設定してください。
+
+```bash
+docker compose run --rm backend python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
+SECRET_KEY=ここに生成した値
 ```
 
 ### ステップ3: VideoQを起動
@@ -219,6 +223,17 @@ OLLAMA_BASE_URL=http://host.docker.internal:11434
 </details>
 
 </details>
+
+## 🔐 本番環境の必須設定
+
+本番デプロイ時は、少なくとも以下を設定してください。
+
+```bash
+DJANGO_ENV=production
+SECRET_KEY=<十分にランダムな長い文字列>
+```
+
+`DJANGO_ENV=production` で `SECRET_KEY` が未設定または空文字の場合、バックエンドは起動時に明示的にエラー終了します。
 
 <a id="developer-api"></a>
 
