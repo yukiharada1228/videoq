@@ -23,7 +23,11 @@ urlpatterns = [
         LoginView.as_view(login_use_case=auth_dependencies.get_login_use_case),
         name="auth-login",
     ),
-    path("logout/", LogoutView.as_view(), name="auth-logout"),
+    path(
+        "logout/",
+        LogoutView.as_view(logout_use_case=auth_dependencies.get_logout_use_case),
+        name="auth-logout",
+    ),
     path(
         "account/",
         AccountDeleteView.as_view(

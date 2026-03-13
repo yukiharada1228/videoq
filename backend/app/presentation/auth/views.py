@@ -3,8 +3,6 @@ from django.http import Http404
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics, status
 from rest_framework.response import Response
-from rest_framework_simplejwt.exceptions import TokenError
-from rest_framework_simplejwt.tokens import RefreshToken
 
 from app.presentation.auth.serializers import (AccountDeleteSerializer,
                                                ApiKeyCreateResponseSerializer,
@@ -143,6 +141,7 @@ class LogoutView(AuthenticatedAPIView):
     """Logout view"""
 
     serializer_class = MessageResponseSerializer
+    logout_use_case = None
 
     @extend_schema(
         responses={200: MessageResponseSerializer},
@@ -152,10 +151,8 @@ class LogoutView(AuthenticatedAPIView):
     def post(self, request):
         refresh_token = request.COOKIES.get("refresh_token")
         if refresh_token:
-            try:
-                RefreshToken(refresh_token).blacklist()
-            except TokenError:
-                pass
+            use_case = self.resolve_dependency(self.logout_use_case)
+            use_case.execute(refresh_token)
 
         response = create_success_response(message="Logged out successfully")
 

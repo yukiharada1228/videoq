@@ -19,6 +19,10 @@ def get_refresh_token_use_case():
     return _cr.get_refresh_token_use_case()
 
 
+def get_logout_use_case():
+    return _cr.get_logout_use_case()
+
+
 def get_verify_email_use_case():
     return _cr.get_verify_email_use_case()
 
