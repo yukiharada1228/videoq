@@ -54,14 +54,6 @@ cp .env.example .env
 OPENAI_API_KEY=sk-your-key-here
 ```
 
-`SECRET_KEY` は `development` では省略可能です（`settings.py` の開発用デフォルトへフォールバック）。  
-ただし `DJANGO_ENV=production` では必須なので、次で生成して設定してください。
-
-```bash
-docker compose run --rm backend python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
-SECRET_KEY=ここに生成した値
-```
-
 ### ステップ3: VideoQを起動
 
 ```bash
@@ -234,6 +226,14 @@ SECRET_KEY=<十分にランダムな長い文字列>
 ```
 
 `DJANGO_ENV=production` で `SECRET_KEY` が未設定または空文字の場合、バックエンドは起動時に明示的にエラー終了します。
+
+`SECRET_KEY` は次のコマンドで生成できます。
+
+```bash
+docker compose run --rm backend python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
+```
+
+生成した値を `.env` の `SECRET_KEY=` に設定してください。  
 
 <a id="developer-api"></a>
 
