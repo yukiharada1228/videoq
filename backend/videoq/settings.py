@@ -30,8 +30,6 @@ class DefaultSettings:
 
     # Security
     SECRET_KEY = "django-insecure-644978l%$qgjwpo$w!5i7l#y(m&h)e$u#3en_a%ln^4!js$-*+"
-    SECURE_COOKIES = False  # Set to True in production with HTTPS
-
     # CORS
     CORS_ALLOWED_ORIGINS = [
         "http://localhost:3000",
@@ -276,11 +274,15 @@ CELERY_TASK_SOFT_TIME_LIMIT = 25 * 60  # 25 minutes
 # Feature flags
 ENABLE_SIGNUP = os.environ.get("ENABLE_SIGNUP", "true").lower() == "true"
 
-# Security: Cookie secure flag (set to True in production with HTTPS)
-SECURE_COOKIES = (
-    os.environ.get("SECURE_COOKIES", str(DefaultSettings.SECURE_COOKIES)).lower()
-    == "true"
-)
+# Security profile: enforce secure defaults for production deployments.
+DJANGO_ENV = os.environ.get("DJANGO_ENV", "development").lower()
+IS_PRODUCTION = DJANGO_ENV == "production"
+
+SECURE_COOKIES = IS_PRODUCTION
+SECURE_SSL_REDIRECT = IS_PRODUCTION
+SECURE_HSTS_SECONDS = 31536000 if IS_PRODUCTION else 0
+SECURE_HSTS_INCLUDE_SUBDOMAINS = IS_PRODUCTION
+SECURE_HSTS_PRELOAD = IS_PRODUCTION
 
 # Session Cookie settings for cross-origin deployment
 # When frontend and backend are on different origins, SameSite must be 'None' and Secure must be True
