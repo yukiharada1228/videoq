@@ -153,6 +153,7 @@ class VideoListView(DependencyResolverMixin, AuthenticatedViewMixin, generics.Ge
 class VideoDetailView(DependencyResolverMixin, AuthenticatedViewMixin, APIView):
     """Retrieve, update, and delete a video."""
 
+    serializer_class = VideoSerializer
     video_detail_use_case = None
     update_video_use_case = None
     delete_video_use_case = None
@@ -259,6 +260,7 @@ class VideoGroupListView(DependencyResolverMixin, AuthenticatedViewMixin, generi
 class VideoGroupDetailView(DependencyResolverMixin, AuthenticatedViewMixin, APIView):
     """Retrieve, update, and delete a video group."""
 
+    serializer_class = VideoGroupDetailSerializer
     video_group_use_case = None
     update_group_use_case = None
     delete_group_use_case = None
@@ -546,6 +548,7 @@ class TagListView(DependencyResolverMixin, AuthenticatedViewMixin, generics.Gene
 class TagDetailView(DependencyResolverMixin, AuthenticatedViewMixin, APIView):
     """Retrieve, update, and delete a tag."""
 
+    serializer_class = TagDetailSerializer
     tag_detail_use_case = None
     update_tag_use_case = None
     delete_tag_use_case = None

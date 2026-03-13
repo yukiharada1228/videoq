@@ -255,8 +255,15 @@ class ChatHistoryView(DependencyResolverMixin, APIView):
 
     authentication_classes = [APIKeyAuthentication, CookieJWTAuthentication]
     permission_classes = [IsAuthenticated, ApiKeyScopePermission]
+    serializer_class = ChatLogSerializer
     chat_history_use_case = None
 
+    @extend_schema(
+        parameters=[OpenApiParameter("group_id", int, required=False)],
+        responses={200: ChatLogSerializer(many=True)},
+        summary="Get chat history",
+        description="Return chat history for a group. Empty list is returned when group_id is omitted.",
+    )
     def get(self, request, *args, **kwargs):
         group_id = request.query_params.get("group_id")
         if not group_id:
