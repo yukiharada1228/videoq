@@ -14,6 +14,7 @@ class SecuritySettingsTests(unittest.TestCase):
         "SECURE_HSTS_SECONDS",
         "SECURE_HSTS_INCLUDE_SUBDOMAINS",
         "SECURE_HSTS_PRELOAD",
+        "SECURE_PROXY_SSL_HEADER",
         "SECRET_KEY",
     ]
 
@@ -50,6 +51,9 @@ class SecuritySettingsTests(unittest.TestCase):
         self.assertGreaterEqual(settings.SECURE_HSTS_SECONDS, 31536000)
         self.assertTrue(settings.SECURE_HSTS_INCLUDE_SUBDOMAINS)
         self.assertTrue(settings.SECURE_HSTS_PRELOAD)
+        self.assertEqual(
+            settings.SECURE_PROXY_SSL_HEADER, ("HTTP_X_FORWARDED_PROTO", "https")
+        )
 
     def test_development_defaults_keep_hardening_disabled(self):
         settings = self._load_settings(DJANGO_ENV="development")
@@ -63,6 +67,7 @@ class SecuritySettingsTests(unittest.TestCase):
         self.assertEqual(settings.SECURE_HSTS_SECONDS, 0)
         self.assertFalse(settings.SECURE_HSTS_INCLUDE_SUBDOMAINS)
         self.assertFalse(settings.SECURE_HSTS_PRELOAD)
+        self.assertIsNone(settings.SECURE_PROXY_SSL_HEADER)
 
     def test_security_env_overrides_are_ignored(self):
         production_settings = self._load_settings(
@@ -72,6 +77,7 @@ class SecuritySettingsTests(unittest.TestCase):
             SECURE_HSTS_SECONDS="0",
             SECURE_HSTS_INCLUDE_SUBDOMAINS="false",
             SECURE_HSTS_PRELOAD="false",
+            SECURE_PROXY_SSL_HEADER="HTTP_X_CUSTOM_PROTO,https",
         )
 
         self.assertTrue(production_settings.SECURE_COOKIES)
@@ -81,6 +87,10 @@ class SecuritySettingsTests(unittest.TestCase):
         self.assertEqual(production_settings.SECURE_HSTS_SECONDS, 31536000)
         self.assertTrue(production_settings.SECURE_HSTS_INCLUDE_SUBDOMAINS)
         self.assertTrue(production_settings.SECURE_HSTS_PRELOAD)
+        self.assertEqual(
+            production_settings.SECURE_PROXY_SSL_HEADER,
+            ("HTTP_X_FORWARDED_PROTO", "https"),
+        )
 
         development_settings = self._load_settings(
             DJANGO_ENV="development",
@@ -88,6 +98,7 @@ class SecuritySettingsTests(unittest.TestCase):
             SECURE_HSTS_SECONDS="999999999",
             SECURE_HSTS_INCLUDE_SUBDOMAINS="true",
             SECURE_HSTS_PRELOAD="true",
+            SECURE_PROXY_SSL_HEADER="HTTP_X_FORWARDED_PROTO,https",
         )
 
         self.assertFalse(development_settings.SECURE_COOKIES)
@@ -97,6 +108,7 @@ class SecuritySettingsTests(unittest.TestCase):
         self.assertEqual(development_settings.SECURE_HSTS_SECONDS, 0)
         self.assertFalse(development_settings.SECURE_HSTS_INCLUDE_SUBDOMAINS)
         self.assertFalse(development_settings.SECURE_HSTS_PRELOAD)
+        self.assertIsNone(development_settings.SECURE_PROXY_SSL_HEADER)
 
     def test_production_raises_when_secret_key_is_missing(self):
         with self.assertRaises(ImproperlyConfigured):
