@@ -162,8 +162,8 @@ class RefreshViewTests(APITestCase):
         self.assertEqual(response.data, {})
         self.assertIn("access_token", response.cookies)
 
-    def test_refresh_with_body(self):
-        """Test token refresh using request body"""
+    def test_refresh_without_cookie_rejects_request_body_token(self):
+        """Refresh requires the HttpOnly refresh cookie and ignores body tokens."""
         from rest_framework_simplejwt.tokens import RefreshToken
 
         refresh = RefreshToken.for_user(self.user)
@@ -171,8 +171,7 @@ class RefreshViewTests(APITestCase):
 
         response = self.client.post(self.url, data, format="json")
 
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data, {})
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_refresh_invalid_token(self):
         """Test token refresh with invalid token"""
@@ -188,26 +187,23 @@ class RefreshViewTests(APITestCase):
 
         response = self.client.post(self.url, {"refresh": ""}, format="json")
 
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_refresh_rotates_token_and_rejects_reuse_of_old_token(self):
         """Refresh should rotate token and reject old refresh token reuse"""
         from rest_framework_simplejwt.tokens import RefreshToken
 
         original_refresh = str(RefreshToken.for_user(self.user))
-        first_response = self.client.post(
-            self.url, {"refresh": original_refresh}, format="json"
-        )
+        self.client.cookies["refresh_token"] = original_refresh
+        first_response = self.client.post(self.url)
         self.assertEqual(first_response.status_code, status.HTTP_200_OK)
         self.assertIn("refresh_token", first_response.cookies)
 
         rotated_refresh = first_response.cookies["refresh_token"].value
         self.assertNotEqual(rotated_refresh, original_refresh)
 
-        self.client.cookies["refresh_token"] = ""
-        reuse_response = self.client.post(
-            self.url, {"refresh": original_refresh}, format="json"
-        )
+        self.client.cookies["refresh_token"] = original_refresh
+        reuse_response = self.client.post(self.url)
         self.assertEqual(reuse_response.status_code, status.HTTP_401_UNAUTHORIZED)
 
 
