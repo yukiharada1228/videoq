@@ -18,11 +18,11 @@ urlpatterns = [
         name="chat",
     ),
     path(
-        "search/",
+        "scenes/",
         ChatSearchView.as_view(
             search_related_videos_use_case=chat_dependencies.get_search_related_videos_use_case
         ),
-        name="chat-search",
+        name="chat-scenes",
     ),
     path(
         "history/",
