@@ -107,8 +107,8 @@ flowchart TD
     InputSignup --> ValidateSignup{Input Validation}
     ValidateSignup -->|Invalid| ErrorSignup[Error Display]
     ValidateSignup -->|Valid| RateLimitSignup{"Rate Limit<br>Check"}
-    RateLimitSignup -->|Exceeded| ErrorRateLimit[Rate Limit Error<br>429 Too Many Requests]
-    RateLimitSignup -->|OK| CreateUser[(Database<br>Create User<br>is_active: False)]
+    RateLimitSignup -->|Exceeded| ErrorRateLimit["Rate Limit Error<br>429 Too Many Requests"]
+    RateLimitSignup -->|OK| CreateUser["Database<br>Create User<br>is_active: False"]
     CreateUser --> GenerateToken[Generate Verification Token]
     GenerateToken --> SendEmail[Send Verification Email]
     SendEmail --> ShowMessage[Email Confirmation Waiting Screen]
@@ -116,33 +116,33 @@ flowchart TD
     WaitEmail --> ClickLink[Click Verification Link]
     ClickLink --> VerifyToken{Token Verification}
     VerifyToken -->|Invalid| ErrorToken[Token Invalid Error]
-    VerifyToken -->|Valid| ActivateUser[(Database<br>Update is_active: True)]
+    VerifyToken -->|Valid| ActivateUser["Database<br>Update is_active: True"]
     ActivateUser --> RedirectLogin[Redirect to Login Page]
     RedirectLogin --> Login
     
     Login --> InputLogin[Input Login Information]
     InputLogin --> RateLimitLogin{"Rate Limit<br>Check"}
-    RateLimitLogin -->|Exceeded| ErrorRateLimit[Rate Limit Error<br>429 Too Many Requests]
+    RateLimitLogin -->|Exceeded| ErrorRateLimit
     RateLimitLogin -->|OK| ValidateLogin{Credential Verification}
     ValidateLogin -->|Invalid| ErrorLogin[Authentication Error]
-    ValidateLogin -->|Valid| GenerateJWT[Generate JWT Tokens<br>Access & Refresh]
-    GenerateJWT --> SetCookie[Set HttpOnly Cookies<br>Access & Refresh Tokens]
+    ValidateLogin -->|Valid| GenerateJWT["Generate JWT Tokens<br>Access & Refresh"]
+    GenerateJWT --> SetCookie["Set HttpOnly Cookies<br>Access & Refresh Tokens"]
     SetCookie --> RedirectHome[Redirect to Home Page]
     RedirectHome --> End([Authentication Complete])
     
     Reset --> InputEmail[Input Email Address]
     InputEmail --> RateLimitReset{"Rate Limit<br>Check"}
-    RateLimitReset -->|Exceeded| ErrorRateLimit[Rate Limit Error<br>429 Too Many Requests]
+    RateLimitReset -->|Exceeded| ErrorRateLimit
     RateLimitReset -->|OK| ReceiveResetRequest[Receive Password Reset Request]
-    ReceiveResetRequest --> TryGenerateResetToken[Generate Reset Token<br>(only if account exists)]
-    TryGenerateResetToken --> SendResetEmail[Send Reset Email<br>(if applicable)]
+    ReceiveResetRequest --> TryGenerateResetToken["Generate Reset Token<br>(only if account exists)"]
+    TryGenerateResetToken --> SendResetEmail["Send Reset Email<br>(if applicable)"]
     SendResetEmail --> ShowResetMessage[Always return success message]
     ShowResetMessage --> WaitReset[User Checks Email]
     WaitReset --> ClickResetLink[Click Reset Link]
     ClickResetLink --> VerifyResetToken{Token Verification}
     VerifyResetToken -->|Invalid| ErrorResetToken[Token Invalid]
     VerifyResetToken -->|Valid| InputNewPassword[Input New Password]
-    InputNewPassword --> UpdatePassword[(Database<br>Update Password)]
+    InputNewPassword --> UpdatePassword["Database<br>Update Password"]
     UpdatePassword --> RedirectLogin2[Redirect to Login Page]
     RedirectLogin2 --> Login
     
@@ -403,7 +403,7 @@ flowchart TD
 flowchart TD
     Start([API Request with X-API-Key]) --> ExtractKey[Extract API Key from Header]
     ExtractKey --> HashKey[SHA-256 Hash Key]
-    HashKey --> LookupKey[(Database<br/>Lookup by hashed_key<br/>+ revoked_at IS NULL)]
+    HashKey --> LookupKey["Database<br/>Lookup by hashed_key<br/>+ revoked_at IS NULL"]
     LookupKey --> CheckFound{"Key Found?"}
     CheckFound -->|Not Found| Error401[401 Unauthorized]
     CheckFound -->|Found| MarkUsed[Update last_used_at]
