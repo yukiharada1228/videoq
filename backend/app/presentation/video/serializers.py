@@ -12,7 +12,7 @@ from django.conf import settings
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
-from app.infrastructure.transcription.audio_processing import (
+from app.contracts.media_validation import (
     InvalidMediaFileError,
     validate_video_media_file,
 )
@@ -238,6 +238,21 @@ class VideoCreateSerializer(serializers.Serializer):
                     settings,
                     "FFPROBE_VALIDATION_TIMEOUT_SECONDS",
                     10,
+                ),
+                cpu_time_limit_seconds=getattr(
+                    settings,
+                    "MEDIA_PROCESS_CPU_TIME_LIMIT_SECONDS",
+                    30,
+                ),
+                memory_limit_mb=getattr(
+                    settings,
+                    "MEDIA_PROCESS_MEMORY_LIMIT_MB",
+                    1024,
+                ),
+                output_file_size_limit_mb=getattr(
+                    settings,
+                    "MEDIA_PROCESS_OUTPUT_FILE_SIZE_LIMIT_MB",
+                    512,
                 ),
             )
         except InvalidMediaFileError as exc:

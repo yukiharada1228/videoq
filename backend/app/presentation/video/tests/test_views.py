@@ -704,7 +704,7 @@ class VideoUploadTests(APITestCase):
 
         from django.core.files.uploadedfile import SimpleUploadedFile
 
-        from app.infrastructure.transcription.audio_processing import InvalidMediaFileError
+        from app.contracts.media_validation import InvalidMediaFileError
 
         mock_validate_video.side_effect = InvalidMediaFileError(
             "Uploaded file is not a valid video."

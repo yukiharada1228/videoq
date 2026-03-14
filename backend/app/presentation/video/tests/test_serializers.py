@@ -130,7 +130,7 @@ class VideoCreateSerializerTests(TestCase):
     @patch("app.presentation.video.serializers.validate_video_media_file")
     def test_rejects_unreadable_video_payload(self, mock_validate_video):
         """Test that files failing ffprobe validation are rejected"""
-        from app.infrastructure.transcription.audio_processing import InvalidMediaFileError
+        from app.contracts.media_validation import InvalidMediaFileError
 
         mock_validate_video.side_effect = InvalidMediaFileError(
             "Uploaded file is not a valid video."
