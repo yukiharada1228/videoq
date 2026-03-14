@@ -64,7 +64,7 @@ class ChatViewTests(APITestCase):
             ],
         )
 
-        url = reverse("chat")
+        url = reverse("chat-messages")
         data = {
             "messages": [{"role": "user", "content": "Test question"}],
             "group_id": self.group.id,
@@ -87,7 +87,7 @@ class ChatViewTests(APITestCase):
             related_videos=None,
         )
 
-        url = reverse("chat")
+        url = reverse("chat-messages")
         data = {"messages": [{"role": "user", "content": "Test question"}]}
 
         response = self.client.post(url, data, format="json")
@@ -99,7 +99,7 @@ class ChatViewTests(APITestCase):
 
     def test_chat_empty_messages(self):
         """Test chat with empty messages"""
-        url = reverse("chat")
+        url = reverse("chat-messages")
         data = {"messages": []}
 
         response = self.client.post(url, data, format="json")
@@ -109,7 +109,7 @@ class ChatViewTests(APITestCase):
 
     def test_chat_missing_messages(self):
         """Test chat with missing messages"""
-        url = reverse("chat")
+        url = reverse("chat-messages")
         data = {}
 
         response = self.client.post(url, data, format="json")
@@ -119,7 +119,7 @@ class ChatViewTests(APITestCase):
     @patch("app.infrastructure.external.rag_gateway.RagChatGateway.generate_reply")
     def test_chat_group_not_found(self, mock_generate_reply):
         """Test chat with non-existent group"""
-        url = reverse("chat")
+        url = reverse("chat-messages")
         data = {
             "messages": [{"role": "user", "content": "Test question"}],
             "group_id": 99999,
@@ -136,7 +136,7 @@ class ChatViewTests(APITestCase):
             "OpenAI API key is not configured"
         )
 
-        url = reverse("chat")
+        url = reverse("chat-messages")
         data = {
             "messages": [{"role": "user", "content": "Test question"}],
             "group_id": self.group.id,
@@ -151,7 +151,7 @@ class ChatViewTests(APITestCase):
         """500 responses must not expose internal provider error details."""
         mock_generate_reply.side_effect = LLMProviderError("provider stack trace detail")
 
-        url = reverse("chat")
+        url = reverse("chat-messages")
         data = {
             "messages": [{"role": "user", "content": "Test question"}],
             "group_id": self.group.id,
@@ -181,7 +181,7 @@ class ChatViewTests(APITestCase):
 
         # Don't force authenticate - use share token instead
         self.client.force_authenticate(user=None)
-        url = reverse("chat")
+        url = reverse("chat-messages")
         url += f"?share_token={self.group.share_token}"
         data = {
             "messages": [{"role": "user", "content": "Test question"}],
@@ -198,7 +198,7 @@ class ChatViewTests(APITestCase):
 
     def test_chat_share_token_group_not_found(self):
         """Test chat with share token but group not found"""
-        url = reverse("chat")
+        url = reverse("chat-messages")
         url += "?share_token=invalid-token"
         data = {
             "messages": [{"role": "user", "content": "Test question"}],
@@ -211,7 +211,7 @@ class ChatViewTests(APITestCase):
 
     def test_chat_share_token_missing_group_id(self):
         """Test chat with share token but missing group_id"""
-        url = reverse("chat")
+        url = reverse("chat-messages")
         url += f"?share_token={self.group.share_token}"
         data = {"messages": [{"role": "user", "content": "Test question"}]}
 
@@ -235,7 +235,7 @@ class ChatViewTests(APITestCase):
             ],
         )
 
-        url = reverse("chat")
+        url = reverse("chat-messages")
         data = {
             "messages": [{"role": "user", "content": "q"}],
             "group_id": self.group.id,
