@@ -30,6 +30,7 @@ _TEST_THROTTLE_RATES = {
     "login_ip": "2/minute",
     "login_username": "2/minute",
     "signup_ip": "2/minute",
+    "signup_email": "2/minute",
     "password_reset_ip": "2/minute",
     "password_reset_email": "2/minute",
 }
@@ -219,7 +220,7 @@ class LoginThrottleTest(APITestCase):
 @override_settings(CACHES=_TEST_CACHES, ENABLE_SIGNUP=True)
 @patch.dict(SimpleRateThrottle.THROTTLE_RATES, _TEST_THROTTLE_RATES)
 class SignupThrottleTest(APITestCase):
-    """Tests for SignupIPThrottle."""
+    """Tests for signup throttles."""
 
     def setUp(self):
         cache.clear()
@@ -249,6 +250,61 @@ class SignupThrottleTest(APITestCase):
                 "password_confirm": "StrongP@ss1",
             },
             format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+
+    def test_email_throttle_blocks_same_email_across_different_ips(self):
+        """Same normalized email from different IPs should still be blocked."""
+        target_email = "  Victim@Example.COM  "
+
+        for i in range(2):
+            resp = self.client.post(
+                self.url,
+                {
+                    "username": f"newuser{i}",
+                    "email": target_email,
+                    "password": "StrongP@ss1",
+                },
+                format="json",
+                REMOTE_ADDR=f"10.0.0.{i + 1}",
+            )
+            self.assertNotEqual(resp.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+
+        resp = self.client.post(
+            self.url,
+            {
+                "username": "newuser99",
+                "email": "victim@example.com",
+                "password": "StrongP@ss1",
+            },
+            format="json",
+            REMOTE_ADDR="10.0.0.99",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+        self.assertEqual(resp.json()["error"]["code"], "LIMIT_EXCEEDED")
+
+    def test_email_throttle_falls_back_to_ip_when_email_missing(self):
+        """Invalid payloads without email should still share an IP-based throttle key."""
+        for i in range(2):
+            resp = self.client.post(
+                self.url,
+                {
+                    "username": f"newuser{i}",
+                    "password": "StrongP@ss1",
+                },
+                format="json",
+                REMOTE_ADDR="10.0.0.5",
+            )
+            self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+
+        resp = self.client.post(
+            self.url,
+            {
+                "username": "newuser99",
+                "password": "StrongP@ss1",
+            },
+            format="json",
+            REMOTE_ADDR="10.0.0.5",
         )
         self.assertEqual(resp.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
 

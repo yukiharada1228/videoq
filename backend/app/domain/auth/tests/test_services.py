@@ -20,7 +20,7 @@ from app.domain.auth.services import (
 
 class AuthDomainServicesTests(TestCase):
     def test_signup_policy_normalizes_email(self):
-        policy = SignupPolicy(email="  user@example.com  ")
+        policy = SignupPolicy(email="  User@Example.COM  ")
         self.assertEqual(policy.normalized_email(), "user@example.com")
 
     def test_signup_policy_raises_when_email_exists(self):
@@ -43,9 +43,9 @@ class AuthDomainServicesTests(TestCase):
             policy.require_user_id(user_id=None)
         self.assertEqual(policy.require_user_id(user_id=10), 10)
 
-    def test_normalize_signup_email_trims_whitespace(self):
+    def test_normalize_signup_email_trims_whitespace_and_lowercases(self):
         self.assertEqual(
-            normalize_signup_email("  user@example.com  "), "user@example.com"
+            normalize_signup_email("  User@Example.COM  "), "user@example.com"
         )
 
     def test_assert_signup_email_available_raises_when_email_exists(self):

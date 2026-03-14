@@ -57,7 +57,7 @@ class SignupUserUseCaseTests(TestCase):
         email_sender = _StubEmailSenderGateway()
         use_case = SignupUserUseCase(user_gateway, email_sender)
 
-        use_case.execute("alice", "  alice@example.com  ", "password")
+        use_case.execute("alice", "  Alice@Example.COM  ", "password")
 
         self.assertEqual(
             user_gateway.created_args,
