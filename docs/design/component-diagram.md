@@ -2,7 +2,7 @@
 
 ## 概要
 
-VideoQのフロントエンドとバックエンドの主要コンポーネントを示す図です。
+VideoQのフロントエンドとバックエンドの主要コンポーネントを、現行実装に沿って示す図です。
 
 ## フロントエンドコンポーネント構成
 
@@ -86,7 +86,7 @@ graph TB
                 MessageAlert[MessageAlert]
             end
             
-            subgraph UI["UI Components (shadcn/ui)"]
+            subgraph UI["UI Components (Radix UI + Tailwind CSS)"]
                 Button[Button]
                 Input[Input]
                 Card[Card]
@@ -113,12 +113,15 @@ graph TB
         
         subgraph FrontendModules["Frontend Internal Modules"]
             apiClient[apiClient]
+            queryClient[queryClient]
+            i18nConfig[i18n config]
             errorUtils[errorUtils]
             formUtils[formUtils]
         end
 
         subgraph Lib["External Libraries"]
             TanStackQuery[TanStack Query]
+            ReactI18next[react-i18next]
         end
         
         subgraph Providers["Providers"]
@@ -134,13 +137,14 @@ graph TB
     Hooks --> FrontendModules
     Hooks --> Lib
     Providers --> Lib
+    Pages --> ReactI18next
 ```
 
 ## バックエンドコンポーネント構成（クリーンアーキテクチャ）
 
 ```mermaid
 graph TB
-    subgraph Backend["Backend (Django - Clean Architecture)"]
+    subgraph Backend["Backend (Django ASGI - Clean Architecture)"]
         subgraph PresentationLayer["presentation/ — Thin HTTP layer"]
             subgraph AuthPres["auth/"]
                 AuthViews["Views - Login, Logout, Signup, VerifyEmail,
@@ -287,7 +291,9 @@ graph TB
             subgraph ExtGateways["external/"]
                 RagChatGW[RagChatGateway]
                 VectorGW[DjangoVectorIndexingGateway]
+                VectorStoreGW[DjangoVectorStoreGateway]
                 TransGW[WhisperTranscriptionGateway]
+                FileUrlResolver[DjangoFileUrlResolver]
                 SceneIdx[scene_indexer]
                 VectorStore[PGVector / vector_store]
                 RagSvc[rag_service / LangChain]
@@ -311,7 +317,7 @@ graph TB
             end
             subgraph ChatInfra["chat/"]
                 KwExtractor[JanomeNltkKeywordExtractor]
-                SceneInfoProvider[SceneVideoInfoProvider]
+                SceneInfoProvider[DjangoSceneVideoInfoProvider]
             end
             subgraph CommonInfra["common/"]
                 EmailModule[email - SMTP sender]
@@ -350,6 +356,7 @@ graph TB
         subgraph Container["Dependency Providers / Composition Root"]
             Dependencies[dependencies/*.py - provider functions]
             CompRoot[composition_root/*.py - wiring and assembly]
+            VideoProviders[_video_*_providers.py]
             Contracts[contracts/ - task name constants]
         end
     end
@@ -374,7 +381,7 @@ graph TB
     end
     
     subgraph Frontend["Frontend"]
-        FrontendSPA[Vite + React SPA]
+        FrontendSPA[Vite-built React SPA]
         ReactComponents[React Components]
     end
     
@@ -383,7 +390,7 @@ graph TB
     end
     
     subgraph Backend["Backend"]
-        DjangoAPI[Django REST API]
+        DjangoAPI[Django ASGI API]
         CeleryWorker[Celery Worker]
     end
     
@@ -394,7 +401,7 @@ graph TB
     end
     
     subgraph External["External Services"]
-        OpenAI[OpenAI API]
+        OpenAI[OpenAI API / Ollama / whisper.cpp]
         EmailService[Email Service]
     end
     
@@ -424,7 +431,7 @@ graph TB
 
 ### バックエンド
 - **Presentation (`presentation/*`, `admin.py`)** → **Dependencies (`dependencies/*.py`)**: フレームワークのエントリーポイントはdependencies経由でのみプロバイダーを解決
-- **Dependencies** → **Composition Root (`composition_root/*.py`)**: プロバイダー関数は1:1で配線関数に委譲
+- **Dependencies** → **Composition Root (`composition_root/*.py`)**: プロバイダー関数は配線関数や `_video_*_providers.py` に委譲
 - **Composition Root** → **Use Cases / Infrastructure**: 具体的なアダプターとユースケースインスタンスを組み立て
 - **Use Cases** → **Domain ports/entities**: ビジネスロジックはドメインの抽象のみに依存
 - **Infrastructure** → **Domain + ORM/External**: アダプター実装がドメインポートとDjango ORM/外部サービスを橋渡し

@@ -2,7 +2,7 @@
 
 ## 概要
 
-VideoQアプリケーションのフロントエンドの画面遷移を示す図です。
+VideoQアプリケーションのフロントエンドの画面遷移を、現行の React Router 実装に基づいて示す図です。
 
 ## 画面遷移図
 
@@ -41,7 +41,7 @@ stateDiagram-v2
     VideoGroupDetail --> VideoGroupDetail: Open Analytics Dashboard
     VideoGroupDetail --> VideoGroupDetail: Open Shorts Player
     
-    SharePage --> VideoGroupDetail: Back
+    SharePage --> Home: Leave Shared View
 
     Home --> SharePage: Share Token URL
     SharePage --> SharePage: Chat with Shared Group
@@ -56,7 +56,7 @@ stateDiagram-v2
     note right of Home
         Home Page
         - Unauthenticated: Login/Sign Up
-        - Authenticated: Go to Video List
+        - Authenticated: Main landing page
     end note
     
     note right of VideoList
@@ -142,8 +142,8 @@ stateDiagram-v2
 - **APIクライアント**: 画面遷移なし — APIキーはサーバー間連携用であり、ブラウザベースのアクセスではありません
 
 ### エラーハンドリング
-- 認証エラー: 任意のページ → Login
-- 404エラー: 存在しないリソース → 適切なエラーページ
+- 認証エラー: API レベルでは 401/403 を返却し、フロントエンドは必要に応じてログイン導線やメッセージを表示
+- 不明なルート: `*` → `/` にリダイレクト
 - 権限エラー: アクセス不可なリソース → エラーメッセージ表示
 
 ## ページ内インタラクション（ルート変更なし）
