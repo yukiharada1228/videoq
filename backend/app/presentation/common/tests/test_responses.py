@@ -47,6 +47,19 @@ class ResponseHelpersTests(unittest.TestCase):
             response.data["error"]["fields"]["email"], ["Invalid email format"]
         )
 
+    def test_create_error_response_500_sanitizes_message_and_code(self):
+        """500 responses must not expose internal exception details."""
+        response = create_error_response(
+            "sensitive internal detail",
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        self.assertEqual(response.data["error"]["code"], "INTERNAL_ERROR")
+        self.assertEqual(
+            response.data["error"]["message"], "An internal server error occurred."
+        )
+
     def test_create_success_response_with_data(self):
         """Test create_success_response with data"""
         data = {"key": "value", "number": 123}

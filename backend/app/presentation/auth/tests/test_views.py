@@ -91,7 +91,15 @@ class UserSignupViewTests(APITestCase):
         response = self.client.post(url, data, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
-        self.assertIn("error", response.data)
+        self.assertEqual(
+            response.data,
+            {
+                "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "An internal server error occurred.",
+                }
+            },
+        )
 
 
 class LoginViewTests(APITestCase):
