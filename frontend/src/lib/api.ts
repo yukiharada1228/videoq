@@ -467,7 +467,7 @@ class ApiClient {
   }
 
   async signup(data: SignupRequest): Promise<void> {
-    await this.request('/auth/signup/', {
+    await this.request('/auth/users/', {
       method: 'POST',
       body: data,
     });

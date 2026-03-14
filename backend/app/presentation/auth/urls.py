@@ -95,8 +95,8 @@ urlpatterns = [
 if settings.ENABLE_SIGNUP:
     urlpatterns.append(
         path(
-            "signup/",
+            "users/",
             UserSignupView.as_view(signup_use_case=auth_dependencies.get_signup_use_case),
-            name="signup",
+            name="auth-users",
         )
     )

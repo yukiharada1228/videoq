@@ -36,7 +36,7 @@ class UserSignupViewTests(APITestCase):
 
     def test_signup_success(self):
         """Test successful user signup"""
-        url = reverse("signup")
+        url = reverse("auth-users")
         data = {
             "username": "newuser",
             "email": "newuser@example.com",
@@ -56,7 +56,7 @@ class UserSignupViewTests(APITestCase):
             email="existing@example.com",
             password="SecurePass123",
         )
-        url = reverse("signup")
+        url = reverse("auth-users")
         data = {
             "username": "newuser",
             "email": "existing@example.com",
@@ -82,7 +82,7 @@ class UserSignupViewTests(APITestCase):
         )
         mock_resolve_dependency.return_value = use_case
 
-        url = reverse("signup")
+        url = reverse("auth-users")
         data = {
             "username": "newuser",
             "email": "newuser@example.com",
