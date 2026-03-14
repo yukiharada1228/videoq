@@ -727,7 +727,7 @@ class ReorderVideosTests(APITestCase):
         VideoGroupMember.objects.create(group=self.group, video=self.video3, order=2)
 
     def test_reorder_videos(self):
-        """Test reordering videos in group"""
+        """Test reordering videos in group via new URL"""
         url = reverse("reorder-videos-in-group", kwargs={"group_id": self.group.pk})
         data = {"video_ids": [self.video3.pk, self.video1.pk, self.video2.pk]}
 
@@ -745,6 +745,24 @@ class ReorderVideosTests(APITestCase):
         self.assertEqual(member1.order, 1)
         self.assertEqual(member2.order, 2)
         self.assertEqual(member3.order, 0)
+
+    def test_reorder_videos_url_is_resource_oriented(self):
+        """New URL /videos/groups/<id>/videos/order/ must work"""
+        url = f"/api/videos/groups/{self.group.pk}/videos/order/"
+        data = {"video_ids": [self.video3.pk, self.video1.pk, self.video2.pk]}
+
+        response = self.client.patch(url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_old_reorder_url_not_found(self):
+        """Old URL /videos/groups/<id>/reorder/ must return 404"""
+        url = f"/api/videos/groups/{self.group.pk}/reorder/"
+        data = {"video_ids": [self.video1.pk]}
+
+        response = self.client.patch(url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
 
 class VideoUploadTests(APITestCase):
