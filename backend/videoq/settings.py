@@ -31,6 +31,12 @@ class DefaultSettings:
 
     # Security
     SECRET_KEY = "django-insecure-644978l%$qgjwpo$w!5i7l#y(m&h)e$u#3en_a%ln^4!js$-*+"
+    MAX_VIDEO_UPLOAD_SIZE_MB = 500
+    FFPROBE_VALIDATION_TIMEOUT_SECONDS = 10
+    FFMPEG_PROCESS_TIMEOUT_SECONDS = 120
+    MEDIA_PROCESS_CPU_TIME_LIMIT_SECONDS = 30
+    MEDIA_PROCESS_MEMORY_LIMIT_MB = 1024
+    MEDIA_PROCESS_OUTPUT_FILE_SIZE_LIMIT_MB = 512
     # CORS
     CORS_ALLOWED_ORIGINS = [
         "http://localhost:3000",
@@ -88,6 +94,43 @@ if IS_PRODUCTION:
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = _secret_key if _secret_key else DefaultSettings.SECRET_KEY
+MAX_VIDEO_UPLOAD_SIZE_MB = int(
+    os.environ.get(
+        "MAX_VIDEO_UPLOAD_SIZE_MB",
+        str(DefaultSettings.MAX_VIDEO_UPLOAD_SIZE_MB),
+    )
+)
+MAX_VIDEO_UPLOAD_SIZE_BYTES = MAX_VIDEO_UPLOAD_SIZE_MB * 1024 * 1024
+FFPROBE_VALIDATION_TIMEOUT_SECONDS = int(
+    os.environ.get(
+        "FFPROBE_VALIDATION_TIMEOUT_SECONDS",
+        str(DefaultSettings.FFPROBE_VALIDATION_TIMEOUT_SECONDS),
+    )
+)
+FFMPEG_PROCESS_TIMEOUT_SECONDS = int(
+    os.environ.get(
+        "FFMPEG_PROCESS_TIMEOUT_SECONDS",
+        str(DefaultSettings.FFMPEG_PROCESS_TIMEOUT_SECONDS),
+    )
+)
+MEDIA_PROCESS_CPU_TIME_LIMIT_SECONDS = int(
+    os.environ.get(
+        "MEDIA_PROCESS_CPU_TIME_LIMIT_SECONDS",
+        str(DefaultSettings.MEDIA_PROCESS_CPU_TIME_LIMIT_SECONDS),
+    )
+)
+MEDIA_PROCESS_MEMORY_LIMIT_MB = int(
+    os.environ.get(
+        "MEDIA_PROCESS_MEMORY_LIMIT_MB",
+        str(DefaultSettings.MEDIA_PROCESS_MEMORY_LIMIT_MB),
+    )
+)
+MEDIA_PROCESS_OUTPUT_FILE_SIZE_LIMIT_MB = int(
+    os.environ.get(
+        "MEDIA_PROCESS_OUTPUT_FILE_SIZE_LIMIT_MB",
+        str(DefaultSettings.MEDIA_PROCESS_OUTPUT_FILE_SIZE_LIMIT_MB),
+    )
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False

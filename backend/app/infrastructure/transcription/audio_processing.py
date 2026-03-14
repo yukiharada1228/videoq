@@ -3,13 +3,17 @@ Audio extraction and processing utilities
 """
 
 import asyncio
-import json
 import logging
 import os
 import subprocess
 import tempfile
 
+from django.conf import settings
 from openai import AsyncOpenAI
+from app.contracts.media_validation import (
+    probe_media_file,
+    run_media_command,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -27,27 +31,20 @@ SUPPORTED_FORMATS = {
     ".webm",
 }
 
-
 def _get_video_duration(input_path):
     """
     Get video duration using ffprobe
     Returns: duration in seconds
     """
-    probe_result = subprocess.run(
-        [
-            "ffprobe",
-            "-v",
-            "quiet",
-            "-print_format",
-            "json",
-            "-show_format",
-            input_path,
-        ],
-        capture_output=True,
-        text=True,
-        check=True,
+    probe = probe_media_file(
+        input_path,
+        timeout_seconds=int(getattr(settings, "FFPROBE_VALIDATION_TIMEOUT_SECONDS", 10)),
+        cpu_time_limit_seconds=int(getattr(settings, "MEDIA_PROCESS_CPU_TIME_LIMIT_SECONDS", 30)),
+        memory_limit_mb=int(getattr(settings, "MEDIA_PROCESS_MEMORY_LIMIT_MB", 1024)),
+        output_file_size_limit_mb=int(
+            getattr(settings, "MEDIA_PROCESS_OUTPUT_FILE_SIZE_LIMIT_MB", 512)
+        ),
     )
-    probe = json.loads(probe_result.stdout)
     duration = float(probe["format"]["duration"])
     logger.info(f"Video duration: {duration:.2f} seconds")
     return duration
@@ -71,7 +68,7 @@ def _extract_full_audio(input_path, temp_dir):
         temp_dir, f"temp_audio_{os.path.basename(input_path)}.mp3"
     )
 
-    subprocess.run(
+    run_media_command(
         [
             "ffmpeg",
             "-i",
@@ -84,9 +81,12 @@ def _extract_full_audio(input_path, temp_dir):
             "-y",
             temp_audio_path,
         ],
-        check=True,
-        capture_output=True,
-        text=True,
+        timeout_seconds=int(getattr(settings, "FFMPEG_PROCESS_TIMEOUT_SECONDS", 120)),
+        cpu_time_limit_seconds=int(getattr(settings, "MEDIA_PROCESS_CPU_TIME_LIMIT_SECONDS", 30)),
+        memory_limit_mb=int(getattr(settings, "MEDIA_PROCESS_MEMORY_LIMIT_MB", 1024)),
+        output_file_size_limit_mb=int(
+            getattr(settings, "MEDIA_PROCESS_OUTPUT_FILE_SIZE_LIMIT_MB", 512)
+        ),
     )
 
     audio_size_mb = os.path.getsize(temp_audio_path) / (1024 * 1024)
@@ -119,7 +119,7 @@ def _extract_audio_segment(input_path, start_time, end_time, segment_index, temp
         temp_dir, f"audio_segment_{segment_index}_{os.path.basename(input_path)}.mp3"
     )
 
-    subprocess.run(
+    run_media_command(
         [
             "ffmpeg",
             "-ss",
@@ -136,9 +136,12 @@ def _extract_audio_segment(input_path, start_time, end_time, segment_index, temp
             "-y",
             audio_path,
         ],
-        check=True,
-        capture_output=True,
-        text=True,
+        timeout_seconds=int(getattr(settings, "FFMPEG_PROCESS_TIMEOUT_SECONDS", 120)),
+        cpu_time_limit_seconds=int(getattr(settings, "MEDIA_PROCESS_CPU_TIME_LIMIT_SECONDS", 30)),
+        memory_limit_mb=int(getattr(settings, "MEDIA_PROCESS_MEMORY_LIMIT_MB", 1024)),
+        output_file_size_limit_mb=int(
+            getattr(settings, "MEDIA_PROCESS_OUTPUT_FILE_SIZE_LIMIT_MB", 512)
+        ),
     )
 
     return {"path": audio_path, "start_time": start_time, "end_time": end_time}
@@ -202,8 +205,9 @@ def extract_and_split_audio(input_path, max_size_mb=24, temp_manager=None):
 
         return audio_segments
 
-    except subprocess.CalledProcessError as e:
-        logger.error(f"Error running ffmpeg/ffprobe: {e.stderr}")
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
+        stderr = getattr(e, "stderr", None) or str(e)
+        logger.error(f"Error running ffmpeg/ffprobe: {stderr}")
         return []
     except Exception as e:
         logger.error(f"Error extracting/splitting audio: {e}")
