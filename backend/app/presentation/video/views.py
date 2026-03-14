@@ -43,12 +43,15 @@ from .serializers import (
     ShareLinkResponseSerializer,
     TagCreateSerializer,
     TagDetailSerializer,
+    TagFullUpdateSerializer,
     TagListSerializer,
     TagUpdateSerializer,
     VideoActionMessageResponseSerializer,
     VideoCreateSerializer,
+    VideoFullUpdateSerializer,
     VideoGroupCreateSerializer,
     VideoGroupDetailSerializer,
+    VideoGroupFullUpdateSerializer,
     VideoGroupListSerializer,
     VideoGroupUpdateSerializer,
     VideoListSerializer,
@@ -202,8 +205,33 @@ class VideoDetailView(DependencyResolverMixin, AuthenticatedViewMixin, APIView):
         ctx = {"request": request}
         return Response(VideoSerializer(updated, context=ctx).data)
 
+    @extend_schema(
+        request=VideoFullUpdateSerializer,
+        responses={200: VideoSerializer},
+        summary="Full update video",
+        description="Replace all video fields. title is required.",
+    )
     def put(self, request, pk):
-        return self.patch(request, pk)
+        video = self._get_video(pk, request.user.id)
+        if video is None:
+            return create_error_response("Video not found", status.HTTP_404_NOT_FOUND)
+
+        serializer = VideoFullUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        use_case = self.resolve_dependency(self.update_video_use_case)
+        try:
+            data = serializer.validated_data
+            input_dto = UpdateVideoInput(
+                title=data["title"],
+                description=data.get("description", ""),
+            )
+            updated = use_case.execute(pk, request.user.id, input_dto)
+        except ResourceNotFound:
+            return create_error_response("Video not found", status.HTTP_404_NOT_FOUND)
+
+        ctx = {"request": request}
+        return Response(VideoSerializer(updated, context=ctx).data)
 
     def delete(self, request, pk):
         use_case = self.resolve_dependency(self.delete_video_use_case)
@@ -303,8 +331,29 @@ class VideoGroupDetailView(DependencyResolverMixin, AuthenticatedViewMixin, APIV
         ctx = {"request": request}
         return Response(VideoGroupDetailSerializer(group, context=ctx).data)
 
+    @extend_schema(
+        request=VideoGroupFullUpdateSerializer,
+        responses={200: VideoGroupDetailSerializer},
+        summary="Full update video group",
+        description="Replace all video group fields. name is required.",
+    )
     def put(self, request, pk):
-        return self.patch(request, pk)
+        serializer = VideoGroupFullUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        use_case = self.resolve_dependency(self.update_group_use_case)
+        try:
+            data = serializer.validated_data
+            input_dto = UpdateGroupInput(
+                name=data["name"],
+                description=data.get("description", ""),
+            )
+            group = use_case.execute(pk, request.user.id, input_dto)
+        except ResourceNotFound:
+            return create_error_response("Group not found", status.HTTP_404_NOT_FOUND)
+
+        ctx = {"request": request}
+        return Response(VideoGroupDetailSerializer(group, context=ctx).data)
 
     def delete(self, request, pk):
         use_case = self.resolve_dependency(self.delete_group_use_case)
@@ -609,8 +658,31 @@ class TagDetailView(DependencyResolverMixin, AuthenticatedViewMixin, APIView):
         ctx = {"request": request}
         return Response(TagDetailSerializer(tag, context=ctx).data)
 
+    @extend_schema(
+        request=TagFullUpdateSerializer,
+        responses={200: TagDetailSerializer},
+        summary="Full update tag",
+        description="Replace all tag fields. name and color are required.",
+    )
     def put(self, request, pk):
-        return self.patch(request, pk)
+        serializer = TagFullUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        use_case = self.resolve_dependency(self.update_tag_use_case)
+        try:
+            data = serializer.validated_data
+            input_dto = UpdateTagInput(
+                name=data["name"],
+                color=data["color"],
+            )
+            tag = use_case.execute(pk, request.user.id, input_dto)
+        except InvalidTagInput as e:
+            return create_error_response(str(e), status.HTTP_400_BAD_REQUEST)
+        except ResourceNotFound:
+            return create_error_response("Tag not found", status.HTTP_404_NOT_FOUND)
+
+        ctx = {"request": request}
+        return Response(TagDetailSerializer(tag, context=ctx).data)
 
     def delete(self, request, pk):
         use_case = self.resolve_dependency(self.delete_tag_use_case)
