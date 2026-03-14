@@ -250,7 +250,7 @@ class ChatViewTests(APITestCase):
         self.assertEqual(related[0]["start_time"], "00:00:10")
 
 
-class ChatSearchViewTests(APITestCase):
+class ChatScenesViewTests(APITestCase):
     def setUp(self):
         self.user = User.objects.create_user(
             username="searchuser",
@@ -286,13 +286,12 @@ class ChatSearchViewTests(APITestCase):
             )
         ]
 
-        response = self.client.post(
-            reverse("chat-search"),
+        response = self.client.get(
+            reverse("chat-scenes"),
             {
                 "query_text": "この部分の説明を探して",
                 "group_id": self.group.id,
             },
-            format="json",
         )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -300,19 +299,17 @@ class ChatSearchViewTests(APITestCase):
         self.assertEqual(response.data["related_videos"][0]["video_id"], self.video.id)
 
     def test_search_related_scenes_rejects_empty_query(self):
-        response = self.client.post(
-            reverse("chat-search"),
+        response = self.client.get(
+            reverse("chat-scenes"),
             {"query_text": "", "group_id": self.group.id},
-            format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("error", response.data)
 
     def test_search_related_scenes_group_not_found(self):
-        response = self.client.post(
-            reverse("chat-search"),
+        response = self.client.get(
+            reverse("chat-scenes"),
             {"query_text": "q", "group_id": 99999},
-            format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
@@ -321,10 +318,9 @@ class ChatSearchViewTests(APITestCase):
         mock_search_related_videos.return_value = []
         self.client.force_authenticate(user=None)
 
-        response = self.client.post(
-            f"{reverse('chat-search')}?share_token={self.group.share_token}",
-            {"query_text": "q", "group_id": self.group.id},
-            format="json",
+        response = self.client.get(
+            reverse("chat-scenes"),
+            {"query_text": "q", "group_id": self.group.id, "share_token": self.group.share_token},
         )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -338,10 +334,9 @@ class ChatSearchViewTests(APITestCase):
             "provider retrieval detail"
         )
 
-        response = self.client.post(
-            reverse("chat-search"),
+        response = self.client.get(
+            reverse("chat-scenes"),
             {"query_text": "q", "group_id": self.group.id},
-            format="json",
         )
 
         self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)

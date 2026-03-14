@@ -154,7 +154,11 @@ class ChatSearchView(DependencyResolverMixin, APIView):
     search_related_videos_use_case = None
 
     @extend_schema(
-        request=ChatSearchRequestSerializer,
+        parameters=[
+            OpenApiParameter("query_text", str, required=True),
+            OpenApiParameter("group_id", int, required=True),
+            OpenApiParameter("share_token", str, required=False),
+        ],
         responses={200: ChatSearchResponseSerializer},
         summary="Search related scenes",
         description=(
@@ -162,11 +166,11 @@ class ChatSearchView(DependencyResolverMixin, APIView):
             "No LLM answer generation is performed."
         ),
     )
-    def post(self, request):
+    def get(self, request):
         share_token = request.query_params.get("share_token")
         is_shared = share_token is not None
 
-        serializer = ChatSearchRequestSerializer(data=request.data)
+        serializer = ChatSearchRequestSerializer(data=request.query_params)
         serializer.is_valid(raise_exception=True)
 
         use_case = self.resolve_dependency(self.search_related_videos_use_case)
