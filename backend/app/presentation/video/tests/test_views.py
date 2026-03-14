@@ -584,6 +584,154 @@ class TagViewTests(APITestCase):
         )
 
 
+class VideoPutViewTests(APITestCase):
+    """Tests for VideoDetailView PUT (full update)"""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="testuser",
+            email="test@example.com",
+            password="testpass123",
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+        self.video = Video.objects.create(
+            user=self.user,
+            title="Original Title",
+            description="Original Description",
+            status="completed",
+        )
+
+    def test_put_video_requires_title(self):
+        """PUT without title should return 400 (full update requires all fields)"""
+        url = reverse("video-detail", kwargs={"pk": self.video.pk})
+        response = self.client.put(url, {"description": "New Desc"}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_put_video_updates_all_fields(self):
+        """PUT with all required fields should return 200 and update the video"""
+        url = reverse("video-detail", kwargs={"pk": self.video.pk})
+        response = self.client.put(
+            url,
+            {"title": "New Title", "description": "New Desc"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["title"], "New Title")
+        self.assertEqual(response.data["description"], "New Desc")
+        self.video.refresh_from_db()
+        self.assertEqual(self.video.title, "New Title")
+        self.assertEqual(self.video.description, "New Desc")
+
+    def test_put_video_is_not_partial(self):
+        """PUT should not behave the same as PATCH (partial update)"""
+        url = reverse("video-detail", kwargs={"pk": self.video.pk})
+        # PATCH accepts partial data; PUT must reject missing required fields
+        patch_response = self.client.patch(url, {"description": "Patched"}, format="json")
+        put_response = self.client.put(url, {"description": "Put Only"}, format="json")
+        self.assertEqual(patch_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(put_response.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+class VideoGroupPutViewTests(APITestCase):
+    """Tests for VideoGroupDetailView PUT (full update)"""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="testuser",
+            email="group@example.com",
+            password="testpass123",
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+        self.group = VideoGroup.objects.create(
+            user=self.user,
+            name="Original Name",
+            description="Original Description",
+        )
+
+    def test_put_group_requires_name(self):
+        """PUT without name should return 400 (full update requires all fields)"""
+        url = reverse("video-group-detail", kwargs={"pk": self.group.pk})
+        response = self.client.put(url, {"description": "New Desc"}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_put_group_updates_all_fields(self):
+        """PUT with all required fields should return 200 and update the group"""
+        url = reverse("video-group-detail", kwargs={"pk": self.group.pk})
+        response = self.client.put(
+            url,
+            {"name": "New Name", "description": "New Desc"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["name"], "New Name")
+        self.assertEqual(response.data["description"], "New Desc")
+        self.group.refresh_from_db()
+        self.assertEqual(self.group.name, "New Name")
+        self.assertEqual(self.group.description, "New Desc")
+
+    def test_put_group_is_not_partial(self):
+        """PUT should not behave the same as PATCH (partial update)"""
+        url = reverse("video-group-detail", kwargs={"pk": self.group.pk})
+        patch_response = self.client.patch(url, {"description": "Patched"}, format="json")
+        put_response = self.client.put(url, {"description": "Put Only"}, format="json")
+        self.assertEqual(patch_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(put_response.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+class TagPutViewTests(APITestCase):
+    """Tests for TagDetailView PUT (full update)"""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="testuser",
+            email="tag@example.com",
+            password="testpass123",
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+        self.tag = Tag.objects.create(
+            user=self.user,
+            name="Original Tag",
+            color="#111111",
+        )
+
+    def test_put_tag_requires_name(self):
+        """PUT without name should return 400"""
+        url = reverse("tag-detail", kwargs={"pk": self.tag.pk})
+        response = self.client.put(url, {"color": "#222222"}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_put_tag_requires_color(self):
+        """PUT without color should return 400"""
+        url = reverse("tag-detail", kwargs={"pk": self.tag.pk})
+        response = self.client.put(url, {"name": "New Tag"}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_put_tag_updates_all_fields(self):
+        """PUT with all required fields should return 200 and update the tag"""
+        url = reverse("tag-detail", kwargs={"pk": self.tag.pk})
+        response = self.client.put(
+            url,
+            {"name": "New Tag", "color": "#222222"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["name"], "New Tag")
+        self.tag.refresh_from_db()
+        self.assertEqual(self.tag.name, "New Tag")
+        self.assertEqual(self.tag.color, "#222222")
+
+    def test_put_tag_is_not_partial(self):
+        """PUT should not behave the same as PATCH (partial update)"""
+        url = reverse("tag-detail", kwargs={"pk": self.tag.pk})
+        patch_response = self.client.patch(url, {"name": "Patched"}, format="json")
+        put_response = self.client.put(url, {"name": "Put Only"}, format="json")
+        self.assertEqual(patch_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(put_response.status_code, status.HTTP_400_BAD_REQUEST)
+
+
 class ShareLinkTests(APITestCase):
     """Tests for share link functionality"""
 
