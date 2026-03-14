@@ -249,11 +249,13 @@ class ApiClient {
 
   async logout(): Promise<void> {
     try {
+      const csrfToken = await this.ensureCsrfToken();
       await fetch(`${this.baseUrl}/auth/logout/`, {
         method: 'POST',
         credentials: 'include', // Send HttpOnly Cookie
         headers: {
           'Content-Type': 'application/json',
+          ...(csrfToken ? { 'X-CSRFToken': csrfToken } : {}),
         },
       });
     } catch {
@@ -284,6 +286,31 @@ class ApiClient {
   // Common method to generate basic JSON headers
   private getJsonHeaders(): Record<string, string> {
     return { 'Content-Type': 'application/json' };
+  }
+
+  private isSafeMethod(method?: string): boolean {
+    const normalizedMethod = (method ?? 'GET').toUpperCase();
+    return ['GET', 'HEAD', 'OPTIONS', 'TRACE'].includes(normalizedMethod);
+  }
+
+  private getCsrfTokenFromCookie(): string | null {
+    const match = document.cookie.match(/(?:^|; )csrftoken=([^;]+)/);
+    return match ? decodeURIComponent(match[1]) : null;
+  }
+
+  private async ensureCsrfToken(): Promise<string | null> {
+    const existingToken = this.getCsrfTokenFromCookie();
+    if (existingToken) {
+      return existingToken;
+    }
+
+    await fetch(this.buildUrl('/auth/csrf/'), {
+      method: 'GET',
+      credentials: 'include',
+      headers: {},
+    });
+
+    return this.getCsrfTokenFromCookie();
   }
 
   private buildHeaders(additionalHeaders?: HeadersInit): Record<string, string> {
@@ -400,6 +427,13 @@ class ApiClient {
     // Use common method to build URL
     const url = this.buildUrl(endpoint);
     const headers = this.buildHeaders(options.headers);
+
+    if (!this.isSafeMethod(options.method)) {
+      const csrfToken = await this.ensureCsrfToken();
+      if (csrfToken) {
+        headers['X-CSRFToken'] = csrfToken;
+      }
+    }
 
     // Use common method to stringify body
     const body = this.stringifyBody(options.body);
@@ -622,6 +656,10 @@ class ApiClient {
 
     // Authorization header not needed with HttpOnly Cookie-based authentication
     const headers: Record<string, string> = {};
+    const csrfToken = await this.ensureCsrfToken();
+    if (csrfToken) {
+      headers['X-CSRFToken'] = csrfToken;
+    }
 
     try {
       const response = await this.executeRequest(url, {

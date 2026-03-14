@@ -1,4 +1,6 @@
 from django.conf import settings
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 from django.http import Http404
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics, status
@@ -82,6 +84,7 @@ class UserSignupView(PublicAPIView):
         )
 
 
+@method_decorator(csrf_protect, name="dispatch")
 class LoginView(PublicAPIView):
     """Login view"""
 
@@ -196,6 +199,7 @@ class AccountDeleteView(AuthenticatedAPIView):
         return response
 
 
+@method_decorator(csrf_protect, name="dispatch")
 class RefreshView(PublicAPIView):
     """Token refresh view"""
 
@@ -253,6 +257,22 @@ class RefreshView(PublicAPIView):
         )
 
         return response
+
+
+@method_decorator(ensure_csrf_cookie, name="dispatch")
+class CsrfTokenView(PublicAPIView):
+    """Bootstrap endpoint for the CSRF cookie used by cookie-based auth."""
+
+    serializer_class = None
+
+    @extend_schema(
+        request=None,
+        responses={204: None},
+        summary="Issue CSRF cookie",
+        description="Ensure the CSRF cookie is set for subsequent unsafe requests.",
+    )
+    def get(self, request):
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class EmailVerificationView(PublicAPIView):
