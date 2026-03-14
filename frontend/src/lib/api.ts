@@ -756,14 +756,14 @@ class ApiClient {
   }
 
   async deleteShareLink(groupId: number): Promise<{ message: string }> {
-    return this.request<{ message: string }>(`/videos/groups/${groupId}/share/delete/`, {
+    return this.request<{ message: string }>(`/videos/groups/${groupId}/share/`, {
       method: 'DELETE',
     });
   }
 
   async getSharedGroup(shareToken: string): Promise<VideoGroup> {
     // Shared groups don't require authentication, so don't include credentials
-    const url = this.buildUrl(`/videos/groups/shared/${shareToken}/`);
+    const url = this.buildUrl(`/videos/groups/share/${shareToken}/`);
     const response = await fetch(url);
 
     if (!response.ok) {
