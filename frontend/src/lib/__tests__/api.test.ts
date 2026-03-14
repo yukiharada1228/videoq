@@ -23,6 +23,10 @@ describe('ApiClient', () => {
 
   beforeEach(() => {
     fetchMock.mockReset();
+    Object.defineProperty(document, 'cookie', {
+      writable: true,
+      value: 'csrftoken=test-csrf-token',
+    });
 
     // Reset window.location mock
     Object.defineProperty(window, 'location', {
@@ -78,6 +82,7 @@ describe('ApiClient', () => {
     });
 
     it('login should return response on success', async () => {
+      document.cookie = 'csrftoken=test-csrf-token';
       const mockResponse = {};
       fetchMock.mockResolvedValueOnce({
         ok: true,
@@ -89,7 +94,40 @@ describe('ApiClient', () => {
       expect(result).toEqual(mockResponse);
       expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/login/', expect.objectContaining({
         method: 'POST',
+        headers: expect.objectContaining({
+          'X-CSRFToken': 'test-csrf-token',
+        }),
         body: JSON.stringify({ username: 'user', password: 'pw' }),
+      }));
+    });
+
+    it('login should fetch csrf cookie before unsafe requests when missing', async () => {
+      document.cookie = '';
+      fetchMock.mockImplementationOnce(async () => {
+        document.cookie = 'csrftoken=fetched-csrf-token';
+        return {
+          ok: true,
+          status: 204,
+          headers: new Headers(),
+          text: async () => Promise.resolve(''),
+        } as Response;
+      });
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        text: () => Promise.resolve('{}'),
+      });
+
+      await apiClient.login({ username: 'user', password: 'pw' });
+
+      expect(fetchMock).toHaveBeenNthCalledWith(1, 'http://localhost:8000/api/auth/csrf/', expect.objectContaining({
+        method: 'GET',
+        credentials: 'include',
+      }));
+      expect(fetchMock).toHaveBeenNthCalledWith(2, 'http://localhost:8000/api/auth/login/', expect.objectContaining({
+        headers: expect.objectContaining({
+          'X-CSRFToken': 'fetched-csrf-token',
+        }),
       }));
     });
 
@@ -130,6 +168,7 @@ describe('ApiClient', () => {
     });
 
     it('refreshToken should call refresh endpoint', async () => {
+      document.cookie = 'csrftoken=test-csrf-token';
       const mockResponse = {};
       fetchMock.mockResolvedValueOnce({
         ok: true,
@@ -142,6 +181,9 @@ describe('ApiClient', () => {
         method: 'POST',
         body: undefined,
         credentials: 'include',
+        headers: expect.objectContaining({
+          'X-CSRFToken': 'test-csrf-token',
+        }),
       }));
     });
 
