@@ -4,6 +4,8 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import exception_handler
 
+from app.presentation.common.responses import INTERNAL_ERROR_MESSAGE
+
 
 class ErrorCode:
     VALIDATION_ERROR = "VALIDATION_ERROR"
@@ -84,6 +86,9 @@ def _get_error_code(status_code: int, exc) -> str:
 
 
 def _get_error_message(exc, response) -> str:
+    if getattr(response, "status_code", 0) >= status.HTTP_500_INTERNAL_SERVER_ERROR:
+        return INTERNAL_ERROR_MESSAGE
+
     if hasattr(exc, "detail"):
         detail = exc.detail
 

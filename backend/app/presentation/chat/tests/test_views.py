@@ -13,6 +13,7 @@ from rest_framework.test import APIClient, APITestCase
 
 from app.domain.chat.dtos import RelatedVideoDTO
 from app.domain.chat.gateways import LLMConfigurationError, RagResult
+from app.use_cases.chat.exceptions import LLMProviderError
 
 User = get_user_model()
 ChatLog = apps.get_model("app", "ChatLog")
@@ -144,6 +145,30 @@ class ChatViewTests(APITestCase):
         response = self.client.post(url, data, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    @patch("app.infrastructure.external.rag_gateway.RagChatGateway.generate_reply")
+    def test_chat_provider_error_returns_generic_500_message(self, mock_generate_reply):
+        """500 responses must not expose internal provider error details."""
+        mock_generate_reply.side_effect = LLMProviderError("provider stack trace detail")
+
+        url = reverse("chat")
+        data = {
+            "messages": [{"role": "user", "content": "Test question"}],
+            "group_id": self.group.id,
+        }
+
+        response = self.client.post(url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        self.assertEqual(
+            response.data,
+            {
+                "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "An internal server error occurred.",
+                }
+            },
+        )
 
     @patch("app.infrastructure.external.rag_gateway.RagChatGateway.generate_reply")
     def test_chat_with_share_token(self, mock_generate_reply):
@@ -304,3 +329,28 @@ class ChatSearchViewTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["query_text"], "q")
+
+    @patch("app.infrastructure.external.rag_gateway.RagChatGateway.search_related_videos")
+    def test_search_related_scenes_provider_error_returns_generic_500_message(
+        self, mock_search_related_videos
+    ):
+        mock_search_related_videos.side_effect = LLMProviderError(
+            "provider retrieval detail"
+        )
+
+        response = self.client.post(
+            reverse("chat-search"),
+            {"query_text": "q", "group_id": self.group.id},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        self.assertEqual(
+            response.data,
+            {
+                "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "An internal server error occurred.",
+                }
+            },
+        )
