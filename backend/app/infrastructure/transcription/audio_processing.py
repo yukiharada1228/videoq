@@ -16,9 +16,9 @@ from django.core.exceptions import ImproperlyConfigured
 from openai import AsyncOpenAI
 
 try:
-    import resource
+    import resource as resource_module
 except ImportError:  # pragma: no cover - non-Unix fallback
-    resource: ModuleType | None = None
+    resource_module: ModuleType | None = None
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +74,7 @@ def _build_media_preexec_fn():
     """
     Apply conservative resource limits to ffmpeg/ffprobe child processes on Unix.
     """
-    if platform.system() == "Windows" or resource is None:
+    if platform.system() == "Windows" or resource_module is None:
         return None
 
     cpu_time_limit_seconds = int(
@@ -87,20 +87,20 @@ def _build_media_preexec_fn():
 
     def _set_limits():
         if cpu_time_limit_seconds > 0:
-            resource.setrlimit(
-                resource.RLIMIT_CPU,
+            resource_module.setrlimit(
+                resource_module.RLIMIT_CPU,
                 (cpu_time_limit_seconds, cpu_time_limit_seconds),
             )
         if memory_limit_mb > 0:
             memory_limit_bytes = memory_limit_mb * 1024 * 1024
-            resource.setrlimit(
-                resource.RLIMIT_AS,
+            resource_module.setrlimit(
+                resource_module.RLIMIT_AS,
                 (memory_limit_bytes, memory_limit_bytes),
             )
         if output_file_size_limit_mb > 0:
             output_file_limit_bytes = output_file_size_limit_mb * 1024 * 1024
-            resource.setrlimit(
-                resource.RLIMIT_FSIZE,
+            resource_module.setrlimit(
+                resource_module.RLIMIT_FSIZE,
                 (output_file_limit_bytes, output_file_limit_bytes),
             )
 
