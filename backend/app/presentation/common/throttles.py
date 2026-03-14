@@ -2,7 +2,8 @@
 
 from rest_framework.throttling import SimpleRateThrottle
 
-from app.domain.auth.services import normalize_signup_email
+def _normalize_signup_throttle_email(email: str) -> str:
+    return email.strip().lower()
 
 
 class ShareTokenIPThrottle(SimpleRateThrottle):
@@ -87,7 +88,7 @@ class SignupEmailThrottle(SimpleRateThrottle):
         if not email:
             ident = self.get_ident(request)
         else:
-            ident = normalize_signup_email(str(email))
+            ident = _normalize_signup_throttle_email(str(email))
 
         return self.cache_format % {
             "scope": self.scope,
