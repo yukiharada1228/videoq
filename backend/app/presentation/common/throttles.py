@@ -2,6 +2,9 @@
 
 from rest_framework.throttling import SimpleRateThrottle
 
+def _normalize_signup_throttle_email(email: str) -> str:
+    return email.strip().lower()
+
 
 class ShareTokenIPThrottle(SimpleRateThrottle):
     scope = "chat_share_token_ip"
@@ -74,6 +77,22 @@ class SignupIPThrottle(SimpleRateThrottle):
         return self.cache_format % {
             "scope": self.scope,
             "ident": self.get_ident(request),
+        }
+
+
+class SignupEmailThrottle(SimpleRateThrottle):
+    scope = "signup_email"
+
+    def get_cache_key(self, request, view):
+        email = request.data.get("email")
+        if not email:
+            ident = self.get_ident(request)
+        else:
+            ident = _normalize_signup_throttle_email(str(email))
+
+        return self.cache_format % {
+            "scope": self.scope,
+            "ident": ident,
         }
 
 

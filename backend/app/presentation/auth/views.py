@@ -28,7 +28,9 @@ from app.presentation.common.exceptions import ErrorCode
 from app.presentation.common.responses import create_error_response, create_success_response
 from app.presentation.common.throttles import (LoginIPThrottle, LoginUsernameThrottle,
                                                PasswordResetEmailThrottle,
-                                               PasswordResetIPThrottle, SignupIPThrottle)
+                                               PasswordResetIPThrottle,
+                                               SignupEmailThrottle,
+                                               SignupIPThrottle)
 from app.use_cases.shared.exceptions import ResourceNotFound
 from app.presentation.common.mixins import (
     AuthenticatedViewMixin,
@@ -53,7 +55,7 @@ class UserSignupView(PublicAPIView):
     """User registration view"""
 
     serializer_class = UserSignupSerializer
-    throttle_classes = [SignupIPThrottle]
+    throttle_classes = [SignupIPThrottle, SignupEmailThrottle]
     signup_use_case = None
 
     @extend_schema(
