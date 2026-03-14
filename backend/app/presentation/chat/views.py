@@ -253,7 +253,7 @@ class ChatFeedbackView(DependencyResolverMixin, APIView):
 class ChatHistoryView(DependencyResolverMixin, APIView):
     """Get conversation history for a group (owner only).
 
-    Supports ?format=csv to download history as a CSV file.
+    Pass ?download=csv to download history as a CSV file.
     """
 
     authentication_classes = [APIKeyAuthentication, CookieJWTAuthentication]
@@ -262,38 +262,28 @@ class ChatHistoryView(DependencyResolverMixin, APIView):
     chat_history_use_case = None
     export_history_use_case = None
 
-    def perform_content_negotiation(self, request, force=False):
-        # ?format=csv is a download hint, not a DRF renderer format.
-        # DRF 3.16+ calls this in initial() before the handler runs,
-        # so intercept here to avoid NotAcceptable when no CSV renderer exists.
-        if request.query_params.get("format") == "csv":
-            from rest_framework.renderers import JSONRenderer
-            return (JSONRenderer(), "application/json")
-        return super().perform_content_negotiation(request, force=force)
-
     @extend_schema(
         parameters=[
             OpenApiParameter("group_id", int, required=False),
-            OpenApiParameter("format", str, required=False, description="Use 'csv' to download as CSV file."),
+            OpenApiParameter("download", str, required=False, description="Pass 'csv' to download as a CSV file."),
         ],
         responses={
             200: OpenApiResponse(
                 response=OpenApiTypes.BINARY,
-                description="CSV export when format=csv, otherwise JSON chat log list.",
+                description="CSV file when download=csv, otherwise JSON chat log list.",
             )
         },
         summary="Get chat history",
         description=(
             "Return chat history for a group. "
-            "Pass ?format=csv to download as a CSV file. "
+            "Pass ?download=csv to download as a CSV file. "
             "Empty list is returned when group_id is omitted."
         ),
     )
     def get(self, request, *args, **kwargs):
         group_id = request.query_params.get("group_id")
-        fmt = request.query_params.get("format")
 
-        if fmt == "csv":
+        if request.query_params.get("download") == "csv":
             if not group_id:
                 return create_error_response(
                     "Group ID not specified", status.HTTP_400_BAD_REQUEST

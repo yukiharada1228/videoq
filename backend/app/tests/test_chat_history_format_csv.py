@@ -1,8 +1,8 @@
-"""TDD tests for GET /chat/history/?format=csv endpoint.
+"""TDD tests for GET /chat/history/?download=csv endpoint.
 
 Issue #459: /export/ エンドポイントをクエリパラメータに変更する
-- GET /api/chat/history/?format=csv&group_id=1 → CSV response
-- GET /api/chat/history/?group_id=1             → JSON response (unchanged)
+- GET /api/chat/history/?download=csv&group_id=1 → CSV response
+- GET /api/chat/history/?group_id=1              → JSON response (unchanged)
 """
 
 import unittest
@@ -44,10 +44,10 @@ def _call_get(view_class, use_cases, params):
     return instance.get(_make_drf_request(params))
 
 
-class ChatHistoryFormatCsvTests(unittest.TestCase):
-    """ChatHistoryView handles ?format=csv to return CSV export."""
+class ChatHistoryDownloadCsvTests(unittest.TestCase):
+    """ChatHistoryView handles ?download=csv to return CSV export."""
 
-    def test_format_csv_returns_200(self):
+    def test_download_csv_returns_200(self):
         from app.presentation.chat.views import ChatHistoryView
 
         response = _call_get(
@@ -56,11 +56,11 @@ class ChatHistoryFormatCsvTests(unittest.TestCase):
                 "chat_history_use_case": _make_history_use_case(),
                 "export_history_use_case": _make_export_use_case(),
             },
-            {"group_id": "42", "format": "csv"},
+            {"group_id": "42", "download": "csv"},
         )
         self.assertEqual(response.status_code, 200)
 
-    def test_format_csv_content_type_is_text_csv(self):
+    def test_download_csv_content_type_is_text_csv(self):
         from app.presentation.chat.views import ChatHistoryView
 
         response = _call_get(
@@ -69,11 +69,11 @@ class ChatHistoryFormatCsvTests(unittest.TestCase):
                 "chat_history_use_case": _make_history_use_case(),
                 "export_history_use_case": _make_export_use_case(),
             },
-            {"group_id": "42", "format": "csv"},
+            {"group_id": "42", "download": "csv"},
         )
         self.assertIn("text/csv", response.get("Content-Type", ""))
 
-    def test_format_csv_content_disposition_contains_filename(self):
+    def test_download_csv_content_disposition_contains_filename(self):
         from app.presentation.chat.views import ChatHistoryView
 
         response = _call_get(
@@ -82,11 +82,11 @@ class ChatHistoryFormatCsvTests(unittest.TestCase):
                 "chat_history_use_case": _make_history_use_case(),
                 "export_history_use_case": _make_export_use_case(group_id=42),
             },
-            {"group_id": "42", "format": "csv"},
+            {"group_id": "42", "download": "csv"},
         )
         self.assertIn("chat_history_group_42.csv", response.get("Content-Disposition", ""))
 
-    def test_format_csv_calls_export_use_case_not_history_use_case(self):
+    def test_download_csv_calls_export_use_case_not_history_use_case(self):
         from app.presentation.chat.views import ChatHistoryView
 
         history_uc = _make_history_use_case()
@@ -97,12 +97,12 @@ class ChatHistoryFormatCsvTests(unittest.TestCase):
                 "chat_history_use_case": history_uc,
                 "export_history_use_case": export_uc,
             },
-            {"group_id": "42", "format": "csv"},
+            {"group_id": "42", "download": "csv"},
         )
         export_uc.execute.assert_called_once_with(group_id=42, user_id=1)
         history_uc.execute.assert_not_called()
 
-    def test_no_format_param_returns_json(self):
+    def test_no_download_param_returns_json(self):
         from app.presentation.chat.views import ChatHistoryView
 
         history_uc = _make_history_use_case()
@@ -117,7 +117,7 @@ class ChatHistoryFormatCsvTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         history_uc.execute.assert_called_once()
 
-    def test_format_csv_missing_group_id_returns_400(self):
+    def test_download_csv_missing_group_id_returns_400(self):
         from app.presentation.chat.views import ChatHistoryView
 
         response = _call_get(
@@ -126,13 +126,13 @@ class ChatHistoryFormatCsvTests(unittest.TestCase):
                 "chat_history_use_case": _make_history_use_case(),
                 "export_history_use_case": _make_export_use_case(),
             },
-            {"format": "csv"},
+            {"download": "csv"},
         )
         self.assertEqual(response.status_code, 400)
 
 
-class ChatHistoryFormatCsvDispatchTests(unittest.TestCase):
-    """Ensure ?format=csv works through DRF's full dispatch pipeline (not just get())."""
+class ChatHistoryDownloadCsvDispatchTests(unittest.TestCase):
+    """Ensure ?download=csv works through DRF's full dispatch pipeline (not just get())."""
 
     def _make_view_and_request(self, params):
         from rest_framework.test import APIRequestFactory, force_authenticate
@@ -151,21 +151,20 @@ class ChatHistoryFormatCsvDispatchTests(unittest.TestCase):
         force_authenticate(req, user=user)
         return view, req, export_uc
 
-    def test_dispatch_format_csv_returns_200(self):
-        view, req, _ = self._make_view_and_request({"group_id": "1", "format": "csv"})
+    def test_dispatch_download_csv_returns_200(self):
+        view, req, _ = self._make_view_and_request({"group_id": "1", "download": "csv"})
         resp = view(req)
         self.assertEqual(resp.status_code, 200)
 
-    def test_dispatch_format_csv_content_type_is_text_csv(self):
-        view, req, _ = self._make_view_and_request({"group_id": "1", "format": "csv"})
+    def test_dispatch_download_csv_content_type_is_text_csv(self):
+        view, req, _ = self._make_view_and_request({"group_id": "1", "download": "csv"})
         resp = view(req)
         self.assertIn("text/csv", resp.get("Content-Type", ""))
 
-    def test_dispatch_no_format_returns_json(self):
+    def test_dispatch_no_download_returns_json(self):
         view, req, _ = self._make_view_and_request({"group_id": "1"})
         resp = view(req)
         self.assertEqual(resp.status_code, 200)
-        # DRF Response is lazy-rendered; check accepted_media_type set by finalize_response.
         self.assertIn("application/json", getattr(resp, "accepted_media_type", ""))
 
 

@@ -580,7 +580,7 @@ class ApiClient {
 
 
   async exportChatHistoryCsv(groupId: number): Promise<void> {
-    const url = this.buildUrl(`/chat/history/?group_id=${groupId}&format=csv`);
+    const url = this.buildUrl(`/chat/history/?group_id=${groupId}&download=csv`);
 
     const doFetch = async (): Promise<Response> => {
       return fetch(url, {
