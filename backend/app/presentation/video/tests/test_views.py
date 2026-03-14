@@ -658,12 +658,18 @@ class VideoUploadTests(APITestCase):
         self.client = APIClient()
         self.client.force_authenticate(user=self.user)
 
+    @patch("app.presentation.video.serializers.validate_video_media_file")
     @patch("app.infrastructure.tasks.task_gateway.current_app.send_task")
-    def test_upload(self, mock_task):
+    def test_upload(self, mock_task, mock_validate_video):
         """Test video upload"""
         from io import BytesIO
 
         from django.core.files.uploadedfile import SimpleUploadedFile
+
+        mock_validate_video.return_value = {
+            "format": {"format_name": "mp4", "duration": "60.0"},
+            "streams": [{"codec_type": "video", "codec_name": "h264"}],
+        }
 
         video_file = SimpleUploadedFile(
             "test_video.mp4",
@@ -690,6 +696,38 @@ class VideoUploadTests(APITestCase):
         video = Video.objects.first()
         self.assertEqual(video.title, "Test Video")
 
+    @patch("app.presentation.video.serializers.validate_video_media_file")
+    @patch("app.infrastructure.tasks.task_gateway.current_app.send_task")
+    def test_upload_rejects_invalid_media_payload(self, mock_task, mock_validate_video):
+        """Test video upload rejects files that fail ffprobe validation"""
+        from io import BytesIO
+
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        from app.contracts.media_validation import InvalidMediaFileError
+
+        mock_validate_video.side_effect = InvalidMediaFileError(
+            "Uploaded file is not a valid video."
+        )
+
+        video_file = SimpleUploadedFile(
+            "test_video.mp4",
+            BytesIO(b"not actually a video").read(),
+            content_type="video/mp4",
+        )
+
+        url = reverse("video-list")
+        response = self.client.post(
+            url,
+            {"file": video_file, "title": "Test Video"},
+            format="multipart",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("Uploaded file is not a valid video.", str(response.data))
+        self.assertEqual(Video.objects.count(), 0)
+        mock_task.assert_not_called()
+
 
 class VideoLimitTests(APITestCase):
     """Tests for video upload limit functionality"""
@@ -709,9 +747,14 @@ class VideoLimitTests(APITestCase):
             content_type="video/mp4",
         )
 
+    @patch("app.presentation.video.serializers.validate_video_media_file")
     @patch("app.infrastructure.tasks.task_gateway.current_app.send_task")
-    def test_upload_with_unlimited_video_limit(self, mock_task):
+    def test_upload_with_unlimited_video_limit(self, mock_task, mock_validate_video):
         """Test video upload when video_limit is None (unlimited)"""
+        mock_validate_video.return_value = {
+            "format": {"format_name": "mp4", "duration": "60.0"},
+            "streams": [{"codec_type": "video", "codec_name": "h264"}],
+        }
         user = User.objects.create_user(
             username="testuser",
             email="test@example.com",
@@ -733,9 +776,14 @@ class VideoLimitTests(APITestCase):
 
         self.assertEqual(Video.objects.filter(user=user).count(), 3)
 
+    @patch("app.presentation.video.serializers.validate_video_media_file")
     @patch("app.infrastructure.tasks.task_gateway.current_app.send_task")
-    def test_upload_with_zero_video_limit(self, mock_task):
+    def test_upload_with_zero_video_limit(self, mock_task, mock_validate_video):
         """Test video upload when video_limit is 0 (no uploads allowed)"""
+        mock_validate_video.return_value = {
+            "format": {"format_name": "mp4", "duration": "60.0"},
+            "streams": [{"codec_type": "video", "codec_name": "h264"}],
+        }
         user = User.objects.create_user(
             username="testuser",
             email="test@example.com",
@@ -756,9 +804,14 @@ class VideoLimitTests(APITestCase):
         self.assertIn("Video upload limit reached", str(response.data))
         self.assertEqual(Video.objects.filter(user=user).count(), 0)
 
+    @patch("app.presentation.video.serializers.validate_video_media_file")
     @patch("app.infrastructure.tasks.task_gateway.current_app.send_task")
-    def test_upload_within_video_limit(self, mock_task):
+    def test_upload_within_video_limit(self, mock_task, mock_validate_video):
         """Test video upload within the limit"""
+        mock_validate_video.return_value = {
+            "format": {"format_name": "mp4", "duration": "60.0"},
+            "streams": [{"codec_type": "video", "codec_name": "h264"}],
+        }
         user = User.objects.create_user(
             username="testuser",
             email="test@example.com",
@@ -780,9 +833,14 @@ class VideoLimitTests(APITestCase):
 
         self.assertEqual(Video.objects.filter(user=user).count(), 2)
 
+    @patch("app.presentation.video.serializers.validate_video_media_file")
     @patch("app.infrastructure.tasks.task_gateway.current_app.send_task")
-    def test_upload_at_exact_video_limit(self, mock_task):
+    def test_upload_at_exact_video_limit(self, mock_task, mock_validate_video):
         """Test video upload at exact limit"""
+        mock_validate_video.return_value = {
+            "format": {"format_name": "mp4", "duration": "60.0"},
+            "streams": [{"codec_type": "video", "codec_name": "h264"}],
+        }
         user = User.objects.create_user(
             username="testuser",
             email="test@example.com",
@@ -804,9 +862,14 @@ class VideoLimitTests(APITestCase):
 
         self.assertEqual(Video.objects.filter(user=user).count(), 2)
 
+    @patch("app.presentation.video.serializers.validate_video_media_file")
     @patch("app.infrastructure.tasks.task_gateway.current_app.send_task")
-    def test_upload_exceeds_video_limit(self, mock_task):
+    def test_upload_exceeds_video_limit(self, mock_task, mock_validate_video):
         """Test video upload when limit is exceeded"""
+        mock_validate_video.return_value = {
+            "format": {"format_name": "mp4", "duration": "60.0"},
+            "streams": [{"codec_type": "video", "codec_name": "h264"}],
+        }
         user = User.objects.create_user(
             username="testuser",
             email="test@example.com",
@@ -839,9 +902,14 @@ class VideoLimitTests(APITestCase):
         self.assertIn("Video upload limit reached", str(response.data))
         self.assertEqual(Video.objects.filter(user=user).count(), 2)
 
+    @patch("app.presentation.video.serializers.validate_video_media_file")
     @patch("app.infrastructure.tasks.task_gateway.current_app.send_task")
-    def test_upload_after_deleting_video_within_limit(self, mock_task):
+    def test_upload_after_deleting_video_within_limit(self, mock_task, mock_validate_video):
         """Test video upload after deleting a video to free up space"""
+        mock_validate_video.return_value = {
+            "format": {"format_name": "mp4", "duration": "60.0"},
+            "streams": [{"codec_type": "video", "codec_name": "h264"}],
+        }
         user = User.objects.create_user(
             username="testuser",
             email="test@example.com",
