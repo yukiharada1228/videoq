@@ -175,3 +175,22 @@ class ProtectedMediaViewTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response["Content-Type"], "video/mp4")
+
+    def test_path_traversal_dotdot_returns_404(self):
+        """../secret のようなパストラバーサルは 404 を返す。"""
+        self.client.force_authenticate(user=self.user)
+        # Django の URLconf が <path:path> を受け取るため直接 get を使う
+        response = self.client.get("/api/media/../secret")
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_path_traversal_double_dotdot_returns_404(self):
+        """../../etc/passwd のようなパスは 404 を返す。"""
+        self.client.force_authenticate(user=self.user)
+        response = self.client.get("/api/media/../../etc/passwd")
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_path_traversal_embedded_dotdot_returns_404(self):
+        """videos/../../../etc/passwd のようなパスは 404 を返す。"""
+        self.client.force_authenticate(user=self.user)
+        response = self.client.get("/api/media/videos/../../../etc/passwd")
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
