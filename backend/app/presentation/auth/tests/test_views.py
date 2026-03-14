@@ -86,8 +86,7 @@ class LoginViewTests(APITestCase):
         response = self.client.post(self.url, data, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertIn("access", response.data)
-        self.assertIn("refresh", response.data)
+        self.assertEqual(response.data, {})
         # Check cookies are set
         self.assertIn("access_token", response.cookies)
         self.assertIn("refresh_token", response.cookies)
@@ -160,7 +159,7 @@ class RefreshViewTests(APITestCase):
         response = self.client.post(self.url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertIn("access", response.data)
+        self.assertEqual(response.data, {})
         self.assertIn("access_token", response.cookies)
 
     def test_refresh_with_body(self):
@@ -173,7 +172,7 @@ class RefreshViewTests(APITestCase):
         response = self.client.post(self.url, data, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertIn("access", response.data)
+        self.assertEqual(response.data, {})
 
     def test_refresh_invalid_token(self):
         """Test token refresh with invalid token"""
