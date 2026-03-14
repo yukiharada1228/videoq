@@ -55,15 +55,15 @@ flowchart TD
 flowchart TD
     Start([User]) --> Input[Input Question]
     Input --> Frontend[Frontend]
-    Frontend --> API[Backend API<br/>/api/chat/]
+    Frontend --> API[Backend API<br>/api/chat/]
     
     API --> Auth{Authenticated or Share Token?}
     Auth -->|Failed| Error1[Authentication Error]
     Auth -->|Success| CheckGroup{group_id specified?}
-    CheckGroup -->|Yes| GetGroup[(Database<br/>Get VideoGroup)]
-    CheckGroup -->|No| LLM[OpenAI / Ollama<br/>LLM Call (No Context)]
+    CheckGroup -->|Yes| GetGroup[(Database<br>Get VideoGroup)]
+    CheckGroup -->|No| LLM[OpenAI / Ollama<br>LLM Call (No Context)]
 
-    GetGroup --> VectorSearch[PGVector<br/>Vector Search]
+    GetGroup --> VectorSearch[PGVector<br>Vector Search]
     VectorSearch --> RelatedScenes[Get Related Scenes]
     RelatedScenes --> BuildContext[Build Context]
     
@@ -71,7 +71,7 @@ flowchart TD
     LLM --> Answer[Generate Answer]
 
     Answer --> SaveLog{group_id specified?}
-    SaveLog -->|Yes| PersistLog[(Database<br/>Save ChatLog)]
+    SaveLog -->|Yes| PersistLog[(Database<br>Save ChatLog)]
     SaveLog -->|No| Response[Generate Response]
     PersistLog --> Response
     Response --> Frontend
@@ -91,8 +91,8 @@ flowchart TD
     Action -->|Reorder| Reorder[Reorder]
     
     Create --> API1[POST /api/videos/groups/]
-    Add --> API2[POST /api/videos/groups/<group_id>/videos/]
-    Reorder --> API3[PATCH /api/videos/groups/<group_id>/reorder/]
+    Add --> API2[POST /api/videos/groups/:group_id/videos/]
+    Reorder --> API3[PATCH /api/videos/groups/:group_id/reorder/]
     
     API1 --> Validate1{Validation}
     API2 --> Validate2{Validation}
@@ -127,30 +127,30 @@ flowchart TD
 ```mermaid
 flowchart TD
     Start1([Owner]) --> Generate[Generate Share Link]
-    Generate --> API1[POST /api/videos/groups/<id>/share/]
-    API1 --> Validate1[(Database<br/>Verify Ownership)]
+    Generate --> API1[POST /api/videos/groups/:id/share/]
+    API1 --> Validate1[(Database<br>Verify Ownership)]
     Validate1 --> GenerateToken[Generate Token]
-    GenerateToken --> SaveToken[(Database<br/>Save share_token)]
+    GenerateToken --> SaveToken[(Database<br>Save share_token)]
     SaveToken --> ReturnURL[Return Share URL]
     ReturnURL --> Share[Send Share URL]
     
     Share --> Guest([Guest])
     Guest --> Access[Access Share URL]
     Access --> Frontend[Frontend]
-    Frontend --> API2[GET /api/videos/groups/shared/<token>/]
+    Frontend --> API2[GET /api/videos/groups/shared/:token/]
     
-    API2 --> ValidateToken[(Database<br/>Verify Token)]
-    ValidateToken --> GetGroup[(Database<br/>Get VideoGroup)]
-    GetGroup --> GetVideos[(Database<br/>Get Related Videos)]
+    API2 --> ValidateToken[(Database<br>Verify Token)]
+    ValidateToken --> GetGroup[(Database<br>Get VideoGroup)]
+    GetGroup --> GetVideos[(Database<br>Get Related Videos)]
     GetVideos --> Response[Return Group Information]
     Response --> Frontend
     Frontend --> Guest
     
     Guest --> Chat[Send Chat]
-    Chat --> API3[POST /api/chat/?share_token=<token>]
-    API3 --> ValidateToken2[(Database<br/>Verify Token)]
+    Chat --> API3[POST /api/chat/?share_token=:token]
+    API3 --> ValidateToken2[(Database<br>Verify Token)]
     ValidateToken2 --> RAG[RAG Processing]
-    RAG --> SaveLog[(Database<br/>Save ChatLog<br/>is_shared_origin: True)]
+    RAG --> SaveLog[(Database<br>Save ChatLog<br>is_shared_origin: True)]
     SaveLog --> ReturnAnswer[Return Answer]
     ReturnAnswer --> Frontend
     Frontend --> Guest
@@ -292,21 +292,21 @@ flowchart TD
 
     List --> API1[GET /api/auth/api-keys/]
     Create --> API2[POST /api/auth/api-keys/]
-    Revoke --> API3[DELETE /api/auth/api-keys/<id>/]
+    Revoke --> API3[DELETE /api/auth/api-keys/:id/]
 
-    API1 --> QueryKeys[(Database<br/>Query Active Keys)]
-    QueryKeys --> Response1[Return Key List<br/>prefix, name, access_level]
+    API1 --> QueryKeys[(Database<br>Query Active Keys)]
+    QueryKeys --> Response1[Return Key List<br>prefix, name, access_level]
     Response1 --> Frontend
 
-    API2 --> CheckDup[(Database<br/>Check Duplicate Name)]
-    CheckDup --> GenKey[Generate Raw Key<br/>vq_...]
+    API2 --> CheckDup[(Database<br>Check Duplicate Name)]
+    CheckDup --> GenKey[Generate Raw Key<br>vq_...]
     GenKey --> HashKey[SHA-256 Hash]
-    HashKey --> SaveKey[(Database<br/>Create UserApiKey)]
-    SaveKey --> Response2[Return Key Details<br/>+ Raw Key (one-time)]
+    HashKey --> SaveKey[(Database<br>Create UserApiKey)]
+    SaveKey --> Response2[Return Key Details<br>+ Raw Key (one-time)]
     Response2 --> Frontend
 
-    API3 --> SetRevoked[(Database<br/>Set revoked_at)]
-    SetRevoked --> Response3[200 OK<br/>API key revoked]
+    API3 --> SetRevoked[(Database<br>Set revoked_at)]
+    SetRevoked --> Response3[200 OK<br>API key revoked]
     Response3 --> Frontend
 
     Frontend --> End([User])
@@ -324,26 +324,26 @@ flowchart TD
     Action -->|Export| Export[Export History]
 
     Feedback --> API1[POST /api/chat/feedback/]
-    API1 --> GetLog[(Database<br/>Get ChatLog)]
+    API1 --> GetLog[(Database<br>Get ChatLog)]
     GetLog --> VerifyAccess{Ownership Check}
-    VerifyAccess -->|Valid| UpdateFeedback[(Database<br/>Update feedback)]
+    VerifyAccess -->|Valid| UpdateFeedback[(Database<br>Update feedback)]
     UpdateFeedback --> Response1[Updated ChatLog]
     Response1 --> Frontend
 
-    Analytics --> API2[GET /api/chat/analytics/?group_id=<id>]
-    API2 --> GetRawData[(Database<br/>Aggregated Queries)]
-    GetRawData --> ComputeAnalytics[Compute Analytics<br/>feedback distribution, time series]
+    Analytics --> API2[GET /api/chat/analytics/?group_id=:id]
+    API2 --> GetRawData[(Database<br>Aggregated Queries)]
+    GetRawData --> ComputeAnalytics[Compute Analytics<br>feedback distribution, time series]
     ComputeAnalytics --> Response2[Analytics Response]
     Response2 --> Frontend
 
-    Scenes --> API3[GET /api/chat/popular-scenes/?group_id=<id>]
-    API3 --> GetSceneLogs[(Database<br/>Scene Logs)]
-    GetSceneLogs --> AggregateScenes[Aggregate Scenes<br/>+ Related Questions]
+    Scenes --> API3[GET /api/chat/popular-scenes/?group_id=:id]
+    API3 --> GetSceneLogs[(Database<br>Scene Logs)]
+    GetSceneLogs --> AggregateScenes[Aggregate Scenes<br>+ Related Questions]
     AggregateScenes --> Response3[Popular Scenes]
     Response3 --> Frontend
 
-    Export --> API4[GET /api/chat/history/export/?group_id=<id>]
-    API4 --> GetAllLogs[(Database<br/>All ChatLogs)]
+    Export --> API4[GET /api/chat/history/export/?group_id=:id]
+    API4 --> GetAllLogs[(Database<br>All ChatLogs)]
     GetAllLogs --> FormatCSV[Format as CSV]
     FormatCSV --> Response4[CSV Download]
     Response4 --> Frontend
