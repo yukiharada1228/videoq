@@ -37,6 +37,22 @@ class _FakeStorage:
         return io.BytesIO(b"dummy")
 
 
+class _TrackingStorage:
+    """ファイルシステムアクセスの呼び出しを追跡するストレージ。"""
+
+    def __init__(self):
+        self.exists_called = False
+        self.open_called = False
+
+    def exists(self, path: str) -> bool:
+        self.exists_called = True
+        return False
+
+    def open(self, path: str, mode: str = "rb"):
+        self.open_called = True
+        return io.BytesIO(b"")
+
+
 class ResolveProtectedMediaUseCaseTests(unittest.TestCase):
     def test_missing_file_raises_not_found(self):
         use_case = ResolveProtectedMediaUseCase(
@@ -72,3 +88,67 @@ class ResolveProtectedMediaUseCaseTests(unittest.TestCase):
             use_case.execute(
                 ResolveProtectedMediaInput(path="videos/test.mp4", group_id=99)
             )
+
+    def test_dotdot_path_raises_not_found_without_filesystem_access(self):
+        """../secret のようなパスはストレージを呼び出す前に拒否する。"""
+        storage = _TrackingStorage()
+        use_case = ResolveProtectedMediaUseCase(
+            media_repo=_FakeMediaRepo(),
+            media_storage=storage,
+        )
+
+        with self.assertRaises(ResourceNotFound):
+            use_case.execute(
+                ResolveProtectedMediaInput(path="../secret", user_id=1)
+            )
+
+        self.assertFalse(storage.exists_called, "exists() must not be called for traversal paths")
+        self.assertFalse(storage.open_called, "open() must not be called for traversal paths")
+
+    def test_double_dotdot_to_etc_passwd_raises_not_found_without_filesystem_access(self):
+        """../../etc/passwd のようなパスはストレージを呼び出す前に拒否する。"""
+        storage = _TrackingStorage()
+        use_case = ResolveProtectedMediaUseCase(
+            media_repo=_FakeMediaRepo(),
+            media_storage=storage,
+        )
+
+        with self.assertRaises(ResourceNotFound):
+            use_case.execute(
+                ResolveProtectedMediaInput(path="../../etc/passwd", user_id=1)
+            )
+
+        self.assertFalse(storage.exists_called)
+        self.assertFalse(storage.open_called)
+
+    def test_absolute_path_raises_not_found_without_filesystem_access(self):
+        """/etc/passwd のような絶対パスはストレージを呼び出す前に拒否する。"""
+        storage = _TrackingStorage()
+        use_case = ResolveProtectedMediaUseCase(
+            media_repo=_FakeMediaRepo(),
+            media_storage=storage,
+        )
+
+        with self.assertRaises(ResourceNotFound):
+            use_case.execute(
+                ResolveProtectedMediaInput(path="/etc/passwd", user_id=1)
+            )
+
+        self.assertFalse(storage.exists_called)
+        self.assertFalse(storage.open_called)
+
+    def test_embedded_dotdot_raises_not_found_without_filesystem_access(self):
+        """videos/../../../etc/passwd のようなパスも拒否する。"""
+        storage = _TrackingStorage()
+        use_case = ResolveProtectedMediaUseCase(
+            media_repo=_FakeMediaRepo(),
+            media_storage=storage,
+        )
+
+        with self.assertRaises(ResourceNotFound):
+            use_case.execute(
+                ResolveProtectedMediaInput(path="videos/../../../etc/passwd", user_id=1)
+            )
+
+        self.assertFalse(storage.exists_called)
+        self.assertFalse(storage.open_called)
