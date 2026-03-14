@@ -134,7 +134,7 @@ describe('ApiClient', () => {
     it('signup should call signup endpoint', async () => {
       fetchMock.mockResolvedValueOnce({ ok: true, headers: new Headers() });
       await apiClient.signup({ username: 'u', email: 'e@e.com', password: 'p' });
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/signup/', expect.objectContaining({
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/users/', expect.objectContaining({
         method: 'POST',
       }));
     });
