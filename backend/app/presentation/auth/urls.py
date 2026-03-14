@@ -9,12 +9,11 @@ from .views import (
     ApiKeyListCreateView,
     CsrfTokenView,
     EmailVerificationView,
-    LoginView,
-    LogoutView,
     MeView,
     PasswordResetConfirmView,
     PasswordResetRequestView,
     RefreshView,
+    SessionView,
     UserSignupView,
 )
 
@@ -25,14 +24,19 @@ urlpatterns = [
         name="auth-csrf",
     ),
     path(
-        "login/",
-        LoginView.as_view(login_use_case=auth_dependencies.get_login_use_case),
-        name="auth-login",
+        "sessions/",
+        SessionView.as_view(
+            login_use_case=auth_dependencies.get_login_use_case,
+            logout_use_case=auth_dependencies.get_logout_use_case,
+        ),
+        name="auth-sessions",
     ),
     path(
-        "logout/",
-        LogoutView.as_view(logout_use_case=auth_dependencies.get_logout_use_case),
-        name="auth-logout",
+        "tokens/",
+        RefreshView.as_view(
+            refresh_token_use_case=auth_dependencies.get_refresh_token_use_case
+        ),
+        name="auth-tokens",
     ),
     path(
         "account/",
@@ -40,13 +44,6 @@ urlpatterns = [
             delete_account_use_case=auth_dependencies.get_delete_account_use_case
         ),
         name="auth-account-delete",
-    ),
-    path(
-        "refresh/",
-        RefreshView.as_view(
-            refresh_token_use_case=auth_dependencies.get_refresh_token_use_case
-        ),
-        name="auth-refresh",
     ),
     path(
         "me/",
@@ -69,29 +66,29 @@ urlpatterns = [
         name="auth-api-key-detail",
     ),
     path(
-        "verify-email/",
+        "email-verifications/",
         EmailVerificationView.as_view(
             verify_email_use_case=auth_dependencies.get_verify_email_use_case
         ),
-        name="auth-verify-email",
+        name="auth-email-verifications",
     ),
     path(
-        "password-reset/",
+        "password-resets/",
         PasswordResetRequestView.as_view(
             request_password_reset_use_case=(
                 auth_dependencies.get_request_password_reset_use_case
             )
         ),
-        name="auth-password-reset",
+        name="auth-password-resets",
     ),
     path(
-        "password-reset/confirm/",
+        "password-resets/<str:token>/",
         PasswordResetConfirmView.as_view(
             confirm_password_reset_use_case=(
                 auth_dependencies.get_confirm_password_reset_use_case
             )
         ),
-        name="auth-password-reset-confirm",
+        name="auth-password-resets-confirm",
     ),
 ]
 
