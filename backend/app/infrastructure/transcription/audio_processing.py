@@ -9,6 +9,7 @@ import os
 import platform
 import subprocess
 import tempfile
+from types import ModuleType
 
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
@@ -17,7 +18,7 @@ from openai import AsyncOpenAI
 try:
     import resource
 except ImportError:  # pragma: no cover - non-Unix fallback
-    resource = None
+    resource: ModuleType | None = None
 
 logger = logging.getLogger(__name__)
 
