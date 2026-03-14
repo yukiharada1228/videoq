@@ -878,6 +878,12 @@ class ApiClient {
     });
   }
 
+  async searchScenes(queryText: string, groupId: number, shareToken?: string): Promise<{ query_text: string; related_videos?: RelatedVideo[] }> {
+    const params = new URLSearchParams({ query_text: queryText, group_id: String(groupId) });
+    if (shareToken) params.set('share_token', shareToken);
+    return this.request(`/chat/scenes/?${params.toString()}`);
+  }
+
   async getPopularScenes(groupId: number, shareToken?: string, limit?: number): Promise<PopularScene[]> {
     const params = new URLSearchParams({ group_id: String(groupId) });
     if (shareToken) {
