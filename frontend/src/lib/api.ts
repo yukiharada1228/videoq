@@ -551,7 +551,7 @@ class ApiClient {
 
   async chat(data: ChatRequest): Promise<ChatMessage> {
     const { share_token, ...bodyData } = data;
-    const endpoint = share_token ? `/chat/?share_token=${share_token}` : '/chat/';
+    const endpoint = share_token ? `/chat/messages/?share_token=${share_token}` : '/chat/messages/';
 
     return this.request<ChatMessage>(endpoint, {
       method: 'POST',
