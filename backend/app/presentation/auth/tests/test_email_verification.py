@@ -16,7 +16,7 @@ User = get_user_model()
 )
 class EmailVerificationTests(APITestCase):
     def test_signup_requires_email_verification(self):
-        url = reverse("signup")
+        url = reverse("auth-users")
         payload = {
             "username": "newuser",
             "email": "newuser@example.com",
