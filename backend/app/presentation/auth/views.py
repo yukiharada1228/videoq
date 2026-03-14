@@ -71,8 +71,11 @@ class UserSignupView(PublicAPIView):
             use_case.execute(
                 username=d["username"], email=d["email"], password=d["password"]
             )
-        except EmailAlreadyRegistered as e:
-            return create_error_response(str(e), status.HTTP_400_BAD_REQUEST)
+        except EmailAlreadyRegistered:
+            return create_success_response(
+                message="Verification email sent. Please check your email.",
+                status_code=status.HTTP_201_CREATED,
+            )
         except VerificationEmailSendFailed:
             return create_error_response(
                 "Failed to send verification email. Please try again later.",

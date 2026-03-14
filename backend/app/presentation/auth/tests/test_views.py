@@ -49,6 +49,30 @@ class UserSignupViewTests(APITestCase):
         self.assertTrue(User.objects.filter(username="newuser").exists())
         self.assertEqual(len(mail.outbox), 1)
 
+    def test_signup_with_existing_email_returns_generic_success(self):
+        """Existing email should not be disclosed by the signup response."""
+        User.objects.create_user(
+            username="existinguser",
+            email="existing@example.com",
+            password="SecurePass123",
+        )
+        url = reverse("signup")
+        data = {
+            "username": "newuser",
+            "email": "existing@example.com",
+            "password": "SecurePass123",
+        }
+
+        response = self.client.post(url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(
+            response.data,
+            {"message": "Verification email sent. Please check your email."},
+        )
+        self.assertFalse(User.objects.filter(username="newuser").exists())
+        self.assertEqual(len(mail.outbox), 0)
+
     @patch("app.presentation.auth.views.UserSignupView.resolve_dependency")
     def test_signup_email_send_failed_returns_500(self, mock_resolve_dependency):
         """Verification mail send failure should be handled as expected 500 response."""
