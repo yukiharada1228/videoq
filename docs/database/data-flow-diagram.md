@@ -294,19 +294,19 @@ flowchart TD
     Create --> API2[POST /api/auth/api-keys/]
     Revoke --> API3[DELETE /api/auth/api-keys/:id/]
 
-    API1 --> QueryKeys[(Database<br>Query Active Keys)]
-    QueryKeys --> Response1[Return Key List<br>prefix, name, access_level]
+    API1 --> QueryKeys["Database<br>Query Active Keys"]
+    QueryKeys --> Response1["Return Key List<br>prefix, name, access_level"]
     Response1 --> Frontend
 
-    API2 --> CheckDup[(Database<br>Check Duplicate Name)]
-    CheckDup --> GenKey[Generate Raw Key<br>vq_...]
+    API2 --> CheckDup["Database<br>Check Duplicate Name"]
+    CheckDup --> GenKey["Generate Raw Key<br>vq_..."]
     GenKey --> HashKey[SHA-256 Hash]
-    HashKey --> SaveKey[(Database<br>Create UserApiKey)]
-    SaveKey --> Response2[Return Key Details<br>+ Raw Key (one-time)]
+    HashKey --> SaveKey["Database<br>Create UserApiKey"]
+    SaveKey --> Response2["Return Key Details<br>+ Raw Key (one-time)"]
     Response2 --> Frontend
 
-    API3 --> SetRevoked[(Database<br>Set revoked_at)]
-    SetRevoked --> Response3[200 OK<br>API key revoked]
+    API3 --> SetRevoked["Database<br>Set revoked_at"]
+    SetRevoked --> Response3["200 OK<br>API key revoked"]
     Response3 --> Frontend
 
     Frontend --> End([User])
