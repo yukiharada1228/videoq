@@ -612,13 +612,13 @@ class ShareLinkTests(APITestCase):
         self.assertIsNotNone(self.group.share_token)
 
     def test_delete_share_link(self):
-        """Test deleting a share link"""
+        """Test deleting a share link via DELETE /groups/<id>/share/"""
         import secrets
 
         self.group.share_token = secrets.token_urlsafe(32)
         self.group.save()
 
-        url = reverse("delete-share-link", kwargs={"group_id": self.group.pk})
+        url = reverse("create-share-link", kwargs={"group_id": self.group.pk})
 
         response = self.client.delete(url)
 
@@ -626,18 +626,18 @@ class ShareLinkTests(APITestCase):
         self.group.refresh_from_db()
         self.assertIsNone(self.group.share_token)
 
-    @patch("app.presentation.common.decorators.logger.exception")
+    @patch("app.presentation.video.views.logger.exception")
     @patch("app.presentation.video.views.DependencyResolverMixin.resolve_dependency")
     def test_delete_share_link_unexpected_error_returns_generic_500(
         self, mock_resolve_dependency, mock_logger_exception
     ):
-        """Decorator-handled 500s must not expose internal exception text."""
+        """View-level 500s must not expose internal exception text."""
         use_case = MagicMock()
         use_case.execute.side_effect = RuntimeError("share token backend detail")
         mock_resolve_dependency.return_value = use_case
 
         response = self.client.delete(
-            reverse("delete-share-link", kwargs={"group_id": self.group.pk})
+            reverse("create-share-link", kwargs={"group_id": self.group.pk})
         )
 
         self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -652,8 +652,16 @@ class ShareLinkTests(APITestCase):
         )
         mock_logger_exception.assert_called_once()
 
+    def test_old_delete_share_link_url_not_found(self):
+        """Test that the old /share/delete/ URL no longer exists."""
+        url = f"/api/videos/groups/{self.group.pk}/share/delete/"
+
+        response = self.client.delete(url)
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
     def test_get_shared_group(self):
-        """Test getting shared group by token"""
+        """Test getting shared group via GET /groups/share/<token>/"""
         import secrets
 
         share_token = secrets.token_urlsafe(32)
@@ -672,6 +680,19 @@ class ShareLinkTests(APITestCase):
         url = reverse("get-shared-group", kwargs={"share_token": "invalid-token"})
 
         response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_old_shared_url_not_found(self):
+        """Test that the old /groups/shared/<token>/ URL no longer exists."""
+        import secrets
+
+        share_token = secrets.token_urlsafe(32)
+        self.group.share_token = share_token
+        self.group.save()
+
+        # 有効なトークンで旧URLを叩いてもルーティングレベルで404になるべき
+        response = self.client.get(f"/api/videos/groups/shared/{share_token}/")
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
