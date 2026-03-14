@@ -16,7 +16,6 @@ from .views import (
     delete_share_link,
     get_shared_group,
     remove_tag_from_video,
-    remove_video_from_group,
     reorder_videos_in_group,
 )
 
@@ -66,19 +65,10 @@ urlpatterns = [
     path(
         "groups/<int:group_id>/videos/<int:video_id>/",
         AddVideoToGroupView.as_view(
-            add_video_to_group_use_case=video_dependencies.get_add_video_to_group_use_case
+            add_video_to_group_use_case=video_dependencies.get_add_video_to_group_use_case,
+            remove_video_from_group_use_case=video_dependencies.get_remove_video_from_group_use_case,
         ),
         name="add-video-to-group",
-    ),
-    path(
-        "groups/<int:group_id>/videos/<int:video_id>/remove/",
-        remove_video_from_group,
-        {
-            "remove_video_from_group_use_case": (
-                video_dependencies.get_remove_video_from_group_use_case
-            )
-        },
-        name="remove-video-from-group",
     ),
     path(
         "groups/<int:group_id>/reorder/",
@@ -129,7 +119,7 @@ urlpatterns = [
         name="add-tags-to-video",
     ),
     path(
-        "<int:video_id>/tags/<int:tag_id>/remove/",
+        "<int:video_id>/tags/<int:tag_id>/",
         remove_tag_from_video,
         {
             "remove_tag_from_video_use_case": video_dependencies.get_remove_tag_from_video_use_case
