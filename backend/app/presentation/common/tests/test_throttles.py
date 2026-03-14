@@ -177,7 +177,7 @@ class LoginThrottleTest(APITestCase):
         self.user = User.objects.create_user(
             username="loginuser", email="login@example.com", password="pass1234"
         )
-        self.url = "/api/auth/login/"
+        self.url = "/api/auth/sessions/"
 
     def test_ip_throttle_blocks_after_limit(self):
         """Same IP is blocked after 2 login attempts/min."""
@@ -338,7 +338,7 @@ class PasswordResetThrottleTest(APITestCase):
 
     def setUp(self):
         cache.clear()
-        self.url = "/api/auth/password-reset/"
+        self.url = "/api/auth/password-resets/"
 
     def test_ip_throttle_blocks_after_limit(self):
         """Same IP is blocked after 2 password reset attempts/min."""
