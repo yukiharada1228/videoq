@@ -316,10 +316,11 @@ class VideoGroupDetailView(DependencyResolverMixin, AuthenticatedViewMixin, APIV
 
 
 class AddVideoToGroupView(DependencyResolverMixin, AuthenticatedViewMixin, APIView):
-    """Add a single video to a group."""
+    """Add or remove a single video from a group."""
 
     serializer_class = AddVideoToGroupResponseSerializer
     add_video_to_group_use_case = None
+    remove_video_from_group_use_case = None
 
     @extend_schema(
         responses={201: AddVideoToGroupResponseSerializer},
@@ -343,6 +344,24 @@ class AddVideoToGroupView(DependencyResolverMixin, AuthenticatedViewMixin, APIVi
             {"message": "Video added to group", "id": member.id},
             status=status.HTTP_201_CREATED,
         )
+
+    @extend_schema(
+        responses={200: VideoActionMessageResponseSerializer},
+        summary="Remove video from group",
+        description="Remove a video from a group.",
+    )
+    def delete(self, request, group_id, video_id):
+        use_case = self.resolve_dependency(self.remove_video_from_group_use_case)
+        try:
+            use_case.execute(group_id, video_id, request.user.id)
+        except ResourceNotFound as e:
+            return create_error_response(_not_found_message(e), status.HTTP_404_NOT_FOUND)
+        except VideoNotInGroup:
+            return create_error_response(
+                "This video is not added to the group", status.HTTP_404_NOT_FOUND
+            )
+
+        return Response({"message": "Video removed from group"}, status=status.HTTP_200_OK)
 
 
 @extend_schema(

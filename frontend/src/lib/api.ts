@@ -733,7 +733,7 @@ class ApiClient {
   }
 
   async removeVideoFromGroup(groupId: number, videoId: number): Promise<void> {
-    return this.request<void>(`/videos/groups/${groupId}/videos/${videoId}/remove/`, {
+    return this.request<void>(`/videos/groups/${groupId}/videos/${videoId}/`, {
       method: 'DELETE',
     });
   }
@@ -872,7 +872,7 @@ class ApiClient {
   }
 
   async removeTagFromVideo(videoId: number, tagId: number): Promise<void> {
-    return this.request<void>(`/videos/${videoId}/tags/${tagId}/remove/`, {
+    return this.request<void>(`/videos/${videoId}/tags/${tagId}/`, {
       method: 'DELETE',
     });
   }
