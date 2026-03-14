@@ -3,11 +3,12 @@ Tests for video serializers (presentation layer)
 """
 
 from io import BytesIO
+from unittest.mock import patch
 
 from django.apps import apps
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from rest_framework.request import Request
 from rest_framework.test import APIRequestFactory, force_authenticate
 
@@ -56,8 +57,13 @@ class VideoCreateSerializerTests(TestCase):
         drf_request._user = self.user
         return {"request": drf_request}
 
-    def test_valid_video_creation(self):
+    @patch("app.presentation.video.serializers.validate_video_media_file")
+    def test_valid_video_creation(self, mock_validate_video):
         """Test that a valid video file passes serializer validation"""
+        mock_validate_video.return_value = {
+            "format": {"format_name": "mp4", "duration": "60.0"},
+            "streams": [{"codec_type": "video", "codec_name": "h264"}],
+        }
         data = {
             "file": self._create_video_file(),
             "title": "Test Video",
@@ -98,8 +104,13 @@ class VideoCreateSerializerTests(TestCase):
         self.assertFalse(serializer.is_valid())
         self.assertIn("file", serializer.errors)
 
-    def test_accepts_various_video_formats(self):
+    @patch("app.presentation.video.serializers.validate_video_media_file")
+    def test_accepts_various_video_formats(self, mock_validate_video):
         """Test that common video formats are accepted"""
+        mock_validate_video.return_value = {
+            "format": {"format_name": "mp4", "duration": "60.0"},
+            "streams": [{"codec_type": "video", "codec_name": "h264"}],
+        }
         formats = [
             ("video.mov", "video/quicktime"),
             ("video.avi", "video/x-msvideo"),
@@ -115,6 +126,47 @@ class VideoCreateSerializerTests(TestCase):
                     data=data, context=self._get_request_context()
                 )
                 self.assertTrue(serializer.is_valid(), serializer.errors)
+
+    @patch("app.presentation.video.serializers.validate_video_media_file")
+    def test_rejects_unreadable_video_payload(self, mock_validate_video):
+        """Test that files failing ffprobe validation are rejected"""
+        from app.infrastructure.transcription.audio_processing import InvalidMediaFileError
+
+        mock_validate_video.side_effect = InvalidMediaFileError(
+            "Uploaded file is not a valid video."
+        )
+        data = {
+            "file": self._create_video_file(),
+            "title": "Test Video",
+        }
+
+        serializer = VideoCreateSerializer(
+            data=data, context=self._get_request_context()
+        )
+
+        self.assertFalse(serializer.is_valid())
+        self.assertEqual(
+            serializer.errors["file"][0],
+            "Uploaded file is not a valid video.",
+        )
+
+    @override_settings(MAX_VIDEO_UPLOAD_SIZE_BYTES=8)
+    def test_rejects_oversized_video_file(self):
+        """Test that files exceeding the app size limit are rejected"""
+        data = {
+            "file": self._create_video_file(),
+            "title": "Test Video",
+        }
+
+        serializer = VideoCreateSerializer(
+            data=data, context=self._get_request_context()
+        )
+
+        self.assertFalse(serializer.is_valid())
+        self.assertEqual(
+            serializer.errors["file"][0],
+            "File size exceeds the limit of 1 MB.",
+        )
 
 
 class TagCreateSerializerTests(TestCase):
