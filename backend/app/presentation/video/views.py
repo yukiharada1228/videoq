@@ -454,10 +454,11 @@ def reorder_videos_in_group(
 
 
 class CreateShareLinkView(DependencyResolverMixin, AuthenticatedViewMixin, APIView):
-    """Generate a share link for a group."""
+    """Manage share link for a group (create and delete)."""
 
     serializer_class = ShareLinkResponseSerializer
     create_share_link_use_case = None
+    delete_share_link_use_case = None
 
     @extend_schema(
         responses={201: ShareLinkResponseSerializer},
@@ -476,26 +477,22 @@ class CreateShareLinkView(DependencyResolverMixin, AuthenticatedViewMixin, APIVi
             status=status.HTTP_201_CREATED,
         )
 
+    @extend_schema(
+        responses={200: VideoActionMessageResponseSerializer},
+        summary="Delete share link",
+        description="Disable the current share link for a group.",
+    )
+    def delete(self, request, group_id):
+        use_case = self.resolve_dependency(self.delete_share_link_use_case)
+        try:
+            use_case.execute(group_id, request.user.id)
+        except ResourceNotFound as e:
+            return create_error_response(_not_found_message(e), status.HTTP_404_NOT_FOUND)
+        except Exception:
+            logger.exception("Unhandled exception in CreateShareLinkView.delete")
+            return create_error_response("", status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-@extend_schema(
-    responses={200: VideoActionMessageResponseSerializer},
-    summary="Delete share link",
-    description="Disable the current share link for a group.",
-)
-@authenticated_view_with_error_handling(["DELETE"])
-def delete_share_link(
-    request,
-    group_id,
-    delete_share_link_use_case,
-):
-    """Disable share link for group."""
-    use_case = DependencyResolverMixin.resolve_dependency(delete_share_link_use_case)
-    try:
-        use_case.execute(group_id, request.user.id)
-    except ResourceNotFound as e:
-        return create_error_response(_not_found_message(e), status.HTTP_404_NOT_FOUND)
-
-    return Response({"message": "Share link disabled"}, status=status.HTTP_200_OK)
+        return Response({"message": "Share link disabled"}, status=status.HTTP_200_OK)
 
 
 @extend_schema(
