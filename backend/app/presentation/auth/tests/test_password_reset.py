@@ -14,7 +14,7 @@ User = get_user_model()
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
 class PasswordResetRequestTests(APITestCase):
     def setUp(self):
-        self.url = reverse("auth-password-reset")
+        self.url = reverse("auth-password-resets")
         self.user = User.objects.create_user(
             username="alice",
             email="alice@example.com",
@@ -44,7 +44,6 @@ class PasswordResetRequestTests(APITestCase):
 
 class PasswordResetConfirmTests(APITestCase):
     def setUp(self):
-        self.url = reverse("auth-password-reset-confirm")
         self.user = User.objects.create_user(
             username="bob",
             email="bob@example.com",
@@ -53,14 +52,14 @@ class PasswordResetConfirmTests(APITestCase):
         )
         self.uid = urlsafe_base64_encode(force_bytes(self.user.pk))
         self.token = default_token_generator.make_token(self.user)
+        self.url = reverse("auth-password-resets-confirm", args=[self.token])
 
     def test_confirm_updates_password(self):
         payload = {
             "uid": self.uid,
-            "token": self.token,
             "new_password": "NewSecret456",
         }
-        response = self.client.post(self.url, payload, format="json")
+        response = self.client.patch(self.url, payload, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(
@@ -71,12 +70,12 @@ class PasswordResetConfirmTests(APITestCase):
         self.assertTrue(self.user.check_password("NewSecret456"))
 
     def test_confirm_with_invalid_token_fails(self):
+        url = reverse("auth-password-resets-confirm", args=["invalid-token"])
         payload = {
             "uid": self.uid,
-            "token": "invalid-token",
             "new_password": "NewSecret456",
         }
-        response = self.client.post(self.url, payload, format="json")
+        response = self.client.patch(url, payload, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("Invalid or expired reset link", response.data["error"]["message"])

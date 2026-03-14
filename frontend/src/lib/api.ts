@@ -250,8 +250,8 @@ class ApiClient {
   async logout(): Promise<void> {
     try {
       const csrfToken = await this.ensureCsrfToken();
-      await fetch(`${this.baseUrl}/auth/logout/`, {
-        method: 'POST',
+      await fetch(`${this.baseUrl}/auth/sessions/`, {
+        method: 'DELETE',
         credentials: 'include', // Send HttpOnly Cookie
         headers: {
           'Content-Type': 'application/json',
@@ -474,14 +474,14 @@ class ApiClient {
   }
 
   async verifyEmail(data: VerifyEmailRequest): Promise<VerifyEmailResponse> {
-    return this.request<VerifyEmailResponse>('/auth/verify-email/', {
+    return this.request<VerifyEmailResponse>('/auth/email-verifications/', {
       method: 'POST',
       body: data,
     });
   }
 
   async login(data: LoginRequest): Promise<LoginResponse> {
-    const response = await this.request<LoginResponse>('/auth/login/', {
+    const response = await this.request<LoginResponse>('/auth/sessions/', {
       method: 'POST',
       body: data,
     });
@@ -493,16 +493,17 @@ class ApiClient {
   }
 
   async requestPasswordReset(data: PasswordResetRequest): Promise<void> {
-    await this.request('/auth/password-reset/', {
+    await this.request('/auth/password-resets/', {
       method: 'POST',
       body: data,
     });
   }
 
   async confirmPasswordReset(data: PasswordResetConfirmRequest): Promise<void> {
-    await this.request('/auth/password-reset/confirm/', {
-      method: 'POST',
-      body: data,
+    const { token, uid, new_password } = data;
+    await this.request(`/auth/password-resets/${token}/`, {
+      method: 'PATCH',
+      body: { uid, new_password },
     });
   }
 
@@ -511,8 +512,8 @@ class ApiClient {
     // No need to manage refresh tokens on frontend
     // Call backend refresh endpoint as needed
 
-    const response = await this.request<RefreshResponse>('/auth/refresh/', {
-      method: 'POST',
+    const response = await this.request<RefreshResponse>('/auth/tokens/', {
+      method: 'PUT',
     });
 
     return response;
