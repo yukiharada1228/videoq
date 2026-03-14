@@ -4,6 +4,7 @@ Tests for audio processing functions
 
 import asyncio
 import json
+import platform
 import subprocess
 import tempfile
 from unittest.mock import MagicMock, patch
@@ -11,15 +12,20 @@ from unittest.mock import MagicMock, patch
 import unittest
 
 from app.infrastructure.transcription.audio_processing import (
+    InvalidMediaFileError,
     SUPPORTED_FORMATS,
+    _build_media_preexec_fn,
     _extract_audio_segment,
     _extract_full_audio,
     _get_video_duration,
+    _run_media_command,
     _split_audio_into_segments,
     extract_and_split_audio,
     process_audio_segments_async,
     process_audio_segments_parallel,
+    probe_media_file,
     transcribe_audio_segment_async,
+    validate_video_media_file,
 )
 from app.infrastructure.common.task_helpers import TemporaryFileManager
 
@@ -80,6 +86,102 @@ class GetVideoDurationTests(unittest.TestCase):
         self.assertEqual(duration, 300.0)
 
 
+class ProbeMediaFileTests(unittest.TestCase):
+    """Tests for probe_media_file function"""
+
+    @patch("subprocess.run")
+    def test_returns_probe_json(self, mock_run):
+        mock_result = MagicMock()
+        mock_result.stdout = json.dumps(
+            {
+                "format": {"format_name": "mp4", "duration": "12.0"},
+                "streams": [{"codec_type": "video", "codec_name": "h264"}],
+            }
+        )
+        mock_run.return_value = mock_result
+
+        result = probe_media_file("/path/to/video.mp4")
+
+        self.assertEqual(result["format"]["format_name"], "mp4")
+        self.assertEqual(mock_run.call_args.kwargs["timeout"], 10)
+
+    @patch("subprocess.run")
+    def test_raises_for_ffprobe_failure(self, mock_run):
+        mock_run.side_effect = subprocess.CalledProcessError(1, "ffprobe", stderr="bad")
+
+        with self.assertRaises(InvalidMediaFileError):
+            probe_media_file("/path/to/video.mp4")
+
+
+class ValidateVideoMediaFileTests(unittest.TestCase):
+    """Tests for validate_video_media_file function"""
+
+    @patch("app.infrastructure.transcription.audio_processing.probe_media_file")
+    def test_accepts_valid_video_stream_and_container(self, mock_probe):
+        mock_probe.return_value = {
+            "format": {"format_name": "mp4,mov", "duration": "42.0"},
+            "streams": [{"codec_type": "video", "codec_name": "h264"}],
+        }
+
+        result = validate_video_media_file("/path/to/video.mp4")
+
+        self.assertEqual(result["format"]["duration"], "42.0")
+
+    @patch("app.infrastructure.transcription.audio_processing.probe_media_file")
+    def test_rejects_when_video_stream_is_missing(self, mock_probe):
+        mock_probe.return_value = {
+            "format": {"format_name": "mp4", "duration": "42.0"},
+            "streams": [{"codec_type": "audio", "codec_name": "aac"}],
+        }
+
+        with self.assertRaises(InvalidMediaFileError):
+            validate_video_media_file("/path/to/file.mp4")
+
+
+class MediaCommandRunnerTests(unittest.TestCase):
+    """Tests for ffmpeg/ffprobe execution guards"""
+
+    @patch("subprocess.run")
+    def test_run_media_command_sets_timeout_and_preexec(self, mock_run):
+        mock_run.return_value = MagicMock(stdout="{}")
+
+        _run_media_command(["ffprobe", "/tmp/video.mp4"], 12)
+
+        self.assertEqual(mock_run.call_args.kwargs["timeout"], 12)
+        if platform.system() == "Windows":
+            self.assertIsNone(mock_run.call_args.kwargs["preexec_fn"])
+        else:
+            self.assertIsNotNone(mock_run.call_args.kwargs["preexec_fn"])
+
+    def test_build_media_preexec_fn_returns_callable_on_unix(self):
+        preexec_fn = _build_media_preexec_fn()
+
+        if platform.system() == "Windows":
+            self.assertIsNone(preexec_fn)
+        else:
+            self.assertTrue(callable(preexec_fn))
+
+    @patch("app.infrastructure.transcription.audio_processing.probe_media_file")
+    def test_rejects_unsupported_container(self, mock_probe):
+        mock_probe.return_value = {
+            "format": {"format_name": "image2", "duration": "42.0"},
+            "streams": [{"codec_type": "video", "codec_name": "mjpeg"}],
+        }
+
+        with self.assertRaises(InvalidMediaFileError):
+            validate_video_media_file("/path/to/file.mp4")
+
+    @patch("app.infrastructure.transcription.audio_processing.probe_media_file")
+    def test_rejects_unsupported_video_codec(self, mock_probe):
+        mock_probe.return_value = {
+            "format": {"format_name": "mp4", "duration": "42.0"},
+            "streams": [{"codec_type": "video", "codec_name": "mjpeg"}],
+        }
+
+        with self.assertRaises(InvalidMediaFileError):
+            validate_video_media_file("/path/to/file.mp4")
+
+
 class ExtractFullAudioTests(unittest.TestCase):
     """Tests for _extract_full_audio function"""
 
@@ -111,6 +213,7 @@ class ExtractFullAudioTests(unittest.TestCase):
             self.assertIn("mp3", args)
             self.assertIn("-ab", args)
             self.assertIn("128k", args)
+            self.assertEqual(mock_run.call_args.kwargs["timeout"], 120)
 
     @patch("os.path.getsize")
     @patch("subprocess.run")
@@ -151,6 +254,7 @@ class ExtractAudioSegmentTests(unittest.TestCase):
             t_index = args.index("-t")
             self.assertEqual(args[ss_index + 1], "10.0")
             self.assertEqual(args[t_index + 1], "15.0")  # 25.0 - 10.0
+            self.assertEqual(mock_run.call_args.kwargs["timeout"], 120)
 
     @patch("subprocess.run")
     def test_segment_index_in_filename(self, mock_run):
@@ -254,6 +358,16 @@ class ExtractAndSplitAudioTests(unittest.TestCase):
         mock_duration.side_effect = subprocess.CalledProcessError(
             1, "ffprobe", stderr="Error"
         )
+
+        segments = extract_and_split_audio("/path/to/video.mp4")
+
+        self.assertEqual(segments, [])
+
+    @patch("app.infrastructure.transcription.audio_processing._get_video_duration")
+    @patch("app.infrastructure.transcription.audio_processing._extract_full_audio")
+    def test_handles_ffmpeg_timeout(self, mock_extract, mock_duration):
+        mock_duration.return_value = 60.0
+        mock_extract.side_effect = subprocess.TimeoutExpired("ffmpeg", timeout=120)
 
         segments = extract_and_split_audio("/path/to/video.mp4")
 

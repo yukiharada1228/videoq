@@ -49,6 +49,7 @@ services:
       args:
         # Vite build-time API base URL (recommended: "/api" when using the included nginx reverse proxy)
         - VITE_API_URL=${VITE_API_URL:-/api}
+        - VITE_MAX_VIDEO_UPLOAD_SIZE_MB=${MAX_VIDEO_UPLOAD_SIZE_MB:-500}
     container_name: videoq-frontend
     env_file:
       - .env
@@ -60,10 +61,13 @@ services:
   nginx:
     image: nginx:alpine
     container_name: videoq-nginx
+    command: /bin/sh -c "envsubst '$$MAX_VIDEO_UPLOAD_SIZE_MB' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf && nginx -g 'daemon off;'"
     ports:
       - "80:80"
+    environment:
+      - MAX_VIDEO_UPLOAD_SIZE_MB=${MAX_VIDEO_UPLOAD_SIZE_MB:-500}
     volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx.conf:/etc/nginx/nginx.conf.template:ro
       - staticfiles:/static
       - ./backend/media:/media
     depends_on:

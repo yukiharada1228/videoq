@@ -6,10 +6,16 @@ Business logic (quota enforcement, task dispatch) lives in use cases.
 
 import logging
 import os
+import tempfile
 
 from django.conf import settings
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
+
+from app.infrastructure.transcription.audio_processing import (
+    InvalidMediaFileError,
+    validate_video_media_file,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -172,6 +178,33 @@ class VideoCreateSerializer(serializers.Serializer):
     title = serializers.CharField(max_length=255)
     description = serializers.CharField(required=False, default="", allow_blank=True)
 
+    @staticmethod
+    def _uploaded_file_to_path(uploaded_file):
+        temp_path_getter = getattr(uploaded_file, "temporary_file_path", None)
+        if callable(temp_path_getter):
+            return temp_path_getter(), None
+
+        suffix = os.path.splitext(uploaded_file.name)[1] or ".upload"
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+        cleanup_path = temp_file.name
+
+        try:
+            if hasattr(uploaded_file, "seek"):
+                uploaded_file.seek(0)
+            chunks = (
+                uploaded_file.chunks()
+                if hasattr(uploaded_file, "chunks")
+                else [uploaded_file.read()]
+            )
+            for chunk in chunks:
+                temp_file.write(chunk)
+        finally:
+            temp_file.close()
+            if hasattr(uploaded_file, "seek"):
+                uploaded_file.seek(0)
+
+        return cleanup_path, cleanup_path
+
     def validate_file(self, value):
         ext = os.path.splitext(value.name)[1].lower()
         if ext not in self.ALLOWED_VIDEO_EXTENSIONS:
@@ -184,6 +217,35 @@ class VideoCreateSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 f"Invalid content type: '{content_type}'. Only video files are allowed."
             )
+        max_size_bytes = getattr(
+            settings,
+            "MAX_VIDEO_UPLOAD_SIZE_BYTES",
+            500 * 1024 * 1024,
+        )
+        if value.size > max_size_bytes:
+            max_size_mb = max(1, (max_size_bytes + (1024 * 1024) - 1) // (1024 * 1024))
+            raise serializers.ValidationError(
+                f"File size exceeds the limit of {max_size_mb} MB."
+            )
+
+        temp_path = None
+        cleanup_path = None
+        try:
+            temp_path, cleanup_path = self._uploaded_file_to_path(value)
+            validate_video_media_file(
+                temp_path,
+                timeout_seconds=getattr(
+                    settings,
+                    "FFPROBE_VALIDATION_TIMEOUT_SECONDS",
+                    10,
+                ),
+            )
+        except InvalidMediaFileError as exc:
+            logger.warning("Rejected invalid video upload '%s': %s", value.name, exc)
+            raise serializers.ValidationError(str(exc)) from exc
+        finally:
+            if cleanup_path and os.path.exists(cleanup_path):
+                os.remove(cleanup_path)
         return value
 
 
