@@ -3,8 +3,9 @@
 from dataclasses import dataclass
 
 from django.utils.translation import gettext_lazy as _
-from rest_framework.authentication import BaseAuthentication
-from rest_framework.exceptions import AuthenticationFailed
+from rest_framework.authentication import BaseAuthentication, CSRFCheck
+from rest_framework.exceptions import AuthenticationFailed, PermissionDenied
+from rest_framework.permissions import SAFE_METHODS
 from rest_framework.request import Request
 
 from app.dependencies.common import get_cookie_jwt_validator, get_resolve_api_key_use_case
@@ -89,6 +90,17 @@ class CookieJWTAuthentication(BaseAuthentication):
         if cookie_jwt_validator_factory is not None:
             self.cookie_jwt_validator_factory = cookie_jwt_validator_factory
 
+    def enforce_csrf(self, request: Request) -> None:
+        """Apply Django's CSRF check to unsafe cookie-authenticated requests."""
+        if request.method in SAFE_METHODS:
+            return
+
+        check = CSRFCheck(lambda _request: None)
+        check.process_request(request)
+        reason = check.process_view(request, None, (), {})
+        if reason:
+            raise PermissionDenied(f"CSRF Failed: {reason}")
+
     def authenticate(self, request: Request):
         validator = self.cookie_jwt_validator_factory()
 
@@ -102,7 +114,12 @@ class CookieJWTAuthentication(BaseAuthentication):
         if raw_token is None:
             return None
 
-        return validator.validate_raw_token(raw_token)
+        validated = validator.validate_raw_token(raw_token)
+        if validated is None:
+            return None
+
+        self.enforce_csrf(request)
+        return validated
 
     def authenticate_header(self, request: Request) -> str:
         return 'Bearer realm="api"'

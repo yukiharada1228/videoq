@@ -14,6 +14,7 @@ from django.urls import reverse
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 from rest_framework import status
+from rest_framework.test import APIClient
 from rest_framework.test import APITestCase
 
 from app.use_cases.auth.signup import VerificationEmailSendFailed
@@ -79,6 +80,13 @@ class LoginViewTests(APITestCase):
             password="testpass123",
         )
         self.url = reverse("auth-login")
+        self.csrf_url = reverse("auth-csrf")
+
+    def _get_csrf_client(self) -> APIClient:
+        client = APIClient(enforce_csrf_checks=True)
+        csrf_response = client.get(self.csrf_url)
+        self.assertEqual(csrf_response.status_code, status.HTTP_204_NO_CONTENT)
+        return client
 
     def test_login_success(self):
         """Test successful login"""
@@ -88,6 +96,34 @@ class LoginViewTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data, {})
         # Check cookies are set
+        self.assertIn("access_token", response.cookies)
+        self.assertIn("refresh_token", response.cookies)
+
+    def test_login_rejects_missing_csrf_token_when_checks_are_enforced(self):
+        """Cookie-based login must reject unsafe requests without a CSRF token."""
+        client = APIClient(enforce_csrf_checks=True)
+
+        response = client.post(
+            self.url,
+            {"username": "testuser", "password": "testpass123"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_login_accepts_matching_csrf_cookie_and_header(self):
+        """Login should succeed when the CSRF cookie/header pair is present."""
+        client = self._get_csrf_client()
+        csrf_token = client.cookies["csrftoken"].value
+
+        response = client.post(
+            self.url,
+            {"username": "testuser", "password": "testpass123"},
+            format="json",
+            HTTP_X_CSRFTOKEN=csrf_token,
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("access_token", response.cookies)
         self.assertIn("refresh_token", response.cookies)
 
@@ -108,17 +144,40 @@ class LogoutViewTests(APITestCase):
             email="test@example.com",
             password="testpass123",
         )
-        self.client.force_authenticate(user=self.user)
         self.url = reverse("auth-logout")
+        self.csrf_url = reverse("auth-csrf")
+
+    def _build_cookie_authenticated_client(self) -> tuple[APIClient, str]:
+        client = APIClient(enforce_csrf_checks=True)
+        csrf_response = client.get(self.csrf_url)
+        self.assertEqual(csrf_response.status_code, status.HTTP_204_NO_CONTENT)
+        csrf_token = client.cookies["csrftoken"].value
+        login_response = client.post(
+            reverse("auth-login"),
+            {"username": "testuser", "password": "testpass123"},
+            format="json",
+            HTTP_X_CSRFTOKEN=csrf_token,
+        )
+        self.assertEqual(login_response.status_code, status.HTTP_200_OK)
+        return client, csrf_token
 
     def test_logout_success(self):
         """Test successful logout"""
-        response = self.client.post(self.url)
+        client, csrf_token = self._build_cookie_authenticated_client()
+        response = client.post(self.url, HTTP_X_CSRFTOKEN=csrf_token)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         # Check cookies are deleted
         self.assertEqual(response.cookies.get("access_token").value, "")
         self.assertEqual(response.cookies.get("refresh_token").value, "")
+
+    def test_logout_rejects_missing_csrf_token(self):
+        """Cookie-authenticated logout must reject missing CSRF headers."""
+        client, _ = self._build_cookie_authenticated_client()
+
+        response = client.post(self.url)
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_logout_invalidates_refresh_token_on_server(self):
         """Test logout invalidates refresh token for future reuse"""
@@ -126,6 +185,7 @@ class LogoutViewTests(APITestCase):
 
         refresh = RefreshToken.for_user(self.user)
         refresh_token = str(refresh)
+        self.client.force_authenticate(user=self.user)
         self.client.cookies["refresh_token"] = refresh_token
 
         response = self.client.post(self.url)
@@ -148,6 +208,13 @@ class RefreshViewTests(APITestCase):
             password="testpass123",
         )
         self.url = reverse("auth-refresh")
+        self.csrf_url = reverse("auth-csrf")
+
+    def _get_csrf_client(self) -> APIClient:
+        client = APIClient(enforce_csrf_checks=True)
+        csrf_response = client.get(self.csrf_url)
+        self.assertEqual(csrf_response.status_code, status.HTTP_204_NO_CONTENT)
+        return client
 
     def test_refresh_with_cookie(self):
         """Test token refresh using cookie"""
@@ -160,6 +227,30 @@ class RefreshViewTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data, {})
+        self.assertIn("access_token", response.cookies)
+
+    def test_refresh_rejects_missing_csrf_token_when_checks_are_enforced(self):
+        """Refresh must reject requests without the CSRF cookie/header pair."""
+        from rest_framework_simplejwt.tokens import RefreshToken
+
+        client = self._get_csrf_client()
+        client.cookies["refresh_token"] = str(RefreshToken.for_user(self.user))
+
+        response = client.post(self.url)
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_refresh_accepts_matching_csrf_cookie_and_header(self):
+        """Refresh should succeed when CSRF cookie/header pair is provided."""
+        from rest_framework_simplejwt.tokens import RefreshToken
+
+        client = self._get_csrf_client()
+        csrf_token = client.cookies["csrftoken"].value
+        client.cookies["refresh_token"] = str(RefreshToken.for_user(self.user))
+
+        response = client.post(self.url, HTTP_X_CSRFTOKEN=csrf_token)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("access_token", response.cookies)
 
     def test_refresh_without_cookie_rejects_request_body_token(self):
@@ -229,6 +320,16 @@ class EmailVerificationViewTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.user.refresh_from_db()
         self.assertTrue(self.user.is_active)
+
+
+class CsrfTokenViewTests(APITestCase):
+    """Tests for the CSRF bootstrap endpoint."""
+
+    def test_csrf_endpoint_sets_cookie(self):
+        response = self.client.get(reverse("auth-csrf"))
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertIn("csrftoken", response.cookies)
 
 
 class PasswordResetRequestViewTests(APITestCase):

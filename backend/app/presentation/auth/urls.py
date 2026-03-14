@@ -7,6 +7,7 @@ from .views import (
     AccountDeleteView,
     ApiKeyDetailView,
     ApiKeyListCreateView,
+    CsrfTokenView,
     EmailVerificationView,
     LoginView,
     LogoutView,
@@ -18,6 +19,11 @@ from .views import (
 )
 
 urlpatterns = [
+    path(
+        "csrf/",
+        CsrfTokenView.as_view(),
+        name="auth-csrf",
+    ),
     path(
         "login/",
         LoginView.as_view(login_use_case=auth_dependencies.get_login_use_case),
