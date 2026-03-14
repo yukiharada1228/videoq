@@ -56,9 +56,10 @@ class PasswordResetRequestSerializer(serializers.Serializer):
     email = serializers.EmailField()
 
 
-class PasswordResetConfirmSerializer(serializers.Serializer):
+class PasswordResetConfirmBodySerializer(serializers.Serializer):
+    """Serializer for PATCH /password-resets/<token>/: token comes from URL path."""
+
     uid = serializers.CharField()
-    token = serializers.CharField()
     new_password = serializers.CharField(
         write_only=True, style={"input_type": "password"}, min_length=8
     )
