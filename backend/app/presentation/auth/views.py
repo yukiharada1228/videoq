@@ -15,7 +15,6 @@ from app.presentation.auth.serializers import (AccountDeleteSerializer,
                                                PasswordResetConfirmSerializer,
                                                PasswordResetRequestSerializer,
                                                RefreshResponseSerializer,
-                                               RefreshSerializer,
                                                UserSerializer,
                                                UserSignupSerializer)
 from app.use_cases.auth.signup import EmailAlreadyRegistered, VerificationEmailSendFailed
@@ -200,15 +199,14 @@ class AccountDeleteView(AuthenticatedAPIView):
 class RefreshView(PublicAPIView):
     """Token refresh view"""
 
-    serializer_class = RefreshSerializer
     refresh_token_use_case = None
 
     @extend_schema(
-        request=RefreshSerializer,
+        request=None,
         responses={200: RefreshResponseSerializer, 401: MessageResponseSerializer},
         summary="Refresh access token",
         description=(
-            "Refresh access token using refresh token from cookie or request body, "
+            "Refresh access token using the HttpOnly refresh token cookie, "
             "then rotate tokens in HttpOnly cookies. "
             "Refresh token is rotated and old token is invalidated."
         ),
@@ -217,9 +215,11 @@ class RefreshView(PublicAPIView):
         refresh_token = request.COOKIES.get("refresh_token")
 
         if not refresh_token:
-            serializer = self.get_serializer(data=request.data)
-            serializer.is_valid(raise_exception=True)
-            refresh_token = serializer.validated_data["refresh"]
+            return create_error_response(
+                message="Invalid refresh token",
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                code=ErrorCode.AUTHENTICATION_FAILED,
+            )
 
         use_case = self.resolve_dependency(self.refresh_token_use_case)
         try:

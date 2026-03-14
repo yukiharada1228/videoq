@@ -140,6 +140,8 @@ describe('ApiClient', () => {
       expect(result).toEqual(mockResponse);
       expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/refresh/', expect.objectContaining({
         method: 'POST',
+        body: undefined,
+        credentials: 'include',
       }));
     });
 
