@@ -479,7 +479,6 @@ class ApiClient {
 
     const response = await this.request<RefreshResponse>('/auth/refresh/', {
       method: 'POST',
-      body: {}, // Backend gets refresh token from Cookie
     });
 
     return response;

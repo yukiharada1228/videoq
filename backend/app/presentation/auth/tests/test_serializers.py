@@ -13,7 +13,6 @@ from app.presentation.auth.serializers import (EmailVerificationSerializer,
                                                LoginSerializer,
                                                PasswordResetConfirmSerializer,
                                                PasswordResetRequestSerializer,
-                                               RefreshSerializer,
                                                UserSerializer,
                                                UserSignupSerializer)
 
@@ -97,21 +96,6 @@ class UserSerializerTests(APITestCase):
         )
         serializer = UserSerializer(entity)
         self.assertEqual(serializer.data["video_count"], 7)
-
-
-class RefreshSerializerTests(APITestCase):
-    """Tests for RefreshSerializer field-level validation only."""
-
-    def test_refresh_token_string_is_accepted(self):
-        """Test that any non-empty token string passes serializer validation."""
-        serializer = RefreshSerializer(data={"refresh": "any-token-string"})
-        self.assertTrue(serializer.is_valid())
-
-    def test_validate_refresh_token_empty(self):
-        """Test validation with empty refresh token"""
-        serializer = RefreshSerializer(data={"refresh": ""})
-        self.assertFalse(serializer.is_valid())
-        self.assertIn("refresh", serializer.errors)
 
 
 class EmailVerificationSerializerTests(APITestCase):
