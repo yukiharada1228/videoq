@@ -2,14 +2,9 @@ export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/ap
 
 type RequestBody = BodyInit | object | null | undefined;
 
-export interface LoginResponse {
-  access: string;
-  refresh: string;
-}
+export type LoginResponse = Record<string, never>;
 
-export interface RefreshResponse {
-  access: string;
-}
+export type RefreshResponse = Record<string, never>;
 
 export interface User {
   id: number;
