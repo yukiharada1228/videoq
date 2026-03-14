@@ -11,7 +11,6 @@ import tempfile
 from django.conf import settings
 from openai import AsyncOpenAI
 from app.contracts.media_validation import (
-    InvalidMediaFileError,
     probe_media_file,
     run_media_command,
 )
