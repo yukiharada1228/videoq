@@ -1,4 +1,4 @@
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from django.apps import apps
 from django.contrib.auth import get_user_model
@@ -178,6 +178,34 @@ class VideoGroupMemberAPITestCase(APITestCase):
         self.assertEqual(VideoGroupMember.objects.count(), 3)
         self.assertEqual(response.data["added_count"], 3)
         self.assertEqual(response.data["skipped_count"], 0)
+
+    @patch("app.presentation.common.decorators.logger.exception")
+    @patch("app.presentation.video.views.DependencyResolverMixin.resolve_dependency")
+    def test_add_multiple_videos_to_group_unexpected_error_returns_generic_500(
+        self, mock_resolve_dependency, mock_logger_exception
+    ):
+        """Unexpected exceptions must be logged and sanitized."""
+        use_case = MagicMock()
+        use_case.execute.side_effect = RuntimeError("database internals leaked")
+        mock_resolve_dependency.return_value = use_case
+
+        response = self.client.post(
+            reverse("add-videos-to-group", kwargs={"group_id": self.group.pk}),
+            {"video_ids": [self.video.pk]},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        self.assertEqual(
+            response.data,
+            {
+                "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "An internal server error occurred.",
+                }
+            },
+        )
+        mock_logger_exception.assert_called_once()
 
     def test_remove_video_from_group(self):
         """Test removing video from group"""
@@ -570,6 +598,32 @@ class ShareLinkTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.group.refresh_from_db()
         self.assertIsNone(self.group.share_token)
+
+    @patch("app.presentation.common.decorators.logger.exception")
+    @patch("app.presentation.video.views.DependencyResolverMixin.resolve_dependency")
+    def test_delete_share_link_unexpected_error_returns_generic_500(
+        self, mock_resolve_dependency, mock_logger_exception
+    ):
+        """Decorator-handled 500s must not expose internal exception text."""
+        use_case = MagicMock()
+        use_case.execute.side_effect = RuntimeError("share token backend detail")
+        mock_resolve_dependency.return_value = use_case
+
+        response = self.client.delete(
+            reverse("delete-share-link", kwargs={"group_id": self.group.pk})
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        self.assertEqual(
+            response.data,
+            {
+                "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "An internal server error occurred.",
+                }
+            },
+        )
+        mock_logger_exception.assert_called_once()
 
     def test_get_shared_group(self):
         """Test getting shared group by token"""

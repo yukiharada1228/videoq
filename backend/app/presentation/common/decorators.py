@@ -1,10 +1,13 @@
 """Presentation-layer view decorators."""
 
+import logging
 from functools import wraps
 
 from rest_framework import status
 
 from app.presentation.common.responses import create_error_response
+
+logger = logging.getLogger(__name__)
 
 
 def authenticated_api_view(methods):
@@ -41,6 +44,7 @@ def with_error_handling(view_func):
         try:
             return view_func(*args, **kwargs)
         except Exception as e:
+            logger.exception("Unhandled exception in %s", view_func.__name__)
             return create_error_response(str(e), status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     return wrapper
