@@ -131,6 +131,44 @@ class ChatHistoryFormatCsvTests(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
 
 
+class ChatHistoryFormatCsvDispatchTests(unittest.TestCase):
+    """Ensure ?format=csv works through DRF's full dispatch pipeline (not just get())."""
+
+    def _make_view_and_request(self, params):
+        from rest_framework.test import APIRequestFactory, force_authenticate
+        from app.presentation.chat.views import ChatHistoryView
+
+        export_uc = _make_export_use_case()
+        view = ChatHistoryView.as_view(
+            chat_history_use_case=_make_history_use_case(),
+            export_history_use_case=export_uc,
+        )
+        factory = APIRequestFactory()
+        req = factory.get("/chat/history/", params, HTTP_ACCEPT="application/json")
+        user = MagicMock()
+        user.id = 1
+        user.is_authenticated = True
+        force_authenticate(req, user=user)
+        return view, req, export_uc
+
+    def test_dispatch_format_csv_returns_200(self):
+        view, req, _ = self._make_view_and_request({"group_id": "1", "format": "csv"})
+        resp = view(req)
+        self.assertEqual(resp.status_code, 200)
+
+    def test_dispatch_format_csv_content_type_is_text_csv(self):
+        view, req, _ = self._make_view_and_request({"group_id": "1", "format": "csv"})
+        resp = view(req)
+        self.assertIn("text/csv", resp.get("Content-Type", ""))
+
+    def test_dispatch_no_format_returns_json(self):
+        view, req, _ = self._make_view_and_request({"group_id": "1"})
+        resp = view(req)
+        self.assertEqual(resp.status_code, 200)
+        # DRF Response is lazy-rendered; check accepted_media_type set by finalize_response.
+        self.assertIn("application/json", getattr(resp, "accepted_media_type", ""))
+
+
 class ChatHistoryExportViewRemovedTests(unittest.TestCase):
     """ChatHistoryExportView must no longer exist in views module."""
 
