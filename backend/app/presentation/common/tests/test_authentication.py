@@ -5,6 +5,7 @@ Tests for common authentication module
 from django.apps import apps
 from django.contrib.auth import get_user_model
 from django.test import RequestFactory
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.test import APITestCase
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -86,6 +87,30 @@ class CookieJWTAuthenticationTests(APITestCase):
 
         request = self.factory.get("/", HTTP_AUTHORIZATION=f"Bearer {access_token}")
         request.COOKIES = {"access_token": other_access_token}
+
+        result = self.auth.authenticate(request)
+
+        self.assertIsNotNone(result)
+        user, token = result
+        self.assertEqual(user, self.user)
+
+    def test_cookie_authentication_rejects_unsafe_request_without_csrf(self):
+        """Unsafe requests using cookie auth must pass Django's CSRF check."""
+        refresh = RefreshToken.for_user(self.user)
+        access_token = str(refresh.access_token)
+
+        request = self.factory.post("/")
+        request.COOKIES = {"access_token": access_token}
+
+        with self.assertRaises(PermissionDenied):
+            self.auth.authenticate(request)
+
+    def test_header_authentication_allows_unsafe_request_without_csrf(self):
+        """Bearer-header auth should not require CSRF because it is not cookie-based."""
+        refresh = RefreshToken.for_user(self.user)
+        access_token = str(refresh.access_token)
+
+        request = self.factory.post("/", HTTP_AUTHORIZATION=f"Bearer {access_token}")
 
         result = self.auth.authenticate(request)
 
