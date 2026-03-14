@@ -486,7 +486,7 @@ describe('ApiClient', () => {
         text: () => Promise.resolve(JSON.stringify({ message: "OK" }))
       });
       await apiClient.reorderVideosInGroup(1, [101, 100]);
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/groups/1/reorder/', expect.objectContaining({ method: 'PATCH' }));
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/groups/1/videos/order/', expect.objectContaining({ method: 'PATCH' }));
     });
   });
 

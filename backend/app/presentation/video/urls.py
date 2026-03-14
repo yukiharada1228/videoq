@@ -70,7 +70,7 @@ urlpatterns = [
         name="add-video-to-group",
     ),
     path(
-        "groups/<int:group_id>/reorder/",
+        "groups/<int:group_id>/videos/order/",
         reorder_videos_in_group,
         {"reorder_videos_use_case": video_dependencies.get_reorder_videos_use_case},
         name="reorder-videos-in-group",
