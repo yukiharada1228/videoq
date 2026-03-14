@@ -11,6 +11,7 @@ Tag = apps.get_model("app", "Tag")
 Video = apps.get_model("app", "Video")
 VideoGroup = apps.get_model("app", "VideoGroup")
 VideoGroupMember = apps.get_model("app", "VideoGroupMember")
+VideoTag = apps.get_model("app", "VideoTag")
 
 
 class VideoGroupAPITestCase(APITestCase):
@@ -208,11 +209,11 @@ class VideoGroupMemberAPITestCase(APITestCase):
         mock_logger_exception.assert_called_once()
 
     def test_remove_video_from_group(self):
-        """Test removing video from group"""
+        """Test removing video from group via DELETE /videos/groups/<id>/videos/<vid_id>/"""
         VideoGroupMember.objects.create(group=self.group, video=self.video)
 
         url = reverse(
-            "remove-video-from-group",
+            "add-video-to-group",
             kwargs={"group_id": self.group.pk, "video_id": self.video.pk},
         )
         response = self.client.delete(url)
@@ -223,7 +224,7 @@ class VideoGroupMemberAPITestCase(APITestCase):
     def test_remove_video_from_group_not_member(self):
         """Test error when trying to remove video not in the group"""
         url = reverse(
-            "remove-video-from-group",
+            "add-video-to-group",
             kwargs={"group_id": self.group.pk, "video_id": self.video.pk},
         )
         response = self.client.delete(url)
@@ -501,6 +502,32 @@ class TagViewTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(response.data["error"]["message"], "Tag name cannot be empty")
+
+    def test_remove_tag_from_video(self):
+        """Test removing a tag from a video via DELETE /videos/<id>/tags/<tag_id>/"""
+        tag = Tag.objects.create(user=self.user, name="Tag 1", color="#111111")
+        VideoTag.objects.create(video=self.video, tag=tag)
+
+        url = reverse(
+            "remove-tag-from-video",
+            kwargs={"video_id": self.video.pk, "tag_id": tag.pk},
+        )
+        response = self.client.delete(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(VideoTag.objects.count(), 0)
+
+    def test_remove_tag_from_video_not_attached(self):
+        """Test 404 when tag is not attached to the video"""
+        tag = Tag.objects.create(user=self.user, name="Tag 1", color="#111111")
+
+        url = reverse(
+            "remove-tag-from-video",
+            kwargs={"video_id": self.video.pk, "tag_id": tag.pk},
+        )
+        response = self.client.delete(url)
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     @patch("app.infrastructure.external.vector_gateway.delete_video_vectors")
     def test_delete_video_deletes_vectors(self, mock_delete):
