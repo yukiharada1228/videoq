@@ -76,8 +76,8 @@ describe('ApiClient', () => {
     it('logout should call logout endpoint', async () => {
       fetchMock.mockResolvedValueOnce({ ok: true });
       await apiClient.logout();
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/logout/', expect.objectContaining({
-        method: 'POST',
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/sessions/', expect.objectContaining({
+        method: 'DELETE',
       }));
     });
 
@@ -92,7 +92,7 @@ describe('ApiClient', () => {
 
       const result = await apiClient.login({ username: 'user', password: 'pw' });
       expect(result).toEqual(mockResponse);
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/login/', expect.objectContaining({
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/sessions/', expect.objectContaining({
         method: 'POST',
         headers: expect.objectContaining({
           'X-CSRFToken': 'test-csrf-token',
@@ -124,7 +124,7 @@ describe('ApiClient', () => {
         method: 'GET',
         credentials: 'include',
       }));
-      expect(fetchMock).toHaveBeenNthCalledWith(2, 'http://localhost:8000/api/auth/login/', expect.objectContaining({
+      expect(fetchMock).toHaveBeenNthCalledWith(2, 'http://localhost:8000/api/auth/sessions/', expect.objectContaining({
         headers: expect.objectContaining({
           'X-CSRFToken': 'fetched-csrf-token',
         }),
@@ -146,7 +146,7 @@ describe('ApiClient', () => {
         text: () => Promise.resolve(JSON.stringify({}))
       });
       await apiClient.verifyEmail({ uid: 'uid', token: 'token' });
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/verify-email/', expect.objectContaining({
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/email-verifications/', expect.objectContaining({
         method: 'POST',
       }));
     });
@@ -154,16 +154,17 @@ describe('ApiClient', () => {
     it('requestPasswordReset should call password-reset endpoint', async () => {
       fetchMock.mockResolvedValueOnce({ ok: true, headers: new Headers() });
       await apiClient.requestPasswordReset({ email: 'e@e.com' });
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/password-reset/', expect.objectContaining({
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/password-resets/', expect.objectContaining({
         method: 'POST',
       }));
     });
 
-    it('confirmPasswordReset should call password-reset/confirm endpoint', async () => {
+    it('confirmPasswordReset should call password-resets/<token> endpoint', async () => {
       fetchMock.mockResolvedValueOnce({ ok: true, headers: new Headers() });
       await apiClient.confirmPasswordReset({ uid: 'uid', token: 'token', new_password: 'new' });
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/password-reset/confirm/', expect.objectContaining({
-        method: 'POST',
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/password-resets/token/', expect.objectContaining({
+        method: 'PATCH',
+        body: JSON.stringify({ uid: 'uid', new_password: 'new' }),
       }));
     });
 
@@ -177,8 +178,8 @@ describe('ApiClient', () => {
       });
       const result = await apiClient.refreshToken();
       expect(result).toEqual(mockResponse);
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/refresh/', expect.objectContaining({
-        method: 'POST',
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/tokens/', expect.objectContaining({
+        method: 'PUT',
         body: undefined,
         credentials: 'include',
         headers: expect.objectContaining({
