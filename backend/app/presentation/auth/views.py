@@ -94,7 +94,7 @@ class LoginView(PublicAPIView):
         request=LoginSerializer,
         responses={200: LoginResponseSerializer},
         summary="User login",
-        description="Authenticate user and return JWT tokens. Tokens are also set in HttpOnly cookies.",
+        description="Authenticate user and set JWT tokens in HttpOnly cookies.",
     )
     def post(self, request):
         serializer = self.get_serializer(data=request.data)
@@ -113,7 +113,7 @@ class LoginView(PublicAPIView):
                 code=ErrorCode.AUTHENTICATION_FAILED,
             )
 
-        response = Response({"access": token_pair.access, "refresh": token_pair.refresh})
+        response = Response({})
 
         samesite_value = "None" if settings.SECURE_COOKIES else "Lax"
 
@@ -208,7 +208,8 @@ class RefreshView(PublicAPIView):
         responses={200: RefreshResponseSerializer, 401: MessageResponseSerializer},
         summary="Refresh access token",
         description=(
-            "Refresh access token using refresh token from cookie or request body. "
+            "Refresh access token using refresh token from cookie or request body, "
+            "then rotate tokens in HttpOnly cookies. "
             "Refresh token is rotated and old token is invalidated."
         ),
     )
@@ -230,7 +231,7 @@ class RefreshView(PublicAPIView):
                 code=ErrorCode.AUTHENTICATION_FAILED,
             )
 
-        response = Response({"access": token_pair.access, "refresh": token_pair.refresh})
+        response = Response({})
 
         samesite_value = "None" if settings.SECURE_COOKIES else "Lax"
 

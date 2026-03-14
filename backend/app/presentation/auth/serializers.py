@@ -74,13 +74,17 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
 
 # Response serializers for API documentation
 class LoginResponseSerializer(serializers.Serializer):
-    access = serializers.CharField(help_text="Access token")
-    refresh = serializers.CharField(help_text="Refresh token")
+    message = serializers.CharField(
+        required=False,
+        help_text="Optional response message. JWT tokens are set in HttpOnly cookies.",
+    )
 
 
 class RefreshResponseSerializer(serializers.Serializer):
-    access = serializers.CharField(help_text="New access token")
-    refresh = serializers.CharField(help_text="New refresh token")
+    message = serializers.CharField(
+        required=False,
+        help_text="Optional response message. Rotated JWT tokens are set in HttpOnly cookies.",
+    )
 
 
 class MessageResponseSerializer(serializers.Serializer):

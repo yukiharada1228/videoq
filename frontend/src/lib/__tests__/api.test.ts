@@ -78,7 +78,7 @@ describe('ApiClient', () => {
     });
 
     it('login should return response on success', async () => {
-      const mockResponse = { access: 'atk', refresh: 'rtk' };
+      const mockResponse = {};
       fetchMock.mockResolvedValueOnce({
         ok: true,
         headers: new Headers({ 'content-type': 'application/json' }),
@@ -130,7 +130,7 @@ describe('ApiClient', () => {
     });
 
     it('refreshToken should call refresh endpoint', async () => {
-      const mockResponse = { access: 'new_token' };
+      const mockResponse = {};
       fetchMock.mockResolvedValueOnce({
         ok: true,
         headers: new Headers({ 'content-type': 'application/json' }),
@@ -239,7 +239,7 @@ describe('ApiClient', () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
         headers: new Headers({ 'content-type': 'application/json' }),
-        text: () => Promise.resolve(JSON.stringify({ access: 'new' })),
+        text: () => Promise.resolve('{}'),
       });
 
       // Retry original call succeeds
