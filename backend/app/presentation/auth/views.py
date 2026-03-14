@@ -4,6 +4,7 @@ from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 from django.http import Http404
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics, status
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
 from app.presentation.auth.serializers import (AccountDeleteSerializer,
@@ -14,7 +15,7 @@ from app.presentation.auth.serializers import (AccountDeleteSerializer,
                                                LoginResponseSerializer,
                                                LoginSerializer,
                                                MessageResponseSerializer,
-                                               PasswordResetConfirmSerializer,
+                                               PasswordResetConfirmBodySerializer,
                                                PasswordResetRequestSerializer,
                                                RefreshResponseSerializer,
                                                UserSerializer,
@@ -90,12 +91,26 @@ class UserSignupView(PublicAPIView):
 
 
 @method_decorator(csrf_protect, name="dispatch")
-class LoginView(PublicAPIView):
-    """Login view"""
+class SessionView(DependencyResolverMixin, generics.GenericAPIView):
+    """Session view: POST = login, DELETE = logout"""
 
-    serializer_class = LoginSerializer
-    throttle_classes = [LoginIPThrottle, LoginUsernameThrottle]
     login_use_case = None
+    logout_use_case = None
+
+    def get_authenticators(self):
+        if hasattr(self, "request") and self.request.method == "DELETE":
+            return [CookieJWTAuthentication()]
+        return []
+
+    def get_permissions(self):
+        if hasattr(self, "request") and self.request.method == "DELETE":
+            return [IsAuthenticated()]
+        return [AllowAny()]
+
+    def get_throttles(self):
+        if hasattr(self, "request") and self.request.method == "POST":
+            return [LoginIPThrottle(), LoginUsernameThrottle()]
+        return []
 
     @extend_schema(
         request=LoginSerializer,
@@ -104,7 +119,7 @@ class LoginView(PublicAPIView):
         description="Authenticate user and set JWT tokens in HttpOnly cookies.",
     )
     def post(self, request):
-        serializer = self.get_serializer(data=request.data)
+        serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         d = serializer.validated_data
 
@@ -143,19 +158,12 @@ class LoginView(PublicAPIView):
 
         return response
 
-
-class LogoutView(AuthenticatedAPIView):
-    """Logout view"""
-
-    serializer_class = MessageResponseSerializer
-    logout_use_case = None
-
     @extend_schema(
         responses={200: MessageResponseSerializer},
         summary="User logout",
         description="Logout by invalidating refresh token and deleting HttpOnly cookies.",
     )
-    def post(self, request):
+    def delete(self, request):
         refresh_token = request.COOKIES.get("refresh_token")
         if refresh_token:
             use_case = self.resolve_dependency(self.logout_use_case)
@@ -220,7 +228,7 @@ class RefreshView(PublicAPIView):
             "Refresh token is rotated and old token is invalidated."
         ),
     )
-    def post(self, request):
+    def put(self, request):
         refresh_token = request.COOKIES.get("refresh_token")
 
         if not refresh_token:
@@ -336,23 +344,23 @@ class PasswordResetRequestView(PublicAPIView):
 class PasswordResetConfirmView(PublicAPIView):
     """Password reset confirmation view"""
 
-    serializer_class = PasswordResetConfirmSerializer
+    serializer_class = PasswordResetConfirmBodySerializer
     confirm_password_reset_use_case = None
 
     @extend_schema(
-        request=PasswordResetConfirmSerializer,
+        request=PasswordResetConfirmBodySerializer,
         responses={200: MessageResponseSerializer},
         summary="Confirm password reset",
-        description="Reset password using uid, token, and new password from reset link.",
+        description="Reset password using token in URL path, uid and new password in request body.",
     )
-    def post(self, request):
+    def patch(self, request, token):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         d = serializer.validated_data
         use_case = self.resolve_dependency(self.confirm_password_reset_use_case)
         try:
             use_case.execute(
-                uidb64=d["uid"], token=d["token"], new_password=d["new_password"]
+                uidb64=d["uid"], token=token, new_password=d["new_password"]
             )
         except InvalidResetLink as e:
             return create_error_response(str(e), status.HTTP_400_BAD_REQUEST)
