@@ -2,8 +2,20 @@
 
 from rest_framework.throttling import SimpleRateThrottle
 
-def _normalize_signup_throttle_email(email: str) -> str:
-    return email.strip().lower()
+
+def _normalize_throttle_identifier(value: str, *, lowercase: bool) -> str:
+    normalized = value.strip()
+    if lowercase:
+        normalized = normalized.lower()
+    return normalized
+
+
+def _normalize_throttle_email(email: str) -> str:
+    return _normalize_throttle_identifier(email, lowercase=True)
+
+
+def _normalize_throttle_username(username: str) -> str:
+    return _normalize_throttle_identifier(username, lowercase=True)
 
 
 class ShareTokenIPThrottle(SimpleRateThrottle):
@@ -66,7 +78,7 @@ class LoginUsernameThrottle(SimpleRateThrottle):
             }
         return self.cache_format % {
             "scope": self.scope,
-            "ident": username,
+            "ident": _normalize_throttle_username(str(username)),
         }
 
 
@@ -88,7 +100,7 @@ class SignupEmailThrottle(SimpleRateThrottle):
         if not email:
             ident = self.get_ident(request)
         else:
-            ident = _normalize_signup_throttle_email(str(email))
+            ident = _normalize_throttle_email(str(email))
 
         return self.cache_format % {
             "scope": self.scope,
@@ -118,5 +130,5 @@ class PasswordResetEmailThrottle(SimpleRateThrottle):
             }
         return self.cache_format % {
             "scope": self.scope,
-            "ident": email,
+            "ident": _normalize_throttle_email(str(email)),
         }
