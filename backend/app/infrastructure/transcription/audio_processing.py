@@ -15,10 +15,13 @@ from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from openai import AsyncOpenAI
 
+resource_module: ModuleType | None
 try:
-    import resource as resource_module
+    import resource
 except ImportError:  # pragma: no cover - non-Unix fallback
-    resource_module: ModuleType | None = None
+    resource_module = None
+else:
+    resource_module = resource
 
 logger = logging.getLogger(__name__)
 
