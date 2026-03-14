@@ -274,6 +274,7 @@ REST_FRAMEWORK = {
         "login_ip": "5/minute",
         "login_username": "5/minute",
         "signup_ip": "3/hour",
+        "signup_email": "3/hour",
         "password_reset_ip": "3/hour",
         "password_reset_email": "3/hour",
     },
