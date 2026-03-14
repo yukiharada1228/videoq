@@ -476,7 +476,7 @@ describe('ApiClient', () => {
     it('removeVideoFromGroup calls correct endpoint', async () => {
       fetchMock.mockResolvedValueOnce({ ok: true, headers: new Headers() });
       await apiClient.removeVideoFromGroup(1, 100);
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/groups/1/videos/100/remove/', expect.objectContaining({ method: 'DELETE' }));
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/groups/1/videos/100/', expect.objectContaining({ method: 'DELETE' }));
     });
 
     it('reorderVideosInGroup calls correct endpoint', async () => {
@@ -550,7 +550,7 @@ describe('ApiClient', () => {
     it('removeTagFromVideo calls correct endpoint', async () => {
       fetchMock.mockResolvedValueOnce({ ok: true, headers: new Headers() });
       await apiClient.removeTagFromVideo(1, 10);
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/1/tags/10/remove/', expect.objectContaining({ method: 'DELETE' }));
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/1/tags/10/', expect.objectContaining({ method: 'DELETE' }));
     });
   });
 
