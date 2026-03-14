@@ -262,6 +262,15 @@ class ChatHistoryView(DependencyResolverMixin, APIView):
     chat_history_use_case = None
     export_history_use_case = None
 
+    def perform_content_negotiation(self, request, force=False):
+        # ?format=csv is a download hint, not a DRF renderer format.
+        # DRF 3.16+ calls this in initial() before the handler runs,
+        # so intercept here to avoid NotAcceptable when no CSV renderer exists.
+        if request.query_params.get("format") == "csv":
+            from rest_framework.renderers import JSONRenderer
+            return (JSONRenderer(), "application/json")
+        return super().perform_content_negotiation(request, force=force)
+
     @extend_schema(
         parameters=[
             OpenApiParameter("group_id", int, required=False),
