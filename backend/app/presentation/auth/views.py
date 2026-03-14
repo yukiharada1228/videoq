@@ -98,17 +98,17 @@ class SessionView(DependencyResolverMixin, generics.GenericAPIView):
     logout_use_case = None
 
     def get_authenticators(self):
-        if hasattr(self, "request") and self.request.method == "DELETE":
+        if self.request is not None and self.request.method == "DELETE":
             return [CookieJWTAuthentication()]
         return []
 
     def get_permissions(self):
-        if hasattr(self, "request") and self.request.method == "DELETE":
+        if self.request is not None and self.request.method == "DELETE":
             return [IsAuthenticated()]
         return [AllowAny()]
 
     def get_throttles(self):
-        if hasattr(self, "request") and self.request.method == "POST":
+        if self.request is not None and self.request.method == "POST":
             return [LoginIPThrottle(), LoginUsernameThrottle()]
         return []
 
