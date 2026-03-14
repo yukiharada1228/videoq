@@ -616,7 +616,7 @@ describe('ApiClient', () => {
 
       await apiClient.exportChatHistoryCsv(1);
 
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/chat/history/export/?group_id=1', expect.anything());
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/chat/history/?group_id=1&format=csv', expect.anything());
       expect(createElementSpy).toHaveBeenCalledWith('a');
       expect(appendChildSpy).toHaveBeenCalledWith(mockLink);
       expect(mockLink.click).toHaveBeenCalled();
