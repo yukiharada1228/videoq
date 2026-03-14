@@ -586,6 +586,32 @@ describe('ApiClient', () => {
       expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/chat/feedback/', expect.objectContaining({ method: 'POST' }));
     });
 
+    it('searchScenes calls GET /chat/scenes/ with query params', async () => {
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        text: () => Promise.resolve(JSON.stringify({ query_text: 'test', related_videos: [] }))
+      });
+      await apiClient.searchScenes('test', 1);
+      expect(fetchMock).toHaveBeenCalledWith(
+        'http://localhost:8000/api/chat/scenes/?query_text=test&group_id=1',
+        expect.not.objectContaining({ method: 'POST' })
+      );
+    });
+
+    it('searchScenes with share_token appends share_token param', async () => {
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        text: () => Promise.resolve(JSON.stringify({ query_text: 'test', related_videos: [] }))
+      });
+      await apiClient.searchScenes('test', 1, 'mytoken');
+      expect(fetchMock).toHaveBeenCalledWith(
+        'http://localhost:8000/api/chat/scenes/?query_text=test&group_id=1&share_token=mytoken',
+        expect.anything()
+      );
+    });
+
     it('getChatHistory calls correct endpoint', async () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
