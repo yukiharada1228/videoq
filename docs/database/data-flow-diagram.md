@@ -55,15 +55,15 @@ flowchart TD
 flowchart TD
     Start([User]) --> Input[Input Question]
     Input --> Frontend[Frontend]
-    Frontend --> API[Backend API<br>/api/chat/]
+    Frontend --> API["Backend API<br>/api/chat/"]
     
     API --> Auth{Authenticated or Share Token?}
     Auth -->|Failed| Error1[Authentication Error]
     Auth -->|Success| CheckGroup{group_id specified?}
-    CheckGroup -->|Yes| GetGroup[(Database<br>Get VideoGroup)]
-    CheckGroup -->|No| LLM[OpenAI / Ollama<br>LLM Call (No Context)]
+    CheckGroup -->|Yes| GetGroup["Database<br>Get VideoGroup"]
+    CheckGroup -->|No| LLM["OpenAI / Ollama<br>LLM Call (No Context)"]
 
-    GetGroup --> VectorSearch[PGVector<br>Vector Search]
+    GetGroup --> VectorSearch["PGVector<br>Vector Search"]
     VectorSearch --> RelatedScenes[Get Related Scenes]
     RelatedScenes --> BuildContext[Build Context]
     
@@ -71,7 +71,7 @@ flowchart TD
     LLM --> Answer[Generate Answer]
 
     Answer --> SaveLog{group_id specified?}
-    SaveLog -->|Yes| PersistLog[(Database<br>Save ChatLog)]
+    SaveLog -->|Yes| PersistLog["Database<br>Save ChatLog"]
     SaveLog -->|No| Response[Generate Response]
     PersistLog --> Response
     Response --> Frontend
