@@ -216,6 +216,28 @@ class LoginThrottleTest(APITestCase):
         )
         self.assertEqual(resp.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
 
+    def test_username_throttle_normalizes_case_and_whitespace(self):
+        """Username throttle should treat casing and surrounding spaces as the same key."""
+        attempts = ["  LoginUser  ", "loginuser"]
+
+        for i, username in enumerate(attempts):
+            resp = self.client.post(
+                self.url,
+                {"username": username, "password": "wrong"},
+                format="json",
+                REMOTE_ADDR=f"10.0.0.{i + 1}",
+            )
+            self.assertNotEqual(resp.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+
+        resp = self.client.post(
+            self.url,
+            {"username": "LOGINUSER", "password": "wrong"},
+            format="json",
+            REMOTE_ADDR="10.0.0.99",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+        self.assertEqual(resp.json()["error"]["code"], "LIMIT_EXCEEDED")
+
 
 @override_settings(CACHES=_TEST_CACHES, ENABLE_SIGNUP=True)
 @patch.dict(SimpleRateThrottle.THROTTLE_RATES, _TEST_THROTTLE_RATES)
@@ -355,6 +377,28 @@ class PasswordResetThrottleTest(APITestCase):
             REMOTE_ADDR="10.0.0.99",
         )
         self.assertEqual(resp.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+
+    def test_email_throttle_normalizes_case_and_whitespace(self):
+        """Password reset throttle should normalize email casing and spaces."""
+        attempts = ["  Victim@Example.com  ", "victim@example.com"]
+
+        for i, email in enumerate(attempts):
+            resp = self.client.post(
+                self.url,
+                {"email": email},
+                format="json",
+                REMOTE_ADDR=f"10.0.0.{i + 1}",
+            )
+            self.assertNotEqual(resp.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+
+        resp = self.client.post(
+            self.url,
+            {"email": "VICTIM@EXAMPLE.COM"},
+            format="json",
+            REMOTE_ADDR="10.0.0.99",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+        self.assertEqual(resp.json()["error"]["code"], "LIMIT_EXCEEDED")
 
     def test_429_response_format(self):
         """429 response should have LIMIT_EXCEEDED error format with Retry-After header."""
