@@ -168,6 +168,8 @@ def validate_video_media_file(
         raise InvalidMediaFileError("Uploaded video container is not supported.")
 
     duration_raw = format_info.get("duration")
+    if not isinstance(duration_raw, (str, int, float)):
+        raise InvalidMediaFileError("Uploaded file is missing a valid duration.")
     try:
         duration = float(duration_raw)
     except (TypeError, ValueError) as exc:
