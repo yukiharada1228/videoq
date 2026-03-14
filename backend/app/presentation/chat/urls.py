@@ -5,7 +5,6 @@ from app.dependencies import chat as chat_dependencies
 from .views import (
     ChatAnalyticsView,
     ChatFeedbackView,
-    ChatHistoryExportView,
     ChatHistoryView,
     ChatSearchView,
     ChatView,
@@ -27,15 +26,11 @@ urlpatterns = [
     ),
     path(
         "history/",
-        ChatHistoryView.as_view(chat_history_use_case=chat_dependencies.get_chat_history_use_case),
-        name="chat-history",
-    ),
-    path(
-        "history/export/",
-        ChatHistoryExportView.as_view(
-            export_history_use_case=chat_dependencies.get_export_history_use_case
+        ChatHistoryView.as_view(
+            chat_history_use_case=chat_dependencies.get_chat_history_use_case,
+            export_history_use_case=chat_dependencies.get_export_history_use_case,
         ),
-        name="chat-history-export",
+        name="chat-history",
     ),
     path(
         "feedback/",
