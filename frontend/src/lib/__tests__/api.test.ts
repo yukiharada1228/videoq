@@ -643,7 +643,7 @@ describe('ApiClient', () => {
         text: () => Promise.resolve(JSON.stringify({}))
       });
       await apiClient.deleteShareLink(1);
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/groups/1/share/delete/', expect.objectContaining({ method: 'DELETE' }));
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/groups/1/share/', expect.objectContaining({ method: 'DELETE' }));
     });
 
     it('getSharedGroup calls correct endpoint', async () => {
@@ -654,7 +654,7 @@ describe('ApiClient', () => {
         json: () => Promise.resolve({ id: 1 })
       });
       await apiClient.getSharedGroup('token');
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/groups/shared/token/');
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/groups/share/token/');
     });
 
     it('getSharedGroup should throw on error', async () => {
