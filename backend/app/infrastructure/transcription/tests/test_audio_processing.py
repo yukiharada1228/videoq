@@ -12,22 +12,24 @@ from unittest.mock import MagicMock, patch
 import unittest
 
 from app.infrastructure.transcription.audio_processing import (
-    InvalidMediaFileError,
     SUPPORTED_FORMATS,
-    _build_media_preexec_fn,
     _extract_audio_segment,
     _extract_full_audio,
     _get_video_duration,
-    _run_media_command,
     _split_audio_into_segments,
     extract_and_split_audio,
     process_audio_segments_async,
     process_audio_segments_parallel,
-    probe_media_file,
     transcribe_audio_segment_async,
-    validate_video_media_file,
 )
 from app.infrastructure.common.task_helpers import TemporaryFileManager
+from app.contracts.media_validation import (
+    InvalidMediaFileError,
+    build_media_preexec_fn,
+    probe_media_file,
+    run_media_command,
+    validate_video_media_file,
+)
 
 
 class SupportedFormatsTests(unittest.TestCase):
@@ -116,7 +118,7 @@ class ProbeMediaFileTests(unittest.TestCase):
 class ValidateVideoMediaFileTests(unittest.TestCase):
     """Tests for validate_video_media_file function"""
 
-    @patch("app.infrastructure.transcription.audio_processing.probe_media_file")
+    @patch("app.contracts.media_validation.probe_media_file")
     def test_accepts_valid_video_stream_and_container(self, mock_probe):
         mock_probe.return_value = {
             "format": {"format_name": "mp4,mov", "duration": "42.0"},
@@ -127,7 +129,7 @@ class ValidateVideoMediaFileTests(unittest.TestCase):
 
         self.assertEqual(result["format"]["duration"], "42.0")
 
-    @patch("app.infrastructure.transcription.audio_processing.probe_media_file")
+    @patch("app.contracts.media_validation.probe_media_file")
     def test_rejects_when_video_stream_is_missing(self, mock_probe):
         mock_probe.return_value = {
             "format": {"format_name": "mp4", "duration": "42.0"},
@@ -145,7 +147,7 @@ class MediaCommandRunnerTests(unittest.TestCase):
     def test_run_media_command_sets_timeout_and_preexec(self, mock_run):
         mock_run.return_value = MagicMock(stdout="{}")
 
-        _run_media_command(["ffprobe", "/tmp/video.mp4"], 12)
+        run_media_command(["ffprobe", "/tmp/video.mp4"], 12)
 
         self.assertEqual(mock_run.call_args.kwargs["timeout"], 12)
         if platform.system() == "Windows":
@@ -154,14 +156,14 @@ class MediaCommandRunnerTests(unittest.TestCase):
             self.assertIsNotNone(mock_run.call_args.kwargs["preexec_fn"])
 
     def test_build_media_preexec_fn_returns_callable_on_unix(self):
-        preexec_fn = _build_media_preexec_fn()
+        preexec_fn = build_media_preexec_fn()
 
         if platform.system() == "Windows":
             self.assertIsNone(preexec_fn)
         else:
             self.assertTrue(callable(preexec_fn))
 
-    @patch("app.infrastructure.transcription.audio_processing.probe_media_file")
+    @patch("app.contracts.media_validation.probe_media_file")
     def test_rejects_unsupported_container(self, mock_probe):
         mock_probe.return_value = {
             "format": {"format_name": "image2", "duration": "42.0"},
@@ -171,7 +173,7 @@ class MediaCommandRunnerTests(unittest.TestCase):
         with self.assertRaises(InvalidMediaFileError):
             validate_video_media_file("/path/to/file.mp4")
 
-    @patch("app.infrastructure.transcription.audio_processing.probe_media_file")
+    @patch("app.contracts.media_validation.probe_media_file")
     def test_rejects_unsupported_video_codec(self, mock_probe):
         mock_probe.return_value = {
             "format": {"format_name": "mp4", "duration": "42.0"},
