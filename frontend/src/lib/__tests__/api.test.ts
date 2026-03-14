@@ -563,7 +563,7 @@ describe('ApiClient', () => {
         text: () => Promise.resolve(JSON.stringify({ role: 'assistant', content: 'hello' }))
       });
       await apiClient.chat({ messages: [] });
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/chat/', expect.objectContaining({ method: 'POST' }));
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/chat/messages/', expect.objectContaining({ method: 'POST' }));
     });
 
     it('chat with share token calls correct endpoint', async () => {
@@ -573,7 +573,7 @@ describe('ApiClient', () => {
         text: () => Promise.resolve(JSON.stringify({ role: 'assistant', content: 'hello' }))
       });
       await apiClient.chat({ messages: [], share_token: 'abc' });
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/chat/?share_token=abc', expect.objectContaining({ method: 'POST' }));
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/chat/messages/?share_token=abc', expect.objectContaining({ method: 'POST' }));
     });
 
     it('setChatFeedback calls correct endpoint', async () => {
