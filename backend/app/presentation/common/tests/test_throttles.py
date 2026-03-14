@@ -246,7 +246,7 @@ class SignupThrottleTest(APITestCase):
 
     def setUp(self):
         cache.clear()
-        self.url = "/api/auth/signup/"
+        self.url = "/api/auth/users/"
 
     def test_blocks_after_limit(self):
         """Same IP is blocked after 2 signup attempts/min."""
