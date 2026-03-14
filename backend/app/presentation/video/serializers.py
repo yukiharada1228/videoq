@@ -333,6 +333,27 @@ class TagUpdateSerializer(serializers.Serializer):
     color = serializers.CharField(required=False)
 
 
+class VideoFullUpdateSerializer(serializers.Serializer):
+    """Serializer for full video update (PUT). title is required."""
+
+    title = serializers.CharField(max_length=255)
+    description = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+class VideoGroupFullUpdateSerializer(serializers.Serializer):
+    """Serializer for full video group update (PUT). name is required."""
+
+    name = serializers.CharField(max_length=255)
+    description = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+class TagFullUpdateSerializer(serializers.Serializer):
+    """Serializer for full tag update (PUT). name and color are required."""
+
+    name = serializers.CharField(max_length=50, trim_whitespace=False)
+    color = serializers.CharField()
+
+
 class AddTagsToVideoRequestSerializer(serializers.Serializer):
     tag_ids = serializers.ListField(
         child=serializers.IntegerField(),
