@@ -4,7 +4,6 @@ from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 from django.http import Http404
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics, status
-from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
 from app.presentation.auth.serializers import (AccountDeleteSerializer,
@@ -91,21 +90,11 @@ class UserSignupView(PublicAPIView):
 
 
 @method_decorator(csrf_protect, name="dispatch")
-class SessionView(DependencyResolverMixin, generics.GenericAPIView):
+class SessionView(PublicAPIView):
     """Session view: POST = login, DELETE = logout"""
 
     login_use_case = None
     logout_use_case = None
-
-    def get_authenticators(self):
-        if self.request is not None and self.request.method == "DELETE":
-            return [CookieJWTAuthentication()]
-        return []
-
-    def get_permissions(self):
-        if self.request is not None and self.request.method == "DELETE":
-            return [IsAuthenticated()]
-        return [AllowAny()]
 
     def get_throttles(self):
         if self.request is not None and self.request.method == "POST":
