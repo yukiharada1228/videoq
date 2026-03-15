@@ -512,11 +512,27 @@ class ApiClient {
     // No need to manage refresh tokens on frontend
     // Call backend refresh endpoint as needed
 
-    const response = await this.request<RefreshResponse>('/auth/tokens/', {
+    // Use executeRequest() directly to bypass retry logic.
+    // If the refresh endpoint itself returns 401, throw immediately to prevent
+    // an infinite loop where handle401Error would call refreshToken() again.
+    const url = this.buildUrl('/auth/tokens/');
+    const headers = this.buildHeaders();
+    const csrfToken = await this.ensureCsrfToken();
+    if (csrfToken) {
+      headers['X-CSRFToken'] = csrfToken;
+    }
+
+    const response = await this.executeRequest(url, {
       method: 'PUT',
+      headers,
+      credentials: 'include',
     });
 
-    return response;
+    if (response.status === 401) {
+      throw new Error('Token refresh failed: unauthorized');
+    }
+
+    return await this.parseJsonResponse<RefreshResponse>(response);
   }
 
   async getMe(): Promise<User> {
