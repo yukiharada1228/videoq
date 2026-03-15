@@ -180,12 +180,23 @@ describe('ApiClient', () => {
       expect(result).toEqual(mockResponse);
       expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/tokens/', expect.objectContaining({
         method: 'PUT',
-        body: undefined,
         credentials: 'include',
         headers: expect.objectContaining({
           'X-CSRFToken': 'test-csrf-token',
         }),
       }));
+    });
+
+    it('refreshToken should throw immediately when refresh endpoint returns 401 without retrying', async () => {
+      document.cookie = 'csrftoken=test-csrf-token';
+      fetchMock.mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+      });
+
+      await expect(apiClient.refreshToken()).rejects.toThrow();
+      // Must be called exactly once - no retry/recursion
+      expect(fetchMock).toHaveBeenCalledTimes(1);
     });
 
     it('getMe should return user info', async () => {
@@ -314,6 +325,29 @@ describe('ApiClient', () => {
       fetchMock.mockResolvedValueOnce({ ok: true });
 
       await expect(apiClient.getMe()).rejects.toThrow('Authentication failed');
+      expect(window.location.href).toBe('/login');
+    });
+
+    it('should not cause infinite loop when refreshToken gets 401 (original request → refresh 401 → auth error)', async () => {
+      // Original API call returns 401
+      fetchMock.mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+      });
+
+      // Refresh token endpoint also returns 401 (expired/invalid session)
+      fetchMock.mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+      });
+
+      // Mock logout call
+      fetchMock.mockResolvedValueOnce({ ok: true });
+
+      await expect(apiClient.getMe()).rejects.toThrow('Authentication failed');
+      // Should be called exactly 3 times: original request + refresh attempt + logout
+      // (NOT infinite calls)
+      expect(fetchMock).toHaveBeenCalledTimes(3);
       expect(window.location.href).toBe('/login');
     });
   });
