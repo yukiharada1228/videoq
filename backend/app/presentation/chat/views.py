@@ -23,7 +23,6 @@ from app.presentation.common.permissions import (
 from app.presentation.common.responses import create_error_response
 from app.presentation.common.throttles import (
     AuthenticatedChatThrottle,
-    ShareTokenGlobalThrottle,
     ShareTokenIPThrottle,
 )
 from app.use_cases.chat.exceptions import (
@@ -69,7 +68,6 @@ class ChatView(DependencyResolverMixin, APIView):
     required_scope = "chat_write"
     throttle_classes = [
         ShareTokenIPThrottle,
-        ShareTokenGlobalThrottle,
         AuthenticatedChatThrottle,
     ]
     send_message_use_case = None
@@ -148,7 +146,6 @@ class ChatSearchView(DependencyResolverMixin, APIView):
     required_scope = "read"
     throttle_classes = [
         ShareTokenIPThrottle,
-        ShareTokenGlobalThrottle,
         AuthenticatedChatThrottle,
     ]
     search_related_videos_use_case = None

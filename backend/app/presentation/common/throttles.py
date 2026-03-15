@@ -31,19 +31,6 @@ class ShareTokenIPThrottle(SimpleRateThrottle):
         }
 
 
-class ShareTokenGlobalThrottle(SimpleRateThrottle):
-    scope = "chat_share_token_global"
-
-    def get_cache_key(self, request, view):
-        share_token = request.query_params.get("share_token")
-        if not share_token:
-            return None
-        return self.cache_format % {
-            "scope": self.scope,
-            "ident": share_token,
-        }
-
-
 class AuthenticatedChatThrottle(SimpleRateThrottle):
     scope = "chat_authenticated"
 
