@@ -13,9 +13,9 @@ from .views import (
 
 urlpatterns = [
     path(
-        "",
+        "messages/",
         ChatView.as_view(send_message_use_case=chat_dependencies.get_send_message_use_case),
-        name="chat",
+        name="chat-messages",
     ),
     path(
         "scenes/",
