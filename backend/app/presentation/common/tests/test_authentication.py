@@ -164,11 +164,27 @@ class APIKeyAuthenticationTests(APITestCase):
         self.assertEqual(auth_data["api_key_id"], self.api_key.pk)
 
     def test_authenticate_with_invalid_api_key(self):
-        """Test authentication failure with invalid API key."""
-        request = self.factory.get("/", HTTP_X_API_KEY="vq_invalid")
+        """Test authentication failure with valid-format key that does not exist in DB."""
+        request = self.factory.get("/", HTTP_X_API_KEY="vq_" + "x" * 32)
 
         with self.assertRaises(AuthenticationFailed):
             self.auth.authenticate(request)
+
+    def test_authenticate_returns_none_for_key_without_vq_prefix(self):
+        """Keys without vq_ prefix should return None without hitting the DB."""
+        request = self.factory.get("/", HTTP_X_API_KEY="sk_invalidkeyformat1234")
+
+        result = self.auth.authenticate(request)
+
+        self.assertIsNone(result)
+
+    def test_authenticate_returns_none_for_key_shorter_than_minimum(self):
+        """Keys shorter than 12 characters should return None without hitting the DB."""
+        request = self.factory.get("/", HTTP_X_API_KEY="vq_short")
+
+        result = self.auth.authenticate(request)
+
+        self.assertIsNone(result)
 
     def test_read_only_api_key_authenticates_without_scope_check(self):
         """Authentication layer should not apply read-only authorization rules."""
