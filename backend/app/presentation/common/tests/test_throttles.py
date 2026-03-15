@@ -25,7 +25,6 @@ _TEST_CACHES = {
 # Strict rates for fast test execution
 _TEST_THROTTLE_RATES = {
     "chat_share_token_ip": "2/minute",
-    "chat_share_token_global": "3/minute",
     "chat_authenticated": "2/minute",
     "login_ip": "2/minute",
     "login_username": "2/minute",
@@ -70,55 +69,6 @@ class ShareTokenIPThrottleTest(APITestCase):
         resp = self.client.post(self.url, self.payload, format="json")
         self.assertEqual(resp.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
         self.assertEqual(resp.json()["error"]["code"], "LIMIT_EXCEEDED")
-
-
-@override_settings(CACHES=_TEST_CACHES, ENABLE_SIGNUP=True)
-@patch.dict(SimpleRateThrottle.THROTTLE_RATES, _TEST_THROTTLE_RATES)
-class ShareTokenGlobalThrottleRemovedTest(APITestCase):
-    """ShareTokenGlobalThrottle はIPベース化により ShareTokenIPThrottle と
-    完全に重複するため削除済み。異なるIPからのリクエストがトークン単位で
-    ブロックされないことを確認する。"""
-
-    def setUp(self):
-        cache.clear()
-        self.user = User.objects.create_user(
-            username="owner", email="owner@example.com", password="pass1234"
-        )
-        self.group = VideoGroup.objects.create(
-            user=self.user,
-            name="test group",
-            share_token=secrets.token_urlsafe(32),
-        )
-        self.url = f"/api/chat/messages/?share_token={self.group.share_token}"
-        self.payload = {
-            "messages": [{"role": "user", "content": "hi"}],
-            "group_id": self.group.id,
-        }
-
-    def test_cross_ip_requests_not_blocked_by_global_token_throttle(self):
-        """異なるIPからのリクエストはトークン単位のグローバル制限を受けない。
-        各IPが per-IP 上限(2/min)以内であれば、何IPからアクセスしても全て許可される。"""
-        for i in range(4):  # 4つの異なるIP、各1リクエスト（per-IP上限の2未満）
-            resp = self.client.post(
-                self.url,
-                self.payload,
-                format="json",
-                REMOTE_ADDR=f"10.0.0.{i + 1}",
-            )
-            self.assertNotEqual(
-                resp.status_code,
-                status.HTTP_429_TOO_MANY_REQUESTS,
-                msg=f"IP 10.0.0.{i + 1} の {i + 1} 番目のリクエストが意図せずブロックされました",
-            )
-
-    def test_share_token_global_throttle_class_does_not_exist(self):
-        """ShareTokenGlobalThrottle クラスが throttles モジュールに存在しないことを確認する。"""
-        import app.presentation.common.throttles as throttle_module
-
-        self.assertFalse(
-            hasattr(throttle_module, "ShareTokenGlobalThrottle"),
-            "ShareTokenGlobalThrottle は削除済みのはずですが、まだ存在しています",
-        )
 
 
 @override_settings(CACHES=_TEST_CACHES, ENABLE_SIGNUP=True)
