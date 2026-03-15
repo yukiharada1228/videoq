@@ -37,6 +37,38 @@ _TEST_THROTTLE_RATES = {
 
 @override_settings(CACHES=_TEST_CACHES, ENABLE_SIGNUP=True)
 @patch.dict(SimpleRateThrottle.THROTTLE_RATES, _TEST_THROTTLE_RATES)
+class GetSharedGroupThrottleTest(APITestCase):
+    """Tests for ShareTokenIPThrottle applied to get_shared_group (path-param share_token)."""
+
+    def setUp(self):
+        cache.clear()
+        self.user = User.objects.create_user(
+            username="groupowner", email="groupowner@example.com", password="pass1234"
+        )
+        self.group = VideoGroup.objects.create(
+            user=self.user,
+            name="shared group",
+            share_token=secrets.token_urlsafe(32),
+        )
+        self.url = f"/api/videos/groups/share/{self.group.share_token}/"
+
+    def test_allows_requests_within_limit(self):
+        """Requests within the rate limit should succeed (not 429)."""
+        for _ in range(2):
+            resp = self.client.get(self.url)
+            self.assertNotEqual(resp.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+
+    def test_blocks_after_limit(self):
+        """Third request from same IP should be throttled."""
+        for _ in range(2):
+            self.client.get(self.url)
+        resp = self.client.get(self.url)
+        self.assertEqual(resp.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+        self.assertEqual(resp.json()["error"]["code"], "LIMIT_EXCEEDED")
+
+
+@override_settings(CACHES=_TEST_CACHES, ENABLE_SIGNUP=True)
+@patch.dict(SimpleRateThrottle.THROTTLE_RATES, _TEST_THROTTLE_RATES)
 class ShareTokenIPThrottleTest(APITestCase):
     """Tests for ShareTokenIPThrottle (per-IP limit on share_token chat)."""
 

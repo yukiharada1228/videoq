@@ -22,7 +22,9 @@ class ShareTokenIPThrottle(SimpleRateThrottle):
     scope = "chat_share_token_ip"
 
     def get_cache_key(self, request, view):
-        share_token = request.query_params.get("share_token")
+        share_token = request.query_params.get("share_token") or (
+            view.kwargs.get("share_token") if hasattr(view, "kwargs") else None
+        )
         if not share_token:
             return None
         return self.cache_format % {
