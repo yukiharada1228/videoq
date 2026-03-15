@@ -397,78 +397,121 @@ classDiagram
 ```mermaid
 classDiagram
     class CreateVideoUseCase {
-        +execute(user_id, video_limit, validated_data) VideoOutputDTO
+        +execute(user_id, input) VideoOutputDTO
     }
-    class GetVideoUseCase {
+    class GetVideoDetailUseCase {
         +execute(video_id, user_id) VideoOutputDTO
     }
     class ListVideosUseCase {
-        +execute(user_id, filters) list~VideoOutputDTO~
+        +execute(user_id, input) list~VideoOutputDTO~
     }
     class UpdateVideoUseCase {
-        +execute(video_id, user_id, data) VideoOutputDTO
+        +execute(video_id, user_id, input) VideoOutputDTO
     }
     class DeleteVideoUseCase {
         +execute(video_id, user_id) None
     }
-    class GetGroupUseCase {
-        +execute(group_id, user_id) GroupOutputDTO
+    class GetVideoGroupUseCase {
+        +execute(group_id, user_id, include_videos) GroupOutputDTO
     }
-    class ListGroupsUseCase {
-        +execute(user_id) list~GroupOutputDTO~
+    class GetSharedGroupUseCase {
+        +execute(share_token) GroupOutputDTO
     }
-    class CreateGroupUseCase {
-        +execute(user_id, data) GroupOutputDTO
+    class ListVideoGroupsUseCase {
+        +execute(user_id, include_videos) list~GroupOutputDTO~
     }
-    class DeleteGroupUseCase {
+    class CreateVideoGroupUseCase {
+        +execute(user_id, input) GroupOutputDTO
+    }
+    class CreateVideoGroupWithDetailUseCase {
+        +execute(user_id, input) GroupOutputDTO
+    }
+    class UpdateVideoGroupUseCase {
+        +execute(group_id, user_id, input) GroupOutputDTO
+    }
+    class UpdateVideoGroupWithDetailUseCase {
+        +execute(group_id, user_id, input) GroupOutputDTO
+    }
+    class DeleteVideoGroupUseCase {
         +execute(group_id, user_id) None
     }
-    class ManageGroupsUseCase {
-        +add_video(group_id, user_id, video_ids) result
-        +remove_video(group_id, user_id, video_id) None
-        +reorder_videos(group_id, user_id, video_ids) None
-        +create_share_token(group_id, user_id) str
-        +delete_share_token(group_id, user_id) None
+    class AddVideoToGroupUseCase {
+        +execute(group_id, video_id, user_id) MemberOutputDTO
     }
-    class GetTagUseCase {
+    class AddVideosToGroupUseCase {
+        +execute(group_id, video_ids, user_id) tuple~int,int~
+    }
+    class RemoveVideoFromGroupUseCase {
+        +execute(group_id, video_id, user_id) None
+    }
+    class ReorderVideosInGroupUseCase {
+        +execute(group_id, video_ids, user_id) None
+    }
+    class CreateShareLinkUseCase {
+        +execute(group_id, user_id) str
+    }
+    class DeleteShareLinkUseCase {
+        +execute(group_id, user_id) None
+    }
+    class GetTagDetailUseCase {
         +execute(tag_id, user_id) TagOutputDTO
     }
     class ListTagsUseCase {
         +execute(user_id) list~TagOutputDTO~
     }
     class CreateTagUseCase {
-        +execute(user_id, data) TagOutputDTO
+        +execute(user_id, input) TagOutputDTO
+    }
+    class UpdateTagUseCase {
+        +execute(tag_id, user_id, input) TagOutputDTO
+    }
+    class UpdateTagWithDetailUseCase {
+        +execute(tag_id, user_id, input) TagOutputDTO
     }
     class DeleteTagUseCase {
         +execute(tag_id, user_id) None
     }
-    class ManageTagsUseCase {
-        +add_tags_to_video(video_id, user_id, tag_ids) result
-        +remove_tag_from_video(video_id, user_id, tag_id) None
+    class AddTagsToVideoUseCase {
+        +execute(video_id, tag_ids, user_id) tuple~int,int~
+    }
+    class RemoveTagFromVideoUseCase {
+        +execute(video_id, tag_id, user_id) None
     }
     class SendMessageUseCase {
-        +execute(user_id, messages, group_id, locale) ChatOutputDTO
+        +execute(user_id, messages, group_id, share_token, is_shared, locale) ChatOutputDTO
     }
-    class GetHistoryUseCase {
+    class SearchRelatedVideosUseCase {
+        +execute(user_id, query_text, group_id, share_token, is_shared) SearchOutputDTO
+    }
+    class GetChatHistoryUseCase {
         +execute(group_id, user_id, ascending) list~ChatLogDTO~
     }
-    class ExportHistoryUseCase {
-        +execute(group_id, user_id) str
+    class ExportChatHistoryUseCase {
+        +execute(group_id, user_id) tuple~int,list~
     }
     class SubmitFeedbackUseCase {
-        +execute(log_id, feedback, user_id, share_token) ChatLogDTO
+        +execute(chat_log_id, feedback, user_id, share_token) ChatLogDTO
     }
-    class GetAnalyticsUseCase {
+    class GetChatAnalyticsUseCase {
         +execute(group_id, user_id) AnalyticsDTO
     }
     class GetPopularScenesUseCase {
-        +execute(group_id, user_id) list~PopularSceneDTO~
+        +execute(group_id, limit, user_id, share_token) list~PopularSceneDTO~
     }
     class LoginUseCase {
         +execute(username, password) TokenPairDto
     }
     class SignupUserUseCase {
-        +execute(validated_data) UserEntity
+        +execute(username, email, password) None
+    }
+    class VerifyEmailUseCase {
+        +execute(uidb64, token) None
+    }
+    class RequestPasswordResetUseCase {
+        +execute(email) None
+    }
+    class ConfirmPasswordResetUseCase {
+        +execute(uidb64, token, new_password) None
     }
     class GetCurrentUserUseCase {
         +execute(user_id) UserEntity
@@ -479,19 +522,38 @@ classDiagram
     class DeleteAccountDataUseCase {
         +execute(user_id) None
     }
-    class ManageApiKeysUseCase {
-        +list(user_id) list~ApiKeyEntity~
-        +create(user_id, name, access_level) ApiKeyCreateResult
-        +revoke(key_id, user_id) bool
+    class ListApiKeysUseCase {
+        +execute(user_id) list~ApiKeyEntity~
+    }
+    class CreateApiKeyUseCase {
+        +execute(user_id, name, access_level) ApiKeyCreateResult
+    }
+    class RevokeApiKeyUseCase {
+        +execute(key_id, user_id) None
     }
     class RefreshTokenUseCase {
         +execute(refresh_token) TokenPairDto
+    }
+    class ResolveApiKeyUseCase {
+        +execute(raw_key) ApiKeyResolution
+    }
+    class ResolveShareTokenUseCase {
+        +execute(share_token) ShareTokenResolution
+    }
+    class AuthorizeApiKeyUseCase {
+        +execute(access_level, required_scope) bool
     }
     class ResolveProtectedMediaUseCase {
         +execute(path, user) str
     }
     class RunTranscriptionUseCase {
         +execute(video_id) None
+    }
+    class IndexVideoTranscriptUseCase {
+        +execute(video_id) None
+    }
+    class EnforceVideoLimitUseCase {
+        +execute(user_id) None
     }
     class ReindexAllVideosUseCase {
         +execute() None
@@ -523,11 +585,17 @@ classDiagram
     class ChatView {
         +post() answer response
     }
+    class ChatSearchView {
+        +post() retrieval response
+    }
     class ChatHistoryView {
         +get() history list response
     }
+    class ChatHistoryExportView {
+        +get() CSV response
+    }
     class ChatFeedbackView {
-        +patch() feedback response
+        +post() feedback response
     }
     class ChatAnalyticsView {
         +get() analytics response
@@ -535,11 +603,11 @@ classDiagram
     class PopularScenesView {
         +get() scenes response
     }
-    class ExportHistoryView {
-        +get() CSV response
-    }
     class LoginView {
         +post() sets JWT cookies
+    }
+    class LogoutView {
+        +post() clears JWT cookies
     }
     class RefreshView {
         +post() refreshes JWT cookies
@@ -547,13 +615,22 @@ classDiagram
     class UserSignupView {
         +post() created response
     }
+    class EmailVerificationView {
+        +post() verification response
+    }
+    class PasswordResetRequestView {
+        +post() email dispatch response
+    }
+    class PasswordResetConfirmView {
+        +post() password updated response
+    }
     class AccountDeleteView {
         +delete() deactivates account, clears cookies
     }
-    class CurrentUserView {
+    class MeView {
         +get() user detail response
     }
-    class ApiKeyListView {
+    class ApiKeyListCreateView {
         +get() list response
         +post() created response
     }
@@ -566,20 +643,22 @@ classDiagram
 
     VideoListView ..> CreateVideoUseCase : delegates
     VideoListView ..> ListVideosUseCase : delegates
-    VideoDetailView ..> GetVideoUseCase : delegates
+    VideoDetailView ..> GetVideoDetailUseCase : delegates
     VideoDetailView ..> UpdateVideoUseCase : delegates
     VideoDetailView ..> DeleteVideoUseCase : delegates
     ChatView ..> SendMessageUseCase : delegates
-    ChatHistoryView ..> GetHistoryUseCase : delegates
+    ChatSearchView ..> SearchRelatedVideosUseCase : delegates
+    ChatHistoryView ..> GetChatHistoryUseCase : delegates
     ChatFeedbackView ..> SubmitFeedbackUseCase : delegates
-    ChatAnalyticsView ..> GetAnalyticsUseCase : delegates
+    ChatAnalyticsView ..> GetChatAnalyticsUseCase : delegates
     PopularScenesView ..> GetPopularScenesUseCase : delegates
-    ExportHistoryView ..> ExportHistoryUseCase : delegates
+    ChatHistoryExportView ..> ExportChatHistoryUseCase : delegates
     LoginView ..> LoginUseCase : delegates
     AccountDeleteView ..> AccountDeletionUseCase : delegates
-    CurrentUserView ..> GetCurrentUserUseCase : delegates
-    ApiKeyListView ..> ManageApiKeysUseCase : delegates
-    ApiKeyDetailView ..> ManageApiKeysUseCase : delegates
+    MeView ..> GetCurrentUserUseCase : delegates
+    ApiKeyListCreateView ..> ListApiKeysUseCase : delegates
+    ApiKeyListCreateView ..> CreateApiKeyUseCase : delegates
+    ApiKeyDetailView ..> RevokeApiKeyUseCase : delegates
     ProtectedMediaView ..> ResolveProtectedMediaUseCase : delegates
 ```
 
@@ -592,7 +671,7 @@ classDiagram
 - **VideoGroup** は **VideoGroupMember** を通じて複数の **Video** に関連
 - **ChatLog** は **User** と **VideoGroup** に関連付け
 - **Video** は **SafeFileSystemStorage** または **SafeS3Boto3Storage** を使用
-- **Presentation views** は `get_container()` 経由で **Use Cases** に委譲（infrastructureを直接インポートしない）
+- **Presentation views** は `DependencyResolverMixin` 経由で **Use Cases** に委譲（infrastructureを直接インポートしない）
 - **Use Cases** は **Domain** の抽象（ABCs / ports）のみに依存
 - **Infrastructure** は **Domain** のポートを実装（リポジトリ、ゲートウェイ）
 - **Entrypoints**（Celeryタスク）はcomposition root経由で **Use Cases** に委譲

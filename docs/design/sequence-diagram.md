@@ -74,7 +74,7 @@ sequenceDiagram
     participant OpenAI as OpenAI API
 
     User->>Frontend: Input Question
-    Frontend->>Backend: POST /api/chat/ (body: group_id=123)
+    Frontend->>Backend: POST /api/chat/ (body: messages[], group_id=123)
     Backend->>Backend: Rate Limit Check (DRF Throttle)
     Note over Backend: Uses global LLM_PROVIDER and EMBEDDING_PROVIDER settings
     Backend->>DB: Get VideoGroup
@@ -185,7 +185,7 @@ sequenceDiagram
     Frontend-->>User: Display Group
     
     User->>Frontend: Add Video to Group
-    Frontend->>Backend: POST /api/videos/groups/{id}/videos/
+    Frontend->>Backend: POST /api/videos/groups/{group_id}/videos/
     Backend->>DB: Get Group & Video & Verify Ownership
     DB-->>Backend: Resource Information
     Backend->>DB: Create VideoGroupMember(Duplicate Check)
@@ -194,7 +194,7 @@ sequenceDiagram
     Frontend-->>User: Display Updated Group
     
     User->>Frontend: Change Video Order
-    Frontend->>Backend: PATCH /api/videos/groups/{id}/reorder/
+    Frontend->>Backend: PATCH /api/videos/groups/{group_id}/reorder/
     Backend->>DB: Get Group & Verify Ownership
     DB-->>Backend: VideoGroupMember List
     Backend->>DB: Bulk Update Order(bulk_update)
@@ -302,24 +302,20 @@ sequenceDiagram
     participant Frontend as Frontend
     participant Backend as Backend API
     participant DB as Database
+    participant Celery as Celery Worker
 
     User->>Frontend: Navigate to Settings Page
     User->>Frontend: Request Account Deactivation
     Frontend->>Frontend: Display Confirmation Dialog
-    User->>Frontend: Input Password + Reason
+    User->>Frontend: Input Reason (optional)
     Frontend->>Backend: DELETE /api/auth/account/
-    Backend->>Backend: Verify Password
-    alt Password Invalid
-        Backend-->>Frontend: 400 Bad Request
-        Frontend-->>User: Error Display
-    else Password Valid
-        Backend->>DB: Create AccountDeletionRequest
-        DB-->>Backend: Request Created
-        Backend->>DB: Update User(is_active: False, deactivated_at: now)
-        DB-->>Backend: User Updated
-        Backend-->>Frontend: Clear HttpOnly Cookies<br/>(Access & Refresh Tokens)
-        Frontend-->>User: Redirect to Home Page
-    end
+    Backend->>DB: Create AccountDeletionRequest
+    DB-->>Backend: Request Created
+    Backend->>DB: Update User(is_active: False, deactivated_at: now)
+    DB-->>Backend: User Updated
+    Backend->>Celery: enqueue_account_deletion(user_id)
+    Backend-->>Frontend: Clear HttpOnly Cookies<br/>(Access & Refresh Tokens)
+    Frontend-->>User: Redirect to Home Page
 ```
 
 ## 9. APIキー管理フロー
@@ -370,8 +366,8 @@ sequenceDiagram
     participant Backend as Backend API
     participant DB as Database
 
-    Client->>Backend: Request with X-API-Key header
-    Backend->>Backend: Extract API Key from header
+    Client->>Backend: Request with X-API-Key or Authorization: ApiKey <key>
+    Backend->>Backend: Extract API key (header priority: X-API-Key)
     Backend->>Backend: Hash Key (SHA-256)
     Backend->>DB: Lookup by hashed_key + revoked_at IS NULL
     DB-->>Backend: UserApiKey + User
@@ -423,9 +419,9 @@ sequenceDiagram
     Frontend->>Backend: GET /api/chat/popular-scenes/?group_id={id}
     Backend->>DB: Get ChatLogs with related_videos
     DB-->>Backend: Scene Logs
-    Backend->>Backend: Aggregate scenes, extract keywords
-    Backend-->>Frontend: Popular Scenes + Keywords
-    Frontend-->>User: Display Scene Distribution & Keyword Cloud
+    Backend->>Backend: Aggregate scenes and attach referenced questions
+    Backend-->>Frontend: Popular Scenes (video segment + questions)
+    Frontend-->>User: Display Popular Scenes
 
     %% Export History
     User->>Frontend: Click Export History

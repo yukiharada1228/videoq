@@ -2,7 +2,7 @@
 
 ## 概要
 
-VideoQのフロントエンドとバックエンドの主要コンポーネントを示す図です。
+VideoQのフロントエンドとバックエンドの主要コンポーネントを、現行実装に沿って示す図です。
 
 ## フロントエンドコンポーネント構成
 
@@ -13,12 +13,18 @@ graph TB
             Home[Home Page]
             Login[Login Page]
             Signup[Signup Page]
+            SignupCheckEmail[Signup Check Email Page]
+            ForgotPassword[Forgot Password Page]
+            ResetPassword[Reset Password Page]
+            VerifyEmail[Verify Email Page]
             Videos[Video List Page]
             VideoDetail[Video Detail Page]
             Groups[Group List Page]
             GroupDetail[Group Detail Page]
             Share[Share Page]
             Settings[Settings Page]
+            DevDocs[Developer Docs Page]
+            DevDocsSection[Developer Docs Section Page]
         end
         
         subgraph Components["Components"]
@@ -80,7 +86,7 @@ graph TB
                 MessageAlert[MessageAlert]
             end
             
-            subgraph UI["UI Components (shadcn/ui)"]
+            subgraph UI["UI Components (Radix UI + Tailwind CSS)"]
                 Button[Button]
                 Input[Input]
                 Card[Card]
@@ -105,10 +111,17 @@ graph TB
             QueryHooks[TanStack Query Hooks]
         end
         
-        subgraph Lib["Libraries"]
+        subgraph FrontendModules["Frontend Internal Modules"]
             apiClient[apiClient]
+            queryClient[queryClient]
+            i18nConfig[i18n config]
             errorUtils[errorUtils]
             formUtils[formUtils]
+        end
+
+        subgraph Lib["External Libraries"]
+            TanStackQuery[TanStack Query]
+            ReactI18next[react-i18next]
         end
         
         subgraph Providers["Providers"]
@@ -119,33 +132,40 @@ graph TB
     
     Pages --> Components
     Components --> Hooks
-    Components --> Lib
+    Components --> FrontendModules
     Components --> Providers
+    Hooks --> FrontendModules
     Hooks --> Lib
-    Lib --> apiClient
+    Providers --> Lib
+    Pages --> ReactI18next
 ```
 
 ## バックエンドコンポーネント構成（クリーンアーキテクチャ）
 
 ```mermaid
 graph TB
-    subgraph Backend["Backend (Django - Clean Architecture)"]
+    subgraph Backend["Backend (Django ASGI - Clean Architecture)"]
         subgraph PresentationLayer["presentation/ — Thin HTTP layer"]
             subgraph AuthPres["auth/"]
-                AuthViews["Views - Login, Signup, VerifyEmail,
-                PasswordReset, CurrentUser, DeleteAccount,
-                APIKeys, Refresh, Logout"]
+                AuthViews["Views - Login, Logout, Signup, VerifyEmail,
+                PasswordResetRequest, PasswordResetConfirm,
+                Me, DeleteAccount, ApiKeyListCreate,
+                ApiKeyDetail, Refresh"]
                 AuthSer[Serializers]
             end
             subgraph VideoPres["video/"]
                 VideoViews["Views - VideoList, VideoDetail,
-                VideoGroup, Tag, ManageGroups, ManageTags"]
+                VideoGroupList, VideoGroupDetail,
+                AddVideoToGroup, AddVideosToGroup,
+                ReorderVideosInGroup, ShareLink, SharedGroup,
+                TagList, TagDetail, AddTagsToVideo,
+                RemoveVideoFromGroup, RemoveTagFromVideo"]
                 VideoSer[Serializers]
             end
             subgraph ChatPres["chat/"]
-                ChatViews["Views - ChatView, ChatHistoryView,
+                ChatViews["Views - ChatView, ChatSearchView, ChatHistoryView,
                 ChatFeedbackView, ChatAnalyticsView,
-                PopularScenesView, ExportHistoryView"]
+                PopularScenesView, ChatHistoryExportView"]
                 ChatSer[Serializers]
             end
             subgraph MediaPres["media/"]
@@ -160,44 +180,49 @@ graph TB
         subgraph UseCasesLayer["use_cases/ — Business logic"]
             subgraph VideoUC["video/"]
                 CreateVideo[CreateVideoUseCase]
-                GetVideo[GetVideoUseCase]
+                GetVideo[GetVideoDetailUseCase]
                 ListVideos[ListVideosUseCase]
                 UpdateVideo[UpdateVideoUseCase]
                 DeleteVideo[DeleteVideoUseCase]
                 FileUrl[GetVideoFileUrlUseCase]
                 EnforceLimit[EnforceVideoLimitUseCase]
-                CreateGroup[CreateGroup / CreateGroupWithDetail]
-                GetGroup[GetGroupUseCase]
-                ListGroups[ListGroupsUseCase]
-                UpdateGroup[UpdateGroup / UpdateGroupWithDetail]
-                DeleteGroup[DeleteGroupUseCase]
-                ManageGroups[ManageGroupsUseCase]
+                CreateGroup[CreateVideoGroup / CreateVideoGroupWithDetail]
+                GetGroup[GetVideoGroupUseCase / GetSharedGroupUseCase]
+                ListGroups[ListVideoGroupsUseCase]
+                UpdateGroup[UpdateVideoGroup / UpdateVideoGroupWithDetail]
+                DeleteGroup[DeleteVideoGroupUseCase]
+                ManageGroups["AddVideoToGroup, AddVideosToGroup,
+                RemoveVideoFromGroup, ReorderVideosInGroup,
+                CreateShareLink, DeleteShareLink"]
                 CreateTag[CreateTagUseCase]
-                GetTag[GetTagUseCase]
+                GetTag[GetTagDetailUseCase]
                 ListTags[ListTagsUseCase]
                 UpdateTag[UpdateTag / UpdateTagWithDetail]
                 DeleteTag[DeleteTagUseCase]
-                ManageTags[ManageTagsUseCase]
+                ManageTags[AddTagsToVideo / RemoveTagFromVideo]
                 RunTrans[RunTranscriptionUseCase]
+                IndexTrans[IndexVideoTranscriptUseCase]
                 ReindexAll[ReindexAllVideosUseCase]
             end
             subgraph ChatUC["chat/"]
                 SendMsg[SendMessageUseCase]
-                GetHistory[GetHistoryUseCase]
-                ExportHistory[ExportHistoryUseCase]
+                SearchRelated[SearchRelatedVideosUseCase]
+                GetHistory[GetChatHistoryUseCase]
+                ExportHistory[ExportChatHistoryUseCase]
                 SubmitFeedback[SubmitFeedbackUseCase]
-                GetAnalytics[GetAnalyticsUseCase]
+                GetAnalytics[GetChatAnalyticsUseCase]
                 GetPopularScenes[GetPopularScenesUseCase]
             end
             subgraph AuthUC["auth/"]
                 LoginUC[LoginUseCase]
                 SignupUC[SignupUserUseCase]
                 VerifyEmailUC[VerifyEmailUseCase]
+                RequestResetUC[RequestPasswordResetUseCase]
                 ResetPassUC[ConfirmPasswordResetUseCase]
                 GetUserUC[GetCurrentUserUseCase]
                 DeleteAccUC[AccountDeletionUseCase]
                 DeleteAccDataUC[DeleteAccountDataUseCase]
-                ManageApiKeysUC[ManageApiKeysUseCase]
+                ApiKeysUC[ListApiKeys / CreateApiKey / RevokeApiKey]
                 AuthorizeApiKeyUC[AuthorizeApiKeyUseCase]
                 ResolveApiKeyUC[ResolveApiKeyUseCase]
                 ResolveShareUC[ResolveShareTokenUseCase]
@@ -266,7 +291,9 @@ graph TB
             subgraph ExtGateways["external/"]
                 RagChatGW[RagChatGateway]
                 VectorGW[DjangoVectorIndexingGateway]
+                VectorStoreGW[DjangoVectorStoreGateway]
                 TransGW[WhisperTranscriptionGateway]
+                FileUrlResolver[DjangoFileUrlResolver]
                 SceneIdx[scene_indexer]
                 VectorStore[PGVector / vector_store]
                 RagSvc[rag_service / LangChain]
@@ -290,7 +317,7 @@ graph TB
             end
             subgraph ChatInfra["chat/"]
                 KwExtractor[JanomeNltkKeywordExtractor]
-                SceneInfoProvider[SceneVideoInfoProvider]
+                SceneInfoProvider[DjangoSceneVideoInfoProvider]
             end
             subgraph CommonInfra["common/"]
                 EmailModule[email - SMTP sender]
@@ -329,6 +356,7 @@ graph TB
         subgraph Container["Dependency Providers / Composition Root"]
             Dependencies[dependencies/*.py - provider functions]
             CompRoot[composition_root/*.py - wiring and assembly]
+            VideoProviders[_video_*_providers.py]
             Contracts[contracts/ - task name constants]
         end
     end
@@ -353,7 +381,7 @@ graph TB
     end
     
     subgraph Frontend["Frontend"]
-        FrontendSPA[Vite + React SPA]
+        FrontendSPA[Vite-built React SPA]
         ReactComponents[React Components]
     end
     
@@ -362,7 +390,7 @@ graph TB
     end
     
     subgraph Backend["Backend"]
-        DjangoAPI[Django REST API]
+        DjangoAPI[Django ASGI API]
         CeleryWorker[Celery Worker]
     end
     
@@ -373,7 +401,7 @@ graph TB
     end
     
     subgraph External["External Services"]
-        OpenAI[OpenAI API]
+        OpenAI[OpenAI API / Ollama / whisper.cpp]
         EmailService[Email Service]
     end
     
@@ -403,7 +431,7 @@ graph TB
 
 ### バックエンド
 - **Presentation (`presentation/*`, `admin.py`)** → **Dependencies (`dependencies/*.py`)**: フレームワークのエントリーポイントはdependencies経由でのみプロバイダーを解決
-- **Dependencies** → **Composition Root (`composition_root/*.py`)**: プロバイダー関数は1:1で配線関数に委譲
+- **Dependencies** → **Composition Root (`composition_root/*.py`)**: プロバイダー関数は配線関数や `_video_*_providers.py` に委譲
 - **Composition Root** → **Use Cases / Infrastructure**: 具体的なアダプターとユースケースインスタンスを組み立て
 - **Use Cases** → **Domain ports/entities**: ビジネスロジックはドメインの抽象のみに依存
 - **Infrastructure** → **Domain + ORM/External**: アダプター実装がドメインポートとDjango ORM/外部サービスを橋渡し

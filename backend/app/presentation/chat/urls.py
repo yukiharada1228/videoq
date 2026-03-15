@@ -5,7 +5,6 @@ from app.dependencies import chat as chat_dependencies
 from .views import (
     ChatAnalyticsView,
     ChatFeedbackView,
-    ChatHistoryExportView,
     ChatHistoryView,
     ChatSearchView,
     ChatView,
@@ -14,28 +13,24 @@ from .views import (
 
 urlpatterns = [
     path(
-        "",
+        "messages/",
         ChatView.as_view(send_message_use_case=chat_dependencies.get_send_message_use_case),
-        name="chat",
+        name="chat-messages",
     ),
     path(
-        "search/",
+        "scenes/",
         ChatSearchView.as_view(
             search_related_videos_use_case=chat_dependencies.get_search_related_videos_use_case
         ),
-        name="chat-search",
+        name="chat-scenes",
     ),
     path(
         "history/",
-        ChatHistoryView.as_view(chat_history_use_case=chat_dependencies.get_chat_history_use_case),
-        name="chat-history",
-    ),
-    path(
-        "history/export/",
-        ChatHistoryExportView.as_view(
-            export_history_use_case=chat_dependencies.get_export_history_use_case
+        ChatHistoryView.as_view(
+            chat_history_use_case=chat_dependencies.get_chat_history_use_case,
+            export_history_use_case=chat_dependencies.get_export_history_use_case,
         ),
-        name="chat-history-export",
+        name="chat-history",
     ),
     path(
         "feedback/",

@@ -9,6 +9,8 @@ RUN apt-get update && apt-get install -y \
 
 COPY requirements.txt ./
 
+RUN python -m pip install --no-cache-dir --upgrade "pip>=26.0"
+
 RUN pip install --no-cache-dir -r requirements.txt
 
 RUN python -m nltk.downloader -d /usr/local/nltk_data averaged_perceptron_tagger_eng punkt_tab

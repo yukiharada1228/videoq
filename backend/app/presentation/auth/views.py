@@ -1,4 +1,6 @@
 from django.conf import settings
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 from django.http import Http404
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics, status
@@ -12,10 +14,9 @@ from app.presentation.auth.serializers import (AccountDeleteSerializer,
                                                LoginResponseSerializer,
                                                LoginSerializer,
                                                MessageResponseSerializer,
-                                               PasswordResetConfirmSerializer,
+                                               PasswordResetConfirmBodySerializer,
                                                PasswordResetRequestSerializer,
                                                RefreshResponseSerializer,
-                                               RefreshSerializer,
                                                UserSerializer,
                                                UserSignupSerializer)
 from app.use_cases.auth.signup import EmailAlreadyRegistered, VerificationEmailSendFailed
@@ -27,7 +28,9 @@ from app.presentation.common.exceptions import ErrorCode
 from app.presentation.common.responses import create_error_response, create_success_response
 from app.presentation.common.throttles import (LoginIPThrottle, LoginUsernameThrottle,
                                                PasswordResetEmailThrottle,
-                                               PasswordResetIPThrottle, SignupIPThrottle)
+                                               PasswordResetIPThrottle,
+                                               SignupEmailThrottle,
+                                               SignupIPThrottle)
 from app.use_cases.shared.exceptions import ResourceNotFound
 from app.presentation.common.mixins import (
     AuthenticatedViewMixin,
@@ -52,7 +55,7 @@ class UserSignupView(PublicAPIView):
     """User registration view"""
 
     serializer_class = UserSignupSerializer
-    throttle_classes = [SignupIPThrottle]
+    throttle_classes = [SignupIPThrottle, SignupEmailThrottle]
     signup_use_case = None
 
     @extend_schema(
@@ -70,8 +73,11 @@ class UserSignupView(PublicAPIView):
             use_case.execute(
                 username=d["username"], email=d["email"], password=d["password"]
             )
-        except EmailAlreadyRegistered as e:
-            return create_error_response(str(e), status.HTTP_400_BAD_REQUEST)
+        except EmailAlreadyRegistered:
+            return create_success_response(
+                message="Verification email sent. Please check your email.",
+                status_code=status.HTTP_201_CREATED,
+            )
         except VerificationEmailSendFailed:
             return create_error_response(
                 "Failed to send verification email. Please try again later.",
@@ -83,21 +89,26 @@ class UserSignupView(PublicAPIView):
         )
 
 
-class LoginView(PublicAPIView):
-    """Login view"""
+@method_decorator(csrf_protect, name="dispatch")
+class SessionView(PublicAPIView):
+    """Session view: POST = login, DELETE = logout"""
 
-    serializer_class = LoginSerializer
-    throttle_classes = [LoginIPThrottle, LoginUsernameThrottle]
     login_use_case = None
+    logout_use_case = None
+
+    def get_throttles(self):
+        if self.request is not None and self.request.method == "POST":
+            return [LoginIPThrottle(), LoginUsernameThrottle()]
+        return []
 
     @extend_schema(
         request=LoginSerializer,
         responses={200: LoginResponseSerializer},
         summary="User login",
-        description="Authenticate user and return JWT tokens. Tokens are also set in HttpOnly cookies.",
+        description="Authenticate user and set JWT tokens in HttpOnly cookies.",
     )
     def post(self, request):
-        serializer = self.get_serializer(data=request.data)
+        serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         d = serializer.validated_data
 
@@ -113,7 +124,7 @@ class LoginView(PublicAPIView):
                 code=ErrorCode.AUTHENTICATION_FAILED,
             )
 
-        response = Response({"access": token_pair.access, "refresh": token_pair.refresh})
+        response = Response({})
 
         samesite_value = "None" if settings.SECURE_COOKIES else "Lax"
 
@@ -136,18 +147,17 @@ class LoginView(PublicAPIView):
 
         return response
 
-
-class LogoutView(AuthenticatedAPIView):
-    """Logout view"""
-
-    serializer_class = MessageResponseSerializer
-
     @extend_schema(
         responses={200: MessageResponseSerializer},
         summary="User logout",
-        description="Logout by deleting HttpOnly cookies.",
+        description="Logout by invalidating refresh token and deleting HttpOnly cookies.",
     )
-    def post(self, request):
+    def delete(self, request):
+        refresh_token = request.COOKIES.get("refresh_token")
+        if refresh_token:
+            use_case = self.resolve_dependency(self.logout_use_case)
+            use_case.execute(refresh_token)
+
         response = create_success_response(message="Logged out successfully")
 
         samesite_value = "None" if settings.SECURE_COOKIES else "Lax"
@@ -191,25 +201,31 @@ class AccountDeleteView(AuthenticatedAPIView):
         return response
 
 
+@method_decorator(csrf_protect, name="dispatch")
 class RefreshView(PublicAPIView):
     """Token refresh view"""
 
-    serializer_class = RefreshSerializer
     refresh_token_use_case = None
 
     @extend_schema(
-        request=RefreshSerializer,
+        request=None,
         responses={200: RefreshResponseSerializer, 401: MessageResponseSerializer},
         summary="Refresh access token",
-        description="Refresh access token using refresh token from cookie or request body.",
+        description=(
+            "Refresh access token using the HttpOnly refresh token cookie, "
+            "then rotate tokens in HttpOnly cookies. "
+            "Refresh token is rotated and old token is invalidated."
+        ),
     )
-    def post(self, request):
+    def put(self, request):
         refresh_token = request.COOKIES.get("refresh_token")
 
         if not refresh_token:
-            serializer = self.get_serializer(data=request.data)
-            serializer.is_valid(raise_exception=True)
-            refresh_token = serializer.validated_data["refresh"]
+            return create_error_response(
+                message="Invalid refresh token",
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                code=ErrorCode.AUTHENTICATION_FAILED,
+            )
 
         use_case = self.resolve_dependency(self.refresh_token_use_case)
         try:
@@ -221,7 +237,7 @@ class RefreshView(PublicAPIView):
                 code=ErrorCode.AUTHENTICATION_FAILED,
             )
 
-        response = Response({"access": token_pair.access})
+        response = Response({})
 
         samesite_value = "None" if settings.SECURE_COOKIES else "Lax"
 
@@ -233,8 +249,32 @@ class RefreshView(PublicAPIView):
             samesite=samesite_value,
             max_age=60 * 10,
         )
+        response.set_cookie(
+            key="refresh_token",
+            value=token_pair.refresh,
+            httponly=True,
+            secure=settings.SECURE_COOKIES,
+            samesite=samesite_value,
+            max_age=60 * 60 * 24 * 14,
+        )
 
         return response
+
+
+@method_decorator(ensure_csrf_cookie, name="dispatch")
+class CsrfTokenView(PublicAPIView):
+    """Bootstrap endpoint for the CSRF cookie used by cookie-based auth."""
+
+    serializer_class = None
+
+    @extend_schema(
+        request=None,
+        responses={204: None},
+        summary="Issue CSRF cookie",
+        description="Ensure the CSRF cookie is set for subsequent unsafe requests.",
+    )
+    def get(self, request):
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class EmailVerificationView(PublicAPIView):
@@ -293,23 +333,23 @@ class PasswordResetRequestView(PublicAPIView):
 class PasswordResetConfirmView(PublicAPIView):
     """Password reset confirmation view"""
 
-    serializer_class = PasswordResetConfirmSerializer
+    serializer_class = PasswordResetConfirmBodySerializer
     confirm_password_reset_use_case = None
 
     @extend_schema(
-        request=PasswordResetConfirmSerializer,
+        request=PasswordResetConfirmBodySerializer,
         responses={200: MessageResponseSerializer},
         summary="Confirm password reset",
-        description="Reset password using uid, token, and new password from reset link.",
+        description="Reset password using token in URL path, uid and new password in request body.",
     )
-    def post(self, request):
+    def patch(self, request, token):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         d = serializer.validated_data
         use_case = self.resolve_dependency(self.confirm_password_reset_use_case)
         try:
             use_case.execute(
-                uidb64=d["uid"], token=d["token"], new_password=d["new_password"]
+                uidb64=d["uid"], token=token, new_password=d["new_password"]
             )
         except InvalidResetLink as e:
             return create_error_response(str(e), status.HTTP_400_BAD_REQUEST)

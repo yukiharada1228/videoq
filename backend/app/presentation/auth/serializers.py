@@ -47,10 +47,6 @@ class UserSerializer(serializers.Serializer):
         return videos.count()
 
 
-class RefreshSerializer(serializers.Serializer):
-    refresh = serializers.CharField()
-
-
 class EmailVerificationSerializer(serializers.Serializer):
     uid = serializers.CharField()
     token = serializers.CharField()
@@ -60,9 +56,10 @@ class PasswordResetRequestSerializer(serializers.Serializer):
     email = serializers.EmailField()
 
 
-class PasswordResetConfirmSerializer(serializers.Serializer):
+class PasswordResetConfirmBodySerializer(serializers.Serializer):
+    """Serializer for PATCH /password-resets/<token>/: token comes from URL path."""
+
     uid = serializers.CharField()
-    token = serializers.CharField()
     new_password = serializers.CharField(
         write_only=True, style={"input_type": "password"}, min_length=8
     )
@@ -74,12 +71,17 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
 
 # Response serializers for API documentation
 class LoginResponseSerializer(serializers.Serializer):
-    access = serializers.CharField(help_text="Access token")
-    refresh = serializers.CharField(help_text="Refresh token")
+    message = serializers.CharField(
+        required=False,
+        help_text="Optional response message. JWT tokens are set in HttpOnly cookies.",
+    )
 
 
 class RefreshResponseSerializer(serializers.Serializer):
-    access = serializers.CharField(help_text="New access token")
+    message = serializers.CharField(
+        required=False,
+        help_text="Optional response message. Rotated JWT tokens are set in HttpOnly cookies.",
+    )
 
 
 class MessageResponseSerializer(serializers.Serializer):

@@ -2,7 +2,7 @@
 
 ## 概要
 
-VideoQシステムの主要なユースケースを示す図です。
+VideoQシステムの主要なユースケースを、現行の API / フロントエンド実装に基づいて示す図です。
 
 ## ユースケース図
 
@@ -78,6 +78,7 @@ graph TB
     subgraph Administration["Administration"]
         UC35[Re-index Video Embeddings]
         UC36[Monitor Re-indexing Progress]
+        UC41[Manage Upload Limits]
     end
     
     User --> UC1
@@ -130,6 +131,7 @@ graph TB
 
     Admin --> UC35
     Admin --> UC36
+    Admin --> UC41
 
     UC7 -.->|Auto Execute| UC13
     UC13 -.->|Completion Notification| UC14
@@ -199,6 +201,7 @@ graph TB
 ### 管理機能
 - **UC35 動画エンベディング再インデックス**: 新しいモデルで全動画のエンベディングを再生成（スーパーユーザーのみ）
 - **UC36 再インデックス進捗監視**: Celeryログで再インデックスタスクの進捗を監視
+- **UC41 アップロード上限管理**: Django Admin から `User.video_limit` を更新し、ユーザーの動画アップロード可能本数を制御
 
 **注記:**
 - LLMとエンベディングの設定は環境変数（`LLM_PROVIDER`、`LLM_MODEL`、`EMBEDDING_PROVIDER`、`EMBEDDING_MODEL`）でグローバルに管理されます。

@@ -23,7 +23,6 @@ from app.presentation.common.permissions import (
 from app.presentation.common.responses import create_error_response
 from app.presentation.common.throttles import (
     AuthenticatedChatThrottle,
-    ShareTokenGlobalThrottle,
     ShareTokenIPThrottle,
 )
 from app.use_cases.chat.exceptions import (
@@ -69,7 +68,6 @@ class ChatView(DependencyResolverMixin, APIView):
     required_scope = "chat_write"
     throttle_classes = [
         ShareTokenIPThrottle,
-        ShareTokenGlobalThrottle,
         AuthenticatedChatThrottle,
     ]
     send_message_use_case = None
@@ -148,13 +146,16 @@ class ChatSearchView(DependencyResolverMixin, APIView):
     required_scope = "read"
     throttle_classes = [
         ShareTokenIPThrottle,
-        ShareTokenGlobalThrottle,
         AuthenticatedChatThrottle,
     ]
     search_related_videos_use_case = None
 
     @extend_schema(
-        request=ChatSearchRequestSerializer,
+        parameters=[
+            OpenApiParameter("query_text", str, required=True),
+            OpenApiParameter("group_id", int, required=True),
+            OpenApiParameter("share_token", str, required=False),
+        ],
         responses={200: ChatSearchResponseSerializer},
         summary="Search related scenes",
         description=(
@@ -162,11 +163,11 @@ class ChatSearchView(DependencyResolverMixin, APIView):
             "No LLM answer generation is performed."
         ),
     )
-    def post(self, request):
+    def get(self, request):
         share_token = request.query_params.get("share_token")
         is_shared = share_token is not None
 
-        serializer = ChatSearchRequestSerializer(data=request.data)
+        serializer = ChatSearchRequestSerializer(data=request.query_params)
         serializer.is_valid(raise_exception=True)
 
         use_case = self.resolve_dependency(self.search_related_videos_use_case)
@@ -251,14 +252,58 @@ class ChatFeedbackView(DependencyResolverMixin, APIView):
 
 
 class ChatHistoryView(DependencyResolverMixin, APIView):
-    """Get conversation history for a group (owner only)."""
+    """Get conversation history for a group (owner only).
+
+    Pass ?download=csv to download history as a CSV file.
+    """
 
     authentication_classes = [APIKeyAuthentication, CookieJWTAuthentication]
     permission_classes = [IsAuthenticated, ApiKeyScopePermission]
+    serializer_class = ChatLogSerializer
     chat_history_use_case = None
+    export_history_use_case = None
 
+    @extend_schema(
+        parameters=[
+            OpenApiParameter("group_id", int, required=False),
+            OpenApiParameter("download", str, required=False, description="Pass 'csv' to download as a CSV file."),
+        ],
+        responses={
+            200: OpenApiResponse(
+                response=OpenApiTypes.BINARY,
+                description="CSV file when download=csv, otherwise JSON chat log list.",
+            )
+        },
+        summary="Get chat history",
+        description=(
+            "Return chat history for a group. "
+            "Pass ?download=csv to download as a CSV file. "
+            "Empty list is returned when group_id is omitted."
+        ),
+    )
     def get(self, request, *args, **kwargs):
         group_id = request.query_params.get("group_id")
+
+        if request.query_params.get("download") == "csv":
+            if not group_id:
+                return create_error_response(
+                    "Group ID not specified", status.HTTP_400_BAD_REQUEST
+                )
+            use_case = self.resolve_dependency(self.export_history_use_case)
+            try:
+                resolved_group_id, rows = use_case.execute(
+                    group_id=int(group_id), user_id=request.user.id
+                )
+            except ResourceNotFound as e:
+                return create_error_response(str(e), status.HTTP_404_NOT_FOUND)
+
+            http_response = HttpResponse(content_type="text/csv; charset=utf-8")
+            http_response["Content-Disposition"] = (
+                f'attachment; filename="chat_history_group_{resolved_group_id}.csv"'
+            )
+            write_chat_history_csv(csv.writer(http_response), rows)
+            return http_response
+
         if not group_id:
             return Response([])
 
@@ -272,46 +317,6 @@ class ChatHistoryView(DependencyResolverMixin, APIView):
         except ResourceNotFound as e:
             return create_error_response(str(e), status.HTTP_404_NOT_FOUND)
         return Response(ChatLogSerializer(logs, many=True).data)
-
-
-class ChatHistoryExportView(DependencyResolverMixin, APIView):
-    """Export group conversation history as CSV."""
-
-    authentication_classes = [APIKeyAuthentication, CookieJWTAuthentication]
-    permission_classes = [IsAuthenticated, ApiKeyScopePermission]
-    export_history_use_case = None
-
-    @extend_schema(
-        responses={
-            200: OpenApiResponse(
-                response=OpenApiTypes.BINARY,
-                description="CSV export of chat history.",
-            )
-        },
-        summary="Export chat history CSV",
-        description="Export group conversation history as a CSV file.",
-    )
-    def get(self, request):
-        group_id = request.query_params.get("group_id")
-        if not group_id:
-            return create_error_response(
-                "Group ID not specified", status.HTTP_400_BAD_REQUEST
-            )
-
-        use_case = self.resolve_dependency(self.export_history_use_case)
-        try:
-            resolved_group_id, rows = use_case.execute(
-                group_id=int(group_id), user_id=request.user.id
-            )
-        except ResourceNotFound as e:
-            return create_error_response(str(e), status.HTTP_404_NOT_FOUND)
-
-        response = HttpResponse(content_type="text/csv; charset=utf-8")
-        response["Content-Disposition"] = (
-            f'attachment; filename="chat_history_group_{resolved_group_id}.csv"'
-        )
-        write_chat_history_csv(csv.writer(response), rows)
-        return response
 
 
 class PopularScenesView(DependencyResolverMixin, APIView):

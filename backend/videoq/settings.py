@@ -15,6 +15,7 @@ from datetime import timedelta
 from pathlib import Path
 
 import dj_database_url
+from django.core.exceptions import ImproperlyConfigured
 
 
 class DefaultSettings:
@@ -30,8 +31,12 @@ class DefaultSettings:
 
     # Security
     SECRET_KEY = "django-insecure-644978l%$qgjwpo$w!5i7l#y(m&h)e$u#3en_a%ln^4!js$-*+"
-    SECURE_COOKIES = False  # Set to True in production with HTTPS
-
+    MAX_VIDEO_UPLOAD_SIZE_MB = 500
+    FFPROBE_VALIDATION_TIMEOUT_SECONDS = 10
+    FFMPEG_PROCESS_TIMEOUT_SECONDS = 120
+    MEDIA_PROCESS_CPU_TIME_LIMIT_SECONDS = 30
+    MEDIA_PROCESS_MEMORY_LIMIT_MB = 1024
+    MEDIA_PROCESS_OUTPUT_FILE_SIZE_LIMIT_MB = 512
     # CORS
     CORS_ALLOWED_ORIGINS = [
         "http://localhost:3000",
@@ -73,9 +78,59 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
+DJANGO_ENV = os.environ.get("DJANGO_ENV", "development").lower()
+IS_PRODUCTION = DJANGO_ENV == "production"
+
+_secret_key = os.environ.get("SECRET_KEY")
+if IS_PRODUCTION:
+    if _secret_key is None:
+        raise ImproperlyConfigured(
+            "SECRET_KEY must be set when DJANGO_ENV=production."
+        )
+    if not _secret_key.strip():
+        raise ImproperlyConfigured(
+            "SECRET_KEY must not be blank when DJANGO_ENV=production."
+        )
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get("SECRET_KEY", DefaultSettings.SECRET_KEY)
+SECRET_KEY = _secret_key if _secret_key else DefaultSettings.SECRET_KEY
+MAX_VIDEO_UPLOAD_SIZE_MB = int(
+    os.environ.get(
+        "MAX_VIDEO_UPLOAD_SIZE_MB",
+        str(DefaultSettings.MAX_VIDEO_UPLOAD_SIZE_MB),
+    )
+)
+MAX_VIDEO_UPLOAD_SIZE_BYTES = MAX_VIDEO_UPLOAD_SIZE_MB * 1024 * 1024
+FFPROBE_VALIDATION_TIMEOUT_SECONDS = int(
+    os.environ.get(
+        "FFPROBE_VALIDATION_TIMEOUT_SECONDS",
+        str(DefaultSettings.FFPROBE_VALIDATION_TIMEOUT_SECONDS),
+    )
+)
+FFMPEG_PROCESS_TIMEOUT_SECONDS = int(
+    os.environ.get(
+        "FFMPEG_PROCESS_TIMEOUT_SECONDS",
+        str(DefaultSettings.FFMPEG_PROCESS_TIMEOUT_SECONDS),
+    )
+)
+MEDIA_PROCESS_CPU_TIME_LIMIT_SECONDS = int(
+    os.environ.get(
+        "MEDIA_PROCESS_CPU_TIME_LIMIT_SECONDS",
+        str(DefaultSettings.MEDIA_PROCESS_CPU_TIME_LIMIT_SECONDS),
+    )
+)
+MEDIA_PROCESS_MEMORY_LIMIT_MB = int(
+    os.environ.get(
+        "MEDIA_PROCESS_MEMORY_LIMIT_MB",
+        str(DefaultSettings.MEDIA_PROCESS_MEMORY_LIMIT_MB),
+    )
+)
+MEDIA_PROCESS_OUTPUT_FILE_SIZE_LIMIT_MB = int(
+    os.environ.get(
+        "MEDIA_PROCESS_OUTPUT_FILE_SIZE_LIMIT_MB",
+        str(DefaultSettings.MEDIA_PROCESS_OUTPUT_FILE_SIZE_LIMIT_MB),
+    )
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
@@ -94,6 +149,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "rest_framework",
     "rest_framework_simplejwt",
+    "rest_framework_simplejwt.token_blacklist",
     "drf_spectacular",
     "corsheaders",
     "storages",
@@ -218,6 +274,7 @@ REST_FRAMEWORK = {
         "login_ip": "5/minute",
         "login_username": "5/minute",
         "signup_ip": "3/hour",
+        "signup_email": "3/hour",
         "password_reset_ip": "3/hour",
         "password_reset_email": "3/hour",
     },
@@ -227,7 +284,7 @@ SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=10),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=14),
     "ROTATE_REFRESH_TOKENS": True,
-    "BLACKLIST_AFTER_ROTATION": False,
+    "BLACKLIST_AFTER_ROTATION": True,
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
 
@@ -275,11 +332,16 @@ CELERY_TASK_SOFT_TIME_LIMIT = 25 * 60  # 25 minutes
 # Feature flags
 ENABLE_SIGNUP = os.environ.get("ENABLE_SIGNUP", "true").lower() == "true"
 
-# Security: Cookie secure flag (set to True in production with HTTPS)
-SECURE_COOKIES = (
-    os.environ.get("SECURE_COOKIES", str(DefaultSettings.SECURE_COOKIES)).lower()
-    == "true"
+# Security profile: enforce secure defaults for production deployments.
+
+SECURE_COOKIES = IS_PRODUCTION
+SECURE_SSL_REDIRECT = IS_PRODUCTION
+SECURE_PROXY_SSL_HEADER = (
+    ("HTTP_X_FORWARDED_PROTO", "https") if IS_PRODUCTION else None
 )
+SECURE_HSTS_SECONDS = 31536000 if IS_PRODUCTION else 0
+SECURE_HSTS_INCLUDE_SUBDOMAINS = IS_PRODUCTION
+SECURE_HSTS_PRELOAD = IS_PRODUCTION
 
 # Session Cookie settings for cross-origin deployment
 # When frontend and backend are on different origins, SameSite must be 'None' and Secure must be True

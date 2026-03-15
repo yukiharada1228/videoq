@@ -5,6 +5,7 @@ Tests for common authentication module
 from django.apps import apps
 from django.contrib.auth import get_user_model
 from django.test import RequestFactory
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.test import APITestCase
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -93,6 +94,30 @@ class CookieJWTAuthenticationTests(APITestCase):
         user, token = result
         self.assertEqual(user, self.user)
 
+    def test_cookie_authentication_rejects_unsafe_request_without_csrf(self):
+        """Unsafe requests using cookie auth must pass Django's CSRF check."""
+        refresh = RefreshToken.for_user(self.user)
+        access_token = str(refresh.access_token)
+
+        request = self.factory.post("/")
+        request.COOKIES = {"access_token": access_token}
+
+        with self.assertRaises(PermissionDenied):
+            self.auth.authenticate(request)
+
+    def test_header_authentication_allows_unsafe_request_without_csrf(self):
+        """Bearer-header auth should not require CSRF because it is not cookie-based."""
+        refresh = RefreshToken.for_user(self.user)
+        access_token = str(refresh.access_token)
+
+        request = self.factory.post("/", HTTP_AUTHORIZATION=f"Bearer {access_token}")
+
+        result = self.auth.authenticate(request)
+
+        self.assertIsNotNone(result)
+        user, token = result
+        self.assertEqual(user, self.user)
+
 
 class APIKeyAuthenticationTests(APITestCase):
     """Tests for APIKeyAuthentication"""
@@ -139,11 +164,27 @@ class APIKeyAuthenticationTests(APITestCase):
         self.assertEqual(auth_data["api_key_id"], self.api_key.pk)
 
     def test_authenticate_with_invalid_api_key(self):
-        """Test authentication failure with invalid API key."""
-        request = self.factory.get("/", HTTP_X_API_KEY="vq_invalid")
+        """Test authentication failure with valid-format key that does not exist in DB."""
+        request = self.factory.get("/", HTTP_X_API_KEY="vq_" + "x" * 32)
 
         with self.assertRaises(AuthenticationFailed):
             self.auth.authenticate(request)
+
+    def test_authenticate_returns_none_for_key_without_vq_prefix(self):
+        """Keys without vq_ prefix should return None without hitting the DB."""
+        request = self.factory.get("/", HTTP_X_API_KEY="sk_invalidkeyformat1234")
+
+        result = self.auth.authenticate(request)
+
+        self.assertIsNone(result)
+
+    def test_authenticate_returns_none_for_key_shorter_than_minimum(self):
+        """Keys shorter than 12 characters should return None without hitting the DB."""
+        request = self.factory.get("/", HTTP_X_API_KEY="vq_short")
+
+        result = self.auth.authenticate(request)
+
+        self.assertIsNone(result)
 
     def test_read_only_api_key_authenticates_without_scope_check(self):
         """Authentication layer should not apply read-only authorization rules."""

@@ -52,9 +52,9 @@ flowchart TD
     Start([User Sends Question]) --> RateLimit{"Rate Limit<br>Check"}
     RateLimit -->|Exceeded| ErrorRateLimit[Rate Limit Error<br/>429 Too Many Requests]
     ErrorRateLimit --> End
-    RateLimit -->|OK| Auth{Authentication Check}
-    Auth -->|Unauthenticated| Error1[Authentication Error]
-    Auth -->|Authenticated| GetGroup{Group Specified?}
+    RateLimit -->|OK| Auth{Authenticated or Share Token?}
+    Auth -->|No| Error1[Authentication Error]
+    Auth -->|Yes| GetGroup{Group Specified?}
     
     GetGroup -->|Yes| ValidateGroup[Validate Group Existence]
     GetGroup -->|No| ParseQuery[Parse Question Text]
@@ -167,15 +167,12 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    Start([User Requests Account Deactivation]) --> InputPassword[Input Current Password]
-    InputPassword --> InputReason[Input Reason]
+    Start([User Requests Account Deactivation]) --> InputReason[Input Reason]
     InputReason --> Submit[Submit Request]
-    Submit --> Validate{Password Verification}
-    Validate -->|Invalid| ShowError[Error Display]
-    ShowError --> InputPassword
-    Validate -->|Valid| CreateRequest[Create AccountDeletionRequest]
+    Submit --> CreateRequest[Create AccountDeletionRequest]
     CreateRequest --> Deactivate[Deactivate Account<br/>is_active: False<br/>deactivated_at: now]
-    Deactivate --> ClearSession[Clear Auth Cookies]
+    Deactivate --> EnqueueTask[Enqueue Account Deletion Task]
+    EnqueueTask --> ClearSession[Clear Auth Cookies]
     ClearSession --> Redirect[Redirect to Home Page]
     Redirect --> End([Complete])
 ```
@@ -229,9 +226,8 @@ flowchart TD
     SaveFeedback --> End
 
     SelectAction -->|View Popular Scenes| FetchScenes[Fetch Scene Logs]
-    FetchScenes --> AggregateScenes[Aggregate Scene References]
-    AggregateScenes --> ExtractKeywords[Extract Keywords<br/>Janome/NLTK]
-    ExtractKeywords --> DisplayPopular[Display Popular Scenes<br/>+ Keyword Cloud Chart]
+    FetchScenes --> AggregateScenes[Aggregate Scene References + Questions]
+    AggregateScenes --> DisplayPopular[Display Popular Scenes]
     DisplayPopular --> End
 
     SelectAction -->|Export History| FetchAllLogs[Fetch All Chat Logs]

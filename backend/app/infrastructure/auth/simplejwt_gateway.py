@@ -3,19 +3,17 @@ SimpleJWT implementation of the TokenGateway port.
 All JWT token creation and validation logic is isolated here.
 """
 
-from typing import TYPE_CHECKING, cast
+from typing import Any
 
 from rest_framework_simplejwt.exceptions import InvalidToken as JWTInvalidToken
 from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from rest_framework_simplejwt.settings import api_settings
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from app.domain.auth.dtos import TokenPairDto
 from app.domain.auth.ports import TokenGateway
 from app.domain.shared.exceptions import TokenInvalidError
-
-if TYPE_CHECKING:
-    from rest_framework_simplejwt.tokens import Token
 
 
 class SimpleJWTGateway(TokenGateway):
@@ -28,7 +26,26 @@ class SimpleJWTGateway(TokenGateway):
 
     def refresh(self, refresh_token: str) -> TokenPairDto:
         try:
-            token = RefreshToken(cast("Token", refresh_token))
-            return TokenPairDto(access=str(token.access_token), refresh=str(token))
-        except (JWTInvalidToken, TokenError, ValueError) as exc:
-            raise TokenInvalidError("Invalid or expired refresh token.") from exc
+            serializer = TokenRefreshSerializer(data={"refresh": refresh_token})
+            serializer.is_valid(raise_exception=True)
+            data = serializer.validated_data
+            return TokenPairDto(
+                access=str(data["access"]),
+                refresh=str(data.get("refresh") or refresh_token),
+            )
+        except Exception as exc:
+            # TokenRefreshSerializer may raise DRF ValidationError; avoid importing
+            # rest_framework in this infrastructure adapter to preserve layer rules.
+            if isinstance(exc, (JWTInvalidToken, TokenError, ValueError)) or (
+                exc.__class__.__module__.startswith("rest_framework.")
+            ):
+                raise TokenInvalidError("Invalid or expired refresh token.") from exc
+            raise
+
+    def invalidate_refresh_token(self, refresh_token: str) -> None:
+        try:
+            # Runtime accepts encoded JWT strings; type hints are stricter.
+            encoded_token: Any = refresh_token
+            RefreshToken(encoded_token).blacklist()
+        except TokenError:
+            return

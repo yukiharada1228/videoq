@@ -78,10 +78,10 @@ flowchart TD
     ValidateQuestion -->|Valid| RateLimit{"Rate Limit Check"}
     RateLimit -->|Exceeded| ErrorRateLimit[Error Display]
     ErrorRateLimit --> InputQuestion
-    RateLimit -->|OK| CheckAuth{Authentication Check}
-    CheckAuth -->|Unauthenticated| RequireAuth[Require Authentication]
+    RateLimit -->|OK| CheckAccess{Authenticated or Share Token?}
+    CheckAccess -->|No| RequireAuth[Require Authentication or Share Link]
     RequireAuth --> End([End])
-    CheckAuth -->|Authenticated| CheckGroup{Group Specified}
+    CheckAccess -->|Yes| CheckGroup{Group Specified}
     
     CheckGroup -->|Specified| GetGroup[Get Group]
     GetGroup --> SearchVector[Vector Search]
@@ -269,14 +269,11 @@ flowchart TD
 ```mermaid
 flowchart TD
     Start([Start]) --> RequestDelete[Request Account Deactivation]
-    RequestDelete --> InputPassword[Input Current Password]
-    InputPassword --> InputReason[Input Reason for Leaving]
-    InputReason --> Validate{Password Verification}
-    Validate -->|Invalid| ShowError[Error Display]
-    ShowError --> InputPassword
-    Validate -->|Valid| CreateRequest[Create AccountDeletionRequest]
+    RequestDelete --> InputReason[Input Reason for Leaving]
+    InputReason --> CreateRequest[Create AccountDeletionRequest]
     CreateRequest --> DeactivateUser[Deactivate User<br/>is_active: False<br/>deactivated_at: now]
-    DeactivateUser --> ClearCookies[Clear Auth Cookies<br/>HttpOnly Cookie Deletion]
+    DeactivateUser --> EnqueueTask[Enqueue Account Deletion Task]
+    EnqueueTask --> ClearCookies[Clear Auth Cookies<br/>HttpOnly Cookie Deletion]
     ClearCookies --> Complete([Account Deactivated])
 ```
 

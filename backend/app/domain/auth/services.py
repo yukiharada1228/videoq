@@ -30,7 +30,7 @@ class SignupPolicy:
     email: str
 
     def normalized_email(self) -> str:
-        return self.email.strip()
+        return self.email.strip().lower()
 
     def assert_email_available(self, *, email_exists: bool) -> None:
         if email_exists:
