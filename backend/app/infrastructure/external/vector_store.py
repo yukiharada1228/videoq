@@ -12,6 +12,38 @@ from langchain_postgres import Column, PGEngine, PGVectorStore
 
 logger = logging.getLogger(__name__)
 
+# Static allowlist of permitted table names for raw SQL.
+# Prevents SQL injection even if PGVECTOR_COLLECTION_NAME is tampered with.
+_ALLOWED_TABLE_NAMES: frozenset[str] = frozenset({"videoq_scenes"})
+
+
+def _get_safe_table_identifier(table_name: str | None = None) -> str:
+    """
+    Return a safely-quoted table identifier for use in raw SQL.
+
+    Validates ``table_name`` (or the configured name when omitted) against
+    ``_ALLOWED_TABLE_NAMES`` before quoting, ensuring that neither env-var
+    tampering nor accidental user-input propagation can produce a malicious
+    table name.
+
+    Args:
+        table_name: Table name to validate. Defaults to
+            ``PGVectorManager.get_table_name()`` when ``None``.
+
+    Raises:
+        ValueError: If the table name is not in the allowlist.
+    """
+    from django.db import connection
+
+    if table_name is None:
+        table_name = PGVectorManager.get_table_name()
+    if table_name not in _ALLOWED_TABLE_NAMES:
+        raise ValueError(
+            f"Table name '{table_name}' is not in the allowed list. "
+            "Only statically-defined table names are permitted in raw SQL."
+        )
+    return connection.ops.quote_name(table_name)
+
 
 class PGVectorManager:
     """
@@ -132,7 +164,7 @@ def update_video_title_in_vectors(video_id: int, new_title: str) -> int:
     try:
         from django.db import connection
 
-        table = connection.ops.quote_name(PGVectorManager.get_table_name())
+        table = _get_safe_table_identifier()
 
         with connection.cursor() as cursor:
             cursor.execute(
@@ -144,7 +176,7 @@ def update_video_title_in_vectors(video_id: int, new_title: str) -> int:
                     to_jsonb(%s::text)
                 )
                 WHERE video_id = %s
-                """.format(table),
+                """.format(table),  # noqa: S608 – table is allowlist-validated above
                 [new_title, int(video_id)],
             )
             updated_count = cursor.rowcount
@@ -185,9 +217,9 @@ def delete_all_vectors() -> int:
         table_name = PGVectorManager.get_table_name()
         logger.info("Deleting all vectors from table: %s", table_name)
 
-        quoted_table = connection.ops.quote_name(table_name)
+        quoted_table = _get_safe_table_identifier(table_name)
         with connection.cursor() as cursor:
-            cursor.execute("DELETE FROM {}".format(quoted_table))
+            cursor.execute("DELETE FROM {}".format(quoted_table))  # noqa: S608 – table is allowlist-validated above
             deleted_count = cursor.rowcount
 
         if deleted_count > 0:

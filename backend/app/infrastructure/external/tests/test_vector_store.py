@@ -9,6 +9,8 @@ from django.test import SimpleTestCase, override_settings
 
 from app.infrastructure.external.vector_store import (
     PGVectorManager,
+    _ALLOWED_TABLE_NAMES,
+    _get_safe_table_identifier,
     delete_all_vectors,
     delete_video_vectors,
     update_video_title_in_vectors,
@@ -140,6 +142,98 @@ class PGVectorManagerTests(SimpleTestCase):
             table_name=PGVectorManager.get_table_name(),
             metadata_columns=["user_id", "video_id"],
         )
+
+
+class SafeTableIdentifierTests(SimpleTestCase):
+    """Tests for _get_safe_table_identifier function (SQL injection prevention)"""
+
+    @override_settings(PGVECTOR_COLLECTION_NAME="videoq_scenes")
+    @patch("django.db.connection")
+    def test_allowed_table_name_returns_quoted_identifier(self, mock_connection):
+        mock_connection.ops.quote_name.return_value = '"videoq_scenes"'
+
+        result = _get_safe_table_identifier()
+
+        mock_connection.ops.quote_name.assert_called_once_with("videoq_scenes")
+        self.assertEqual(result, '"videoq_scenes"')
+
+    @override_settings(PGVECTOR_COLLECTION_NAME="malicious_table; DROP TABLE users; --")
+    def test_disallowed_table_name_raises_value_error(self):
+        with self.assertRaises(ValueError):
+            _get_safe_table_identifier()
+
+    @override_settings(PGVECTOR_COLLECTION_NAME="unknown_table")
+    def test_unknown_table_name_raises_value_error(self):
+        with self.assertRaises(ValueError):
+            _get_safe_table_identifier()
+
+    def test_allowed_table_names_is_frozenset(self):
+        self.assertIsInstance(_ALLOWED_TABLE_NAMES, frozenset)
+
+    def test_allowed_table_names_contains_default(self):
+        self.assertIn("videoq_scenes", _ALLOWED_TABLE_NAMES)
+
+    @override_settings(PGVECTOR_COLLECTION_NAME="videoq_scenes")
+    @patch("django.db.connection")
+    def test_update_video_title_uses_safe_table_identifier(self, mock_connection):
+        """Verify update_video_title_in_vectors does not use .format() with user input"""
+        mock_cursor = MagicMock()
+        mock_cursor.rowcount = 1
+        mock_connection.cursor.return_value.__enter__ = MagicMock(
+            return_value=mock_cursor
+        )
+        mock_connection.cursor.return_value.__exit__ = MagicMock(return_value=False)
+        mock_connection.ops.quote_name.return_value = '"videoq_scenes"'
+
+        result = update_video_title_in_vectors(1, "Title")
+
+        self.assertEqual(result, 1)
+        # The table name must come from quote_name (validated path), not raw user input
+        mock_connection.ops.quote_name.assert_called_once_with("videoq_scenes")
+        call_args = mock_cursor.execute.call_args
+        sql = call_args[0][0]
+        # Parameterized args must be passed separately (not embedded in SQL)
+        params = call_args[0][1]
+        self.assertIn("Title", params)
+        self.assertNotIn("Title", sql)
+
+    @override_settings(PGVECTOR_COLLECTION_NAME="videoq_scenes")
+    @patch("django.db.connection")
+    def test_delete_all_vectors_uses_safe_table_identifier(self, mock_connection):
+        """Verify delete_all_vectors does not use .format() with unvalidated input"""
+        mock_cursor = MagicMock()
+        mock_cursor.rowcount = 5
+        mock_connection.cursor.return_value.__enter__ = MagicMock(
+            return_value=mock_cursor
+        )
+        mock_connection.cursor.return_value.__exit__ = MagicMock(return_value=False)
+        mock_connection.ops.quote_name.return_value = '"videoq_scenes"'
+
+        result = delete_all_vectors()
+
+        self.assertEqual(result, 5)
+        # The table name must come through the validated quote_name path
+        mock_connection.ops.quote_name.assert_called_once_with("videoq_scenes")
+
+    @override_settings(PGVECTOR_COLLECTION_NAME="videoq_scenes")
+    @patch("app.infrastructure.external.vector_store.PGVectorManager.get_table_name")
+    @patch("django.db.connection")
+    def test_delete_all_vectors_calls_get_table_name_once(
+        self, mock_connection, mock_get_table_name
+    ):
+        """get_table_name() must be called exactly once to avoid redundant reads."""
+        mock_get_table_name.return_value = "videoq_scenes"
+        mock_cursor = MagicMock()
+        mock_cursor.rowcount = 0
+        mock_connection.cursor.return_value.__enter__ = MagicMock(
+            return_value=mock_cursor
+        )
+        mock_connection.cursor.return_value.__exit__ = MagicMock(return_value=False)
+        mock_connection.ops.quote_name.return_value = '"videoq_scenes"'
+
+        delete_all_vectors()
+
+        mock_get_table_name.assert_called_once()
 
 
 class DeleteVideoVectorsTests(SimpleTestCase):
