@@ -43,6 +43,9 @@ class APIKeyAuthentication(BaseAuthentication):
         if raw_key is None:
             return None
 
+        if not raw_key.startswith("vq_") or len(raw_key) < 12:
+            return None
+
         resolved = self.resolve_api_key_use_case_factory().execute(raw_key)
         if resolved is None:
             raise AuthenticationFailed(_("Invalid API key"))
