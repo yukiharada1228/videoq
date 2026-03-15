@@ -51,7 +51,7 @@ class ShareTokenIPThrottleTest(APITestCase):
             name="test group",
             share_token=secrets.token_urlsafe(32),
         )
-        self.url = f"/api/chat/?share_token={self.group.share_token}"
+        self.url = f"/api/chat/messages/?share_token={self.group.share_token}"
         self.payload = {
             "messages": [{"role": "user", "content": "hi"}],
             "group_id": self.group.id,
@@ -87,7 +87,7 @@ class ShareTokenGlobalThrottleTest(APITestCase):
             name="test group",
             share_token=secrets.token_urlsafe(32),
         )
-        self.url = f"/api/chat/?share_token={self.group.share_token}"
+        self.url = f"/api/chat/messages/?share_token={self.group.share_token}"
         self.payload = {
             "messages": [{"role": "user", "content": "hi"}],
             "group_id": self.group.id,
@@ -127,7 +127,7 @@ class AuthenticatedChatThrottleTest(APITestCase):
             username="chatuser", email="chat@example.com", password="pass1234"
         )
         self.client.force_authenticate(user=self.user)
-        self.url = "/api/chat/"
+        self.url = "/api/chat/messages/"
 
     def test_blocks_authenticated_user_after_limit(self):
         """Authenticated user is throttled after 2 requests/min."""
