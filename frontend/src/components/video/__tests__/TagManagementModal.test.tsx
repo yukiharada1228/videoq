@@ -70,7 +70,7 @@ describe('TagManagementModal', () => {
         const deleteButton = screen.getByTestId('delete-tag-1')
         fireEvent.click(deleteButton)
 
-        expect(screen.getByText('Confirm?')).toBeInTheDocument()
+        expect(screen.queryByText('Confirm?')).not.toBeInTheDocument()
         expect(screen.getByTestId('confirm-delete-1')).toBeInTheDocument()
         expect(screen.getByTestId('cancel-delete-1')).toBeInTheDocument()
     })

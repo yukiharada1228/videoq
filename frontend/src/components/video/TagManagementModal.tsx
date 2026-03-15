@@ -61,9 +61,6 @@ export function TagManagementModal({ isOpen, onClose }: TagManagementModalProps)
 
                                     {deleteConfirmId === tag.id ? (
                                         <div className="flex items-center gap-2">
-                                            <span className="text-xs text-red-500 font-medium">
-                                                {t('common.actions.confirm', 'Confirm?')}
-                                            </span>
                                             <Button
                                                 variant="destructive"
                                                 size="sm"
