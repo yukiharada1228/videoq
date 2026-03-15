@@ -7,12 +7,13 @@ import logging
 
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics, status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from app.presentation.common.responses import create_error_response
+from app.presentation.common.throttles import ShareTokenIPThrottle
 from app.use_cases.video.dto import (
     CreateGroupInput,
     CreateTagInput,
@@ -551,6 +552,7 @@ class CreateShareLinkView(DependencyResolverMixin, AuthenticatedViewMixin, APIVi
 )
 @api_view(["GET"])
 @permission_classes([AllowAny])
+@throttle_classes([ShareTokenIPThrottle])
 def get_shared_group(
     request,
     share_token,
