@@ -16,7 +16,7 @@ User = get_user_model()
 )
 class EmailVerificationTests(APITestCase):
     def test_signup_requires_email_verification(self):
-        url = reverse("signup")
+        url = reverse("auth-users")
         payload = {
             "username": "newuser",
             "email": "newuser@example.com",
@@ -51,7 +51,7 @@ class EmailVerificationTests(APITestCase):
         except Exception as exc:  # pragma: no cover
             self.fail(f"Failed to parse verification URL: {exc}")
 
-        verify_url = reverse("auth-verify-email")
+        verify_url = reverse("auth-email-verifications")
         verify_response = self.client.post(verify_url, params, format="json")
 
         self.assertEqual(verify_response.status_code, status.HTTP_200_OK)

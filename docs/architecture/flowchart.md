@@ -67,9 +67,9 @@ flowchart TD
     Validate1 -->|Valid| Send[Send API Request]
     Send --> RateLimit{"Rate Limit<br>Check"}
     RateLimit -->|Exceeded| Error6[Rate Limit Error<br/>429 Too Many Requests]
-    RateLimit -->|OK| Auth{Authentication Check}
-    Auth -->|Failed| Error2[Authentication Error]
-    Auth -->|Success| CheckGroup{Group Specified?}
+    RateLimit -->|OK| Auth{Authenticated or Share Token?}
+    Auth -->|No| Error2[Authentication Error]
+    Auth -->|Yes| CheckGroup{Group Specified?}
     CheckGroup -->|No| NoContext[No Context]
     CheckGroup -->|Yes| GetGroup[(Database<br/>Get VideoGroup)]
     GetGroup --> ValidateGroup{"Group Exists<br>Check"}
@@ -107,8 +107,8 @@ flowchart TD
     InputSignup --> ValidateSignup{Input Validation}
     ValidateSignup -->|Invalid| ErrorSignup[Error Display]
     ValidateSignup -->|Valid| RateLimitSignup{"Rate Limit<br>Check"}
-    RateLimitSignup -->|Exceeded| ErrorRateLimit[Rate Limit Error<br/>429 Too Many Requests]
-    RateLimitSignup -->|OK| CreateUser[(Database<br/>Create User<br/>is_active: False)]
+    RateLimitSignup -->|Exceeded| ErrorRateLimit["Rate Limit Error<br>429 Too Many Requests"]
+    RateLimitSignup -->|OK| CreateUser["Database<br>Create User<br>is_active: False"]
     CreateUser --> GenerateToken[Generate Verification Token]
     GenerateToken --> SendEmail[Send Verification Email]
     SendEmail --> ShowMessage[Email Confirmation Waiting Screen]
@@ -116,40 +116,39 @@ flowchart TD
     WaitEmail --> ClickLink[Click Verification Link]
     ClickLink --> VerifyToken{Token Verification}
     VerifyToken -->|Invalid| ErrorToken[Token Invalid Error]
-    VerifyToken -->|Valid| ActivateUser[(Database<br/>Update is_active: True)]
+    VerifyToken -->|Valid| ActivateUser["Database<br>Update is_active: True"]
     ActivateUser --> RedirectLogin[Redirect to Login Page]
     RedirectLogin --> Login
     
     Login --> InputLogin[Input Login Information]
     InputLogin --> RateLimitLogin{"Rate Limit<br>Check"}
-    RateLimitLogin -->|Exceeded| ErrorRateLimit[Rate Limit Error<br/>429 Too Many Requests]
+    RateLimitLogin -->|Exceeded| ErrorRateLimit
     RateLimitLogin -->|OK| ValidateLogin{Credential Verification}
     ValidateLogin -->|Invalid| ErrorLogin[Authentication Error]
-    ValidateLogin -->|Valid| GenerateJWT[Generate JWT Tokens<br/>Access & Refresh]
-    GenerateJWT --> SetCookie[Set HttpOnly Cookies<br/>Access & Refresh Tokens]
+    ValidateLogin -->|Valid| GenerateJWT["Generate JWT Tokens<br>Access & Refresh"]
+    GenerateJWT --> SetCookie["Set HttpOnly Cookies<br>Access & Refresh Tokens"]
     SetCookie --> RedirectHome[Redirect to Home Page]
     RedirectHome --> End([Authentication Complete])
     
     Reset --> InputEmail[Input Email Address]
     InputEmail --> RateLimitReset{"Rate Limit<br>Check"}
-    RateLimitReset -->|Exceeded| ErrorRateLimit[Rate Limit Error<br/>429 Too Many Requests]
-    RateLimitReset -->|OK| ValidateEmail{"Email Address<br>Exists Check"}
-    ValidateEmail -->|Not Exists| ErrorEmail[Error Display]
-    ValidateEmail -->|Exists| GenerateResetToken[Generate Reset Token]
-    GenerateResetToken --> SendResetEmail[Send Reset Email]
-    SendResetEmail --> WaitReset[User Checks Email]
+    RateLimitReset -->|Exceeded| ErrorRateLimit
+    RateLimitReset -->|OK| ReceiveResetRequest[Receive Password Reset Request]
+    ReceiveResetRequest --> TryGenerateResetToken["Generate Reset Token<br>(only if account exists)"]
+    TryGenerateResetToken --> SendResetEmail["Send Reset Email<br>(if applicable)"]
+    SendResetEmail --> ShowResetMessage[Always return success message]
+    ShowResetMessage --> WaitReset[User Checks Email]
     WaitReset --> ClickResetLink[Click Reset Link]
     ClickResetLink --> VerifyResetToken{Token Verification}
     VerifyResetToken -->|Invalid| ErrorResetToken[Token Invalid]
     VerifyResetToken -->|Valid| InputNewPassword[Input New Password]
-    InputNewPassword --> UpdatePassword[(Database<br/>Update Password)]
+    InputNewPassword --> UpdatePassword["Database<br>Update Password"]
     UpdatePassword --> RedirectLogin2[Redirect to Login Page]
     RedirectLogin2 --> Login
     
     ErrorSignup --> End
     ErrorToken --> End
     ErrorLogin --> End
-    ErrorEmail --> End
     ErrorResetToken --> End
     ErrorRateLimit --> End
 ```
@@ -292,20 +291,15 @@ flowchart TD
     Start([Account Deactivation]) --> Navigate[Navigate to Settings Page]
     Navigate --> ClickDelete[Click Account Deactivation]
     ClickDelete --> ShowDialog[Show Confirmation Dialog]
-    ShowDialog --> InputPassword[Input Current Password]
-    InputPassword --> InputReason[Input Reason for Leaving]
+    ShowDialog --> InputReason[Input Reason for Leaving]
     InputReason --> Submit[Submit Deactivation Request]
     Submit --> API[DELETE /api/auth/account/]
-    API --> ValidatePassword{Password Verification}
-    ValidatePassword -->|Invalid| Error1[400 Bad Request]
-    ValidatePassword -->|Valid| CreateRequest[(Database<br/>Create AccountDeletionRequest)]
+    API --> CreateRequest[(Database<br/>Create AccountDeletionRequest)]
     CreateRequest --> DeactivateUser[(Database<br/>Update User<br/>is_active: False<br/>deactivated_at: now)]
-    DeactivateUser --> ClearCookies[Clear HttpOnly Cookies]
+    DeactivateUser --> EnqueueTask[Enqueue Account Deletion Task]
+    EnqueueTask --> ClearCookies[Clear HttpOnly Cookies]
     ClearCookies --> Redirect[Redirect to Home Page]
     Redirect --> End([Complete])
-    
-    Error1 --> ShowError[Display Error Message]
-    ShowError --> InputPassword
 ```
 
 ## 8. タグ管理フロー
@@ -409,12 +403,12 @@ flowchart TD
 flowchart TD
     Start([API Request with X-API-Key]) --> ExtractKey[Extract API Key from Header]
     ExtractKey --> HashKey[SHA-256 Hash Key]
-    HashKey --> LookupKey[(Database<br/>Lookup by hashed_key<br/>+ revoked_at IS NULL)]
+    HashKey --> LookupKey["Database<br/>Lookup by hashed_key<br/>+ revoked_at IS NULL"]
     LookupKey --> CheckFound{"Key Found?"}
     CheckFound -->|Not Found| Error401[401 Unauthorized]
     CheckFound -->|Found| MarkUsed[Update last_used_at]
     MarkUsed --> CheckAccess{"access_level vs<br>required_scope?"}
-    CheckAccess -->|read_only + write<br>(except chat_write)| Error403[403 Forbidden]
+    CheckAccess -->|read_only + write except chat_write| Error403[403 Forbidden]
     CheckAccess -->|Allowed| ProcessRequest[Process Request as User]
     ProcessRequest --> Response[Success Response]
     Response --> End([Complete])

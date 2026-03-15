@@ -3,29 +3,33 @@
 from rest_framework.throttling import SimpleRateThrottle
 
 
+def _normalize_throttle_identifier(value: str, *, lowercase: bool) -> str:
+    normalized = value.strip()
+    if lowercase:
+        normalized = normalized.lower()
+    return normalized
+
+
+def _normalize_throttle_email(email: str) -> str:
+    return _normalize_throttle_identifier(email, lowercase=True)
+
+
+def _normalize_throttle_username(username: str) -> str:
+    return _normalize_throttle_identifier(username, lowercase=True)
+
+
 class ShareTokenIPThrottle(SimpleRateThrottle):
     scope = "chat_share_token_ip"
 
     def get_cache_key(self, request, view):
-        share_token = request.query_params.get("share_token")
+        share_token = request.query_params.get("share_token") or (
+            view.kwargs.get("share_token") if hasattr(view, "kwargs") else None
+        )
         if not share_token:
             return None
         return self.cache_format % {
             "scope": self.scope,
             "ident": self.get_ident(request),
-        }
-
-
-class ShareTokenGlobalThrottle(SimpleRateThrottle):
-    scope = "chat_share_token_global"
-
-    def get_cache_key(self, request, view):
-        share_token = request.query_params.get("share_token")
-        if not share_token:
-            return None
-        return self.cache_format % {
-            "scope": self.scope,
-            "ident": share_token,
         }
 
 
@@ -63,7 +67,7 @@ class LoginUsernameThrottle(SimpleRateThrottle):
             }
         return self.cache_format % {
             "scope": self.scope,
-            "ident": username,
+            "ident": _normalize_throttle_username(str(username)),
         }
 
 
@@ -74,6 +78,22 @@ class SignupIPThrottle(SimpleRateThrottle):
         return self.cache_format % {
             "scope": self.scope,
             "ident": self.get_ident(request),
+        }
+
+
+class SignupEmailThrottle(SimpleRateThrottle):
+    scope = "signup_email"
+
+    def get_cache_key(self, request, view):
+        email = request.data.get("email")
+        if not email:
+            ident = self.get_ident(request)
+        else:
+            ident = _normalize_throttle_email(str(email))
+
+        return self.cache_format % {
+            "scope": self.scope,
+            "ident": ident,
         }
 
 
@@ -99,5 +119,5 @@ class PasswordResetEmailThrottle(SimpleRateThrottle):
             }
         return self.cache_format % {
             "scope": self.scope,
-            "ident": email,
+            "ident": _normalize_throttle_email(str(email)),
         }

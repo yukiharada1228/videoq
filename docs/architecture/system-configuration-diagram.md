@@ -2,7 +2,7 @@
 
 ## 概要
 
-VideoQの全体アーキテクチャとデフォルト（Docker Compose）構成を示す図です。
+VideoQの全体アーキテクチャと、現行の `docker-compose.yml` に基づくデフォルト構成を示す図です。
 
 ## 全体システム構成
 
@@ -17,32 +17,35 @@ graph TB
         Nginx["Nginx Reverse Proxy
         Port: 80
         - Reverse Proxy
-        - Static File Delivery
-        - Load Balancing"]
+        - Static / Media Delivery
+        - Frontend / API Routing"]
     end
 
     subgraph Application["Application Layer"]
         subgraph Frontend["Frontend"]
-            FrontendSPA["Vite + React SPA
+            FrontendSPA["Frontend Static App
+            Vite build + React 19
             Port: 80 (container)
             - React
             - TypeScript
-            - React Router
-            - TanStack Query"]
+            - React Router 7
+            - i18next
+            - TanStack Query 5"]
         end
 
         subgraph Backend["Backend"]
-            Django["Django REST API
+            Django["Django ASGI API
             Port: 8000
             - Django 5.2.7+
             - DRF
-            - Gunicorn"]
+            - Gunicorn + UvicornWorker"]
         end
 
         subgraph Worker["Worker"]
             Celery["Celery Worker
             - Asynchronous Task Processing
-            - Transcription Processing"]
+            - Transcription / Indexing
+            - Account Deletion"]
         end
     end
 
@@ -58,7 +61,7 @@ graph TB
 
     subgraph Storage["Storage Layer"]
         LocalFS["Local File System
-        /backend/media
+        /app/media + staticfiles volume
         - Video Files
         - Static Files"]
         S3["AWS S3 / Cloudflare R2
@@ -69,9 +72,9 @@ graph TB
 
     subgraph External["External Services"]
         OpenAI["OpenAI API
-        - Whisper API (or local whisper.cpp)
-        - GPT API
-        - Embeddings API (EMBEDDING_PROVIDER=openai)"]
+        - Chat / LLM
+        - Whisper API
+        - Embeddings API"]
         Ollama["Ollama Server
         Optional (Local)
         - Local LLM (LLM_PROVIDER=ollama)
@@ -90,7 +93,7 @@ graph TB
     Browser -->|HTTP/HTTPS| Nginx
     Nginx -->|Proxy| FrontendSPA
     Nginx -->|Proxy| Django
-    FrontendSPA -->|API Calls| Django
+    Browser -->|API Calls| Nginx
     Django --> PostgreSQL
     Django --> Redis
     Django --> LocalFS
@@ -114,22 +117,31 @@ graph TB
 ```mermaid
 graph TB
     subgraph Presentation["Presentation Layer (Frontend)"]
-        P1[React Components]
+        P1[React Pages / Components]
         P2[React Router Routes]
-        P3[UI Components]
+        P3[components/ui and feature components]
         P4[Custom Hooks]
     end
 
-    subgraph Lib["Libraries"]
-        L1[apiClient]
-        L2[TanStack Query]
+    subgraph FrontendModules["Frontend Internal Modules"]
+        F1[lib/api.ts]
+        F2[lib/queryClient.ts]
+        F3[i18n/config.ts]
+    end
+
+    subgraph Lib["External Libraries"]
+        L1[TanStack Query]
+        L2[react-i18next]
     end
 
     P1 --> P2
-    P2 --> P3
+    P1 --> P3
     P3 --> P4
+    P4 --> F1
+    P4 --> F2
+    P1 --> F3
     P4 --> L1
-    P4 --> L2
+    P1 --> L2
 ```
 
 ### バックエンド（クリーンアーキテクチャ）
@@ -143,17 +155,19 @@ graph TB
     end
 
     subgraph UseCases["use_cases/"]
-        UV["video/ - CreateVideo, GetVideo, ListVideos, UpdateVideo, DeleteVideo,
-        FileUrl, GetGroup, ListGroups, CreateGroup, UpdateGroup, DeleteGroup,
-        GetTag, ListTags, CreateTag, UpdateTag, DeleteTag,
-        ManageGroups, ManageTags, EnforceVideoLimit,
-        ReindexAllVideos, RunTranscription"]
-        UC["chat/ - SendMessage, GetHistory, ExportHistory,
-        SubmitFeedback, GetAnalytics, GetPopularScenes"]
-        UA["auth/ - Login, Signup, VerifyEmail, ResetPassword,
+        UV["video/ - CreateVideo, GetVideoDetail, ListVideos, UpdateVideo, DeleteVideo,
+        FileUrl, GetVideoGroup, GetSharedGroup, ListVideoGroups,
+        CreateVideoGroup, UpdateVideoGroup, DeleteVideoGroup,
+        CreateTag, GetTagDetail, ListTags, UpdateTag, DeleteTag,
+        AddVideoToGroup, AddVideosToGroup, RemoveVideoFromGroup, ReorderVideosInGroup,
+        CreateShareLink, DeleteShareLink, AddTagsToVideo, RemoveTagFromVideo,
+        EnforceVideoLimit, IndexVideoTranscript, ReindexAllVideos, RunTranscription"]
+        UC["chat/ - SendMessage, SearchRelatedVideos, GetChatHistory, ExportChatHistory,
+        SubmitFeedback, GetChatAnalytics, GetPopularScenes"]
+        UA["auth/ - Login, Signup, VerifyEmail, RequestPasswordReset, ConfirmPasswordReset,
         GetCurrentUser, DeleteAccount, DeleteAccountData,
-        ManageApiKeys, AuthorizeApiKey, ResolveApiKey,
-        ResolveShareToken, RefreshToken"]
+        ListApiKeys, CreateApiKey, RevokeApiKey,
+        AuthorizeApiKey, ResolveApiKey, ResolveShareToken, RefreshToken"]
         UM[media/ - ResolveProtectedMedia]
         US[shared/ - ResourceNotFound, PermissionDenied]
     end
@@ -181,13 +195,14 @@ graph TB
         DjangoAccountDeletionRepository, DjangoApiKeyRepository,
         DjangoUserAuthGateway, DjangoUserDataDeletionGateway"]
         IE["external/ - RagChatGateway, DjangoVectorIndexingGateway,
-        WhisperTranscriptionGateway, scene_indexer,
-        vector_store, rag_service, llm, prompts"]
+        DjangoVectorStoreGateway, WhisperTranscriptionGateway,
+        DjangoFileUrlResolver, scene_indexer, vector_store,
+        rag_service, rag_gateway, llm, prompts"]
         IT[transcription/ - audio_processing, srt_processing, DjangoVideoFileAccessor]
         IA["auth/ - SimpleJWTGateway, DjangoAuthGateway,
         CookieJWTValidator, ApiKeyResolver, ShareTokenResolver"]
         ITk[tasks/ - CeleryTaskGateway]
-        IC["chat/ - JanomeNltkKeywordExtractor, SceneVideoInfoProvider"]
+        IC["chat/ - JanomeNltkKeywordExtractor, DjangoSceneVideoInfoProvider"]
         ICo["common/ - email, embeddings, whisper_client,
         query_optimizer, performance_utils, task_helpers"]
         ISo[scene_otsu/ - splitter, parsers, embedders, utils]
@@ -245,10 +260,10 @@ graph TB
         Nginx["nginx
         :80"]
         Frontend["frontend
-        Vite SPA (static)
+        nginx serving built SPA
         :80"]
         Backend["backend
-        Django
+        Django ASGI
         :8000"]
         Worker["celery-worker
         Celery"]
@@ -261,15 +276,14 @@ graph TB
 
     Users -->|HTTP:80| Nginx
     Nginx -->|Proxy| Frontend
-    Nginx -->|Proxy| Backend
-    Frontend -->|API| Backend
+    Nginx -->|Proxy /api| Backend
     Backend -->|PostgreSQL| DB
     Backend -->|Redis| Cache
     Worker -->|Redis| Cache
     Worker -->|PostgreSQL| DB
 ```
 
-> 注記: 上図はデフォルトの `docker-compose.yml`（サービスごとに単一インスタンス）に対応しています。
+> 注記: 上図は現行の `docker-compose.yml`（サービスごとに単一インスタンス）に対応しています。
 > 水平スケーリング（複数のフロントエンド/バックエンド/ワーカーインスタンス、DBレプリカ等）が必要な場合は、本番環境アーキテクチャとして検討してください。
 
 ## セキュリティ構成
@@ -293,8 +307,8 @@ graph TB
             Temporary Access
             Guest Access"]
             AccountDeactivation["Account Deactivation
-            Password Verification
-            Soft Delete (deactivated_at)"]
+            Soft Delete (deactivated_at)
+            Async Data Deletion Task"]
         end
 
         subgraph Authorization["Authorization"]

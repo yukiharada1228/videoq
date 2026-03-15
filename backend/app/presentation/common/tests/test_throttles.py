@@ -25,14 +25,46 @@ _TEST_CACHES = {
 # Strict rates for fast test execution
 _TEST_THROTTLE_RATES = {
     "chat_share_token_ip": "2/minute",
-    "chat_share_token_global": "3/minute",
     "chat_authenticated": "2/minute",
     "login_ip": "2/minute",
     "login_username": "2/minute",
     "signup_ip": "2/minute",
+    "signup_email": "2/minute",
     "password_reset_ip": "2/minute",
     "password_reset_email": "2/minute",
 }
+
+
+@override_settings(CACHES=_TEST_CACHES, ENABLE_SIGNUP=True)
+@patch.dict(SimpleRateThrottle.THROTTLE_RATES, _TEST_THROTTLE_RATES)
+class GetSharedGroupThrottleTest(APITestCase):
+    """Tests for ShareTokenIPThrottle applied to get_shared_group (path-param share_token)."""
+
+    def setUp(self):
+        cache.clear()
+        self.user = User.objects.create_user(
+            username="groupowner", email="groupowner@example.com", password="pass1234"
+        )
+        self.group = VideoGroup.objects.create(
+            user=self.user,
+            name="shared group",
+            share_token=secrets.token_urlsafe(32),
+        )
+        self.url = f"/api/videos/groups/share/{self.group.share_token}/"
+
+    def test_allows_requests_within_limit(self):
+        """Requests within the rate limit should succeed (not 429)."""
+        for _ in range(2):
+            resp = self.client.get(self.url)
+            self.assertNotEqual(resp.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+
+    def test_blocks_after_limit(self):
+        """Third request from same IP should be throttled."""
+        for _ in range(2):
+            self.client.get(self.url)
+        resp = self.client.get(self.url)
+        self.assertEqual(resp.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+        self.assertEqual(resp.json()["error"]["code"], "LIMIT_EXCEEDED")
 
 
 @override_settings(CACHES=_TEST_CACHES, ENABLE_SIGNUP=True)
@@ -50,7 +82,7 @@ class ShareTokenIPThrottleTest(APITestCase):
             name="test group",
             share_token=secrets.token_urlsafe(32),
         )
-        self.url = f"/api/chat/?share_token={self.group.share_token}"
+        self.url = f"/api/chat/messages/?share_token={self.group.share_token}"
         self.payload = {
             "messages": [{"role": "user", "content": "hi"}],
             "group_id": self.group.id,
@@ -73,50 +105,6 @@ class ShareTokenIPThrottleTest(APITestCase):
 
 @override_settings(CACHES=_TEST_CACHES, ENABLE_SIGNUP=True)
 @patch.dict(SimpleRateThrottle.THROTTLE_RATES, _TEST_THROTTLE_RATES)
-class ShareTokenGlobalThrottleTest(APITestCase):
-    """Tests for ShareTokenGlobalThrottle (per-token limit)."""
-
-    def setUp(self):
-        cache.clear()
-        self.user = User.objects.create_user(
-            username="owner", email="owner@example.com", password="pass1234"
-        )
-        self.group = VideoGroup.objects.create(
-            user=self.user,
-            name="test group",
-            share_token=secrets.token_urlsafe(32),
-        )
-        self.url = f"/api/chat/?share_token={self.group.share_token}"
-        self.payload = {
-            "messages": [{"role": "user", "content": "hi"}],
-            "group_id": self.group.id,
-        }
-
-    def test_per_token_limit_reached(self):
-        """After global token limit (3/min), even different IPs get blocked."""
-        # Per-IP is 2/min, per-token is 3/min. Use different IPs to avoid
-        # hitting the IP limit first.
-        for i in range(3):
-            resp = self.client.post(
-                self.url,
-                self.payload,
-                format="json",
-                REMOTE_ADDR=f"10.0.0.{i + 1}",
-            )
-            self.assertNotEqual(resp.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
-
-        # 4th request — new IP but same token → token-level throttle fires
-        resp = self.client.post(
-            self.url,
-            self.payload,
-            format="json",
-            REMOTE_ADDR="10.0.0.99",
-        )
-        self.assertEqual(resp.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
-
-
-@override_settings(CACHES=_TEST_CACHES, ENABLE_SIGNUP=True)
-@patch.dict(SimpleRateThrottle.THROTTLE_RATES, _TEST_THROTTLE_RATES)
 class AuthenticatedChatThrottleTest(APITestCase):
     """Tests for AuthenticatedChatThrottle (per-user limit)."""
 
@@ -126,7 +114,7 @@ class AuthenticatedChatThrottleTest(APITestCase):
             username="chatuser", email="chat@example.com", password="pass1234"
         )
         self.client.force_authenticate(user=self.user)
-        self.url = "/api/chat/"
+        self.url = "/api/chat/messages/"
 
     def test_blocks_authenticated_user_after_limit(self):
         """Authenticated user is throttled after 2 requests/min."""
@@ -176,7 +164,7 @@ class LoginThrottleTest(APITestCase):
         self.user = User.objects.create_user(
             username="loginuser", email="login@example.com", password="pass1234"
         )
-        self.url = "/api/auth/login/"
+        self.url = "/api/auth/sessions/"
 
     def test_ip_throttle_blocks_after_limit(self):
         """Same IP is blocked after 2 login attempts/min."""
@@ -215,15 +203,37 @@ class LoginThrottleTest(APITestCase):
         )
         self.assertEqual(resp.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
 
+    def test_username_throttle_normalizes_case_and_whitespace(self):
+        """Username throttle should treat casing and surrounding spaces as the same key."""
+        attempts = ["  LoginUser  ", "loginuser"]
+
+        for i, username in enumerate(attempts):
+            resp = self.client.post(
+                self.url,
+                {"username": username, "password": "wrong"},
+                format="json",
+                REMOTE_ADDR=f"10.0.0.{i + 1}",
+            )
+            self.assertNotEqual(resp.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+
+        resp = self.client.post(
+            self.url,
+            {"username": "LOGINUSER", "password": "wrong"},
+            format="json",
+            REMOTE_ADDR="10.0.0.99",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+        self.assertEqual(resp.json()["error"]["code"], "LIMIT_EXCEEDED")
+
 
 @override_settings(CACHES=_TEST_CACHES, ENABLE_SIGNUP=True)
 @patch.dict(SimpleRateThrottle.THROTTLE_RATES, _TEST_THROTTLE_RATES)
 class SignupThrottleTest(APITestCase):
-    """Tests for SignupIPThrottle."""
+    """Tests for signup throttles."""
 
     def setUp(self):
         cache.clear()
-        self.url = "/api/auth/signup/"
+        self.url = "/api/auth/users/"
 
     def test_blocks_after_limit(self):
         """Same IP is blocked after 2 signup attempts/min."""
@@ -252,6 +262,61 @@ class SignupThrottleTest(APITestCase):
         )
         self.assertEqual(resp.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
 
+    def test_email_throttle_blocks_same_email_across_different_ips(self):
+        """Same normalized email from different IPs should still be blocked."""
+        target_email = "  Victim@Example.COM  "
+
+        for i in range(2):
+            resp = self.client.post(
+                self.url,
+                {
+                    "username": f"newuser{i}",
+                    "email": target_email,
+                    "password": "StrongP@ss1",
+                },
+                format="json",
+                REMOTE_ADDR=f"10.0.0.{i + 1}",
+            )
+            self.assertNotEqual(resp.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+
+        resp = self.client.post(
+            self.url,
+            {
+                "username": "newuser99",
+                "email": "victim@example.com",
+                "password": "StrongP@ss1",
+            },
+            format="json",
+            REMOTE_ADDR="10.0.0.99",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+        self.assertEqual(resp.json()["error"]["code"], "LIMIT_EXCEEDED")
+
+    def test_email_throttle_falls_back_to_ip_when_email_missing(self):
+        """Invalid payloads without email should still share an IP-based throttle key."""
+        for i in range(2):
+            resp = self.client.post(
+                self.url,
+                {
+                    "username": f"newuser{i}",
+                    "password": "StrongP@ss1",
+                },
+                format="json",
+                REMOTE_ADDR="10.0.0.5",
+            )
+            self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+
+        resp = self.client.post(
+            self.url,
+            {
+                "username": "newuser99",
+                "password": "StrongP@ss1",
+            },
+            format="json",
+            REMOTE_ADDR="10.0.0.5",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+
 
 @override_settings(CACHES=_TEST_CACHES, ENABLE_SIGNUP=True)
 @patch.dict(SimpleRateThrottle.THROTTLE_RATES, _TEST_THROTTLE_RATES)
@@ -260,7 +325,7 @@ class PasswordResetThrottleTest(APITestCase):
 
     def setUp(self):
         cache.clear()
-        self.url = "/api/auth/password-reset/"
+        self.url = "/api/auth/password-resets/"
 
     def test_ip_throttle_blocks_after_limit(self):
         """Same IP is blocked after 2 password reset attempts/min."""
@@ -299,6 +364,28 @@ class PasswordResetThrottleTest(APITestCase):
             REMOTE_ADDR="10.0.0.99",
         )
         self.assertEqual(resp.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+
+    def test_email_throttle_normalizes_case_and_whitespace(self):
+        """Password reset throttle should normalize email casing and spaces."""
+        attempts = ["  Victim@Example.com  ", "victim@example.com"]
+
+        for i, email in enumerate(attempts):
+            resp = self.client.post(
+                self.url,
+                {"email": email},
+                format="json",
+                REMOTE_ADDR=f"10.0.0.{i + 1}",
+            )
+            self.assertNotEqual(resp.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+
+        resp = self.client.post(
+            self.url,
+            {"email": "VICTIM@EXAMPLE.COM"},
+            format="json",
+            REMOTE_ADDR="10.0.0.99",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+        self.assertEqual(resp.json()["error"]["code"], "LIMIT_EXCEEDED")
 
     def test_429_response_format(self):
         """429 response should have LIMIT_EXCEEDED error format with Retry-After header."""

@@ -6,6 +6,7 @@ import { apiClient } from '@/lib/api'
 vi.mock('@/lib/api', () => ({
   apiClient: {
     uploadVideo: vi.fn(),
+    addTagsToVideo: vi.fn(),
   },
 }))
 
@@ -37,6 +38,35 @@ describe('useVideoUpload', () => {
 
     expect(result.current.file).toBe(file)
     expect(result.current.title).toBe('test-video')
+  })
+
+  it('should reject non-video files on file change', () => {
+    const { result } = renderHook(() => useVideoUpload())
+    const file = new File(['content'], 'notes.txt', { type: 'text/plain' })
+
+    act(() => {
+      result.current.handleFileChange({
+        target: { files: [file] },
+      } as unknown as React.ChangeEvent<HTMLInputElement>)
+    })
+
+    expect(result.current.file).toBeNull()
+    expect(result.current.error).toBe('videos.upload.validation.invalidFileType')
+  })
+
+  it('should reject oversized files on file change', () => {
+    const { result } = renderHook(() => useVideoUpload())
+    const file = new File(['content'], 'large-video.mp4', { type: 'video/mp4' })
+    Object.defineProperty(file, 'size', { value: 501 * 1024 * 1024 })
+
+    act(() => {
+      result.current.handleFileChange({
+        target: { files: [file] },
+      } as unknown as React.ChangeEvent<HTMLInputElement>)
+    })
+
+    expect(result.current.file).toBeNull()
+    expect(result.current.error).toBe('videos.upload.validation.fileTooLarge')
   })
 
   it('should update title', () => {
@@ -207,4 +237,3 @@ describe('useVideoUpload', () => {
     })
   })
 })
-

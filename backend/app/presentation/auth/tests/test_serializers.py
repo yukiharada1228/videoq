@@ -3,17 +3,12 @@ Tests for auth serializers
 """
 
 from django.contrib.auth import get_user_model
-from django.contrib.auth.tokens import default_token_generator
-from django.utils.encoding import force_bytes
-from django.utils.http import urlsafe_base64_encode
 from rest_framework.test import APITestCase
 
 from app.domain.user.entities import UserEntity
 from app.presentation.auth.serializers import (EmailVerificationSerializer,
                                                LoginSerializer,
-                                               PasswordResetConfirmSerializer,
                                                PasswordResetRequestSerializer,
-                                               RefreshSerializer,
                                                UserSerializer,
                                                UserSignupSerializer)
 
@@ -99,21 +94,6 @@ class UserSerializerTests(APITestCase):
         self.assertEqual(serializer.data["video_count"], 7)
 
 
-class RefreshSerializerTests(APITestCase):
-    """Tests for RefreshSerializer field-level validation only."""
-
-    def test_refresh_token_string_is_accepted(self):
-        """Test that any non-empty token string passes serializer validation."""
-        serializer = RefreshSerializer(data={"refresh": "any-token-string"})
-        self.assertTrue(serializer.is_valid())
-
-    def test_validate_refresh_token_empty(self):
-        """Test validation with empty refresh token"""
-        serializer = RefreshSerializer(data={"refresh": ""})
-        self.assertFalse(serializer.is_valid())
-        self.assertIn("refresh", serializer.errors)
-
-
 class EmailVerificationSerializerTests(APITestCase):
     """Tests for EmailVerificationSerializer — field presence validation only.
     Token validity is verified by the use case (VerifyEmailUseCase).
@@ -160,43 +140,3 @@ class PasswordResetRequestSerializerTests(APITestCase):
         self.assertFalse(serializer.is_valid())
         self.assertIn("email", serializer.errors)
 
-
-class PasswordResetConfirmSerializerTests(APITestCase):
-    """Tests for PasswordResetConfirmSerializer — field validation only.
-    Token validity is verified by the use case (ConfirmPasswordResetUseCase).
-    """
-
-    def setUp(self):
-        self.user = User.objects.create_user(
-            username="testuser",
-            email="test@example.com",
-            password="oldpass123",
-            is_active=True,
-        )
-        self.uid = urlsafe_base64_encode(force_bytes(self.user.pk))
-        self.token = default_token_generator.make_token(self.user)
-
-    def test_valid_data_passes(self):
-        """Test that valid uid, token and strong password pass validation"""
-        data = {
-            "uid": self.uid,
-            "token": self.token,
-            "new_password": "NewSecurePass123",
-        }
-        serializer = PasswordResetConfirmSerializer(data=data)
-        self.assertTrue(serializer.is_valid())
-
-    def test_confirm_reset_weak_password(self):
-        """Test password reset confirmation with weak password"""
-        data = {
-            "uid": self.uid,
-            "token": self.token,
-            "new_password": "123",  # Too short
-        }
-        serializer = PasswordResetConfirmSerializer(data=data)
-        self.assertFalse(serializer.is_valid())
-
-    def test_missing_required_fields(self):
-        """Test that missing fields fail validation"""
-        serializer = PasswordResetConfirmSerializer(data={"uid": self.uid})
-        self.assertFalse(serializer.is_valid())

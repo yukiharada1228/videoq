@@ -24,6 +24,29 @@ interface ValidationResult {
   error?: string;
 }
 
+const MAX_VIDEO_UPLOAD_SIZE_MB = Number(import.meta.env.VITE_MAX_VIDEO_UPLOAD_SIZE_MB || 500);
+const MAX_VIDEO_UPLOAD_SIZE_BYTES = MAX_VIDEO_UPLOAD_SIZE_MB * 1024 * 1024;
+const ALLOWED_VIDEO_EXTENSIONS = [
+  '.mp4',
+  '.mov',
+  '.avi',
+  '.mkv',
+  '.webm',
+  '.m4v',
+  '.mpeg',
+  '.mpg',
+  '.3gp',
+];
+
+function isLikelyVideoFile(file: File): boolean {
+  if (file.type.startsWith('video/')) {
+    return true;
+  }
+
+  const lowerName = file.name.toLowerCase();
+  return ALLOWED_VIDEO_EXTENSIONS.some((ext) => lowerName.endsWith(ext));
+}
+
 /**
  * Validation logic
  * Returns translation keys for errors
@@ -31,6 +54,12 @@ interface ValidationResult {
 function validateVideoUpload(file: File | null, title: string): ValidationResult {
   if (!file) {
     return { isValid: false, error: 'videos.upload.validation.noFile' };
+  }
+  if (!isLikelyVideoFile(file)) {
+    return { isValid: false, error: 'videos.upload.validation.invalidFileType' };
+  }
+  if (file.size > MAX_VIDEO_UPLOAD_SIZE_BYTES) {
+    return { isValid: false, error: 'videos.upload.validation.fileTooLarge' };
   }
   // File is OK if title is empty since filename will be used
   const finalTitle = title.trim() || file.name.replace(/\.[^/.]+$/, '');
@@ -85,12 +114,21 @@ export function useVideoUpload(): UseVideoUploadReturn {
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const selectedFile = e.target.files[0];
+      const validation = validateVideoUpload(selectedFile, title);
+      if (!validation.isValid) {
+        setFile(null);
+        setTitle('');
+        setError(validation.error || 'videos.upload.validation.generic');
+        return;
+      }
+
+      setError(null);
       setFile(selectedFile);
       // Automatically set filename (without extension) as title
       const fileNameWithoutExt = selectedFile.name.replace(/\.[^/.]+$/, '');
       setTitle(fileNameWithoutExt);
     }
-  }, [setTitle]);
+  }, [setTitle, title]);
 
   const reset = useCallback(() => {
     setFile(null);

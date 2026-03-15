@@ -2,7 +2,7 @@
 
 ## 概要
 
-VideoQのデフォルトデプロイ（Docker Compose）を示す図です。
+VideoQの現行 `docker-compose.yml` に基づくデフォルトデプロイを示す図です。
 
 ## Docker Compose構成
 
@@ -10,13 +10,13 @@ VideoQのデフォルトデプロイ（Docker Compose）を示す図です。
 graph TB
     subgraph DockerHost["Docker Host"]
         subgraph Network["videoq-network"]
-            subgraph FrontendContainer["frontend (Vite SPA)"]
-                FrontendSPA[Static React SPA<br/>Port: 80]
+            subgraph FrontendContainer["frontend (built SPA)"]
+                FrontendSPA[nginx serving React build<br/>Port: 80]
             end
             
             subgraph BackendContainer["backend (Django)"]
-                Django[Django REST API<br/>Port: 8000]
-                Gunicorn[Gunicorn WSGI Server]
+                Django[Django ASGI API<br/>Port: 8000]
+                Gunicorn[Gunicorn + UvicornWorker]
             end
             
             subgraph CeleryContainer["celery-worker"]
@@ -87,11 +87,11 @@ graph LR
         S2["postgres
         pgvector/pgvector:pg17"]
         S3["backend
-        Django + Gunicorn"]
+        Django ASGI + Gunicorn"]
         S4["celery-worker
         Celery Worker"]
         S5["frontend
-        Vite SPA static"]
+        nginx serving built SPA"]
         S6["nginx
         nginx:alpine"]
     end
@@ -124,6 +124,7 @@ graph TB
         N4[celery-worker]
         N5[postgres]
         N6[redis]
+        M1[shared media/static assets]
     end
     
     N1 -.->|HTTP| N2
@@ -132,8 +133,8 @@ graph TB
     N3 -.->|Redis| N6
     N4 -.->|Redis| N6
     N4 -.->|PostgreSQL| N5
-    N3 -.->|File Access| Media
-    N4 -.->|File Access| Media
+    N3 -.->|File Access| M1
+    N4 -.->|File Access| M1
     
     subgraph ExternalNetwork["External Network"]
         Internet[Internet]
@@ -152,9 +153,9 @@ graph TB
     end
     
     subgraph BindMounts["Bind Mounts"]
-        V3[./backend/media<br/>/app/media]
-        V4[./backend/app/migrations<br/>/app/app/migrations]
-        V5[./nginx.conf<br/>/etc/nginx/nginx.conf]
+        V3[./backend<br/>/app]
+        V4[./backend/media<br/>/media]
+        V5[./nginx.conf<br/>/etc/nginx/nginx.conf.template]
     end
     
     subgraph Containers["Containers"]
@@ -167,10 +168,10 @@ graph TB
     C1 --> V1
     C2 --> V2
     C2 --> V3
-    C2 --> V4
     C3 --> V3
     C4 --> V2
     C4 --> V3
+    C4 --> V4
     C4 --> V5
 ```
 
@@ -219,7 +220,7 @@ graph TB
         E1[POSTGRES_DB]
         E2[POSTGRES_USER]
         E3[POSTGRES_PASSWORD]
-        E4["SECRET_KEY<br/>(required)"]
+        E4["SECRET_KEY<br/>(required in production)"]
         E5[DATABASE_URL]
         E6[CELERY_BROKER_URL]
         E6b[CELERY_RESULT_BACKEND]

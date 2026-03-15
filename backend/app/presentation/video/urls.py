@@ -13,10 +13,8 @@ from .views import (
     VideoListView,
     add_tags_to_video,
     add_videos_to_group,
-    delete_share_link,
     get_shared_group,
     remove_tag_from_video,
-    remove_video_from_group,
     reorder_videos_in_group,
 )
 
@@ -66,22 +64,13 @@ urlpatterns = [
     path(
         "groups/<int:group_id>/videos/<int:video_id>/",
         AddVideoToGroupView.as_view(
-            add_video_to_group_use_case=video_dependencies.get_add_video_to_group_use_case
+            add_video_to_group_use_case=video_dependencies.get_add_video_to_group_use_case,
+            remove_video_from_group_use_case=video_dependencies.get_remove_video_from_group_use_case,
         ),
         name="add-video-to-group",
     ),
     path(
-        "groups/<int:group_id>/videos/<int:video_id>/remove/",
-        remove_video_from_group,
-        {
-            "remove_video_from_group_use_case": (
-                video_dependencies.get_remove_video_from_group_use_case
-            )
-        },
-        name="remove-video-from-group",
-    ),
-    path(
-        "groups/<int:group_id>/reorder/",
+        "groups/<int:group_id>/videos/order/",
         reorder_videos_in_group,
         {"reorder_videos_use_case": video_dependencies.get_reorder_videos_use_case},
         name="reorder-videos-in-group",
@@ -89,18 +78,13 @@ urlpatterns = [
     path(
         "groups/<int:group_id>/share/",
         CreateShareLinkView.as_view(
-            create_share_link_use_case=video_dependencies.get_create_share_link_use_case
+            create_share_link_use_case=video_dependencies.get_create_share_link_use_case,
+            delete_share_link_use_case=video_dependencies.get_delete_share_link_use_case,
         ),
         name="create-share-link",
     ),
     path(
-        "groups/<int:group_id>/share/delete/",
-        delete_share_link,
-        {"delete_share_link_use_case": video_dependencies.get_delete_share_link_use_case},
-        name="delete-share-link",
-    ),
-    path(
-        "groups/shared/<str:share_token>/",
+        "groups/share/<str:share_token>/",
         get_shared_group,
         {"shared_group_use_case": video_dependencies.get_shared_group_use_case},
         name="get-shared-group",
@@ -129,7 +113,7 @@ urlpatterns = [
         name="add-tags-to-video",
     ),
     path(
-        "<int:video_id>/tags/<int:tag_id>/remove/",
+        "<int:video_id>/tags/<int:tag_id>/",
         remove_tag_from_video,
         {
             "remove_tag_from_video_use_case": video_dependencies.get_remove_tag_from_video_use_case

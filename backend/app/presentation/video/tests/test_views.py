@@ -1,4 +1,4 @@
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from django.apps import apps
 from django.contrib.auth import get_user_model
@@ -11,6 +11,7 @@ Tag = apps.get_model("app", "Tag")
 Video = apps.get_model("app", "Video")
 VideoGroup = apps.get_model("app", "VideoGroup")
 VideoGroupMember = apps.get_model("app", "VideoGroupMember")
+VideoTag = apps.get_model("app", "VideoTag")
 
 
 class VideoGroupAPITestCase(APITestCase):
@@ -179,12 +180,40 @@ class VideoGroupMemberAPITestCase(APITestCase):
         self.assertEqual(response.data["added_count"], 3)
         self.assertEqual(response.data["skipped_count"], 0)
 
+    @patch("app.presentation.common.decorators.logger.exception")
+    @patch("app.presentation.video.views.DependencyResolverMixin.resolve_dependency")
+    def test_add_multiple_videos_to_group_unexpected_error_returns_generic_500(
+        self, mock_resolve_dependency, mock_logger_exception
+    ):
+        """Unexpected exceptions must be logged and sanitized."""
+        use_case = MagicMock()
+        use_case.execute.side_effect = RuntimeError("database internals leaked")
+        mock_resolve_dependency.return_value = use_case
+
+        response = self.client.post(
+            reverse("add-videos-to-group", kwargs={"group_id": self.group.pk}),
+            {"video_ids": [self.video.pk]},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        self.assertEqual(
+            response.data,
+            {
+                "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "An internal server error occurred.",
+                }
+            },
+        )
+        mock_logger_exception.assert_called_once()
+
     def test_remove_video_from_group(self):
-        """Test removing video from group"""
+        """Test removing video from group via DELETE /videos/groups/<id>/videos/<vid_id>/"""
         VideoGroupMember.objects.create(group=self.group, video=self.video)
 
         url = reverse(
-            "remove-video-from-group",
+            "add-video-to-group",
             kwargs={"group_id": self.group.pk, "video_id": self.video.pk},
         )
         response = self.client.delete(url)
@@ -195,7 +224,7 @@ class VideoGroupMemberAPITestCase(APITestCase):
     def test_remove_video_from_group_not_member(self):
         """Test error when trying to remove video not in the group"""
         url = reverse(
-            "remove-video-from-group",
+            "add-video-to-group",
             kwargs={"group_id": self.group.pk, "video_id": self.video.pk},
         )
         response = self.client.delete(url)
@@ -474,6 +503,32 @@ class TagViewTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(response.data["error"]["message"], "Tag name cannot be empty")
 
+    def test_remove_tag_from_video(self):
+        """Test removing a tag from a video via DELETE /videos/<id>/tags/<tag_id>/"""
+        tag = Tag.objects.create(user=self.user, name="Tag 1", color="#111111")
+        VideoTag.objects.create(video=self.video, tag=tag)
+
+        url = reverse(
+            "remove-tag-from-video",
+            kwargs={"video_id": self.video.pk, "tag_id": tag.pk},
+        )
+        response = self.client.delete(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(VideoTag.objects.count(), 0)
+
+    def test_remove_tag_from_video_not_attached(self):
+        """Test 404 when tag is not attached to the video"""
+        tag = Tag.objects.create(user=self.user, name="Tag 1", color="#111111")
+
+        url = reverse(
+            "remove-tag-from-video",
+            kwargs={"video_id": self.video.pk, "tag_id": tag.pk},
+        )
+        response = self.client.delete(url)
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
     @patch("app.infrastructure.external.vector_gateway.delete_video_vectors")
     def test_delete_video_deletes_vectors(self, mock_delete):
         """Test that deleting video deletes vectors and performs hard delete"""
@@ -529,6 +584,154 @@ class TagViewTests(APITestCase):
         )
 
 
+class VideoPutViewTests(APITestCase):
+    """Tests for VideoDetailView PUT (full update)"""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="testuser",
+            email="test@example.com",
+            password="testpass123",
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+        self.video = Video.objects.create(
+            user=self.user,
+            title="Original Title",
+            description="Original Description",
+            status="completed",
+        )
+
+    def test_put_video_requires_title(self):
+        """PUT without title should return 400 (full update requires all fields)"""
+        url = reverse("video-detail", kwargs={"pk": self.video.pk})
+        response = self.client.put(url, {"description": "New Desc"}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_put_video_updates_all_fields(self):
+        """PUT with all required fields should return 200 and update the video"""
+        url = reverse("video-detail", kwargs={"pk": self.video.pk})
+        response = self.client.put(
+            url,
+            {"title": "New Title", "description": "New Desc"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["title"], "New Title")
+        self.assertEqual(response.data["description"], "New Desc")
+        self.video.refresh_from_db()
+        self.assertEqual(self.video.title, "New Title")
+        self.assertEqual(self.video.description, "New Desc")
+
+    def test_put_video_is_not_partial(self):
+        """PUT should not behave the same as PATCH (partial update)"""
+        url = reverse("video-detail", kwargs={"pk": self.video.pk})
+        # PATCH accepts partial data; PUT must reject missing required fields
+        patch_response = self.client.patch(url, {"description": "Patched"}, format="json")
+        put_response = self.client.put(url, {"description": "Put Only"}, format="json")
+        self.assertEqual(patch_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(put_response.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+class VideoGroupPutViewTests(APITestCase):
+    """Tests for VideoGroupDetailView PUT (full update)"""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="testuser",
+            email="group@example.com",
+            password="testpass123",
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+        self.group = VideoGroup.objects.create(
+            user=self.user,
+            name="Original Name",
+            description="Original Description",
+        )
+
+    def test_put_group_requires_name(self):
+        """PUT without name should return 400 (full update requires all fields)"""
+        url = reverse("video-group-detail", kwargs={"pk": self.group.pk})
+        response = self.client.put(url, {"description": "New Desc"}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_put_group_updates_all_fields(self):
+        """PUT with all required fields should return 200 and update the group"""
+        url = reverse("video-group-detail", kwargs={"pk": self.group.pk})
+        response = self.client.put(
+            url,
+            {"name": "New Name", "description": "New Desc"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["name"], "New Name")
+        self.assertEqual(response.data["description"], "New Desc")
+        self.group.refresh_from_db()
+        self.assertEqual(self.group.name, "New Name")
+        self.assertEqual(self.group.description, "New Desc")
+
+    def test_put_group_is_not_partial(self):
+        """PUT should not behave the same as PATCH (partial update)"""
+        url = reverse("video-group-detail", kwargs={"pk": self.group.pk})
+        patch_response = self.client.patch(url, {"description": "Patched"}, format="json")
+        put_response = self.client.put(url, {"description": "Put Only"}, format="json")
+        self.assertEqual(patch_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(put_response.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+class TagPutViewTests(APITestCase):
+    """Tests for TagDetailView PUT (full update)"""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="testuser",
+            email="tag@example.com",
+            password="testpass123",
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+        self.tag = Tag.objects.create(
+            user=self.user,
+            name="Original Tag",
+            color="#111111",
+        )
+
+    def test_put_tag_requires_name(self):
+        """PUT without name should return 400"""
+        url = reverse("tag-detail", kwargs={"pk": self.tag.pk})
+        response = self.client.put(url, {"color": "#222222"}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_put_tag_requires_color(self):
+        """PUT without color should return 400"""
+        url = reverse("tag-detail", kwargs={"pk": self.tag.pk})
+        response = self.client.put(url, {"name": "New Tag"}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_put_tag_updates_all_fields(self):
+        """PUT with all required fields should return 200 and update the tag"""
+        url = reverse("tag-detail", kwargs={"pk": self.tag.pk})
+        response = self.client.put(
+            url,
+            {"name": "New Tag", "color": "#222222"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["name"], "New Tag")
+        self.tag.refresh_from_db()
+        self.assertEqual(self.tag.name, "New Tag")
+        self.assertEqual(self.tag.color, "#222222")
+
+    def test_put_tag_is_not_partial(self):
+        """PUT should not behave the same as PATCH (partial update)"""
+        url = reverse("tag-detail", kwargs={"pk": self.tag.pk})
+        patch_response = self.client.patch(url, {"name": "Patched"}, format="json")
+        put_response = self.client.put(url, {"name": "Put Only"}, format="json")
+        self.assertEqual(patch_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(put_response.status_code, status.HTTP_400_BAD_REQUEST)
+
+
 class ShareLinkTests(APITestCase):
     """Tests for share link functionality"""
 
@@ -557,13 +760,13 @@ class ShareLinkTests(APITestCase):
         self.assertIsNotNone(self.group.share_token)
 
     def test_delete_share_link(self):
-        """Test deleting a share link"""
+        """Test deleting a share link via DELETE /groups/<id>/share/"""
         import secrets
 
         self.group.share_token = secrets.token_urlsafe(32)
         self.group.save()
 
-        url = reverse("delete-share-link", kwargs={"group_id": self.group.pk})
+        url = reverse("create-share-link", kwargs={"group_id": self.group.pk})
 
         response = self.client.delete(url)
 
@@ -571,8 +774,42 @@ class ShareLinkTests(APITestCase):
         self.group.refresh_from_db()
         self.assertIsNone(self.group.share_token)
 
+    @patch("app.presentation.video.views.logger.exception")
+    @patch("app.presentation.video.views.DependencyResolverMixin.resolve_dependency")
+    def test_delete_share_link_unexpected_error_returns_generic_500(
+        self, mock_resolve_dependency, mock_logger_exception
+    ):
+        """View-level 500s must not expose internal exception text."""
+        use_case = MagicMock()
+        use_case.execute.side_effect = RuntimeError("share token backend detail")
+        mock_resolve_dependency.return_value = use_case
+
+        response = self.client.delete(
+            reverse("create-share-link", kwargs={"group_id": self.group.pk})
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        self.assertEqual(
+            response.data,
+            {
+                "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "An internal server error occurred.",
+                }
+            },
+        )
+        mock_logger_exception.assert_called_once()
+
+    def test_old_delete_share_link_url_not_found(self):
+        """Test that the old /share/delete/ URL no longer exists."""
+        url = f"/api/videos/groups/{self.group.pk}/share/delete/"
+
+        response = self.client.delete(url)
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
     def test_get_shared_group(self):
-        """Test getting shared group by token"""
+        """Test getting shared group via GET /groups/share/<token>/"""
         import secrets
 
         share_token = secrets.token_urlsafe(32)
@@ -591,6 +828,19 @@ class ShareLinkTests(APITestCase):
         url = reverse("get-shared-group", kwargs={"share_token": "invalid-token"})
 
         response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_old_shared_url_not_found(self):
+        """Test that the old /groups/shared/<token>/ URL no longer exists."""
+        import secrets
+
+        share_token = secrets.token_urlsafe(32)
+        self.group.share_token = share_token
+        self.group.save()
+
+        # 有効なトークンで旧URLを叩いてもルーティングレベルで404になるべき
+        response = self.client.get(f"/api/videos/groups/shared/{share_token}/")
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
@@ -625,7 +875,7 @@ class ReorderVideosTests(APITestCase):
         VideoGroupMember.objects.create(group=self.group, video=self.video3, order=2)
 
     def test_reorder_videos(self):
-        """Test reordering videos in group"""
+        """Test reordering videos in group via new URL"""
         url = reverse("reorder-videos-in-group", kwargs={"group_id": self.group.pk})
         data = {"video_ids": [self.video3.pk, self.video1.pk, self.video2.pk]}
 
@@ -644,6 +894,24 @@ class ReorderVideosTests(APITestCase):
         self.assertEqual(member2.order, 2)
         self.assertEqual(member3.order, 0)
 
+    def test_reorder_videos_url_is_resource_oriented(self):
+        """New URL /videos/groups/<id>/videos/order/ must work"""
+        url = f"/api/videos/groups/{self.group.pk}/videos/order/"
+        data = {"video_ids": [self.video3.pk, self.video1.pk, self.video2.pk]}
+
+        response = self.client.patch(url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_old_reorder_url_not_found(self):
+        """Old URL /videos/groups/<id>/reorder/ must return 404"""
+        url = f"/api/videos/groups/{self.group.pk}/reorder/"
+        data = {"video_ids": [self.video1.pk]}
+
+        response = self.client.patch(url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
 
 class VideoUploadTests(APITestCase):
     """Tests for video upload"""
@@ -658,12 +926,18 @@ class VideoUploadTests(APITestCase):
         self.client = APIClient()
         self.client.force_authenticate(user=self.user)
 
+    @patch("app.presentation.video.serializers.validate_video_media_file")
     @patch("app.infrastructure.tasks.task_gateway.current_app.send_task")
-    def test_upload(self, mock_task):
+    def test_upload(self, mock_task, mock_validate_video):
         """Test video upload"""
         from io import BytesIO
 
         from django.core.files.uploadedfile import SimpleUploadedFile
+
+        mock_validate_video.return_value = {
+            "format": {"format_name": "mp4", "duration": "60.0"},
+            "streams": [{"codec_type": "video", "codec_name": "h264"}],
+        }
 
         video_file = SimpleUploadedFile(
             "test_video.mp4",
@@ -690,6 +964,38 @@ class VideoUploadTests(APITestCase):
         video = Video.objects.first()
         self.assertEqual(video.title, "Test Video")
 
+    @patch("app.presentation.video.serializers.validate_video_media_file")
+    @patch("app.infrastructure.tasks.task_gateway.current_app.send_task")
+    def test_upload_rejects_invalid_media_payload(self, mock_task, mock_validate_video):
+        """Test video upload rejects files that fail ffprobe validation"""
+        from io import BytesIO
+
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        from app.contracts.media_validation import InvalidMediaFileError
+
+        mock_validate_video.side_effect = InvalidMediaFileError(
+            "Uploaded file is not a valid video."
+        )
+
+        video_file = SimpleUploadedFile(
+            "test_video.mp4",
+            BytesIO(b"not actually a video").read(),
+            content_type="video/mp4",
+        )
+
+        url = reverse("video-list")
+        response = self.client.post(
+            url,
+            {"file": video_file, "title": "Test Video"},
+            format="multipart",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("Uploaded file is not a valid video.", str(response.data))
+        self.assertEqual(Video.objects.count(), 0)
+        mock_task.assert_not_called()
+
 
 class VideoLimitTests(APITestCase):
     """Tests for video upload limit functionality"""
@@ -709,9 +1015,14 @@ class VideoLimitTests(APITestCase):
             content_type="video/mp4",
         )
 
+    @patch("app.presentation.video.serializers.validate_video_media_file")
     @patch("app.infrastructure.tasks.task_gateway.current_app.send_task")
-    def test_upload_with_unlimited_video_limit(self, mock_task):
+    def test_upload_with_unlimited_video_limit(self, mock_task, mock_validate_video):
         """Test video upload when video_limit is None (unlimited)"""
+        mock_validate_video.return_value = {
+            "format": {"format_name": "mp4", "duration": "60.0"},
+            "streams": [{"codec_type": "video", "codec_name": "h264"}],
+        }
         user = User.objects.create_user(
             username="testuser",
             email="test@example.com",
@@ -733,9 +1044,14 @@ class VideoLimitTests(APITestCase):
 
         self.assertEqual(Video.objects.filter(user=user).count(), 3)
 
+    @patch("app.presentation.video.serializers.validate_video_media_file")
     @patch("app.infrastructure.tasks.task_gateway.current_app.send_task")
-    def test_upload_with_zero_video_limit(self, mock_task):
+    def test_upload_with_zero_video_limit(self, mock_task, mock_validate_video):
         """Test video upload when video_limit is 0 (no uploads allowed)"""
+        mock_validate_video.return_value = {
+            "format": {"format_name": "mp4", "duration": "60.0"},
+            "streams": [{"codec_type": "video", "codec_name": "h264"}],
+        }
         user = User.objects.create_user(
             username="testuser",
             email="test@example.com",
@@ -756,9 +1072,14 @@ class VideoLimitTests(APITestCase):
         self.assertIn("Video upload limit reached", str(response.data))
         self.assertEqual(Video.objects.filter(user=user).count(), 0)
 
+    @patch("app.presentation.video.serializers.validate_video_media_file")
     @patch("app.infrastructure.tasks.task_gateway.current_app.send_task")
-    def test_upload_within_video_limit(self, mock_task):
+    def test_upload_within_video_limit(self, mock_task, mock_validate_video):
         """Test video upload within the limit"""
+        mock_validate_video.return_value = {
+            "format": {"format_name": "mp4", "duration": "60.0"},
+            "streams": [{"codec_type": "video", "codec_name": "h264"}],
+        }
         user = User.objects.create_user(
             username="testuser",
             email="test@example.com",
@@ -780,9 +1101,14 @@ class VideoLimitTests(APITestCase):
 
         self.assertEqual(Video.objects.filter(user=user).count(), 2)
 
+    @patch("app.presentation.video.serializers.validate_video_media_file")
     @patch("app.infrastructure.tasks.task_gateway.current_app.send_task")
-    def test_upload_at_exact_video_limit(self, mock_task):
+    def test_upload_at_exact_video_limit(self, mock_task, mock_validate_video):
         """Test video upload at exact limit"""
+        mock_validate_video.return_value = {
+            "format": {"format_name": "mp4", "duration": "60.0"},
+            "streams": [{"codec_type": "video", "codec_name": "h264"}],
+        }
         user = User.objects.create_user(
             username="testuser",
             email="test@example.com",
@@ -804,9 +1130,14 @@ class VideoLimitTests(APITestCase):
 
         self.assertEqual(Video.objects.filter(user=user).count(), 2)
 
+    @patch("app.presentation.video.serializers.validate_video_media_file")
     @patch("app.infrastructure.tasks.task_gateway.current_app.send_task")
-    def test_upload_exceeds_video_limit(self, mock_task):
+    def test_upload_exceeds_video_limit(self, mock_task, mock_validate_video):
         """Test video upload when limit is exceeded"""
+        mock_validate_video.return_value = {
+            "format": {"format_name": "mp4", "duration": "60.0"},
+            "streams": [{"codec_type": "video", "codec_name": "h264"}],
+        }
         user = User.objects.create_user(
             username="testuser",
             email="test@example.com",
@@ -839,9 +1170,14 @@ class VideoLimitTests(APITestCase):
         self.assertIn("Video upload limit reached", str(response.data))
         self.assertEqual(Video.objects.filter(user=user).count(), 2)
 
+    @patch("app.presentation.video.serializers.validate_video_media_file")
     @patch("app.infrastructure.tasks.task_gateway.current_app.send_task")
-    def test_upload_after_deleting_video_within_limit(self, mock_task):
+    def test_upload_after_deleting_video_within_limit(self, mock_task, mock_validate_video):
         """Test video upload after deleting a video to free up space"""
+        mock_validate_video.return_value = {
+            "format": {"format_name": "mp4", "duration": "60.0"},
+            "streams": [{"codec_type": "video", "codec_name": "h264"}],
+        }
         user = User.objects.create_user(
             username="testuser",
             email="test@example.com",

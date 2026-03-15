@@ -2,14 +2,9 @@ export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/ap
 
 type RequestBody = BodyInit | object | null | undefined;
 
-export interface LoginResponse {
-  access: string;
-  refresh: string;
-}
+export type LoginResponse = Record<string, never>;
 
-export interface RefreshResponse {
-  access: string;
-}
+export type RefreshResponse = Record<string, never>;
 
 export interface User {
   id: number;
@@ -254,11 +249,13 @@ class ApiClient {
 
   async logout(): Promise<void> {
     try {
-      await fetch(`${this.baseUrl}/auth/logout/`, {
-        method: 'POST',
+      const csrfToken = await this.ensureCsrfToken();
+      await fetch(`${this.baseUrl}/auth/sessions/`, {
+        method: 'DELETE',
         credentials: 'include', // Send HttpOnly Cookie
         headers: {
           'Content-Type': 'application/json',
+          ...(csrfToken ? { 'X-CSRFToken': csrfToken } : {}),
         },
       });
     } catch {
@@ -289,6 +286,31 @@ class ApiClient {
   // Common method to generate basic JSON headers
   private getJsonHeaders(): Record<string, string> {
     return { 'Content-Type': 'application/json' };
+  }
+
+  private isSafeMethod(method?: string): boolean {
+    const normalizedMethod = (method ?? 'GET').toUpperCase();
+    return ['GET', 'HEAD', 'OPTIONS', 'TRACE'].includes(normalizedMethod);
+  }
+
+  private getCsrfTokenFromCookie(): string | null {
+    const match = document.cookie.match(/(?:^|; )csrftoken=([^;]+)/);
+    return match ? decodeURIComponent(match[1]) : null;
+  }
+
+  private async ensureCsrfToken(): Promise<string | null> {
+    const existingToken = this.getCsrfTokenFromCookie();
+    if (existingToken) {
+      return existingToken;
+    }
+
+    await fetch(this.buildUrl('/auth/csrf/'), {
+      method: 'GET',
+      credentials: 'include',
+      headers: {},
+    });
+
+    return this.getCsrfTokenFromCookie();
   }
 
   private buildHeaders(additionalHeaders?: HeadersInit): Record<string, string> {
@@ -406,6 +428,13 @@ class ApiClient {
     const url = this.buildUrl(endpoint);
     const headers = this.buildHeaders(options.headers);
 
+    if (!this.isSafeMethod(options.method)) {
+      const csrfToken = await this.ensureCsrfToken();
+      if (csrfToken) {
+        headers['X-CSRFToken'] = csrfToken;
+      }
+    }
+
     // Use common method to stringify body
     const body = this.stringifyBody(options.body);
 
@@ -438,21 +467,21 @@ class ApiClient {
   }
 
   async signup(data: SignupRequest): Promise<void> {
-    await this.request('/auth/signup/', {
+    await this.request('/auth/users/', {
       method: 'POST',
       body: data,
     });
   }
 
   async verifyEmail(data: VerifyEmailRequest): Promise<VerifyEmailResponse> {
-    return this.request<VerifyEmailResponse>('/auth/verify-email/', {
+    return this.request<VerifyEmailResponse>('/auth/email-verifications/', {
       method: 'POST',
       body: data,
     });
   }
 
   async login(data: LoginRequest): Promise<LoginResponse> {
-    const response = await this.request<LoginResponse>('/auth/login/', {
+    const response = await this.request<LoginResponse>('/auth/sessions/', {
       method: 'POST',
       body: data,
     });
@@ -464,16 +493,17 @@ class ApiClient {
   }
 
   async requestPasswordReset(data: PasswordResetRequest): Promise<void> {
-    await this.request('/auth/password-reset/', {
+    await this.request('/auth/password-resets/', {
       method: 'POST',
       body: data,
     });
   }
 
   async confirmPasswordReset(data: PasswordResetConfirmRequest): Promise<void> {
-    await this.request('/auth/password-reset/confirm/', {
-      method: 'POST',
-      body: data,
+    const { token, uid, new_password } = data;
+    await this.request(`/auth/password-resets/${token}/`, {
+      method: 'PATCH',
+      body: { uid, new_password },
     });
   }
 
@@ -482,12 +512,27 @@ class ApiClient {
     // No need to manage refresh tokens on frontend
     // Call backend refresh endpoint as needed
 
-    const response = await this.request<RefreshResponse>('/auth/refresh/', {
-      method: 'POST',
-      body: {}, // Backend gets refresh token from Cookie
+    // Use executeRequest() directly to bypass retry logic.
+    // If the refresh endpoint itself returns 401, throw immediately to prevent
+    // an infinite loop where handle401Error would call refreshToken() again.
+    const url = this.buildUrl('/auth/tokens/');
+    const headers = this.buildHeaders();
+    const csrfToken = await this.ensureCsrfToken();
+    if (csrfToken) {
+      headers['X-CSRFToken'] = csrfToken;
+    }
+
+    const response = await this.executeRequest(url, {
+      method: 'PUT',
+      headers,
+      credentials: 'include',
     });
 
-    return response;
+    if (response.status === 401) {
+      throw new Error('Token refresh failed: unauthorized');
+    }
+
+    return await this.parseJsonResponse<RefreshResponse>(response);
   }
 
   async getMe(): Promise<User> {
@@ -522,7 +567,7 @@ class ApiClient {
 
   async chat(data: ChatRequest): Promise<ChatMessage> {
     const { share_token, ...bodyData } = data;
-    const endpoint = share_token ? `/chat/?share_token=${share_token}` : '/chat/';
+    const endpoint = share_token ? `/chat/messages/?share_token=${share_token}` : '/chat/messages/';
 
     return this.request<ChatMessage>(endpoint, {
       method: 'POST',
@@ -552,7 +597,7 @@ class ApiClient {
 
 
   async exportChatHistoryCsv(groupId: number): Promise<void> {
-    const url = this.buildUrl(`/chat/history/export/?group_id=${groupId}`);
+    const url = this.buildUrl(`/chat/history/?group_id=${groupId}&download=csv`);
 
     const doFetch = async (): Promise<Response> => {
       return fetch(url, {
@@ -628,6 +673,10 @@ class ApiClient {
 
     // Authorization header not needed with HttpOnly Cookie-based authentication
     const headers: Record<string, string> = {};
+    const csrfToken = await this.ensureCsrfToken();
+    if (csrfToken) {
+      headers['X-CSRFToken'] = csrfToken;
+    }
 
     try {
       const response = await this.executeRequest(url, {
@@ -701,13 +750,13 @@ class ApiClient {
   }
 
   async removeVideoFromGroup(groupId: number, videoId: number): Promise<void> {
-    return this.request<void>(`/videos/groups/${groupId}/videos/${videoId}/remove/`, {
+    return this.request<void>(`/videos/groups/${groupId}/videos/${videoId}/`, {
       method: 'DELETE',
     });
   }
 
   async reorderVideosInGroup(groupId: number, videoIds: number[]): Promise<{ message: string }> {
-    return this.request<{ message: string }>(`/videos/groups/${groupId}/reorder/`, {
+    return this.request<{ message: string }>(`/videos/groups/${groupId}/videos/order/`, {
       method: 'PATCH',
       body: { video_ids: videoIds },
     });
@@ -724,14 +773,14 @@ class ApiClient {
   }
 
   async deleteShareLink(groupId: number): Promise<{ message: string }> {
-    return this.request<{ message: string }>(`/videos/groups/${groupId}/share/delete/`, {
+    return this.request<{ message: string }>(`/videos/groups/${groupId}/share/`, {
       method: 'DELETE',
     });
   }
 
   async getSharedGroup(shareToken: string): Promise<VideoGroup> {
     // Shared groups don't require authentication, so don't include credentials
-    const url = this.buildUrl(`/videos/groups/shared/${shareToken}/`);
+    const url = this.buildUrl(`/videos/groups/share/${shareToken}/`);
     const response = await fetch(url);
 
     if (!response.ok) {
@@ -840,9 +889,15 @@ class ApiClient {
   }
 
   async removeTagFromVideo(videoId: number, tagId: number): Promise<void> {
-    return this.request<void>(`/videos/${videoId}/tags/${tagId}/remove/`, {
+    return this.request<void>(`/videos/${videoId}/tags/${tagId}/`, {
       method: 'DELETE',
     });
+  }
+
+  async searchScenes(queryText: string, groupId: number, shareToken?: string): Promise<{ query_text: string; related_videos?: RelatedVideo[] }> {
+    const params = new URLSearchParams({ query_text: queryText, group_id: String(groupId) });
+    if (shareToken) params.set('share_token', shareToken);
+    return this.request(`/chat/scenes/?${params.toString()}`);
   }
 
   async getPopularScenes(groupId: number, shareToken?: string, limit?: number): Promise<PopularScene[]> {

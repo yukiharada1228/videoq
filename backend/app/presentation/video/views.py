@@ -7,12 +7,13 @@ import logging
 
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics, status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from app.presentation.common.responses import create_error_response
+from app.presentation.common.throttles import ShareTokenIPThrottle
 from app.use_cases.video.dto import (
     CreateGroupInput,
     CreateTagInput,
@@ -43,12 +44,15 @@ from .serializers import (
     ShareLinkResponseSerializer,
     TagCreateSerializer,
     TagDetailSerializer,
+    TagFullUpdateSerializer,
     TagListSerializer,
     TagUpdateSerializer,
     VideoActionMessageResponseSerializer,
     VideoCreateSerializer,
+    VideoFullUpdateSerializer,
     VideoGroupCreateSerializer,
     VideoGroupDetailSerializer,
+    VideoGroupFullUpdateSerializer,
     VideoGroupListSerializer,
     VideoGroupUpdateSerializer,
     VideoListSerializer,
@@ -153,6 +157,7 @@ class VideoListView(DependencyResolverMixin, AuthenticatedViewMixin, generics.Ge
 class VideoDetailView(DependencyResolverMixin, AuthenticatedViewMixin, APIView):
     """Retrieve, update, and delete a video."""
 
+    serializer_class = VideoSerializer
     video_detail_use_case = None
     update_video_use_case = None
     delete_video_use_case = None
@@ -201,8 +206,33 @@ class VideoDetailView(DependencyResolverMixin, AuthenticatedViewMixin, APIView):
         ctx = {"request": request}
         return Response(VideoSerializer(updated, context=ctx).data)
 
+    @extend_schema(
+        request=VideoFullUpdateSerializer,
+        responses={200: VideoSerializer},
+        summary="Full update video",
+        description="Replace all video fields. title is required.",
+    )
     def put(self, request, pk):
-        return self.patch(request, pk)
+        video = self._get_video(pk, request.user.id)
+        if video is None:
+            return create_error_response("Video not found", status.HTTP_404_NOT_FOUND)
+
+        serializer = VideoFullUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        use_case = self.resolve_dependency(self.update_video_use_case)
+        try:
+            data = serializer.validated_data
+            input_dto = UpdateVideoInput(
+                title=data["title"],
+                description=data.get("description", ""),
+            )
+            updated = use_case.execute(pk, request.user.id, input_dto)
+        except ResourceNotFound:
+            return create_error_response("Video not found", status.HTTP_404_NOT_FOUND)
+
+        ctx = {"request": request}
+        return Response(VideoSerializer(updated, context=ctx).data)
 
     def delete(self, request, pk):
         use_case = self.resolve_dependency(self.delete_video_use_case)
@@ -259,6 +289,7 @@ class VideoGroupListView(DependencyResolverMixin, AuthenticatedViewMixin, generi
 class VideoGroupDetailView(DependencyResolverMixin, AuthenticatedViewMixin, APIView):
     """Retrieve, update, and delete a video group."""
 
+    serializer_class = VideoGroupDetailSerializer
     video_group_use_case = None
     update_group_use_case = None
     delete_group_use_case = None
@@ -301,8 +332,29 @@ class VideoGroupDetailView(DependencyResolverMixin, AuthenticatedViewMixin, APIV
         ctx = {"request": request}
         return Response(VideoGroupDetailSerializer(group, context=ctx).data)
 
+    @extend_schema(
+        request=VideoGroupFullUpdateSerializer,
+        responses={200: VideoGroupDetailSerializer},
+        summary="Full update video group",
+        description="Replace all video group fields. name is required.",
+    )
     def put(self, request, pk):
-        return self.patch(request, pk)
+        serializer = VideoGroupFullUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        use_case = self.resolve_dependency(self.update_group_use_case)
+        try:
+            data = serializer.validated_data
+            input_dto = UpdateGroupInput(
+                name=data["name"],
+                description=data.get("description", ""),
+            )
+            group = use_case.execute(pk, request.user.id, input_dto)
+        except ResourceNotFound:
+            return create_error_response("Group not found", status.HTTP_404_NOT_FOUND)
+
+        ctx = {"request": request}
+        return Response(VideoGroupDetailSerializer(group, context=ctx).data)
 
     def delete(self, request, pk):
         use_case = self.resolve_dependency(self.delete_group_use_case)
@@ -314,10 +366,11 @@ class VideoGroupDetailView(DependencyResolverMixin, AuthenticatedViewMixin, APIV
 
 
 class AddVideoToGroupView(DependencyResolverMixin, AuthenticatedViewMixin, APIView):
-    """Add a single video to a group."""
+    """Add or remove a single video from a group."""
 
     serializer_class = AddVideoToGroupResponseSerializer
     add_video_to_group_use_case = None
+    remove_video_from_group_use_case = None
 
     @extend_schema(
         responses={201: AddVideoToGroupResponseSerializer},
@@ -341,6 +394,24 @@ class AddVideoToGroupView(DependencyResolverMixin, AuthenticatedViewMixin, APIVi
             {"message": "Video added to group", "id": member.id},
             status=status.HTTP_201_CREATED,
         )
+
+    @extend_schema(
+        responses={200: VideoActionMessageResponseSerializer},
+        summary="Remove video from group",
+        description="Remove a video from a group.",
+    )
+    def delete(self, request, group_id, video_id):
+        use_case = self.resolve_dependency(self.remove_video_from_group_use_case)
+        try:
+            use_case.execute(group_id, video_id, request.user.id)
+        except ResourceNotFound as e:
+            return create_error_response(_not_found_message(e), status.HTTP_404_NOT_FOUND)
+        except VideoNotInGroup:
+            return create_error_response(
+                "This video is not added to the group", status.HTTP_404_NOT_FOUND
+            )
+
+        return Response({"message": "Video removed from group"}, status=status.HTTP_200_OK)
 
 
 @extend_schema(
@@ -433,10 +504,11 @@ def reorder_videos_in_group(
 
 
 class CreateShareLinkView(DependencyResolverMixin, AuthenticatedViewMixin, APIView):
-    """Generate a share link for a group."""
+    """Manage share link for a group (create and delete)."""
 
     serializer_class = ShareLinkResponseSerializer
     create_share_link_use_case = None
+    delete_share_link_use_case = None
 
     @extend_schema(
         responses={201: ShareLinkResponseSerializer},
@@ -455,26 +527,22 @@ class CreateShareLinkView(DependencyResolverMixin, AuthenticatedViewMixin, APIVi
             status=status.HTTP_201_CREATED,
         )
 
+    @extend_schema(
+        responses={200: VideoActionMessageResponseSerializer},
+        summary="Delete share link",
+        description="Disable the current share link for a group.",
+    )
+    def delete(self, request, group_id):
+        use_case = self.resolve_dependency(self.delete_share_link_use_case)
+        try:
+            use_case.execute(group_id, request.user.id)
+        except ResourceNotFound as e:
+            return create_error_response(_not_found_message(e), status.HTTP_404_NOT_FOUND)
+        except Exception:
+            logger.exception("Unhandled exception in CreateShareLinkView.delete")
+            return create_error_response("", status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-@extend_schema(
-    responses={200: VideoActionMessageResponseSerializer},
-    summary="Delete share link",
-    description="Disable the current share link for a group.",
-)
-@authenticated_view_with_error_handling(["DELETE"])
-def delete_share_link(
-    request,
-    group_id,
-    delete_share_link_use_case,
-):
-    """Disable share link for group."""
-    use_case = DependencyResolverMixin.resolve_dependency(delete_share_link_use_case)
-    try:
-        use_case.execute(group_id, request.user.id)
-    except ResourceNotFound as e:
-        return create_error_response(_not_found_message(e), status.HTTP_404_NOT_FOUND)
-
-    return Response({"message": "Share link disabled"}, status=status.HTTP_200_OK)
+        return Response({"message": "Share link disabled"}, status=status.HTTP_200_OK)
 
 
 @extend_schema(
@@ -484,6 +552,7 @@ def delete_share_link(
 )
 @api_view(["GET"])
 @permission_classes([AllowAny])
+@throttle_classes([ShareTokenIPThrottle])
 def get_shared_group(
     request,
     share_token,
@@ -546,6 +615,7 @@ class TagListView(DependencyResolverMixin, AuthenticatedViewMixin, generics.Gene
 class TagDetailView(DependencyResolverMixin, AuthenticatedViewMixin, APIView):
     """Retrieve, update, and delete a tag."""
 
+    serializer_class = TagDetailSerializer
     tag_detail_use_case = None
     update_tag_use_case = None
     delete_tag_use_case = None
@@ -590,8 +660,31 @@ class TagDetailView(DependencyResolverMixin, AuthenticatedViewMixin, APIView):
         ctx = {"request": request}
         return Response(TagDetailSerializer(tag, context=ctx).data)
 
+    @extend_schema(
+        request=TagFullUpdateSerializer,
+        responses={200: TagDetailSerializer},
+        summary="Full update tag",
+        description="Replace all tag fields. name and color are required.",
+    )
     def put(self, request, pk):
-        return self.patch(request, pk)
+        serializer = TagFullUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        use_case = self.resolve_dependency(self.update_tag_use_case)
+        try:
+            data = serializer.validated_data
+            input_dto = UpdateTagInput(
+                name=data["name"],
+                color=data["color"],
+            )
+            tag = use_case.execute(pk, request.user.id, input_dto)
+        except InvalidTagInput as e:
+            return create_error_response(str(e), status.HTTP_400_BAD_REQUEST)
+        except ResourceNotFound:
+            return create_error_response("Tag not found", status.HTTP_404_NOT_FOUND)
+
+        ctx = {"request": request}
+        return Response(TagDetailSerializer(tag, context=ctx).data)
 
     def delete(self, request, pk):
         use_case = self.resolve_dependency(self.delete_tag_use_case)

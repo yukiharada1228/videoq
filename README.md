@@ -47,14 +47,10 @@ cd videoq
 cp .env.example .env
 ```
 
-`.env` ファイルを開いて、最低限次の2つを設定します。
+`.env` ファイルを開いて、まずは次を設定します。
 
 ```bash
-# SECRET_KEYを生成して設定（必須）
-docker compose run --rm backend python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
-
 # .env に設定する値
-SECRET_KEY=ここに生成した値
 OPENAI_API_KEY=sk-your-key-here
 ```
 
@@ -219,6 +215,28 @@ OLLAMA_BASE_URL=http://host.docker.internal:11434
 </details>
 
 </details>
+
+## 🔐 本番環境の必須設定
+
+本番デプロイ時は、少なくとも以下を設定してください。
+
+```bash
+DJANGO_ENV=production
+SECRET_KEY=<十分にランダムな長い文字列>
+```
+
+リバースプロキシ/ロードバランサで TLS 終端する構成では、`X-Forwarded-Proto=https` をバックエンドへ確実に転送してください。  
+VideoQ の Django 設定は production で `SECURE_PROXY_SSL_HEADER=("HTTP_X_FORWARDED_PROTO", "https")` を使って HTTPS 判定します。
+
+`DJANGO_ENV=production` で `SECRET_KEY` が未設定または空文字の場合、バックエンドは起動時に明示的にエラー終了します。
+
+`SECRET_KEY` は次のコマンドで生成できます。
+
+```bash
+docker compose run --rm backend python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
+```
+
+生成した値を `.env` の `SECRET_KEY=` に設定してください。  
 
 <a id="developer-api"></a>
 

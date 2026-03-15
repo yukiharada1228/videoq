@@ -5,6 +5,8 @@ from typing import Any
 from rest_framework import status
 from rest_framework.response import Response
 
+INTERNAL_ERROR_MESSAGE = "An internal server error occurred."
+
 
 def create_error_response(
     message: str,
@@ -13,6 +15,11 @@ def create_error_response(
     fields: dict | None = None,
 ) -> Response:
     """Generate unified error response."""
+    if status_code >= status.HTTP_500_INTERNAL_SERVER_ERROR:
+        message = INTERNAL_ERROR_MESSAGE
+        if code == "VALIDATION_ERROR":
+            code = "INTERNAL_ERROR"
+
     error_data: dict[str, Any] = {
         "code": code,
         "message": message,

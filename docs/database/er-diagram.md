@@ -2,7 +2,7 @@
 
 ## 概要
 
-VideoQシステムのデータベースエンティティとリレーションを示す図です。
+VideoQシステムの主要な永続化エンティティとリレーションを、現行の Django モデル実装に基づいて示す図です。
 
 ## ER図
 
@@ -232,13 +232,12 @@ erDiagram
 - `VideoTag(tag, -added_at)`: 最新タグ使用用
 - `UserApiKey.prefix`: APIキープレフィックス検索用
 - `UserApiKey.revoked_at`: アクティブ/失効キークエリ用
-- `UserApiKey(-created_at, -id)`: ソート用（Meta.ordering）
 
 ## pgvector拡張
 
 ### ベクトルストレージ
 - PostgreSQLのpgvector拡張を使用
-- 各動画シーンのベクトル化されたテキストを保存
+- Django ORM モデルではなく、`langchain-postgres` が管理するコレクションに各動画シーンの埋め込みを保存
 - `video_id`、`user_id`、`video_title`、`start_time`、`end_time` などのメタデータを保存
 - RAG（Retrieval-Augmented Generation）に使用
 
