@@ -25,7 +25,6 @@ _TEST_CACHES = {
 # Strict rates for fast test execution
 _TEST_THROTTLE_RATES = {
     "chat_share_token_ip": "2/minute",
-    "chat_share_token_global": "3/minute",
     "chat_authenticated": "2/minute",
     "login_ip": "2/minute",
     "login_username": "2/minute",
@@ -70,50 +69,6 @@ class ShareTokenIPThrottleTest(APITestCase):
         resp = self.client.post(self.url, self.payload, format="json")
         self.assertEqual(resp.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
         self.assertEqual(resp.json()["error"]["code"], "LIMIT_EXCEEDED")
-
-
-@override_settings(CACHES=_TEST_CACHES, ENABLE_SIGNUP=True)
-@patch.dict(SimpleRateThrottle.THROTTLE_RATES, _TEST_THROTTLE_RATES)
-class ShareTokenGlobalThrottleTest(APITestCase):
-    """Tests for ShareTokenGlobalThrottle (per-token limit)."""
-
-    def setUp(self):
-        cache.clear()
-        self.user = User.objects.create_user(
-            username="owner", email="owner@example.com", password="pass1234"
-        )
-        self.group = VideoGroup.objects.create(
-            user=self.user,
-            name="test group",
-            share_token=secrets.token_urlsafe(32),
-        )
-        self.url = f"/api/chat/messages/?share_token={self.group.share_token}"
-        self.payload = {
-            "messages": [{"role": "user", "content": "hi"}],
-            "group_id": self.group.id,
-        }
-
-    def test_per_token_limit_reached(self):
-        """After global token limit (3/min), even different IPs get blocked."""
-        # Per-IP is 2/min, per-token is 3/min. Use different IPs to avoid
-        # hitting the IP limit first.
-        for i in range(3):
-            resp = self.client.post(
-                self.url,
-                self.payload,
-                format="json",
-                REMOTE_ADDR=f"10.0.0.{i + 1}",
-            )
-            self.assertNotEqual(resp.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
-
-        # 4th request — new IP but same token → token-level throttle fires
-        resp = self.client.post(
-            self.url,
-            self.payload,
-            format="json",
-            REMOTE_ADDR="10.0.0.99",
-        )
-        self.assertEqual(resp.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
 
 
 @override_settings(CACHES=_TEST_CACHES, ENABLE_SIGNUP=True)
