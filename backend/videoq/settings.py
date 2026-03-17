@@ -52,8 +52,10 @@ if _db_secret_arn:
         )
 
 _app_secret_arn = os.environ.get("APP_SECRET_ARN")
+_app_secrets: dict = {}
 if _app_secret_arn:
-    for _k, _v in _load_aws_secret(_app_secret_arn).items():
+    _app_secrets = _load_aws_secret(_app_secret_arn)
+    for _k, _v in _app_secrets.items():
         os.environ.setdefault(_k, str(_v))
 # ── END: AWS Secrets Manager サポート ────────────────────────────────────────
 
@@ -445,9 +447,18 @@ USE_S3_STORAGE = (
 
 if USE_S3_STORAGE:
     # AWS S3 / Cloudflare R2 basic settings
-    # django-storages automatically reads these global settings
-    AWS_ACCESS_KEY_ID = os.environ.get("AWS_ACCESS_KEY_ID")
-    AWS_SECRET_ACCESS_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY")
+    # On Lambda, AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY env vars are the
+    # IAM role's temporary credentials — NOT the R2 API token we need for
+    # django-storages.  Read R2 credentials from the app secret first
+    # (populated from Secrets Manager) to avoid the collision.
+    AWS_ACCESS_KEY_ID = (
+        _app_secrets.get("AWS_ACCESS_KEY_ID")
+        or os.environ.get("AWS_ACCESS_KEY_ID")
+    )
+    AWS_SECRET_ACCESS_KEY = (
+        _app_secrets.get("AWS_SECRET_ACCESS_KEY")
+        or os.environ.get("AWS_SECRET_ACCESS_KEY")
+    )
     AWS_STORAGE_BUCKET_NAME = os.environ.get("AWS_STORAGE_BUCKET_NAME")
     AWS_S3_REGION_NAME = os.environ.get("AWS_S3_REGION_NAME") or None
     AWS_S3_ENDPOINT_URL = os.environ.get("AWS_S3_ENDPOINT_URL") or None
@@ -458,11 +469,25 @@ if USE_S3_STORAGE:
     AWS_QUERYSTRING_EXPIRE = 3600
     AWS_S3_SIGNATURE_VERSION = "s3v4"
 
+    # Pass R2 credentials explicitly via OPTIONS so django-storages never
+    # falls back to boto3's credential chain (which picks up the Lambda IAM
+    # role and adds X-Amz-Security-Token that R2 does not understand).
+    # security_token=None is set via OPTIONS so hasattr() is True and
+    # django-storages skips the env-var fallback in get_default_settings().
+    # botocore checks "token is not None" so None means the parameter is
+    # omitted entirely from presigned URLs.
+    _storage_credentials = {"security_token": None}
+    if AWS_ACCESS_KEY_ID:
+        _storage_credentials["access_key"] = AWS_ACCESS_KEY_ID
+    if AWS_SECRET_ACCESS_KEY:
+        _storage_credentials["secret_key"] = AWS_SECRET_ACCESS_KEY
+
     # Configure storage using Django 4.2+ method
     STORAGES = {
         "staticfiles": {  # Static file storage
             "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
             "OPTIONS": {
+                **_storage_credentials,
                 "location": "static",
                 "default_acl": "private",
                 "object_parameters": {"CacheControl": "max-age=86400"},
@@ -471,6 +496,7 @@ if USE_S3_STORAGE:
         "default": {  # Media file storage
             "BACKEND": "app.infrastructure.models.storage.SafeS3Boto3Storage",
             "OPTIONS": {
+                **_storage_credentials,
                 "location": "media",
                 "default_acl": "private",
                 "file_overwrite": False,
