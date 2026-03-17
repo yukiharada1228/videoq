@@ -1,0 +1,45 @@
+# ── Lambda Web Adapter + Django API ─────────────────────────────────────────
+# Lambda Web Adapter (LWA) は Lambda イベントを HTTP に変換して
+# Gunicorn へ転送するエクステンション。コード変更不要。
+# https://github.com/awslabs/aws-lambda-web-adapter
+FROM public.ecr.aws/lambda/python:3.12
+
+# Lambda Web Adapter バイナリをコピー
+COPY --from=public.ecr.aws/awsguru/aws-lambda-web-adapter:0.9.1 \
+    /lambda-adapter /opt/extensions/lambda-adapter
+
+ARG APP_HOME=/var/task
+WORKDIR ${APP_HOME}
+
+# ffmpeg: AL2023 デフォルトリポジトリにないため静的バイナリを使用
+RUN curl -fsSL \
+    "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz" \
+    | tar -xJ --wildcards --strip-components=1 \
+        "ffmpeg-*-amd64-static/ffmpeg" \
+        "ffmpeg-*-amd64-static/ffprobe" \
+    && mv ffmpeg ffprobe /usr/local/bin/ \
+    && chmod +x /usr/local/bin/ffmpeg /usr/local/bin/ffprobe
+
+COPY requirements.txt ./
+RUN pip install --no-cache-dir --upgrade "pip>=26.0" \
+    && pip install --no-cache-dir -r requirements.txt
+
+RUN python -m nltk.downloader -d /usr/local/nltk_data \
+    averaged_perceptron_tagger_eng punkt_tab
+
+COPY . .
+
+# Django static files を収集
+RUN python manage.py collectstatic --noinput || true
+
+# LWA が PORT=8000 を監視し、Gunicorn が起動したら
+# AWS_LWA_READINESS_CHECK_PATH へポーリングして準備完了を確認する。
+# --workers 1: Lambda は単一プロセス (LWA がスケールを管理)
+# --timeout 0: タイムアウトは Lambda/LWA に委ねる
+CMD ["gunicorn", "videoq.asgi:application", \
+     "--worker-class", "uvicorn_worker.UvicornWorker", \
+     "--bind", "0.0.0.0:8000", \
+     "--workers", "1", \
+     "--threads", "4", \
+     "--timeout", "0", \
+     "--log-file", "-"]

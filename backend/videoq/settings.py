@@ -10,12 +10,52 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+import json
 import os
 from datetime import timedelta
 from pathlib import Path
 
 import dj_database_url
 from django.core.exceptions import ImproperlyConfigured
+
+
+# ── AWS Secrets Manager サポート ─────────────────────────────────────────────
+# Lambda 環境では DB_SECRET_ARN / APP_SECRET_ARN を環境変数で渡す。
+# settings モジュール読み込み時に 1 度だけ取得し、環境変数に展開する。
+# (Lambda コンテナは再利用されるため実質的にキャッシュされる)
+
+def _load_aws_secret(secret_arn: str) -> dict:
+    import boto3
+    client = boto3.client("secretsmanager")
+    return json.loads(
+        client.get_secret_value(SecretId=secret_arn)["SecretString"]
+    )
+
+
+_db_secret_arn = os.environ.get("DB_SECRET_ARN")
+if _db_secret_arn:
+    _db = _load_aws_secret(_db_secret_arn)
+    if "DATABASE_URL" in _db:
+        # Neon 形式: {"DATABASE_URL": "postgresql://...@neon.tech/...?sslmode=require"}
+        os.environ.setdefault("DATABASE_URL", _db["DATABASE_URL"])
+    else:
+        # RDS 管理シークレット形式 (後方互換): username / password / host / port / dbname
+        os.environ.setdefault(
+            "DATABASE_URL",
+            "postgresql://{username}:{password}@{host}:{port}/{dbname}".format(
+                username=_db["username"],
+                password=_db["password"],
+                host=os.environ.get("DB_HOST", _db.get("host", "localhost")),
+                port=os.environ.get("DB_PORT", str(_db.get("port", 5432))),
+                dbname=os.environ.get("DB_NAME", _db.get("dbname", "videoq")),
+            ),
+        )
+
+_app_secret_arn = os.environ.get("APP_SECRET_ARN")
+if _app_secret_arn:
+    for _k, _v in _load_aws_secret(_app_secret_arn).items():
+        os.environ.setdefault(_k, str(_v))
+# ── END: AWS Secrets Manager サポート ────────────────────────────────────────
 
 
 class DefaultSettings:
@@ -198,14 +238,25 @@ DATABASES = {
 }
 
 # Cache configuration
-CACHES = {
-    "default": {
-        "BACKEND": "django.core.cache.backends.redis.RedisCache",
-        "LOCATION": os.environ.get(
-            "CACHE_URL", os.environ.get("CACHE_URL", DefaultSettings.CACHE_URL)
-        ),
+# USE_DATABASE_CACHE=true の場合は DatabaseCache (Aurora) を使用。
+# Redis が不要になるため Lambda 環境でのコスト削減に有効。
+_use_database_cache = (
+    os.environ.get("USE_DATABASE_CACHE", "false").lower() == "true"
+)
+if _use_database_cache:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.db.DatabaseCache",
+            "LOCATION": "django_cache",
+        }
     }
-}
+else:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": os.environ.get("CACHE_URL", DefaultSettings.CACHE_URL),
+        }
+    }
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
@@ -326,8 +377,33 @@ CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = "America/Chicago"
 CELERY_TASK_TRACK_STARTED = True
-CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutes
-CELERY_TASK_SOFT_TIME_LIMIT = 25 * 60  # 25 minutes
+# Lambda 環境では CELERY_TASK_TIME_LIMIT を 840s (14 分) に設定する。
+# (Lambda 最大タイムアウト 900s より短くしないとタスクが強制終了される)
+CELERY_TASK_TIME_LIMIT = int(
+    os.environ.get("CELERY_TASK_TIME_LIMIT", str(30 * 60))
+)
+CELERY_TASK_SOFT_TIME_LIMIT = int(
+    os.environ.get("CELERY_TASK_SOFT_TIME_LIMIT", str(25 * 60))
+)
+
+# SQS ブローカー固有設定 (CELERY_BROKER_URL=sqs:// のときのみ有効)
+if CELERY_BROKER_URL.startswith("sqs://"):
+    _sqs_queue_name = os.environ.get("SQS_QUEUE_NAME", "videoq-worker")
+    CELERY_TASK_DEFAULT_QUEUE = _sqs_queue_name
+    CELERY_BROKER_TRANSPORT_OPTIONS = {
+        "region": os.environ.get("AWS_DEFAULT_REGION", "ap-northeast-1"),
+        "predefined_queues": {
+            _sqs_queue_name: {
+                "url": os.environ.get("SQS_QUEUE_URL", ""),
+            }
+        },
+        # visibility_timeout は Lambda タイムアウト以上に設定すること
+        "visibility_timeout": int(
+            os.environ.get("CELERY_TASK_TIME_LIMIT", "840")
+        ) + 60,
+    }
+    # SQS 環境ではリザルトバックエンド不要 (タスクは DB の状態を直接更新)
+    CELERY_RESULT_BACKEND = None
 
 # Feature flags
 ENABLE_SIGNUP = os.environ.get("ENABLE_SIGNUP", "true").lower() == "true"
