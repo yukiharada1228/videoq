@@ -60,12 +60,14 @@ class ApiStack(Stack):
 
         # ── API Gateway HTTP API ───────────────────────────────────────────
         # allowCredentials=True (JWT Cookie) は allowOrigin="*" と併用不可 (CORS 仕様)。
-        # pages_domain 未設定時はローカル開発用オリジンをデフォルトとする。
-        allow_origins = (
-            [f"https://{config.pages_domain}"]
-            if config.pages_domain
-            else ["http://localhost:3000", "http://localhost:5173"]
-        )
+        # pages_domain / custom_domain 未設定時はローカル開発用オリジンをデフォルトとする。
+        allow_origins = []
+        if config.custom_domain:
+            allow_origins.append(f"https://{config.custom_domain}")
+        if config.pages_domain:
+            allow_origins.append(f"https://{config.pages_domain}")
+        if not allow_origins:
+            allow_origins = ["http://localhost:3000", "http://localhost:5173"]
         http_api = apigwv2.HttpApi(self, "HttpApi",
             api_name=f"videoq-api-{config.env_name}",
             cors_preflight=apigwv2.CorsPreflightOptions(
@@ -115,11 +117,13 @@ class ApiStack(Stack):
         app_secret: secretsmanager.Secret,
         sqs_queue: sqs.Queue,
     ) -> dict:
-        cors_origins = (
-            f"https://{config.pages_domain}"
-            if config.pages_domain
-            else "http://localhost:3000,http://localhost:5173"
-        )
+        origins = []
+        if config.custom_domain:
+            origins.append(f"https://{config.custom_domain}")
+        if config.pages_domain:
+            origins.append(f"https://{config.pages_domain}")
+        cors_origins = ",".join(origins) if origins else "http://localhost:3000,http://localhost:5173"
+
         return {
             # Django
             "DJANGO_ENV": "production",
@@ -146,6 +150,6 @@ class ApiStack(Stack):
             "AWS_LWA_READINESS_CHECK_PATH": "/api/health/",
             "AWS_LWA_READINESS_CHECK_HEALTHY_STATUS": "100-499",
             "AWS_LWA_INVOKE_MODE": "buffered",
-            # API Gateway プロキシ数
-            "NUM_PROXIES": "1",
+            # API Gateway プロキシ数 (CloudFront + API Gateway = 2)
+            "NUM_PROXIES": "2" if config.custom_domain else "1",
         }

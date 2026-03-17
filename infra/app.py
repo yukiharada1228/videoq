@@ -8,6 +8,7 @@ VideoQ AWS CDK アプリケーション
   QueueStack   - SQS (Celery ブローカー + DLQ)
   ApiStack     - Lambda (Lambda Web Adapter + Gunicorn) + API Gateway HTTP API
   WorkerStack  - Lambda (Celery タスク実行) + SQS イベントソース
+  CdnStack     - CloudFront (フロントエンド + API 同一ドメイン配信, オプション)
 
 フロントエンドは Cloudflare Pages で管理 (CDK 外)。
 メディアストレージは Cloudflare R2 で管理 (CDK 外)。
@@ -17,6 +18,7 @@ import aws_cdk as cdk
 
 from config.settings import get_config
 from stacks.api_stack import ApiStack
+from stacks.cdn_stack import CdnStack
 from stacks.data_stack import DataStack
 from stacks.queue_stack import QueueStack
 from stacks.storage_stack import StorageStack
@@ -53,5 +55,13 @@ worker = WorkerStack(app, f"VideoQ-Worker-{env_name}",
     app_secret=data.app_secret,
     sqs_queue=queue.main_queue,
     worker_ecr_repo=storage.worker_ecr_repo)
+
+# ── Layer 2.5: CDN (CloudFront — フロントエンドと API を同一ドメインで配信) ───
+if config.custom_domain and config.certificate_arn:
+    cdn = CdnStack(app, f"VideoQ-Cdn-{env_name}",
+        config=config, env=env,
+        api_endpoint=api.api_url,
+        pages_domain=config.pages_domain,
+    )
 
 app.synth()

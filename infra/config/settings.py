@@ -24,6 +24,11 @@ class VideoQConfig:
     # Cloudflare Pages ドメイン (CORS 許可リストに追加)
     pages_domain: Optional[str] = None
 
+    # CloudFront カスタムドメイン (例: videoq.jp)
+    custom_domain: Optional[str] = None
+    # ACM 証明書 ARN (us-east-1 で作成必須)
+    certificate_arn: Optional[str] = None
+
 
 def get_config(env_name: str) -> VideoQConfig:
     account = os.environ.get("CDK_DEFAULT_ACCOUNT", "")
@@ -37,6 +42,8 @@ def get_config(env_name: str) -> VideoQConfig:
             api_lambda_memory_mb=1024,
             worker_lambda_memory_mb=3008,
             pages_domain=os.environ.get("PAGES_DOMAIN"),
+            custom_domain=os.environ.get("CUSTOM_DOMAIN"),
+            certificate_arn=os.environ.get("CERTIFICATE_ARN"),
         )
 
     return VideoQConfig(
