@@ -293,24 +293,45 @@ class ApiClient {
     return ['GET', 'HEAD', 'OPTIONS', 'TRACE'].includes(normalizedMethod);
   }
 
+  private csrfToken: string | null = null;
+
   private getCsrfTokenFromCookie(): string | null {
     const match = document.cookie.match(/(?:^|; )csrftoken=([^;]+)/);
     return match ? decodeURIComponent(match[1]) : null;
   }
 
   private async ensureCsrfToken(): Promise<string | null> {
-    const existingToken = this.getCsrfTokenFromCookie();
-    if (existingToken) {
-      return existingToken;
+    // Try in-memory cache first, then cookie (same-origin only)
+    if (this.csrfToken) {
+      return this.csrfToken;
+    }
+    const cookieToken = this.getCsrfTokenFromCookie();
+    if (cookieToken) {
+      this.csrfToken = cookieToken;
+      return cookieToken;
     }
 
-    await fetch(this.buildUrl('/auth/csrf/'), {
+    // Fetch from server; cross-origin deployments return token in body
+    const response = await fetch(this.buildUrl('/auth/csrf/'), {
       method: 'GET',
       credentials: 'include',
       headers: {},
     });
 
-    return this.getCsrfTokenFromCookie();
+    if (response.ok) {
+      try {
+        const data = await response.json();
+        if (data.csrftoken) {
+          this.csrfToken = data.csrftoken;
+          return this.csrfToken;
+        }
+      } catch {
+        // 204 or non-JSON response; fall back to cookie
+      }
+    }
+
+    this.csrfToken = this.getCsrfTokenFromCookie();
+    return this.csrfToken;
   }
 
   private buildHeaders(additionalHeaders?: HeadersInit): Record<string, string> {

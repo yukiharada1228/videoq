@@ -263,18 +263,26 @@ class RefreshView(PublicAPIView):
 
 @method_decorator(ensure_csrf_cookie, name="dispatch")
 class CsrfTokenView(PublicAPIView):
-    """Bootstrap endpoint for the CSRF cookie used by cookie-based auth."""
+    """Bootstrap endpoint for the CSRF cookie used by cookie-based auth.
+
+    Cross-origin deployments (e.g. Cloudflare Pages → API Gateway) cannot read
+    the csrftoken cookie via document.cookie because it belongs to a different
+    domain. The token is therefore also returned in the response body.
+    """
 
     serializer_class = None
 
     @extend_schema(
         request=None,
-        responses={204: None},
+        responses={200: {"type": "object", "properties": {"csrftoken": {"type": "string"}}}},
         summary="Issue CSRF cookie",
         description="Ensure the CSRF cookie is set for subsequent unsafe requests.",
     )
     def get(self, request):
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        from django.middleware.csrf import get_token
+
+        token = get_token(request)
+        return Response({"csrftoken": token})
 
 
 class EmailVerificationView(PublicAPIView):
