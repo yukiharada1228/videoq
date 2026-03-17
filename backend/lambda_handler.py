@@ -1,15 +1,17 @@
 """
 AWS Lambda ハンドラー: SQS トリガーによる Celery タスク実行
 
-SQS メッセージフォーマット (Celery kombu SQS transport):
+kombu SQS transport はメッセージ本体全体を base64 エンコードして SQS body に格納する。
+Lambda SQS トリガーが渡す record["body"] は base64 文字列であり、
+デコードすると以下の JSON になる:
+
 {
-  "body": "<base64 エンコードされた Celery タスク本体>",
+  "body": "<base64(json([args, kwargs, options]))>",
   "headers": {
     "task": "app.entrypoints.tasks.transcription.transcribe_video",
     "id": "<task-uuid>",
     ...
   },
-  "properties": { ... },
   "content-type": "application/json",
   "content-encoding": "utf-8"
 }
@@ -30,6 +32,8 @@ django.setup()
 
 # すべてのタスクを Celery レジストリに登録
 from app.celery_config import app as celery_app  # noqa: E402
+celery_app.loader.import_default_modules()  # 遅延 autodiscover を強制実行
+import app.entrypoints.tasks  # noqa: E402, F401 — タスク登録を確実にする
 
 logger = logging.getLogger(__name__)
 
@@ -60,15 +64,18 @@ def _execute_task(raw_body: str) -> None:
     """
     SQS メッセージ本体をデコードして Celery タスクを同期実行する。
 
-    Celery の kombu SQS transport は以下の形式でメッセージを送信する:
-    - body フィールド: base64(json([args, kwargs, options]))
-    - headers フィールド: タスク名・ID 等のメタデータ
+    kombu SQS transport はメッセージ全体を base64 エンコードして送信する。
+    raw_body が JSON として直接パースできない場合、base64 デコードを試みる。
 
     Raises:
         KeyError: 未登録のタスク名
         Exception: タスク実行中の例外 (batchItemFailures 経由で DLQ へ)
     """
-    sqs_payload = json.loads(raw_body)
+    # kombu SQS transport は base64 エンコードする
+    try:
+        sqs_payload = json.loads(raw_body)
+    except (json.JSONDecodeError, ValueError):
+        sqs_payload = json.loads(base64.b64decode(raw_body).decode("utf-8"))
 
     task_name: str = sqs_payload["headers"]["task"]
     task_id: str = sqs_payload["headers"].get("id", "unknown")

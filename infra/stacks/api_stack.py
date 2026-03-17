@@ -70,7 +70,14 @@ class ApiStack(Stack):
             api_name=f"videoq-api-{config.env_name}",
             cors_preflight=apigwv2.CorsPreflightOptions(
                 allow_headers=["content-type", "authorization", "x-csrftoken"],
-                allow_methods=[apigwv2.CorsHttpMethod.ANY],
+                allow_methods=[
+                    apigwv2.CorsHttpMethod.GET,
+                    apigwv2.CorsHttpMethod.POST,
+                    apigwv2.CorsHttpMethod.PUT,
+                    apigwv2.CorsHttpMethod.PATCH,
+                    apigwv2.CorsHttpMethod.DELETE,
+                    apigwv2.CorsHttpMethod.OPTIONS,
+                ],
                 allow_origins=allow_origins,
                 allow_credentials=True,  # JWT Cookie に必要
                 max_age=Duration.hours(1),

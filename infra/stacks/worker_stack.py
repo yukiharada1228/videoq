@@ -43,6 +43,7 @@ class WorkerStack(Stack):
         db_secret.grant_read(role)
         app_secret.grant_read(role)
         sqs_queue.grant_consume_messages(role)
+        sqs_queue.grant_send_messages(role)  # タスクチェーン (transcription → indexing)
 
         # ── Lambda (Worker) ────────────────────────────────────────────────
         self.worker_lambda = lambda_.DockerImageFunction(self, "WorkerLambda",
