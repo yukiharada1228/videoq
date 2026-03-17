@@ -324,8 +324,11 @@ aws logs tail /aws/lambda/videoq-api-prod --follow --region $REGION
 ### CORS エラー (フロントエンドからの API 呼び出し失敗)
 
 ```bash
-# Pages ドメインを CORS 許可リストに追加して再デプロイ
-PAGES_DOMAIN=xxxx.pages.dev cdk deploy VideoQ-Api-prod -c env=prod
+# カスタムドメインを CORS 許可リストに追加して再デプロイ
+PAGES_DOMAIN=videoq.pages.dev \
+CUSTOM_DOMAIN=videoq.jp \
+CERTIFICATE_ARN=arn:aws:acm:us-east-1:<account>:certificate/<uuid> \
+  cdk deploy --all -c env=prod
 ```
 
 ### CloudFront 403 エラー
