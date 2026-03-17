@@ -27,6 +27,10 @@ def _resolve_file_url(file_key, context):
     if str(file_key).startswith(("http://", "https://")):
         return str(file_key)
 
+    if getattr(settings, "USE_S3_STORAGE", False):
+        from django.core.files.storage import default_storage
+        return default_storage.url(str(file_key))
+
     request = context.get("request")
     if request is None:
         return None
