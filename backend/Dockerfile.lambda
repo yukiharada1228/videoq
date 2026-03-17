@@ -5,7 +5,7 @@
 FROM public.ecr.aws/lambda/python:3.12
 
 # Lambda Web Adapter バイナリをコピー
-COPY --from=public.ecr.aws/awsguru/aws-lambda-web-adapter:0.9.1 \
+COPY --from=public.ecr.aws/awsguru/aws-lambda-web-adapter:latest \
     /lambda-adapter /opt/extensions/lambda-adapter
 
 ARG APP_HOME=/var/task
