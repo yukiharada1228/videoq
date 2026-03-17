@@ -59,11 +59,12 @@ class ApiStack(Stack):
         )
 
         # ── API Gateway HTTP API ───────────────────────────────────────────
-        # Cloudflare Pages ドメインのみ許可 (未設定時は開発用にワイルドカード)
+        # allowCredentials=True (JWT Cookie) は allowOrigin="*" と併用不可 (CORS 仕様)。
+        # pages_domain 未設定時はローカル開発用オリジンをデフォルトとする。
         allow_origins = (
             [f"https://{config.pages_domain}"]
             if config.pages_domain
-            else ["*"]
+            else ["http://localhost:3000", "http://localhost:5173"]
         )
         http_api = apigwv2.HttpApi(self, "HttpApi",
             api_name=f"videoq-api-{config.env_name}",
@@ -110,7 +111,7 @@ class ApiStack(Stack):
         cors_origins = (
             f"https://{config.pages_domain}"
             if config.pages_domain
-            else "http://localhost:3000"
+            else "http://localhost:3000,http://localhost:5173"
         )
         return {
             # Django
