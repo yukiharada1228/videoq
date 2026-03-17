@@ -3,23 +3,30 @@
 ## アーキテクチャ概要
 
 ```
-Cloudflare Pages (フロントエンド)
-        │ HTTPS /api/*
-        ▼
-API Gateway HTTP API
-        │
-        ▼
-Lambda API (Django + Lambda Web Adapter)
-        │                    │
-        ▼                    ▼
-  Neon PostgreSQL      SQS キュー
-  (pgvector)                │
-                            ▼
-                    Lambda Worker (Celery タスク)
-                            │
-                            ▼
-                    Cloudflare R2 (動画ストレージ)
+ブラウザ
+  │ https://videoq.jp
+  ▼
+CloudFront (CDN)
+  ├── /api/*  ──→ API Gateway HTTP API
+  │                      │
+  │                      ▼
+  │              Lambda API (Django + Lambda Web Adapter)
+  │                      │                    │
+  │                      ▼                    ▼
+  │                Neon PostgreSQL      SQS キュー
+  │                (pgvector)                │
+  │                                          ▼
+  │                                  Lambda Worker (Celery タスク)
+  │                                          │
+  │                                          ▼
+  │                                  Cloudflare R2 (動画ストレージ)
+  │
+  └── /* (その他) ──→ Cloudflare Pages (フロントエンド)
 ```
+
+> **なぜ CloudFront？** フロントエンド (Cloudflare Pages) と API (API Gateway) を
+> 同一ドメインで配信することで、Cookie がファーストパーティになり、
+> モバイルブラウザのサードパーティ Cookie ブロックによる 403 エラーを解消する。
 
 **月額コスト目安:** ~$0.85/月 (低トラフィック時は Lambda 無料枠内で $0.05 以下)
 
@@ -42,7 +49,7 @@ Lambda API (Django + Lambda Web Adapter)
 
    ```
    # ダッシュボード → Connection Details → Pooler
-   postgresql://user:pass@ep-xxx-pooler.ap-southeast-1.aws.neon.tech/videoq?sslmode=require
+   postgresql://neondb_owner:****************dep-old-truth-a1co51ud-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
    ```
 
    > **なぜ Pooler？** Lambda はリクエストごとに新規 DB 接続を張るため、
@@ -66,9 +73,25 @@ Lambda API (Django + Lambda Web Adapter)
    https://<アカウントID>.r2.cloudflarestorage.com
    ```
 
-### 1-3. Cloudflare Pages (フロントエンド)
+### 1-3. ACM 証明書 (カスタムドメイン使用時)
 
-初回は Step 7 で設定するため、ここでは不要。
+CloudFront でカスタムドメイン (例: `videoq.jp`) を使う場合、**us-east-1** リージョンに ACM 証明書が必要。
+
+1. AWS コンソール → **Certificate Manager** → リージョンを **us-east-1 (バージニア北部)** に切り替え
+2. 「証明書のリクエスト」 → パブリック証明書
+3. ドメイン名: `videoq.jp` (必要に応じて `*.videoq.jp` も追加)
+4. 検証方法: **DNS 検証** を選択
+5. 表示される CNAME レコードを DNS プロバイダに追加して検証完了を待つ
+6. 証明書 ARN をメモ:
+   ```
+   arn:aws:acm:us-east-1:<account>:certificate/<uuid>
+   ```
+
+> **注意:** CloudFront は us-east-1 の証明書のみ使用可能。他リージョンで作成した証明書は使えない。
+
+### 1-4. Cloudflare Pages (フロントエンド)
+
+初回は Step 8 で設定するため、ここでは不要。
 
 ---
 
@@ -93,21 +116,25 @@ aws configure get region
 # 初回のみ: CDK 実行環境をアカウントに準備
 cdk bootstrap aws://<AWS_ACCOUNT_ID>/<REGION>
 
-# 全スタックをデプロイ
-cdk deploy --all -c env=prod
-
-# Cloudflare Pages のドメインが決まっている場合
-PAGES_DOMAIN=videoq.pages.dev cdk deploy --all -c env=prod
+# CloudFront + カスタムドメインを有効化する場合 (Step 1-3 の証明書が必要)
+PAGES_DOMAIN=videoq.pages.dev \
+CUSTOM_DOMAIN=videoq.jp \
+CERTIFICATE_ARN=arn:aws:acm:us-east-1:<account>:certificate/<uuid> \
+  cdk deploy --all -c env=prod
 ```
+
+> **CdnStack は条件付き:** `CUSTOM_DOMAIN` と `CERTIFICATE_ARN` の両方が設定されている場合のみ CloudFront ディストリビューションが作成される。
 
 デプロイ完了後、以下の Output をメモしておく:
 
 ```
-VideoQ-Storage-prod.ApiEcrUri    = <account>.dkr.ecr.<region>.amazonaws.com/videoq-api-prod
-VideoQ-Storage-prod.WorkerEcrUri = <account>.dkr.ecr.<region>.amazonaws.com/videoq-worker-prod
-VideoQ-Data-prod.DbSecretArn     = arn:aws:secretsmanager:...
-VideoQ-Data-prod.AppSecretArn    = arn:aws:secretsmanager:...
-VideoQ-Api-prod.ApiEndpoint      = https://xxxxxxxxxx.execute-api.<region>.amazonaws.com
+VideoQ-Storage-prod.ApiEcrUri            = <account>.dkr.ecr.<region>.amazonaws.com/videoq-api-prod
+VideoQ-Storage-prod.WorkerEcrUri         = <account>.dkr.ecr.<region>.amazonaws.com/videoq-worker-prod
+VideoQ-Data-prod.DbSecretArn             = arn:aws:secretsmanager:...
+VideoQ-Data-prod.AppSecretArn            = arn:aws:secretsmanager:...
+VideoQ-Api-prod.ApiEndpoint              = https://xxxxxxxxxx.execute-api.<region>.amazonaws.com
+VideoQ-Cdn-prod.DistributionDomainName   = dxxxxxxxxx.cloudfront.net   # CloudFront 有効時のみ
+VideoQ-Cdn-prod.DistributionId           = EXXXXXXXXXXXXX              # CloudFront 有効時のみ
 ```
 
 ---
@@ -120,7 +147,7 @@ VideoQ-Api-prod.ApiEndpoint      = https://xxxxxxxxxx.execute-api.<region>.amazo
 aws secretsmanager put-secret-value \
   --secret-id videoq/prod/db \
   --secret-string '{
-    "DATABASE_URL": "postgresql://user:pass@ep-xxx-pooler.ap-southeast-1.aws.neon.tech/videoq?sslmode=require&connect_timeout=10"
+    "DATABASE_URL": "postgresql://neondb_owner:****************dep-old-truth-a1co51ud-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
   }'
 ```
 
@@ -194,7 +221,7 @@ aws lambda wait function-updated \
 
 ## Step 7: Django マイグレーション (初回 & スキーマ変更時)
 
-# Docker を使った方法
+Docker を使った方法:
 ```bash
 docker run --rm \
   -e DATABASE_URL="<Neon pooler URL>" \
@@ -222,19 +249,32 @@ docker run --rm \
 
 4. **環境変数**を設定:
 
-   | 変数名 | 値 |
+   | 変数名 | 値 (CloudFront あり) |
    |---|---|
-   | `VITE_API_URL` | `https://xxxxxxxxxx.execute-api.<region>.amazonaws.com` (Step 3 の ApiEndpoint) |
+   | `VITE_API_URL` | `/api` (相対パス) |
    | `VITE_MAX_VIDEO_UPLOAD_SIZE_MB` | `500` |
 
-5. デプロイ実行 → 発行されたドメイン (`xxxx.pages.dev`) をメモ
+---
 
-6. **CORS 設定を更新** (Pages ドメインが確定後):
+## Step 9: DNS レコード設定
 
-   ```bash
-   PAGES_DOMAIN=xxxx.pages.dev \
-     cdk deploy VideoQ-Api-prod -c env=prod
-   ```
+Step 3 で出力された `DistributionDomainName` を DNS に登録する。
+
+| タイプ | 名前 | 値 |
+|---|---|---|
+| CNAME (または ALIAS) | `videoq.jp` | `dxxxxxxxxx.cloudfront.net` (Step 3 の DistributionDomainName) |
+
+> **注意:** ルートドメイン (`videoq.jp`) の場合、CNAME は使えないため ALIAS レコード (Route 53) または CNAME フラットニング (Cloudflare DNS 等) が必要。
+
+### 動作確認
+
+```bash
+# CloudFront 経由でフロントエンドが返ること
+curl -I https://videoq.jp/
+
+# CloudFront 経由で API が返ること
+curl -I https://videoq.jp/api/health/
+```
 
 ---
 
@@ -287,3 +327,22 @@ aws logs tail /aws/lambda/videoq-api-prod --follow --region $REGION
 # Pages ドメインを CORS 許可リストに追加して再デプロイ
 PAGES_DOMAIN=xxxx.pages.dev cdk deploy VideoQ-Api-prod -c env=prod
 ```
+
+### CloudFront 403 エラー
+
+- ACM 証明書が **us-east-1** で作成されているか確認
+- ACM 証明書のステータスが「発行済み」になっているか確認 (DNS 検証が完了していない可能性)
+- `CUSTOM_DOMAIN` の DNS レコードが CloudFront の `DistributionDomainName` を指しているか確認
+
+### CloudFront でキャッシュが効かない / 古いコンテンツが表示される
+
+```bash
+# CloudFront キャッシュを無効化
+aws cloudfront create-invalidation \
+  --distribution-id <DistributionId> \
+  --paths "/*"
+```
+
+### モバイルブラウザで 403 エラー (サードパーティ Cookie ブロック)
+
+CloudFront を使って同一ドメイン配信にすることで解消される。Step 9 を実施すること。
