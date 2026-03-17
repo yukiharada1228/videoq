@@ -9,6 +9,7 @@ interface UseVideoUploadReturn {
   description: string;
   tagIds: number[];
   isUploading: boolean;
+  progress: number;
   error: string | null;
   success: boolean;
   setTitle: (title: string) => void;
@@ -76,10 +77,12 @@ export function useVideoUpload(): UseVideoUploadReturn {
   const [tagIds, setTagIds] = useState<number[]>([]);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress] = useState(0);
   const queryClient = useQueryClient();
 
   const uploadMutation = useMutation({
     mutationFn: async () => {
+      setProgress(0);
       // Use filename (without extension) if title is empty
       const finalTitle = title.trim() || (file ? file.name.replace(/\.[^/.]+$/, '') : '');
 
@@ -89,7 +92,9 @@ export function useVideoUpload(): UseVideoUploadReturn {
         description: description.trim() || undefined,
       };
 
-      const uploadedVideo = await apiClient.uploadVideo(request);
+      const uploadedVideo = await apiClient.uploadVideo(request, (pct) => {
+        setProgress(pct);
+      });
 
       if (tagIds.length > 0) {
         try {
@@ -104,10 +109,12 @@ export function useVideoUpload(): UseVideoUploadReturn {
     onSuccess: async () => {
       setSuccess(true);
       setError(null);
+      setProgress(100);
       await queryClient.invalidateQueries({ queryKey: queryKeys.videos.all });
     },
     onError: (err) => {
       setError(err instanceof Error ? err.message : String(err));
+      setProgress(0);
     },
   });
 
@@ -137,6 +144,7 @@ export function useVideoUpload(): UseVideoUploadReturn {
     setTagIds([]);
     setSuccess(false);
     setError(null);
+    setProgress(0);
   }, []);
 
   const handleSubmit = useCallback(async (e: React.FormEvent, onSuccess?: () => void) => {
@@ -163,6 +171,7 @@ export function useVideoUpload(): UseVideoUploadReturn {
     description,
     tagIds,
     isUploading: uploadMutation.isPending,
+    progress,
     error,
     success,
     setTitle,

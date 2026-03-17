@@ -43,6 +43,13 @@ class InvalidTagInput(Exception):
         super().__init__(message)
 
 
+class InvalidUploadState(Exception):
+    """Raised when a video is not in the expected state for upload confirmation."""
+
+    def __init__(self, message: str = "Video is not in uploading state"):
+        super().__init__(message)
+
+
 class TranscriptionTargetMissing(Exception):
     """Raised when transcription target video cannot be resolved."""
 
@@ -82,6 +89,7 @@ __all__ = [
     "IndexingExecutionFailed",
     "IndexingTargetMissing",
     "InvalidTagInput",
+    "InvalidUploadState",
     "PermissionDenied",
     "ResourceNotFound",
     "TranscriptionExecutionFailed",

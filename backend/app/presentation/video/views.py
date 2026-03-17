@@ -19,6 +19,7 @@ from app.use_cases.video.dto import (
     CreateTagInput,
     CreateVideoInput,
     ListVideosInput,
+    RequestUploadInput,
     UpdateGroupInput,
     UpdateTagInput,
     UpdateVideoInput,
@@ -26,6 +27,7 @@ from app.use_cases.video.dto import (
 from app.use_cases.video.exceptions import (
     GroupVideoOrderMismatch,
     InvalidTagInput,
+    InvalidUploadState,
     ResourceNotFound,
     VideoAlreadyInGroup,
     VideoLimitExceeded,
@@ -58,6 +60,8 @@ from .serializers import (
     VideoListSerializer,
     VideoSerializer,
     VideoUpdateSerializer,
+    VideoUploadRequestResponseSerializer,
+    VideoUploadRequestSerializer,
 )
 
 logger = logging.getLogger(__name__)
@@ -241,6 +245,74 @@ class VideoDetailView(DependencyResolverMixin, AuthenticatedViewMixin, APIView):
         except ResourceNotFound:
             return create_error_response("Video not found", status.HTTP_404_NOT_FOUND)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class VideoUploadRequestView(DependencyResolverMixin, AuthenticatedViewMixin, generics.GenericAPIView):
+    """Request a presigned URL for direct-to-storage video upload."""
+
+    serializer_class = VideoUploadRequestSerializer
+    request_video_upload_use_case = None
+
+    @extend_schema(
+        request=VideoUploadRequestSerializer,
+        responses={201: VideoUploadRequestResponseSerializer},
+        summary="Request presigned upload URL",
+        description="Validate metadata, create a video record, and return a presigned PUT URL.",
+    )
+    def post(self, request, *args, **kwargs):
+        serializer = VideoUploadRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        use_case = self.resolve_dependency(self.request_video_upload_use_case)
+        try:
+            data = serializer.validated_data
+            input_dto = RequestUploadInput(
+                filename=data["filename"],
+                content_type=data["content_type"],
+                file_size=data["file_size"],
+                title=data["title"],
+                description=data.get("description", ""),
+            )
+            result = use_case.execute(request.user.id, input_dto)
+        except VideoLimitExceeded:
+            return create_error_response(
+                "Video upload limit reached",
+                status.HTTP_400_BAD_REQUEST,
+            )
+        except ValueError as e:
+            return create_error_response(str(e), status.HTTP_400_BAD_REQUEST)
+
+        ctx = {"request": request}
+        return Response(
+            {
+                "video": VideoSerializer(result.video, context=ctx).data,
+                "upload_url": result.upload_url,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class VideoUploadConfirmView(DependencyResolverMixin, AuthenticatedViewMixin, APIView):
+    """Confirm that a presigned-URL upload has completed."""
+
+    confirm_video_upload_use_case = None
+
+    @extend_schema(
+        responses={200: VideoSerializer},
+        summary="Confirm video upload",
+        description="Transition video from uploading to pending and dispatch transcription.",
+    )
+    def post(self, request, pk):
+        use_case = self.resolve_dependency(self.confirm_video_upload_use_case)
+        try:
+            video = use_case.execute(pk, request.user.id)
+        except ResourceNotFound:
+            return create_error_response("Video not found", status.HTTP_404_NOT_FOUND)
+        except InvalidUploadState as e:
+            return create_error_response(str(e), status.HTTP_400_BAD_REQUEST)
+
+        ctx = {"request": request}
+        return Response(VideoSerializer(video, context=ctx).data)
 
 
 # ---------------------------------------------------------------------------
