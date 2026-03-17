@@ -194,31 +194,16 @@ aws lambda wait function-updated \
 
 ## Step 7: Django マイグレーション (初回 & スキーマ変更時)
 
-Lambda を直接起動してマイグレーションを実行する。
-
+# Docker を使った方法
 ```bash
-aws lambda invoke \
-  --function-name videoq-api-prod \
-  --region $REGION \
-  --payload '{"rawPath":"/api/health/","requestContext":{"http":{"method":"GET","path":"/api/health/"}}}' \
-  /tmp/warmup.json
-
-# マイグレーション用の一時的なオーバーライド実行
-# (manage.py migrate を呼び出す Lambda 起動コマンド)
-aws lambda invoke \
-  --function-name videoq-api-prod \
-  --region $REGION \
-  --cli-binary-format raw-in-base64-out \
-  --payload '{}' \
-  /dev/null 2>&1 || true
-
-# より確実な方法: ローカルから直接 Neon に接続してマイグレーション
-DATABASE_URL="<Neon pooler URL>" \
-  python backend/manage.py migrate --settings=videoq.settings
+docker run --rm \
+  -e DATABASE_URL="<Neon pooler URL>" \
+  -e DJANGO_ENV=production \
+  -e SECRET_KEY=temporary-key-for-migrate \
+  --entrypoint python \
+  $API_ECR:latest \
+  manage.py migrate --settings=videoq.settings
 ```
-
-> **推奨:** CI/CD パイプラインでは Lambda デプロイ前にローカルから
-> `DATABASE_URL` を直接指定してマイグレーションを実行する。
 
 ---
 
