@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 
-export type VideoStatus = 'pending' | 'processing' | 'indexing' | 'completed' | 'error';
+export type VideoStatus = 'uploading' | 'pending' | 'processing' | 'indexing' | 'completed' | 'error';
 
 export interface VideoLike {
   status: VideoStatus;
