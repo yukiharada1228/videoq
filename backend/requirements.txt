@@ -1,5 +1,5 @@
 boto3>=1.40.64
-celery>=5.5.3
+celery[sqs]>=5.5.3
 coverage>=7.11.3
 dj-database-url>=3.0.1
 django-anymail>=13.1

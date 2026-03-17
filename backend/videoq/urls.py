@@ -22,7 +22,10 @@ from django.urls import include, path
 from drf_spectacular.views import (SpectacularAPIView, SpectacularRedocView,
                                    SpectacularSwaggerView)
 
+from app.presentation.common.health import HealthCheckView
+
 urlpatterns = [
+    path("api/health/", HealthCheckView.as_view(), name="health"),
     path("api/admin/", admin.site.urls),
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path(
