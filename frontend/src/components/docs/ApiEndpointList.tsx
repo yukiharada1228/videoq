@@ -365,7 +365,8 @@ function buildEndpointSnippets(
     .map((parameter) => `${parameter.name}=${encodeURIComponent(String(primitiveExample(parameter.schema)))}`);
 
   const queryString = queryPairs.length > 0 ? `?${queryPairs.join('&')}` : '';
-  const url = `http://localhost${resolvedPath}${queryString}`;
+  const apiOrigin = new URL(API_URL, window.location.origin).origin;
+  const url = `${apiOrigin}${resolvedPath}${queryString}`;
   const includeApiKeyHeader = !path.includes('/schema/');
   const bodySchema = operation.requestBody?.content?.['application/json']?.schema;
   const body = bodySchema ? generateJsonExample(bodySchema, components) : null;
