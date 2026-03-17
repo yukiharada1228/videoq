@@ -9,6 +9,7 @@ from typing import Dict, List, Optional, Tuple
 from app.domain.video.dto import (
     CreateGroupParams,
     CreateTagParams,
+    CreateVideoPendingParams,
     CreateVideoParams,
     UpdateGroupParams,
     UpdateTagParams,
@@ -70,6 +71,11 @@ class VideoCommandRepository(ABC):
     @abstractmethod
     def update(self, video: VideoEntity, params: UpdateVideoParams) -> VideoEntity:
         """Update an existing video record."""
+        ...
+
+    @abstractmethod
+    def create_pending(self, user_id: int, params: CreateVideoPendingParams) -> VideoEntity:
+        """Create a video record with file key only (no file upload). Status = uploading."""
         ...
 
     @abstractmethod

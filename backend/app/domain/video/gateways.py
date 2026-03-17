@@ -67,3 +67,12 @@ class TranscriptionGateway(ABC):
             SRT-formatted transcript string.
         """
         ...
+
+
+class FileUploadGateway(ABC):
+    """Abstract interface for generating presigned upload URLs."""
+
+    @abstractmethod
+    def generate_upload_url(self, file_key: str, content_type: str) -> str:
+        """Generate a presigned PUT URL for direct file upload."""
+        ...

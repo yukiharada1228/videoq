@@ -133,7 +133,7 @@ export interface Video {
   description: string;
   uploaded_at: string;
   transcript?: string;
-  status: 'pending' | 'processing' | 'indexing' | 'completed' | 'error';
+  status: 'uploading' | 'pending' | 'processing' | 'indexing' | 'completed' | 'error';
   error_message?: string;
   tags?: { id: number; name: string; color: string }[];
 }
@@ -144,7 +144,7 @@ export interface VideoList {
   title: string;
   description: string;
   uploaded_at: string;
-  status: 'pending' | 'processing' | 'indexing' | 'completed' | 'error';
+  status: 'uploading' | 'pending' | 'processing' | 'indexing' | 'completed' | 'error';
   tags?: { id: number; name: string; color: string }[];
 }
 
@@ -176,8 +176,13 @@ export interface VideoInGroup {
   description: string;
   file: string | null;
   uploaded_at: string;
-  status: 'pending' | 'processing' | 'indexing' | 'completed' | 'error';
+  status: 'uploading' | 'pending' | 'processing' | 'indexing' | 'completed' | 'error';
   order: number;
+}
+
+export interface UploadRequestResponse {
+  video: Video;
+  upload_url: string;
 }
 
 export interface VideoGroupCreateRequest {
@@ -682,36 +687,78 @@ class ApiClient {
     return this.request<Video>(`/videos/${id}/`);
   }
 
-  async uploadVideo(data: VideoUploadRequest): Promise<Video> {
-    const formData = new FormData();
-    formData.append('file', data.file);
-    formData.append('title', data.title);
-    if (data.description) {
-      formData.append('description', data.description);
-    }
+  async requestUploadUrl(data: {
+    filename: string;
+    content_type: string;
+    file_size: number;
+    title: string;
+    description?: string;
+  }): Promise<UploadRequestResponse> {
+    return this.request<UploadRequestResponse>('/videos/upload-request/', {
+      method: 'POST',
+      body: data,
+    });
+  }
 
-    const url = this.buildUrl('/videos/');
+  async confirmUpload(videoId: number): Promise<Video> {
+    return this.request<Video>(`/videos/${videoId}/upload-complete/`, {
+      method: 'POST',
+    });
+  }
 
-    // Authorization header not needed with HttpOnly Cookie-based authentication
-    const headers: Record<string, string> = {};
-    const csrfToken = await this.ensureCsrfToken();
-    if (csrfToken) {
-      headers['X-CSRFToken'] = csrfToken;
-    }
+  async uploadToPresignedUrl(
+    url: string,
+    file: File,
+    contentType: string,
+    onProgress?: (percent: number) => void,
+  ): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('PUT', url);
+      xhr.setRequestHeader('Content-Type', contentType);
 
-    try {
-      const response = await this.executeRequest(url, {
-        method: 'POST',
-        headers,
-        body: formData,
-        credentials: 'include',
+      if (onProgress) {
+        xhr.upload.addEventListener('progress', (e) => {
+          if (e.lengthComputable) {
+            onProgress(Math.round((e.loaded / e.total) * 100));
+          }
+        });
+      }
+
+      xhr.addEventListener('load', () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve();
+        } else {
+          reject(new Error(`Upload failed with status ${xhr.status}`));
+        }
       });
 
-      return await this.parseJsonResponse<Video>(response);
-    } catch (error) {
-      this.logError('Video upload failed:', error);
-      throw error;
-    }
+      xhr.addEventListener('error', () => reject(new Error('Upload failed')));
+      xhr.addEventListener('abort', () => reject(new Error('Upload aborted')));
+
+      xhr.send(file);
+    });
+  }
+
+  async uploadVideo(
+    data: VideoUploadRequest,
+    onProgress?: (percent: number) => void,
+  ): Promise<Video> {
+    // 1. Request presigned upload URL
+    const { video, upload_url } = await this.requestUploadUrl({
+      filename: data.file.name,
+      content_type: data.file.type || 'video/mp4',
+      file_size: data.file.size,
+      title: data.title,
+      description: data.description,
+    });
+
+    // 2. Upload file directly to R2/S3
+    await this.uploadToPresignedUrl(upload_url, data.file, data.file.type || 'video/mp4', onProgress);
+
+    // 3. Confirm upload
+    const confirmed = await this.confirmUpload(video.id);
+    return confirmed;
   }
 
   async updateVideo(id: number, data: VideoUpdateRequest): Promise<Video> {

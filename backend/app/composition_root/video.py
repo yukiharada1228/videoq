@@ -96,6 +96,14 @@ def get_enforce_video_limit_use_case():
     return core.get_enforce_video_limit_use_case()
 
 
+def get_request_video_upload_use_case():
+    return core.get_request_video_upload_use_case()
+
+
+def get_confirm_video_upload_use_case():
+    return core.get_confirm_video_upload_use_case()
+
+
 def get_list_groups_use_case():
     return group.get_list_groups_use_case()
 

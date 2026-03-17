@@ -14,6 +14,17 @@ from app.domain.video.dto import UploadFileSource
 
 
 @dataclass(frozen=True)
+class RequestUploadInput:
+    """Input for RequestVideoUploadUseCase.execute()."""
+
+    filename: str
+    content_type: str
+    file_size: int
+    title: str
+    description: str = ""
+
+
+@dataclass(frozen=True)
 class CreateVideoInput:
     """Input for CreateVideoUseCase.execute()."""
 
@@ -106,6 +117,14 @@ class VideoResponseDTO:
     uploaded_at: Optional[datetime] = None
     transcript: Optional[str] = None
     tags: List[TagResponseDTO] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class UploadRequestResponseDTO:
+    """Output for RequestVideoUploadUseCase — video record + presigned upload URL."""
+
+    video: VideoResponseDTO
+    upload_url: str
 
 
 @dataclass

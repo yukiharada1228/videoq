@@ -264,6 +264,67 @@ class VideoCreateSerializer(serializers.Serializer):
         return value
 
 
+class VideoUploadRequestSerializer(serializers.Serializer):
+    """Serializer for presigned-URL upload request (metadata only, no file body)."""
+
+    ALLOWED_VIDEO_EXTENSIONS = {
+        ".mp4", ".mov", ".avi", ".mkv", ".webm",
+        ".m4v", ".mpeg", ".mpg", ".3gp",
+    }
+    ALLOWED_VIDEO_MIMETYPES = {
+        "video/mp4",
+        "video/quicktime",
+        "video/x-msvideo",
+        "video/x-matroska",
+        "video/webm",
+        "video/x-m4v",
+        "video/mpeg",
+        "video/3gpp",
+    }
+
+    filename = serializers.CharField(max_length=255)
+    content_type = serializers.CharField(max_length=100)
+    file_size = serializers.IntegerField(min_value=1)
+    title = serializers.CharField(max_length=255)
+    description = serializers.CharField(required=False, default="", allow_blank=True)
+
+    def validate_filename(self, value):
+        ext = os.path.splitext(value)[1].lower()
+        if ext not in self.ALLOWED_VIDEO_EXTENSIONS:
+            raise serializers.ValidationError(
+                f"Unsupported file type: '{ext}'. "
+                f"Allowed types: {', '.join(sorted(self.ALLOWED_VIDEO_EXTENSIONS))}"
+            )
+        return value
+
+    def validate_content_type(self, value):
+        if value not in self.ALLOWED_VIDEO_MIMETYPES:
+            raise serializers.ValidationError(
+                f"Invalid content type: '{value}'. Only video files are allowed."
+            )
+        return value
+
+    def validate_file_size(self, value):
+        max_size_bytes = getattr(
+            settings,
+            "MAX_VIDEO_UPLOAD_SIZE_BYTES",
+            500 * 1024 * 1024,
+        )
+        if value > max_size_bytes:
+            max_size_mb = max(1, (max_size_bytes + (1024 * 1024) - 1) // (1024 * 1024))
+            raise serializers.ValidationError(
+                f"File size exceeds the limit of {max_size_mb} MB."
+            )
+        return value
+
+
+class VideoUploadRequestResponseSerializer(serializers.Serializer):
+    """Response serializer for presigned-URL upload request."""
+
+    video = VideoSerializer()
+    upload_url = serializers.URLField()
+
+
 class VideoUpdateSerializer(serializers.Serializer):
     """Serializer for video updates (title and description only)."""
 
