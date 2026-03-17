@@ -137,8 +137,8 @@ class ApiStack(Stack):
             # Lambda Web Adapter
             "PORT": "8000",
             "AWS_LWA_READINESS_CHECK_PATH": "/api/health/",
-            "AWS_LWA_READINESS_CHECK_MIN_UNHEALTHY_STATUS": "400",
-            "AWS_LWA_INVOKE_MODE": "response_stream",
+            "AWS_LWA_READINESS_CHECK_HEALTHY_STATUS": "100-499",
+            "AWS_LWA_INVOKE_MODE": "buffered",
             # API Gateway プロキシ数
             "NUM_PROXIES": "1",
         }

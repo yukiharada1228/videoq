@@ -411,7 +411,10 @@ ENABLE_SIGNUP = os.environ.get("ENABLE_SIGNUP", "true").lower() == "true"
 # Security profile: enforce secure defaults for production deployments.
 
 SECURE_COOKIES = IS_PRODUCTION
+# Lambda + API Gateway 環境では API Gateway が TLS 終端するため、
+# ヘルスチェック (LWA 内部 HTTP) がリダイレクトされないよう除外する。
 SECURE_SSL_REDIRECT = IS_PRODUCTION
+SECURE_REDIRECT_EXEMPT = [r"^api/health/$"]
 SECURE_PROXY_SSL_HEADER = (
     ("HTTP_X_FORWARDED_PROTO", "https") if IS_PRODUCTION else None
 )
