@@ -5,13 +5,14 @@
 FROM public.ecr.aws/lambda/python:3.12
 
 # Lambda Web Adapter バイナリをコピー
-COPY --from=public.ecr.aws/awsguru/aws-lambda-web-adapter:latest \
-    /lambda-adapter /opt/extensions/lambda-adapter
+COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:1.0.0-rc1 /lambda-adapter /opt/extensions/lambda-adapter
 
 ARG APP_HOME=/var/task
 WORKDIR ${APP_HOME}
 
-# ffmpeg: AL2023 デフォルトリポジトリにないため静的バイナリを使用
+# ffmpeg: AL2023 最小イメージには tar/xz が未インストールのため先にインストール
+RUN dnf install -y tar xz && dnf clean all
+
 RUN curl -fsSL \
     "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz" \
     | tar -xJ --wildcards --strip-components=1 \
