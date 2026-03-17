@@ -8,7 +8,9 @@ FROM public.ecr.aws/lambda/python:3.12
 ARG APP_HOME=/var/task
 WORKDIR ${APP_HOME}
 
-# ffmpeg: 動画の音声抽出に必要 (静的バイナリ)
+# ffmpeg: AL2023 最小イメージには tar/xz が未インストールのため先にインストール
+RUN dnf install -y tar xz && dnf clean all
+
 RUN curl -fsSL \
     "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz" \
     | tar -xJ --wildcards --strip-components=1 \
