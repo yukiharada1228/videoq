@@ -96,4 +96,8 @@ class WorkerStack(Stack):
             "CELERY_TASK_SOFT_TIME_LIMIT": "780",
             "USE_DATABASE_CACHE": "true",
             "USE_MAILGUN": "true",
+            "MEDIA_PROCESS_MEMORY_LIMIT_MB": "2048",
+            "MEDIA_PROCESS_CPU_TIME_LIMIT_SECONDS": "300",
+            "FFMPEG_PROCESS_TIMEOUT_SECONDS": "600",
+            "MEDIA_PROCESS_OUTPUT_FILE_SIZE_LIMIT_MB": "1024",
         }
