@@ -132,7 +132,7 @@ class ApiStack(Stack):
             # Secrets Manager
             # DB_SECRET_ARN: {"DATABASE_URL": "postgresql://...@neon.tech/..."}
             "DB_SECRET_ARN": db_secret.secret_arn,
-            # APP_SECRET_ARN: SECRET_KEY, OPENAI_API_KEY, R2 認証情報 (AWS_*) を含む
+            # APP_SECRET_ARN: SECRET_KEY, R2 認証情報 (AWS_*) を含む
             "APP_SECRET_ARN": app_secret.secret_arn,
             # Cloudflare R2 設定 (app_secret の中身が展開されるが明示的にも設定)
             "USE_S3_STORAGE": "true",

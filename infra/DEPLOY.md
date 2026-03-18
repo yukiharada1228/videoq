@@ -158,7 +158,6 @@ aws secretsmanager put-secret-value \
   --secret-id videoq/prod/app \
   --secret-string '{
     "SECRET_KEY": "<50文字以上のランダム文字列>",
-    "OPENAI_API_KEY": "sk-...",
     "AWS_ACCESS_KEY_ID": "<R2_ACCESS_KEY_ID>",
     "AWS_SECRET_ACCESS_KEY": "<R2_SECRET_ACCESS_KEY>",
     "AWS_S3_ENDPOINT_URL": "https://<CF_ACCOUNT_ID>.r2.cloudflarestorage.com",
