@@ -93,4 +93,5 @@ class WorkerStack(Stack):
             "CELERY_TASK_TIME_LIMIT": "840",
             "CELERY_TASK_SOFT_TIME_LIMIT": "780",
             "USE_DATABASE_CACHE": "true",
+            "USE_MAILGUN": "true",
         }
