@@ -54,14 +54,6 @@ export default function VideoGroupsPage() {
     navigate(`/videos/groups/${groupId}`);
   };
  
-  if (authLoading || isLoading) {
-    return (
-      <PageLayout fullWidth>
-        <LoadingSpinner />
-      </PageLayout>
-    );
-  }
- 
   return (
     <PageLayout fullWidth>
       <div className="space-y-6">
@@ -110,10 +102,12 @@ export default function VideoGroupsPage() {
             </DialogContent>
           </Dialog>
         </div>
- 
+
         {(error || loadError) && <MessageAlert message={error || loadError || ''} type="error" />}
- 
-        {groups.length === 0 ? (
+
+        {authLoading || isLoading ? (
+          <LoadingSpinner />
+        ) : groups.length === 0 ? (
           <Card>
             <CardContent className="pt-6">
               <p className="text-center text-gray-500">{t('videos.groups.empty')}</p>
