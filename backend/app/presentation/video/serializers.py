@@ -309,16 +309,8 @@ class VideoUploadRequestSerializer(serializers.Serializer):
         return value
 
     def validate_file_size(self, value):
-        max_size_bytes = getattr(
-            settings,
-            "MAX_VIDEO_UPLOAD_SIZE_BYTES",
-            500 * 1024 * 1024,
-        )
-        if value > max_size_bytes:
-            max_size_mb = max(1, (max_size_bytes + (1024 * 1024) - 1) // (1024 * 1024))
-            raise serializers.ValidationError(
-                f"File size exceeds the limit of {max_size_mb} MB."
-            )
+        if value <= 0:
+            raise serializers.ValidationError("File size must be positive.")
         return value
 
 
