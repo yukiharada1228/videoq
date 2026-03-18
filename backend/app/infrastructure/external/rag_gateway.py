@@ -3,9 +3,11 @@ Infrastructure implementation of RagGateway.
 Wraps RagChatService (LangChain) for use case consumption.
 """
 
+import logging
 from typing import Optional, Sequence
 
 from django.contrib.auth import get_user_model
+from openai import AuthenticationError as OpenAIAuthenticationError
 
 from app.domain.chat.gateways import (
     LLMConfigurationError,
@@ -18,6 +20,8 @@ from app.domain.chat.dtos import ChatMessageDTO, RelatedVideoDTO
 from app.infrastructure.external.llm import get_langchain_llm
 from app.infrastructure.external.rag_service import RagChatService
 from app.domain.shared.exceptions import LLMConfigError
+
+logger = logging.getLogger(__name__)
 
 
 class RagChatGateway(RagGateway):
@@ -55,10 +59,12 @@ class RagChatGateway(RagGateway):
                 video_ids=raw_video_ids,
                 locale=locale,
             )
+        except OpenAIAuthenticationError as exc:
+            raise LLMConfigurationError(
+                "Invalid OpenAI API key. Please check your API key in Settings."
+            ) from exc
         except Exception as exc:
-            # Wrap LLM execution failures (API errors, network issues, etc.) as provider errors.
-            # Implementation bugs (e.g. TypeError) should not normally reach here;
-            # if they do, they surface with the original traceback via __cause__.
+            logger.exception("RAG generate_reply failed: %s", exc)
             raise LLMProviderError(str(exc)) from exc
 
         related_videos = None
@@ -103,7 +109,12 @@ class RagChatGateway(RagGateway):
                 query_text=query_text,
                 video_ids=raw_video_ids,
             )
+        except OpenAIAuthenticationError as exc:
+            raise LLMConfigurationError(
+                "Invalid OpenAI API key. Please check your API key in Settings."
+            ) from exc
         except Exception as exc:
+            logger.exception("RAG search_related_videos failed: %s", exc)
             raise LLMProviderError(str(exc)) from exc
 
         if not related_videos:

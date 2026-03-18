@@ -33,10 +33,7 @@ def get_langchain_llm(api_key: Optional[str] = None) -> BaseChatModel:
                 "OpenAI API key is not configured. Please set your API key in Settings."
             )
 
-        # Use LLM model from environment variable with fallback to default
-        model = getattr(settings, "LLM_MODEL", None) or os.environ.get(
-            "LLM_MODEL", "gpt-4o-mini"
-        )
+        model = getattr(settings, "LLM_MODEL", "gpt-4o-mini")
 
         return ChatOpenAI(
             model=model,
