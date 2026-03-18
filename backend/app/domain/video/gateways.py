@@ -75,6 +75,6 @@ class FileUploadGateway(ABC):
     """Abstract interface for generating presigned upload URLs."""
 
     @abstractmethod
-    def generate_upload_url(self, file_key: str, content_type: str) -> str:
+    def generate_upload_url(self, file_key: str, content_type: str, file_size: int) -> str:
         """Generate a presigned PUT URL for direct file upload."""
         ...
