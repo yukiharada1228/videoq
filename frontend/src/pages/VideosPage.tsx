@@ -36,7 +36,7 @@ export default function VideosPage() {
   const [searchParams] = useSearchParams();
   const navigate = useI18nNavigate();
   const { t } = useTranslation();
-  const { user, loading: userLoading, refetch: refetchUser } = useAuth();
+  const { user, isLoading: userLoading, refetch: refetchUser } = useAuth();
   const { tags } = useTags();
 
 

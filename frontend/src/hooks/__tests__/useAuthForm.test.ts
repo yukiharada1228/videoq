@@ -18,7 +18,7 @@ describe('useAuthForm', () => {
     )
 
     expect(result.current.formData).toEqual(initialData)
-    expect(result.current.loading).toBe(false)
+    expect(result.current.isLoading).toBe(false)
     expect(result.current.error).toBeNull()
   })
 

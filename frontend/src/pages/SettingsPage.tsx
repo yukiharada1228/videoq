@@ -7,6 +7,7 @@ import { apiClient, type IntegrationApiKeyCreateResponse } from '@/lib/api';
 import { queryKeys } from '@/lib/queryKeys';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { Button } from '@/components/ui/button';
+import { InlineSpinner } from '@/components/common/InlineSpinner';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -288,9 +289,12 @@ export default function SettingsPage() {
                 disabled={deleteOpenAiKeyMutation.isPending}
                 onClick={() => setIsDeleteOpenAiKeyDialogOpen(true)}
               >
-                {deleteOpenAiKeyMutation.isPending
-                  ? t('settings.openaiApiKey.deleting')
-                  : t('settings.openaiApiKey.delete')}
+                {deleteOpenAiKeyMutation.isPending ? (
+                  <span className="flex items-center justify-center">
+                    <InlineSpinner className="mr-2" color="red" />
+                    {t('settings.openaiApiKey.deleting')}
+                  </span>
+                ) : t('settings.openaiApiKey.delete')}
               </Button>
             )}
             <Button
@@ -305,9 +309,12 @@ export default function SettingsPage() {
                 await saveOpenAiKeyMutation.mutateAsync(key);
               }}
             >
-              {saveOpenAiKeyMutation.isPending
-                ? t('settings.openaiApiKey.saving')
-                : t('settings.openaiApiKey.save')}
+              {saveOpenAiKeyMutation.isPending ? (
+                <span className="flex items-center justify-center">
+                  <InlineSpinner className="mr-2" />
+                  {t('settings.openaiApiKey.saving')}
+                </span>
+              ) : t('settings.openaiApiKey.save')}
             </Button>
           </CardFooter>
         </Card>
@@ -442,9 +449,12 @@ export default function SettingsPage() {
                             });
                           }}
                         >
-                          {revokeApiKeyMutation.isPending && revokingId === apiKey.id
-                            ? t('settings.integrationApiKeys.revoking')
-                            : t('settings.integrationApiKeys.revoke')}
+                          {revokeApiKeyMutation.isPending && revokingId === apiKey.id ? (
+                            <span className="flex items-center justify-center">
+                              <InlineSpinner className="mr-2" color="red" />
+                              {t('settings.integrationApiKeys.revoking')}
+                            </span>
+                          ) : t('settings.integrationApiKeys.revoke')}
                         </Button>
                       </div>
                     </div>
@@ -591,9 +601,12 @@ export default function SettingsPage() {
                 await createApiKeyMutation.mutateAsync();
               }}
             >
-              {createApiKeyMutation.isPending
-                ? t('settings.integrationApiKeys.creating')
-                : t('settings.integrationApiKeys.createDialogCta')}
+              {createApiKeyMutation.isPending ? (
+                <span className="flex items-center justify-center">
+                  <InlineSpinner className="mr-2" />
+                  {t('settings.integrationApiKeys.creating')}
+                </span>
+              ) : t('settings.integrationApiKeys.createDialogCta')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -743,9 +756,12 @@ export default function SettingsPage() {
                 }
               }}
             >
-              {revokeApiKeyMutation.isPending
-                ? t('settings.integrationApiKeys.revoking')
-                : t('settings.integrationApiKeys.revokeConfirmCta')}
+              {revokeApiKeyMutation.isPending ? (
+                <span className="flex items-center justify-center">
+                  <InlineSpinner className="mr-2" color="red" />
+                  {t('settings.integrationApiKeys.revoking')}
+                </span>
+              ) : t('settings.integrationApiKeys.revokeConfirmCta')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -778,9 +794,12 @@ export default function SettingsPage() {
                 await deleteOpenAiKeyMutation.mutateAsync();
               }}
             >
-              {deleteOpenAiKeyMutation.isPending
-                ? t('settings.openaiApiKey.deleting')
-                : t('settings.openaiApiKey.delete')}
+              {deleteOpenAiKeyMutation.isPending ? (
+                <span className="flex items-center justify-center">
+                  <InlineSpinner className="mr-2" color="red" />
+                  {t('settings.openaiApiKey.deleting')}
+                </span>
+              ) : t('settings.openaiApiKey.delete')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -836,9 +855,12 @@ export default function SettingsPage() {
                 await deleteMutation.mutateAsync();
               }}
             >
-              {deleteMutation.isPending
-                ? t('settings.accountDeletion.deleting')
-                : t('settings.accountDeletion.confirmCta')}
+              {deleteMutation.isPending ? (
+                <span className="flex items-center justify-center">
+                  <InlineSpinner className="mr-2" color="red" />
+                  {t('settings.accountDeletion.deleting')}
+                </span>
+              ) : t('settings.accountDeletion.confirmCta')}
             </Button>
           </DialogFooter>
         </DialogContent>

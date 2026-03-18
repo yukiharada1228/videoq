@@ -53,7 +53,7 @@ describe('AuthForm', () => {
     ],
     formData: { username: '', password: '' },
     error: null,
-    loading: false,
+    isLoading: false,
     submitButtonText: 'Submit',
     loadingButtonText: 'Submitting...',
     onChange: vi.fn(),
@@ -107,14 +107,14 @@ describe('AuthForm', () => {
   })
 
   it('should disable submit button when loading', () => {
-    render(<AuthForm {...defaultProps} loading={true} />)
-    
-    const submitButton = screen.getByText('Submitting...')
+    render(<AuthForm {...defaultProps} isLoading={true} />)
+
+    const submitButton = screen.getByRole('button')
     expect(submitButton).toBeDisabled()
   })
 
   it('should show loading button text when loading', () => {
-    render(<AuthForm {...defaultProps} loading={true} />)
+    render(<AuthForm {...defaultProps} isLoading={true} />)
     
     expect(screen.getByText('Submitting...')).toBeInTheDocument()
     expect(screen.queryByText('Submit')).not.toBeInTheDocument()

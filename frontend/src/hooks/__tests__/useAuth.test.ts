@@ -20,7 +20,7 @@ describe('useAuth', () => {
   it('should initialize with loading state', () => {
     const { result } = renderHook(() => useAuth())
     
-    expect(result.current.loading).toBe(true)
+    expect(result.current.isLoading).toBe(true)
     expect(result.current.user).toBeNull()
   })
 
@@ -31,7 +31,7 @@ describe('useAuth', () => {
     const { result } = renderHook(() => useAuth())
 
     await waitFor(() => {
-      expect(result.current.loading).toBe(false)
+      expect(result.current.isLoading).toBe(false)
     })
 
     expect(result.current.user).toEqual(mockUser)
@@ -45,7 +45,7 @@ describe('useAuth', () => {
     const { result } = renderHook(() => useAuth())
 
     await waitFor(() => {
-      expect(result.current.loading).toBe(false)
+      expect(result.current.isLoading).toBe(false)
     })
 
     expect(apiClient.getMe).not.toHaveBeenCalled()
@@ -58,7 +58,7 @@ describe('useAuth', () => {
     const { result } = renderHook(() => useAuth())
 
     await waitFor(() => {
-      expect(result.current.loading).toBe(false)
+      expect(result.current.isLoading).toBe(false)
     })
 
     expect(apiClient.getMe).not.toHaveBeenCalled()
@@ -70,7 +70,7 @@ describe('useAuth', () => {
     const { result } = renderHook(() => useAuth({ redirectToLogin: true }))
 
     await waitFor(() => {
-      expect(result.current.loading).toBe(false)
+      expect(result.current.isLoading).toBe(false)
     })
 
     const navigate = useI18nNavigate()
@@ -83,7 +83,7 @@ describe('useAuth', () => {
     const { result } = renderHook(() => useAuth({ redirectToLogin: false }))
 
     await waitFor(() => {
-      expect(result.current.loading).toBe(false)
+      expect(result.current.isLoading).toBe(false)
     })
 
     const navigate = useI18nNavigate()
@@ -97,7 +97,7 @@ describe('useAuth', () => {
     const { result } = renderHook(() => useAuth({ onAuthError }))
 
     await waitFor(() => {
-      expect(result.current.loading).toBe(false)
+      expect(result.current.isLoading).toBe(false)
     })
 
     expect(onAuthError).toHaveBeenCalled()
@@ -110,7 +110,7 @@ describe('useAuth', () => {
     const { result } = renderHook(() => useAuth())
 
     await waitFor(() => {
-      expect(result.current.loading).toBe(false)
+      expect(result.current.isLoading).toBe(false)
     })
 
     ;(apiClient.getMe as any).mockResolvedValue({ ...mockUser, username: 'updated' })

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { InlineSpinner } from '@/components/common/InlineSpinner';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -114,7 +115,12 @@ export function TagCreateDialog({ isOpen, onClose, onCreate }: TagCreateDialogPr
             {t('common.actions.cancel')}
           </Button>
           <Button onClick={handleCreate} disabled={!name.trim() || isCreating}>
-            {isCreating ? t('common.actions.creating', 'Creating...') : t('common.actions.create')}
+            {isCreating ? (
+              <span className="flex items-center justify-center">
+                <InlineSpinner className="mr-2" />
+                {t('common.actions.creating', 'Creating...')}
+              </span>
+            ) : t('common.actions.create')}
           </Button>
         </DialogFooter>
       </DialogContent>
