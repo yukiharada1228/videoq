@@ -44,19 +44,12 @@ class InvalidTagInput(Exception):
 
 
 class FileSizeExceeded(Exception):
-    """Raised when actual uploaded file exceeds size limit."""
+    """Raised when a file exceeds the user's upload size limit."""
 
     def __init__(self, limit_mb: int):
         self.limit_mb = limit_mb
         super().__init__(f"File size exceeds the limit of {limit_mb} MB.")
 
-
-class VideoFileTooLarge(Exception):
-    """Raised when a video file exceeds the user's upload size limit."""
-
-    def __init__(self, limit_mb: int):
-        self.limit_mb = limit_mb
-        super().__init__(f"File size exceeds the limit of {limit_mb} MB.")
 
 
 class InvalidUploadState(Exception):
@@ -112,7 +105,6 @@ __all__ = [
     "TranscriptionExecutionFailed",
     "TranscriptionTargetMissing",
     "VideoAlreadyInGroup",
-    "VideoFileTooLarge",
     "VideoLimitExceeded",
     "VideoNotInGroup",
 ]

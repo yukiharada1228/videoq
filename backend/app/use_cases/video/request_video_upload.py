@@ -13,7 +13,7 @@ from app.domain.video.dto import CreateVideoPendingParams
 from app.domain.video.gateways import FileUploadGateway
 from app.domain.video.repositories import VideoRepository
 from app.use_cases.video.dto import RequestUploadInput, UploadRequestResponseDTO
-from app.use_cases.video.exceptions import ResourceNotFound, VideoLimitExceeded
+from app.use_cases.video.exceptions import FileSizeExceeded, ResourceNotFound, VideoLimitExceeded
 from app.use_cases.video.file_url import to_video_response_dto
 
 logger = logging.getLogger(__name__)
@@ -74,8 +74,7 @@ class RequestVideoUploadUseCase:
             )
         max_upload_bytes = user.get_max_upload_size_bytes()
         if input.file_size > max_upload_bytes:
-            max_mb = max_upload_bytes // (1024 * 1024)
-            raise ValueError(f"File size exceeds the limit of {max_mb} MB.")
+            raise FileSizeExceeded(max_upload_bytes // (1024 * 1024))
 
         with self.tx.atomic():
             current_count = self.video_repo.count_for_user(user_id)

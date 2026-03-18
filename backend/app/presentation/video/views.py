@@ -25,12 +25,12 @@ from app.use_cases.video.dto import (
     UpdateVideoInput,
 )
 from app.use_cases.video.exceptions import (
+    FileSizeExceeded,
     GroupVideoOrderMismatch,
     InvalidTagInput,
     InvalidUploadState,
     ResourceNotFound,
     VideoAlreadyInGroup,
-    VideoFileTooLarge,
     VideoLimitExceeded,
     VideoNotInGroup,
 )
@@ -152,8 +152,13 @@ class VideoListView(DependencyResolverMixin, AuthenticatedViewMixin, generics.Ge
                 "Video upload limit reached",
                 status.HTTP_400_BAD_REQUEST,
             )
-        except VideoFileTooLarge as e:
-            return create_error_response(str(e), status.HTTP_400_BAD_REQUEST)
+        except FileSizeExceeded as e:
+            return create_error_response(
+                str(e),
+                status.HTTP_400_BAD_REQUEST,
+                code="FILE_TOO_LARGE",
+                params={"max_size_mb": e.limit_mb},
+            )
 
         ctx = {"request": request}
         return Response(
@@ -278,6 +283,13 @@ class VideoUploadRequestView(DependencyResolverMixin, AuthenticatedViewMixin, ge
                 description=data.get("description", ""),
             )
             result = use_case.execute(request.user.id, input_dto)
+        except FileSizeExceeded as e:
+            return create_error_response(
+                str(e),
+                status.HTTP_400_BAD_REQUEST,
+                code="FILE_TOO_LARGE",
+                params={"max_size_mb": e.limit_mb},
+            )
         except VideoLimitExceeded:
             return create_error_response(
                 "Video upload limit reached",

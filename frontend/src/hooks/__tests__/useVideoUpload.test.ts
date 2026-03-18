@@ -3,12 +3,16 @@ import { useVideoUpload } from '../useVideoUpload'
 import { apiClient } from '@/lib/api'
 
 // Mock apiClient
-vi.mock('@/lib/api', () => ({
-  apiClient: {
-    uploadVideo: vi.fn(),
-    addTagsToVideo: vi.fn(),
-  },
-}))
+vi.mock('@/lib/api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/api')>()
+  return {
+    ...actual,
+    apiClient: {
+      uploadVideo: vi.fn(),
+      addTagsToVideo: vi.fn(),
+    },
+  }
+})
 
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({
@@ -118,11 +122,10 @@ describe('useVideoUpload', () => {
     })
 
     await waitFor(() => {
-      expect(apiClient.uploadVideo).toHaveBeenCalledWith({
-        file,
-        title: 'Test Video',
-        description: undefined,
-      })
+      expect(apiClient.uploadVideo).toHaveBeenCalledWith(
+        { file, title: 'Test Video', description: undefined },
+        expect.any(Function),
+      )
       expect(result.current.success).toBe(true)
     })
   })
@@ -163,11 +166,10 @@ describe('useVideoUpload', () => {
     })
 
     await waitFor(() => {
-      expect(apiClient.uploadVideo).toHaveBeenCalledWith({
-        file,
-        title: 'my-video',
-        description: undefined,
-      })
+      expect(apiClient.uploadVideo).toHaveBeenCalledWith(
+        { file, title: 'my-video', description: undefined },
+        expect.any(Function),
+      )
     })
   })
 

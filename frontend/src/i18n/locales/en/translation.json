@@ -226,7 +226,7 @@
         "noFile": "Please select a file",
         "noTitle": "Please enter a title",
         "invalidFileType": "Please select a supported video file",
-        "fileTooLarge": "The selected file exceeds the upload size limit",
+        "fileTooLarge": "The selected file exceeds the upload size limit ({{max_size_mb}} MB)",
         "generic": "Validation error"
       }
     },

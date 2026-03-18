@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiClient, type VideoUploadRequest } from '@/lib/api';
+import { apiClient, ApiError, type VideoUploadRequest } from '@/lib/api';
 import { queryKeys } from '@/lib/queryKeys';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -12,6 +12,7 @@ interface UseVideoUploadReturn {
   isUploading: boolean;
   progress: number;
   error: string | null;
+  errorParams: Record<string, unknown>;
   success: boolean;
   setTitle: (title: string) => void;
   setDescription: (description: string) => void;
@@ -79,6 +80,7 @@ export function useVideoUpload(): UseVideoUploadReturn {
   const [tagIds, setTagIds] = useState<number[]>([]);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorParams, setErrorParams] = useState<Record<string, unknown>>({});
   const [progress, setProgress] = useState(0);
   const queryClient = useQueryClient();
 
@@ -111,11 +113,18 @@ export function useVideoUpload(): UseVideoUploadReturn {
     onSuccess: async () => {
       setSuccess(true);
       setError(null);
+      setErrorParams({});
       setProgress(100);
       await queryClient.invalidateQueries({ queryKey: queryKeys.videos.all });
     },
     onError: (err) => {
-      setError(err instanceof Error ? err.message : String(err));
+      if (err instanceof ApiError && err.code === 'FILE_TOO_LARGE') {
+        setError('videos.upload.validation.fileTooLarge');
+        setErrorParams(err.params ?? {});
+      } else {
+        setError(err instanceof Error ? err.message : String(err));
+        setErrorParams({});
+      }
       setProgress(0);
     },
   });
@@ -128,10 +137,14 @@ export function useVideoUpload(): UseVideoUploadReturn {
         setFile(null);
         setTitle('');
         setError(validation.error || 'videos.upload.validation.generic');
+        setErrorParams(validation.error === 'videos.upload.validation.fileTooLarge'
+          ? { max_size_mb: maxUploadSizeMb }
+          : {});
         return;
       }
 
       setError(null);
+      setErrorParams({});
       setFile(selectedFile);
       // Automatically set filename (without extension) as title
       const fileNameWithoutExt = selectedFile.name.replace(/\.[^/.]+$/, '');
@@ -146,6 +159,7 @@ export function useVideoUpload(): UseVideoUploadReturn {
     setTagIds([]);
     setSuccess(false);
     setError(null);
+    setErrorParams({});
     setProgress(0);
   }, []);
 
@@ -155,10 +169,14 @@ export function useVideoUpload(): UseVideoUploadReturn {
     const validation = validateVideoUpload(file, title, maxUploadSizeMb);
     if (!validation.isValid) {
       setError(validation.error || 'videos.upload.validation.generic');
+      setErrorParams(validation.error === 'videos.upload.validation.fileTooLarge'
+        ? { max_size_mb: maxUploadSizeMb }
+        : {});
       return;
     }
 
     setError(null);
+    setErrorParams({});
     setSuccess(false);
     await uploadMutation.mutateAsync();
 
@@ -175,6 +193,7 @@ export function useVideoUpload(): UseVideoUploadReturn {
     isUploading: uploadMutation.isPending,
     progress,
     error,
+    errorParams,
     success,
     setTitle,
     setDescription,

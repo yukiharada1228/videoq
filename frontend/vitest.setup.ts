@@ -84,9 +84,16 @@ vi.mock('react-router-dom', async () => {
 // Mock react-i18next
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string, options?: Record<string, unknown>) => {
-      if (options) {
-        return `${key} ${JSON.stringify(options)}`
+    t: (key: string, optionsOrDefault?: string | Record<string, unknown>) => {
+      if (typeof optionsOrDefault === 'string') {
+        return key
+      }
+      if (optionsOrDefault && typeof optionsOrDefault === 'object') {
+        const { defaultValue, ...rest } = optionsOrDefault as Record<string, unknown>
+        if (Object.keys(rest).length > 0) {
+          return `${key} ${JSON.stringify(rest)}`
+        }
+        return key
       }
       return key
     },
@@ -134,7 +141,10 @@ const mockGetSharedVideoUrl = (videoFilePath: string | null, shareToken: string)
 };
 
 // Mock the API client
-vi.mock('@/lib/api', () => ({
+vi.mock('@/lib/api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/api')>()
+  return {
+  ...actual,
   apiClient: {
     getMe: vi.fn(() => Promise.resolve({ id: '1', username: 'testuser', email: 'test@example.com' })),
     signup: vi.fn(() => Promise.resolve()),
@@ -154,4 +164,4 @@ vi.mock('@/lib/api', () => ({
     getVideoUrl: vi.fn(mockGetVideoUrl),
     getSharedVideoUrl: vi.fn(mockGetSharedVideoUrl),
   },
-}));
+}});
