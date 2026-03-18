@@ -96,7 +96,7 @@ class RequestVideoUploadUseCase:
             )
             video = self.video_repo.create_pending(user_id, params)
 
-        upload_url = self.upload_gateway.generate_upload_url(file_key, input.content_type)
+        upload_url = self.upload_gateway.generate_upload_url(file_key, input.content_type, input.file_size)
 
         logger.info("Generated presigned upload URL for video ID: %s", video.id)
         return UploadRequestResponseDTO(

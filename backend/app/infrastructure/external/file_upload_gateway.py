@@ -38,7 +38,7 @@ class R2FileUploadGateway(FileUploadGateway):
         options = storages.get("default", {}).get("OPTIONS", {})
         return options.get("location", "media")
 
-    def generate_upload_url(self, file_key: str, content_type: str) -> str:
+    def generate_upload_url(self, file_key: str, content_type: str, file_size: int) -> str:
         bucket = getattr(settings, "AWS_STORAGE_BUCKET_NAME", "")
         location = self._get_storage_location()
         s3_key = f"{location}/{file_key}" if location else file_key
@@ -49,6 +49,7 @@ class R2FileUploadGateway(FileUploadGateway):
                 "Bucket": bucket,
                 "Key": s3_key,
                 "ContentType": content_type,
+                "ContentLength": file_size,
             },
             ExpiresIn=3600,
         )
