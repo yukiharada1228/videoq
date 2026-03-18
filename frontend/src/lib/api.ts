@@ -2,6 +2,22 @@ export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/ap
 
 type RequestBody = BodyInit | object | null | undefined;
 
+/**
+ * Structured API error carrying error code and optional params from the backend.
+ * Backend format: { error: { code, message, params? } }
+ */
+export class ApiError extends Error {
+  code: string;
+  params?: Record<string, unknown>;
+
+  constructor(message: string, code: string, params?: Record<string, unknown>) {
+    super(message);
+    this.name = 'ApiError';
+    this.code = code;
+    this.params = params;
+  }
+}
+
 export type LoginResponse = Record<string, never>;
 
 export type RefreshResponse = Record<string, never>;
@@ -363,17 +379,26 @@ class ApiClient {
     }))) as unknown;
 
     if (errorData && typeof errorData === 'object') {
-      // Handle unified error format: { error: { code, message, fields } }
+      // Handle unified error format: { error: { code, message, params?, fields? } }
       const maybeError = (errorData as { error?: unknown }).error;
       if (maybeError && typeof maybeError === 'object') {
-        const errorObj = maybeError as { code?: string; message?: string; fields?: Record<string, string[]> };
+        const errorObj = maybeError as {
+          code?: string;
+          message?: string;
+          params?: Record<string, unknown>;
+          fields?: Record<string, string[]>;
+        };
         if (typeof errorObj.message === 'string') {
-          throw new Error(errorObj.message);
+          throw new ApiError(
+            errorObj.message,
+            errorObj.code ?? 'UNKNOWN',
+            errorObj.params,
+          );
         }
       }
     }
 
-    throw new Error(`HTTP error! status: ${response.status}`);
+    throw new ApiError(`HTTP error! status: ${response.status}`, 'UNKNOWN');
   }
 
   private async handleAuthError(): Promise<void> {

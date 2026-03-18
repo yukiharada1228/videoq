@@ -11,7 +11,7 @@ from app.domain.video.dto import CreateVideoParams, UpdateVideoParams
 from app.domain.video.entities import VideoEntity
 from app.use_cases.video.create_video import CreateVideoUseCase
 from app.use_cases.video.dto import CreateVideoInput
-from app.use_cases.video.exceptions import ResourceNotFound, VideoFileTooLarge, VideoLimitExceeded
+from app.use_cases.video.exceptions import FileSizeExceeded, ResourceNotFound, VideoLimitExceeded
 
 
 @dataclass
@@ -211,7 +211,7 @@ class CreateVideoUseCaseTests(TestCase):
             description="",
             file_size=file_size,
         )
-        with self.assertRaises(VideoFileTooLarge) as ctx:
+        with self.assertRaises(FileSizeExceeded) as ctx:
             self.use_case.execute(self.user_id, input_dto)
         self.assertEqual(ctx.exception.limit_mb, 100)
 

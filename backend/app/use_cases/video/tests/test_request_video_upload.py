@@ -76,9 +76,11 @@ class RequestVideoUploadUseCaseTests(TestCase):
         use_case = self._make_use_case(max_video_upload_size_mb=100)
         input_dto = self._valid_input(file_size=101 * 1024 * 1024)
 
-        with self.assertRaises(ValueError) as ctx:
+        from app.use_cases.video.exceptions import FileSizeExceeded
+
+        with self.assertRaises(FileSizeExceeded) as ctx:
             use_case.execute(1, input_dto)
-        self.assertIn("100 MB", str(ctx.exception))
+        self.assertEqual(ctx.exception.limit_mb, 100)
 
     def test_accepts_file_within_user_size_limit(self):
         use_case = self._make_use_case(max_video_upload_size_mb=1000)
