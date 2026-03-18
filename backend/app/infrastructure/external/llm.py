@@ -1,9 +1,8 @@
 """LangChain helper functions"""
 
-import os
+from typing import Optional
 
 from django.conf import settings
-from django.contrib.auth import get_user_model
 from langchain_core.language_models import BaseChatModel
 from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI
@@ -11,15 +10,13 @@ from pydantic import SecretStr
 
 from app.domain.shared.exceptions import LLMConfigError
 
-User = get_user_model()
 
-
-def get_langchain_llm(user) -> BaseChatModel:
+def get_langchain_llm(api_key: Optional[str] = None) -> BaseChatModel:
     """
     Get the configured LLM model based on LLM_PROVIDER setting.
 
     Args:
-        user: The user object (currently unused but kept for compatibility)
+        api_key: Per-user OpenAI API key.
 
     Returns:
         BaseChatModel: Configured LLM instance.
@@ -31,13 +28,9 @@ def get_langchain_llm(user) -> BaseChatModel:
     temperature = 0.0  # Temperature is fixed at 0.0
 
     if provider == "openai":
-        # Use OpenAI API key from environment variable
-        api_key = getattr(settings, "OPENAI_API_KEY", None) or os.environ.get(
-            "OPENAI_API_KEY"
-        )
         if not api_key:
             raise LLMConfigError(
-                "OpenAI API key is not configured. Please set OPENAI_API_KEY environment variable."
+                "OpenAI API key is not configured. Please set your API key in Settings."
             )
 
         # Use LLM model from environment variable with fallback to default

@@ -19,6 +19,9 @@ from app.infrastructure.repositories.django_user_auth_gateway import (
     DjangoEmailSenderGateway,
     DjangoUserManagementGateway,
 )
+from app.infrastructure.repositories.django_openai_key_repository import (
+    DjangoOpenAiApiKeyRepository,
+)
 from app.infrastructure.repositories.django_user_repository import DjangoUserRepository
 from app.infrastructure.common.django_transaction import DjangoTransactionPort
 from app.infrastructure.tasks.task_gateway import CeleryAuthTaskGateway
@@ -42,6 +45,11 @@ from app.use_cases.auth.reset_password import (
 )
 from app.use_cases.auth.signup import SignupUserUseCase
 from app.use_cases.auth.verify_email import VerifyEmailUseCase
+from app.use_cases.user.manage_openai_key import (
+    DeleteOpenAiApiKeyUseCase,
+    GetOpenAiApiKeyStatusUseCase,
+    SaveOpenAiApiKeyUseCase,
+)
 
 
 def _new_user_auth_gateway() -> DjangoUserAuthGateway:
@@ -171,3 +179,19 @@ def get_resolve_api_key_use_case() -> ResolveApiKeyUseCase:
 
 def get_cookie_jwt_validator():
     return _get_cookie_jwt_validator()
+
+
+def _new_openai_key_repository() -> DjangoOpenAiApiKeyRepository:
+    return DjangoOpenAiApiKeyRepository()
+
+
+def get_save_openai_api_key_use_case() -> SaveOpenAiApiKeyUseCase:
+    return SaveOpenAiApiKeyUseCase(_new_openai_key_repository())
+
+
+def get_delete_openai_api_key_use_case() -> DeleteOpenAiApiKeyUseCase:
+    return DeleteOpenAiApiKeyUseCase(_new_openai_key_repository())
+
+
+def get_openai_api_key_status_use_case() -> GetOpenAiApiKeyStatusUseCase:
+    return GetOpenAiApiKeyStatusUseCase(_new_openai_key_repository())

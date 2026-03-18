@@ -1,5 +1,8 @@
 """Video core use-case providers."""
 
+from app.infrastructure.repositories.django_openai_key_repository import (
+    DjangoOpenAiApiKeyRepository,
+)
 from app.infrastructure.common.django_transaction import DjangoTransactionPort
 from app.use_cases.video.confirm_video_upload import ConfirmVideoUploadUseCase
 from app.use_cases.video.create_video import CreateVideoUseCase
@@ -24,6 +27,7 @@ def get_reindex_all_videos_use_case() -> ReindexAllVideosUseCase:
     return ReindexAllVideosUseCase(
         shared.new_video_repository(),
         shared.get_vector_indexing_gateway(),
+        api_key_repo=DjangoOpenAiApiKeyRepository(),
     )
 
 
@@ -33,6 +37,7 @@ def get_run_transcription_use_case() -> RunTranscriptionUseCase:
         shared.get_whisper_transcription_gateway(),
         shared.new_video_task_gateway(),
         DjangoTransactionPort(),
+        api_key_repo=DjangoOpenAiApiKeyRepository(),
     )
 
 
@@ -40,6 +45,7 @@ def get_index_video_use_case() -> IndexVideoTranscriptUseCase:
     return IndexVideoTranscriptUseCase(
         shared.new_video_repository(),
         shared.get_vector_indexing_gateway(),
+        api_key_repo=DjangoOpenAiApiKeyRepository(),
     )
 
 

@@ -4,6 +4,7 @@ Abstract contracts for external services used by video use cases.
 """
 
 from abc import ABC, abstractmethod
+from typing import Optional
 
 
 class VectorStoreGateway(ABC):
@@ -44,7 +45,8 @@ class VectorIndexingGateway(ABC):
 
     @abstractmethod
     def index_video_transcript(
-        self, video_id: int, user_id: int, title: str, transcript: str
+        self, video_id: int, user_id: int, title: str, transcript: str,
+        api_key: Optional[str] = None,
     ) -> None:
         """Parse transcript and index all scenes to the vector store."""
         ...
@@ -59,7 +61,7 @@ class TranscriptionGateway(ABC):
     """Abstract interface for video transcription (audio processing + speech-to-text)."""
 
     @abstractmethod
-    def run(self, video_id: int) -> str:
+    def run(self, video_id: int, api_key: Optional[str] = None) -> str:
         """
         Download video audio, transcribe via Whisper, and apply scene splitting.
 

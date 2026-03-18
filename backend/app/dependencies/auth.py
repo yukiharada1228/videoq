@@ -57,3 +57,15 @@ def get_authorize_api_key_use_case():
 
 def get_resolve_share_token_use_case():
     return _cr.get_resolve_share_token_use_case()
+
+
+def get_save_openai_api_key_use_case():
+    return _cr.get_save_openai_api_key_use_case()
+
+
+def get_delete_openai_api_key_use_case():
+    return _cr.get_delete_openai_api_key_use_case()
+
+
+def get_openai_api_key_status_use_case():
+    return _cr.get_openai_api_key_status_use_case()

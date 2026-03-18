@@ -6,6 +6,7 @@ from app.domain.chat.gateways import LLMProviderError as _DomainLLMProviderError
 from app.domain.chat.gateways import RagGateway
 from app.domain.chat.gateways import RagUserNotFoundError as _DomainRagUserNotFoundError
 from app.domain.chat.repositories import VideoGroupQueryRepository
+from app.domain.user.ports import OpenAiApiKeyRepository
 from app.domain.chat.services import (
     ChatRequestPolicy,
     GroupContextNotFound as _DomainGroupContextNotFound,
@@ -25,9 +26,11 @@ class SearchRelatedVideosUseCase:
         self,
         group_query_repo: VideoGroupQueryRepository,
         rag_gateway: RagGateway,
+        api_key_repo: Optional[OpenAiApiKeyRepository] = None,
     ):
         self.group_query_repo = group_query_repo
         self.rag_gateway = rag_gateway
+        self.api_key_repo = api_key_repo
 
     def execute(
         self,
@@ -80,11 +83,17 @@ class SearchRelatedVideosUseCase:
 
         video_ids: Sequence[int] = group.member_video_ids
 
+        # Resolve per-user OpenAI API key
+        api_key = None
+        if self.api_key_repo is not None:
+            api_key = self.api_key_repo.get_decrypted_key(owner_user_id)
+
         try:
             related_videos = self.rag_gateway.search_related_videos(
                 query_text=query_text,
                 user_id=owner_user_id,
                 video_ids=video_ids,
+                api_key=api_key,
             )
         except _DomainRagUserNotFoundError as e:
             raise ResourceNotFound("User") from e

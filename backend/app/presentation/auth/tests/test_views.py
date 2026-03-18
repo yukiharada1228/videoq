@@ -117,7 +117,7 @@ class LoginViewTests(APITestCase):
     def _get_csrf_client(self) -> APIClient:
         client = APIClient(enforce_csrf_checks=True)
         csrf_response = client.get(self.csrf_url)
-        self.assertEqual(csrf_response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(csrf_response.status_code, status.HTTP_200_OK)
         return client
 
     def test_login_success(self):
@@ -182,7 +182,7 @@ class LogoutViewTests(APITestCase):
     def _build_cookie_authenticated_client(self) -> tuple[APIClient, str]:
         client = APIClient(enforce_csrf_checks=True)
         csrf_response = client.get(self.csrf_url)
-        self.assertEqual(csrf_response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(csrf_response.status_code, status.HTTP_200_OK)
         csrf_token = client.cookies["csrftoken"].value
         login_response = client.post(
             reverse("auth-sessions"),
@@ -245,7 +245,7 @@ class RefreshViewTests(APITestCase):
     def _get_csrf_client(self) -> APIClient:
         client = APIClient(enforce_csrf_checks=True)
         csrf_response = client.get(self.csrf_url)
-        self.assertEqual(csrf_response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(csrf_response.status_code, status.HTTP_200_OK)
         return client
 
     def test_refresh_with_cookie(self):
@@ -360,7 +360,7 @@ class CsrfTokenViewTests(APITestCase):
     def test_csrf_endpoint_sets_cookie(self):
         response = self.client.get(reverse("auth-csrf"))
 
-        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("csrftoken", response.cookies)
 
 

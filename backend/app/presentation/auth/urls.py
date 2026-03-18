@@ -10,6 +10,7 @@ from .views import (
     CsrfTokenView,
     EmailVerificationView,
     MeView,
+    OpenAiApiKeyView,
     PasswordResetConfirmView,
     PasswordResetRequestView,
     RefreshView,
@@ -89,6 +90,15 @@ urlpatterns = [
             )
         ),
         name="auth-password-resets-confirm",
+    ),
+    path(
+        "openai-api-key/",
+        OpenAiApiKeyView.as_view(
+            save_openai_api_key_use_case=auth_dependencies.get_save_openai_api_key_use_case,
+            delete_openai_api_key_use_case=auth_dependencies.get_delete_openai_api_key_use_case,
+            get_openai_api_key_status_use_case=auth_dependencies.get_openai_api_key_status_use_case,
+        ),
+        name="auth-openai-api-key",
     ),
 ]
 

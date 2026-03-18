@@ -15,14 +15,13 @@ def get_embeddings(api_key: Optional[str] = None) -> Embeddings:
     provider = settings.EMBEDDING_PROVIDER
 
     if provider == "openai":
-        openai_key = api_key or settings.OPENAI_API_KEY
-        if not openai_key:
+        if not api_key:
             raise ValueError(
                 "OpenAI API key is required when using OpenAI embeddings. "
-                "Provide api_key parameter or set OPENAI_API_KEY environment variable."
+                "Please set your API key in Settings."
             )
         return OpenAIEmbeddings(
-            model=settings.EMBEDDING_MODEL, api_key=SecretStr(openai_key)
+            model=settings.EMBEDDING_MODEL, api_key=SecretStr(api_key)
         )
 
     if provider == "ollama":
