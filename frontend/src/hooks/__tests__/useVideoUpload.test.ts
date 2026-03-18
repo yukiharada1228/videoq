@@ -10,6 +10,13 @@ vi.mock('@/lib/api', () => ({
   },
 }))
 
+vi.mock('@/hooks/useAuth', () => ({
+  useAuth: () => ({
+    user: { id: 1, username: 'testuser', max_video_upload_size_mb: 500 },
+    isLoading: false,
+  }),
+}))
+
 describe('useVideoUpload', () => {
   beforeEach(() => {
     vi.clearAllMocks()

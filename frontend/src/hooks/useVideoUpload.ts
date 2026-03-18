@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient, type VideoUploadRequest } from '@/lib/api';
 import { queryKeys } from '@/lib/queryKeys';
+import { useAuth } from '@/hooks/useAuth';
 
 interface UseVideoUploadReturn {
   file: File | null;
@@ -25,8 +26,7 @@ interface ValidationResult {
   error?: string;
 }
 
-const MAX_VIDEO_UPLOAD_SIZE_MB = Number(import.meta.env.VITE_MAX_VIDEO_UPLOAD_SIZE_MB || 500);
-const MAX_VIDEO_UPLOAD_SIZE_BYTES = MAX_VIDEO_UPLOAD_SIZE_MB * 1024 * 1024;
+const DEFAULT_MAX_VIDEO_UPLOAD_SIZE_MB = Number(import.meta.env.VITE_MAX_VIDEO_UPLOAD_SIZE_MB || 500);
 const ALLOWED_VIDEO_EXTENSIONS = [
   '.mp4',
   '.mov',
@@ -52,14 +52,14 @@ function isLikelyVideoFile(file: File): boolean {
  * Validation logic
  * Returns translation keys for errors
  */
-function validateVideoUpload(file: File | null, title: string): ValidationResult {
+function validateVideoUpload(file: File | null, title: string, maxSizeMb: number): ValidationResult {
   if (!file) {
     return { isValid: false, error: 'videos.upload.validation.noFile' };
   }
   if (!isLikelyVideoFile(file)) {
     return { isValid: false, error: 'videos.upload.validation.invalidFileType' };
   }
-  if (file.size > MAX_VIDEO_UPLOAD_SIZE_BYTES) {
+  if (file.size > maxSizeMb * 1024 * 1024) {
     return { isValid: false, error: 'videos.upload.validation.fileTooLarge' };
   }
   // File is OK if title is empty since filename will be used
@@ -71,6 +71,8 @@ function validateVideoUpload(file: File | null, title: string): ValidationResult
 }
 
 export function useVideoUpload(): UseVideoUploadReturn {
+  const { user } = useAuth({ redirectToLogin: false });
+  const maxUploadSizeMb = user?.max_video_upload_size_mb ?? DEFAULT_MAX_VIDEO_UPLOAD_SIZE_MB;
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -121,7 +123,7 @@ export function useVideoUpload(): UseVideoUploadReturn {
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const selectedFile = e.target.files[0];
-      const validation = validateVideoUpload(selectedFile, title);
+      const validation = validateVideoUpload(selectedFile, title, maxUploadSizeMb);
       if (!validation.isValid) {
         setFile(null);
         setTitle('');
@@ -135,7 +137,7 @@ export function useVideoUpload(): UseVideoUploadReturn {
       const fileNameWithoutExt = selectedFile.name.replace(/\.[^/.]+$/, '');
       setTitle(fileNameWithoutExt);
     }
-  }, [setTitle, title]);
+  }, [setTitle, title, maxUploadSizeMb]);
 
   const reset = useCallback(() => {
     setFile(null);
@@ -150,7 +152,7 @@ export function useVideoUpload(): UseVideoUploadReturn {
   const handleSubmit = useCallback(async (e: React.FormEvent, onSuccess?: () => void) => {
     e.preventDefault();
 
-    const validation = validateVideoUpload(file, title);
+    const validation = validateVideoUpload(file, title, maxUploadSizeMb);
     if (!validation.isValid) {
       setError(validation.error || 'videos.upload.validation.generic');
       return;
@@ -163,7 +165,7 @@ export function useVideoUpload(): UseVideoUploadReturn {
     if (onSuccess) {
       onSuccess();
     }
-  }, [uploadMutation, file, title, setError]);
+  }, [uploadMutation, file, title, setError, maxUploadSizeMb]);
 
   return {
     file,
