@@ -48,6 +48,7 @@ class CustomUserAdmin(UserAdmin):
         "last_login",
         "is_active",
         "video_limit",
+        "max_video_upload_size_mb",
     )
     list_filter = (
         "is_staff",
@@ -57,7 +58,7 @@ class CustomUserAdmin(UserAdmin):
     ordering = ("-date_joined",)
 
     fieldsets = UserAdmin.fieldsets + (
-        ("Video Settings", {"fields": ("video_limit",)}),
+        ("Video Settings", {"fields": ("video_limit", "max_video_upload_size_mb")}),
     )
     add_fieldsets = UserAdmin.add_fieldsets
 

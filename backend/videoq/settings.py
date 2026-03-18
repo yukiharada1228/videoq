@@ -73,6 +73,7 @@ class DefaultSettings:
 
     # Security
     SECRET_KEY = "django-insecure-644978l%$qgjwpo$w!5i7l#y(m&h)e$u#3en_a%ln^4!js$-*+"
+    DEFAULT_VIDEO_LIMIT = 5
     MAX_VIDEO_UPLOAD_SIZE_MB = 500
     FFPROBE_VALIDATION_TIMEOUT_SECONDS = 10
     FFMPEG_PROCESS_TIMEOUT_SECONDS = 120
@@ -135,6 +136,12 @@ if IS_PRODUCTION:
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = _secret_key if _secret_key else DefaultSettings.SECRET_KEY
+DEFAULT_VIDEO_LIMIT = int(
+    os.environ.get(
+        "DEFAULT_VIDEO_LIMIT",
+        str(DefaultSettings.DEFAULT_VIDEO_LIMIT),
+    )
+)
 MAX_VIDEO_UPLOAD_SIZE_MB = int(
     os.environ.get(
         "MAX_VIDEO_UPLOAD_SIZE_MB",

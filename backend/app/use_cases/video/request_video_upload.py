@@ -34,9 +34,6 @@ ALLOWED_VIDEO_MIMETYPES = {
     "video/3gpp",
 }
 
-MAX_VIDEO_UPLOAD_SIZE_BYTES = 500 * 1024 * 1024  # 500 MB
-
-
 class RequestVideoUploadUseCase:
     """
     Orchestrates presigned-URL video upload request:
@@ -75,8 +72,9 @@ class RequestVideoUploadUseCase:
             raise ValueError(
                 f"Invalid content type: '{input.content_type}'. Only video files are allowed."
             )
-        if input.file_size > MAX_VIDEO_UPLOAD_SIZE_BYTES:
-            max_mb = MAX_VIDEO_UPLOAD_SIZE_BYTES // (1024 * 1024)
+        max_upload_bytes = user.get_max_upload_size_bytes()
+        if input.file_size > max_upload_bytes:
+            max_mb = max_upload_bytes // (1024 * 1024)
             raise ValueError(f"File size exceeds the limit of {max_mb} MB.")
 
         with self.tx.atomic():

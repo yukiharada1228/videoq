@@ -34,6 +34,7 @@ class UserSerializer(serializers.Serializer):
     email = serializers.EmailField()
     video_limit = serializers.IntegerField(allow_null=True)
     video_count = serializers.SerializerMethodField()
+    max_video_upload_size_mb = serializers.IntegerField()
 
     def get_video_count(self, obj) -> int:
         # Prefer the explicit boundary field (UserEntity/User DTO).

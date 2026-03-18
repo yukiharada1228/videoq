@@ -41,3 +41,35 @@ class UserEntityTests(TestCase):
             video_count=100,
         )
         user.assert_can_upload_video()
+
+    def test_get_max_upload_size_bytes(self):
+        user = UserEntity(
+            id=1,
+            username="user",
+            email="user@example.com",
+            is_active=True,
+            video_limit=None,
+            max_video_upload_size_mb=1000,
+        )
+        self.assertEqual(user.get_max_upload_size_bytes(), 1000 * 1024 * 1024)
+
+    def test_get_max_upload_size_bytes_zero(self):
+        user = UserEntity(
+            id=1,
+            username="user",
+            email="user@example.com",
+            is_active=True,
+            video_limit=None,
+            max_video_upload_size_mb=0,
+        )
+        self.assertEqual(user.get_max_upload_size_bytes(), 0)
+
+    def test_get_max_upload_size_bytes_default(self):
+        user = UserEntity(
+            id=1,
+            username="user",
+            email="user@example.com",
+            is_active=True,
+            video_limit=None,
+        )
+        self.assertEqual(user.get_max_upload_size_bytes(), 500 * 1024 * 1024)
