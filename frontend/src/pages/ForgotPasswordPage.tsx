@@ -11,6 +11,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { InlineSpinner } from '@/components/common/InlineSpinner';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { MessageAlert } from '@/components/common/MessageAlert';
@@ -75,7 +76,12 @@ export default function ForgotPasswordPage() {
             </CardContent>
             <CardFooter className="flex flex-col space-y-4 pt-4">
               <Button type="submit" className="w-full" disabled={requestResetMutation.isPending}>
-                {requestResetMutation.isPending ? t('auth.forgotPassword.submitting') : t('auth.forgotPassword.submit')}
+                {requestResetMutation.isPending ? (
+                  <span className="flex items-center justify-center">
+                    <InlineSpinner className="mr-2" />
+                    {t('auth.forgotPassword.submitting')}
+                  </span>
+                ) : t('auth.forgotPassword.submit')}
               </Button>
               <Link href="/login" className="text-center text-sm text-blue-600 hover:underline">
                 {t('auth.forgotPassword.backToLogin')}

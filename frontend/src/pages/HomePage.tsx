@@ -9,7 +9,7 @@ import { useHomePageData } from '@/hooks/useHomePageData';
 
 export default function HomePage() {
   const navigate = useI18nNavigate();
-  const { user, loading } = useAuth();
+  const { user, isLoading } = useAuth();
   const { t } = useTranslation();
 
   const { videos, groups, isLoading: isLoadingStats } = useHomePageData({ userId: user?.id });
@@ -19,7 +19,7 @@ export default function HomePage() {
     navigate('/videos?upload=true');
   };
 
-  if (loading || !user || isLoadingStats) {
+  if (isLoading || !user || isLoadingStats) {
     return (
       <PageLayout>
         <LoadingSpinner />

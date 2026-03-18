@@ -10,7 +10,7 @@ export default function SignupPage() {
   const navigate = useI18nNavigate();
   const { t } = useTranslation();
 
-  const { formData, error, loading, handleChange, handleSubmit } = useAuthForm({
+  const { formData, error, isLoading, handleChange, handleSubmit } = useAuthForm({
     onSubmit: async (data: { username: string; email: string; password: string; confirmPassword: string }) => {
       if (data.password !== data.confirmPassword) {
         throw new Error(t('auth.signup.passwordMismatch'));
@@ -44,7 +44,7 @@ export default function SignupPage() {
         fields={fields}
         formData={formData}
         error={error}
-        loading={loading}
+        isLoading={isLoading}
         submitButtonText={t('auth.signup.submit')}
         loadingButtonText={t('auth.signup.submitting')}
         onChange={handleChange}

@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { type ChatHistoryItem } from '@/lib/api';
 import { timeStringToSeconds } from '@/lib/utils/video';
 import { cn } from '@/lib/utils';
+import { InlineSpinner } from '@/components/common/InlineSpinner';
 import { useTranslation } from 'react-i18next';
 import { useChatMessages, type Message } from '@/hooks/useChatMessages';
 import { useChatHistory } from '@/hooks/useChatHistory';
@@ -105,8 +106,18 @@ function ChatHistoryModal({
                 onClick={() => void exportHistoryCsv()}
                 disabled={isExportingHistoryCsv}
               >
-                <span className="hidden lg:inline">{t('chat.exportCsv')}</span>
-                <span className="lg:hidden">{t('chat.exportCsvShort')}</span>
+                {isExportingHistoryCsv ? (
+                  <span className="flex items-center justify-center">
+                    <InlineSpinner className="mr-2" />
+                    <span className="hidden lg:inline">{t('chat.exportCsv')}</span>
+                    <span className="lg:hidden">{t('chat.exportCsvShort')}</span>
+                  </span>
+                ) : (
+                  <>
+                    <span className="hidden lg:inline">{t('chat.exportCsv')}</span>
+                    <span className="lg:hidden">{t('chat.exportCsvShort')}</span>
+                  </>
+                )}
               </Button>
             )}
             <Button variant="ghost" size="sm" onClick={onClose}>
@@ -171,7 +182,7 @@ export function ChatPanel({ groupId, onVideoPlay, shareToken, className }: ChatP
     messages,
     input,
     setInput,
-    loading,
+    isLoading,
     feedbackUpdatingId,
     messagesContainerRef,
     messagesEndRef,
@@ -242,14 +253,19 @@ export function ChatPanel({ groupId, onVideoPlay, shareToken, className }: ChatP
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyPress}
               placeholder={t('chat.placeholder') as string}
-              disabled={loading}
+              disabled={isLoading}
               className="flex-1"
             />
             <Button
               onClick={handleSend}
-              disabled={loading || !input.trim()}
+              disabled={isLoading || !input.trim()}
             >
-              {loading ? t('common.actions.sending') : t('common.actions.send')}
+              {isLoading ? (
+                <span className="flex items-center justify-center">
+                  <InlineSpinner className="mr-2" />
+                  {t('common.actions.sending')}
+                </span>
+              ) : t('common.actions.send')}
             </Button>
           </div>
         </CardContent>

@@ -16,7 +16,7 @@ import { Label } from '@/components/ui/label';
 import { handleAsyncError } from '@/lib/utils/errorHandling';
  
 export default function VideoGroupsPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const navigate = useI18nNavigate();
   const { groups, isLoading, error: loadError } = useVideoGroups(true);
   const [error, setError] = useState<string | null>(null);
