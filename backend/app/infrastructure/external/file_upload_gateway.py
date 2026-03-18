@@ -38,10 +38,15 @@ class R2FileUploadGateway(FileUploadGateway):
         options = storages.get("default", {}).get("OPTIONS", {})
         return options.get("location", "media")
 
-    def generate_upload_url(self, file_key: str, content_type: str, file_size: int) -> str:
+    def _build_s3_key(self, file_key: str) -> tuple[str, str]:
+        """Return (bucket, s3_key) for a given file_key."""
         bucket = getattr(settings, "AWS_STORAGE_BUCKET_NAME", "")
         location = self._get_storage_location()
         s3_key = f"{location}/{file_key}" if location else file_key
+        return bucket, s3_key
+
+    def generate_upload_url(self, file_key: str, content_type: str) -> str:
+        bucket, s3_key = self._build_s3_key(file_key)
 
         url = self.client.generate_presigned_url(
             "put_object",
@@ -49,9 +54,17 @@ class R2FileUploadGateway(FileUploadGateway):
                 "Bucket": bucket,
                 "Key": s3_key,
                 "ContentType": content_type,
-                "ContentLength": file_size,
             },
             ExpiresIn=3600,
         )
         logger.info("Generated presigned upload URL for key: %s", s3_key)
         return url
+
+    def get_file_size(self, file_key: str) -> int:
+        bucket, s3_key = self._build_s3_key(file_key)
+        response = self.client.head_object(Bucket=bucket, Key=s3_key)
+        return response["ContentLength"]
+
+    def delete_file(self, file_key: str) -> None:
+        bucket, s3_key = self._build_s3_key(file_key)
+        self.client.delete_object(Bucket=bucket, Key=s3_key)

@@ -9,6 +9,7 @@ from celery import shared_task
 
 from app.contracts.tasks import TRANSCRIBE_VIDEO_TASK
 from app.dependencies.tasks import (
+    FileSizeExceededError,
     TranscriptionExecutionFailedError,
     TranscriptionTargetMissingError,
     run_transcription,
@@ -34,6 +35,8 @@ def transcribe_video(self, video_id):
     except TranscriptionTargetMissingError:
         logger.warning("Transcription target video not found: %d", video_id)
         raise
+    except FileSizeExceededError:
+        logger.warning("File size exceeded for video %d, no retry", video_id)
     except TranscriptionExecutionFailedError as e:
         if self.request.retries < self.max_retries:
             raise self.retry(exc=e, countdown=60 * (self.request.retries + 1))

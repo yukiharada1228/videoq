@@ -36,6 +36,7 @@ def get_run_transcription_use_case() -> RunTranscriptionUseCase:
         shared.new_video_repository(),
         shared.get_whisper_transcription_gateway(),
         shared.new_video_task_gateway(),
+        shared.get_file_upload_gateway(),
         DjangoTransactionPort(),
         api_key_repo=DjangoOpenAiApiKeyRepository(),
     )

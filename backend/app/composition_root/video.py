@@ -16,6 +16,10 @@ class TranscriptionExecutionFailed(Exception):
     """Composition-root boundary error for failed transcription execution."""
 
 
+class FileSizeExceeded(Exception):
+    """Composition-root boundary error for uploaded file exceeding size limit."""
+
+
 def get_list_videos_use_case():
     return core.get_list_videos_use_case()
 
@@ -60,6 +64,7 @@ def mark_indexing_failed(video_id: int, reason: str = "") -> None:
 
 def run_transcription(video_id: int) -> None:
     from app.use_cases.video.exceptions import (
+        FileSizeExceeded as UseCaseFileSizeExceeded,
         TranscriptionExecutionFailed as UseCaseTranscriptionExecutionFailed,
         TranscriptionTargetMissing as UseCaseTranscriptionTargetMissing,
     )
@@ -68,6 +73,8 @@ def run_transcription(video_id: int) -> None:
         get_run_transcription_use_case().execute(video_id)
     except UseCaseTranscriptionTargetMissing as exc:
         raise TranscriptionTargetMissing(str(exc)) from exc
+    except UseCaseFileSizeExceeded as exc:
+        raise FileSizeExceeded(str(exc)) from exc
     except UseCaseTranscriptionExecutionFailed as exc:
         raise TranscriptionExecutionFailed(str(exc)) from exc
 

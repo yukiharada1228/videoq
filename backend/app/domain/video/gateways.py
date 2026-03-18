@@ -75,6 +75,16 @@ class FileUploadGateway(ABC):
     """Abstract interface for generating presigned upload URLs."""
 
     @abstractmethod
-    def generate_upload_url(self, file_key: str, content_type: str, file_size: int) -> str:
+    def generate_upload_url(self, file_key: str, content_type: str) -> str:
         """Generate a presigned PUT URL for direct file upload."""
+        ...
+
+    @abstractmethod
+    def get_file_size(self, file_key: str) -> int:
+        """Get the actual file size in bytes from storage via head_object."""
+        ...
+
+    @abstractmethod
+    def delete_file(self, file_key: str) -> None:
+        """Delete a file from storage."""
         ...

@@ -43,6 +43,14 @@ class InvalidTagInput(Exception):
         super().__init__(message)
 
 
+class FileSizeExceeded(Exception):
+    """Raised when actual uploaded file exceeds size limit."""
+
+    def __init__(self, limit_mb: int):
+        self.limit_mb = limit_mb
+        super().__init__(f"File size exceeds the limit of {limit_mb} MB.")
+
+
 class InvalidUploadState(Exception):
     """Raised when a video is not in the expected state for upload confirmation."""
 
@@ -85,6 +93,7 @@ class IndexingExecutionFailed(Exception):
 
 
 __all__ = [
+    "FileSizeExceeded",
     "GroupVideoOrderMismatch",
     "IndexingExecutionFailed",
     "IndexingTargetMissing",
