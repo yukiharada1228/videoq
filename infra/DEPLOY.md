@@ -162,7 +162,9 @@ aws secretsmanager put-secret-value \
     "AWS_SECRET_ACCESS_KEY": "<R2_SECRET_ACCESS_KEY>",
     "AWS_S3_ENDPOINT_URL": "https://<CF_ACCOUNT_ID>.r2.cloudflarestorage.com",
     "AWS_STORAGE_BUCKET_NAME": "videoq-media-prod",
-    "AWS_S3_REGION_NAME": "auto"
+    "AWS_S3_REGION_NAME": "auto",
+    "MAILGUN_API_KEY": "<YOUR_MAILGUN_API_KEY>",
+    "MAILGUN_SENDER_DOMAIN": "<YOUR_MAILGUN_DOMAIN>"
   }'
 ```
 

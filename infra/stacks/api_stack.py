@@ -145,6 +145,8 @@ class ApiStack(Stack):
             "CELERY_TASK_SOFT_TIME_LIMIT": "780",
             # Django DatabaseCache (Redis 不要)
             "USE_DATABASE_CACHE": "true",
+            # Mailgun
+            "USE_MAILGUN": "true",
             # Lambda Web Adapter
             "PORT": "8000",
             "AWS_LWA_READINESS_CHECK_PATH": "/api/health/",
