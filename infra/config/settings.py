@@ -40,7 +40,7 @@ def get_config(env_name: str) -> VideoQConfig:
             aws_account=account,
             aws_region=region,
             api_lambda_memory_mb=1024,
-            worker_lambda_memory_mb=3008,
+            worker_lambda_memory_mb=5120,
             pages_domain=os.environ.get("PAGES_DOMAIN"),
             custom_domain=os.environ.get("CUSTOM_DOMAIN"),
             certificate_arn=os.environ.get("CERTIFICATE_ARN"),
