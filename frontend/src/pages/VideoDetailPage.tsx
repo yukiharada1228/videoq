@@ -188,7 +188,7 @@ export default function VideoDetailPage() {
     return (
       <PageLayout fullWidth>
         <div className="flex justify-center items-center h-64">
-          <LoadingSpinner fullScreen={false} />
+          <LoadingSpinner />
         </div>
       </PageLayout>
     );
