@@ -27,7 +27,6 @@ class DataStack(Stack):
         --secret-id videoq/prod/app \\
         --secret-string '{
           "SECRET_KEY": "...",
-          "OPENAI_API_KEY": "sk-...",
           "AWS_ACCESS_KEY_ID": "<R2_ACCESS_KEY_ID>",
           "AWS_SECRET_ACCESS_KEY": "<R2_SECRET_ACCESS_KEY>",
           "AWS_S3_ENDPOINT_URL": "https://<CF_ACCOUNT_ID>.r2.cloudflarestorage.com",
@@ -49,7 +48,7 @@ class DataStack(Stack):
         )
 
         # ── アプリシークレット + R2 設定 ───────────────────────────────────
-        # SECRET_KEY, OPENAI_API_KEY, R2 認証情報 (AWS_ACCESS_KEY_ID 等) を一括格納。
+        # SECRET_KEY, R2 認証情報 (AWS_ACCESS_KEY_ID 等) を一括格納。
         # settings.py の _app_secret_arn ハンドラーがすべてのキーを
         # os.environ に展開するため、環境変数名をそのままキーとして使う。
         self.app_secret = secretsmanager.Secret(self, "AppSecret",
