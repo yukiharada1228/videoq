@@ -653,7 +653,7 @@ export default function VideoGroupDetailPage() {
         <Header />
         <div className="flex-1 w-full px-6 py-6">
           <div className="flex justify-center items-center h-64">
-            <LoadingSpinner fullScreen={false} />
+            <LoadingSpinner />
           </div>
         </div>
         <Footer />

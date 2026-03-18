@@ -2,31 +2,23 @@ import { render, screen } from '@testing-library/react'
 import { LoadingSpinner } from '../LoadingSpinner'
 
 describe('LoadingSpinner', () => {
-  it('should render full screen spinner by default', () => {
+  it('should render spinner', () => {
     const { container } = render(<LoadingSpinner />)
-    
-    const spinner = container.querySelector('.min-h-screen')
-    expect(spinner).toBeInTheDocument()
-  })
 
-  it('should render inline spinner when fullScreen is false', () => {
-    const { container } = render(<LoadingSpinner fullScreen={false} />)
-    
-    const spinner = container.querySelector('.flex.justify-center')
+    const spinner = container.querySelector('.animate-spin')
     expect(spinner).toBeInTheDocument()
-    expect(container.querySelector('.min-h-screen')).not.toBeInTheDocument()
   })
 
   it('should display custom message', () => {
     render(<LoadingSpinner message="Loading data..." />)
-    
+
     expect(screen.getByText('Loading data...')).toBeInTheDocument()
   })
 
-  it('should display default message', () => {
-    render(<LoadingSpinner />)
+  it('should not display message when not provided', () => {
+    const { container } = render(<LoadingSpinner />)
 
-    expect(screen.getByText('Loading...')).toBeInTheDocument()
+    const message = container.querySelector('p')
+    expect(message).not.toBeInTheDocument()
   })
 })
-
