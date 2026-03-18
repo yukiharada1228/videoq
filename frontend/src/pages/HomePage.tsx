@@ -24,21 +24,21 @@ export default function HomePage() {
   return (
     <PageLayout>
       <div className="max-w-4xl mx-auto space-y-8">
-        <div className="text-center space-y-4">
-          <h1 className="text-5xl font-bold text-gray-900">
-            {t('home.welcome.title')}
-          </h1>
-          {user && (
-            <p className="text-xl text-gray-600">
-              {t('home.welcome.subtitle', { username: user.username })}
-            </p>
-          )}
-        </div>
-
         {!dataReady ? (
           <LoadingSpinner />
         ) : (
           <>
+            <div className="text-center space-y-4">
+              <h1 className="text-5xl font-bold text-gray-900">
+                {t('home.welcome.title')}
+              </h1>
+              {user && (
+                <p className="text-xl text-gray-600">
+                  {t('home.welcome.subtitle', { username: user.username })}
+                </p>
+              )}
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <Card
                 className="hover:shadow-xl transition-all cursor-pointer border-2 hover:border-blue-300"
