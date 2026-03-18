@@ -110,6 +110,60 @@ graph TB
     Celery -.->|Optional| WhisperLocal
 ```
 
+## 本番環境（サーバーレス構成）
+
+```mermaid
+graph TB
+    subgraph Client["Client Layer"]
+        Browser["Web Browser (https://videoq.jp)"]
+    end
+
+    subgraph Edge["Edge Layer"]
+        CloudFront["CloudFront (CDN)"]
+        Pages["Cloudflare Pages
+        - Frontend SPA"]
+    end
+
+    subgraph Gateway["Gateway Layer"]
+        API_GW["API Gateway HTTP API"]
+    end
+
+    subgraph Compute["Serverless Compute Layer (AWS)"]
+        LambdaAPI["Lambda API
+        - Django + Lambda Web Adapter"]
+        LambdaWorker["Lambda Worker
+        - Celery Tasks"]
+    end
+
+    subgraph Messaging["Messaging"]
+        SQS["Amazon SQS Queue
+        - Celery Broker"]
+    end
+
+    subgraph Database["Data Layer"]
+        NeonDB[("Neon PostgreSQL
+        - Serverless DB + pgvector")]
+    end
+
+    subgraph Storage["Storage Layer"]
+        R2[("Cloudflare R2
+        - Serverless Object Storage")]
+    end
+
+    Browser -->|Request| CloudFront
+    CloudFront -->|/* (Static)| Pages
+    CloudFront -->|/api/*| API_GW
+    
+    API_GW --> LambdaAPI
+    LambdaAPI --> NeonDB
+    LambdaAPI --> R2
+    LambdaAPI --> SQS
+    
+    SQS --> LambdaWorker
+    LambdaWorker --> NeonDB
+    LambdaWorker --> R2
+```
+
 ## レイヤー別詳細構成
 
 ### フロントエンド
