@@ -80,14 +80,30 @@ class _FakeTransactionPort:
         fn()
 
 
+class _FakeUploadGateway:
+    def __init__(self, file_size: int = 1024):
+        self.file_size = file_size
+        self.deleted_keys: list[str] = []
+
+    def get_file_size(self, file_key: str) -> int:
+        return self.file_size
+
+    def delete_file(self, file_key: str) -> None:
+        self.deleted_keys.append(file_key)
+
+    def generate_upload_url(self, file_key: str, content_type: str) -> str:
+        return ""
+
+
 class RunTranscriptionUseCaseTests(TestCase):
     def test_success_sets_indexing_status_and_enqueues_task(self):
         video = VideoEntity(id=1, user_id=10, title="v1", status="pending")
         repo = _FakeVideoTranscriptionRepository(video)
         transcription = _FakeTranscriptionGateway(transcript="hello")
         task_gateway = _FakeVideoTaskGateway()
+        upload_gw = _FakeUploadGateway()
         tx = _FakeTransactionPort()
-        use_case = RunTranscriptionUseCase(repo, transcription, task_gateway, tx)
+        use_case = RunTranscriptionUseCase(repo, transcription, task_gateway, upload_gw, tx)
 
         use_case.execute(video.id)
 
@@ -100,8 +116,9 @@ class RunTranscriptionUseCaseTests(TestCase):
         repo = _FakeVideoTranscriptionRepository(video)
         transcription = _FakeTranscriptionGateway(error=RuntimeError("boom"))
         task_gateway = _FakeVideoTaskGateway()
+        upload_gw = _FakeUploadGateway()
         tx = _FakeTransactionPort()
-        use_case = RunTranscriptionUseCase(repo, transcription, task_gateway, tx)
+        use_case = RunTranscriptionUseCase(repo, transcription, task_gateway, upload_gw, tx)
 
         with self.assertRaises(TranscriptionExecutionFailed) as exc:
             use_case.execute(video.id)
@@ -115,8 +132,9 @@ class RunTranscriptionUseCaseTests(TestCase):
         repo = _FakeVideoTranscriptionRepository(video=None)
         transcription = _FakeTranscriptionGateway(transcript="hello")
         task_gateway = _FakeVideoTaskGateway()
+        upload_gw = _FakeUploadGateway()
         tx = _FakeTransactionPort()
-        use_case = RunTranscriptionUseCase(repo, transcription, task_gateway, tx)
+        use_case = RunTranscriptionUseCase(repo, transcription, task_gateway, upload_gw, tx)
 
         with self.assertRaises(TranscriptionTargetMissing):
             use_case.execute(99999)
@@ -126,8 +144,34 @@ class RunTranscriptionUseCaseTests(TestCase):
         repo = _FakeVideoTranscriptionRepository(video)
         transcription = _FakeTranscriptionGateway(transcript="hello")
         task_gateway = _FakeVideoTaskGateway()
+        upload_gw = _FakeUploadGateway()
         tx = _FakeTransactionPort()
-        use_case = RunTranscriptionUseCase(repo, transcription, task_gateway, tx)
+        use_case = RunTranscriptionUseCase(repo, transcription, task_gateway, upload_gw, tx)
 
         with self.assertRaises(InvalidVideoStatusTransition):
             use_case.execute(video.id)
+
+    def test_file_size_exceeded_deletes_file_and_video(self):
+        from app.use_cases.video.exceptions import FileSizeExceeded
+        from app.use_cases.video.request_video_upload import MAX_VIDEO_UPLOAD_SIZE_BYTES
+
+        video = VideoEntity(id=1, user_id=10, title="v1", status="pending", file_key="uploads/test.mp4")
+        repo = _FakeVideoTranscriptionRepository(video)
+        repo.deleted = []
+
+        def fake_delete(v):
+            repo.deleted.append(v.id)
+        repo.delete = fake_delete
+
+        transcription = _FakeTranscriptionGateway(transcript="hello")
+        task_gateway = _FakeVideoTaskGateway()
+        upload_gw = _FakeUploadGateway(file_size=MAX_VIDEO_UPLOAD_SIZE_BYTES + 1)
+        tx = _FakeTransactionPort()
+        use_case = RunTranscriptionUseCase(repo, transcription, task_gateway, upload_gw, tx)
+
+        with self.assertRaises(FileSizeExceeded):
+            use_case.execute(video.id)
+
+        self.assertEqual(upload_gw.deleted_keys, ["uploads/test.mp4"])
+        self.assertEqual(repo.deleted, [1])
+        self.assertEqual(transcription.calls, [])

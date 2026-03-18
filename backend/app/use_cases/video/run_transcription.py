@@ -8,13 +8,15 @@ from typing import Optional
 
 from app.domain.shared.transaction import TransactionPort
 from app.domain.user.ports import OpenAiApiKeyRepository
-from app.domain.video.gateways import TranscriptionGateway, VideoTaskGateway
-from app.domain.video.repositories import VideoTranscriptionRepository
+from app.domain.video.gateways import FileUploadGateway, TranscriptionGateway, VideoTaskGateway
+from app.domain.video.repositories import VideoRepository
 from app.domain.video.services import VideoTranscriptionLifecycle
 from app.use_cases.video.exceptions import (
+    FileSizeExceeded,
     TranscriptionExecutionFailed,
     TranscriptionTargetMissing,
 )
+from app.use_cases.video.request_video_upload import MAX_VIDEO_UPLOAD_SIZE_BYTES
 
 logger = logging.getLogger(__name__)
 
@@ -23,24 +25,27 @@ class RunTranscriptionUseCase:
     """
     Orchestrates video transcription:
     1. Validate video exists and is ready for processing
-    2. Transition status PENDING/ERROR → PROCESSING
-    3. Run transcription (audio extraction + Whisper + scene splitting)
-    4. Persist transcript and transition status PROCESSING → INDEXING
-    5. Enqueue async indexing task (INDEXING → COMPLETED handled by IndexVideoTranscriptUseCase)
+    2. Verify file size does not exceed limit
+    3. Transition status PENDING/ERROR → PROCESSING
+    4. Run transcription (audio extraction + Whisper + scene splitting)
+    5. Persist transcript and transition status PROCESSING → INDEXING
+    6. Enqueue async indexing task (INDEXING → COMPLETED handled by IndexVideoTranscriptUseCase)
     On error: transition status PROCESSING → ERROR and re-raise.
     """
 
     def __init__(
         self,
-        video_repo: VideoTranscriptionRepository,
+        video_repo: VideoRepository,
         transcription_gateway: TranscriptionGateway,
         task_queue: VideoTaskGateway,
+        upload_gateway: FileUploadGateway,
         tx: TransactionPort,
         api_key_repo: Optional[OpenAiApiKeyRepository] = None,
     ):
         self.video_repo = video_repo
         self.transcription_gateway = transcription_gateway
         self.task_queue = task_queue
+        self.upload_gateway = upload_gateway
         self.tx = tx
         self.api_key_repo = api_key_repo
 
@@ -48,6 +53,14 @@ class RunTranscriptionUseCase:
         video = self.video_repo.get_by_id_for_task(video_id)
         if video is None:
             raise TranscriptionTargetMissing(video_id)
+
+        # Verify file size before starting transcription
+        actual_size = self.upload_gateway.get_file_size(video.file_key)
+        if actual_size > MAX_VIDEO_UPLOAD_SIZE_BYTES:
+            self.upload_gateway.delete_file(video.file_key)
+            self.video_repo.delete(video)
+            max_mb = MAX_VIDEO_UPLOAD_SIZE_BYTES // (1024 * 1024)
+            raise FileSizeExceeded(max_mb)
 
         from_status, to_status = VideoTranscriptionLifecycle.plan_start(video.status)
 
