@@ -184,12 +184,14 @@ aws ecr get-login-password --region $REGION \
     $(echo $API_ECR | cut -d/ -f1)
 
 # API Lambda イメージ (Lambda Web Adapter)
-docker build -f backend/Dockerfile.lambda \
+docker build --platform linux/amd64 --provenance=false \
+  -f backend/Dockerfile.lambda \
   -t $API_ECR:latest ./backend
 docker push $API_ECR:latest
 
 # Worker Lambda イメージ
-docker build -f backend/Dockerfile.worker \
+docker build --platform linux/amd64 --provenance=false \
+  -f backend/Dockerfile.worker \
   -t $WORKER_ECR:latest ./backend
 docker push $WORKER_ECR:latest
 ```
@@ -281,8 +283,8 @@ curl -I https://videoq.jp/api/health/
 
 ```bash
 # 1. イメージをリビルド & プッシュ
-docker build -f backend/Dockerfile.lambda -t $API_ECR:latest ./backend && docker push $API_ECR:latest
-docker build -f backend/Dockerfile.worker -t $WORKER_ECR:latest ./backend && docker push $WORKER_ECR:latest
+docker build --platform linux/amd64 --provenance=false -f backend/Dockerfile.lambda -t $API_ECR:latest ./backend && docker push $API_ECR:latest
+docker build --platform linux/amd64 --provenance=false -f backend/Dockerfile.worker -t $WORKER_ECR:latest ./backend && docker push $WORKER_ECR:latest
 
 # 2. Lambda を更新
 aws lambda update-function-code --function-name videoq-api-prod --image-uri $API_ECR:latest --region $REGION
