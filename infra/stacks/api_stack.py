@@ -123,10 +123,12 @@ class ApiStack(Stack):
         if config.pages_domain:
             origins.append(f"https://{config.pages_domain}")
         cors_origins = ",".join(origins) if origins else "http://localhost:3000,http://localhost:5173"
+        frontend_url = f"https://{config.custom_domain}" if config.custom_domain else (f"https://{config.pages_domain}" if config.pages_domain else "http://localhost:3000")
 
         return {
             # Django
             "DJANGO_ENV": "production",
+            "FRONTEND_URL": frontend_url,
             "ALLOWED_HOSTS": f".execute-api.{self.region}.amazonaws.com,localhost",
             "CORS_ALLOWED_ORIGINS": cors_origins,
             # Secrets Manager
