@@ -154,7 +154,6 @@ export default function VideosPage() {
           <LoadingState
             isLoading={isLoading}
             error={error}
-            loadingMessage={t('videos.list.loading')}
           >
             <div className="max-h-[600px] overflow-y-auto">
               <VideoList videos={videos} />
