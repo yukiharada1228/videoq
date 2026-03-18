@@ -50,7 +50,7 @@ class _FakeTranscriptionGateway:
         self.error = error
         self.calls: list[int] = []
 
-    def run(self, video_id: int) -> str:
+    def run(self, video_id: int, api_key=None) -> str:
         self.calls.append(video_id)
         if self.error:
             raise self.error

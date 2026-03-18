@@ -14,6 +14,8 @@ from app.presentation.auth.serializers import (AccountDeleteSerializer,
                                                LoginResponseSerializer,
                                                LoginSerializer,
                                                MessageResponseSerializer,
+                                               OpenAiApiKeyInputSerializer,
+                                               OpenAiApiKeyStatusSerializer,
                                                PasswordResetConfirmBodySerializer,
                                                PasswordResetRequestSerializer,
                                                RefreshResponseSerializer,
@@ -440,3 +442,44 @@ class ApiKeyDetailView(AuthenticatedAPIView, generics.GenericAPIView):
         except ResourceNotFound:
             return create_error_response("API key not found", status.HTTP_404_NOT_FOUND)
         return create_success_response(message="API key revoked.")
+
+
+class OpenAiApiKeyView(AuthenticatedAPIView):
+    """Manage the user's OpenAI API key."""
+
+    save_openai_api_key_use_case = None
+    delete_openai_api_key_use_case = None
+    get_openai_api_key_status_use_case = None
+
+    @extend_schema(
+        responses={200: OpenAiApiKeyStatusSerializer},
+        summary="Get OpenAI API key status",
+        description="Returns whether an OpenAI API key is set, with a masked preview.",
+    )
+    def get(self, request):
+        use_case = self.resolve_dependency(self.get_openai_api_key_status_use_case)
+        result = use_case.execute(request.user.id)
+        return Response(OpenAiApiKeyStatusSerializer(result).data)
+
+    @extend_schema(
+        request=OpenAiApiKeyInputSerializer,
+        responses={200: MessageResponseSerializer},
+        summary="Save OpenAI API key",
+        description="Encrypt and store the user's OpenAI API key.",
+    )
+    def put(self, request):
+        serializer = OpenAiApiKeyInputSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        use_case = self.resolve_dependency(self.save_openai_api_key_use_case)
+        use_case.execute(request.user.id, serializer.validated_data["api_key"])
+        return create_success_response(message="OpenAI API key saved.")
+
+    @extend_schema(
+        responses={200: MessageResponseSerializer},
+        summary="Delete OpenAI API key",
+        description="Remove the user's stored OpenAI API key.",
+    )
+    def delete(self, request):
+        use_case = self.resolve_dependency(self.delete_openai_api_key_use_case)
+        use_case.execute(request.user.id)
+        return create_success_response(message="OpenAI API key deleted.")

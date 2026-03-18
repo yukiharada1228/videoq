@@ -110,7 +110,6 @@ class DefaultSettings:
 
     # LLM configuration
     LLM_PROVIDER = "openai"  # openai or ollama
-    OPENAI_API_KEY = ""  # OpenAI API key (from environment variable)
     LLM_MODEL = "gpt-4o-mini"  # Default LLM model (provider-agnostic)
 
 
@@ -564,5 +563,4 @@ EMBEDDING_VECTOR_SIZE = int(os.environ.get("EMBEDDING_VECTOR_SIZE", 1536))
 
 # LLM configuration
 LLM_PROVIDER = os.environ.get("LLM_PROVIDER", DefaultSettings.LLM_PROVIDER).lower()
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", DefaultSettings.OPENAI_API_KEY)
 LLM_MODEL = os.environ.get("LLM_MODEL", DefaultSettings.LLM_MODEL)

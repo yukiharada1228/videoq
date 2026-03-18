@@ -61,6 +61,11 @@ export interface AccountDeleteRequest {
   reason?: string;
 }
 
+export interface OpenAiApiKeyStatus {
+  has_key: boolean;
+  masked_key: string | null;
+}
+
 export interface LoginRequest {
   username: string;
   password: string;
@@ -588,6 +593,23 @@ class ApiClient {
     await this.request('/auth/account/', {
       method: 'DELETE',
       body: data ?? {},
+    });
+  }
+
+  async getOpenAiApiKeyStatus(): Promise<OpenAiApiKeyStatus> {
+    return this.request<OpenAiApiKeyStatus>('/auth/openai-api-key/');
+  }
+
+  async saveOpenAiApiKey(data: { api_key: string }): Promise<void> {
+    await this.request('/auth/openai-api-key/', {
+      method: 'PUT',
+      body: data,
+    });
+  }
+
+  async deleteOpenAiApiKey(): Promise<void> {
+    await this.request('/auth/openai-api-key/', {
+      method: 'DELETE',
     });
   }
 

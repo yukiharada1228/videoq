@@ -12,6 +12,11 @@ class User(AbstractUser):
         help_text="Maximum number of videos user can upload. 0 means no uploads allowed, null means unlimited.",
     )
     deactivated_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    openai_api_key_encrypted = models.BinaryField(
+        null=True,
+        blank=True,
+        help_text="Encrypted OpenAI API key",
+    )
 
     class Meta:
         indexes = [

@@ -7,7 +7,7 @@ at the infrastructure/use-case level.
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase, override_settings
+from django.test import TestCase
 
 from app.dependencies.tasks import TranscriptionTargetMissingError
 from app.entrypoints.tasks.transcription import transcribe_video
@@ -19,7 +19,6 @@ _TRANSCRIBE = "app.infrastructure.external.transcription_gateway.WhisperTranscri
 _ENQUEUE_INDEXING = "app.infrastructure.tasks.task_gateway.CeleryVideoTaskGateway.enqueue_indexing"
 
 
-@override_settings(OPENAI_API_KEY="test-api-key")
 class TranscribeVideoTaskTests(TestCase):
     """Tests for transcribe_video Celery task"""
 

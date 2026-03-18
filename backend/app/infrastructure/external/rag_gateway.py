@@ -29,6 +29,7 @@ class RagChatGateway(RagGateway):
         user_id: int,
         video_ids: Optional[Sequence[int]] = None,
         locale: Optional[str] = None,
+        api_key: Optional[str] = None,
     ) -> RagResult:
         User = get_user_model()
         try:
@@ -37,11 +38,11 @@ class RagChatGateway(RagGateway):
             raise RagUserNotFoundError(f"User not found: {user_id}") from exc
 
         try:
-            llm = get_langchain_llm(user)
+            llm = get_langchain_llm(api_key=api_key)
         except LLMConfigError as e:
             raise LLMConfigurationError(str(e)) from e
 
-        service = RagChatService(user=user, llm=llm)
+        service = RagChatService(user=user, llm=llm, api_key=api_key)
         raw_messages = [
             {"role": message.role, "content": message.content}
             for message in messages
@@ -86,6 +87,7 @@ class RagChatGateway(RagGateway):
         query_text: str,
         user_id: int,
         video_ids: Optional[Sequence[int]] = None,
+        api_key: Optional[str] = None,
     ) -> Optional[Sequence[RelatedVideoDTO]]:
         User = get_user_model()
         try:
@@ -93,7 +95,7 @@ class RagChatGateway(RagGateway):
         except User.DoesNotExist as exc:
             raise RagUserNotFoundError(f"User not found: {user_id}") from exc
 
-        service = RagChatService(user=user)
+        service = RagChatService(user=user, api_key=api_key)
         raw_video_ids = list(video_ids) if video_ids is not None else None
 
         try:

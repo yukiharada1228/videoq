@@ -4,7 +4,10 @@ Use case: Transcribe a video and index its scenes for RAG search.
 
 import logging
 
+from typing import Optional
+
 from app.domain.shared.transaction import TransactionPort
+from app.domain.user.ports import OpenAiApiKeyRepository
 from app.domain.video.gateways import TranscriptionGateway, VideoTaskGateway
 from app.domain.video.repositories import VideoTranscriptionRepository
 from app.domain.video.services import VideoTranscriptionLifecycle
@@ -33,11 +36,13 @@ class RunTranscriptionUseCase:
         transcription_gateway: TranscriptionGateway,
         task_queue: VideoTaskGateway,
         tx: TransactionPort,
+        api_key_repo: Optional[OpenAiApiKeyRepository] = None,
     ):
         self.video_repo = video_repo
         self.transcription_gateway = transcription_gateway
         self.task_queue = task_queue
         self.tx = tx
+        self.api_key_repo = api_key_repo
 
     def execute(self, video_id: int) -> None:
         video = self.video_repo.get_by_id_for_task(video_id)
@@ -53,8 +58,13 @@ class RunTranscriptionUseCase:
             to_status=to_status,
         )
 
+        # Resolve per-user OpenAI API key
+        api_key = None
+        if self.api_key_repo is not None and video.user_id:
+            api_key = self.api_key_repo.get_decrypted_key(video.user_id)
+
         try:
-            transcript = self.transcription_gateway.run(video_id)
+            transcript = self.transcription_gateway.run(video_id, api_key=api_key)
             with self.tx.atomic():
                 self.video_repo.save_transcript(video_id, transcript)
                 from_status, to_status = VideoTranscriptionLifecycle.plan_success()

@@ -43,15 +43,15 @@ class RagChatServiceTests(TestCase):
 
     @patch("app.infrastructure.external.rag_service.PGVectorManager.create_vectorstore")
     @patch("app.infrastructure.external.rag_service.get_embeddings")
-    @override_settings(EMBEDDING_PROVIDER="openai", OPENAI_API_KEY="test-api-key")
+    @override_settings(EMBEDDING_PROVIDER="openai")
     def test_create_vector_store_with_api_key(
         self, mock_get_embeddings, mock_create_vectorstore
     ):
-        """Test _create_vector_store when API key is configured via environment"""
+        """Test _create_vector_store when API key is provided via constructor"""
         mock_store = MagicMock()
         mock_create_vectorstore.return_value = mock_store
 
-        service = RagChatService(user=self.user, llm=MagicMock())
+        service = RagChatService(user=self.user, llm=MagicMock(), api_key="test-api-key")
         vector_store = service._create_vector_store()
 
         self.assertIsNotNone(vector_store)
@@ -63,7 +63,6 @@ class RagChatServiceTests(TestCase):
     @override_settings(
         EMBEDDING_PROVIDER="ollama",
         EMBEDDING_MODEL="qwen3-embedding:0.6b",
-        OPENAI_API_KEY="",
     )
     def test_create_vector_store_with_ollama(
         self, mock_get_embeddings, mock_create_vectorstore
@@ -92,7 +91,7 @@ class RagChatGatewayExceptionTests(TestCase):
 
     @patch("app.infrastructure.external.rag_gateway.get_langchain_llm")
     @patch("app.infrastructure.external.rag_gateway.RagChatService")
-    @override_settings(LLM_PROVIDER="openai", OPENAI_API_KEY="test-key")
+    @override_settings(LLM_PROVIDER="openai")
     def test_service_run_exception_becomes_llm_provider_error(
         self, mock_service_cls, mock_get_llm
     ):
@@ -110,7 +109,7 @@ class RagChatGatewayExceptionTests(TestCase):
 
     @patch("app.infrastructure.external.rag_gateway.get_langchain_llm")
     @patch("app.infrastructure.external.rag_gateway.RagChatService")
-    @override_settings(LLM_PROVIDER="openai", OPENAI_API_KEY="test-key")
+    @override_settings(LLM_PROVIDER="openai")
     def test_service_run_exception_preserves_cause(
         self, mock_service_cls, mock_get_llm
     ):
