@@ -82,8 +82,10 @@ class WorkerStack(Stack):
         app_secret: secretsmanager.Secret,
         sqs_queue: sqs.Queue,
     ) -> dict:
+        frontend_url = f"https://{config.custom_domain}" if config.custom_domain else (f"https://{config.pages_domain}" if config.pages_domain else "http://localhost:3000")
         return {
             "DJANGO_ENV": "production",
+            "FRONTEND_URL": frontend_url,
             "DB_SECRET_ARN": db_secret.secret_arn,
             "APP_SECRET_ARN": app_secret.secret_arn,
             "USE_S3_STORAGE": "true",

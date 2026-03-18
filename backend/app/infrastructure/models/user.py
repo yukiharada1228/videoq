@@ -7,7 +7,7 @@ class User(AbstractUser):
     video_limit = models.PositiveIntegerField(
         null=True,
         blank=True,
-        default=0,
+        default=5,
         db_index=True,
         help_text="Maximum number of videos user can upload. 0 means no uploads allowed, null means unlimited.",
     )
