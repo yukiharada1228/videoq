@@ -8,6 +8,7 @@ from typing import Optional
 
 from app.domain.shared.transaction import TransactionPort
 from app.domain.user.ports import OpenAiApiKeyRepository
+from app.domain.user.repositories import UserRepository
 from app.domain.video.gateways import FileUploadGateway, TranscriptionGateway, VideoTaskGateway
 from app.domain.video.repositories import VideoRepository
 from app.domain.video.services import VideoTranscriptionLifecycle
@@ -16,7 +17,6 @@ from app.use_cases.video.exceptions import (
     TranscriptionExecutionFailed,
     TranscriptionTargetMissing,
 )
-from app.use_cases.video.request_video_upload import MAX_VIDEO_UPLOAD_SIZE_BYTES
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +41,7 @@ class RunTranscriptionUseCase:
         upload_gateway: FileUploadGateway,
         tx: TransactionPort,
         api_key_repo: Optional[OpenAiApiKeyRepository] = None,
+        user_repo: Optional[UserRepository] = None,
     ):
         self.video_repo = video_repo
         self.transcription_gateway = transcription_gateway
@@ -48,18 +49,26 @@ class RunTranscriptionUseCase:
         self.upload_gateway = upload_gateway
         self.tx = tx
         self.api_key_repo = api_key_repo
+        self.user_repo = user_repo
 
     def execute(self, video_id: int) -> None:
         video = self.video_repo.get_by_id_for_task(video_id)
         if video is None:
             raise TranscriptionTargetMissing(video_id)
 
+        # Resolve per-user upload size limit
+        max_upload_bytes = 500 * 1024 * 1024  # default fallback
+        if self.user_repo is not None and video.user_id:
+            user = self.user_repo.get_by_id(video.user_id)
+            if user is not None:
+                max_upload_bytes = user.get_max_upload_size_bytes()
+
         # Verify file size before starting transcription
         actual_size = self.upload_gateway.get_file_size(video.file_key)
-        if actual_size > MAX_VIDEO_UPLOAD_SIZE_BYTES:
+        if actual_size > max_upload_bytes:
             self.upload_gateway.delete_file(video.file_key)
             self.video_repo.delete(video)
-            max_mb = MAX_VIDEO_UPLOAD_SIZE_BYTES // (1024 * 1024)
+            max_mb = max_upload_bytes // (1024 * 1024)
             raise FileSizeExceeded(max_mb)
 
         from_status, to_status = VideoTranscriptionLifecycle.plan_start(video.status)

@@ -11,7 +11,7 @@ from app.domain.video.dto import CreateVideoParams, UpdateVideoParams
 from app.domain.video.entities import VideoEntity
 from app.use_cases.video.create_video import CreateVideoUseCase
 from app.use_cases.video.dto import CreateVideoInput
-from app.use_cases.video.exceptions import ResourceNotFound, VideoLimitExceeded
+from app.use_cases.video.exceptions import ResourceNotFound, VideoFileTooLarge, VideoLimitExceeded
 
 
 @dataclass
@@ -194,6 +194,45 @@ class CreateVideoUseCaseTests(TestCase):
 
         self.assertIsNotNone(video.id)
         self.assertEqual(self.repo.count_for_user(self.user_id), 11)
+
+    def test_rejects_file_exceeding_user_size_limit(self):
+        self.user_repo.get_by_id.return_value = UserEntity(
+            id=self.user_id,
+            username="user",
+            email="user@example.com",
+            is_active=True,
+            video_limit=None,
+            max_video_upload_size_mb=100,
+        )
+        file_size = 101 * 1024 * 1024  # 101 MB
+        input_dto = CreateVideoInput(
+            file=FakeUploadedFile(),
+            title="Test Video",
+            description="",
+            file_size=file_size,
+        )
+        with self.assertRaises(VideoFileTooLarge) as ctx:
+            self.use_case.execute(self.user_id, input_dto)
+        self.assertEqual(ctx.exception.limit_mb, 100)
+
+    def test_accepts_file_within_user_size_limit(self):
+        self.user_repo.get_by_id.return_value = UserEntity(
+            id=self.user_id,
+            username="user",
+            email="user@example.com",
+            is_active=True,
+            video_limit=None,
+            max_video_upload_size_mb=1000,
+        )
+        file_size = 600 * 1024 * 1024  # 600 MB
+        input_dto = CreateVideoInput(
+            file=FakeUploadedFile(),
+            title="Test Video",
+            description="",
+            file_size=file_size,
+        )
+        video = self.use_case.execute(self.user_id, input_dto)
+        self.assertIsNotNone(video.id)
 
     def test_raises_when_user_not_found(self):
         self.user_repo.get_by_id.return_value = None

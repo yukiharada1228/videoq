@@ -152,8 +152,18 @@ class RunTranscriptionUseCaseTests(TestCase):
             use_case.execute(video.id)
 
     def test_file_size_exceeded_deletes_file_and_video(self):
+        from unittest.mock import MagicMock
+
+        from app.domain.user.entities import UserEntity
         from app.use_cases.video.exceptions import FileSizeExceeded
-        from app.use_cases.video.request_video_upload import MAX_VIDEO_UPLOAD_SIZE_BYTES
+
+        user = UserEntity(
+            id=10, username="u", email="u@e.com",
+            is_active=True, video_limit=None, max_video_upload_size_mb=500,
+        )
+        user_repo = MagicMock()
+        user_repo.get_by_id.return_value = user
+        max_bytes = user.get_max_upload_size_bytes()
 
         video = VideoEntity(id=1, user_id=10, title="v1", status="pending", file_key="uploads/test.mp4")
         repo = _FakeVideoTranscriptionRepository(video)
@@ -165,9 +175,11 @@ class RunTranscriptionUseCaseTests(TestCase):
 
         transcription = _FakeTranscriptionGateway(transcript="hello")
         task_gateway = _FakeVideoTaskGateway()
-        upload_gw = _FakeUploadGateway(file_size=MAX_VIDEO_UPLOAD_SIZE_BYTES + 1)
+        upload_gw = _FakeUploadGateway(file_size=max_bytes + 1)
         tx = _FakeTransactionPort()
-        use_case = RunTranscriptionUseCase(repo, transcription, task_gateway, upload_gw, tx)
+        use_case = RunTranscriptionUseCase(
+            repo, transcription, task_gateway, upload_gw, tx, user_repo=user_repo,
+        )
 
         with self.assertRaises(FileSizeExceeded):
             use_case.execute(video.id)

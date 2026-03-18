@@ -39,6 +39,7 @@ def get_run_transcription_use_case() -> RunTranscriptionUseCase:
         shared.get_file_upload_gateway(),
         DjangoTransactionPort(),
         api_key_repo=DjangoOpenAiApiKeyRepository(),
+        user_repo=shared.new_user_repository(),
     )
 
 

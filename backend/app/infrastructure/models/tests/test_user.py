@@ -2,9 +2,10 @@
 Tests for User model
 """
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError
-from django.test import TestCase
+from django.test import TestCase, override_settings
 
 User = get_user_model()
 
@@ -39,15 +40,26 @@ class UserModelTests(TestCase):
                 password="testpass123",
             )
 
-    def test_default_video_limit_is_zero(self):
-        """Test that default video_limit is 0"""
+    def test_default_video_limit_from_settings(self):
+        """Test that default video_limit comes from settings.DEFAULT_VIDEO_LIMIT"""
         user = User.objects.create_user(
             username="testuser",
             email="test@example.com",
             password="testpass123",
         )
+        self.assertEqual(user.video_limit, settings.DEFAULT_VIDEO_LIMIT)
 
-        self.assertEqual(user.video_limit, 0)
+    @override_settings(DEFAULT_VIDEO_LIMIT=42)
+    def test_default_video_limit_respects_override(self):
+        """Test that video_limit default reflects settings override at field level"""
+        # Note: Django model field default is evaluated at class definition time,
+        # so we use a callable default to pick up settings dynamically.
+        user = User.objects.create_user(
+            username="testuser2",
+            email="test2@example.com",
+            password="testpass123",
+        )
+        self.assertEqual(user.video_limit, 42)
 
     def test_video_limit_can_be_none(self):
         """Test that video_limit can be None (unlimited)"""
@@ -70,6 +82,25 @@ class UserModelTests(TestCase):
         )
 
         self.assertEqual(user.video_limit, 10)
+
+    def test_default_max_video_upload_size_mb_from_settings(self):
+        """Test that default max_video_upload_size_mb comes from settings"""
+        user = User.objects.create_user(
+            username="testuser",
+            email="test@example.com",
+            password="testpass123",
+        )
+        self.assertEqual(user.max_video_upload_size_mb, settings.MAX_VIDEO_UPLOAD_SIZE_MB)
+
+    @override_settings(MAX_VIDEO_UPLOAD_SIZE_MB=1024)
+    def test_default_max_video_upload_size_mb_respects_override(self):
+        """Test that max_video_upload_size_mb default reflects settings override"""
+        user = User.objects.create_user(
+            username="testuser3",
+            email="test3@example.com",
+            password="testpass123",
+        )
+        self.assertEqual(user.max_video_upload_size_mb, 1024)
 
     def test_user_inherits_from_abstract_user(self):
         """Test that User inherits all AbstractUser functionality"""

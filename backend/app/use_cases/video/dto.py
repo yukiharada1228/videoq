@@ -31,6 +31,7 @@ class CreateVideoInput:
     file: UploadFileSource
     title: str
     description: str
+    file_size: int = 0
 
 
 @dataclass(frozen=True)

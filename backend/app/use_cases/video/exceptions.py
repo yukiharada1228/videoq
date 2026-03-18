@@ -51,6 +51,14 @@ class FileSizeExceeded(Exception):
         super().__init__(f"File size exceeds the limit of {limit_mb} MB.")
 
 
+class VideoFileTooLarge(Exception):
+    """Raised when a video file exceeds the user's upload size limit."""
+
+    def __init__(self, limit_mb: int):
+        self.limit_mb = limit_mb
+        super().__init__(f"File size exceeds the limit of {limit_mb} MB.")
+
+
 class InvalidUploadState(Exception):
     """Raised when a video is not in the expected state for upload confirmation."""
 
@@ -104,6 +112,7 @@ __all__ = [
     "TranscriptionExecutionFailed",
     "TranscriptionTargetMissing",
     "VideoAlreadyInGroup",
+    "VideoFileTooLarge",
     "VideoLimitExceeded",
     "VideoNotInGroup",
 ]
