@@ -57,4 +57,5 @@ class ConfirmVideoUploadUseCase:
         logger.info("Upload confirmed for video ID: %s, transcription enqueued", video_id)
 
         updated_video = self.video_repo.get_by_id(video_id, user_id)
+        assert updated_video is not None
         return to_video_response_dto(updated_video)

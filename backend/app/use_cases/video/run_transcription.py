@@ -64,6 +64,8 @@ class RunTranscriptionUseCase:
                 max_upload_bytes = user.get_max_upload_size_bytes()
 
         # Verify file size before starting transcription
+        if not video.file_key:
+            raise TranscriptionTargetMissing(video_id)
         actual_size = self.upload_gateway.get_file_size(video.file_key)
         if actual_size > max_upload_bytes:
             self.upload_gateway.delete_file(video.file_key)
