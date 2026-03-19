@@ -361,6 +361,10 @@ SPECTACULAR_SETTINGS = {
         "app.presentation.common.authentication.CookieJWTAuthentication",
     ],
     "SCHEMA_PATH_PREFIX": "/api/",
+    "POSTPROCESSING_HOOKS": [
+        "drf_spectacular.hooks.postprocess_schema_enums",
+        "app.presentation.common.openapi.set_server_url",
+    ],
 }
 
 _cors_allowed_origins_env = os.environ.get("CORS_ALLOWED_ORIGINS")

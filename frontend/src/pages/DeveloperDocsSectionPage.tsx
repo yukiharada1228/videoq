@@ -3,9 +3,10 @@ import { PageLayout } from '@/components/layout/PageLayout';
 import { Link } from '@/lib/i18n';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ApiEndpointList } from '@/components/docs/ApiEndpointList';
+import { OpenAiSdkExampleList } from '@/components/docs/OpenAiSdkExampleList';
 import { useTranslation } from 'react-i18next';
 
-const sectionIds = ['auth', 'videos', 'chat'] as const;
+const sectionIds = ['auth', 'videos', 'chat', 'openai'] as const;
 type SectionId = (typeof sectionIds)[number];
 
 function isSectionId(value: string): value is SectionId {
@@ -56,11 +57,11 @@ export default function DeveloperDocsSectionPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>{t('docs.section.autoExampleTitle')}</CardTitle>
-            <CardDescription>{t('docs.section.autoExampleDescription')}</CardDescription>
+            <CardTitle>{t(section === 'openai' ? 'docs.openai.exampleTitle' : 'docs.section.autoExampleTitle')}</CardTitle>
+            <CardDescription>{t(section === 'openai' ? 'docs.openai.exampleDescription' : 'docs.section.autoExampleDescription')}</CardDescription>
           </CardHeader>
           <CardContent>
-            <ApiEndpointList section={section} />
+            {section === 'openai' ? <OpenAiSdkExampleList /> : <ApiEndpointList section={section} />}
           </CardContent>
         </Card>
       </div>
