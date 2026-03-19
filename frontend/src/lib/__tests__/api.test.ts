@@ -103,6 +103,7 @@ describe('ApiClient', () => {
 
     it('login should fetch csrf cookie before unsafe requests when missing', async () => {
       document.cookie = '';
+      (apiClient as any).csrfToken = null;
       fetchMock.mockImplementationOnce(async () => {
         document.cookie = 'csrftoken=fetched-csrf-token';
         return {
@@ -376,35 +377,42 @@ describe('ApiClient', () => {
     });
 
     it('uploadVideo should use FormData', async () => {
-      fetchMock.mockResolvedValueOnce({
-        ok: true,
-        headers: new Headers({ 'content-type': 'application/json' }),
-        text: () => Promise.resolve(JSON.stringify({ id: 1 }))
+      const mockVideo = { id: 1, title: 'Test Video' };
+      const mockUploadUrl = 'http://r2.example.com/upload';
+      vi.spyOn(apiClient as any, 'requestUploadUrl').mockResolvedValueOnce({
+        video: mockVideo,
+        upload_url: mockUploadUrl,
       });
+      vi.spyOn(apiClient as any, 'uploadToPresignedUrl').mockResolvedValueOnce(undefined);
+      vi.spyOn(apiClient as any, 'confirmUpload').mockResolvedValueOnce(mockVideo);
 
       const file = new File(['content'], 'test.mp4', { type: 'video/mp4' });
-      await apiClient.uploadVideo({ file, title: 'Test Video' });
+      const result = await apiClient.uploadVideo({ file, title: 'Test Video' });
 
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/', expect.objectContaining({
-        method: 'POST',
-        body: expect.any(FormData),
+      expect((apiClient as any).requestUploadUrl).toHaveBeenCalledWith(expect.objectContaining({
+        filename: 'test.mp4',
+        title: 'Test Video',
       }));
+      expect((apiClient as any).uploadToPresignedUrl).toHaveBeenCalledWith(mockUploadUrl, file, 'video/mp4', undefined);
+      expect((apiClient as any).confirmUpload).toHaveBeenCalledWith(1);
+      expect(result).toEqual(mockVideo);
     });
 
     it('uploadVideo should include optional fields', async () => {
-      fetchMock.mockResolvedValueOnce({
-        ok: true,
-        headers: new Headers({ 'content-type': 'application/json' }),
-        text: () => Promise.resolve(JSON.stringify({ id: 1 }))
+      const mockVideo = { id: 1, title: 'Test' };
+      vi.spyOn(apiClient as any, 'requestUploadUrl').mockResolvedValueOnce({
+        video: mockVideo,
+        upload_url: 'http://r2.example.com/upload',
       });
+      vi.spyOn(apiClient as any, 'uploadToPresignedUrl').mockResolvedValueOnce(undefined);
+      vi.spyOn(apiClient as any, 'confirmUpload').mockResolvedValueOnce(mockVideo);
 
       const file = new File(['content'], 'test.mp4', { type: 'video/mp4' });
       await apiClient.uploadVideo({ file, title: 'Test', description: 'Desc' });
 
-      // Verify FormData entries if possible, or just that it was called. 
-      // Since checking FormData content is hard without a proper mock, coverage is the main goal.
-      // The lines will be executed.
-      expect(fetchMock).toHaveBeenCalled();
+      expect((apiClient as any).requestUploadUrl).toHaveBeenCalledWith(expect.objectContaining({
+        description: 'Desc',
+      }));
     });
 
     it('uploadVideo should handle errors', async () => {
