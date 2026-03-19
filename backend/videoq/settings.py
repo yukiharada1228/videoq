@@ -363,7 +363,6 @@ SPECTACULAR_SETTINGS = {
     "SCHEMA_PATH_PREFIX": "/api/",
     "POSTPROCESSING_HOOKS": [
         "drf_spectacular.hooks.postprocess_schema_enums",
-        "app.presentation.common.openapi.set_server_url",
     ],
 }
 

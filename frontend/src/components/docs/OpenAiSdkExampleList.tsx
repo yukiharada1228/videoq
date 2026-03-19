@@ -1,7 +1,6 @@
-import { useEffect, useState } from 'react';
-import { API_URL } from '@/lib/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useTranslation } from 'react-i18next';
+import { useState } from 'react';
 
 const tabs = ['python', 'typescript', 'javascript'] as const;
 type Tab = (typeof tabs)[number];
@@ -112,36 +111,9 @@ console.log('chat_log_id:', msg.chat_log_id);`,
 
 export function OpenAiSdkExampleList() {
   const { t } = useTranslation();
-  const [baseUrl, setBaseUrl] = useState<string>('');
-  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>('python');
 
-  useEffect(() => {
-    const abortController = new AbortController();
-
-    const load = async () => {
-      try {
-        const res = await fetch(`${API_URL}/schema/?format=json`, {
-          credentials: 'include',
-          signal: abortController.signal,
-        });
-        const data = await res.json();
-        const serverUrl: string = data?.servers?.[0]?.url ?? new URL(API_URL, window.location.origin).origin;
-        setBaseUrl(`${serverUrl}/v1/`);
-      } catch {
-        setBaseUrl(`${new URL(API_URL, window.location.origin).origin}/v1/`);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    load();
-    return () => abortController.abort();
-  }, []);
-
-  if (loading) {
-    return <div className="text-sm text-slate-600">{t('docs.api.loading')}</div>;
-  }
+  const baseUrl = `${window.location.origin}/api/v1/`;
 
   const codeStrings: CodeStrings = {
     ragComment: t('docs.openai.code.ragComment'),
