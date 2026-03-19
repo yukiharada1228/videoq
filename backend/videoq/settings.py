@@ -383,7 +383,7 @@ CORS_ALLOW_CREDENTIALS = True
 CELERY_BROKER_URL = os.environ.get(
     "CELERY_BROKER_URL", DefaultSettings.CELERY_BROKER_URL
 )
-CELERY_RESULT_BACKEND = os.environ.get(
+CELERY_RESULT_BACKEND: str | None = os.environ.get(
     "CELERY_RESULT_BACKEND", DefaultSettings.CELERY_RESULT_BACKEND
 )
 CELERY_ACCEPT_CONTENT = ["json"]
@@ -488,7 +488,7 @@ if USE_S3_STORAGE:
     # django-storages skips the env-var fallback in get_default_settings().
     # botocore checks "token is not None" so None means the parameter is
     # omitted entirely from presigned URLs.
-    _storage_credentials = {"security_token": None}
+    _storage_credentials: dict[str, str | None] = {"security_token": None}
     if AWS_ACCESS_KEY_ID:
         _storage_credentials["access_key"] = AWS_ACCESS_KEY_ID
     if AWS_SECRET_ACCESS_KEY:
