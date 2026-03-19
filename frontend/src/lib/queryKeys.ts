@@ -2,6 +2,7 @@ export const queryKeys = {
   auth: {
     me: ['auth', 'me'] as const,
     apiKeys: ['auth', 'apiKeys'] as const,
+    openAiApiKey: ['auth', 'openAiApiKey'] as const,
   },
   videoGroups: {
     all: (userId: number | string | null) => ['videoGroups', userId] as const,

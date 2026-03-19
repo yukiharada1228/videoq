@@ -22,11 +22,11 @@ def build_email_verification_link(user: AbstractBaseUser) -> str:
 
 def send_email_verification(user: AbstractBaseUser) -> None:
     """Send an email verification mail to the specified user."""
-    subject = "[VideoQ] Temporary Registration Complete"
+    subject = "[VideoQ] 仮登録が完了しました"
     verification_link = build_email_verification_link(user)
     message_lines: Sequence[str] = [
-        "Thank you for registering with VideoQ.",
-        "Please click the following URL to complete your registration.",
+        "VideoQ へのご登録ありがとうございます。",
+        "以下のURLをクリックして、本登録を完了させてください。",
         "",
         verification_link,
     ]
@@ -48,15 +48,15 @@ def build_password_reset_link(user: AbstractBaseUser) -> str:
 
 
 def send_password_reset_email(user: AbstractBaseUser) -> None:
-    subject = "[VideoQ] Password Reset Instructions"
+    subject = "[VideoQ] パスワード再設定のご案内"
     reset_link = build_password_reset_link(user)
     message_lines: Sequence[str] = [
-        "We have received a password reset request for VideoQ.",
-        "Please set a new password from the following URL within 24 hours.",
+        "VideoQ のパスワード再設定リクエストを受け付けました。",
+        "24時間以内に、以下のURLから新しいパスワードを設定してください。",
         "",
         reset_link,
         "",
-        "If you did not request this, please ignore this email.",
+        "もしこのリクエストに心当たりがない場合は、このメールを破棄してください。",
     ]
     message = "\n".join(message_lines)
     from_email = getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@videoq.local")

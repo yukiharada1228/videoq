@@ -41,6 +41,7 @@ class RagGateway(ABC):
         user_id: int,
         video_ids: Optional[Sequence[int]] = None,
         locale: Optional[str] = None,
+        api_key: Optional[str] = None,
     ) -> RagResult:
         """
         Execute the RAG pipeline and return the assistant's reply.
@@ -67,6 +68,7 @@ class RagGateway(ABC):
         query_text: str,
         user_id: int,
         video_ids: Optional[Sequence[int]] = None,
+        api_key: Optional[str] = None,
     ) -> Optional[Sequence[RelatedVideoDTO]]:
         """
         Execute retrieval-only search and return related video scenes.

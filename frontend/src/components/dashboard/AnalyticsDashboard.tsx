@@ -18,7 +18,7 @@ export function AnalyticsDashboard({ data, isLoading }: AnalyticsDashboardProps)
   if (isLoading) {
     return (
       <div className="flex justify-center items-center py-16">
-        <LoadingSpinner fullScreen={false} />
+        <LoadingSpinner />
       </div>
     );
   }

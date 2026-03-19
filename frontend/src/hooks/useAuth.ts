@@ -6,7 +6,7 @@ import { queryKeys } from '@/lib/queryKeys';
 
 interface UseAuthReturn {
   user: User | null;
-  loading: boolean;
+  isLoading: boolean;
   refetch: () => Promise<void>;
 }
 
@@ -82,7 +82,7 @@ export function useAuth(options: UseAuthOptions = {}): UseAuthReturn {
 
   return {
     user: authRequired ? authQuery.data ?? null : null,
-    loading: authRequired ? (authQuery.isLoading || authQuery.isFetching) : false,
+    isLoading: authRequired ? (authQuery.isLoading || authQuery.isFetching) : false,
     refetch: checkAuth,
   };
 }

@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Header } from './Header';
 import { Footer } from './Footer';
+import { OpenAiKeyBanner } from '@/components/common/OpenAiKeyBanner';
 
 interface PageLayoutProps {
   children: ReactNode;
@@ -19,6 +20,7 @@ export function PageLayout({ children, headerContent, centered = false, fullWidt
   return (
     <div className="flex min-h-screen flex-col bg-gray-50">
       <Header>{headerContent}</Header>
+      <OpenAiKeyBanner />
       <main className={mainClasses}>
         {children}
       </main>

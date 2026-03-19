@@ -4,6 +4,8 @@
 
 VideoQは、動画を自動で文字起こしし、自然言語で動画と会話できるAI搭載の動画ナビゲーターです。
 
+**[https://videoq.jp/](https://videoq.jp/)**
+
 ![VideoQ Application Screenshot](assets/screenshot.gif)
 
 > 🔌 **API連携にも対応** — APIキー認証・MCPサーバーで既存システムと連携できます。詳しくは[開発者向けAPI連携](#developer-api)をご覧ください。
@@ -47,13 +49,6 @@ cd videoq
 cp .env.example .env
 ```
 
-`.env` ファイルを開いて、まずは次を設定します。
-
-```bash
-# .env に設定する値
-OPENAI_API_KEY=sk-your-key-here
-```
-
 ### ステップ3: VideoQを起動
 
 ```bash
@@ -76,9 +71,10 @@ docker compose exec backend python manage.py createsuperuser
 
 **最初にやること:**
 1. 作成した管理者アカウントでログイン
-2. 必要なら一般ユーザーを作成
-3. 一般ユーザーには動画アップロード上限を設定
-4. 動画をアップロードして、文字起こし完了後にチャットを試す
+2. **アカウントの設定（Settings）画面から、取得した OpenAI API キーを登録**
+3. 必要なら一般ユーザーを作成
+4. 一般ユーザーには動画アップロード上限を設定
+5. 動画をアップロードして、文字起こし完了後にチャットを試す
 
 ### 📋 先に確認：ユーザーのアップロード上限
 
@@ -215,28 +211,6 @@ OLLAMA_BASE_URL=http://host.docker.internal:11434
 </details>
 
 </details>
-
-## 🔐 本番環境の必須設定
-
-本番デプロイ時は、少なくとも以下を設定してください。
-
-```bash
-DJANGO_ENV=production
-SECRET_KEY=<十分にランダムな長い文字列>
-```
-
-リバースプロキシ/ロードバランサで TLS 終端する構成では、`X-Forwarded-Proto=https` をバックエンドへ確実に転送してください。  
-VideoQ の Django 設定は production で `SECURE_PROXY_SSL_HEADER=("HTTP_X_FORWARDED_PROTO", "https")` を使って HTTPS 判定します。
-
-`DJANGO_ENV=production` で `SECRET_KEY` が未設定または空文字の場合、バックエンドは起動時に明示的にエラー終了します。
-
-`SECRET_KEY` は次のコマンドで生成できます。
-
-```bash
-docker compose run --rm backend python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
-```
-
-生成した値を `.env` の `SECRET_KEY=` に設定してください。  
 
 <a id="developer-api"></a>
 

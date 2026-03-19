@@ -7,6 +7,7 @@ import { apiClient, type IntegrationApiKeyCreateResponse } from '@/lib/api';
 import { queryKeys } from '@/lib/queryKeys';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { Button } from '@/components/ui/button';
+import { InlineSpinner } from '@/components/common/InlineSpinner';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -48,6 +49,14 @@ export default function SettingsPage() {
   } | null>(null);
   const [isCopyAcknowledged, setIsCopyAcknowledged] = useState(false);
 
+  // OpenAI API Key state
+  const [openAiKeyInput, setOpenAiKeyInput] = useState('');
+  const [openAiKeyMessage, setOpenAiKeyMessage] = useState<{
+    tone: 'success' | 'error';
+    text: string;
+  } | null>(null);
+  const [isDeleteOpenAiKeyDialogOpen, setIsDeleteOpenAiKeyDialogOpen] = useState(false);
+
   const confirmationKeyword = useMemo(() => 'DELETE', []);
   const canConfirm = confirmText.trim().toUpperCase() === confirmationKeyword;
 
@@ -81,6 +90,41 @@ export default function SettingsPage() {
       window.clearTimeout(timeoutId);
     };
   }, [isCopyAcknowledged]);
+
+  const openAiKeyQuery = useQuery({
+    queryKey: queryKeys.auth.openAiApiKey,
+    queryFn: async () => apiClient.getOpenAiApiKeyStatus(),
+  });
+
+  const saveOpenAiKeyMutation = useMutation({
+    mutationFn: async (apiKey: string) => apiClient.saveOpenAiApiKey({ api_key: apiKey }),
+    onSuccess: async () => {
+      setOpenAiKeyInput('');
+      setOpenAiKeyMessage({ tone: 'success', text: t('settings.openaiApiKey.successSaved') });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.auth.openAiApiKey });
+    },
+    onError: (error) => {
+      setOpenAiKeyMessage({
+        tone: 'error',
+        text: error instanceof Error ? error.message : t('settings.openaiApiKey.errorSaving'),
+      });
+    },
+  });
+
+  const deleteOpenAiKeyMutation = useMutation({
+    mutationFn: async () => apiClient.deleteOpenAiApiKey(),
+    onSuccess: async () => {
+      setOpenAiKeyMessage({ tone: 'success', text: t('settings.openaiApiKey.successDeleted') });
+      setIsDeleteOpenAiKeyDialogOpen(false);
+      await queryClient.invalidateQueries({ queryKey: queryKeys.auth.openAiApiKey });
+    },
+    onError: (error) => {
+      setOpenAiKeyMessage({
+        tone: 'error',
+        text: error instanceof Error ? error.message : t('settings.openaiApiKey.errorDeleting'),
+      });
+    },
+  });
 
   const apiKeysQuery = useQuery({
     queryKey: queryKeys.auth.apiKeys,
@@ -176,6 +220,104 @@ export default function SettingsPage() {
             {t('settings.title')}
           </h1>
         </div>
+
+        <Card>
+          <CardHeader className="border-b">
+            <CardTitle>{t('settings.openaiApiKey.title')}</CardTitle>
+            <CardDescription>{t('settings.openaiApiKey.description')}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {openAiKeyMessage && (
+              <div
+                className={
+                  openAiKeyMessage.tone === 'success'
+                    ? 'rounded-md border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700'
+                    : 'rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700'
+                }
+              >
+                {openAiKeyMessage.text}
+              </div>
+            )}
+
+            {openAiKeyQuery.data?.has_key ? (
+              <div className="space-y-3">
+                <div className="text-sm text-slate-600">
+                  {t('settings.openaiApiKey.hasApiKeyMessage')}
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-slate-700">
+                    {t('settings.openaiApiKey.apiKeyLabel')}:
+                  </span>
+                  <code className="rounded bg-slate-100 px-2 py-1 font-mono text-sm text-slate-700">
+                    {openAiKeyQuery.data.masked_key}
+                  </code>
+                </div>
+              </div>
+            ) : (
+              <div className="text-sm text-slate-600">
+                {t('settings.openaiApiKey.noApiKeyMessage')}
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-900">
+                {t('settings.openaiApiKey.apiKeyLabel')}
+              </label>
+              <Input
+                type="password"
+                value={openAiKeyInput}
+                onChange={(e) => setOpenAiKeyInput(e.target.value)}
+                placeholder="sk-..."
+              />
+              <p className="text-xs text-slate-500">
+                {t('settings.openaiApiKey.getApiKeyMessage')}{' '}
+                <a
+                  href="https://platform.openai.com/api-keys"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 underline hover:text-blue-800"
+                >
+                  {t('settings.openaiApiKey.openaiPlatform')}
+                </a>
+              </p>
+            </div>
+          </CardContent>
+          <CardFooter className="justify-end gap-2 border-t">
+            {openAiKeyQuery.data?.has_key && (
+              <Button
+                variant="destructive"
+                disabled={deleteOpenAiKeyMutation.isPending}
+                onClick={() => setIsDeleteOpenAiKeyDialogOpen(true)}
+              >
+                {deleteOpenAiKeyMutation.isPending ? (
+                  <span className="flex items-center justify-center">
+                    <InlineSpinner className="mr-2" color="red" />
+                    {t('settings.openaiApiKey.deleting')}
+                  </span>
+                ) : t('settings.openaiApiKey.delete')}
+              </Button>
+            )}
+            <Button
+              disabled={saveOpenAiKeyMutation.isPending || !openAiKeyInput.trim()}
+              onClick={async () => {
+                const key = openAiKeyInput.trim();
+                if (!key) {
+                  setOpenAiKeyMessage({ tone: 'error', text: t('settings.openaiApiKey.errorEmpty') });
+                  return;
+                }
+                setOpenAiKeyMessage(null);
+                await saveOpenAiKeyMutation.mutateAsync(key);
+              }}
+            >
+              {saveOpenAiKeyMutation.isPending ? (
+                <span className="flex items-center justify-center">
+                  <InlineSpinner className="mr-2" />
+                  {t('settings.openaiApiKey.saving')}
+                </span>
+              ) : t('settings.openaiApiKey.save')}
+            </Button>
+          </CardFooter>
+        </Card>
 
         <Card className="overflow-hidden">
           <CardHeader className="border-b">
@@ -307,9 +449,12 @@ export default function SettingsPage() {
                             });
                           }}
                         >
-                          {revokeApiKeyMutation.isPending && revokingId === apiKey.id
-                            ? t('settings.integrationApiKeys.revoking')
-                            : t('settings.integrationApiKeys.revoke')}
+                          {revokeApiKeyMutation.isPending && revokingId === apiKey.id ? (
+                            <span className="flex items-center justify-center">
+                              <InlineSpinner className="mr-2" color="red" />
+                              {t('settings.integrationApiKeys.revoking')}
+                            </span>
+                          ) : t('settings.integrationApiKeys.revoke')}
                         </Button>
                       </div>
                     </div>
@@ -456,9 +601,12 @@ export default function SettingsPage() {
                 await createApiKeyMutation.mutateAsync();
               }}
             >
-              {createApiKeyMutation.isPending
-                ? t('settings.integrationApiKeys.creating')
-                : t('settings.integrationApiKeys.createDialogCta')}
+              {createApiKeyMutation.isPending ? (
+                <span className="flex items-center justify-center">
+                  <InlineSpinner className="mr-2" />
+                  {t('settings.integrationApiKeys.creating')}
+                </span>
+              ) : t('settings.integrationApiKeys.createDialogCta')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -608,9 +756,50 @@ export default function SettingsPage() {
                 }
               }}
             >
-              {revokeApiKeyMutation.isPending
-                ? t('settings.integrationApiKeys.revoking')
-                : t('settings.integrationApiKeys.revokeConfirmCta')}
+              {revokeApiKeyMutation.isPending ? (
+                <span className="flex items-center justify-center">
+                  <InlineSpinner className="mr-2" color="red" />
+                  {t('settings.integrationApiKeys.revoking')}
+                </span>
+              ) : t('settings.integrationApiKeys.revokeConfirmCta')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={isDeleteOpenAiKeyDialogOpen}
+        onOpenChange={(open) => {
+          setIsDeleteOpenAiKeyDialogOpen(open);
+        }}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{t('settings.openaiApiKey.delete')}</DialogTitle>
+            <DialogDescription>
+              {t('settings.openaiApiKey.confirmDelete')}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setIsDeleteOpenAiKeyDialogOpen(false)}
+            >
+              {t('settings.accountDeletion.cancel')}
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={deleteOpenAiKeyMutation.isPending}
+              onClick={async () => {
+                await deleteOpenAiKeyMutation.mutateAsync();
+              }}
+            >
+              {deleteOpenAiKeyMutation.isPending ? (
+                <span className="flex items-center justify-center">
+                  <InlineSpinner className="mr-2" color="red" />
+                  {t('settings.openaiApiKey.deleting')}
+                </span>
+              ) : t('settings.openaiApiKey.delete')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -666,9 +855,12 @@ export default function SettingsPage() {
                 await deleteMutation.mutateAsync();
               }}
             >
-              {deleteMutation.isPending
-                ? t('settings.accountDeletion.deleting')
-                : t('settings.accountDeletion.confirmCta')}
+              {deleteMutation.isPending ? (
+                <span className="flex items-center justify-center">
+                  <InlineSpinner className="mr-2" color="red" />
+                  {t('settings.accountDeletion.deleting')}
+                </span>
+              ) : t('settings.accountDeletion.confirmCta')}
             </Button>
           </DialogFooter>
         </DialogContent>

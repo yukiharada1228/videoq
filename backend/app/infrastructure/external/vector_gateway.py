@@ -23,7 +23,8 @@ class DjangoVectorIndexingGateway(VectorIndexingGateway):
     """Implements VectorIndexingGateway using PGVector."""
 
     def index_video_transcript(
-        self, video_id: int, user_id: int, title: str, transcript: str
+        self, video_id: int, user_id: int, title: str, transcript: str,
+        api_key=None,
     ) -> None:
         from app.infrastructure.external.scene_indexer import index_scenes_batch
 
@@ -36,7 +37,7 @@ class DjangoVectorIndexingGateway(VectorIndexingGateway):
 
         proxy = _VideoProxy(id=video_id, user_id=user_id, title=title)
 
-        index_scenes_batch(transcript, proxy)
+        index_scenes_batch(transcript, proxy, api_key=api_key)
 
     def delete_all_vectors(self) -> int:
         from app.infrastructure.external.vector_store import delete_all_vectors

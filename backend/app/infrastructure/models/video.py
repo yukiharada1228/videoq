@@ -20,6 +20,7 @@ def user_directory_path(instance, filename):
 
 class Video(models.Model):
     STATUS_CHOICES = [
+        ("uploading", "Uploading"),
         ("pending", "Pending"),
         ("processing", "Processing"),
         ("indexing", "Indexing"),

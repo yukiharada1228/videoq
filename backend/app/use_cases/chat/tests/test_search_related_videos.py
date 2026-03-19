@@ -20,10 +20,10 @@ class _StubGroupRepository(VideoGroupQueryRepository):
 
 
 class _StubRagGateway(RagGateway):
-    def generate_reply(self, messages, user_id, video_ids=None, locale=None):
+    def generate_reply(self, messages, user_id, video_ids=None, locale=None, api_key=None):
         raise NotImplementedError
 
-    def search_related_videos(self, query_text, user_id, video_ids=None):
+    def search_related_videos(self, query_text, user_id, video_ids=None, api_key=None):
         return [
             RelatedVideoDTO(
                 video_id=video_ids[0],
@@ -35,10 +35,10 @@ class _StubRagGateway(RagGateway):
 
 
 class _RagGatewayUserNotFound(RagGateway):
-    def generate_reply(self, messages, user_id, video_ids=None, locale=None):
+    def generate_reply(self, messages, user_id, video_ids=None, locale=None, api_key=None):
         raise NotImplementedError
 
-    def search_related_videos(self, query_text, user_id, video_ids=None):
+    def search_related_videos(self, query_text, user_id, video_ids=None, api_key=None):
         raise RagUserNotFoundError(f"User not found: {user_id}")
 
 
