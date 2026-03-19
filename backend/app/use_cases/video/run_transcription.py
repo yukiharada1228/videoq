@@ -63,15 +63,14 @@ class RunTranscriptionUseCase:
             if user is not None:
                 max_upload_bytes = user.get_max_upload_size_bytes()
 
-        # Verify file size before starting transcription
-        if not video.file_key:
-            raise TranscriptionTargetMissing(video_id)
-        actual_size = self.upload_gateway.get_file_size(video.file_key)
-        if actual_size > max_upload_bytes:
-            self.upload_gateway.delete_file(video.file_key)
-            self.video_repo.delete(video)
-            max_mb = max_upload_bytes // (1024 * 1024)
-            raise FileSizeExceeded(max_mb)
+        # Verify file size before starting transcription (only when a file key is present)
+        if video.file_key:
+            actual_size = self.upload_gateway.get_file_size(video.file_key)
+            if actual_size > max_upload_bytes:
+                self.upload_gateway.delete_file(video.file_key)
+                self.video_repo.delete(video)
+                max_mb = max_upload_bytes // (1024 * 1024)
+                raise FileSizeExceeded(max_mb)
 
         from_status, to_status = VideoTranscriptionLifecycle.plan_start(video.status)
 
