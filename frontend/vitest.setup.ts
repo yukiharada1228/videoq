@@ -89,7 +89,7 @@ vi.mock('react-i18next', () => ({
         return key
       }
       if (optionsOrDefault && typeof optionsOrDefault === 'object') {
-        const { defaultValue, ...rest } = optionsOrDefault as Record<string, unknown>
+        const { defaultValue: _defaultValue, ...rest } = optionsOrDefault as Record<string, unknown>
         if (Object.keys(rest).length > 0) {
           return `${key} ${JSON.stringify(rest)}`
         }

@@ -24,11 +24,13 @@ def authenticated_api_view(methods):
         from app.presentation.common.authentication import APIKeyAuthentication, CookieJWTAuthentication
         from app.presentation.common.permissions import ApiKeyScopePermission
 
-        wrapped_view = authentication_classes(
-            [APIKeyAuthentication, CookieJWTAuthentication]
-        )(
-            permission_classes([IsAuthenticated, ApiKeyScopePermission])(
-                api_view(methods)(view_func)
+        wrapped_view = api_view(methods)(
+            authentication_classes(
+                [APIKeyAuthentication, CookieJWTAuthentication]
+            )(
+                permission_classes([IsAuthenticated, ApiKeyScopePermission])(
+                    view_func
+                )
             )
         )
         return wraps(view_func)(wrapped_view)
