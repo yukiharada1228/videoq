@@ -40,6 +40,8 @@ describe('ApiClient', () => {
 
     // Reset baseUrl to default incase it was changed
     (apiClient as any).baseUrl = 'http://localhost:8000/api';
+    // Reset cached CSRF token so each test starts fresh
+    (apiClient as any).csrfToken = null;
   });
 
   afterEach(() => {
