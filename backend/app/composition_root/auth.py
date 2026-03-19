@@ -194,11 +194,11 @@ def get_delete_openai_api_key_use_case() -> DeleteOpenAiApiKeyUseCase:
 
 
 def _openai_key_required() -> bool:
-    from django.conf import settings
+    import os
 
-    llm = getattr(settings, "LLM_PROVIDER", "openai")
-    embedding = getattr(settings, "EMBEDDING_PROVIDER", "openai")
-    whisper = getattr(settings, "WHISPER_BACKEND", "openai")
+    llm = os.environ.get("LLM_PROVIDER", "openai")
+    embedding = os.environ.get("EMBEDDING_PROVIDER", "openai")
+    whisper = os.environ.get("WHISPER_BACKEND", "openai")
     return llm == "openai" or embedding == "openai" or whisper == "openai"
 
 
