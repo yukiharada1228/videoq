@@ -207,7 +207,7 @@ graph TB
 - LLMとエンベディングの設定は環境変数（`LLM_PROVIDER`、`LLM_MODEL`、`EMBEDDING_PROVIDER`、`EMBEDDING_MODEL`）でグローバルに管理されます。
 - サインアップは `ENABLE_SIGNUP` で制御されます。無効時は `POST /api/auth/signup/` がルーティングされません。
 - ローカル whisper.cpp サーバー（WHISPER_BACKEND=whisper.cpp）使用時は、文字起こしにOpenAI APIキーは不要です。
-- 再インデックスはグローバルな `OPENAI_API_KEY` または `OLLAMA_BASE_URL` 環境変数（`EMBEDDING_PROVIDER` に依存）を使用し、エンベディングプロバイダー（OpenAI ↔ Ollama）やモデルの切り替え時に必要です。
+- 再インデックスは動画所有者ごとの `OpenAI API キー`（DB保存） または `OLLAMA_BASE_URL` 環境変数（`EMBEDDING_PROVIDER` に依存）を使用し、エンベディングプロバイダー（OpenAI ↔ Ollama）やモデルの切り替え時に必要です。
 - APIキーはサーバー間連携を可能にします。生のキーは作成時に1回のみ表示され、SHA-256ハッシュのみが保存されます。
 - `read_only` APIキーはreadスコープと `chat_write` スコープ（`POST /api/chat/`）にアクセスできますが、その他の書き込み操作はできません。
 

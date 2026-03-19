@@ -42,6 +42,15 @@ class CreateVideoParams:
 
 
 @dataclass(frozen=True)
+class CreateVideoPendingParams:
+    """Parameters for creating a video record with file key only (presigned upload)."""
+
+    file_key: str
+    title: str
+    description: str = ""
+
+
+@dataclass(frozen=True)
 class UpdateVideoParams:
     """Parameters for updating a video record (None = field not provided / skip)."""
 

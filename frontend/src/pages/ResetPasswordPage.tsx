@@ -12,6 +12,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { InlineSpinner } from '@/components/common/InlineSpinner';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { MessageAlert } from '@/components/common/MessageAlert';
@@ -114,7 +115,12 @@ function ResetPasswordContent() {
             </CardContent>
             <CardFooter className="flex flex-col space-y-4 pt-4">
               <Button type="submit" className="w-full" disabled={resetPasswordMutation.isPending}>
-                {resetPasswordMutation.isPending ? t('auth.resetPassword.submitting') : t('auth.resetPassword.submit')}
+                {resetPasswordMutation.isPending ? (
+                  <span className="flex items-center justify-center">
+                    <InlineSpinner className="mr-2" />
+                    {t('auth.resetPassword.submitting')}
+                  </span>
+                ) : t('auth.resetPassword.submit')}
               </Button>
               <Link href="/login" className="text-center text-sm text-blue-600 hover:underline">
                 {t('auth.resetPassword.backToLogin')}

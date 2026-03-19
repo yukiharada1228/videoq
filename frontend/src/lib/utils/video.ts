@@ -2,7 +2,7 @@
  * Utility functions related to video status
  */
 
-export type VideoStatus = 'pending' | 'processing' | 'indexing' | 'completed' | 'error';
+export type VideoStatus = 'uploading' | 'pending' | 'processing' | 'indexing' | 'completed' | 'error';
 
 /**
  * Get status badge class name
@@ -19,6 +19,7 @@ export function getStatusBadgeClassName(
     : 'px-3 py-1 text-sm';
 
   const statusColors: Record<VideoStatus | 'default', string> = {
+    uploading: 'bg-cyan-100 text-cyan-800',
     pending: 'bg-yellow-100 text-yellow-800',
     processing: 'bg-blue-100 text-blue-800',
     indexing: 'bg-purple-100 text-purple-800',

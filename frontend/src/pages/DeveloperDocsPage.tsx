@@ -3,7 +3,7 @@ import { Link } from '@/lib/i18n';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useTranslation } from 'react-i18next';
 
-const sectionIds = ['auth', 'videos', 'chat'] as const;
+const sectionIds = ['auth', 'videos', 'chat', 'openai'] as const;
 
 export default function DeveloperDocsPage() {
   const { t } = useTranslation();

@@ -36,7 +36,7 @@ export default function VideosPage() {
   const [searchParams] = useSearchParams();
   const navigate = useI18nNavigate();
   const { t } = useTranslation();
-  const { user, loading: userLoading, refetch: refetchUser } = useAuth();
+  const { user, isLoading: userLoading, refetch: refetchUser } = useAuth();
   const { tags } = useTags();
 
 
@@ -154,7 +154,6 @@ export default function VideosPage() {
           <LoadingState
             isLoading={isLoading}
             error={error}
-            loadingMessage={t('videos.list.loading')}
           >
             <div className="max-h-[600px] overflow-y-auto">
               <VideoList videos={videos} />

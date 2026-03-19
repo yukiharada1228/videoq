@@ -11,6 +11,8 @@ from .views import (
     VideoGroupDetailView,
     VideoGroupListView,
     VideoListView,
+    VideoUploadConfirmView,
+    VideoUploadRequestView,
     add_tags_to_video,
     add_videos_to_group,
     get_shared_group,
@@ -26,6 +28,20 @@ urlpatterns = [
             create_video_use_case=video_dependencies.get_create_video_use_case,
         ),
         name="video-list",
+    ),
+    path(
+        "upload-request/",
+        VideoUploadRequestView.as_view(
+            request_video_upload_use_case=video_dependencies.get_request_video_upload_use_case,
+        ),
+        name="video-upload-request",
+    ),
+    path(
+        "<int:pk>/upload-complete/",
+        VideoUploadConfirmView.as_view(
+            confirm_video_upload_use_case=video_dependencies.get_confirm_video_upload_use_case,
+        ),
+        name="video-upload-complete",
     ),
     path(
         "<int:pk>/",

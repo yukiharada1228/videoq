@@ -9,6 +9,7 @@ from app.domain.video.exceptions import InvalidVideoStatusTransition
 class VideoStatus(str, Enum):
     """Canonical video processing statuses used across the domain."""
 
+    UPLOADING = "uploading"
     PENDING = "pending"
     PROCESSING = "processing"
     INDEXING = "indexing"
@@ -29,6 +30,7 @@ class VideoStatus(str, Enum):
 
 
 _ALLOWED_TRANSITIONS: Dict[VideoStatus, Set[VideoStatus]] = {
+    VideoStatus.UPLOADING: {VideoStatus.PENDING, VideoStatus.ERROR},
     VideoStatus.PENDING: {VideoStatus.PROCESSING},
     VideoStatus.PROCESSING: {VideoStatus.INDEXING, VideoStatus.ERROR},
     VideoStatus.INDEXING: {VideoStatus.COMPLETED, VideoStatus.ERROR},

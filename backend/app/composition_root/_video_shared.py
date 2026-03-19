@@ -49,6 +49,13 @@ def get_vector_indexing_gateway():
 
 
 @lru_cache(maxsize=1)
+def get_file_upload_gateway():
+    from app.infrastructure.external.file_upload_gateway import R2FileUploadGateway
+
+    return R2FileUploadGateway()
+
+
+@lru_cache(maxsize=1)
 def get_video_file_accessor():
     from app.infrastructure.transcription.video_file_accessor import DjangoVideoFileAccessor
 

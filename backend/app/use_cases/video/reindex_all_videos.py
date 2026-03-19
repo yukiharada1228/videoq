@@ -3,7 +3,9 @@ Use case: Regenerate embedding vectors for all completed videos.
 """
 
 import logging
+from typing import Optional
 
+from app.domain.user.ports import OpenAiApiKeyRepository
 from app.domain.video.gateways import VectorIndexingGateway
 from app.domain.video.repositories import VideoTranscriptionRepository
 
@@ -22,9 +24,11 @@ class ReindexAllVideosUseCase:
         self,
         video_repo: VideoTranscriptionRepository,
         vector_indexing_gateway: VectorIndexingGateway,
+        api_key_repo: Optional[OpenAiApiKeyRepository] = None,
     ):
         self.video_repo = video_repo
         self.vector_gateway = vector_indexing_gateway
+        self.api_key_repo = api_key_repo
 
     def execute(self) -> dict:
         videos = self.video_repo.list_completed_with_transcript()
@@ -47,12 +51,26 @@ class ReindexAllVideosUseCase:
         successful_count = 0
         failed_videos = []
 
+        # Cache decrypted keys per user to avoid repeated decryption
+        _key_cache: dict[int, Optional[str]] = {}
+
         for index, video in enumerate(videos, start=1):
             try:
                 if video.transcript is None:
                     raise ValueError("Transcript is missing")
+
+                # Resolve per-user API key (cached)
+                api_key = None
+                if self.api_key_repo is not None:
+                    if video.user_id not in _key_cache:
+                        _key_cache[video.user_id] = self.api_key_repo.get_decrypted_key(
+                            video.user_id
+                        )
+                    api_key = _key_cache[video.user_id]
+
                 self.vector_gateway.index_video_transcript(
-                    video.id, video.user_id, video.title, video.transcript
+                    video.id, video.user_id, video.title, video.transcript,
+                    api_key=api_key,
                 )
                 successful_count += 1
                 logger.info(

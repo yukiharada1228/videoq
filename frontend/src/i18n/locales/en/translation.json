@@ -226,7 +226,7 @@
         "noFile": "Please select a file",
         "noTitle": "Please enter a title",
         "invalidFileType": "Please select a supported video file",
-        "fileTooLarge": "The selected file exceeds the upload size limit",
+        "fileTooLarge": "The selected file exceeds the upload size limit ({{max_size_mb}} MB)",
         "generic": "Validation error"
       }
     },
@@ -627,6 +627,20 @@
     }
   },
   "docs": {
+    "openai": {
+      "exampleTitle": "OpenAI SDK Examples",
+      "exampleDescription": "Sample code for accessing VideoQ RAG chat using the OpenAI SDK.",
+      "ragExample": {
+        "title": "RAG chat (video group reference)",
+        "description": "With group_id, the endpoint searches indexed video scenes to answer. related_videos and chat_log_id are returned as extension fields."
+      },
+      "code": {
+        "ragComment": "RAG chat targeting a video group via group_id",
+        "sampleQuestion": "What is a neural network?",
+        "relatedVideosComment": "VideoQ extension fields (referenced scenes and chat log ID)",
+        "language": "en"
+      }
+    },
     "backToHome": "Back to docs home",
     "api": {
       "loading": "Loading OpenAPI schema...",
@@ -683,6 +697,15 @@
           "Send messages with group_id to target indexed videos",
           "Use Accept-Language when you need response language control",
           "Store chat_log_id and analytics outputs for downstream systems"
+        ]
+      },
+      "openai": {
+        "title": "OpenAI-Compatible API",
+        "description": "Access VideoQ RAG chat using the OpenAI SDK with no code changes.",
+        "bullets": [
+          "Authenticate with Authorization: Bearer <vq_...>",
+          "Pass language to control response language (defaults to English if omitted)",
+          "related_videos and chat_log_id are returned as extension fields on choices[0].message (access via msg.model_extra in Python SDK)"
         ]
       }
     }

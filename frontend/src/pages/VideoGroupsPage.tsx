@@ -16,7 +16,7 @@ import { Label } from '@/components/ui/label';
 import { handleAsyncError } from '@/lib/utils/errorHandling';
  
 export default function VideoGroupsPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const navigate = useI18nNavigate();
   const { groups, isLoading, error: loadError } = useVideoGroups(true);
   const [error, setError] = useState<string | null>(null);
@@ -53,14 +53,6 @@ export default function VideoGroupsPage() {
   const handleGroupClick = (groupId: number) => {
     navigate(`/videos/groups/${groupId}`);
   };
- 
-  if (authLoading || isLoading) {
-    return (
-      <PageLayout fullWidth>
-        <LoadingSpinner />
-      </PageLayout>
-    );
-  }
  
   return (
     <PageLayout fullWidth>
@@ -110,10 +102,12 @@ export default function VideoGroupsPage() {
             </DialogContent>
           </Dialog>
         </div>
- 
+
         {(error || loadError) && <MessageAlert message={error || loadError || ''} type="error" />}
- 
-        {groups.length === 0 ? (
+
+        {authLoading || isLoading ? (
+          <LoadingSpinner />
+        ) : groups.length === 0 ? (
           <Card>
             <CardContent className="pt-6">
               <p className="text-center text-gray-500">{t('videos.groups.empty')}</p>

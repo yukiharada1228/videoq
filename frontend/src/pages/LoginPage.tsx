@@ -10,7 +10,7 @@ export default function LoginPage() {
   const navigate = useI18nNavigate();
   const { t } = useTranslation();
 
-  const { formData, error, loading, handleChange, handleSubmit } = useAuthForm({
+  const { formData, error, isLoading, handleChange, handleSubmit } = useAuthForm({
     onSubmit: async (data) => {
       await apiClient.login(data);
     },
@@ -33,7 +33,7 @@ export default function LoginPage() {
         fields={fields}
         formData={formData}
         error={error}
-        loading={loading}
+        isLoading={isLoading}
         submitButtonText={t('auth.login.submit')}
         loadingButtonText={t('auth.login.submitting')}
         onChange={handleChange}
