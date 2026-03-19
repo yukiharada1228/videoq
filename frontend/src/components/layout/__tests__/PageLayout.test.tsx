@@ -12,6 +12,10 @@ vi.mock('../Footer', () => ({
   Footer: () => <footer data-testid="footer" />,
 }))
 
+vi.mock('@/components/common/OpenAiKeyBanner', () => ({
+  OpenAiKeyBanner: () => null,
+}))
+
 describe('PageLayout', () => {
   it('should render children with header and footer', () => {
     render(

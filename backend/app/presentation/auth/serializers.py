@@ -129,3 +129,4 @@ class OpenAiApiKeyInputSerializer(serializers.Serializer):
 class OpenAiApiKeyStatusSerializer(serializers.Serializer):
     has_key = serializers.BooleanField()
     masked_key = serializers.CharField(allow_null=True)
+    is_required = serializers.BooleanField()
