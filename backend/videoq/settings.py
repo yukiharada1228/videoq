@@ -113,6 +113,9 @@ class DefaultSettings:
     LLM_PROVIDER = "openai"  # openai or ollama
     LLM_MODEL = "gpt-4o-mini"  # Default LLM model (provider-agnostic)
 
+    # Whisper configuration
+    WHISPER_BACKEND = "openai"  # openai or local
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -571,3 +574,6 @@ EMBEDDING_VECTOR_SIZE = int(os.environ.get("EMBEDDING_VECTOR_SIZE", 1536))
 # LLM configuration
 LLM_PROVIDER = os.environ.get("LLM_PROVIDER", DefaultSettings.LLM_PROVIDER).lower()
 LLM_MODEL = os.environ.get("LLM_MODEL", DefaultSettings.LLM_MODEL)
+
+# Whisper configuration
+WHISPER_BACKEND = os.environ.get("WHISPER_BACKEND", DefaultSettings.WHISPER_BACKEND).lower()
