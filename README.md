@@ -4,6 +4,8 @@
 
 VideoQは、動画を自動で文字起こしし、自然言語で動画と会話できるAI搭載の動画ナビゲーターです。
 
+**[https://videoq.jp/](https://videoq.jp/)**
+
 ![VideoQ Application Screenshot](assets/screenshot.gif)
 
 > 🔌 **API連携にも対応** — APIキー認証・MCPサーバーで既存システムと連携できます。詳しくは[開発者向けAPI連携](#developer-api)をご覧ください。
