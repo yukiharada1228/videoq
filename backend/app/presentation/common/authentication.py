@@ -80,6 +80,16 @@ class APIKeyAuthentication(BaseAuthentication):
         return value.strip() or None
 
 
+class BearerAPIKeyAuthentication(APIKeyAuthentication):
+    """APIKeyAuthentication that also accepts the standard Bearer scheme.
+
+    Used for OpenAI-compatible endpoints where the OpenAI SDK sends
+    ``Authorization: Bearer <key>`` instead of ``Authorization: ApiKey <key>``.
+    """
+
+    keyword = "Bearer"
+
+
 class CookieJWTAuthentication(BaseAuthentication):
     """Authentication class that retrieves JWT token from cookie or authorization header.
 

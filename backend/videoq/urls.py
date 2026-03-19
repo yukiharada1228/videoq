@@ -38,6 +38,7 @@ urlpatterns = [
     path("api/chat/", include("app.presentation.chat.urls")),
     path("api/videos/", include("app.presentation.video.urls")),
     path("api/", include("app.urls")),
+    path("api/v1/", include("app.presentation.chat.openai_urls")),
 ]
 
 # Serve MEDIA files only in development environment

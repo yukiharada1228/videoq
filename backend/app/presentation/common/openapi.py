@@ -3,6 +3,13 @@
 from drf_spectacular.extensions import OpenApiAuthenticationExtension
 
 
+def set_server_url(result, generator, request, public):
+    """Preprocessing hook: inject the request's absolute root URL into servers[]."""
+    if request is not None:
+        result["servers"] = [{"url": request.build_absolute_uri("/").rstrip("/")}]
+    return result
+
+
 class APIKeyAuthenticationScheme(OpenApiAuthenticationExtension):
     target_class = "app.presentation.common.authentication.APIKeyAuthentication"
     name = "ApiKeyAuth"

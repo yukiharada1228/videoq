@@ -3,7 +3,7 @@ import { API_URL } from '@/lib/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useTranslation } from 'react-i18next';
 
-type DocsSection = 'auth' | 'videos' | 'chat';
+type DocsSection = 'auth' | 'videos' | 'chat' | 'openai';
 type HttpMethod = 'get' | 'post' | 'put' | 'patch' | 'delete';
 
 type OpenApiSchema = {
@@ -63,6 +63,7 @@ type SnippetTab = (typeof snippetTabs)[number];
 function sectionMatchesPath(path: string, section: DocsSection): boolean {
   if (section === 'auth') return path.includes('/auth/');
   if (section === 'videos') return path.includes('/videos/');
+  if (section === 'openai') return path.startsWith('/v1/');
   return path.includes('/chat/');
 }
 
