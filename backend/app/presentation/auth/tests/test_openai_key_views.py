@@ -38,6 +38,7 @@ class OpenAiApiKeyViewTest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertFalse(response.data["has_key"])
         self.assertIsNone(response.data["masked_key"])
+        self.assertIn("is_required", response.data)
 
     def test_get_status_with_key(self):
         self._authenticate()

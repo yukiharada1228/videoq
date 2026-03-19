@@ -81,6 +81,7 @@ export interface AccountDeleteRequest {
 export interface OpenAiApiKeyStatus {
   has_key: boolean;
   masked_key: string | null;
+  is_required: boolean;
 }
 
 export interface LoginRequest {

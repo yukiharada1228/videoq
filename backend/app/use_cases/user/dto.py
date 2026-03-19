@@ -8,3 +8,4 @@ from typing import Optional
 class OpenAiApiKeyStatusDTO:
     has_key: bool
     masked_key: Optional[str]
+    is_required: bool

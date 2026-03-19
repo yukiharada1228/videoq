@@ -31,7 +31,7 @@ class GetOpenAiApiKeyStatusUseCaseTest(TestCase):
         repo = MagicMock()
         repo.has_key.return_value = True
         repo.get_masked_key.return_value = "sk-...abcd"
-        uc = GetOpenAiApiKeyStatusUseCase(repo)
+        uc = GetOpenAiApiKeyStatusUseCase(repo, requires_openai_key=True)
         result = uc.execute(user_id=42)
         self.assertTrue(result.has_key)
         self.assertEqual(result.masked_key, "sk-...abcd")
@@ -40,7 +40,23 @@ class GetOpenAiApiKeyStatusUseCaseTest(TestCase):
         repo = MagicMock()
         repo.has_key.return_value = False
         repo.get_masked_key.return_value = None
-        uc = GetOpenAiApiKeyStatusUseCase(repo)
+        uc = GetOpenAiApiKeyStatusUseCase(repo, requires_openai_key=True)
         result = uc.execute(user_id=42)
         self.assertFalse(result.has_key)
         self.assertIsNone(result.masked_key)
+
+    def test_is_required_true_when_openai_needed(self):
+        repo = MagicMock()
+        repo.has_key.return_value = False
+        repo.get_masked_key.return_value = None
+        uc = GetOpenAiApiKeyStatusUseCase(repo, requires_openai_key=True)
+        result = uc.execute(user_id=1)
+        self.assertTrue(result.is_required)
+
+    def test_is_required_false_when_local_provider(self):
+        repo = MagicMock()
+        repo.has_key.return_value = False
+        repo.get_masked_key.return_value = None
+        uc = GetOpenAiApiKeyStatusUseCase(repo, requires_openai_key=False)
+        result = uc.execute(user_id=1)
+        self.assertFalse(result.is_required)
