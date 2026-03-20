@@ -35,7 +35,7 @@ describe('SettingsPage - OpenAI API Key', () => {
     await waitFor(() => {
       expect(screen.getByText('settings.openaiApiKey.title')).toBeInTheDocument()
     })
-    expect(screen.getByText('settings.openaiApiKey.noApiKeyMessage')).toBeInTheDocument()
+    expect(screen.getByText('settings.openaiApiKey.description')).toBeInTheDocument()
   })
 
   it('should show masked key when key is set', async () => {
@@ -49,7 +49,7 @@ describe('SettingsPage - OpenAI API Key', () => {
     await waitFor(() => {
       expect(screen.getByText('sk-...abcd')).toBeInTheDocument()
     })
-    expect(screen.getByText('settings.openaiApiKey.hasApiKeyMessage')).toBeInTheDocument()
+    expect(screen.getByText('settings.openaiApiKey.configured')).toBeInTheDocument()
   })
 
   it('should save key on submit', async () => {
