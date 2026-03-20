@@ -1,7 +1,5 @@
 'use client';
 
-import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button';
 import { useTranslation } from 'react-i18next';
 import type { Tag } from '@/lib/api';
 
@@ -23,18 +21,25 @@ export function TagSelector({
   const { t } = useTranslation();
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-1.5">
       <div className="flex items-center justify-between">
-        <Label>{t('tags.selector.label', 'Tags')}</Label>
+        <label className="text-xs font-bold text-[#3f493f] uppercase tracking-widest">
+          {t('tags.selector.label', 'Tags')}
+        </label>
         {onCreateNew && (
-          <Button type="button" variant="ghost" size="sm" onClick={onCreateNew} disabled={disabled}>
+          <button
+            type="button"
+            onClick={onCreateNew}
+            disabled={disabled}
+            className="text-[11px] font-bold text-[#00652c] hover:underline disabled:opacity-50"
+          >
             + {t('tags.selector.createNew', 'Create new tag')}
-          </Button>
+          </button>
         )}
       </div>
-      <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto p-2 border rounded-md">
+      <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto p-2 border border-stone-200 rounded-xl bg-[#f8faf5]">
         {tags.length === 0 ? (
-          <p className="text-sm text-gray-500">{t('tags.selector.noTags', 'No tags available')}</p>
+          <p className="text-sm text-[#6f7a6e]">{t('tags.selector.noTags', 'No tags available')}</p>
         ) : (
           tags.map((tag) => (
             <button
@@ -44,13 +49,16 @@ export function TagSelector({
               disabled={disabled}
               className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
                 selectedTagIds.includes(tag.id)
-                  ? 'ring-2 ring-offset-2'
+                  ? ''
                   : 'opacity-60 hover:opacity-100'
               } ${disabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}
               style={{
                 backgroundColor: `${tag.color}20`,
                 color: tag.color,
-                ...(selectedTagIds.includes(tag.id) && { ringColor: tag.color }),
+                ...(selectedTagIds.includes(tag.id) && {
+                  outline: `2px solid ${tag.color}`,
+                  outlineOffset: '2px',
+                }),
               }}
             >
               {tag.name}

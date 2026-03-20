@@ -82,7 +82,6 @@ describe('VideoGroupsPage', () => {
     fireEvent.click(createButton)
 
     expect(screen.getByText('videos.groups.createTitle')).toBeInTheDocument()
-    expect(screen.getByText('videos.groups.createDescription')).toBeInTheDocument()
   })
 
   it('should show name and description inputs in create modal', async () => {

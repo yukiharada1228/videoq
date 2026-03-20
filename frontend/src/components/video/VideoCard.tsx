@@ -3,10 +3,9 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
 import type { VideoInGroup, VideoList as VideoListType } from '@/lib/api';
 import { apiClient } from '@/lib/api';
-import { Card, CardContent } from '@/components/ui/card';
-import { getStatusBadgeClassName, getStatusLabel, formatDate } from '@/lib/utils/video';
+import { formatDate } from '@/lib/utils/video';
+import { StatusBadge } from '@/components/common/StatusBadge';
 import { Link } from '@/lib/i18n';
-import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import { TagBadge } from './TagBadge';
 
@@ -64,7 +63,6 @@ function VideoPlaceholder() {
 
 export function VideoCard({ video, showLink = true, className = '', onClick }: VideoCardProps) {
   const { locale } = useParams<{ locale: string }>();
-  const { t } = useTranslation();
   const { ref: cardRef, isInView } = useInView('200px');
 
   const handleMouseEnter = useCallback((e: React.MouseEvent<HTMLVideoElement>) => {
@@ -79,9 +77,9 @@ export function VideoCard({ video, showLink = true, className = '', onClick }: V
   }, []);
 
   const cardContent = (
-    <Card className={`h-full flex flex-col hover:shadow-md transition-all duration-200 cursor-pointer border-0 shadow-sm hover:shadow-lg overflow-hidden group ${className}`}>
+    <div className={`h-full flex flex-col bg-white rounded-2xl shadow-[0_4px_20px_rgba(28,25,23,0.04)] hover:shadow-[0_8px_30px_rgba(28,25,23,0.10)] transition-all duration-200 cursor-pointer overflow-hidden group ${className}`}>
       {/* Thumbnail */}
-      <div ref={cardRef} className="relative w-full aspect-video bg-gray-900 overflow-hidden group">
+      <div ref={cardRef} className="relative w-full aspect-video bg-[#1a1c1c] overflow-hidden">
         {video.file ? (
           <>
             {isInView ? (
@@ -97,41 +95,31 @@ export function VideoCard({ video, showLink = true, className = '', onClick }: V
             ) : (
               <VideoPlaceholder />
             )}
-            {/* Overlay on hover (light) */}
-            <div className="absolute inset-0 bg-black opacity-0 group-hover:opacity-20 transition-opacity pointer-events-none"></div>
           </>
         ) : (
-          <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-            <svg className="w-12 h-12 text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-[#f2f4ef] to-[#e7e9e4]">
+            <svg className="w-12 h-12 text-[#becabc]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
             </svg>
           </div>
         )}
-        {/* Status badge (displayed on top) */}
         <div className="absolute top-2 right-2 z-10">
-          <span className={getStatusBadgeClassName(video.status, 'xs')}>
-            {t(getStatusLabel(video.status))}
-          </span>
+          <StatusBadge status={video.status} size="xs" />
         </div>
       </div>
 
-      <CardContent className="p-2 md:p-3 space-y-1.5 flex flex-col">
-        {/* Title */}
-        <div>
-          <h3 className="font-medium text-sm text-gray-900 line-clamp-2 group-hover:text-blue-600 transition-colors leading-tight">
-            {video.title}
-          </h3>
-        </div>
+      <div className="p-2 md:p-3 space-y-1.5 flex flex-col flex-1">
+        <h3 className="font-semibold text-sm text-[#191c19] line-clamp-2 group-hover:text-[#00652c] transition-colors leading-tight">
+          {video.title}
+        </h3>
 
-        {/* Date and time */}
-        <div className="flex items-center text-xs text-gray-500">
-          <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="flex items-center text-xs text-[#6f7a6e]">
+          <svg className="w-3 h-3 mr-1 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           {formatDate(video.uploaded_at, 'full', locale || 'en')}
         </div>
 
-        {/* Tags */}
         {'tags' in video && video.tags && video.tags.length > 0 && (
           <div className="flex flex-wrap gap-1 pt-1">
             {video.tags.map((tag) => (
@@ -139,8 +127,8 @@ export function VideoCard({ video, showLink = true, className = '', onClick }: V
             ))}
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 
   if (showLink && 'id' in video) {

@@ -19,13 +19,13 @@ export function getStatusBadgeClassName(
     : 'px-3 py-1 text-sm';
 
   const statusColors: Record<VideoStatus | 'default', string> = {
-    uploading: 'bg-cyan-100 text-cyan-800',
-    pending: 'bg-yellow-100 text-yellow-800',
-    processing: 'bg-blue-100 text-blue-800',
-    indexing: 'bg-purple-100 text-purple-800',
-    completed: 'bg-green-100 text-green-800',
-    error: 'bg-red-100 text-red-800',
-    default: 'bg-gray-100 text-gray-800',
+    uploading: 'bg-[#ffdcc3] text-[#2f1500]',
+    pending: 'bg-stone-100 text-stone-600',
+    processing: 'bg-[#ffdcc3] text-[#2f1500]',
+    indexing: 'bg-[#ffdcc3] text-[#2f1500]',
+    completed: 'bg-[#d3ffd5] text-[#006d30]',
+    error: 'bg-red-100 text-red-700',
+    default: 'bg-stone-100 text-stone-600',
   };
   
   return `${baseClass} ${sizeClass} ${statusColors[status as VideoStatus] || statusColors.default}`;

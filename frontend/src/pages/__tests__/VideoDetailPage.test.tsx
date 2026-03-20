@@ -72,39 +72,39 @@ describe('VideoDetailPage', () => {
   it('should render video status', () => {
     render(<VideoDetailPage />)
 
-    expect(screen.getByText('videos.detail.labels.status')).toBeInTheDocument()
+    expect(screen.getByText('ステータス')).toBeInTheDocument()
   })
 
   it('should render edit button', () => {
     render(<VideoDetailPage />)
 
-    expect(screen.getByText('videos.detail.edit')).toBeInTheDocument()
+    expect(screen.getAllByText('編集').length).toBeGreaterThan(0)
   })
 
   it('should render delete button', () => {
     render(<VideoDetailPage />)
 
-    expect(screen.getByText('common.actions.delete')).toBeInTheDocument()
+    expect(screen.getByText('削除')).toBeInTheDocument()
   })
 
   it('should render back to list button', () => {
     render(<VideoDetailPage />)
 
-    expect(screen.getByText('common.actions.backToList')).toBeInTheDocument()
+    expect(screen.getByText('動画ライブラリに戻る')).toBeInTheDocument()
   })
 
   it('should render transcript when available', () => {
     render(<VideoDetailPage />)
 
-    expect(screen.getByText('videos.detail.transcript')).toBeInTheDocument()
+    expect(screen.getAllByText('文字起こし').length).toBeGreaterThan(0)
     expect(screen.getByText(/Hello world/)).toBeInTheDocument()
   })
 
   it('should enter edit mode when edit button is clicked', () => {
     render(<VideoDetailPage />)
 
-    const editButton = screen.getByText('videos.detail.edit')
-    fireEvent.click(editButton)
+    const editButtons = screen.getAllByText('編集')
+    fireEvent.click(editButtons[0])
 
     expect(screen.getByText('videos.detail.save')).toBeInTheDocument()
     expect(screen.getByText('videos.detail.cancel')).toBeInTheDocument()
@@ -124,7 +124,7 @@ describe('VideoDetailPage - Delete', () => {
 
     render(<VideoDetailPage />)
 
-    const deleteButton = screen.getByText('common.actions.delete')
+    const deleteButton = screen.getByText('削除')
     fireEvent.click(deleteButton)
 
     await waitFor(() => {

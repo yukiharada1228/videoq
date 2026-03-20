@@ -2,10 +2,12 @@ import { Suspense, useEffect } from 'react';
 import { Link, useI18nNavigate } from '@/lib/i18n';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-
-import { PageLayout } from '@/components/layout/PageLayout';
+import { MailCheck, ArrowLeft } from 'lucide-react';
+import { AuthLayout } from '@/components/layout/AuthLayout';
+import { AuthPageIntro } from '@/components/layout/AuthPageIntro';
+import { AuthPageFooter } from '@/components/layout/AuthPageFooter';
+import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
-import { MessageAlert } from '@/components/common/MessageAlert';
 import { useVerifyEmailQuery } from '@/hooks/useVerifyEmailData';
 
 type VerificationState = 'loading' | 'success' | 'error';
@@ -52,76 +54,74 @@ function VerifyEmailContent() {
     message = t('auth.verifyEmail.loading');
   }
 
-  const renderContent = () => {
-    if (state === 'loading') {
-      return (
-        <div className="flex items-center justify-center space-x-3">
-          <InlineSpinner />
-          <span className="text-sm text-gray-600">{message}</span>
-        </div>
-      );
-    }
+  return (
+    <AuthLayout>
+      <Link
+        href="/login"
+        className="inline-flex items-center text-[#00652c] font-bold text-sm mb-12 hover:opacity-80 transition-opacity"
+      >
+        <ArrowLeft className="mr-2 w-4 h-4" />
+        {t('auth.verifyEmail.backToLogin')}
+      </Link>
 
-    const type = state === 'success' ? 'success' : 'error';
+      <div className="space-y-6">
+        <AuthPageIntro
+          badge={t('auth.verifyEmail.badge')}
+          title={t('auth.verifyEmail.title')}
+          description={t('auth.verifyEmail.description')}
+        />
 
-    return (
-      <div className="space-y-4">
-        <MessageAlert message={message} type={type} />
-        {state === 'success' ? (
-          <p className="text-center text-sm text-gray-600">
-            {t('auth.verifyEmail.redirectPart1')}{' '}
-            <Link href="/login" className="text-blue-600 hover:underline">
-              {t('auth.verifyEmail.redirectLink')}
-            </Link>
-          </p>
-        ) : (
-          <div className="space-y-2 text-sm text-gray-600">
-            <p>{t('auth.verifyEmail.retry')}</p>
-            <p>
-              <Link href="/login" className="text-blue-600 hover:underline">
-                {t('auth.verifyEmail.backToLogin')}
+        {state === 'loading' && (
+          <div className="flex items-center gap-3 p-4 bg-[#f8faf5] rounded-xl border border-[#d3e8d3]">
+            <InlineSpinner className="w-4 h-4 text-[#00652c]" />
+            <span className="text-sm text-[#3f493f]">{message}</span>
+          </div>
+        )}
+
+        {state === 'success' && (
+          <div className="space-y-4">
+            <div className="p-4 bg-green-50 border border-green-200 rounded-xl flex items-start gap-3">
+              <MailCheck className="w-5 h-5 text-green-600 mt-0.5 shrink-0" />
+              <p className="text-sm text-green-700">{message}</p>
+            </div>
+            <p className="text-sm text-gray-500 text-center">
+              {t('auth.verifyEmail.redirectPart1')}{' '}
+              <Link href="/login" className="text-[#00652c] font-bold hover:underline">
+                {t('auth.verifyEmail.redirectLink')}
               </Link>
             </p>
           </div>
         )}
-      </div>
-    );
-  };
 
-  return (
-    <PageLayout centered>
-      <div className="w-full max-w-md space-y-6 rounded-lg bg-white p-8 shadow">
-        <div className="space-y-2 text-center">
-          <h1 className="text-2xl font-semibold">{t('auth.verifyEmail.title')}</h1>
-          <p className="text-sm text-gray-600">
-            {t('auth.verifyEmail.description')}
-          </p>
-        </div>
-        {renderContent()}
-      </div>
-    </PageLayout>
-  );
-}
-
-function VerifyEmailFallback() {
-  return (
-    <PageLayout centered>
-      <div className="w-full max-w-md space-y-6 rounded-lg bg-white p-8 shadow">
-        <div className="space-y-2 text-center">
-          <h1 className="text-2xl font-semibold">Email verification</h1>
-          <div className="flex items-center justify-center space-x-3">
-            <InlineSpinner />
-            <span className="text-sm text-gray-600">Checking your email verification...</span>
+        {state === 'error' && (
+          <div className="space-y-4">
+            <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600">
+              {message}
+            </div>
+            <div className="space-y-2 text-sm text-gray-500">
+              <p>{t('auth.verifyEmail.retry')}</p>
+              <Link href="/login" className="text-[#00652c] font-bold hover:underline block">
+                {t('auth.verifyEmail.backToLogin')}
+              </Link>
+            </div>
           </div>
-        </div>
+        )}
       </div>
-    </PageLayout>
+
+      <AuthPageFooter bordered align="left" />
+    </AuthLayout>
   );
 }
 
 export default function VerifyEmailPage() {
   return (
-    <Suspense fallback={<VerifyEmailFallback />}>
+    <Suspense fallback={
+      <AuthLayout>
+        <div className="flex items-center justify-center h-full">
+          <LoadingSpinner />
+        </div>
+      </AuthLayout>
+    }>
       <VerifyEmailContent />
     </Suspense>
   );

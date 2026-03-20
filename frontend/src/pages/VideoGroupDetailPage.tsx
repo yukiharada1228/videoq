@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
@@ -25,20 +25,12 @@ import { apiClient, type VideoGroup, type VideoInGroup } from '@/lib/api';
 import { ChatPanel } from '@/components/chat/ChatPanel';
 import { ShortsButton } from '@/components/shorts/ShortsButton';
 import { DashboardButton } from '@/components/dashboard/DashboardButton';
-import { Header } from '@/components/layout/Header';
-import { Footer } from '@/components/layout/Footer';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
-import { MessageAlert } from '@/components/common/MessageAlert';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
 import { Link, useI18nNavigate } from '@/lib/i18n';
 import { handleAsyncError } from '@/lib/utils/errorHandling';
-import { getStatusBadgeClassName, getStatusLabel } from '@/lib/utils/video';
 import { convertVideoInGroupToSelectedVideo, type SelectedVideo } from '@/lib/utils/videoConversion';
 import { useTags } from '@/hooks/useTags';
 import { useShareLink } from '@/hooks/useShareLink';
@@ -51,37 +43,116 @@ import {
   useVideoGroupDetailQuery,
 } from '@/hooks/useVideoGroupDetailData';
 import { TagFilterPanel } from '@/components/video/TagFilterPanel';
+import {
+  ArrowLeft, ChevronRight, Plus, GripVertical,
+  CheckCircle, Clock, AlertCircle, Copy, Trash2,
+  Pencil, ArrowRight, List, Play, MessageSquare,
+  Save, X,
+} from 'lucide-react';
 
-// Empty sensors array for mobile to prevent unnecessary re-renders
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const MOBILE_SENSORS: SensorDescriptor<any>[] = [];
 
 type MobileTab = 'videos' | 'player' | 'chat';
 
-interface MobileTabNavigationProps {
-  mobileTab: MobileTab;
-  onTabChange: (tab: MobileTab) => void;
-  labels: Record<MobileTab, string>;
+const ORDERING_OPTIONS = [
+  'uploaded_at_desc',
+  'uploaded_at_asc',
+  'title_asc',
+  'title_desc',
+] as const;
+type OrderingOption = (typeof ORDERING_OPTIONS)[number];
+
+// ── Status badge ─────────────────────────────────────────────────────────────
+
+function VideoStatusBadge({ status }: { status: string }) {
+  const { t } = useTranslation();
+  if (status === 'completed') {
+    return (
+      <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-[#00652c] mt-1">
+        <CheckCircle className="w-3 h-3 fill-current" />
+        {t('videos.groupDetail.status.completed')}
+      </span>
+    );
+  }
+  if (status === 'error') {
+    return (
+      <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-red-500 mt-1">
+        <AlertCircle className="w-3 h-3" />
+        {t('videos.groupDetail.status.error')}
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-[#904d00] bg-[#ffdcc3]/40 px-1.5 py-0.5 rounded-full mt-1">
+      <Clock className="w-3 h-3" />
+      {t('videos.groupDetail.status.processing')}
+    </span>
+  );
 }
 
-function MobileTabNavigation({ mobileTab, onTabChange, labels }: MobileTabNavigationProps) {
-  const tabs: MobileTab[] = ['videos', 'player', 'chat'];
+// ── Sortable video item ───────────────────────────────────────────────────────
+
+interface SortableVideoItemProps {
+  video: VideoInGroup;
+  isSelected: boolean;
+  onSelect: (videoId: number) => void;
+  onRemove: (videoId: number) => void;
+  isMobile?: boolean;
+}
+
+function SortableVideoItem({ video, isSelected, onSelect, onRemove, isMobile = false }: SortableVideoItemProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: video.id,
+    disabled: isMobile,
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
   return (
-    <div className="lg:hidden flex border-b border-gray-200 bg-white rounded-t-lg">
-      {tabs.map((tab) => (
-        <button
-          key={tab}
-          onClick={() => onTabChange(tab)}
-          className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
-            mobileTab === tab ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-600 hover:text-gray-900'
-          }`}
+    <div
+      ref={setNodeRef}
+      style={style}
+      onClick={() => onSelect(video.id)}
+      className={`flex items-center gap-2 p-3 rounded-xl cursor-pointer group transition-colors ${
+        isSelected
+          ? 'bg-[#f0fdf4] border-l-4 border-[#00652c]'
+          : 'hover:bg-stone-50'
+      } ${isDragging ? 'shadow-lg z-50' : ''}`}
+    >
+      {!isMobile && (
+        <span
+          {...attributes}
+          {...listeners}
+          onClick={(e) => e.stopPropagation()}
+          className="text-stone-300 cursor-grab active:cursor-grabbing shrink-0"
         >
-          {labels[tab]}
-        </button>
-      ))}
+          <GripVertical className="w-4 h-4" />
+        </span>
+      )}
+      <div className="flex-1 min-w-0">
+        <p className={`text-sm truncate leading-tight ${isSelected ? 'font-bold text-[#00652c]' : 'font-medium text-[#191c19]'}`}>
+          {video.title}
+        </p>
+        <VideoStatusBadge status={video.status} />
+      </div>
+      <button
+        onClick={(e) => { e.stopPropagation(); onRemove(video.id); }}
+        onPointerDown={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
+        className="opacity-0 group-hover:opacity-100 p-1 text-stone-300 hover:text-red-500 transition-all shrink-0"
+      >
+        <Trash2 className="w-3.5 h-3.5" />
+      </button>
     </div>
   );
 }
+
+// ── Share link panel ──────────────────────────────────────────────────────────
 
 interface ShareLinkPanelProps {
   shareLink: string | null;
@@ -95,213 +166,52 @@ interface ShareLinkPanelProps {
 function ShareLinkPanel({ shareLink, isGeneratingLink, isCopied, onGenerate, onDelete, onCopy }: ShareLinkPanelProps) {
   const { t } = useTranslation();
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4">
-      <h3 className="text-sm font-semibold text-gray-900 mb-2">
-        {t('videos.groupDetail.share.title')}
-      </h3>
+    <div className="bg-white rounded-xl p-4 flex items-center gap-4 shadow-[0_4px_20px_rgba(28,25,23,0.04)]">
+      <span className="text-sm font-bold text-[#3f493f] whitespace-nowrap shrink-0">{t('videos.groupDetail.shareLinkLabel')}</span>
       {shareLink ? (
-        <div className="space-y-2">
-          <p className="text-xs text-gray-600">{t('videos.groupDetail.share.enabled')}</p>
-          <div className="flex gap-2">
+        <>
+          <div className="flex-1 bg-[#f2f4ef] rounded-xl px-4 py-2 border border-[#e1e3de]/40 min-w-0">
             <input
               type="text"
               value={shareLink}
               readOnly
-              className="flex-1 px-2 py-1.5 border border-gray-300 rounded text-xs"
+              className="w-full bg-transparent text-[#6f7a6e] text-sm outline-none cursor-default"
             />
-            <Button
-              onClick={onCopy}
-              variant={isCopied ? 'default' : 'outline'}
-              size="sm"
-              disabled={isCopied}
-            >
-              {isCopied ? t('videos.groupDetail.copied') : t('videos.groupDetail.copy')}
-            </Button>
-            <Button onClick={onDelete} variant="destructive" size="sm">
-              {t('videos.groupDetail.disable')}
-            </Button>
           </div>
-        </div>
+          <button
+            onClick={onCopy}
+            className="flex items-center gap-2 px-4 py-2 bg-[#00652c] text-white rounded-xl text-sm font-bold hover:opacity-90 transition-opacity shrink-0"
+          >
+            <Copy className="w-3.5 h-3.5" />
+            {isCopied ? t('videos.groupDetail.copied') : t('videos.groupDetail.copyButton')}
+          </button>
+          <button
+            onClick={onDelete}
+            className="px-4 py-2 text-red-600 text-sm font-bold hover:bg-red-50 rounded-xl transition-colors shrink-0"
+          >
+            {t('videos.groupDetail.disable')}
+          </button>
+        </>
       ) : (
-        <div className="space-y-2">
-          <p className="text-xs text-gray-600">{t('videos.groupDetail.share.disabled')}</p>
-          <Button onClick={onGenerate} disabled={isGeneratingLink} size="sm">
-            {isGeneratingLink ? (
-              <span className="flex items-center">
-                <InlineSpinner className="mr-2" />
-                {t('videos.groupDetail.generating')}
-              </span>
-            ) : (
-              t('videos.groupDetail.generate')
-            )}
-          </Button>
-        </div>
+        <>
+          <div className="flex-1 bg-[#f2f4ef] rounded-xl px-4 py-2 border border-[#e1e3de]/40">
+            <p className="text-sm text-[#6f7a6e]">{t('videos.groupDetail.share.disabled')}</p>
+          </div>
+          <button
+            onClick={onGenerate}
+            disabled={isGeneratingLink}
+            className="flex items-center gap-2 px-4 py-2 bg-[#00652c] text-white rounded-xl text-sm font-bold hover:opacity-90 transition-opacity disabled:opacity-50 shrink-0"
+          >
+            {isGeneratingLink ? <InlineSpinner className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+            {isGeneratingLink ? t('videos.groupDetail.generating') : t('videos.groupDetail.generate')}
+          </button>
+        </>
       )}
     </div>
   );
 }
 
-interface EditableGroupHeaderProps {
-  isEditing: boolean;
-  groupName: string;
-  groupDescription: string;
-  editedName: string;
-  editedDescription: string;
-  isUpdating: boolean;
-  onNameChange: (name: string) => void;
-  onDescriptionChange: (desc: string) => void;
-  onSave: () => void;
-  onCancel: () => void;
-}
-
-function EditableGroupHeader({
-  isEditing, groupName, groupDescription, editedName, editedDescription,
-  isUpdating, onNameChange, onDescriptionChange, onSave, onCancel,
-}: EditableGroupHeaderProps) {
-  const { t } = useTranslation();
-
-  if (!isEditing) {
-    return (
-      <>
-        <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">{groupName}</h1>
-        <p className="text-sm lg:text-base text-gray-500 mt-1">
-          {groupDescription || t('common.messages.noDescription')}
-        </p>
-      </>
-    );
-  }
-
-  return (
-    <div className="space-y-4">
-      <div>
-        <label className="text-sm font-medium text-gray-600 block mb-1">
-          {t('videos.groups.nameLabel')}
-        </label>
-        <Input
-          type="text"
-          value={editedName}
-          onChange={(e) => onNameChange(e.target.value)}
-          className="w-full"
-          disabled={isUpdating}
-        />
-      </div>
-      <div>
-        <label className="text-sm font-medium text-gray-600 block mb-1">
-          {t('videos.groups.descriptionLabel')}
-        </label>
-        <Textarea
-          value={editedDescription}
-          onChange={(e) => onDescriptionChange(e.target.value)}
-          className="w-full min-h-[100px]"
-          disabled={isUpdating}
-        />
-      </div>
-      <div className="flex flex-col sm:flex-row flex-wrap gap-2">
-        <Button
-          onClick={onSave}
-          disabled={isUpdating || !editedName.trim()}
-          className="w-full sm:w-auto"
-        >
-          {isUpdating ? (
-            <span className="flex items-center">
-              <InlineSpinner className="mr-2" />
-              {t('common.actions.saving')}
-            </span>
-          ) : (
-            t('common.actions.save')
-          )}
-        </Button>
-        <Button
-          variant="outline"
-          onClick={onCancel}
-          disabled={isUpdating}
-          className="w-full sm:w-auto"
-        >
-          {t('common.actions.cancel')}
-        </Button>
-        <Link href="/videos/groups" className="w-full sm:w-auto sm:ml-auto">
-          <Button variant="outline" className="w-full">
-            {t('common.actions.backToList')}
-          </Button>
-        </Link>
-      </div>
-    </div>
-  );
-}
-
-const ORDERING_OPTIONS = [
-  'uploaded_at_desc',
-  'uploaded_at_asc',
-  'title_asc',
-  'title_desc',
-] as const;
-
-type OrderingOption = (typeof ORDERING_OPTIONS)[number];
-
-interface SortableVideoItemProps {
-  video: VideoInGroup;
-  isSelected: boolean;
-  onSelect: (videoId: number) => void;
-  onRemove: (videoId: number) => void;
-  isMobile?: boolean;
-}
-
-function SortableVideoItem({ video, isSelected, onSelect, onRemove, isMobile = false }: SortableVideoItemProps) {
-  const { t } = useTranslation();
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: video.id,
-    disabled: isMobile,
-  });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-    touchAction: isMobile ? 'auto' : 'none',
-  };
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      {...(isMobile ? {} : attributes)}
-      {...(isMobile ? {} : listeners)}
-      onClick={() => onSelect(video.id)}
-      className={`p-3 border rounded cursor-pointer hover:bg-gray-50 ${isMobile ? '' : 'cursor-grab active:cursor-grabbing'
-        } ${isSelected ? 'bg-blue-50 border-blue-300' : ''} ${isDragging ? 'shadow-lg' : ''}`}
-    >
-      <div className="flex items-center justify-between">
-        <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-sm text-gray-900 truncate">{video.title}</h3>
-          <p className="text-xs text-gray-600 line-clamp-1">
-            {video.description || t('common.messages.noDescription')}
-          </p>
-          <div className="flex items-center gap-2 mt-2">
-            <span className={getStatusBadgeClassName(video.status, 'sm')}>
-              {t(getStatusLabel(video.status))}
-            </span>
-          </div>
-        </div>
-        <div className="flex items-center gap-1 ml-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 text-xs"
-            onPointerDown={(e) => e.stopPropagation()}
-            onMouseDown={(e) => e.stopPropagation()}
-            onTouchStart={(e) => e.stopPropagation()}
-            onClick={(e) => {
-              e.stopPropagation();
-              onRemove(video.id);
-            }}
-          >
-            {t('videos.groupDetail.remove')}
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
-}
+// ── Add videos dialog ─────────────────────────────────────────────────────────
 
 interface AddVideosDialogProps {
   isOpen: boolean;
@@ -325,9 +235,7 @@ function AddVideosDialog({ isOpen, onOpenChange, groupId, group, onVideosAdded }
 
   const handleOrderingChange = useCallback((event: React.ChangeEvent<HTMLSelectElement>) => {
     const value = event.target.value as OrderingOption;
-    if (ORDERING_OPTIONS.includes(value)) {
-      setOrdering(value);
-    }
+    if (ORDERING_OPTIONS.includes(value)) setOrdering(value);
   }, []);
 
   const handleTagToggle = useCallback((tagId: number) => {
@@ -336,9 +244,7 @@ function AddVideosDialog({ isOpen, onOpenChange, groupId, group, onVideosAdded }
     );
   }, []);
 
-  const handleTagClear = useCallback(() => {
-    setSelectedTagIds([]);
-  }, []);
+  const handleTagClear = useCallback(() => setSelectedTagIds([]), []);
 
   useEffect(() => {
     const handler = setTimeout(() => setVideoSearch(videoSearchInput), 300);
@@ -346,13 +252,8 @@ function AddVideosDialog({ isOpen, onOpenChange, groupId, group, onVideosAdded }
   }, [videoSearchInput]);
 
   const availableVideosQuery = useAddableVideosQuery({
-    isOpen,
-    groupId,
-    group,
-    q: videoSearch.trim(),
-    status: statusFilter,
-    ordering,
-    tagIds: selectedTagIds,
+    isOpen, groupId, group,
+    q: videoSearch.trim(), status: statusFilter, ordering, tagIds: selectedTagIds,
   });
 
   const availableVideos = availableVideosQuery.data ?? [];
@@ -362,50 +263,37 @@ function AddVideosDialog({ isOpen, onOpenChange, groupId, group, onVideosAdded }
 
   const handleAddVideos = async () => {
     if (!groupId || selectedVideos.length === 0) return;
-
     try {
       const result = await addVideosMutation.mutateAsync(selectedVideos);
       onOpenChange(false);
       setSelectedVideos([]);
-
       if (result.skipped_count > 0) {
-        alert(
-          t('videos.groupDetail.addResult', {
-            added: result.added_count,
-            skipped: result.skipped_count,
-          }),
-        );
+        alert(t('videos.groupDetail.addResult', { added: result.added_count, skipped: result.skipped_count }));
       }
     } catch (err) {
-      handleAsyncError(err, t('videos.groupDetail.addError'), () => { });
+      handleAsyncError(err, t('videos.groupDetail.addError'), () => {});
     }
   };
 
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onOpenChange}>
-        <DialogTrigger asChild>
-          <Button size="sm" className="lg:size-default">
-            {t('videos.groupDetail.addVideos')}
-          </Button>
-        </DialogTrigger>
         <DialogContent className="max-w-[95vw] lg:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{t('videos.groupDetail.addVideos')}</DialogTitle>
-            <DialogDescription>{t('videos.groupDetail.addDescription')}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="flex flex-wrap items-center gap-2">
-              <Input
+              <input
                 placeholder={t('videos.groupDetail.searchPlaceholder')}
                 value={videoSearchInput}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setVideoSearchInput(e.target.value)}
-                className="w-full md:w-1/2"
+                onChange={(e) => setVideoSearchInput(e.target.value)}
+                className="w-full md:w-1/2 px-3 py-2 bg-[#f2f4ef] border border-[#e1e3de] rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#00652c]/20 focus:border-[#00652c]"
               />
               <select
                 value={statusFilter}
-                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setStatusFilter(e.target.value)}
-                className="border border-gray-300 rounded px-2 py-2 text-sm bg-white"
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="px-3 py-2 bg-[#f2f4ef] border border-[#e1e3de] rounded-xl text-sm outline-none"
               >
                 <option value="">{t('videos.groupDetail.statusFilter.all')}</option>
                 <option value="completed">{t('videos.groupDetail.statusFilter.completed')}</option>
@@ -417,31 +305,28 @@ function AddVideosDialog({ isOpen, onOpenChange, groupId, group, onVideosAdded }
               <select
                 value={ordering}
                 onChange={handleOrderingChange}
-                className="border border-gray-300 rounded px-2 py-2 text-sm bg-white"
+                className="px-3 py-2 bg-[#f2f4ef] border border-[#e1e3de] rounded-xl text-sm outline-none"
               >
                 <option value="uploaded_at_desc">{t('videos.groupDetail.ordering.uploadedDesc')}</option>
                 <option value="uploaded_at_asc">{t('videos.groupDetail.ordering.uploadedAsc')}</option>
                 <option value="title_asc">{t('videos.groupDetail.ordering.titleAsc')}</option>
                 <option value="title_desc">{t('videos.groupDetail.ordering.titleDesc')}</option>
               </select>
-              <Button
-                variant="outline"
-                size="sm"
+              <button
                 onClick={() => setSelectedVideos(availableVideos?.map((v) => v.id) ?? [])}
                 disabled={!availableVideos?.length}
+                className="px-3 py-2 border border-[#e1e3de] rounded-xl text-sm font-medium hover:bg-[#f2f4ef] disabled:opacity-40"
               >
                 {t('videos.groupDetail.selectAll')}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
+              </button>
+              <button
                 onClick={() => setSelectedVideos([])}
                 disabled={selectedVideos.length === 0}
+                className="px-3 py-2 border border-[#e1e3de] rounded-xl text-sm font-medium hover:bg-[#f2f4ef] disabled:opacity-40"
               >
                 {t('videos.groupDetail.clearSelection')}
-              </Button>
+              </button>
             </div>
-
             <TagFilterPanel
               tags={tags}
               selectedTagIds={selectedTagIds}
@@ -450,33 +335,25 @@ function AddVideosDialog({ isOpen, onOpenChange, groupId, group, onVideosAdded }
               onManageTags={() => setIsTagManagementOpen(true)}
               disabled={isLoadingVideos}
             />
-
             {isLoadingVideos ? (
-              <LoadingSpinner />
-            ) : availableVideos && availableVideos.length === 0 ? (
-              <p className="text-center text-gray-500 py-4">
-                {t('videos.groupDetail.noAvailableVideos')}
-              </p>
+              <div className="flex justify-center py-8"><LoadingSpinner /></div>
+            ) : availableVideos.length === 0 ? (
+              <p className="text-center text-[#6f7a6e] py-8">{t('videos.groupDetail.noAvailableVideos')}</p>
             ) : (
               <div className="space-y-2 max-h-[400px] overflow-y-auto">
-                {availableVideos?.map((v) => (
-                  <div key={v.id} className="flex items-center space-x-2 p-3 border rounded hover:bg-gray-50">
+                {availableVideos.map((v) => (
+                  <div key={v.id} className="flex items-center gap-3 p-3 border border-[#e1e3de] rounded-xl hover:bg-[#f2f4ef] transition-colors">
                     <Checkbox
                       id={`video-${v.id}`}
                       checked={selectedVideos.includes(v.id)}
                       onCheckedChange={(checked: boolean | 'indeterminate') => {
-                        if (checked === true) {
-                          setSelectedVideos([...selectedVideos, v.id]);
-                        } else if (checked === false) {
-                          setSelectedVideos(selectedVideos.filter((id) => id !== v.id));
-                        }
+                        if (checked === true) setSelectedVideos([...selectedVideos, v.id]);
+                        else if (checked === false) setSelectedVideos(selectedVideos.filter((id) => id !== v.id));
                       }}
                     />
                     <label htmlFor={`video-${v.id}`} className="flex-1 cursor-pointer">
-                      <div className="font-medium text-gray-900">{v.title}</div>
-                      <div className="text-sm text-gray-600">
-                        {v.description || t('common.messages.noDescription')}
-                      </div>
+                      <div className="text-sm font-medium text-[#191c19]">{v.title}</div>
+                      <div className="text-xs text-[#6f7a6e]">{v.description || t('common.messages.noDescription')}</div>
                     </label>
                   </div>
                 ))}
@@ -484,43 +361,42 @@ function AddVideosDialog({ isOpen, onOpenChange, groupId, group, onVideosAdded }
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
+            <button
+              onClick={() => onOpenChange(false)}
+              className="px-4 py-2 border border-[#e1e3de] rounded-xl text-sm font-bold hover:bg-[#f2f4ef] transition-colors"
+            >
               {t('common.actions.cancel')}
-            </Button>
-            <Button onClick={handleAddVideos} disabled={addVideosMutation.isPending || selectedVideos.length === 0}>
-              {addVideosMutation.isPending ? (
-                <span className="flex items-center">
-                  <InlineSpinner className="mr-2" />
-                  {t('videos.groupDetail.adding')}
-                </span>
-              ) : (
-                t('videos.groupDetail.add')
-              )}
-            </Button>
+            </button>
+            <button
+              onClick={handleAddVideos}
+              disabled={addVideosMutation.isPending || selectedVideos.length === 0}
+              className="flex items-center gap-2 px-4 py-2 bg-[#00652c] text-white rounded-xl text-sm font-bold hover:opacity-90 transition-opacity disabled:opacity-50"
+            >
+              {addVideosMutation.isPending && <InlineSpinner className="w-3.5 h-3.5" />}
+              {addVideosMutation.isPending ? t('videos.groupDetail.adding') : t('videos.groupDetail.add')}
+            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <TagManagementModal
-        isOpen={isTagManagementOpen}
-        onClose={() => setIsTagManagementOpen(false)}
-      />
+      <TagManagementModal isOpen={isTagManagementOpen} onClose={() => setIsTagManagementOpen(false)} />
     </>
   );
 }
+
+// ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function VideoGroupDetailPage() {
   const params = useParams<{ id: string }>();
   const navigate = useI18nNavigate();
   const groupId = params?.id ? Number.parseInt(params.id, 10) : null;
   const { t } = useTranslation();
+
   const { group, isLoading: groupIsLoading, isFetching: groupIsFetching, errorMessage: error } =
     useVideoGroupDetailQuery(groupId);
 
   const [isDeleting, setIsDeleting] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedVideo, setSelectedVideo] = useState<SelectedVideo | null>(null);
-
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState('');
   const [editedDescription, setEditedDescription] = useState('');
@@ -530,9 +406,7 @@ export default function VideoGroupDetailPage() {
 
   const handleVideoSelect = useCallback((videoId: number) => {
     const v = group?.videos?.find((vv) => vv.id === videoId);
-    if (v) {
-      setSelectedVideo(convertVideoInGroupToSelectedVideo(v));
-    }
+    if (v) setSelectedVideo(convertVideoInGroupToSelectedVideo(v));
   }, [group?.videos]);
 
   const { videoRef, handleVideoCanPlay, handleVideoPlayFromTime } = useVideoPlayback({
@@ -542,26 +416,16 @@ export default function VideoGroupDetailPage() {
   });
 
   const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: { distance: 8 },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
-  const {
-    syncGroupDetail,
-    setGroupDetailCache,
-    removeVideoMutation,
-    reorderVideosMutation,
-    deleteGroupMutation,
-    updateGroupMutation,
-  } = useVideoGroupDetailMutations({
-    groupId,
-    onDeleteSuccess: () => navigate('/videos/groups'),
-    onUpdateSuccess: () => setIsEditing(false),
-  });
+  const { syncGroupDetail, setGroupDetailCache, removeVideoMutation, reorderVideosMutation, deleteGroupMutation, updateGroupMutation } =
+    useVideoGroupDetailMutations({
+      groupId,
+      onDeleteSuccess: () => navigate('/videos/groups'),
+      onUpdateSuccess: () => setIsEditing(false),
+    });
 
   useEffect(() => {
     if (group) {
@@ -573,71 +437,56 @@ export default function VideoGroupDetailPage() {
   useEffect(() => {
     const videos = group?.videos;
     if (!videos || videos.length === 0) {
-      if (selectedVideo) {
-        setSelectedVideo(null);
-      }
+      if (selectedVideo) setSelectedVideo(null);
       return;
     }
-
     const exists = selectedVideo ? videos.some((v) => v.id === selectedVideo.id) : false;
-    if (!exists) {
-      setSelectedVideo(convertVideoInGroupToSelectedVideo(videos[0]));
-    }
+    if (!exists) setSelectedVideo(convertVideoInGroupToSelectedVideo(videos[0]));
+  }, [group?.videos, selectedVideo]);
+
+  const nextVideo = useMemo(() => {
+    if (!group?.videos || !selectedVideo) return null;
+    const idx = group.videos.findIndex((v) => v.id === selectedVideo.id);
+    return idx >= 0 && idx < group.videos.length - 1 ? group.videos[idx + 1] : null;
   }, [group?.videos, selectedVideo]);
 
   const handleRemoveVideo = async (videoId: number) => {
-    if (!confirm(t('videos.groupDetail.removeVideoConfirm')) || !groupId) {
-      return;
-    }
-
+    if (!confirm(t('videos.groupDetail.removeVideoConfirm')) || !groupId) return;
     try {
       await removeVideoMutation.mutateAsync(videoId);
-      if (selectedVideo?.id === videoId) {
-        setSelectedVideo(null);
-      }
+      if (selectedVideo?.id === videoId) setSelectedVideo(null);
     } catch (err) {
-      handleAsyncError(err, t('videos.groupDetail.removeVideoError'), () => { });
+      handleAsyncError(err, t('videos.groupDetail.removeVideoError'), () => {});
     }
   };
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
-    if (!over || active.id === over.id) return;
-    if (!group?.videos || !groupId) return;
-
+    if (!over || active.id === over.id || !group?.videos || !groupId) return;
     const oldIndex = group.videos.findIndex((v) => v.id === active.id);
     const newIndex = group.videos.findIndex((v) => v.id === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
-
     const newVideos = arrayMove(group.videos, oldIndex, newIndex);
     setGroupDetailCache({ ...group, videos: newVideos });
-
     try {
-      const videoIds = newVideos.map((v) => v.id);
-      await reorderVideosMutation.mutateAsync(videoIds);
+      await reorderVideosMutation.mutateAsync(newVideos.map((v) => v.id));
     } catch (err) {
-      handleAsyncError(err, t('videos.groupDetail.orderUpdateError'), () => { });
+      handleAsyncError(err, t('videos.groupDetail.orderUpdateError'), () => {});
       await syncGroupDetail();
     }
   };
 
   const handleDelete = async () => {
-    if (!groupId || !confirm(t('confirmations.deleteGroup'))) {
-      return;
-    }
-
+    if (!groupId || !confirm(t('confirmations.deleteGroup'))) return;
     try {
       setIsDeleting(true);
       await deleteGroupMutation.mutateAsync();
     } catch (err) {
-      handleAsyncError(err, t('videos.groupDetail.deleteError'), () => { });
+      handleAsyncError(err, t('videos.groupDetail.deleteError'), () => {});
     } finally {
       setIsDeleting(false);
     }
   };
-  const isLoading = groupIsLoading || groupIsFetching;
-  const isUpdating = updateGroupMutation.isPending;
-  const updateError = updateGroupMutation.error instanceof Error ? updateGroupMutation.error.message : null;
 
   const handleCancelEdit = () => {
     setIsEditing(false);
@@ -647,240 +496,303 @@ export default function VideoGroupDetailPage() {
     }
   };
 
+  const isLoading = groupIsLoading || groupIsFetching;
+  const isUpdating = updateGroupMutation.isPending;
+  const updateError = updateGroupMutation.error instanceof Error ? updateGroupMutation.error.message : null;
+
+  // ── Loading / error states ───────────────────────────────────────────────
+
   if (isLoading) {
     return (
-      <div className="flex flex-col min-h-screen bg-gray-50">
-        <Header />
-        <div className="flex-1 w-full px-6 py-6">
-          <div className="flex justify-center items-center h-64">
-            <LoadingSpinner />
-          </div>
-        </div>
-        <Footer />
+      <div className="min-h-screen flex items-center justify-center bg-[#f8faf5]">
+        <LoadingSpinner />
       </div>
     );
   }
 
   if (error && !group) {
     return (
-      <div className="flex flex-col min-h-screen bg-gray-50">
-        <Header />
-        <div className="flex-1 w-full px-6 py-6">
-          <div className="space-y-4">
-            <MessageAlert type="error" message={error} />
-            <Link href="/videos/groups">
-              <Button variant="outline">{t('common.actions.backToList')}</Button>
-            </Link>
-          </div>
-        </div>
-        <Footer />
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#f8faf5] gap-4">
+        <p className="text-red-500">{error}</p>
+        <Link href="/videos/groups" className="text-[#00652c] font-bold hover:underline flex items-center gap-1">
+          <ArrowLeft className="w-4 h-4" />
+          {t('common.actions.backToList')}
+        </Link>
       </div>
     );
   }
 
   if (!group) {
     return (
-      <div className="flex flex-col min-h-screen bg-gray-50">
-        <Header />
-        <div className="flex-1 w-full px-6 py-6">
-          <div className="text-center text-gray-500">{t('common.messages.groupNotFound')}</div>
-        </div>
-        <Footer />
+      <div className="min-h-screen flex items-center justify-center bg-[#f8faf5]">
+        <p className="text-[#3f493f]">{t('common.messages.groupNotFound')}</p>
       </div>
     );
   }
 
+  const mobileTabIcon: Record<MobileTab, typeof List> = { videos: List, player: Play, chat: MessageSquare };
+  const mobileTabLabel: Record<MobileTab, string> = {
+    videos: t('videos.groupDetail.mobileTabs.videos'),
+    player: t('videos.groupDetail.mobileTabs.player'),
+    chat: t('videos.groupDetail.mobileTabs.chat'),
+  };
+
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50">
-      <Header />
-      <div className="flex-1 w-full px-6 py-6">
-        <div className="space-y-4 h-full flex flex-col">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-            <div className="flex-1">
-              <EditableGroupHeader
-                isEditing={isEditing}
-                groupName={group.name}
-                groupDescription={group.description || ''}
-                editedName={editedName}
-                editedDescription={editedDescription}
-                isUpdating={isUpdating}
-                onNameChange={setEditedName}
-                onDescriptionChange={setEditedDescription}
-                onSave={() =>
-                  void updateGroupMutation.mutateAsync({
-                    name: editedName,
-                    description: editedDescription,
-                  })
-                }
-                onCancel={handleCancelEdit}
-              />
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {!isEditing && (
-                <Button
-                  variant="outline"
-                  onClick={() => setIsEditing(true)}
-                  size="sm"
-                  className="lg:size-default"
-                >
-                  {t('videos.groupDetail.edit')}
-                </Button>
-              )}
-
-              {!isEditing && (
-                <AddVideosDialog
-                  isOpen={isAddModalOpen}
-                  onOpenChange={setIsAddModalOpen}
-                  groupId={groupId}
-                  group={group}
-                />
-              )}
-
-              {!isEditing && group.videos && group.videos.length > 0 && groupId && (
-                <ShortsButton
-                  groupId={groupId}
-                  videos={group.videos}
-                  size="sm"
-                />
-              )}
-
-              {!isEditing && groupId && (
-                <DashboardButton groupId={groupId} size="sm" />
-              )}
-
-              {!isEditing && (
-                <Link href="/videos/groups">
-                  <Button variant="outline" size="sm" className="lg:size-default">
-                    {t('common.actions.backToList')}
-                  </Button>
-                </Link>
-              )}
-
-              {!isEditing && (
-                <Button
-                  variant="destructive"
-                  onClick={handleDelete}
-                  disabled={isDeleting}
-                  size="sm"
-                  className="lg:size-default"
-                >
-                  {isDeleting ? (
-                    <span className="flex items-center">
-                      <InlineSpinner className="mr-2" color="red" />
-                      {t('videos.groupDetail.deleting')}
-                    </span>
-                  ) : (
-                    t('videos.groupDetail.delete')
-                  )}
-                </Button>
-              )}
-            </div>
-          </div>
-
-          {(error || updateError) && <MessageAlert type="error" message={error || updateError || ''} />}
-
-          <ShareLinkPanel
-            shareLink={shareLink}
-            isGeneratingLink={isGeneratingLink}
-            isCopied={isCopied}
-            onGenerate={generateShareLink}
-            onDelete={deleteShareLink}
-            onCopy={copyShareLink}
-          />
-          <MobileTabNavigation
-            mobileTab={mobileTab}
-            onTabChange={setMobileTab}
-            labels={{
-              videos: t('videos.groupDetail.mobileTabs.videos'),
-              player: t('videos.groupDetail.mobileTabs.player'),
-              chat: t('videos.groupDetail.mobileTabs.chat'),
-            }}
-          />
-
-          <div className="flex flex-col lg:grid flex-1 min-h-0 gap-4 lg:gap-6 lg:grid-cols-[1fr_2fr_1fr]">
-            <div className={`flex-col min-h-0 min-w-0 ${mobileTab === 'videos' ? 'flex' : 'hidden lg:flex'}`}>
-              <Card className="h-[500px] lg:h-[600px] flex flex-col">
-                <CardHeader>
-                  <CardTitle>{t('videos.groupDetail.videoListTitle')}</CardTitle>
-                </CardHeader>
-                <CardContent className="flex-1 flex flex-col overflow-hidden">
-                  <div className="flex-1 overflow-y-auto space-y-2">
-                    {group.videos && group.videos.length > 0 ? (
-                      <DndContext
-                        sensors={isMobile ? MOBILE_SENSORS : sensors}
-                        collisionDetection={closestCenter}
-                        onDragEnd={handleDragEnd}
-                      >
-                        <SortableContext items={group.videos.map((v) => v.id)} strategy={verticalListSortingStrategy}>
-                          {group.videos.map((v) => (
-                            <SortableVideoItem
-                              key={v.id}
-                              video={v}
-                              isSelected={selectedVideo?.id === v.id}
-                              isMobile={isMobile}
-                              onSelect={(videoId) => {
-                                handleVideoSelect(videoId);
-                                if (isMobile) {
-                                  setMobileTab('player');
-                                }
-                              }}
-                              onRemove={handleRemoveVideo}
-                            />
-                          ))}
-                        </SortableContext>
-                      </DndContext>
-                    ) : (
-                      <p className="text-center text-gray-500 py-4 text-sm">
-                        {t('videos.groupDetail.videoListEmpty')}
-                      </p>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            <div className={`flex-col min-h-0 min-w-0 ${mobileTab === 'player' ? 'flex' : 'hidden lg:flex'}`}>
-              <Card className="h-[500px] lg:h-[600px] flex flex-col">
-                <CardHeader>
-                  <CardTitle className="text-base lg:text-lg">
-                    {selectedVideo ? selectedVideo.title : t('videos.groupDetail.playerPlaceholder')}
-                  </CardTitle>
-                  {selectedVideo && (
-                    <p className="text-xs lg:text-sm text-gray-600 mt-1">
-                      {selectedVideo.description || t('common.messages.noDescription')}
-                    </p>
-                  )}
-                </CardHeader>
-                <CardContent className="flex-1 flex items-center justify-center overflow-hidden">
-                  {selectedVideo ? (
-                    selectedVideo.file ? (
-                      <video
-                        ref={videoRef}
-                        key={selectedVideo.id}
-                        controls
-                        className="w-full h-full max-h-[400px] lg:max-h-[500px] rounded object-contain"
-                        src={apiClient.getVideoUrl(selectedVideo.file)}
-                        onCanPlay={handleVideoCanPlay}
-                      >
-                        {t('common.messages.browserNoVideoSupport')}
-                      </video>
-                    ) : (
-                      <p className="text-gray-500 text-sm">{t('videos.groupDetail.videoNoFile')}</p>
-                    )
-                  ) : (
-                    <p className="text-gray-500 text-center text-sm">{t('videos.groupDetail.playerPlaceholder')}</p>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-
-            <div className={`flex-col min-h-0 min-w-0 ${mobileTab === 'chat' ? 'flex' : 'hidden lg:flex'}`}>
-              <ChatPanel groupId={groupId ?? undefined} onVideoPlay={handleVideoPlayFromTime} className="h-[500px] lg:h-[600px]" />
-            </div>
+    <div
+      className="bg-[#f8faf5] flex flex-col"
+      style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+    >
+      {/* ── Fixed Header ─────────────────────────────────────────────────── */}
+      <header className="fixed top-0 w-full flex justify-between items-center px-6 py-3 bg-white/80 backdrop-blur-md border-b border-stone-200/60 z-50">
+        <div className="flex items-center gap-6 min-w-0">
+          <span
+            className="text-xl font-bold text-[#00652c] shrink-0"
+            style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+          >
+            VideoQ
+          </span>
+          <div className="hidden md:flex items-center gap-1 text-sm text-[#6f7a6e] font-medium min-w-0">
+            <Link href="/videos/groups" className="text-stone-400 hover:text-[#00652c] transition-colors shrink-0">
+              {t('videos.groupDetail.breadcrumbGroups')}
+            </Link>
+            <ChevronRight className="w-3.5 h-3.5 text-stone-300 shrink-0" />
+            <span className="text-[#00652c] font-bold border-b-2 border-[#00652c] truncate max-w-[200px]">
+              {group.name}
+            </span>
           </div>
         </div>
-      </div>
-      <Footer />
+
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={() => setIsAddModalOpen(true)}
+            className="flex items-center gap-1.5 px-4 py-1.5 rounded-full border border-[#00652c] text-[#00652c] font-bold text-sm hover:bg-[#f0fdf4] transition-colors active:scale-95"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            {t('videos.groupDetail.addVideoButton')}
+          </button>
+
+          {group.videos && group.videos.length > 0 && groupId && (
+            <ShortsButton groupId={groupId} videos={group.videos} size="sm" />
+          )}
+
+          {groupId && <DashboardButton groupId={groupId} size="sm" />}
+
+          <div className="h-6 w-px bg-stone-200 mx-1" />
+
+          <button
+            onClick={() => setIsEditing(true)}
+            className="p-2 text-[#3f493f] hover:bg-stone-100 rounded-full transition-colors"
+            title={t('videos.groupDetail.editTitle')}
+          >
+            <Pencil className="w-4 h-4" />
+          </button>
+          <button
+            onClick={handleDelete}
+            disabled={isDeleting}
+            className="p-2 text-red-500 hover:bg-red-50 rounded-full transition-colors disabled:opacity-50"
+            title={t('videos.groupDetail.delete')}
+          >
+            {isDeleting ? <InlineSpinner className="w-4 h-4" /> : <Trash2 className="w-4 h-4" />}
+          </button>
+
+        </div>
+      </header>
+
+      {/* ── Edit Dialog ──────────────────────────────────────────────────── */}
+      <Dialog open={isEditing} onOpenChange={(open) => !open && handleCancelEdit()}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('videos.groupDetail.editTitle')}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            {updateError && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600">{updateError}</div>
+            )}
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-[#3f493f]">{t('videos.groups.nameLabel')}</label>
+              <input
+                type="text"
+                value={editedName}
+                onChange={(e) => setEditedName(e.target.value)}
+                disabled={isUpdating}
+                className="w-full px-3 py-2.5 bg-[#f2f4ef] border border-[#e1e3de] rounded-xl text-sm focus:ring-2 focus:ring-[#00652c]/20 focus:border-[#00652c] outline-none transition-all"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-[#3f493f]">{t('videos.groups.descriptionLabel')}</label>
+              <textarea
+                value={editedDescription}
+                onChange={(e) => setEditedDescription(e.target.value)}
+                disabled={isUpdating}
+                rows={3}
+                className="w-full px-3 py-2.5 bg-[#f2f4ef] border border-[#e1e3de] rounded-xl text-sm focus:ring-2 focus:ring-[#00652c]/20 focus:border-[#00652c] outline-none transition-all resize-none"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <button
+              onClick={handleCancelEdit}
+              disabled={isUpdating}
+              className="flex items-center gap-1.5 px-4 py-2 border border-[#e1e3de] rounded-xl text-sm font-bold hover:bg-[#f2f4ef] transition-colors disabled:opacity-50"
+            >
+              <X className="w-3.5 h-3.5" />
+              {t('common.actions.cancel')}
+            </button>
+            <button
+              onClick={() => void updateGroupMutation.mutateAsync({ name: editedName, description: editedDescription })}
+              disabled={isUpdating || !editedName.trim()}
+              className="flex items-center gap-1.5 px-4 py-2 bg-[#00652c] text-white rounded-xl text-sm font-bold hover:opacity-90 transition-opacity disabled:opacity-50"
+            >
+              {isUpdating ? <InlineSpinner className="w-3.5 h-3.5" /> : <Save className="w-3.5 h-3.5" />}
+              {isUpdating ? t('common.actions.saving') : t('common.actions.save')}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Main ─────────────────────────────────────────────────────────── */}
+      <main className="mt-16 flex flex-col px-6 pt-4 gap-4 pb-20 md:pb-6 max-w-[1600px] mx-auto w-full md:h-[calc(100vh-4rem)] md:overflow-hidden">
+        {/* Share link panel */}
+        <ShareLinkPanel
+          shareLink={shareLink}
+          isGeneratingLink={isGeneratingLink}
+          isCopied={isCopied}
+          onGenerate={generateShareLink}
+          onDelete={deleteShareLink}
+          onCopy={copyShareLink}
+        />
+
+        {/* 3-column grid */}
+        <div className="flex flex-col md:grid md:grid-cols-4 gap-6 md:flex-1 md:min-h-0 md:items-stretch">
+
+          {/* LEFT: Video list */}
+          <aside className={`md:col-span-1 flex flex-col md:min-h-0 ${mobileTab === 'videos' ? 'flex' : 'hidden md:flex'}`}>
+            <div className="bg-white rounded-xl flex flex-col h-full overflow-hidden shadow-[0_4px_20px_rgba(28,25,23,0.04)]">
+              <div className="p-4 border-b border-stone-100 flex items-center justify-between shrink-0">
+                <h2 className="font-extrabold text-[#191c19]">{t('videos.groupDetail.videoListTitle')}</h2>
+                <span className="text-xs bg-[#f2f4ef] px-2 py-0.5 rounded-full text-[#6f7a6e] font-medium">
+                  {t('videos.groupDetail.videoCount', { count: group.videos?.length ?? 0 })}
+                </span>
+              </div>
+              <div className="flex-1 overflow-y-auto p-2 space-y-1">
+                {group.videos && group.videos.length > 0 ? (
+                  <DndContext
+                    sensors={isMobile ? MOBILE_SENSORS : sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <SortableContext items={group.videos.map((v) => v.id)} strategy={verticalListSortingStrategy}>
+                      {group.videos.map((v) => (
+                        <SortableVideoItem
+                          key={v.id}
+                          video={v}
+                          isSelected={selectedVideo?.id === v.id}
+                          isMobile={isMobile}
+                          onSelect={(videoId) => {
+                            handleVideoSelect(videoId);
+                            if (isMobile) setMobileTab('player');
+                          }}
+                          onRemove={handleRemoveVideo}
+                        />
+                      ))}
+                    </SortableContext>
+                  </DndContext>
+                ) : (
+                  <p className="text-center text-[#6f7a6e] py-8 text-sm">
+                    {t('videos.groupDetail.videoListEmpty')}
+                  </p>
+                )}
+              </div>
+            </div>
+          </aside>
+
+          {/* CENTER: Video player */}
+          <section className={`md:col-span-2 flex flex-col gap-3 md:min-h-0 ${mobileTab === 'player' ? 'flex' : 'hidden md:flex'}`}>
+            <div className="bg-white rounded-xl flex flex-col flex-1 overflow-hidden shadow-[0_8px_30px_rgba(28,25,23,0.08)]">
+              {selectedVideo && (
+                <div className="p-5 border-b border-stone-100 shrink-0">
+                  <h1 className="font-extrabold text-[#191c19] text-xl truncate">{selectedVideo.title}</h1>
+                </div>
+              )}
+              <div className="flex-1 bg-[#1a1c1c] flex items-center justify-center min-h-0">
+                {selectedVideo ? (
+                  selectedVideo.file ? (
+                    <video
+                      ref={videoRef}
+                      key={selectedVideo.id}
+                      controls
+                      className="w-full h-full object-contain"
+                      src={apiClient.getVideoUrl(selectedVideo.file)}
+                      onCanPlay={handleVideoCanPlay}
+                    >
+                      {t('common.messages.browserNoVideoSupport')}
+                    </video>
+                  ) : (
+                    <p className="text-stone-400 text-sm">{t('videos.groupDetail.videoNoFile')}</p>
+                  )
+                ) : (
+                  <p className="text-stone-400 text-sm text-center px-4">{t('videos.groupDetail.playerPlaceholder')}</p>
+                )}
+              </div>
+            </div>
+
+            {/* Next video link */}
+            {nextVideo && (
+              <div className="flex justify-center">
+                <button
+                  onClick={() => {
+                    handleVideoSelect(nextVideo.id);
+                    if (isMobile) setMobileTab('player');
+                  }}
+                  className="group flex items-center gap-2 text-[#00652c] font-bold text-sm hover:underline"
+                >
+                  {t('videos.groupDetail.nextVideo')} <span className="truncate max-w-[200px]">{nextVideo.title}</span>
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                </button>
+              </div>
+            )}
+          </section>
+
+          {/* RIGHT: Chat */}
+          <aside className={`md:col-span-1 flex flex-col md:min-h-0 ${mobileTab === 'chat' ? 'flex' : 'hidden md:flex'}`}>
+            <ChatPanel
+              groupId={groupId ?? undefined}
+              onVideoPlay={handleVideoPlayFromTime}
+              className="flex-1 h-full min-h-[400px] md:min-h-0 shadow-[0_4px_20px_rgba(28,25,23,0.04)]"
+            />
+          </aside>
+        </div>
+      </main>
+
+      {/* ── Mobile bottom nav ─────────────────────────────────────────────── */}
+      <nav className="fixed bottom-0 left-0 w-full z-50 md:hidden flex justify-around items-center h-16 bg-white border-t border-stone-100 shadow-[0_-4px_20px_rgba(28,25,23,0.06)] rounded-t-2xl px-4">
+        {(['videos', 'player', 'chat'] as MobileTab[]).map((tab) => {
+          const Icon = mobileTabIcon[tab];
+          const isActive = mobileTab === tab;
+          return (
+            <button
+              key={tab}
+              onClick={() => setMobileTab(tab)}
+              className={`flex flex-col items-center justify-center gap-1 px-4 py-1 rounded-xl transition-colors ${
+                isActive
+                  ? 'bg-[#f0fdf4] text-[#00652c]'
+                  : 'text-stone-400 hover:text-[#00652c]'
+              }`}
+            >
+              <Icon className="w-5 h-5" />
+              <span className="text-[11px] font-medium">{mobileTabLabel[tab]}</span>
+            </button>
+          );
+        })}
+      </nav>
+
+      {/* Add Videos Dialog */}
+      <AddVideosDialog
+        isOpen={isAddModalOpen}
+        onOpenChange={setIsAddModalOpen}
+        groupId={groupId}
+        group={group}
+      />
     </div>
   );
 }

@@ -117,6 +117,9 @@
   },
   "navigation": {
     "brand": "VideoQ",
+    "home": "ホーム",
+    "videosNav": "動画",
+    "groupsNav": "グループ",
     "docs": "開発者Docs",
     "videos": "動画一覧",
     "videoGroups": "チャットグループ",
@@ -128,27 +131,39 @@
   "layout": {
     "footer": {
       "copyright": "© {{year}} VideoQ. Released under the MIT License."
-    }
+    },
+    "authBranding": {
+      "tagline": "あらゆるビデオを、最高の学びの体験へ"
+    },
+    "authFooter": "© {{year}} VideoQ - あらゆる学びのシーンに"
   },
   "home": {
     "welcome": {
       "title": "Welcome back!",
-      "subtitle": "{{username}}さん、おかえりなさい！"
+      "subtitle": "{{username}}さん、おかえりなさい！",
+      "greeting": "おかえりなさい、{{username}}さん！",
+      "dailyMotivation": "今日も素晴らしい授業を届けましょう 🌱"
     },
     "actions": {
       "upload": {
         "title": "動画をアップロード",
-        "description": "新しい動画をアップロードして管理"
+        "description": "新しい動画をアップロードして管理",
+        "descriptionLong": "新しい授業を追加して、AIによる分析を開始しましょう。",
+        "linkLabel": "開始する"
       },
       "library": {
-        "title": "動画一覧",
+        "title": "動画ライブラリ",
         "description_one": "{{count}}本の動画",
-        "description_other": "{{count}}本の動画"
+        "description_other": "{{count}}本の動画",
+        "descriptionLong": "{{count}}本の動画を管理・編集・共有することができます。",
+        "linkLabel": "一覧を見る"
       },
       "groups": {
-        "title": "チャットグループ",
+        "title": "グループ管理",
         "description_one": "{{count}}個のグループ",
-        "description_other": "{{count}}個のグループ"
+        "description_other": "{{count}}個のグループ",
+        "descriptionLong": "{{count}}つのグループを管理し、進捗を確認しましょう。",
+        "linkLabel": "管理する"
       }
     },
     "stats": {
@@ -156,7 +171,20 @@
       "pending": "待機中",
       "processing": "処理中",
       "indexing": "インデックス中",
-      "error": "エラー"
+      "error": "エラー",
+      "totalVideos": "総動画数",
+      "analysisCompleted": "分析完了",
+      "groups": "グループ数",
+      "videoCount": "{{count}}本",
+      "groupCount": "{{count}}個"
+    },
+    "recentVideos": {
+      "title": "最近アップロードした動画",
+      "viewAll": "すべて表示"
+    },
+    "tips": {
+      "hint": "ヒント",
+      "message": "動画をグループにまとめると、授業シリーズを管理しやすくなります。"
     },
     "account": {
       "username": "ユーザー名",
@@ -188,7 +216,7 @@
   },
   "videos": {
     "list": {
-      "title": "動画一覧",
+      "title": "動画ライブラリ",
       "emptySubtitle": "動画をアップロードして管理を始めましょう",
       "uploadButton": "動画をアップロード",
       "stats": {
@@ -198,6 +226,28 @@
         "processing": "処理中",
         "indexing": "インデックス中"
       },
+      "statsRow": {
+        "all": "全体",
+        "completed": "完了",
+        "pending": "保留中",
+        "processing": "処理中",
+        "indexing": "インデックス中"
+      },
+      "searchPlaceholder": "動画を検索...",
+      "sortLabel": "並び替え:",
+      "sort": {
+        "uploadedDesc": "アップロード順 ↓",
+        "uploadedAsc": "アップロード順 ↑",
+        "titleAsc": "タイトル順"
+      },
+      "filter": {
+        "all": "すべて",
+        "completed": "分析完了",
+        "processing": "処理中",
+        "error": "エラー"
+      },
+      "manageTags": "タグ管理",
+      "managingCount": "{{count}}本の動画を管理中",
       "noVideos": "動画がありません",
       "noVideosHint": "上部の「動画をアップロード」ボタンから動画を追加できます。",
       "loading": "読み込み中...",
@@ -258,10 +308,34 @@
       "cancel": "キャンセル",
       "noVideo": "動画が見つかりません",
       "videoUnavailable": "動画ファイルがありません",
-      "deleteConfirm": "この動画を削除しますか？"
+      "deleteConfirm": "この動画を削除しますか？",
+      "editMode": "編集モード",
+      "backToLibrary": "動画ライブラリに戻る",
+      "videosBreadcrumb": "動画",
+      "editButton": "編集",
+      "deleteButton": "削除",
+      "transcriptSection": "文字起こし",
+      "transcriptSearchPlaceholder": "文字起こしを検索...",
+      "statusSection": "ステータス",
+      "transcriptNotFound": "検索結果が見つかりませんでした",
+      "pipeline": {
+        "upload": "アップロード",
+        "transcript": "文字起こし",
+        "aiAnalysis": "AI分析"
+      },
+      "transcriptStatus": {
+        "pending": "文字起こし待機中...",
+        "processing": "文字起こし処理中...",
+        "indexing": "インデックス構築中...",
+        "error": "文字起こしに失敗しました",
+        "unavailable": "文字起こしはまだありません"
+      }
     },
     "groups": {
       "title": "チャットグループ",
+      "subtitle": "学習コンテンツをグループにまとめて管理・共有できます",
+      "emptyDescription": "動画をグループにまとめて、効率よく学習を管理しましょう",
+      "optional": "（任意）",
       "create": "新規チャットグループを作成",
       "createTitle": "新規チャットグループを作成",
       "createDescription": "チャットグループ名と説明を入力してください。",
@@ -329,6 +403,19 @@
       "videoNoFile": "動画ファイルがありません",
       "videoListTitle": "動画一覧",
       "videoListEmpty": "動画がありません",
+      "videoCount": "全{{count}}本",
+      "nextVideo": "次の動画:",
+      "addVideoButton": "動画を追加",
+      "backToGroups": "グループ一覧",
+      "editTitle": "グループを編集",
+      "breadcrumbGroups": "動画グループ",
+      "shareLinkLabel": "共有リンク:",
+      "copyButton": "コピー",
+      "status": {
+        "completed": "完了",
+        "error": "エラー",
+        "processing": "処理中"
+      },
       "remove": "削除",
       "deleteError": "チャットグループの削除に失敗しました"
     },
@@ -343,15 +430,20 @@
       "playerPlaceholder": "動画一覧から動画を選択してください",
       "videoNoFile": "動画ファイルがありません",
       "noVideos": "動画がありません",
-      "noDescription": "説明なし"
+      "noDescription": "説明なし",
+      "publicBadge": "公開共有リンク",
+      "videoCountSuffix": "本"
     }
   },
   "auth": {
     "login": {
       "title": "ログイン",
       "description": "アカウントにログインしてサービスをご利用ください。",
+      "badge": "おかえりなさい",
       "submit": "ログイン",
       "submitting": "ログイン中...",
+      "rememberMe": "ログイン状態を保持",
+      "orDivider": "または",
       "footerQuestion": "アカウントをお持ちでない方は",
       "footerLink": "こちらから登録",
       "forgotPassword": "パスワードをお忘れですか？"
@@ -359,13 +451,17 @@
     "signup": {
       "title": "新規登録",
       "description": "新しいアカウントを作成してサービスをご利用ください。",
-      "submit": "新規登録",
+      "badge": "はじめまして",
+      "submit": "新規登録する",
       "submitting": "登録中...",
+      "orDivider": "または",
+      "passwordPlaceholder": "8文字以上",
       "footerQuestion": "すでにアカウントをお持ちの方は",
       "footerLink": "こちらからログイン",
       "passwordMismatch": "パスワードが一致しません"
     },
     "checkEmail": {
+      "badge": "アカウント登録",
       "title": "メールをご確認ください",
       "description": "ご登録いただいたメールアドレス宛に確認メールを送信しました。受信トレイまたは迷惑メールフォルダーをご確認のうえ、記載のリンクをクリックして登録を完了してください。",
       "alert": "確認リンクの有効期限が切れる前にメールを開いてください。",
@@ -373,6 +469,9 @@
       "backToLogin": "ログイン画面に戻る"
     },
     "forgotPassword": {
+      "badge": "パスワードリセット",
+      "noAccount": "アカウントをお持ちでないですか？",
+      "signUp": "新規登録",
       "title": "パスワードをお忘れですか？",
       "description": "登録済みのメールアドレスを入力すると、パスワード再設定用のリンクをメールでお送りします。",
       "success": "パスワードリセット用のメールを送信しました。数分待っても届かない場合は迷惑メールフォルダをご確認ください。",
@@ -381,6 +480,7 @@
       "backToLogin": "ログイン画面に戻る"
     },
     "resetPassword": {
+      "badge": "パスワードリセット",
       "title": "新しいパスワードの設定",
       "description": "安全な新しいパスワードを入力してください。",
       "invalidLink": "リセットリンクが無効です。もう一度パスワードリセットを実行してください。",
@@ -395,6 +495,7 @@
       "confirmPasswordPlaceholder": "もう一度入力してください"
     },
     "verifyEmail": {
+      "badge": "メール認証",
       "title": "メール認証",
       "description": "登録されたメールアドレスを確認し、アカウントの有効化を進めています。",
       "loading": "メール認証を確認しています...",
@@ -430,6 +531,8 @@
   },
   "chat": {
     "title": "チャット",
+    "teacher": "教師",
+    "newConsultation": "新規相談",
     "history": "会話履歴",
     "historyEmpty": "履歴はありません",
     "historyLoading": "読込中...",
@@ -479,6 +582,7 @@
   },
   "settings": {
     "title": "設定",
+    "subtitle": "アカウントと統合の設定を管理します",
     "accountDeletion": {
       "title": "アカウント削除",
       "description": "アカウントを無効化し、関連データの削除を開始します。",
@@ -570,7 +674,8 @@
       "errorSaving": "APIキーの保存に失敗しました",
       "errorDeleting": "APIキーの削除に失敗しました",
       "successSaved": "APIキーを保存しました",
-      "successDeleted": "APIキーを削除しました"
+      "successDeleted": "APIキーを削除しました",
+      "configured": "設定済み"
     },
     "llm": {
       "title": "LLM設定",
@@ -669,13 +774,15 @@
       "subtitle": "VideoQ API 連携と自動化のための開発者向けリファレンス。",
       "quickLinksTitle": "クイックリンク",
       "quickLinksDescription": "公式 API ドキュメントを確認したり、設定画面で連携用 API キーを発行したりできます。",
-      "createApiKey": "設定で API キーを発行"
+      "createApiKey": "設定で API キーを発行",
+      "readMore": "詳細を見る"
     },
     "section": {
       "checklistTitle": "実装チェックリスト",
       "checklistDescription": "連携実装前に確認しておくべき項目です。",
       "autoExampleTitle": "自動生成エンドポイント例",
-      "autoExampleDescription": "以下の cURL は /api/schema/ から自動生成しています。"
+      "autoExampleDescription": "以下の cURL は /api/schema/ から自動生成しています。",
+      "autoLabel": "自動生成"
     },
     "sections": {
       "auth": {
