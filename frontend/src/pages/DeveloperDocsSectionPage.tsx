@@ -30,7 +30,7 @@ export default function DeveloperDocsSectionPage() {
   const isOpenAi = section === 'openai';
 
   return (
-    <AppPageShell activePage="docs">
+    <AppPageShell>
       <nav className="flex items-center gap-2 text-sm font-medium text-[#6f7a6e] mb-6">
         <Link href="/docs" className="hover:text-[#00652c] transition-colors">
           ← {t('docs.backToHome')}

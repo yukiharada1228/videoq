@@ -4,7 +4,7 @@ import { AppNav, type ActivePage } from '@/components/layout/AppNav';
 import { APP_CONTAINER_CLASS } from '@/components/layout/layoutTokens';
 
 interface AppPageShellProps {
-  activePage: ActivePage;
+  activePage?: ActivePage;
   children: ReactNode;
   contentClassName?: string;
 }
