@@ -13,36 +13,12 @@ import { AppPageShell } from '@/components/layout/AppPageShell';
 import { AppPageHeader } from '@/components/layout/AppPageHeader';
 import { useTranslation } from 'react-i18next';
 import {
-  Upload, Video, CheckCircle, Clock,
-  Folder, Film, Users, ArrowRight, Lightbulb,
+  Upload, Film, Users, ArrowRight, Lightbulb,
 } from 'lucide-react';
 
-
-
-function StatCard({ icon, iconBg, borderColor, label, value }: {
+function ActionCard({ icon, iconBg, title, description, linkLabel, linkColor, onClick }: {
   icon: ReactNode;
   iconBg: string;
-  borderColor: string;
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className={`bg-white p-5 rounded-xl border-l-4 ${borderColor} shadow-[0_4px_20px_rgba(28,25,23,0.04)] flex items-center gap-3`}>
-      <div className={`w-10 h-10 ${iconBg} rounded-full flex items-center justify-center shrink-0`}>
-        {icon}
-      </div>
-      <div>
-        <p className="text-sm font-semibold text-[#3f493f]">{label}</p>
-        <p className="text-xl font-extrabold text-[#1c1c19]">{value}</p>
-      </div>
-    </div>
-  );
-}
-
-function ActionCard({ icon, iconBg, borderHoverColor, title, description, linkLabel, linkColor, onClick }: {
-  icon: ReactNode;
-  iconBg: string;
-  borderHoverColor: string;
   title: string;
   description: string;
   linkLabel: string;
@@ -51,7 +27,7 @@ function ActionCard({ icon, iconBg, borderHoverColor, title, description, linkLa
 }) {
   return (
     <div
-      className={`group bg-white p-5 rounded-xl shadow-[0_4px_20px_rgba(28,25,23,0.04)] border-t-4 border-transparent ${borderHoverColor} transition-all cursor-pointer`}
+      className="group bg-white rounded-2xl shadow-[0_4px_20px_rgba(28,25,23,0.04)] hover:shadow-[0_8px_30px_rgba(28,25,23,0.10)] transition-all duration-200 hover:-translate-y-0.5 cursor-pointer p-5"
       onClick={onClick}
     >
       <div className={`w-12 h-12 ${iconBg} rounded-xl flex items-center justify-center mb-4`}>
@@ -85,8 +61,6 @@ export default function HomePage() {
     [videos],
   );
 
-  const processingCount = videoStats.pending + videoStats.processing + videoStats.indexing;
-
   if (isLoading || !user || isLoadingData) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#f8faf5]">
@@ -111,100 +85,80 @@ export default function HomePage() {
         )}
       />
 
-        {/* Stats Grid */}
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
-          <StatCard
-            icon={<Video className="text-[#005b8c] w-5 h-5" />}
-            iconBg="bg-[#cce5ff]"
-            borderColor="border-[#005b8c]"
-            label={t('home.stats.totalVideos')}
-            value={t('home.stats.videoCount', { count: videoStats.total })}
-          />
-          <StatCard
-            icon={<CheckCircle className="text-[#00652c] w-5 h-5" style={{ fill: 'currentColor' } as React.CSSProperties} />}
-            iconBg="bg-[#95f8a7]"
-            borderColor="border-[#00652c]"
-            label={t('home.stats.analysisCompleted')}
-            value={t('home.stats.videoCount', { count: videoStats.completed })}
-          />
-          <StatCard
-            icon={<Clock className="text-[#904d00] w-5 h-5" />}
-            iconBg="bg-[#ffdcc3]"
-            borderColor="border-[#904d00]"
-            label={t('home.stats.processing')}
-            value={t('home.stats.videoCount', { count: processingCount })}
-          />
-          <StatCard
-            icon={<Folder className="text-[#00652c] w-5 h-5" />}
-            iconBg="bg-[#95f8a7]"
-            borderColor="border-[#00652c]"
-            label={t('home.stats.groups')}
-            value={t('home.stats.groupCount', { count: groups.length })}
-          />
-        </section>
+      {/* Stats Row */}
+      <section className="grid grid-cols-2 md:grid-cols-4 gap-px bg-[#becabc]/20 rounded-xl overflow-hidden mb-8 shadow-[0_12px_32px_-4px_rgba(25,28,25,0.04)] border border-[#e1e3de]/50">
+        {[
+          { label: t('home.stats.totalVideos'), value: videoStats.total, color: 'text-[#191c19]', labelColor: 'text-[#3f493f]' },
+          { label: t('home.stats.analysisCompleted'), value: videoStats.completed, color: 'text-[#00652c]', labelColor: 'text-[#00652c]' },
+          { label: t('home.stats.processing'), value: videoStats.processing + videoStats.pending + videoStats.indexing, color: 'text-[#904d00]', labelColor: 'text-[#904d00]' },
+          { label: t('home.stats.groups'), value: groups.length, color: 'text-[#191c19]', labelColor: 'text-[#3f493f]' },
+        ].map(({ label, value, color, labelColor }) => (
+          <div key={label} className="bg-white p-4 flex flex-col items-center">
+            <span className={`text-xs font-bold ${labelColor} tracking-widest uppercase`}>{label}</span>
+            <span className={`text-xl font-bold ${color}`}>{value}</span>
+          </div>
+        ))}
+      </section>
 
-        {/* Quick Actions Bento */}
-        <section className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-          <ActionCard
-            icon={<Upload className="text-[#00652c] w-7 h-7" />}
-            iconBg="bg-[#95f8a7]/30"
-            borderHoverColor="hover:border-[#00652c]"
-            title={t('home.actions.upload.title')}
-            description={t('home.actions.upload.descriptionLong')}
-            linkLabel={t('home.actions.upload.linkLabel')}
-            linkColor="text-[#00652c]"
-            onClick={() => navigate('/videos?upload=true')}
-          />
-          <ActionCard
-            icon={<Film className="text-[#005b8c] w-7 h-7" />}
-            iconBg="bg-[#cce5ff]/30"
-            borderHoverColor="hover:border-[#005b8c]"
-            title={t('home.actions.library.title')}
-            description={t('home.actions.library.descriptionLong', { count: videoStats.total })}
-            linkLabel={t('home.actions.library.linkLabel')}
-            linkColor="text-[#005b8c]"
-            onClick={() => navigate('/videos')}
-          />
-          <ActionCard
-            icon={<Users className="text-[#904d00] w-7 h-7" />}
-            iconBg="bg-[#ffdcc3]/30"
-            borderHoverColor="hover:border-[#904d00]"
-            title={t('home.actions.groups.title')}
-            description={t('home.actions.groups.descriptionLong', { count: groups.length })}
-            linkLabel={t('home.actions.groups.linkLabel')}
-            linkColor="text-[#904d00]"
-            onClick={() => navigate('/videos/groups')}
-          />
-        </section>
+      {/* Quick Actions Bento */}
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+        <ActionCard
+          icon={<Upload className="text-[#00652c] w-7 h-7" />}
+          iconBg="bg-[#95f8a7]/30"
+          title={t('home.actions.upload.title')}
+          description={t('home.actions.upload.descriptionLong')}
+          linkLabel={t('home.actions.upload.linkLabel')}
+          linkColor="text-[#00652c]"
+          onClick={() => navigate('/videos?upload=true')}
+        />
+        <ActionCard
+          icon={<Film className="text-[#005b8c] w-7 h-7" />}
+          iconBg="bg-[#cce5ff]/30"
+          title={t('home.actions.library.title')}
+          description={t('home.actions.library.descriptionLong', { count: videoStats.total })}
+          linkLabel={t('home.actions.library.linkLabel')}
+          linkColor="text-[#005b8c]"
+          onClick={() => navigate('/videos')}
+        />
+        <ActionCard
+          icon={<Users className="text-[#904d00] w-7 h-7" />}
+          iconBg="bg-[#ffdcc3]/30"
+          title={t('home.actions.groups.title')}
+          description={t('home.actions.groups.descriptionLong', { count: groups.length })}
+          linkLabel={t('home.actions.groups.linkLabel')}
+          linkColor="text-[#904d00]"
+          onClick={() => navigate('/videos/groups')}
+        />
+      </section>
 
-        {/* Recent Videos */}
-        {recentVideos.length > 0 && (
-          <section className="mb-8">
-            <div className="flex justify-between items-center mb-5">
-              <h2 className="text-base font-bold text-[#191c19]">{t('home.recentVideos.title')}</h2>
-              <Link href="/videos" className="text-[#00652c] text-sm font-bold flex items-center hover:underline">
-                {t('home.recentVideos.viewAll')} <ArrowRight className="ml-1 w-3.5 h-3.5" />
-              </Link>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {recentVideos.map((video) => (
-                <VideoCard key={video.id} video={video} />
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* Tips Card */}
-        <section className="mt-8">
-          <div className="bg-[#95f8a7]/20 border-2 border-[#00652c]/20 rounded-xl p-6 flex items-start gap-4 shadow-sm">
-            <div className="bg-[#00652c] text-white p-2 rounded-full flex items-center justify-center shrink-0">
-              <Lightbulb className="w-5 h-5" />
-            </div>
-            <p className="text-[#005323] font-medium text-sm leading-snug">
-              <span className="font-bold">{t('home.tips.hint')}:</span> {t('home.tips.message')}
-            </p>
+      {/* Recent Videos */}
+      {recentVideos.length > 0 && (
+        <section className="mb-8">
+          <div className="flex justify-between items-center mb-5">
+            <h2 className="text-base font-bold text-[#191c19]">{t('home.recentVideos.title')}</h2>
+            <Link href="/videos" className="text-[#00652c] text-sm font-bold flex items-center hover:underline">
+              {t('home.recentVideos.viewAll')} <ArrowRight className="ml-1 w-3.5 h-3.5" />
+            </Link>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {recentVideos.map((video) => (
+              <VideoCard key={video.id} video={video} />
+            ))}
           </div>
         </section>
+      )}
+
+      {/* Tips Card */}
+      <section className="mt-8">
+        <div className="bg-[#95f8a7]/20 border-2 border-[#00652c]/20 rounded-xl p-6 flex items-start gap-4 shadow-sm">
+          <div className="bg-[#00652c] text-white p-2 rounded-full flex items-center justify-center shrink-0">
+            <Lightbulb className="w-5 h-5" />
+          </div>
+          <p className="text-[#005323] font-medium text-sm leading-snug">
+            <span className="font-bold">{t('home.tips.hint')}:</span> {t('home.tips.message')}
+          </p>
+        </div>
+      </section>
     </AppPageShell>
   );
 }
