@@ -63,9 +63,9 @@ export function TagCreateDialog({ isOpen, onClose, onCreate }: TagCreateDialogPr
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-5">
+        <div className="space-y-4">
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-[#3f493f] uppercase tracking-widest">
+            <label className="text-xs font-bold text-[#3f493f] uppercase tracking-wider">
               {t('tags.create.nameLabel', 'Tag Name')}
             </label>
             <input
@@ -81,7 +81,7 @@ export function TagCreateDialog({ isOpen, onClose, onCreate }: TagCreateDialogPr
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-[#3f493f] uppercase tracking-widest">
+            <label className="text-xs font-bold text-[#3f493f] uppercase tracking-wider">
               {t('tags.create.colorLabel', 'Tag Color')}
             </label>
             <div className="flex flex-wrap gap-2">
@@ -102,7 +102,7 @@ export function TagCreateDialog({ isOpen, onClose, onCreate }: TagCreateDialogPr
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-[#3f493f] uppercase tracking-widest">
+            <label className="text-xs font-bold text-[#3f493f] uppercase tracking-wider">
               {t('tags.create.preview', 'Preview')}
             </label>
             <div className="p-3 border border-stone-200 rounded-xl bg-[#f8faf5]">
