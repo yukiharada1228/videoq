@@ -165,5 +165,6 @@ vi.mock('@/lib/api', async (importOriginal) => {
     chat: vi.fn(() => Promise.resolve({ response: 'Mock chat response' })),
     getVideoUrl: vi.fn(mockGetVideoUrl),
     getSharedVideoUrl: vi.fn(mockGetSharedVideoUrl),
+    logout: vi.fn(() => Promise.resolve()),
   },
 }});
