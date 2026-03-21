@@ -100,11 +100,11 @@ export default function SharePage() {
     return convertVideoInGroupToSelectedVideo(selected ?? group.videos[0]);
   }, [group, selectedVideoId]);
 
-  const nextVideo = useMemo(() => {
+  const nextVideo = (() => {
     if (!group?.videos || !selectedVideo) return null;
     const idx = group.videos.findIndex((v) => v.id === selectedVideo.id);
     return idx >= 0 && idx < group.videos.length - 1 ? group.videos[idx + 1] : null;
-  }, [group?.videos, selectedVideo]);
+  })();
 
   const { videoRef, handleVideoCanPlay, handleVideoPlayFromTime } = useVideoPlayback({
     selectedVideo,
@@ -181,6 +181,11 @@ export default function SharePage() {
 
       {/* ── Main ────────────────────────────────────────────────────────── */}
       <main className="mt-16 flex flex-col px-6 pt-4 gap-4 max-w-[1600px] mx-auto w-full h-[calc(100dvh-8rem)] overflow-hidden md:h-[calc(100dvh-4rem)]">
+        {group.description && (
+          <div className="shrink-0 rounded-2xl border border-stone-200/70 bg-white/80 px-4 py-3 text-sm text-[#4f5a4f] shadow-[0_4px_20px_rgba(28,25,23,0.04)]">
+            {group.description}
+          </div>
+        )}
 
         {/* 3-column grid */}
         <div className="flex flex-col md:grid md:grid-cols-4 gap-6 flex-1 min-h-0 md:items-stretch">
