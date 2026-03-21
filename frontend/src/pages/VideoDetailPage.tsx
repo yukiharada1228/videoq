@@ -213,10 +213,11 @@ export default function VideoDetailPage() {
   const isUpdating = updateMutation.isPending;
 
   // Transcript parsing
+  const transcript = video?.transcript ?? null;
   const transcriptSegments = useMemo<TranscriptSegment[]>(() => {
-    if (!video.transcript || !isSRTFormat(video.transcript)) return [];
-    return parseSRTTranscript(video.transcript);
-  }, [video.transcript]);
+    if (!transcript || !isSRTFormat(transcript)) return [];
+    return parseSRTTranscript(transcript);
+  }, [transcript]);
 
   const filteredSegments = useMemo(() => {
     const q = transcriptSearch.trim().toLowerCase();
