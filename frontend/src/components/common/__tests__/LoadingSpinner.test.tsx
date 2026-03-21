@@ -5,6 +5,7 @@ describe('LoadingSpinner', () => {
   it('should render spinner', () => {
     const { container } = render(<LoadingSpinner />)
 
+    expect(screen.getByRole('status')).toBeInTheDocument()
     const spinner = container.querySelector('.animate-spin')
     expect(spinner).toBeInTheDocument()
   })
@@ -16,9 +17,8 @@ describe('LoadingSpinner', () => {
   })
 
   it('should not display message when not provided', () => {
-    const { container } = render(<LoadingSpinner />)
+    render(<LoadingSpinner />)
 
-    const message = container.querySelector('p')
-    expect(message).not.toBeInTheDocument()
+    expect(screen.getByText('Loading')).toBeInTheDocument()
   })
 })
