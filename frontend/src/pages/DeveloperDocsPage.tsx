@@ -25,16 +25,10 @@ export default function DeveloperDocsPage() {
   }));
 
   return (
-    <AppPageShell>
+    <AppPageShell activePage="docs">
       <AppPageHeader
         title={t('docs.home.title')}
         description={t('docs.home.subtitle')}
-        action={(
-          <div className="flex items-center gap-2 rounded-2xl border border-[#00652c]/15 bg-[#eff8f1] px-4 py-3 text-sm font-semibold text-[#00652c] shadow-[0_4px_20px_rgba(28,25,23,0.04)]">
-            <FileCode2 className="w-4 h-4" />
-            API integration reference
-          </div>
-        )}
       />
 
       <section className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
