@@ -166,7 +166,7 @@ interface ShareLinkPanelProps {
 function ShareLinkPanel({ shareLink, isGeneratingLink, isCopied, onGenerate, onDelete, onCopy }: ShareLinkPanelProps) {
   const { t } = useTranslation();
   return (
-    <div className="bg-white rounded-xl p-4 flex items-center gap-4 shadow-[0_4px_20px_rgba(28,25,23,0.04)]">
+    <div className="bg-white rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 shadow-[0_4px_20px_rgba(28,25,23,0.04)]">
       <span className="text-sm font-bold text-[#3f493f] whitespace-nowrap shrink-0">{t('videos.groupDetail.shareLinkLabel')}</span>
       {shareLink ? (
         <>
@@ -178,19 +178,21 @@ function ShareLinkPanel({ shareLink, isGeneratingLink, isCopied, onGenerate, onD
               className="w-full bg-transparent text-[#6f7a6e] text-sm outline-none cursor-default"
             />
           </div>
-          <button
-            onClick={onCopy}
-            className="flex items-center gap-2 px-4 py-2 bg-[#00652c] text-white rounded-xl text-sm font-bold hover:opacity-90 transition-opacity shrink-0"
-          >
-            <Copy className="w-3.5 h-3.5" />
-            {isCopied ? t('videos.groupDetail.copied') : t('videos.groupDetail.copyButton')}
-          </button>
-          <button
-            onClick={onDelete}
-            className="px-4 py-2 text-red-600 text-sm font-bold hover:bg-red-50 rounded-xl transition-colors shrink-0"
-          >
-            {t('videos.groupDetail.disable')}
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={onCopy}
+              className="flex items-center gap-2 px-4 py-2 bg-[#00652c] text-white rounded-xl text-sm font-bold hover:opacity-90 transition-opacity"
+            >
+              <Copy className="w-3.5 h-3.5" />
+              {isCopied ? t('videos.groupDetail.copied') : t('videos.groupDetail.copyButton')}
+            </button>
+            <button
+              onClick={onDelete}
+              className="px-4 py-2 text-red-600 text-sm font-bold hover:bg-red-50 rounded-xl transition-colors"
+            >
+              {t('videos.groupDetail.disable')}
+            </button>
+          </div>
         </>
       ) : (
         <>
@@ -567,19 +569,20 @@ export default function VideoGroupDetailPage() {
         <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={() => setIsAddModalOpen(true)}
-            className="flex items-center gap-1.5 px-4 py-1.5 rounded-full border border-[#00652c] text-[#00652c] font-bold text-sm hover:bg-[#f0fdf4] transition-colors active:scale-95"
+            className="flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-full border border-[#00652c] text-[#00652c] font-bold text-sm hover:bg-[#f0fdf4] transition-colors active:scale-95"
           >
             <Plus className="w-3.5 h-3.5" />
-            {t('videos.groupDetail.addVideoButton')}
+            <span className="hidden sm:inline">{t('videos.groupDetail.addVideoButton')}</span>
           </button>
 
-          {group.videos && group.videos.length > 0 && groupId && (
-            <ShortsButton groupId={groupId} videos={group.videos} size="sm" />
-          )}
+          <div className="hidden sm:flex items-center gap-2">
+            {group.videos && group.videos.length > 0 && groupId && (
+              <ShortsButton groupId={groupId} videos={group.videos} size="sm" />
+            )}
+            {groupId && <DashboardButton groupId={groupId} size="sm" />}
+          </div>
 
-          {groupId && <DashboardButton groupId={groupId} size="sm" />}
-
-          <div className="h-6 w-px bg-stone-200 mx-1" />
+          <div className="h-6 w-px bg-stone-200 mx-1 hidden sm:block" />
 
           <button
             onClick={() => setIsEditing(true)}
