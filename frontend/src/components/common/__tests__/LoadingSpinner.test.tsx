@@ -6,8 +6,8 @@ describe('LoadingSpinner', () => {
     const { container } = render(<LoadingSpinner />)
 
     expect(screen.getByRole('status')).toBeInTheDocument()
-    const spinner = container.querySelector('.animate-spin')
-    expect(spinner).toBeInTheDocument()
+    const spinnerRing = container.querySelector('.loading-ring')
+    expect(spinnerRing).toBeInTheDocument()
   })
 
   it('should display custom message', () => {
