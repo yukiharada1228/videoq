@@ -8,6 +8,7 @@ import { queryKeys } from '@/lib/queryKeys';
 import { AppPageShell } from '@/components/layout/AppPageShell';
 import { AppPageHeader } from '@/components/layout/AppPageHeader';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
+import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { Input } from '@/components/ui/input';
 import {
   Dialog,
@@ -242,6 +243,7 @@ export default function SettingsPage() {
               </div>
             </div>
 
+            {openAiKeyQuery.isLoading && <LoadingSpinner />}
             {openAiKeyQuery.data?.has_key && (
               <div className="mb-5 flex items-center gap-3 p-3 bg-[#f0fdf4] border border-[#00652c]/20 rounded-xl">
                 <span className="text-xs font-bold text-[#3f493f] shrink-0">{t('settings.openaiApiKey.apiKeyLabel')}:</span>
@@ -332,11 +334,7 @@ export default function SettingsPage() {
               </div>
             )}
 
-            {apiKeysQuery.isLoading && (
-              <div className="flex justify-center py-8">
-                <InlineSpinner className="w-5 h-5 text-stone-300" />
-              </div>
-            )}
+            {apiKeysQuery.isLoading && <LoadingSpinner />}
             {apiKeysQuery.isError && (
               <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-600">
                 {t('settings.integrationApiKeys.errorLoading')}
