@@ -1,6 +1,8 @@
-import { GraduationCap } from 'lucide-react';
-import { Link } from '@/lib/i18n';
+import { GraduationCap, LogOut } from 'lucide-react';
+import { Link, useI18nNavigate } from '@/lib/i18n';
 import { useTranslation } from 'react-i18next';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiClient } from '@/lib/api';
 import { APP_CONTAINER_CLASS } from '@/components/layout/layoutTokens';
 
 export type ActivePage = 'home' | 'videos' | 'groups' | 'settings' | 'docs';
@@ -11,6 +13,25 @@ interface AppNavProps {
 
 export function AppNav({ activePage }: AppNavProps) {
   const { t } = useTranslation();
+  const navigate = useI18nNavigate();
+  const queryClient = useQueryClient();
+
+  const logoutMutation = useMutation({
+    mutationFn: async () => await apiClient.logout(),
+    onSettled: async () => {
+      queryClient.clear();
+    },
+  });
+
+  const handleLogout = async () => {
+    try {
+      await logoutMutation.mutateAsync();
+    } catch (error) {
+      console.error('Logout failed:', error);
+    } finally {
+      navigate('/login');
+    }
+  };
 
   const navLinks: { href: string; label: string; key: ActivePage }[] = [
     { href: '/', label: t('navigation.home'), key: 'home' },
@@ -48,7 +69,16 @@ export function AppNav({ activePage }: AppNavProps) {
           ))}
         </div>
 
-        <div className="w-[120px] shrink-0" />
+        <div className="w-[120px] shrink-0 flex justify-end">
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-1.5 text-sm font-semibold text-stone-600 hover:text-red-600 transition-colors"
+            aria-label={t('navigation.logout')}
+          >
+            <LogOut className="w-4 h-4" />
+            <span className="hidden lg:inline">{t('navigation.logout')}</span>
+          </button>
+        </div>
       </div>
     </nav>
   );

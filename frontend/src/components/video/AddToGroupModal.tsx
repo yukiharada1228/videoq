@@ -59,7 +59,7 @@ export function AddToGroupModal({ isOpen, onClose, groups, videoCount, onAdd }: 
             </p>
           ) : (
             <div className="space-y-2">
-              <label className="text-xs font-bold text-[#3f493f] uppercase tracking-widest">
+              <label className="text-xs font-bold text-[#3f493f] uppercase tracking-wider">
                 {t('videos.addToGroup.selectGroup', 'Select a group')}
               </label>
               <div className="max-h-64 overflow-y-auto space-y-2">
