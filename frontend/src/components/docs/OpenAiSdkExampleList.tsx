@@ -125,7 +125,7 @@ export function OpenAiSdkExampleList() {
 
   return (
     <div className="space-y-4">
-      <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-1 text-xs">
+      <div className="flex flex-wrap gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1 text-xs">
         {tabs.map((tab) => (
           <button
             key={tab}

@@ -1,13 +1,15 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { GraduationCap, Zap } from 'lucide-react';
+import {
+  GraduationCap, List, Play, MessageSquare,
+  CheckCircle, Clock, AlertCircle, ArrowRight,
+} from 'lucide-react';
 import { Link } from '@/lib/i18n';
 import { apiClient, type VideoInGroup } from '@/lib/api';
 import { ShortsButton } from '@/components/shorts/ShortsButton';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { ChatPanel } from '@/components/chat/ChatPanel';
-import { StatusBadge } from '@/components/common/StatusBadge';
 import { convertVideoInGroupToSelectedVideo, type SelectedVideo } from '@/lib/utils/videoConversion';
 import { useVideoPlayback } from '@/hooks/useVideoPlayback';
 import { useMobileTab } from '@/hooks/useMobileTab';
@@ -16,32 +18,35 @@ import { useI18nNavigate } from '@/lib/i18n';
 
 type MobileTab = 'videos' | 'player' | 'chat';
 
-interface MobileTabNavigationProps {
-  mobileTab: MobileTab;
-  onTabChange: (tab: MobileTab) => void;
-  labels: Record<MobileTab, string>;
-}
+// ── Status badge ──────────────────────────────────────────────────────────────
 
-function MobileTabNavigation({ mobileTab, onTabChange, labels }: MobileTabNavigationProps) {
-  const tabs: MobileTab[] = ['videos', 'player', 'chat'];
+function VideoStatusBadge({ status }: { status: string }) {
+  const { t } = useTranslation();
+  if (status === 'completed') {
+    return (
+      <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-[#00652c] mt-1">
+        <CheckCircle className="w-3 h-3 fill-current" />
+        {t('videos.groupDetail.status.completed')}
+      </span>
+    );
+  }
+  if (status === 'error') {
+    return (
+      <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-red-500 mt-1">
+        <AlertCircle className="w-3 h-3" />
+        {t('videos.groupDetail.status.error')}
+      </span>
+    );
+  }
   return (
-    <div className="lg:hidden flex border-b border-stone-200 bg-white rounded-t-xl">
-      {tabs.map((tab) => (
-        <button
-          key={tab}
-          onClick={() => onTabChange(tab)}
-          className={`flex-1 px-4 py-3 text-sm font-bold transition-colors ${
-            mobileTab === tab
-              ? 'text-[#00652c] border-b-2 border-[#00652c]'
-              : 'text-stone-500 hover:text-stone-700'
-          }`}
-        >
-          {labels[tab]}
-        </button>
-      ))}
-    </div>
+    <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-[#904d00] bg-[#ffdcc3]/40 px-1.5 py-0.5 rounded-full mt-1">
+      <Clock className="w-3 h-3" />
+      {t('videos.groupDetail.status.processing')}
+    </span>
   );
 }
+
+// ── Video list item ───────────────────────────────────────────────────────────
 
 interface VideoItemProps {
   video: VideoInGroup;
@@ -50,28 +55,24 @@ interface VideoItemProps {
 }
 
 function VideoItem({ video, isSelected, onSelect }: VideoItemProps) {
-  const { t } = useTranslation();
   return (
     <div
       onClick={() => onSelect(video.id)}
-      className={`border-l-4 rounded-xl p-3 cursor-pointer transition-all ${
-        isSelected
-          ? 'bg-[#f0fdf4] border-[#00652c]'
-          : 'border-transparent hover:bg-[#f8faf5]'
+      className={`flex items-center gap-2 p-3 rounded-xl cursor-pointer group transition-colors ${
+        isSelected ? 'bg-[#f0fdf4] border-l-4 border-[#00652c]' : 'hover:bg-stone-50'
       }`}
     >
-      <div className="flex items-start justify-between gap-2 mb-1">
-        <h3 className={`text-sm truncate ${isSelected ? 'font-bold text-[#191c19]' : 'font-semibold text-[#191c19]'}`}>
+      <div className="flex-1 min-w-0">
+        <p className={`text-sm truncate leading-tight ${isSelected ? 'font-bold text-[#00652c]' : 'font-medium text-[#191c19]'}`}>
           {video.title}
-        </h3>
-        <StatusBadge status={video.status} size="xs" />
+        </p>
+        <VideoStatusBadge status={video.status} />
       </div>
-      <p className="text-xs text-[#6f7a6e] line-clamp-2 leading-relaxed">
-        {video.description || t('videos.shared.noDescription')}
-      </p>
     </div>
   );
 }
+
+// ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function SharePage() {
   const params = useParams<{ token: string }>();
@@ -81,7 +82,7 @@ export default function SharePage() {
 
   const [selectedVideoId, setSelectedVideoId] = useState<number | null>(null);
 
-  const { mobileTab, setMobileTab } = useMobileTab();
+  const { mobileTab, setMobileTab, isMobile } = useMobileTab();
   const groupQuery = useSharedGroupQuery(shareToken);
   const group = groupQuery.data ?? null;
   const error = groupQuery.error ? t('common.messages.shareLoadFailed') : null;
@@ -99,155 +100,146 @@ export default function SharePage() {
     return convertVideoInGroupToSelectedVideo(selected ?? group.videos[0]);
   }, [group, selectedVideoId]);
 
+  const nextVideo = (() => {
+    if (!group?.videos || !selectedVideo) return null;
+    const idx = group.videos.findIndex((v) => v.id === selectedVideo.id);
+    return idx >= 0 && idx < group.videos.length - 1 ? group.videos[idx + 1] : null;
+  })();
+
   const { videoRef, handleVideoCanPlay, handleVideoPlayFromTime } = useVideoPlayback({
     selectedVideo,
     onVideoSelect: handleVideoSelect,
     onMobileSwitch: () => setMobileTab('player'),
   });
 
-  useEffect(() => {
-    if (groupQuery.error) {
-      console.error(groupQuery.error);
-    }
-  }, [groupQuery.error]);
+  const mobileTabIcon: Record<MobileTab, typeof List> = { videos: List, player: Play, chat: MessageSquare };
+  const mobileTabLabel: Record<MobileTab, string> = {
+    videos: t('videos.shared.tabs.videos'),
+    player: t('videos.shared.tabs.player'),
+    chat: t('videos.shared.tabs.chat'),
+  };
 
-  // ── Loading ──────────────────────────────────────────────────────────────────
+  // ── Loading ────────────────────────────────────────────────────────────────
+
   if (isLoading) {
     return (
-      <div className="h-screen flex flex-col bg-[#f8faf5]">
-        <nav className="fixed top-0 w-full z-50 bg-white/70 backdrop-blur-xl shadow-[0_12px_32px_rgba(28,28,25,0.06)] h-[64px] flex items-center px-8">
-          <span className="text-xl font-bold text-[#00652c]">VideoQ</span>
-        </nav>
-        <div className="flex-1 flex items-center justify-center mt-[64px]">
-          <LoadingSpinner />
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-[#f8faf5]">
+        <LoadingSpinner />
       </div>
     );
   }
 
-  // ── Error ────────────────────────────────────────────────────────────────────
+  // ── Error ──────────────────────────────────────────────────────────────────
+
   if (error || !group) {
     return (
-      <div className="h-screen flex flex-col bg-[#f8faf5]">
-        <nav className="fixed top-0 w-full z-50 bg-white/70 backdrop-blur-xl shadow-[0_12px_32px_rgba(28,28,25,0.06)] h-[64px] flex items-center px-8">
-          <span className="text-xl font-bold text-[#00652c]">VideoQ</span>
-        </nav>
-        <div className="flex-1 flex items-center justify-center mt-[64px] p-6">
-          <div className="bg-white rounded-2xl shadow-[0_4px_20px_rgba(28,25,23,0.06)] p-12 max-w-md w-full text-center">
-            <p className="text-sm text-red-600">{error || t('common.messages.shareNotFound')}</p>
-            <button
-              onClick={() => navigate('/')}
-              className="mt-6 px-5 py-2.5 bg-[#00652c] text-white text-sm font-bold rounded-full hover:bg-[#005323] transition-colors"
-            >
-              {t('common.actions.backToHome')}
-            </button>
-          </div>
-        </div>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#f8faf5] gap-4">
+        <p className="text-red-500">{error || t('common.messages.shareNotFound')}</p>
+        <button
+          onClick={() => navigate('/')}
+          className="px-5 py-2.5 bg-[#00652c] text-white text-sm font-bold rounded-full hover:bg-[#005323] transition-colors"
+        >
+          {t('common.actions.backToHome')}
+        </button>
       </div>
     );
   }
 
-  // ── Main ─────────────────────────────────────────────────────────────────────
+  // ── Main ───────────────────────────────────────────────────────────────────
+
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-[#f8faf5]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+    <div
+      className="bg-[#f8faf5] flex flex-col"
+      style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+    >
+      {/* ── Fixed Header ────────────────────────────────────────────────── */}
+      <header className="fixed top-0 w-full bg-white/80 backdrop-blur-xl border-b border-stone-200/60 z-50">
+        <div className="max-w-screen-xl px-6 lg:px-8 mx-auto w-full flex justify-between items-center py-4">
+          <div className="flex items-center gap-6 min-w-0">
+            <Link
+              href="/"
+              className="flex items-center gap-2 text-xl font-bold text-stone-900 shrink-0"
+              style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+            >
+              <GraduationCap className="text-[#00652c] w-6 h-6" />
+              <span>VideoQ</span>
+            </Link>
+            <div className="hidden md:flex items-center gap-1 text-sm text-[#6f7a6e] font-medium min-w-0">
+              <span className="text-[#00652c] font-bold border-b-2 border-[#00652c] truncate max-w-[200px]">
+                {group.name}
+              </span>
+            </div>
+          </div>
 
-      {/* ── Nav ── */}
-      <nav className="fixed top-0 w-full z-50 bg-white/70 backdrop-blur-xl shadow-[0_12px_32px_rgba(28,28,25,0.06)] h-[64px] flex justify-between items-center px-8">
-        <Link href="/" className="flex items-center gap-2">
-          <GraduationCap className="w-5 h-5 text-[#00652c]" />
-          <span className="text-xl font-bold text-[#00652c]">VideoQ</span>
-        </Link>
-        <div />
-        <span className="text-xs font-bold uppercase tracking-wider text-[#006d30] bg-[#d3ffd5] px-3 py-1.5 rounded-full">
-          {t('videos.shared.publicBadge')}
-        </span>
-      </nav>
-
-      {/* ── Main ── */}
-      <main className="mt-[64px] flex-1 flex flex-col p-6 gap-4 h-[calc(100vh-64px)] overflow-hidden">
-
-        {/* ── Page Header ── */}
-        <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 shrink-0">
-          <div className="space-y-1">
-            <span className="inline-block bg-[#d3ffd5] text-[#006d30] text-[10px] font-bold rounded-full px-3 py-1 mb-1">
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-xs font-bold uppercase tracking-wider text-[#006d30] bg-[#d3ffd5] px-3 py-1.5 rounded-full">
               {t('videos.shared.publicBadge')}
             </span>
-            <h1 className="text-3xl font-extrabold text-[#191c19] tracking-tight">{group.name}</h1>
-            <p className="text-sm text-[#6f7a6e] font-medium">
-              {group.description || t('videos.shared.descriptionFallback')}
-            </p>
           </div>
-          {group.videos && group.videos.length > 0 && (
-            <div className="shrink-0">
-              <ShortsButton
-                groupId={group.id}
-                videos={group.videos}
-                shareToken={shareToken}
-                size="sm"
-              />
-            </div>
-          )}
-        </header>
+        </div>
+      </header>
 
-        {/* ── Mobile Tabs ── */}
-        <MobileTabNavigation
-          mobileTab={mobileTab}
-          onTabChange={setMobileTab}
-          labels={{
-            videos: t('videos.shared.tabs.videos'),
-            player: t('videos.shared.tabs.player'),
-            chat: t('videos.shared.tabs.chat'),
-          }}
-        />
+      {/* ── Main ────────────────────────────────────────────────────────── */}
+      <main className="mt-16 flex flex-col px-6 pt-4 gap-4 max-w-[1600px] mx-auto w-full h-[calc(100dvh-8rem)] overflow-hidden md:h-[calc(100dvh-4rem)]">
+        {group.description && (
+          <div className="shrink-0 rounded-2xl border border-stone-200/70 bg-white/80 px-4 py-3 text-sm text-[#4f5a4f] shadow-[0_4px_20px_rgba(28,25,23,0.04)]">
+            {group.description}
+          </div>
+        )}
 
-        {/* ── 3-Column Grid ── */}
-        <section className="flex-1 grid grid-cols-12 gap-6 overflow-hidden min-h-0">
+        {/* 3-column grid */}
+        <div className="flex flex-col md:grid md:grid-cols-4 gap-6 flex-1 min-h-0 md:items-stretch">
 
-          {/* Left: Video List */}
-          <aside className={`col-span-12 lg:col-span-3 bg-white rounded-2xl shadow-[0_4px_20px_rgba(28,25,23,0.04)] flex flex-col overflow-hidden ${mobileTab === 'videos' ? 'flex' : 'hidden lg:flex'}`}>
-            <div className="p-4 shrink-0 flex items-center justify-between border-b border-stone-100">
-              <h2 className="font-extrabold text-[#191c19] flex items-center gap-2">
-                {t('videos.shared.tabs.videos')}
-                <span className="bg-[#f2f4ef] text-[#6f7a6e] text-[10px] px-2 py-0.5 rounded-full font-bold">
-                  {group.videos?.length ?? 0}{t('videos.shared.videoCountSuffix')}
+          {/* LEFT: Video list */}
+          <aside className={`md:col-span-1 flex flex-col min-h-0 ${mobileTab === 'videos' ? 'flex' : 'hidden md:flex'}`}>
+            <div className="bg-white rounded-xl flex flex-col h-full overflow-hidden shadow-[0_4px_20px_rgba(28,25,23,0.04)]">
+              <div className="p-4 border-b border-stone-100 flex items-center justify-between shrink-0">
+                <h2 className="font-extrabold text-[#191c19]">{t('videos.groupDetail.videoListTitle')}</h2>
+                <span className="text-xs bg-[#f2f4ef] px-2 py-0.5 rounded-full text-[#6f7a6e] font-medium">
+                  {t('videos.groupDetail.videoCount', { count: group.videos?.length ?? 0 })}
                 </span>
-              </h2>
-            </div>
-            <div className="flex-1 overflow-y-auto p-4 space-y-2">
-              {group.videos && group.videos.length > 0 ? (
-                group.videos.map((video) => (
-                  <VideoItem
-                    key={video.id}
-                    video={video}
-                    isSelected={selectedVideo?.id === video.id}
-                    onSelect={(videoId) => {
-                      handleVideoSelect(videoId);
-                      setMobileTab('player');
-                    }}
-                  />
-                ))
-              ) : (
-                <p className="text-center text-[#6f7a6e] py-8 text-sm">
-                  {t('videos.shared.noVideos')}
-                </p>
-              )}
-            </div>
-          </aside>
-
-          {/* Center: Video Player */}
-          <section className={`col-span-12 lg:col-span-6 flex flex-col gap-4 overflow-hidden ${mobileTab === 'player' ? 'flex' : 'hidden lg:flex'}`}>
-            <div className="bg-white rounded-2xl shadow-[0_8px_30px_rgba(28,25,23,0.08)] p-6 flex-1 flex flex-col gap-4 overflow-hidden">
-              <div className="shrink-0">
-                <h2 className="text-xl font-extrabold text-[#191c19] leading-snug">
-                  {selectedVideo ? selectedVideo.title : t('videos.shared.playerPlaceholder')}
-                </h2>
-                {selectedVideo && (
-                  <p className="text-sm text-[#6f7a6e] mt-1 line-clamp-2">
-                    {selectedVideo.description || t('videos.shared.noDescription')}
+              </div>
+              <div className="flex-1 overflow-y-auto p-2 space-y-1">
+                {group.videos && group.videos.length > 0 ? (
+                  group.videos.map((video) => (
+                    <VideoItem
+                      key={video.id}
+                      video={video}
+                      isSelected={selectedVideo?.id === video.id}
+                      onSelect={(videoId) => {
+                        handleVideoSelect(videoId);
+                        if (isMobile) setMobileTab('player');
+                      }}
+                    />
+                  ))
+                ) : (
+                  <p className="text-center text-[#6f7a6e] py-8 text-sm">
+                    {t('videos.shared.noVideos')}
                   </p>
                 )}
               </div>
-              <div className="flex-1 bg-zinc-950 rounded-xl overflow-hidden flex items-center justify-center min-h-0">
+            </div>
+          </aside>
+
+          {/* CENTER: Video player */}
+          <section className={`md:col-span-2 flex flex-col gap-3 min-h-0 ${mobileTab === 'player' ? 'flex' : 'hidden md:flex'}`}>
+            <div className="bg-white rounded-xl flex flex-col flex-1 overflow-hidden shadow-[0_8px_30px_rgba(28,25,23,0.08)]">
+              <div className="p-4 border-b border-stone-100 shrink-0 flex items-center justify-between gap-3 min-w-0">
+                <h1 className="font-extrabold text-[#191c19] text-lg truncate flex-1 min-w-0">
+                  {selectedVideo ? selectedVideo.title : t('videos.shared.playerPlaceholder')}
+                </h1>
+                {group.videos && group.videos.length > 0 && (
+                  <div className="shrink-0">
+                    <ShortsButton
+                      groupId={group.id}
+                      videos={group.videos}
+                      shareToken={shareToken}
+                      size="sm"
+                    />
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 bg-[#1a1c1c] flex items-center justify-center min-h-0">
                 {selectedVideo ? (
                   selectedVideo.file ? (
                     <video
@@ -264,39 +256,61 @@ export default function SharePage() {
                     <p className="text-stone-400 text-sm">{t('videos.shared.videoNoFile')}</p>
                   )
                 ) : (
-                  <div className="flex flex-col items-center gap-4 text-stone-500">
-                    <Zap className="w-12 h-12 opacity-30" />
-                    <p className="text-sm">{t('videos.shared.playerPlaceholder')}</p>
-                  </div>
+                  <p className="text-stone-400 text-sm text-center px-4">{t('videos.shared.playerPlaceholder')}</p>
                 )}
               </div>
             </div>
+
+            {/* Next video link */}
+            {nextVideo && (
+              <div className="flex justify-center">
+                <button
+                  onClick={() => {
+                    handleVideoSelect(nextVideo.id);
+                    if (isMobile) setMobileTab('player');
+                  }}
+                  className="group flex items-center gap-2 text-[#00652c] font-bold text-sm hover:underline"
+                >
+                  {t('videos.groupDetail.nextVideo')}
+                  <span className="truncate max-w-[200px]">{nextVideo.title}</span>
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                </button>
+              </div>
+            )}
           </section>
 
-          {/* Right: Chat */}
-          <aside className={`col-span-12 lg:col-span-3 overflow-hidden ${mobileTab === 'chat' ? 'flex flex-col' : 'hidden lg:flex lg:flex-col'}`}>
+          {/* RIGHT: Chat */}
+          <aside className={`md:col-span-1 flex flex-col min-h-0 ${mobileTab === 'chat' ? 'flex' : 'hidden md:flex'}`}>
             <ChatPanel
               groupId={group.id}
               onVideoPlay={handleVideoPlayFromTime}
               shareToken={shareToken}
-              className="flex-1 min-h-0"
+              className="flex-1 min-h-0 shadow-[0_4px_20px_rgba(28,25,23,0.04)]"
             />
           </aside>
 
-        </section>
-
-        {/* ── Footer ── */}
-        <footer className="shrink-0 flex flex-col md:flex-row items-center justify-between gap-2 pt-2 border-t border-stone-100">
-          <p className="text-xs font-semibold uppercase tracking-wider text-stone-400">
-            © 2026 VideoQ Education Inc.
-          </p>
-          <div className="flex gap-6">
-            <a href="#" className="text-xs font-semibold uppercase tracking-wider text-stone-400 hover:text-[#00652c] transition-colors">Privacy</a>
-            <a href="#" className="text-xs font-semibold uppercase tracking-wider text-stone-400 hover:text-[#00652c] transition-colors">Terms</a>
-          </div>
-        </footer>
-
+        </div>
       </main>
+
+      {/* ── Mobile bottom nav ───────────────────────────────────────────── */}
+      <nav className="fixed bottom-0 left-0 w-full z-50 md:hidden flex justify-around items-center h-16 bg-white border-t border-stone-100 shadow-[0_-4px_20px_rgba(28,25,23,0.06)] rounded-t-2xl px-4">
+        {(['videos', 'player', 'chat'] as MobileTab[]).map((tab) => {
+          const Icon = mobileTabIcon[tab];
+          const isActive = mobileTab === tab;
+          return (
+            <button
+              key={tab}
+              onClick={() => setMobileTab(tab)}
+              className={`flex flex-col items-center justify-center gap-1 px-4 py-1 rounded-xl transition-colors ${
+                isActive ? 'bg-[#f0fdf4] text-[#00652c]' : 'text-stone-400 hover:text-[#00652c]'
+              }`}
+            >
+              <Icon className="w-5 h-5" />
+              <span className="text-[11px] font-medium">{mobileTabLabel[tab]}</span>
+            </button>
+          );
+        })}
+      </nav>
     </div>
   );
 }

@@ -1,4 +1,5 @@
-import { GraduationCap, LogOut } from 'lucide-react';
+import { useState } from 'react';
+import { GraduationCap, LogOut, Menu, X } from 'lucide-react';
 import { Link, useI18nNavigate } from '@/lib/i18n';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -15,6 +16,7 @@ export function AppNav({ activePage }: AppNavProps) {
   const { t } = useTranslation();
   const navigate = useI18nNavigate();
   const queryClient = useQueryClient();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const logoutMutation = useMutation({
     mutationFn: async () => await apiClient.logout(),
@@ -69,17 +71,61 @@ export function AppNav({ activePage }: AppNavProps) {
           ))}
         </div>
 
-        <div className="w-[120px] shrink-0 flex justify-end">
+        <div className="flex items-center gap-1 shrink-0">
+          {/* Desktop logout */}
           <button
             onClick={handleLogout}
-            className="flex items-center gap-1.5 text-sm font-semibold text-stone-600 hover:text-red-600 transition-colors"
+            className="hidden md:flex items-center gap-1.5 text-sm font-semibold text-stone-600 hover:text-red-600 transition-colors px-2"
             aria-label={t('navigation.logout')}
           >
             <LogOut className="w-4 h-4" />
             <span className="hidden lg:inline">{t('navigation.logout')}</span>
           </button>
+
+          {/* Mobile hamburger */}
+          <button
+            className="md:hidden p-2 text-stone-600 hover:text-[#00652c] transition-colors rounded-lg hover:bg-[#f2f4ef]"
+            onClick={() => setIsMobileMenuOpen((prev) => !prev)}
+            aria-label="Toggle menu"
+          >
+            {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
         </div>
       </div>
+
+      {/* Mobile menu */}
+      {isMobileMenuOpen && (
+        <div className="md:hidden border-t border-stone-200/60 bg-white/95 backdrop-blur-xl">
+          <div className="px-4 py-3 flex flex-col gap-1">
+            {navLinks.map(({ href, label, key }) => (
+              <Link
+                key={key}
+                href={href}
+                onClick={() => setIsMobileMenuOpen(false)}
+                className={`py-2.5 px-3 rounded-lg text-sm font-semibold transition-colors ${
+                  activePage === key
+                    ? 'text-[#00652c] bg-[#00652c]/8'
+                    : 'text-stone-600 hover:text-[#00652c] hover:bg-[#f2f4ef]'
+                }`}
+              >
+                {label}
+              </Link>
+            ))}
+            <div className="border-t border-stone-200/60 mt-2 pt-2">
+              <button
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  void handleLogout();
+                }}
+                className="w-full text-left py-2.5 px-3 rounded-lg text-sm font-semibold text-stone-600 hover:text-red-600 hover:bg-red-50/50 transition-colors flex items-center gap-2"
+              >
+                <LogOut className="w-4 h-4" />
+                {t('navigation.logout')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </nav>
   );
 }
