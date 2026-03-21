@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
@@ -46,7 +46,7 @@ import { TagFilterPanel } from '@/components/video/TagFilterPanel';
 import {
   ArrowLeft, ChevronRight, Plus, GripVertical,
   CheckCircle, Clock, AlertCircle, Copy, Trash2,
-  Pencil, ArrowRight, List, Play, MessageSquare,
+  Pencil, List, Play, MessageSquare,
   Save, X, GraduationCap,
 } from 'lucide-react';
 
@@ -449,11 +449,6 @@ export default function VideoGroupDetailPage() {
     if (!exists) setSelectedVideo(convertVideoInGroupToSelectedVideo(videos[0]));
   }, [group?.videos, selectedVideo]);
 
-  const nextVideo = useMemo(() => {
-    if (!group?.videos || !selectedVideo) return null;
-    const idx = group.videos.findIndex((v) => v.id === selectedVideo.id);
-    return idx >= 0 && idx < group.videos.length - 1 ? group.videos[idx + 1] : null;
-  }, [group?.videos, selectedVideo]);
 
   const handleRemoveVideo = async (videoId: number) => {
     if (!confirm(t('videos.groupDetail.removeVideoConfirm')) || !groupId) return;
@@ -750,22 +745,6 @@ export default function VideoGroupDetailPage() {
                 )}
               </div>
             </div>
-
-            {/* Next video link */}
-            {nextVideo && (
-              <div className="flex justify-center">
-                <button
-                  onClick={() => {
-                    handleVideoSelect(nextVideo.id);
-                    if (isMobile) setMobileTab('player');
-                  }}
-                  className="group flex items-center gap-2 text-[#00652c] font-bold text-sm hover:underline"
-                >
-                  {t('videos.groupDetail.nextVideo')} <span className="truncate max-w-[200px]">{nextVideo.title}</span>
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                </button>
-              </div>
-            )}
           </section>
 
           {/* RIGHT: Chat */}
