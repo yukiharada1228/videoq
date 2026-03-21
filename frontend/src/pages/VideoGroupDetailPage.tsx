@@ -575,14 +575,7 @@ export default function VideoGroupDetailPage() {
             <span className="hidden sm:inline">{t('videos.groupDetail.addVideoButton')}</span>
           </button>
 
-          <div className="hidden sm:flex items-center gap-2">
-            {group.videos && group.videos.length > 0 && groupId && (
-              <ShortsButton groupId={groupId} videos={group.videos} size="sm" />
-            )}
-            {groupId && <DashboardButton groupId={groupId} size="sm" />}
-          </div>
-
-          <div className="h-6 w-px bg-stone-200 mx-1 hidden sm:block" />
+          <div className="h-6 w-px bg-stone-200 mx-1" />
 
           <button
             onClick={() => setIsEditing(true)}
@@ -660,7 +653,7 @@ export default function VideoGroupDetailPage() {
       </Dialog>
 
       {/* ── Main ─────────────────────────────────────────────────────────── */}
-      <main className="mt-16 flex flex-col px-6 pt-4 gap-4 pb-20 md:pb-6 max-w-[1600px] mx-auto w-full md:h-[calc(100vh-4rem)] md:overflow-hidden">
+      <main className="mt-16 flex flex-col px-6 pt-4 gap-4 max-w-[1600px] mx-auto w-full h-[calc(100dvh-8rem)] overflow-hidden md:h-[calc(100dvh-4rem)]">
         {/* Share link panel */}
         <ShareLinkPanel
           shareLink={shareLink}
@@ -672,16 +665,23 @@ export default function VideoGroupDetailPage() {
         />
 
         {/* 3-column grid */}
-        <div className="flex flex-col md:grid md:grid-cols-4 gap-6 md:flex-1 md:min-h-0 md:items-stretch">
+        <div className="flex flex-col md:grid md:grid-cols-4 gap-6 flex-1 min-h-0 md:items-stretch">
 
           {/* LEFT: Video list */}
-          <aside className={`md:col-span-1 flex flex-col md:min-h-0 ${mobileTab === 'videos' ? 'flex' : 'hidden md:flex'}`}>
+          <aside className={`md:col-span-1 flex flex-col min-h-0 ${mobileTab === 'videos' ? 'flex' : 'hidden md:flex'}`}>
             <div className="bg-white rounded-xl flex flex-col h-full overflow-hidden shadow-[0_4px_20px_rgba(28,25,23,0.04)]">
-              <div className="p-4 border-b border-stone-100 flex items-center justify-between shrink-0">
+              <div className="p-4 border-b border-stone-100 flex items-center justify-between gap-2 shrink-0">
                 <h2 className="font-extrabold text-[#191c19]">{t('videos.groupDetail.videoListTitle')}</h2>
-                <span className="text-xs bg-[#f2f4ef] px-2 py-0.5 rounded-full text-[#6f7a6e] font-medium">
-                  {t('videos.groupDetail.videoCount', { count: group.videos?.length ?? 0 })}
-                </span>
+                <div className="flex items-center gap-2 shrink-0">
+                  {group.videos && group.videos.length > 0 && groupId && (
+                    <div className="md:hidden">
+                      <ShortsButton groupId={groupId} videos={group.videos} size="sm" />
+                    </div>
+                  )}
+                  <span className="text-xs bg-[#f2f4ef] px-2 py-0.5 rounded-full text-[#6f7a6e] font-medium">
+                    {t('videos.groupDetail.videoCount', { count: group.videos?.length ?? 0 })}
+                  </span>
+                </div>
               </div>
               <div className="flex-1 overflow-y-auto p-2 space-y-1">
                 {group.videos && group.videos.length > 0 ? (
@@ -716,13 +716,19 @@ export default function VideoGroupDetailPage() {
           </aside>
 
           {/* CENTER: Video player */}
-          <section className={`md:col-span-2 flex flex-col gap-3 md:min-h-0 ${mobileTab === 'player' ? 'flex' : 'hidden md:flex'}`}>
+          <section className={`md:col-span-2 flex flex-col gap-3 min-h-0 ${mobileTab === 'player' ? 'flex' : 'hidden md:flex'}`}>
             <div className="bg-white rounded-xl flex flex-col flex-1 overflow-hidden shadow-[0_8px_30px_rgba(28,25,23,0.08)]">
-              {selectedVideo && (
-                <div className="p-5 border-b border-stone-100 shrink-0">
-                  <h1 className="font-extrabold text-[#191c19] text-xl truncate">{selectedVideo.title}</h1>
+              <div className="p-4 border-b border-stone-100 shrink-0 flex items-center justify-between gap-3 min-w-0">
+                <h1 className="font-extrabold text-[#191c19] text-lg truncate flex-1 min-w-0">
+                  {selectedVideo ? selectedVideo.title : t('videos.groupDetail.playerPlaceholder')}
+                </h1>
+                <div className="flex items-center gap-2 shrink-0">
+                  {group.videos && group.videos.length > 0 && groupId && (
+                    <ShortsButton groupId={groupId} videos={group.videos} size="sm" />
+                  )}
+                  {groupId && <DashboardButton groupId={groupId} size="sm" />}
                 </div>
-              )}
+              </div>
               <div className="flex-1 bg-[#1a1c1c] flex items-center justify-center min-h-0">
                 {selectedVideo ? (
                   selectedVideo.file ? (
@@ -763,11 +769,11 @@ export default function VideoGroupDetailPage() {
           </section>
 
           {/* RIGHT: Chat */}
-          <aside className={`md:col-span-1 flex flex-col md:min-h-0 ${mobileTab === 'chat' ? 'flex' : 'hidden md:flex'}`}>
+          <aside className={`md:col-span-1 flex flex-col min-h-0 ${mobileTab === 'chat' ? 'flex' : 'hidden md:flex'}`}>
             <ChatPanel
               groupId={groupId ?? undefined}
               onVideoPlay={handleVideoPlayFromTime}
-              className="flex-1 h-full min-h-[400px] md:min-h-0 shadow-[0_4px_20px_rgba(28,25,23,0.04)]"
+              className="flex-1 min-h-0 shadow-[0_4px_20px_rgba(28,25,23,0.04)]"
             />
           </aside>
         </div>
