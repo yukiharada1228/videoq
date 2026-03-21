@@ -44,6 +44,32 @@ declare global {
   }
 }
 
+class MockIntersectionObserver implements IntersectionObserver {
+  readonly root = null
+  readonly rootMargin = '0px'
+  readonly thresholds = [0]
+
+  constructor(private callback: IntersectionObserverCallback) {}
+
+  disconnect(): void {}
+  observe(target: Element): void {
+    this.callback(
+      [{ isIntersecting: true, target } as IntersectionObserverEntry],
+      this,
+    )
+  }
+  takeRecords(): IntersectionObserverEntry[] {
+    return []
+  }
+  unobserve(): void {}
+}
+
+Object.defineProperty(globalThis, 'IntersectionObserver', {
+  writable: true,
+  configurable: true,
+  value: MockIntersectionObserver,
+})
+
 // Cleanup after each test
 afterEach(() => {
   cleanup()
@@ -108,6 +134,11 @@ vi.mock('react-i18next', () => ({
   I18nextProvider: ({ children }: { children?: React.ReactNode }) => children,
 }))
 
+// Mock AppNav to prevent useMutation/useQueryClient side effects in page tests
+vi.mock('@/components/layout/AppNav', () => ({
+  AppNav: () => null,
+}))
+
 // Mock i18n routing helpers
 vi.mock('@/lib/i18n', () => ({
   useI18nNavigate: () => mockNavigate,
@@ -165,5 +196,6 @@ vi.mock('@/lib/api', async (importOriginal) => {
     chat: vi.fn(() => Promise.resolve({ response: 'Mock chat response' })),
     getVideoUrl: vi.fn(mockGetVideoUrl),
     getSharedVideoUrl: vi.fn(mockGetSharedVideoUrl),
+    logout: vi.fn(() => Promise.resolve()),
   },
 }});

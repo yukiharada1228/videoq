@@ -5,7 +5,6 @@ import { useTranslation } from 'react-i18next';
 import type { VideoGroup } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
 
 interface AddToGroupModalProps {
@@ -55,29 +54,31 @@ export function AddToGroupModal({ isOpen, onClose, groups, videoCount, onAdd }: 
 
         <div className="space-y-4">
           {groups.length === 0 ? (
-            <p className="text-sm text-gray-500 text-center py-4">
+            <p className="text-sm text-[#6f7a6e] text-center py-4">
               {t('videos.addToGroup.noGroups', 'No chat groups available. Create a group first.')}
             </p>
           ) : (
             <div className="space-y-2">
-              <Label>{t('videos.addToGroup.selectGroup', 'Select a group')}</Label>
+              <label className="text-xs font-bold text-[#3f493f] uppercase tracking-wider">
+                {t('videos.addToGroup.selectGroup', 'Select a group')}
+              </label>
               <div className="max-h-64 overflow-y-auto space-y-2">
                 {groups.map((group) => (
                   <button
                     key={group.id}
                     onClick={() => setSelectedGroupId(group.id)}
                     disabled={isAdding}
-                    className={`w-full text-left p-3 rounded-lg border transition-all ${
+                    className={`w-full text-left p-3 rounded-xl border transition-all ${
                       selectedGroupId === group.id
-                        ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200'
-                        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                        ? 'border-[#00652c] bg-[#f0fdf4] ring-2 ring-[#00652c]/20'
+                        : 'border-stone-200 hover:border-stone-300 hover:bg-[#f8faf5]'
                     }`}
                   >
-                    <div className="font-medium text-sm text-gray-900">{group.name}</div>
+                    <div className="font-medium text-sm text-[#191c19]">{group.name}</div>
                     {group.description && (
-                      <div className="text-xs text-gray-500 mt-1 line-clamp-2">{group.description}</div>
+                      <div className="text-xs text-[#6f7a6e] mt-1 line-clamp-2">{group.description}</div>
                     )}
-                    <div className="text-xs text-gray-400 mt-1">
+                    <div className="text-xs text-[#6f7a6e] mt-1">
                       {t('videos.addToGroup.videoCount', { count: group.video_count || 0 })}
                     </div>
                   </button>

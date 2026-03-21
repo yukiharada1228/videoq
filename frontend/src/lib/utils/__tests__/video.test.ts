@@ -5,41 +5,41 @@ describe('video utils', () => {
   describe('getStatusBadgeClassName', () => {
     it('should return correct class for completed status with default size', () => {
       const result = getStatusBadgeClassName('completed');
-      expect(result).toContain('bg-green-100');
-      expect(result).toContain('text-green-800');
+      expect(result).toContain('bg-[#d3ffd5]');
+      expect(result).toContain('text-[#006d30]');
       expect(result).toContain('px-3 py-1 text-sm'); // md size
     });
 
     it('should return correct class for pending status with xs size', () => {
       const result = getStatusBadgeClassName('pending', 'xs');
-      expect(result).toContain('bg-yellow-100');
-      expect(result).toContain('text-yellow-800');
+      expect(result).toContain('bg-stone-100');
+      expect(result).toContain('text-stone-600');
       expect(result).toContain('px-1.5 py-0.5 text-[10px]');
     });
 
     it('should return correct class for processing status with sm size', () => {
       const result = getStatusBadgeClassName('processing', 'sm');
-      expect(result).toContain('bg-blue-100');
-      expect(result).toContain('text-blue-800');
+      expect(result).toContain('bg-[#ffdcc3]');
+      expect(result).toContain('text-[#2f1500]');
       expect(result).toContain('px-2.5 py-0.5 text-xs');
     });
 
     it('should return correct class for error status', () => {
       const result = getStatusBadgeClassName('error');
       expect(result).toContain('bg-red-100');
-      expect(result).toContain('text-red-800');
+      expect(result).toContain('text-red-700');
     });
 
     it('should return correct class for indexing status', () => {
       const result = getStatusBadgeClassName('indexing');
-      expect(result).toContain('bg-purple-100');
-      expect(result).toContain('text-purple-800');
+      expect(result).toContain('bg-[#ffdcc3]');
+      expect(result).toContain('text-[#2f1500]');
     });
 
     it('should return default class for unknown status', () => {
       const result = getStatusBadgeClassName('unknown');
-      expect(result).toContain('bg-gray-100');
-      expect(result).toContain('text-gray-800');
+      expect(result).toContain('bg-stone-100');
+      expect(result).toContain('text-stone-600');
     });
   });
 

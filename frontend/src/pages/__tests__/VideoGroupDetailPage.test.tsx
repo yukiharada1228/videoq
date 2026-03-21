@@ -71,11 +71,20 @@ describe('VideoGroupDetailPage', () => {
     })
   })
 
-  it('should render group description', async () => {
+  it('should render group description in edit form', async () => {
     render(<VideoGroupDetailPage />)
 
+    // Click edit button (icon-only, accessed via title)
     await waitFor(() => {
-      expect(screen.getByText('Test Description')).toBeInTheDocument()
+      expect(screen.getByTitle('videos.groupDetail.editTitle')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByTitle('videos.groupDetail.editTitle'))
+
+    // Description should be in the edit textarea
+    await waitFor(() => {
+      const textarea = screen.getByDisplayValue('Test Description')
+      expect(textarea).toBeInTheDocument()
     })
   })
 
@@ -83,7 +92,7 @@ describe('VideoGroupDetailPage', () => {
     render(<VideoGroupDetailPage />)
 
     await waitFor(() => {
-      expect(screen.getByText('videos.groupDetail.edit')).toBeInTheDocument()
+      expect(screen.getByTitle('videos.groupDetail.editTitle')).toBeInTheDocument()
     })
   })
 
@@ -91,7 +100,7 @@ describe('VideoGroupDetailPage', () => {
     render(<VideoGroupDetailPage />)
 
     await waitFor(() => {
-      expect(screen.getByText('videos.groupDetail.addVideos')).toBeInTheDocument()
+      expect(screen.getByText('videos.groupDetail.addVideoButton')).toBeInTheDocument()
     })
   })
 
@@ -99,7 +108,7 @@ describe('VideoGroupDetailPage', () => {
     render(<VideoGroupDetailPage />)
 
     await waitFor(() => {
-      expect(screen.getByText('common.actions.backToList')).toBeInTheDocument()
+      expect(screen.getByText('videos.groupDetail.breadcrumbGroups')).toBeInTheDocument()
     })
   })
 
@@ -107,7 +116,7 @@ describe('VideoGroupDetailPage', () => {
     render(<VideoGroupDetailPage />)
 
     await waitFor(() => {
-      expect(screen.getByText('videos.groupDetail.delete')).toBeInTheDocument()
+      expect(screen.getByTitle('videos.groupDetail.delete')).toBeInTheDocument()
     })
   })
 
@@ -132,10 +141,10 @@ describe('VideoGroupDetailPage', () => {
     render(<VideoGroupDetailPage />)
 
     await waitFor(() => {
-      expect(screen.getByText('videos.groupDetail.edit')).toBeInTheDocument()
+      expect(screen.getByTitle('videos.groupDetail.editTitle')).toBeInTheDocument()
     })
 
-    fireEvent.click(screen.getByText('videos.groupDetail.edit'))
+    fireEvent.click(screen.getByTitle('videos.groupDetail.editTitle'))
 
     expect(screen.getByText('common.actions.save')).toBeInTheDocument()
     expect(screen.getByText('common.actions.cancel')).toBeInTheDocument()
@@ -145,7 +154,7 @@ describe('VideoGroupDetailPage', () => {
     render(<VideoGroupDetailPage />)
 
     await waitFor(() => {
-      expect(screen.getByText('videos.groupDetail.share.title')).toBeInTheDocument()
+      expect(screen.getByText('videos.groupDetail.shareLinkLabel')).toBeInTheDocument()
     })
   })
 
@@ -169,7 +178,7 @@ describe('VideoGroupDetailPage - Share Link', () => {
     render(<VideoGroupDetailPage />)
 
     await waitFor(() => {
-      expect(screen.getByText('videos.groupDetail.copy')).toBeInTheDocument()
+      expect(screen.getByText('videos.groupDetail.copyButton')).toBeInTheDocument()
       expect(screen.getByText('videos.groupDetail.disable')).toBeInTheDocument()
     })
   })
@@ -193,10 +202,10 @@ describe('VideoGroupDetailPage - Delete', () => {
     render(<VideoGroupDetailPage />)
 
     await waitFor(() => {
-      expect(screen.getByText('videos.groupDetail.delete')).toBeInTheDocument()
+      expect(screen.getByTitle('videos.groupDetail.delete')).toBeInTheDocument()
     })
 
-    fireEvent.click(screen.getByText('videos.groupDetail.delete'))
+    fireEvent.click(screen.getByTitle('videos.groupDetail.delete'))
 
     await waitFor(() => {
       expect(apiClient.deleteVideoGroup).toHaveBeenCalledWith(1)

@@ -8,7 +8,7 @@ describe('MessageAlert', () => {
     const alert = screen.getByText('Error occurred')
     expect(alert).toBeInTheDocument()
     expect(alert.className).toContain('bg-red-50')
-    expect(alert.className).toContain('text-red-800')
+    expect(alert.className).toContain('text-red-600')
   })
 
   it('should render success message', () => {
@@ -17,7 +17,7 @@ describe('MessageAlert', () => {
     const alert = screen.getByText('Success!')
     expect(alert).toBeInTheDocument()
     expect(alert.className).toContain('bg-green-50')
-    expect(alert.className).toContain('text-green-800')
+    expect(alert.className).toContain('text-green-700')
   })
 })
 
