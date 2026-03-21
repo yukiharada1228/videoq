@@ -44,6 +44,32 @@ declare global {
   }
 }
 
+class MockIntersectionObserver implements IntersectionObserver {
+  readonly root = null
+  readonly rootMargin = '0px'
+  readonly thresholds = [0]
+
+  constructor(private callback: IntersectionObserverCallback) {}
+
+  disconnect(): void {}
+  observe(target: Element): void {
+    this.callback(
+      [{ isIntersecting: true, target } as IntersectionObserverEntry],
+      this,
+    )
+  }
+  takeRecords(): IntersectionObserverEntry[] {
+    return []
+  }
+  unobserve(): void {}
+}
+
+Object.defineProperty(globalThis, 'IntersectionObserver', {
+  writable: true,
+  configurable: true,
+  value: MockIntersectionObserver,
+})
+
 // Cleanup after each test
 afterEach(() => {
   cleanup()
