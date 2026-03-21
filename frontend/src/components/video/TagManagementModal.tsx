@@ -6,6 +6,7 @@ import {
     DialogContent,
     DialogHeader,
     DialogTitle,
+    DialogDescription,
     DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -38,6 +39,9 @@ export function TagManagementModal({ isOpen, onClose }: TagManagementModalProps)
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
                     <DialogTitle>{t('tags.management.title', 'Tag Management')}</DialogTitle>
+                    <DialogDescription>
+                        {t('tags.management.description', 'Review existing tags and remove tags you no longer need.')}
+                    </DialogDescription>
                 </DialogHeader>
 
                 <div className="space-y-4 max-h-[60vh] overflow-y-auto py-4">

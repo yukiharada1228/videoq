@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { TagManagementModal } from '../TagManagementModal'
 import { useTags } from '@/hooks/useTags'
 
@@ -34,6 +34,7 @@ describe('TagManagementModal', () => {
 
     beforeEach(() => {
         vi.clearAllMocks()
+        mockDeleteTag.mockResolvedValue(undefined)
             ; (useTags as any).mockReturnValue({
                 tags: mockTags,
                 deleteTag: mockDeleteTag,
@@ -49,6 +50,7 @@ describe('TagManagementModal', () => {
         render(<TagManagementModal isOpen={true} onClose={vi.fn()} />)
 
         expect(screen.getByText('Tag Management')).toBeInTheDocument()
+        expect(screen.getByText('Review existing tags and remove tags you no longer need.')).toBeInTheDocument()
         expect(screen.getByText('Tag 1')).toBeInTheDocument()
         expect(screen.getByText('Tag 2')).toBeInTheDocument()
     })
@@ -81,7 +83,10 @@ describe('TagManagementModal', () => {
         fireEvent.click(screen.getByTestId('delete-tag-1'))
         fireEvent.click(screen.getByTestId('confirm-delete-1'))
 
-        expect(mockDeleteTag).toHaveBeenCalledWith(1)
+        await waitFor(() => {
+            expect(mockDeleteTag).toHaveBeenCalledWith(1)
+            expect(screen.queryByTestId('confirm-delete-1')).not.toBeInTheDocument()
+        })
     })
 
     it('should cancel delete when cancel is clicked', () => {
