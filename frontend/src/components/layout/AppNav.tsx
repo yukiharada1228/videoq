@@ -5,7 +5,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api';
 import { APP_CONTAINER_CLASS } from '@/components/layout/layoutTokens';
 
-export type ActivePage = 'home' | 'videos' | 'groups' | 'settings';
+export type ActivePage = 'home' | 'videos' | 'groups' | 'docs' | 'settings';
 
 interface AppNavProps {
   activePage?: ActivePage;
@@ -37,6 +37,7 @@ export function AppNav({ activePage }: AppNavProps) {
     { href: '/', label: t('navigation.home'), key: 'home' },
     { href: '/videos', label: t('navigation.videosNav'), key: 'videos' },
     { href: '/videos/groups', label: t('navigation.groupsNav'), key: 'groups' },
+    { href: '/docs', label: t('navigation.docs'), key: 'docs' },
     { href: '/settings', label: t('navigation.settings'), key: 'settings' },
   ];
 
