@@ -8,20 +8,21 @@ export function LoadingSpinner({ message }: LoadingSpinnerProps) {
       <div
         role="status"
         aria-live="polite"
-        className="flex flex-col items-center rounded-2xl border border-[#d9e6db] bg-white/80 px-6 py-5 shadow-[0_12px_32px_-8px_rgba(25,28,25,0.10)]"
+        className="flex flex-col items-center"
       >
-        <div className="relative mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-[#f2f4ef]">
-          <div className="absolute inset-1 rounded-full border border-[#dfe6df]" />
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#becabc] border-t-[#00652c]" />
-          <div className="absolute h-2 w-2 rounded-full bg-[#00652c]" />
+        <div className="relative w-24 h-24 flex items-center justify-center mb-4">
+          {/* Outer track */}
+          <div className="absolute inset-0 rounded-full border-[0.5px] border-[#bfc9bc]/30" />
+          {/* Slow-rotating thin ring */}
+          <div className="loading-ring absolute inset-0 rounded-full border-t-[1.5px] border-[#00652c]/60" />
+          {/* Pulsing center dot */}
+          <div className="flex flex-col items-center">
+            <div className="pulse-dot w-2.5 h-2.5 rounded-full bg-[#00652c] shadow-[0_0_16px_rgba(0,101,44,0.5)]" />
+          </div>
         </div>
-        {message ? (
-          <p className="text-sm font-medium text-[#3f493f]">{message}</p>
-        ) : (
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#6f7a6e]">
-            Loading
-          </p>
-        )}
+        <p className="text-[10px] font-bold tracking-[0.2em] text-[#3f493f] uppercase">
+          {message ?? 'Loading'}
+        </p>
       </div>
     </div>
   );
