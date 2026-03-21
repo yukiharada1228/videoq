@@ -3,8 +3,6 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useTranslation } from 'react-i18next';
 
@@ -66,20 +64,26 @@ export function TagCreateDialog({ isOpen, onClose, onCreate }: TagCreateDialogPr
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="tag-name">{t('tags.create.nameLabel', 'Tag Name')}</Label>
-            <Input
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-[#3f493f] uppercase tracking-wider">
+              {t('tags.create.nameLabel', 'Tag Name')}
+            </label>
+            <input
               id="tag-name"
+              type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder={t('tags.create.namePlaceholder', 'Enter tag name')}
               disabled={isCreating}
               maxLength={50}
+              className="w-full px-4 py-3 bg-[#f2f4ef] border border-transparent rounded-xl text-sm text-[#191c19] placeholder:text-stone-400 focus:outline-none focus:border-[#00652c] focus:bg-white transition-all"
             />
           </div>
 
-          <div className="space-y-2">
-            <Label>{t('tags.create.colorLabel', 'Tag Color')}</Label>
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-[#3f493f] uppercase tracking-wider">
+              {t('tags.create.colorLabel', 'Tag Color')}
+            </label>
             <div className="flex flex-wrap gap-2">
               {DEFAULT_COLORS.map((c) => (
                 <button
@@ -88,7 +92,7 @@ export function TagCreateDialog({ isOpen, onClose, onCreate }: TagCreateDialogPr
                   onClick={() => setColor(c)}
                   disabled={isCreating}
                   className={`w-8 h-8 rounded-full transition-all ${
-                    color === c ? 'ring-2 ring-offset-2 ring-gray-400' : ''
+                    color === c ? 'ring-2 ring-offset-2 ring-[#00652c]' : 'hover:scale-110'
                   }`}
                   style={{ backgroundColor: c }}
                   aria-label={`Select color ${c}`}
@@ -97,9 +101,11 @@ export function TagCreateDialog({ isOpen, onClose, onCreate }: TagCreateDialogPr
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label>{t('tags.create.preview', 'Preview')}</Label>
-            <div className="p-3 border rounded-md">
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-[#3f493f] uppercase tracking-wider">
+              {t('tags.create.preview', 'Preview')}
+            </label>
+            <div className="p-3 border border-stone-200 rounded-xl bg-[#f8faf5]">
               <span
                 className="inline-flex items-center px-2.5 py-1 rounded-full text-sm font-medium"
                 style={{ backgroundColor: `${color}20`, color: color }}

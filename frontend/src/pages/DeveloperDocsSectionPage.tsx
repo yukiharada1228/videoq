@@ -1,10 +1,11 @@
 import { Navigate, useParams } from 'react-router-dom';
-import { PageLayout } from '@/components/layout/PageLayout';
+import { useTranslation } from 'react-i18next';
 import { Link } from '@/lib/i18n';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { AppPageShell } from '@/components/layout/AppPageShell';
+import { AppPageHeader } from '@/components/layout/AppPageHeader';
 import { ApiEndpointList } from '@/components/docs/ApiEndpointList';
 import { OpenAiSdkExampleList } from '@/components/docs/OpenAiSdkExampleList';
-import { useTranslation } from 'react-i18next';
+import { CheckCircle, ClipboardCheck, Braces } from 'lucide-react';
 
 const sectionIds = ['auth', 'videos', 'chat', 'openai'] as const;
 type SectionId = (typeof sectionIds)[number];
@@ -12,6 +13,7 @@ type SectionId = (typeof sectionIds)[number];
 function isSectionId(value: string): value is SectionId {
   return sectionIds.includes(value as SectionId);
 }
+
 
 export default function DeveloperDocsSectionPage() {
   const { t } = useTranslation();
@@ -25,46 +27,69 @@ export default function DeveloperDocsSectionPage() {
   const sectionDescription = t(`docs.sections.${section}.description`);
   const bullets = t(`docs.sections.${section}.bullets`, { returnObjects: true }) as string[];
 
-  return (
-    <PageLayout fullWidth>
-      <div className="mx-auto w-full max-w-6xl space-y-6">
-        <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600">
-          <Link href="/docs" className="underline-offset-2 hover:underline">
-            {t('docs.backToHome')}
-          </Link>
-          <span>/</span>
-          <span>{sectionTitle}</span>
-        </div>
+  const isOpenAi = section === 'openai';
 
-        <section className="rounded-2xl border border-slate-200 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-700 px-6 py-8 text-white">
-          <h1 className="text-3xl font-bold md:text-4xl">{sectionTitle}</h1>
-          <p className="mt-3 text-sm text-slate-200 md:text-base">{sectionDescription}</p>
+  return (
+    <AppPageShell>
+      <nav className="flex items-center gap-2 text-sm font-medium text-[#6f7a6e] mb-6">
+        <Link href="/docs" className="hover:text-[#00652c] transition-colors">
+          ← {t('docs.backToHome')}
+        </Link>
+        <span className="opacity-30">/</span>
+        <span className="text-[#191c19]">{sectionTitle}</span>
+      </nav>
+
+      <AppPageHeader
+        title={sectionTitle}
+        description={sectionDescription}
+        action={(
+          <span className="inline-flex items-center gap-2 rounded-full bg-[#d3ffd5] px-4 py-2 text-xs font-bold uppercase tracking-wider text-[#006d30]">
+            <Braces className="w-4 h-4" />
+            {t('docs.section.autoLabel')}
+          </span>
+        )}
+      />
+
+      <div className="space-y-6">
+        <section className="bg-white rounded-2xl shadow-[0_4px_20px_rgba(28,25,23,0.04)] p-5">
+          <div className="flex items-center gap-3 mb-5">
+            <div className="w-9 h-9 rounded-xl bg-[#f0fdf4] flex items-center justify-center">
+              <ClipboardCheck className="w-5 h-5 text-[#00652c]" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-[#191c19]">{t('docs.section.checklistTitle')}</h2>
+              <p className="text-sm text-[#6f7a6e]">{t('docs.section.checklistDescription')}</p>
+            </div>
+          </div>
+          <ul className="space-y-3">
+            {bullets.map((bullet) => (
+              <li key={bullet} className="flex items-start gap-4 p-4 rounded-xl bg-[#f2f4ef] hover:bg-[#ecefea] transition-colors">
+                <CheckCircle className="w-5 h-5 text-emerald-600 mt-0.5 shrink-0" />
+                <span className="text-sm text-[#191c19] leading-relaxed">{bullet}</span>
+              </li>
+            ))}
+          </ul>
         </section>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('docs.section.checklistTitle')}</CardTitle>
-            <CardDescription>{t('docs.section.checklistDescription')}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ul className="list-disc space-y-1 pl-5 text-sm text-slate-700">
-              {bullets.map((bullet) => (
-                <li key={bullet}>{bullet}</li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>{t(section === 'openai' ? 'docs.openai.exampleTitle' : 'docs.section.autoExampleTitle')}</CardTitle>
-            <CardDescription>{t(section === 'openai' ? 'docs.openai.exampleDescription' : 'docs.section.autoExampleDescription')}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {section === 'openai' ? <OpenAiSdkExampleList /> : <ApiEndpointList section={section} />}
-          </CardContent>
-        </Card>
+        <section className="bg-white rounded-2xl shadow-[0_4px_20px_rgba(28,25,23,0.04)] p-5">
+          <div className="flex items-center justify-between mb-5 gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-[#f0fdf4] flex items-center justify-center">
+                <Braces className="w-5 h-5 text-[#00652c]" />
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-[#191c19]">
+                  {t(isOpenAi ? 'docs.openai.exampleTitle' : 'docs.section.autoExampleTitle')}
+                </h2>
+                <p className="text-sm text-[#6f7a6e]">
+                  {t(isOpenAi ? 'docs.openai.exampleDescription' : 'docs.section.autoExampleDescription')}
+                </p>
+              </div>
+            </div>
+          </div>
+          {isOpenAi ? <OpenAiSdkExampleList /> : <ApiEndpointList section={section} />}
+        </section>
       </div>
-    </PageLayout>
+    </AppPageShell>
   );
 }

@@ -34,7 +34,7 @@ vi.mock('@/hooks/useVideoStats', () => ({
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({
     user: { id: 1, username: 'testuser', video_limit: 10, video_count: 3 },
-    loading: false,
+    isLoading: false,
     refetch: vi.fn(),
   }),
 }))
@@ -50,16 +50,10 @@ vi.mock('@/components/video/VideoUploadModal', () => ({
     isOpen ? <div data-testid="upload-modal"><button onClick={onClose}>Close</button></div> : null,
 }))
 
-vi.mock('@/components/video/VideoList', () => ({
-  VideoList: ({ videos }: { videos: typeof mockVideos }) => (
-    <div data-testid="video-list">
-      {videos.map(v => <div key={v.id}>{v.title}</div>)}
-    </div>
+vi.mock('@/components/video/VideoCard', () => ({
+  VideoCard: ({ video }: { video: { title: string } }) => (
+    <div data-testid="video-card">{video.title}</div>
   ),
-}))
-
-vi.mock('@/components/video/TagFilterPanel', () => ({
-  TagFilterPanel: () => <div data-testid="tag-filter-panel" />,
 }))
 
 vi.mock('@/components/video/TagManagementModal', () => ({
@@ -82,7 +76,7 @@ describe('VideosPage', () => {
   it('should render video count subtitle', () => {
     render(<VideosPage />)
 
-    expect(screen.getByText(/videos.list.subtitle/)).toBeInTheDocument()
+    expect(screen.getByText('videos.list.managingCount {"count":4}')).toBeInTheDocument()
   })
 
   it('should render upload button', () => {
@@ -94,27 +88,20 @@ describe('VideosPage', () => {
   it('should render stats cards', () => {
     render(<VideosPage />)
 
-    expect(screen.getByText('videos.list.stats.total')).toBeInTheDocument()
-    expect(screen.getByText('videos.list.stats.completed')).toBeInTheDocument()
-    expect(screen.getByText('videos.list.stats.pending')).toBeInTheDocument()
-    expect(screen.getByText('videos.list.stats.processing')).toBeInTheDocument()
-    expect(screen.getByText('videos.list.stats.indexing')).toBeInTheDocument()
+    expect(screen.getByText('videos.list.statsRow.all')).toBeInTheDocument()
+    expect(screen.getByText('videos.list.statsRow.completed')).toBeInTheDocument()
+    expect(screen.getByText('videos.list.statsRow.pending')).toBeInTheDocument()
+    expect(screen.getByText('videos.list.statsRow.processing')).toBeInTheDocument()
+    expect(screen.getByText('videos.list.statsRow.indexing')).toBeInTheDocument()
   })
 
   it('should render video list', () => {
     render(<VideosPage />)
 
-    expect(screen.getByTestId('video-list')).toBeInTheDocument()
     expect(screen.getByText('Video 1')).toBeInTheDocument()
     expect(screen.getByText('Video 2')).toBeInTheDocument()
     expect(screen.getByText('Video 3')).toBeInTheDocument()
     expect(screen.getByText('Video 4')).toBeInTheDocument()
-  })
-
-  it('should render tag filter panel', () => {
-    render(<VideosPage />)
-
-    expect(screen.getByTestId('tag-filter-panel')).toBeInTheDocument()
   })
 
   it('should not manually load videos on mount (query handles initial fetch)', () => {
@@ -151,17 +138,15 @@ describe('VideosPage', () => {
   it('should display stat values correctly', () => {
     render(<VideosPage />)
 
-    // Check stat values are displayed
     const statCards = screen.getAllByText(/^\d+$/)
     expect(statCards.length).toBeGreaterThan(0)
   })
 })
 
 describe('VideosPage - Upload Limit', () => {
-  it('should show upload limit in button when limit exists', () => {
+  it('should show upload button', () => {
     render(<VideosPage />)
 
-    // The upload button should be rendered
     const uploadButton = screen.getByText('videos.list.uploadButton')
     expect(uploadButton).toBeInTheDocument()
   })
