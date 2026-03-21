@@ -72,39 +72,39 @@ describe('VideoDetailPage', () => {
   it('should render video status', () => {
     render(<VideoDetailPage />)
 
-    expect(screen.getByText('ステータス')).toBeInTheDocument()
+    expect(screen.getByText('videos.detail.statusSection')).toBeInTheDocument()
+    expect(screen.getByText('common.status.completed')).toBeInTheDocument()
   })
 
   it('should render edit button', () => {
     render(<VideoDetailPage />)
 
-    expect(screen.getAllByText('編集').length).toBeGreaterThan(0)
+    expect(screen.getByText('videos.detail.editButton')).toBeInTheDocument()
   })
 
   it('should render delete button', () => {
     render(<VideoDetailPage />)
 
-    expect(screen.getByText('削除')).toBeInTheDocument()
+    expect(screen.getByText('videos.detail.deleteButton')).toBeInTheDocument()
   })
 
   it('should render back to list button', () => {
     render(<VideoDetailPage />)
 
-    expect(screen.getByText('動画ライブラリに戻る')).toBeInTheDocument()
+    expect(screen.getByText('videos.detail.videosBreadcrumb')).toBeInTheDocument()
   })
 
   it('should render transcript when available', () => {
     render(<VideoDetailPage />)
 
-    expect(screen.getAllByText('文字起こし').length).toBeGreaterThan(0)
+    expect(screen.getByText('videos.detail.transcriptSection')).toBeInTheDocument()
     expect(screen.getByText(/Hello world/)).toBeInTheDocument()
   })
 
   it('should enter edit mode when edit button is clicked', () => {
     render(<VideoDetailPage />)
 
-    const editButtons = screen.getAllByText('編集')
-    fireEvent.click(editButtons[0])
+    fireEvent.click(screen.getByText('videos.detail.editButton'))
 
     expect(screen.getByText('videos.detail.save')).toBeInTheDocument()
     expect(screen.getByText('videos.detail.cancel')).toBeInTheDocument()
@@ -124,7 +124,7 @@ describe('VideoDetailPage - Delete', () => {
 
     render(<VideoDetailPage />)
 
-    const deleteButton = screen.getByText('削除')
+    const deleteButton = screen.getByText('videos.detail.deleteButton')
     fireEvent.click(deleteButton)
 
     await waitFor(() => {

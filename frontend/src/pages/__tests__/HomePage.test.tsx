@@ -46,7 +46,7 @@ describe('HomePage', () => {
     render(<HomePage />)
 
     await waitFor(() => {
-      expect(screen.getByText(/おかえりなさい/)).toBeInTheDocument()
+      expect(screen.getByText('home.welcome.greeting {"username":"testuser"}')).toBeInTheDocument()
     })
   })
 
@@ -54,7 +54,7 @@ describe('HomePage', () => {
     render(<HomePage />)
 
     await waitFor(() => {
-      expect(screen.getByText(/今日も素晴らしい授業/)).toBeInTheDocument()
+      expect(screen.getByText('home.welcome.dailyMotivation')).toBeInTheDocument()
     })
   })
 
@@ -62,8 +62,8 @@ describe('HomePage', () => {
     render(<HomePage />)
 
     await waitFor(() => {
-      expect(screen.getAllByText('動画をアップロード').length).toBeGreaterThan(0)
-      expect(screen.getByText('新しい授業を追加して、AIによる分析を開始しましょう。')).toBeInTheDocument()
+      expect(screen.getAllByText('home.actions.upload.title').length).toBeGreaterThan(0)
+      expect(screen.getByText('home.actions.upload.descriptionLong')).toBeInTheDocument()
     })
   })
 
@@ -71,7 +71,7 @@ describe('HomePage', () => {
     render(<HomePage />)
 
     await waitFor(() => {
-      expect(screen.getByText('動画ライブラリ')).toBeInTheDocument()
+      expect(screen.getByText('home.actions.library.title')).toBeInTheDocument()
     })
   })
 
@@ -79,7 +79,7 @@ describe('HomePage', () => {
     render(<HomePage />)
 
     await waitFor(() => {
-      expect(screen.getByText('グループ管理')).toBeInTheDocument()
+      expect(screen.getByText('home.actions.groups.title')).toBeInTheDocument()
     })
   })
 
@@ -87,10 +87,10 @@ describe('HomePage', () => {
     render(<HomePage />)
 
     await waitFor(() => {
-      expect(screen.getByText('総動画数')).toBeInTheDocument()
-      expect(screen.getByText('分析完了')).toBeInTheDocument()
-      expect(screen.getByText('処理中')).toBeInTheDocument()
-      expect(screen.getByText('グループ数')).toBeInTheDocument()
+      expect(screen.getByText('home.stats.totalVideos')).toBeInTheDocument()
+      expect(screen.getByText('home.stats.analysisCompleted')).toBeInTheDocument()
+      expect(screen.getByText('home.stats.processing')).toBeInTheDocument()
+      expect(screen.getByText('home.stats.groups')).toBeInTheDocument()
     })
   })
 
@@ -98,11 +98,11 @@ describe('HomePage', () => {
     render(<HomePage />)
 
     await waitFor(() => {
-      expect(screen.getAllByText('動画をアップロード').length).toBeGreaterThan(0)
+      expect(screen.getAllByText('home.actions.upload.title').length).toBeGreaterThan(0)
     })
 
     // Click the header upload button
-    const uploadButtons = screen.getAllByText('動画をアップロード')
+    const uploadButtons = screen.getAllByText('home.actions.upload.title')
     fireEvent.click(uploadButtons[0])
 
     await waitFor(() => {
@@ -114,10 +114,10 @@ describe('HomePage', () => {
     render(<HomePage />)
 
     await waitFor(() => {
-      expect(screen.getByText('動画ライブラリ')).toBeInTheDocument()
+      expect(screen.getByText('home.actions.library.title')).toBeInTheDocument()
     })
 
-    fireEvent.click(screen.getByText('動画ライブラリ'))
+    fireEvent.click(screen.getByText('home.actions.library.title'))
 
     await waitFor(() => {
       expect(mockNavigate).toHaveBeenCalledWith('/videos')
@@ -128,10 +128,10 @@ describe('HomePage', () => {
     render(<HomePage />)
 
     await waitFor(() => {
-      expect(screen.getByText('グループ管理')).toBeInTheDocument()
+      expect(screen.getByText('home.actions.groups.title')).toBeInTheDocument()
     })
 
-    fireEvent.click(screen.getByText('グループ管理'))
+    fireEvent.click(screen.getByText('home.actions.groups.title'))
 
     await waitFor(() => {
       expect(mockNavigate).toHaveBeenCalledWith('/videos/groups')
@@ -163,7 +163,7 @@ describe('HomePage - Data Loading', () => {
 
     // Should still render the page (useHomePageData catches errors internally)
     await waitFor(() => {
-      expect(screen.getByText(/おかえりなさい/)).toBeInTheDocument()
+      expect(screen.getByText('home.welcome.greeting {"username":"testuser"}')).toBeInTheDocument()
     })
   })
 })

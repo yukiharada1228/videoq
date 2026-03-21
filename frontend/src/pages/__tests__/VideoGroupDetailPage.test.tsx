@@ -76,10 +76,10 @@ describe('VideoGroupDetailPage', () => {
 
     // Click edit button (icon-only, accessed via title)
     await waitFor(() => {
-      expect(screen.getByTitle('編集')).toBeInTheDocument()
+      expect(screen.getByTitle('videos.groupDetail.editTitle')).toBeInTheDocument()
     })
 
-    fireEvent.click(screen.getByTitle('編集'))
+    fireEvent.click(screen.getByTitle('videos.groupDetail.editTitle'))
 
     // Description should be in the edit textarea
     await waitFor(() => {
@@ -92,7 +92,7 @@ describe('VideoGroupDetailPage', () => {
     render(<VideoGroupDetailPage />)
 
     await waitFor(() => {
-      expect(screen.getByTitle('編集')).toBeInTheDocument()
+      expect(screen.getByTitle('videos.groupDetail.editTitle')).toBeInTheDocument()
     })
   })
 
@@ -100,7 +100,7 @@ describe('VideoGroupDetailPage', () => {
     render(<VideoGroupDetailPage />)
 
     await waitFor(() => {
-      expect(screen.getByText('動画を追加')).toBeInTheDocument()
+      expect(screen.getByText('videos.groupDetail.addVideoButton')).toBeInTheDocument()
     })
   })
 
@@ -108,7 +108,7 @@ describe('VideoGroupDetailPage', () => {
     render(<VideoGroupDetailPage />)
 
     await waitFor(() => {
-      expect(screen.getByText('グループ一覧')).toBeInTheDocument()
+      expect(screen.getByText('videos.groupDetail.breadcrumbGroups')).toBeInTheDocument()
     })
   })
 
@@ -116,7 +116,7 @@ describe('VideoGroupDetailPage', () => {
     render(<VideoGroupDetailPage />)
 
     await waitFor(() => {
-      expect(screen.getByTitle('削除')).toBeInTheDocument()
+      expect(screen.getByTitle('videos.groupDetail.delete')).toBeInTheDocument()
     })
   })
 
@@ -141,10 +141,10 @@ describe('VideoGroupDetailPage', () => {
     render(<VideoGroupDetailPage />)
 
     await waitFor(() => {
-      expect(screen.getByTitle('編集')).toBeInTheDocument()
+      expect(screen.getByTitle('videos.groupDetail.editTitle')).toBeInTheDocument()
     })
 
-    fireEvent.click(screen.getByTitle('編集'))
+    fireEvent.click(screen.getByTitle('videos.groupDetail.editTitle'))
 
     expect(screen.getByText('common.actions.save')).toBeInTheDocument()
     expect(screen.getByText('common.actions.cancel')).toBeInTheDocument()
@@ -154,7 +154,7 @@ describe('VideoGroupDetailPage', () => {
     render(<VideoGroupDetailPage />)
 
     await waitFor(() => {
-      expect(screen.getByText('共有リンク:')).toBeInTheDocument()
+      expect(screen.getByText('videos.groupDetail.shareLinkLabel')).toBeInTheDocument()
     })
   })
 
@@ -178,7 +178,7 @@ describe('VideoGroupDetailPage - Share Link', () => {
     render(<VideoGroupDetailPage />)
 
     await waitFor(() => {
-      expect(screen.getByText('コピー')).toBeInTheDocument()
+      expect(screen.getByText('videos.groupDetail.copyButton')).toBeInTheDocument()
       expect(screen.getByText('videos.groupDetail.disable')).toBeInTheDocument()
     })
   })
@@ -202,10 +202,10 @@ describe('VideoGroupDetailPage - Delete', () => {
     render(<VideoGroupDetailPage />)
 
     await waitFor(() => {
-      expect(screen.getByTitle('削除')).toBeInTheDocument()
+      expect(screen.getByTitle('videos.groupDetail.delete')).toBeInTheDocument()
     })
 
-    fireEvent.click(screen.getByTitle('削除'))
+    fireEvent.click(screen.getByTitle('videos.groupDetail.delete'))
 
     await waitFor(() => {
       expect(apiClient.deleteVideoGroup).toHaveBeenCalledWith(1)
