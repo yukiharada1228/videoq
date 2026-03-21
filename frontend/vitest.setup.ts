@@ -108,6 +108,11 @@ vi.mock('react-i18next', () => ({
   I18nextProvider: ({ children }: { children?: React.ReactNode }) => children,
 }))
 
+// Mock AppNav to prevent useMutation/useQueryClient side effects in page tests
+vi.mock('@/components/layout/AppNav', () => ({
+  AppNav: () => null,
+}))
+
 // Mock i18n routing helpers
 vi.mock('@/lib/i18n', () => ({
   useI18nNavigate: () => mockNavigate,
