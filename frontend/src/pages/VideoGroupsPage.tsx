@@ -10,15 +10,6 @@ import { useCreateVideoGroupMutation } from '@/hooks/useVideoGroupsPageData';
 import { VideoGroupCreateModal } from '@/components/video/VideoGroupCreateModal';
 import { Plus, ArrowRight, FolderOpen } from 'lucide-react';
 
-// カードの上部アクセントカラー（グループごとに循環）
-const ACCENT_COLORS = [
-  'from-[#00652c] to-[#15803d]',
-  'from-[#006d30] to-[#059669]',
-  'from-[#065f46] to-[#047857]',
-  'from-[#15803d] to-[#16a34a]',
-  'from-[#166534] to-[#15803d]',
-  'from-[#14532d] to-[#166534]',
-];
 
 export default function VideoGroupsPage() {
   const { user, isLoading: authLoading } = useAuth();
@@ -87,15 +78,12 @@ export default function VideoGroupsPage() {
         ) : (
           /* ── Groups Grid ────────────────────────────────────────────── */
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {groups.map((group, i) => (
+            {groups.map((group) => (
               <button
                 key={group.id}
                 onClick={() => navigate(`/videos/groups/${group.id}`)}
                 className="group text-left bg-white rounded-2xl shadow-[0_4px_20px_rgba(28,25,23,0.04)] hover:shadow-[0_8px_30px_rgba(28,25,23,0.10)] transition-all duration-200 hover:-translate-y-0.5 overflow-hidden"
               >
-                {/* Accent bar */}
-                <div className={`h-1.5 w-full bg-gradient-to-r ${ACCENT_COLORS[i % ACCENT_COLORS.length]}`} />
-
                 <div className="p-5">
                   <h2 className="font-extrabold text-[#191c19] text-base leading-snug mb-2 group-hover:text-[#00652c] transition-colors">
                     {group.name}

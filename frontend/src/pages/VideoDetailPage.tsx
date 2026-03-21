@@ -15,7 +15,7 @@ import { useVideoDetailPageMutations } from '@/hooks/useVideoDetailPageData';
 import type { Tag } from '@/lib/api';
 import {
   ArrowLeft, Calendar, CheckCircle, Search, ChevronRight,
-  Trash2, Pencil, X, Save, Video as VideoIcon,
+  Trash2, Pencil, X, Save, Video as VideoIcon, GraduationCap,
 } from 'lucide-react';
 
 // ── Transcript parser ─────────────────────────────────────────────────────────
@@ -271,14 +271,13 @@ export default function VideoDetailPage() {
       style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
     >
       {/* ── Header ───────────────────────────────────────────────────────── */}
-      <header className="fixed top-0 w-full flex justify-between items-center px-6 py-3 bg-white/80 backdrop-blur-md border-b border-stone-200/60 z-50">
+      <header className="fixed top-0 w-full bg-white/80 backdrop-blur-xl border-b border-stone-200/60 z-50">
+        <div className="max-w-screen-xl px-6 lg:px-8 mx-auto w-full flex justify-between items-center py-4">
         <div className="flex items-center gap-6 min-w-0">
-          <span
-            className="text-xl font-bold text-[#00652c] shrink-0"
-            style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-          >
-            VideoQ
-          </span>
+          <Link href="/" className="flex items-center gap-2 text-xl font-bold text-stone-900 shrink-0" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+            <GraduationCap className="text-[#00652c] w-6 h-6" />
+            <span>VideoQ</span>
+          </Link>
           <div className="hidden md:flex items-center gap-1 text-sm text-[#6f7a6e] font-medium min-w-0">
             <Link href="/videos" className="text-stone-400 hover:text-[#00652c] transition-colors shrink-0">
               {t('videos.detail.videosBreadcrumb')}
@@ -313,6 +312,7 @@ export default function VideoDetailPage() {
             {isDeleting ? <InlineSpinner className="w-4 h-4" /> : <Trash2 className="w-4 h-4" />}
           </button>
 
+        </div>
         </div>
       </header>
 
