@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   GraduationCap, List, Play, MessageSquare,
-  CheckCircle, Clock, AlertCircle, ArrowRight,
+  CheckCircle, Clock, AlertCircle,
 } from 'lucide-react';
 import { Link } from '@/lib/i18n';
 import { apiClient, type VideoInGroup } from '@/lib/api';
@@ -100,11 +100,6 @@ export default function SharePage() {
     return convertVideoInGroupToSelectedVideo(selected ?? group.videos[0]);
   }, [group, selectedVideoId]);
 
-  const nextVideo = (() => {
-    if (!group?.videos || !selectedVideo) return null;
-    const idx = group.videos.findIndex((v) => v.id === selectedVideo.id);
-    return idx >= 0 && idx < group.videos.length - 1 ? group.videos[idx + 1] : null;
-  })();
 
   const { videoRef, handleVideoCanPlay, handleVideoPlayFromTime } = useVideoPlayback({
     selectedVideo,
@@ -260,23 +255,6 @@ export default function SharePage() {
                 )}
               </div>
             </div>
-
-            {/* Next video link */}
-            {nextVideo && (
-              <div className="flex justify-center">
-                <button
-                  onClick={() => {
-                    handleVideoSelect(nextVideo.id);
-                    if (isMobile) setMobileTab('player');
-                  }}
-                  className="group flex items-center gap-2 text-[#00652c] font-bold text-sm hover:underline"
-                >
-                  {t('videos.groupDetail.nextVideo')}
-                  <span className="truncate max-w-[200px]">{nextVideo.title}</span>
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                </button>
-              </div>
-            )}
           </section>
 
           {/* RIGHT: Chat */}
