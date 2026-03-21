@@ -70,29 +70,29 @@ describe('VideosPage', () => {
   it('should render page title', () => {
     render(<VideosPage />)
 
-    expect(screen.getByText('動画ライブラリ')).toBeInTheDocument()
+    expect(screen.getByText('videos.list.title')).toBeInTheDocument()
   })
 
   it('should render video count subtitle', () => {
     render(<VideosPage />)
 
-    expect(screen.getByText(/本の動画を管理中/)).toBeInTheDocument()
+    expect(screen.getByText('videos.list.managingCount {"count":4}')).toBeInTheDocument()
   })
 
   it('should render upload button', () => {
     render(<VideosPage />)
 
-    expect(screen.getByText('動画をアップロード')).toBeInTheDocument()
+    expect(screen.getByText('videos.list.uploadButton')).toBeInTheDocument()
   })
 
   it('should render stats cards', () => {
     render(<VideosPage />)
 
-    expect(screen.getByText('全体')).toBeInTheDocument()
-    expect(screen.getByText('完了')).toBeInTheDocument()
-    expect(screen.getByText('保留中')).toBeInTheDocument()
-    expect(screen.getAllByText('処理中').length).toBeGreaterThan(0)
-    expect(screen.getByText('インデックス中')).toBeInTheDocument()
+    expect(screen.getByText('videos.list.statsRow.all')).toBeInTheDocument()
+    expect(screen.getByText('videos.list.statsRow.completed')).toBeInTheDocument()
+    expect(screen.getByText('videos.list.statsRow.pending')).toBeInTheDocument()
+    expect(screen.getByText('videos.list.statsRow.processing')).toBeInTheDocument()
+    expect(screen.getByText('videos.list.statsRow.indexing')).toBeInTheDocument()
   })
 
   it('should render video list', () => {
@@ -113,7 +113,7 @@ describe('VideosPage', () => {
   it('should open upload modal when upload button is clicked', () => {
     render(<VideosPage />)
 
-    const uploadButton = screen.getByText('動画をアップロード')
+    const uploadButton = screen.getByText('videos.list.uploadButton')
     fireEvent.click(uploadButton)
 
     expect(screen.getByTestId('upload-modal')).toBeInTheDocument()
@@ -122,7 +122,7 @@ describe('VideosPage', () => {
   it('should close upload modal when close is clicked', async () => {
     render(<VideosPage />)
 
-    const uploadButton = screen.getByText('動画をアップロード')
+    const uploadButton = screen.getByText('videos.list.uploadButton')
     fireEvent.click(uploadButton)
 
     expect(screen.getByTestId('upload-modal')).toBeInTheDocument()
@@ -147,7 +147,7 @@ describe('VideosPage - Upload Limit', () => {
   it('should show upload button', () => {
     render(<VideosPage />)
 
-    const uploadButton = screen.getByText('動画をアップロード')
+    const uploadButton = screen.getByText('videos.list.uploadButton')
     expect(uploadButton).toBeInTheDocument()
   })
 })
