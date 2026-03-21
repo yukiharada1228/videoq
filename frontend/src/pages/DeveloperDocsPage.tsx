@@ -25,7 +25,7 @@ export default function DeveloperDocsPage() {
   }));
 
   return (
-    <AppPageShell activePage="docs">
+    <AppPageShell>
       <AppPageHeader
         title={t('docs.home.title')}
         description={t('docs.home.subtitle')}
