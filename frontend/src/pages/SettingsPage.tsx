@@ -349,8 +349,8 @@ export default function SettingsPage() {
             )}
 
             {apiKeysQuery.data && apiKeysQuery.data.length > 0 && (
-              <div className="overflow-hidden bg-[#f2f4ef] rounded-xl">
-                <table className="w-full text-left border-collapse">
+              <div className="overflow-x-auto bg-[#f2f4ef] rounded-xl">
+                <table className="w-full text-left border-collapse min-w-[560px]">
                   <thead>
                     <tr className="text-[10px] uppercase font-bold tracking-widest text-[#3f493f]">
                       <th className="px-5 py-4">{t('settings.integrationApiKeys.columns.name')}</th>

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useI18nNavigate, useLocale } from '@/lib/i18n';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -16,6 +16,7 @@ import type { Tag } from '@/lib/api';
 import {
   ArrowLeft, Calendar, CheckCircle, Search, ChevronRight,
   Trash2, Pencil, X, Save, Video as VideoIcon, GraduationCap,
+  Info, Play,
 } from 'lucide-react';
 
 // ── Transcript parser ─────────────────────────────────────────────────────────
@@ -169,6 +170,15 @@ export default function VideoDetailPage() {
 
   const [transcriptSearch, setTranscriptSearch] = useState('');
   const [activeSegmentIdx, setActiveSegmentIdx] = useState<number | null>(null);
+  const [mobileTab, setMobileTab] = useState<'info' | 'video'>('video');
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 1024);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
 
   const { video, isLoading, error } = useVideo(videoId);
   const { tags, createTag } = useTags();
@@ -293,13 +303,40 @@ export default function VideoDetailPage() {
         </div>
       </header>
 
+      {/* ── Mobile tabs ──────────────────────────────────────────────────── */}
+      {isMobile && (
+        <div className="mt-16 flex border-b border-stone-200 bg-white shrink-0">
+          <button
+            onClick={() => setMobileTab('video')}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-semibold transition-colors ${
+              mobileTab === 'video'
+                ? 'text-[#00652c] border-b-2 border-[#00652c]'
+                : 'text-stone-500 hover:text-stone-700'
+            }`}
+          >
+            <Play className="w-4 h-4" />
+            {t('videos.detail.video')}
+          </button>
+          <button
+            onClick={() => setMobileTab('info')}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-semibold transition-colors ${
+              mobileTab === 'info'
+                ? 'text-[#00652c] border-b-2 border-[#00652c]'
+                : 'text-stone-500 hover:text-stone-700'
+            }`}
+          >
+            <Info className="w-4 h-4" />
+            {t('videos.detail.info')}
+          </button>
+        </div>
+      )}
+
       {/* ── Main grid ────────────────────────────────────────────────────── */}
       <main
-        className="flex-1 overflow-hidden mt-16"
-        style={{ display: 'grid', gridTemplateColumns: '280px 1fr' }}
+        className={`flex-1 overflow-hidden ${isMobile ? 'flex flex-col' : 'mt-16 grid grid-cols-[280px_1fr]'}`}
       >
         {/* ── Left sidebar ─────────────────────────────────────────────── */}
-        <aside className="bg-white border-r border-stone-100 overflow-y-auto p-6 flex flex-col gap-6">
+        <aside className={`bg-white border-r border-stone-100 overflow-y-auto p-6 flex flex-col gap-6 ${isMobile ? 'flex-1' : ''} ${isMobile && mobileTab !== 'info' ? 'hidden' : ''}`}>
           {isEditing ? (
             <SidebarEditForm
               editedTitle={editedTitle}
@@ -425,7 +462,7 @@ export default function VideoDetailPage() {
         </aside>
 
         {/* ── Right: video + transcript ─────────────────────────────────── */}
-        <section className="flex flex-col overflow-hidden bg-[#f8faf5]">
+        <section className={`flex flex-col overflow-hidden bg-[#f8faf5] ${isMobile ? 'flex-1' : ''} ${isMobile && mobileTab !== 'video' ? 'hidden' : ''}`}>
           {/* Video player */}
           <div className="shrink-0 bg-[#1a1c1c] flex items-center justify-center" style={{ maxHeight: '55vh' }}>
             {video.file ? (

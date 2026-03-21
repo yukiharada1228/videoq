@@ -166,7 +166,7 @@ interface ShareLinkPanelProps {
 function ShareLinkPanel({ shareLink, isGeneratingLink, isCopied, onGenerate, onDelete, onCopy }: ShareLinkPanelProps) {
   const { t } = useTranslation();
   return (
-    <div className="bg-white rounded-xl p-4 flex items-center gap-4 shadow-[0_4px_20px_rgba(28,25,23,0.04)]">
+    <div className="bg-white rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 shadow-[0_4px_20px_rgba(28,25,23,0.04)]">
       <span className="text-sm font-bold text-[#3f493f] whitespace-nowrap shrink-0">{t('videos.groupDetail.shareLinkLabel')}</span>
       {shareLink ? (
         <>
@@ -178,19 +178,21 @@ function ShareLinkPanel({ shareLink, isGeneratingLink, isCopied, onGenerate, onD
               className="w-full bg-transparent text-[#6f7a6e] text-sm outline-none cursor-default"
             />
           </div>
-          <button
-            onClick={onCopy}
-            className="flex items-center gap-2 px-4 py-2 bg-[#00652c] text-white rounded-xl text-sm font-bold hover:opacity-90 transition-opacity shrink-0"
-          >
-            <Copy className="w-3.5 h-3.5" />
-            {isCopied ? t('videos.groupDetail.copied') : t('videos.groupDetail.copyButton')}
-          </button>
-          <button
-            onClick={onDelete}
-            className="px-4 py-2 text-red-600 text-sm font-bold hover:bg-red-50 rounded-xl transition-colors shrink-0"
-          >
-            {t('videos.groupDetail.disable')}
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={onCopy}
+              className="flex items-center gap-2 px-4 py-2 bg-[#00652c] text-white rounded-xl text-sm font-bold hover:opacity-90 transition-opacity"
+            >
+              <Copy className="w-3.5 h-3.5" />
+              {isCopied ? t('videos.groupDetail.copied') : t('videos.groupDetail.copyButton')}
+            </button>
+            <button
+              onClick={onDelete}
+              className="px-4 py-2 text-red-600 text-sm font-bold hover:bg-red-50 rounded-xl transition-colors"
+            >
+              {t('videos.groupDetail.disable')}
+            </button>
+          </div>
         </>
       ) : (
         <>
@@ -567,17 +569,11 @@ export default function VideoGroupDetailPage() {
         <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={() => setIsAddModalOpen(true)}
-            className="flex items-center gap-1.5 px-4 py-1.5 rounded-full border border-[#00652c] text-[#00652c] font-bold text-sm hover:bg-[#f0fdf4] transition-colors active:scale-95"
+            className="flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-full border border-[#00652c] text-[#00652c] font-bold text-sm hover:bg-[#f0fdf4] transition-colors active:scale-95"
           >
             <Plus className="w-3.5 h-3.5" />
-            {t('videos.groupDetail.addVideoButton')}
+            <span className="hidden sm:inline">{t('videos.groupDetail.addVideoButton')}</span>
           </button>
-
-          {group.videos && group.videos.length > 0 && groupId && (
-            <ShortsButton groupId={groupId} videos={group.videos} size="sm" />
-          )}
-
-          {groupId && <DashboardButton groupId={groupId} size="sm" />}
 
           <div className="h-6 w-px bg-stone-200 mx-1" />
 
@@ -657,7 +653,7 @@ export default function VideoGroupDetailPage() {
       </Dialog>
 
       {/* ── Main ─────────────────────────────────────────────────────────── */}
-      <main className="mt-16 flex flex-col px-6 pt-4 gap-4 pb-20 md:pb-6 max-w-[1600px] mx-auto w-full md:h-[calc(100vh-4rem)] md:overflow-hidden">
+      <main className="mt-16 flex flex-col px-6 pt-4 gap-4 max-w-[1600px] mx-auto w-full h-[calc(100dvh-8rem)] overflow-hidden md:h-[calc(100dvh-4rem)]">
         {/* Share link panel */}
         <ShareLinkPanel
           shareLink={shareLink}
@@ -669,16 +665,23 @@ export default function VideoGroupDetailPage() {
         />
 
         {/* 3-column grid */}
-        <div className="flex flex-col md:grid md:grid-cols-4 gap-6 md:flex-1 md:min-h-0 md:items-stretch">
+        <div className="flex flex-col md:grid md:grid-cols-4 gap-6 flex-1 min-h-0 md:items-stretch">
 
           {/* LEFT: Video list */}
-          <aside className={`md:col-span-1 flex flex-col md:min-h-0 ${mobileTab === 'videos' ? 'flex' : 'hidden md:flex'}`}>
+          <aside className={`md:col-span-1 flex flex-col min-h-0 ${mobileTab === 'videos' ? 'flex' : 'hidden md:flex'}`}>
             <div className="bg-white rounded-xl flex flex-col h-full overflow-hidden shadow-[0_4px_20px_rgba(28,25,23,0.04)]">
-              <div className="p-4 border-b border-stone-100 flex items-center justify-between shrink-0">
+              <div className="p-4 border-b border-stone-100 flex items-center justify-between gap-2 shrink-0">
                 <h2 className="font-extrabold text-[#191c19]">{t('videos.groupDetail.videoListTitle')}</h2>
-                <span className="text-xs bg-[#f2f4ef] px-2 py-0.5 rounded-full text-[#6f7a6e] font-medium">
-                  {t('videos.groupDetail.videoCount', { count: group.videos?.length ?? 0 })}
-                </span>
+                <div className="flex items-center gap-2 shrink-0">
+                  {group.videos && group.videos.length > 0 && groupId && (
+                    <div className="md:hidden">
+                      <ShortsButton groupId={groupId} videos={group.videos} size="sm" />
+                    </div>
+                  )}
+                  <span className="text-xs bg-[#f2f4ef] px-2 py-0.5 rounded-full text-[#6f7a6e] font-medium">
+                    {t('videos.groupDetail.videoCount', { count: group.videos?.length ?? 0 })}
+                  </span>
+                </div>
               </div>
               <div className="flex-1 overflow-y-auto p-2 space-y-1">
                 {group.videos && group.videos.length > 0 ? (
@@ -713,13 +716,19 @@ export default function VideoGroupDetailPage() {
           </aside>
 
           {/* CENTER: Video player */}
-          <section className={`md:col-span-2 flex flex-col gap-3 md:min-h-0 ${mobileTab === 'player' ? 'flex' : 'hidden md:flex'}`}>
+          <section className={`md:col-span-2 flex flex-col gap-3 min-h-0 ${mobileTab === 'player' ? 'flex' : 'hidden md:flex'}`}>
             <div className="bg-white rounded-xl flex flex-col flex-1 overflow-hidden shadow-[0_8px_30px_rgba(28,25,23,0.08)]">
-              {selectedVideo && (
-                <div className="p-5 border-b border-stone-100 shrink-0">
-                  <h1 className="font-extrabold text-[#191c19] text-xl truncate">{selectedVideo.title}</h1>
+              <div className="p-4 border-b border-stone-100 shrink-0 flex items-center justify-between gap-3 min-w-0">
+                <h1 className="font-extrabold text-[#191c19] text-lg truncate flex-1 min-w-0">
+                  {selectedVideo ? selectedVideo.title : t('videos.groupDetail.playerPlaceholder')}
+                </h1>
+                <div className="flex items-center gap-2 shrink-0">
+                  {group.videos && group.videos.length > 0 && groupId && (
+                    <ShortsButton groupId={groupId} videos={group.videos} size="sm" />
+                  )}
+                  {groupId && <DashboardButton groupId={groupId} size="sm" />}
                 </div>
-              )}
+              </div>
               <div className="flex-1 bg-[#1a1c1c] flex items-center justify-center min-h-0">
                 {selectedVideo ? (
                   selectedVideo.file ? (
@@ -760,11 +769,11 @@ export default function VideoGroupDetailPage() {
           </section>
 
           {/* RIGHT: Chat */}
-          <aside className={`md:col-span-1 flex flex-col md:min-h-0 ${mobileTab === 'chat' ? 'flex' : 'hidden md:flex'}`}>
+          <aside className={`md:col-span-1 flex flex-col min-h-0 ${mobileTab === 'chat' ? 'flex' : 'hidden md:flex'}`}>
             <ChatPanel
               groupId={groupId ?? undefined}
               onVideoPlay={handleVideoPlayFromTime}
-              className="flex-1 h-full min-h-[400px] md:min-h-0 shadow-[0_4px_20px_rgba(28,25,23,0.04)]"
+              className="flex-1 min-h-0 shadow-[0_4px_20px_rgba(28,25,23,0.04)]"
             />
           </aside>
         </div>
