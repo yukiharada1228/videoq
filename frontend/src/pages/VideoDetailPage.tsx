@@ -289,30 +289,6 @@ export default function VideoDetailPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
-          {!isEditing && (
-            <button
-              onClick={startEditing}
-              className="p-2 text-[#3f493f] hover:bg-stone-100 rounded-full transition-colors"
-              title={t('videos.detail.editButton')}
-            >
-              <Pencil className="w-4 h-4" />
-            </button>
-          )}
-
-          <button
-            onClick={() => {
-              if (!window.confirm(t('confirmations.deleteVideo'))) return;
-              void deleteMutation.mutateAsync();
-            }}
-            disabled={isDeleting || isEditing}
-            className="p-2 text-red-500 hover:bg-red-50 rounded-full transition-colors disabled:opacity-50"
-            title={t('common.actions.delete')}
-          >
-            {isDeleting ? <InlineSpinner className="w-4 h-4" /> : <Trash2 className="w-4 h-4" />}
-          </button>
-
-        </div>
         </div>
       </header>
 
