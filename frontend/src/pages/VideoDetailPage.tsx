@@ -214,9 +214,9 @@ export default function VideoDetailPage() {
 
   // Transcript parsing
   const transcriptSegments = useMemo<TranscriptSegment[]>(() => {
-    if (!video?.transcript || !isSRTFormat(video.transcript)) return [];
+    if (!video.transcript || !isSRTFormat(video.transcript)) return [];
     return parseSRTTranscript(video.transcript);
-  }, [video?.transcript]);
+  }, [video.transcript]);
 
   const filteredSegments = useMemo(() => {
     const q = transcriptSearch.trim().toLowerCase();
