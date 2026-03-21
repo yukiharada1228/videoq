@@ -25,7 +25,7 @@ import { apiClient, type VideoGroup, type VideoInGroup } from '@/lib/api';
 import { ChatPanel } from '@/components/chat/ChatPanel';
 import { ShortsButton } from '@/components/shorts/ShortsButton';
 import { DashboardButton } from '@/components/dashboard/DashboardButton';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
@@ -281,6 +281,9 @@ function AddVideosDialog({ isOpen, onOpenChange, groupId, group, onVideosAdded }
         <DialogContent className="max-w-[95vw] lg:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{t('videos.groupDetail.addVideos')}</DialogTitle>
+            <DialogDescription>
+              {t('videos.groupDetail.addVideosDescription', 'Select videos to add to this group.')}
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="flex flex-wrap items-center gap-2">
@@ -603,6 +606,9 @@ export default function VideoGroupDetailPage() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>{t('videos.groupDetail.editTitle')}</DialogTitle>
+            <DialogDescription>
+              {t('videos.groupDetail.editDescription', 'Update the group name and description.')}
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             {updateError && (
