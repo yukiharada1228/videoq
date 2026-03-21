@@ -10,6 +10,7 @@ describe('LoadingState', () => {
     )
 
     // Check for spinner element
+    expect(screen.getByRole('status')).toBeInTheDocument()
     const spinner = container.querySelector('.animate-spin')
     expect(spinner).toBeInTheDocument()
     expect(screen.queryByText('Content')).not.toBeInTheDocument()
