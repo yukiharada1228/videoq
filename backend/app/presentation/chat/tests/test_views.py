@@ -11,7 +11,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 
-from app.domain.chat.dtos import RelatedVideoDTO
+from app.domain.chat.dtos import CitationDTO
 from app.domain.chat.gateways import LLMConfigurationError, RagResult
 from app.use_cases.chat.exceptions import LLMProviderError
 
@@ -57,8 +57,8 @@ class ChatViewTests(APITestCase):
         mock_generate_reply.return_value = RagResult(
             content="Test response",
             query_text="Test question",
-            related_videos=[
-                RelatedVideoDTO(
+            citations=[
+                CitationDTO(
                     video_id=self.video.id, title="Test Video", start_time=None, end_time=None
                 )
             ],
@@ -75,7 +75,7 @@ class ChatViewTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["role"], "assistant")
         self.assertEqual(response.data["content"], "Test response")
-        self.assertIn("related_videos", response.data)
+        self.assertIn("citations", response.data)
         self.assertIn("chat_log_id", response.data)
 
     @patch("app.infrastructure.external.rag_gateway.RagChatGateway.generate_reply")
@@ -84,7 +84,7 @@ class ChatViewTests(APITestCase):
         mock_generate_reply.return_value = RagResult(
             content="Test response",
             query_text="Test question",
-            related_videos=None,
+            citations=None,
         )
 
         url = reverse("chat-messages")
@@ -94,7 +94,7 @@ class ChatViewTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["role"], "assistant")
-        self.assertNotIn("related_videos", response.data)
+        self.assertNotIn("citations", response.data)
         self.assertNotIn("chat_log_id", response.data)
 
     def test_chat_empty_messages(self):
@@ -176,7 +176,7 @@ class ChatViewTests(APITestCase):
         mock_generate_reply.return_value = RagResult(
             content="Test response",
             query_text="Test question",
-            related_videos=None,
+            citations=None,
         )
 
         # Don't force authenticate - use share token instead
@@ -220,13 +220,13 @@ class ChatViewTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     @patch("app.infrastructure.external.rag_gateway.RagChatGateway.generate_reply")
-    def test_chat_related_videos_serialized_as_dicts(self, mock_generate_reply):
-        """related_videos in HTTP response must be plain dicts, not DTO objects."""
+    def test_chat_citations_serialized_as_dicts(self, mock_generate_reply):
+        """citations in HTTP response must be plain dicts."""
         mock_generate_reply.return_value = RagResult(
             content="reply",
             query_text="q",
-            related_videos=[
-                RelatedVideoDTO(
+            citations=[
+                CitationDTO(
                     video_id=self.video.id,
                     title="Test Video",
                     start_time="00:00:10",
@@ -244,108 +244,10 @@ class ChatViewTests(APITestCase):
         response = self.client.post(url, data, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        related = response.data["related_videos"]
-        self.assertIsInstance(related[0], dict)
-        self.assertEqual(related[0]["video_id"], self.video.id)
-        self.assertEqual(related[0]["start_time"], "00:00:10")
-
-
-class ChatScenesViewTests(APITestCase):
-    def setUp(self):
-        self.user = User.objects.create_user(
-            username="searchuser",
-            email="search@example.com",
-            password="testpass123",
-        )
-        self.client = APIClient()
-        self.client.force_authenticate(user=self.user)
-
-        self.video = Video.objects.create(
-            user=self.user,
-            title="Search Video",
-            description="Search Description",
-            status="completed",
-        )
-        share_token = secrets.token_urlsafe(32)
-        self.group = VideoGroup.objects.create(
-            user=self.user,
-            name="Search Group",
-            description="Test",
-            share_token=share_token,
-        )
-        VideoGroupMember.objects.create(group=self.group, video=self.video, order=0)
-
-    @patch("app.infrastructure.external.rag_gateway.RagChatGateway.search_related_videos")
-    def test_search_related_scenes(self, mock_search_related_videos):
-        mock_search_related_videos.return_value = [
-            RelatedVideoDTO(
-                video_id=self.video.id,
-                title=self.video.title,
-                start_time="00:00:30",
-                end_time="00:00:45",
-            )
-        ]
-
-        response = self.client.get(
-            reverse("chat-scenes"),
-            {
-                "query_text": "この部分の説明を探して",
-                "group_id": self.group.id,
-            },
-        )
-
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["query_text"], "この部分の説明を探して")
-        self.assertEqual(response.data["related_videos"][0]["video_id"], self.video.id)
-
-    def test_search_related_scenes_rejects_empty_query(self):
-        response = self.client.get(
-            reverse("chat-scenes"),
-            {"query_text": "", "group_id": self.group.id},
-        )
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("error", response.data)
-
-    def test_search_related_scenes_group_not_found(self):
-        response = self.client.get(
-            reverse("chat-scenes"),
-            {"query_text": "q", "group_id": 99999},
-        )
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-
-    @patch("app.infrastructure.external.rag_gateway.RagChatGateway.search_related_videos")
-    def test_search_related_scenes_with_share_token(self, mock_search_related_videos):
-        mock_search_related_videos.return_value = []
-        self.client.force_authenticate(user=None)
-
-        response = self.client.get(
-            reverse("chat-scenes"),
-            {"query_text": "q", "group_id": self.group.id, "share_token": self.group.share_token},
-        )
-
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["query_text"], "q")
-
-    @patch("app.infrastructure.external.rag_gateway.RagChatGateway.search_related_videos")
-    def test_search_related_scenes_provider_error_returns_generic_500_message(
-        self, mock_search_related_videos
-    ):
-        mock_search_related_videos.side_effect = LLMProviderError(
-            "provider retrieval detail"
-        )
-
-        response = self.client.get(
-            reverse("chat-scenes"),
-            {"query_text": "q", "group_id": self.group.id},
-        )
-
-        self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
-        self.assertEqual(
-            response.data,
-            {
-                "error": {
-                    "code": "INTERNAL_ERROR",
-                    "message": "An internal server error occurred.",
-                }
-            },
-        )
+        citation = response.data["citations"][0]
+        self.assertIsInstance(citation, dict)
+        self.assertEqual(citation["id"], 1)
+        self.assertEqual(citation["video_id"], self.video.id)
+        self.assertEqual(citation["start_time"], "00:00:10")
+        self.assertEqual(response.data["citations"][0]["id"], 1)
+        self.assertEqual(response.data["citations"][0]["video_id"], self.video.id)

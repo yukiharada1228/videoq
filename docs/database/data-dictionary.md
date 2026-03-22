@@ -271,7 +271,7 @@ VideoとTagの多対多リレーションの中間テーブルです。
 | group_id | BIGINT | FOREIGN KEY, NOT NULL | - | グループID |
 | question | TEXT | NOT NULL | - | 質問テキスト |
 | answer | TEXT | NOT NULL | - | 回答テキスト |
-| related_videos | JSONB | NOT NULL | [] | 関連動画IDのリスト |
+| citations | JSONB | NOT NULL | [] | 回答に紐づく参照シーンのリスト |
 | is_shared_origin | BOOLEAN | NOT NULL | False | 共有リンク経由のチャットかどうか |
 | feedback | VARCHAR(4) | NULL | NULL | フィードバック ('good', 'bad', NULL) |
 | created_at | TIMESTAMPTZ | NOT NULL | now() | 作成日時 |

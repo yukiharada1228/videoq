@@ -72,7 +72,7 @@ erDiagram
         int group_id FK
         text question
         text answer
-        json related_videos
+        json citations
         bool is_shared_origin
         string feedback
         datetime created_at

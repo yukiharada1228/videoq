@@ -42,7 +42,7 @@ class AccountDeletionTaskTests(TestCase):
             group=group,
             question="q",
             answer="a",
-            related_videos=[video.id],
+            citations=[{"video_id": video.id, "title": video.title, "start_time": "0:00"}],
         )
 
         delete_account_data(user.id)

@@ -60,7 +60,7 @@ classDiagram
         +ForeignKey group
         +string question
         +string answer
-        +JSONField related_videos
+        +JSONField citations
         +bool is_shared_origin
         +string feedback
         +datetime created_at
@@ -360,7 +360,7 @@ classDiagram
     class ChatRepository {
         <<abstract>>
         +get_logs_for_group(group_id, ascending) list~ChatLogEntity~
-        +create_log(user_id, group_id, question, answer, related_videos, is_shared) ChatLogEntity
+        +create_log(user_id, group_id, question, answer, citations, is_shared) ChatLogEntity
         +get_log_by_id(log_id) ChatLogEntity
         +update_feedback(log, feedback) ChatLogEntity
         +get_logs_values_for_group(group_id) list~ChatSceneLog~
@@ -480,9 +480,6 @@ classDiagram
     class SendMessageUseCase {
         +execute(user_id, messages, group_id, share_token, is_shared, locale) ChatOutputDTO
     }
-    class SearchRelatedVideosUseCase {
-        +execute(user_id, query_text, group_id, share_token, is_shared) SearchOutputDTO
-    }
     class GetChatHistoryUseCase {
         +execute(group_id, user_id, ascending) list~ChatLogDTO~
     }
@@ -585,9 +582,6 @@ classDiagram
     class ChatView {
         +post() answer response
     }
-    class ChatSearchView {
-        +post() retrieval response
-    }
     class ChatHistoryView {
         +get() history list response
     }
@@ -647,7 +641,6 @@ classDiagram
     VideoDetailView ..> UpdateVideoUseCase : delegates
     VideoDetailView ..> DeleteVideoUseCase : delegates
     ChatView ..> SendMessageUseCase : delegates
-    ChatSearchView ..> SearchRelatedVideosUseCase : delegates
     ChatHistoryView ..> GetChatHistoryUseCase : delegates
     ChatFeedbackView ..> SubmitFeedbackUseCase : delegates
     ChatAnalyticsView ..> GetChatAnalyticsUseCase : delegates

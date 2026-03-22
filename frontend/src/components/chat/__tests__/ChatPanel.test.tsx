@@ -29,7 +29,6 @@ describe('ChatPanel', () => {
     ;(apiClient.chat as any).mockResolvedValue({
       role: 'assistant',
       content: 'Test response',
-      related_videos: [],
       chat_log_id: 1,
       feedback: null,
     })
@@ -94,12 +93,14 @@ describe('ChatPanel', () => {
     const onVideoPlay = vi.fn()
     ;(apiClient.chat as any).mockResolvedValue({
       role: 'assistant',
-      content: 'Response',
-      related_videos: [
+      content: 'This is <ref ids="1">grounded text</ref>.',
+      citations: [
         {
+          id: 1,
           video_id: 1,
           title: 'Test Video',
           start_time: '00:01:30',
+          end_time: '00:15:30',
         },
       ],
       chat_log_id: 1,
@@ -115,8 +116,11 @@ describe('ChatPanel', () => {
     })
 
     await waitFor(() => {
-      expect(screen.getByText('Test Video')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /Test Video 00:01:30/ })).toBeInTheDocument()
     })
+    expect(screen.getByText((text) => text.includes('This is'))).toBeInTheDocument()
+    expect(screen.getByText((text) => text.includes('grounded text'))).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Test Video 00:01:30/ })).toHaveTextContent('(1:30-15:30)')
 
     const videoButton = screen.getByTitle(/Test Video/)
     if (videoButton) {
@@ -130,12 +134,14 @@ describe('ChatPanel', () => {
   it('should open video in new tab when onVideoPlay is not provided', async () => {
     ;(apiClient.chat as any).mockResolvedValue({
       role: 'assistant',
-      content: 'Response',
-      related_videos: [
+      content: 'This is <ref ids="1">grounded text</ref>.',
+      citations: [
         {
+          id: 1,
           video_id: 1,
           title: 'Test Video',
           start_time: '00:01:30',
+          end_time: '00:15:30',
         },
       ],
       chat_log_id: 1,
@@ -151,7 +157,7 @@ describe('ChatPanel', () => {
     })
 
     await waitFor(() => {
-      expect(screen.getByText('Test Video')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /Test Video 00:01:30/ })).toBeInTheDocument()
     })
 
     const videoButton = screen.getByTitle(/Test Video/)
@@ -195,7 +201,6 @@ describe('ChatPanel', () => {
     ;(apiClient.chat as any).mockResolvedValue({
       role: 'assistant',
       content: 'Response',
-      related_videos: [],
       chat_log_id: 1,
       feedback: null,
     })
@@ -251,7 +256,6 @@ describe('ChatPanel', () => {
     ;(apiClient.chat as any).mockResolvedValue({
       role: 'assistant',
       content: 'Response',
-      related_videos: [],
       chat_log_id: 1,
       feedback: null,
     })
@@ -291,7 +295,6 @@ describe('ChatPanel', () => {
     ;(apiClient.chat as any).mockResolvedValue({
       role: 'assistant',
       content: 'Response',
-      related_videos: [],
       chat_log_id: 1,
       feedback: 'good',
     })
@@ -334,7 +337,6 @@ describe('ChatPanel', () => {
         group: 1,
         question: 'Test question',
         answer: 'Test answer',
-        related_videos: [],
         is_shared_origin: false,
         created_at: '2024-01-15T10:00:00Z',
         feedback: null,
@@ -384,7 +386,6 @@ describe('ChatPanel', () => {
         group: 1,
         question: 'Test question',
         answer: 'Test answer',
-        related_videos: [],
         is_shared_origin: false,
         created_at: '2024-01-15T10:00:00Z',
         feedback: null,
@@ -486,7 +487,6 @@ describe('ChatPanel', () => {
         group: 1,
         question: 'Test question',
         answer: 'Test answer',
-        related_videos: [],
         is_shared_origin: false,
         created_at: '2024-01-15T10:00:00Z',
         feedback: null,
@@ -528,7 +528,6 @@ describe('ChatPanel', () => {
     ;(apiClient.chat as any).mockResolvedValue({
       role: 'assistant',
       content: 'Response',
-      related_videos: [],
       chat_log_id: 1,
       feedback: null,
     })
@@ -591,12 +590,14 @@ describe('ChatPanel', () => {
         id: 1,
         group: 1,
         question: 'Test question',
-        answer: 'Test answer',
-        related_videos: [
+        answer: 'Test <ref ids="1">answer</ref>',
+        citations: [
           {
+            id: 1,
             video_id: 1,
             title: 'History Video',
             start_time: '00:02:00',
+            end_time: '00:10:00',
           },
         ],
         is_shared_origin: false,
@@ -618,8 +619,101 @@ describe('ChatPanel', () => {
       expect(screen.getByText('Test question')).toBeInTheDocument()
     })
 
-    // Related video title appears in the history
-    expect(screen.getByText('History Video')).toBeInTheDocument()
-    expect(screen.getByText('00:02:00')).toBeInTheDocument()
+    expect(screen.getByText((text) => text.includes('answer'))).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /History Video 00:02:00/ })).toHaveTextContent('(2:00-10:00)')
+  })
+
+  it('should render multiple reference ids on one phrase', async () => {
+    ;(apiClient.chat as any).mockResolvedValue({
+      role: 'assistant',
+      content: 'This is <ref ids="1,2">grounded text</ref>.',
+      citations: [
+        {
+          id: 1,
+          video_id: 1,
+          title: 'Video One',
+          start_time: '00:01:30',
+          end_time: '00:15:30',
+        },
+        {
+          id: 2,
+          video_id: 2,
+          title: 'Video Two',
+          start_time: '00:02:30',
+          end_time: '00:08:30',
+        },
+      ],
+      chat_log_id: 1,
+      feedback: null,
+    })
+
+    render(<ChatPanel />)
+
+    const input = screen.getByPlaceholderText(/chat.placeholder/)
+
+    await act(async () => {
+      await sendMessage(input, 'Test')
+    })
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Video One 00:01:30/ })).toBeInTheDocument()
+    })
+
+    expect(screen.getByTitle(/Video One 00:01:30 \/ Video Two 00:02:30/)).toBeInTheDocument()
+    expect(screen.getByText((text) => text.includes('grounded text'))).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Video One 00:01:30/ })).toHaveTextContent('(1:30-15:30)')
+  })
+
+  it('should normalize millisecond timestamps in inline links', async () => {
+    ;(apiClient.chat as any).mockResolvedValue({
+      role: 'assistant',
+      content: 'Deep learning is useful.<ref ids="1"> It finds a good function.</ref>',
+      citations: [
+        {
+          id: 1,
+          video_id: 1,
+          title: 'Test Video',
+          start_time: '00:06:37,480',
+          end_time: '00:07:47,900',
+        },
+      ],
+      chat_log_id: 1,
+      feedback: null,
+    })
+
+    render(<ChatPanel />)
+
+    const input = screen.getByPlaceholderText(/chat.placeholder/)
+
+    await act(async () => {
+      await sendMessage(input, 'Test')
+    })
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Test Video 00:06:37,480/ })).toBeInTheDocument()
+    })
+
+    expect(screen.getByRole('button', { name: /Test Video 00:06:37,480/ })).toHaveTextContent('(6:37-7:47)')
+  })
+
+  it('should keep unmatched citation markers as plain text', async () => {
+    ;(apiClient.chat as any).mockResolvedValue({
+      role: 'assistant',
+      content: 'Response [2]',
+      chat_log_id: 1,
+      feedback: null,
+    })
+
+    render(<ChatPanel />)
+
+    const input = screen.getByPlaceholderText(/chat.placeholder/)
+
+    await act(async () => {
+      await sendMessage(input, 'Test')
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('Response [2]')).toBeInTheDocument()
+    })
   })
 })

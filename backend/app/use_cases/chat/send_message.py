@@ -18,7 +18,7 @@ from app.domain.chat.services import (
 )
 from app.use_cases.chat.dto import (
     ChatMessageInput,
-    RelatedVideoResponseDTO,
+    CitationResponseDTO,
     SendMessageResultDTO,
 )
 from app.use_cases.chat.exceptions import (
@@ -147,7 +147,7 @@ class SendMessageUseCase:
                 group_id=group.id,
                 question=rag_result.query_text,
                 answer=rag_result.content,
-                related_videos=rag_result.related_videos,
+                citations=rag_result.citations,
                 is_shared=is_shared,
             )
             chat_log_id = chat_log.id
@@ -155,15 +155,16 @@ class SendMessageUseCase:
 
         return SendMessageResultDTO(
             content=rag_result.content,
-            related_videos=(
+            citations=(
                 [
-                    RelatedVideoResponseDTO(
+                    CitationResponseDTO(
+                        id=index,
                         video_id=v.video_id,
                         title=v.title,
                         start_time=v.start_time,
                         end_time=v.end_time,
                     )
-                    for v in (rag_result.related_videos or [])
+                    for index, v in enumerate(rag_result.citations or [], start=1)
                 ]
                 if group_id is not None
                 else None

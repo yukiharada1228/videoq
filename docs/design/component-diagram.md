@@ -163,7 +163,7 @@ graph TB
                 VideoSer[Serializers]
             end
             subgraph ChatPres["chat/"]
-                ChatViews["Views - ChatView, ChatSearchView, ChatHistoryView,
+                ChatViews["Views - ChatView, ChatHistoryView,
                 ChatFeedbackView, ChatAnalyticsView,
                 PopularScenesView, ChatHistoryExportView"]
                 ChatSer[Serializers]
@@ -206,7 +206,6 @@ graph TB
             end
             subgraph ChatUC["chat/"]
                 SendMsg[SendMessageUseCase]
-                SearchRelated[SearchRelatedVideosUseCase]
                 GetHistory[GetChatHistoryUseCase]
                 ExportHistory[ExportChatHistoryUseCase]
                 SubmitFeedback[SubmitFeedbackUseCase]

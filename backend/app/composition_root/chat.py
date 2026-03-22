@@ -25,7 +25,6 @@ from app.use_cases.chat.export_history import ExportChatHistoryUseCase
 from app.use_cases.chat.get_analytics import GetChatAnalyticsUseCase
 from app.use_cases.chat.get_history import GetChatHistoryUseCase
 from app.use_cases.chat.get_popular_scenes import GetPopularScenesUseCase
-from app.use_cases.chat.search_related_videos import SearchRelatedVideosUseCase
 from app.use_cases.chat.send_message import SendMessageUseCase
 from app.use_cases.chat.submit_feedback import SubmitFeedbackUseCase
 
@@ -65,15 +64,6 @@ def get_send_message_use_case() -> SendMessageUseCase:
         _get_rag_gateway(),
         api_key_repo=DjangoOpenAiApiKeyRepository(),
     )
-
-
-def get_search_related_videos_use_case() -> SearchRelatedVideosUseCase:
-    return SearchRelatedVideosUseCase(
-        _new_video_group_query_repository(),
-        _get_rag_gateway(),
-        api_key_repo=DjangoOpenAiApiKeyRepository(),
-    )
-
 
 def get_chat_history_use_case() -> GetChatHistoryUseCase:
     return GetChatHistoryUseCase(
