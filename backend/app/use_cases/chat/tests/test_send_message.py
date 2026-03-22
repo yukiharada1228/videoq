@@ -14,7 +14,7 @@ class _StubChatRepository(ChatRepository):
     def get_logs_for_group(self, group_id: int, ascending: bool = True):
         raise NotImplementedError
 
-    def create_log(self, user_id, group_id, question, answer, related_videos, is_shared):
+    def create_log(self, user_id, group_id, question, answer, citations, is_shared):
         raise NotImplementedError
 
     def get_log_by_id(self, log_id: int):
@@ -38,10 +38,6 @@ class _StubGroupRepository(VideoGroupQueryRepository):
 class _RagGatewayUserNotFound(RagGateway):
     def generate_reply(self, messages, user_id, video_ids=None, locale=None, api_key=None):
         raise RagUserNotFoundError(f"User not found: {user_id}")
-
-    def search_related_videos(self, query_text, user_id, video_ids=None, api_key=None):
-        raise NotImplementedError
-
 
 class SendMessageUseCaseTests(unittest.TestCase):
     def setUp(self):

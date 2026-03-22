@@ -3,7 +3,7 @@
 from datetime import datetime, timezone
 import unittest
 
-from app.domain.chat.dtos import RelatedVideoDTO
+from app.domain.chat.dtos import CitationDTO
 from app.domain.chat.entities import ChatLogEntity, VideoGroupContextEntity
 from app.domain.chat.repositories import ChatRepository, VideoGroupQueryRepository
 from app.use_cases.chat.get_history import GetChatHistoryUseCase
@@ -17,7 +17,7 @@ class _StubChatRepository(ChatRepository):
     def get_logs_for_group(self, group_id: int, ascending: bool = True):
         return self._logs
 
-    def create_log(self, user_id, group_id, question, answer, related_videos, is_shared):
+    def create_log(self, user_id, group_id, question, answer, citations, is_shared):
         raise NotImplementedError
 
     def get_log_by_id(self, log_id: int):
@@ -53,8 +53,8 @@ class GetChatHistoryUseCaseTests(unittest.TestCase):
                 group_share_token=None,
                 question="q",
                 answer="a",
-                related_videos=[
-                    RelatedVideoDTO(
+                citations=[
+                    CitationDTO(
                         video_id=100,
                         title="v1",
                         start_time="00:00:01",
@@ -76,7 +76,7 @@ class GetChatHistoryUseCaseTests(unittest.TestCase):
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0].id, 10)
         self.assertEqual(result[0].group_id, 5)
-        self.assertEqual(result[0].related_videos[0].video_id, 100)
+        self.assertEqual(result[0].citations[0].video_id, 100)
 
     def test_execute_raises_when_group_not_found(self):
         use_case = GetChatHistoryUseCase(

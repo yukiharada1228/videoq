@@ -13,8 +13,8 @@ class ChatMessageDTO:
 
 
 @dataclass(frozen=True)
-class RelatedVideoDTO:
-    """Typed related-video entry returned by the chat gateway."""
+class CitationDTO:
+    """Typed citation entry returned by the chat gateway."""
 
     video_id: int
     title: str

@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import List, Optional
 
-from app.domain.chat.dtos import RelatedVideoDTO
+from app.domain.chat.dtos import CitationDTO
 from app.domain.chat.exceptions import FeedbackAccessDenied, InvalidFeedbackValue
 from app.domain.chat.value_objects import (
     ChatSceneLog,
@@ -53,7 +53,7 @@ class ChatLogEntity:
     group_share_token: Optional[str]
     question: str
     answer: str
-    related_videos: List[RelatedVideoDTO] = field(default_factory=list)
+    citations: List[CitationDTO] = field(default_factory=list)
     is_shared_origin: bool = False
     feedback: Optional[str] = None
     created_at: Optional[datetime] = None

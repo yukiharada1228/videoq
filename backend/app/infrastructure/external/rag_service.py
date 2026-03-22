@@ -26,7 +26,7 @@ class RagChatResult:
 
     llm_response: AIMessage
     query_text: str
-    related_videos: Optional[List[Dict[str, str]]]
+    citations: Optional[List[Dict[str, str]]]
 
 
 class RagChatService:
@@ -72,7 +72,7 @@ class RagChatService:
                         "llm_response": itemgetter("prompt_input")
                         | self.prompt
                         | self.llm,
-                        "related_videos": itemgetter("related_videos"),
+                        "citations": itemgetter("citations"),
                     }
                 )
             )
@@ -80,36 +80,19 @@ class RagChatService:
             rag_chain = RunnableLambda(self._build_prompt_payload) | RunnableParallel(
                 {
                     "llm_response": itemgetter("prompt_input") | self.prompt | self.llm,
-                    "related_videos": itemgetter("related_videos"),
+                    "citations": itemgetter("citations"),
                 }
             )
 
         result = rag_chain.invoke({"query_text": query_text, "locale": locale})
         llm_response = cast(AIMessage, result.get("llm_response"))
-        related_videos = result.get("related_videos")
+        citations = result.get("citations")
 
         return RagChatResult(
             llm_response=llm_response,
             query_text=query_text,
-            related_videos=related_videos,
+            citations=citations,
         )
-
-    def search_related_videos(
-        self,
-        query_text: str,
-        group: Optional["VideoGroup"] = None,
-        video_ids: Optional[List[int]] = None,
-    ) -> Optional[List[Dict[str, str]]]:
-        if not query_text.strip():
-            return None
-
-        retriever = self._get_retriever(group, video_ids=video_ids)
-        if retriever is None:
-            return None
-
-        docs_obj = retriever.invoke(query_text)
-        docs = cast(Sequence[Any], docs_obj or [])
-        return self._extract_related_videos(docs)
 
     def _extract_latest_user_query(self, messages: Sequence[Dict[str, str]]) -> str:
         for msg in reversed(messages):
@@ -150,26 +133,24 @@ class RagChatService:
         if not docs:
             return []
         reference_entries: List[str] = []
-        for doc in docs:
+        for i, doc in enumerate(docs, start=1):
             metadata = getattr(doc, "metadata", {}) or {}
             title = metadata.get("video_title", "")
             start_time = metadata.get("start_time", "")
             end_time = metadata.get("end_time", "")
             page_content = getattr(doc, "page_content", "")
             reference_entries.append(
-                f"{title} {start_time} - {end_time}\n{page_content}"
+                f"[{i}] {title} {start_time} - {end_time}\n{page_content}"
             )
         return reference_entries
 
-    def _extract_related_videos(
-        self, docs: Sequence[Any]
-    ) -> Optional[List[Dict[str, str]]]:
+    def _extract_citations(self, docs: Sequence[Any]) -> Optional[List[Dict[str, str]]]:
         if not docs:
             return None
-        related_videos: List[Dict[str, str]] = []
+        citations: List[Dict[str, str]] = []
         for doc in docs:
             metadata = getattr(doc, "metadata", {}) or {}
-            related_videos.append(
+            citations.append(
                 {
                     "video_id": metadata.get("video_id", ""),
                     "title": metadata.get("video_title", ""),
@@ -177,7 +158,7 @@ class RagChatService:
                     "end_time": metadata.get("end_time", ""),
                 }
             )
-        return related_videos
+        return citations
 
     def _build_prompt_payload(self, data: Dict[str, Any]) -> Dict[str, Any]:
         docs_obj = data.get("docs") or []
@@ -193,7 +174,7 @@ class RagChatService:
                 "system_prompt": system_prompt,
                 "query_text": query_text,
             },
-            "related_videos": self._extract_related_videos(docs),
+            "citations": self._extract_citations(docs),
         }
 
     def _create_vector_store(self) -> PGVectorStore:

@@ -89,7 +89,8 @@ export interface LoginRequest {
   password: string;
 }
 
-export interface RelatedVideo {
+export interface Citation {
+  id: number;
   video_id: number;
   title: string;
   start_time: string;
@@ -111,7 +112,7 @@ export interface ChatHistoryItem {
   group: number;
   question: string;
   answer: string;
-  related_videos: RelatedVideo[];
+  citations?: Citation[];
   is_shared_origin: boolean;
   feedback?: 'good' | 'bad' | null;
   created_at: string;
@@ -120,7 +121,7 @@ export interface ChatHistoryItem {
 export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
-  related_videos?: RelatedVideo[];
+  citations?: Citation[];
   chat_log_id?: number;
   feedback?: 'good' | 'bad' | null;
 }
@@ -1009,12 +1010,6 @@ class ApiClient {
     return this.request<void>(`/videos/${videoId}/tags/${tagId}/`, {
       method: 'DELETE',
     });
-  }
-
-  async searchScenes(queryText: string, groupId: number, shareToken?: string): Promise<{ query_text: string; related_videos?: RelatedVideo[] }> {
-    const params = new URLSearchParams({ query_text: queryText, group_id: String(groupId) });
-    if (shareToken) params.set('share_token', shareToken);
-    return this.request(`/chat/scenes/?${params.toString()}`);
   }
 
   async getPopularScenes(groupId: number, shareToken?: string, limit?: number): Promise<PopularScene[]> {

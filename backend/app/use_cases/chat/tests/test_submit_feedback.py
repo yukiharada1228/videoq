@@ -21,7 +21,7 @@ class _StubChatRepository(ChatRepository):
     def get_logs_for_group(self, group_id: int, ascending: bool = True):
         raise NotImplementedError
 
-    def create_log(self, user_id, group_id, question, answer, related_videos, is_shared):
+    def create_log(self, user_id, group_id, question, answer, citations, is_shared):
         raise NotImplementedError
 
     def get_log_by_id(self, log_id: int):
