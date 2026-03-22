@@ -1,0 +1,23 @@
+# VideoQ
+
+> VideoQはAI動画ナビゲーターです。動画をアップロードするとOpenAI Whisperで自動文字起こしが行われ、PGVectorを使ったRAGチャットで動画の内容に自然言語で質問できます。教育者・学習者向けのセルフホスト型プラットフォームです。
+
+VideoQ is an AI-powered video learning platform. Upload videos to get automatic transcriptions via OpenAI Whisper, then ask questions about video content through a RAG chat interface grounded in the transcript. Self-hosted, Docker-deployable, with an OpenAI-compatible API endpoint.
+
+## 主な機能 / Key Features
+
+- 動画の自動文字起こし（OpenAI Whisper）
+- RAGチャット：動画の内容に自然言語で質問
+- OpenAI互換APIエンドポイント（/api/v1/chat/completions）
+- MCPサーバー統合対応
+- 動画グループとパブリック共有リンク
+- 教育分析ダッシュボード（キーワードクラウド、質問トレンド）
+- マルチロケール対応（日本語・英語）
+
+## ドキュメント / Documentation
+
+- [認証 API](https://videoq.jp/docs/auth)
+- [動画 API](https://videoq.jp/docs/videos)
+- [チャット API](https://videoq.jp/docs/chat)
+- [OpenAI互換 API](https://videoq.jp/docs/openai)
+
