@@ -10,7 +10,7 @@ export function AuthFormFooter({ questionText, linkText, href }: AuthFormFooterP
   return (
     <div className="text-center text-sm text-gray-600">
       {questionText}{' '}
-      <Link href={href} className="text-blue-600 hover:underline">
+      <Link href={href} className="text-[#00652c] font-bold hover:underline">
         {linkText}
       </Link>
     </div>

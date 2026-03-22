@@ -178,13 +178,12 @@ describe('ShortsPlayer', () => {
     expect(videos.length).toBe(1)
   })
 
-  it('should include media fragment #t= in video src', () => {
+  it('should use the direct media URL for the video src', () => {
     render(<ShortsPlayer scenes={mockScenes} onClose={mockOnClose} />)
 
     const video = document.querySelector('video')
     expect(video).not.toBeNull()
-    // start_time 00:01:00 = 60s, end_time 00:02:00 = 120s
-    expect(video!.src).toContain('#t=60,120')
+    expect(video!.src).toBe('http://localhost/media/videos/1/test1.mp4')
   })
 
   it('should set preload="auto" for the video element', () => {

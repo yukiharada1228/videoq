@@ -83,11 +83,11 @@ describe('LoginPage', () => {
     })
   })
 
-  it('should have centered layout', () => {
+  it('should have AuthLayout main element', () => {
     render(<LoginPage />)
 
     const container = screen.getByText('auth.login.title').closest('main')
     expect(container).toBeInTheDocument()
-    expect(container).toHaveClass('flex', 'flex-1', 'items-center', 'justify-center', 'px-4')
+    expect(container).toHaveClass('flex', 'min-h-screen', 'flex-col')
   })
 })

@@ -2,19 +2,11 @@ import { Suspense, useState } from 'react';
 import { Link } from '@/lib/i18n';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { PageLayout } from '@/components/layout/PageLayout';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { MessageAlert } from '@/components/common/MessageAlert';
+import { ArrowLeft, KeyRound, Lock } from 'lucide-react';
+import { AuthLayout } from '@/components/layout/AuthLayout';
+import { AuthPageIntro } from '@/components/layout/AuthPageIntro';
+import { AuthPageFooter } from '@/components/layout/AuthPageFooter';
+import { InlineSpinner } from '@/components/common/InlineSpinner';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { useConfirmPasswordResetMutation } from '@/hooks/usePasswordRecovery';
 
@@ -48,11 +40,7 @@ function ResetPasswordContent() {
     }
 
     try {
-      await resetPasswordMutation.mutateAsync({
-        uid,
-        token,
-        newPassword: password,
-      });
+      await resetPasswordMutation.mutateAsync({ uid, token, newPassword: password });
       setSuccess(true);
       setPassword('');
       setConfirmPassword('');
@@ -68,74 +56,106 @@ function ResetPasswordContent() {
   };
 
   return (
-    <PageLayout centered>
-      <div className="w-full max-w-md">
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('auth.resetPassword.title')}</CardTitle>
-            <CardDescription>{t('auth.resetPassword.description')}</CardDescription>
-          </CardHeader>
-          <form onSubmit={handleSubmit}>
-            <CardContent className="space-y-4">
-              {clientError && <MessageAlert message={clientError} type="error" />}
-              {error && <MessageAlert message={error} type="error" />}
-              {success && (
-                <MessageAlert
-                  message={t('auth.resetPassword.success')}
-                  type="success"
-                />
-              )}
-              <div className="space-y-2">
-                <Label htmlFor="password">{t('auth.resetPassword.newPassword')}</Label>
-                <Input
-                  id="password"
-                  name="password"
-                  type="password"
-                  required
-                  minLength={8}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder={t('auth.resetPassword.newPasswordPlaceholder')}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword">{t('auth.resetPassword.confirmPassword')}</Label>
-                <Input
-                  id="confirmPassword"
-                  name="confirmPassword"
-                  type="password"
-                  required
-                  minLength={8}
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder={t('auth.resetPassword.confirmPasswordPlaceholder')}
-                />
-              </div>
-            </CardContent>
-            <CardFooter className="flex flex-col space-y-4 pt-4">
-              <Button type="submit" className="w-full" disabled={resetPasswordMutation.isPending}>
-                {resetPasswordMutation.isPending ? t('auth.resetPassword.submitting') : t('auth.resetPassword.submit')}
-              </Button>
-              <Link href="/login" className="text-center text-sm text-blue-600 hover:underline">
-                {t('auth.resetPassword.backToLogin')}
-              </Link>
-            </CardFooter>
-          </form>
-        </Card>
+    <AuthLayout>
+      <Link
+        href="/login"
+        className="inline-flex items-center text-[#00652c] font-bold text-sm mb-12 hover:opacity-80 transition-opacity"
+      >
+        <ArrowLeft className="mr-2 w-4 h-4" />
+        {t('auth.resetPassword.backToLogin')}
+      </Link>
+
+      <div className="space-y-6">
+        <AuthPageIntro
+          badge={t('auth.resetPassword.badge')}
+          title={t('auth.resetPassword.title')}
+          description={t('auth.resetPassword.description')}
+        />
+
+        {(clientError || error) && (
+          <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600">
+            {clientError ?? error}
+          </div>
+        )}
+        {success && (
+          <div className="p-3 bg-green-50 border border-green-200 rounded-xl text-sm text-green-700">
+            {t('auth.resetPassword.success')}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div className="space-y-2">
+            <label className="block text-xs font-bold text-gray-900 uppercase tracking-widest" htmlFor="password">
+              {t('auth.resetPassword.newPassword')}
+            </label>
+            <div className="relative group">
+              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#00652c] transition-colors w-4 h-4" />
+              <input
+                id="password"
+                type="password"
+                required
+                minLength={8}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder={t('auth.resetPassword.newPasswordPlaceholder')}
+                className="w-full pl-12 pr-4 py-4 bg-[#faf2eb] border-2 border-transparent rounded-xl focus:border-[#00652c] focus:bg-white focus:ring-0 transition-all text-gray-900 placeholder:text-gray-400 outline-none"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="block text-xs font-bold text-gray-900 uppercase tracking-widest" htmlFor="confirmPassword">
+              {t('auth.resetPassword.confirmPassword')}
+            </label>
+            <div className="relative group">
+              <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#00652c] transition-colors w-4 h-4" />
+              <input
+                id="confirmPassword"
+                type="password"
+                required
+                minLength={8}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder={t('auth.resetPassword.confirmPasswordPlaceholder')}
+                className="w-full pl-12 pr-4 py-4 bg-[#faf2eb] border-2 border-transparent rounded-xl focus:border-[#00652c] focus:bg-white focus:ring-0 transition-all text-gray-900 placeholder:text-gray-400 outline-none"
+              />
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={resetPasswordMutation.isPending}
+            className="w-full py-4 bg-[#00652c] hover:bg-[#15803d] text-white font-bold rounded-xl shadow-lg shadow-[#00652c]/10 transition-all active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {resetPasswordMutation.isPending ? (
+              <><InlineSpinner className="w-4 h-4" />{t('auth.resetPassword.submitting')}</>
+            ) : t('auth.resetPassword.submit')}
+          </button>
+        </form>
+
+        {success && (
+          <div className="text-center">
+            <Link href="/login" className="text-[#00652c] font-bold text-sm hover:underline">
+              {t('auth.resetPassword.backToLogin')}
+            </Link>
+          </div>
+        )}
       </div>
-    </PageLayout>
+
+      <AuthPageFooter bordered align="left" />
+    </AuthLayout>
   );
 }
 
 export default function ResetPasswordPage() {
   return (
-    <Suspense
-      fallback={
-        <PageLayout centered>
+    <Suspense fallback={
+      <AuthLayout>
+        <div className="flex items-center justify-center h-full">
           <LoadingSpinner />
-        </PageLayout>
-      }
-    >
+        </div>
+      </AuthLayout>
+    }>
       <ResetPasswordContent />
     </Suspense>
   );

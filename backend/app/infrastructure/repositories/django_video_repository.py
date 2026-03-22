@@ -11,6 +11,7 @@ from django.db.models import Count, Max, Prefetch
 from app.domain.video.dto import (
     CreateGroupParams,
     CreateTagParams,
+    CreateVideoPendingParams,
     CreateVideoParams,
     UpdateGroupParams,
     UpdateTagParams,
@@ -174,6 +175,23 @@ class DjangoVideoRepository(VideoRepository):
             queryset = queryset.order_by(ordering_map[search.sort_key])
 
         return [_video_to_entity(v) for v in queryset]
+
+    def create_pending(self, user_id: int, params: CreateVideoPendingParams) -> VideoEntity:
+        video = Video.objects.create(
+            user_id=user_id,
+            file=params.file_key,
+            title=params.title,
+            description=params.description,
+            status="uploading",
+        )
+        video = (
+            Video.objects.filter(pk=video.pk)
+            .prefetch_related(
+                Prefetch("video_tags", queryset=VideoTag.objects.select_related("tag"))
+            )
+            .get()
+        )
+        return _video_to_entity(video)
 
     def create(self, user_id: int, params: CreateVideoParams) -> VideoEntity:
         video = Video.objects.create(

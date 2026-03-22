@@ -38,6 +38,22 @@ class GetCurrentUserUseCaseTests(unittest.TestCase):
         self.assertEqual(result.username, "u1")
         self.assertEqual(result.video_count, 3)
 
+    def test_current_user_includes_max_video_upload_size_mb(self):
+        user = UserEntity(
+            id=1,
+            username="u1",
+            email="u1@example.com",
+            is_active=True,
+            video_limit=10,
+            max_video_upload_size_mb=1000,
+            video_count=3,
+        )
+        use_case = GetCurrentUserUseCase(_StubUserRepository(with_count=user))
+
+        result = use_case.execute(1)
+
+        self.assertEqual(result.max_video_upload_size_mb, 1000)
+
     def test_execute_raises_resource_not_found_when_missing(self):
         use_case = GetCurrentUserUseCase(_StubUserRepository(with_count=None))
 

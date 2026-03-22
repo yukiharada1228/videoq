@@ -16,6 +16,19 @@ class ChatRequestSerializer(serializers.Serializer):
     group_id = serializers.IntegerField(required=False, allow_null=True)
 
 
+# OpenAI Chat Completions API compatible serializers
+class OpenAIChatRequestSerializer(serializers.Serializer):
+    model = serializers.CharField(default="videoq")
+    messages = MessageSerializer(many=True)
+    group_id = serializers.IntegerField(required=False, allow_null=True)
+    # Standard OpenAI fields accepted but ignored
+    temperature = serializers.FloatField(required=False)
+    max_tokens = serializers.IntegerField(required=False)
+    top_p = serializers.FloatField(required=False)
+    stream = serializers.BooleanField(required=False, default=False)
+    language = serializers.CharField(required=False, allow_null=True)
+
+
 class ChatResponseSerializer(serializers.Serializer):
     role = serializers.CharField()
     content = serializers.CharField()

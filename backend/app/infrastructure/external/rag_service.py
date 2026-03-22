@@ -7,7 +7,6 @@ from dataclasses import dataclass
 from operator import itemgetter
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, cast
 
-from django.conf import settings
 from langchain_core.messages import AIMessage
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnableLambda, RunnableParallel
@@ -33,9 +32,10 @@ class RagChatResult:
 class RagChatService:
     """Service class that handles RAG logic for chat."""
 
-    def __init__(self, user, llm=None):
+    def __init__(self, user, llm=None, api_key=None):
         self.user = user
         self.llm = llm
+        self._api_key = api_key
         self.prompt = ChatPromptTemplate.from_messages(
             [
                 ("system", "{system_prompt}"),
@@ -197,8 +197,5 @@ class RagChatService:
         }
 
     def _create_vector_store(self) -> PGVectorStore:
-        api_key = None
-        if settings.EMBEDDING_PROVIDER == "openai":
-            api_key = settings.OPENAI_API_KEY
-        embeddings = get_embeddings(api_key)
+        embeddings = get_embeddings(self._api_key)
         return PGVectorManager.create_vectorstore(embeddings)

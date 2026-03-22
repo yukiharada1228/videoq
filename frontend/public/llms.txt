@@ -1,0 +1,22 @@
+# VideoQ
+
+> VideoQはAI動画ナビゲーターです。教育者・学習者向けの動画学習プラットフォームで、動画をアップロードするとOpenAI Whisperで高精度な自動文字起こしが行われ、PGVectorを使ったRAGチャットで動画の内容に自然言語で質問できます。OpenAI互換APIエンドポイントとMCPサーバー統合も提供します。
+
+VideoQ is an AI-powered video learning platform designed for educators and learners. Upload video files to receive automatic, high-accuracy transcriptions via OpenAI Whisper. Once transcribed, query the video content through a RAG (Retrieval-Augmented Generation) chat interface backed by PGVector semantic search. VideoQ exposes an OpenAI-compatible API endpoint (/api/v1/chat/completions), enabling any existing OpenAI client or SDK to interact with your video library without code changes. It also supports MCP (Model Context Protocol) server integration for use with Claude Desktop and other AI agent clients. A built-in educational analytics dashboard provides keyword cloud visualizations and question trend analysis to help instructors understand how learners engage with video content. Both Japanese and English interfaces are fully supported.
+
+## 主な機能 / Key Features
+
+- 動画の自動文字起こし（OpenAI Whisper）/ Automatic video transcription via OpenAI Whisper
+- RAGチャット：動画の内容に自然言語で質問 / RAG chat: ask questions about video content in natural language
+- OpenAI互換APIエンドポイント（/api/v1/chat/completions）/ OpenAI-compatible API endpoint
+- MCPサーバー統合対応（Claude Desktop など）/ MCP server integration (Claude Desktop and more)
+- 動画グループとパブリック共有リンク / Video groups and public share links
+- 教育分析ダッシュボード（キーワードクラウド、質問トレンド）/ Educational analytics dashboard (keyword cloud, question trends)
+- マルチロケール対応（日本語・英語）/ Multi-locale support (Japanese and English)
+
+## ドキュメント / Documentation
+
+- [認証 API / Authentication API](https://videoq.jp/docs/auth)
+- [動画 API / Video API](https://videoq.jp/docs/videos)
+- [チャット API / Chat API](https://videoq.jp/docs/chat)
+- [OpenAI互換 API / OpenAI-Compatible API](https://videoq.jp/docs/openai)

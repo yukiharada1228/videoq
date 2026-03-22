@@ -4,10 +4,114 @@
     <meta charset="UTF-8" />
     <link rel="icon" href="/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>VideoQ</title>
+    <title>VideoQ — あらゆるビデオを、最高の学びの体験へ</title>
+    <meta name="description" content="VideoQは動画をAIで検索・質問できる学習プラットフォームです。Whisperで自動文字起こし、RAGチャットで動画の内容に自然言語で質問できます。OpenAI互換API対応。" />
+    <link rel="canonical" href="https://videoq.jp/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://videoq.jp/" />
+    <meta property="og:title" content="VideoQ — あらゆるビデオを、最高の学びの体験へ" />
+    <meta property="og:description" content="動画をアップロードしてAIで自動文字起こし。動画の内容にチャットで質問できる教育向けプラットフォーム。OpenAI互換API対応。" />
+    <meta property="og:site_name" content="VideoQ" />
+    <meta property="og:locale" content="ja_JP" />
+    <meta property="og:locale:alternate" content="en_US" />
+    <meta property="og:image" content="https://videoq.jp/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="VideoQ — AI動画ナビゲーター" />
+    <meta name="twitter:description" content="動画をアップロードしてAIで自動文字起こし。動画の内容にチャットで質問できる教育向けプラットフォーム。" />
+    <meta name="twitter:image" content="https://videoq.jp/og-image.png" />
+    <link rel="alternate" hreflang="ja" href="https://videoq.jp/ja/" />
+    <link rel="alternate" hreflang="en" href="https://videoq.jp/" />
+    <link rel="alternate" hreflang="x-default" href="https://videoq.jp/" />
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "WebSite",
+          "@id": "https://videoq.jp/#website",
+          "url": "https://videoq.jp/",
+          "name": "VideoQ",
+          "description": "AI動画ナビゲーター。動画をアップロードしてWhisperで自動文字起こし、RAGチャットで動画の内容に自然言語で質問できます。",
+          "inLanguage": ["ja", "en"],
+          "publisher": { "@id": "https://videoq.jp/#organization" }
+        },
+        {
+          "@type": "Organization",
+          "@id": "https://videoq.jp/#organization",
+          "name": "VideoQ",
+          "url": "https://videoq.jp/",
+          "logo": {
+            "@type": "ImageObject",
+            "url": "https://videoq.jp/logo.png",
+            "width": 512,
+            "height": 512
+          },
+          "sameAs": [
+            "https://github.com/yukiharada1228/videoq"
+          ]
+        },
+        {
+          "@type": "SoftwareApplication",
+          "@id": "https://videoq.jp/#app",
+          "name": "VideoQ",
+          "url": "https://videoq.jp/",
+          "applicationCategory": "MultimediaApplication",
+          "operatingSystem": "Web, Docker",
+          "description": "動画をアップロードしてOpenAI Whisperで自動文字起こし。PGVector RAGで動画の内容にチャットで質問できます。OpenAI互換APIエンドポイント対応。教育者向け動画学習プラットフォーム。",
+          "inLanguage": ["ja", "en"],
+          "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "JPY"
+          },
+          "publisher": { "@id": "https://videoq.jp/#organization" }
+        }
+      ]
+    }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Be+Vietnam+Pro:wght@400;500;600&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'" />
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Be+Vietnam+Pro:wght@400;500;600&display=swap" /></noscript>
   </head>
   <body>
     <div id="root"></div>
+    <noscript>
+      <div lang="ja">
+        <h1>VideoQ — AI動画ナビゲーター</h1>
+        <p>VideoQは、教育者・学習者向けのAI動画学習プラットフォームです。動画をアップロードするとOpenAI Whisperによる高精度な自動文字起こしが行われ、文字起こしテキストを基にしたRAGチャットで動画の内容に自然言語で質問できます。</p>
+        <p>OpenAI互換APIエンドポイント（/api/v1/chat/completions）を提供しており、既存のOpenAIクライアントやSDKからそのまま利用できます。Claude DesktopなどのMCPクライアントとの統合にも対応しています。</p>
+        <h2>主な機能</h2>
+        <ul>
+          <li>動画の自動文字起こし（OpenAI Whisper）</li>
+          <li>RAGチャット：動画の内容に自然言語で質問</li>
+          <li>OpenAI互換APIエンドポイント（/api/v1/chat/completions）</li>
+          <li>MCPサーバー統合（Claude Desktop など）</li>
+          <li>動画グループとパブリック共有リンク</li>
+          <li>教育分析ダッシュボード（キーワードクラウド、質問トレンド）</li>
+          <li>日本語・英語のマルチロケール対応</li>
+        </ul>
+        <p><a href="https://videoq.jp/signup">無料で始める</a> | <a href="https://videoq.jp/docs">開発者ドキュメント</a></p>
+      </div>
+      <div lang="en">
+        <h2>VideoQ — AI Video Navigator</h2>
+        <p>VideoQ is an AI-powered video learning platform for educators and learners. Upload your video files to get automatic, high-accuracy transcriptions powered by OpenAI Whisper. Once transcribed, you can ask questions about the video content in natural language through a RAG (Retrieval-Augmented Generation) chat interface grounded in the transcript text.</p>
+        <p>VideoQ provides an OpenAI-compatible API endpoint (/api/v1/chat/completions) so you can use any existing OpenAI client or SDK to interact with your video library. It also supports MCP (Model Context Protocol) server integration for use with Claude Desktop and other MCP clients.</p>
+        <h2>Key Features</h2>
+        <ul>
+          <li>Automatic video transcription via OpenAI Whisper</li>
+          <li>RAG chat: ask questions about video content in natural language</li>
+          <li>OpenAI-compatible API endpoint (/api/v1/chat/completions)</li>
+          <li>MCP server integration (Claude Desktop and more)</li>
+          <li>Video groups and public share links</li>
+          <li>Educational analytics dashboard (keyword cloud, question trends)</li>
+          <li>Multi-locale support (Japanese and English)</li>
+        </ul>
+        <p><a href="https://videoq.jp/signup">Get Started for Free</a> | <a href="https://videoq.jp/docs">Developer Docs</a></p>
+      </div>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

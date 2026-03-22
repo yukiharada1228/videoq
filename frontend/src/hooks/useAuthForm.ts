@@ -10,7 +10,7 @@ interface UseAuthFormProps<T> {
 interface UseAuthFormReturn<T> {
   formData: T;
   error: string | null;
-  loading: boolean;
+  isLoading: boolean;
   setError: (error: string | null) => void;
   handleChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleSubmit: (e: React.FormEvent) => Promise<void>;
@@ -54,7 +54,7 @@ export function useAuthForm<T extends Record<string, unknown>>({
   return {
     formData,
     error,
-    loading: submitMutation.isPending,
+    isLoading: submitMutation.isPending,
     setError,
     handleChange,
     handleSubmit,

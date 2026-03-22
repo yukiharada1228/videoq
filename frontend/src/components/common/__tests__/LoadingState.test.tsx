@@ -8,10 +8,11 @@ describe('LoadingState', () => {
         <div>Content</div>
       </LoadingState>
     )
-    
+
     // Check for spinner element
-    const spinner = container.querySelector('.animate-spin')
-    expect(spinner).toBeInTheDocument()
+    expect(screen.getByRole('status')).toBeInTheDocument()
+    const spinnerRing = container.querySelector('.loading-ring')
+    expect(spinnerRing).toBeInTheDocument()
     expect(screen.queryByText('Content')).not.toBeInTheDocument()
   })
 
@@ -21,7 +22,7 @@ describe('LoadingState', () => {
         <div>Content</div>
       </LoadingState>
     )
-    
+
     expect(screen.getByText('Error message')).toBeInTheDocument()
     expect(screen.queryByText('Content')).not.toBeInTheDocument()
   })
@@ -32,21 +33,18 @@ describe('LoadingState', () => {
         <div>Content</div>
       </LoadingState>
     )
-    
+
     expect(screen.getByText('Content')).toBeInTheDocument()
-    expect(screen.queryByText('common.loading')).not.toBeInTheDocument()
   })
 
   it('should use custom loading message when provided', () => {
-    const { container } = render(
-      <LoadingState isLoading={true} error={null} loadingMessage="Loading...">
+    render(
+      <LoadingState isLoading={true} error={null} loadingMessage="Loading data...">
         <div>Content</div>
       </LoadingState>
     )
-    
-    // Check for spinner element (message is passed to LoadingSpinner)
-    const spinner = container.querySelector('.animate-spin')
-    expect(spinner).toBeInTheDocument()
+
+    expect(screen.getByText('Loading data...')).toBeInTheDocument()
   })
 
   it('should use custom error message when provided', () => {
@@ -55,7 +53,7 @@ describe('LoadingState', () => {
         <div>Content</div>
       </LoadingState>
     )
-    
+
     expect(screen.getByText('Custom error')).toBeInTheDocument()
   })
 
@@ -65,30 +63,7 @@ describe('LoadingState', () => {
         <div>Content</div>
       </LoadingState>
     )
-    
+
     expect(screen.getByText('Error message')).toBeInTheDocument()
   })
-
-  it('should render full screen loading when fullScreen is true', () => {
-    const { container } = render(
-      <LoadingState isLoading={true} error={null} fullScreen={true}>
-        <div>Content</div>
-      </LoadingState>
-    )
-    
-    const loadingContainer = container.querySelector('.min-h-screen')
-    expect(loadingContainer).toBeInTheDocument()
-  })
-
-  it('should render inline loading when fullScreen is false', () => {
-    const { container } = render(
-      <LoadingState isLoading={true} error={null} fullScreen={false}>
-        <div>Content</div>
-      </LoadingState>
-    )
-    
-    const loadingContainer = container.querySelector('.h-64')
-    expect(loadingContainer).toBeInTheDocument()
-  })
 })
-

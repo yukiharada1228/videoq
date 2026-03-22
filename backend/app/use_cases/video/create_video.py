@@ -11,7 +11,7 @@ from app.domain.video.dto import CreateVideoParams
 from app.domain.video.gateways import VideoTaskGateway
 from app.domain.video.repositories import VideoRepository
 from app.use_cases.video.dto import CreateVideoInput, VideoResponseDTO
-from app.use_cases.video.exceptions import ResourceNotFound, VideoLimitExceeded
+from app.use_cases.video.exceptions import FileSizeExceeded, ResourceNotFound, VideoLimitExceeded
 from app.use_cases.video.file_url import to_video_response_dto
 
 logger = logging.getLogger(__name__)
@@ -53,6 +53,11 @@ class CreateVideoUseCase:
         user = self.user_repo.get_by_id(user_id)
         if user is None:
             raise ResourceNotFound("User")
+
+        if input.file_size > 0:
+            max_upload_bytes = user.get_max_upload_size_bytes()
+            if input.file_size > max_upload_bytes:
+                raise FileSizeExceeded(user.max_video_upload_size_mb)
 
         with self.tx.atomic():
             current_count = self.video_repo.count_for_user(user_id)

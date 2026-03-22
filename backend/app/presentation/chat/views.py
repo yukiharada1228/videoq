@@ -4,6 +4,8 @@ Views are thin HTTP adapters that delegate to use cases.
 """
 
 import csv
+import time
+import uuid
 
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
@@ -12,7 +14,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from app.presentation.common.authentication import APIKeyAuthentication, CookieJWTAuthentication
+from app.presentation.common.authentication import APIKeyAuthentication, BearerAPIKeyAuthentication, CookieJWTAuthentication
 from app.use_cases.chat.dto import ChatMessageInput
 from app.presentation.common.mixins import DependencyResolverMixin
 from app.presentation.common.permissions import (
@@ -46,6 +48,7 @@ from .serializers import (
     ChatResponseSerializer,
     ChatSearchRequestSerializer,
     ChatSearchResponseSerializer,
+    OpenAIChatRequestSerializer,
 )
 
 
@@ -447,3 +450,131 @@ class ChatAnalyticsView(DependencyResolverMixin, APIView):
                 for item in dto.keywords
             ],
         })
+
+
+class OpenAIChatCompletionsView(DependencyResolverMixin, APIView):
+    """OpenAI Chat Completions API compatible endpoint.
+
+    Accepts the standard OpenAI request shape and returns an OpenAI-compatible
+    response. videoq-specific fields (``group_id``, ``related_videos``,
+    ``chat_log_id``) are passed as extensions on the response message object.
+    """
+
+    authentication_classes = [BearerAPIKeyAuthentication, APIKeyAuthentication, CookieJWTAuthentication]
+    permission_classes = [IsAuthenticated, ApiKeyScopePermission]
+    required_scope = "chat_write"
+    throttle_classes = [AuthenticatedChatThrottle]
+    send_message_use_case = None
+
+    @extend_schema(
+        request=OpenAIChatRequestSerializer,
+        responses={
+            200: {
+                "type": "object",
+                "properties": {
+                    "id": {"type": "string"},
+                    "object": {"type": "string"},
+                    "created": {"type": "integer"},
+                    "model": {"type": "string"},
+                    "choices": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "index": {"type": "integer"},
+                                "message": {
+                                    "type": "object",
+                                    "properties": {
+                                        "role": {"type": "string"},
+                                        "content": {"type": "string"},
+                                        "related_videos": {"type": "array", "nullable": True},
+                                        "chat_log_id": {"type": "integer", "nullable": True},
+                                    },
+                                },
+                                "finish_reason": {"type": "string"},
+                            },
+                        },
+                    },
+                    "usage": {"type": "object"},
+                },
+            }
+        },
+        summary="OpenAI-compatible chat completions",
+        description=(
+            "OpenAI Chat Completions API compatible endpoint. "
+            "Pass ``group_id`` to enable RAG over a video group. "
+            "``related_videos`` and ``chat_log_id`` are returned as extensions "
+            "on ``choices[0].message``."
+        ),
+    )
+    def post(self, request):
+        serializer = OpenAIChatRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        model = serializer.validated_data.get("model", "videoq")
+        group_id = serializer.validated_data.get("group_id")
+        language = serializer.validated_data.get("language")
+        locale = language or _get_locale(request)
+        validated_messages = serializer.validated_data.get("messages", [])
+        message_dtos = [
+            ChatMessageInput(role=m["role"], content=m["content"])
+            for m in validated_messages
+        ]
+
+        use_case = self.resolve_dependency(self.send_message_use_case)
+        try:
+            result = use_case.execute(
+                user_id=request.user.id,
+                messages=message_dtos,
+                group_id=group_id,
+                locale=locale,
+            )
+        except InvalidChatRequestError as e:
+            return self._error(str(e), "invalid_request_error", status.HTTP_400_BAD_REQUEST)
+        except ResourceNotFound as e:
+            return self._error(str(e), "invalid_request_error", status.HTTP_404_NOT_FOUND)
+        except PermissionDenied as e:
+            return self._error(str(e), "permission_denied", status.HTTP_403_FORBIDDEN)
+        except LLMConfigurationError as e:
+            return self._error(str(e), "invalid_request_error", status.HTTP_400_BAD_REQUEST)
+        except LLMProviderError as e:
+            return self._error(str(e), "api_error", status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        message: dict = {"role": "assistant", "content": result.content}
+        if result.related_videos:
+            message["related_videos"] = [
+                {
+                    "video_id": v.video_id,
+                    "title": v.title,
+                    "start_time": v.start_time,
+                    "end_time": v.end_time,
+                }
+                for v in result.related_videos
+            ]
+        if result.chat_log_id is not None:
+            message["chat_log_id"] = result.chat_log_id
+
+        return Response({
+            "id": f"chatcmpl-{uuid.uuid4().hex}",
+            "object": "chat.completion",
+            "created": int(time.time()),
+            "model": model,
+            "choices": [
+                {
+                    "index": 0,
+                    "message": message,
+                    "finish_reason": "stop",
+                }
+            ],
+            "usage": {
+                "prompt_tokens": 0,
+                "completion_tokens": 0,
+                "total_tokens": 0,
+            },
+        })
+
+    def _error(self, message: str, error_type: str, http_status: int) -> Response:
+        return Response(
+            {"error": {"message": message, "type": error_type}},
+            status=http_status,
+        )

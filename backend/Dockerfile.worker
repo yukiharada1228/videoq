@@ -1,0 +1,32 @@
+# ── Worker Lambda (SQS トリガー) ─────────────────────────────────────────────
+# Lambda Runtime Interface Client (awslambdaric) が標準搭載されている
+# public.ecr.aws/lambda/python:3.12 ベースイメージを使用。
+# Celery ワーカーは起動せず、lambda_handler.py が SQS メッセージを
+# 直接タスク関数にディスパッチする。
+FROM public.ecr.aws/lambda/python:3.12
+
+ARG APP_HOME=/var/task
+WORKDIR ${APP_HOME}
+
+# ffmpeg: AL2023 最小イメージには tar/xz が未インストールのため先にインストール
+RUN dnf install -y tar xz && dnf clean all
+
+RUN curl -fsSL \
+    "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz" \
+    | tar -xJ --wildcards --strip-components=1 \
+        "ffmpeg-*-amd64-static/ffmpeg" \
+        "ffmpeg-*-amd64-static/ffprobe" \
+    && mv ffmpeg ffprobe /usr/local/bin/ \
+    && chmod +x /usr/local/bin/ffmpeg /usr/local/bin/ffprobe
+
+COPY requirements.txt ./
+RUN pip install --no-cache-dir --upgrade "pip>=26.0" \
+    && pip install --no-cache-dir -r requirements.txt
+
+RUN python -m nltk.downloader -d /usr/local/nltk_data \
+    averaged_perceptron_tagger_eng punkt_tab
+
+COPY . .
+
+# Lambda ハンドラー: lambda_handler.py の handler 関数
+CMD ["lambda_handler.handler"]

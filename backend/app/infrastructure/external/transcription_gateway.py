@@ -5,8 +5,6 @@ Handles audio extraction, Whisper transcription, and scene splitting.
 
 import logging
 
-from django.conf import settings
-
 from app.domain.video.gateways import TranscriptionGateway
 from app.infrastructure.transcription.audio_processing import extract_and_split_audio
 from app.infrastructure.transcription.srt_processing import (
@@ -24,7 +22,7 @@ class WhisperTranscriptionGateway(TranscriptionGateway):
     def __init__(self, video_file_accessor=None):
         self._video_file_accessor = video_file_accessor or DjangoVideoFileAccessor()
 
-    def run(self, video_id: int) -> str:
+    def run(self, video_id: int, api_key: str | None = None) -> str:
         from app.infrastructure.common.task_helpers import TemporaryFileManager
         from app.infrastructure.common.whisper_client import (
             WhisperConfig,
@@ -37,7 +35,6 @@ class WhisperTranscriptionGateway(TranscriptionGateway):
                 video_id, temp_manager
             )
 
-            api_key = settings.OPENAI_API_KEY
             whisper_config = WhisperConfig()
             client = create_whisper_client(api_key, whisper_config)
             whisper_model = get_whisper_model_name(whisper_config)

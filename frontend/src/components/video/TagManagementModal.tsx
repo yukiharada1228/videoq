@@ -6,11 +6,13 @@ import {
     DialogContent,
     DialogHeader,
     DialogTitle,
+    DialogDescription,
     DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { useTags } from '@/hooks/useTags';
-import { Trash2, Tag as TagIcon } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
+import { TagBadge } from '@/components/video/TagBadge';
 import { useState } from 'react';
 
 interface TagManagementModalProps {
@@ -37,11 +39,14 @@ export function TagManagementModal({ isOpen, onClose }: TagManagementModalProps)
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
                     <DialogTitle>{t('tags.management.title', 'Tag Management')}</DialogTitle>
+                    <DialogDescription>
+                        {t('tags.management.description', 'Review existing tags and remove tags you no longer need.')}
+                    </DialogDescription>
                 </DialogHeader>
 
                 <div className="space-y-4 max-h-[60vh] overflow-y-auto py-4">
                     {tags.length === 0 ? (
-                        <div className="text-center py-8 text-gray-500 text-sm">
+                        <div className="text-center py-8 text-[#6f7a6e] text-sm">
                             {t('tags.selector.noTags', 'No tags available')}
                         </div>
                     ) : (
@@ -49,14 +54,10 @@ export function TagManagementModal({ isOpen, onClose }: TagManagementModalProps)
                             {tags.map((tag) => (
                                 <div
                                     key={tag.id}
-                                    className="flex items-center justify-between p-3 rounded-lg border bg-card text-card-foreground shadow-sm"
+                                    className="flex items-center justify-between p-3 rounded-xl bg-[#f8faf5] border border-stone-100"
                                 >
                                     <div className="flex items-center gap-2">
-                                        <TagIcon
-                                            className="h-4 w-4"
-                                            style={{ color: tag.color }}
-                                        />
-                                        <span className="font-medium text-sm">{tag.name}</span>
+                                        <TagBadge tag={tag} size="sm" />
                                     </div>
 
                                     {deleteConfirmId === tag.id ? (
@@ -84,7 +85,7 @@ export function TagManagementModal({ isOpen, onClose }: TagManagementModalProps)
                                         <Button
                                             variant="ghost"
                                             size="icon"
-                                            className="h-8 w-8 text-gray-400 hover:text-red-500"
+                                            className="h-8 w-8 text-[#6f7a6e] hover:text-red-500"
                                             onClick={() => setDeleteConfirmId(tag.id)}
                                             data-testid={`delete-tag-${tag.id}`}
                                         >

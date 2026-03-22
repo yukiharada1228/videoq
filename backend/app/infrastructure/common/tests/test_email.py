@@ -49,7 +49,7 @@ class EmailVerificationTests(TestCase):
         self.assertEqual(len(mail.outbox), 1)
         email = mail.outbox[0]
         self.assertEqual(email.to, [self.user.email])
-        self.assertIn("Temporary Registration Complete", email.subject)
+        self.assertIn("[VideoQ] 仮登録が完了しました", email.subject)
         self.assertIn("verify-email", email.body)
 
     @patch("app.infrastructure.common.email.send_mail")
@@ -96,7 +96,7 @@ class PasswordResetEmailTests(TestCase):
         self.assertEqual(len(mail.outbox), 1)
         email = mail.outbox[0]
         self.assertEqual(email.to, [self.user.email])
-        self.assertIn("Password Reset Instructions", email.subject)
+        self.assertIn("[VideoQ] パスワード再設定のご案内", email.subject)
         self.assertIn("reset-password", email.body)
 
     @patch("app.infrastructure.common.email.send_mail")

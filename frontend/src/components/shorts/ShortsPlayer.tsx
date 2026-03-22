@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { X, Volume2, VolumeX, Play, MessageCircleQuestion } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -146,15 +147,13 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
       const startSeconds = timeStringToSeconds(scene.start_time);
       const endSeconds = timeStringToSeconds(scene.end_time);
       const end = endSeconds > startSeconds ? endSeconds : startSeconds + 0.001;
-      let src = '';
       let baseSrc = '';
       if (scene.file) {
         baseSrc = shareToken
           ? apiClient.getSharedVideoUrl(scene.file, shareToken)
           : apiClient.getVideoUrl(scene.file);
-        src = `${baseSrc}#t=${startSeconds},${end}`;
       }
-      return { startSeconds, endSeconds: end, src, baseSrc };
+      return { startSeconds, endSeconds: end, src: baseSrc, baseSrc };
     }),
     [scenes, shareToken]
   );
@@ -291,7 +290,7 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
   }, [currentMeta]);
 
   if (scenes.length === 0) {
-    return (
+    return createPortal(
       <div className="fixed inset-0 z-50 bg-black flex items-center justify-center">
         <div className="text-white text-center">
           <p className="text-lg">{t('shorts.noScenes')}</p>
@@ -299,17 +298,18 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
             {t('common.actions.close')}
           </Button>
         </div>
-      </div>
+      </div>,
+      document.body
     );
   }
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 bg-black overflow-hidden">
       <QuestionFlashcard question={currentQuestion} phase={questionPhase} />
 
       {/* Single video element that follows scroll */}
       <div
-        className="absolute inset-0 flex items-center justify-center pointer-events-none"
+        className="absolute inset-0 pointer-events-none overflow-hidden"
         style={{
           transform: `translateY(${videoOffset}px)`,
           transition: isScrolling ? 'none' : 'transform 0.1s ease-out',
@@ -319,7 +319,7 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
         {currentMeta?.src && (
           <video
             ref={videoRef}
-            className="max-h-full max-w-full object-contain"
+            className="absolute inset-0 h-full w-full object-cover"
             src={currentMeta.src}
             playsInline
             // @ts-expect-error - webkit-playsinline is needed for iOS Safari
@@ -373,7 +373,7 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
             key={`${scene.video_id}-${scene.start_time}`}
             ref={(el) => { if (el) { slideRefs.current.set(index, el); } else { slideRefs.current.delete(index); } }}
             data-index={index}
-            className="h-full w-full snap-start snap-always relative flex items-center justify-center"
+            className="h-full w-full snap-start snap-always relative"
           >
             {/* Scene info overlay */}
             <div className="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/80 to-transparent p-6 pb-8 pointer-events-none z-20">
@@ -391,6 +391,7 @@ export function ShortsPlayer({ scenes, shareToken, onClose }: ShortsPlayerProps)
           </div>
         ))}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

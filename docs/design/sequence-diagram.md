@@ -42,7 +42,7 @@ sequenceDiagram
         Celery->>PGVector: Vectorize and Save
         Celery->>DB: Update status(completed)
     else WHISPER_BACKEND=openai (default)
-        Note over Celery: Uses global OPENAI_API_KEY env var
+        Note over Celery: Uses user's saved OpenAI API Key from DB
         Celery->>Whisper: Send Audio File (OpenAI API)
         Whisper-->>Celery: Transcription Result
         Celery->>Celery: Convert to SRT Format
@@ -269,7 +269,7 @@ sequenceDiagram
         Celery->>Celery: Check EMBEDDING_PROVIDER
 
         alt EMBEDDING_PROVIDER=openai
-            Celery->>Celery: Get OPENAI_API_KEY (env var)
+            Celery->>DB: Get User's OpenAI API Key
             Celery->>Embeddings: Generate Embeddings (OpenAI API)
         else EMBEDDING_PROVIDER=ollama
             Celery->>Embeddings: Generate Embeddings (Local Ollama)

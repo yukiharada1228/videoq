@@ -20,6 +20,7 @@ def _to_entity(user, video_count: int = 0) -> UserEntity:
         email=user.email,
         is_active=user.is_active,
         video_limit=user.video_limit,
+        max_video_upload_size_mb=user.max_video_upload_size_mb,
         video_count=video_count,
     )
 

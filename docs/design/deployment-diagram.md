@@ -232,7 +232,6 @@ graph TB
         E11[FRONTEND_URL]
         E12[USE_S3_STORAGE]
         E13[AWS_*]
-        E14["OPENAI_API_KEY<br/>(required when using OpenAI services)"]
         E15[VITE_API_URL]
         E16["WHISPER_BACKEND<br/>(openai or whisper.cpp)"]
         E17["WHISPER_LOCAL_URL<br/>(local whisper.cpp server URL)"]
@@ -269,8 +268,6 @@ graph TB
     E11 --> C2
     E12 --> C2
     E13 --> C2
-    E14 --> C2
-    E14 --> C3
     E15 --> C4
     E16 --> C3
     E17 --> C3
@@ -288,58 +285,56 @@ graph TB
     E24 --> C3
 ```
 
-## オプション: スケーリング構成（本番環境例）
+## 本番環境: サーバーレス構成 (AWS)
 
-> 注記: デフォルトの `docker-compose.yml` はサービスごとに単一インスタンスで実行されます。
-> 以下の図は、本番環境でスケーリングする場合の例です。
+現在、本番環境のデプロイメントは **AWS CDK** および **Cloudflare** を利用したサーバーレスアーキテクチャで行われます。
+詳細なプロビジョニング手順や構成については `infra/DEPLOY.md` を参照してください。
 
 ```mermaid
 graph TB
-    subgraph LoadBalancer["Load Balancer"]
-        LB[Nginx]
+    subgraph AWSCloud["AWS Region (ap-northeast-1)"]
+        subgraph API_Layer["API Layer"]
+            APIGW[API Gateway HTTP API]
+            LambdaAPI[Lambda API (Django + LWA)]
+        end
+        
+        subgraph Worker_Layer["Worker Layer"]
+            SQS[Amazon SQS Queue]
+            LambdaWorker[Lambda Worker (Celery)]
+        end
+        
+        subgraph ECR["Container Registry"]
+            ECR_API[ECR: videoq-api-prod]
+            ECR_Worker[ECR: videoq-worker-prod]
+        end
+        
+        APIGW -->|Proxy| LambdaAPI
+        LambdaAPI -->|Publish Task| SQS
+        SQS -->|Trigger| LambdaWorker
+        
+        ECR_API -.->|Image| LambdaAPI
+        ECR_Worker -.->|Image| LambdaWorker
+    end
+
+    subgraph Cloudflare["Cloudflare Edge"]
+        R2[Cloudflare R2 Bucket<br>videoq-media-prod]
+        Pages[Cloudflare Pages<br>Frontend Application]
+    end
+
+    subgraph CDN["CDN"]
+        CF[CloudFront]
+    end
+
+    subgraph Neon["Neon.tech"]
+        NeonDB[(Neon Serverless<br>PostgreSQL)]
     end
     
-    subgraph FrontendInstances["Frontend Instances"]
-        F1[frontend-1]
-        F2[frontend-2]
-        F3[frontend-N]
-    end
-    
-    subgraph BackendInstances["Backend Instances"]
-        B1[backend-1]
-        B2[backend-2]
-        B3[backend-N]
-    end
-    
-    subgraph CeleryInstances["Celery Worker Instances"]
-        C1[celery-worker-1]
-        C2[celery-worker-2]
-        C3[celery-worker-N]
-    end
-    
-    subgraph SharedServices["Shared Services"]
-        DB[(PostgreSQL)]
-        Cache[(Redis)]
-    end
-    
-    LB --> F1
-    LB --> F2
-    LB --> F3
-    F1 --> B1
-    F2 --> B2
-    F3 --> B3
-    B1 --> DB
-    B2 --> DB
-    B3 --> DB
-    B1 --> Cache
-    B2 --> Cache
-    B3 --> Cache
-    C1 --> Cache
-    C2 --> Cache
-    C3 --> Cache
-    C1 --> DB
-    C2 --> DB
-    C3 --> DB
+    CF -->|/*| Pages
+    CF -->|/api/*| APIGW
+    LambdaAPI -->|PostgreSQL connection| NeonDB
+    LambdaWorker -->|PostgreSQL connection| NeonDB
+    LambdaAPI -->|S3 API| R2
+    LambdaWorker -->|S3 API| R2
 ```
 
 ---
@@ -351,3 +346,4 @@ graph TB
 - [コンポーネント図](component-diagram.md) — フロントエンド・バックエンドのコンポーネント構成
 - [データフロー図](../database/data-flow-diagram.md) — データの流れ
 - [シーケンス図](sequence-diagram.md) — 処理シーケンスの詳細
+

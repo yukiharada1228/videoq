@@ -44,7 +44,8 @@
       "title": "Title",
       "file": "File",
       "player": "Player",
-      "chat": "Chat"
+      "chat": "Chat",
+      "tag": "Tag"
     },
     "status": {
       "pending": "Pending",
@@ -74,7 +75,12 @@
       "videoFileMissing": "Video file is unavailable",
       "copyFailed": "Copy failed. Please copy it manually.",
       "noHistory": "No history available",
-      "loadingHistory": "Loading..."
+      "loadingHistory": "Loading...",
+      "noTags": "No tags",
+      "tagExists": "Tag already exists",
+      "tagCreated": "Tag created",
+      "tagUpdated": "Tag updated",
+      "tagDeleted": "Tag deleted"
     }
   },
   "tags": {
@@ -110,39 +116,46 @@
     }
   },
   "navigation": {
-    "brand": "VideoQ",
+    "home": "Home",
+    "videosNav": "Videos",
+    "groupsNav": "Groups",
     "docs": "Developer Docs",
-    "videos": "Videos",
-    "videoGroups": "Chat groups",
     "settings": "Settings",
-    "logout": "Log out",
-    "welcome": "Welcome, {{username}}",
-    "openMenu": "Open menu"
+    "logout": "Log out"
   },
   "layout": {
-    "footer": {
-      "copyright": "© {{year}} VideoQ. Released under the MIT License."
-    }
+    "authBranding": {
+      "tagline": "Transform every video into the ultimate learning experience"
+    },
+    "authFooter": "© {{year}} VideoQ - Every learning moment"
   },
   "home": {
     "welcome": {
       "title": "Welcome back!",
-      "subtitle": "Welcome back, {{username}}!"
+      "subtitle": "Welcome back, {{username}}!",
+      "greeting": "Welcome back, {{username}}!",
+      "dailyMotivation": "Let's deliver another great lesson today 🌱"
     },
     "actions": {
       "upload": {
         "title": "Upload video",
-        "description": "Upload and manage new videos"
+        "description": "Upload and manage new videos",
+        "descriptionLong": "Add a new lesson and start AI analysis.",
+        "linkLabel": "Get started"
       },
       "library": {
         "title": "Video library",
         "description_one": "{{count}} video",
-        "description_other": "{{count}} videos"
+        "description_other": "{{count}} videos",
+        "descriptionLong": "Manage, edit, and share {{count}} videos.",
+        "linkLabel": "View library"
       },
       "groups": {
-        "title": "Chat groups",
+        "title": "Group management",
         "description_one": "{{count}} group",
-        "description_other": "{{count}} groups"
+        "description_other": "{{count}} groups",
+        "descriptionLong": "Manage {{count}} groups and track progress.",
+        "linkLabel": "Manage"
       }
     },
     "stats": {
@@ -150,7 +163,20 @@
       "pending": "Pending",
       "processing": "Processing",
       "indexing": "Indexing",
-      "error": "Error"
+      "error": "Error",
+      "totalVideos": "Total Videos",
+      "analysisCompleted": "Analysis Completed",
+      "groups": "Groups",
+      "videoCount": "{{count}} videos",
+      "groupCount": "{{count}} groups"
+    },
+    "recentVideos": {
+      "title": "Recently Uploaded",
+      "viewAll": "View all"
+    },
+    "tips": {
+      "hint": "Tip",
+      "message": "Grouping videos makes it easier to manage lesson series."
     },
     "account": {
       "username": "Username",
@@ -192,6 +218,28 @@
         "processing": "Processing",
         "indexing": "Indexing"
       },
+      "statsRow": {
+        "all": "All",
+        "completed": "Completed",
+        "pending": "Pending",
+        "processing": "Processing",
+        "indexing": "Indexing"
+      },
+      "searchPlaceholder": "Search videos...",
+      "sortLabel": "Sort by:",
+      "sort": {
+        "uploadedDesc": "Upload date ↓",
+        "uploadedAsc": "Upload date ↑",
+        "titleAsc": "Title (A-Z)"
+      },
+      "filter": {
+        "all": "All",
+        "completed": "Analysis completed",
+        "processing": "Processing",
+        "error": "Error"
+      },
+      "manageTags": "Manage tags",
+      "managingCount": "Managing {{count}} videos",
       "noVideos": "No videos yet",
       "noVideosHint": "Use the \"Upload video\" button above to add videos.",
       "loading": "Loading...",
@@ -226,7 +274,7 @@
         "noFile": "Please select a file",
         "noTitle": "Please enter a title",
         "invalidFileType": "Please select a supported video file",
-        "fileTooLarge": "The selected file exceeds the upload size limit",
+        "fileTooLarge": "The selected file exceeds the upload size limit ({{max_size_mb}} MB)",
         "generic": "Validation error"
       }
     },
@@ -252,10 +300,34 @@
       "cancel": "Cancel",
       "noVideo": "Video not found",
       "videoUnavailable": "Video file is unavailable",
-      "deleteConfirm": "Are you sure you want to delete this video?"
+      "deleteConfirm": "Are you sure you want to delete this video?",
+      "editMode": "Edit mode",
+      "backToLibrary": "Back to video library",
+      "videosBreadcrumb": "Videos",
+      "editButton": "Edit",
+      "deleteButton": "Delete",
+      "transcriptSection": "Transcript",
+      "transcriptSearchPlaceholder": "Search transcript...",
+      "statusSection": "Status",
+      "transcriptNotFound": "No results found",
+      "pipeline": {
+        "upload": "Upload",
+        "transcript": "Transcription",
+        "aiAnalysis": "AI Analysis"
+      },
+      "transcriptStatus": {
+        "pending": "Waiting for transcription...",
+        "processing": "Processing transcription...",
+        "indexing": "Building index...",
+        "error": "Transcription failed",
+        "unavailable": "No transcript yet"
+      }
     },
     "groups": {
       "title": "Chat groups",
+      "subtitle": "Manage and share your learning content in groups",
+      "emptyDescription": "Group videos together to manage your learning efficiently",
+      "optional": "(optional)",
       "create": "Create chat group",
       "createTitle": "Create chat group",
       "createDescription": "Enter a name and description for the chat group.",
@@ -323,6 +395,19 @@
       "videoNoFile": "Video file is unavailable",
       "videoListTitle": "Videos",
       "videoListEmpty": "No videos yet",
+      "videoCount": "{{count}} videos",
+      "nextVideo": "Next video:",
+      "addVideoButton": "Add video",
+      "backToGroups": "Back to groups",
+      "editTitle": "Edit group",
+      "breadcrumbGroups": "Video groups",
+      "shareLinkLabel": "Share link:",
+      "copyButton": "Copy",
+      "status": {
+        "completed": "Completed",
+        "error": "Error",
+        "processing": "Processing"
+      },
       "remove": "Remove",
       "deleteError": "Failed to delete the chat group"
     },
@@ -337,15 +422,20 @@
       "playerPlaceholder": "Select a video from the list",
       "videoNoFile": "Video file is unavailable",
       "noVideos": "No videos yet",
-      "noDescription": "No description"
+      "noDescription": "No description",
+      "publicBadge": "Public share link",
+      "videoCountSuffix": " videos"
     }
   },
   "auth": {
     "login": {
       "title": "Sign in",
       "description": "Sign in to access the service.",
+      "badge": "Welcome back",
       "submit": "Sign in",
       "submitting": "Signing in...",
+      "rememberMe": "Stay signed in",
+      "orDivider": "or",
       "footerQuestion": "Don't have an account?",
       "footerLink": "Register here",
       "forgotPassword": "Forgot your password?"
@@ -353,13 +443,17 @@
     "signup": {
       "title": "Create account",
       "description": "Create a new account to start using the service.",
+      "badge": "Welcome",
       "submit": "Create account",
       "submitting": "Creating...",
+      "orDivider": "or",
+      "passwordPlaceholder": "At least 8 characters",
       "footerQuestion": "Already have an account?",
       "footerLink": "Sign in here",
       "passwordMismatch": "Passwords do not match"
     },
     "checkEmail": {
+      "badge": "Account registration",
       "title": "Check your email",
       "description": "We sent a confirmation email to your inbox. Please open the link to complete your registration.",
       "alert": "Please open the confirmation link before it expires.",
@@ -367,6 +461,9 @@
       "backToLogin": "Back to sign-in"
     },
     "forgotPassword": {
+      "badge": "Password reset",
+      "noAccount": "Don't have an account?",
+      "signUp": "Sign up",
       "title": "Forgot your password?",
       "description": "Enter the email associated with your account and we'll send a password reset link.",
       "success": "We sent a password reset email. If you don't see it within a few minutes, please check your spam folder.",
@@ -375,6 +472,7 @@
       "backToLogin": "Back to sign-in"
     },
     "resetPassword": {
+      "badge": "Password reset",
       "title": "Set a new password",
       "description": "Enter a secure new password.",
       "invalidLink": "The reset link is invalid. Please request a new password reset.",
@@ -389,6 +487,7 @@
       "confirmPasswordPlaceholder": "Enter the same password again"
     },
     "verifyEmail": {
+      "badge": "Email verification",
       "title": "Email verification",
       "description": "We are confirming the email address associated with your account.",
       "loading": "Checking your email verification...",
@@ -424,6 +523,8 @@
   },
   "chat": {
     "title": "Chat",
+    "teacher": "Teacher",
+    "newConsultation": "New chat",
     "history": "Conversation history",
     "historyEmpty": "No history available",
     "historyLoading": "Loading...",
@@ -473,6 +574,7 @@
   },
   "settings": {
     "title": "Settings",
+    "subtitle": "Manage your account and integration settings",
     "accountDeletion": {
       "title": "Delete account",
       "description": "Deactivate your account and schedule all associated data for deletion.",
@@ -564,7 +666,8 @@
       "errorSaving": "Failed to save API key",
       "errorDeleting": "Failed to delete API key",
       "successSaved": "API key saved successfully",
-      "successDeleted": "API key deleted successfully"
+      "successDeleted": "API key deleted successfully",
+      "configured": "Configured"
     },
     "llm": {
       "title": "LLM Settings",
@@ -627,6 +730,20 @@
     }
   },
   "docs": {
+    "openai": {
+      "exampleTitle": "OpenAI SDK Examples",
+      "exampleDescription": "Sample code for accessing VideoQ RAG chat using the OpenAI SDK.",
+      "ragExample": {
+        "title": "RAG chat (video group reference)",
+        "description": "With group_id, the endpoint searches indexed video scenes to answer. related_videos and chat_log_id are returned as extension fields."
+      },
+      "code": {
+        "ragComment": "RAG chat targeting a video group via group_id",
+        "sampleQuestion": "What is a neural network?",
+        "relatedVideosComment": "VideoQ extension fields (referenced scenes and chat log ID)",
+        "language": "en"
+      }
+    },
     "backToHome": "Back to docs home",
     "api": {
       "loading": "Loading OpenAPI schema...",
@@ -649,13 +766,15 @@
       "subtitle": "Reference docs for integrating with VideoQ APIs and automations.",
       "quickLinksTitle": "Quick links",
       "quickLinksDescription": "Review the official API docs and issue an integration API key from Settings.",
-      "createApiKey": "Create API key in Settings"
+      "createApiKey": "Create API key in Settings",
+      "readMore": "Read more"
     },
     "section": {
       "checklistTitle": "Implementation checklist",
       "checklistDescription": "Validate these points before coding your integration.",
       "autoExampleTitle": "Auto-generated endpoint samples",
-      "autoExampleDescription": "These cURL examples are generated from /api/schema/."
+      "autoExampleDescription": "These cURL examples are generated from /api/schema/.",
+      "autoLabel": "Auto-generated"
     },
     "sections": {
       "auth": {
@@ -683,6 +802,15 @@
           "Send messages with group_id to target indexed videos",
           "Use Accept-Language when you need response language control",
           "Store chat_log_id and analytics outputs for downstream systems"
+        ]
+      },
+      "openai": {
+        "title": "OpenAI-Compatible API",
+        "description": "Access VideoQ RAG chat using the OpenAI SDK with no code changes.",
+        "bullets": [
+          "Authenticate with Authorization: Bearer <vq_...>",
+          "Pass language to control response language (defaults to English if omitted)",
+          "related_videos and chat_log_id are returned as extension fields on choices[0].message (access via msg.model_extra in Python SDK)"
         ]
       }
     }
