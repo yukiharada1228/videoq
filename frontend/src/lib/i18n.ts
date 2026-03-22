@@ -115,6 +115,7 @@ export function useLocaleSync() {
         i18n.changeLanguage(normalized);
       }
       setPreferredLocale(normalized);
+      document.documentElement.lang = normalized;
       return;
     }
 
@@ -122,6 +123,7 @@ export function useLocaleSync() {
     if (preferred !== i18n.language) {
       i18n.changeLanguage(preferred);
     }
+    document.documentElement.lang = preferred;
   }, [params.locale, i18n]);
 }
 
