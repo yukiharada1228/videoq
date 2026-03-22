@@ -458,6 +458,7 @@ describe('ChatPanel', () => {
     // Loading state shows a spinner, history is empty loading
     // The history view renders while loading
     expect(screen.queryByText('Test question')).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toBeInTheDocument()
   })
 
   it('should handle getChatHistory error', async () => {
