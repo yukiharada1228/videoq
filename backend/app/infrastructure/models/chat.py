@@ -18,7 +18,7 @@ class ChatLog(models.Model):
     )
     question = models.TextField()
     answer = models.TextField()
-    related_videos = models.JSONField(default=list, blank=True)
+    citations = models.JSONField(default=list, blank=True)
     is_shared_origin = models.BooleanField(default=False, db_index=True)
     feedback = models.CharField(
         max_length=4,

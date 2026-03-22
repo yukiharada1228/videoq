@@ -735,7 +735,7 @@
       "exampleDescription": "Sample code for accessing VideoQ RAG chat using the OpenAI SDK.",
       "ragExample": {
         "title": "RAG chat (video group reference)",
-        "description": "With group_id, the endpoint searches indexed video scenes to answer. related_videos and chat_log_id are returned as extension fields."
+        "description": "With group_id, the endpoint searches indexed video scenes to answer. citations and chat_log_id are returned as extension fields."
       },
       "code": {
         "ragComment": "RAG chat targeting a video group via group_id",
@@ -810,7 +810,7 @@
         "bullets": [
           "Authenticate with Authorization: Bearer <vq_...>",
           "Pass language to control response language (defaults to English if omitted)",
-          "related_videos and chat_log_id are returned as extension fields on choices[0].message (access via msg.model_extra in Python SDK)"
+          "citations and chat_log_id are returned as extension fields on choices[0].message (access via msg.model_extra in Python SDK)"
         ]
       }
     }

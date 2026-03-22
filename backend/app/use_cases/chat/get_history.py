@@ -7,7 +7,7 @@ from app.domain.chat.services import (
     GroupContextNotFound as _DomainGroupContextNotFound,
     require_group_context,
 )
-from app.use_cases.chat.dto import ChatLogResponseDTO, RelatedVideoResponseDTO
+from app.use_cases.chat.dto import ChatLogResponseDTO, CitationResponseDTO
 from app.use_cases.shared.exceptions import ResourceNotFound
 
 
@@ -46,14 +46,15 @@ class GetChatHistoryUseCase:
                 group_id=log.group_id,
                 question=log.question,
                 answer=log.answer,
-                related_videos=[
-                    RelatedVideoResponseDTO(
+                citations=[
+                    CitationResponseDTO(
+                        id=index,
                         video_id=video.video_id,
                         title=video.title,
                         start_time=video.start_time,
                         end_time=video.end_time,
                     )
-                    for video in log.related_videos
+                    for index, video in enumerate(log.citations, start=1)
                 ],
                 is_shared_origin=log.is_shared_origin,
                 feedback=log.feedback,

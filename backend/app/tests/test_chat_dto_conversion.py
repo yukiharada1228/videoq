@@ -3,9 +3,9 @@
 import unittest
 from unittest.mock import MagicMock
 
-from app.domain.chat.dtos import ChatMessageDTO, RelatedVideoDTO
+from app.domain.chat.dtos import ChatMessageDTO, CitationDTO
 from app.domain.chat.gateways import RagResult
-from app.use_cases.chat.dto import ChatMessageInput, RelatedVideoResponseDTO
+from app.use_cases.chat.dto import ChatMessageInput, CitationResponseDTO
 from app.use_cases.chat.send_message import SendMessageUseCase
 from app.use_cases.shared.exceptions import PermissionDenied
 
@@ -16,8 +16,8 @@ class ChatDTOTests(unittest.TestCase):
         self.assertEqual(inp.role, "user")
         self.assertEqual(inp.content, "hello")
 
-    def test_related_video_dto_fields(self):
-        dto = RelatedVideoDTO(
+    def test_citation_dto_fields(self):
+        dto = CitationDTO(
             video_id=42, title="Clip", start_time="00:01:00", end_time="00:01:20"
         )
         self.assertEqual(dto.video_id, 42)
@@ -45,7 +45,7 @@ class SendMessageUseCaseBoundaryTests(unittest.TestCase):
 
     def test_execute_converts_input_to_domain_dto_for_gateway(self):
         """UseCase must convert ChatMessageInput to ChatMessageDTO before calling rag_gateway."""
-        rag_result = RagResult(content="reply", query_text="q", related_videos=None)
+        rag_result = RagResult(content="reply", query_text="q", citations=None)
         use_case, _, _, rag_gateway = self._make_use_case(rag_result)
 
         message_inputs = [ChatMessageInput(role="user", content="hello")]
@@ -58,10 +58,10 @@ class SendMessageUseCaseBoundaryTests(unittest.TestCase):
             "rag_gateway must receive ChatMessageDTO instances converted from ChatMessageInput",
         )
 
-    def test_result_related_videos_are_use_case_dtos(self):
-        """SendMessageResultDTO.related_videos must contain RelatedVideoResponseDTO instances."""
-        related = [RelatedVideoDTO(video_id=1, title="T", start_time="0", end_time="1")]
-        rag_result = RagResult(content="reply", query_text="q", related_videos=related)
+    def test_result_citations_are_use_case_dtos(self):
+        """SendMessageResultDTO.citations must contain CitationResponseDTO instances."""
+        citations = [CitationDTO(video_id=1, title="T", start_time="0", end_time="1")]
+        rag_result = RagResult(content="reply", query_text="q", citations=citations)
         use_case, chat_repo, group_query_repo, _ = self._make_use_case(rag_result)
 
         group = MagicMock()
@@ -74,16 +74,16 @@ class SendMessageUseCaseBoundaryTests(unittest.TestCase):
         message_inputs = [ChatMessageInput(role="user", content="hello")]
         result = use_case.execute(user_id=1, messages=message_inputs, group_id=10)
 
-        self.assertIsNotNone(result.related_videos)
+        self.assertIsNotNone(result.citations)
         self.assertTrue(
-            all(isinstance(v, RelatedVideoResponseDTO) for v in result.related_videos),
-            "SendMessageResultDTO.related_videos must contain RelatedVideoResponseDTO instances",
+            all(isinstance(v, CitationResponseDTO) for v in result.citations),
+            "SendMessageResultDTO.citations must contain CitationResponseDTO instances",
         )
 
     def test_create_log_receives_dto_sequence(self):
-        """ChatRepository.create_log must be called with RelatedVideoDTO sequence, not dicts."""
-        related = [RelatedVideoDTO(video_id=2, title="V", start_time=None, end_time=None)]
-        rag_result = RagResult(content="reply", query_text="q", related_videos=related)
+        """ChatRepository.create_log must be called with CitationDTO sequence, not dicts."""
+        citations = [CitationDTO(video_id=2, title="V", start_time=None, end_time=None)]
+        rag_result = RagResult(content="reply", query_text="q", citations=citations)
         use_case, chat_repo, group_query_repo, _ = self._make_use_case(rag_result)
 
         group = MagicMock()
@@ -96,10 +96,10 @@ class SendMessageUseCaseBoundaryTests(unittest.TestCase):
         use_case.execute(user_id=1, messages=[ChatMessageInput(role="user", content="q")], group_id=5)
 
         call_kwargs = chat_repo.create_log.call_args[1]
-        passed_videos = call_kwargs["related_videos"]
+        passed_citations = call_kwargs["citations"]
         self.assertTrue(
-            all(isinstance(v, RelatedVideoDTO) for v in passed_videos),
-            "create_log must receive RelatedVideoDTO instances; dict conversion belongs in infrastructure",
+            all(isinstance(v, CitationDTO) for v in passed_citations),
+            "create_log must receive CitationDTO instances; dict conversion belongs in infrastructure",
         )
 
 
@@ -170,7 +170,7 @@ class GetChatHistoryUseCaseContractTests(unittest.TestCase):
             group_id=7,
             question="Q1",
             answer="A1",
-            related_videos=[],
+            citations=[],
             is_shared_origin=False,
             feedback=None,
             created_at=None,
@@ -180,7 +180,7 @@ class GetChatHistoryUseCaseContractTests(unittest.TestCase):
             group_id=7,
             question="Q2",
             answer="A2",
-            related_videos=[],
+            citations=[],
             is_shared_origin=True,
             feedback="good",
             created_at=None,
@@ -214,7 +214,7 @@ class ExportChatHistoryBuildRowsTests(unittest.TestCase):
             group_share_token=None,
             question="Q?",
             answer="A.",
-            related_videos=[],
+            citations=[],
             is_shared_origin=False,
             feedback=None,
             created_at=datetime(2026, 1, 1),

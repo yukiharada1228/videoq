@@ -735,7 +735,7 @@
       "exampleDescription": "OpenAI SDK を使って VideoQ の RAG チャットを利用するサンプルです。",
       "ragExample": {
         "title": "RAG チャット（動画グループ参照）",
-        "description": "group_id を指定すると、インデックス済みの動画シーンを検索して回答します。related_videos と chat_log_id が拡張フィールドとして返されます。"
+        "description": "group_id を指定すると、インデックス済みの動画シーンを検索して回答します。citations と chat_log_id が拡張フィールドとして返されます。"
       },
       "code": {
         "ragComment": "group_id を指定して動画グループに対して RAG チャット",
@@ -810,7 +810,7 @@
         "bullets": [
           "Authorization: Bearer <vq_...> で認証する",
           "language フィールドで応答言語を指定する（省略すると英語）",
-          "related_videos と chat_log_id は choices[0].message の拡張フィールドとして返される（Python SDK では msg.model_extra で取得）"
+          "citations と chat_log_id は choices[0].message の拡張フィールドとして返される（Python SDK では msg.model_extra で取得）"
         ]
       }
     }

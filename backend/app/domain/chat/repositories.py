@@ -6,7 +6,7 @@ No Django / ORM / external service dependencies.
 from abc import ABC, abstractmethod
 from typing import List, Optional, Sequence
 
-from app.domain.chat.dtos import RelatedVideoDTO
+from app.domain.chat.dtos import CitationDTO
 from app.domain.chat.entities import (
     ChatAnalyticsRaw,
     ChatLogEntity,
@@ -32,7 +32,7 @@ class ChatRepository(ABC):
         group_id: int,
         question: str,
         answer: str,
-        related_videos: Optional[Sequence[RelatedVideoDTO]],
+        citations: Optional[Sequence[CitationDTO]],
         is_shared: bool,
     ) -> ChatLogEntity:
         """Persist a new chat log entry."""
@@ -55,7 +55,7 @@ class ChatRepository(ABC):
 
     @abstractmethod
     def get_logs_values_for_group(self, group_id: int) -> List[ChatSceneLog]:
-        """Return scene logs (question + related_videos) for analytics aggregation."""
+        """Return scene logs (question + citations) for analytics aggregation."""
         ...
 
     @abstractmethod
