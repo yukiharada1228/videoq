@@ -10,13 +10,13 @@ Allow: /
 User-agent: PerplexityBot
 Allow: /
 
-User-agent: Googlebot
+User-agent: Bingbot
 Allow: /
 
 User-agent: *
 Disallow: /videos
-Disallow: /videos/groups
 Disallow: /settings
+Disallow: /api/
 Allow: /
 
 Sitemap: https://videoq.jp/sitemap.xml

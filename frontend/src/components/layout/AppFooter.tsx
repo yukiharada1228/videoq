@@ -13,7 +13,7 @@ export function AppFooter() {
           <span>VideoQ</span>
         </div>
         <p className="text-xs uppercase tracking-widest font-semibold text-stone-500">
-          © 2026 VideoQ. All rights reserved.
+          © {new Date().getFullYear()} VideoQ. All rights reserved.
         </p>
       </div>
     </footer>
