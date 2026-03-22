@@ -97,7 +97,6 @@ function MessageBody({
 
         return (
           <Fragment key={`${video.video_id}-${video.start_time}-${i}`}>
-            {node.text}
             {primaryRange && (
               <button
                 type="button"

@@ -119,7 +119,7 @@ describe('ChatPanel', () => {
       expect(screen.getByRole('button', { name: /Test Video 00:01:30/ })).toBeInTheDocument()
     })
     expect(screen.getByText((text) => text.includes('This is'))).toBeInTheDocument()
-    expect(screen.getByText((text) => text.includes('grounded text'))).toBeInTheDocument()
+    expect(screen.queryByText((text) => text.includes('grounded text'))).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Test Video 00:01:30/ })).toHaveTextContent('(1:30-15:30)')
 
     const videoButton = screen.getByTitle(/Test Video/)
@@ -584,7 +584,7 @@ describe('ChatPanel', () => {
     expect(apiClient.chat).not.toHaveBeenCalled()
   })
 
-  it('should display related videos in history', async () => {
+  it('should display citation timestamps in history', async () => {
     const mockHistory = [
       {
         id: 1,
@@ -619,7 +619,7 @@ describe('ChatPanel', () => {
       expect(screen.getByText('Test question')).toBeInTheDocument()
     })
 
-    expect(screen.getByText((text) => text.includes('answer'))).toBeInTheDocument()
+    expect(screen.queryByText((text) => text.includes('answer'))).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: /History Video 00:02:00/ })).toHaveTextContent('(2:00-10:00)')
   })
 
@@ -660,7 +660,7 @@ describe('ChatPanel', () => {
     })
 
     expect(screen.getByTitle(/Video One 00:01:30 \/ Video Two 00:02:30/)).toBeInTheDocument()
-    expect(screen.getByText((text) => text.includes('grounded text'))).toBeInTheDocument()
+    expect(screen.queryByText((text) => text.includes('grounded text'))).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Video One 00:01:30/ })).toHaveTextContent('(1:30-15:30)')
   })
 
