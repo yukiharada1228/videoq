@@ -34,6 +34,7 @@ class UserSerializer(serializers.Serializer):
     email = serializers.EmailField()
     video_limit = serializers.IntegerField(allow_null=True)
     video_count = serializers.SerializerMethodField()
+    max_video_upload_size_mb = serializers.IntegerField()
 
     def get_video_count(self, obj) -> int:
         # Prefer the explicit boundary field (UserEntity/User DTO).
@@ -119,3 +120,13 @@ class ApiKeyCreateResponseSerializer(ApiKeySerializer):
     api_key = serializers.CharField(
         help_text="Plain API key. This is only returned once."
     )
+
+
+class OpenAiApiKeyInputSerializer(serializers.Serializer):
+    api_key = serializers.CharField(min_length=1)
+
+
+class OpenAiApiKeyStatusSerializer(serializers.Serializer):
+    has_key = serializers.BooleanField()
+    masked_key = serializers.CharField(allow_null=True)
+    is_required = serializers.BooleanField()

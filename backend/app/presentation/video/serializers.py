@@ -27,6 +27,10 @@ def _resolve_file_url(file_key, context):
     if str(file_key).startswith(("http://", "https://")):
         return str(file_key)
 
+    if getattr(settings, "USE_S3_STORAGE", False):
+        from django.core.files.storage import default_storage
+        return default_storage.url(str(file_key))
+
     request = context.get("request")
     if request is None:
         return None
@@ -262,6 +266,59 @@ class VideoCreateSerializer(serializers.Serializer):
             if cleanup_path and os.path.exists(cleanup_path):
                 os.remove(cleanup_path)
         return value
+
+
+class VideoUploadRequestSerializer(serializers.Serializer):
+    """Serializer for presigned-URL upload request (metadata only, no file body)."""
+
+    ALLOWED_VIDEO_EXTENSIONS = {
+        ".mp4", ".mov", ".avi", ".mkv", ".webm",
+        ".m4v", ".mpeg", ".mpg", ".3gp",
+    }
+    ALLOWED_VIDEO_MIMETYPES = {
+        "video/mp4",
+        "video/quicktime",
+        "video/x-msvideo",
+        "video/x-matroska",
+        "video/webm",
+        "video/x-m4v",
+        "video/mpeg",
+        "video/3gpp",
+    }
+
+    filename = serializers.CharField(max_length=255)
+    content_type = serializers.CharField(max_length=100)
+    file_size = serializers.IntegerField(min_value=1)
+    title = serializers.CharField(max_length=255)
+    description = serializers.CharField(required=False, default="", allow_blank=True)
+
+    def validate_filename(self, value):
+        ext = os.path.splitext(value)[1].lower()
+        if ext not in self.ALLOWED_VIDEO_EXTENSIONS:
+            raise serializers.ValidationError(
+                f"Unsupported file type: '{ext}'. "
+                f"Allowed types: {', '.join(sorted(self.ALLOWED_VIDEO_EXTENSIONS))}"
+            )
+        return value
+
+    def validate_content_type(self, value):
+        if value not in self.ALLOWED_VIDEO_MIMETYPES:
+            raise serializers.ValidationError(
+                f"Invalid content type: '{value}'. Only video files are allowed."
+            )
+        return value
+
+    def validate_file_size(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("File size must be positive.")
+        return value
+
+
+class VideoUploadRequestResponseSerializer(serializers.Serializer):
+    """Response serializer for presigned-URL upload request."""
+
+    video = VideoSerializer()
+    upload_url = serializers.URLField()
 
 
 class VideoUpdateSerializer(serializers.Serializer):

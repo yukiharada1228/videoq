@@ -7,7 +7,6 @@ interface LoadingStateProps {
   children: React.ReactNode;
   loadingMessage?: string;
   errorMessage?: string;
-  fullScreen?: boolean;
 }
 
 /**
@@ -17,16 +16,11 @@ export function LoadingState({
   isLoading,
   error,
   children,
-  loadingMessage = 'Loading...',
+  loadingMessage,
   errorMessage,
-  fullScreen = false,
 }: LoadingStateProps) {
   if (isLoading) {
-    return (
-      <div className={fullScreen ? "flex min-h-screen items-center justify-center" : "flex justify-center items-center h-64"}>
-        <LoadingSpinner message={loadingMessage} fullScreen={fullScreen} />
-      </div>
-    );
+    return <LoadingSpinner message={loadingMessage} />;
   }
 
   if (error) {

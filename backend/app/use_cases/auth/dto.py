@@ -43,6 +43,7 @@ class CurrentUserOutput:
     is_active: bool
     video_limit: int | None
     video_count: int
+    max_video_upload_size_mb: int = 500
 
 
 @dataclass(frozen=True)

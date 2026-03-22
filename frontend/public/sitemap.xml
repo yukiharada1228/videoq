@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
+  <url>
+    <loc>https://videoq.jp/</loc>
+    <lastmod>2026-03-22</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://videoq.jp/"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://videoq.jp/ja/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://videoq.jp/"/>
+  </url>
+  <url>
+    <loc>https://videoq.jp/ja/</loc>
+    <lastmod>2026-03-22</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://videoq.jp/"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://videoq.jp/ja/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://videoq.jp/"/>
+  </url>
+  <url>
+    <loc>https://videoq.jp/docs</loc>
+    <lastmod>2026-03-22</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://videoq.jp/docs"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://videoq.jp/ja/docs"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://videoq.jp/docs"/>
+  </url>
+  <url>
+    <loc>https://videoq.jp/ja/docs</loc>
+    <lastmod>2026-03-22</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://videoq.jp/docs"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://videoq.jp/ja/docs"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://videoq.jp/docs"/>
+  </url>
+  <url>
+    <loc>https://videoq.jp/docs/auth</loc>
+    <lastmod>2026-03-22</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://videoq.jp/docs/auth"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://videoq.jp/ja/docs/auth"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://videoq.jp/docs/auth"/>
+  </url>
+  <url>
+    <loc>https://videoq.jp/ja/docs/auth</loc>
+    <lastmod>2026-03-22</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://videoq.jp/docs/auth"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://videoq.jp/ja/docs/auth"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://videoq.jp/docs/auth"/>
+  </url>
+  <url>
+    <loc>https://videoq.jp/docs/videos</loc>
+    <lastmod>2026-03-22</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://videoq.jp/docs/videos"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://videoq.jp/ja/docs/videos"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://videoq.jp/docs/videos"/>
+  </url>
+  <url>
+    <loc>https://videoq.jp/ja/docs/videos</loc>
+    <lastmod>2026-03-22</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://videoq.jp/docs/videos"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://videoq.jp/ja/docs/videos"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://videoq.jp/docs/videos"/>
+  </url>
+  <url>
+    <loc>https://videoq.jp/docs/chat</loc>
+    <lastmod>2026-03-22</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://videoq.jp/docs/chat"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://videoq.jp/ja/docs/chat"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://videoq.jp/docs/chat"/>
+  </url>
+  <url>
+    <loc>https://videoq.jp/ja/docs/chat</loc>
+    <lastmod>2026-03-22</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://videoq.jp/docs/chat"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://videoq.jp/ja/docs/chat"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://videoq.jp/docs/chat"/>
+  </url>
+  <url>
+    <loc>https://videoq.jp/docs/openai</loc>
+    <lastmod>2026-03-22</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://videoq.jp/docs/openai"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://videoq.jp/ja/docs/openai"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://videoq.jp/docs/openai"/>
+  </url>
+  <url>
+    <loc>https://videoq.jp/ja/docs/openai</loc>
+    <lastmod>2026-03-22</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://videoq.jp/docs/openai"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://videoq.jp/ja/docs/openai"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://videoq.jp/docs/openai"/>
+  </url>
+</urlset>

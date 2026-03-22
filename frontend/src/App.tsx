@@ -1,22 +1,24 @@
+import { lazy, Suspense } from 'react';
 import { Navigate, Outlet, Route, Routes, useLocation, useParams } from 'react-router-dom';
 import { addLocalePrefix, getPreferredLocale, useLocaleSync } from '@/lib/i18n';
 import { defaultLocale, locales, type Locale } from '@/i18n/config';
+import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 
-import HomePage from '@/pages/HomePage';
-import LoginPage from '@/pages/LoginPage';
-import SignupPage from '@/pages/SignupPage';
-import SignupCheckEmailPage from '@/pages/SignupCheckEmailPage';
-import ForgotPasswordPage from '@/pages/ForgotPasswordPage';
-import ResetPasswordPage from '@/pages/ResetPasswordPage';
-import VerifyEmailPage from '@/pages/VerifyEmailPage';
-import VideosPage from '@/pages/VideosPage';
-import VideoDetailPage from '@/pages/VideoDetailPage';
-import VideoGroupsPage from '@/pages/VideoGroupsPage';
-import VideoGroupDetailPage from '@/pages/VideoGroupDetailPage';
-import SharePage from '@/pages/SharePage';
-import SettingsPage from '@/pages/SettingsPage';
-import DeveloperDocsPage from '@/pages/DeveloperDocsPage';
-import DeveloperDocsSectionPage from '@/pages/DeveloperDocsSectionPage';
+const HomePage = lazy(() => import('@/pages/HomePage'));
+const LoginPage = lazy(() => import('@/pages/LoginPage'));
+const SignupPage = lazy(() => import('@/pages/SignupPage'));
+const SignupCheckEmailPage = lazy(() => import('@/pages/SignupCheckEmailPage'));
+const ForgotPasswordPage = lazy(() => import('@/pages/ForgotPasswordPage'));
+const ResetPasswordPage = lazy(() => import('@/pages/ResetPasswordPage'));
+const VerifyEmailPage = lazy(() => import('@/pages/VerifyEmailPage'));
+const VideosPage = lazy(() => import('@/pages/VideosPage'));
+const VideoDetailPage = lazy(() => import('@/pages/VideoDetailPage'));
+const VideoGroupsPage = lazy(() => import('@/pages/VideoGroupsPage'));
+const VideoGroupDetailPage = lazy(() => import('@/pages/VideoGroupDetailPage'));
+const SharePage = lazy(() => import('@/pages/SharePage'));
+const SettingsPage = lazy(() => import('@/pages/SettingsPage'));
+const DeveloperDocsPage = lazy(() => import('@/pages/DeveloperDocsPage'));
+const DeveloperDocsSectionPage = lazy(() => import('@/pages/DeveloperDocsSectionPage'));
 
 function LocaleGate() {
   const params = useParams<{ locale?: string }>();
@@ -64,18 +66,20 @@ const routeChildren = (
 
 export default function App() {
   return (
-    <Routes>
-      {/* Default locale (no prefix) */}
-      <Route path="/" element={<LocaleGate />}>
-        {routeChildren}
-      </Route>
+    <Suspense fallback={<LoadingSpinner />}>
+      <Routes>
+        {/* Default locale (no prefix) */}
+        <Route path="/" element={<LocaleGate />}>
+          {routeChildren}
+        </Route>
 
-      {/* Localized routes: /:locale/... */}
-      <Route path=":locale" element={<LocaleGate />}>
-        {routeChildren}
-      </Route>
+        {/* Localized routes: /:locale/... */}
+        <Route path=":locale" element={<LocaleGate />}>
+          {routeChildren}
+        </Route>
 
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </Suspense>
   );
 }

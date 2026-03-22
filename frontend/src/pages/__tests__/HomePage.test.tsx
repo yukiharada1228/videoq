@@ -6,11 +6,11 @@ import { useI18nNavigate } from '@/lib/i18n'
 let mockNavigate: ReturnType<typeof vi.fn>
 
 const mockVideos = [
-  { id: 1, title: 'Video 1', status: 'completed' },
-  { id: 2, title: 'Video 2', status: 'pending' },
-  { id: 3, title: 'Video 3', status: 'processing' },
-  { id: 4, title: 'Video 4', status: 'indexing' },
-  { id: 5, title: 'Video 5', status: 'error' },
+  { id: 1, title: 'Video 1', status: 'completed', file: 'v1.mp4', uploaded_at: '2024-01-03T00:00:00Z' },
+  { id: 2, title: 'Video 2', status: 'pending', file: 'v2.mp4', uploaded_at: '2024-01-02T00:00:00Z' },
+  { id: 3, title: 'Video 3', status: 'processing', file: 'v3.mp4', uploaded_at: '2024-01-01T00:00:00Z' },
+  { id: 4, title: 'Video 4', status: 'indexing', file: 'v4.mp4', uploaded_at: '2024-01-04T00:00:00Z' },
+  { id: 5, title: 'Video 5', status: 'error', file: 'v5.mp4', uploaded_at: '2024-01-05T00:00:00Z' },
 ]
 
 const mockGroups = [
@@ -23,13 +23,14 @@ vi.mock('@/lib/api', () => ({
     getMe: vi.fn(() => Promise.resolve({ id: '1', username: 'testuser', email: 'test@example.com' })),
     getVideos: vi.fn(),
     getVideoGroups: vi.fn(),
+    getVideoUrl: vi.fn((url) => url),
   },
 }))
 
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({
     user: { id: 1, username: 'testuser' },
-    loading: false,
+    isLoading: false,
   }),
 }))
 
@@ -45,15 +46,15 @@ describe('HomePage', () => {
     render(<HomePage />)
 
     await waitFor(() => {
-      expect(screen.getByText('home.welcome.title')).toBeInTheDocument()
+      expect(screen.getByText('home.welcome.greeting {"username":"testuser"}')).toBeInTheDocument()
     })
   })
 
-  it('should render welcome subtitle with username', async () => {
+  it('should render welcome subtitle', async () => {
     render(<HomePage />)
 
     await waitFor(() => {
-      expect(screen.getByText(/home\.welcome\.subtitle.*testuser/)).toBeInTheDocument()
+      expect(screen.getByText('home.welcome.dailyMotivation')).toBeInTheDocument()
     })
   })
 
@@ -61,8 +62,8 @@ describe('HomePage', () => {
     render(<HomePage />)
 
     await waitFor(() => {
-      expect(screen.getByText('home.actions.upload.title')).toBeInTheDocument()
-      expect(screen.getByText('home.actions.upload.description')).toBeInTheDocument()
+      expect(screen.getAllByText('home.actions.upload.title').length).toBeGreaterThan(0)
+      expect(screen.getByText('home.actions.upload.descriptionLong')).toBeInTheDocument()
     })
   })
 
@@ -86,25 +87,23 @@ describe('HomePage', () => {
     render(<HomePage />)
 
     await waitFor(() => {
-      expect(screen.getByText('home.stats.completed')).toBeInTheDocument()
-      expect(screen.getByText('home.stats.pending')).toBeInTheDocument()
+      expect(screen.getByText('home.stats.totalVideos')).toBeInTheDocument()
+      expect(screen.getByText('home.stats.analysisCompleted')).toBeInTheDocument()
       expect(screen.getByText('home.stats.processing')).toBeInTheDocument()
-      expect(screen.getByText('home.stats.indexing')).toBeInTheDocument()
-      expect(screen.getByText('home.stats.error')).toBeInTheDocument()
+      expect(screen.getByText('home.stats.groups')).toBeInTheDocument()
     })
   })
 
-  it('should navigate to videos page with upload param when upload card is clicked', async () => {
+  it('should navigate to videos page with upload param when upload button is clicked', async () => {
     render(<HomePage />)
 
     await waitFor(() => {
-      expect(screen.getByText('home.actions.upload.title')).toBeInTheDocument()
+      expect(screen.getAllByText('home.actions.upload.title').length).toBeGreaterThan(0)
     })
 
-    const uploadCard = screen.getByText('home.actions.upload.title').closest('[data-slot="card"]')
-    if (uploadCard) {
-      fireEvent.click(uploadCard)
-    }
+    // Click the header upload button
+    const uploadButtons = screen.getAllByText('home.actions.upload.title')
+    fireEvent.click(uploadButtons[0])
 
     await waitFor(() => {
       expect(mockNavigate).toHaveBeenCalledWith('/videos?upload=true')
@@ -118,10 +117,7 @@ describe('HomePage', () => {
       expect(screen.getByText('home.actions.library.title')).toBeInTheDocument()
     })
 
-    const libraryCard = screen.getByText('home.actions.library.title').closest('[data-slot="card"]')
-    if (libraryCard) {
-      fireEvent.click(libraryCard)
-    }
+    fireEvent.click(screen.getByText('home.actions.library.title'))
 
     await waitFor(() => {
       expect(mockNavigate).toHaveBeenCalledWith('/videos')
@@ -135,10 +131,7 @@ describe('HomePage', () => {
       expect(screen.getByText('home.actions.groups.title')).toBeInTheDocument()
     })
 
-    const groupsCard = screen.getByText('home.actions.groups.title').closest('[data-slot="card"]')
-    if (groupsCard) {
-      fireEvent.click(groupsCard)
-    }
+    fireEvent.click(screen.getByText('home.actions.groups.title'))
 
     await waitFor(() => {
       expect(mockNavigate).toHaveBeenCalledWith('/videos/groups')
@@ -168,9 +161,9 @@ describe('HomePage - Data Loading', () => {
 
     render(<HomePage />)
 
-    // Should still render the page
+    // Should still render the page (useHomePageData catches errors internally)
     await waitFor(() => {
-      expect(screen.getByText('home.welcome.title')).toBeInTheDocument()
+      expect(screen.getByText('home.welcome.greeting {"username":"testuser"}')).toBeInTheDocument()
     })
   })
 })

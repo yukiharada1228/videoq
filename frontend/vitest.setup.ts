@@ -44,6 +44,32 @@ declare global {
   }
 }
 
+class MockIntersectionObserver implements IntersectionObserver {
+  readonly root = null
+  readonly rootMargin = '0px'
+  readonly thresholds = [0]
+
+  constructor(private callback: IntersectionObserverCallback) {}
+
+  disconnect(): void {}
+  observe(target: Element): void {
+    this.callback(
+      [{ isIntersecting: true, target } as IntersectionObserverEntry],
+      this,
+    )
+  }
+  takeRecords(): IntersectionObserverEntry[] {
+    return []
+  }
+  unobserve(): void {}
+}
+
+Object.defineProperty(globalThis, 'IntersectionObserver', {
+  writable: true,
+  configurable: true,
+  value: MockIntersectionObserver,
+})
+
 // Cleanup after each test
 afterEach(() => {
   cleanup()
@@ -84,9 +110,18 @@ vi.mock('react-router-dom', async () => {
 // Mock react-i18next
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string, options?: Record<string, unknown>) => {
-      if (options) {
-        return `${key} ${JSON.stringify(options)}`
+    t: (key: string, optionsOrDefault?: string | Record<string, unknown>) => {
+      if (typeof optionsOrDefault === 'string') {
+        return key
+      }
+      if (optionsOrDefault && typeof optionsOrDefault === 'object') {
+        const rest = Object.fromEntries(
+          Object.entries(optionsOrDefault as Record<string, unknown>).filter(([k]) => k !== 'defaultValue')
+        )
+        if (Object.keys(rest).length > 0) {
+          return `${key} ${JSON.stringify(rest)}`
+        }
+        return key
       }
       return key
     },
@@ -97,6 +132,11 @@ vi.mock('react-i18next', () => ({
   }),
   Trans: ({ children }: { children?: React.ReactNode }) => children,
   I18nextProvider: ({ children }: { children?: React.ReactNode }) => children,
+}))
+
+// Mock AppNav to prevent useMutation/useQueryClient side effects in page tests
+vi.mock('@/components/layout/AppNav', () => ({
+  AppNav: () => null,
 }))
 
 // Mock i18n routing helpers
@@ -134,7 +174,10 @@ const mockGetSharedVideoUrl = (videoFilePath: string | null, shareToken: string)
 };
 
 // Mock the API client
-vi.mock('@/lib/api', () => ({
+vi.mock('@/lib/api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/api')>()
+  return {
+  ...actual,
   apiClient: {
     getMe: vi.fn(() => Promise.resolve({ id: '1', username: 'testuser', email: 'test@example.com' })),
     signup: vi.fn(() => Promise.resolve()),
@@ -153,5 +196,6 @@ vi.mock('@/lib/api', () => ({
     chat: vi.fn(() => Promise.resolve({ response: 'Mock chat response' })),
     getVideoUrl: vi.fn(mockGetVideoUrl),
     getSharedVideoUrl: vi.fn(mockGetSharedVideoUrl),
+    logout: vi.fn(() => Promise.resolve()),
   },
-}));
+}});

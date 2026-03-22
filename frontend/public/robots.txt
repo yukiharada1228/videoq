@@ -1,0 +1,22 @@
+User-agent: GPTBot
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: *
+Disallow: /videos
+Disallow: /settings
+Disallow: /api/
+Allow: /
+
+Sitemap: https://videoq.jp/sitemap.xml

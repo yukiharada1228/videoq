@@ -13,6 +13,7 @@ interface VideoUploadFormFieldsProps {
   isUploading: boolean;
   disabled?: boolean;
   error: string | null;
+  errorParams?: Record<string, unknown>;
   success: boolean;
   setTitle: (title: string) => void;
   setDescription: (description: string) => void;
@@ -31,6 +32,7 @@ export function VideoUploadFormFields({
   isUploading,
   disabled = false,
   error,
+  errorParams = {},
   success,
   setTitle,
   setDescription,
@@ -88,11 +90,11 @@ export function VideoUploadFormFields({
           onChange={(e) => setDescription(e.target.value)}
           placeholder={t('videos.upload.descriptionPlaceholder')}
           disabled={isUploading || disabled}
-          className="w-full min-h-[100px] px-3 py-2 border border-gray-300 rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full min-h-[100px] px-3 py-2 bg-[#f2f4ef] border border-[#e1e3de] rounded-xl resize-none outline-none focus:ring-2 focus:ring-[#00652c]/20 focus:border-[#00652c] transition-all"
         />
       </div>
 
-      {error && <MessageAlert type="error" message={error} />}
+      {error && <MessageAlert type="error" message={t(error, { defaultValue: error, ...errorParams })} />}
       {success && <MessageAlert type="success" message={t('videos.upload.success')} />}
 
       {!hideButtons && (

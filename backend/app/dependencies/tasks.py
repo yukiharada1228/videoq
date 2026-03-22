@@ -12,6 +12,10 @@ class TranscriptionExecutionFailedError(Exception):
     """Raised when transcription execution fails and retry is allowed."""
 
 
+class FileSizeExceededError(Exception):
+    """Raised when the uploaded file exceeds the size limit. No retry needed."""
+
+
 class IndexingTargetMissingError(Exception):
     """Raised when the indexing target video does not exist or has no transcript."""
 
@@ -29,6 +33,8 @@ def run_transcription(video_id: int) -> None:
         _cr_video.run_transcription(video_id)
     except _cr_video.TranscriptionTargetMissing as exc:
         raise TranscriptionTargetMissingError(str(exc)) from exc
+    except _cr_video.FileSizeExceeded as exc:
+        raise FileSizeExceededError(str(exc)) from exc
     except _cr_video.TranscriptionExecutionFailed as exc:
         raise TranscriptionExecutionFailedError(str(exc)) from exc
 

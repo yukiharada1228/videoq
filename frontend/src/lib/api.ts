@@ -2,6 +2,22 @@ export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/ap
 
 type RequestBody = BodyInit | object | null | undefined;
 
+/**
+ * Structured API error carrying error code and optional params from the backend.
+ * Backend format: { error: { code, message, params? } }
+ */
+export class ApiError extends Error {
+  code: string;
+  params?: Record<string, unknown>;
+
+  constructor(message: string, code: string, params?: Record<string, unknown>) {
+    super(message);
+    this.name = 'ApiError';
+    this.code = code;
+    this.params = params;
+  }
+}
+
 export type LoginResponse = Record<string, never>;
 
 export type RefreshResponse = Record<string, never>;
@@ -12,6 +28,7 @@ export interface User {
   email: string;
   video_limit: number | null;
   video_count: number;
+  max_video_upload_size_mb: number;
 }
 
 export interface IntegrationApiKey {
@@ -59,6 +76,12 @@ export interface PasswordResetConfirmRequest {
 
 export interface AccountDeleteRequest {
   reason?: string;
+}
+
+export interface OpenAiApiKeyStatus {
+  has_key: boolean;
+  masked_key: string | null;
+  is_required: boolean;
 }
 
 export interface LoginRequest {
@@ -133,7 +156,7 @@ export interface Video {
   description: string;
   uploaded_at: string;
   transcript?: string;
-  status: 'pending' | 'processing' | 'indexing' | 'completed' | 'error';
+  status: 'uploading' | 'pending' | 'processing' | 'indexing' | 'completed' | 'error';
   error_message?: string;
   tags?: { id: number; name: string; color: string }[];
 }
@@ -144,7 +167,7 @@ export interface VideoList {
   title: string;
   description: string;
   uploaded_at: string;
-  status: 'pending' | 'processing' | 'indexing' | 'completed' | 'error';
+  status: 'uploading' | 'pending' | 'processing' | 'indexing' | 'completed' | 'error';
   tags?: { id: number; name: string; color: string }[];
 }
 
@@ -176,8 +199,13 @@ export interface VideoInGroup {
   description: string;
   file: string | null;
   uploaded_at: string;
-  status: 'pending' | 'processing' | 'indexing' | 'completed' | 'error';
+  status: 'uploading' | 'pending' | 'processing' | 'indexing' | 'completed' | 'error';
   order: number;
+}
+
+export interface UploadRequestResponse {
+  video: Video;
+  upload_url: string;
 }
 
 export interface VideoGroupCreateRequest {
@@ -293,24 +321,45 @@ class ApiClient {
     return ['GET', 'HEAD', 'OPTIONS', 'TRACE'].includes(normalizedMethod);
   }
 
+  private csrfToken: string | null = null;
+
   private getCsrfTokenFromCookie(): string | null {
     const match = document.cookie.match(/(?:^|; )csrftoken=([^;]+)/);
     return match ? decodeURIComponent(match[1]) : null;
   }
 
   private async ensureCsrfToken(): Promise<string | null> {
-    const existingToken = this.getCsrfTokenFromCookie();
-    if (existingToken) {
-      return existingToken;
+    // Try in-memory cache first, then cookie (same-origin only)
+    if (this.csrfToken) {
+      return this.csrfToken;
+    }
+    const cookieToken = this.getCsrfTokenFromCookie();
+    if (cookieToken) {
+      this.csrfToken = cookieToken;
+      return cookieToken;
     }
 
-    await fetch(this.buildUrl('/auth/csrf/'), {
+    // Fetch from server; cross-origin deployments return token in body
+    const response = await fetch(this.buildUrl('/auth/csrf/'), {
       method: 'GET',
       credentials: 'include',
       headers: {},
     });
 
-    return this.getCsrfTokenFromCookie();
+    if (response.ok) {
+      try {
+        const data = await response.json();
+        if (data.csrftoken) {
+          this.csrfToken = data.csrftoken;
+          return this.csrfToken;
+        }
+      } catch {
+        // 204 or non-JSON response; fall back to cookie
+      }
+    }
+
+    this.csrfToken = this.getCsrfTokenFromCookie();
+    return this.csrfToken;
   }
 
   private buildHeaders(additionalHeaders?: HeadersInit): Record<string, string> {
@@ -331,17 +380,26 @@ class ApiClient {
     }))) as unknown;
 
     if (errorData && typeof errorData === 'object') {
-      // Handle unified error format: { error: { code, message, fields } }
+      // Handle unified error format: { error: { code, message, params?, fields? } }
       const maybeError = (errorData as { error?: unknown }).error;
       if (maybeError && typeof maybeError === 'object') {
-        const errorObj = maybeError as { code?: string; message?: string; fields?: Record<string, string[]> };
+        const errorObj = maybeError as {
+          code?: string;
+          message?: string;
+          params?: Record<string, unknown>;
+          fields?: Record<string, string[]>;
+        };
         if (typeof errorObj.message === 'string') {
-          throw new Error(errorObj.message);
+          throw new ApiError(
+            errorObj.message,
+            errorObj.code ?? 'UNKNOWN',
+            errorObj.params,
+          );
         }
       }
     }
 
-    throw new Error(`HTTP error! status: ${response.status}`);
+    throw new ApiError(`HTTP error! status: ${response.status}`, 'UNKNOWN');
   }
 
   private async handleAuthError(): Promise<void> {
@@ -565,6 +623,23 @@ class ApiClient {
     });
   }
 
+  async getOpenAiApiKeyStatus(): Promise<OpenAiApiKeyStatus> {
+    return this.request<OpenAiApiKeyStatus>('/auth/openai-api-key/');
+  }
+
+  async saveOpenAiApiKey(data: { api_key: string }): Promise<void> {
+    await this.request('/auth/openai-api-key/', {
+      method: 'PUT',
+      body: data,
+    });
+  }
+
+  async deleteOpenAiApiKey(): Promise<void> {
+    await this.request('/auth/openai-api-key/', {
+      method: 'DELETE',
+    });
+  }
+
   async chat(data: ChatRequest): Promise<ChatMessage> {
     const { share_token, ...bodyData } = data;
     const endpoint = share_token ? `/chat/messages/?share_token=${share_token}` : '/chat/messages/';
@@ -661,36 +736,78 @@ class ApiClient {
     return this.request<Video>(`/videos/${id}/`);
   }
 
-  async uploadVideo(data: VideoUploadRequest): Promise<Video> {
-    const formData = new FormData();
-    formData.append('file', data.file);
-    formData.append('title', data.title);
-    if (data.description) {
-      formData.append('description', data.description);
-    }
+  async requestUploadUrl(data: {
+    filename: string;
+    content_type: string;
+    file_size: number;
+    title: string;
+    description?: string;
+  }): Promise<UploadRequestResponse> {
+    return this.request<UploadRequestResponse>('/videos/upload-request/', {
+      method: 'POST',
+      body: data,
+    });
+  }
 
-    const url = this.buildUrl('/videos/');
+  async confirmUpload(videoId: number): Promise<Video> {
+    return this.request<Video>(`/videos/${videoId}/upload-complete/`, {
+      method: 'POST',
+    });
+  }
 
-    // Authorization header not needed with HttpOnly Cookie-based authentication
-    const headers: Record<string, string> = {};
-    const csrfToken = await this.ensureCsrfToken();
-    if (csrfToken) {
-      headers['X-CSRFToken'] = csrfToken;
-    }
+  async uploadToPresignedUrl(
+    url: string,
+    file: File,
+    contentType: string,
+    onProgress?: (percent: number) => void,
+  ): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('PUT', url);
+      xhr.setRequestHeader('Content-Type', contentType);
 
-    try {
-      const response = await this.executeRequest(url, {
-        method: 'POST',
-        headers,
-        body: formData,
-        credentials: 'include',
+      if (onProgress) {
+        xhr.upload.addEventListener('progress', (e) => {
+          if (e.lengthComputable) {
+            onProgress(Math.round((e.loaded / e.total) * 100));
+          }
+        });
+      }
+
+      xhr.addEventListener('load', () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve();
+        } else {
+          reject(new Error(`Upload failed with status ${xhr.status}`));
+        }
       });
 
-      return await this.parseJsonResponse<Video>(response);
-    } catch (error) {
-      this.logError('Video upload failed:', error);
-      throw error;
-    }
+      xhr.addEventListener('error', () => reject(new Error('Upload failed')));
+      xhr.addEventListener('abort', () => reject(new Error('Upload aborted')));
+
+      xhr.send(file);
+    });
+  }
+
+  async uploadVideo(
+    data: VideoUploadRequest,
+    onProgress?: (percent: number) => void,
+  ): Promise<Video> {
+    // 1. Request presigned upload URL
+    const { video, upload_url } = await this.requestUploadUrl({
+      filename: data.file.name,
+      content_type: data.file.type || 'video/mp4',
+      file_size: data.file.size,
+      title: data.title,
+      description: data.description,
+    });
+
+    // 2. Upload file directly to R2/S3
+    await this.uploadToPresignedUrl(upload_url, data.file, data.file.type || 'video/mp4', onProgress);
+
+    // 3. Confirm upload
+    const confirmed = await this.confirmUpload(video.id);
+    return confirmed;
   }
 
   async updateVideo(id: number, data: VideoUpdateRequest): Promise<Video> {

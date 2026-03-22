@@ -25,6 +25,9 @@ export function useVideoDetailPageMutations({
       await apiClient.deleteVideo(videoId);
     },
     onSuccess: async () => {
+      if (videoId) {
+        queryClient.removeQueries({ queryKey: queryKeys.videos.detail(videoId) });
+      }
       await queryClient.invalidateQueries({ queryKey: queryKeys.videos.all });
       await queryClient.invalidateQueries({ queryKey: ['videoGroup'] });
       await queryClient.invalidateQueries({ queryKey: ['sharedVideoGroup'] });

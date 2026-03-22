@@ -13,6 +13,7 @@ def create_error_response(
     status_code: int = status.HTTP_400_BAD_REQUEST,
     code: str = "VALIDATION_ERROR",
     fields: dict | None = None,
+    params: dict | None = None,
 ) -> Response:
     """Generate unified error response."""
     if status_code >= status.HTTP_500_INTERNAL_SERVER_ERROR:
@@ -27,6 +28,9 @@ def create_error_response(
 
     if fields is not None:
         error_data["fields"] = fields
+
+    if params is not None:
+        error_data["params"] = params
 
     return Response({"error": error_data}, status=status_code)
 

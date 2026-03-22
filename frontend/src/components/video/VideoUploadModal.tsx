@@ -39,6 +39,7 @@ export function VideoUploadModal({ isOpen, onClose, onUploadSuccess }: VideoUplo
     tagIds,
     isUploading,
     error,
+    errorParams,
     success,
     setTitle,
     setDescription,
@@ -100,6 +101,7 @@ export function VideoUploadModal({ isOpen, onClose, onUploadSuccess }: VideoUplo
             isUploading={isUploading}
             disabled={false}
             error={error}
+            errorParams={errorParams}
             success={success}
             setTitle={setTitle}
             setDescription={setDescription}

@@ -28,7 +28,6 @@ describe('SignupPage', () => {
   it('should render all required fields', () => {
     render(<SignupPage />)
 
-    expect(screen.getByText('auth.signup.description')).toBeInTheDocument()
     expect(screen.getByText('auth.fields.email.label')).toBeInTheDocument()
     expect(screen.getByText('auth.fields.username.label')).toBeInTheDocument()
     expect(screen.getByText('auth.fields.password.label')).toBeInTheDocument()
@@ -49,7 +48,7 @@ describe('SignupPage', () => {
 
     const emailInput = screen.getByPlaceholderText('auth.fields.email.placeholder')
     const usernameInput = screen.getByPlaceholderText('auth.fields.username.placeholder')
-    const passwordInput = screen.getByPlaceholderText('auth.fields.password.placeholder')
+    const passwordInput = screen.getByPlaceholderText('auth.signup.passwordPlaceholder')
     const confirmPasswordInput = screen.getByPlaceholderText('auth.fields.passwordConfirmation.placeholder')
 
     fireEvent.change(emailInput, { target: { value: 'test@example.com' } })
@@ -76,7 +75,7 @@ describe('SignupPage', () => {
 
     const emailInput = screen.getByPlaceholderText('auth.fields.email.placeholder')
     const usernameInput = screen.getByPlaceholderText('auth.fields.username.placeholder')
-    const passwordInput = screen.getByPlaceholderText('auth.fields.password.placeholder')
+    const passwordInput = screen.getByPlaceholderText('auth.signup.passwordPlaceholder')
     const confirmPasswordInput = screen.getByPlaceholderText('auth.fields.passwordConfirmation.placeholder')
 
     fireEvent.change(emailInput, { target: { value: 'test@example.com' } })
@@ -92,12 +91,12 @@ describe('SignupPage', () => {
     })
   })
 
-  it('should have centered layout', () => {
+  it('should have AuthLayout main element', () => {
     render(<SignupPage />)
 
     const container = screen.getByText('auth.signup.title').closest('main')
     expect(container).toBeInTheDocument()
-    expect(container).toHaveClass('flex', 'flex-1', 'items-center', 'justify-center', 'px-4')
+    expect(container).toHaveClass('flex', 'min-h-screen', 'flex-col')
   })
 
   it('should display footer question text', () => {

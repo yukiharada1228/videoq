@@ -21,7 +21,7 @@ interface UseChatMessagesReturn {
   setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
   input: string;
   setInput: (input: string) => void;
-  loading: boolean;
+  isLoading: boolean;
   feedbackUpdatingId: number | null;
   messagesEndRef: React.RefObject<HTMLDivElement | null>;
   messagesContainerRef: React.RefObject<HTMLDivElement | null>;
@@ -36,7 +36,7 @@ export function useChatMessages({ groupId, shareToken }: UseChatMessagesOptions)
     { role: 'assistant', content: t('chat.assistantGreeting') },
   ]);
   const [input, setInput] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [feedbackUpdatingId, setFeedbackUpdatingId] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -64,12 +64,12 @@ export function useChatMessages({ groupId, shareToken }: UseChatMessagesOptions)
   });
 
   const handleSend = useCallback(async () => {
-    if (!input.trim() || loading) return;
+    if (!input.trim() || isLoading) return;
 
     const userMessage: Message = { role: 'user', content: input };
     setMessages((prev) => [...prev, userMessage]);
     setInput('');
-    setLoading(true);
+    setIsLoading(true);
 
     try {
       const response = await chatMutation.mutateAsync(userMessage);
@@ -91,9 +91,9 @@ export function useChatMessages({ groupId, shareToken }: UseChatMessagesOptions)
         { role: 'assistant', content: t('chat.error') },
       ]);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
-  }, [input, loading, chatMutation, t]);
+  }, [input, isLoading, chatMutation, t]);
 
   const handleKeyPress = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.nativeEvent.isComposing || e.key === 'Process') return;
@@ -133,7 +133,7 @@ export function useChatMessages({ groupId, shareToken }: UseChatMessagesOptions)
     setMessages,
     input,
     setInput,
-    loading,
+    isLoading,
     feedbackUpdatingId,
     messagesEndRef,
     messagesContainerRef,

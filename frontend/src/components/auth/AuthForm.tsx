@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui/button';
+import { InlineSpinner } from '@/components/common/InlineSpinner';
 import {
   Card,
   CardContent,
@@ -26,7 +27,7 @@ interface AuthFormProps {
   fields: FormFieldConfig[];
   formData: Record<string, string>;
   error: string | null;
-  loading: boolean;
+  isLoading: boolean;
   submitButtonText: string;
   loadingButtonText: string;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -44,7 +45,7 @@ export function AuthForm({
   fields,
   formData,
   error,
-  loading,
+  isLoading,
   submitButtonText,
   loadingButtonText,
   onChange,
@@ -76,8 +77,13 @@ export function AuthForm({
           ))}
         </CardContent>
         <CardFooter className="flex flex-col space-y-4 pt-6">
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? loadingButtonText : submitButtonText}
+          <Button type="submit" className="w-full" disabled={isLoading}>
+            {isLoading ? (
+              <span className="flex items-center justify-center">
+                <InlineSpinner className="mr-2" />
+                {loadingButtonText}
+              </span>
+            ) : submitButtonText}
           </Button>
           {footer && (
             <AuthFormFooter
