@@ -116,22 +116,14 @@
     }
   },
   "navigation": {
-    "brand": "VideoQ",
     "home": "ホーム",
     "videosNav": "動画",
     "groupsNav": "グループ",
     "docs": "開発者Docs",
-    "videos": "動画一覧",
-    "videoGroups": "チャットグループ",
     "settings": "設定",
-    "logout": "ログアウト",
-    "welcome": "ようこそ、{{username}}さん",
-    "openMenu": "メニューを開く"
+    "logout": "ログアウト"
   },
   "layout": {
-    "footer": {
-      "copyright": "© {{year}} VideoQ. Released under the MIT License."
-    },
     "authBranding": {
       "tagline": "あらゆるビデオを、最高の学びの体験へ"
     },
