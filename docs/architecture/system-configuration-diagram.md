@@ -216,7 +216,7 @@ graph TB
         AddVideoToGroup, AddVideosToGroup, RemoveVideoFromGroup, ReorderVideosInGroup,
         CreateShareLink, DeleteShareLink, AddTagsToVideo, RemoveTagFromVideo,
         EnforceVideoLimit, IndexVideoTranscript, ReindexAllVideos, RunTranscription"]
-        UC["chat/ - SendMessage, SearchRelatedVideos, GetChatHistory, ExportChatHistory,
+        UC["chat/ - SendMessage, GetChatHistory, ExportChatHistory,
         SubmitFeedback, GetChatAnalytics, GetPopularScenes"]
         UA["auth/ - Login, Signup, VerifyEmail, RequestPasswordReset, ConfirmPasswordReset,
         GetCurrentUser, DeleteAccount, DeleteAccountData,

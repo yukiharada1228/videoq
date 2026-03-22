@@ -25,7 +25,7 @@ class ChatSceneLog:
     """A single chat log entry's scene data for analytics aggregation."""
 
     question: str
-    related_videos: List[SceneReference] = field(default_factory=list)
+    citations: List[SceneReference] = field(default_factory=list)
 
 
 @dataclass(frozen=True)

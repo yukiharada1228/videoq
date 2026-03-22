@@ -1,12 +1,12 @@
-import { useState } from 'react';
-import { type ChatHistoryItem } from '@/lib/api';
+import { Fragment, useState } from 'react';
+import { type ChatHistoryItem, type Citation } from '@/lib/api';
 import { timeStringToSeconds } from '@/lib/utils/video';
 import { cn } from '@/lib/utils';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
 import { useTranslation } from 'react-i18next';
 import { useChatMessages, type Message } from '@/hooks/useChatMessages';
 import { useChatHistory } from '@/hooks/useChatHistory';
-import { BookOpen, MapPin, ThumbsUp, ThumbsDown, Send, Download } from 'lucide-react';
+import { BookOpen, ThumbsUp, ThumbsDown, Send, Download } from 'lucide-react';
 
 // ── Message bubble ────────────────────────────────────────────────────────────
 
@@ -15,6 +15,105 @@ interface ChatMessageBubbleProps {
   feedbackUpdatingId: number | null;
   onVideoNavigate: (videoId: number, startTime: string) => void;
   onFeedback: (chatLogId: number, value: 'good' | 'bad') => Promise<void>;
+}
+
+function MessageBody({
+  content,
+  citations,
+  onVideoNavigate,
+}: {
+  content: string;
+  citations?: Citation[];
+  onVideoNavigate: (videoId: number, startTime: string) => void;
+}) {
+  const formatInlineTime = (time: string | undefined) => {
+    if (!time) return '';
+    const main = time.split(',')[0];
+    return main.replace(/^00:/, '').replace(/^0(\d:)/, '$1');
+  };
+
+  const formatTimeRange = (startTime: string | undefined, endTime: string | undefined) => {
+    const start = formatInlineTime(startTime);
+    const end = formatInlineTime(endTime);
+    if (start && end) return `${start}-${end}`;
+    return start || end;
+  };
+
+  const tagPattern = /<ref\s+ids="([^"]+)">([\s\S]*?)<\/ref>/g;
+  const nodes: Array<
+    | { type: 'text'; value: string }
+    | { type: 'ref'; ids: number[]; text: string }
+  > = [];
+  let lastIndex = 0;
+
+  for (const match of content.matchAll(tagPattern)) {
+    const fullMatch = match[0];
+    const idsText = match[1];
+    const refText = match[2];
+    const start = match.index ?? 0;
+
+    if (start > lastIndex) {
+      nodes.push({ type: 'text', value: content.slice(lastIndex, start) });
+    }
+
+    const ids = idsText
+      .split(',')
+      .map((part) => Number(part.trim()))
+      .filter((value) => Number.isInteger(value) && value > 0);
+
+    if (ids.length > 0 && refText) {
+      nodes.push({ type: 'ref', ids, text: refText });
+    } else {
+      nodes.push({ type: 'text', value: fullMatch });
+    }
+
+    lastIndex = start + fullMatch.length;
+  }
+
+  if (lastIndex < content.length) {
+    nodes.push({ type: 'text', value: content.slice(lastIndex) });
+  }
+
+  const normalizedNodes = nodes.length > 0 ? nodes : [{ type: 'text' as const, value: content }];
+  const citationMap = new Map((citations ?? []).map((citation) => [citation.id, citation]));
+
+  return (
+    <div className="text-[#3f493f] leading-relaxed whitespace-pre-wrap">
+      {normalizedNodes.map((node, i) => {
+        if (node.type === 'text') {
+          return <Fragment key={`text-${i}`}>{node.value}</Fragment>;
+        }
+
+        const video = citationMap.get(node.ids[0]);
+        if (!video) {
+          return <Fragment key={`text-${i}`}>{node.text}</Fragment>;
+        }
+
+        const linkedVideos = node.ids
+          .map((id) => citationMap.get(id))
+          .filter((item): item is NonNullable<typeof item> => Boolean(item));
+        const title = linkedVideos.map((item) => `${item.title} ${item.start_time}`).join(' / ');
+        const primaryRange = formatTimeRange(video.start_time, video.end_time);
+
+        return (
+          <Fragment key={`${video.video_id}-${video.start_time}-${i}`}>
+            {node.text}
+            {primaryRange && (
+              <button
+                type="button"
+                onClick={() => onVideoNavigate(video.video_id, video.start_time)}
+                className="inline text-left text-[#00652c] underline decoration-[#00652c]/35 underline-offset-3 hover:text-[#00461e] hover:decoration-[#00461e] transition-colors"
+                title={title || `${video.title} ${video.start_time}`}
+                aria-label={title || `${video.title} ${video.start_time}`}
+              >
+                {` (${primaryRange})`}
+              </button>
+            )}
+          </Fragment>
+        );
+      })}
+    </div>
+  );
 }
 
 function ChatMessageBubble({ message, feedbackUpdatingId, onVideoNavigate, onFeedback }: ChatMessageBubbleProps) {
@@ -37,23 +136,11 @@ function ChatMessageBubble({ message, feedbackUpdatingId, onVideoNavigate, onFee
           <BookOpen className="w-3.5 h-3.5" />
           AI {t('chat.teacher')}
         </div>
-        <p className="text-[#3f493f] leading-relaxed whitespace-pre-wrap">{message.content}</p>
-        {message.related_videos && message.related_videos.length > 0 && (
-          <div className="pt-1 flex flex-wrap gap-1.5">
-            {message.related_videos.map((video, i) => (
-              <button
-                key={i}
-                onClick={() => onVideoNavigate(video.video_id, video.start_time)}
-                className="inline-flex items-center gap-1 max-w-full px-2 py-1 bg-[#f0fdf4] border border-[#00652c]/20 rounded-lg text-[#00652c] text-[10px] font-bold hover:bg-[#d3ffd5] transition-colors"
-                title={`${video.title} ${video.start_time}`}
-              >
-                <MapPin className="w-2.5 h-2.5 shrink-0" />
-                <span className="truncate max-w-[120px]">{video.title}</span>
-                <span className="shrink-0 text-[#006d30] opacity-70">{video.start_time}</span>
-              </button>
-            ))}
-          </div>
-        )}
+        <MessageBody
+          content={message.content}
+          citations={message.citations}
+          onVideoNavigate={onVideoNavigate}
+        />
         {message.role === 'assistant' && message.chatLogId && (
           <div className="flex gap-2 pt-2">
             <button
@@ -108,23 +195,11 @@ function HistoryItem({ item, onVideoNavigate }: { item: ChatHistoryItem; onVideo
             <BookOpen className="w-3.5 h-3.5" />
             AI {t('chat.teacher')}
           </div>
-          <p className="text-[#3f493f] leading-relaxed whitespace-pre-wrap">{item.answer}</p>
-          {item.related_videos?.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 pt-1">
-              {item.related_videos.map((v, i) => (
-                <button
-                  key={i}
-                  onClick={() => onVideoNavigate(v.video_id, v.start_time)}
-                  className="inline-flex items-center gap-1 px-2 py-1 bg-[#f0fdf4] border border-[#00652c]/20 rounded-lg text-[#00652c] text-[10px] font-bold hover:bg-[#d3ffd5] transition-colors"
-                  title={`${v.title} ${v.start_time}`}
-                >
-                  <MapPin className="w-2.5 h-2.5 shrink-0" />
-                  <span className="truncate max-w-[120px]">{v.title}</span>
-                  <span className="shrink-0 opacity-70">{v.start_time}</span>
-                </button>
-              ))}
-            </div>
-          )}
+          <MessageBody
+            content={item.answer}
+            citations={item.citations}
+            onVideoNavigate={onVideoNavigate}
+          />
           {item.feedback && (
             <div className={`flex items-center gap-1 pt-1 text-[10px] font-bold ${item.feedback === 'good' ? 'text-[#00652c]' : 'text-red-400'}`}>
               {item.feedback === 'good' ? <ThumbsUp className="w-3 h-3" /> : <ThumbsDown className="w-3 h-3" />}

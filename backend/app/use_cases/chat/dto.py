@@ -21,9 +21,10 @@ class ChatMessageInput:
 
 
 @dataclass(frozen=True)
-class RelatedVideoResponseDTO:
-    """Use-case output DTO for a related video reference."""
+class CitationResponseDTO:
+    """Use-case output DTO for a citation reference."""
 
+    id: int
     video_id: int
     title: str
     start_time: Optional[str]
@@ -35,17 +36,9 @@ class SendMessageResultDTO:
     """Use-case output DTO for SendMessageUseCase."""
 
     content: str
-    related_videos: Optional[Sequence[RelatedVideoResponseDTO]]
+    citations: Optional[Sequence[CitationResponseDTO]]
     chat_log_id: Optional[int]
     feedback: Optional[str]
-
-
-@dataclass
-class SearchRelatedVideosResultDTO:
-    """Use-case output DTO for retrieval-only related video search."""
-
-    query_text: str
-    related_videos: Optional[Sequence[RelatedVideoResponseDTO]]
 
 
 @dataclass
@@ -56,7 +49,7 @@ class ChatHistoryExportRow:
     question: str
     answer: str
     is_shared_origin: bool
-    related_videos: List[RelatedVideoResponseDTO]
+    citations: List[CitationResponseDTO]
     feedback: Optional[str]
 
 
@@ -68,7 +61,7 @@ class ChatLogResponseDTO:
     group_id: int
     question: str
     answer: str
-    related_videos: List[RelatedVideoResponseDTO]
+    citations: List[CitationResponseDTO]
     is_shared_origin: bool
     feedback: Optional[str]
     created_at: Optional[datetime] = None

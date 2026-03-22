@@ -29,33 +29,20 @@ class OpenAIChatRequestSerializer(serializers.Serializer):
     language = serializers.CharField(required=False, allow_null=True)
 
 
-class ChatResponseSerializer(serializers.Serializer):
-    role = serializers.CharField()
-    content = serializers.CharField()
-    related_videos = serializers.ListField(
-        child=serializers.DictField(), required=False, allow_null=True
-    )
-    chat_log_id = serializers.IntegerField(required=False, allow_null=True)
-    feedback = serializers.CharField(required=False, allow_null=True)
-
-
-class ChatSearchRequestSerializer(serializers.Serializer):
-    query_text = serializers.CharField()
-    group_id = serializers.IntegerField(required=True)
-
-
-class ChatSearchResponseSerializer(serializers.Serializer):
-    query_text = serializers.CharField()
-    related_videos = serializers.ListField(
-        child=serializers.DictField(), required=False, allow_null=True
-    )
-
-
-class RelatedVideoSerializer(serializers.Serializer):
+class CitationSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
     video_id = serializers.IntegerField()
     title = serializers.CharField()
     start_time = serializers.CharField(allow_null=True, required=False)
     end_time = serializers.CharField(allow_null=True, required=False)
+
+
+class ChatResponseSerializer(serializers.Serializer):
+    role = serializers.CharField()
+    content = serializers.CharField()
+    citations = CitationSerializer(many=True, required=False, allow_null=True)
+    chat_log_id = serializers.IntegerField(required=False, allow_null=True)
+    feedback = serializers.CharField(required=False, allow_null=True)
 
 
 class ChatFeedbackRequestSerializer(serializers.Serializer):
@@ -77,10 +64,22 @@ class ChatLogSerializer(serializers.Serializer):
     group = serializers.IntegerField(source="group_id")
     question = serializers.CharField()
     answer = serializers.CharField()
-    related_videos = RelatedVideoSerializer(many=True)
+    citations = serializers.SerializerMethodField()
     is_shared_origin = serializers.BooleanField()
     feedback = serializers.CharField(allow_null=True)
     created_at = serializers.DateTimeField()
+
+    def get_citations(self, obj):
+        return [
+            {
+                "id": citation.id,
+                "video_id": citation.video_id,
+                "title": citation.title,
+                "start_time": citation.start_time,
+                "end_time": citation.end_time,
+            }
+            for citation in obj.citations
+        ]
 
 
 class ChatAnalyticsSummarySerializer(serializers.Serializer):

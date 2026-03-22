@@ -78,6 +78,32 @@ class RagChatServiceTests(TestCase):
         mock_get_embeddings.assert_called_once_with(None)
         mock_create_vectorstore.assert_called_once()
 
+    def test_build_reference_entries_adds_bracketed_indices(self):
+        service = RagChatService(user=self.user, llm=MagicMock())
+        docs = [
+            MagicMock(
+                metadata={
+                    "video_title": "Video A",
+                    "start_time": "00:00:10",
+                    "end_time": "00:00:20",
+                },
+                page_content="First scene",
+            ),
+            MagicMock(
+                metadata={
+                    "video_title": "Video B",
+                    "start_time": "00:01:00",
+                    "end_time": "00:01:10",
+                },
+                page_content="Second scene",
+            ),
+        ]
+
+        entries = service._build_reference_entries(docs)
+
+        self.assertEqual(entries[0], "[1] Video A 00:00:10 - 00:00:20\nFirst scene")
+        self.assertEqual(entries[1], "[2] Video B 00:01:00 - 00:01:10\nSecond scene")
+
 
 class RagChatGatewayExceptionTests(TestCase):
     """Verify RagChatGateway exception classification."""

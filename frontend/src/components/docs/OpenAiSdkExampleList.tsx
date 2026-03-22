@@ -14,7 +14,7 @@ type Example = {
 type CodeStrings = {
   ragComment: string;
   sampleQuestion: string;
-  relatedVideosComment: string;
+  citationsComment: string;
   language: string;
 };
 
@@ -41,18 +41,18 @@ response = client.chat.completions.create(
 msg = response.choices[0].message
 print(msg.content)
 
-# ${c.relatedVideosComment}
-related_videos = msg.model_extra.get("related_videos")  # list | None
+# ${c.citationsComment}
+citations = msg.model_extra.get("citations")  # list | None
 chat_log_id = msg.model_extra.get("chat_log_id")        # int | None
 
-if related_videos:
-    for scene in related_videos:
+if citations:
+    for scene in citations:
         print(f"{scene['title']} ({scene['start_time']} - {scene['end_time']})")`,
 
         typescript: `import OpenAI from 'openai';
 
 type VideoQMessage = OpenAI.Chat.ChatCompletionMessage & {
-  related_videos?: { video_id: number; title: string; start_time: string; end_time: string }[];
+  citations?: { id: number; video_id: number; title: string; start_time: string; end_time: string }[];
   chat_log_id?: number;
 };
 
@@ -74,8 +74,8 @@ const response = await client.chat.completions.create({
 const msg = response.choices[0].message as VideoQMessage;
 console.log(msg.content);
 
-// ${c.relatedVideosComment}
-msg.related_videos?.forEach(scene => {
+// ${c.citationsComment}
+msg.citations?.forEach(scene => {
   console.log(\`\${scene.title} (\${scene.start_time} - \${scene.end_time})\`);
 });
 console.log('chat_log_id:', msg.chat_log_id);`,
@@ -99,8 +99,8 @@ const response = await client.chat.completions.create({
 const msg = response.choices[0].message;
 console.log(msg.content);
 
-// ${c.relatedVideosComment}
-msg.related_videos?.forEach(scene => {
+// ${c.citationsComment}
+msg.citations?.forEach(scene => {
   console.log(\`\${scene.title} (\${scene.start_time} - \${scene.end_time})\`);
 });
 console.log('chat_log_id:', msg.chat_log_id);`,
@@ -118,7 +118,7 @@ export function OpenAiSdkExampleList() {
   const codeStrings: CodeStrings = {
     ragComment: t('docs.openai.code.ragComment'),
     sampleQuestion: t('docs.openai.code.sampleQuestion'),
-    relatedVideosComment: t('docs.openai.code.relatedVideosComment'),
+    citationsComment: t('docs.openai.code.relatedVideosComment'),
     language: t('docs.openai.code.language'),
   };
   const examples = buildExamples(baseUrl, codeStrings);
