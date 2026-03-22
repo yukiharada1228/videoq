@@ -3,6 +3,7 @@ import { type ChatHistoryItem, type Citation } from '@/lib/api';
 import { timeStringToSeconds } from '@/lib/utils/video';
 import { cn } from '@/lib/utils';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
+import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { useTranslation } from 'react-i18next';
 import { useChatMessages, type Message } from '@/hooks/useChatMessages';
 import { useChatHistory } from '@/hooks/useChatHistory';
@@ -322,7 +323,7 @@ export function ChatPanel({ groupId, onVideoPlay, shareToken, className }: ChatP
           )}
           <div className="flex-1 overflow-y-auto p-4 space-y-6">
             {historyLoading && (
-              <div className="flex justify-center py-8"><InlineSpinner className="w-5 h-5 text-stone-300" /></div>
+              <LoadingSpinner />
             )}
             {!historyLoading && (history?.length ?? 0) === 0 && (
               <p className="text-sm text-stone-400 text-center py-8">{t('chat.historyEmpty')}</p>
