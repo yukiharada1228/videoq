@@ -2,6 +2,7 @@
 Use case: Retrieve chat history for a group.
 """
 
+from app.domain.chat.reference_markup import repair_ref_markup
 from app.domain.chat.repositories import ChatRepository, VideoGroupQueryRepository
 from app.domain.chat.services import (
     GroupContextNotFound as _DomainGroupContextNotFound,
@@ -45,7 +46,7 @@ class GetChatHistoryUseCase:
                 id=log.id,
                 group_id=log.group_id,
                 question=log.question,
-                answer=log.answer,
+                answer=repair_ref_markup(log.answer),
                 citations=[
                     CitationResponseDTO(
                         id=index,
