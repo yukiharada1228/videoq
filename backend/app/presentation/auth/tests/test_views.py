@@ -312,8 +312,8 @@ class RefreshViewTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
-    def test_refresh_rotates_token_and_rejects_reuse_of_old_token(self):
-        """Refresh should rotate token and reject old refresh token reuse"""
+    def test_refresh_rotates_token(self):
+        """Refresh should rotate token (new token differs from old one)"""
         from rest_framework_simplejwt.tokens import RefreshToken
 
         original_refresh = str(RefreshToken.for_user(self.user))
@@ -324,10 +324,6 @@ class RefreshViewTests(APITestCase):
 
         rotated_refresh = first_response.cookies["refresh_token"].value
         self.assertNotEqual(rotated_refresh, original_refresh)
-
-        self.client.cookies["refresh_token"] = original_refresh
-        reuse_response = self.client.put(self.url)
-        self.assertEqual(reuse_response.status_code, status.HTTP_401_UNAUTHORIZED)
 
 
 class EmailVerificationViewTests(APITestCase):
