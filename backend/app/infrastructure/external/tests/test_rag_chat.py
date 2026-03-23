@@ -177,7 +177,7 @@ class RagChatGatewayExceptionTests(TestCase):
             "RagResultStub",
             (),
             {
-                "llm_response": AIMessage(content='要約。<ref ids="1,2,3">続き'),
+                "llm_response": AIMessage(content='Summary.<ref ids="1,2,3">continued'),
                 "query_text": "hello",
                 "citations": [],
             },
@@ -189,7 +189,7 @@ class RagChatGatewayExceptionTests(TestCase):
 
         result = gateway.generate_reply(messages=messages, user_id=self.user.id)
 
-        self.assertEqual(result.content, '要約。<ref ids="1,2,3"> </ref>続き')
+        self.assertEqual(result.content, 'Summary.<ref ids="1,2,3"> </ref>continued')
 
     @patch("app.infrastructure.external.rag_gateway.get_langchain_llm")
     @patch("app.infrastructure.external.rag_gateway.RagChatService")
@@ -205,7 +205,7 @@ class RagChatGatewayExceptionTests(TestCase):
             "RagResultStub",
             (),
             {
-                "llm_response": AIMessage(content='要約。<ref ids="1,2"> </ref>。<ref>続き'),
+                "llm_response": AIMessage(content='Summary.<ref ids="1,2"> </ref>.<ref>continued'),
                 "query_text": "hello",
                 "citations": [],
             },
@@ -217,4 +217,4 @@ class RagChatGatewayExceptionTests(TestCase):
 
         result = gateway.generate_reply(messages=messages, user_id=self.user.id)
 
-        self.assertEqual(result.content, '要約。<ref ids="1,2"> </ref>。続き')
+        self.assertEqual(result.content, 'Summary.<ref ids="1,2"> </ref>.continued')
