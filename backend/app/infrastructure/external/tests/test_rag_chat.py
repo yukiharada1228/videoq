@@ -162,3 +162,59 @@ class RagChatGatewayExceptionTests(TestCase):
 
         with self.assertRaises(RagUserNotFoundError):
             gateway.generate_reply(messages=messages, user_id=999999)
+
+    @patch("app.infrastructure.external.rag_gateway.get_langchain_llm")
+    @patch("app.infrastructure.external.rag_gateway.RagChatService")
+    @override_settings(LLM_PROVIDER="openai")
+    def test_generate_reply_repairs_dangling_multi_id_ref_markup(
+        self, mock_service_cls, mock_get_llm
+    ):
+        from langchain_core.messages import AIMessage
+
+        mock_get_llm.return_value = MagicMock()
+        mock_service = MagicMock()
+        mock_service.run.return_value = type(
+            "RagResultStub",
+            (),
+            {
+                "llm_response": AIMessage(content='要約。<ref ids="1,2,3">続き'),
+                "query_text": "hello",
+                "citations": [],
+            },
+        )()
+        mock_service_cls.return_value = mock_service
+
+        gateway = RagChatGateway()
+        messages = [ChatMessageDTO(role="user", content="hello")]
+
+        result = gateway.generate_reply(messages=messages, user_id=self.user.id)
+
+        self.assertEqual(result.content, '要約。<ref ids="1,2,3"> </ref>続き')
+
+    @patch("app.infrastructure.external.rag_gateway.get_langchain_llm")
+    @patch("app.infrastructure.external.rag_gateway.RagChatService")
+    @override_settings(LLM_PROVIDER="openai")
+    def test_generate_reply_removes_bare_ref_tag(
+        self, mock_service_cls, mock_get_llm
+    ):
+        from langchain_core.messages import AIMessage
+
+        mock_get_llm.return_value = MagicMock()
+        mock_service = MagicMock()
+        mock_service.run.return_value = type(
+            "RagResultStub",
+            (),
+            {
+                "llm_response": AIMessage(content='要約。<ref ids="1,2"> </ref>。<ref>続き'),
+                "query_text": "hello",
+                "citations": [],
+            },
+        )()
+        mock_service_cls.return_value = mock_service
+
+        gateway = RagChatGateway()
+        messages = [ChatMessageDTO(role="user", content="hello")]
+
+        result = gateway.generate_reply(messages=messages, user_id=self.user.id)
+
+        self.assertEqual(result.content, '要約。<ref ids="1,2"> </ref>。続き')
