@@ -111,19 +111,19 @@ class ChatDomainServicesTests(TestCase):
         self.assertEqual(member_video_id_set(group), {10, 11})
 
     def test_repair_ref_markup_closes_dangling_multi_id_ref(self):
-        result = repair_ref_markup('要約です。<ref ids="1,2,6">となっています')
+        result = repair_ref_markup('Summary:<ref ids="1,2,6">continued')
 
         self.assertEqual(
             result,
-            '要約です。<ref ids="1,2,6"> </ref>となっています',
+            'Summary:<ref ids="1,2,6"> </ref>continued',
         )
 
     def test_repair_ref_markup_preserves_valid_ref(self):
-        result = repair_ref_markup('これは<ref ids="1,2">根拠です</ref>。')
+        result = repair_ref_markup('This is <ref ids="1,2">grounded text</ref>.')
 
-        self.assertEqual(result, 'これは<ref ids="1,2">根拠です</ref>。')
+        self.assertEqual(result, 'This is <ref ids="1,2">grounded text</ref>.')
 
     def test_repair_ref_markup_removes_bare_ref_tag(self):
-        result = repair_ref_markup('要約です。<ref ids="1,2"> </ref>。<ref>こんな感じ')
+        result = repair_ref_markup('Summary.<ref ids="1,2"> </ref>.<ref>continued')
 
-        self.assertEqual(result, '要約です。<ref ids="1,2"> </ref>。こんな感じ')
+        self.assertEqual(result, 'Summary.<ref ids="1,2"> </ref>.continued')
