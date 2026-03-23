@@ -2,6 +2,7 @@
 
 from unittest import TestCase
 
+from app.domain.chat.reference_markup import repair_ref_markup
 from app.domain.chat.services import (
     ChatRequestPolicy,
     GroupContextNotFound,
@@ -108,3 +109,21 @@ class ChatDomainServicesTests(TestCase):
             members=[VideoGroupMemberRef(video_id=10), VideoGroupMemberRef(video_id=11)],
         )
         self.assertEqual(member_video_id_set(group), {10, 11})
+
+    def test_repair_ref_markup_closes_dangling_multi_id_ref(self):
+        result = repair_ref_markup('要約です。<ref ids="1,2,6">となっています')
+
+        self.assertEqual(
+            result,
+            '要約です。<ref ids="1,2,6"> </ref>となっています',
+        )
+
+    def test_repair_ref_markup_preserves_valid_ref(self):
+        result = repair_ref_markup('これは<ref ids="1,2">根拠です</ref>。')
+
+        self.assertEqual(result, 'これは<ref ids="1,2">根拠です</ref>。')
+
+    def test_repair_ref_markup_removes_bare_ref_tag(self):
+        result = repair_ref_markup('要約です。<ref ids="1,2"> </ref>。<ref>こんな感じ')
+
+        self.assertEqual(result, '要約です。<ref ids="1,2"> </ref>。こんな感じ')
