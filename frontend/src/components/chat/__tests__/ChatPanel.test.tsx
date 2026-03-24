@@ -93,7 +93,7 @@ describe('ChatPanel', () => {
     const onVideoPlay = vi.fn()
     ;(apiClient.chat as any).mockResolvedValue({
       role: 'assistant',
-      content: 'This is <ref ids="1">grounded text</ref>.',
+      content: 'This is grounded text[1].',
       citations: [
         {
           id: 1,
@@ -118,8 +118,7 @@ describe('ChatPanel', () => {
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /Test Video 00:01:30/ })).toBeInTheDocument()
     })
-    expect(screen.getByText((text) => text.includes('This is'))).toBeInTheDocument()
-    expect(screen.queryByText((text) => text.includes('grounded text'))).not.toBeInTheDocument()
+    expect(screen.getByText((text) => text.includes('This is grounded text'))).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Test Video 00:01:30/ })).toHaveTextContent('(1:30-15:30)')
 
     const videoButton = screen.getByTitle(/Test Video/)
@@ -134,7 +133,7 @@ describe('ChatPanel', () => {
   it('should open video in new tab when onVideoPlay is not provided', async () => {
     ;(apiClient.chat as any).mockResolvedValue({
       role: 'assistant',
-      content: 'This is <ref ids="1">grounded text</ref>.',
+      content: 'This is grounded text[1].',
       citations: [
         {
           id: 1,
@@ -591,7 +590,7 @@ describe('ChatPanel', () => {
         id: 1,
         group: 1,
         question: 'Test question',
-        answer: 'Test <ref ids="1">answer</ref>',
+        answer: 'Test answer[1]',
         citations: [
           {
             id: 1,
@@ -620,14 +619,14 @@ describe('ChatPanel', () => {
       expect(screen.getByText('Test question')).toBeInTheDocument()
     })
 
-    expect(screen.queryByText((text) => text.includes('answer'))).not.toBeInTheDocument()
+    expect(screen.getByText((text) => text.includes('Test answer'))).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /History Video 00:02:00/ })).toHaveTextContent('(2:00-10:00)')
   })
 
-  it('should render multiple reference ids on one phrase', async () => {
+  it('should render multiple reference ids as separate buttons', async () => {
     ;(apiClient.chat as any).mockResolvedValue({
       role: 'assistant',
-      content: 'This is <ref ids="1,2">grounded text</ref>.',
+      content: 'This is grounded text[1][2].',
       citations: [
         {
           id: 1,
@@ -660,15 +659,17 @@ describe('ChatPanel', () => {
       expect(screen.getByRole('button', { name: /Video One 00:01:30/ })).toBeInTheDocument()
     })
 
-    expect(screen.getByTitle(/Video One 00:01:30 \/ Video Two 00:02:30/)).toBeInTheDocument()
-    expect(screen.queryByText((text) => text.includes('grounded text'))).not.toBeInTheDocument()
+    expect(screen.getByTitle(/Video One 00:01:30/)).toBeInTheDocument()
+    expect(screen.getByTitle(/Video Two 00:02:30/)).toBeInTheDocument()
+    expect(screen.getByText((text) => text.includes('This is grounded text'))).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Video One 00:01:30/ })).toHaveTextContent('(1:30-15:30)')
+    expect(screen.getByRole('button', { name: /Video Two 00:02:30/ })).toHaveTextContent('(2:30-8:30)')
   })
 
   it('should normalize millisecond timestamps in inline links', async () => {
     ;(apiClient.chat as any).mockResolvedValue({
       role: 'assistant',
-      content: 'Deep learning is useful.<ref ids="1"> It finds a good function.</ref>',
+      content: 'Deep learning is useful[1]. It finds a good function.',
       citations: [
         {
           id: 1,
