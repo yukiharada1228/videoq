@@ -40,35 +40,23 @@ function MessageBody({
     return start || end;
   };
 
-  const tagPattern = /<ref\s+ids="([^"]+)">([\s\S]*?)<\/ref>/g;
+  const tagPattern = /\[(\d+)\]/g;
   const nodes: Array<
     | { type: 'text'; value: string }
-    | { type: 'ref'; ids: number[]; text: string }
+    | { type: 'ref'; id: number }
   > = [];
   let lastIndex = 0;
 
   for (const match of content.matchAll(tagPattern)) {
-    const fullMatch = match[0];
-    const idsText = match[1];
-    const refText = match[2];
+    const id = Number(match[1]);
     const start = match.index ?? 0;
 
     if (start > lastIndex) {
       nodes.push({ type: 'text', value: content.slice(lastIndex, start) });
     }
 
-    const ids = idsText
-      .split(',')
-      .map((part) => Number(part.trim()))
-      .filter((value) => Number.isInteger(value) && value > 0);
-
-    if (ids.length > 0 && refText) {
-      nodes.push({ type: 'ref', ids, text: refText });
-    } else {
-      nodes.push({ type: 'text', value: fullMatch });
-    }
-
-    lastIndex = start + fullMatch.length;
+    nodes.push({ type: 'ref', id });
+    lastIndex = start + match[0].length;
   }
 
   if (lastIndex < content.length) {
@@ -85,15 +73,11 @@ function MessageBody({
           return <Fragment key={`text-${i}`}>{node.value}</Fragment>;
         }
 
-        const video = citationMap.get(node.ids[0]);
+        const video = citationMap.get(node.id);
         if (!video) {
-          return <Fragment key={`text-${i}`}>{node.text}</Fragment>;
+          return <Fragment key={`ref-${i}`}>[{node.id}]</Fragment>;
         }
 
-        const linkedVideos = node.ids
-          .map((id) => citationMap.get(id))
-          .filter((item): item is NonNullable<typeof item> => Boolean(item));
-        const title = linkedVideos.map((item) => `${item.title} ${item.start_time}`).join(' / ');
         const primaryRange = formatTimeRange(video.start_time, video.end_time);
 
         return (
@@ -103,8 +87,8 @@ function MessageBody({
                 type="button"
                 onClick={() => onVideoNavigate(video.video_id, video.start_time)}
                 className="inline text-left text-[#00652c] underline decoration-[#00652c]/35 underline-offset-3 hover:text-[#00461e] hover:decoration-[#00461e] transition-colors"
-                title={title || `${video.title} ${video.start_time}`}
-                aria-label={title || `${video.title} ${video.start_time}`}
+                title={`${video.title} ${video.start_time}`}
+                aria-label={`${video.title} ${video.start_time}`}
               >
                 {` (${primaryRange})`}
               </button>

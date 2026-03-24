@@ -4,7 +4,6 @@ Use case: Export chat history for a group as domain rows.
 
 from typing import Generator, Iterable
 
-from app.domain.chat.reference_markup import repair_ref_markup
 from app.domain.chat.repositories import ChatRepository, VideoGroupQueryRepository
 from app.use_cases.chat.dto import ChatHistoryExportRow, CitationResponseDTO
 from app.use_cases.shared.exceptions import ResourceNotFound
@@ -47,7 +46,7 @@ class ExportChatHistoryUseCase:
             yield ChatHistoryExportRow(
                 created_at=log.created_at,
                 question=log.question,
-                answer=repair_ref_markup(log.answer),
+                answer=log.answer,
                 is_shared_origin=log.is_shared_origin,
                 citations=[
                     CitationResponseDTO(

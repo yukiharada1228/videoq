@@ -87,28 +87,3 @@ class GetChatHistoryUseCaseTests(unittest.TestCase):
         with self.assertRaises(ResourceNotFound):
             use_case.execute(group_id=999, user_id=1)
 
-    def test_execute_repairs_dangling_ref_markup_in_answer(self):
-        group = VideoGroupContextEntity(id=5, user_id=1, name="g1")
-        logs = [
-            ChatLogEntity(
-                id=10,
-                user_id=1,
-                group_id=5,
-                group_user_id=1,
-                group_share_token=None,
-                question="q",
-                answer='a<ref ids="1,2">b',
-                citations=[],
-                is_shared_origin=False,
-                feedback="good",
-                created_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
-            )
-        ]
-        use_case = GetChatHistoryUseCase(
-            chat_repo=_StubChatRepository(logs),
-            group_query_repo=_StubGroupRepository(group),
-        )
-
-        result = use_case.execute(group_id=5, user_id=1)
-
-        self.assertEqual(result[0].answer, 'a<ref ids="1,2"> </ref>b')
