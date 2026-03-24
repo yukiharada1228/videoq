@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-type MobileTab = 'videos' | 'player' | 'chat';
+type MobileTab = 'videos' | 'player';
 
 interface UseMobileTabReturn {
   mobileTab: MobileTab;
