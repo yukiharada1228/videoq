@@ -9,7 +9,6 @@ from typing import Optional, Sequence
 from django.contrib.auth import get_user_model
 from openai import AuthenticationError as OpenAIAuthenticationError
 
-from app.domain.chat.reference_markup import repair_ref_markup
 from app.domain.chat.gateways import (
     LLMConfigurationError,
     LLMProviderError,
@@ -82,7 +81,6 @@ class RagChatGateway(RagGateway):
 
         content = result.llm_response.content
         content_text = content if isinstance(content, str) else str(content)
-        content_text = repair_ref_markup(content_text)
 
         return RagResult(
             content=content_text,
