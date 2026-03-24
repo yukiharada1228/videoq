@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
-  GraduationCap, List, Play, MessageSquare,
+  GraduationCap, List, Play,
   CheckCircle, Clock, AlertCircle,
 } from 'lucide-react';
 import { Link } from '@/lib/i18n';
@@ -16,7 +16,7 @@ import { useMobileTab } from '@/hooks/useMobileTab';
 import { useSharedGroupQuery } from '@/hooks/useSharePageData';
 import { useI18nNavigate } from '@/lib/i18n';
 
-type MobileTab = 'videos' | 'player' | 'chat';
+type MobileTab = 'videos' | 'player';
 
 // ── Status badge ──────────────────────────────────────────────────────────────
 
@@ -107,11 +107,10 @@ export default function SharePage() {
     onMobileSwitch: () => setMobileTab('player'),
   });
 
-  const mobileTabIcon: Record<MobileTab, typeof List> = { videos: List, player: Play, chat: MessageSquare };
+  const mobileTabIcon: Record<MobileTab, typeof List> = { videos: List, player: Play };
   const mobileTabLabel: Record<MobileTab, string> = {
     videos: t('videos.shared.tabs.videos'),
     player: t('videos.shared.tabs.player'),
-    chat: t('videos.shared.tabs.chat'),
   };
 
   // ── Loading ────────────────────────────────────────────────────────────────
@@ -175,7 +174,7 @@ export default function SharePage() {
       </header>
 
       {/* ── Main ────────────────────────────────────────────────────────── */}
-      <main className="mt-16 flex flex-col px-6 pt-4 gap-4 max-w-[1600px] mx-auto w-full h-[calc(100dvh-8rem)] overflow-hidden md:h-[calc(100dvh-4rem)]">
+      <main className="mt-16 flex flex-col px-6 pt-4 gap-4 max-w-[1600px] mx-auto w-full overflow-y-auto pb-16 md:pb-0 md:h-[calc(100dvh-4rem)] md:overflow-hidden">
         {group.description && (
           <div className="shrink-0 rounded-2xl border border-stone-200/70 bg-white/80 px-4 py-3 text-sm text-[#4f5a4f] shadow-[0_4px_20px_rgba(28,25,23,0.04)]">
             {group.description}
@@ -183,7 +182,7 @@ export default function SharePage() {
         )}
 
         {/* 3-column grid */}
-        <div className="flex flex-col md:grid md:grid-cols-4 gap-6 flex-1 min-h-0 md:items-stretch">
+        <div className="flex flex-col md:grid md:grid-cols-4 gap-6 md:flex-1 md:min-h-0 md:items-stretch">
 
           {/* LEFT: Video list */}
           <aside className={`md:col-span-1 flex flex-col min-h-0 ${mobileTab === 'videos' ? 'flex' : 'hidden md:flex'}`}>
@@ -217,8 +216,8 @@ export default function SharePage() {
           </aside>
 
           {/* CENTER: Video player */}
-          <section className={`md:col-span-2 flex flex-col gap-3 min-h-0 ${mobileTab === 'player' ? 'flex' : 'hidden md:flex'}`}>
-            <div className="bg-white rounded-xl flex flex-col flex-1 overflow-hidden shadow-[0_8px_30px_rgba(28,25,23,0.08)]">
+          <section className={`md:col-span-2 flex flex-col gap-3 md:min-h-0 ${mobileTab === 'player' ? 'flex' : 'hidden md:flex'}`}>
+            <div className="bg-white rounded-xl flex flex-col md:flex-1 overflow-hidden shadow-[0_8px_30px_rgba(28,25,23,0.08)]">
               <div className="p-4 border-b border-stone-100 shrink-0 flex items-center justify-between gap-3 min-w-0">
                 <h1 className="font-extrabold text-[#191c19] text-lg truncate flex-1 min-w-0">
                   {selectedVideo ? selectedVideo.title : t('videos.shared.playerPlaceholder')}
@@ -234,7 +233,7 @@ export default function SharePage() {
                   </div>
                 )}
               </div>
-              <div className="flex-1 bg-[#1a1c1c] flex items-center justify-center min-h-0">
+              <div className="aspect-video md:aspect-auto md:flex-1 bg-[#1a1c1c] flex items-center justify-center md:min-h-0">
                 {selectedVideo ? (
                   selectedVideo.file ? (
                     <video
@@ -255,10 +254,19 @@ export default function SharePage() {
                 )}
               </div>
             </div>
+            {/* Chat below player on mobile */}
+            <div className="md:hidden">
+              <ChatPanel
+                groupId={group.id}
+                onVideoPlay={handleVideoPlayFromTime}
+                shareToken={shareToken}
+                className="h-[480px] shadow-[0_4px_20px_rgba(28,25,23,0.04)]"
+              />
+            </div>
           </section>
 
-          {/* RIGHT: Chat */}
-          <aside className={`md:col-span-1 flex flex-col min-h-0 ${mobileTab === 'chat' ? 'flex' : 'hidden md:flex'}`}>
+          {/* RIGHT: Chat (desktop only) */}
+          <aside className="hidden md:flex md:col-span-1 flex-col min-h-0">
             <ChatPanel
               groupId={group.id}
               onVideoPlay={handleVideoPlayFromTime}
@@ -272,7 +280,7 @@ export default function SharePage() {
 
       {/* ── Mobile bottom nav ───────────────────────────────────────────── */}
       <nav className="fixed bottom-0 left-0 w-full z-50 md:hidden flex justify-around items-center h-16 bg-white border-t border-stone-100 shadow-[0_-4px_20px_rgba(28,25,23,0.06)] rounded-t-2xl px-4">
-        {(['videos', 'player', 'chat'] as MobileTab[]).map((tab) => {
+        {(['videos', 'player'] as MobileTab[]).map((tab) => {
           const Icon = mobileTabIcon[tab];
           const isActive = mobileTab === tab;
           return (
