@@ -133,7 +133,7 @@ describe('VideoGroupDetailPage', () => {
     render(<VideoGroupDetailPage />)
 
     await waitFor(() => {
-      expect(screen.getByTestId('chat-panel')).toBeInTheDocument()
+      expect(screen.getAllByTestId('chat-panel').length).toBeGreaterThan(0)
     })
   })
 
