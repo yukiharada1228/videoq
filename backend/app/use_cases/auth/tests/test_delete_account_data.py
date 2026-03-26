@@ -140,8 +140,8 @@ class CancelSubscriptionOnDeleteTests(TestCase):
 
         use_case.execute(user_id=1)  # エラーなく完了すること
 
-    def test_continues_data_deletion_even_if_stripe_cancel_fails(self):
-        """Stripeキャンセルが失敗してもデータ削除は続行される"""
+    def test_blocks_deletion_if_stripe_cancel_fails(self):
+        """Stripeキャンセルが失敗した場合、アカウント削除をブロックする（課金継続を防ぐ）"""
         entity = _make_subscription(stripe_subscription_id="sub_fail")
         billing_gw = MagicMock(spec=BillingGateway)
         billing_gw.cancel_subscription.side_effect = Exception("Stripe error")
@@ -153,12 +153,11 @@ class CancelSubscriptionOnDeleteTests(TestCase):
             billing_gateway=billing_gw,
         )
 
-        use_case.execute(user_id=1)  # エラーで中断しないこと
+        with self.assertRaises(Exception):
+            use_case.execute(user_id=1)
 
-        deletion_gw.delete_all_videos_for_user.assert_called_once_with(1)
-        deletion_gw.delete_chat_history_for_user.assert_called_once_with(1)
-        deletion_gw.delete_video_groups_for_user.assert_called_once_with(1)
-        deletion_gw.delete_tags_for_user.assert_called_once_with(1)
+        deletion_gw.delete_all_videos_for_user.assert_not_called()
+        deletion_gw.delete_chat_history_for_user.assert_not_called()
 
     def test_all_data_deletion_methods_called(self):
         """サブスクリプションなしでも全データ削除メソッドが呼ばれる"""
