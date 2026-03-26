@@ -10,6 +10,7 @@ import { AppPageHeader } from '@/components/layout/AppPageHeader';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { Button } from '@/components/ui/button';
 import { operatorConfig } from '@/lib/operatorConfig';
+import { useLocale } from '@/lib/i18n';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -246,10 +247,11 @@ function PlanCard({ plan, isCurrent, currency, subscription, onUpgrade, onManage
 
 export default function BillingPage() {
   useAuth();
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const locale = useLocale();
   const [currency, setCurrency] = useState<'jpy' | 'usd'>(
-    () => (i18n.resolvedLanguage?.startsWith('en') ? 'usd' : 'jpy'),
+    () => (locale === 'en' ? 'usd' : 'jpy'),
   );
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [portalError, setPortalError] = useState<string | null>(null);
