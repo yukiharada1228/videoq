@@ -3,10 +3,9 @@ Use case: Transcribe a video and index its scenes for RAG search.
 """
 
 import logging
-import math
 import re
 
-from typing import Optional
+from typing import Callable, Optional
 
 from app.domain.shared.transaction import TransactionPort
 from app.domain.user.repositories import UserRepository
@@ -66,7 +65,7 @@ class RunTranscriptionUseCase:
         upload_gateway: FileUploadGateway,
         tx: TransactionPort,
         user_repo: Optional[UserRepository] = None,
-        video_file_accessor=None,
+        duration_estimator: Optional[Callable[[int], Optional[int]]] = None,
         processing_limit_check_use_case=None,
         processing_record_use_case=None,
     ):
@@ -76,21 +75,14 @@ class RunTranscriptionUseCase:
         self.upload_gateway = upload_gateway
         self.tx = tx
         self.user_repo = user_repo
-        self.video_file_accessor = video_file_accessor
+        self._duration_estimator = duration_estimator
         self._processing_limit_check_use_case = processing_limit_check_use_case
         self._processing_record_use_case = processing_record_use_case
 
     def _estimate_video_duration_seconds(self, video_id: int) -> Optional[int]:
-        if self.video_file_accessor is None:
+        if self._duration_estimator is None:
             return None
-
-        from app.infrastructure.common.task_helpers import TemporaryFileManager
-        from app.infrastructure.transcription.audio_processing import _get_video_duration
-
-        with TemporaryFileManager() as temp_manager:
-            video_file_path = self.video_file_accessor.get_local_path(video_id, temp_manager)
-            duration_seconds = _get_video_duration(video_file_path)
-        return max(1, math.ceil(duration_seconds))
+        return self._duration_estimator(video_id)
 
     def execute(self, video_id: int) -> None:
         video = self.video_repo.get_by_id_for_task(video_id)

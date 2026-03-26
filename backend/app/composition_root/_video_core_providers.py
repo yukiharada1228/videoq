@@ -26,6 +26,22 @@ def get_reindex_all_videos_use_case() -> ReindexAllVideosUseCase:
     )
 
 
+def _make_duration_estimator():
+    import math
+    from app.infrastructure.common.task_helpers import TemporaryFileManager
+    from app.infrastructure.transcription.audio_processing import _get_video_duration
+
+    video_file_accessor = shared.get_video_file_accessor()
+
+    def estimator(video_id: int):
+        with TemporaryFileManager() as temp_manager:
+            path = video_file_accessor.get_local_path(video_id, temp_manager)
+            duration_seconds = _get_video_duration(path)
+        return max(1, math.ceil(duration_seconds))
+
+    return estimator
+
+
 def get_run_transcription_use_case() -> RunTranscriptionUseCase:
     return RunTranscriptionUseCase(
         shared.new_video_repository(),
@@ -34,7 +50,7 @@ def get_run_transcription_use_case() -> RunTranscriptionUseCase:
         shared.get_file_upload_gateway(),
         DjangoTransactionPort(),
         user_repo=shared.new_user_repository(),
-        video_file_accessor=shared.get_video_file_accessor(),
+        duration_estimator=_make_duration_estimator(),
         processing_limit_check_use_case=_billing_cr.get_check_processing_limit_use_case(),
         processing_record_use_case=_billing_cr.get_record_processing_usage_use_case(),
     )
