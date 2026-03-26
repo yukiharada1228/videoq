@@ -28,7 +28,6 @@ class TranscribeVideoTaskTests(TestCase):
             username="testuser",
             email="test@example.com",
             password="testpass123",
-            video_limit=None,
         )
 
     @patch(_GET_FILE_SIZE, return_value=1024)
