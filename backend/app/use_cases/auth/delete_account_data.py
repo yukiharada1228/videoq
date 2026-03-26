@@ -45,8 +45,5 @@ class DeleteAccountDataUseCase:
         entity = self._subscription_repo.get_by_user_id(user_id)
         if entity is None or not entity.stripe_subscription_id:
             return
-        try:
-            self._billing_gateway.cancel_subscription(entity.stripe_subscription_id)
-            logger.info("Stripe subscription %s cancelled for user %s", entity.stripe_subscription_id, user_id)
-        except Exception:
-            logger.warning("Failed to cancel Stripe subscription for user %s", user_id, exc_info=True)
+        self._billing_gateway.cancel_subscription(entity.stripe_subscription_id)
+        logger.info("Stripe subscription %s cancelled for user %s", entity.stripe_subscription_id, user_id)
