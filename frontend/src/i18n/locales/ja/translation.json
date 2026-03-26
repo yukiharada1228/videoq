@@ -814,5 +814,58 @@
         ]
       }
     }
+  },
+  "billing": {
+    "title": "課金・プラン",
+    "subtitle": "サブスクリプションの管理と使用量の確認",
+    "currentPlan": "現在のプラン",
+    "usage": {
+      "title": "今月の使用量",
+      "storage": "ストレージ",
+      "transcription": "文字起こし",
+      "aiAnswers": "AI回答",
+      "unlimited": "無制限",
+      "of": "/",
+      "min": "分",
+      "gb": "GB"
+    },
+    "plans": {
+      "title": "プラン",
+      "current": "現在のプラン",
+      "upgrade": "アップグレード",
+      "downgrade": "ダウングレード",
+      "contact": "お問い合わせ",
+      "confirmChange": "{{plan}}プランに変更します。日割り計算で即時請求されます。よろしいですか？",
+      "confirmYes": "変更する",
+      "confirmNo": "キャンセル",
+      "currency": {
+        "jpy": "円 (¥)",
+        "usd": "ドル ($)"
+      },
+      "perMonth": " / 月",
+      "free": "無料",
+      "storage": "ストレージ",
+      "transcription": "文字起こし / 月",
+      "aiAnswers": "AI回答 / 月",
+      "enterprise": {
+        "price": "要相談",
+        "storage": "カスタム",
+        "transcription": "カスタム",
+        "aiAnswers": "カスタム"
+      }
+    },
+    "manage": {
+      "title": "サブスクリプション管理",
+      "description": "支払い方法の変更、請求書の確認、またはキャンセル。",
+      "button": "サブスクリプションを管理"
+    },
+    "upgradeSuccess": "プランを変更しました。反映まで少し時間がかかる場合があります。",
+    "cancelWarning": "サブスクリプションは{{date}}にキャンセルされます。それまではサービスをご利用いただけます。",
+    "nav": "プラン",
+    "settingsLink": {
+      "title": "課金・プラン",
+      "description": "現在のプラン・使用量・アップグレードオプションを確認。",
+      "button": "課金・プランを確認"
+    }
   }
 }

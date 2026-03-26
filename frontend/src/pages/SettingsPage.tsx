@@ -19,7 +19,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Plus, Trash2, X } from 'lucide-react';
+import { Plus, Trash2, X, CreditCard } from 'lucide-react';
 
 type AccessLevel = 'all' | 'read_only';
 
@@ -222,6 +222,31 @@ export default function SettingsPage() {
       />
 
       <div className="flex flex-col gap-5">
+          {/* ── Billing & Plans ──────────────────────────────────────── */}
+          <section className="bg-white rounded-xl shadow-[0_4px_20px_rgba(28,25,23,0.04)] p-5">
+            <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <CreditCard className="w-4 h-4 text-[#00652c]" />
+                  <h2 className="text-base font-bold text-[#191c19]">
+                    {t('billing.settingsLink.title')}
+                  </h2>
+                </div>
+                <p className="text-sm text-[#6f7a6e]">
+                  {t('billing.settingsLink.description')}
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate('/billing')}
+                className="shrink-0"
+              >
+                {t('billing.settingsLink.button')}
+              </Button>
+            </div>
+          </section>
+
           {/* ── OpenAI API Key ───────────────────────────────────────── */}
           <section className="bg-white rounded-xl shadow-[0_4px_20px_rgba(28,25,23,0.04)] p-5">
             <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-5">

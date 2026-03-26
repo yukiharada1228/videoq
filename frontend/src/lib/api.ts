@@ -89,6 +89,30 @@ export interface LoginRequest {
   password: string;
 }
 
+export interface Subscription {
+  plan: 'free' | 'lite' | 'standard' | 'enterprise';
+  stripe_status: string;
+  current_period_end: string | null;
+  cancel_at_period_end: boolean;
+  is_active: boolean;
+  used_storage_bytes: number;
+  used_processing_seconds: number;
+  used_ai_answers: number;
+  storage_limit_bytes: number | null;
+  processing_limit_seconds: number | null;
+  ai_answers_limit: number | null;
+}
+
+export interface Plan {
+  name: string;
+  plan_id: 'free' | 'lite' | 'standard' | 'enterprise';
+  prices: { jpy: number | null; usd: number | null };
+  storage_gb: number | null;
+  processing_minutes: number | null;
+  ai_answers: number | null;
+  is_contact_required: boolean;
+}
+
 export interface Citation {
   id: number;
   video_id: number;
@@ -1025,6 +1049,34 @@ class ApiClient {
 
   async getChatAnalytics(groupId: number): Promise<ChatAnalytics> {
     return this.request<ChatAnalytics>(`/chat/analytics/?group_id=${groupId}`);
+  }
+
+  // Billing methods
+  async getSubscription(): Promise<Subscription> {
+    return this.request<Subscription>('/billing/subscription/');
+  }
+
+  async getPlans(): Promise<Plan[]> {
+    return this.request<Plan[]>('/billing/plans/');
+  }
+
+  async createCheckoutSession(
+    plan: string,
+    currency: 'jpy' | 'usd',
+    successUrl: string,
+    cancelUrl: string,
+  ): Promise<{ checkout_url?: string; upgraded?: boolean }> {
+    return this.request<{ checkout_url?: string; upgraded?: boolean }>('/billing/checkout/', {
+      method: 'POST',
+      body: JSON.stringify({ plan, currency, success_url: successUrl, cancel_url: cancelUrl }),
+    });
+  }
+
+  async createBillingPortal(returnUrl: string): Promise<{ portal_url: string }> {
+    return this.request<{ portal_url: string }>('/billing/portal/', {
+      method: 'POST',
+      body: JSON.stringify({ return_url: returnUrl }),
+    });
   }
 
 }

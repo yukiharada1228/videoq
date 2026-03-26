@@ -17,6 +17,7 @@ from app.use_cases.video.run_transcription import RunTranscriptionUseCase
 from app.use_cases.video.update_video import UpdateVideoUseCase
 
 from . import _video_shared as shared
+from app.composition_root import billing as _billing_cr
 
 
 def get_list_videos_use_case() -> ListVideosUseCase:
@@ -40,6 +41,7 @@ def get_run_transcription_use_case() -> RunTranscriptionUseCase:
         DjangoTransactionPort(),
         api_key_repo=DjangoOpenAiApiKeyRepository(),
         user_repo=shared.new_user_repository(),
+        processing_record_use_case=_billing_cr.get_record_processing_usage_use_case(),
     )
 
 
@@ -61,6 +63,7 @@ def get_create_video_use_case() -> CreateVideoUseCase:
         shared.new_video_repository(),
         shared.new_video_task_gateway(),
         DjangoTransactionPort(),
+        storage_record_use_case=_billing_cr.get_record_storage_usage_use_case(),
     )
 
 
@@ -77,6 +80,8 @@ def get_delete_video_use_case() -> DeleteVideoUseCase:
         shared.new_video_repository(),
         shared.new_vector_store_gateway(),
         DjangoTransactionPort(),
+        upload_gateway=shared.get_file_upload_gateway(),
+        storage_record_use_case=_billing_cr.get_record_storage_usage_use_case(),
     )
 
 

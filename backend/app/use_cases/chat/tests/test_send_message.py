@@ -1,10 +1,11 @@
 """Tests for SendMessageUseCase."""
 
 import unittest
+from unittest.mock import MagicMock
 
 from app.domain.chat.gateways import RagGateway, RagUserNotFoundError
 from app.domain.chat.repositories import ChatRepository, VideoGroupQueryRepository
-from app.use_cases.chat.dto import ChatMessageInput
+from app.use_cases.chat.dto import ChatMessageInput, SendMessageResultDTO
 from app.use_cases.chat.exceptions import InvalidChatRequestError
 from app.use_cases.chat.send_message import SendMessageUseCase
 from app.use_cases.shared.exceptions import ResourceNotFound
@@ -70,3 +71,54 @@ class SendMessageUseCaseTests(unittest.TestCase):
                 messages=[ChatMessageInput(role="user", content="hello")],
             )
         self.assertEqual(str(cm.exception), "User not found.")
+
+
+class _SuccessRagGateway(RagGateway):
+    """RAG gateway stub that returns a fixed successful answer."""
+
+    def generate_reply(self, messages, user_id, video_ids=None, locale=None, api_key=None):
+        from app.domain.chat.gateways import RagResult
+        return RagResult(content="Hello!", query_text="q", citations=[])
+
+
+class SendMessageAiAnswerBillingTests(unittest.TestCase):
+    """Tests for optional AI answer usage recording in SendMessageUseCase."""
+
+    def _make_use_case(self, ai_answer_record_use_case=None):
+        return SendMessageUseCase(
+            chat_repo=_StubChatRepository(),
+            group_query_repo=_StubGroupRepository(),
+            rag_gateway=_SuccessRagGateway(),
+            ai_answer_record_use_case=ai_answer_record_use_case,
+        )
+
+    def test_records_ai_answer_on_successful_reply(self):
+        mock_ai_record = MagicMock()
+        use_case = self._make_use_case(mock_ai_record)
+
+        use_case.execute(
+            user_id=99,
+            messages=[ChatMessageInput(role="user", content="hello")],
+        )
+
+        mock_ai_record.execute.assert_called_once_with(99)
+
+    def test_skips_ai_answer_recording_when_no_use_case_injected(self):
+        use_case = self._make_use_case(ai_answer_record_use_case=None)
+        # Should not raise
+        use_case.execute(
+            user_id=99,
+            messages=[ChatMessageInput(role="user", content="hello")],
+        )
+
+    def test_does_not_fail_when_billing_record_raises(self):
+        mock_ai_record = MagicMock()
+        mock_ai_record.execute.side_effect = RuntimeError("billing down")
+        use_case = self._make_use_case(mock_ai_record)
+
+        # Should not raise
+        result = use_case.execute(
+            user_id=99,
+            messages=[ChatMessageInput(role="user", content="hello")],
+        )
+        self.assertEqual(result.content, "Hello!")
