@@ -40,7 +40,7 @@ def get_langchain_llm(api_key: Optional[str] = None) -> BaseChatModel:
             model=model,
             api_key=SecretStr(resolved_key),
             temperature=temperature,
-            max_tokens=1024,
+            model_kwargs={"max_tokens": 1024},
         )
 
     elif provider == "ollama":
