@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
@@ -248,14 +248,13 @@ export default function BillingPage() {
   useAuth();
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
-  const [currency, setCurrency] = useState<'jpy' | 'usd'>('jpy');
+  const currency = useMemo<'jpy' | 'usd'>(
+    () => (i18n.resolvedLanguage?.startsWith('en') ? 'usd' : 'jpy'),
+    [i18n.resolvedLanguage],
+  );
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [portalError, setPortalError] = useState<string | null>(null);
   const [upgradeSuccess, setUpgradeSuccess] = useState(false);
-
-  useEffect(() => {
-    setCurrency(i18n.resolvedLanguage?.startsWith('en') ? 'usd' : 'jpy');
-  }, [i18n.resolvedLanguage]);
 
   const subscriptionQuery = useQuery({
     queryKey: queryKeys.billing.subscription,

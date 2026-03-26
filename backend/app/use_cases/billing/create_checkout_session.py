@@ -2,7 +2,6 @@ from app.domain.billing.entities import PlanType
 from app.domain.billing.ports import BillingGateway, SubscriptionRepository
 from app.use_cases.billing.dtos import CheckoutSessionDTO
 from app.use_cases.billing.exceptions import (
-    AlreadySubscribed,
     BillingNotEnabled,
     InvalidPlan,
 )

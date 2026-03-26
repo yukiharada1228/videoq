@@ -1,6 +1,5 @@
 """Unit tests for record usage use cases and monthly reset logic."""
 
-from datetime import datetime, timezone, timedelta
 from typing import Optional
 from unittest import TestCase
 
