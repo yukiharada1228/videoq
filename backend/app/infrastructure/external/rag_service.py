@@ -178,5 +178,5 @@ class RagChatService:
         }
 
     def _create_vector_store(self) -> PGVectorStore:
-        embeddings = get_embeddings(self._api_key)
+        embeddings = get_embeddings()
         return PGVectorManager.create_vectorstore(embeddings)
