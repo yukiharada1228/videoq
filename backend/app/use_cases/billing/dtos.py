@@ -1,13 +1,13 @@
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
+from typing import Dict, Optional
 
 
 @dataclass
 class PlanDTO:
     name: str
     plan_id: str
-    prices: dict  # {"jpy": 980, "usd": 699}
+    prices: Dict[str, int]  # {"jpy": 980, "usd": 699}
     storage_gb: Optional[float]
     processing_minutes: Optional[int]
     ai_answers: Optional[int]

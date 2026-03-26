@@ -34,10 +34,13 @@ def _make_duration_estimator():
     video_file_accessor = shared.get_video_file_accessor()
 
     def estimator(video_id: int):
-        with TemporaryFileManager() as temp_manager:
-            path = video_file_accessor.get_local_path(video_id, temp_manager)
-            duration_seconds = _get_video_duration(path)
-        return max(1, math.ceil(duration_seconds))
+        try:
+            with TemporaryFileManager() as temp_manager:
+                path = video_file_accessor.get_local_path(video_id, temp_manager)
+                duration_seconds = _get_video_duration(path)
+            return max(1, math.ceil(duration_seconds))
+        except Exception:
+            return None
 
     return estimator
 
