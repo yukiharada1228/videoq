@@ -144,7 +144,6 @@ class APIKeyAuthenticationTests(APITestCase):
         self.assertIsNotNone(result)
         user, auth_data = result
         self.assertEqual(user.id, self.user.id)
-        self.assertEqual(user.video_limit, self.user.video_limit)
         self.assertEqual(auth_data["api_key_id"], self.api_key.pk)
         self.assertEqual(auth_data["user_id"], self.user.id)
         self.assertEqual(auth_data["access_level"], self.api_key.access_level)

@@ -11,7 +11,7 @@ from app.domain.video.dto import CreateVideoParams, UpdateVideoParams
 from app.domain.video.entities import VideoEntity
 from app.use_cases.video.create_video import CreateVideoUseCase
 from app.use_cases.video.dto import CreateVideoInput
-from app.use_cases.video.exceptions import FileSizeExceeded, ResourceNotFound, VideoLimitExceeded
+from app.use_cases.video.exceptions import FileSizeExceeded, ResourceNotFound
 
 
 @dataclass
@@ -121,7 +121,6 @@ class CreateVideoUseCaseTests(TestCase):
             username="user",
             email="user@example.com",
             is_active=True,
-            video_limit=None,
         )
         self.repo = FakeVideoRepository()
         self.mock_task_queue = MagicMock()
@@ -166,20 +165,7 @@ class CreateVideoUseCaseTests(TestCase):
 
         self.mock_task_queue.enqueue_transcription.assert_called_once_with(video.id)
 
-    def test_raises_video_limit_exceeded_when_limit_zero(self):
-        self.user_repo.get_by_id.return_value.video_limit = 0
-        with self.assertRaises(VideoLimitExceeded):
-            self.use_case.execute(self.user_id, self._input())
-
-    def test_raises_video_limit_exceeded_when_limit_reached(self):
-        self.user_repo.get_by_id.return_value.video_limit = 2
-        self._seed_videos(2)
-
-        with self.assertRaises(VideoLimitExceeded):
-            self.use_case.execute(self.user_id, self._input())
-
-    def test_allows_upload_when_within_limit(self):
-        self.user_repo.get_by_id.return_value.video_limit = 3
+    def test_allows_upload_with_existing_videos(self):
         self._seed_videos(1)
 
         video = self.use_case.execute(self.user_id, self._input())
@@ -201,7 +187,6 @@ class CreateVideoUseCaseTests(TestCase):
             username="user",
             email="user@example.com",
             is_active=True,
-            video_limit=None,
             max_video_upload_size_mb=100,
         )
         file_size = 101 * 1024 * 1024  # 101 MB
@@ -221,7 +206,6 @@ class CreateVideoUseCaseTests(TestCase):
             username="user",
             email="user@example.com",
             is_active=True,
-            video_limit=None,
             max_video_upload_size_mb=1000,
         )
         file_size = 600 * 1024 * 1024  # 600 MB
@@ -254,7 +238,6 @@ class CreateVideoStorageBillingTests(TestCase):
             username="user",
             email="user@example.com",
             is_active=True,
-            video_limit=None,
         )
         self.repo = FakeVideoRepository()
         self.mock_task_queue = MagicMock()

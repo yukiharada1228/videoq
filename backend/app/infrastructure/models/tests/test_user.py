@@ -2,7 +2,6 @@
 Tests for User model
 """
 
-from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError
 from django.test import TestCase, override_settings
@@ -39,49 +38,6 @@ class UserModelTests(TestCase):
                 email="test@example.com",
                 password="testpass123",
             )
-
-    def test_default_video_limit_from_settings(self):
-        """Test that default video_limit comes from settings.DEFAULT_VIDEO_LIMIT"""
-        user = User.objects.create_user(
-            username="testuser",
-            email="test@example.com",
-            password="testpass123",
-        )
-        self.assertEqual(user.video_limit, settings.DEFAULT_VIDEO_LIMIT)
-
-    @override_settings(DEFAULT_VIDEO_LIMIT=42)
-    def test_default_video_limit_respects_override(self):
-        """Test that video_limit default reflects settings override at field level"""
-        # Note: Django model field default is evaluated at class definition time,
-        # so we use a callable default to pick up settings dynamically.
-        user = User.objects.create_user(
-            username="testuser2",
-            email="test2@example.com",
-            password="testpass123",
-        )
-        self.assertEqual(user.video_limit, 42)
-
-    def test_video_limit_can_be_none(self):
-        """Test that video_limit can be None (unlimited)"""
-        user = User.objects.create_user(
-            username="testuser",
-            email="test@example.com",
-            password="testpass123",
-            video_limit=None,
-        )
-
-        self.assertIsNone(user.video_limit)
-
-    def test_video_limit_can_be_positive(self):
-        """Test that video_limit can be a positive integer"""
-        user = User.objects.create_user(
-            username="testuser",
-            email="test@example.com",
-            password="testpass123",
-            video_limit=10,
-        )
-
-        self.assertEqual(user.video_limit, 10)
 
     def test_default_max_video_upload_size_mb_from_settings(self):
         """Test that default max_video_upload_size_mb comes from settings"""

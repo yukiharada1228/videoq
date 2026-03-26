@@ -4,6 +4,7 @@ from django.db import models
 
 
 def _default_video_limit():
+    # Kept for historical migration imports after removing the field itself.
     return getattr(settings, "DEFAULT_VIDEO_LIMIT", 5)
 
 
@@ -13,13 +14,6 @@ def _default_max_video_upload_size_mb():
 
 class User(AbstractUser):
     email = models.EmailField("email address", unique=True)
-    video_limit = models.PositiveIntegerField(
-        null=True,
-        blank=True,
-        default=_default_video_limit,
-        db_index=True,
-        help_text="Maximum number of videos user can upload. 0 means no uploads allowed, null means unlimited.",
-    )
     max_video_upload_size_mb = models.PositiveIntegerField(
         default=_default_max_video_upload_size_mb,
         help_text="Maximum video upload size in MB for this user.",

@@ -3,16 +3,14 @@ Use case: Create a new video and dispatch transcription.
 """
 
 import logging
-from typing import Optional
 
 from app.domain.shared.transaction import TransactionPort
-from app.domain.user.exceptions import UserVideoLimitExceeded
 from app.domain.user.repositories import UserRepository
 from app.domain.video.dto import CreateVideoParams
 from app.domain.video.gateways import VideoTaskGateway
 from app.domain.video.repositories import VideoRepository
 from app.use_cases.video.dto import CreateVideoInput, VideoResponseDTO
-from app.use_cases.video.exceptions import FileSizeExceeded, ResourceNotFound, VideoLimitExceeded
+from app.use_cases.video.exceptions import FileSizeExceeded, ResourceNotFound
 from app.use_cases.video.file_url import to_video_response_dto
 
 logger = logging.getLogger(__name__)
@@ -52,7 +50,6 @@ class CreateVideoUseCase:
 
         Raises:
             ResourceNotFound: If the target user does not exist.
-            VideoLimitExceeded: If the user has reached their upload limit.
         """
         user = self.user_repo.get_by_id(user_id)
         if user is None:
@@ -64,12 +61,6 @@ class CreateVideoUseCase:
                 raise FileSizeExceeded(user.max_video_upload_size_mb)
 
         with self.tx.atomic():
-            current_count = self.video_repo.count_for_user(user_id)
-            try:
-                user.assert_can_upload_video(current_count)
-            except UserVideoLimitExceeded as e:
-                raise VideoLimitExceeded(e.limit) from e
-
             params = CreateVideoParams(
                 upload_file=input.file,
                 title=input.title,

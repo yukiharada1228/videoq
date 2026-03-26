@@ -32,7 +32,6 @@ class UserSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     username = serializers.CharField()
     email = serializers.EmailField()
-    video_limit = serializers.IntegerField(allow_null=True)
     video_count = serializers.SerializerMethodField()
     max_video_upload_size_mb = serializers.IntegerField()
 

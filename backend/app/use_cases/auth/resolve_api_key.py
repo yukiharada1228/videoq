@@ -17,6 +17,5 @@ class ResolveApiKeyUseCase:
         return ResolvedApiKeyOutput(
             api_key_id=resolved.api_key_id,
             user_id=resolved.user_id,
-            user_video_limit=resolved.user_video_limit,
             access_level=resolved.access_level,
         )

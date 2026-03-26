@@ -87,7 +87,6 @@ class UserSerializerTests(APITestCase):
             username="entityuser",
             email="entity@example.com",
             is_active=True,
-            video_limit=10,
             video_count=7,
         )
         serializer = UserSerializer(entity)
@@ -139,4 +138,3 @@ class PasswordResetRequestSerializerTests(APITestCase):
         serializer = PasswordResetRequestSerializer(data={})
         self.assertFalse(serializer.is_valid())
         self.assertIn("email", serializer.errors)
-

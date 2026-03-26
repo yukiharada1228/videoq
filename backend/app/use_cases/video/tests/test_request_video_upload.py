@@ -52,7 +52,6 @@ class RequestVideoUploadUseCaseTests(TestCase):
             username="user",
             email="user@example.com",
             is_active=True,
-            video_limit=None,
             max_video_upload_size_mb=max_video_upload_size_mb,
         )
         user_repo = MagicMock()
