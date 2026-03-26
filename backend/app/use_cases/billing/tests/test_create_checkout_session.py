@@ -93,6 +93,9 @@ class _StubBillingGateway(BillingGateway):
     def verify_webhook(self, payload, sig_header, secret) -> dict:
         return {}
 
+    def cancel_subscription(self, subscription_id: str) -> None:
+        pass
+
 
 class _StubUserRepo:
     def get_by_id(self, user_id: int):

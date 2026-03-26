@@ -84,6 +84,9 @@ class _StubBillingGateway(BillingGateway):
     def verify_webhook(self, payload, sig_header, secret) -> dict:
         return self._event
 
+    def cancel_subscription(self, subscription_id: str) -> None:
+        pass
+
 
 PRICE_MAP = {"price_lite_001": "lite", "price_standard_001": "standard"}
 
