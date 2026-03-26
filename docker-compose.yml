@@ -50,6 +50,11 @@ services:
         # Vite build-time API base URL (recommended: "/api" when using the included nginx reverse proxy)
         - VITE_API_URL=${VITE_API_URL:-/api}
         - VITE_MAX_VIDEO_UPLOAD_SIZE_MB=${MAX_VIDEO_UPLOAD_SIZE_MB:-500}
+        - VITE_OPERATOR_NAME=${VITE_OPERATOR_NAME:-}
+        - VITE_OPERATOR_REPRESENTATIVE=${VITE_OPERATOR_REPRESENTATIVE:-}
+        - VITE_OPERATOR_EMAIL=${VITE_OPERATOR_EMAIL:-}
+        - VITE_OPERATOR_ADDRESS=${VITE_OPERATOR_ADDRESS:-}
+        - VITE_OPERATOR_PHONE=${VITE_OPERATOR_PHONE:-}
     container_name: videoq-frontend
     env_file:
       - .env
