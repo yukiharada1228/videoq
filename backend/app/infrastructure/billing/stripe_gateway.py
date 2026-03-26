@@ -1,0 +1,74 @@
+import os
+
+from app.domain.billing.ports import BillingGateway
+
+
+class StripeBillingGateway(BillingGateway):
+    def __init__(self):
+        try:
+            import stripe as _stripe
+            _stripe.api_key = os.environ.get("STRIPE_SECRET_KEY", "")
+            self._stripe = _stripe
+        except ImportError:
+            self._stripe = None
+
+    def _get_stripe(self):
+        if self._stripe is None:
+            raise RuntimeError(
+                "The 'stripe' package is not installed. "
+                "Install it with: pip install stripe"
+            )
+        return self._stripe
+
+    def get_or_create_customer(self, user_id: int, email: str, username: str) -> str:
+        stripe = self._get_stripe()
+        customer = stripe.Customer.create(
+            email=email,
+            name=username,
+            metadata={"user_id": str(user_id)},
+        )
+        return customer.id
+
+    def create_checkout_session(
+        self,
+        customer_id: str,
+        price_id: str,
+        success_url: str,
+        cancel_url: str,
+        user_id: int,
+        plan: str,
+    ):
+        stripe = self._get_stripe()
+        return stripe.checkout.Session.create(
+            customer=customer_id,
+            mode="subscription",
+            line_items=[{"price": price_id, "quantity": 1}],
+            success_url=success_url,
+            cancel_url=cancel_url,
+            metadata={"user_id": str(user_id), "plan": plan},
+        )
+
+    def update_subscription(self, subscription_id: str, price_id: str) -> None:
+        stripe = self._get_stripe()
+        stripe_sub = stripe.Subscription.retrieve(subscription_id)
+        current_item = stripe_sub["items"]["data"][0]
+        stripe.Subscription.modify(
+            subscription_id,
+            items=[{"id": current_item["id"], "price": price_id}],
+            proration_behavior="create_prorations",
+        )
+
+    def create_billing_portal(self, customer_id: str, return_url: str):
+        stripe = self._get_stripe()
+        return stripe.billing_portal.Session.create(
+            customer=customer_id,
+            return_url=return_url,
+        )
+
+    def retrieve_subscription(self, subscription_id: str) -> dict:
+        stripe = self._get_stripe()
+        return stripe.Subscription.retrieve(subscription_id)
+
+    def verify_webhook(self, payload: bytes, sig_header: str, secret: str) -> dict:
+        stripe = self._get_stripe()
+        return stripe.Webhook.construct_event(payload, sig_header, secret)

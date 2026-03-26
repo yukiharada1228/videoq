@@ -814,5 +814,58 @@
         ]
       }
     }
+  },
+  "billing": {
+    "title": "Billing & Plans",
+    "subtitle": "Manage your subscription and view usage",
+    "currentPlan": "Current Plan",
+    "usage": {
+      "title": "Usage This Month",
+      "storage": "Storage",
+      "transcription": "Transcription",
+      "aiAnswers": "AI Answers",
+      "unlimited": "Unlimited",
+      "of": "of",
+      "min": "min",
+      "gb": "GB"
+    },
+    "plans": {
+      "title": "Plans",
+      "current": "Current Plan",
+      "upgrade": "Upgrade",
+      "downgrade": "Downgrade",
+      "contact": "Contact Us",
+      "confirmChange": "Switch to the {{plan}} plan? A prorated charge will be applied immediately.",
+      "confirmYes": "Confirm",
+      "confirmNo": "Cancel",
+      "currency": {
+        "jpy": "JPY (¥)",
+        "usd": "USD ($)"
+      },
+      "perMonth": "/ month",
+      "free": "Free",
+      "storage": "Storage",
+      "transcription": "Transcription / month",
+      "aiAnswers": "AI Answers / month",
+      "enterprise": {
+        "price": "Custom",
+        "storage": "Custom",
+        "transcription": "Custom",
+        "aiAnswers": "Custom"
+      }
+    },
+    "manage": {
+      "title": "Manage Subscription",
+      "description": "Update payment method, view invoices, or cancel subscription.",
+      "button": "Manage Subscription"
+    },
+    "upgradeSuccess": "Your plan has been updated. It may take a moment to reflect.",
+    "cancelWarning": "Your subscription will cancel on {{date}}. You can continue using the service until then.",
+    "nav": "Plans",
+    "settingsLink": {
+      "title": "Billing & Plans",
+      "description": "View your current plan, usage, and upgrade options.",
+      "button": "View Billing & Plans"
+    }
   }
 }

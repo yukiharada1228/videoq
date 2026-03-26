@@ -1,6 +1,9 @@
 """Use case: Send a chat message with optional RAG context."""
 
+import logging
 from typing import List, Optional
+
+logger = logging.getLogger(__name__)
 
 from app.domain.chat.dtos import ChatMessageDTO
 from app.domain.chat.gateways import LLMConfigurationError as _DomainLLMConfigError
@@ -36,6 +39,7 @@ class SendMessageUseCase:
     2. Run the RAG chain
     3. Persist the ChatLog
     4. Return a structured result
+    5. (Optional) Record AI answer usage for billing
     """
 
     def __init__(
@@ -44,11 +48,13 @@ class SendMessageUseCase:
         group_query_repo: VideoGroupQueryRepository,
         rag_gateway: RagGateway,
         api_key_repo: Optional[OpenAiApiKeyRepository] = None,
+        ai_answer_record_use_case=None,
     ):
         self.chat_repo = chat_repo
         self.group_query_repo = group_query_repo
         self.rag_gateway = rag_gateway
         self.api_key_repo = api_key_repo
+        self._ai_answer_record_use_case = ai_answer_record_use_case
 
     def execute(
         self,
@@ -153,7 +159,7 @@ class SendMessageUseCase:
             chat_log_id = chat_log.id
             feedback = chat_log.feedback
 
-        return SendMessageResultDTO(
+        result = SendMessageResultDTO(
             content=rag_result.content,
             citations=(
                 [
@@ -172,3 +178,15 @@ class SendMessageUseCase:
             chat_log_id=chat_log_id,
             feedback=feedback,
         )
+
+        if self._ai_answer_record_use_case is not None and owner_user_id is not None:
+            try:
+                self._ai_answer_record_use_case.execute(owner_user_id)
+            except Exception:
+                logger.warning(
+                    "Failed to record AI answer usage for user %s",
+                    owner_user_id,
+                    exc_info=True,
+                )
+
+        return result

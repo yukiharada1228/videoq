@@ -3,6 +3,7 @@ Use case: Transcribe a video and index its scenes for RAG search.
 """
 
 import logging
+import re
 
 from typing import Optional
 
@@ -20,6 +21,29 @@ from app.use_cases.video.exceptions import (
 
 logger = logging.getLogger(__name__)
 
+# SRT timestamp pattern: HH:MM:SS,mmm
+_SRT_TIME_RE = re.compile(r"(\d{2}):(\d{2}):(\d{2}),(\d{3})")
+
+
+def _parse_srt_duration_seconds(srt_content: str) -> Optional[int]:
+    """Return the duration in whole seconds from the last end-timestamp in an SRT string.
+
+    SRT lines look like:
+        00:00:01,000 --> 00:00:04,500
+    We collect all timestamps from the arrow (-->) side and take the maximum.
+    Returns None if no timestamp can be found.
+    """
+    # Find timestamps after " --> "
+    end_timestamps = re.findall(r"-->\s*" + _SRT_TIME_RE.pattern, srt_content)
+    if not end_timestamps:
+        return None
+    max_seconds = 0
+    for h, m, s, ms in end_timestamps:
+        total = int(h) * 3600 + int(m) * 60 + int(s) + int(ms) / 1000.0
+        if total > max_seconds:
+            max_seconds = total
+    return int(max_seconds) or None
+
 
 class RunTranscriptionUseCase:
     """
@@ -31,6 +55,7 @@ class RunTranscriptionUseCase:
     5. Persist transcript and transition status PROCESSING → INDEXING
     6. Enqueue async indexing task (INDEXING → COMPLETED handled by IndexVideoTranscriptUseCase)
     On error: transition status PROCESSING → ERROR and re-raise.
+    7. (Optional) Record processing usage for billing
     """
 
     def __init__(
@@ -42,6 +67,7 @@ class RunTranscriptionUseCase:
         tx: TransactionPort,
         api_key_repo: Optional[OpenAiApiKeyRepository] = None,
         user_repo: Optional[UserRepository] = None,
+        processing_record_use_case=None,
     ):
         self.video_repo = video_repo
         self.transcription_gateway = transcription_gateway
@@ -50,6 +76,7 @@ class RunTranscriptionUseCase:
         self.tx = tx
         self.api_key_repo = api_key_repo
         self.user_repo = user_repo
+        self._processing_record_use_case = processing_record_use_case
 
     def execute(self, video_id: int) -> None:
         video = self.video_repo.get_by_id_for_task(video_id)
@@ -110,3 +137,16 @@ class RunTranscriptionUseCase:
             raise TranscriptionExecutionFailed(video_id=video_id, reason=error_msg) from e
 
         logger.info("Transcription completed for video %d; indexing task enqueued", video_id)
+
+        if self._processing_record_use_case is not None and video.user_id:
+            duration_seconds = _parse_srt_duration_seconds(transcript)
+            if duration_seconds is not None and duration_seconds > 0:
+                try:
+                    self._processing_record_use_case.execute(video.user_id, duration_seconds)
+                except Exception:
+                    logger.warning(
+                        "Failed to record processing usage for user %s (duration=%ss)",
+                        video.user_id,
+                        duration_seconds,
+                        exc_info=True,
+                    )

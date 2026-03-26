@@ -3,6 +3,7 @@ Use case: Create a new video and dispatch transcription.
 """
 
 import logging
+from typing import Optional
 
 from app.domain.shared.transaction import TransactionPort
 from app.domain.user.exceptions import UserVideoLimitExceeded
@@ -23,6 +24,7 @@ class CreateVideoUseCase:
     1. Enforce per-user video limit
     2. Persist the video record
     3. Dispatch transcription task after the transaction commits
+    4. (Optional) Record storage usage for billing
     """
 
     def __init__(
@@ -31,11 +33,13 @@ class CreateVideoUseCase:
         video_repo: VideoRepository,
         task_queue: VideoTaskGateway,
         tx: TransactionPort,
+        storage_record_use_case=None,
     ):
         self.user_repo = user_repo
         self.video_repo = video_repo
         self.task_queue = task_queue
         self.tx = tx
+        self._storage_record_use_case = storage_record_use_case
 
     def execute(self, user_id: int, input: CreateVideoInput) -> VideoResponseDTO:
         """
@@ -75,5 +79,16 @@ class CreateVideoUseCase:
 
             logger.info(f"Enqueueing transcription task for video ID: {video.id}")
             self.task_queue.enqueue_transcription(video.id)
+
+        if self._storage_record_use_case is not None and input.file_size > 0:
+            try:
+                self._storage_record_use_case.execute(user_id, input.file_size)
+            except Exception:
+                logger.warning(
+                    "Failed to record storage usage for user %s (file_size=%s)",
+                    user_id,
+                    input.file_size,
+                    exc_info=True,
+                )
 
         return to_video_response_dto(video)

@@ -33,4 +33,8 @@ export const queryKeys = {
   shorts: {
     popularScenes: (groupId: number, shareToken?: string) => ['popularScenes', groupId, shareToken ?? null] as const,
   },
+  billing: {
+    subscription: ['billing', 'subscription'] as const,
+    plans: ['billing', 'plans'] as const,
+  },
 } as const;
