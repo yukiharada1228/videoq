@@ -14,7 +14,7 @@ class PlanType(str, Enum):
 PLAN_LIMITS: Dict[PlanType, Dict[str, Optional[int]]] = {
     PlanType.FREE: {"storage_gb": 1, "processing_minutes": 10, "ai_answers": 500},
     PlanType.LITE: {"storage_gb": 10, "processing_minutes": 120, "ai_answers": 3000},
-    PlanType.STANDARD: {"storage_gb": 50, "processing_minutes": 600, "ai_answers": 10000},
+    PlanType.STANDARD: {"storage_gb": 50, "processing_minutes": 600, "ai_answers": 7000},
     PlanType.ENTERPRISE: {"storage_gb": None, "processing_minutes": None, "ai_answers": None},  # set by admin
 }
 
