@@ -1,6 +1,6 @@
 import os
 
-from app.domain.billing.ports import BillingGateway
+from app.domain.billing.ports import BillingGateway, SessionResult
 
 
 class StripeBillingGateway(BillingGateway):
@@ -37,9 +37,9 @@ class StripeBillingGateway(BillingGateway):
         cancel_url: str,
         user_id: int,
         plan: str,
-    ):
+    ) -> SessionResult:
         stripe = self._get_stripe()
-        return stripe.checkout.Session.create(
+        result = stripe.checkout.Session.create(
             customer=customer_id,
             mode="subscription",
             line_items=[{"price": price_id, "quantity": 1}],
@@ -47,6 +47,7 @@ class StripeBillingGateway(BillingGateway):
             cancel_url=cancel_url,
             metadata={"user_id": str(user_id), "plan": plan},
         )
+        return SessionResult(url=result.url)
 
     def update_subscription(self, subscription_id: str, price_id: str) -> None:
         stripe = self._get_stripe()
@@ -58,12 +59,13 @@ class StripeBillingGateway(BillingGateway):
             proration_behavior="create_prorations",
         )
 
-    def create_billing_portal(self, customer_id: str, return_url: str):
+    def create_billing_portal(self, customer_id: str, return_url: str) -> SessionResult:
         stripe = self._get_stripe()
-        return stripe.billing_portal.Session.create(
+        result = stripe.billing_portal.Session.create(
             customer=customer_id,
             return_url=return_url,
         )
+        return SessionResult(url=result.url)
 
     def retrieve_subscription(self, subscription_id: str) -> dict:
         stripe = self._get_stripe()

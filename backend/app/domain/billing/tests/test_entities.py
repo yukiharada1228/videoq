@@ -25,7 +25,7 @@ def _make_subscription(**kwargs) -> SubscriptionEntity:
         "unlimited_ai_answers": False,
     }
     defaults.update(kwargs)
-    return SubscriptionEntity(**defaults)
+    return SubscriptionEntity(**defaults)  # type: ignore[arg-type]
 
 
 class StorageLimitTests(TestCase):

@@ -2,6 +2,15 @@
 
 from app.use_cases.shared.exceptions import PermissionDenied, ResourceNotFound
 
+
+class VideoLimitExceeded(Exception):
+    """Raised when a user has reached their video count limit."""
+
+    def __init__(self, limit: int):
+        self.limit = limit
+        super().__init__(f"Video limit of {limit} reached.")
+
+
 class VideoAlreadyInGroup(Exception):
     """Raised when adding a video already included in the target group."""
 
@@ -94,5 +103,6 @@ __all__ = [
     "TranscriptionExecutionFailed",
     "TranscriptionTargetMissing",
     "VideoAlreadyInGroup",
+    "VideoLimitExceeded",
     "VideoNotInGroup",
 ]

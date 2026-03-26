@@ -1,6 +1,6 @@
 """Django ORM implementation of SubscriptionRepository."""
 
-from datetime import timezone
+from datetime import datetime, timezone
 from typing import Optional
 
 from app.domain.billing.entities import PlanType, SubscriptionEntity
@@ -105,8 +105,8 @@ class DjangoSubscriptionRepository(SubscriptionRepository):
             return
 
         # Make period_start timezone-aware for comparison
-        period_start = entity.usage_period_start
-        if hasattr(period_start, "tzinfo") and period_start.tzinfo is None:
+        period_start: datetime = entity.usage_period_start
+        if period_start.tzinfo is None:
             period_start = period_start.replace(tzinfo=timezone.utc)
 
         is_paid = entity.current_period_end is not None

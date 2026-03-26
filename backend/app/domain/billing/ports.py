@@ -1,7 +1,14 @@
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from typing import Optional
 
 from app.domain.billing.entities import SubscriptionEntity
+
+
+@dataclass
+class SessionResult:
+    """Minimal result object returned by BillingGateway session methods."""
+    url: str
 
 
 class SubscriptionRepository(ABC):
@@ -49,13 +56,13 @@ class BillingGateway(ABC):
         cancel_url: str,
         user_id: int,
         plan: str,
-    ) -> object: ...
+    ) -> SessionResult: ...
 
     @abstractmethod
     def update_subscription(self, subscription_id: str, price_id: str) -> None: ...
 
     @abstractmethod
-    def create_billing_portal(self, customer_id: str, return_url: str) -> object: ...
+    def create_billing_portal(self, customer_id: str, return_url: str) -> SessionResult: ...
 
     @abstractmethod
     def retrieve_subscription(self, subscription_id: str) -> dict: ...
