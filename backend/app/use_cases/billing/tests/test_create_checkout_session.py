@@ -8,7 +8,6 @@ from app.domain.billing.entities import PlanType, SubscriptionEntity
 from app.domain.billing.ports import BillingGateway, SubscriptionRepository
 from app.use_cases.billing.create_checkout_session import CreateCheckoutSessionUseCase
 from app.use_cases.billing.exceptions import (
-    AlreadySubscribed,
     BillingNotEnabled,
     InvalidPlan,
 )
@@ -220,21 +219,23 @@ class ValidPlanTests(TestCase):
 
 
 class AlreadySubscribedTests(TestCase):
-    def test_raises_already_subscribed_when_active_paid_subscription_exists(self):
+    def test_upgrades_in_place_when_active_paid_subscription_exists(self):
         entity = _make_subscription(
             plan=PlanType.LITE,
             stripe_status="active",
             stripe_subscription_id="sub_existing",
             stripe_customer_id="cus_existing",
         )
-        use_case = _make_use_case(entity)
-        with self.assertRaises(AlreadySubscribed):
-            use_case.execute(
-                user_id=1,
-                plan="standard",
-                success_url="https://success",
-                cancel_url="https://cancel",
-            )
+        gateway = _StubBillingGateway()
+        use_case = _make_use_case(entity, gateway=gateway)
+        dto = use_case.execute(
+            user_id=1,
+            plan="standard",
+            success_url="https://success",
+            cancel_url="https://cancel",
+        )
+        self.assertTrue(dto.upgraded)
+        self.assertEqual(dto.checkout_url, "")
 
 
 class InvalidPlanTests(TestCase):

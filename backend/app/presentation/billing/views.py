@@ -21,7 +21,6 @@ from app.presentation.common.mixins import (
 )
 from app.presentation.common.responses import create_error_response
 from app.use_cases.billing.exceptions import (
-    AlreadySubscribed,
     BillingNotEnabled,
     InvalidPlan,
     NoStripeCustomer,
@@ -88,8 +87,6 @@ class CreateCheckoutSessionView(AuthenticatedAPIView):
                 code="BILLING_NOT_ENABLED",
             )
         except InvalidPlan as e:
-            return create_error_response(str(e), status.HTTP_400_BAD_REQUEST)
-        except AlreadySubscribed as e:
             return create_error_response(str(e), status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             logger.exception("Unexpected error creating checkout session: %s", e)
