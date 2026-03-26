@@ -579,3 +579,15 @@ LLM_MODEL = os.environ.get("LLM_MODEL", DefaultSettings.LLM_MODEL)
 
 # Whisper configuration
 WHISPER_BACKEND = os.environ.get("WHISPER_BACKEND", DefaultSettings.WHISPER_BACKEND).lower()
+
+# OpenAI API key (system-level fallback; users can override with their own key)
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
+
+# Billing configuration
+BILLING_ENABLED = os.environ.get("BILLING_ENABLED", "false").lower() == "true"
+STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY", "")
+STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
+STRIPE_LITE_PRICE_ID_JPY = os.environ.get("STRIPE_LITE_PRICE_ID_JPY", "")
+STRIPE_LITE_PRICE_ID_USD = os.environ.get("STRIPE_LITE_PRICE_ID_USD", "")
+STRIPE_STANDARD_PRICE_ID_JPY = os.environ.get("STRIPE_STANDARD_PRICE_ID_JPY", "")
+STRIPE_STANDARD_PRICE_ID_USD = os.environ.get("STRIPE_STANDARD_PRICE_ID_USD", "")

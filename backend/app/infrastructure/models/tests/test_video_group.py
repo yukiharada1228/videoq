@@ -19,7 +19,6 @@ class VideoGroupModelTests(TestCase):
             username="testuser",
             email="test@example.com",
             password="testpass123",
-            video_limit=None,
         )
 
     def test_create_video_group(self):
@@ -133,7 +132,6 @@ class VideoGroupMemberModelTests(TestCase):
             username="testuser",
             email="test@example.com",
             password="testpass123",
-            video_limit=None,
         )
         self.group = VideoGroup.objects.create(
             user=self.user,

@@ -40,13 +40,13 @@ class GetLangchainLLMTests(TestCase):
             temperature=0.0,
         )
 
-    @override_settings(LLM_PROVIDER="openai", LLM_MODEL="gpt-4o-mini")
+    @override_settings(LLM_PROVIDER="openai", LLM_MODEL="gpt-4o-mini", OPENAI_API_KEY="")
     def test_get_langchain_llm_without_api_key(self):
         """Test get_langchain_llm raises LLMConfigError when no key provided"""
         with self.assertRaises(LLMConfigError):
             get_langchain_llm()
 
-    @override_settings(LLM_PROVIDER="openai", LLM_MODEL="gpt-4o-mini")
+    @override_settings(LLM_PROVIDER="openai", LLM_MODEL="gpt-4o-mini", OPENAI_API_KEY="")
     def test_get_langchain_llm_with_none_api_key(self):
         """Test get_langchain_llm raises LLMConfigError when API key is None"""
         with self.assertRaises(LLMConfigError):

@@ -15,6 +15,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from app.presentation.common.authentication import APIKeyAuthentication, BearerAPIKeyAuthentication, CookieJWTAuthentication
+from app.use_cases.billing.exceptions import AiAnswersLimitExceeded
 from app.use_cases.chat.dto import ChatMessageInput
 from app.presentation.common.mixins import DependencyResolverMixin
 from app.presentation.common.permissions import (
@@ -116,6 +117,12 @@ class ChatView(DependencyResolverMixin, APIView):
             return create_error_response(str(e), status.HTTP_404_NOT_FOUND)
         except PermissionDenied as e:
             return create_error_response(str(e), status.HTTP_403_FORBIDDEN)
+        except AiAnswersLimitExceeded as e:
+            return create_error_response(
+                str(e),
+                status.HTTP_400_BAD_REQUEST,
+                code="AI_ANSWERS_LIMIT_EXCEEDED",
+            )
         except LLMConfigurationError as e:
             return create_error_response(str(e), status.HTTP_400_BAD_REQUEST)
         except LLMProviderError as e:

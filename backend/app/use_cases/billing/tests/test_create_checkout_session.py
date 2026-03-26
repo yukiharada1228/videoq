@@ -1,0 +1,285 @@
+"""Unit tests for CreateCheckoutSessionUseCase."""
+
+from typing import Optional
+from unittest import TestCase
+from unittest.mock import MagicMock
+
+from app.domain.billing.entities import PlanType, SubscriptionEntity
+from app.domain.billing.ports import BillingGateway, SubscriptionRepository
+from app.use_cases.billing.create_checkout_session import CreateCheckoutSessionUseCase
+from app.use_cases.billing.exceptions import (
+    BillingNotEnabled,
+    InvalidPlan,
+)
+
+
+def _make_subscription(**kwargs) -> SubscriptionEntity:
+    defaults = {
+        "user_id": 1,
+        "plan": PlanType.FREE,
+        "stripe_customer_id": None,
+        "stripe_subscription_id": None,
+        "stripe_status": "",
+        "current_period_end": None,
+        "cancel_at_period_end": False,
+        "used_storage_bytes": 0,
+        "used_processing_seconds": 0,
+        "used_ai_answers": 0,
+        "usage_period_start": None,
+        "custom_storage_gb": None,
+        "custom_processing_minutes": None,
+        "custom_ai_answers": None,
+        "unlimited_processing_minutes": False,
+        "unlimited_ai_answers": False,
+    }
+    defaults.update(kwargs)
+    return SubscriptionEntity(**defaults)  # type: ignore[arg-type]
+
+
+class _StubSubscriptionRepo(SubscriptionRepository):
+    def __init__(self, entity: SubscriptionEntity):
+        self._entity = entity
+
+    def get_or_create(self, user_id: int) -> SubscriptionEntity:
+        return self._entity
+
+    def get_by_user_id(self, user_id: int) -> Optional[SubscriptionEntity]:
+        return self._entity
+
+    def get_by_stripe_customer_id(self, customer_id: str) -> Optional[SubscriptionEntity]:
+        return None
+
+    def save(self, entity: SubscriptionEntity) -> SubscriptionEntity:
+        self._entity = entity
+        return entity
+
+    def create_stripe_customer(self, user_id: int, customer_id: str) -> SubscriptionEntity:
+        self._entity.stripe_customer_id = customer_id
+        return self._entity
+
+    def reset_monthly_usage(self, user_id: int, period_start) -> None:
+        pass
+
+    def maybe_reset_monthly_usage(self, user_id: int) -> None:
+        pass
+
+
+class _StubBillingGateway(BillingGateway):
+    def __init__(self, customer_id: str = "cus_test", checkout_url: str = "https://checkout.test"):
+        self._customer_id = customer_id
+        self._checkout_url = checkout_url
+        self.last_price_id = None
+
+    def get_or_create_customer(self, user_id, email, username) -> str:
+        return self._customer_id
+
+    def create_checkout_session(self, customer_id, price_id, success_url, cancel_url, user_id, plan):
+        self.last_price_id = price_id
+        session = MagicMock()
+        session.url = self._checkout_url
+        return session
+
+    def update_subscription(self, subscription_id, price_id) -> None:
+        pass
+
+    def create_billing_portal(self, customer_id, return_url):
+        portal = MagicMock()
+        portal.url = "https://portal.test"
+        return portal
+
+    def retrieve_subscription(self, subscription_id) -> dict:
+        return {}
+
+    def verify_webhook(self, payload, sig_header, secret) -> dict:
+        return {}
+
+
+class _StubUserRepo:
+    def get_by_id(self, user_id: int):
+        user = MagicMock()
+        user.email = "test@example.com"
+        user.username = "testuser"
+        return user
+
+
+def _make_use_case(
+    entity: SubscriptionEntity,
+    billing_enabled: bool = True,
+    price_map: Optional[dict] = None,
+    gateway: Optional[_StubBillingGateway] = None,
+) -> CreateCheckoutSessionUseCase:
+    if price_map is None:
+        price_map = {
+            PlanType.LITE: {"jpy": "price_lite_jpy_001", "usd": "price_lite_usd_001"},
+            PlanType.STANDARD: {"jpy": "price_standard_jpy_001", "usd": "price_standard_usd_001"},
+        }
+    if gateway is None:
+        gateway = _StubBillingGateway()
+    return CreateCheckoutSessionUseCase(
+        subscription_repo=_StubSubscriptionRepo(entity),
+        billing_gateway=gateway,
+        billing_enabled=billing_enabled,
+        price_map=price_map,
+        user_repo=_StubUserRepo(),
+    )
+
+
+class BillingNotEnabledTests(TestCase):
+    def test_raises_billing_not_enabled(self):
+        entity = _make_subscription()
+        use_case = _make_use_case(entity, billing_enabled=False)
+        with self.assertRaises(BillingNotEnabled):
+            use_case.execute(
+                user_id=1,
+                plan="lite",
+                success_url="https://success",
+                cancel_url="https://cancel",
+            )
+
+
+class ValidPlanTests(TestCase):
+    def test_creates_checkout_session_for_lite_jpy(self):
+        entity = _make_subscription()
+        use_case = _make_use_case(entity)
+        dto = use_case.execute(
+            user_id=1,
+            plan="lite",
+            success_url="https://success",
+            cancel_url="https://cancel",
+            currency="jpy",
+        )
+        self.assertEqual(dto.checkout_url, "https://checkout.test")
+
+    def test_creates_checkout_session_for_standard_jpy(self):
+        entity = _make_subscription()
+        use_case = _make_use_case(entity)
+        dto = use_case.execute(
+            user_id=1,
+            plan="standard",
+            success_url="https://success",
+            cancel_url="https://cancel",
+            currency="jpy",
+        )
+        self.assertEqual(dto.checkout_url, "https://checkout.test")
+
+    def test_creates_checkout_session_for_lite_usd(self):
+        entity = _make_subscription()
+        gateway = _StubBillingGateway()
+        use_case = _make_use_case(entity, gateway=gateway)
+        dto = use_case.execute(
+            user_id=1,
+            plan="lite",
+            success_url="https://success",
+            cancel_url="https://cancel",
+            currency="usd",
+        )
+        self.assertEqual(dto.checkout_url, "https://checkout.test")
+        self.assertEqual(gateway.last_price_id, "price_lite_usd_001")
+
+    def test_creates_checkout_session_for_standard_usd(self):
+        entity = _make_subscription()
+        gateway = _StubBillingGateway()
+        use_case = _make_use_case(entity, gateway=gateway)
+        dto = use_case.execute(
+            user_id=1,
+            plan="standard",
+            success_url="https://success",
+            cancel_url="https://cancel",
+            currency="usd",
+        )
+        self.assertEqual(dto.checkout_url, "https://checkout.test")
+        self.assertEqual(gateway.last_price_id, "price_standard_usd_001")
+
+    def test_currency_defaults_to_jpy(self):
+        entity = _make_subscription()
+        gateway = _StubBillingGateway()
+        use_case = _make_use_case(entity, gateway=gateway)
+        dto = use_case.execute(
+            user_id=1,
+            plan="lite",
+            success_url="https://success",
+            cancel_url="https://cancel",
+        )
+        self.assertEqual(dto.checkout_url, "https://checkout.test")
+        self.assertEqual(gateway.last_price_id, "price_lite_jpy_001")
+
+    def test_currency_is_case_insensitive(self):
+        entity = _make_subscription()
+        gateway = _StubBillingGateway()
+        use_case = _make_use_case(entity, gateway=gateway)
+        dto = use_case.execute(
+            user_id=1,
+            plan="lite",
+            success_url="https://success",
+            cancel_url="https://cancel",
+            currency="USD",
+        )
+        self.assertEqual(dto.checkout_url, "https://checkout.test")
+        self.assertEqual(gateway.last_price_id, "price_lite_usd_001")
+
+
+class AlreadySubscribedTests(TestCase):
+    def test_upgrades_in_place_when_active_paid_subscription_exists(self):
+        entity = _make_subscription(
+            plan=PlanType.LITE,
+            stripe_status="active",
+            stripe_subscription_id="sub_existing",
+            stripe_customer_id="cus_existing",
+        )
+        gateway = _StubBillingGateway()
+        use_case = _make_use_case(entity, gateway=gateway)
+        dto = use_case.execute(
+            user_id=1,
+            plan="standard",
+            success_url="https://success",
+            cancel_url="https://cancel",
+        )
+        self.assertTrue(dto.upgraded)
+        self.assertEqual(dto.checkout_url, "")
+
+
+class InvalidPlanTests(TestCase):
+    def test_enterprise_plan_raises_invalid_plan(self):
+        entity = _make_subscription()
+        use_case = _make_use_case(entity)
+        with self.assertRaises(InvalidPlan):
+            use_case.execute(
+                user_id=1,
+                plan="enterprise",
+                success_url="https://success",
+                cancel_url="https://cancel",
+            )
+
+    def test_free_plan_raises_invalid_plan(self):
+        entity = _make_subscription()
+        use_case = _make_use_case(entity)
+        with self.assertRaises(InvalidPlan):
+            use_case.execute(
+                user_id=1,
+                plan="free",
+                success_url="https://success",
+                cancel_url="https://cancel",
+            )
+
+    def test_unknown_plan_raises_invalid_plan(self):
+        entity = _make_subscription()
+        use_case = _make_use_case(entity)
+        with self.assertRaises(InvalidPlan):
+            use_case.execute(
+                user_id=1,
+                plan="super_premium",
+                success_url="https://success",
+                cancel_url="https://cancel",
+            )
+
+    def test_invalid_currency_raises_invalid_plan(self):
+        entity = _make_subscription()
+        use_case = _make_use_case(entity)
+        with self.assertRaises(InvalidPlan):
+            use_case.execute(
+                user_id=1,
+                plan="lite",
+                success_url="https://success",
+                cancel_url="https://cancel",
+                currency="eur",
+            )

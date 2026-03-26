@@ -4,9 +4,7 @@ Runs asynchronously after transcription completes (status: INDEXING).
 """
 
 import logging
-from typing import Optional
 
-from app.domain.user.ports import OpenAiApiKeyRepository
 from app.domain.video.gateways import VectorIndexingGateway
 from app.domain.video.repositories import VideoTranscriptionRepository
 from app.domain.video.status import VideoStatus
@@ -27,11 +25,9 @@ class IndexVideoTranscriptUseCase:
         self,
         video_repo: VideoTranscriptionRepository,
         vector_indexing_gateway: VectorIndexingGateway,
-        api_key_repo: Optional[OpenAiApiKeyRepository] = None,
     ):
         self.video_repo = video_repo
         self.vector_gateway = vector_indexing_gateway
-        self.api_key_repo = api_key_repo
 
     def execute(self, video_id: int) -> None:
         """
@@ -43,15 +39,10 @@ class IndexVideoTranscriptUseCase:
         if video is None or video.transcript is None:
             raise IndexingTargetMissing(video_id)
 
-        # Resolve per-user OpenAI API key
-        api_key = None
-        if self.api_key_repo is not None:
-            api_key = self.api_key_repo.get_decrypted_key(video.user_id)
-
         try:
             self.vector_gateway.index_video_transcript(
                 video.id, video.user_id, video.title, video.transcript,
-                api_key=api_key,
+                api_key=None,
             )
         except Exception as e:
             raise IndexingExecutionFailed(video_id=video_id, reason=str(e)) from e
