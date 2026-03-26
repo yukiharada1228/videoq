@@ -74,3 +74,7 @@ class StripeBillingGateway(BillingGateway):
     def verify_webhook(self, payload: bytes, sig_header: str, secret: str) -> dict:
         stripe = self._get_stripe()
         return stripe.Webhook.construct_event(payload, sig_header, secret)
+
+    def cancel_subscription(self, subscription_id: str) -> None:
+        stripe = self._get_stripe()
+        stripe.Subscription.cancel(subscription_id)

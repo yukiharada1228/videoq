@@ -1,0 +1,175 @@
+"""Unit tests for DeleteAccountDataUseCase — subscription cancellation on account deletion."""
+
+from typing import Optional
+from unittest import TestCase
+from unittest.mock import MagicMock, call
+
+from app.domain.billing.entities import PlanType, SubscriptionEntity
+from app.domain.billing.ports import BillingGateway, SubscriptionRepository
+from app.domain.auth.gateways import UserDataDeletionGateway
+from app.use_cases.auth.delete_account_data import DeleteAccountDataUseCase
+
+
+def _make_subscription(**kwargs) -> SubscriptionEntity:
+    defaults = {
+        "user_id": 1,
+        "plan": PlanType.LITE,
+        "stripe_customer_id": "cus_test",
+        "stripe_subscription_id": "sub_test",
+        "stripe_status": "active",
+        "current_period_end": None,
+        "cancel_at_period_end": False,
+        "used_storage_bytes": 0,
+        "used_processing_seconds": 0,
+        "used_ai_answers": 0,
+        "usage_period_start": None,
+        "custom_storage_gb": None,
+        "custom_processing_minutes": None,
+        "custom_ai_answers": None,
+        "unlimited_processing_minutes": False,
+        "unlimited_ai_answers": False,
+    }
+    defaults.update(kwargs)
+    return SubscriptionEntity(**defaults)  # type: ignore[arg-type]
+
+
+class _StubSubscriptionRepo(SubscriptionRepository):
+    def __init__(self, entity: Optional[SubscriptionEntity]):
+        self._entity = entity
+
+    def get_or_create(self, user_id: int) -> SubscriptionEntity:
+        return self._entity
+
+    def get_by_user_id(self, user_id: int) -> Optional[SubscriptionEntity]:
+        return self._entity
+
+    def get_by_stripe_customer_id(self, customer_id: str) -> Optional[SubscriptionEntity]:
+        return self._entity
+
+    def save(self, entity: SubscriptionEntity) -> SubscriptionEntity:
+        return entity
+
+    def create_stripe_customer(self, user_id: int, customer_id: str) -> SubscriptionEntity:
+        return self._entity
+
+    def reset_monthly_usage(self, user_id: int, period_start) -> None:
+        pass
+
+    def maybe_reset_monthly_usage(self, user_id: int) -> None:
+        pass
+
+
+class _StubBillingGateway(BillingGateway):
+    def __init__(self):
+        self.cancelled: list[str] = []
+
+    def get_or_create_customer(self, user_id, email, username) -> str:
+        return "cus_test"
+
+    def create_checkout_session(self, customer_id, price_id, success_url, cancel_url, user_id, plan):
+        return MagicMock(url="https://checkout.test")
+
+    def update_subscription(self, subscription_id, price_id) -> None:
+        pass
+
+    def create_billing_portal(self, customer_id, return_url):
+        return MagicMock(url="https://portal.test")
+
+    def retrieve_subscription(self, subscription_id) -> dict:
+        return {}
+
+    def verify_webhook(self, payload, sig_header, secret) -> dict:
+        return {}
+
+    def cancel_subscription(self, subscription_id: str) -> None:
+        self.cancelled.append(subscription_id)
+
+
+def _make_deletion_gateway() -> UserDataDeletionGateway:
+    gw = MagicMock(spec=UserDataDeletionGateway)
+    return gw
+
+
+class CancelSubscriptionOnDeleteTests(TestCase):
+    def test_cancels_stripe_subscription_when_active(self):
+        """アクティブなサブスクリプションがある場合、アカウント削除時にStripeをキャンセルする"""
+        entity = _make_subscription(stripe_subscription_id="sub_abc")
+        billing_gw = _StubBillingGateway()
+        use_case = DeleteAccountDataUseCase(
+            user_data_deletion_gateway=_make_deletion_gateway(),
+            subscription_repo=_StubSubscriptionRepo(entity),
+            billing_gateway=billing_gw,
+        )
+
+        use_case.execute(user_id=1)
+
+        self.assertEqual(billing_gw.cancelled, ["sub_abc"])
+
+    def test_skips_cancel_when_no_subscription_id(self):
+        """stripe_subscription_idがNullの場合はキャンセルしない（Freeプラン等）"""
+        entity = _make_subscription(plan=PlanType.FREE, stripe_subscription_id=None)
+        billing_gw = _StubBillingGateway()
+        use_case = DeleteAccountDataUseCase(
+            user_data_deletion_gateway=_make_deletion_gateway(),
+            subscription_repo=_StubSubscriptionRepo(entity),
+            billing_gateway=billing_gw,
+        )
+
+        use_case.execute(user_id=1)
+
+        self.assertEqual(billing_gw.cancelled, [])
+
+    def test_skips_cancel_when_no_subscription_record(self):
+        """サブスクリプションレコード自体がない場合はキャンセルしない"""
+        billing_gw = _StubBillingGateway()
+        use_case = DeleteAccountDataUseCase(
+            user_data_deletion_gateway=_make_deletion_gateway(),
+            subscription_repo=_StubSubscriptionRepo(None),
+            billing_gateway=billing_gw,
+        )
+
+        use_case.execute(user_id=1)
+
+        self.assertEqual(billing_gw.cancelled, [])
+
+    def test_skips_cancel_when_billing_not_configured(self):
+        """billing_gateway/subscription_repoがNoneの場合（billing無効環境）はキャンセルしない"""
+        use_case = DeleteAccountDataUseCase(
+            user_data_deletion_gateway=_make_deletion_gateway(),
+        )
+
+        use_case.execute(user_id=1)  # エラーなく完了すること
+
+    def test_continues_data_deletion_even_if_stripe_cancel_fails(self):
+        """Stripeキャンセルが失敗してもデータ削除は続行される"""
+        entity = _make_subscription(stripe_subscription_id="sub_fail")
+        billing_gw = MagicMock(spec=BillingGateway)
+        billing_gw.cancel_subscription.side_effect = Exception("Stripe error")
+
+        deletion_gw = _make_deletion_gateway()
+        use_case = DeleteAccountDataUseCase(
+            user_data_deletion_gateway=deletion_gw,
+            subscription_repo=_StubSubscriptionRepo(entity),
+            billing_gateway=billing_gw,
+        )
+
+        use_case.execute(user_id=1)  # エラーで中断しないこと
+
+        deletion_gw.delete_all_videos_for_user.assert_called_once_with(1)
+        deletion_gw.delete_chat_history_for_user.assert_called_once_with(1)
+        deletion_gw.delete_video_groups_for_user.assert_called_once_with(1)
+        deletion_gw.delete_tags_for_user.assert_called_once_with(1)
+
+    def test_all_data_deletion_methods_called(self):
+        """サブスクリプションなしでも全データ削除メソッドが呼ばれる"""
+        deletion_gw = _make_deletion_gateway()
+        use_case = DeleteAccountDataUseCase(
+            user_data_deletion_gateway=deletion_gw,
+        )
+
+        use_case.execute(user_id=42)
+
+        deletion_gw.delete_all_videos_for_user.assert_called_once_with(42)
+        deletion_gw.delete_chat_history_for_user.assert_called_once_with(42)
+        deletion_gw.delete_video_groups_for_user.assert_called_once_with(42)
+        deletion_gw.delete_tags_for_user.assert_called_once_with(42)
