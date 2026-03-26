@@ -2,7 +2,7 @@
 
 from typing import Optional
 from unittest import TestCase
-from unittest.mock import MagicMock, call
+from unittest.mock import MagicMock
 
 from app.domain.billing.entities import PlanType, SubscriptionEntity
 from app.domain.billing.ports import BillingGateway, SubscriptionRepository
