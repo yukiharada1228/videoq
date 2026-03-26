@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 from app.domain.billing.exceptions import AiAnswersLimitExceeded
 from app.domain.chat.gateways import RagGateway, RagUserNotFoundError
 from app.domain.chat.repositories import ChatRepository, VideoGroupQueryRepository
-from app.use_cases.chat.dto import ChatMessageInput, SendMessageResultDTO
+from app.use_cases.chat.dto import ChatMessageInput
 from app.use_cases.chat.exceptions import InvalidChatRequestError
 from app.use_cases.chat.send_message import SendMessageUseCase
 from app.use_cases.shared.exceptions import ResourceNotFound

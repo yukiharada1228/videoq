@@ -3,8 +3,6 @@
 import logging
 from typing import List, Optional
 
-logger = logging.getLogger(__name__)
-
 from app.domain.chat.dtos import ChatMessageDTO
 from app.domain.chat.gateways import LLMConfigurationError as _DomainLLMConfigError
 from app.domain.chat.gateways import LLMProviderError as _DomainLLMProviderError
@@ -29,6 +27,8 @@ from app.use_cases.chat.exceptions import (
     LLMProviderError,
 )
 from app.use_cases.shared.exceptions import PermissionDenied, ResourceNotFound
+
+logger = logging.getLogger(__name__)
 
 
 class SendMessageUseCase:

@@ -380,41 +380,37 @@ describe('ApiClient', () => {
 
     it('uploadVideo should use FormData', async () => {
       const mockVideo = { id: 1, title: 'Test Video' };
-      const mockUploadUrl = 'http://r2.example.com/upload';
-      vi.spyOn(apiClient as any, 'requestUploadUrl').mockResolvedValueOnce({
-        video: mockVideo,
-        upload_url: mockUploadUrl,
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        status: 201,
+        json: () => Promise.resolve(mockVideo),
       });
-      vi.spyOn(apiClient as any, 'uploadToPresignedUrl').mockResolvedValueOnce(undefined);
-      vi.spyOn(apiClient as any, 'confirmUpload').mockResolvedValueOnce(mockVideo);
 
       const file = new File(['content'], 'test.mp4', { type: 'video/mp4' });
       const result = await apiClient.uploadVideo({ file, title: 'Test Video' });
 
-      expect((apiClient as any).requestUploadUrl).toHaveBeenCalledWith(expect.objectContaining({
-        filename: 'test.mp4',
-        title: 'Test Video',
-      }));
-      expect((apiClient as any).uploadToPresignedUrl).toHaveBeenCalledWith(mockUploadUrl, file, 'video/mp4', undefined);
-      expect((apiClient as any).confirmUpload).toHaveBeenCalledWith(1);
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining('/videos/'),
+        expect.objectContaining({ method: 'POST', body: expect.any(FormData) }),
+      );
       expect(result).toEqual(mockVideo);
     });
 
     it('uploadVideo should include optional fields', async () => {
       const mockVideo = { id: 1, title: 'Test' };
-      vi.spyOn(apiClient as any, 'requestUploadUrl').mockResolvedValueOnce({
-        video: mockVideo,
-        upload_url: 'http://r2.example.com/upload',
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        status: 201,
+        json: () => Promise.resolve(mockVideo),
       });
-      vi.spyOn(apiClient as any, 'uploadToPresignedUrl').mockResolvedValueOnce(undefined);
-      vi.spyOn(apiClient as any, 'confirmUpload').mockResolvedValueOnce(mockVideo);
 
       const file = new File(['content'], 'test.mp4', { type: 'video/mp4' });
       await apiClient.uploadVideo({ file, title: 'Test', description: 'Desc' });
 
-      expect((apiClient as any).requestUploadUrl).toHaveBeenCalledWith(expect.objectContaining({
-        description: 'Desc',
-      }));
+      const lastCall = fetchMock.mock.calls[fetchMock.mock.calls.length - 1];
+      const body = lastCall[1]?.body as FormData;
+      expect(body).toBeInstanceOf(FormData);
+      expect(body.get('description')).toBe('Desc');
     });
 
     it('uploadVideo should handle errors', async () => {

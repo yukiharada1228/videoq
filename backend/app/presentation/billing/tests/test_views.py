@@ -14,9 +14,7 @@ from app.use_cases.billing.dtos import (
     SubscriptionDTO,
 )
 from app.use_cases.billing.exceptions import (
-    AlreadySubscribed,
     BillingNotEnabled,
-    InvalidPlan,
     NoStripeCustomer,
 )
 

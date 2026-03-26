@@ -8,7 +8,6 @@ import re
 
 from typing import Optional
 
-from app.domain.billing.exceptions import ProcessingLimitExceeded
 from app.domain.shared.transaction import TransactionPort
 from app.domain.user.repositories import UserRepository
 from app.domain.video.gateways import FileUploadGateway, TranscriptionGateway, VideoTaskGateway
