@@ -49,6 +49,7 @@ services:
       args:
         # Vite build-time API base URL (recommended: "/api" when using the included nginx reverse proxy)
         - VITE_API_URL=${VITE_API_URL:-/api}
+        - VITE_USE_S3_STORAGE=${USE_S3_STORAGE:-false}
         - VITE_MAX_VIDEO_UPLOAD_SIZE_MB=${MAX_VIDEO_UPLOAD_SIZE_MB:-500}
         - VITE_OPERATOR_NAME=${VITE_OPERATOR_NAME:-}
         - VITE_OPERATOR_REPRESENTATIVE=${VITE_OPERATOR_REPRESENTATIVE:-}
