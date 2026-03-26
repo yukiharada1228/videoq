@@ -94,6 +94,14 @@ class AiAnswersLimitTests(TestCase):
         sub = _make_subscription(plan=PlanType.LITE)
         self.assertEqual(sub.get_ai_answers_limit(), 3000)
 
+    def test_ai_answers_standard_plan(self):
+        sub = _make_subscription(plan=PlanType.STANDARD)
+        self.assertEqual(sub.get_ai_answers_limit(), 7000)
+
+    def test_ai_answers_enterprise_no_custom_returns_none(self):
+        sub = _make_subscription(plan=PlanType.ENTERPRISE)
+        self.assertIsNone(sub.get_ai_answers_limit())
+
 
 class CanUseStorageTests(TestCase):
     def test_can_use_storage_within_limit(self):
@@ -135,6 +143,26 @@ class CanAnswerTests(TestCase):
     def test_can_answer_at_limit(self):
         sub = _make_subscription(plan=PlanType.FREE, used_ai_answers=500)
         self.assertFalse(sub.can_answer())
+
+    def test_can_answer_lite_within_limit(self):
+        sub = _make_subscription(plan=PlanType.LITE, used_ai_answers=2999)
+        self.assertTrue(sub.can_answer())
+
+    def test_can_answer_lite_at_limit(self):
+        sub = _make_subscription(plan=PlanType.LITE, used_ai_answers=3000)
+        self.assertFalse(sub.can_answer())
+
+    def test_can_answer_standard_within_limit(self):
+        sub = _make_subscription(plan=PlanType.STANDARD, used_ai_answers=6999)
+        self.assertTrue(sub.can_answer())
+
+    def test_can_answer_standard_at_limit(self):
+        sub = _make_subscription(plan=PlanType.STANDARD, used_ai_answers=7000)
+        self.assertFalse(sub.can_answer())
+
+    def test_can_answer_enterprise_unlimited(self):
+        sub = _make_subscription(plan=PlanType.ENTERPRISE, unlimited_ai_answers=True, used_ai_answers=999999)
+        self.assertTrue(sub.can_answer())
 
 class IsStripeActiveTests(TestCase):
     def test_free_plan_always_active(self):
