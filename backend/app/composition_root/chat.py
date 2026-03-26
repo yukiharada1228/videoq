@@ -7,9 +7,6 @@ Lifecycle policy:
 
 from functools import lru_cache
 
-from app.infrastructure.repositories.django_openai_key_repository import (
-    DjangoOpenAiApiKeyRepository,
-)
 from app.infrastructure.chat.keyword_extractor import JanomeNltkKeywordExtractor
 from app.infrastructure.chat.scene_video_info_provider import (
     DjangoSceneVideoInfoProvider,
@@ -63,7 +60,7 @@ def get_send_message_use_case() -> SendMessageUseCase:
         _new_chat_repository(),
         _new_video_group_query_repository(),
         _get_rag_gateway(),
-        api_key_repo=DjangoOpenAiApiKeyRepository(),
+        ai_answer_limit_check_use_case=_billing_cr.get_check_ai_answers_limit_use_case(),
         ai_answer_record_use_case=_billing_cr.get_record_ai_answer_usage_use_case(),
     )
 

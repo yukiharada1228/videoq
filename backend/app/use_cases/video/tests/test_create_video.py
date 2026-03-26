@@ -6,6 +6,7 @@ from typing import Callable
 from unittest import TestCase
 from unittest.mock import MagicMock
 
+from app.domain.billing.exceptions import StorageLimitExceeded
 from app.domain.user.entities import UserEntity
 from app.domain.video.dto import CreateVideoParams, UpdateVideoParams
 from app.domain.video.entities import VideoEntity
@@ -241,19 +242,56 @@ class CreateVideoStorageBillingTests(TestCase):
         )
         self.repo = FakeVideoRepository()
         self.mock_task_queue = MagicMock()
+        self.mock_storage_limit_check = MagicMock()
         self.mock_storage_record = MagicMock()
 
-    def _make_use_case(self, storage_record_use_case=None):
+    def _make_use_case(self, storage_limit_check_use_case=None, storage_record_use_case=None):
         return CreateVideoUseCase(
             self.user_repo,
             self.repo,
             self.mock_task_queue,
             _FakeTransactionPort(),
+            storage_limit_check_use_case=storage_limit_check_use_case,
             storage_record_use_case=storage_record_use_case,
         )
 
+    def test_checks_storage_limit_before_upload(self):
+        use_case = self._make_use_case(
+            storage_limit_check_use_case=self.mock_storage_limit_check,
+        )
+        input_dto = CreateVideoInput(
+            file=FakeUploadedFile(),
+            title="Test",
+            description="",
+            file_size=1024,
+        )
+
+        use_case.execute(self.user_id, input_dto)
+
+        self.mock_storage_limit_check.execute.assert_called_once_with(self.user_id, 1024)
+
+    def test_rejects_upload_when_storage_limit_exceeded(self):
+        self.mock_storage_limit_check.execute.side_effect = StorageLimitExceeded("Storage limit exceeded")
+        use_case = self._make_use_case(
+            storage_limit_check_use_case=self.mock_storage_limit_check,
+            storage_record_use_case=self.mock_storage_record,
+        )
+        input_dto = CreateVideoInput(
+            file=FakeUploadedFile(),
+            title="Test",
+            description="",
+            file_size=1024,
+        )
+
+        with self.assertRaises(StorageLimitExceeded):
+            use_case.execute(self.user_id, input_dto)
+
+        self.assertEqual(self.repo.count_for_user(self.user_id), 0)
+        self.mock_task_queue.enqueue_transcription.assert_not_called()
+        self.mock_storage_record.execute.assert_not_called()
+
     def test_records_storage_usage_on_successful_upload(self):
-        use_case = self._make_use_case(self.mock_storage_record)
+        use_case = self._make_use_case(storage_record_use_case=self.mock_storage_record)
         input_dto = CreateVideoInput(
             file=FakeUploadedFile(),
             title="Test",
@@ -275,7 +313,7 @@ class CreateVideoStorageBillingTests(TestCase):
         use_case.execute(self.user_id, input_dto)
 
     def test_skips_storage_recording_when_file_size_is_zero(self):
-        use_case = self._make_use_case(self.mock_storage_record)
+        use_case = self._make_use_case(storage_record_use_case=self.mock_storage_record)
         input_dto = CreateVideoInput(
             file=FakeUploadedFile(),
             title="Test",
@@ -287,7 +325,7 @@ class CreateVideoStorageBillingTests(TestCase):
 
     def test_does_not_fail_upload_when_billing_record_raises(self):
         self.mock_storage_record.execute.side_effect = RuntimeError("billing down")
-        use_case = self._make_use_case(self.mock_storage_record)
+        use_case = self._make_use_case(storage_record_use_case=self.mock_storage_record)
         input_dto = CreateVideoInput(
             file=FakeUploadedFile(),
             title="Test",

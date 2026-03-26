@@ -55,52 +55,44 @@ class StorageLimitTests(TestCase):
 
 
 class ProcessingLimitTests(TestCase):
-    def test_processing_unlimited_with_openai_key(self):
-        sub = _make_subscription(plan=PlanType.FREE)
-        self.assertIsNone(sub.get_processing_limit_seconds(has_openai_key=True))
-
-    def test_processing_limited_without_openai_key(self):
+    def test_processing_limited_for_free_plan(self):
         sub = _make_subscription(plan=PlanType.FREE)
         expected = 10 * 60  # 10 minutes in seconds
-        self.assertEqual(sub.get_processing_limit_seconds(has_openai_key=False), expected)
+        self.assertEqual(sub.get_processing_limit_seconds(), expected)
 
     def test_processing_unlimited_with_flag(self):
         sub = _make_subscription(plan=PlanType.FREE, unlimited_processing_minutes=True)
-        self.assertIsNone(sub.get_processing_limit_seconds(has_openai_key=False))
+        self.assertIsNone(sub.get_processing_limit_seconds())
 
     def test_processing_limit_custom_minutes(self):
         sub = _make_subscription(plan=PlanType.ENTERPRISE, custom_processing_minutes=300)
-        self.assertEqual(sub.get_processing_limit_seconds(has_openai_key=False), 300 * 60)
+        self.assertEqual(sub.get_processing_limit_seconds(), 300 * 60)
 
     def test_processing_limit_lite_plan(self):
         sub = _make_subscription(plan=PlanType.LITE)
-        self.assertEqual(sub.get_processing_limit_seconds(has_openai_key=False), 120 * 60)
+        self.assertEqual(sub.get_processing_limit_seconds(), 120 * 60)
 
     def test_processing_limit_standard_plan(self):
         sub = _make_subscription(plan=PlanType.STANDARD)
-        self.assertEqual(sub.get_processing_limit_seconds(has_openai_key=False), 600 * 60)
+        self.assertEqual(sub.get_processing_limit_seconds(), 600 * 60)
 
 
 class AiAnswersLimitTests(TestCase):
-    def test_ai_answers_unlimited_with_openai_key(self):
+    def test_ai_answers_limited_for_free_plan(self):
         sub = _make_subscription(plan=PlanType.FREE)
-        self.assertIsNone(sub.get_ai_answers_limit(has_openai_key=True))
-
-    def test_ai_answers_limited_without_openai_key(self):
-        sub = _make_subscription(plan=PlanType.FREE)
-        self.assertEqual(sub.get_ai_answers_limit(has_openai_key=False), 500)
+        self.assertEqual(sub.get_ai_answers_limit(), 500)
 
     def test_ai_answers_unlimited_with_flag(self):
         sub = _make_subscription(plan=PlanType.FREE, unlimited_ai_answers=True)
-        self.assertIsNone(sub.get_ai_answers_limit(has_openai_key=False))
+        self.assertIsNone(sub.get_ai_answers_limit())
 
     def test_ai_answers_custom_limit(self):
         sub = _make_subscription(plan=PlanType.ENTERPRISE, custom_ai_answers=9999)
-        self.assertEqual(sub.get_ai_answers_limit(has_openai_key=False), 9999)
+        self.assertEqual(sub.get_ai_answers_limit(), 9999)
 
     def test_ai_answers_lite_plan(self):
         sub = _make_subscription(plan=PlanType.LITE)
-        self.assertEqual(sub.get_ai_answers_limit(has_openai_key=False), 3000)
+        self.assertEqual(sub.get_ai_answers_limit(), 3000)
 
 
 class CanUseStorageTests(TestCase):
@@ -134,11 +126,6 @@ class CanProcessTests(TestCase):
         sub = _make_subscription(plan=PlanType.FREE, used_processing_seconds=limit_seconds)
         self.assertFalse(sub.can_process(1))
 
-    def test_can_process_unlimited_with_openai_key(self):
-        limit_seconds = 10 * 60
-        sub = _make_subscription(plan=PlanType.FREE, used_processing_seconds=limit_seconds)
-        self.assertTrue(sub.can_process(1, has_openai_key=True))
-
 
 class CanAnswerTests(TestCase):
     def test_can_answer_within_limit(self):
@@ -148,11 +135,6 @@ class CanAnswerTests(TestCase):
     def test_can_answer_at_limit(self):
         sub = _make_subscription(plan=PlanType.FREE, used_ai_answers=500)
         self.assertFalse(sub.can_answer())
-
-    def test_can_answer_unlimited_with_openai_key(self):
-        sub = _make_subscription(plan=PlanType.FREE, used_ai_answers=500)
-        self.assertTrue(sub.can_answer(has_openai_key=True))
-
 
 class IsStripeActiveTests(TestCase):
     def test_free_plan_always_active(self):

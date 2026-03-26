@@ -11,7 +11,6 @@ from app.domain.chat.gateways import LLMProviderError as _DomainLLMProviderError
 from app.domain.chat.gateways import RagGateway
 from app.domain.chat.gateways import RagUserNotFoundError as _DomainRagUserNotFoundError
 from app.domain.chat.repositories import ChatRepository, VideoGroupQueryRepository
-from app.domain.user.ports import OpenAiApiKeyRepository
 from app.domain.chat.services import (
     ChatRequestPolicy,
     GroupContextNotFound as _DomainGroupContextNotFound,
@@ -47,13 +46,13 @@ class SendMessageUseCase:
         chat_repo: ChatRepository,
         group_query_repo: VideoGroupQueryRepository,
         rag_gateway: RagGateway,
-        api_key_repo: Optional[OpenAiApiKeyRepository] = None,
+        ai_answer_limit_check_use_case=None,
         ai_answer_record_use_case=None,
     ):
         self.chat_repo = chat_repo
         self.group_query_repo = group_query_repo
         self.rag_gateway = rag_gateway
-        self.api_key_repo = api_key_repo
+        self._ai_answer_limit_check_use_case = ai_answer_limit_check_use_case
         self._ai_answer_record_use_case = ai_answer_record_use_case
 
     def execute(
@@ -122,10 +121,8 @@ class SendMessageUseCase:
         except _DomainOwnerUserResolutionError as e:
             raise PermissionDenied(str(e)) from e
 
-        # Resolve per-user API key (may be None for local-model setups)
-        api_key = None
-        if self.api_key_repo is not None:
-            api_key = self.api_key_repo.get_decrypted_key(owner_user_id)
+        if self._ai_answer_limit_check_use_case is not None and owner_user_id is not None:
+            self._ai_answer_limit_check_use_case.execute(owner_user_id)
 
         video_ids = group.member_video_ids if group else None
 
@@ -135,7 +132,7 @@ class SendMessageUseCase:
                 user_id=owner_user_id,
                 video_ids=video_ids,
                 locale=locale,
-                api_key=api_key,
+                api_key=None,
             )
         except _DomainRagUserNotFoundError as e:
             raise ResourceNotFound("User") from e

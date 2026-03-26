@@ -5,6 +5,7 @@ from typing import Callable, Generator, Optional
 from unittest import TestCase
 from unittest.mock import MagicMock
 
+from app.domain.billing.exceptions import ProcessingLimitExceeded
 from app.domain.video.entities import VideoEntity
 from app.domain.video.exceptions import InvalidVideoStatusTransition
 from app.domain.video.status import VideoStatus
@@ -94,6 +95,12 @@ class _FakeUploadGateway:
 
     def generate_upload_url(self, file_key: str, content_type: str) -> str:
         return ""
+
+
+class _FakeVideoFileAccessor:
+    def get_local_path(self, video_id: int, temp_manager) -> str:
+        del video_id, temp_manager
+        return "/tmp/test-video.mp4"
 
 
 class RunTranscriptionUseCaseTests(TestCase):
@@ -215,7 +222,7 @@ class RunTranscriptionUseCaseTests(TestCase):
 
         user = UserEntity(
             id=10, username="u", email="u@e.com",
-            is_active=True, video_limit=None, max_video_upload_size_mb=500,
+            is_active=True, max_video_upload_size_mb=500,
         )
         user_repo = MagicMock()
         user_repo.get_by_id.return_value = user
@@ -243,6 +250,36 @@ class RunTranscriptionUseCaseTests(TestCase):
         self.assertEqual(upload_gw.deleted_keys, ["uploads/test.mp4"])
         self.assertEqual(repo.deleted, [1])
         self.assertEqual(transcription.calls, [])
+
+    def test_processing_limit_exceeded_sets_error_and_skips_transcription(self):
+        from unittest.mock import patch
+
+        video = VideoEntity(id=1, user_id=10, title="v1", status="pending", file_key="uploads/test.mp4")
+        repo = _FakeVideoTranscriptionRepository(video)
+        transcription = _FakeTranscriptionGateway(transcript="hello")
+        task_gateway = _FakeVideoTaskGateway()
+        upload_gw = _FakeUploadGateway()
+        tx = _FakeTransactionPort()
+        mock_check = MagicMock()
+        mock_check.execute.side_effect = ProcessingLimitExceeded("Processing limit exceeded")
+        use_case = RunTranscriptionUseCase(
+            repo,
+            transcription,
+            task_gateway,
+            upload_gw,
+            tx,
+            video_file_accessor=_FakeVideoFileAccessor(),
+            processing_limit_check_use_case=mock_check,
+        )
+
+        with patch("app.infrastructure.transcription.audio_processing._get_video_duration", return_value=61.2):
+            with self.assertRaises(TranscriptionExecutionFailed) as exc:
+                use_case.execute(video.id)
+
+        mock_check.execute.assert_called_once_with(10, 62)
+        self.assertEqual(video.status, "error")
+        self.assertEqual(transcription.calls, [])
+        self.assertIn("Processing limit exceeded", str(exc.exception))
 
 
 class ParseSrtDurationTests(TestCase):

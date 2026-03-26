@@ -5,6 +5,7 @@ from typing import Callable, Generator
 from unittest import TestCase
 from unittest.mock import MagicMock
 
+from app.domain.billing.exceptions import StorageLimitExceeded
 from app.domain.user.entities import UserEntity
 from app.domain.video.entities import VideoEntity
 from app.use_cases.video.dto import RequestUploadInput
@@ -46,7 +47,7 @@ class _FakeUploadGateway:
 
 
 class RequestVideoUploadUseCaseTests(TestCase):
-    def _make_use_case(self, max_video_upload_size_mb=500):
+    def _make_use_case(self, max_video_upload_size_mb=500, storage_limit_check_use_case=None):
         user = UserEntity(
             id=1,
             username="user",
@@ -61,6 +62,7 @@ class RequestVideoUploadUseCaseTests(TestCase):
             _FakeVideoRepository(),
             _FakeUploadGateway(),
             _FakeTransactionPort(),
+            storage_limit_check_use_case=storage_limit_check_use_case,
         )
 
     def _valid_input(self, file_size: int) -> RequestUploadInput:
@@ -88,3 +90,27 @@ class RequestVideoUploadUseCaseTests(TestCase):
         result = use_case.execute(1, input_dto)
         self.assertIsNotNone(result.video)
         self.assertIn("https://storage.example.com/", result.upload_url)
+
+    def test_checks_storage_limit_before_generating_upload_url(self):
+        mock_storage_limit_check = MagicMock()
+        use_case = self._make_use_case(
+            max_video_upload_size_mb=1000,
+            storage_limit_check_use_case=mock_storage_limit_check,
+        )
+        input_dto = self._valid_input(file_size=1024)
+
+        use_case.execute(1, input_dto)
+
+        mock_storage_limit_check.execute.assert_called_once_with(1, 1024)
+
+    def test_rejects_request_when_storage_limit_exceeded(self):
+        mock_storage_limit_check = MagicMock()
+        mock_storage_limit_check.execute.side_effect = StorageLimitExceeded("Storage limit exceeded")
+        use_case = self._make_use_case(
+            max_video_upload_size_mb=1000,
+            storage_limit_check_use_case=mock_storage_limit_check,
+        )
+        input_dto = self._valid_input(file_size=1024)
+
+        with self.assertRaises(StorageLimitExceeded):
+            use_case.execute(1, input_dto)

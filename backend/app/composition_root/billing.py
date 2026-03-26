@@ -1,10 +1,6 @@
 """Billing context DI wiring."""
 
 import os
-
-from app.infrastructure.repositories.django_openai_key_repository import (
-    DjangoOpenAiApiKeyRepository,
-)
 from app.infrastructure.repositories.django_subscription_repository import (
     DjangoSubscriptionRepository,
 )
@@ -23,10 +19,6 @@ from app.use_cases.billing.record_storage_usage import RecordStorageUsageUseCase
 
 def _new_subscription_repo() -> DjangoSubscriptionRepository:
     return DjangoSubscriptionRepository()
-
-
-def _new_openai_key_repo() -> DjangoOpenAiApiKeyRepository:
-    return DjangoOpenAiApiKeyRepository()
 
 
 def _new_billing_gateway():
@@ -79,7 +71,7 @@ def get_plans_use_case() -> GetPlansUseCase:
 
 
 def get_subscription_use_case() -> GetSubscriptionUseCase:
-    return GetSubscriptionUseCase(_new_subscription_repo(), _new_openai_key_repo())
+    return GetSubscriptionUseCase(_new_subscription_repo())
 
 
 def get_create_checkout_session_use_case() -> CreateCheckoutSessionUseCase:
@@ -114,11 +106,11 @@ def get_check_storage_limit_use_case() -> CheckStorageLimitUseCase:
 
 
 def get_check_processing_limit_use_case() -> CheckProcessingLimitUseCase:
-    return CheckProcessingLimitUseCase(_new_subscription_repo(), _new_openai_key_repo())
+    return CheckProcessingLimitUseCase(_new_subscription_repo())
 
 
 def get_check_ai_answers_limit_use_case() -> CheckAiAnswersLimitUseCase:
-    return CheckAiAnswersLimitUseCase(_new_subscription_repo(), _new_openai_key_repo())
+    return CheckAiAnswersLimitUseCase(_new_subscription_repo())
 
 
 def get_record_storage_usage_use_case() -> RecordStorageUsageUseCase:

@@ -31,12 +31,14 @@ class CreateVideoUseCase:
         video_repo: VideoRepository,
         task_queue: VideoTaskGateway,
         tx: TransactionPort,
+        storage_limit_check_use_case=None,
         storage_record_use_case=None,
     ):
         self.user_repo = user_repo
         self.video_repo = video_repo
         self.task_queue = task_queue
         self.tx = tx
+        self._storage_limit_check_use_case = storage_limit_check_use_case
         self._storage_record_use_case = storage_record_use_case
 
     def execute(self, user_id: int, input: CreateVideoInput) -> VideoResponseDTO:
@@ -59,6 +61,8 @@ class CreateVideoUseCase:
             max_upload_bytes = user.get_max_upload_size_bytes()
             if input.file_size > max_upload_bytes:
                 raise FileSizeExceeded(user.max_video_upload_size_mb)
+            if self._storage_limit_check_use_case is not None:
+                self._storage_limit_check_use_case.execute(user_id, input.file_size)
 
         with self.tx.atomic():
             params = CreateVideoParams(

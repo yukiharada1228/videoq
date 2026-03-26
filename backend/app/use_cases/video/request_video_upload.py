@@ -50,11 +50,13 @@ class RequestVideoUploadUseCase:
         video_repo: VideoRepository,
         upload_gateway: FileUploadGateway,
         tx: TransactionPort,
+        storage_limit_check_use_case=None,
     ):
         self.user_repo = user_repo
         self.video_repo = video_repo
         self.upload_gateway = upload_gateway
         self.tx = tx
+        self._storage_limit_check_use_case = storage_limit_check_use_case
 
     def execute(self, user_id: int, input: RequestUploadInput) -> UploadRequestResponseDTO:
         user = self.user_repo.get_by_id(user_id)
@@ -74,6 +76,8 @@ class RequestVideoUploadUseCase:
         max_upload_bytes = user.get_max_upload_size_bytes()
         if input.file_size > max_upload_bytes:
             raise FileSizeExceeded(max_upload_bytes // (1024 * 1024))
+        if self._storage_limit_check_use_case is not None:
+            self._storage_limit_check_use_case.execute(user_id, input.file_size)
 
         with self.tx.atomic():
             timestamp_ms = int(time.time() * 1000)

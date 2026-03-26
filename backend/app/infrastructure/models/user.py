@@ -19,11 +19,6 @@ class User(AbstractUser):
         help_text="Maximum video upload size in MB for this user.",
     )
     deactivated_at = models.DateTimeField(null=True, blank=True, db_index=True)
-    openai_api_key_encrypted = models.BinaryField(
-        null=True,
-        blank=True,
-        help_text="Encrypted OpenAI API key",
-    )
 
     class Meta:
         indexes = [
