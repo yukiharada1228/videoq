@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
@@ -9,6 +9,7 @@ import { AppPageShell } from '@/components/layout/AppPageShell';
 import { AppPageHeader } from '@/components/layout/AppPageHeader';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { Button } from '@/components/ui/button';
+import { operatorConfig } from '@/lib/operatorConfig';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -82,6 +83,7 @@ interface PlanCardProps {
 function PlanCard({ plan, isCurrent, currency, subscription, onUpgrade, onManage, isLoading }: PlanCardProps) {
   const { t } = useTranslation();
   const [confirming, setConfirming] = useState(false);
+  const enterpriseContactHref = operatorConfig.email ? `mailto:${operatorConfig.email}` : '/privacy';
 
   const rawPrice = currency === 'jpy' ? plan.prices.jpy : plan.prices.usd;
   // JPY is stored as whole yen; USD is stored in cents → divide by 100
@@ -119,10 +121,6 @@ function PlanCard({ plan, isCurrent, currency, subscription, onUpgrade, onManage
   }
 
   const handleClick = () => {
-    if (plan.is_contact_required) {
-      window.location.href = 'mailto:support@videoq.app';
-      return;
-    }
     if (isActivePaidSub && isCurrent) return;
     // Downgrading to Free means cancelling the subscription via Stripe portal
     if (plan.plan_id === 'free' && isActivePaidSub) {
@@ -217,15 +215,28 @@ function PlanCard({ plan, isCurrent, currency, subscription, onUpgrade, onManage
           </div>
         </div>
       ) : plan.plan_id !== 'free' || !isCurrent ? (
-        <Button
-          variant={buttonVariant}
-          size="sm"
-          disabled={buttonDisabled || isLoading}
-          onClick={handleClick}
-          className={isCurrent ? '' : plan.plan_id !== 'free' && !isCurrent ? 'bg-[#00652c] text-white hover:bg-[#00652c]/90' : ''}
-        >
-          {buttonLabel}
-        </Button>
+        plan.is_contact_required ? (
+          <Button
+            asChild
+            variant={buttonVariant}
+            size="sm"
+            className={isCurrent ? '' : plan.plan_id !== 'free' && !isCurrent ? 'bg-[#00652c] text-white hover:bg-[#00652c]/90' : ''}
+          >
+            <a href={enterpriseContactHref}>
+              {buttonLabel}
+            </a>
+          </Button>
+        ) : (
+          <Button
+            variant={buttonVariant}
+            size="sm"
+            disabled={buttonDisabled || isLoading}
+            onClick={handleClick}
+            className={isCurrent ? '' : plan.plan_id !== 'free' && !isCurrent ? 'bg-[#00652c] text-white hover:bg-[#00652c]/90' : ''}
+          >
+            {buttonLabel}
+          </Button>
+        )
       ) : null}
     </div>
   );
@@ -235,12 +246,16 @@ function PlanCard({ plan, isCurrent, currency, subscription, onUpgrade, onManage
 
 export default function BillingPage() {
   useAuth();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
   const [currency, setCurrency] = useState<'jpy' | 'usd'>('jpy');
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [portalError, setPortalError] = useState<string | null>(null);
   const [upgradeSuccess, setUpgradeSuccess] = useState(false);
+
+  useEffect(() => {
+    setCurrency(i18n.resolvedLanguage?.startsWith('en') ? 'usd' : 'jpy');
+  }, [i18n.resolvedLanguage]);
 
   const subscriptionQuery = useQuery({
     queryKey: queryKeys.billing.subscription,

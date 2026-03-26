@@ -268,6 +268,15 @@ export default function SettingsPage() {
               </div>
             </div>
 
+            <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+              <p className="font-bold">
+                {t('settings.openaiApiKey.billingNoticeTitle')}
+              </p>
+              <p className="mt-1 leading-relaxed">
+                {t('settings.openaiApiKey.billingNotice')}
+              </p>
+            </div>
+
             {openAiKeyQuery.isLoading && <LoadingSpinner />}
             {openAiKeyQuery.data?.has_key && (
               <div className="mb-5 flex items-center gap-3 p-3 bg-[#f0fdf4] border border-[#00652c]/20 rounded-xl">

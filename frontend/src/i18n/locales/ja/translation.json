@@ -652,9 +652,11 @@
     "openaiApiKey": {
       "title": "OpenAI APIキー",
       "description": "文字起こしとチャット機能を使用するには、OpenAI APIキーを設定してください。",
+      "billingNoticeTitle": "課金について",
+      "billingNotice": "ここに設定したOpenAI APIキーは、文字起こしとAIチャットの実行に使用されます。利用料金は VideoQ ではなく、このキーに紐づくお客様の OpenAI アカウントへ請求されます。",
       "apiKeyLabel": "APIキー",
       "hasApiKeyMessage": "既にAPIキーが設定されています。新しいキーを入力すると更新されます。",
-      "noApiKeyMessage": "動画の文字起こしとチャット機能を使用するには、OpenAI APIキーを設定する必要があります。",
+      "noApiKeyMessage": "動画の文字起こしとチャット機能を使用するには、OpenAI APIキーを設定する必要があります。設定したキーの利用料金は、お客様の OpenAI アカウントに請求されます。",
       "getApiKeyMessage": "APIキーは",
       "openaiPlatform": "OpenAI Platform",
       "save": "保存",
@@ -687,7 +689,7 @@
   "openaiApiKey": {
     "banner": {
       "title": "OpenAI APIキーが必要です",
-      "message": "文字起こし・チャット機能を利用するには、設定画面でOpenAI APIキーを設定してください。",
+      "message": "文字起こし・チャット機能を利用するには、設定画面でOpenAI APIキーを設定してください。利用料金は設定したキーに紐づく OpenAI アカウントに請求されます。",
       "settingsLink": "設定画面へ"
     }
   },
