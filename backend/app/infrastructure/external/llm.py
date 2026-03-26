@@ -36,12 +36,13 @@ def get_langchain_llm(api_key: Optional[str] = None) -> BaseChatModel:
 
         model = getattr(settings, "LLM_MODEL", "gpt-4o-mini")
 
-        return ChatOpenAI(
+        llm = ChatOpenAI(
             model=model,
             api_key=SecretStr(resolved_key),
             temperature=temperature,
-            model_kwargs={"max_tokens": 1024},
         )
+        llm.max_tokens = 1024
+        return llm
 
     elif provider == "ollama":
         # Use Ollama LLM
