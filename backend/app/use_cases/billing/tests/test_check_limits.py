@@ -10,7 +10,6 @@ from app.domain.billing.exceptions import (
     StorageLimitExceeded,
 )
 from app.domain.billing.ports import SubscriptionRepository
-from app.domain.user.ports import OpenAiApiKeyRepository
 from app.use_cases.billing.check_ai_answers_limit import CheckAiAnswersLimitUseCase
 from app.use_cases.billing.check_processing_limit import CheckProcessingLimitUseCase
 from app.use_cases.billing.check_storage_limit import CheckStorageLimitUseCase
@@ -67,26 +66,6 @@ class _StubSubscriptionRepo(SubscriptionRepository):
         pass
 
 
-class _StubOpenAiKeyRepo(OpenAiApiKeyRepository):
-    def __init__(self, has_key: bool = False):
-        self._has_key = has_key
-
-    def save_encrypted_key(self, user_id: int, raw_key: str) -> None:
-        pass
-
-    def get_decrypted_key(self, user_id: int) -> Optional[str]:
-        return "sk-xxx" if self._has_key else None
-
-    def delete_key(self, user_id: int) -> None:
-        pass
-
-    def get_masked_key(self, user_id: int) -> Optional[str]:
-        return None
-
-    def has_key(self, user_id: int) -> bool:
-        return self._has_key
-
-
 class CheckStorageLimitTests(TestCase):
     def test_storage_within_limit_does_not_raise(self):
         entity = _make_subscription(plan=PlanType.FREE, used_storage_bytes=0)
@@ -105,10 +84,7 @@ class CheckStorageLimitTests(TestCase):
 class CheckProcessingLimitTests(TestCase):
     def test_processing_within_limit_does_not_raise(self):
         entity = _make_subscription(plan=PlanType.FREE, used_processing_seconds=0)
-        use_case = CheckProcessingLimitUseCase(
-            _StubSubscriptionRepo(entity),
-            _StubOpenAiKeyRepo(has_key=False),
-        )
+        use_case = CheckProcessingLimitUseCase(_StubSubscriptionRepo(entity))
         use_case.execute(user_id=1, additional_seconds=60)
 
     def test_processing_exceeded_without_key_raises(self):
@@ -116,49 +92,19 @@ class CheckProcessingLimitTests(TestCase):
         entity = _make_subscription(
             plan=PlanType.FREE, used_processing_seconds=limit_seconds
         )
-        use_case = CheckProcessingLimitUseCase(
-            _StubSubscriptionRepo(entity),
-            _StubOpenAiKeyRepo(has_key=False),
-        )
+        use_case = CheckProcessingLimitUseCase(_StubSubscriptionRepo(entity))
         with self.assertRaises(ProcessingLimitExceeded):
             use_case.execute(user_id=1, additional_seconds=1)
-
-    def test_processing_not_exceeded_with_openai_key(self):
-        limit_seconds = 10 * 60
-        entity = _make_subscription(
-            plan=PlanType.FREE, used_processing_seconds=limit_seconds
-        )
-        use_case = CheckProcessingLimitUseCase(
-            _StubSubscriptionRepo(entity),
-            _StubOpenAiKeyRepo(has_key=True),
-        )
-        # Should not raise (unlimited with OpenAI key)
-        use_case.execute(user_id=1, additional_seconds=9999)
 
 
 class CheckAiAnswersLimitTests(TestCase):
     def test_ai_answers_within_limit_does_not_raise(self):
         entity = _make_subscription(plan=PlanType.FREE, used_ai_answers=0)
-        use_case = CheckAiAnswersLimitUseCase(
-            _StubSubscriptionRepo(entity),
-            _StubOpenAiKeyRepo(has_key=False),
-        )
+        use_case = CheckAiAnswersLimitUseCase(_StubSubscriptionRepo(entity))
         use_case.execute(user_id=1)
 
     def test_ai_answers_exceeded_raises(self):
         entity = _make_subscription(plan=PlanType.FREE, used_ai_answers=500)
-        use_case = CheckAiAnswersLimitUseCase(
-            _StubSubscriptionRepo(entity),
-            _StubOpenAiKeyRepo(has_key=False),
-        )
+        use_case = CheckAiAnswersLimitUseCase(_StubSubscriptionRepo(entity))
         with self.assertRaises(AiAnswersLimitExceeded):
             use_case.execute(user_id=1)
-
-    def test_ai_answers_not_exceeded_with_openai_key(self):
-        entity = _make_subscription(plan=PlanType.FREE, used_ai_answers=500)
-        use_case = CheckAiAnswersLimitUseCase(
-            _StubSubscriptionRepo(entity),
-            _StubOpenAiKeyRepo(has_key=True),
-        )
-        # Should not raise (unlimited with OpenAI key)
-        use_case.execute(user_id=1)

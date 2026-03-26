@@ -64,10 +64,8 @@ class SubscriptionEntity:
             return None
         return int(gb * 1024 ** 3)
 
-    def get_processing_limit_seconds(self, has_openai_key: bool = False) -> Optional[int]:
+    def get_processing_limit_seconds(self) -> Optional[int]:
         """Returns monthly processing limit in seconds. None = unlimited."""
-        if has_openai_key:
-            return None
         if self.unlimited_processing_minutes:
             return None
         if self.custom_processing_minutes is not None:
@@ -78,10 +76,8 @@ class SubscriptionEntity:
             return None
         return minutes * 60
 
-    def get_ai_answers_limit(self, has_openai_key: bool = False) -> Optional[int]:
+    def get_ai_answers_limit(self) -> Optional[int]:
         """Returns monthly AI answers limit. None = unlimited."""
-        if has_openai_key:
-            return None
         if self.unlimited_ai_answers:
             return None
         if self.custom_ai_answers is not None:
@@ -96,14 +92,14 @@ class SubscriptionEntity:
             return True
         return (self.used_storage_bytes + additional_bytes) <= limit
 
-    def can_process(self, additional_seconds: int, has_openai_key: bool = False) -> bool:
-        limit = self.get_processing_limit_seconds(has_openai_key)
+    def can_process(self, additional_seconds: int) -> bool:
+        limit = self.get_processing_limit_seconds()
         if limit is None:
             return True
         return (self.used_processing_seconds + additional_seconds) <= limit
 
-    def can_answer(self, has_openai_key: bool = False) -> bool:
-        limit = self.get_ai_answers_limit(has_openai_key)
+    def can_answer(self) -> bool:
+        limit = self.get_ai_answers_limit()
         if limit is None:
             return True
         return self.used_ai_answers < limit

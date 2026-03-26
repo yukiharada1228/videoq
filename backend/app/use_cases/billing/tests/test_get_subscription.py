@@ -5,7 +5,6 @@ from unittest import TestCase
 
 from app.domain.billing.entities import PlanType, SubscriptionEntity
 from app.domain.billing.ports import SubscriptionRepository
-from app.domain.user.ports import OpenAiApiKeyRepository
 from app.use_cases.billing.get_subscription import GetSubscriptionUseCase
 
 
@@ -58,33 +57,10 @@ class _StubSubscriptionRepo(SubscriptionRepository):
         pass
 
 
-class _StubOpenAiKeyRepo(OpenAiApiKeyRepository):
-    def __init__(self, has_key: bool = False):
-        self._has_key = has_key
-
-    def save_encrypted_key(self, user_id: int, raw_key: str) -> None:
-        pass
-
-    def get_decrypted_key(self, user_id: int) -> Optional[str]:
-        return "sk-xxx" if self._has_key else None
-
-    def delete_key(self, user_id: int) -> None:
-        pass
-
-    def get_masked_key(self, user_id: int) -> Optional[str]:
-        return None
-
-    def has_key(self, user_id: int) -> bool:
-        return self._has_key
-
-
 class GetSubscriptionUseCaseTests(TestCase):
-    def test_subscription_without_openai_key_uses_plan_limits(self):
+    def test_subscription_uses_plan_limits(self):
         entity = _make_subscription(plan=PlanType.FREE)
-        use_case = GetSubscriptionUseCase(
-            _StubSubscriptionRepo(entity),
-            _StubOpenAiKeyRepo(has_key=False),
-        )
+        use_case = GetSubscriptionUseCase(_StubSubscriptionRepo(entity))
         dto = use_case.execute(user_id=1)
 
         self.assertEqual(dto.plan, "free")
@@ -92,25 +68,9 @@ class GetSubscriptionUseCaseTests(TestCase):
         self.assertEqual(dto.ai_answers_limit, 500)
         self.assertEqual(dto.storage_limit_bytes, 1 * 1024 ** 3)
 
-    def test_subscription_with_openai_key_unlimited_processing_and_ai(self):
-        entity = _make_subscription(plan=PlanType.FREE)
-        use_case = GetSubscriptionUseCase(
-            _StubSubscriptionRepo(entity),
-            _StubOpenAiKeyRepo(has_key=True),
-        )
-        dto = use_case.execute(user_id=1)
-
-        self.assertIsNone(dto.processing_limit_seconds)
-        self.assertIsNone(dto.ai_answers_limit)
-        # Storage limit still applies
-        self.assertEqual(dto.storage_limit_bytes, 1 * 1024 ** 3)
-
     def test_is_active_true_for_free_plan(self):
         entity = _make_subscription(plan=PlanType.FREE)
-        use_case = GetSubscriptionUseCase(
-            _StubSubscriptionRepo(entity),
-            _StubOpenAiKeyRepo(has_key=False),
-        )
+        use_case = GetSubscriptionUseCase(_StubSubscriptionRepo(entity))
         dto = use_case.execute(user_id=1)
         self.assertTrue(dto.is_active)
 
@@ -122,10 +82,7 @@ class GetSubscriptionUseCaseTests(TestCase):
             used_processing_seconds=300,
             used_ai_answers=50,
         )
-        use_case = GetSubscriptionUseCase(
-            _StubSubscriptionRepo(entity),
-            _StubOpenAiKeyRepo(has_key=False),
-        )
+        use_case = GetSubscriptionUseCase(_StubSubscriptionRepo(entity))
         dto = use_case.execute(user_id=1)
 
         self.assertEqual(dto.used_storage_bytes, 100)

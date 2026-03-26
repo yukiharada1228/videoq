@@ -3,12 +3,13 @@ Use case: Transcribe a video and index its scenes for RAG search.
 """
 
 import logging
+import math
 import re
 
 from typing import Optional
 
+from app.domain.billing.exceptions import ProcessingLimitExceeded
 from app.domain.shared.transaction import TransactionPort
-from app.domain.user.ports import OpenAiApiKeyRepository
 from app.domain.user.repositories import UserRepository
 from app.domain.video.gateways import FileUploadGateway, TranscriptionGateway, VideoTaskGateway
 from app.domain.video.repositories import VideoRepository
@@ -65,8 +66,9 @@ class RunTranscriptionUseCase:
         task_queue: VideoTaskGateway,
         upload_gateway: FileUploadGateway,
         tx: TransactionPort,
-        api_key_repo: Optional[OpenAiApiKeyRepository] = None,
         user_repo: Optional[UserRepository] = None,
+        video_file_accessor=None,
+        processing_limit_check_use_case=None,
         processing_record_use_case=None,
     ):
         self.video_repo = video_repo
@@ -74,9 +76,22 @@ class RunTranscriptionUseCase:
         self.task_queue = task_queue
         self.upload_gateway = upload_gateway
         self.tx = tx
-        self.api_key_repo = api_key_repo
         self.user_repo = user_repo
+        self.video_file_accessor = video_file_accessor
+        self._processing_limit_check_use_case = processing_limit_check_use_case
         self._processing_record_use_case = processing_record_use_case
+
+    def _estimate_video_duration_seconds(self, video_id: int) -> Optional[int]:
+        if self.video_file_accessor is None:
+            return None
+
+        from app.infrastructure.common.task_helpers import TemporaryFileManager
+        from app.infrastructure.transcription.audio_processing import _get_video_duration
+
+        with TemporaryFileManager() as temp_manager:
+            video_file_path = self.video_file_accessor.get_local_path(video_id, temp_manager)
+            duration_seconds = _get_video_duration(video_file_path)
+        return max(1, math.ceil(duration_seconds))
 
     def execute(self, video_id: int) -> None:
         video = self.video_repo.get_by_id_for_task(video_id)
@@ -101,20 +116,26 @@ class RunTranscriptionUseCase:
 
         from_status, to_status = VideoTranscriptionLifecycle.plan_start(video.status)
 
-        logger.info("Transcription started for video %d (%s)", video.id, video.title)
-        self.video_repo.transition_status(
-            video_id=video_id,
-            from_status=from_status,
-            to_status=to_status,
-        )
-
-        # Resolve per-user OpenAI API key
-        api_key = None
-        if self.api_key_repo is not None and video.user_id:
-            api_key = self.api_key_repo.get_decrypted_key(video.user_id)
-
         try:
-            transcript = self.transcription_gateway.run(video_id, api_key=api_key)
+            logger.info("Transcription started for video %d (%s)", video.id, video.title)
+            self.video_repo.transition_status(
+                video_id=video_id,
+                from_status=from_status,
+                to_status=to_status,
+            )
+
+            if (
+                self._processing_limit_check_use_case is not None
+                and video.user_id
+            ):
+                estimated_duration_seconds = self._estimate_video_duration_seconds(video_id)
+                if estimated_duration_seconds is not None:
+                    self._processing_limit_check_use_case.execute(
+                        video.user_id,
+                        estimated_duration_seconds,
+                    )
+
+            transcript = self.transcription_gateway.run(video_id, api_key=None)
             with self.tx.atomic():
                 self.video_repo.save_transcript(video_id, transcript)
                 from_status, to_status = VideoTranscriptionLifecycle.plan_success()

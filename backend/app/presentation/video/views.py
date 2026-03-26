@@ -14,6 +14,7 @@ from rest_framework.views import APIView
 
 from app.presentation.common.responses import create_error_response
 from app.presentation.common.throttles import ShareTokenIPThrottle
+from app.use_cases.billing.exceptions import StorageLimitExceeded
 from app.use_cases.video.dto import (
     CreateGroupInput,
     CreateTagInput,
@@ -153,6 +154,12 @@ class VideoListView(DependencyResolverMixin, AuthenticatedViewMixin, generics.Ge
                 code="FILE_TOO_LARGE",
                 params={"max_size_mb": e.limit_mb},
             )
+        except StorageLimitExceeded as e:
+            return create_error_response(
+                str(e),
+                status.HTTP_400_BAD_REQUEST,
+                code="STORAGE_LIMIT_EXCEEDED",
+            )
 
         ctx = {"request": request}
         return Response(
@@ -283,6 +290,12 @@ class VideoUploadRequestView(DependencyResolverMixin, AuthenticatedViewMixin, ge
                 status.HTTP_400_BAD_REQUEST,
                 code="FILE_TOO_LARGE",
                 params={"max_size_mb": e.limit_mb},
+            )
+        except StorageLimitExceeded as e:
+            return create_error_response(
+                str(e),
+                status.HTTP_400_BAD_REQUEST,
+                code="STORAGE_LIMIT_EXCEEDED",
             )
         except ValueError as e:
             return create_error_response(str(e), status.HTTP_400_BAD_REQUEST)

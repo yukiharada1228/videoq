@@ -3,6 +3,7 @@
 import unittest
 from unittest.mock import MagicMock
 
+from app.domain.billing.exceptions import AiAnswersLimitExceeded
 from app.domain.chat.gateways import RagGateway, RagUserNotFoundError
 from app.domain.chat.repositories import ChatRepository, VideoGroupQueryRepository
 from app.use_cases.chat.dto import ChatMessageInput, SendMessageResultDTO
@@ -84,17 +85,51 @@ class _SuccessRagGateway(RagGateway):
 class SendMessageAiAnswerBillingTests(unittest.TestCase):
     """Tests for optional AI answer usage recording in SendMessageUseCase."""
 
-    def _make_use_case(self, ai_answer_record_use_case=None):
+    def _make_use_case(self, ai_answer_limit_check_use_case=None, ai_answer_record_use_case=None):
         return SendMessageUseCase(
             chat_repo=_StubChatRepository(),
             group_query_repo=_StubGroupRepository(),
             rag_gateway=_SuccessRagGateway(),
+            ai_answer_limit_check_use_case=ai_answer_limit_check_use_case,
             ai_answer_record_use_case=ai_answer_record_use_case,
         )
 
+    def test_checks_ai_answer_limit_before_generating_reply(self):
+        mock_ai_check = MagicMock()
+        use_case = self._make_use_case(ai_answer_limit_check_use_case=mock_ai_check)
+
+        use_case.execute(
+            user_id=99,
+            messages=[ChatMessageInput(role="user", content="hello")],
+        )
+
+        mock_ai_check.execute.assert_called_once_with(99)
+
+    def test_rejects_reply_when_ai_answer_limit_exceeded(self):
+        mock_ai_check = MagicMock()
+        mock_ai_check.execute.side_effect = AiAnswersLimitExceeded("AI answers limit exceeded")
+        mock_ai_record = MagicMock()
+        rag_gateway = MagicMock()
+        use_case = SendMessageUseCase(
+            chat_repo=_StubChatRepository(),
+            group_query_repo=_StubGroupRepository(),
+            rag_gateway=rag_gateway,
+            ai_answer_limit_check_use_case=mock_ai_check,
+            ai_answer_record_use_case=mock_ai_record,
+        )
+
+        with self.assertRaises(AiAnswersLimitExceeded):
+            use_case.execute(
+                user_id=99,
+                messages=[ChatMessageInput(role="user", content="hello")],
+            )
+
+        rag_gateway.generate_reply.assert_not_called()
+        mock_ai_record.execute.assert_not_called()
+
     def test_records_ai_answer_on_successful_reply(self):
         mock_ai_record = MagicMock()
-        use_case = self._make_use_case(mock_ai_record)
+        use_case = self._make_use_case(ai_answer_record_use_case=mock_ai_record)
 
         use_case.execute(
             user_id=99,
@@ -114,7 +149,7 @@ class SendMessageAiAnswerBillingTests(unittest.TestCase):
     def test_does_not_fail_when_billing_record_raises(self):
         mock_ai_record = MagicMock()
         mock_ai_record.execute.side_effect = RuntimeError("billing down")
-        use_case = self._make_use_case(mock_ai_record)
+        use_case = self._make_use_case(ai_answer_record_use_case=mock_ai_record)
 
         # Should not raise
         result = use_case.execute(
