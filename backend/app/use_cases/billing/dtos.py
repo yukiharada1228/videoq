@@ -7,7 +7,7 @@ from typing import Dict, Optional
 class PlanDTO:
     name: str
     plan_id: str
-    prices: Dict[str, int]  # {"jpy": 980, "usd": 699}
+    prices: Dict[str, Optional[int]]  # {"jpy": 980, "usd": 699}
     storage_gb: Optional[float]
     processing_minutes: Optional[int]
     ai_answers: Optional[int]
