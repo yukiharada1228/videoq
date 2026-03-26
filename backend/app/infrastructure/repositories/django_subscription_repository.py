@@ -1,6 +1,6 @@
 """Django ORM implementation of SubscriptionRepository."""
 
-from datetime import datetime, timezone
+from datetime import timedelta, timezone
 from typing import Optional
 
 from app.domain.billing.entities import PlanType, SubscriptionEntity
@@ -94,7 +94,7 @@ class DjangoSubscriptionRepository(SubscriptionRepository):
 
     def maybe_reset_monthly_usage(self, user_id: int) -> None:
         """Reset usage counters if a new billing period has started."""
-        from datetime import datetime, timedelta
+        from datetime import datetime
 
         entity = self.get_or_create(user_id)
         now = datetime.now(tz=timezone.utc)

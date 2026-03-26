@@ -24,7 +24,6 @@ class ReindexAllVideosEmbeddingsTests(TestCase):
             username="testuser",
             email="test@example.com",
             password="testpass123",
-            video_limit=None,
         )
 
     @patch(_INDEX)
