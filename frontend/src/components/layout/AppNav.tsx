@@ -1,18 +1,20 @@
 import { useState } from 'react';
-import { GraduationCap, LogOut, Menu, X } from 'lucide-react';
+import type React from 'react';
+import { GraduationCap, LogOut, Menu, X, CreditCard, LogIn } from 'lucide-react';
 import { Link, useI18nNavigate } from '@/lib/i18n';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api';
 import { APP_CONTAINER_CLASS } from '@/components/layout/layoutTokens';
 
-export type ActivePage = 'home' | 'videos' | 'groups' | 'docs' | 'settings';
+export type ActivePage = 'home' | 'videos' | 'groups' | 'docs' | 'settings' | 'billing';
 
 interface AppNavProps {
   activePage?: ActivePage;
+  isPublic?: boolean;
 }
 
-export function AppNav({ activePage }: AppNavProps) {
+export function AppNav({ activePage, isPublic = false }: AppNavProps) {
   const { t } = useTranslation();
   const navigate = useI18nNavigate();
   const queryClient = useQueryClient();
@@ -35,12 +37,13 @@ export function AppNav({ activePage }: AppNavProps) {
     }
   };
 
-  const navLinks: { href: string; label: string; key: ActivePage }[] = [
+  const navLinks: { href: string; label: string; key: ActivePage; icon?: React.ReactNode }[] = [
     { href: '/', label: t('navigation.home'), key: 'home' },
     { href: '/videos', label: t('navigation.videosNav'), key: 'videos' },
     { href: '/videos/groups', label: t('navigation.groupsNav'), key: 'groups' },
     { href: '/docs', label: t('navigation.docs'), key: 'docs' },
     { href: '/settings', label: t('navigation.settings'), key: 'settings' },
+    { href: '/billing', label: t('billing.nav'), key: 'billing', icon: <CreditCard className="w-3.5 h-3.5" /> },
   ];
 
   return (
@@ -56,31 +59,41 @@ export function AppNav({ activePage }: AppNavProps) {
         </Link>
 
         <div className="hidden md:flex items-center gap-8">
-          {navLinks.map(({ href, label, key }) => (
+          {navLinks.map(({ href, label, key, icon }) => (
             <Link
               key={key}
               href={href}
-              className={`text-sm font-semibold transition-colors pb-0.5 ${
+              className={`flex items-center gap-1 text-sm font-semibold transition-colors pb-0.5 ${
                 activePage === key
                   ? 'text-[#00652c] border-b-2 border-[#00652c]'
                   : 'text-stone-600 hover:text-[#00652c]'
               }`}
             >
+              {icon}
               {label}
             </Link>
           ))}
         </div>
 
         <div className="flex items-center gap-1 shrink-0">
-          {/* Desktop logout */}
-          <button
-            onClick={handleLogout}
-            className="hidden md:flex items-center gap-1.5 text-sm font-semibold text-stone-600 hover:text-red-600 transition-colors px-2"
-            aria-label={t('navigation.logout')}
-          >
-            <LogOut className="w-4 h-4" />
-            <span className="hidden lg:inline">{t('navigation.logout')}</span>
-          </button>
+          {isPublic ? (
+            <Link
+              href="/login"
+              className="hidden md:flex items-center gap-1.5 text-sm font-semibold text-stone-600 hover:text-[#00652c] transition-colors px-2"
+            >
+              <LogIn className="w-4 h-4" />
+              <span>{t('auth.login.submit')}</span>
+            </Link>
+          ) : (
+            <button
+              onClick={handleLogout}
+              className="hidden md:flex items-center gap-1.5 text-sm font-semibold text-stone-600 hover:text-red-600 transition-colors px-2"
+              aria-label={t('navigation.logout')}
+            >
+              <LogOut className="w-4 h-4" />
+              <span className="hidden lg:inline">{t('navigation.logout')}</span>
+            </button>
+          )}
 
           {/* Mobile hamburger */}
           <button
@@ -97,31 +110,43 @@ export function AppNav({ activePage }: AppNavProps) {
       {isMobileMenuOpen && (
         <div className="md:hidden border-t border-stone-200/60 bg-white/95 backdrop-blur-xl">
           <div className="px-4 py-3 flex flex-col gap-1">
-            {navLinks.map(({ href, label, key }) => (
+            {navLinks.map(({ href, label, key, icon }) => (
               <Link
                 key={key}
                 href={href}
                 onClick={() => setIsMobileMenuOpen(false)}
-                className={`py-2.5 px-3 rounded-lg text-sm font-semibold transition-colors ${
+                className={`flex items-center gap-2 py-2.5 px-3 rounded-lg text-sm font-semibold transition-colors ${
                   activePage === key
                     ? 'text-[#00652c] bg-[#00652c]/8'
                     : 'text-stone-600 hover:text-[#00652c] hover:bg-[#f2f4ef]'
                 }`}
               >
+                {icon}
                 {label}
               </Link>
             ))}
             <div className="border-t border-stone-200/60 mt-2 pt-2">
-              <button
-                onClick={() => {
-                  setIsMobileMenuOpen(false);
-                  void handleLogout();
-                }}
-                className="w-full text-left py-2.5 px-3 rounded-lg text-sm font-semibold text-stone-600 hover:text-red-600 hover:bg-red-50/50 transition-colors flex items-center gap-2"
-              >
-                <LogOut className="w-4 h-4" />
-                {t('navigation.logout')}
-              </button>
+              {isPublic ? (
+                <Link
+                  href="/login"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="w-full text-left py-2.5 px-3 rounded-lg text-sm font-semibold text-stone-600 hover:text-[#00652c] hover:bg-[#f2f4ef] transition-colors flex items-center gap-2"
+                >
+                  <LogIn className="w-4 h-4" />
+                  {t('auth.login.submit')}
+                </Link>
+              ) : (
+                <button
+                  onClick={() => {
+                    setIsMobileMenuOpen(false);
+                    void handleLogout();
+                  }}
+                  className="w-full text-left py-2.5 px-3 rounded-lg text-sm font-semibold text-stone-600 hover:text-red-600 hover:bg-red-50/50 transition-colors flex items-center gap-2"
+                >
+                  <LogOut className="w-4 h-4" />
+                  {t('navigation.logout')}
+                </button>
+              )}
             </div>
           </div>
         </div>

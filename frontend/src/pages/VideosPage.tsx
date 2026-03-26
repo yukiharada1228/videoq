@@ -56,11 +56,7 @@ export default function VideosPage() {
     }
   };
 
-  const isUploadDisabled = useMemo(() => {
-    if (!user || userLoading) return true;
-    if (user.video_limit === null) return false;
-    return user.video_count >= user.video_limit;
-  }, [user, userLoading]);
+  const isUploadDisabled = useMemo(() => !user || userLoading, [user, userLoading]);
 
   const filteredAndSortedVideos = useMemo(() => {
     let result = [...videos];

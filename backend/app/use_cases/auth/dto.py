@@ -41,7 +41,6 @@ class CurrentUserOutput:
     username: str
     email: str
     is_active: bool
-    video_limit: int | None
     video_count: int
     max_video_upload_size_mb: int = 500
 
@@ -60,5 +59,4 @@ class ResolvedApiKeyOutput:
 
     api_key_id: int
     user_id: int
-    user_video_limit: int
     access_level: str

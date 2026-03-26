@@ -2,7 +2,6 @@ export const queryKeys = {
   auth: {
     me: ['auth', 'me'] as const,
     apiKeys: ['auth', 'apiKeys'] as const,
-    openAiApiKey: ['auth', 'openAiApiKey'] as const,
   },
   videoGroups: {
     all: (userId: number | string | null) => ['videoGroups', userId] as const,
@@ -32,5 +31,9 @@ export const queryKeys = {
   },
   shorts: {
     popularScenes: (groupId: number, shareToken?: string) => ['popularScenes', groupId, shareToken ?? null] as const,
+  },
+  billing: {
+    subscription: ['billing', 'subscription'] as const,
+    plans: ['billing', 'plans'] as const,
   },
 } as const;

@@ -1,4 +1,5 @@
 export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+const USE_S3_STORAGE = import.meta.env.VITE_USE_S3_STORAGE === 'true';
 
 type RequestBody = BodyInit | object | null | undefined;
 
@@ -26,7 +27,6 @@ export interface User {
   id: number;
   username: string;
   email: string;
-  video_limit: number | null;
   video_count: number;
   max_video_upload_size_mb: number;
 }
@@ -78,15 +78,33 @@ export interface AccountDeleteRequest {
   reason?: string;
 }
 
-export interface OpenAiApiKeyStatus {
-  has_key: boolean;
-  masked_key: string | null;
-  is_required: boolean;
-}
-
 export interface LoginRequest {
   username: string;
   password: string;
+}
+
+export interface Subscription {
+  plan: 'free' | 'lite' | 'standard' | 'enterprise';
+  stripe_status: string;
+  current_period_end: string | null;
+  cancel_at_period_end: boolean;
+  is_active: boolean;
+  used_storage_bytes: number;
+  used_processing_seconds: number;
+  used_ai_answers: number;
+  storage_limit_bytes: number | null;
+  processing_limit_seconds: number | null;
+  ai_answers_limit: number | null;
+}
+
+export interface Plan {
+  name: string;
+  plan_id: 'free' | 'lite' | 'standard' | 'enterprise';
+  prices: { jpy: number | null; usd: number | null };
+  storage_gb: number | null;
+  processing_minutes: number | null;
+  ai_answers: number | null;
+  is_contact_required: boolean;
 }
 
 export interface Citation {
@@ -363,9 +381,12 @@ class ApiClient {
     return this.csrfToken;
   }
 
-  private buildHeaders(additionalHeaders?: HeadersInit): Record<string, string> {
+  private buildHeaders(body?: RequestBody, additionalHeaders?: HeadersInit): Record<string, string> {
+    const baseHeaders =
+      body instanceof FormData ? {} : this.getJsonHeaders();
+
     const headers: Record<string, string> = {
-      ...this.getJsonHeaders(),
+      ...baseHeaders,
       ...(additionalHeaders as Record<string, string>),
     };
 
@@ -485,7 +506,7 @@ class ApiClient {
   ): Promise<T> {
     // Use common method to build URL
     const url = this.buildUrl(endpoint);
-    const headers = this.buildHeaders(options.headers);
+    const headers = this.buildHeaders(options.body, options.headers);
 
     if (!this.isSafeMethod(options.method)) {
       const csrfToken = await this.ensureCsrfToken();
@@ -621,23 +642,6 @@ class ApiClient {
     await this.request('/auth/account/', {
       method: 'DELETE',
       body: data ?? {},
-    });
-  }
-
-  async getOpenAiApiKeyStatus(): Promise<OpenAiApiKeyStatus> {
-    return this.request<OpenAiApiKeyStatus>('/auth/openai-api-key/');
-  }
-
-  async saveOpenAiApiKey(data: { api_key: string }): Promise<void> {
-    await this.request('/auth/openai-api-key/', {
-      method: 'PUT',
-      body: data,
-    });
-  }
-
-  async deleteOpenAiApiKey(): Promise<void> {
-    await this.request('/auth/openai-api-key/', {
-      method: 'DELETE',
     });
   }
 
@@ -794,21 +798,32 @@ class ApiClient {
     data: VideoUploadRequest,
     onProgress?: (percent: number) => void,
   ): Promise<Video> {
-    // 1. Request presigned upload URL
-    const { video, upload_url } = await this.requestUploadUrl({
-      filename: data.file.name,
-      content_type: data.file.type || 'video/mp4',
-      file_size: data.file.size,
-      title: data.title,
-      description: data.description,
+    if (USE_S3_STORAGE) {
+      // 1. Request presigned upload URL
+      const { video, upload_url } = await this.requestUploadUrl({
+        filename: data.file.name,
+        content_type: data.file.type || 'video/mp4',
+        file_size: data.file.size,
+        title: data.title,
+        description: data.description,
+      });
+
+      // 2. Upload file directly to R2/S3
+      await this.uploadToPresignedUrl(upload_url, data.file, data.file.type || 'video/mp4', onProgress);
+
+      // 3. Confirm upload
+      return await this.confirmUpload(video.id);
+    }
+
+    const formData = new FormData();
+    formData.append('file', data.file);
+    formData.append('title', data.title);
+    formData.append('description', data.description ?? '');
+
+    return this.request<Video>('/videos/', {
+      method: 'POST',
+      body: formData,
     });
-
-    // 2. Upload file directly to R2/S3
-    await this.uploadToPresignedUrl(upload_url, data.file, data.file.type || 'video/mp4', onProgress);
-
-    // 3. Confirm upload
-    const confirmed = await this.confirmUpload(video.id);
-    return confirmed;
   }
 
   async updateVideo(id: number, data: VideoUpdateRequest): Promise<Video> {
@@ -1025,6 +1040,34 @@ class ApiClient {
 
   async getChatAnalytics(groupId: number): Promise<ChatAnalytics> {
     return this.request<ChatAnalytics>(`/chat/analytics/?group_id=${groupId}`);
+  }
+
+  // Billing methods
+  async getSubscription(): Promise<Subscription> {
+    return this.request<Subscription>('/billing/subscription/');
+  }
+
+  async getPlans(): Promise<Plan[]> {
+    return this.request<Plan[]>('/billing/plans/');
+  }
+
+  async createCheckoutSession(
+    plan: string,
+    currency: 'jpy' | 'usd',
+    successUrl: string,
+    cancelUrl: string,
+  ): Promise<{ checkout_url?: string; upgraded?: boolean }> {
+    return this.request<{ checkout_url?: string; upgraded?: boolean }>('/billing/checkout/', {
+      method: 'POST',
+      body: JSON.stringify({ plan, currency, success_url: successUrl, cancel_url: cancelUrl }),
+    });
+  }
+
+  async createBillingPortal(returnUrl: string): Promise<{ portal_url: string }> {
+    return this.request<{ portal_url: string }>('/billing/portal/', {
+      method: 'POST',
+      body: JSON.stringify({ return_url: returnUrl }),
+    });
   }
 
 }

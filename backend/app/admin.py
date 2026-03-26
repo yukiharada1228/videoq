@@ -9,15 +9,12 @@ from django.contrib import admin, messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.admin import UserAdmin
 from django.apps import apps
-from django.db import transaction
 from django.db.models import Count
 
-from app.dependencies.admin import (
-    get_enforce_video_limit_use_case,
-    get_video_task_gateway,
-)
+from app.dependencies.admin import get_video_task_gateway
 User = get_user_model()
 Video = apps.get_model("app", "Video")
+Subscription = apps.get_model("app", "Subscription")
 VideoGroup = apps.get_model("app", "VideoGroup")
 VideoGroupMember = apps.get_model("app", "VideoGroupMember")
 AccountDeletionRequest = apps.get_model("app", "AccountDeletionRequest")
@@ -47,7 +44,6 @@ class CustomUserAdmin(UserAdmin):
         "date_joined",
         "last_login",
         "is_active",
-        "video_limit",
         "max_video_upload_size_mb",
     )
     list_filter = (
@@ -58,43 +54,9 @@ class CustomUserAdmin(UserAdmin):
     ordering = ("-date_joined",)
 
     fieldsets = UserAdmin.fieldsets + (
-        ("Video Settings", {"fields": ("video_limit", "max_video_upload_size_mb")}),
+        ("Video Settings", {"fields": ("max_video_upload_size_mb",)}),
     )
     add_fieldsets = UserAdmin.add_fieldsets
-
-    def save_model(self, request, obj, form, change):
-        """Warn and enforce `video_limit` through the dedicated use case."""
-        should_enforce_video_limit = change and "video_limit" in form.changed_data
-        use_case = get_enforce_video_limit_use_case() if should_enforce_video_limit else None
-
-        if should_enforce_video_limit:
-            estimate = use_case.estimate_deleted_count(
-                user_id=obj.pk,
-                video_limit=obj.video_limit,
-            )
-            if estimate > 0:
-                messages.warning(
-                    request,
-                    f"Warning: Reducing video_limit will delete "
-                    f"{estimate} oldest video(s) for user {obj.username}.",
-                )
-
-        if should_enforce_video_limit:
-            with transaction.atomic():
-                super().save_model(request, obj, form, change)
-                deleted_count = use_case.execute(
-                    user_id=obj.pk,
-                    video_limit=obj.video_limit,
-                )
-                if deleted_count > 0:
-                    messages.warning(
-                        request,
-                        f"Deleted {deleted_count} oldest video(s) to enforce "
-                        f"video_limit={obj.video_limit} for user {obj.username}.",
-                    )
-            return
-
-        super().save_model(request, obj, form, change)
 
 
 @admin.register(Video)
@@ -178,3 +140,55 @@ class AccountDeletionRequestAdmin(admin.ModelAdmin):
         return BaseAdminMixin.optimize_queryset(
             super().get_queryset(request), select_related_fields=["user"]
         )
+
+
+@admin.register(Subscription)
+class SubscriptionAdmin(admin.ModelAdmin):
+    list_display = ("user", "plan", "stripe_status", "used_storage_bytes", "used_processing_seconds", "used_ai_answers")
+    list_filter = ("plan",)
+    search_fields = ("user__username", "user__email", "stripe_customer_id")
+    readonly_fields = ("created_at", "updated_at")
+
+    fieldsets = (
+        (
+            "Subscription",
+            {
+                "fields": (
+                    "user",
+                    "plan",
+                    "stripe_customer_id",
+                    "stripe_subscription_id",
+                    "stripe_status",
+                    "current_period_end",
+                    "cancel_at_period_end",
+                )
+            },
+        ),
+        (
+            "Usage",
+            {
+                "fields": (
+                    "used_storage_bytes",
+                    "used_processing_seconds",
+                    "used_ai_answers",
+                    "usage_period_start",
+                )
+            },
+        ),
+        (
+            "Enterprise Custom Limits",
+            {
+                "fields": (
+                    "custom_storage_gb",
+                    "custom_processing_minutes",
+                    "custom_ai_answers",
+                    "unlimited_processing_minutes",
+                    "unlimited_ai_answers",
+                )
+            },
+        ),
+        (
+            "Timestamps",
+            {"fields": ("created_at", "updated_at")},
+        ),
+    )
