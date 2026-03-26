@@ -69,3 +69,6 @@ class BillingGateway(ABC):
 
     @abstractmethod
     def verify_webhook(self, payload: bytes, sig_header: str, secret: str) -> dict: ...
+
+    @abstractmethod
+    def cancel_subscription(self, subscription_id: str) -> None: ...
