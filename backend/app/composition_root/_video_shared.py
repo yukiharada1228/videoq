@@ -50,9 +50,15 @@ def get_vector_indexing_gateway():
 
 @lru_cache(maxsize=1)
 def get_file_upload_gateway():
-    from app.infrastructure.external.file_upload_gateway import R2FileUploadGateway
+    from django.conf import settings
+    from app.infrastructure.external.file_upload_gateway import (
+        LocalFileUploadGateway,
+        R2FileUploadGateway,
+    )
 
-    return R2FileUploadGateway()
+    if getattr(settings, "USE_S3_STORAGE", False):
+        return R2FileUploadGateway()
+    return LocalFileUploadGateway()
 
 
 @lru_cache(maxsize=1)

@@ -7,10 +7,25 @@ import logging
 
 import boto3
 from django.conf import settings
+from django.core.files.storage import default_storage
 
 from app.domain.video.gateways import FileUploadGateway
 
 logger = logging.getLogger(__name__)
+
+
+class LocalFileUploadGateway(FileUploadGateway):
+    """Local filesystem-backed file gateway for non-S3 environments."""
+
+    def generate_upload_url(self, file_key: str, content_type: str) -> str:
+        del file_key, content_type
+        raise RuntimeError("Presigned upload URLs are unavailable when USE_S3_STORAGE=False.")
+
+    def get_file_size(self, file_key: str) -> int:
+        return int(default_storage.size(file_key))
+
+    def delete_file(self, file_key: str) -> None:
+        default_storage.delete(file_key)
 
 
 class R2FileUploadGateway(FileUploadGateway):
