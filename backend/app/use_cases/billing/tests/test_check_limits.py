@@ -70,7 +70,6 @@ class CheckStorageLimitTests(TestCase):
     def test_storage_within_limit_does_not_raise(self):
         entity = _make_subscription(plan=PlanType.FREE, used_storage_bytes=0)
         use_case = CheckStorageLimitUseCase(_StubSubscriptionRepo(entity))
-        # Should not raise
         use_case.execute(user_id=1, additional_bytes=100)
 
     def test_storage_exceeded_raises(self):
@@ -79,6 +78,33 @@ class CheckStorageLimitTests(TestCase):
         use_case = CheckStorageLimitUseCase(_StubSubscriptionRepo(entity))
         with self.assertRaises(StorageLimitExceeded):
             use_case.execute(user_id=1, additional_bytes=1)
+
+    def test_storage_lite_within_limit_does_not_raise(self):
+        entity = _make_subscription(plan=PlanType.LITE, used_storage_bytes=0)
+        use_case = CheckStorageLimitUseCase(_StubSubscriptionRepo(entity))
+        use_case.execute(user_id=1, additional_bytes=10 * 1024 ** 3)
+
+    def test_storage_lite_exceeded_raises(self):
+        entity = _make_subscription(plan=PlanType.LITE, used_storage_bytes=10 * 1024 ** 3)
+        use_case = CheckStorageLimitUseCase(_StubSubscriptionRepo(entity))
+        with self.assertRaises(StorageLimitExceeded):
+            use_case.execute(user_id=1, additional_bytes=1)
+
+    def test_storage_standard_within_limit_does_not_raise(self):
+        entity = _make_subscription(plan=PlanType.STANDARD, used_storage_bytes=0)
+        use_case = CheckStorageLimitUseCase(_StubSubscriptionRepo(entity))
+        use_case.execute(user_id=1, additional_bytes=50 * 1024 ** 3)
+
+    def test_storage_standard_exceeded_raises(self):
+        entity = _make_subscription(plan=PlanType.STANDARD, used_storage_bytes=50 * 1024 ** 3)
+        use_case = CheckStorageLimitUseCase(_StubSubscriptionRepo(entity))
+        with self.assertRaises(StorageLimitExceeded):
+            use_case.execute(user_id=1, additional_bytes=1)
+
+    def test_storage_enterprise_unlimited_does_not_raise(self):
+        entity = _make_subscription(plan=PlanType.ENTERPRISE, used_storage_bytes=100 * 1024 ** 3)
+        use_case = CheckStorageLimitUseCase(_StubSubscriptionRepo(entity))
+        use_case.execute(user_id=1, additional_bytes=100 * 1024 ** 3)
 
 
 class CheckProcessingLimitTests(TestCase):
@@ -96,6 +122,36 @@ class CheckProcessingLimitTests(TestCase):
         with self.assertRaises(ProcessingLimitExceeded):
             use_case.execute(user_id=1, additional_seconds=1)
 
+    def test_processing_lite_within_limit_does_not_raise(self):
+        entity = _make_subscription(plan=PlanType.LITE, used_processing_seconds=0)
+        use_case = CheckProcessingLimitUseCase(_StubSubscriptionRepo(entity))
+        use_case.execute(user_id=1, additional_seconds=120 * 60)
+
+    def test_processing_lite_exceeded_raises(self):
+        entity = _make_subscription(plan=PlanType.LITE, used_processing_seconds=120 * 60)
+        use_case = CheckProcessingLimitUseCase(_StubSubscriptionRepo(entity))
+        with self.assertRaises(ProcessingLimitExceeded):
+            use_case.execute(user_id=1, additional_seconds=1)
+
+    def test_processing_standard_within_limit_does_not_raise(self):
+        entity = _make_subscription(plan=PlanType.STANDARD, used_processing_seconds=0)
+        use_case = CheckProcessingLimitUseCase(_StubSubscriptionRepo(entity))
+        use_case.execute(user_id=1, additional_seconds=600 * 60)
+
+    def test_processing_standard_exceeded_raises(self):
+        entity = _make_subscription(plan=PlanType.STANDARD, used_processing_seconds=600 * 60)
+        use_case = CheckProcessingLimitUseCase(_StubSubscriptionRepo(entity))
+        with self.assertRaises(ProcessingLimitExceeded):
+            use_case.execute(user_id=1, additional_seconds=1)
+
+    def test_processing_enterprise_unlimited_does_not_raise(self):
+        entity = _make_subscription(
+            plan=PlanType.ENTERPRISE, unlimited_processing_minutes=True,
+            used_processing_seconds=9999 * 60
+        )
+        use_case = CheckProcessingLimitUseCase(_StubSubscriptionRepo(entity))
+        use_case.execute(user_id=1, additional_seconds=9999 * 60)
+
 
 class CheckAiAnswersLimitTests(TestCase):
     def test_ai_answers_within_limit_does_not_raise(self):
@@ -108,3 +164,32 @@ class CheckAiAnswersLimitTests(TestCase):
         use_case = CheckAiAnswersLimitUseCase(_StubSubscriptionRepo(entity))
         with self.assertRaises(AiAnswersLimitExceeded):
             use_case.execute(user_id=1)
+
+    def test_ai_answers_lite_within_limit_does_not_raise(self):
+        entity = _make_subscription(plan=PlanType.LITE, used_ai_answers=2999)
+        use_case = CheckAiAnswersLimitUseCase(_StubSubscriptionRepo(entity))
+        use_case.execute(user_id=1)
+
+    def test_ai_answers_lite_exceeded_raises(self):
+        entity = _make_subscription(plan=PlanType.LITE, used_ai_answers=3000)
+        use_case = CheckAiAnswersLimitUseCase(_StubSubscriptionRepo(entity))
+        with self.assertRaises(AiAnswersLimitExceeded):
+            use_case.execute(user_id=1)
+
+    def test_ai_answers_standard_within_limit_does_not_raise(self):
+        entity = _make_subscription(plan=PlanType.STANDARD, used_ai_answers=6999)
+        use_case = CheckAiAnswersLimitUseCase(_StubSubscriptionRepo(entity))
+        use_case.execute(user_id=1)
+
+    def test_ai_answers_standard_at_limit_raises(self):
+        entity = _make_subscription(plan=PlanType.STANDARD, used_ai_answers=7000)
+        use_case = CheckAiAnswersLimitUseCase(_StubSubscriptionRepo(entity))
+        with self.assertRaises(AiAnswersLimitExceeded):
+            use_case.execute(user_id=1)
+
+    def test_ai_answers_enterprise_unlimited_does_not_raise(self):
+        entity = _make_subscription(
+            plan=PlanType.ENTERPRISE, unlimited_ai_answers=True, used_ai_answers=999999
+        )
+        use_case = CheckAiAnswersLimitUseCase(_StubSubscriptionRepo(entity))
+        use_case.execute(user_id=1)
