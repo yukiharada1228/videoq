@@ -1,5 +1,5 @@
 from app.domain.billing.entities import PlanType
-from app.domain.billing.ports import BillingGateway, SubscriptionRepository
+from app.domain.billing.ports import BillingGateway, SubscriptionRepository, WebhookEvent
 
 
 class HandleWebhookUseCase:
@@ -23,17 +23,14 @@ class HandleWebhookUseCase:
         )
         self._handle_event(event)
 
-    def _handle_event(self, event: dict) -> None:
-        event_type = event.get("type", "")
-        data_object = event.get("data", {}).get("object", {})
-
-        if event_type in (
+    def _handle_event(self, event: WebhookEvent) -> None:
+        if event.type in (
             "customer.subscription.created",
             "customer.subscription.updated",
         ):
-            self._sync_subscription(data_object)
-        elif event_type == "customer.subscription.deleted":
-            self._revert_to_free(data_object)
+            self._sync_subscription(event.data_object)
+        elif event.type == "customer.subscription.deleted":
+            self._revert_to_free(event.data_object)
 
     def _sync_subscription(self, subscription_data: dict) -> None:
         customer_id = subscription_data.get("customer")

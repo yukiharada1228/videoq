@@ -128,7 +128,7 @@ class RetrieveSubscriptionV15Tests(TestCase):
 # ---------------------------------------------------------------------------
 
 class VerifyWebhookV15Tests(TestCase):
-    """verify_webhook must return a plain dict so callers can use .get()."""
+    """verify_webhook must return a WebhookEvent domain DTO, not a raw StripeObject."""
 
     def _make_gateway(self):
         from app.infrastructure.billing.stripe_gateway import StripeBillingGateway
@@ -136,24 +136,41 @@ class VerifyWebhookV15Tests(TestCase):
         gw._stripe = MagicMock()
         return gw
 
-    def test_returns_plain_dict(self):
-        """verify_webhook must convert the Event StripeObject to a plain dict."""
+    def _make_event_obj(self, event_type, **sub_attrs):
+        data_obj = _V15StripeObject(**sub_attrs)
+        data = _V15StripeObject(object=data_obj)
+        return _V15StripeObject(type=event_type, data=data)
+
+    def test_returns_webhook_event_dto(self):
+        """verify_webhook must return a WebhookEvent, not a raw StripeObject or dict."""
+        from app.domain.billing.ports import WebhookEvent
         gw = self._make_gateway()
-        event_obj = _V15StripeObject(type="customer.subscription.created")
+        event_obj = self._make_event_obj("customer.subscription.created", id="sub_1")
         gw._stripe.Webhook.construct_event.return_value = event_obj
 
         result = gw.verify_webhook(b"payload", "sig", "whsec_test")
 
-        self.assertIsInstance(result, dict,
-            "verify_webhook must return a plain dict, not a StripeObject")
+        self.assertIsInstance(result, WebhookEvent)
 
-    def test_dict_allows_get_access(self):
-        """Callers must be able to call .get('type') on the returned value."""
+    def test_event_type_extracted_via_dot_notation(self):
+        """WebhookEvent.type must come from event.type (dot notation), not event['type']."""
         gw = self._make_gateway()
-        event_obj = _V15StripeObject(type="customer.subscription.updated")
+        event_obj = self._make_event_obj("customer.subscription.updated", id="sub_2")
         gw._stripe.Webhook.construct_event.return_value = event_obj
 
         result = gw.verify_webhook(b"payload", "sig", "whsec_test")
 
-        # This is how handle_webhook.py reads the event — must not raise AttributeError
-        self.assertEqual(result.get("type"), "customer.subscription.updated")
+        self.assertEqual(result.type, "customer.subscription.updated")
+
+    def test_data_object_is_plain_dict(self):
+        """WebhookEvent.data_object must be a plain dict for use-case access."""
+        gw = self._make_gateway()
+        event_obj = self._make_event_obj("customer.subscription.deleted",
+                                         id="sub_3", customer="cus_test")
+        gw._stripe.Webhook.construct_event.return_value = event_obj
+
+        result = gw.verify_webhook(b"payload", "sig", "whsec_test")
+
+        self.assertIsInstance(result.data_object, dict)
+        self.assertEqual(result.data_object["id"], "sub_3")
+        self.assertEqual(result.data_object["customer"], "cus_test")
