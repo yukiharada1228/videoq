@@ -40,6 +40,9 @@ export function useAuth(options: UseAuthOptions = {}): UseAuthReturn {
     '/verify-email',
     '/share',
     '/docs',
+    '/terms',
+    '/privacy',
+    '/commercial-disclosure',
   ];
   const authRequired = !publicPaths.some((path) => pathname.startsWith(path));
 

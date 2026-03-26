@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type React from 'react';
-import { GraduationCap, LogOut, Menu, X, CreditCard } from 'lucide-react';
+import { GraduationCap, LogOut, Menu, X, CreditCard, LogIn } from 'lucide-react';
 import { Link, useI18nNavigate } from '@/lib/i18n';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -11,9 +11,10 @@ export type ActivePage = 'home' | 'videos' | 'groups' | 'docs' | 'settings' | 'b
 
 interface AppNavProps {
   activePage?: ActivePage;
+  isPublic?: boolean;
 }
 
-export function AppNav({ activePage }: AppNavProps) {
+export function AppNav({ activePage, isPublic = false }: AppNavProps) {
   const { t } = useTranslation();
   const navigate = useI18nNavigate();
   const queryClient = useQueryClient();
@@ -75,15 +76,24 @@ export function AppNav({ activePage }: AppNavProps) {
         </div>
 
         <div className="flex items-center gap-1 shrink-0">
-          {/* Desktop logout */}
-          <button
-            onClick={handleLogout}
-            className="hidden md:flex items-center gap-1.5 text-sm font-semibold text-stone-600 hover:text-red-600 transition-colors px-2"
-            aria-label={t('navigation.logout')}
-          >
-            <LogOut className="w-4 h-4" />
-            <span className="hidden lg:inline">{t('navigation.logout')}</span>
-          </button>
+          {isPublic ? (
+            <Link
+              href="/login"
+              className="hidden md:flex items-center gap-1.5 text-sm font-semibold text-stone-600 hover:text-[#00652c] transition-colors px-2"
+            >
+              <LogIn className="w-4 h-4" />
+              <span>{t('auth.login.submit')}</span>
+            </Link>
+          ) : (
+            <button
+              onClick={handleLogout}
+              className="hidden md:flex items-center gap-1.5 text-sm font-semibold text-stone-600 hover:text-red-600 transition-colors px-2"
+              aria-label={t('navigation.logout')}
+            >
+              <LogOut className="w-4 h-4" />
+              <span className="hidden lg:inline">{t('navigation.logout')}</span>
+            </button>
+          )}
 
           {/* Mobile hamburger */}
           <button
@@ -116,16 +126,27 @@ export function AppNav({ activePage }: AppNavProps) {
               </Link>
             ))}
             <div className="border-t border-stone-200/60 mt-2 pt-2">
-              <button
-                onClick={() => {
-                  setIsMobileMenuOpen(false);
-                  void handleLogout();
-                }}
-                className="w-full text-left py-2.5 px-3 rounded-lg text-sm font-semibold text-stone-600 hover:text-red-600 hover:bg-red-50/50 transition-colors flex items-center gap-2"
-              >
-                <LogOut className="w-4 h-4" />
-                {t('navigation.logout')}
-              </button>
+              {isPublic ? (
+                <Link
+                  href="/login"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="w-full text-left py-2.5 px-3 rounded-lg text-sm font-semibold text-stone-600 hover:text-[#00652c] hover:bg-[#f2f4ef] transition-colors flex items-center gap-2"
+                >
+                  <LogIn className="w-4 h-4" />
+                  {t('auth.login.submit')}
+                </Link>
+              ) : (
+                <button
+                  onClick={() => {
+                    setIsMobileMenuOpen(false);
+                    void handleLogout();
+                  }}
+                  className="w-full text-left py-2.5 px-3 rounded-lg text-sm font-semibold text-stone-600 hover:text-red-600 hover:bg-red-50/50 transition-colors flex items-center gap-2"
+                >
+                  <LogOut className="w-4 h-4" />
+                  {t('navigation.logout')}
+                </button>
+              )}
             </div>
           </div>
         </div>
