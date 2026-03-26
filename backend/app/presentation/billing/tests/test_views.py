@@ -30,7 +30,7 @@ def _make_plan_dto(**kwargs) -> PlanDTO:
         "is_contact_required": False,
     }
     defaults.update(kwargs)
-    return PlanDTO(**defaults)
+    return PlanDTO(**defaults)  # type: ignore[arg-type]
 
 
 def _make_subscription_dto(**kwargs) -> SubscriptionDTO:
@@ -48,7 +48,7 @@ def _make_subscription_dto(**kwargs) -> SubscriptionDTO:
         "ai_answers_limit": 500,
     }
     defaults.update(kwargs)
-    return SubscriptionDTO(**defaults)
+    return SubscriptionDTO(**defaults)  # type: ignore[arg-type]
 
 
 @override_settings(

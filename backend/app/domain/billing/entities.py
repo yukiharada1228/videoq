@@ -1,6 +1,7 @@
 from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum
-from typing import Optional
+from typing import Dict, Optional
 
 
 class PlanType(str, Enum):
@@ -10,14 +11,14 @@ class PlanType(str, Enum):
     ENTERPRISE = "enterprise"
 
 
-PLAN_LIMITS = {
+PLAN_LIMITS: Dict[PlanType, Dict[str, Optional[int]]] = {
     PlanType.FREE: {"storage_gb": 1, "processing_minutes": 10, "ai_answers": 500},
     PlanType.LITE: {"storage_gb": 10, "processing_minutes": 120, "ai_answers": 3000},
     PlanType.STANDARD: {"storage_gb": 50, "processing_minutes": 600, "ai_answers": 10000},
     PlanType.ENTERPRISE: {"storage_gb": None, "processing_minutes": None, "ai_answers": None},  # set by admin
 }
 
-PLAN_PRICES = {
+PLAN_PRICES: Dict[PlanType, Dict[str, Optional[int]]] = {
     PlanType.FREE: {"jpy": 0, "usd": 0},
     PlanType.LITE: {"jpy": 980, "usd": 699},
     PlanType.STANDARD: {"jpy": 2980, "usd": 1999},
@@ -32,13 +33,13 @@ class SubscriptionEntity:
     stripe_customer_id: Optional[str]
     stripe_subscription_id: Optional[str]
     stripe_status: str
-    current_period_end: Optional[object]  # datetime
+    current_period_end: Optional[datetime]
     cancel_at_period_end: bool
     # Usage tracking (current period)
     used_storage_bytes: int
     used_processing_seconds: int
     used_ai_answers: int
-    usage_period_start: Optional[object]  # datetime
+    usage_period_start: Optional[datetime]
     # Enterprise custom limits (None = use plan default)
     custom_storage_gb: Optional[float]
     custom_processing_minutes: Optional[int]

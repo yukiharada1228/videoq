@@ -383,7 +383,9 @@ describe('ApiClient', () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
         status: 201,
+        headers: new Headers({ 'content-type': 'application/json' }),
         json: () => Promise.resolve(mockVideo),
+        text: () => Promise.resolve(JSON.stringify(mockVideo)),
       });
 
       const file = new File(['content'], 'test.mp4', { type: 'video/mp4' });
@@ -401,7 +403,9 @@ describe('ApiClient', () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
         status: 201,
+        headers: new Headers({ 'content-type': 'application/json' }),
         json: () => Promise.resolve(mockVideo),
+        text: () => Promise.resolve(JSON.stringify(mockVideo)),
       });
 
       const file = new File(['content'], 'test.mp4', { type: 'video/mp4' });

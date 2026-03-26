@@ -37,7 +37,7 @@ def _parse_srt_duration_seconds(srt_content: str) -> Optional[int]:
     end_timestamps = re.findall(r"-->\s*" + _SRT_TIME_RE.pattern, srt_content)
     if not end_timestamps:
         return None
-    max_seconds = 0
+    max_seconds: float = 0.0
     for h, m, s, ms in end_timestamps:
         total = int(h) * 3600 + int(m) * 60 + int(s) + int(ms) / 1000.0
         if total > max_seconds:
