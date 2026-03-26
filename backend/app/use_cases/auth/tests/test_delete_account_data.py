@@ -38,6 +38,7 @@ class _StubSubscriptionRepo(SubscriptionRepository):
         self._entity = entity
 
     def get_or_create(self, user_id: int) -> SubscriptionEntity:
+        assert self._entity is not None
         return self._entity
 
     def get_by_user_id(self, user_id: int) -> Optional[SubscriptionEntity]:
@@ -50,6 +51,7 @@ class _StubSubscriptionRepo(SubscriptionRepository):
         return entity
 
     def create_stripe_customer(self, user_id: int, customer_id: str) -> SubscriptionEntity:
+        assert self._entity is not None
         return self._entity
 
     def reset_monthly_usage(self, user_id: int, period_start) -> None:
