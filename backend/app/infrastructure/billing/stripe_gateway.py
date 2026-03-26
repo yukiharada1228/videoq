@@ -52,10 +52,10 @@ class StripeBillingGateway(BillingGateway):
     def update_subscription(self, subscription_id: str, price_id: str) -> None:
         stripe = self._get_stripe()
         stripe_sub = stripe.Subscription.retrieve(subscription_id)
-        current_item = stripe_sub["items"]["data"][0]
+        current_item = stripe_sub.items.data[0]
         stripe.Subscription.modify(
             subscription_id,
-            items=[{"id": current_item["id"], "price": price_id}],
+            items=[{"id": current_item.id, "price": price_id}],
             proration_behavior="create_prorations",
         )
 
@@ -69,7 +69,8 @@ class StripeBillingGateway(BillingGateway):
 
     def retrieve_subscription(self, subscription_id: str) -> dict:
         stripe = self._get_stripe()
-        return stripe.Subscription.retrieve(subscription_id)
+        result = stripe.Subscription.retrieve(subscription_id)
+        return result.to_dict()
 
     def verify_webhook(self, payload: bytes, sig_header: str, secret: str) -> dict:
         stripe = self._get_stripe()
