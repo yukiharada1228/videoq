@@ -52,7 +52,6 @@ class ResolveApiKeyUseCaseTests(unittest.TestCase):
                 ApiKeyAuthContextDTO(
                     api_key_id=15,
                     user_id=3,
-                    user_video_limit=120,
                     access_level="all",
                 )
             )
@@ -63,7 +62,6 @@ class ResolveApiKeyUseCaseTests(unittest.TestCase):
         self.assertIsNotNone(result)
         self.assertEqual(result.api_key_id, 15)
         self.assertEqual(result.user_id, 3)
-        self.assertEqual(result.user_video_limit, 120)
         self.assertEqual(result.access_level, "all")
 
     def test_execute_returns_none_when_unresolved(self):

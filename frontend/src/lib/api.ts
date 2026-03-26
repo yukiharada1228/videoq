@@ -26,7 +26,6 @@ export interface User {
   id: number;
   username: string;
   email: string;
-  video_limit: number | null;
   video_count: number;
   max_video_upload_size_mb: number;
 }

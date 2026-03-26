@@ -9,7 +9,7 @@ vi.mock('@/lib/api', () => ({
     deleteOpenAiApiKey: vi.fn(),
     getIntegrationApiKeys: vi.fn(() => Promise.resolve([])),
     getMe: vi.fn(() =>
-      Promise.resolve({ id: 1, username: 'testuser', email: 'test@example.com', video_limit: null, video_count: 0 }),
+      Promise.resolve({ id: 1, username: 'testuser', email: 'test@example.com', video_count: 0, max_video_upload_size_mb: 500 }),
     ),
     isAuthenticated: vi.fn(() => Promise.resolve(true)),
   },
