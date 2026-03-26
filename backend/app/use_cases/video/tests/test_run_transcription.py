@@ -97,11 +97,6 @@ class _FakeUploadGateway:
         return ""
 
 
-class _FakeVideoFileAccessor:
-    def get_local_path(self, video_id: int, temp_manager) -> str:
-        del video_id, temp_manager
-        return "/tmp/test-video.mp4"
-
 
 class RunTranscriptionUseCaseTests(TestCase):
     def test_success_sets_indexing_status_and_enqueues_task(self):
@@ -252,8 +247,6 @@ class RunTranscriptionUseCaseTests(TestCase):
         self.assertEqual(transcription.calls, [])
 
     def test_processing_limit_exceeded_sets_error_and_skips_transcription(self):
-        from unittest.mock import patch
-
         video = VideoEntity(id=1, user_id=10, title="v1", status="pending", file_key="uploads/test.mp4")
         repo = _FakeVideoTranscriptionRepository(video)
         transcription = _FakeTranscriptionGateway(transcript="hello")
@@ -268,13 +261,12 @@ class RunTranscriptionUseCaseTests(TestCase):
             task_gateway,
             upload_gw,
             tx,
-            video_file_accessor=_FakeVideoFileAccessor(),
+            duration_estimator=lambda _: 62,
             processing_limit_check_use_case=mock_check,
         )
 
-        with patch("app.infrastructure.transcription.audio_processing._get_video_duration", return_value=61.2):
-            with self.assertRaises(TranscriptionExecutionFailed) as exc:
-                use_case.execute(video.id)
+        with self.assertRaises(TranscriptionExecutionFailed) as exc:
+            use_case.execute(video.id)
 
         mock_check.execute.assert_called_once_with(10, 62)
         self.assertEqual(video.status, "error")
