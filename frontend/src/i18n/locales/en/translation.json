@@ -652,9 +652,11 @@
     "openaiApiKey": {
       "title": "OpenAI API Key",
       "description": "Set your OpenAI API key to use transcription and chat features.",
+      "billingNoticeTitle": "Billing",
+      "billingNotice": "The OpenAI API key entered here is used for transcription and AI chat. Usage charges are billed to your OpenAI account associated with this key, not to VideoQ.",
       "apiKeyLabel": "API Key",
       "hasApiKeyMessage": "You have already set an API key. Enter a new key to update it.",
-      "noApiKeyMessage": "You need to set your OpenAI API key to use video transcription and chat features.",
+      "noApiKeyMessage": "You need to set your OpenAI API key to use video transcription and chat features. Usage charges will be billed to your OpenAI account associated with that key.",
       "getApiKeyMessage": "You can get your API key from",
       "openaiPlatform": "OpenAI Platform",
       "save": "Save",
@@ -687,7 +689,7 @@
   "openaiApiKey": {
     "banner": {
       "title": "OpenAI API Key Required",
-      "message": "To use transcription and chat features, please set your OpenAI API key in Settings.",
+      "message": "To use transcription and chat features, please set your OpenAI API key in Settings. Usage charges will be billed to the OpenAI account associated with that key.",
       "settingsLink": "Go to Settings"
     }
   },
