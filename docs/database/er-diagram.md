@@ -14,12 +14,13 @@ erDiagram
     User ||--o{ Tag : owns
     User ||--o{ AccountDeletionRequest : creates
     User ||--o{ UserApiKey : owns
+    User ||--|| Subscription : has
     VideoGroup ||--o{ VideoGroupMember : contains
     Video ||--o{ VideoGroupMember : belongs_to
     Video ||--o{ VideoTag : has
     Tag ||--o{ VideoTag : used_in
     VideoGroup ||--o{ ChatLog : has
-    
+
     User {
         int id PK
         string username UK
@@ -32,8 +33,31 @@ erDiagram
         bool is_superuser
         string first_name
         string last_name
-        int video_limit
+        int max_video_upload_size_mb
         datetime deactivated_at
+    }
+
+    Subscription {
+        int id PK
+        int user_id FK
+        string plan
+        string stripe_customer_id UK
+        string stripe_subscription_id UK
+        string stripe_status
+        datetime current_period_end
+        bool cancel_at_period_end
+        bigint used_storage_bytes
+        int used_processing_seconds
+        int used_ai_answers
+        datetime usage_period_start
+        float custom_storage_gb
+        int custom_processing_minutes
+        int custom_ai_answers
+        bool unlimited_processing_minutes
+        bool unlimited_ai_answers
+        bool is_over_quota
+        datetime created_at
+        datetime updated_at
     }
     
     Video {
@@ -170,6 +194,12 @@ erDiagram
 - **外部キー**: `ChatLog.group_id` → `VideoGroup.id`
 - **削除アクション**: CASCADE（グループ削除時にチャットログも削除）
 
+### User - Subscription（1:1）
+- **リレーション**: 1人のユーザーが1つのサブスクリプションを持つ
+- **外部キー**: `Subscription.user_id` → `User.id`
+- **削除アクション**: CASCADE（ユーザー削除時にサブスクリプションも削除）
+- **プラン**: `free` / `lite` / `standard` / `enterprise`
+
 ### VideoGroup - Video（N:M — VideoGroupMember経由）
 - **リレーション**: 多対多のリレーション（中間テーブル経由）
 - **中間テーブル**: `VideoGroupMember`
@@ -194,6 +224,8 @@ erDiagram
 - `VideoTag(video_id, tag_id)`: 同じタグを同じ動画に複数回付与不可
 - `UserApiKey.hashed_key`: ハッシュ済みAPIキーはユニーク
 - `UserApiKey(user, name)` WHERE `revoked_at IS NULL`: アクティブなAPIキー名はユーザーごとにユニーク（部分ユニーク制約）
+- `Subscription.stripe_customer_id`: Stripe顧客IDはユニーク（NULL許容）
+- `Subscription.stripe_subscription_id`: StripeサブスクリプションIDはユニーク（NULL許容）
 
 ### 外部キー制約
 - 全外部キーにCASCADE削除が設定済み
@@ -215,7 +247,6 @@ erDiagram
 - `User(email, is_active)`: ログイン検索用
 - `User(date_joined, -id)`: ユーザー一覧用
 - `User.deactivated_at`: 無効化アカウントのクエリ用
-- `User.video_limit`: 制限クエリ用
 - `Video.uploaded_at`: 降順ソート用（Meta.ordering）
 - `Video(user, status, -uploaded_at)`: フィルタ付きユーザー動画一覧用
 - `Video(user, title)`: タイトル検索用

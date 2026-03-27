@@ -16,7 +16,7 @@ classDiagram
         +bool is_active
         +bool is_staff
         +bool is_superuser
-        +int video_limit (nullable)
+        +int max_video_upload_size_mb
         +datetime deactivated_at (nullable)
     }
     
@@ -108,6 +108,27 @@ classDiagram
         +string reason
         +datetime requested_at
     }
+
+    class Subscription {
+        +int id
+        +OneToOneField user
+        +string plan
+        +string stripe_customer_id
+        +string stripe_subscription_id
+        +string stripe_status
+        +datetime current_period_end
+        +bool cancel_at_period_end
+        +bigint used_storage_bytes
+        +int used_processing_seconds
+        +int used_ai_answers
+        +datetime usage_period_start
+        +float custom_storage_gb
+        +int custom_processing_minutes
+        +int custom_ai_answers
+        +bool unlimited_processing_minutes
+        +bool unlimited_ai_answers
+        +bool is_over_quota
+    }
     
     class SafeFilenameMixin {
         +get_available_name()
@@ -129,6 +150,7 @@ classDiagram
     User "1" --> "*" Tag : owns
     User "1" --> "*" UserApiKey : owns
     User "1" --> "*" AccountDeletionRequest : creates
+    User "1" --> "1" Subscription : has
     VideoGroup "1" --> "*" VideoGroupMember : contains
     Video "1" --> "*" VideoGroupMember : belongs_to
     Video "1" --> "*" VideoTag : has
@@ -543,6 +565,12 @@ classDiagram
     class ResolveProtectedMediaUseCase {
         +execute(path, user) str
     }
+    class RequestVideoUploadUseCase {
+        +execute(user_id, validated_data) UploadRequestDTO
+    }
+    class ConfirmVideoUploadUseCase {
+        +execute(video_id, user_id) VideoOutputDTO
+    }
     class RunTranscriptionUseCase {
         +execute(video_id) None
     }
@@ -554,6 +582,42 @@ classDiagram
     }
     class ReindexAllVideosUseCase {
         +execute() None
+    }
+    class GetSubscriptionUseCase {
+        +execute(user_id) SubscriptionDTO
+    }
+    class GetPlansUseCase {
+        +execute() list~PlanDTO~
+    }
+    class CreateCheckoutSessionUseCase {
+        +execute(user_id, plan, success_url, cancel_url) CheckoutDTO
+    }
+    class CreateBillingPortalUseCase {
+        +execute(user_id, return_url) PortalDTO
+    }
+    class HandleWebhookUseCase {
+        +execute(payload, sig_header) None
+    }
+    class CheckStorageLimitUseCase {
+        +execute(user_id, additional_bytes) None
+    }
+    class CheckProcessingLimitUseCase {
+        +execute(user_id, additional_seconds) None
+    }
+    class CheckAiAnswersLimitUseCase {
+        +execute(user_id) None
+    }
+    class RecordStorageUsageUseCase {
+        +execute(user_id, bytes_delta) None
+    }
+    class RecordProcessingUsageUseCase {
+        +execute(user_id, seconds) None
+    }
+    class RecordAiAnswerUsageUseCase {
+        +execute(user_id) None
+    }
+    class ClearOverQuotaUseCase {
+        +execute(user_id) None
     }
 ```
 
@@ -634,6 +698,18 @@ classDiagram
     class ProtectedMediaView {
         +get() redirects to signed media URL
     }
+    class PlanListView {
+        +get() list of plans
+    }
+    class CurrentSubscriptionView {
+        +get() subscription detail
+    }
+    class CreateCheckoutSessionView {
+        +post() checkout URL
+    }
+    class CreateBillingPortalView {
+        +post() portal URL
+    }
 
     VideoListView ..> CreateVideoUseCase : delegates
     VideoListView ..> ListVideosUseCase : delegates
@@ -653,6 +729,10 @@ classDiagram
     ApiKeyListCreateView ..> CreateApiKeyUseCase : delegates
     ApiKeyDetailView ..> RevokeApiKeyUseCase : delegates
     ProtectedMediaView ..> ResolveProtectedMediaUseCase : delegates
+    PlanListView ..> GetPlansUseCase : delegates
+    CurrentSubscriptionView ..> GetSubscriptionUseCase : delegates
+    CreateCheckoutSessionView ..> CreateCheckoutSessionUseCase : delegates
+    CreateBillingPortalView ..> CreateBillingPortalUseCase : delegates
 ```
 
 ## 主要なリレーション
@@ -661,6 +741,7 @@ classDiagram
 - **User** は複数の **Video** インスタンスを所有
 - **User** は複数の **VideoGroup** インスタンスを所有
 - **User** は複数の **UserApiKey** インスタンスを所有
+- **User** は1つの **Subscription** を持つ（1:1、プラン・使用量管理・Stripe連携）
 - **VideoGroup** は **VideoGroupMember** を通じて複数の **Video** に関連
 - **ChatLog** は **User** と **VideoGroup** に関連付け
 - **Video** は **SafeFileSystemStorage** または **SafeS3Boto3Storage** を使用
@@ -668,6 +749,7 @@ classDiagram
 - **Use Cases** は **Domain** の抽象（ABCs / ports）のみに依存
 - **Infrastructure** は **Domain** のポートを実装（リポジトリ、ゲートウェイ）
 - **Entrypoints**（Celeryタスク）はcomposition root経由で **Use Cases** に委譲
+- **billing/** はサブスクリプション管理（プラン別クォータ・使用量チェック・Stripe連携）を担当
 
 ### フロントエンド
 - **PageLayout** は **Header** と **Footer** を含む

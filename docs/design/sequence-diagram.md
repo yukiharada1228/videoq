@@ -18,7 +18,7 @@ sequenceDiagram
 
     User->>Frontend: Upload Video File
     Frontend->>Backend: POST /api/videos/
-    Backend->>Backend: Validate request (file, User.video_limit)
+    Backend->>Backend: Validate request (file type/size vs User.max_video_upload_size_mb, storage quota vs Subscription)
     Backend->>DB: Create Video(status: pending)
     DB-->>Backend: Video Saved
     Backend->>Celery: enqueue_transcription(video_id)
