@@ -130,6 +130,22 @@ def get_confirm_password_reset_use_case() -> ConfirmPasswordResetUseCase:
 
 
 def get_delete_account_use_case() -> AccountDeletionUseCase:
+    import os
+
+    billing_enabled = os.environ.get("BILLING_ENABLED", "false").lower() == "true"
+    if billing_enabled:
+        from app.infrastructure.billing.stripe_gateway import StripeBillingGateway
+        from app.infrastructure.repositories.django_subscription_repository import (
+            DjangoSubscriptionRepository,
+        )
+        return AccountDeletionUseCase(
+            _new_account_deletion_gateway(),
+            _new_auth_task_gateway(),
+            DjangoTransactionPort(),
+            subscription_repo=DjangoSubscriptionRepository(),
+            billing_gateway=StripeBillingGateway(),
+        )
+
     return AccountDeletionUseCase(
         _new_account_deletion_gateway(),
         _new_auth_task_gateway(),
