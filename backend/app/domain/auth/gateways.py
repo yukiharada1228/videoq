@@ -49,13 +49,12 @@ class AccountDeletionGateway(ABC):
         ...
 
     @abstractmethod
-    def deactivate_user(self, user_id: int, suffix: str) -> None:
+    def deactivate_user(self, user_id: int) -> None:
         """
         Deactivate the user account: set is_active=False, anonymize username/email.
 
         Args:
             user_id: ID of the user to deactivate.
-            suffix: Timestamp suffix for unique username/email generation.
         """
         ...
 
