@@ -268,6 +268,29 @@ class ValidPlanTests(TestCase):
         self.assertEqual(gateway.last_price_id, "price_lite_usd_001")
 
 
+class PendingCancellationTests(TestCase):
+    def test_updates_subscription_in_place_when_pending_cancellation(self):
+        """A subscription with cancel_at_period_end=True should be updated in place, not recreated."""
+        entity = _make_subscription(
+            plan=PlanType.LITE,
+            stripe_status="active",
+            stripe_subscription_id="sub_pending",
+            stripe_customer_id="cus_existing",
+            cancel_at_period_end=True,
+        )
+        gateway = _StubBillingGateway()
+        use_case = _make_use_case(entity, gateway=gateway)
+        dto = use_case.execute(
+            user_id=1,
+            plan="standard",
+            success_url="https://success",
+            cancel_url="https://cancel",
+        )
+        self.assertTrue(dto.upgraded)
+        self.assertEqual(dto.checkout_url, "")
+        self.assertEqual(gateway.updated_subscription_id, "sub_pending")
+
+
 class AlreadySubscribedTests(TestCase):
     def test_upgrades_in_place_when_active_paid_subscription_exists(self):
         entity = _make_subscription(

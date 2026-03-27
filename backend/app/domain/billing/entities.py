@@ -54,7 +54,16 @@ class SubscriptionEntity:
             return True
         if self.plan == PlanType.ENTERPRISE:
             return True
+        if self.cancel_at_period_end:
+            return False
         return self.stripe_status in ("active", "trialing")
+
+    @property
+    def is_pending_cancellation(self) -> bool:
+        """True when the subscription is scheduled to cancel at period end but still running."""
+        if self.plan in (PlanType.FREE, PlanType.ENTERPRISE):
+            return False
+        return self.cancel_at_period_end and self.stripe_status in ("active", "trialing")
 
     def get_storage_limit_bytes(self) -> Optional[int]:
         """Returns storage limit in bytes. None = unlimited."""
