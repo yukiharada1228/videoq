@@ -95,6 +95,7 @@ export interface Subscription {
   storage_limit_bytes: number | null;
   processing_limit_seconds: number | null;
   ai_answers_limit: number | null;
+  is_over_quota: boolean;
 }
 
 export interface Plan {

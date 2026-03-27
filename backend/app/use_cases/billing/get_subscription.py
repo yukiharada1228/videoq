@@ -21,4 +21,5 @@ class GetSubscriptionUseCase:
             storage_limit_bytes=entity.get_storage_limit_bytes(),
             processing_limit_seconds=entity.get_processing_limit_seconds(),
             ai_answers_limit=entity.get_ai_answers_limit(),
+            is_over_quota=entity.is_over_quota,
         )

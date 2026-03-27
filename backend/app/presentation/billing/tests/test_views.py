@@ -15,7 +15,6 @@ from app.use_cases.billing.dtos import (
 )
 from app.use_cases.billing.exceptions import (
     BillingNotEnabled,
-    DowngradeNotAllowed,
     NoStripeCustomer,
 )
 
@@ -291,13 +290,11 @@ class CreateCheckoutSessionViewTests(APITestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
-    def test_checkout_returns_downgrade_not_allowed_error(self):
+    def test_checkout_allows_downgrade_regardless_of_storage_usage(self):
+        """Downgrade is always permitted; is_over_quota handles post-downgrade enforcement."""
         url = reverse("billing-checkout")
         mock_use_case = MagicMock()
-        mock_use_case.execute.side_effect = DowngradeNotAllowed(
-            used_storage_bytes=15 * 1024 ** 3,
-            target_limit_bytes=10 * 1024 ** 3,
-        )
+        mock_use_case.execute.return_value = CheckoutSessionDTO(upgraded=True, checkout_url="")
         with patch(
             "app.presentation.billing.views.CreateCheckoutSessionView.resolve_dependency",
             return_value=mock_use_case,
@@ -312,11 +309,7 @@ class CreateCheckoutSessionViewTests(APITestCase):
                 format="json",
             )
 
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(response.data["error"]["code"], "DOWNGRADE_NOT_ALLOWED")
-        self.assertEqual(response.data["error"]["params"]["used_storage_bytes"], 15 * 1024 ** 3)
-        self.assertEqual(response.data["error"]["params"]["target_limit_bytes"], 10 * 1024 ** 3)
-        self.assertEqual(response.data["error"]["params"]["over_quota_bytes"], 5 * 1024 ** 3)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
 
 @override_settings(
