@@ -93,7 +93,7 @@ class DjangoSubscriptionRepository(SubscriptionRepository):
         Subscription = self._get_model()
         Subscription.objects.filter(user_id=user_id).update(stripe_customer_id=None)
 
-    def get_or_create_stripe_customer(self, user_id: int, create_fn) -> tuple:
+    def get_or_create_stripe_customer(self, user_id: int, create_fn, force_recreate: bool = False) -> tuple:
         from django.db import transaction
 
         Subscription = self._get_model()
@@ -102,7 +102,7 @@ class DjangoSubscriptionRepository(SubscriptionRepository):
             Subscription.objects.get_or_create(user_id=user_id, defaults={"plan": "free"})
             # Acquire a row-level exclusive lock so concurrent requests serialize here
             obj = Subscription.objects.select_for_update().get(user_id=user_id)
-            if obj.stripe_customer_id:
+            if obj.stripe_customer_id and not force_recreate:
                 return obj.stripe_customer_id, self._to_entity(obj)
             customer_id = create_fn()
             Subscription.objects.filter(user_id=user_id).update(stripe_customer_id=customer_id)

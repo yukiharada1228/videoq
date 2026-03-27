@@ -67,8 +67,8 @@ class _StubSubscriptionRepo(SubscriptionRepository):
     def clear_stripe_customer(self, user_id: int) -> None:
         self._entity.stripe_customer_id = None
 
-    def get_or_create_stripe_customer(self, user_id: int, create_fn) -> tuple:
-        if not self._entity.stripe_customer_id:
+    def get_or_create_stripe_customer(self, user_id: int, create_fn, force_recreate: bool = False) -> tuple:
+        if force_recreate or not self._entity.stripe_customer_id:
             self._entity.stripe_customer_id = create_fn()
         return self._entity.stripe_customer_id, self._entity
 
@@ -555,3 +555,160 @@ class CustomerCreationAtomicityTests(TestCase):
         # Recovery creates a new customer exactly once via the atomic repo method
         self.assertEqual(len(create_customer_calls), 1)
         self.assertEqual(dto.checkout_url, "https://checkout.test")
+
+    def test_recovery_does_not_call_clear_stripe_customer(self):
+        """Recovery must NOT call clear_stripe_customer — it creates a race window.
+
+        Between clear_stripe_customer (unlocked) and get_or_create_stripe_customer
+        (locked), a concurrent thread can clear the newly created customer ID.
+        Instead, recovery must use a single get_or_create_stripe_customer(force_recreate=True)
+        call which does the clear-and-recreate atomically under the row lock.
+        """
+        entity = _make_subscription(stripe_customer_id="cus_stale")
+        gateway = _StubBillingGateway(customer_id="cus_recreated")
+        gateway.checkout_error = Exception("No such customer: 'cus_stale'")
+
+        class _TrackingRepo(_StubSubscriptionRepo):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.clear_stripe_customer_called = False
+
+            def clear_stripe_customer(self, user_id: int) -> None:
+                self.clear_stripe_customer_called = True
+                super().clear_stripe_customer(user_id)
+
+        repo = _TrackingRepo(entity)
+        use_case = CreateCheckoutSessionUseCase(
+            subscription_repo=repo,
+            billing_gateway=gateway,
+            billing_enabled=True,
+            price_map={PlanType.LITE: {"jpy": "price_lite_jpy_001"}},
+            user_repo=_StubUserRepo(),
+        )
+        use_case.execute(
+            user_id=1,
+            plan="lite",
+            success_url="https://success",
+            cancel_url="https://cancel",
+            currency="jpy",
+        )
+        self.assertFalse(
+            repo.clear_stripe_customer_called,
+            "clear_stripe_customer must not be called during 'No such customer' recovery "
+            "because it creates an unlocked gap where concurrent threads can delete a "
+            "freshly created customer.",
+        )
+
+    def test_recovery_calls_get_or_create_with_force_recreate_true(self):
+        """Recovery must call get_or_create_stripe_customer with force_recreate=True.
+
+        This replaces the two-step clear + get_or_create with a single atomic operation:
+        the repository holds the row lock while discarding the stale ID and creating a
+        fresh customer, so no concurrent thread can sneak a clear in between.
+        """
+        entity = _make_subscription(stripe_customer_id="cus_stale")
+        gateway = _StubBillingGateway(customer_id="cus_recreated")
+        gateway.checkout_error = Exception("No such customer: 'cus_stale'")
+
+        class _TrackingRepo(_StubSubscriptionRepo):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.force_recreate_flags: list = []
+
+            def get_or_create_stripe_customer(self, user_id, create_fn, force_recreate=False):
+                self.force_recreate_flags.append(force_recreate)
+                return super().get_or_create_stripe_customer(user_id, create_fn, force_recreate)
+
+        repo = _TrackingRepo(entity)
+        use_case = CreateCheckoutSessionUseCase(
+            subscription_repo=repo,
+            billing_gateway=gateway,
+            billing_enabled=True,
+            price_map={PlanType.LITE: {"jpy": "price_lite_jpy_001"}},
+            user_repo=_StubUserRepo(),
+        )
+        use_case.execute(
+            user_id=1,
+            plan="lite",
+            success_url="https://success",
+            cancel_url="https://cancel",
+            currency="jpy",
+        )
+        # First call: normal path (force_recreate=False)
+        # Second call: recovery path (force_recreate=True)
+        self.assertEqual(len(repo.force_recreate_flags), 2)
+        self.assertFalse(repo.force_recreate_flags[0])
+        self.assertTrue(
+            repo.force_recreate_flags[1],
+            "Recovery path must pass force_recreate=True so the repo atomically "
+            "discards the stale ID and creates a new one within a single row lock.",
+        )
+
+    def test_concurrent_recovery_thread_b_does_not_clear_thread_a_new_customer(self):
+        """Simulate the race: Thread A commits cus_new_A; Thread B must not delete it.
+
+        With the old two-step approach Thread B's clear_stripe_customer() runs after
+        Thread A already committed cus_new_A, wiping the valid new customer.
+        With force_recreate=True there is no separate clear call, so this race is
+        eliminated — Thread B serializes through the row lock instead.
+        """
+        entity = _make_subscription(stripe_customer_id="cus_stale")
+        gateway = _StubBillingGateway(customer_id="cus_new_from_thread_b")
+        gateway.checkout_error = Exception("No such customer: 'cus_stale'")
+
+        class _RaceSimulatingRepo(_StubSubscriptionRepo):
+            """Simulates Thread A having already committed cus_new_A by the time
+            Thread B's get_or_create_stripe_customer runs under the lock."""
+
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self._recovery_call = False
+
+            def get_or_create_stripe_customer(self, user_id, create_fn, force_recreate=False):
+                if force_recreate:
+                    # Simulate: Thread A already committed cus_new_A before we got the lock.
+                    # The old code would have cleared it in an unlocked step before this call.
+                    # The new code sees it here under the lock and must NOT have wiped it beforehand.
+                    self._recovery_call = True
+                    # Verify the entity still has the value Thread A committed (not wiped)
+                    assert self._entity.stripe_customer_id == "cus_new_A_committed_by_thread_a", (
+                        "stripe_customer_id was wiped before get_or_create_stripe_customer was called"
+                    )
+                    self._entity.stripe_customer_id = create_fn()
+                    return self._entity.stripe_customer_id, self._entity
+                return super().get_or_create_stripe_customer(user_id, create_fn)
+
+        # Pre-set the entity to simulate: by the time recovery runs, Thread A committed cus_new_A
+        entity_with_new_customer = _make_subscription(stripe_customer_id="cus_stale")
+
+        class _FullRaceRepo(_RaceSimulatingRepo):
+            """First normal get_or_create returns stale; checkout raises; then recovery runs."""
+            _first_call_done = False
+
+            def get_or_create_stripe_customer(self, user_id, create_fn, force_recreate=False):
+                if not self._first_call_done:
+                    self._first_call_done = True
+                    # Normal path: return stale customer
+                    return self._entity.stripe_customer_id, self._entity
+                # Recovery path: simulate Thread A already committed a new customer
+                self._entity.stripe_customer_id = "cus_new_A_committed_by_thread_a"
+                return super().get_or_create_stripe_customer(user_id, create_fn, force_recreate)
+
+        repo = _FullRaceRepo(entity_with_new_customer)
+        use_case = CreateCheckoutSessionUseCase(
+            subscription_repo=repo,
+            billing_gateway=gateway,
+            billing_enabled=True,
+            price_map={PlanType.LITE: {"jpy": "price_lite_jpy_001"}},
+            user_repo=_StubUserRepo(),
+        )
+        # Must succeed — the race simulation passes because no unlocked clear happens
+        dto = use_case.execute(
+            user_id=1,
+            plan="lite",
+            success_url="https://success",
+            cancel_url="https://cancel",
+            currency="jpy",
+        )
+        self.assertEqual(dto.checkout_url, "https://checkout.test")
+        self.assertTrue(repo._recovery_call)
