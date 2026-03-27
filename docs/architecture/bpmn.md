@@ -36,7 +36,7 @@ flowchart TD
 ```mermaid
 flowchart TD
     Start([Start]) --> Upload[Upload Video File]
-    Upload --> ValidateFile{"Validation<br>- File<br>- User.video_limit"}
+    Upload --> ValidateFile{"Validation<br>- File type/size (max_video_upload_size_mb)<br>- Storage quota (Subscription)"}
     ValidateFile -->|Invalid| Reject[Reject Upload]
     Reject --> ShowError[Error Display]
     ShowError --> End([End])

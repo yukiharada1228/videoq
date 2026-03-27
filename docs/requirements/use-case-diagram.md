@@ -80,6 +80,13 @@ graph TB
         UC36[Monitor Re-indexing Progress]
         UC41[Manage Upload Limits]
     end
+
+    subgraph Billing["Billing & Subscription"]
+        UC42[View Subscription]
+        UC43[View Plans]
+        UC44[Start Subscription]
+        UC45[Manage Billing Portal]
+    end
     
     User --> UC1
     User --> UC2
@@ -119,7 +126,11 @@ graph TB
     User --> UC38
     User --> UC39
     User --> UC40
-    
+    User --> UC42
+    User --> UC43
+    User --> UC44
+    User --> UC45
+
     Guest --> UC29
     Guest --> UC30
 
@@ -201,7 +212,13 @@ graph TB
 ### 管理機能
 - **UC35 動画エンベディング再インデックス**: 新しいモデルで全動画のエンベディングを再生成（スーパーユーザーのみ）
 - **UC36 再インデックス進捗監視**: Celeryログで再インデックスタスクの進捗を監視
-- **UC41 アップロード上限管理**: Django Admin から `User.video_limit` を更新し、ユーザーの動画アップロード可能本数を制御
+- **UC41 アップロード上限管理**: Django Admin から `User.max_video_upload_size_mb`（1ファイルあたりのサイズ上限）を設定し、`Subscription` でストレージ・処理時間・AI回答数の月次クォータを制御
+
+### Billing & Subscription
+- **UC42 サブスクリプション確認**: 現在のプラン・使用量（ストレージ・処理時間・AI回答数）を確認
+- **UC43 プラン一覧**: 利用可能なプラン（free / lite / standard / enterprise）と制限値を確認
+- **UC44 サブスクリプション開始**: Stripe Checkoutセッションを作成してプランを購入
+- **UC45 Billing Portal管理**: Stripe Billing Portalでプラン変更・支払い情報管理・解約
 
 **注記:**
 - LLMとエンベディングの設定は環境変数（`LLM_PROVIDER`、`LLM_MODEL`、`EMBEDDING_PROVIDER`、`EMBEDDING_MODEL`）でグローバルに管理されます。
