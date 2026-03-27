@@ -5,7 +5,12 @@ from unittest import TestCase
 from unittest.mock import MagicMock
 
 from app.domain.billing.entities import PlanType, SubscriptionEntity
-from app.domain.billing.ports import BillingGateway, SubscriptionRepository, WebhookEvent
+from app.domain.billing.ports import (
+    BillingGateway,
+    SubscriptionEventData,
+    SubscriptionRepository,
+    WebhookEvent,
+)
 from app.use_cases.billing.handle_webhook import HandleWebhookUseCase
 
 
@@ -63,7 +68,7 @@ class _StubSubscriptionRepo(SubscriptionRepository):
 
 
 class _StubBillingGateway(BillingGateway):
-    def __init__(self, event: dict):
+    def __init__(self, event: WebhookEvent):
         self._event = event
 
     def get_or_create_customer(self, user_id, email, username) -> str:
@@ -78,14 +83,8 @@ class _StubBillingGateway(BillingGateway):
     def create_billing_portal(self, customer_id, return_url):
         return MagicMock(url="https://portal.test")
 
-    def retrieve_subscription(self, subscription_id) -> dict:
-        return {}
-
     def verify_webhook(self, payload, sig_header, secret) -> WebhookEvent:
-        return WebhookEvent(
-            type=self._event.get("type", ""),
-            data_object=self._event.get("data", {}).get("object", {}),
-        )
+        return self._event
 
     def cancel_subscription(self, subscription_id: str) -> None:
         pass
@@ -94,7 +93,20 @@ class _StubBillingGateway(BillingGateway):
 PRICE_MAP = {"price_lite_001": "lite", "price_standard_001": "standard"}
 
 
-def _make_use_case(entity: SubscriptionEntity, event: dict) -> HandleWebhookUseCase:
+def _make_event(event_type: str, **kwargs) -> WebhookEvent:
+    defaults = {
+        "id": "",
+        "customer": "",
+        "status": "",
+        "cancel_at_period_end": False,
+        "current_period_end": None,
+        "price_id": None,
+    }
+    defaults.update(kwargs)
+    return WebhookEvent(type=event_type, data_object=SubscriptionEventData(**defaults))
+
+
+def _make_use_case(entity: SubscriptionEntity, event: WebhookEvent) -> HandleWebhookUseCase:
     return HandleWebhookUseCase(
         subscription_repo=_StubSubscriptionRepo(entity),
         billing_gateway=_StubBillingGateway(event),
@@ -106,21 +118,15 @@ def _make_use_case(entity: SubscriptionEntity, event: dict) -> HandleWebhookUseC
 class SubscriptionCreatedTests(TestCase):
     def test_subscription_created_syncs_plan_and_status(self):
         entity = _make_subscription(plan=PlanType.FREE)
-        event = {
-            "type": "customer.subscription.created",
-            "data": {
-                "object": {
-                    "id": "sub_new",
-                    "customer": "cus_test",
-                    "status": "active",
-                    "cancel_at_period_end": False,
-                    "current_period_end": 1893456000,
-                    "items": {
-                        "data": [{"price": {"id": "price_lite_001"}}]
-                    },
-                }
-            },
-        }
+        event = _make_event(
+            "customer.subscription.created",
+            id="sub_new",
+            customer="cus_test",
+            status="active",
+            cancel_at_period_end=False,
+            current_period_end=1893456000,
+            price_id="price_lite_001",
+        )
         repo = _StubSubscriptionRepo(entity)
         use_case = HandleWebhookUseCase(
             subscription_repo=repo,
@@ -143,21 +149,15 @@ class SubscriptionUpdatedTests(TestCase):
             stripe_subscription_id="sub_existing",
             stripe_status="active",
         )
-        event = {
-            "type": "customer.subscription.updated",
-            "data": {
-                "object": {
-                    "id": "sub_existing",
-                    "customer": "cus_test",
-                    "status": "active",
-                    "cancel_at_period_end": True,
-                    "current_period_end": 1893456000,
-                    "items": {
-                        "data": [{"price": {"id": "price_standard_001"}}]
-                    },
-                }
-            },
-        }
+        event = _make_event(
+            "customer.subscription.updated",
+            id="sub_existing",
+            customer="cus_test",
+            status="active",
+            cancel_at_period_end=True,
+            current_period_end=1893456000,
+            price_id="price_standard_001",
+        )
         repo = _StubSubscriptionRepo(entity)
         use_case = HandleWebhookUseCase(
             subscription_repo=repo,
@@ -179,18 +179,13 @@ class SubscriptionDeletedTests(TestCase):
             stripe_subscription_id="sub_existing",
             stripe_status="active",
         )
-        event = {
-            "type": "customer.subscription.deleted",
-            "data": {
-                "object": {
-                    "id": "sub_existing",
-                    "customer": "cus_test",
-                    "status": "canceled",
-                    "cancel_at_period_end": False,
-                    "items": {"data": []},
-                }
-            },
-        }
+        event = _make_event(
+            "customer.subscription.deleted",
+            id="sub_existing",
+            customer="cus_test",
+            status="canceled",
+            cancel_at_period_end=False,
+        )
         repo = _StubSubscriptionRepo(entity)
         use_case = HandleWebhookUseCase(
             subscription_repo=repo,
@@ -209,10 +204,7 @@ class SubscriptionDeletedTests(TestCase):
 class UnknownEventTests(TestCase):
     def test_unknown_event_is_ignored(self):
         entity = _make_subscription(plan=PlanType.FREE)
-        event = {
-            "type": "payment_intent.succeeded",
-            "data": {"object": {"customer": "cus_test"}},
-        }
+        event = _make_event("payment_intent.succeeded", customer="cus_test")
         repo = _StubSubscriptionRepo(entity)
         use_case = HandleWebhookUseCase(
             subscription_repo=repo,

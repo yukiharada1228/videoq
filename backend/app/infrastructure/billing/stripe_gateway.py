@@ -1,6 +1,11 @@
 import os
 
-from app.domain.billing.ports import BillingGateway, SessionResult, WebhookEvent
+from app.domain.billing.ports import (
+    BillingGateway,
+    SessionResult,
+    SubscriptionEventData,
+    WebhookEvent,
+)
 
 
 class StripeBillingGateway(BillingGateway):
@@ -67,17 +72,22 @@ class StripeBillingGateway(BillingGateway):
         )
         return SessionResult(url=result.url)
 
-    def retrieve_subscription(self, subscription_id: str) -> dict:
-        stripe = self._get_stripe()
-        result = stripe.Subscription.retrieve(subscription_id)
-        return result.to_dict()
-
     def verify_webhook(self, payload: bytes, sig_header: str, secret: str) -> WebhookEvent:
         stripe = self._get_stripe()
         event = stripe.Webhook.construct_event(payload, sig_header, secret)
+        subscription = event.data.object
+        items = subscription.items.data if getattr(subscription, "items", None) else []
+        price_id = items[0].price.id if items else None
         return WebhookEvent(
             type=event.type,
-            data_object=event.data.object.to_dict(),
+            data_object=SubscriptionEventData(
+                id=getattr(subscription, "id", ""),
+                customer=getattr(subscription, "customer", ""),
+                status=getattr(subscription, "status", ""),
+                cancel_at_period_end=getattr(subscription, "cancel_at_period_end", False),
+                current_period_end=getattr(subscription, "current_period_end", None),
+                price_id=price_id,
+            ),
         )
 
     def cancel_subscription(self, subscription_id: str) -> None:
