@@ -26,7 +26,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
           fetch-depth: 2
       - uses: dorny/paths-filter@v3
         id: filter
@@ -45,7 +45,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -62,7 +62,7 @@ jobs:
         id: build-backend
         working-directory: backend
         env:
-          IMAGE_URI: ${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY_API }}:${{ github.event.workflow_run.head_sha }}
+          IMAGE_URI: ${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY_API }}:${{ github.event.workflow_run.head_sha || github.sha }}
           IMAGE_URI_LATEST: ${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY_API }}:latest
         run: |
           docker build -f Dockerfile.lambda -t "$IMAGE_URI" -t "$IMAGE_URI_LATEST" .
@@ -101,7 +101,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -117,7 +117,7 @@ jobs:
         id: build-worker
         working-directory: backend
         env:
-          IMAGE_URI: ${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY_WORKER }}:${{ github.event.workflow_run.head_sha }}
+          IMAGE_URI: ${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY_WORKER }}:${{ github.event.workflow_run.head_sha || github.sha }}
           IMAGE_URI_LATEST: ${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY_WORKER }}:latest
         run: |
           docker build -f Dockerfile.worker -t "$IMAGE_URI" -t "$IMAGE_URI_LATEST" .
