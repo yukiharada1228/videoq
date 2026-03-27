@@ -56,6 +56,9 @@ class _StubSubscriptionRepo(SubscriptionRepository):
     def maybe_reset_monthly_usage(self, user_id: int) -> None:
         pass
 
+    def check_and_reserve_storage(self, user_id: int, additional_bytes: int) -> None:
+        pass
+
     def increment_storage_bytes(self, user_id: int, bytes_delta: int) -> None:
         pass
 
