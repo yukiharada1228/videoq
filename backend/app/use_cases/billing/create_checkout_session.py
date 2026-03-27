@@ -69,8 +69,8 @@ class CreateCheckoutSessionUseCase:
             ),
         )
 
-        # If already has active paid subscription, update the plan in place
-        if entity.stripe_subscription_id and entity.is_stripe_active and entity.plan != PlanType.FREE:
+        # If already has active (or pending-cancellation) paid subscription, update the plan in place
+        if entity.stripe_subscription_id and (entity.is_stripe_active or entity.is_pending_cancellation) and entity.plan != PlanType.FREE:
             try:
                 self._billing_gateway.update_subscription(entity.stripe_subscription_id, price_id)
             except Exception as e:
