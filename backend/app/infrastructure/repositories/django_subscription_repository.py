@@ -3,6 +3,9 @@
 from datetime import timedelta, timezone
 from typing import Optional
 
+from django.db.models import F, Value
+from django.db.models.functions import Greatest
+
 from app.domain.billing.entities import PlanType, SubscriptionEntity
 from app.domain.billing.ports import SubscriptionRepository
 
@@ -90,6 +93,24 @@ class DjangoSubscriptionRepository(SubscriptionRepository):
             used_processing_seconds=0,
             used_ai_answers=0,
             usage_period_start=period_start,
+        )
+
+    def increment_storage_bytes(self, user_id: int, bytes_delta: int) -> None:
+        Subscription = self._get_model()
+        Subscription.objects.filter(user_id=user_id).update(
+            used_storage_bytes=Greatest(Value(0), F("used_storage_bytes") + bytes_delta)
+        )
+
+    def increment_processing_seconds(self, user_id: int, seconds: int) -> None:
+        Subscription = self._get_model()
+        Subscription.objects.filter(user_id=user_id).update(
+            used_processing_seconds=F("used_processing_seconds") + seconds
+        )
+
+    def increment_ai_answers(self, user_id: int) -> None:
+        Subscription = self._get_model()
+        Subscription.objects.filter(user_id=user_id).update(
+            used_ai_answers=F("used_ai_answers") + 1
         )
 
     def maybe_reset_monthly_usage(self, user_id: int) -> None:

@@ -6,6 +6,4 @@ class RecordStorageUsageUseCase:
         self._subscription_repo = subscription_repo
 
     def execute(self, user_id: int, bytes_delta: int) -> None:
-        entity = self._subscription_repo.get_or_create(user_id)
-        entity.used_storage_bytes = max(0, entity.used_storage_bytes + bytes_delta)
-        self._subscription_repo.save(entity)
+        self._subscription_repo.increment_storage_bytes(user_id, bytes_delta)
