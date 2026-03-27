@@ -100,8 +100,7 @@ class CreateCheckoutSessionUseCase:
             # Stale customer ID — recreate if the error is customer-related.
             # Clear the stale ID first so get_or_create_stripe_customer will call create_fn.
             if "No such customer" in str(e):
-                # Clear the stale customer ID (set to None) before atomically recreating.
-                self._subscription_repo.create_stripe_customer(user_id, None)
+                self._subscription_repo.clear_stripe_customer(user_id)
                 customer_id, _ = self._subscription_repo.get_or_create_stripe_customer(
                     user_id,
                     lambda: self._billing_gateway.get_or_create_customer(
