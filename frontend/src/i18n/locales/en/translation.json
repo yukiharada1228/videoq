@@ -577,13 +577,13 @@
     "subtitle": "Manage your account and integration settings",
     "accountDeletion": {
       "title": "Delete account",
-      "description": "Deactivate your account and schedule all associated data for deletion.",
+      "description": "Deleting your account will permanently remove all videos and data, and immediately cancel any active subscription.",
       "warningLine1": "Your account will be deactivated immediately and you will be signed out.",
       "reasonLabel": "Reason for leaving (optional)",
       "reasonPlaceholder": "Tell us what we could improve (optional)",
       "confirmLabel": "Type {{keyword}} to confirm",
       "confirmTitle": "Confirm account deletion",
-      "confirmDescription": "This will permanently delete your data. Please confirm to proceed.",
+      "confirmDescription": "Deleting your account will permanently remove all videos and data, and immediately cancel your subscription.",
       "confirmWarning": "This action is irreversible. Your data cannot be restored.",
       "confirmCta": "Yes, delete my account",
       "cancel": "Cancel",
@@ -868,6 +868,9 @@
       "title": "Billing & Plans",
       "description": "View your current plan, usage, and upgrade options.",
       "button": "View Billing & Plans"
+    },
+    "errors": {
+      "downgradeNotAllowed": "Cannot downgrade: your storage usage exceeds the target plan limit by {{overGb}} GB. Please delete videos to free up space first."
     }
   },
   "legal": {
