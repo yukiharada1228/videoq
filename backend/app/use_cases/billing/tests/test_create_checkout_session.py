@@ -67,8 +67,8 @@ class _StubSubscriptionRepo(SubscriptionRepository):
     def clear_stripe_customer(self, user_id: int) -> None:
         self._entity.stripe_customer_id = None
 
-    def get_or_create_stripe_customer(self, user_id: int, create_fn, force_recreate: bool = False) -> tuple:
-        if force_recreate or not self._entity.stripe_customer_id:
+    def get_or_create_stripe_customer(self, user_id: int, create_fn, replace_if_stale=None) -> tuple:
+        if not self._entity.stripe_customer_id or self._entity.stripe_customer_id == replace_if_stale:
             self._entity.stripe_customer_id = create_fn()
         return self._entity.stripe_customer_id, self._entity
 
@@ -599,12 +599,11 @@ class CustomerCreationAtomicityTests(TestCase):
             "freshly created customer.",
         )
 
-    def test_recovery_calls_get_or_create_with_force_recreate_true(self):
-        """Recovery must call get_or_create_stripe_customer with force_recreate=True.
+    def test_recovery_calls_get_or_create_with_stale_id_as_replace_if_stale(self):
+        """Recovery must call get_or_create_stripe_customer with replace_if_stale=<stale_id>.
 
-        This replaces the two-step clear + get_or_create with a single atomic operation:
-        the repository holds the row lock while discarding the stale ID and creating a
-        fresh customer, so no concurrent thread can sneak a clear in between.
+        CAS 設計: force_recreate=True（常に再作成）ではなく、検出した stale ID を渡すことで
+        リポジトリはロック内で『DB値 == stale ID なら再作成、違えば再利用』を判断できる。
         """
         entity = _make_subscription(stripe_customer_id="cus_stale")
         gateway = _StubBillingGateway(customer_id="cus_recreated")
@@ -613,11 +612,11 @@ class CustomerCreationAtomicityTests(TestCase):
         class _TrackingRepo(_StubSubscriptionRepo):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
-                self.force_recreate_flags: list = []
+                self.replace_if_stale_values: list = []
 
-            def get_or_create_stripe_customer(self, user_id, create_fn, force_recreate=False):
-                self.force_recreate_flags.append(force_recreate)
-                return super().get_or_create_stripe_customer(user_id, create_fn, force_recreate)
+            def get_or_create_stripe_customer(self, user_id, create_fn, replace_if_stale=None):
+                self.replace_if_stale_values.append(replace_if_stale)
+                return super().get_or_create_stripe_customer(user_id, create_fn, replace_if_stale)
 
         repo = _TrackingRepo(entity)
         use_case = CreateCheckoutSessionUseCase(
@@ -634,22 +633,18 @@ class CustomerCreationAtomicityTests(TestCase):
             cancel_url="https://cancel",
             currency="jpy",
         )
-        # First call: normal path (force_recreate=False)
-        # Second call: recovery path (force_recreate=True)
-        self.assertEqual(len(repo.force_recreate_flags), 2)
-        self.assertFalse(repo.force_recreate_flags[0])
-        self.assertTrue(
-            repo.force_recreate_flags[1],
-            "Recovery path must pass force_recreate=True so the repo atomically "
-            "discards the stale ID and creates a new one within a single row lock.",
-        )
+        # 通常パス: replace_if_stale=None
+        # リカバリパス: replace_if_stale="cus_stale"
+        self.assertEqual(len(repo.replace_if_stale_values), 2)
+        self.assertIsNone(repo.replace_if_stale_values[0])
+        self.assertEqual(repo.replace_if_stale_values[1], "cus_stale")
 
     def test_concurrent_recovery_thread_b_does_not_clear_thread_a_new_customer(self):
         """Simulate the race: Thread A commits cus_new_A; Thread B must not delete it.
 
         With the old two-step approach Thread B's clear_stripe_customer() runs after
         Thread A already committed cus_new_A, wiping the valid new customer.
-        With force_recreate=True there is no separate clear call, so this race is
+        With replace_if_stale there is no separate clear call, so this race is
         eliminated — Thread B serializes through the row lock instead.
         """
         entity = _make_subscription(stripe_customer_id="cus_stale")
@@ -664,35 +659,33 @@ class CustomerCreationAtomicityTests(TestCase):
                 super().__init__(*args, **kwargs)
                 self._recovery_call = False
 
-            def get_or_create_stripe_customer(self, user_id, create_fn, force_recreate=False):
-                if force_recreate:
-                    # Simulate: Thread A already committed cus_new_A before we got the lock.
-                    # The old code would have cleared it in an unlocked step before this call.
-                    # The new code sees it here under the lock and must NOT have wiped it beforehand.
+            def get_or_create_stripe_customer(self, user_id, create_fn, replace_if_stale=None):
+                if replace_if_stale is not None:
                     self._recovery_call = True
                     # Verify the entity still has the value Thread A committed (not wiped)
                     assert self._entity.stripe_customer_id == "cus_new_A_committed_by_thread_a", (
                         "stripe_customer_id was wiped before get_or_create_stripe_customer was called"
                     )
+                    # CAS: DB値が stale ID と異なる → Thread A の顧客を再利用
+                    if self._entity.stripe_customer_id != replace_if_stale:
+                        return self._entity.stripe_customer_id, self._entity
                     self._entity.stripe_customer_id = create_fn()
                     return self._entity.stripe_customer_id, self._entity
                 return super().get_or_create_stripe_customer(user_id, create_fn)
 
-        # Pre-set the entity to simulate: by the time recovery runs, Thread A committed cus_new_A
         entity_with_new_customer = _make_subscription(stripe_customer_id="cus_stale")
 
         class _FullRaceRepo(_RaceSimulatingRepo):
             """First normal get_or_create returns stale; checkout raises; then recovery runs."""
             _first_call_done = False
 
-            def get_or_create_stripe_customer(self, user_id, create_fn, force_recreate=False):
+            def get_or_create_stripe_customer(self, user_id, create_fn, replace_if_stale=None):
                 if not self._first_call_done:
                     self._first_call_done = True
-                    # Normal path: return stale customer
                     return self._entity.stripe_customer_id, self._entity
                 # Recovery path: simulate Thread A already committed a new customer
                 self._entity.stripe_customer_id = "cus_new_A_committed_by_thread_a"
-                return super().get_or_create_stripe_customer(user_id, create_fn, force_recreate)
+                return super().get_or_create_stripe_customer(user_id, create_fn, replace_if_stale)
 
         repo = _FullRaceRepo(entity_with_new_customer)
         use_case = CreateCheckoutSessionUseCase(
@@ -702,7 +695,6 @@ class CustomerCreationAtomicityTests(TestCase):
             price_map={PlanType.LITE: {"jpy": "price_lite_jpy_001"}},
             user_repo=_StubUserRepo(),
         )
-        # Must succeed — the race simulation passes because no unlocked clear happens
         dto = use_case.execute(
             user_id=1,
             plan="lite",
@@ -712,3 +704,118 @@ class CustomerCreationAtomicityTests(TestCase):
         )
         self.assertEqual(dto.checkout_url, "https://checkout.test")
         self.assertTrue(repo._recovery_call)
+
+
+class CasRecoveryTests(TestCase):
+    """Compare-and-Swap recovery: replace_if_stale でのみ再作成し、
+    別スレッドが先に作った新顧客があればそれを再利用する。"""
+
+    def test_recovery_passes_stale_id_as_replace_if_stale(self):
+        """リカバリ時は検出した stale な customer_id を replace_if_stale に渡す。
+
+        force_recreate=True（常に再作成）より意味が明確で、
+        別スレッドがすでに新顧客を作っていた場合に再利用できる。
+        """
+        entity = _make_subscription(stripe_customer_id="cus_stale")
+        gateway = _StubBillingGateway(customer_id="cus_recreated")
+        gateway.checkout_error = Exception("No such customer: 'cus_stale'")
+
+        class _TrackingRepo(_StubSubscriptionRepo):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.replace_if_stale_values: list = []
+
+            def get_or_create_stripe_customer(self, user_id, create_fn, replace_if_stale=None):
+                self.replace_if_stale_values.append(replace_if_stale)
+                return super().get_or_create_stripe_customer(
+                    user_id, create_fn, replace_if_stale=replace_if_stale
+                )
+
+        repo = _TrackingRepo(entity)
+        use_case = CreateCheckoutSessionUseCase(
+            subscription_repo=repo,
+            billing_gateway=gateway,
+            billing_enabled=True,
+            price_map={PlanType.LITE: {"jpy": "price_lite_jpy_001"}},
+            user_repo=_StubUserRepo(),
+        )
+        use_case.execute(
+            user_id=1,
+            plan="lite",
+            success_url="https://success",
+            cancel_url="https://cancel",
+            currency="jpy",
+        )
+        # 通常パス: replace_if_stale=None
+        # リカバリパス: replace_if_stale="cus_stale"（検出した stale ID）
+        self.assertEqual(len(repo.replace_if_stale_values), 2)
+        self.assertIsNone(repo.replace_if_stale_values[0])
+        self.assertEqual(
+            repo.replace_if_stale_values[1],
+            "cus_stale",
+            "リカバリ時は検出した stale な customer_id を replace_if_stale に渡すべき。"
+            "これにより repo はロック内で『DBの値 == stale ID なら再作成、"
+            "違うなら別スレッドが作った新顧客を再利用』という CAS を実行できる。",
+        )
+
+    def test_concurrent_recovery_reuses_other_thread_customer_without_calling_create_fn(self):
+        """Thread A がロック内で cus_new_A を作成済みのとき、Thread B は create_fn を呼ばずに再利用する。
+
+        CAS の核心: replace_if_stale="cus_stale" を持つ Thread B がロックを取得したとき、
+        DB の値が "cus_new_A"（stale ID と不一致）であれば別スレッドが作った有効な顧客と判断し、
+        Stripe API を呼ばずにその ID を返す。force_recreate=True では常に再作成していたので
+        orphan 顧客が生まれていたが、CAS ではそれが起きない。
+        """
+        entity = _make_subscription(stripe_customer_id="cus_stale")
+        gateway = _StubBillingGateway(customer_id="cus_new_from_thread_b")
+        gateway.checkout_error = Exception("No such customer: 'cus_stale'")
+
+        create_fn_calls = []
+
+        class _CasSimulatingRepo(_StubSubscriptionRepo):
+            """リカバリ時に Thread A がすでに cus_new_A を commit 済みな状況をシミュレート。
+            replace_if_stale="cus_stale" かつ DB 値が "cus_new_A" → create_fn を呼ばずに再利用。"""
+            _first_call_done = False
+
+            def get_or_create_stripe_customer(self, user_id, create_fn, replace_if_stale=None):
+                if not self._first_call_done:
+                    self._first_call_done = True
+                    return self._entity.stripe_customer_id, self._entity
+                # リカバリ呼び出し: Thread A がすでに cus_new_A を保存済み
+                self._entity.stripe_customer_id = "cus_new_A"
+                # CAS: DB値 "cus_new_A" != replace_if_stale "cus_stale" → 再利用すべき
+                if self._entity.stripe_customer_id != replace_if_stale:
+                    return self._entity.stripe_customer_id, self._entity
+                create_fn_calls.append(True)
+                self._entity.stripe_customer_id = create_fn()
+                return self._entity.stripe_customer_id, self._entity
+
+        repo = _CasSimulatingRepo(entity)
+        original_get_or_create = gateway.get_or_create_customer
+
+        def tracking_get_or_create(*args, **kwargs):
+            create_fn_calls.append(True)
+            return original_get_or_create(*args, **kwargs)
+
+        gateway.get_or_create_customer = tracking_get_or_create
+        use_case = CreateCheckoutSessionUseCase(
+            subscription_repo=repo,
+            billing_gateway=gateway,
+            billing_enabled=True,
+            price_map={PlanType.LITE: {"jpy": "price_lite_jpy_001"}},
+            user_repo=_StubUserRepo(),
+        )
+        dto = use_case.execute(
+            user_id=1,
+            plan="lite",
+            success_url="https://success",
+            cancel_url="https://cancel",
+            currency="jpy",
+        )
+        self.assertEqual(dto.checkout_url, "https://checkout.test")
+        self.assertEqual(
+            len(create_fn_calls),
+            0,
+            "Thread A がすでに新顧客を作っていた場合、Thread B は Stripe API を呼ばずに再利用すべき。"
+            "create_fn が呼ばれると orphan 顧客が Stripe 上に生まれる。",
+        )

@@ -93,7 +93,7 @@ class DjangoSubscriptionRepository(SubscriptionRepository):
         Subscription = self._get_model()
         Subscription.objects.filter(user_id=user_id).update(stripe_customer_id=None)
 
-    def get_or_create_stripe_customer(self, user_id: int, create_fn, force_recreate: bool = False) -> tuple:
+    def get_or_create_stripe_customer(self, user_id: int, create_fn, replace_if_stale=None) -> tuple:
         from django.db import transaction
 
         Subscription = self._get_model()
@@ -102,7 +102,10 @@ class DjangoSubscriptionRepository(SubscriptionRepository):
             Subscription.objects.get_or_create(user_id=user_id, defaults={"plan": "free"})
             # Acquire a row-level exclusive lock so concurrent requests serialize here
             obj = Subscription.objects.select_for_update().get(user_id=user_id)
-            if obj.stripe_customer_id and not force_recreate:
+            # CAS: if the locked DB value differs from the stale ID we detected, another
+            # concurrent thread already created a valid customer — reuse it without calling
+            # create_fn (prevents orphan customers in Stripe).
+            if obj.stripe_customer_id and obj.stripe_customer_id != replace_if_stale:
                 return obj.stripe_customer_id, self._to_entity(obj)
             customer_id = create_fn()
             Subscription.objects.filter(user_id=user_id).update(stripe_customer_id=customer_id)
