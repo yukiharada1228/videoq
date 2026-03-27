@@ -32,6 +32,7 @@ jobs:
         id: filter
         if: github.event_name != 'workflow_dispatch'
         with:
+          base: HEAD~1
           filters: |
             backend:
               - 'backend/**'
