@@ -78,8 +78,8 @@ describe('ForgotPasswordPage', () => {
   })
 
   it('should show loading state while submitting', async () => {
-    let resolveRequest: ((value: {}) => void) | undefined
-    const pendingRequest = new Promise<{}>((resolve) => {
+    let resolveRequest: (() => void) | undefined
+    const pendingRequest = new Promise<void>((resolve) => {
       resolveRequest = resolve
     })
     ; (apiClient.requestPasswordReset as ReturnType<typeof vi.fn>).mockImplementation(
@@ -97,7 +97,7 @@ describe('ForgotPasswordPage', () => {
     expect(screen.getByText('auth.forgotPassword.submitting')).toBeInTheDocument()
 
     await act(async () => {
-      resolveRequest?.({})
+      resolveRequest?.()
       await pendingRequest
     })
   })
