@@ -70,11 +70,12 @@ class SubscriptionRepository(ABC):
     def check_and_reserve_storage(self, user_id: int, additional_bytes: int) -> None:
         """Atomically check storage limit and reserve space if within limit.
 
-        Uses SELECT FOR UPDATE inside a transaction to prevent race conditions
-        between concurrent upload requests. If adding additional_bytes would
-        exceed the plan's storage limit, raises StorageLimitExceeded without
-        modifying used_storage_bytes. On success, increments used_storage_bytes
-        by additional_bytes.
+        Uses a conditional F() UPDATE (WHERE used_storage_bytes <= limit - additional_bytes)
+        to prevent race conditions between concurrent upload requests. The WHERE
+        clause and UPDATE are evaluated atomically by the DB engine, so no
+        row-level locking is required. If adding additional_bytes would exceed
+        the plan's storage limit, raises StorageLimitExceeded without modifying
+        used_storage_bytes. On success, increments used_storage_bytes by additional_bytes.
         """
         ...
 
