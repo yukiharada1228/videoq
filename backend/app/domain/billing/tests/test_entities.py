@@ -184,3 +184,54 @@ class IsStripeActiveTests(TestCase):
     def test_paid_plan_inactive_with_canceled_status(self):
         sub = _make_subscription(plan=PlanType.LITE, stripe_status="canceled")
         self.assertFalse(sub.is_stripe_active)
+
+    def test_cancel_at_period_end_active_status_is_not_active(self):
+        """A subscription scheduled for cancellation should not be treated as active."""
+        sub = _make_subscription(
+            plan=PlanType.LITE, stripe_status="active", cancel_at_period_end=True
+        )
+        self.assertFalse(sub.is_stripe_active)
+
+    def test_cancel_at_period_end_trialing_status_is_not_active(self):
+        sub = _make_subscription(
+            plan=PlanType.STANDARD, stripe_status="trialing", cancel_at_period_end=True
+        )
+        self.assertFalse(sub.is_stripe_active)
+
+
+class IsPendingCancellationTests(TestCase):
+    def test_pending_cancellation_with_active_status(self):
+        sub = _make_subscription(
+            plan=PlanType.LITE, stripe_status="active", cancel_at_period_end=True
+        )
+        self.assertTrue(sub.is_pending_cancellation)
+
+    def test_pending_cancellation_with_trialing_status(self):
+        sub = _make_subscription(
+            plan=PlanType.STANDARD, stripe_status="trialing", cancel_at_period_end=True
+        )
+        self.assertTrue(sub.is_pending_cancellation)
+
+    def test_not_pending_when_cancel_at_period_end_is_false(self):
+        sub = _make_subscription(
+            plan=PlanType.LITE, stripe_status="active", cancel_at_period_end=False
+        )
+        self.assertFalse(sub.is_pending_cancellation)
+
+    def test_not_pending_when_already_canceled(self):
+        sub = _make_subscription(
+            plan=PlanType.LITE, stripe_status="canceled", cancel_at_period_end=True
+        )
+        self.assertFalse(sub.is_pending_cancellation)
+
+    def test_free_plan_never_pending_cancellation(self):
+        sub = _make_subscription(
+            plan=PlanType.FREE, stripe_status="", cancel_at_period_end=True
+        )
+        self.assertFalse(sub.is_pending_cancellation)
+
+    def test_enterprise_plan_never_pending_cancellation(self):
+        sub = _make_subscription(
+            plan=PlanType.ENTERPRISE, stripe_status="", cancel_at_period_end=True
+        )
+        self.assertFalse(sub.is_pending_cancellation)
