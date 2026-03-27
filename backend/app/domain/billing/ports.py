@@ -11,6 +11,30 @@ class SessionResult:
     url: str
 
 
+@dataclass
+class WebhookEvent:
+    """Domain representation of a Stripe webhook event.
+
+    Isolates the rest of the codebase from stripe's StripeObject type.
+    type: the Stripe event type string (e.g. "customer.subscription.created")
+    data_object: the normalized subscription data used by the domain
+    """
+    type: str
+    data_object: "SubscriptionEventData"
+
+
+@dataclass
+class SubscriptionEventData:
+    """Normalized subscription data extracted from a Stripe webhook."""
+
+    id: str
+    customer: str
+    status: str
+    cancel_at_period_end: bool
+    current_period_end: Optional[int]
+    price_id: Optional[str]
+
+
 class SubscriptionRepository(ABC):
     @abstractmethod
     def get_or_create(self, user_id: int) -> SubscriptionEntity: ...
@@ -65,10 +89,7 @@ class BillingGateway(ABC):
     def create_billing_portal(self, customer_id: str, return_url: str) -> SessionResult: ...
 
     @abstractmethod
-    def retrieve_subscription(self, subscription_id: str) -> dict: ...
-
-    @abstractmethod
-    def verify_webhook(self, payload: bytes, sig_header: str, secret: str) -> dict: ...
+    def verify_webhook(self, payload: bytes, sig_header: str, secret: str) -> WebhookEvent: ...
 
     @abstractmethod
     def cancel_subscription(self, subscription_id: str) -> None: ...

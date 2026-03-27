@@ -1,6 +1,11 @@
 import os
 
-from app.domain.billing.ports import BillingGateway, SessionResult
+from app.domain.billing.ports import (
+    BillingGateway,
+    SessionResult,
+    SubscriptionEventData,
+    WebhookEvent,
+)
 
 
 class StripeBillingGateway(BillingGateway):
@@ -52,10 +57,10 @@ class StripeBillingGateway(BillingGateway):
     def update_subscription(self, subscription_id: str, price_id: str) -> None:
         stripe = self._get_stripe()
         stripe_sub = stripe.Subscription.retrieve(subscription_id)
-        current_item = stripe_sub["items"]["data"][0]
+        current_item = stripe_sub.items.data[0]
         stripe.Subscription.modify(
             subscription_id,
-            items=[{"id": current_item["id"], "price": price_id}],
+            items=[{"id": current_item.id, "price": price_id}],
             proration_behavior="create_prorations",
         )
 
@@ -67,13 +72,23 @@ class StripeBillingGateway(BillingGateway):
         )
         return SessionResult(url=result.url)
 
-    def retrieve_subscription(self, subscription_id: str) -> dict:
+    def verify_webhook(self, payload: bytes, sig_header: str, secret: str) -> WebhookEvent:
         stripe = self._get_stripe()
-        return stripe.Subscription.retrieve(subscription_id)
-
-    def verify_webhook(self, payload: bytes, sig_header: str, secret: str) -> dict:
-        stripe = self._get_stripe()
-        return stripe.Webhook.construct_event(payload, sig_header, secret)
+        event = stripe.Webhook.construct_event(payload, sig_header, secret)
+        subscription = event.data.object
+        items = subscription.items.data if getattr(subscription, "items", None) else []
+        price_id = items[0].price.id if items else None
+        return WebhookEvent(
+            type=event.type,
+            data_object=SubscriptionEventData(
+                id=getattr(subscription, "id", ""),
+                customer=getattr(subscription, "customer", ""),
+                status=getattr(subscription, "status", ""),
+                cancel_at_period_end=getattr(subscription, "cancel_at_period_end", False),
+                current_period_end=getattr(subscription, "current_period_end", None),
+                price_id=price_id,
+            ),
+        )
 
     def cancel_subscription(self, subscription_id: str) -> None:
         stripe = self._get_stripe()
