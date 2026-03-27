@@ -27,7 +27,12 @@ class DjangoUserDataDeletionGateway(UserDataDeletionGateway):
                 video.delete()
                 if file_field:
                     transaction.on_commit(lambda f=file_field: f.delete(save=False))
-            delete_video_vectors(video_id)
+            try:
+                delete_video_vectors(video_id)
+            except Exception:
+                logger.warning(
+                    "Failed to delete vectors for video %s", video_id, exc_info=True
+                )
 
     def delete_chat_history_for_user(self, user_id: int) -> None:
         from app.infrastructure.models import ChatLog
