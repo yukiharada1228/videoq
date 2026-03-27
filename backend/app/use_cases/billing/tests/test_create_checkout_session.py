@@ -14,6 +14,7 @@ from app.domain.billing.ports import (
 from app.use_cases.billing.create_checkout_session import CreateCheckoutSessionUseCase
 from app.use_cases.billing.exceptions import (
     BillingNotEnabled,
+    DowngradeNotAllowed,
     InvalidPlan,
 )
 
@@ -44,6 +45,7 @@ def _make_subscription(**kwargs) -> SubscriptionEntity:
 class _StubSubscriptionRepo(SubscriptionRepository):
     def __init__(self, entity: SubscriptionEntity):
         self._entity = entity
+        self.saved: Optional[SubscriptionEntity] = None
 
     def get_or_create(self, user_id: int) -> SubscriptionEntity:
         return self._entity
@@ -56,6 +58,7 @@ class _StubSubscriptionRepo(SubscriptionRepository):
 
     def save(self, entity: SubscriptionEntity) -> SubscriptionEntity:
         self._entity = entity
+        self.saved = entity
         return entity
 
     def create_stripe_customer(self, user_id: int, customer_id: str) -> SubscriptionEntity:
@@ -74,18 +77,25 @@ class _StubBillingGateway(BillingGateway):
         self._customer_id = customer_id
         self._checkout_url = checkout_url
         self.last_price_id = None
+        self.updated_subscription_id = None
+        self.update_error: Optional[Exception] = None
+        self.checkout_calls = 0
 
     def get_or_create_customer(self, user_id, email, username) -> str:
         return self._customer_id
 
     def create_checkout_session(self, customer_id, price_id, success_url, cancel_url, user_id, plan):
         self.last_price_id = price_id
+        self.checkout_calls += 1
         session = MagicMock()
         session.url = self._checkout_url
         return session
 
     def update_subscription(self, subscription_id, price_id) -> None:
-        pass
+        self.updated_subscription_id = subscription_id
+        self.last_price_id = price_id
+        if self.update_error is not None:
+            raise self.update_error
 
     def create_billing_portal(self, customer_id, return_url):
         portal = MagicMock()
@@ -251,6 +261,75 @@ class AlreadySubscribedTests(TestCase):
         )
         self.assertTrue(dto.upgraded)
         self.assertEqual(dto.checkout_url, "")
+
+    def test_falls_back_to_checkout_when_stripe_rejects_subscription_update(self):
+        entity = _make_subscription(
+            plan=PlanType.LITE,
+            stripe_status="active",
+            stripe_subscription_id="sub_canceled",
+            stripe_customer_id="cus_existing",
+        )
+        gateway = _StubBillingGateway()
+        gateway.update_error = Exception(
+            "A canceled subscription can only update its cancellation_details and metadata."
+        )
+        use_case = _make_use_case(entity, gateway=gateway)
+
+        dto = use_case.execute(
+            user_id=1,
+            plan="standard",
+            success_url="https://success",
+            cancel_url="https://cancel",
+        )
+
+        self.assertFalse(dto.upgraded)
+        self.assertEqual(dto.checkout_url, "https://checkout.test")
+        self.assertEqual(gateway.updated_subscription_id, "sub_canceled")
+        self.assertEqual(gateway.checkout_calls, 1)
+        self.assertIsNotNone(use_case._subscription_repo.saved)
+        self.assertEqual(use_case._subscription_repo.saved.plan, PlanType.FREE)
+        self.assertIsNone(use_case._subscription_repo.saved.stripe_subscription_id)
+        self.assertEqual(use_case._subscription_repo.saved.stripe_status, "canceled")
+
+
+class DowngradeGuardTests(TestCase):
+    def test_blocks_downgrade_when_used_storage_exceeds_target_limit(self):
+        entity = _make_subscription(
+            plan=PlanType.STANDARD,
+            stripe_status="active",
+            stripe_subscription_id="sub_existing",
+            stripe_customer_id="cus_existing",
+            used_storage_bytes=15 * 1024 ** 3,
+        )
+        use_case = _make_use_case(entity)
+
+        with self.assertRaises(DowngradeNotAllowed) as ctx:
+            use_case.execute(
+                user_id=1,
+                plan="lite",
+                success_url="https://success",
+                cancel_url="https://cancel",
+            )
+
+        self.assertEqual(ctx.exception.used_storage_bytes, 15 * 1024 ** 3)
+        self.assertEqual(ctx.exception.target_limit_bytes, 10 * 1024 ** 3)
+        self.assertEqual(ctx.exception.over_quota_bytes, 5 * 1024 ** 3)
+
+    def test_allows_upgrade_when_target_limit_is_higher_than_current_plan(self):
+        entity = _make_subscription(
+            plan=PlanType.FREE,
+            used_storage_bytes=5 * 1024 ** 3,
+        )
+        use_case = _make_use_case(entity)
+
+        dto = use_case.execute(
+            user_id=1,
+            plan="lite",
+            success_url="https://success",
+            cancel_url="https://cancel",
+        )
+
+        self.assertEqual(dto.checkout_url, "https://checkout.test")
 
 
 class InvalidPlanTests(TestCase):

@@ -1,8 +1,11 @@
+from dataclasses import replace
+
 from app.domain.billing.entities import PlanType
 from app.domain.billing.ports import BillingGateway, SubscriptionRepository
 from app.use_cases.billing.dtos import CheckoutSessionDTO
 from app.use_cases.billing.exceptions import (
     BillingNotEnabled,
+    DowngradeNotAllowed,
     InvalidPlan,
 )
 
@@ -21,6 +24,20 @@ class CreateCheckoutSessionUseCase:
         self._billing_enabled = billing_enabled
         self._price_map = price_map  # {PlanType.LITE: {"jpy": "price_xxx", "usd": "price_yyy"}, ...}
         self._user_repo = user_repo
+
+    @staticmethod
+    def _is_downgrade(current_plan: PlanType, target_plan: PlanType) -> bool:
+        plan_order = {
+            PlanType.FREE: 0,
+            PlanType.LITE: 1,
+            PlanType.STANDARD: 2,
+            PlanType.ENTERPRISE: 3,
+        }
+        return plan_order[target_plan] < plan_order[current_plan]
+
+    @staticmethod
+    def _get_target_storage_limit_bytes(entity, target_plan: PlanType):
+        return replace(entity, plan=target_plan).get_storage_limit_bytes()
 
     def execute(
         self,
@@ -55,6 +72,17 @@ class CreateCheckoutSessionUseCase:
         # Get or create subscription record
         entity = self._subscription_repo.get_or_create(user_id)
 
+        if self._is_downgrade(entity.plan, plan_type):
+            target_limit_bytes = self._get_target_storage_limit_bytes(entity, plan_type)
+            if (
+                target_limit_bytes is not None
+                and entity.used_storage_bytes > target_limit_bytes
+            ):
+                raise DowngradeNotAllowed(
+                    used_storage_bytes=entity.used_storage_bytes,
+                    target_limit_bytes=target_limit_bytes,
+                )
+
         # Get user info for Stripe
         user = self._user_repo.get_by_id(user_id)
 
@@ -70,8 +98,21 @@ class CreateCheckoutSessionUseCase:
 
         # If already has active paid subscription, update the plan in place
         if entity.stripe_subscription_id and entity.is_stripe_active and entity.plan != PlanType.FREE:
-            self._billing_gateway.update_subscription(entity.stripe_subscription_id, price_id)
-            return CheckoutSessionDTO(checkout_url="", upgraded=True)
+            try:
+                self._billing_gateway.update_subscription(entity.stripe_subscription_id, price_id)
+            except Exception as e:
+                # Stripe may reject updates for subscriptions that were already canceled
+                # even if our local record still looks active.
+                if "canceled subscription" not in str(e).lower():
+                    raise
+                entity.plan = PlanType.FREE
+                entity.stripe_subscription_id = None
+                entity.stripe_status = "canceled"
+                entity.cancel_at_period_end = False
+                entity.current_period_end = None
+                entity = self._subscription_repo.save(entity)
+            else:
+                return CheckoutSessionDTO(checkout_url="", upgraded=True)
 
         try:
             session = self._billing_gateway.create_checkout_session(
