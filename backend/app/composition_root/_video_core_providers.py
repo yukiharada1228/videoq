@@ -77,7 +77,6 @@ def get_create_video_use_case() -> CreateVideoUseCase:
         shared.new_video_task_gateway(),
         DjangoTransactionPort(),
         storage_limit_check_use_case=_billing_cr.get_check_storage_limit_use_case(),
-        storage_record_use_case=_billing_cr.get_record_storage_usage_use_case(),
     )
 
 

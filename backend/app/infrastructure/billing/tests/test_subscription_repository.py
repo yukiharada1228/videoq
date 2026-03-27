@@ -6,6 +6,7 @@ perform atomic writes via F() expressions, preventing Lost Update anomalies.
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 
+from app.domain.billing.exceptions import StorageLimitExceeded
 from app.infrastructure.repositories.django_subscription_repository import (
     DjangoSubscriptionRepository,
 )
@@ -85,3 +86,50 @@ class IncrementAiAnswersTests(TestCase):
         self.repo.increment_ai_answers(self.user.id)
         obj = Subscription.objects.get(user_id=self.user.id)
         self.assertEqual(obj.used_ai_answers, 2)
+
+
+class CheckAndReserveStorageTests(TestCase):
+    def setUp(self):
+        self.user = _create_user()
+        self.repo = DjangoSubscriptionRepository()
+        self.repo.get_or_create(self.user.id)
+
+    def _limit_bytes(self):
+        """FREE plan limit: 1 GB."""
+        return 1 * 1024 ** 3
+
+    def test_within_limit_increments_storage(self):
+        self.repo.check_and_reserve_storage(self.user.id, 500)
+        obj = Subscription.objects.get(user_id=self.user.id)
+        self.assertEqual(obj.used_storage_bytes, 500)
+
+    def test_sequential_reserves_accumulate(self):
+        self.repo.check_and_reserve_storage(self.user.id, 300)
+        self.repo.check_and_reserve_storage(self.user.id, 200)
+        obj = Subscription.objects.get(user_id=self.user.id)
+        self.assertEqual(obj.used_storage_bytes, 500)
+
+    def test_exactly_at_limit_does_not_raise(self):
+        limit = self._limit_bytes()
+        self.repo.check_and_reserve_storage(self.user.id, limit)
+        obj = Subscription.objects.get(user_id=self.user.id)
+        self.assertEqual(obj.used_storage_bytes, limit)
+
+    def test_exceeds_limit_raises_and_does_not_increment(self):
+        limit = self._limit_bytes()
+        Subscription.objects.filter(user_id=self.user.id).update(
+            used_storage_bytes=limit
+        )
+        with self.assertRaises(StorageLimitExceeded):
+            self.repo.check_and_reserve_storage(self.user.id, 1)
+        obj = Subscription.objects.get(user_id=self.user.id)
+        self.assertEqual(obj.used_storage_bytes, limit)
+
+    def test_second_request_blocked_when_first_fills_limit(self):
+        """Two sequential requests that together exceed the limit — second must be rejected."""
+        limit = self._limit_bytes()
+        self.repo.check_and_reserve_storage(self.user.id, limit - 100)
+        with self.assertRaises(StorageLimitExceeded):
+            self.repo.check_and_reserve_storage(self.user.id, 200)
+        obj = Subscription.objects.get(user_id=self.user.id)
+        self.assertEqual(obj.used_storage_bytes, limit - 100)
