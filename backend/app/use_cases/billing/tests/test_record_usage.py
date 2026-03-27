@@ -79,6 +79,9 @@ class _TrackingSubscriptionRepo(SubscriptionRepository):
     def increment_ai_answers(self, user_id: int) -> None:
         self.increment_ai_answer_calls.append(user_id)
 
+    def clear_over_quota_if_within_limit(self, user_id: int) -> None:
+        pass
+
 
 class RecordStorageUsageTests(TestCase):
     def test_delegates_to_atomic_increment(self):

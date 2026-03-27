@@ -136,6 +136,46 @@ class CheckAndReserveStorageTests(TestCase):
         obj = Subscription.objects.get(user_id=self.user.id)
         self.assertEqual(obj.used_storage_bytes, limit - 100)
 
+    def test_is_over_quota_blocks_upload_even_when_bytes_available(self):
+        """is_over_quota=True must block uploads regardless of remaining bytes."""
+        Subscription.objects.filter(user_id=self.user.id).update(is_over_quota=True)
+        with self.assertRaises(StorageLimitExceeded):
+            self.repo.check_and_reserve_storage(self.user.id, 1)
+        obj = Subscription.objects.get(user_id=self.user.id)
+        self.assertEqual(obj.used_storage_bytes, 0)  # not incremented
+
+
+class ClearOverQuotaIfWithinLimitTests(TestCase):
+    def setUp(self):
+        self.user = _create_user("quotauser")
+        self.repo = DjangoSubscriptionRepository()
+        self.repo.get_or_create(self.user.id)
+
+    def test_clears_flag_when_storage_within_free_limit(self):
+        Subscription.objects.filter(user_id=self.user.id).update(
+            is_over_quota=True, used_storage_bytes=100
+        )
+        self.repo.clear_over_quota_if_within_limit(self.user.id)
+        obj = Subscription.objects.get(user_id=self.user.id)
+        self.assertFalse(obj.is_over_quota)
+
+    def test_does_not_clear_flag_when_still_over_limit(self):
+        limit = 1 * 1024 ** 3
+        Subscription.objects.filter(user_id=self.user.id).update(
+            is_over_quota=True, used_storage_bytes=limit + 1
+        )
+        self.repo.clear_over_quota_if_within_limit(self.user.id)
+        obj = Subscription.objects.get(user_id=self.user.id)
+        self.assertTrue(obj.is_over_quota)
+
+    def test_no_op_when_flag_already_false(self):
+        Subscription.objects.filter(user_id=self.user.id).update(
+            is_over_quota=False, used_storage_bytes=100
+        )
+        self.repo.clear_over_quota_if_within_limit(self.user.id)
+        obj = Subscription.objects.get(user_id=self.user.id)
+        self.assertFalse(obj.is_over_quota)
+
 
 class MaybeResetMonthlyUsageTests(TestCase):
     def setUp(self):

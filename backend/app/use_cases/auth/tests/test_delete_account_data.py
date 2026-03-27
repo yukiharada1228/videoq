@@ -79,6 +79,9 @@ class _StubSubscriptionRepo(SubscriptionRepository):
     def increment_ai_answers(self, user_id: int) -> None:
         pass
 
+    def clear_over_quota_if_within_limit(self, user_id: int) -> None:
+        pass
+
 
 class _StubBillingGateway(BillingGateway):
     def __init__(self):

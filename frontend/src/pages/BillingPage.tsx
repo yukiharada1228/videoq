@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { apiClient, ApiError, type Subscription, type Plan } from '@/lib/api';
+import { apiClient, type Subscription, type Plan } from '@/lib/api';
 import { queryKeys } from '@/lib/queryKeys';
 import { useAuth } from '@/hooks/useAuth';
 import { AppPageShell } from '@/components/layout/AppPageShell';
@@ -284,14 +284,7 @@ export default function BillingPage() {
       }
     },
     onError: (error) => {
-      if (error instanceof ApiError && error.code === 'DOWNGRADE_NOT_ALLOWED') {
-        const overGb = error.params?.over_quota_bytes
-          ? bytesToGb(error.params.over_quota_bytes as number)
-          : '0';
-        setCheckoutError(t('billing.errors.downgradeNotAllowed', { overGb }));
-      } else {
-        setCheckoutError(error instanceof Error ? error.message : t('common.messages.loadingHistory'));
-      }
+      setCheckoutError(error instanceof Error ? error.message : t('common.messages.loadingHistory'));
     },
   });
 
@@ -363,6 +356,13 @@ export default function BillingPage() {
       <AppPageHeader title={t('billing.title')} description={t('billing.subtitle')} />
 
       <div className="flex flex-col gap-6">
+
+        {/* ── Over-quota warning banner ──────────────────────────────────── */}
+        {subscription?.is_over_quota && (
+          <div className="bg-red-50 border border-red-200 rounded-xl px-5 py-4 text-sm text-red-800">
+            {t('billing.errors.overQuota')}
+          </div>
+        )}
 
         {/* ── Cancel warning banner ──────────────────────────────────────── */}
         {subscription?.cancel_at_period_end && subscription.current_period_end && (

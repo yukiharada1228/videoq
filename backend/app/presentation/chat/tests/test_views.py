@@ -13,6 +13,7 @@ from rest_framework.test import APIClient, APITestCase
 
 from app.domain.chat.dtos import CitationDTO
 from app.domain.chat.gateways import LLMConfigurationError, RagResult
+from app.use_cases.billing.exceptions import OverQuotaError
 from app.use_cases.chat.exceptions import LLMProviderError
 
 User = get_user_model()
@@ -169,6 +170,24 @@ class ChatViewTests(APITestCase):
                 }
             },
         )
+
+    @patch("app.use_cases.billing.check_ai_answers_limit.CheckAiAnswersLimitUseCase.execute")
+    def test_chat_returns_403_when_over_quota(self, mock_check):
+        """is_over_quota=True must return 403 OVER_QUOTA to the client."""
+        mock_check.side_effect = OverQuotaError(
+            "AI chat is unavailable: account storage is over the plan limit."
+        )
+
+        url = reverse("chat-messages")
+        data = {
+            "messages": [{"role": "user", "content": "Test question"}],
+            "group_id": self.group.id,
+        }
+
+        response = self.client.post(url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.data["error"]["code"], "OVER_QUOTA")
 
     @patch("app.infrastructure.external.rag_gateway.RagChatGateway.generate_reply")
     def test_chat_with_share_token(self, mock_generate_reply):

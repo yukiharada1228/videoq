@@ -23,6 +23,7 @@ class SubscriptionSerializer(serializers.Serializer):
     storage_limit_bytes = serializers.IntegerField(allow_null=True)
     processing_limit_seconds = serializers.IntegerField(allow_null=True)
     ai_answers_limit = serializers.IntegerField(allow_null=True)
+    is_over_quota = serializers.BooleanField()
 
 
 class CreateCheckoutSessionSerializer(serializers.Serializer):
