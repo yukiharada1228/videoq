@@ -89,6 +89,26 @@ class DjangoSubscriptionRepository(SubscriptionRepository):
         )
         return self.get_or_create(user_id)
 
+    def clear_stripe_customer(self, user_id: int) -> None:
+        Subscription = self._get_model()
+        Subscription.objects.filter(user_id=user_id).update(stripe_customer_id=None)
+
+    def get_or_create_stripe_customer(self, user_id: int, create_fn) -> tuple:
+        from django.db import transaction
+
+        Subscription = self._get_model()
+        with transaction.atomic():
+            # Ensure the subscription row exists before locking
+            Subscription.objects.get_or_create(user_id=user_id, defaults={"plan": "free"})
+            # Acquire a row-level exclusive lock so concurrent requests serialize here
+            obj = Subscription.objects.select_for_update().get(user_id=user_id)
+            if obj.stripe_customer_id:
+                return obj.stripe_customer_id, self._to_entity(obj)
+            customer_id = create_fn()
+            Subscription.objects.filter(user_id=user_id).update(stripe_customer_id=customer_id)
+            obj.stripe_customer_id = customer_id
+            return customer_id, self._to_entity(obj)
+
     def reset_monthly_usage(self, user_id: int, period_start) -> None:
         Subscription = self._get_model()
         Subscription.objects.filter(user_id=user_id).update(

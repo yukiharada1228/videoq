@@ -64,6 +64,14 @@ class _StubSubscriptionRepo(SubscriptionRepository):
         self._entity.stripe_customer_id = customer_id
         return self._entity
 
+    def clear_stripe_customer(self, user_id: int) -> None:
+        self._entity.stripe_customer_id = None
+
+    def get_or_create_stripe_customer(self, user_id: int, create_fn) -> tuple:
+        if not self._entity.stripe_customer_id:
+            self._entity.stripe_customer_id = create_fn()
+        return self._entity.stripe_customer_id, self._entity
+
     def reset_monthly_usage(self, user_id: int, period_start) -> None:
         pass
 
@@ -94,6 +102,7 @@ class _StubBillingGateway(BillingGateway):
         self.updated_subscription_id = None
         self.update_error: Optional[Exception] = None
         self.checkout_calls = 0
+        self.checkout_error: Optional[Exception] = None
 
     def get_or_create_customer(self, user_id, email, username) -> str:
         return self._customer_id
@@ -101,6 +110,8 @@ class _StubBillingGateway(BillingGateway):
     def create_checkout_session(self, customer_id, price_id, success_url, cancel_url, user_id, plan):
         self.last_price_id = price_id
         self.checkout_calls += 1
+        if self.checkout_error is not None and self.checkout_calls == 1:
+            raise self.checkout_error
         session = MagicMock()
         session.url = self._checkout_url
         return session
@@ -390,3 +401,134 @@ class InvalidPlanTests(TestCase):
                 cancel_url="https://cancel",
                 currency="eur",
             )
+
+
+class CustomerCreationAtomicityTests(TestCase):
+    """Verify that Stripe customer creation is delegated atomically to the repository.
+
+    The use case must call subscription_repo.get_or_create_stripe_customer() instead of
+    manually checking stripe_customer_id and calling billing_gateway.get_or_create_customer()
+    directly. This prevents duplicate Stripe customer creation under concurrent requests
+    because the repository implementation uses select_for_update to ensure only one caller
+    creates the customer.
+    """
+
+    def test_create_fn_not_called_when_stripe_customer_already_set(self):
+        """If the repo already has a stripe_customer_id, the billing gateway must NOT be called."""
+        entity = _make_subscription(stripe_customer_id="cus_existing")
+        gateway = _StubBillingGateway()
+        create_customer_calls = []
+        original_get_or_create = gateway.get_or_create_customer
+
+        def tracking_get_or_create(*args, **kwargs):
+            create_customer_calls.append(True)
+            return original_get_or_create(*args, **kwargs)
+
+        gateway.get_or_create_customer = tracking_get_or_create
+        use_case = _make_use_case(entity, gateway=gateway)
+        use_case.execute(
+            user_id=1,
+            plan="lite",
+            success_url="https://success",
+            cancel_url="https://cancel",
+        )
+        self.assertEqual(len(create_customer_calls), 0)
+
+    def test_create_fn_called_once_when_stripe_customer_is_none(self):
+        """When no stripe_customer_id exists, billing gateway must be called exactly once."""
+        entity = _make_subscription(stripe_customer_id=None)
+        gateway = _StubBillingGateway(customer_id="cus_new")
+        create_customer_calls = []
+        original_get_or_create = gateway.get_or_create_customer
+
+        def tracking_get_or_create(*args, **kwargs):
+            create_customer_calls.append(True)
+            return original_get_or_create(*args, **kwargs)
+
+        gateway.get_or_create_customer = tracking_get_or_create
+        use_case = _make_use_case(entity, gateway=gateway)
+        use_case.execute(
+            user_id=1,
+            plan="lite",
+            success_url="https://success",
+            cancel_url="https://cancel",
+        )
+        self.assertEqual(len(create_customer_calls), 1)
+
+    def test_concurrent_request_skips_create_fn_when_repo_finds_existing_customer(self):
+        """Simulate a race condition: a second concurrent request finds the customer already set.
+
+        The stub's get_or_create_stripe_customer is replaced with one that simulates the
+        database lock revealing an already-set customer ID (set by a first concurrent request).
+        In this case, create_fn must NOT be called.
+        """
+        entity = _make_subscription(stripe_customer_id=None)
+        gateway = _StubBillingGateway(customer_id="cus_race_winner")
+        create_customer_calls = []
+
+        class _RaceSimulatingRepo(_StubSubscriptionRepo):
+            """Simulates a second concurrent request: by the time the lock is acquired,
+            another request has already set the stripe_customer_id."""
+
+            def get_or_create_stripe_customer(self, user_id, create_fn):
+                # Simulate: locked row already has a customer_id set by another thread
+                self._entity.stripe_customer_id = "cus_set_by_other_thread"
+                # Should NOT call create_fn
+                return self._entity.stripe_customer_id, self._entity
+
+        from app.use_cases.billing.create_checkout_session import CreateCheckoutSessionUseCase
+
+        repo = _RaceSimulatingRepo(entity)
+        use_case = CreateCheckoutSessionUseCase(
+            subscription_repo=repo,
+            billing_gateway=gateway,
+            billing_enabled=True,
+            price_map={
+                PlanType.LITE: {"jpy": "price_lite_jpy_001"},
+            },
+            user_repo=_StubUserRepo(),
+        )
+        original_get_or_create = gateway.get_or_create_customer
+
+        def tracking_get_or_create(*args, **kwargs):
+            create_customer_calls.append(True)
+            return original_get_or_create(*args, **kwargs)
+
+        gateway.get_or_create_customer = tracking_get_or_create
+        use_case.execute(
+            user_id=1,
+            plan="lite",
+            success_url="https://success",
+            cancel_url="https://cancel",
+            currency="jpy",
+        )
+        self.assertEqual(len(create_customer_calls), 0)
+
+    def test_stale_customer_recovery_uses_atomic_repo_method(self):
+        """When Stripe returns 'No such customer', recovery must go through the atomic repo method.
+
+        The stale customer ID is cleared (set to None) so get_or_create_stripe_customer
+        will invoke create_fn once under the row lock, preventing duplicates.
+        """
+        entity = _make_subscription(stripe_customer_id="cus_stale")
+        gateway = _StubBillingGateway(customer_id="cus_recreated")
+        gateway.checkout_error = Exception("No such customer: 'cus_stale'")
+
+        create_customer_calls = []
+        original_get_or_create = gateway.get_or_create_customer
+
+        def tracking_get_or_create(*args, **kwargs):
+            create_customer_calls.append(True)
+            return original_get_or_create(*args, **kwargs)
+
+        gateway.get_or_create_customer = tracking_get_or_create
+        use_case = _make_use_case(entity, gateway=gateway)
+        dto = use_case.execute(
+            user_id=1,
+            plan="lite",
+            success_url="https://success",
+            cancel_url="https://cancel",
+        )
+        # Recovery creates a new customer exactly once via the atomic repo method
+        self.assertEqual(len(create_customer_calls), 1)
+        self.assertEqual(dto.checkout_url, "https://checkout.test")

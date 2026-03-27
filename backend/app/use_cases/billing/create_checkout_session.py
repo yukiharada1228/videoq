@@ -58,15 +58,16 @@ class CreateCheckoutSessionUseCase:
         # Get user info for Stripe
         user = self._user_repo.get_by_id(user_id)
 
-        # Ensure Stripe customer exists
-        customer_id = entity.stripe_customer_id
-        if not customer_id:
-            customer_id = self._billing_gateway.get_or_create_customer(
+        # Ensure Stripe customer exists — repo uses select_for_update to prevent
+        # duplicate creation under concurrent requests.
+        customer_id, entity = self._subscription_repo.get_or_create_stripe_customer(
+            user_id,
+            lambda: self._billing_gateway.get_or_create_customer(
                 user_id=user_id,
                 email=user.email,
                 username=user.username,
-            )
-            entity = self._subscription_repo.create_stripe_customer(user_id, customer_id)
+            ),
+        )
 
         # If already has active paid subscription, update the plan in place
         if entity.stripe_subscription_id and entity.is_stripe_active and entity.plan != PlanType.FREE:
@@ -96,14 +97,18 @@ class CreateCheckoutSessionUseCase:
                 plan=plan,
             )
         except Exception as e:
-            # Stale customer ID — recreate if the error is customer-related
+            # Stale customer ID — recreate if the error is customer-related.
+            # Clear the stale ID first so get_or_create_stripe_customer will call create_fn.
             if "No such customer" in str(e):
-                customer_id = self._billing_gateway.get_or_create_customer(
-                    user_id=user_id,
-                    email=user.email,
-                    username=user.username,
+                self._subscription_repo.clear_stripe_customer(user_id)
+                customer_id, _ = self._subscription_repo.get_or_create_stripe_customer(
+                    user_id,
+                    lambda: self._billing_gateway.get_or_create_customer(
+                        user_id=user_id,
+                        email=user.email,
+                        username=user.username,
+                    ),
                 )
-                self._subscription_repo.create_stripe_customer(user_id, customer_id)
                 session = self._billing_gateway.create_checkout_session(
                     customer_id=customer_id,
                     price_id=price_id,
