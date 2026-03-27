@@ -13,9 +13,11 @@ flowchart TD
     Validate1 -->|Invalid| Error1[Error Display<br/>Unsupported Format]
     Validate1 -->|Valid| Validate2{"File Size<br>Check"}
     Validate2 -->|Exceeds| Error2[Error Display<br/>Size Exceeded]
-    Validate2 -->|OK| Validate3{"Video Upload Limit<br>Check (User.video_limit)"}
-    Validate3 -->|Exceeded| Error4[Error Display<br/>Upload Limit Reached]
-    Validate3 -->|OK| Upload[Start File Upload]
+    Validate2 -->|OK| Validate3{"File size vs<br>User.max_video_upload_size_mb"}
+    Validate3 -->|Exceeded| Error4[Error Display<br/>File Size Exceeded]
+    Validate3 -->|OK| Validate4{"Storage quota check<br>(Subscription)"}
+    Validate4 -->|Exceeded| Error5[Error Display<br/>Storage Limit Exceeded]
+    Validate4 -->|OK| Upload[Start File Upload]
     Upload --> SaveDB[(Database<br/>Save Video<br/>status: pending)]
     SaveDB --> Queue[Redis Queue<br/>Add Task]
     Queue --> Response[Success Response]
