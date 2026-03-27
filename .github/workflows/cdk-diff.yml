@@ -1,0 +1,98 @@
+name: CDK Diff
+
+on:
+  pull_request:
+    paths:
+      - 'infra/**'
+      - '.github/workflows/cdk-diff.yml'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: cdk-diff-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  cdk-diff:
+    name: CDK Diff
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install AWS CDK CLI
+        run: npm install -g aws-cdk
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install CDK dependencies
+        working-directory: infra
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install -r requirements.txt
+
+      - name: Run cdk diff
+        id: cdk-diff
+        working-directory: infra
+        env:
+          PAGES_DOMAIN: ${{ secrets.PAGES_DOMAIN }}
+          CUSTOM_DOMAIN: ${{ secrets.CUSTOM_DOMAIN }}
+          CERTIFICATE_ARN: ${{ secrets.CERTIFICATE_ARN }}
+        run: |
+          source .venv/bin/activate
+          set +e
+          DIFF_OUTPUT=$(cdk diff --all -c env=prod --no-color 2>&1)
+          CDK_EXIT_CODE=$?
+          set -e
+          {
+            echo "diff_output<<DIFF_EOF"
+            echo "$DIFF_OUTPUT"
+            echo "DIFF_EOF"
+            echo "exit_code=$CDK_EXIT_CODE"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Find existing comment
+        uses: peter-evans/find-comment@v3
+        id: find-comment
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-author: 'github-actions[bot]'
+          body-includes: '<!-- cdk-diff -->'
+
+      - name: Post cdk diff comment
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          comment-id: ${{ steps.find-comment.outputs.comment-id }}
+          issue-number: ${{ github.event.pull_request.number }}
+          edit-mode: replace
+          body: |
+            <!-- cdk-diff -->
+            ## CDK Diff
+
+            `infra/**` に変更が検出されました。以下の差分を確認してからマージしてください。
+
+            <details>
+            <summary>cdk diff の結果（クリックで展開）</summary>
+
+            ```
+            ${{ steps.cdk-diff.outputs.diff_output }}
+            ```
+
+            </details>
+
+            > `main` マージ後、手動承認を経て `cdk deploy` が自動実行されます。

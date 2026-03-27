@@ -110,12 +110,24 @@ aws configure get region
 
 ---
 
-## Step 3: CDK Bootstrap & デプロイ
+## Step 3: CDK Bootstrap（初回のみ）
+
+> **重要:** `cdk bootstrap` は **AWS アカウント × リージョンに対して初回のみ実行する一回限りの操作**です。
+> CI/CD には含めず、環境構築時に手動で実施してください。
 
 ```bash
 # 初回のみ: CDK 実行環境をアカウントに準備
 cdk bootstrap aws://<AWS_ACCOUNT_ID>/<REGION>
+```
 
+Bootstrap が完了すると `CDKToolkit` という CloudFormation スタックが作成される。
+以降の `cdk deploy` はこのスタックのリソースを使用する。
+
+---
+
+## Step 4（旧 Step 3）: 初回 CDK デプロイ
+
+```bash
 # CloudFront + カスタムドメインを有効化する場合 (Step 1-3 の証明書が必要)
 PAGES_DOMAIN=videoq.pages.dev \
 CUSTOM_DOMAIN=videoq.jp \
@@ -124,6 +136,17 @@ CERTIFICATE_ARN=arn:aws:acm:us-east-1:<account>:certificate/<uuid> \
 ```
 
 > **CdnStack は条件付き:** `CUSTOM_DOMAIN` と `CERTIFICATE_ARN` の両方が設定されている場合のみ CloudFront ディストリビューションが作成される。
+
+### infra 変更時の継続デプロイ（GitHub Actions）
+
+初回セットアップ後は、`infra/**` を変更した PR をマージすることで自動的に `cdk deploy` が実行される。
+
+| タイミング | 動作 |
+|---|---|
+| PR 作成・更新時 | `cdk diff` を実行し結果を PR にコメント |
+| `main` マージ後 | GitHub Environment `production` の手動承認後に `cdk deploy` を自動実行 |
+
+GitHub Environment `production` に承認者を設定しておくこと（Settings → Environments → production → Required reviewers）。
 
 デプロイ完了後、以下の Output をメモしておく:
 
@@ -139,7 +162,7 @@ VideoQ-Cdn-prod.DistributionId           = EXXXXXXXXXXXXX              # CloudFr
 
 ---
 
-## Step 4: シークレットを登録
+## Step 5: シークレットを登録
 
 ### DB シークレット (Neon 接続文字列)
 
@@ -172,10 +195,10 @@ aws secretsmanager put-secret-value \
 
 ---
 
-## Step 5: コンテナイメージをビルド & プッシュ
+## Step 6: コンテナイメージをビルド & プッシュ
 
 ```bash
-# ECR URI を変数に設定 (Step 3 の Output から)
+# ECR URI を変数に設定 (Step 4 の Output から)
 API_ECR=<account>.dkr.ecr.<region>.amazonaws.com/videoq-api-prod
 WORKER_ECR=<account>.dkr.ecr.<region>.amazonaws.com/videoq-worker-prod
 REGION=ap-northeast-1
@@ -200,7 +223,7 @@ docker push $WORKER_ECR:latest
 
 ---
 
-## Step 6: Lambda イメージを更新
+## Step 7: Lambda イメージを更新
 
 ```bash
 aws lambda update-function-code \
@@ -222,7 +245,7 @@ aws lambda wait function-updated \
 
 ---
 
-## Step 7: Django マイグレーション (初回 & スキーマ変更時)
+## Step 8: Django マイグレーション (初回 & スキーマ変更時)
 
 Docker を使った方法:
 ```bash
@@ -237,7 +260,7 @@ docker run --rm \
 
 ---
 
-## Step 8: Cloudflare Pages セットアップ (初回のみ)
+## Step 9: Cloudflare Pages セットアップ (初回のみ)
 
 1. Cloudflare ダッシュボード → **Pages** → プロジェクト作成
 2. Git リポジトリを接続 (GitHub)
@@ -259,13 +282,13 @@ docker run --rm \
 
 ---
 
-## Step 9: DNS レコード設定
+## Step 10: DNS レコード設定
 
-Step 3 で出力された `DistributionDomainName` を DNS に登録する。
+Step 4 で出力された `DistributionDomainName` を DNS に登録する。
 
 | タイプ | 名前 | 値 |
 |---|---|---|
-| CNAME (または ALIAS) | `videoq.jp` | `dxxxxxxxxx.cloudfront.net` (Step 3 の DistributionDomainName) |
+| CNAME (または ALIAS) | `videoq.jp` | `dxxxxxxxxx.cloudfront.net` (Step 4 の DistributionDomainName) |
 
 > **注意:** ルートドメイン (`videoq.jp`) の場合、CNAME は使えないため ALIAS レコード (Route 53) または CNAME フラットニング (Cloudflare DNS 等) が必要。
 
@@ -283,7 +306,22 @@ curl -I https://videoq.jp/api/health/
 
 ## 以降のデプロイ (コード変更時)
 
+### backend / worker の変更
+
+`backend/**` の変更は `main` マージ後に GitHub Actions (CD workflow) が自動デプロイする。
+
+### infra の変更
+
+`infra/**` の変更は GitHub Actions (CDK Deploy workflow) が処理する。
+
+1. PR を作成すると `cdk diff` 結果が PR に自動コメントされる
+2. `main` マージ後、GitHub Environment `production` の承認者に通知が届く
+3. 承認すると `cdk deploy` が自動実行される
+
+### 手動デプロイが必要な場合
+
 ```bash
+# backend
 # 1. イメージをリビルド & プッシュ
 docker build --platform linux/amd64 --provenance=false -f backend/Dockerfile.lambda -t $API_ECR:latest ./backend && docker push $API_ECR:latest
 docker build --platform linux/amd64 --provenance=false -f backend/Dockerfile.worker -t $WORKER_ECR:latest ./backend && docker push $WORKER_ECR:latest
@@ -294,6 +332,11 @@ aws lambda update-function-code --function-name videoq-worker-prod --image-uri $
 
 # 3. マイグレーションがある場合
 DATABASE_URL="<Neon pooler URL>" python backend/manage.py migrate
+
+# infra
+cd infra && source .venv/bin/activate
+PAGES_DOMAIN=videoq.pages.dev CUSTOM_DOMAIN=videoq.jp CERTIFICATE_ARN=... \
+  cdk deploy --all -c env=prod
 
 # フロントエンドは Cloudflare Pages が Git push で自動デプロイ
 ```
@@ -310,7 +353,7 @@ aws logs tail /aws/lambda/videoq-api-prod --follow --region $REGION
 ```
 
 よくある原因:
-- `DB_SECRET_ARN` / `APP_SECRET_ARN` の値が未設定 → Step 4 を再実行
+- `DB_SECRET_ARN` / `APP_SECRET_ARN` の値が未設定 → Step 5 を再実行
 - `SECRET_KEY` が未設定で production 起動に失敗 → App シークレットを確認
 
 ### DB 接続エラー
