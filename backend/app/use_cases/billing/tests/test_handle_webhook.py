@@ -1,5 +1,6 @@
 """Unit tests for HandleWebhookUseCase."""
 
+import logging
 from typing import Optional
 from unittest import TestCase
 from unittest.mock import MagicMock
@@ -180,6 +181,27 @@ class SubscriptionUpdatedTests(TestCase):
         self.assertIsNotNone(repo.saved)
         self.assertEqual(repo.saved.plan, PlanType.STANDARD)
         self.assertTrue(repo.saved.cancel_at_period_end)
+
+    def test_logs_warning_when_plan_change_results_in_storage_over_quota(self):
+        entity = _make_subscription(
+            plan=PlanType.STANDARD,
+            stripe_subscription_id="sub_existing",
+            stripe_status="active",
+            used_storage_bytes=15 * 1024 ** 3,
+        )
+        event = _make_event(
+            "customer.subscription.updated",
+            id="sub_existing",
+            customer="cus_test",
+            status="active",
+            price_id="price_lite_001",
+        )
+        use_case = _make_use_case(entity, event)
+
+        with self.assertLogs("app.use_cases.billing.handle_webhook", level=logging.WARNING) as captured:
+            use_case.execute(payload=b"payload", sig_header="sig")
+
+        self.assertIn("over quota", captured.output[0].lower())
 
 
 class SubscriptionDeletedTests(TestCase):
