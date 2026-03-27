@@ -395,10 +395,15 @@ class StripeWebhookViewTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("message", response.json())
 
-    def test_webhook_invalid_signature_returns_400(self):
+    def test_webhook_signature_verification_error_returns_400(self):
+        import stripe
+
         url = reverse("billing-webhook")
         mock_use_case = MagicMock()
-        mock_use_case.execute.side_effect = Exception("Invalid signature")
+        mock_use_case.execute.side_effect = stripe.error.SignatureVerificationError(
+            "No signatures found matching the expected signature for payload",
+            sig_header="invalid",
+        )
         with patch(
             "app.composition_root.billing.get_handle_webhook_use_case",
             return_value=mock_use_case,
@@ -410,3 +415,26 @@ class StripeWebhookViewTests(APITestCase):
                 HTTP_STRIPE_SIGNATURE="invalid",
             )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        body = response.json()
+        self.assertEqual(body["error"]["code"], "INVALID_SIGNATURE")
+        self.assertNotIn("message", body["error"])
+
+    def test_webhook_unexpected_error_returns_500(self):
+        url = reverse("billing-webhook")
+        mock_use_case = MagicMock()
+        mock_use_case.execute.side_effect = Exception("internal db error details")
+        with patch(
+            "app.composition_root.billing.get_handle_webhook_use_case",
+            return_value=mock_use_case,
+        ):
+            response = self.client.post(
+                url,
+                data=b"{}",
+                content_type="application/json",
+                HTTP_STRIPE_SIGNATURE="t=123,v1=abc",
+            )
+        self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        body = response.json()
+        self.assertEqual(body["error"]["code"], "WEBHOOK_ERROR")
+        self.assertNotIn("message", body["error"])
+        self.assertNotIn("internal db error details", str(body))

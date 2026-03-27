@@ -147,6 +147,7 @@ class StripeWebhookView(View):
     """
 
     def post(self, request):
+        import stripe
         from app.dependencies.billing import get_handle_webhook_use_case
 
         sig_header = request.META.get("HTTP_STRIPE_SIGNATURE", "")
@@ -155,12 +156,12 @@ class StripeWebhookView(View):
         use_case = get_handle_webhook_use_case()
         try:
             use_case.execute(payload=payload, sig_header=sig_header)
-        except Exception as e:
-            logger.warning("Stripe webhook error: %s", e)
-            return JsonResponse(
-                {"error": {"code": "WEBHOOK_ERROR", "message": str(e)}},
-                status=400,
-            )
+        except stripe.error.SignatureVerificationError:
+            logger.warning("Webhook signature verification failed")
+            return JsonResponse({"error": {"code": "INVALID_SIGNATURE"}}, status=400)
+        except Exception:
+            logger.exception("Unexpected webhook error")
+            return JsonResponse({"error": {"code": "WEBHOOK_ERROR"}}, status=500)
 
         return JsonResponse({"message": "Webhook processed."})
 
