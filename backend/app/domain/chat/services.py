@@ -131,9 +131,9 @@ def aggregate_scenes(
 
     for log in chat_logs:
         question = log.question
-        if not log.related_videos:
+        if not log.citations:
             continue
-        for rv in log.related_videos:
+        for rv in log.citations:
             video_id = rv.video_id
             start_time = rv.start_time
             if not video_id or not start_time:

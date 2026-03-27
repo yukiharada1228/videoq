@@ -27,7 +27,6 @@ class GetCurrentUserUseCaseTests(unittest.TestCase):
             username="u1",
             email="u1@example.com",
             is_active=True,
-            video_limit=10,
             video_count=3,
         )
         use_case = GetCurrentUserUseCase(_StubUserRepository(with_count=user))
@@ -44,7 +43,6 @@ class GetCurrentUserUseCaseTests(unittest.TestCase):
             username="u1",
             email="u1@example.com",
             is_active=True,
-            video_limit=10,
             max_video_upload_size_mb=1000,
             video_count=3,
         )

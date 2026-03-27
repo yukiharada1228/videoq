@@ -871,7 +871,7 @@ class ImportRulesTest(unittest.TestCase):
         """SendMessageUseCase output boundary must not expose domain chat DTOs."""
         self._check_single_file(
             "use_cases/chat/send_message.py",
-            ["app.domain.chat.dtos.RelatedVideoDTO"],
+            ["app.domain.chat.dtos.CitationDTO"],
         )
 
     def test_auth_login_has_no_domain_token_dto_imports(self):

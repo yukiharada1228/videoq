@@ -28,18 +28,21 @@ def get_langchain_llm(api_key: Optional[str] = None) -> BaseChatModel:
     temperature = 0.0  # Temperature is fixed at 0.0
 
     if provider == "openai":
-        if not api_key:
+        resolved_key = api_key or getattr(settings, "OPENAI_API_KEY", None)
+        if not resolved_key:
             raise LLMConfigError(
                 "OpenAI API key is not configured. Please set your API key in Settings."
             )
 
         model = getattr(settings, "LLM_MODEL", "gpt-4o-mini")
 
-        return ChatOpenAI(
+        llm = ChatOpenAI(
             model=model,
-            api_key=SecretStr(api_key),
+            api_key=SecretStr(resolved_key),
             temperature=temperature,
         )
+        llm.max_tokens = 1024
+        return llm
 
     elif provider == "ollama":
         # Use Ollama LLM

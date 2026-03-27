@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import ForgotPasswordPage from '../ForgotPasswordPage'
 import { apiClient } from '@/lib/api'
 
@@ -78,8 +78,12 @@ describe('ForgotPasswordPage', () => {
   })
 
   it('should show loading state while submitting', async () => {
+    let resolveRequest: (() => void) | undefined
+    const pendingRequest = new Promise<void>((resolve) => {
+      resolveRequest = resolve
+    })
     ; (apiClient.requestPasswordReset as ReturnType<typeof vi.fn>).mockImplementation(
-      () => new Promise((resolve) => setTimeout(resolve, 100))
+      () => pendingRequest
     )
 
     render(<ForgotPasswordPage />)
@@ -91,5 +95,10 @@ describe('ForgotPasswordPage', () => {
     fireEvent.click(submitButton)
 
     expect(screen.getByText('auth.forgotPassword.submitting')).toBeInTheDocument()
+
+    await act(async () => {
+      resolveRequest?.()
+      await pendingRequest
+    })
   })
 })

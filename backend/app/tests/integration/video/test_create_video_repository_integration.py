@@ -13,7 +13,6 @@ from app.infrastructure.repositories.django_video_repository import DjangoVideoR
 from app.infrastructure.models import Video
 from app.use_cases.video.create_video import CreateVideoUseCase
 from app.use_cases.video.dto import CreateVideoInput
-from app.use_cases.video.exceptions import VideoLimitExceeded
 
 User = get_user_model()
 
@@ -30,7 +29,6 @@ class CreateVideoUseCaseIntegrationTests(TestCase):
             username="integration_user",
             email="integration@example.com",
             password="testpass123",
-            video_limit=None,
         )
         self.user_repo = DjangoUserRepository()
         self.repo = DjangoVideoRepository()
@@ -55,11 +53,3 @@ class CreateVideoUseCaseIntegrationTests(TestCase):
 
         self.assertTrue(Video.objects.filter(pk=video.id).exists())
         self.mock_task_queue.enqueue_transcription.assert_called_once_with(video.id)
-
-    def test_enforces_limit_against_persisted_rows(self):
-        self.user.video_limit = 1
-        self.user.save(update_fields=["video_limit"])
-        Video.objects.create(user=self.user, title="Existing")
-
-        with self.assertRaises(VideoLimitExceeded):
-            self.use_case.execute(self.user.id, self._input())

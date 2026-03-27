@@ -45,6 +45,14 @@ describe('LoginPage', () => {
     expect(screen.getByText('auth.login.footerLink')).toBeInTheDocument()
   })
 
+  it('should render legal links', () => {
+    render(<LoginPage />)
+
+    expect(screen.getByText('legal.terms.title')).toBeInTheDocument()
+    expect(screen.getByText('legal.privacy.title')).toBeInTheDocument()
+    expect(screen.getByText('legal.disclosure.title')).toBeInTheDocument()
+  })
+
   it('should call apiClient.login on submit', async () => {
     ; (apiClient.login as ReturnType<typeof vi.fn>).mockResolvedValue({})
 

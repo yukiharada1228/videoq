@@ -6,7 +6,6 @@ from .views import (
     ChatAnalyticsView,
     ChatFeedbackView,
     ChatHistoryView,
-    ChatSearchView,
     ChatView,
     PopularScenesView,
 )
@@ -16,13 +15,6 @@ urlpatterns = [
         "messages/",
         ChatView.as_view(send_message_use_case=chat_dependencies.get_send_message_use_case),
         name="chat-messages",
-    ),
-    path(
-        "scenes/",
-        ChatSearchView.as_view(
-            search_related_videos_use_case=chat_dependencies.get_search_related_videos_use_case
-        ),
-        name="chat-scenes",
     ),
     path(
         "history/",

@@ -29,9 +29,21 @@ from app.composition_root.chat import (
     get_chat_history_use_case,
     get_export_history_use_case,
     get_popular_scenes_use_case,
-    get_search_related_videos_use_case,
     get_send_message_use_case,
     get_submit_feedback_use_case,
+)
+from app.composition_root.billing import (
+    get_check_ai_answers_limit_use_case,
+    get_check_processing_limit_use_case,
+    get_check_storage_limit_use_case,
+    get_create_billing_portal_use_case,
+    get_create_checkout_session_use_case,
+    get_handle_webhook_use_case,
+    get_plans_use_case,
+    get_record_ai_answer_usage_use_case,
+    get_record_processing_usage_use_case,
+    get_record_storage_usage_use_case,
+    get_subscription_use_case,
 )
 from app.composition_root.media import get_resolve_protected_media_use_case
 from app.composition_root.video import (
@@ -46,7 +58,6 @@ from app.composition_root.video import (
     get_delete_share_link_use_case,
     get_delete_tag_use_case,
     get_delete_video_use_case,
-    get_enforce_video_limit_use_case,
     get_index_video_use_case,
     get_list_groups_use_case,
     get_list_tags_use_case,
@@ -74,7 +85,6 @@ __all__ = [
     "get_create_video_use_case",
     "get_update_video_use_case",
     "get_delete_video_use_case",
-    "get_enforce_video_limit_use_case",
     "get_index_video_use_case",
     # video group
     "get_list_groups_use_case",
@@ -99,7 +109,6 @@ __all__ = [
     "get_remove_tag_from_video_use_case",
     # chat
     "get_send_message_use_case",
-    "get_search_related_videos_use_case",
     "get_chat_history_use_case",
     "get_chat_analytics_use_case",
     "get_popular_scenes_use_case",
@@ -123,4 +132,16 @@ __all__ = [
     "get_resolve_api_key_use_case",
     # media
     "get_resolve_protected_media_use_case",
+    # billing
+    "get_plans_use_case",
+    "get_subscription_use_case",
+    "get_create_checkout_session_use_case",
+    "get_create_billing_portal_use_case",
+    "get_handle_webhook_use_case",
+    "get_check_storage_limit_use_case",
+    "get_check_processing_limit_use_case",
+    "get_check_ai_answers_limit_use_case",
+    "get_record_storage_usage_use_case",
+    "get_record_processing_usage_use_case",
+    "get_record_ai_answer_usage_use_case",
 ]

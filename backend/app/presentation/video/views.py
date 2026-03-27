@@ -14,6 +14,7 @@ from rest_framework.views import APIView
 
 from app.presentation.common.responses import create_error_response
 from app.presentation.common.throttles import ShareTokenIPThrottle
+from app.use_cases.billing.exceptions import StorageLimitExceeded
 from app.use_cases.video.dto import (
     CreateGroupInput,
     CreateTagInput,
@@ -31,7 +32,6 @@ from app.use_cases.video.exceptions import (
     InvalidUploadState,
     ResourceNotFound,
     VideoAlreadyInGroup,
-    VideoLimitExceeded,
     VideoNotInGroup,
 )
 from app.presentation.common.mixins import AuthenticatedViewMixin, DependencyResolverMixin
@@ -147,17 +147,18 @@ class VideoListView(DependencyResolverMixin, AuthenticatedViewMixin, generics.Ge
                 file_size=upload_file.size,
             )
             video = use_case.execute(request.user.id, input_dto)
-        except VideoLimitExceeded:
-            return create_error_response(
-                "Video upload limit reached",
-                status.HTTP_400_BAD_REQUEST,
-            )
         except FileSizeExceeded as e:
             return create_error_response(
                 str(e),
                 status.HTTP_400_BAD_REQUEST,
                 code="FILE_TOO_LARGE",
                 params={"max_size_mb": e.limit_mb},
+            )
+        except StorageLimitExceeded as e:
+            return create_error_response(
+                str(e),
+                status.HTTP_400_BAD_REQUEST,
+                code="STORAGE_LIMIT_EXCEEDED",
             )
 
         ctx = {"request": request}
@@ -290,10 +291,11 @@ class VideoUploadRequestView(DependencyResolverMixin, AuthenticatedViewMixin, ge
                 code="FILE_TOO_LARGE",
                 params={"max_size_mb": e.limit_mb},
             )
-        except VideoLimitExceeded:
+        except StorageLimitExceeded as e:
             return create_error_response(
-                "Video upload limit reached",
+                str(e),
                 status.HTTP_400_BAD_REQUEST,
+                code="STORAGE_LIMIT_EXCEEDED",
             )
         except ValueError as e:
             return create_error_response(str(e), status.HTTP_400_BAD_REQUEST)

@@ -1,1 +1,31 @@
+# Virtual environment — pip installs inside the container
+.venv
+
+# Local media uploads
 media/
+
+# Caches
+__pycache__
+*.pyc
+*.pyo
+.mypy_cache
+.ruff_cache
+.coverage
+.coverage.*
+htmlcov/
+
+# Editor / OS
+.DS_Store
+*.swp
+*.swo
+
+# Git
+.git
+.gitignore
+
+# Secrets
+.env
+.env.*
+
+# Test / CI artifacts
+.pytest_cache

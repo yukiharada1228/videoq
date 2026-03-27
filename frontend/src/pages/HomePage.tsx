@@ -150,7 +150,7 @@ export default function HomePage() {
 
       {/* Tips Card */}
       <section className="mt-8">
-        <div className="bg-[#95f8a7]/20 border-2 border-[#00652c]/20 rounded-xl p-6 flex items-start gap-4 shadow-sm">
+        <div className="bg-[#95f8a7]/20 border-2 border-[#00652c]/20 rounded-xl p-6 flex items-center gap-4 shadow-sm">
           <div className="bg-[#00652c] text-white p-2 rounded-full flex items-center justify-center shrink-0">
             <Lightbulb className="w-5 h-5" />
           </div>

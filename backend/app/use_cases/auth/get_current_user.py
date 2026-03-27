@@ -20,7 +20,6 @@ class GetCurrentUserUseCase:
             username=user.username,
             email=user.email,
             is_active=user.is_active,
-            video_limit=user.video_limit,
             video_count=user.video_count,
             max_video_upload_size_mb=user.max_video_upload_size_mb,
         )

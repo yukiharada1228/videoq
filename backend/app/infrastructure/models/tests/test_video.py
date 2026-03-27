@@ -18,7 +18,6 @@ class VideoModelTests(TestCase):
             username="testuser",
             email="test@example.com",
             password="testpass123",
-            video_limit=None,
         )
 
     def test_create_video_with_required_fields(self):

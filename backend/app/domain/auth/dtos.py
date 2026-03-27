@@ -19,5 +19,4 @@ class ShareAuthContextDTO:
 class ApiKeyAuthContextDTO:
     api_key_id: int
     user_id: int
-    user_video_limit: int
     access_level: str

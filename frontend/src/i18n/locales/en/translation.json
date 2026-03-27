@@ -275,7 +275,8 @@
         "noTitle": "Please enter a title",
         "invalidFileType": "Please select a supported video file",
         "fileTooLarge": "The selected file exceeds the upload size limit ({{max_size_mb}} MB)",
-        "generic": "Validation error"
+        "generic": "Validation error",
+        "storageLimitExceeded": "Upload is unavailable because your storage is over the plan limit. Please delete videos to free up space."
       }
     },
     "detail": {
@@ -541,7 +542,8 @@
     "feedbackNone": "Not rated",
     "placeholder": "Type a message...",
     "assistantGreeting": "Hello! Ask me anything about your videos.",
-    "error": "An error occurred in the chat."
+    "error": "An error occurred in the chat.",
+    "errorOverQuota": "AI chat is unavailable because your storage is over the plan limit. Please delete videos to free up space."
   },
   "shared": {
     "loadError": "Failed to load the shared chat group.",
@@ -577,13 +579,13 @@
     "subtitle": "Manage your account and integration settings",
     "accountDeletion": {
       "title": "Delete account",
-      "description": "Deactivate your account and schedule all associated data for deletion.",
+      "description": "Deleting your account will permanently remove all videos and data, and immediately cancel any active subscription.",
       "warningLine1": "Your account will be deactivated immediately and you will be signed out.",
       "reasonLabel": "Reason for leaving (optional)",
       "reasonPlaceholder": "Tell us what we could improve (optional)",
       "confirmLabel": "Type {{keyword}} to confirm",
       "confirmTitle": "Confirm account deletion",
-      "confirmDescription": "This will permanently delete your data. Please confirm to proceed.",
+      "confirmDescription": "Deleting your account will permanently remove all videos and data, and immediately cancel your subscription.",
       "confirmWarning": "This action is irreversible. Your data cannot be restored.",
       "confirmCta": "Yes, delete my account",
       "cancel": "Cancel",
@@ -652,9 +654,11 @@
     "openaiApiKey": {
       "title": "OpenAI API Key",
       "description": "Set your OpenAI API key to use transcription and chat features.",
+      "billingNoticeTitle": "Billing",
+      "billingNotice": "The OpenAI API key entered here is used for transcription and AI chat. Usage charges are billed to your OpenAI account associated with this key, not to VideoQ.",
       "apiKeyLabel": "API Key",
       "hasApiKeyMessage": "You have already set an API key. Enter a new key to update it.",
-      "noApiKeyMessage": "You need to set your OpenAI API key to use video transcription and chat features.",
+      "noApiKeyMessage": "You need to set your OpenAI API key to use video transcription and chat features. Usage charges will be billed to your OpenAI account associated with that key.",
       "getApiKeyMessage": "You can get your API key from",
       "openaiPlatform": "OpenAI Platform",
       "save": "Save",
@@ -687,7 +691,7 @@
   "openaiApiKey": {
     "banner": {
       "title": "OpenAI API Key Required",
-      "message": "To use transcription and chat features, please set your OpenAI API key in Settings.",
+      "message": "To use transcription and chat features, please set your OpenAI API key in Settings. Usage charges will be billed to the OpenAI account associated with that key.",
       "settingsLink": "Go to Settings"
     }
   },
@@ -735,7 +739,7 @@
       "exampleDescription": "Sample code for accessing VideoQ RAG chat using the OpenAI SDK.",
       "ragExample": {
         "title": "RAG chat (video group reference)",
-        "description": "With group_id, the endpoint searches indexed video scenes to answer. related_videos and chat_log_id are returned as extension fields."
+        "description": "With group_id, the endpoint searches indexed video scenes to answer. citations and chat_log_id are returned as extension fields."
       },
       "code": {
         "ragComment": "RAG chat targeting a video group via group_id",
@@ -810,8 +814,177 @@
         "bullets": [
           "Authenticate with Authorization: Bearer <vq_...>",
           "Pass language to control response language (defaults to English if omitted)",
-          "related_videos and chat_log_id are returned as extension fields on choices[0].message (access via msg.model_extra in Python SDK)"
+          "citations and chat_log_id are returned as extension fields on choices[0].message (access via msg.model_extra in Python SDK)"
         ]
+      }
+    }
+  },
+  "billing": {
+    "title": "Billing & Plans",
+    "subtitle": "Manage your subscription and view usage",
+    "currentPlan": "Current Plan",
+    "usage": {
+      "title": "Usage This Month",
+      "storage": "Storage",
+      "transcription": "Transcription",
+      "aiAnswers": "AI Answers",
+      "unlimited": "Unlimited",
+      "of": "of",
+      "min": "min",
+      "gb": "GB"
+    },
+    "plans": {
+      "title": "Plans",
+      "current": "Current Plan",
+      "upgrade": "Upgrade",
+      "downgrade": "Downgrade",
+      "contact": "Contact Us",
+      "confirmChange": "Switch to the {{plan}} plan? A prorated charge will be applied immediately.",
+      "confirmYes": "Confirm",
+      "confirmNo": "Cancel",
+      "currency": {
+        "jpy": "JPY (¥)",
+        "usd": "USD ($)"
+      },
+      "perMonth": "/ month",
+      "free": "Free",
+      "storage": "Storage",
+      "transcription": "Transcription / month",
+      "aiAnswers": "AI Answers / month",
+      "enterprise": {
+        "price": "Custom",
+        "storage": "Custom",
+        "transcription": "Custom",
+        "aiAnswers": "Custom"
+      }
+    },
+    "manage": {
+      "title": "Manage Subscription",
+      "description": "Update payment method, view invoices, or cancel subscription.",
+      "button": "Manage Subscription"
+    },
+    "upgradeSuccess": "Your plan has been updated. It may take a moment to reflect.",
+    "cancelWarning": "Your subscription will cancel on {{date}}. You can continue using the service until then.",
+    "nav": "Plans",
+    "settingsLink": {
+      "title": "Billing & Plans",
+      "description": "View your current plan, usage, and upgrade options.",
+      "button": "View Billing & Plans"
+    },
+    "errors": {
+      "downgradeNotAllowed": "Cannot downgrade: your storage usage exceeds the target plan limit by {{overGb}} GB. Please delete videos to free up space first.",
+      "overQuota": "Your storage usage exceeds your plan limit. New uploads and AI chat are disabled. Please delete videos to restore access."
+    }
+  },
+  "legal": {
+    "disclosure": {
+      "title": "Commercial Disclosure (特定商取引法に基づく表記)",
+      "rows": {
+        "seller": "Seller",
+        "address": "Address",
+        "phone": "Phone",
+        "email": "Email",
+        "representative": "Representative",
+        "price": "Price",
+        "priceValue": "Price displayed on each plan page (tax included)",
+        "additionalFees": "Additional Fees",
+        "additionalFeesValue": "Internet connection and data communication fees are the responsibility of the customer.",
+        "paymentMethod": "Payment Method",
+        "paymentMethodValue": "Credit card (via Stripe)",
+        "paymentTiming": "Payment Timing",
+        "paymentTimingValue": "First charge upon subscription registration; thereafter billed automatically on each monthly renewal.",
+        "delivery": "Service Delivery",
+        "deliveryValue": "Service is available immediately upon payment completion.",
+        "returns": "Returns & Cancellation",
+        "returnsValue": "Due to the nature of digital services, refunds are not available after purchase. Subscriptions may be cancelled at any time; access continues until the end of the current billing period.",
+        "environment": "System Requirements",
+        "environmentValue": "Modern browsers (latest version of Chrome, Firefox, Safari, or Edge)"
+      }
+    },
+    "terms": {
+      "title": "Terms of Service",
+      "sections": {
+        "serviceOverview": {
+          "heading": "1. Service Overview",
+          "body": "VideoQ (\"the Service\") is a web-based platform operated by {{operatorName}} that allows users to upload videos, generate transcriptions, and interact with video content through AI-powered chat. By using the Service, you agree to these Terms of Service."
+        },
+        "accountRegistration": {
+          "heading": "2. Account Registration",
+          "body": "To use the Service, you must create an account by providing a valid email address, username, and password. You are responsible for maintaining the confidentiality of your account credentials and for all activities that occur under your account. If you are a minor, you must obtain parental or guardian consent before using this Service."
+        },
+        "prohibitedUse": {
+          "heading": "3. Prohibited Use",
+          "body": "You may not use the Service for any unlawful or unauthorized purpose. Prohibited activities include, but are not limited to:\n- Uploading content that infringes on third-party intellectual property rights\n- Uploading content that is illegal, harmful, or offensive\n- Attempting to gain unauthorized access to the Service or its systems\n- Using the Service to distribute spam or malicious software\n- Reselling or redistributing the Service without authorization\n- Excessive automated access, reverse engineering, or placing an unreasonable load on the Service"
+        },
+        "accountSuspension": {
+          "heading": "4. Account Suspension and Termination",
+          "body": "We reserve the right to suspend or delete your account without prior notice if you violate these Terms of Service."
+        },
+        "paymentAndBilling": {
+          "heading": "5. Payment and Billing",
+          "body": "The Service offers free and paid subscription plans. Paid plans are billed monthly via credit card through Stripe. Prices are displayed in Japanese Yen (JPY) or US Dollars (USD). By subscribing to a paid plan, you authorize recurring monthly charges until you cancel."
+        },
+        "cancellation": {
+          "heading": "6. Cancellation and Refunds",
+          "body": "You may cancel your subscription at any time through the billing management page. Upon cancellation, you will continue to have access to paid features until the end of your current billing period. Due to the nature of digital services, refunds are not provided for partial billing periods."
+        },
+        "intellectualProperty": {
+          "heading": "7. Intellectual Property",
+          "body": "You retain ownership of all content you upload to the Service. By uploading content, you grant us a limited license to process, store, and display your content solely for the purpose of providing the Service. The Service itself, including its design, code, and branding, is the intellectual property of the operator."
+        },
+        "limitationOfLiability": {
+          "heading": "8. Limitation of Liability",
+          "body": "The Service is provided \"as is\" without warranties of any kind. We do not guarantee uninterrupted or error-free operation. We make no guarantees regarding the accuracy, completeness, or usefulness of AI-generated responses. You use such content at your own risk. We are not responsible for any loss, corruption, or failure of backup of your data. To the maximum extent permitted by law, we shall not be liable for any indirect, incidental, or consequential damages arising from your use of the Service. Our total liability shall not exceed the amount you paid to us in the 12 months preceding the claim."
+        },
+        "serviceChanges": {
+          "heading": "9. Service Modifications and Termination",
+          "body": "We may modify, suspend, or terminate all or part of the Service with prior notice."
+        },
+        "governingLaw": {
+          "heading": "10. Governing Law and Jurisdiction",
+          "body": "These Terms shall be governed by and construed in accordance with the laws of Japan. Any disputes arising from these Terms shall be subject to the exclusive jurisdiction of the Tokyo District Court."
+        },
+        "changes": {
+          "heading": "11. Changes to These Terms",
+          "body": "We may update these Terms from time to time. When we make material changes, we will notify registered users via email or through the Service. Continued use of the Service after changes take effect constitutes acceptance of the revised Terms."
+        }
+      }
+    },
+    "privacy": {
+      "title": "Privacy Policy",
+      "sections": {
+        "dataCollected": {
+          "heading": "1. Data We Collect",
+          "body": "We collect the following types of information:\n- Account information: email address, username, and password (hashed)\n- Uploaded content: video files and generated transcriptions\n- Usage data: chat messages, AI interaction history, and service usage statistics\n- Payment information: processed securely by Stripe; we do not store credit card numbers\n- Technical data: IP address, browser type, and access logs"
+        },
+        "purposeOfUse": {
+          "heading": "2. Purpose of Use",
+          "body": "We use the collected information to:\n- Provide and maintain the Service\n- Process video transcriptions and AI chat responses\n- Manage your account and subscription billing\n- Improve the Service and develop new features\n- Communicate with you regarding your account and service updates\n- Ensure compliance with legal obligations"
+        },
+        "thirdPartySharing": {
+          "heading": "3. Third-Party Services",
+          "body": "We may share data with the following third-party services as necessary to operate the Service:\n- Stripe: payment processing (name, email, payment details)\n- OpenAI: video transcription (audio data) and AI chat functionality (chat messages)\n- Neon: serverless PostgreSQL database (stores account information, video metadata, transcription data, chat history, usage statistics, etc.)\n- Mailgun: email delivery service (used for system emails such as email verification and password reset; includes email address)\n- AWS (SQS, Lambda): used for task queuing (SQS) and serverless processing (Lambda). Video files and related data are included.\n- Cloudflare R2: used for video file storage.\n\nThese providers process data in accordance with their own privacy policies. Third-party services may process data on servers located outside of Japan. We do not sell your personal information to third parties."
+        },
+        "cookies": {
+          "heading": "4. Cookies and Local Storage",
+          "body": "The Service uses cookies and local storage for session management and authentication. These are essential for the Service to function properly. We do not use third-party tracking cookies for advertising purposes."
+        },
+        "dataRetention": {
+          "heading": "5. Data Retention",
+          "body": "Your account data and uploaded content are retained for as long as your account is active. If you delete your account, your data will be removed from our systems within 30 days, except where retention is required by law. Chat history and usage logs may be retained in anonymized form for service improvement."
+        },
+        "security": {
+          "heading": "6. Security Measures",
+          "body": "We take reasonable security measures to protect your personal information. However, no method of transmission over the Internet or digital storage is completely secure, and we cannot guarantee absolute security."
+        },
+        "userRights": {
+          "heading": "7. Your Rights",
+          "body": "You have the right to:\n- Access the personal data we hold about you (e.g., name, email address)\n- Request correction of inaccurate personal account information (AI-generated content such as transcriptions and chat responses is not covered)\n- Request deletion of your account and associated data\n- Export your data in a portable format\n- Withdraw consent for data processing\n\nTo exercise these rights, please contact us at the email address below."
+        },
+        "contact": {
+          "heading": "8. Contact",
+          "body": "For questions or requests regarding this Privacy Policy, please contact us at:\nEmail: "
+        }
       }
     }
   }

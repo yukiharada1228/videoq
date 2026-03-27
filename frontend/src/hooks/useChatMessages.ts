@@ -1,12 +1,12 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { apiClient, type RelatedVideo } from '@/lib/api';
+import { apiClient, ApiError, type Citation } from '@/lib/api';
 
 export interface Message {
   role: 'user' | 'assistant';
   content: string;
-  related_videos?: RelatedVideo[];
+  citations?: Citation[];
   chatLogId?: number;
   feedback?: 'good' | 'bad' | null;
 }
@@ -79,16 +79,20 @@ export function useChatMessages({ groupId, shareToken }: UseChatMessagesOptions)
         {
           role: response.role,
           content: response.content,
-          related_videos: response.related_videos,
+          citations: response.citations,
           chatLogId: response.chat_log_id,
           feedback: response.feedback ?? null,
         },
       ]);
     } catch (error) {
       console.error('Chat error:', error);
+      const errorMessage =
+        error instanceof ApiError && error.code === 'OVER_QUOTA'
+          ? t('chat.errorOverQuota')
+          : t('chat.error');
       setMessages((prev) => [
         ...prev,
-        { role: 'assistant', content: t('chat.error') },
+        { role: 'assistant', content: errorMessage },
       ]);
     } finally {
       setIsLoading(false);
