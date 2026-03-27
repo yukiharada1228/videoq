@@ -247,3 +247,85 @@ class CancelSubscriptionOnDeleteTests(TestCase):
         deletion_gw.delete_chat_history_for_user.assert_called_once_with(42)
         deletion_gw.delete_video_groups_for_user.assert_called_once_with(42)
         deletion_gw.delete_tags_for_user.assert_called_once_with(42)
+
+
+class BestEffortDeletionTests(TestCase):
+    """ベストエフォート方式: 途中のステップが失敗しても残りが実行される"""
+
+    def test_continues_after_videos_deletion_failure(self):
+        """動画削除が失敗してもチャット/グループ/タグ削除が続行される"""
+        deletion_gw = _make_deletion_gateway()
+        deletion_gw.delete_all_videos_for_user.side_effect = Exception("R2 error")
+
+        use_case = DeleteAccountDataUseCase(user_data_deletion_gateway=deletion_gw)
+        use_case.execute(user_id=1)
+
+        deletion_gw.delete_chat_history_for_user.assert_called_once_with(1)
+        deletion_gw.delete_video_groups_for_user.assert_called_once_with(1)
+        deletion_gw.delete_tags_for_user.assert_called_once_with(1)
+
+    def test_continues_after_chat_deletion_failure(self):
+        """チャット履歴削除が失敗してもグループ/タグ削除が続行される"""
+        deletion_gw = _make_deletion_gateway()
+        deletion_gw.delete_chat_history_for_user.side_effect = Exception("DB error")
+
+        use_case = DeleteAccountDataUseCase(user_data_deletion_gateway=deletion_gw)
+        use_case.execute(user_id=1)
+
+        deletion_gw.delete_video_groups_for_user.assert_called_once_with(1)
+        deletion_gw.delete_tags_for_user.assert_called_once_with(1)
+
+    def test_continues_after_groups_deletion_failure(self):
+        """グループ削除が失敗してもタグ削除が続行される"""
+        deletion_gw = _make_deletion_gateway()
+        deletion_gw.delete_video_groups_for_user.side_effect = Exception("DB error")
+
+        use_case = DeleteAccountDataUseCase(user_data_deletion_gateway=deletion_gw)
+        use_case.execute(user_id=1)
+
+        deletion_gw.delete_tags_for_user.assert_called_once_with(1)
+
+    def test_stripe_cancel_runs_even_if_data_step_fails(self):
+        """データ削除ステップが失敗してもStripeキャンセルが実行される"""
+        entity = _make_subscription(stripe_subscription_id="sub_abc")
+        billing_gw = _StubBillingGateway()
+        deletion_gw = _make_deletion_gateway()
+        deletion_gw.delete_all_videos_for_user.side_effect = Exception("R2 error")
+
+        use_case = DeleteAccountDataUseCase(
+            user_data_deletion_gateway=deletion_gw,
+            subscription_repo=_StubSubscriptionRepo(entity),
+            billing_gateway=billing_gw,
+        )
+        use_case.execute(user_id=1)
+
+        self.assertEqual(billing_gw.cancelled, ["sub_abc"])
+
+    def test_data_step_failure_is_logged(self):
+        """失敗したステップがERRORレベルでログに記録される"""
+        deletion_gw = _make_deletion_gateway()
+        deletion_gw.delete_all_videos_for_user.side_effect = Exception("R2 error")
+
+        use_case = DeleteAccountDataUseCase(user_data_deletion_gateway=deletion_gw)
+
+        with self.assertLogs("app.use_cases.auth.delete_account_data", level="ERROR") as cm:
+            use_case.execute(user_id=1)
+
+        self.assertTrue(
+            any("delete_all_videos_for_user" in msg for msg in cm.output),
+            f"Expected delete_all_videos_for_user in logs, got: {cm.output}",
+        )
+
+    def test_multiple_step_failures_all_logged(self):
+        """複数ステップが失敗した場合、すべてERRORログに記録される"""
+        deletion_gw = _make_deletion_gateway()
+        deletion_gw.delete_all_videos_for_user.side_effect = Exception("R2 error")
+        deletion_gw.delete_chat_history_for_user.side_effect = Exception("Chat error")
+
+        use_case = DeleteAccountDataUseCase(user_data_deletion_gateway=deletion_gw)
+
+        with self.assertLogs("app.use_cases.auth.delete_account_data", level="ERROR") as cm:
+            use_case.execute(user_id=1)
+
+        errors_logged = sum(1 for msg in cm.output if "ERROR" in msg)
+        self.assertGreaterEqual(errors_logged, 2)

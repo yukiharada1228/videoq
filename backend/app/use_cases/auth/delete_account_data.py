@@ -33,12 +33,24 @@ class DeleteAccountDataUseCase:
         self._billing_gateway = billing_gateway
 
     def execute(self, user_id: int) -> None:
-        self.gateway.delete_all_videos_for_user(user_id)
-        self.gateway.delete_chat_history_for_user(user_id)
-        self.gateway.delete_video_groups_for_user(user_id)
-        self.gateway.delete_tags_for_user(user_id)
+        data_steps = [
+            ("delete_all_videos_for_user", self.gateway.delete_all_videos_for_user),
+            ("delete_chat_history_for_user", self.gateway.delete_chat_history_for_user),
+            ("delete_video_groups_for_user", self.gateway.delete_video_groups_for_user),
+            ("delete_tags_for_user", self.gateway.delete_tags_for_user),
+        ]
+        for step_name, step in data_steps:
+            try:
+                step(user_id)
+            except Exception:
+                logger.error(
+                    "Account deletion step %s failed for user %s",
+                    step_name,
+                    user_id,
+                    exc_info=True,
+                )
         self._cancel_subscription_if_active(user_id)
-        logger.info("Account data deleted for user %s", user_id)
+        logger.info("Account data deletion completed for user %s", user_id)
 
     def _cancel_subscription_if_active(self, user_id: int) -> None:
         if self._subscription_repo is None or self._billing_gateway is None:
