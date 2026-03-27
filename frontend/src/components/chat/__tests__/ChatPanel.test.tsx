@@ -3,15 +3,19 @@ import { ChatPanel } from '../ChatPanel'
 import { apiClient } from '@/lib/api'
 
 // Mock apiClient
-vi.mock('@/lib/api', () => ({
-  apiClient: {
-    chat: vi.fn(),
-    getChatHistory: vi.fn(),
-    exportChatHistoryCsv: vi.fn(),
-    setChatFeedback: vi.fn(),
-    getOpenAIApiKeyStatus: vi.fn(),
-  },
-}))
+vi.mock('@/lib/api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/api')>()
+  return {
+    ...actual,
+    apiClient: {
+      chat: vi.fn(),
+      getChatHistory: vi.fn(),
+      exportChatHistoryCsv: vi.fn(),
+      setChatFeedback: vi.fn(),
+      getOpenAIApiKeyStatus: vi.fn(),
+    },
+  }
+})
 
 // Mock window.open
 const mockOpen = vi.fn()
