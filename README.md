@@ -76,23 +76,37 @@ docker compose exec backend python manage.py createsuperuser
 4. 一般ユーザーには動画アップロード上限を設定
 5. 動画をアップロードして、文字起こし完了後にチャットを試す
 
-### 📋 先に確認：ユーザーのアップロード上限
+### 📋 先に確認：ユーザー制限の設定
 
-新規ユーザーは、作成しただけでは動画をアップロードできません。  
-初期値が `video_limit=0` になっているため、管理者がアップロード可能本数を設定してから使い始めてください。
+VideoQ はユーザーごとに2種類の制限を管理できます。
+
+#### 1. ファイルサイズ上限（1本あたりの最大サイズ）
 
 **設定場所**
 1. [管理パネル](http://localhost/api/admin) にアクセス
 2. `Users` を開く
 3. 対象ユーザーを選ぶ
-4. `Video limit` を設定して保存
+4. `Max video upload size mb` を設定して保存（デフォルト: 500 MB）
 
-**`Video limit` の意味**
-1. `0`: アップロード不可（初期値）
-2. 正の数: その本数までアップロード可能
-3. 空欄: 無制限
+#### 2. ストレージ・使用量制限
 
-この設定をしておくと、一般ユーザーがすぐに動画をアップロードして使い始められます。
+ストレージ容量・文字起こし処理時間・AI回答数の月次クォータは管理パネルで設定します。
+制限を自由に設定したい場合は `Plan` を `enterprise` にした上で各カスタム値を指定してください。
+
+**設定場所**
+1. [管理パネル](http://localhost/api/admin) にアクセス
+2. `Subscriptions` を開く
+3. 対象ユーザーを選ぶ
+4. 以下を設定して保存
+
+| 設定項目 | 説明 |
+|----------|------|
+| `Plan` | `enterprise` に設定するとカスタム制限が有効になる |
+| `Custom storage gb` | ストレージ上限（GB）。空欄はプラン既定値 |
+| `Custom processing minutes` | 文字起こし処理時間上限（分/月）。空欄はプラン既定値 |
+| `Custom ai answers` | AI回答数上限（回/月）。空欄はプラン既定値 |
+| `Unlimited processing minutes` | オンにすると処理時間を無制限にする |
+| `Unlimited ai answers` | オンにするとAI回答数を無制限にする |
 
 <details>
 <summary><strong>📦 オプション：クラウドストレージの設定 (AWS S3 / Cloudflare R2)</strong></summary>

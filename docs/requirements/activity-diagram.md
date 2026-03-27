@@ -11,9 +11,11 @@ flowchart TD
     Start([User Uploads Video]) --> Upload[Upload Video File]
     Upload --> Validate{"File Format<br>Validation"}
     Validate -->|Invalid| Error1[Error Display]
-    Validate -->|Valid| CheckLimit{"User.video_limit<br>Check"}
-    CheckLimit -->|Exceeded| ErrorLimit[Error: Upload Limit Reached]
-    CheckLimit -->|OK| Save[Save to Database<br/>status: pending]
+    Validate -->|Valid| CheckFileSize{"File size vs<br>User.max_video_upload_size_mb"}
+    CheckFileSize -->|Exceeded| ErrorLimit[Error: File Size Exceeded]
+    CheckFileSize -->|OK| CheckStorage{"Storage quota<br>check (Subscription)"}
+    CheckStorage -->|Exceeded| ErrorStorage[Error: Storage Limit Exceeded]
+    CheckStorage -->|OK| Save[Save to Database<br/>status: pending]
     Save --> Queue[Add Celery Task to Queue]
     Queue --> Wait[User Waits]
     

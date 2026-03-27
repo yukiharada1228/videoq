@@ -12,7 +12,8 @@ flowchart TD
     Upload --> Frontend[Frontend]
     Frontend --> API[Backend API]
     
-    API --> Validate{"Validation<br>- File<br>- User.video_limit"}
+    API --> Validate{"Validation<br>- File type/size (User.max_video_upload_size_mb)<br>- Storage quota (Subscription)"}
+    Validate -->|Over storage quota| QuotaError[StorageLimitExceeded]
     Validate -->|Invalid| Error[Error Response]
     Validate -->|Valid| SaveDB[(Database<br/>Save Video)]
     
