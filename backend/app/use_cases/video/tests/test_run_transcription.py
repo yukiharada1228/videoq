@@ -3,7 +3,9 @@
 from contextlib import contextmanager
 from typing import Callable, Generator, Optional
 from unittest import TestCase
+from unittest.mock import MagicMock
 
+from app.domain.billing.exceptions import ProcessingLimitExceeded
 from app.domain.video.entities import VideoEntity
 from app.domain.video.exceptions import InvalidVideoStatusTransition
 from app.domain.video.status import VideoStatus
@@ -11,7 +13,7 @@ from app.use_cases.video.exceptions import (
     TranscriptionExecutionFailed,
     TranscriptionTargetMissing,
 )
-from app.use_cases.video.run_transcription import RunTranscriptionUseCase
+from app.use_cases.video.run_transcription import RunTranscriptionUseCase, _parse_srt_duration_seconds
 
 
 class _FakeVideoTranscriptionRepository:
@@ -95,6 +97,7 @@ class _FakeUploadGateway:
         return ""
 
 
+
 class RunTranscriptionUseCaseTests(TestCase):
     def test_success_sets_indexing_status_and_enqueues_task(self):
         video = VideoEntity(id=1, user_id=10, title="v1", status="pending")
@@ -151,6 +154,61 @@ class RunTranscriptionUseCaseTests(TestCase):
         with self.assertRaises(InvalidVideoStatusTransition):
             use_case.execute(video.id)
 
+    def test_records_processing_usage_after_successful_transcription(self):
+        srt = "1\n00:00:00,000 --> 00:00:30,000\nHello world\n"
+        video = VideoEntity(id=1, user_id=10, title="v1", status="pending")
+        repo = _FakeVideoTranscriptionRepository(video)
+        transcription = _FakeTranscriptionGateway(transcript=srt)
+        task_gateway = _FakeVideoTaskGateway()
+        upload_gw = _FakeUploadGateway()
+        tx = _FakeTransactionPort()
+        mock_processing_record = MagicMock()
+        use_case = RunTranscriptionUseCase(
+            repo, transcription, task_gateway, upload_gw, tx,
+            processing_record_use_case=mock_processing_record,
+        )
+
+        use_case.execute(video.id)
+
+        mock_processing_record.execute.assert_called_once_with(10, 30)
+
+    def test_skips_processing_record_when_transcription_fails(self):
+        video = VideoEntity(id=1, user_id=10, title="v1", status="pending")
+        repo = _FakeVideoTranscriptionRepository(video)
+        transcription = _FakeTranscriptionGateway(error=RuntimeError("boom"))
+        task_gateway = _FakeVideoTaskGateway()
+        upload_gw = _FakeUploadGateway()
+        tx = _FakeTransactionPort()
+        mock_processing_record = MagicMock()
+        use_case = RunTranscriptionUseCase(
+            repo, transcription, task_gateway, upload_gw, tx,
+            processing_record_use_case=mock_processing_record,
+        )
+
+        with self.assertRaises(TranscriptionExecutionFailed):
+            use_case.execute(video.id)
+
+        mock_processing_record.execute.assert_not_called()
+
+    def test_does_not_fail_transcription_when_billing_record_raises(self):
+        srt = "1\n00:00:00,000 --> 00:01:00,000\nContent\n"
+        video = VideoEntity(id=1, user_id=10, title="v1", status="pending")
+        repo = _FakeVideoTranscriptionRepository(video)
+        transcription = _FakeTranscriptionGateway(transcript=srt)
+        task_gateway = _FakeVideoTaskGateway()
+        upload_gw = _FakeUploadGateway()
+        tx = _FakeTransactionPort()
+        mock_processing_record = MagicMock()
+        mock_processing_record.execute.side_effect = RuntimeError("billing down")
+        use_case = RunTranscriptionUseCase(
+            repo, transcription, task_gateway, upload_gw, tx,
+            processing_record_use_case=mock_processing_record,
+        )
+
+        # Should not raise
+        use_case.execute(video.id)
+        self.assertEqual(video.status, "indexing")
+
     def test_file_size_exceeded_deletes_file_and_video(self):
         from unittest.mock import MagicMock
 
@@ -159,7 +217,7 @@ class RunTranscriptionUseCaseTests(TestCase):
 
         user = UserEntity(
             id=10, username="u", email="u@e.com",
-            is_active=True, video_limit=None, max_video_upload_size_mb=500,
+            is_active=True, max_video_upload_size_mb=500,
         )
         user_repo = MagicMock()
         user_repo.get_by_id.return_value = user
@@ -187,3 +245,55 @@ class RunTranscriptionUseCaseTests(TestCase):
         self.assertEqual(upload_gw.deleted_keys, ["uploads/test.mp4"])
         self.assertEqual(repo.deleted, [1])
         self.assertEqual(transcription.calls, [])
+
+    def test_processing_limit_exceeded_sets_error_and_skips_transcription(self):
+        video = VideoEntity(id=1, user_id=10, title="v1", status="pending", file_key="uploads/test.mp4")
+        repo = _FakeVideoTranscriptionRepository(video)
+        transcription = _FakeTranscriptionGateway(transcript="hello")
+        task_gateway = _FakeVideoTaskGateway()
+        upload_gw = _FakeUploadGateway()
+        tx = _FakeTransactionPort()
+        mock_check = MagicMock()
+        mock_check.execute.side_effect = ProcessingLimitExceeded("Processing limit exceeded")
+        use_case = RunTranscriptionUseCase(
+            repo,
+            transcription,
+            task_gateway,
+            upload_gw,
+            tx,
+            duration_estimator=lambda _: 62,
+            processing_limit_check_use_case=mock_check,
+        )
+
+        with self.assertRaises(TranscriptionExecutionFailed) as exc:
+            use_case.execute(video.id)
+
+        mock_check.execute.assert_called_once_with(10, 62)
+        self.assertEqual(video.status, "error")
+        self.assertEqual(transcription.calls, [])
+        self.assertIn("Processing limit exceeded", str(exc.exception))
+
+
+class ParseSrtDurationTests(TestCase):
+    """Unit tests for the _parse_srt_duration_seconds helper."""
+
+    def test_returns_duration_from_single_entry(self):
+        srt = "1\n00:00:00,000 --> 00:00:30,500\nHello\n"
+        self.assertEqual(_parse_srt_duration_seconds(srt), 30)
+
+    def test_returns_max_end_time_across_multiple_entries(self):
+        srt = (
+            "1\n00:00:00,000 --> 00:00:10,000\nFirst\n\n"
+            "2\n00:00:10,000 --> 00:02:05,000\nSecond\n"
+        )
+        self.assertEqual(_parse_srt_duration_seconds(srt), 125)
+
+    def test_returns_none_for_empty_string(self):
+        self.assertIsNone(_parse_srt_duration_seconds(""))
+
+    def test_returns_none_for_no_timestamps(self):
+        self.assertIsNone(_parse_srt_duration_seconds("some random text"))
+
+    def test_handles_hour_level_timestamps(self):
+        srt = "1\n01:30:00,000 --> 01:30:45,000\nContent\n"
+        self.assertEqual(_parse_srt_duration_seconds(srt), 5445)

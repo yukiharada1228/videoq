@@ -6,12 +6,13 @@ from typing import Callable
 from unittest import TestCase
 from unittest.mock import MagicMock
 
+from app.domain.billing.exceptions import StorageLimitExceeded
 from app.domain.user.entities import UserEntity
 from app.domain.video.dto import CreateVideoParams, UpdateVideoParams
 from app.domain.video.entities import VideoEntity
 from app.use_cases.video.create_video import CreateVideoUseCase
 from app.use_cases.video.dto import CreateVideoInput
-from app.use_cases.video.exceptions import FileSizeExceeded, ResourceNotFound, VideoLimitExceeded
+from app.use_cases.video.exceptions import FileSizeExceeded, ResourceNotFound
 
 
 @dataclass
@@ -121,7 +122,6 @@ class CreateVideoUseCaseTests(TestCase):
             username="user",
             email="user@example.com",
             is_active=True,
-            video_limit=None,
         )
         self.repo = FakeVideoRepository()
         self.mock_task_queue = MagicMock()
@@ -166,20 +166,7 @@ class CreateVideoUseCaseTests(TestCase):
 
         self.mock_task_queue.enqueue_transcription.assert_called_once_with(video.id)
 
-    def test_raises_video_limit_exceeded_when_limit_zero(self):
-        self.user_repo.get_by_id.return_value.video_limit = 0
-        with self.assertRaises(VideoLimitExceeded):
-            self.use_case.execute(self.user_id, self._input())
-
-    def test_raises_video_limit_exceeded_when_limit_reached(self):
-        self.user_repo.get_by_id.return_value.video_limit = 2
-        self._seed_videos(2)
-
-        with self.assertRaises(VideoLimitExceeded):
-            self.use_case.execute(self.user_id, self._input())
-
-    def test_allows_upload_when_within_limit(self):
-        self.user_repo.get_by_id.return_value.video_limit = 3
+    def test_allows_upload_with_existing_videos(self):
         self._seed_videos(1)
 
         video = self.use_case.execute(self.user_id, self._input())
@@ -201,7 +188,6 @@ class CreateVideoUseCaseTests(TestCase):
             username="user",
             email="user@example.com",
             is_active=True,
-            video_limit=None,
             max_video_upload_size_mb=100,
         )
         file_size = 101 * 1024 * 1024  # 101 MB
@@ -221,7 +207,6 @@ class CreateVideoUseCaseTests(TestCase):
             username="user",
             email="user@example.com",
             is_active=True,
-            video_limit=None,
             max_video_upload_size_mb=1000,
         )
         file_size = 600 * 1024 * 1024  # 600 MB
@@ -239,3 +224,76 @@ class CreateVideoUseCaseTests(TestCase):
 
         with self.assertRaises(ResourceNotFound):
             self.use_case.execute(self.user_id, self._input())
+
+
+class CreateVideoStorageBillingTests(TestCase):
+    """Tests for atomic storage check-and-reserve in CreateVideoUseCase."""
+
+    def setUp(self):
+        from app.domain.user.entities import UserEntity
+
+        self.user_id = 42
+        self.user_repo = MagicMock()
+        self.user_repo.get_by_id.return_value = UserEntity(
+            id=self.user_id,
+            username="user",
+            email="user@example.com",
+            is_active=True,
+        )
+        self.repo = FakeVideoRepository()
+        self.mock_task_queue = MagicMock()
+        self.mock_storage_limit_check = MagicMock()
+
+    def _make_use_case(self, storage_limit_check_use_case=None):
+        return CreateVideoUseCase(
+            self.user_repo,
+            self.repo,
+            self.mock_task_queue,
+            _FakeTransactionPort(),
+            storage_limit_check_use_case=storage_limit_check_use_case,
+        )
+
+    def test_checks_and_reserves_storage_before_upload(self):
+        """check_and_reserve is delegated atomically before video is created."""
+        use_case = self._make_use_case(
+            storage_limit_check_use_case=self.mock_storage_limit_check,
+        )
+        input_dto = CreateVideoInput(
+            file=FakeUploadedFile(),
+            title="Test",
+            description="",
+            file_size=1024,
+        )
+
+        use_case.execute(self.user_id, input_dto)
+
+        self.mock_storage_limit_check.execute.assert_called_once_with(self.user_id, 1024)
+
+    def test_rejects_upload_when_storage_limit_exceeded(self):
+        self.mock_storage_limit_check.execute.side_effect = StorageLimitExceeded("Storage limit exceeded")
+        use_case = self._make_use_case(
+            storage_limit_check_use_case=self.mock_storage_limit_check,
+        )
+        input_dto = CreateVideoInput(
+            file=FakeUploadedFile(),
+            title="Test",
+            description="",
+            file_size=1024,
+        )
+
+        with self.assertRaises(StorageLimitExceeded):
+            use_case.execute(self.user_id, input_dto)
+
+        self.assertEqual(self.repo.count_for_user(self.user_id), 0)
+        self.mock_task_queue.enqueue_transcription.assert_not_called()
+
+    def test_skips_storage_check_when_no_use_case_injected(self):
+        use_case = self._make_use_case(storage_limit_check_use_case=None)
+        input_dto = CreateVideoInput(
+            file=FakeUploadedFile(),
+            title="Test",
+            description="",
+            file_size=1024,
+        )
+        # Should not raise
+        use_case.execute(self.user_id, input_dto)

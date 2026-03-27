@@ -1,0 +1,167 @@
+name: CD
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types:
+      - completed
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cd-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 2
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          base: ${{ github.event.workflow_run.head_sha }}^
+          ref: ${{ github.event.workflow_run.head_sha }}
+          filters: |
+            backend:
+              - 'backend/**'
+              - '.github/workflows/cd.yml'
+
+  backend-deploy:
+    name: Deploy Backend API
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push backend image
+        id: build-backend
+        working-directory: backend
+        env:
+          IMAGE_URI: ${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY_API }}:${{ github.event.workflow_run.head_sha }}
+          IMAGE_URI_LATEST: ${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY_API }}:latest
+        run: |
+          docker build -f Dockerfile.lambda -t "$IMAGE_URI" -t "$IMAGE_URI_LATEST" .
+          docker push "$IMAGE_URI"
+          docker push "$IMAGE_URI_LATEST"
+          echo "image_uri=$IMAGE_URI" >> "$GITHUB_OUTPUT"
+
+      - name: Run Django migrations
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+          DJANGO_SECRET_KEY: ${{ secrets.PROD_DJANGO_SECRET_KEY }}
+          DJANGO_SETTINGS_MODULE: videoq.settings
+        run: |
+          pip install -r requirements.txt --quiet
+          python manage.py migrate --noinput
+
+      - name: Update Lambda function code
+        env:
+          IMAGE_URI: ${{ steps.build-backend.outputs.image_uri }}
+        run: |
+          aws lambda update-function-code \
+            --function-name "${{ secrets.LAMBDA_API_FUNCTION_NAME }}" \
+            --image-uri "$IMAGE_URI"
+
+      - name: Wait for Lambda update
+        run: |
+          aws lambda wait function-updated \
+            --function-name "${{ secrets.LAMBDA_API_FUNCTION_NAME }}"
+
+  worker-deploy:
+    name: Deploy Worker
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push worker image
+        id: build-worker
+        working-directory: backend
+        env:
+          IMAGE_URI: ${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY_WORKER }}:${{ github.event.workflow_run.head_sha }}
+          IMAGE_URI_LATEST: ${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY_WORKER }}:latest
+        run: |
+          docker build -f Dockerfile.worker -t "$IMAGE_URI" -t "$IMAGE_URI_LATEST" .
+          docker push "$IMAGE_URI"
+          docker push "$IMAGE_URI_LATEST"
+          echo "image_uri=$IMAGE_URI" >> "$GITHUB_OUTPUT"
+
+      - name: Update Lambda function code
+        env:
+          IMAGE_URI: ${{ steps.build-worker.outputs.image_uri }}
+        run: |
+          aws lambda update-function-code \
+            --function-name "${{ secrets.LAMBDA_WORKER_FUNCTION_NAME }}" \
+            --image-uri "$IMAGE_URI"
+
+      - name: Wait for Lambda update
+        run: |
+          aws lambda wait function-updated \
+            --function-name "${{ secrets.LAMBDA_WORKER_FUNCTION_NAME }}"
+
+  health-check:
+    name: Health Check
+    runs-on: ubuntu-latest
+    needs:
+      - backend-deploy
+      - worker-deploy
+    if: |
+      always() &&
+      (needs.backend-deploy.result == 'success' || needs.backend-deploy.result == 'skipped') &&
+      (needs.worker-deploy.result == 'success' || needs.worker-deploy.result == 'skipped') &&
+      (needs.backend-deploy.result == 'success' || needs.worker-deploy.result == 'success')
+    steps:
+      - name: Wait for Lambda warmup
+        run: sleep 15
+
+      - name: Health check
+        run: |
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            --max-time 30 \
+            --retry 3 \
+            --retry-delay 10 \
+            "${{ secrets.PROD_HEALTH_CHECK_URL }}")
+          if [ "$HTTP_STATUS" -ne 200 ]; then
+            echo "Health check failed: HTTP $HTTP_STATUS"
+            exit 1
+          fi
+          echo "Health check passed: HTTP $HTTP_STATUS"

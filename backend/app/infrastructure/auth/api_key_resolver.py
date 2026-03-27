@@ -25,6 +25,5 @@ class DjangoApiKeyResolver:
         return ApiKeyAuthContextDTO(
             api_key_id=key.id,
             user_id=key.user_id,
-            user_video_limit=key.user.video_limit,
             access_level=key.access_level,
         )

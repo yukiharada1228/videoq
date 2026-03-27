@@ -16,7 +16,6 @@ class APIKeyPrincipal:
     """Minimal authenticated principal for API key requests."""
 
     id: int
-    video_limit: int
 
     @property
     def pk(self) -> int:
@@ -50,7 +49,7 @@ class APIKeyAuthentication(BaseAuthentication):
         if resolved is None:
             raise AuthenticationFailed(_("Invalid API key"))
 
-        principal = APIKeyPrincipal(id=resolved.user_id, video_limit=resolved.user_video_limit)
+        principal = APIKeyPrincipal(id=resolved.user_id)
         return principal, {
             "api_key_id": resolved.api_key_id,
             "user_id": resolved.user_id,

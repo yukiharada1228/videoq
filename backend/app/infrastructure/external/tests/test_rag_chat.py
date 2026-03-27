@@ -43,19 +43,19 @@ class RagChatServiceTests(TestCase):
 
     @patch("app.infrastructure.external.rag_service.PGVectorManager.create_vectorstore")
     @patch("app.infrastructure.external.rag_service.get_embeddings")
-    @override_settings(EMBEDDING_PROVIDER="openai")
-    def test_create_vector_store_with_api_key(
+    @override_settings(EMBEDDING_PROVIDER="openai", OPENAI_API_KEY="test-server-key")
+    def test_create_vector_store_with_openai(
         self, mock_get_embeddings, mock_create_vectorstore
     ):
-        """Test _create_vector_store when API key is provided via constructor"""
+        """Test _create_vector_store uses server OPENAI_API_KEY"""
         mock_store = MagicMock()
         mock_create_vectorstore.return_value = mock_store
 
-        service = RagChatService(user=self.user, llm=MagicMock(), api_key="test-api-key")
+        service = RagChatService(user=self.user, llm=MagicMock())
         vector_store = service._create_vector_store()
 
         self.assertIsNotNone(vector_store)
-        mock_get_embeddings.assert_called_once_with("test-api-key")
+        mock_get_embeddings.assert_called_once_with()
         mock_create_vectorstore.assert_called_once()
 
     @patch("app.infrastructure.external.rag_service.PGVectorManager.create_vectorstore")
@@ -75,8 +75,34 @@ class RagChatServiceTests(TestCase):
         vector_store = service._create_vector_store()
 
         self.assertIsNotNone(vector_store)
-        mock_get_embeddings.assert_called_once_with(None)
+        mock_get_embeddings.assert_called_once_with()
         mock_create_vectorstore.assert_called_once()
+
+    def test_build_reference_entries_adds_bracketed_indices(self):
+        service = RagChatService(user=self.user, llm=MagicMock())
+        docs = [
+            MagicMock(
+                metadata={
+                    "video_title": "Video A",
+                    "start_time": "00:00:10",
+                    "end_time": "00:00:20",
+                },
+                page_content="First scene",
+            ),
+            MagicMock(
+                metadata={
+                    "video_title": "Video B",
+                    "start_time": "00:01:00",
+                    "end_time": "00:01:10",
+                },
+                page_content="Second scene",
+            ),
+        ]
+
+        entries = service._build_reference_entries(docs)
+
+        self.assertEqual(entries[0], "[1] Video A 00:00:10 - 00:00:20\nFirst scene")
+        self.assertEqual(entries[1], "[2] Video B 00:01:00 - 00:01:10\nSecond scene")
 
 
 class RagChatGatewayExceptionTests(TestCase):
@@ -136,3 +162,4 @@ class RagChatGatewayExceptionTests(TestCase):
 
         with self.assertRaises(RagUserNotFoundError):
             gateway.generate_reply(messages=messages, user_id=999999)
+

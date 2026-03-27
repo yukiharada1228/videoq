@@ -14,19 +14,11 @@ from app.domain.video.exceptions import (
     SomeVideosNotFound,
     TagNotAttachedToVideo,
     VideoAlreadyInGroup,
-    VideoLimitExceeded,
     VideoNotInGroup,
 )
 
 
 class VideoEntityTests(TestCase):
-    def test_ensure_upload_within_limit_raises_when_limit_reached(self):
-        with self.assertRaises(VideoLimitExceeded):
-            VideoEntity.ensure_upload_within_limit(current_count=3, video_limit=3)
-
-    def test_ensure_upload_within_limit_allows_unlimited(self):
-        VideoEntity.ensure_upload_within_limit(current_count=100, video_limit=None)
-
     def test_plan_tag_attachment_skips_attached_and_duplicates(self):
         video = VideoEntity(
             id=1,

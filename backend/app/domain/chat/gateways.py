@@ -7,7 +7,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Optional, Sequence
 
-from app.domain.chat.dtos import ChatMessageDTO, RelatedVideoDTO
+from app.domain.chat.dtos import ChatMessageDTO, CitationDTO
 
 
 class LLMConfigurationError(Exception):
@@ -28,7 +28,7 @@ class RagResult:
 
     content: str
     query_text: str
-    related_videos: Optional[Sequence[RelatedVideoDTO]] = field(default=None)
+    citations: Optional[Sequence[CitationDTO]] = field(default=None)
 
 
 class RagGateway(ABC):
@@ -53,36 +53,11 @@ class RagGateway(ABC):
             locale: Accept-Language locale string for response language hints.
 
         Returns:
-            RagResult with content, query_text, and optional related_videos.
+            RagResult with content, query_text, and optional citations.
 
         Raises:
             RagUserNotFoundError: If the user context does not exist.
             LLMConfigurationError: If the LLM cannot be initialised.
             LLMProviderError: If the LLM provider returns an error.
-        """
-        ...
-
-    @abstractmethod
-    def search_related_videos(
-        self,
-        query_text: str,
-        user_id: int,
-        video_ids: Optional[Sequence[int]] = None,
-        api_key: Optional[str] = None,
-    ) -> Optional[Sequence[RelatedVideoDTO]]:
-        """
-        Execute retrieval-only search and return related video scenes.
-
-        Args:
-            query_text: User query text used for vector retrieval.
-            user_id: ID of the user making the request (for retrieval scoping).
-            video_ids: Optional list of video IDs to scope retrieval to.
-
-        Returns:
-            Related video scene list or None when no retrieval target exists.
-
-        Raises:
-            RagUserNotFoundError: If the user context does not exist.
-            LLMProviderError: If the retrieval provider returns an error.
         """
         ...

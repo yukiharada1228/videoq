@@ -15,6 +15,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from app.presentation.common.authentication import APIKeyAuthentication, BearerAPIKeyAuthentication, CookieJWTAuthentication
+from app.use_cases.billing.exceptions import AiAnswersLimitExceeded, OverQuotaError
 from app.use_cases.chat.dto import ChatMessageInput
 from app.presentation.common.mixins import DependencyResolverMixin
 from app.presentation.common.permissions import (
@@ -46,8 +47,6 @@ from .serializers import (
     ChatLogSerializer,
     ChatRequestSerializer,
     ChatResponseSerializer,
-    ChatSearchRequestSerializer,
-    ChatSearchResponseSerializer,
     OpenAIChatRequestSerializer,
 )
 
@@ -59,6 +58,10 @@ def _get_locale(request) -> str | None:
     return None
 
 
+def _serialize_citations(citations):
+    if not citations:
+        return None
+    return ChatLogSerializer().get_citations(type("CitationHolder", (), {"citations": citations})())
 class ChatView(DependencyResolverMixin, APIView):
     """Chat endpoint with optional RAG context via video groups."""
 
@@ -114,94 +117,29 @@ class ChatView(DependencyResolverMixin, APIView):
             return create_error_response(str(e), status.HTTP_404_NOT_FOUND)
         except PermissionDenied as e:
             return create_error_response(str(e), status.HTTP_403_FORBIDDEN)
+        except OverQuotaError as e:
+            return create_error_response(
+                str(e),
+                status.HTTP_403_FORBIDDEN,
+                code="OVER_QUOTA",
+            )
+        except AiAnswersLimitExceeded as e:
+            return create_error_response(
+                str(e),
+                status.HTTP_400_BAD_REQUEST,
+                code="AI_ANSWERS_LIMIT_EXCEEDED",
+            )
         except LLMConfigurationError as e:
             return create_error_response(str(e), status.HTTP_400_BAD_REQUEST)
         except LLMProviderError as e:
             return create_error_response(str(e), status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         response_data = {"role": "assistant", "content": result.content}
-        if group_id is not None and result.related_videos:
-            response_data["related_videos"] = [
-                {
-                    "video_id": v.video_id,
-                    "title": v.title,
-                    "start_time": v.start_time,
-                    "end_time": v.end_time,
-                }
-                for v in result.related_videos
-            ]
+        if group_id is not None and result.citations:
+            response_data["citations"] = _serialize_citations(result.citations)
         if result.chat_log_id is not None:
             response_data["chat_log_id"] = result.chat_log_id
             response_data["feedback"] = result.feedback
-
-        return Response(response_data)
-
-
-class ChatSearchView(DependencyResolverMixin, APIView):
-    """Retrieval-only endpoint for related video scenes."""
-
-    authentication_classes = [
-        APIKeyAuthentication,
-        CookieJWTAuthentication,
-        ShareTokenAuthentication,
-    ]
-    permission_classes = [IsAuthenticatedOrSharedAccess, ApiKeyScopePermission]
-    required_scope = "read"
-    throttle_classes = [
-        ShareTokenIPThrottle,
-        AuthenticatedChatThrottle,
-    ]
-    search_related_videos_use_case = None
-
-    @extend_schema(
-        parameters=[
-            OpenApiParameter("query_text", str, required=True),
-            OpenApiParameter("group_id", int, required=True),
-            OpenApiParameter("share_token", str, required=False),
-        ],
-        responses={200: ChatSearchResponseSerializer},
-        summary="Search related scenes",
-        description=(
-            "Run retrieval-only search for related scenes within a group. "
-            "No LLM answer generation is performed."
-        ),
-    )
-    def get(self, request):
-        share_token = request.query_params.get("share_token")
-        is_shared = share_token is not None
-
-        serializer = ChatSearchRequestSerializer(data=request.query_params)
-        serializer.is_valid(raise_exception=True)
-
-        use_case = self.resolve_dependency(self.search_related_videos_use_case)
-        try:
-            result = use_case.execute(
-                user_id=getattr(request.user, "id", None),
-                query_text=serializer.validated_data["query_text"],
-                group_id=serializer.validated_data["group_id"],
-                share_token=share_token,
-                is_shared=is_shared,
-            )
-        except InvalidChatRequestError as e:
-            return create_error_response(str(e), status.HTTP_400_BAD_REQUEST)
-        except ResourceNotFound as e:
-            return create_error_response(str(e), status.HTTP_404_NOT_FOUND)
-        except PermissionDenied as e:
-            return create_error_response(str(e), status.HTTP_403_FORBIDDEN)
-        except LLMProviderError as e:
-            return create_error_response(str(e), status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-        response_data = {"query_text": result.query_text}
-        if result.related_videos:
-            response_data["related_videos"] = [
-                {
-                    "video_id": v.video_id,
-                    "title": v.title,
-                    "start_time": v.start_time,
-                    "end_time": v.end_time,
-                }
-                for v in result.related_videos
-            ]
 
         return Response(response_data)
 
@@ -456,7 +394,7 @@ class OpenAIChatCompletionsView(DependencyResolverMixin, APIView):
     """OpenAI Chat Completions API compatible endpoint.
 
     Accepts the standard OpenAI request shape and returns an OpenAI-compatible
-    response. videoq-specific fields (``group_id``, ``related_videos``,
+    response. videoq-specific fields (``group_id``, ``citations``,
     ``chat_log_id``) are passed as extensions on the response message object.
     """
 
@@ -487,7 +425,7 @@ class OpenAIChatCompletionsView(DependencyResolverMixin, APIView):
                                     "properties": {
                                         "role": {"type": "string"},
                                         "content": {"type": "string"},
-                                        "related_videos": {"type": "array", "nullable": True},
+                                        "citations": {"type": "array", "nullable": True},
                                         "chat_log_id": {"type": "integer", "nullable": True},
                                     },
                                 },
@@ -503,7 +441,7 @@ class OpenAIChatCompletionsView(DependencyResolverMixin, APIView):
         description=(
             "OpenAI Chat Completions API compatible endpoint. "
             "Pass ``group_id`` to enable RAG over a video group. "
-            "``related_videos`` and ``chat_log_id`` are returned as extensions "
+            "``citations`` and ``chat_log_id`` are returned as extensions "
             "on ``choices[0].message``."
         ),
     )
@@ -541,16 +479,8 @@ class OpenAIChatCompletionsView(DependencyResolverMixin, APIView):
             return self._error(str(e), "api_error", status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         message: dict = {"role": "assistant", "content": result.content}
-        if result.related_videos:
-            message["related_videos"] = [
-                {
-                    "video_id": v.video_id,
-                    "title": v.title,
-                    "start_time": v.start_time,
-                    "end_time": v.end_time,
-                }
-                for v in result.related_videos
-            ]
+        if result.citations:
+            message["citations"] = _serialize_citations(result.citations)
         if result.chat_log_id is not None:
             message["chat_log_id"] = result.chat_log_id
 

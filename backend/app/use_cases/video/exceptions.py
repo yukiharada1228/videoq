@@ -4,13 +4,11 @@ from app.use_cases.shared.exceptions import PermissionDenied, ResourceNotFound
 
 
 class VideoLimitExceeded(Exception):
-    """Raised when a user has reached their video upload limit."""
+    """Raised when a user has reached their video count limit."""
 
     def __init__(self, limit: int):
         self.limit = limit
-        super().__init__(
-            f"Video upload limit reached. You can upload up to {limit} video(s)."
-        )
+        super().__init__(f"Video limit of {limit} reached.")
 
 
 class VideoAlreadyInGroup(Exception):

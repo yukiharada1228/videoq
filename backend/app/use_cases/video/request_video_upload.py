@@ -7,13 +7,12 @@ import os
 import time
 
 from app.domain.shared.transaction import TransactionPort
-from app.domain.user.exceptions import UserVideoLimitExceeded
 from app.domain.user.repositories import UserRepository
 from app.domain.video.dto import CreateVideoPendingParams
 from app.domain.video.gateways import FileUploadGateway
 from app.domain.video.repositories import VideoRepository
 from app.use_cases.video.dto import RequestUploadInput, UploadRequestResponseDTO
-from app.use_cases.video.exceptions import FileSizeExceeded, ResourceNotFound, VideoLimitExceeded
+from app.use_cases.video.exceptions import FileSizeExceeded, ResourceNotFound
 from app.use_cases.video.file_url import to_video_response_dto
 
 logger = logging.getLogger(__name__)
@@ -51,11 +50,13 @@ class RequestVideoUploadUseCase:
         video_repo: VideoRepository,
         upload_gateway: FileUploadGateway,
         tx: TransactionPort,
+        storage_limit_check_use_case=None,
     ):
         self.user_repo = user_repo
         self.video_repo = video_repo
         self.upload_gateway = upload_gateway
         self.tx = tx
+        self._storage_limit_check_use_case = storage_limit_check_use_case
 
     def execute(self, user_id: int, input: RequestUploadInput) -> UploadRequestResponseDTO:
         user = self.user_repo.get_by_id(user_id)
@@ -75,14 +76,10 @@ class RequestVideoUploadUseCase:
         max_upload_bytes = user.get_max_upload_size_bytes()
         if input.file_size > max_upload_bytes:
             raise FileSizeExceeded(max_upload_bytes // (1024 * 1024))
+        if self._storage_limit_check_use_case is not None:
+            self._storage_limit_check_use_case.execute(user_id, input.file_size)
 
         with self.tx.atomic():
-            current_count = self.video_repo.count_for_user(user_id)
-            try:
-                user.assert_can_upload_video(current_count)
-            except UserVideoLimitExceeded as e:
-                raise VideoLimitExceeded(e.limit) from e
-
             timestamp_ms = int(time.time() * 1000)
             file_key = f"videos/{user_id}/video_{timestamp_ms}{ext}"
 

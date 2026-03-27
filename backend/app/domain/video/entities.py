@@ -14,7 +14,6 @@ from app.domain.video.exceptions import (
     ShareLinkNotActive,
     SomeVideosNotFound,
     TagNotAttachedToVideo,
-    VideoLimitExceeded,
 )
 from app.domain.video.exceptions import VideoAlreadyInGroup, VideoNotInGroup
 
@@ -45,12 +44,6 @@ class VideoEntity:
     uploaded_at: Optional[datetime] = None
     transcript: Optional[str] = None
     tags: List[TagEntity] = field(default_factory=list)
-
-    @staticmethod
-    def ensure_upload_within_limit(current_count: int, video_limit: Optional[int]) -> None:
-        """Enforce per-user upload limits as a domain invariant."""
-        if video_limit is not None and current_count >= video_limit:
-            raise VideoLimitExceeded(video_limit)
 
     def plan_tag_attachment(self, requested_tag_ids: List[int]) -> Tuple[List[int], int]:
         """

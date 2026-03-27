@@ -18,7 +18,6 @@ class ChatLogModelTests(TestCase):
             username="testuser",
             email="test@example.com",
             password="testpass123",
-            video_limit=None,
         )
         self.group = VideoGroup.objects.create(
             user=self.user,
@@ -39,8 +38,8 @@ class ChatLogModelTests(TestCase):
         self.assertEqual(chat_log.user, self.user)
         self.assertEqual(chat_log.group, self.group)
 
-    def test_default_related_videos_is_empty_list(self):
-        """Test that default related_videos is empty list"""
+    def test_default_citations_is_empty_list(self):
+        """Test that default citations is empty list"""
         chat_log = ChatLog.objects.create(
             user=self.user,
             group=self.group,
@@ -48,11 +47,11 @@ class ChatLogModelTests(TestCase):
             answer="Answer",
         )
 
-        self.assertEqual(chat_log.related_videos, [])
+        self.assertEqual(chat_log.citations, [])
 
-    def test_related_videos_stores_json(self):
-        """Test that related_videos stores JSON data"""
-        related = [
+    def test_citations_stores_json(self):
+        """Test that citations stores JSON data"""
+        citations = [
             {"video_id": 1, "title": "Video 1", "start_time": "00:00:10"},
             {"video_id": 2, "title": "Video 2", "start_time": "00:01:30"},
         ]
@@ -62,11 +61,11 @@ class ChatLogModelTests(TestCase):
             group=self.group,
             question="Question",
             answer="Answer",
-            related_videos=related,
+            citations=citations,
         )
 
         chat_log.refresh_from_db()
-        self.assertEqual(chat_log.related_videos, related)
+        self.assertEqual(chat_log.citations, citations)
 
     def test_default_is_shared_origin_is_false(self):
         """Test that default is_shared_origin is False"""

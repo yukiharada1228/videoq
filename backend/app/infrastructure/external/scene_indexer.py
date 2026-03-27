@@ -18,7 +18,7 @@ def index_scenes_to_vectorstore(scene_docs, video, api_key=None):
     api_key: Optional API key for OpenAI (uses environment variable if not provided)
     """
     try:
-        embeddings = get_embeddings(api_key)
+        embeddings = get_embeddings()
 
         valid_docs = [d for d in scene_docs if d.get("text")]
         texts = [d["text"] for d in valid_docs]

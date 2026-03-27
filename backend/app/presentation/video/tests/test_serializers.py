@@ -40,7 +40,6 @@ class VideoCreateSerializerTests(TestCase):
             username="testuser",
             email="test@example.com",
             password="testpass123",
-            video_limit=None,
         )
 
     def _create_video_file(self, name="test_video.mp4", content_type="video/mp4"):
@@ -268,7 +267,6 @@ class VideoSerializerTests(TestCase):
             username="testuser",
             email="test@example.com",
             password="testpass123",
-            video_limit=None,
         )
         self.video = Video.objects.create(
             user=self.user,
@@ -314,7 +312,6 @@ class VideoGroupDetailSerializerTests(TestCase):
             username="testuser",
             email="test@example.com",
             password="testpass123",
-            video_limit=None,
         )
         self.group = VideoGroup.objects.create(
             user=self.user,
@@ -389,7 +386,6 @@ class TagDetailSerializerTests(TestCase):
             username="testuser",
             email="test@example.com",
             password="testpass123",
-            video_limit=None,
         )
         self.tag = Tag.objects.create(
             user=self.user,

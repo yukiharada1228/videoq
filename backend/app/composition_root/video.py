@@ -98,11 +98,6 @@ def get_update_video_use_case():
 def get_delete_video_use_case():
     return core.get_delete_video_use_case()
 
-
-def get_enforce_video_limit_use_case():
-    return core.get_enforce_video_limit_use_case()
-
-
 def get_request_video_upload_use_case():
     return core.get_request_video_upload_use_case()
 
