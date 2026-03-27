@@ -3,6 +3,8 @@
 These tests exercise the actual DB layer to verify that increment_* methods
 perform atomic writes via F() expressions, preventing Lost Update anomalies.
 """
+from datetime import datetime, timedelta, timezone
+
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 
@@ -133,3 +135,90 @@ class CheckAndReserveStorageTests(TestCase):
             self.repo.check_and_reserve_storage(self.user.id, 200)
         obj = Subscription.objects.get(user_id=self.user.id)
         self.assertEqual(obj.used_storage_bytes, limit - 100)
+
+
+class MaybeResetMonthlyUsageTests(TestCase):
+    def setUp(self):
+        self.user = _create_user("resetuser")
+        self.repo = DjangoSubscriptionRepository()
+        self.repo.get_or_create(self.user.id)
+
+    def _set_subscription(self, **kwargs):
+        Subscription.objects.filter(user_id=self.user.id).update(**kwargs)
+
+    def test_first_usage_sets_period_start(self):
+        """With no usage_period_start, sets period_start without resetting counters."""
+        self._set_subscription(used_processing_seconds=0, used_ai_answers=0)
+        self.repo.maybe_reset_monthly_usage(self.user.id)
+        obj = Subscription.objects.get(user_id=self.user.id)
+        self.assertIsNotNone(obj.usage_period_start)
+        self.assertEqual(obj.used_processing_seconds, 0)
+
+    def test_paid_user_no_reset_before_period_end(self):
+        """Paid user: usage is NOT reset when current_period_end is still in the future.
+
+        Regression test for the core bug: 30+ days may have passed since period_start
+        but Stripe's billing cycle hasn't ended yet, so usage must not be reset early.
+        """
+        now = datetime.now(tz=timezone.utc)
+        period_end = now + timedelta(days=1)
+        period_start = now - timedelta(days=35)  # >30 days ago — old logic would reset
+        self._set_subscription(
+            current_period_end=period_end,
+            usage_period_start=period_start,
+            used_processing_seconds=100,
+            used_ai_answers=5,
+        )
+        self.repo.maybe_reset_monthly_usage(self.user.id)
+        obj = Subscription.objects.get(user_id=self.user.id)
+        self.assertEqual(obj.used_processing_seconds, 100)
+        self.assertEqual(obj.used_ai_answers, 5)
+
+    def test_paid_user_resets_when_period_end_passed(self):
+        """Paid user: usage IS reset when now >= current_period_end (Stripe billing cycle ended)."""
+        now = datetime.now(tz=timezone.utc)
+        period_end = now - timedelta(seconds=1)
+        period_start = now - timedelta(days=31)
+        self._set_subscription(
+            current_period_end=period_end,
+            usage_period_start=period_start,
+            used_processing_seconds=100,
+            used_ai_answers=5,
+        )
+        self.repo.maybe_reset_monthly_usage(self.user.id)
+        obj = Subscription.objects.get(user_id=self.user.id)
+        self.assertEqual(obj.used_processing_seconds, 0)
+        self.assertEqual(obj.used_ai_answers, 0)
+
+    def test_free_user_no_reset_same_month(self):
+        """Free user: no reset when still in the same calendar month."""
+        now = datetime.now(tz=timezone.utc)
+        period_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        self._set_subscription(
+            current_period_end=None,
+            usage_period_start=period_start,
+            used_processing_seconds=50,
+            used_ai_answers=2,
+        )
+        self.repo.maybe_reset_monthly_usage(self.user.id)
+        obj = Subscription.objects.get(user_id=self.user.id)
+        self.assertEqual(obj.used_processing_seconds, 50)
+        self.assertEqual(obj.used_ai_answers, 2)
+
+    def test_free_user_resets_on_new_month(self):
+        """Free user: usage IS reset when calendar month has changed."""
+        now = datetime.now(tz=timezone.utc)
+        if now.month == 1:
+            prev_month = now.replace(year=now.year - 1, month=12, day=1)
+        else:
+            prev_month = now.replace(month=now.month - 1, day=1)
+        self._set_subscription(
+            current_period_end=None,
+            usage_period_start=prev_month,
+            used_processing_seconds=50,
+            used_ai_answers=2,
+        )
+        self.repo.maybe_reset_monthly_usage(self.user.id)
+        obj = Subscription.objects.get(user_id=self.user.id)
+        self.assertEqual(obj.used_processing_seconds, 0)
+        self.assertEqual(obj.used_ai_answers, 0)
