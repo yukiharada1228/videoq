@@ -7,6 +7,4 @@ class RecordAiAnswerUsageUseCase:
 
     def execute(self, user_id: int) -> None:
         self._subscription_repo.maybe_reset_monthly_usage(user_id)
-        entity = self._subscription_repo.get_or_create(user_id)
-        entity.used_ai_answers += 1
-        self._subscription_repo.save(entity)
+        self._subscription_repo.increment_ai_answers(user_id)

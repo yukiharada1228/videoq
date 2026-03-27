@@ -41,6 +41,9 @@ class _TrackingSubscriptionRepo(SubscriptionRepository):
         self.saved: Optional[SubscriptionEntity] = None
         self.reset_calls: list = []
         self.maybe_reset_calls: list = []
+        self.increment_storage_calls: list = []
+        self.increment_processing_calls: list = []
+        self.increment_ai_answer_calls: list = []
 
     def get_or_create(self, user_id: int) -> SubscriptionEntity:
         return self._entity
@@ -64,28 +67,40 @@ class _TrackingSubscriptionRepo(SubscriptionRepository):
     def maybe_reset_monthly_usage(self, user_id: int) -> None:
         self.maybe_reset_calls.append(user_id)
 
+    def increment_storage_bytes(self, user_id: int, bytes_delta: int) -> None:
+        self.increment_storage_calls.append((user_id, bytes_delta))
+
+    def increment_processing_seconds(self, user_id: int, seconds: int) -> None:
+        self.increment_processing_calls.append((user_id, seconds))
+
+    def increment_ai_answers(self, user_id: int) -> None:
+        self.increment_ai_answer_calls.append(user_id)
+
 
 class RecordStorageUsageTests(TestCase):
-    def test_adds_bytes_to_used_storage(self):
+    def test_delegates_to_atomic_increment(self):
+        """Use case must call increment_storage_bytes instead of get→save."""
         entity = _make_subscription(used_storage_bytes=100)
         repo = _TrackingSubscriptionRepo(entity)
         use_case = RecordStorageUsageUseCase(repo)
         use_case.execute(user_id=1, bytes_delta=500)
-        self.assertEqual(repo.saved.used_storage_bytes, 600)
+        self.assertEqual(repo.increment_storage_calls, [(1, 500)])
 
-    def test_subtracts_bytes_on_negative_delta(self):
+    def test_passes_negative_delta_to_repo(self):
+        """Negative delta (file deletion) is passed through to the repo for atomic clamping."""
         entity = _make_subscription(used_storage_bytes=1000)
         repo = _TrackingSubscriptionRepo(entity)
         use_case = RecordStorageUsageUseCase(repo)
         use_case.execute(user_id=1, bytes_delta=-300)
-        self.assertEqual(repo.saved.used_storage_bytes, 700)
+        self.assertEqual(repo.increment_storage_calls, [(1, -300)])
 
-    def test_clamps_to_zero_on_over_subtraction(self):
-        entity = _make_subscription(used_storage_bytes=100)
+    def test_does_not_call_save(self):
+        """save() must NOT be called — the repo handles the atomic write."""
+        entity = _make_subscription()
         repo = _TrackingSubscriptionRepo(entity)
         use_case = RecordStorageUsageUseCase(repo)
-        use_case.execute(user_id=1, bytes_delta=-500)
-        self.assertEqual(repo.saved.used_storage_bytes, 0)
+        use_case.execute(user_id=1, bytes_delta=100)
+        self.assertIsNone(repo.saved)
 
     def test_does_not_call_maybe_reset(self):
         """Storage recording does NOT trigger monthly reset."""
@@ -97,12 +112,13 @@ class RecordStorageUsageTests(TestCase):
 
 
 class RecordProcessingUsageTests(TestCase):
-    def test_adds_seconds_to_used_processing(self):
+    def test_delegates_to_atomic_increment(self):
+        """Use case must call increment_processing_seconds instead of get→save."""
         entity = _make_subscription(used_processing_seconds=60)
         repo = _TrackingSubscriptionRepo(entity)
         use_case = RecordProcessingUsageUseCase(repo)
         use_case.execute(user_id=1, seconds=120)
-        self.assertEqual(repo.saved.used_processing_seconds, 180)
+        self.assertEqual(repo.increment_processing_calls, [(1, 120)])
 
     def test_calls_maybe_reset_before_recording(self):
         entity = _make_subscription(used_processing_seconds=0)
@@ -111,14 +127,23 @@ class RecordProcessingUsageTests(TestCase):
         use_case.execute(user_id=1, seconds=30)
         self.assertEqual(repo.maybe_reset_calls, [1])
 
+    def test_does_not_call_save(self):
+        """save() must NOT be called — the repo handles the atomic write."""
+        entity = _make_subscription()
+        repo = _TrackingSubscriptionRepo(entity)
+        use_case = RecordProcessingUsageUseCase(repo)
+        use_case.execute(user_id=1, seconds=60)
+        self.assertIsNone(repo.saved)
+
 
 class RecordAiAnswerUsageTests(TestCase):
-    def test_increments_ai_answers_by_one(self):
+    def test_delegates_to_atomic_increment(self):
+        """Use case must call increment_ai_answers instead of get→save."""
         entity = _make_subscription(used_ai_answers=5)
         repo = _TrackingSubscriptionRepo(entity)
         use_case = RecordAiAnswerUsageUseCase(repo)
         use_case.execute(user_id=1)
-        self.assertEqual(repo.saved.used_ai_answers, 6)
+        self.assertEqual(repo.increment_ai_answer_calls, [1])
 
     def test_calls_maybe_reset_before_recording(self):
         entity = _make_subscription(used_ai_answers=0)
@@ -126,3 +151,11 @@ class RecordAiAnswerUsageTests(TestCase):
         use_case = RecordAiAnswerUsageUseCase(repo)
         use_case.execute(user_id=1)
         self.assertEqual(repo.maybe_reset_calls, [1])
+
+    def test_does_not_call_save(self):
+        """save() must NOT be called — the repo handles the atomic write."""
+        entity = _make_subscription()
+        repo = _TrackingSubscriptionRepo(entity)
+        use_case = RecordAiAnswerUsageUseCase(repo)
+        use_case.execute(user_id=1)
+        self.assertIsNone(repo.saved)
