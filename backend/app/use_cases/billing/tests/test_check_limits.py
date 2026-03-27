@@ -6,6 +6,7 @@ from unittest import TestCase
 from app.domain.billing.entities import PlanType, SubscriptionEntity
 from app.domain.billing.exceptions import (
     AiAnswersLimitExceeded,
+    OverQuotaError,
     ProcessingLimitExceeded,
     StorageLimitExceeded,
 )
@@ -68,6 +69,8 @@ class _StubSubscriptionRepo(SubscriptionRepository):
 
     def check_and_reserve_storage(self, user_id: int, additional_bytes: int) -> None:
         self.check_and_reserve_calls.append((user_id, additional_bytes))
+        if self._entity.is_over_quota:
+            raise StorageLimitExceeded("Storage limit exceeded: account is over quota.")
         if not self._entity.can_use_storage(additional_bytes):
             raise StorageLimitExceeded(
                 f"Storage limit exceeded. Limit: {self._entity.get_storage_limit_bytes()} bytes."
@@ -81,6 +84,9 @@ class _StubSubscriptionRepo(SubscriptionRepository):
         pass
 
     def increment_ai_answers(self, user_id: int) -> None:
+        pass
+
+    def clear_over_quota_if_within_limit(self, user_id: int) -> None:
         pass
 
 
@@ -138,6 +144,17 @@ class CheckStorageLimitTests(TestCase):
         entity = _make_subscription(plan=PlanType.ENTERPRISE, used_storage_bytes=100 * 1024 ** 3)
         use_case = CheckStorageLimitUseCase(_StubSubscriptionRepo(entity))
         use_case.execute(user_id=1, additional_bytes=100 * 1024 ** 3)
+
+
+    def test_storage_over_quota_flag_raises_even_when_bytes_available(self):
+        """is_over_quota=True must block uploads regardless of remaining bytes."""
+        entity = _make_subscription(
+            plan=PlanType.FREE, used_storage_bytes=0, is_over_quota=True
+        )
+        repo = _StubSubscriptionRepo(entity)
+        use_case = CheckStorageLimitUseCase(repo)
+        with self.assertRaises(StorageLimitExceeded):
+            use_case.execute(user_id=1, additional_bytes=1)
 
 
 class CheckProcessingLimitTests(TestCase):
@@ -226,3 +243,20 @@ class CheckAiAnswersLimitTests(TestCase):
         )
         use_case = CheckAiAnswersLimitUseCase(_StubSubscriptionRepo(entity))
         use_case.execute(user_id=1)
+
+    def test_ai_answers_raises_over_quota_error_when_is_over_quota(self):
+        """is_over_quota=True must block AI chat regardless of answer count."""
+        entity = _make_subscription(
+            plan=PlanType.STANDARD, used_ai_answers=0, is_over_quota=True
+        )
+        use_case = CheckAiAnswersLimitUseCase(_StubSubscriptionRepo(entity))
+        with self.assertRaises(OverQuotaError):
+            use_case.execute(user_id=1)
+
+    def test_ai_answers_does_not_raise_over_quota_when_flag_false(self):
+        """is_over_quota=False must not affect the normal AI answers check."""
+        entity = _make_subscription(
+            plan=PlanType.STANDARD, used_ai_answers=0, is_over_quota=False
+        )
+        use_case = CheckAiAnswersLimitUseCase(_StubSubscriptionRepo(entity))
+        use_case.execute(user_id=1)  # should not raise

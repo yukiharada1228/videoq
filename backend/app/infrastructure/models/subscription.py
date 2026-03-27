@@ -31,6 +31,7 @@ class Subscription(models.Model):
     custom_ai_answers = models.IntegerField(null=True, blank=True)
     unlimited_processing_minutes = models.BooleanField(default=False)
     unlimited_ai_answers = models.BooleanField(default=False)
+    is_over_quota = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

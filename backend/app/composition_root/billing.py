@@ -12,6 +12,7 @@ from app.use_cases.billing.create_checkout_session import CreateCheckoutSessionU
 from app.use_cases.billing.get_plans import GetPlansUseCase
 from app.use_cases.billing.get_subscription import GetSubscriptionUseCase
 from app.use_cases.billing.handle_webhook import HandleWebhookUseCase
+from app.use_cases.billing.clear_over_quota import ClearOverQuotaIfWithinLimitUseCase
 from app.use_cases.billing.record_ai_answer_usage import RecordAiAnswerUsageUseCase
 from app.use_cases.billing.record_processing_usage import RecordProcessingUsageUseCase
 from app.use_cases.billing.record_storage_usage import RecordStorageUsageUseCase
@@ -123,3 +124,7 @@ def get_record_processing_usage_use_case() -> RecordProcessingUsageUseCase:
 
 def get_record_ai_answer_usage_use_case() -> RecordAiAnswerUsageUseCase:
     return RecordAiAnswerUsageUseCase(_new_subscription_repo())
+
+
+def get_clear_over_quota_if_within_limit_use_case() -> ClearOverQuotaIfWithinLimitUseCase:
+    return ClearOverQuotaIfWithinLimitUseCase(_new_subscription_repo())

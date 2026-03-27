@@ -14,7 +14,6 @@ from app.domain.billing.ports import (
 from app.use_cases.billing.create_checkout_session import CreateCheckoutSessionUseCase
 from app.use_cases.billing.exceptions import (
     BillingNotEnabled,
-    DowngradeNotAllowed,
     InvalidPlan,
 )
 
@@ -81,6 +80,9 @@ class _StubSubscriptionRepo(SubscriptionRepository):
         pass
 
     def increment_ai_answers(self, user_id: int) -> None:
+        pass
+
+    def clear_over_quota_if_within_limit(self, user_id: int) -> None:
         pass
 
 
@@ -304,8 +306,9 @@ class AlreadySubscribedTests(TestCase):
         self.assertEqual(use_case._subscription_repo.saved.stripe_status, "canceled")
 
 
-class DowngradeGuardTests(TestCase):
-    def test_blocks_downgrade_when_used_storage_exceeds_target_limit(self):
+class DowngradeTests(TestCase):
+    def test_allows_downgrade_even_when_used_storage_exceeds_target_limit(self):
+        """Downgrade is always allowed; is_over_quota handles enforcement post-downgrade."""
         entity = _make_subscription(
             plan=PlanType.STANDARD,
             stripe_status="active",
@@ -315,17 +318,15 @@ class DowngradeGuardTests(TestCase):
         )
         use_case = _make_use_case(entity)
 
-        with self.assertRaises(DowngradeNotAllowed) as ctx:
-            use_case.execute(
-                user_id=1,
-                plan="lite",
-                success_url="https://success",
-                cancel_url="https://cancel",
-            )
+        # Should not raise DowngradeNotAllowed
+        dto = use_case.execute(
+            user_id=1,
+            plan="lite",
+            success_url="https://success",
+            cancel_url="https://cancel",
+        )
 
-        self.assertEqual(ctx.exception.used_storage_bytes, 15 * 1024 ** 3)
-        self.assertEqual(ctx.exception.target_limit_bytes, 10 * 1024 ** 3)
-        self.assertEqual(ctx.exception.over_quota_bytes, 5 * 1024 ** 3)
+        self.assertTrue(dto.upgraded)
 
     def test_allows_upgrade_when_target_limit_is_higher_than_current_plan(self):
         entity = _make_subscription(

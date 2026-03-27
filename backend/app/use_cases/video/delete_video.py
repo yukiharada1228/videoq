@@ -30,12 +30,14 @@ class DeleteVideoUseCase:
         tx: TransactionPort,
         upload_gateway: Optional[FileUploadGateway] = None,
         storage_record_use_case=None,
+        over_quota_clear_use_case=None,
     ):
         self.video_repo = video_repo
         self.vector_gateway = vector_gateway
         self.tx = tx
         self._upload_gateway = upload_gateway
         self._storage_record_use_case = storage_record_use_case
+        self._over_quota_clear_use_case = over_quota_clear_use_case
 
     def execute(self, video_id: int, user_id: int) -> None:
         """
@@ -83,6 +85,16 @@ class DeleteVideoUseCase:
             except Exception:
                 logger.warning(
                     "Failed to subtract storage usage for user %s after video deletion",
+                    user_id,
+                    exc_info=True,
+                )
+
+        if self._over_quota_clear_use_case is not None:
+            try:
+                self._over_quota_clear_use_case.execute(user_id)
+            except Exception:
+                logger.warning(
+                    "Failed to clear over-quota flag for user %s after video deletion",
                     user_id,
                     exc_info=True,
                 )

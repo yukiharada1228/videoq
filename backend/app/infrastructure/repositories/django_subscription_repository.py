@@ -33,6 +33,7 @@ class DjangoSubscriptionRepository(SubscriptionRepository):
             custom_ai_answers=obj.custom_ai_answers,
             unlimited_processing_minutes=obj.unlimited_processing_minutes,
             unlimited_ai_answers=obj.unlimited_ai_answers,
+            is_over_quota=obj.is_over_quota,
         )
 
     def get_or_create(self, user_id: int) -> SubscriptionEntity:
@@ -77,6 +78,7 @@ class DjangoSubscriptionRepository(SubscriptionRepository):
             custom_ai_answers=entity.custom_ai_answers,
             unlimited_processing_minutes=entity.unlimited_processing_minutes,
             unlimited_ai_answers=entity.unlimited_ai_answers,
+            is_over_quota=entity.is_over_quota,
         )
         return entity
 
@@ -101,6 +103,12 @@ class DjangoSubscriptionRepository(SubscriptionRepository):
         Subscription = self._get_model()
         obj, _ = Subscription.objects.get_or_create(user_id=user_id, defaults={"plan": "free"})
         entity = self._to_entity(obj)
+
+        if entity.is_over_quota:
+            raise StorageLimitExceeded(
+                "Storage limit exceeded: account is over quota."
+            )
+
         limit = entity.get_storage_limit_bytes()
 
         if limit is None:
@@ -137,6 +145,15 @@ class DjangoSubscriptionRepository(SubscriptionRepository):
         Subscription.objects.filter(user_id=user_id).update(
             used_ai_answers=F("used_ai_answers") + 1
         )
+
+    def clear_over_quota_if_within_limit(self, user_id: int) -> None:
+        entity = self.get_or_create(user_id)
+        if not entity.is_over_quota:
+            return
+        limit = entity.get_storage_limit_bytes()
+        if limit is None or entity.used_storage_bytes <= limit:
+            Subscription = self._get_model()
+            Subscription.objects.filter(user_id=user_id).update(is_over_quota=False)
 
     def maybe_reset_monthly_usage(self, user_id: int) -> None:
         """Reset usage counters if a new billing period has started."""

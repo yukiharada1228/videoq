@@ -46,6 +46,7 @@ class SubscriptionEntity:
     custom_ai_answers: Optional[int]
     unlimited_processing_minutes: bool  # enterprise override
     unlimited_ai_answers: bool  # enterprise override
+    is_over_quota: bool = False  # set when used_storage_bytes > plan limit after forced downgrade
 
     @property
     def is_stripe_active(self) -> bool:
