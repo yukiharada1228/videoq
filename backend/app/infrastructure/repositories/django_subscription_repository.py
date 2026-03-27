@@ -82,7 +82,7 @@ class DjangoSubscriptionRepository(SubscriptionRepository):
         )
         return entity
 
-    def create_stripe_customer(self, user_id: int, customer_id: str) -> SubscriptionEntity:
+    def create_stripe_customer(self, user_id: int, customer_id) -> SubscriptionEntity:
         Subscription = self._get_model()
         Subscription.objects.filter(user_id=user_id).update(
             stripe_customer_id=customer_id
