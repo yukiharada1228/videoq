@@ -41,6 +41,7 @@ def _make_subscription(**kwargs) -> SubscriptionEntity:
 class _StubSubscriptionRepo(SubscriptionRepository):
     def __init__(self, entity: Optional[SubscriptionEntity]):
         self._entity = entity
+        self.saved: Optional[SubscriptionEntity] = None
 
     def get_or_create(self, user_id: int) -> SubscriptionEntity:
         assert self._entity is not None
@@ -53,6 +54,7 @@ class _StubSubscriptionRepo(SubscriptionRepository):
         return self._entity
 
     def save(self, entity: SubscriptionEntity) -> SubscriptionEntity:
+        self.saved = entity
         return entity
 
     def create_stripe_customer(self, user_id: int, customer_id: str) -> SubscriptionEntity:
@@ -106,8 +108,27 @@ def _make_deletion_gateway() -> UserDataDeletionGateway:
 
 class CancelSubscriptionOnDeleteTests(TestCase):
     def test_cancels_stripe_subscription_when_active(self):
-        """アクティブなサブスクリプションがある場合、アカウント削除時にStripeをキャンセルする"""
+        """アクティブなサブスクリプションがある場合、アカウント削除時にStripeをキャンセルしDBを更新する"""
         entity = _make_subscription(stripe_subscription_id="sub_abc")
+        billing_gw = _StubBillingGateway()
+        repo = _StubSubscriptionRepo(entity)
+        use_case = DeleteAccountDataUseCase(
+            user_data_deletion_gateway=_make_deletion_gateway(),
+            subscription_repo=repo,
+            billing_gateway=billing_gw,
+        )
+
+        use_case.execute(user_id=1)
+
+        self.assertEqual(billing_gw.cancelled, ["sub_abc"])
+        self.assertIsNotNone(repo.saved)
+        self.assertIsNone(repo.saved.stripe_subscription_id)
+        self.assertEqual(repo.saved.stripe_status, "canceled")
+
+    def test_idempotent_on_retry_after_successful_stripe_cancel(self):
+        """Stripeキャンセル成功後にDB更新済みの場合、リトライ時はStripeを再度呼ばない"""
+        # stripe_subscription_id がすでにNone（前回のキャンセルでDB更新済み）
+        entity = _make_subscription(plan=PlanType.FREE, stripe_subscription_id=None)
         billing_gw = _StubBillingGateway()
         use_case = DeleteAccountDataUseCase(
             user_data_deletion_gateway=_make_deletion_gateway(),
@@ -117,7 +138,7 @@ class CancelSubscriptionOnDeleteTests(TestCase):
 
         use_case.execute(user_id=1)
 
-        self.assertEqual(billing_gw.cancelled, ["sub_abc"])
+        self.assertEqual(billing_gw.cancelled, [])
 
     def test_skips_cancel_when_no_subscription_id(self):
         """stripe_subscription_idがNullの場合はキャンセルしない（Freeプラン等）"""
@@ -154,8 +175,34 @@ class CancelSubscriptionOnDeleteTests(TestCase):
 
         use_case.execute(user_id=1)  # エラーなく完了すること
 
-    def test_blocks_deletion_if_stripe_cancel_fails(self):
-        """Stripeキャンセルが失敗した場合、アカウント削除をブロックする（課金継続を防ぐ）"""
+    def test_deletes_data_before_stripe_cancel(self):
+        """データ削除（R2含む）が完了した後にStripeをキャンセルする"""
+        entity = _make_subscription(stripe_subscription_id="sub_abc")
+        billing_gw = _StubBillingGateway()
+        deletion_gw = _make_deletion_gateway()
+        call_order = []
+        deletion_gw.delete_all_videos_for_user.side_effect = lambda uid: call_order.append("videos")
+        deletion_gw.delete_chat_history_for_user.side_effect = lambda uid: call_order.append("chat")
+        deletion_gw.delete_video_groups_for_user.side_effect = lambda uid: call_order.append("groups")
+        deletion_gw.delete_tags_for_user.side_effect = lambda uid: call_order.append("tags")
+        original_cancel = billing_gw.cancel_subscription
+        def cancel_with_order(sub_id):
+            call_order.append("stripe")
+            original_cancel(sub_id)
+        billing_gw.cancel_subscription = cancel_with_order
+
+        use_case = DeleteAccountDataUseCase(
+            user_data_deletion_gateway=deletion_gw,
+            subscription_repo=_StubSubscriptionRepo(entity),
+            billing_gateway=billing_gw,
+        )
+
+        use_case.execute(user_id=1)
+
+        self.assertEqual(call_order, ["videos", "chat", "groups", "tags", "stripe"])
+
+    def test_stripe_cancel_failure_propagates_after_data_deleted(self):
+        """Stripeキャンセル失敗時はデータ削除済みの状態でエラーが伝播する"""
         entity = _make_subscription(stripe_subscription_id="sub_fail")
         billing_gw = MagicMock(spec=BillingGateway)
         billing_gw.cancel_subscription.side_effect = Exception("Stripe error")
@@ -170,8 +217,10 @@ class CancelSubscriptionOnDeleteTests(TestCase):
         with self.assertRaises(Exception):
             use_case.execute(user_id=1)
 
-        deletion_gw.delete_all_videos_for_user.assert_not_called()
-        deletion_gw.delete_chat_history_for_user.assert_not_called()
+        deletion_gw.delete_all_videos_for_user.assert_called_once()
+        deletion_gw.delete_chat_history_for_user.assert_called_once()
+        deletion_gw.delete_video_groups_for_user.assert_called_once()
+        deletion_gw.delete_tags_for_user.assert_called_once()
 
     def test_all_data_deletion_methods_called(self):
         """サブスクリプションなしでも全データ削除メソッドが呼ばれる"""

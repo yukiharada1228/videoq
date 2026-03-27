@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { apiClient, type Subscription, type Plan } from '@/lib/api';
+import { apiClient, ApiError, type Subscription, type Plan } from '@/lib/api';
 import { queryKeys } from '@/lib/queryKeys';
 import { useAuth } from '@/hooks/useAuth';
 import { AppPageShell } from '@/components/layout/AppPageShell';
@@ -284,7 +284,14 @@ export default function BillingPage() {
       }
     },
     onError: (error) => {
-      setCheckoutError(error instanceof Error ? error.message : t('common.messages.loadingHistory'));
+      if (error instanceof ApiError && error.code === 'DOWNGRADE_NOT_ALLOWED') {
+        const overGb = error.params?.over_quota_bytes
+          ? bytesToGb(error.params.over_quota_bytes as number)
+          : '0';
+        setCheckoutError(t('billing.errors.downgradeNotAllowed', { overGb }));
+      } else {
+        setCheckoutError(error instanceof Error ? error.message : t('common.messages.loadingHistory'));
+      }
     },
   });
 

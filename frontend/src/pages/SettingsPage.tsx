@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useI18nNavigate } from '@/lib/i18n';
 import { useAuth } from '@/hooks/useAuth';
-import { apiClient, type IntegrationApiKeyCreateResponse } from '@/lib/api';
+import { apiClient, ApiError, type IntegrationApiKeyCreateResponse } from '@/lib/api';
 import { queryKeys } from '@/lib/queryKeys';
 import { AppPageShell } from '@/components/layout/AppPageShell';
 import { AppPageHeader } from '@/components/layout/AppPageHeader';
@@ -49,6 +49,7 @@ export default function SettingsPage() {
     prefix: string;
   } | null>(null);
   const [isCopyAcknowledged, setIsCopyAcknowledged] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const confirmationKeyword = useMemo(() => 'DELETE', []);
   const canConfirm = confirmText.trim().toUpperCase() === confirmationKeyword;
@@ -136,6 +137,13 @@ export default function SettingsPage() {
     onSuccess: async () => {
       queryClient.clear();
       navigate('/login');
+    },
+    onError: (error) => {
+      setDeleteError(
+        error instanceof ApiError || error instanceof Error
+          ? error.message
+          : t('settings.accountDeletion.error'),
+      );
     },
   });
 
@@ -315,9 +323,9 @@ export default function SettingsPage() {
               />
             </div>
 
-            {deleteMutation.isError && (
+            {deleteError && (
               <div className="mb-5 p-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-600">
-                {t('settings.accountDeletion.error')}
+                {deleteError}
               </div>
             )}
 
@@ -611,9 +619,9 @@ export default function SettingsPage() {
                 placeholder={confirmationKeyword}
               />
             </div>
-            {deleteMutation.isError && (
+            {deleteError && (
               <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-600">
-                {t('settings.accountDeletion.error')}
+                {deleteError}
               </div>
             )}
           </div>

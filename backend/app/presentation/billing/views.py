@@ -22,6 +22,7 @@ from app.presentation.common.mixins import (
 from app.presentation.common.responses import create_error_response
 from app.use_cases.billing.exceptions import (
     BillingNotEnabled,
+    DowngradeNotAllowed,
     InvalidPlan,
     NoStripeCustomer,
 )
@@ -85,6 +86,17 @@ class CreateCheckoutSessionView(AuthenticatedAPIView):
                 "Billing is not enabled.",
                 status.HTTP_400_BAD_REQUEST,
                 code="BILLING_NOT_ENABLED",
+            )
+        except DowngradeNotAllowed as e:
+            return create_error_response(
+                str(e),
+                status.HTTP_400_BAD_REQUEST,
+                code="DOWNGRADE_NOT_ALLOWED",
+                params={
+                    "used_storage_bytes": e.used_storage_bytes,
+                    "target_limit_bytes": e.target_limit_bytes,
+                    "over_quota_bytes": e.over_quota_bytes,
+                },
             )
         except InvalidPlan as e:
             return create_error_response(str(e), status.HTTP_400_BAD_REQUEST)

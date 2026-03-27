@@ -1,3 +1,5 @@
+import logging
+
 from app.domain.billing.entities import PlanType
 from app.domain.billing.ports import (
     BillingGateway,
@@ -5,6 +7,8 @@ from app.domain.billing.ports import (
     SubscriptionRepository,
     WebhookEvent,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class HandleWebhookUseCase:
@@ -70,6 +74,16 @@ class HandleWebhookUseCase:
         entity.plan = plan_type
         entity.cancel_at_period_end = cancel_at_period_end
         entity.current_period_end = current_period_end
+
+        limit_bytes = entity.get_storage_limit_bytes()
+        if limit_bytes is not None and entity.used_storage_bytes > limit_bytes:
+            logger.warning(
+                "Subscription for user %s is over quota after plan sync: used=%s limit=%s",
+                entity.user_id,
+                entity.used_storage_bytes,
+                limit_bytes,
+            )
+
         self._subscription_repo.save(entity)
 
     def _revert_to_free(self, subscription_data: SubscriptionEventData) -> None:
