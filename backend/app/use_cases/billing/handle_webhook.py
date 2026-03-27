@@ -1,5 +1,10 @@
 from app.domain.billing.entities import PlanType
-from app.domain.billing.ports import BillingGateway, SubscriptionRepository
+from app.domain.billing.ports import (
+    BillingGateway,
+    SubscriptionEventData,
+    SubscriptionRepository,
+    WebhookEvent,
+)
 
 
 class HandleWebhookUseCase:
@@ -23,20 +28,17 @@ class HandleWebhookUseCase:
         )
         self._handle_event(event)
 
-    def _handle_event(self, event: dict) -> None:
-        event_type = event.get("type", "")
-        data_object = event.get("data", {}).get("object", {})
-
-        if event_type in (
+    def _handle_event(self, event: WebhookEvent) -> None:
+        if event.type in (
             "customer.subscription.created",
             "customer.subscription.updated",
         ):
-            self._sync_subscription(data_object)
-        elif event_type == "customer.subscription.deleted":
-            self._revert_to_free(data_object)
+            self._sync_subscription(event.data_object)
+        elif event.type == "customer.subscription.deleted":
+            self._revert_to_free(event.data_object)
 
-    def _sync_subscription(self, subscription_data: dict) -> None:
-        customer_id = subscription_data.get("customer")
+    def _sync_subscription(self, subscription_data: SubscriptionEventData) -> None:
+        customer_id = subscription_data.customer
         if not customer_id:
             return
 
@@ -44,25 +46,21 @@ class HandleWebhookUseCase:
         if entity is None:
             return
 
-        subscription_id = subscription_data.get("id", "")
-        status = subscription_data.get("status", "")
-        cancel_at_period_end = subscription_data.get("cancel_at_period_end", False)
+        subscription_id = subscription_data.id
+        status = subscription_data.status
+        cancel_at_period_end = subscription_data.cancel_at_period_end
 
-        # Get plan from price ID
-        items = subscription_data.get("items", {}).get("data", [])
         plan_type = entity.plan  # keep existing if not found
-        if items:
-            price_id = items[0].get("price", {}).get("id", "")
-            plan_name = self._price_map.get(price_id)
+        if subscription_data.price_id:
+            plan_name = self._price_map.get(subscription_data.price_id)
             if plan_name:
                 try:
                     plan_type = PlanType(plan_name)
                 except ValueError:
                     pass
 
-        # Get period end
         current_period_end = None
-        raw_end = subscription_data.get("current_period_end")
+        raw_end = subscription_data.current_period_end
         if raw_end:
             from datetime import datetime, timezone
             current_period_end = datetime.fromtimestamp(raw_end, tz=timezone.utc)
@@ -74,8 +72,8 @@ class HandleWebhookUseCase:
         entity.current_period_end = current_period_end
         self._subscription_repo.save(entity)
 
-    def _revert_to_free(self, subscription_data: dict) -> None:
-        customer_id = subscription_data.get("customer")
+    def _revert_to_free(self, subscription_data: SubscriptionEventData) -> None:
+        customer_id = subscription_data.customer
         if not customer_id:
             return
 

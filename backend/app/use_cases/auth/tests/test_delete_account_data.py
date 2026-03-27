@@ -5,7 +5,12 @@ from unittest import TestCase
 from unittest.mock import MagicMock
 
 from app.domain.billing.entities import PlanType, SubscriptionEntity
-from app.domain.billing.ports import BillingGateway, SubscriptionRepository
+from app.domain.billing.ports import (
+    BillingGateway,
+    SubscriptionEventData,
+    SubscriptionRepository,
+    WebhookEvent,
+)
 from app.domain.auth.gateways import UserDataDeletionGateway
 from app.use_cases.auth.delete_account_data import DeleteAccountDataUseCase
 
@@ -77,11 +82,18 @@ class _StubBillingGateway(BillingGateway):
     def create_billing_portal(self, customer_id, return_url):
         return MagicMock(url="https://portal.test")
 
-    def retrieve_subscription(self, subscription_id) -> dict:
-        return {}
-
-    def verify_webhook(self, payload, sig_header, secret) -> dict:
-        return {}
+    def verify_webhook(self, payload, sig_header, secret) -> WebhookEvent:
+        return WebhookEvent(
+            type="",
+            data_object=SubscriptionEventData(
+                id="",
+                customer="",
+                status="",
+                cancel_at_period_end=False,
+                current_period_end=None,
+                price_id=None,
+            ),
+        )
 
     def cancel_subscription(self, subscription_id: str) -> None:
         self.cancelled.append(subscription_id)
