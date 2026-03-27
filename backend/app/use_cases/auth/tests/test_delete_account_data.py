@@ -57,7 +57,7 @@ class _StubSubscriptionRepo(SubscriptionRepository):
         self.saved = entity
         return entity
 
-    def create_stripe_customer(self, user_id: int, customer_id: str) -> SubscriptionEntity:
+    def create_stripe_customer(self, user_id: int, customer_id: Optional[str]) -> SubscriptionEntity:
         assert self._entity is not None
         return self._entity
 
