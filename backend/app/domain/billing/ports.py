@@ -58,14 +58,20 @@ class SubscriptionRepository(ABC):
 
     @abstractmethod
     def get_or_create_stripe_customer(
-        self, user_id: int, create_fn: Callable[[], str]
+        self, user_id: int, create_fn: Callable[[], str], force_recreate: bool = False
     ) -> Tuple[str, SubscriptionEntity]:
         """Atomically get or create a Stripe customer ID for the given user.
 
         Uses select_for_update to prevent duplicate customer creation under concurrent
-        requests. If stripe_customer_id is already set, returns it without calling
-        create_fn. Otherwise calls create_fn() once, persists the result, and returns
-        the customer ID together with the updated entity.
+        requests. If stripe_customer_id is already set and force_recreate is False,
+        returns it without calling create_fn. Otherwise calls create_fn() once, persists
+        the result, and returns the customer ID together with the updated entity.
+
+        When force_recreate=True, any existing stripe_customer_id is discarded and
+        create_fn() is always called. This must be used for 'No such customer' recovery
+        to ensure the stale ID is cleared and a new one is created within a single
+        row lock, preventing concurrent threads from racing between a separate clear
+        and this call.
         """
         ...
 
