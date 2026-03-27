@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Optional
+from typing import Callable, Optional, Tuple
 
 from app.domain.billing.entities import SubscriptionEntity
 
@@ -50,6 +50,19 @@ class SubscriptionRepository(ABC):
 
     @abstractmethod
     def create_stripe_customer(self, user_id: int, customer_id: str) -> SubscriptionEntity: ...
+
+    @abstractmethod
+    def get_or_create_stripe_customer(
+        self, user_id: int, create_fn: Callable[[], str]
+    ) -> Tuple[str, SubscriptionEntity]:
+        """Atomically get or create a Stripe customer ID for the given user.
+
+        Uses select_for_update to prevent duplicate customer creation under concurrent
+        requests. If stripe_customer_id is already set, returns it without calling
+        create_fn. Otherwise calls create_fn() once, persists the result, and returns
+        the customer ID together with the updated entity.
+        """
+        ...
 
     @abstractmethod
     def reset_monthly_usage(self, user_id: int, period_start) -> None: ...

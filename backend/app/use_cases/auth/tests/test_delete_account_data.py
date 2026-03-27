@@ -61,6 +61,12 @@ class _StubSubscriptionRepo(SubscriptionRepository):
         assert self._entity is not None
         return self._entity
 
+    def get_or_create_stripe_customer(self, user_id: int, create_fn) -> tuple:
+        assert self._entity is not None
+        if not self._entity.stripe_customer_id:
+            self._entity.stripe_customer_id = create_fn()
+        return self._entity.stripe_customer_id, self._entity
+
     def reset_monthly_usage(self, user_id: int, period_start) -> None:
         pass
 
