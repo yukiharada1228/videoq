@@ -27,6 +27,7 @@ class SubscriptionDTO:
     storage_limit_bytes: Optional[int]
     processing_limit_seconds: Optional[int]
     ai_answers_limit: Optional[int]
+    is_over_quota: bool = False
 
 
 @dataclass

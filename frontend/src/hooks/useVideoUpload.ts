@@ -121,6 +121,9 @@ export function useVideoUpload(): UseVideoUploadReturn {
       if (err instanceof ApiError && err.code === 'FILE_TOO_LARGE') {
         setError('videos.upload.validation.fileTooLarge');
         setErrorParams(err.params ?? {});
+      } else if (err instanceof ApiError && err.code === 'STORAGE_LIMIT_EXCEEDED') {
+        setError('videos.upload.validation.storageLimitExceeded');
+        setErrorParams({});
       } else {
         setError(err instanceof Error ? err.message : String(err));
         setErrorParams({});

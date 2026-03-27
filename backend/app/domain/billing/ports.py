@@ -107,6 +107,16 @@ class SubscriptionRepository(ABC):
         """
         ...
 
+    @abstractmethod
+    def clear_over_quota_if_within_limit(self, user_id: int) -> None:
+        """Clear the is_over_quota flag if used_storage_bytes is now within the plan limit.
+
+        Called after a video deletion reduces storage. If the user's storage is now
+        within their plan limit, is_over_quota is set to False, re-enabling AI chat
+        and new uploads.
+        """
+        ...
+
 
 class BillingGateway(ABC):
     @abstractmethod

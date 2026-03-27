@@ -1,5 +1,6 @@
 from app.domain.billing.exceptions import (  # noqa: F401
     AiAnswersLimitExceeded,
+    OverQuotaError,
     ProcessingLimitExceeded,
     StorageLimitExceeded,
 )

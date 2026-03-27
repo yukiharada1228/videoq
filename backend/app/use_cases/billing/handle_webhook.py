@@ -83,6 +83,9 @@ class HandleWebhookUseCase:
                 entity.used_storage_bytes,
                 limit_bytes,
             )
+            entity.is_over_quota = True
+        else:
+            entity.is_over_quota = False
 
         self._subscription_repo.save(entity)
 
@@ -100,4 +103,17 @@ class HandleWebhookUseCase:
         entity.stripe_status = "canceled"
         entity.cancel_at_period_end = False
         entity.current_period_end = None
+
+        limit_bytes = entity.get_storage_limit_bytes()
+        if limit_bytes is not None and entity.used_storage_bytes > limit_bytes:
+            logger.warning(
+                "Subscription for user %s is over quota after revert to free: used=%s limit=%s",
+                entity.user_id,
+                entity.used_storage_bytes,
+                limit_bytes,
+            )
+            entity.is_over_quota = True
+        else:
+            entity.is_over_quota = False
+
         self._subscription_repo.save(entity)

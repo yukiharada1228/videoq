@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { apiClient, type Citation } from '@/lib/api';
+import { apiClient, ApiError, type Citation } from '@/lib/api';
 
 export interface Message {
   role: 'user' | 'assistant';
@@ -86,9 +86,13 @@ export function useChatMessages({ groupId, shareToken }: UseChatMessagesOptions)
       ]);
     } catch (error) {
       console.error('Chat error:', error);
+      const errorMessage =
+        error instanceof ApiError && error.code === 'OVER_QUOTA'
+          ? t('chat.errorOverQuota')
+          : t('chat.error');
       setMessages((prev) => [
         ...prev,
-        { role: 'assistant', content: t('chat.error') },
+        { role: 'assistant', content: errorMessage },
       ]);
     } finally {
       setIsLoading(false);

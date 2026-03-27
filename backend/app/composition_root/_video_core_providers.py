@@ -95,6 +95,7 @@ def get_delete_video_use_case() -> DeleteVideoUseCase:
         DjangoTransactionPort(),
         upload_gateway=shared.get_file_upload_gateway(),
         storage_record_use_case=_billing_cr.get_record_storage_usage_use_case(),
+        over_quota_clear_use_case=_billing_cr.get_clear_over_quota_if_within_limit_use_case(),
     )
 
 def get_request_video_upload_use_case() -> RequestVideoUploadUseCase:

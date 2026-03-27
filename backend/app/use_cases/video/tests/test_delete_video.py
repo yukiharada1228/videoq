@@ -146,3 +146,54 @@ class DeleteVideoStorageBillingTests(TestCase):
         # Deletion should succeed even if billing fails
         use_case.execute(video_id=5, user_id=20)
         video_repo.delete.assert_called_once_with(video)
+
+
+class DeleteVideoOverQuotaClearTests(TestCase):
+    """Tests for over-quota flag clearing after video deletion."""
+
+    def _make_use_case(self, upload_gateway=None, storage_record_use_case=None, over_quota_clear_use_case=None):
+        video_repo = MagicMock()
+        vector_gateway = MagicMock()
+        return (
+            video_repo,
+            DeleteVideoUseCase(
+                video_repo,
+                vector_gateway,
+                _FakeTransactionPort(),
+                upload_gateway=upload_gateway,
+                storage_record_use_case=storage_record_use_case,
+                over_quota_clear_use_case=over_quota_clear_use_case,
+            ),
+        )
+
+    def test_clears_over_quota_flag_after_deletion(self):
+        video = VideoEntity(id=5, user_id=20, title="v", status="completed", file_key="videos/5.mp4")
+        over_quota_clear = MagicMock()
+
+        video_repo, use_case = self._make_use_case(over_quota_clear_use_case=over_quota_clear)
+        video_repo.get_by_id.return_value = video
+
+        use_case.execute(video_id=5, user_id=20)
+
+        over_quota_clear.execute.assert_called_once_with(20)
+
+    def test_skips_over_quota_clear_when_not_injected(self):
+        video = VideoEntity(id=5, user_id=20, title="v", status="completed")
+
+        video_repo, use_case = self._make_use_case(over_quota_clear_use_case=None)
+        video_repo.get_by_id.return_value = video
+
+        # Should not raise
+        use_case.execute(video_id=5, user_id=20)
+
+    def test_does_not_fail_deletion_when_over_quota_clear_raises(self):
+        video = VideoEntity(id=5, user_id=20, title="v", status="completed")
+        over_quota_clear = MagicMock()
+        over_quota_clear.execute.side_effect = RuntimeError("quota clear failed")
+
+        video_repo, use_case = self._make_use_case(over_quota_clear_use_case=over_quota_clear)
+        video_repo.get_by_id.return_value = video
+
+        # Deletion should succeed even if quota clear fails
+        use_case.execute(video_id=5, user_id=20)
+        video_repo.delete.assert_called_once_with(video)

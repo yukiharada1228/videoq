@@ -79,6 +79,9 @@ class _StubSubscriptionRepo(SubscriptionRepository):
     def increment_ai_answers(self, user_id: int) -> None:
         pass
 
+    def clear_over_quota_if_within_limit(self, user_id: int) -> None:
+        pass
+
 
 class _StubBillingGateway(BillingGateway):
     def __init__(self, event: WebhookEvent):
@@ -215,8 +218,89 @@ class SubscriptionUpdatedTests(TestCase):
 
         self.assertIn("over quota", captured.output[0].lower())
 
+    def test_sets_is_over_quota_when_downgrade_exceeds_limit(self):
+        entity = _make_subscription(
+            plan=PlanType.STANDARD,
+            stripe_subscription_id="sub_existing",
+            stripe_status="active",
+            used_storage_bytes=15 * 1024 ** 3,  # 15 GB — over LITE 10 GB limit
+        )
+        event = _make_event(
+            "customer.subscription.updated",
+            id="sub_existing",
+            customer="cus_test",
+            status="active",
+            price_id="price_lite_001",
+        )
+        repo = _StubSubscriptionRepo(entity)
+        use_case = HandleWebhookUseCase(
+            subscription_repo=repo,
+            billing_gateway=_StubBillingGateway(event),
+            webhook_secret="whsec_test",
+            price_map=PRICE_MAP,
+        )
+        with self.assertLogs("app.use_cases.billing.handle_webhook", level=logging.WARNING):
+            use_case.execute(payload=b"payload", sig_header="sig")
+
+        self.assertIsNotNone(repo.saved)
+        self.assertTrue(repo.saved.is_over_quota)
+
+    def test_clears_is_over_quota_when_upgrade_resolves_quota(self):
+        entity = _make_subscription(
+            plan=PlanType.LITE,
+            stripe_subscription_id="sub_existing",
+            stripe_status="active",
+            used_storage_bytes=15 * 1024 ** 3,  # 15 GB — over LITE, within STANDARD
+            is_over_quota=True,
+        )
+        event = _make_event(
+            "customer.subscription.updated",
+            id="sub_existing",
+            customer="cus_test",
+            status="active",
+            price_id="price_standard_001",
+        )
+        repo = _StubSubscriptionRepo(entity)
+        use_case = HandleWebhookUseCase(
+            subscription_repo=repo,
+            billing_gateway=_StubBillingGateway(event),
+            webhook_secret="whsec_test",
+            price_map=PRICE_MAP,
+        )
+        use_case.execute(payload=b"payload", sig_header="sig")
+
+        self.assertIsNotNone(repo.saved)
+        self.assertFalse(repo.saved.is_over_quota)
+
 
 class SubscriptionDeletedTests(TestCase):
+    def test_subscription_deleted_sets_is_over_quota_when_storage_exceeds_free_limit(self):
+        entity = _make_subscription(
+            plan=PlanType.STANDARD,
+            stripe_subscription_id="sub_existing",
+            stripe_status="active",
+            used_storage_bytes=5 * 1024 ** 3,  # 5 GB — over FREE 1 GB limit
+        )
+        event = _make_event(
+            "customer.subscription.deleted",
+            id="sub_existing",
+            customer="cus_test",
+            status="canceled",
+        )
+        repo = _StubSubscriptionRepo(entity)
+        use_case = HandleWebhookUseCase(
+            subscription_repo=repo,
+            billing_gateway=_StubBillingGateway(event),
+            webhook_secret="whsec_test",
+            price_map=PRICE_MAP,
+        )
+        with self.assertLogs("app.use_cases.billing.handle_webhook", level=logging.WARNING):
+            use_case.execute(payload=b"payload", sig_header="sig")
+
+        self.assertIsNotNone(repo.saved)
+        self.assertEqual(repo.saved.plan, PlanType.FREE)
+        self.assertTrue(repo.saved.is_over_quota)
+
     def test_subscription_deleted_reverts_to_free(self):
         entity = _make_subscription(
             plan=PlanType.LITE,
