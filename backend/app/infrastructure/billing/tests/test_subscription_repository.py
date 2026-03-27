@@ -18,7 +18,7 @@ User = get_user_model()
 
 
 def _create_user(username="testuser"):
-    return User.objects.create_user(username=username, password="pw")
+    return User.objects.create_user(username=username, email=f"{username}@test.example", password="pw")
 
 
 class IncrementStorageBytesTests(TestCase):
@@ -175,6 +175,64 @@ class ClearOverQuotaIfWithinLimitTests(TestCase):
         self.repo.clear_over_quota_if_within_limit(self.user.id)
         obj = Subscription.objects.get(user_id=self.user.id)
         self.assertFalse(obj.is_over_quota)
+
+
+class GetOrCreateStripeCustomerTests(TestCase):
+    """Integration tests for the atomic get_or_create_stripe_customer method.
+
+    These tests verify that:
+    - create_fn is called once and the result is persisted when no customer exists.
+    - create_fn is NOT called when a customer ID already exists (idempotent).
+    """
+
+    def setUp(self):
+        self.user = _create_user("stripeuser")
+        self.repo = DjangoSubscriptionRepository()
+        self.repo.get_or_create(self.user.id)
+
+    def test_calls_create_fn_and_persists_when_no_customer(self):
+        create_fn_calls = []
+
+        def create_fn():
+            create_fn_calls.append(True)
+            return "cus_new123"
+
+        customer_id, entity = self.repo.get_or_create_stripe_customer(self.user.id, create_fn)
+
+        self.assertEqual(customer_id, "cus_new123")
+        self.assertEqual(entity.stripe_customer_id, "cus_new123")
+        self.assertEqual(len(create_fn_calls), 1)
+        obj = Subscription.objects.get(user_id=self.user.id)
+        self.assertEqual(obj.stripe_customer_id, "cus_new123")
+
+    def test_returns_existing_customer_without_calling_create_fn(self):
+        Subscription.objects.filter(user_id=self.user.id).update(stripe_customer_id="cus_existing")
+        create_fn_calls = []
+
+        def create_fn():
+            create_fn_calls.append(True)
+            return "cus_should_not_be_created"
+
+        customer_id, entity = self.repo.get_or_create_stripe_customer(self.user.id, create_fn)
+
+        self.assertEqual(customer_id, "cus_existing")
+        self.assertEqual(entity.stripe_customer_id, "cus_existing")
+        self.assertEqual(len(create_fn_calls), 0)
+
+    def test_creates_subscription_row_if_absent(self):
+        """If the subscription row does not exist yet, the method creates it first."""
+        new_user = _create_user("newstripeuser")
+        create_fn_calls = []
+
+        def create_fn():
+            create_fn_calls.append(True)
+            return "cus_brand_new"
+
+        customer_id, entity = self.repo.get_or_create_stripe_customer(new_user.id, create_fn)
+
+        self.assertEqual(customer_id, "cus_brand_new")
+        self.assertEqual(len(create_fn_calls), 1)
+        self.assertTrue(Subscription.objects.filter(user_id=new_user.id).exists())
 
 
 class MaybeResetMonthlyUsageTests(TestCase):
