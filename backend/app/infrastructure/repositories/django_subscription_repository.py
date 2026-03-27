@@ -155,9 +155,7 @@ class DjangoSubscriptionRepository(SubscriptionRepository):
         if period_start.tzinfo is None:
             period_start = period_start.replace(tzinfo=timezone.utc)
 
-        is_paid = entity.current_period_end is not None
-
-        if is_paid:
+        if entity.current_period_end is not None:
             # Paid users: reset based on Stripe's billing cycle (current_period_end)
             period_end = entity.current_period_end
             if period_end.tzinfo is None:
