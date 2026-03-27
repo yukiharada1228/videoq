@@ -65,6 +65,15 @@ class _StubSubscriptionRepo(SubscriptionRepository):
     def maybe_reset_monthly_usage(self, user_id: int) -> None:
         pass
 
+    def increment_storage_bytes(self, user_id: int, bytes_delta: int) -> None:
+        pass
+
+    def increment_processing_seconds(self, user_id: int, seconds: int) -> None:
+        pass
+
+    def increment_ai_answers(self, user_id: int) -> None:
+        pass
+
 
 class CheckStorageLimitTests(TestCase):
     def test_storage_within_limit_does_not_raise(self):
