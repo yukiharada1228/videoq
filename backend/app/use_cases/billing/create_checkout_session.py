@@ -97,10 +97,12 @@ class CreateCheckoutSessionUseCase:
                 plan=plan,
             )
         except Exception as e:
-            # Stale customer ID — recreate if the error is customer-related.
-            # Clear the stale ID first so get_or_create_stripe_customer will call create_fn.
+            # Stale customer ID — recover atomically via compare-and-swap.
+            # Pass the detected stale ID as replace_if_stale so the repo can decide
+            # under the row lock: if the DB value still equals the stale ID, recreate;
+            # if it differs, another concurrent thread already created a valid customer
+            # and we reuse it without calling create_fn (no orphan customers in Stripe).
             if "No such customer" in str(e):
-                self._subscription_repo.clear_stripe_customer(user_id)
                 customer_id, _ = self._subscription_repo.get_or_create_stripe_customer(
                     user_id,
                     lambda: self._billing_gateway.get_or_create_customer(
@@ -108,6 +110,7 @@ class CreateCheckoutSessionUseCase:
                         email=user.email,
                         username=user.username,
                     ),
+                    replace_if_stale=customer_id,
                 )
                 session = self._billing_gateway.create_checkout_session(
                     customer_id=customer_id,
