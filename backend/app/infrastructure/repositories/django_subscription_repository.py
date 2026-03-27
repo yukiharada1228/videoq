@@ -95,6 +95,31 @@ class DjangoSubscriptionRepository(SubscriptionRepository):
             usage_period_start=period_start,
         )
 
+    def check_and_reserve_storage(self, user_id: int, additional_bytes: int) -> None:
+        from app.domain.billing.exceptions import StorageLimitExceeded
+
+        Subscription = self._get_model()
+        obj, _ = Subscription.objects.get_or_create(user_id=user_id, defaults={"plan": "free"})
+        entity = self._to_entity(obj)
+        limit = entity.get_storage_limit_bytes()
+
+        if limit is None:
+            Subscription.objects.filter(user_id=user_id).update(
+                used_storage_bytes=F("used_storage_bytes") + additional_bytes
+            )
+            return
+
+        updated = Subscription.objects.filter(
+            user_id=user_id,
+            used_storage_bytes__lte=limit - additional_bytes,
+        ).update(
+            used_storage_bytes=F("used_storage_bytes") + additional_bytes
+        )
+        if updated == 0:
+            raise StorageLimitExceeded(
+                f"Storage limit exceeded. Limit: {limit} bytes."
+            )
+
     def increment_storage_bytes(self, user_id: int, bytes_delta: int) -> None:
         Subscription = self._get_model()
         Subscription.objects.filter(user_id=user_id).update(
