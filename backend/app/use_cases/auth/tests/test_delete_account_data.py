@@ -64,7 +64,7 @@ class _StubSubscriptionRepo(SubscriptionRepository):
     def clear_stripe_customer(self, user_id: int) -> None:
         pass
 
-    def get_or_create_stripe_customer(self, user_id: int, create_fn) -> tuple:
+    def get_or_create_stripe_customer(self, user_id: int, create_fn, replace_if_stale=None) -> tuple:
         assert self._entity is not None
         if not self._entity.stripe_customer_id:
             self._entity.stripe_customer_id = create_fn()
