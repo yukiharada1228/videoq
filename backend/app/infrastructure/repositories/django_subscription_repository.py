@@ -1,6 +1,6 @@
 """Django ORM implementation of SubscriptionRepository."""
 
-from datetime import timedelta, timezone
+from datetime import timezone
 from typing import Optional
 
 from django.db.models import F, Value
@@ -155,12 +155,12 @@ class DjangoSubscriptionRepository(SubscriptionRepository):
         if period_start.tzinfo is None:
             period_start = period_start.replace(tzinfo=timezone.utc)
 
-        is_paid = entity.current_period_end is not None
-
-        if is_paid:
-            # Paid users: reset when we've passed period_start + ~1 month
-            next_period = period_start + timedelta(days=30)
-            if now >= next_period:
+        if entity.current_period_end is not None:
+            # Paid users: reset based on Stripe's billing cycle (current_period_end)
+            period_end = entity.current_period_end
+            if period_end.tzinfo is None:
+                period_end = period_end.replace(tzinfo=timezone.utc)
+            if now >= period_end:
                 self.reset_monthly_usage(user_id, now)
         else:
             # Free users: reset when calendar month has changed
