@@ -227,7 +227,7 @@ class CreateVideoUseCaseTests(TestCase):
 
 
 class CreateVideoStorageBillingTests(TestCase):
-    """Tests for optional storage usage recording in CreateVideoUseCase."""
+    """Tests for atomic storage check-and-reserve in CreateVideoUseCase."""
 
     def setUp(self):
         from app.domain.user.entities import UserEntity
@@ -243,19 +243,18 @@ class CreateVideoStorageBillingTests(TestCase):
         self.repo = FakeVideoRepository()
         self.mock_task_queue = MagicMock()
         self.mock_storage_limit_check = MagicMock()
-        self.mock_storage_record = MagicMock()
 
-    def _make_use_case(self, storage_limit_check_use_case=None, storage_record_use_case=None):
+    def _make_use_case(self, storage_limit_check_use_case=None):
         return CreateVideoUseCase(
             self.user_repo,
             self.repo,
             self.mock_task_queue,
             _FakeTransactionPort(),
             storage_limit_check_use_case=storage_limit_check_use_case,
-            storage_record_use_case=storage_record_use_case,
         )
 
-    def test_checks_storage_limit_before_upload(self):
+    def test_checks_and_reserves_storage_before_upload(self):
+        """check_and_reserve is delegated atomically before video is created."""
         use_case = self._make_use_case(
             storage_limit_check_use_case=self.mock_storage_limit_check,
         )
@@ -274,7 +273,6 @@ class CreateVideoStorageBillingTests(TestCase):
         self.mock_storage_limit_check.execute.side_effect = StorageLimitExceeded("Storage limit exceeded")
         use_case = self._make_use_case(
             storage_limit_check_use_case=self.mock_storage_limit_check,
-            storage_record_use_case=self.mock_storage_record,
         )
         input_dto = CreateVideoInput(
             file=FakeUploadedFile(),
@@ -288,21 +286,9 @@ class CreateVideoStorageBillingTests(TestCase):
 
         self.assertEqual(self.repo.count_for_user(self.user_id), 0)
         self.mock_task_queue.enqueue_transcription.assert_not_called()
-        self.mock_storage_record.execute.assert_not_called()
 
-    def test_records_storage_usage_on_successful_upload(self):
-        use_case = self._make_use_case(storage_record_use_case=self.mock_storage_record)
-        input_dto = CreateVideoInput(
-            file=FakeUploadedFile(),
-            title="Test",
-            description="",
-            file_size=1024 * 1024,
-        )
-        use_case.execute(self.user_id, input_dto)
-        self.mock_storage_record.execute.assert_called_once_with(self.user_id, 1024 * 1024)
-
-    def test_skips_storage_recording_when_no_use_case_injected(self):
-        use_case = self._make_use_case(storage_record_use_case=None)
+    def test_skips_storage_check_when_no_use_case_injected(self):
+        use_case = self._make_use_case(storage_limit_check_use_case=None)
         input_dto = CreateVideoInput(
             file=FakeUploadedFile(),
             title="Test",
@@ -311,27 +297,3 @@ class CreateVideoStorageBillingTests(TestCase):
         )
         # Should not raise
         use_case.execute(self.user_id, input_dto)
-
-    def test_skips_storage_recording_when_file_size_is_zero(self):
-        use_case = self._make_use_case(storage_record_use_case=self.mock_storage_record)
-        input_dto = CreateVideoInput(
-            file=FakeUploadedFile(),
-            title="Test",
-            description="",
-            file_size=0,
-        )
-        use_case.execute(self.user_id, input_dto)
-        self.mock_storage_record.execute.assert_not_called()
-
-    def test_does_not_fail_upload_when_billing_record_raises(self):
-        self.mock_storage_record.execute.side_effect = RuntimeError("billing down")
-        use_case = self._make_use_case(storage_record_use_case=self.mock_storage_record)
-        input_dto = CreateVideoInput(
-            file=FakeUploadedFile(),
-            title="Test",
-            description="",
-            file_size=500,
-        )
-        # Upload should succeed even though billing recording failed
-        video = use_case.execute(self.user_id, input_dto)
-        self.assertIsNotNone(video.id)

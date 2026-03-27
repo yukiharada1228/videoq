@@ -42,6 +42,7 @@ class _StubSubscriptionRepo(SubscriptionRepository):
     def __init__(self, entity: SubscriptionEntity):
         self._entity = entity
         self.saved: Optional[SubscriptionEntity] = None
+        self.check_and_reserve_calls: list = []
 
     def get_or_create(self, user_id: int) -> SubscriptionEntity:
         return self._entity
@@ -65,6 +66,14 @@ class _StubSubscriptionRepo(SubscriptionRepository):
     def maybe_reset_monthly_usage(self, user_id: int) -> None:
         pass
 
+    def check_and_reserve_storage(self, user_id: int, additional_bytes: int) -> None:
+        self.check_and_reserve_calls.append((user_id, additional_bytes))
+        if not self._entity.can_use_storage(additional_bytes):
+            raise StorageLimitExceeded(
+                f"Storage limit exceeded. Limit: {self._entity.get_storage_limit_bytes()} bytes."
+            )
+        self._entity.used_storage_bytes += additional_bytes
+
     def increment_storage_bytes(self, user_id: int, bytes_delta: int) -> None:
         pass
 
@@ -76,6 +85,21 @@ class _StubSubscriptionRepo(SubscriptionRepository):
 
 
 class CheckStorageLimitTests(TestCase):
+    def test_delegates_to_check_and_reserve_storage(self):
+        """Use case must delegate to atomic check_and_reserve_storage on the repo."""
+        entity = _make_subscription(plan=PlanType.FREE, used_storage_bytes=0)
+        repo = _StubSubscriptionRepo(entity)
+        use_case = CheckStorageLimitUseCase(repo)
+        use_case.execute(user_id=7, additional_bytes=512)
+        self.assertEqual(repo.check_and_reserve_calls, [(7, 512)])
+
+    def test_storage_reserved_on_success(self):
+        """used_storage_bytes must be incremented when check passes."""
+        entity = _make_subscription(plan=PlanType.FREE, used_storage_bytes=0)
+        use_case = CheckStorageLimitUseCase(_StubSubscriptionRepo(entity))
+        use_case.execute(user_id=1, additional_bytes=100)
+        self.assertEqual(entity.used_storage_bytes, 100)
+
     def test_storage_within_limit_does_not_raise(self):
         entity = _make_subscription(plan=PlanType.FREE, used_storage_bytes=0)
         use_case = CheckStorageLimitUseCase(_StubSubscriptionRepo(entity))

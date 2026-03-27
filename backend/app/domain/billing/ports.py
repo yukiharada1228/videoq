@@ -67,6 +67,18 @@ class SubscriptionRepository(ABC):
         ...
 
     @abstractmethod
+    def check_and_reserve_storage(self, user_id: int, additional_bytes: int) -> None:
+        """Atomically check storage limit and reserve space if within limit.
+
+        Uses SELECT FOR UPDATE inside a transaction to prevent race conditions
+        between concurrent upload requests. If adding additional_bytes would
+        exceed the plan's storage limit, raises StorageLimitExceeded without
+        modifying used_storage_bytes. On success, increments used_storage_bytes
+        by additional_bytes.
+        """
+        ...
+
+    @abstractmethod
     def increment_storage_bytes(self, user_id: int, bytes_delta: int) -> None:
         """Atomically update used_storage_bytes by bytes_delta.
 
