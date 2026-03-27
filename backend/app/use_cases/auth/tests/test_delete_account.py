@@ -34,7 +34,7 @@ class AccountDeletionUseCaseTests(TestCase):
         use_case.execute(user_id=1, reason="cleanup")
 
         deletion_gateway.record_deletion_request.assert_called_once_with(1, "cleanup")
-        deletion_gateway.deactivate_user.assert_called_once()
+        deletion_gateway.deactivate_user.assert_called_once_with(1)
         task_gateway.enqueue_account_deletion.assert_called_once_with(1)
 
     def test_works_without_reason(self):
@@ -43,5 +43,5 @@ class AccountDeletionUseCaseTests(TestCase):
         use_case.execute(user_id=42)
 
         deletion_gateway.record_deletion_request.assert_called_once_with(42, "")
-        deletion_gateway.deactivate_user.assert_called_once()
+        deletion_gateway.deactivate_user.assert_called_once_with(42)
         task_gateway.enqueue_account_deletion.assert_called_once_with(42)
