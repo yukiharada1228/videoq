@@ -47,8 +47,11 @@ class _StubSubscriptionRepo(SubscriptionRepository):
     def save(self, entity: SubscriptionEntity) -> SubscriptionEntity:
         return entity
 
-    def create_stripe_customer(self, user_id: int, customer_id: Optional[str]) -> SubscriptionEntity:
+    def create_stripe_customer(self, user_id: int, customer_id: str) -> SubscriptionEntity:
         return self._entity
+
+    def clear_stripe_customer(self, user_id: int) -> None:
+        pass
 
     def get_or_create_stripe_customer(self, user_id: int, create_fn) -> tuple:
         if not self._entity.stripe_customer_id:

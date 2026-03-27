@@ -49,7 +49,12 @@ class SubscriptionRepository(ABC):
     def save(self, entity: SubscriptionEntity) -> SubscriptionEntity: ...
 
     @abstractmethod
-    def create_stripe_customer(self, user_id: int, customer_id: Optional[str]) -> SubscriptionEntity: ...
+    def create_stripe_customer(self, user_id: int, customer_id: str) -> SubscriptionEntity: ...
+
+    @abstractmethod
+    def clear_stripe_customer(self, user_id: int) -> None:
+        """Clear a stale Stripe customer ID (e.g. after 'No such customer' error)."""
+        ...
 
     @abstractmethod
     def get_or_create_stripe_customer(

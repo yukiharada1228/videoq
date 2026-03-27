@@ -82,12 +82,16 @@ class DjangoSubscriptionRepository(SubscriptionRepository):
         )
         return entity
 
-    def create_stripe_customer(self, user_id: int, customer_id) -> SubscriptionEntity:
+    def create_stripe_customer(self, user_id: int, customer_id: str) -> SubscriptionEntity:
         Subscription = self._get_model()
         Subscription.objects.filter(user_id=user_id).update(
             stripe_customer_id=customer_id
         )
         return self.get_or_create(user_id)
+
+    def clear_stripe_customer(self, user_id: int) -> None:
+        Subscription = self._get_model()
+        Subscription.objects.filter(user_id=user_id).update(stripe_customer_id=None)
 
     def get_or_create_stripe_customer(self, user_id: int, create_fn) -> tuple:
         from django.db import transaction
