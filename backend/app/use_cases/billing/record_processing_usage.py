@@ -7,6 +7,4 @@ class RecordProcessingUsageUseCase:
 
     def execute(self, user_id: int, seconds: int) -> None:
         self._subscription_repo.maybe_reset_monthly_usage(user_id)
-        entity = self._subscription_repo.get_or_create(user_id)
-        entity.used_processing_seconds += seconds
-        self._subscription_repo.save(entity)
+        self._subscription_repo.increment_processing_seconds(user_id, seconds)

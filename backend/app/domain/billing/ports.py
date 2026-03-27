@@ -66,6 +66,34 @@ class SubscriptionRepository(ABC):
         """
         ...
 
+    @abstractmethod
+    def increment_storage_bytes(self, user_id: int, bytes_delta: int) -> None:
+        """Atomically update used_storage_bytes by bytes_delta.
+
+        Result is clamped to >= 0 to prevent negative storage values.
+        Must use a database-level atomic operation (e.g. F() expression) to
+        avoid lost updates under concurrent requests.
+        """
+        ...
+
+    @abstractmethod
+    def increment_processing_seconds(self, user_id: int, seconds: int) -> None:
+        """Atomically increment used_processing_seconds by seconds.
+
+        Must use a database-level atomic operation (e.g. F() expression) to
+        avoid lost updates under concurrent requests.
+        """
+        ...
+
+    @abstractmethod
+    def increment_ai_answers(self, user_id: int) -> None:
+        """Atomically increment used_ai_answers by 1.
+
+        Must use a database-level atomic operation (e.g. F() expression) to
+        avoid lost updates under concurrent requests.
+        """
+        ...
+
 
 class BillingGateway(ABC):
     @abstractmethod
