@@ -93,17 +93,27 @@ class _StubBillingGateway(BillingGateway):
 PRICE_MAP = {"price_lite_001": "lite", "price_standard_001": "standard"}
 
 
-def _make_event(event_type: str, **kwargs) -> WebhookEvent:
-    defaults = {
-        "id": "",
-        "customer": "",
-        "status": "",
-        "cancel_at_period_end": False,
-        "current_period_end": None,
-        "price_id": None,
-    }
-    defaults.update(kwargs)
-    return WebhookEvent(type=event_type, data_object=SubscriptionEventData(**defaults))
+def _make_event(
+    event_type: str,
+    *,
+    id: str = "",
+    customer: str = "",
+    status: str = "",
+    cancel_at_period_end: bool = False,
+    current_period_end: Optional[int] = None,
+    price_id: Optional[str] = None,
+) -> WebhookEvent:
+    return WebhookEvent(
+        type=event_type,
+        data_object=SubscriptionEventData(
+            id=id,
+            customer=customer,
+            status=status,
+            cancel_at_period_end=cancel_at_period_end,
+            current_period_end=current_period_end,
+            price_id=price_id,
+        ),
+    )
 
 
 def _make_use_case(entity: SubscriptionEntity, event: WebhookEvent) -> HandleWebhookUseCase:
