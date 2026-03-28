@@ -39,12 +39,20 @@ def authenticated_api_view(methods):
 
 
 def with_error_handling(view_func):
-    """Common error handling decorator."""
+    """Common error handling decorator.
+
+    DRF APIException subclasses (4xx) are re-raised so DRF's
+    custom_exception_handler can convert them to the correct response.
+    Only non-DRF exceptions are caught and normalised to HTTP 500.
+    """
+    from rest_framework.exceptions import APIException
 
     @wraps(view_func)
     def wrapper(*args, **kwargs):
         try:
             return view_func(*args, **kwargs)
+        except APIException:
+            raise
         except Exception as e:
             logger.exception("Unhandled exception in %s", view_func.__name__)
             return create_error_response(str(e), status.HTTP_500_INTERNAL_SERVER_ERROR)
