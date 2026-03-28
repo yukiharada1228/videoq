@@ -7,6 +7,7 @@ import json
 import platform
 import subprocess
 import tempfile
+import warnings
 from unittest.mock import MagicMock, patch
 
 import unittest
@@ -519,7 +520,7 @@ class ProcessAudioSegmentsParallelTests(unittest.TestCase):
         mock_sync_client.api_key = "test-key"
         mock_sync_client._base_url = None
 
-        mock_asyncio_run.return_value = []
+        mock_asyncio_run.side_effect = lambda coro: (coro.close() or [])
 
         process_audio_segments_parallel(mock_sync_client, [])
 
@@ -535,10 +536,31 @@ class ProcessAudioSegmentsParallelTests(unittest.TestCase):
         mock_sync_client.api_key = "test-key"
         mock_sync_client._base_url = "http://localhost:8080"
 
-        mock_asyncio_run.return_value = []
+        mock_asyncio_run.side_effect = lambda coro: (coro.close() or [])
 
         process_audio_segments_parallel(mock_sync_client, [])
 
         mock_async_openai.assert_called_once_with(
             api_key="test-key", base_url="http://localhost:8080"
         )
+
+    @patch("app.infrastructure.transcription.audio_processing.asyncio.run")
+    @patch("app.infrastructure.transcription.audio_processing.AsyncOpenAI")
+    def test_no_never_awaited_warning(self, mock_async_openai, mock_asyncio_run):
+        """Test that no 'coroutine was never awaited' RuntimeWarning is raised"""
+        mock_sync_client = MagicMock()
+        mock_sync_client.api_key = "test-key"
+        mock_sync_client._base_url = None
+
+        mock_asyncio_run.side_effect = lambda coro: (coro.close() or [])
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            process_audio_segments_parallel(mock_sync_client, [])
+
+        never_awaited = [
+            w for w in caught
+            if issubclass(w.category, RuntimeWarning)
+            and "never awaited" in str(w.message)
+        ]
+        self.assertEqual(never_awaited, [])
