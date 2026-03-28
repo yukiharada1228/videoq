@@ -23,6 +23,7 @@ from app.presentation.common.responses import create_error_response
 from app.use_cases.billing.exceptions import (
     BillingNotEnabled,
     InvalidPlan,
+    InvalidReturnUrl,
     NoStripeCustomer,
 )
 
@@ -88,6 +89,10 @@ class CreateCheckoutSessionView(AuthenticatedAPIView):
             )
         except InvalidPlan as e:
             return create_error_response(str(e), status.HTTP_400_BAD_REQUEST)
+        except InvalidReturnUrl as e:
+            return create_error_response(
+                str(e), status.HTTP_400_BAD_REQUEST, code="INVALID_RETURN_URL"
+            )
         except Exception as e:
             logger.exception("Unexpected error creating checkout session: %s", e)
             return create_error_response(
@@ -127,6 +132,10 @@ class CreateBillingPortalView(AuthenticatedAPIView):
                 "No billing account found.",
                 status.HTTP_400_BAD_REQUEST,
                 code="NO_STRIPE_CUSTOMER",
+            )
+        except InvalidReturnUrl as e:
+            return create_error_response(
+                str(e), status.HTTP_400_BAD_REQUEST, code="INVALID_RETURN_URL"
             )
         except Exception as e:
             logger.exception("Unexpected error creating billing portal: %s", e)

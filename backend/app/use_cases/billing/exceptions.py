@@ -22,6 +22,10 @@ class InvalidPlan(Exception):
     pass
 
 
+class InvalidReturnUrl(Exception):
+    pass
+
+
 class DowngradeNotAllowed(Exception):
     def __init__(self, *, used_storage_bytes: int, target_limit_bytes: int):
         self.used_storage_bytes = used_storage_bytes
