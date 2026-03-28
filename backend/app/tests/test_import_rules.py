@@ -1108,7 +1108,13 @@ class ImportRulesTest(unittest.TestCase):
     def test_no_print_statements_in_test_files(self):
         """Test files must not contain print() calls (prevents debug noise in CI output)."""
         violations = []
-        for fp in get_python_files(APP_TESTS_ROOT):
+        test_files = [
+            str(Path(root) / f)
+            for root, _, files in os.walk(APP_TESTS_ROOT)
+            for f in files
+            if f.endswith(".py")
+        ]
+        for fp in test_files:
             with open(fp, encoding="utf-8") as f:
                 source = f.read()
             try:
