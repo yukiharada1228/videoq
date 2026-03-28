@@ -13,7 +13,7 @@ from rest_framework.test import APIClient, APITestCase
 
 from app.domain.chat.dtos import CitationDTO
 from app.domain.chat.gateways import LLMConfigurationError, RagResult
-from app.use_cases.billing.exceptions import OverQuotaError
+from app.use_cases.billing.exceptions import AiAnswersLimitExceeded, OverQuotaError
 from app.use_cases.chat.exceptions import LLMProviderError
 
 User = get_user_model()
@@ -270,3 +270,45 @@ class ChatViewTests(APITestCase):
         self.assertEqual(citation["start_time"], "00:00:10")
         self.assertEqual(response.data["citations"][0]["id"], 1)
         self.assertEqual(response.data["citations"][0]["video_id"], self.video.id)
+
+
+class OpenAIChatCompletionsViewTests(APITestCase):
+    """Regression tests for OpenAIChatCompletionsView billing exception handling."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="openai_testuser",
+            email="openai_test@example.com",
+            password="testpass123",
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+        self.url = reverse("openai-chat-completions")
+        self.payload = {
+            "model": "videoq",
+            "messages": [{"role": "user", "content": "Hello"}],
+        }
+
+    @patch("app.use_cases.billing.check_ai_answers_limit.CheckAiAnswersLimitUseCase.execute")
+    def test_over_quota_returns_403_with_openai_error_format(self, mock_check):
+        """OverQuotaError must return 403 in OpenAI-compatible error format."""
+        mock_check.side_effect = OverQuotaError(
+            "AI chat is unavailable: account storage is over the plan limit."
+        )
+
+        response = self.client.post(self.url, self.payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertIn("error", response.data)
+        self.assertEqual(response.data["error"]["type"], "insufficient_quota")
+
+    @patch("app.use_cases.billing.check_ai_answers_limit.CheckAiAnswersLimitUseCase.execute")
+    def test_ai_answers_limit_exceeded_returns_400_with_openai_error_format(self, mock_check):
+        """AiAnswersLimitExceeded must return 400 in OpenAI-compatible error format."""
+        mock_check.side_effect = AiAnswersLimitExceeded("AI answers limit exceeded. Limit: 100.")
+
+        response = self.client.post(self.url, self.payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("error", response.data)
+        self.assertEqual(response.data["error"]["type"], "insufficient_quota")
