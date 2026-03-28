@@ -48,8 +48,10 @@ def _get_price_map() -> dict:
 
 
 def _get_allowed_origins() -> list:
-    from django.conf import settings
-    return list(getattr(settings, "CORS_ALLOWED_ORIGINS", []))
+    env = os.environ.get("CORS_ALLOWED_ORIGINS")
+    if env:
+        return [o.strip() for o in env.split(",") if o.strip()]
+    return ["http://localhost:3000", "http://127.0.0.1:3000"]
 
 
 def _get_plan_price_map() -> dict:
