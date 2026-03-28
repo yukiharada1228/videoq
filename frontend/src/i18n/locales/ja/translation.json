@@ -856,7 +856,8 @@
         "storage": "カスタム",
         "transcription": "カスタム",
         "aiAnswers": "カスタム"
-      }
+      },
+      "notEnabled": "課金機能は現在利用できません。"
     },
     "manage": {
       "title": "サブスクリプション管理",
