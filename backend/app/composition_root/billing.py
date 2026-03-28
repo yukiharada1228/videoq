@@ -47,6 +47,11 @@ def _get_price_map() -> dict:
     return {k: v for k, v in entries.items() if k}
 
 
+def _get_allowed_origins() -> list:
+    from django.conf import settings
+    return list(getattr(settings, "CORS_ALLOWED_ORIGINS", []))
+
+
 def _get_plan_price_map() -> dict:
     """Returns PlanType -> {currency -> price_id} mapping for checkout."""
     from app.domain.billing.entities import PlanType
@@ -82,6 +87,7 @@ def get_create_checkout_session_use_case() -> CreateCheckoutSessionUseCase:
         billing_enabled=_billing_enabled(),
         price_map=_get_plan_price_map(),
         user_repo=_new_user_repo(),
+        allowed_origins=_get_allowed_origins(),
     )
 
 
@@ -90,6 +96,7 @@ def get_create_billing_portal_use_case() -> CreateBillingPortalUseCase:
         subscription_repo=_new_subscription_repo(),
         billing_gateway=_new_billing_gateway(),
         billing_enabled=_billing_enabled(),
+        allowed_origins=_get_allowed_origins(),
     )
 
 

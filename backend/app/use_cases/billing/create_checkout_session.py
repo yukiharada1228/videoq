@@ -1,9 +1,12 @@
+from urllib.parse import urlparse
+
 from app.domain.billing.entities import PlanType
 from app.domain.billing.ports import BillingGateway, SubscriptionRepository
 from app.use_cases.billing.dtos import CheckoutSessionDTO
 from app.use_cases.billing.exceptions import (
     BillingNotEnabled,
     InvalidPlan,
+    InvalidReturnUrl,
 )
 
 
@@ -15,12 +18,14 @@ class CreateCheckoutSessionUseCase:
         billing_enabled: bool,
         price_map: dict,
         user_repo,
+        allowed_origins: list,
     ):
         self._subscription_repo = subscription_repo
         self._billing_gateway = billing_gateway
         self._billing_enabled = billing_enabled
         self._price_map = price_map  # {PlanType.LITE: {"jpy": "price_xxx", "usd": "price_yyy"}, ...}
         self._user_repo = user_repo
+        self._allowed_origins = allowed_origins
 
     def execute(
         self,
@@ -32,6 +37,9 @@ class CreateCheckoutSessionUseCase:
     ) -> CheckoutSessionDTO:
         if not self._billing_enabled:
             raise BillingNotEnabled("Billing is not enabled.")
+
+        self._validate_url(success_url)
+        self._validate_url(cancel_url)
 
         # Validate plan — only paid, non-enterprise plans can be checked out
         try:
@@ -124,3 +132,9 @@ class CreateCheckoutSessionUseCase:
                 raise
 
         return CheckoutSessionDTO(checkout_url=session.url)
+
+    def _validate_url(self, url: str) -> None:
+        parsed = urlparse(url)
+        origin = f"{parsed.scheme}://{parsed.netloc}"
+        if origin not in self._allowed_origins:
+            raise InvalidReturnUrl(f"URL origin '{origin}' is not in the allowed list.")
