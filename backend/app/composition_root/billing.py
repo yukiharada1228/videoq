@@ -68,7 +68,7 @@ def _new_user_repo():
 
 
 def get_plans_use_case() -> GetPlansUseCase:
-    return GetPlansUseCase()
+    return GetPlansUseCase(billing_enabled=_billing_enabled())
 
 
 def get_subscription_use_case() -> GetSubscriptionUseCase:

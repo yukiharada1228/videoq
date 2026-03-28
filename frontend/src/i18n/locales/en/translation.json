@@ -856,7 +856,8 @@
         "storage": "Custom",
         "transcription": "Custom",
         "aiAnswers": "Custom"
-      }
+      },
+      "notEnabled": "Billing is not enabled."
     },
     "manage": {
       "title": "Manage Subscription",
