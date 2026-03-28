@@ -15,6 +15,7 @@ from app.use_cases.billing.dtos import (
 )
 from app.use_cases.billing.exceptions import (
     BillingNotEnabled,
+    InvalidReturnUrl,
     NoStripeCustomer,
 )
 
@@ -290,6 +291,26 @@ class CreateCheckoutSessionViewTests(APITestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
+    def test_checkout_invalid_return_url_returns_400(self):
+        url = reverse("billing-checkout")
+        mock_use_case = MagicMock()
+        mock_use_case.execute.side_effect = InvalidReturnUrl("URL origin is not allowed.")
+        with patch(
+            "app.presentation.billing.views.CreateCheckoutSessionView.resolve_dependency",
+            return_value=mock_use_case,
+        ):
+            response = self.client.post(
+                url,
+                {
+                    "plan": "lite",
+                    "success_url": "https://evil.example.com/success",
+                    "cancel_url": "https://app.test/cancel",
+                },
+                format="json",
+            )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["error"]["code"], "INVALID_RETURN_URL")
+
     def test_checkout_allows_downgrade_regardless_of_storage_usage(self):
         """Downgrade is always permitted; is_over_quota handles post-downgrade enforcement."""
         url = reverse("billing-checkout")
@@ -350,6 +371,22 @@ class CreateBillingPortalViewTests(APITestCase):
             response.data["portal_url"],
             "https://billing.stripe.com/portal_test",
         )
+
+    def test_portal_invalid_return_url_returns_400(self):
+        url = reverse("billing-portal")
+        mock_use_case = MagicMock()
+        mock_use_case.execute.side_effect = InvalidReturnUrl("URL origin is not allowed.")
+        with patch(
+            "app.presentation.billing.views.CreateBillingPortalView.resolve_dependency",
+            return_value=mock_use_case,
+        ):
+            response = self.client.post(
+                url,
+                {"return_url": "https://evil.example.com/billing"},
+                format="json",
+            )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["error"]["code"], "INVALID_RETURN_URL")
 
     def test_portal_no_stripe_customer_returns_400(self):
         url = reverse("billing-portal")
