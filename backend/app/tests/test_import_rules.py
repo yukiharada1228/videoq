@@ -385,7 +385,6 @@ class ImportRulesTest(unittest.TestCase):
             "composition_root": self._count_python_files("composition_root"),
             "entrypoints": self._count_python_files("entrypoints"),
         }
-        print("scan_counts", counts)
         for layer, count in counts.items():
             self.assertGreater(
                 count,
@@ -1104,4 +1103,29 @@ class ImportRulesTest(unittest.TestCase):
             disallowed_files,
             "No files other than app/presentation/tasks/__init__.py are allowed:\n"
             + "\n".join(f"  {v}" for v in disallowed_files),
+        )
+
+    def test_no_print_statements_in_test_files(self):
+        """Test files must not contain print() calls (prevents debug noise in CI output)."""
+        violations = []
+        for fp in get_python_files(APP_TESTS_ROOT):
+            with open(fp, encoding="utf-8") as f:
+                source = f.read()
+            try:
+                tree = ast.parse(source, filename=fp)
+            except SyntaxError:
+                continue
+            for node in ast.walk(tree):
+                if (
+                    isinstance(node, ast.Call)
+                    and isinstance(node.func, ast.Name)
+                    and node.func.id == "print"
+                ):
+                    rel = os.path.relpath(fp, BASE)
+                    violations.append(f"{rel}:{node.lineno}")
+        self.assertEqual(
+            [],
+            violations,
+            "print() calls must be removed from test files to keep CI output clean:\n"
+            + "\n".join(f"  {v}" for v in violations),
         )
