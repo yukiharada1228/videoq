@@ -9,6 +9,7 @@ __pycache__
 *.pyc
 *.pyo
 *.egg-info
+.venv
 
 # Node / Frontend
 node_modules
