@@ -473,6 +473,10 @@ class OpenAIChatCompletionsView(DependencyResolverMixin, APIView):
             return self._error(str(e), "invalid_request_error", status.HTTP_404_NOT_FOUND)
         except PermissionDenied as e:
             return self._error(str(e), "permission_denied", status.HTTP_403_FORBIDDEN)
+        except OverQuotaError as e:
+            return self._error(str(e), "insufficient_quota", status.HTTP_403_FORBIDDEN)
+        except AiAnswersLimitExceeded as e:
+            return self._error(str(e), "insufficient_quota", status.HTTP_400_BAD_REQUEST)
         except LLMConfigurationError as e:
             return self._error(str(e), "invalid_request_error", status.HTTP_400_BAD_REQUEST)
         except LLMProviderError as e:
