@@ -5,7 +5,12 @@ from app.use_cases.billing.dtos import PlanDTO
 
 
 class GetPlansUseCase:
+    def __init__(self, billing_enabled: bool = True) -> None:
+        self._billing_enabled = billing_enabled
+
     def execute(self) -> List[PlanDTO]:
+        if not self._billing_enabled:
+            return []
         plans = []
         for plan_type in [PlanType.FREE, PlanType.LITE, PlanType.STANDARD, PlanType.ENTERPRISE]:
             limits = PLAN_LIMITS[plan_type]

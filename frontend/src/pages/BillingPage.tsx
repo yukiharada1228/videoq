@@ -459,7 +459,7 @@ export default function BillingPage() {
           )}
 
           {plans.length === 0 ? (
-            <p className="text-sm text-[#6f7a6e]">Billing is not enabled.</p>
+            <p className="text-sm text-[#6f7a6e]">{t('billing.plans.notEnabled')}</p>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {plans.map((plan) => (
@@ -485,7 +485,7 @@ export default function BillingPage() {
         </section>
 
         {/* ── Section 3: Manage Subscription ───────────────────────────── */}
-        {isActivePaidSub && (
+        {plans.length > 0 && isActivePaidSub && (
           <section className="bg-white rounded-xl shadow-[0_4px_20px_rgba(28,25,23,0.04)] p-5">
             <h2 className="text-base font-bold text-[#191c19] mb-1">
               {t('billing.manage.title')}
