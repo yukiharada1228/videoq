@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { timeStringToSeconds } from '@/lib/utils/video';
 import { type SelectedVideo } from '@/lib/utils/videoConversion';
 
@@ -12,6 +12,7 @@ interface UseVideoPlaybackReturn {
   videoRef: React.RefObject<HTMLVideoElement | null>;
   handleVideoCanPlay: (event?: React.SyntheticEvent<HTMLVideoElement>) => void;
   handleVideoPlayFromTime: (videoId: number, startTime: string) => void;
+  youtubeStartSeconds: number | null;
 }
 
 export function useVideoPlayback({
@@ -21,6 +22,7 @@ export function useVideoPlayback({
 }: UseVideoPlaybackOptions): UseVideoPlaybackReturn {
   const videoRef = useRef<HTMLVideoElement>(null);
   const pendingStartTimeRef = useRef<number | null>(null);
+  const [youtubeStartSeconds, setYoutubeStartSeconds] = useState<number | null>(null);
 
   const handleVideoCanPlay = (event?: React.SyntheticEvent<HTMLVideoElement>) => {
     if (pendingStartTimeRef.current !== null) {
@@ -43,8 +45,10 @@ export function useVideoPlayback({
     if (selectedVideo?.id === videoId && videoRef.current) {
       videoRef.current.currentTime = seconds;
       void videoRef.current.play();
+      setYoutubeStartSeconds(seconds);
     } else {
       pendingStartTimeRef.current = seconds;
+      setYoutubeStartSeconds(seconds);
       onVideoSelect(videoId);
     }
   };
@@ -53,5 +57,6 @@ export function useVideoPlayback({
     videoRef,
     handleVideoCanPlay,
     handleVideoPlayFromTime,
+    youtubeStartSeconds,
   };
 }

@@ -4,7 +4,7 @@ DTOs for chat use cases.
 - Output DTOs: decouples business logic output from HTTP response formatting.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from typing import List, Optional, Sequence
 
@@ -73,19 +73,6 @@ class ChatFeedbackResultDTO:
 
     id: int
     feedback: Optional[str]
-
-
-@dataclass
-class PopularSceneDTO:
-    """A single scene ranked by reference count across a group's chat history."""
-
-    video_id: int
-    title: str
-    start_time: Optional[str]
-    end_time: Optional[str]
-    reference_count: int
-    file_url: Optional[str]  # resolved URL (or None if unavailable)
-    questions: List[str] = field(default_factory=list)
 
 
 @dataclass

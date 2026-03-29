@@ -260,79 +260,6 @@ class ChatHistoryView(DependencyResolverMixin, APIView):
         return Response(ChatLogSerializer(logs, many=True).data)
 
 
-class PopularScenesView(DependencyResolverMixin, APIView):
-    """Get popular scenes referenced across a group's chat history."""
-
-    authentication_classes = [
-        APIKeyAuthentication,
-        CookieJWTAuthentication,
-        ShareTokenAuthentication,
-    ]
-    permission_classes = [IsAuthenticatedOrSharedAccess, ApiKeyScopePermission]
-    popular_scenes_use_case = None
-
-    @extend_schema(
-        parameters=[
-            OpenApiParameter("group_id", int, required=True),
-            OpenApiParameter("limit", int, required=False),
-            OpenApiParameter("share_token", str, required=False),
-        ],
-        responses={
-            200: {
-                "type": "array",
-                "items": {
-                    "type": "object",
-                    "properties": {
-                        "video_id": {"type": "integer"},
-                        "title": {"type": "string"},
-                        "start_time": {"type": "string"},
-                        "end_time": {"type": "string"},
-                        "reference_count": {"type": "integer"},
-                        "file": {"type": "string", "nullable": True},
-                        "questions": {"type": "array", "items": {"type": "string"}},
-                    },
-                },
-            }
-        },
-        summary="Get popular scenes",
-        description="Returns frequently referenced scenes from chat logs for a video group.",
-    )
-    def get(self, request):
-        group_id = request.query_params.get("group_id")
-        share_token = request.query_params.get("share_token")
-        try:
-            limit = max(1, min(int(request.query_params.get("limit", 20)), 100))
-        except (ValueError, TypeError):
-            return create_error_response("Invalid limit parameter", status.HTTP_400_BAD_REQUEST)
-
-        if not group_id:
-            return create_error_response("Group ID not specified", status.HTTP_400_BAD_REQUEST)
-
-        use_case = self.resolve_dependency(self.popular_scenes_use_case)
-        try:
-            scenes = use_case.execute(
-                group_id=int(group_id),
-                limit=limit,
-                user_id=getattr(request.user, "id", None),
-                share_token=share_token,
-            )
-        except ResourceNotFound as e:
-            return create_error_response(str(e), status.HTTP_404_NOT_FOUND)
-
-        return Response([
-            {
-                "video_id": dto.video_id,
-                "title": dto.title,
-                "start_time": dto.start_time,
-                "end_time": dto.end_time,
-                "reference_count": dto.reference_count,
-                "file": dto.file_url,
-                "questions": dto.questions,
-            }
-            for dto in scenes
-        ])
-
-
 class ChatAnalyticsView(DependencyResolverMixin, APIView):
     """Analytics dashboard data for a chat group."""
 
@@ -473,6 +400,10 @@ class OpenAIChatCompletionsView(DependencyResolverMixin, APIView):
             return self._error(str(e), "invalid_request_error", status.HTTP_404_NOT_FOUND)
         except PermissionDenied as e:
             return self._error(str(e), "permission_denied", status.HTTP_403_FORBIDDEN)
+        except OverQuotaError as e:
+            return self._error(str(e), "insufficient_quota", status.HTTP_403_FORBIDDEN)
+        except AiAnswersLimitExceeded as e:
+            return self._error(str(e), "insufficient_quota", status.HTTP_400_BAD_REQUEST)
         except LLMConfigurationError as e:
             return self._error(str(e), "invalid_request_error", status.HTTP_400_BAD_REQUEST)
         except LLMProviderError as e:

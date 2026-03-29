@@ -11,6 +11,10 @@ def get_create_video_use_case():
     return _cr.get_create_video_use_case()
 
 
+def get_create_youtube_video_use_case():
+    return _cr.get_create_youtube_video_use_case()
+
+
 def get_video_detail_use_case():
     return _cr.get_video_detail_use_case()
 
@@ -109,6 +113,7 @@ def get_confirm_video_upload_use_case():
 __all__ = [
     "get_list_videos_use_case",
     "get_create_video_use_case",
+    "get_create_youtube_video_use_case",
     "get_video_detail_use_case",
     "get_update_video_use_case",
     "get_delete_video_use_case",

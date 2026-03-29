@@ -8,6 +8,7 @@ const mockVideo = {
   description: 'Test Description',
   status: 'completed',
   file: 'test.mp4',
+  source_type: 'uploaded',
   uploaded_at: '2024-01-01T00:00:00Z',
   transcript: '1\n00:00:00,000 --> 00:00:05,000\nHello world',
   tags: [{ id: 1, name: 'Tag1', color: '#FF0000' }],

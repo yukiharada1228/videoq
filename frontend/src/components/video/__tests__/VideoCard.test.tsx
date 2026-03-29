@@ -43,6 +43,7 @@ describe('VideoCard', () => {
     uploaded_at: '2024-01-15T10:00:00Z',
     status: 'completed' as const,
     file: 'http://example.com/video.mp4',
+    source_type: 'uploaded' as const,
     user: 1,
     description: 'Test description',
   }
@@ -82,6 +83,20 @@ describe('VideoCard', () => {
     render(<VideoCard video={videoWithoutFile} />)
 
     expect(screen.getByText('Test Video')).toBeInTheDocument()
+  })
+
+  it('should render youtube thumbnail when source is youtube', () => {
+    const youtubeVideo = {
+      ...mockVideo,
+      file: null,
+      source_type: 'youtube' as const,
+      youtube_video_id: 'dQw4w9WgXcQ',
+    }
+
+    render(<VideoCard video={youtubeVideo} />)
+
+    const image = screen.getByAltText('Test Video')
+    expect(image).toHaveAttribute('src', 'https://img.youtube.com/vi/dQw4w9WgXcQ/hqdefault.jpg')
   })
 
   it('should apply custom className', () => {

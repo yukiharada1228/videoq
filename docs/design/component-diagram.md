@@ -58,11 +58,6 @@ graph TB
                 ChatPanel[ChatPanel]
             end
 
-            subgraph Shorts["Shorts Components"]
-                ShortsButton[ShortsButton]
-                ShortsPlayer[ShortsPlayer]
-            end
-
             subgraph Dashboard["Dashboard Components"]
                 AnalyticsDashboard[AnalyticsDashboard]
                 DashboardButton[DashboardButton]
@@ -165,11 +160,17 @@ graph TB
             subgraph ChatPres["chat/"]
                 ChatViews["Views - ChatView, ChatHistoryView,
                 ChatFeedbackView, ChatAnalyticsView,
-                PopularScenesView, ChatHistoryExportView"]
+                ChatHistoryExportView"]
                 ChatSer[Serializers]
             end
             subgraph MediaPres["media/"]
                 MediaViews[ProtectedMediaView]
+            end
+            subgraph BillingPres["billing/"]
+                BillingViews["Views - PlanListView, CurrentSubscriptionView,
+                CreateCheckoutSessionView, CreateBillingPortalView,
+                stripe_webhook_view"]
+                BillingSer[Serializers]
             end
             CommonPres["common/ - auth (CookieJWTAuthentication,
             ApiKeyAuthentication, ShareTokenAuthentication),
@@ -186,6 +187,9 @@ graph TB
                 DeleteVideo[DeleteVideoUseCase]
                 FileUrl[GetVideoFileUrlUseCase]
                 EnforceLimit[EnforceVideoLimitUseCase]
+                RequestUpload[RequestVideoUploadUseCase]
+                ConfirmUpload[ConfirmVideoUploadUseCase]
+                IndexVideo[IndexVideoTranscriptUseCase]
                 CreateGroup[CreateVideoGroup / CreateVideoGroupWithDetail]
                 GetGroup[GetVideoGroupUseCase / GetSharedGroupUseCase]
                 ListGroups[ListVideoGroupsUseCase]
@@ -201,7 +205,6 @@ graph TB
                 DeleteTag[DeleteTagUseCase]
                 ManageTags[AddTagsToVideo / RemoveTagFromVideo]
                 RunTrans[RunTranscriptionUseCase]
-                IndexTrans[IndexVideoTranscriptUseCase]
                 ReindexAll[ReindexAllVideosUseCase]
             end
             subgraph ChatUC["chat/"]
@@ -210,7 +213,6 @@ graph TB
                 ExportHistory[ExportChatHistoryUseCase]
                 SubmitFeedback[SubmitFeedbackUseCase]
                 GetAnalytics[GetChatAnalyticsUseCase]
-                GetPopularScenes[GetPopularScenesUseCase]
             end
             subgraph AuthUC["auth/"]
                 LoginUC[LoginUseCase]
@@ -229,6 +231,18 @@ graph TB
             end
             subgraph MediaUC["media/"]
                 ResolveMedia[ResolveProtectedMediaUseCase]
+            end
+            subgraph BillingUC["billing/"]
+                GetSubscription[GetSubscriptionUseCase]
+                GetPlans[GetPlansUseCase]
+                CreateCheckout[CreateCheckoutSessionUseCase]
+                CreatePortal[CreateBillingPortalUseCase]
+                HandleWebhook[HandleWebhookUseCase]
+                CheckStorage[CheckStorageLimitUseCase]
+                CheckProcessing[CheckProcessingLimitUseCase]
+                CheckAiAnswers[CheckAiAnswersLimitUseCase]
+                RecordUsage["RecordStorageUsage / RecordProcessingUsage / RecordAiAnswerUsage"]
+                ClearOverQuota[ClearOverQuotaUseCase]
             end
             SharedExc["shared/exceptions - ResourceNotFound, PermissionDenied"]
         end
@@ -272,11 +286,32 @@ graph TB
             subgraph MediaDomain["media/"]
                 MediaRepo[ProtectedMediaRepository ABC]
             end
+            subgraph BillingDomain["billing/"]
+                BillingEntities["SubscriptionEntity, PlanType,
+                PLAN_LIMITS, PLAN_PRICES"]
+                BillingRepos["SubscriptionRepository ABC"]
+                BillingGateways["BillingGateway ABC"]
+                BillingExc["StorageLimitExceeded, ProcessingLimitExceeded,
+                AiAnswersLimitExceeded, OverQuotaError"]
+            end
             UserEntity["user/ - UserEntity, UserRepository ABC"]
-            SharedDomain["shared/ - ResourceNotFound, PermissionDenied"]
+            SharedDomain["shared/ - ResourceNotFound, PermissionDenied,
+            transaction.py (TransactionManager port)"]
         end
 
         subgraph InfraLayer["infrastructure/ — Implementations"]
+            subgraph Models["models/ — Django ORM"]
+                UserModel[User]
+                VideoModel[Video]
+                GroupModel[VideoGroup / VideoGroupMember]
+                ChatLogModel[ChatLog]
+                TagModel[Tag / VideoTag]
+                AccDeleteModel[AccountDeletionRequest]
+                ApiKeyModel[UserApiKey]
+                SubModel[Subscription]
+                StorageModel["SafeFileSystemStorage /
+                SafeS3Boto3Storage"]
+            end
             subgraph Repos["repositories/"]
                 DjangoVideoRepo[DjangoVideoRepository]
                 DjangoChatRepo[DjangoChatRepository]
@@ -286,6 +321,7 @@ graph TB
                 DjangoApiKeyRepo[DjangoApiKeyRepository]
                 DjangoUserAuthGW[DjangoUserAuthGateway]
                 DjangoUserDataGW[DjangoUserDataDeletionGateway]
+                DjangoSubRepo2[DjangoSubscriptionRepository]
             end
             subgraph ExtGateways["external/"]
                 RagChatGW[RagChatGateway]
@@ -293,6 +329,7 @@ graph TB
                 VectorStoreGW[DjangoVectorStoreGateway]
                 TransGW[WhisperTranscriptionGateway]
                 FileUrlResolver[DjangoFileUrlResolver]
+                FileUploadGW[FileUploadGateway]
                 SceneIdx[scene_indexer]
                 VectorStore[PGVector / vector_store]
                 RagSvc[rag_service / LangChain]
@@ -311,6 +348,9 @@ graph TB
                 ApiKeyResolver[ApiKeyResolver]
                 ShareTokenResolver[ShareTokenResolver]
             end
+            subgraph BillingInfra["billing/"]
+                StripeGW[StripeGateway]
+            end
             subgraph TasksInfra["tasks/"]
                 CeleryTaskGW[CeleryTaskGateway]
             end
@@ -325,6 +365,8 @@ graph TB
                 QueryOptimizer[query_optimizer]
                 PerfUtils[performance_utils]
                 TaskHelpers[task_helpers]
+                Cipher[cipher - encryption utilities]
+                DjangoTransaction[django_transaction - TransactionManager impl]
             end
             subgraph SceneOtsu["scene_otsu/"]
                 Splitter[splitter - scene splitting]
@@ -334,29 +376,19 @@ graph TB
             StorageInfra[storage/ - LocalMediaStorage]
         end
 
-        subgraph Models["models/ — Django ORM"]
-            UserModel[User]
-            VideoModel[Video]
-            GroupModel[VideoGroup / VideoGroupMember]
-            ChatLogModel[ChatLog]
-            TagModel[Tag / VideoTag]
-            AccDeleteModel[AccountDeletionRequest]
-            ApiKeyModel[UserApiKey]
-            StorageModel["SafeFileSystemStorage /
-            SafeS3Boto3Storage"]
-        end
-
         subgraph Tasks["entrypoints/tasks/ (Celery entrypoints - thin triggers)"]
             TranscribeTask[transcription.py]
             DeleteAccTask[account_deletion.py]
             ReindexTask[reindexing.py]
+            IndexingTask[indexing.py]
         end
 
         subgraph Container["Dependency Providers / Composition Root"]
             Dependencies[dependencies/*.py - provider functions]
             CompRoot[composition_root/*.py - wiring and assembly]
             VideoProviders[_video_*_providers.py]
-            Contracts[contracts/ - task name constants]
+            Contracts["contracts/ - task name constants,
+            auth constants, media_validation"]
         end
     end
 
@@ -366,7 +398,6 @@ graph TB
     Container --> InfraLayer
     UseCasesLayer --> DomainLayer
     InfraLayer --> DomainLayer
-    InfraLayer --> Models
     Tasks --> UseCasesLayer
     Tasks --> Contracts
 ```

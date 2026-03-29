@@ -1,1 +1,29 @@
+# Environment
 .env
+
+# macOS
+.DS_Store
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.egg-info
+.venv
+
+# Node / Frontend
+node_modules
+dist
+
+# Test & analysis tools
+.pytest_cache
+.mypy_cache
+.coverage
+coverage
+
+# Logs
+*.log
+
+# whisper.cpp build artifacts
+*.o
+*.a

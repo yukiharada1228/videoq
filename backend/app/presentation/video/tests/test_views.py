@@ -994,3 +994,27 @@ class VideoUploadTests(APITestCase):
         self.assertIn("Uploaded file is not a valid video.", str(response.data))
         self.assertEqual(Video.objects.count(), 0)
         mock_task.assert_not_called()
+
+    @patch("app.infrastructure.tasks.task_gateway.current_app.send_task")
+    def test_create_youtube_video(self, mock_task):
+        url = reverse("youtube-video-create")
+        response = self.client.post(
+            url,
+            {
+                "youtube_url": "https://youtu.be/dQw4w9WgXcQ",
+                "title": "YouTube Test",
+                "description": "From YouTube",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["source_type"], "youtube")
+        self.assertEqual(response.data["youtube_video_id"], "dQw4w9WgXcQ")
+        self.assertEqual(
+            response.data["youtube_embed_url"],
+            "https://www.youtube.com/embed/dQw4w9WgXcQ",
+        )
+        video = Video.objects.get()
+        self.assertEqual(video.source_type, "youtube")
+        self.assertEqual(video.youtube_video_id, "dQw4w9WgXcQ")

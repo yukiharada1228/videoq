@@ -59,6 +59,20 @@ class _FakeTranscriptionGateway:
         return self.transcript
 
 
+class _FakeYoutubeTranscriptionGateway:
+    def __init__(self, transcript: str = "youtube srt", error: Optional[Exception] = None):
+        self.transcript = transcript
+        self.error = error
+        self.calls: list[str] = []
+
+    def run(self, youtube_video_id: str, api_key=None) -> str:
+        del api_key
+        self.calls.append(youtube_video_id)
+        if self.error:
+            raise self.error
+        return self.transcript
+
+
 class _FakeVideoTaskGateway:
     def __init__(self) -> None:
         self.enqueue_indexing_calls: list[int] = []
@@ -272,6 +286,69 @@ class RunTranscriptionUseCaseTests(TestCase):
         self.assertEqual(video.status, "error")
         self.assertEqual(transcription.calls, [])
         self.assertIn("Processing limit exceeded", str(exc.exception))
+
+    def test_uses_youtube_transcription_gateway_for_youtube_videos(self):
+        video = VideoEntity(
+            id=1,
+            user_id=10,
+            title="yt",
+            status="pending",
+            source_type="youtube",
+            youtube_video_id="dQw4w9WgXcQ",
+        )
+        repo = _FakeVideoTranscriptionRepository(video)
+        transcription = _FakeTranscriptionGateway(transcript="file transcript")
+        youtube_transcription = _FakeYoutubeTranscriptionGateway(
+            transcript="1\n00:00:00,000 --> 00:00:05,000\nHello from YouTube\n"
+        )
+        task_gateway = _FakeVideoTaskGateway()
+        upload_gw = _FakeUploadGateway()
+        tx = _FakeTransactionPort()
+        use_case = RunTranscriptionUseCase(
+            repo,
+            transcription,
+            task_gateway,
+            upload_gw,
+            tx,
+            youtube_transcription_gateway=youtube_transcription,
+        )
+
+        use_case.execute(video.id)
+
+        self.assertEqual(video.status, "indexing")
+        self.assertEqual(video.transcript, youtube_transcription.transcript)
+        self.assertEqual(transcription.calls, [])
+        self.assertEqual(youtube_transcription.calls, ["dQw4w9WgXcQ"])
+
+    def test_youtube_video_without_video_id_sets_error(self):
+        video = VideoEntity(
+            id=1,
+            user_id=10,
+            title="yt",
+            status="pending",
+            source_type="youtube",
+        )
+        repo = _FakeVideoTranscriptionRepository(video)
+        transcription = _FakeTranscriptionGateway(transcript="file transcript")
+        youtube_transcription = _FakeYoutubeTranscriptionGateway()
+        task_gateway = _FakeVideoTaskGateway()
+        upload_gw = _FakeUploadGateway()
+        tx = _FakeTransactionPort()
+        use_case = RunTranscriptionUseCase(
+            repo,
+            transcription,
+            task_gateway,
+            upload_gw,
+            tx,
+            youtube_transcription_gateway=youtube_transcription,
+        )
+
+        with self.assertRaises(TranscriptionExecutionFailed) as exc:
+            use_case.execute(video.id)
+
+        self.assertEqual(video.status, "error")
+        self.assertIn("youtube_video_id", str(exc.exception))
+        self.assertEqual(youtube_transcription.calls, [])
 
 
 class ParseSrtDurationTests(TestCase):

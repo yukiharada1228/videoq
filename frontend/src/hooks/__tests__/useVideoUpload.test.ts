@@ -9,6 +9,7 @@ vi.mock('@/lib/api', async (importOriginal) => {
     ...actual,
     apiClient: {
       uploadVideo: vi.fn(),
+      createYoutubeVideo: vi.fn(),
       addTagsToVideo: vi.fn(),
     },
   }
@@ -216,6 +217,33 @@ describe('useVideoUpload', () => {
     expect(result.current.description).toBe('')
     expect(result.current.error).toBeNull()
     expect(result.current.success).toBe(false)
+  })
+
+  it('should create youtube video when source mode is youtube', async () => {
+    const { result } = renderHook(() => useVideoUpload())
+    ;(apiClient.createYoutubeVideo as any).mockResolvedValue({ id: 1 })
+
+    act(() => {
+      result.current.setSourceMode('youtube')
+      result.current.setYoutubeUrl('https://youtu.be/dQw4w9WgXcQ')
+      result.current.setTitle('YouTube Title')
+      result.current.setDescription('YouTube Description')
+    })
+
+    await act(async () => {
+      await result.current.handleSubmit({
+        preventDefault: vi.fn(),
+      } as unknown as React.FormEvent)
+    })
+
+    await waitFor(() => {
+      expect(apiClient.createYoutubeVideo).toHaveBeenCalledWith({
+        youtube_url: 'https://youtu.be/dQw4w9WgXcQ',
+        title: 'YouTube Title',
+        description: 'YouTube Description',
+      })
+      expect(result.current.success).toBe(true)
+    })
   })
 
   it('should handle upload errors', async () => {

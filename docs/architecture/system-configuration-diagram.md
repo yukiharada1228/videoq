@@ -88,6 +88,11 @@ graph TB
         Email["Email Service
         - SMTP
         - Email Sending"]
+        Stripe["Stripe
+        Optional
+        - Subscription Billing
+        - Checkout / Portal
+        - Webhooks"]
     end
 
     Browser -->|HTTP/HTTPS| Nginx
@@ -101,6 +106,8 @@ graph TB
     Django --> OpenAI
     Django -.->|Optional| Ollama
     Django --> Email
+    Django -.->|Optional| Stripe
+
     Celery --> Redis
     Celery --> PostgreSQL
     Celery --> LocalFS
@@ -203,26 +210,31 @@ graph TB
 ```mermaid
 graph TB
     subgraph Presentation["presentation/"]
-        PV[Views - thin HTTP layer]
+        PV["Views - thin HTTP layer (video/, chat/, auth/, media/, billing/)"]
         PS[Serializers]
         PA[Django Admin - operational privileged path]
     end
 
     subgraph UseCases["use_cases/"]
         UV["video/ - CreateVideo, GetVideoDetail, ListVideos, UpdateVideo, DeleteVideo,
-        FileUrl, GetVideoGroup, GetSharedGroup, ListVideoGroups,
+        FileUrl, RequestVideoUpload, ConfirmVideoUpload,
+        GetVideoGroup, GetSharedGroup, ListVideoGroups,
         CreateVideoGroup, UpdateVideoGroup, DeleteVideoGroup,
         CreateTag, GetTagDetail, ListTags, UpdateTag, DeleteTag,
         AddVideoToGroup, AddVideosToGroup, RemoveVideoFromGroup, ReorderVideosInGroup,
         CreateShareLink, DeleteShareLink, AddTagsToVideo, RemoveTagFromVideo,
         EnforceVideoLimit, IndexVideoTranscript, ReindexAllVideos, RunTranscription"]
         UC["chat/ - SendMessage, GetChatHistory, ExportChatHistory,
-        SubmitFeedback, GetChatAnalytics, GetPopularScenes"]
+        SubmitFeedback, GetChatAnalytics"]
         UA["auth/ - Login, Signup, VerifyEmail, RequestPasswordReset, ConfirmPasswordReset,
         GetCurrentUser, DeleteAccount, DeleteAccountData,
         ListApiKeys, CreateApiKey, RevokeApiKey,
         AuthorizeApiKey, ResolveApiKey, ResolveShareToken, RefreshToken"]
         UM[media/ - ResolveProtectedMedia]
+        UB["billing/ - GetSubscription, GetPlans, CreateCheckoutSession,
+        CreateBillingPortal, HandleWebhook,
+        CheckStorageLimit, CheckProcessingLimit, CheckAiAnswersLimit,
+        RecordStorageUsage, RecordProcessingUsage, RecordAiAnswerUsage, ClearOverQuota"]
         US[shared/ - ResourceNotFound, PermissionDenied]
     end
 
@@ -240,40 +252,49 @@ graph TB
         UserDataDeletionGateway, EmailSenderGateway, AuthTaskGateway,
         ShareTokenResolverPort, ApiKeyResolverPort"]
         DM[media/ - ProtectedMediaRepository ABC]
-        DU[user/ - UserEntity, UserRepository ABC]
+        DB["billing/ - SubscriptionEntity, PlanType,
+        SubscriptionRepository ABC, BillingGateway ABC,
+        StorageLimitExceeded, ProcessingLimitExceeded,
+        AiAnswersLimitExceeded, OverQuotaError"]
+        DU["user/ - UserEntity, UserRepository ABC"]
+        DS["shared/ - ResourceNotFound, PermissionDenied,
+        transaction.py (TransactionManager port)"]
     end
 
     subgraph Infrastructure["infrastructure/"]
         IR["repositories/ - DjangoVideoRepository, DjangoChatRepository,
         DjangoUserRepository, DjangoMediaRepository,
         DjangoAccountDeletionRepository, DjangoApiKeyRepository,
-        DjangoUserAuthGateway, DjangoUserDataDeletionGateway"]
+        DjangoUserAuthGateway, DjangoUserDataDeletionGateway,
+        DjangoSubscriptionRepository"]
         IE["external/ - RagChatGateway, DjangoVectorIndexingGateway,
         DjangoVectorStoreGateway, WhisperTranscriptionGateway,
-        DjangoFileUrlResolver, scene_indexer, vector_store,
-        rag_service, rag_gateway, llm, prompts"]
+        DjangoFileUrlResolver, FileUploadGateway,
+        scene_indexer, vector_store, rag_service, rag_gateway, llm, prompts"]
         IT[transcription/ - audio_processing, srt_processing, DjangoVideoFileAccessor]
         IA["auth/ - SimpleJWTGateway, DjangoAuthGateway,
         CookieJWTValidator, ApiKeyResolver, ShareTokenResolver"]
-        ITk[tasks/ - CeleryTaskGateway]
+        IB[billing/ - StripeGateway]
+        ITk[tasks/ - CeleryVideoTaskGateway, CeleryAuthTaskGateway]
         IC["chat/ - JanomeNltkKeywordExtractor, DjangoSceneVideoInfoProvider"]
         ICo["common/ - email, embeddings, whisper_client,
-        query_optimizer, performance_utils, task_helpers"]
+        query_optimizer, performance_utils, task_helpers,
+        cipher, django_transaction"]
         ISo[scene_otsu/ - splitter, parsers, embedders, utils]
         ISt[storage/ - LocalMediaStorage]
         IM["models/ - User, Video, VideoGroup, VideoGroupMember,
         ChatLog, Tag, VideoTag, AccountDeletionRequest, UserApiKey,
-        SafeFileSystemStorage, SafeS3Boto3Storage"]
+        Subscription, SafeFileSystemStorage, SafeS3Boto3Storage"]
     end
 
     subgraph Container["Composition Root"]
         CDI[dependencies/*.py]
         CCR[composition_root/*.py]
-        CK[contracts/ - task name constants]
+        CK["contracts/ - task name constants, auth constants, media_validation"]
     end
 
     subgraph Entrypoints["Celery Entrypoints"]
-        ET[entrypoints/tasks/ - transcription, account_deletion, reindexing]
+        ET[entrypoints/tasks/ - transcription, account_deletion, reindexing, indexing]
     end
 
     subgraph Infra["Infrastructure (external)"]

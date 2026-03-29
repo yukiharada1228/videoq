@@ -88,3 +88,12 @@ class FileUploadGateway(ABC):
     def delete_file(self, file_key: str) -> None:
         """Delete a file from storage."""
         ...
+
+
+class YoutubeTranscriptionGateway(ABC):
+    """Abstract interface for fetching YouTube transcripts from video IDs."""
+
+    @abstractmethod
+    def run(self, youtube_video_id: str, api_key: Optional[str] = None) -> str:
+        """Fetch and normalize a YouTube transcript into SRT format."""
+        ...
