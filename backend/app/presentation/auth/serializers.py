@@ -119,3 +119,11 @@ class ApiKeyCreateResponseSerializer(ApiKeySerializer):
     api_key = serializers.CharField(
         help_text="Plain API key. This is only returned once."
     )
+
+
+class SearchApiKeyStatusSerializer(serializers.Serializer):
+    has_api_key = serializers.BooleanField()
+
+
+class SearchApiKeySerializer(serializers.Serializer):
+    api_key = serializers.CharField(write_only=True, trim_whitespace=True)

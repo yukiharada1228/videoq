@@ -17,6 +17,8 @@ from app.presentation.auth.serializers import (AccountDeleteSerializer,
                                                PasswordResetConfirmBodySerializer,
                                                PasswordResetRequestSerializer,
                                                RefreshResponseSerializer,
+                                               SearchApiKeySerializer,
+                                               SearchApiKeyStatusSerializer,
                                                UserSerializer,
                                                UserSignupSerializer)
 from app.use_cases.auth.signup import EmailAlreadyRegistered, VerificationEmailSendFailed
@@ -441,3 +443,53 @@ class ApiKeyDetailView(AuthenticatedAPIView, generics.GenericAPIView):
             return create_error_response("API key not found", status.HTTP_404_NOT_FOUND)
         return create_success_response(message="API key revoked.")
 
+
+class SearchApiKeyView(AuthenticatedAPIView, generics.GenericAPIView):
+    """Manage the current user's SearchAPI API key."""
+
+    searchapi_key_status_use_case = None
+    set_searchapi_key_use_case = None
+    delete_searchapi_key_use_case = None
+
+    @extend_schema(
+        responses={200: SearchApiKeyStatusSerializer},
+        summary="Get SearchAPI key status",
+        description="Return whether the current user has configured a SearchAPI API key.",
+    )
+    def get(self, request, *args, **kwargs):
+        use_case = self.resolve_dependency(self.searchapi_key_status_use_case)
+        result = use_case.execute(request.user.id)
+        return Response(SearchApiKeyStatusSerializer(result).data)
+
+    @extend_schema(
+        request=SearchApiKeySerializer,
+        responses={200: MessageResponseSerializer},
+        summary="Save SearchAPI key",
+        description="Save or update the current user's SearchAPI API key.",
+    )
+    def put(self, request, *args, **kwargs):
+        from rest_framework.exceptions import ValidationError
+
+        serializer = SearchApiKeySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        use_case = self.resolve_dependency(self.set_searchapi_key_use_case)
+        try:
+            use_case.execute(request.user.id, serializer.validated_data["api_key"])
+        except ValueError as e:
+            raise ValidationError({"api_key": [str(e)]})
+        except ResourceNotFound:
+            raise Http404("User not found")
+        return create_success_response(message="SearchAPI API key saved.")
+
+    @extend_schema(
+        responses={200: MessageResponseSerializer},
+        summary="Delete SearchAPI key",
+        description="Delete the current user's SearchAPI API key.",
+    )
+    def delete(self, request, *args, **kwargs):
+        use_case = self.resolve_dependency(self.delete_searchapi_key_use_case)
+        try:
+            use_case.execute(request.user.id)
+        except ResourceNotFound:
+            raise Http404("User not found")
+        return create_success_response(message="SearchAPI API key deleted.")

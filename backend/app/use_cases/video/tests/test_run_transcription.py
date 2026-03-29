@@ -63,11 +63,10 @@ class _FakeYoutubeTranscriptionGateway:
     def __init__(self, transcript: str = "youtube srt", error: Optional[Exception] = None):
         self.transcript = transcript
         self.error = error
-        self.calls: list[str] = []
+        self.calls: list[tuple[str, str | None]] = []
 
     def run(self, youtube_video_id: str, api_key=None) -> str:
-        del api_key
-        self.calls.append(youtube_video_id)
+        self.calls.append((youtube_video_id, api_key))
         if self.error:
             raise self.error
         return self.transcript
@@ -318,7 +317,48 @@ class RunTranscriptionUseCaseTests(TestCase):
         self.assertEqual(video.status, "indexing")
         self.assertEqual(video.transcript, youtube_transcription.transcript)
         self.assertEqual(transcription.calls, [])
-        self.assertEqual(youtube_transcription.calls, ["dQw4w9WgXcQ"])
+        self.assertEqual(youtube_transcription.calls, [("dQw4w9WgXcQ", None)])
+
+    def test_uses_user_searchapi_key_for_youtube_transcription(self):
+        from app.domain.user.entities import UserEntity
+
+        video = VideoEntity(
+            id=1,
+            user_id=10,
+            title="yt",
+            status="pending",
+            source_type="youtube",
+            youtube_video_id="dQw4w9WgXcQ",
+        )
+        repo = _FakeVideoTranscriptionRepository(video)
+        transcription = _FakeTranscriptionGateway(transcript="file transcript")
+        youtube_transcription = _FakeYoutubeTranscriptionGateway(
+            transcript="1\n00:00:00,000 --> 00:00:05,000\nHello from YouTube\n"
+        )
+        user_repo = MagicMock()
+        user_repo.get_by_id.return_value = UserEntity(
+            id=10,
+            username="u",
+            email="u@example.com",
+            is_active=True,
+            searchapi_api_key="sa_user_key",
+        )
+        task_gateway = _FakeVideoTaskGateway()
+        upload_gw = _FakeUploadGateway()
+        tx = _FakeTransactionPort()
+        use_case = RunTranscriptionUseCase(
+            repo,
+            transcription,
+            task_gateway,
+            upload_gw,
+            tx,
+            user_repo=user_repo,
+            youtube_transcription_gateway=youtube_transcription,
+        )
+
+        use_case.execute(video.id)
+
+        self.assertEqual(youtube_transcription.calls, [("dQw4w9WgXcQ", "sa_user_key")])
 
     def test_youtube_video_without_video_id_sets_error(self):
         video = VideoEntity(

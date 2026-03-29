@@ -115,6 +115,7 @@ class DefaultSettings:
 
     # Whisper configuration
     WHISPER_BACKEND = "openai"  # openai or local
+    SEARCHAPI_TIMEOUT_SECONDS = 60
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -579,6 +580,9 @@ LLM_MODEL = os.environ.get("LLM_MODEL", DefaultSettings.LLM_MODEL)
 
 # Whisper configuration
 WHISPER_BACKEND = os.environ.get("WHISPER_BACKEND", DefaultSettings.WHISPER_BACKEND).lower()
+SEARCHAPI_TIMEOUT_SECONDS = int(
+    os.environ.get("SEARCHAPI_TIMEOUT_SECONDS", DefaultSettings.SEARCHAPI_TIMEOUT_SECONDS)
+)
 
 # OpenAI API key (system-level fallback; users can override with their own key)
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")

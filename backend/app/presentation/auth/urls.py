@@ -13,6 +13,7 @@ from .views import (
     PasswordResetConfirmView,
     PasswordResetRequestView,
     RefreshView,
+    SearchApiKeyView,
     SessionView,
     UserSignupView,
 )
@@ -64,6 +65,15 @@ urlpatterns = [
             revoke_api_key_use_case=auth_dependencies.get_revoke_api_key_use_case
         ),
         name="auth-api-key-detail",
+    ),
+    path(
+        "searchapi-key/",
+        SearchApiKeyView.as_view(
+            searchapi_key_status_use_case=auth_dependencies.get_searchapi_key_status_use_case,
+            set_searchapi_key_use_case=auth_dependencies.get_set_searchapi_key_use_case,
+            delete_searchapi_key_use_case=auth_dependencies.get_delete_searchapi_key_use_case,
+        ),
+        name="auth-searchapi-key",
     ),
     path(
         "email-verifications/",

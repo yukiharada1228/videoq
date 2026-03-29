@@ -263,6 +263,43 @@ describe('ApiClient', () => {
         method: 'DELETE',
       }));
     });
+
+    it('getSearchApiKeyStatus should return status', async () => {
+      const mockStatus = { has_api_key: true };
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        text: () => Promise.resolve(JSON.stringify(mockStatus)),
+      });
+
+      const result = await apiClient.getSearchApiKeyStatus();
+
+      expect(result).toEqual(mockStatus);
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/searchapi-key/', expect.objectContaining({
+        credentials: 'include',
+      }));
+    });
+
+    it('saveSearchApiKey should save a key', async () => {
+      fetchMock.mockResolvedValueOnce({ ok: true, headers: new Headers() });
+
+      await apiClient.saveSearchApiKey('sa_test');
+
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/searchapi-key/', expect.objectContaining({
+        method: 'PUT',
+        body: JSON.stringify({ api_key: 'sa_test' }),
+      }));
+    });
+
+    it('deleteSearchApiKey should delete a key', async () => {
+      fetchMock.mockResolvedValueOnce({ ok: true, headers: new Headers() });
+
+      await apiClient.deleteSearchApiKey();
+
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/searchapi-key/', expect.objectContaining({
+        method: 'DELETE',
+      }));
+    });
   });
 
   describe('Error Handling', () => {
