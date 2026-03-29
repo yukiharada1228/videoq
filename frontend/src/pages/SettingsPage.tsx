@@ -50,6 +50,11 @@ export default function SettingsPage() {
   } | null>(null);
   const [isCopyAcknowledged, setIsCopyAcknowledged] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [searchApiKey, setSearchApiKey] = useState('');
+  const [searchApiStatusMessage, setSearchApiStatusMessage] = useState<{
+    tone: 'success' | 'error';
+    text: string;
+  } | null>(null);
 
   const confirmationKeyword = useMemo(() => 'DELETE', []);
   const canConfirm = confirmText.trim().toUpperCase() === confirmationKeyword;
@@ -86,6 +91,11 @@ export default function SettingsPage() {
   const apiKeysQuery = useQuery({
     queryKey: queryKeys.auth.apiKeys,
     queryFn: async () => apiClient.getIntegrationApiKeys(),
+  });
+
+  const searchApiKeyStatusQuery = useQuery({
+    queryKey: queryKeys.auth.searchApiKey,
+    queryFn: async () => apiClient.getSearchApiKeyStatus(),
   });
 
   const createApiKeyMutation = useMutation({
@@ -144,6 +154,45 @@ export default function SettingsPage() {
           ? error.message
           : t('settings.accountDeletion.error'),
       );
+    },
+  });
+
+  const saveSearchApiKeyMutation = useMutation({
+    mutationFn: async () => apiClient.saveSearchApiKey(searchApiKey.trim()),
+    onSuccess: async () => {
+      setSearchApiKey('');
+      setSearchApiStatusMessage({
+        tone: 'success',
+        text: t('settings.searchApiKey.successSaved'),
+      });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.auth.searchApiKey });
+    },
+    onError: (error) => {
+      setSearchApiStatusMessage({
+        tone: 'error',
+        text: error instanceof Error
+          ? error.message
+          : t('settings.searchApiKey.errorSaving'),
+      });
+    },
+  });
+
+  const deleteSearchApiKeyMutation = useMutation({
+    mutationFn: async () => apiClient.deleteSearchApiKey(),
+    onSuccess: async () => {
+      setSearchApiStatusMessage({
+        tone: 'success',
+        text: t('settings.searchApiKey.successDeleted'),
+      });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.auth.searchApiKey });
+    },
+    onError: (error) => {
+      setSearchApiStatusMessage({
+        tone: 'error',
+        text: error instanceof Error
+          ? error.message
+          : t('settings.searchApiKey.errorDeleting'),
+      });
     },
   });
 
@@ -210,6 +259,96 @@ export default function SettingsPage() {
               >
                 {t('billing.settingsLink.button')}
               </Button>
+            </div>
+          </section>
+
+          <section className="bg-white rounded-xl shadow-[0_4px_20px_rgba(28,25,23,0.04)] p-5">
+            <div className="flex items-start justify-between gap-4 mb-5">
+              <div>
+                <h2 className="text-base font-bold text-[#191c19] mb-1">
+                  {t('settings.searchApiKey.title')}
+                </h2>
+                <p className="text-sm text-[#6f7a6e]">
+                  {t('settings.searchApiKey.description')}
+                </p>
+              </div>
+              {searchApiKeyStatusQuery.data?.has_api_key && (
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#d3ffd5] text-[#006d30]">
+                  {t('settings.searchApiKey.configured')}
+                </span>
+              )}
+            </div>
+
+            {searchApiStatusMessage && (
+              <div className={`mb-5 p-3 rounded-xl text-sm border ${searchApiStatusMessage.tone === 'success' ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-600'}`}>
+                {searchApiStatusMessage.text}
+              </div>
+            )}
+
+            <div className="space-y-4">
+              <div className="rounded-xl bg-[#f2f4ef] p-4 text-sm text-[#3f493f]">
+                <div className="font-semibold text-[#191c19] mb-1">
+                  {t('settings.searchApiKey.usageTitle')}
+                </div>
+                <p>{t('settings.searchApiKey.usageDescription')}</p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-[#191c19]">
+                  {t('settings.searchApiKey.apiKeyLabel')}
+                </label>
+                <Input
+                  value={searchApiKey}
+                  onChange={(event) => setSearchApiKey(event.target.value)}
+                  placeholder={t('settings.searchApiKey.apiKeyPlaceholder')}
+                />
+                <p className="text-xs text-[#6f7a6e]">
+                  {searchApiKeyStatusQuery.data?.has_api_key
+                    ? t('settings.searchApiKey.hasApiKeyMessage')
+                    : t('settings.searchApiKey.noApiKeyMessage')}
+                </p>
+                <p className="text-xs text-[#6f7a6e]">
+                  {t('settings.searchApiKey.getApiKeyMessage')}{' '}
+                  <a
+                    href="https://www.searchapi.io/docs/youtube-transcripts"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-semibold text-[#00652c] underline decoration-[#00652c]/35 underline-offset-2"
+                  >
+                    SearchAPI
+                  </a>
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <Button
+                  variant="outline"
+                  disabled={!searchApiKeyStatusQuery.data?.has_api_key || deleteSearchApiKeyMutation.isPending}
+                  onClick={async () => {
+                    setSearchApiStatusMessage(null);
+                    await deleteSearchApiKeyMutation.mutateAsync();
+                  }}
+                >
+                  {deleteSearchApiKeyMutation.isPending ? t('settings.searchApiKey.deleting') : t('settings.searchApiKey.delete')}
+                </Button>
+                <Button
+                  disabled={saveSearchApiKeyMutation.isPending}
+                  onClick={async () => {
+                    const trimmedKey = searchApiKey.trim();
+                    if (!trimmedKey) {
+                      setSearchApiStatusMessage({
+                        tone: 'error',
+                        text: t('settings.searchApiKey.errorEmpty'),
+                      });
+                      return;
+                    }
+                    setSearchApiStatusMessage(null);
+                    await saveSearchApiKeyMutation.mutateAsync();
+                  }}
+                >
+                  {saveSearchApiKeyMutation.isPending ? t('settings.searchApiKey.saving') : t('settings.searchApiKey.save')}
+                </Button>
+              </div>
             </div>
           </section>
 

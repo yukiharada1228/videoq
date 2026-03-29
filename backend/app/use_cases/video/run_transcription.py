@@ -98,6 +98,7 @@ class RunTranscriptionUseCase:
 
         # Resolve per-user upload size limit
         max_upload_bytes = 500 * 1024 * 1024  # default fallback
+        user = None
         if self.user_repo is not None and video.user_id:
             user = self.user_repo.get_by_id(video.user_id)
             if user is not None:
@@ -133,7 +134,7 @@ class RunTranscriptionUseCase:
                         estimated_duration_seconds,
                     )
 
-            transcript = self._run_transcription(video)
+            transcript = self._run_transcription(video, user)
             with self.tx.atomic():
                 self.video_repo.save_transcript(video_id, transcript)
                 from_status, to_status = VideoTranscriptionLifecycle.plan_success()
@@ -170,11 +171,14 @@ class RunTranscriptionUseCase:
                         exc_info=True,
                     )
 
-    def _run_transcription(self, video) -> str:
+    def _run_transcription(self, video, user=None) -> str:
         if video.source_type == "youtube":
             if not video.youtube_video_id:
                 raise RuntimeError("youtube_video_id is required for YouTube transcription.")
             if self._youtube_transcription_gateway is None:
                 raise RuntimeError("YouTube transcription gateway is not configured.")
-            return self._youtube_transcription_gateway.run(video.youtube_video_id, api_key=None)
+            return self._youtube_transcription_gateway.run(
+                video.youtube_video_id,
+                api_key=(getattr(user, "searchapi_api_key", None) if user is not None else None),
+            )
         return self.transcription_gateway.run(video.id, api_key=None)

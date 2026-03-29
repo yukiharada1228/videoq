@@ -1,109 +1,113 @@
 from unittest import TestCase
+from unittest.mock import patch
 
 from app.infrastructure.external.youtube_transcript_gateway import YoutubeTranscriptGateway
 
 
-class _FakeSnippet:
-    def __init__(self, text: str, start: float, duration: float):
-        self.text = text
-        self.start = start
-        self.duration = duration
+class _FakeTransport:
+    def __init__(self, responses):
+        self.responses = responses
+        self.calls: list[tuple[dict[str, str], str]] = []
 
-
-class _FakeTranscript:
-    def __init__(
-        self,
-        *,
-        language_code: str,
-        snippets=None,
-        is_translatable: bool = False,
-        translation_languages=None,
-    ):
-        self.language_code = language_code
-        self._snippets = snippets or []
-        self.is_translatable = is_translatable
-        self.translation_languages = translation_languages or []
-        self.translate_calls: list[str] = []
-
-    def fetch(self):
-        return self._snippets
-
-    def translate(self, language_code: str):
-        self.translate_calls.append(language_code)
-        return _FakeTranscript(
-            language_code=language_code,
-            snippets=self._snippets,
-        )
-
-
-class _FakeTranscriptList:
-    def __init__(self, transcript=None, *, fallback=None, error: Exception | None = None):
-        self.transcript = transcript
-        self.fallback = fallback
-        self.error = error
-        self.find_transcript_calls: list[list[str]] = []
-
-    def find_transcript(self, languages):
-        self.find_transcript_calls.append(list(languages))
-        if self.error is not None:
-            raise self.error
-        return self.transcript
-
-    def __iter__(self):
-        if self.fallback is None:
-            return iter([])
-        return iter([self.fallback])
-
-
-class _FakeApi:
-    def __init__(self, transcript_list):
-        self.transcript_list = transcript_list
-        self.list_calls: list[str] = []
-
-    def list(self, video_id: str):
-        self.list_calls.append(video_id)
-        return self.transcript_list
+    def __call__(self, params: dict[str, str], api_key: str):
+        self.calls.append((params, api_key))
+        lookup_params = {key: value for key, value in params.items() if key != "engine"}
+        return self.responses.get(tuple(sorted(lookup_params.items())), {})
 
 
 class YoutubeTranscriptGatewayTests(TestCase):
-    def test_selects_transcript_using_ja_then_en_priority(self):
-        transcript = _FakeTranscript(
-            language_code="ja",
-            snippets=[_FakeSnippet("こんにちは", 0.0, 1.5)],
+    @patch("app.infrastructure.external.youtube_transcript_gateway.apply_scene_splitting")
+    def test_selects_transcript_without_explicit_lang(self, mock_apply_scene_splitting):
+        mock_apply_scene_splitting.return_value = (
+            "1\n00:00:00,000 --> 00:00:01,500\nこんにちは\n",
+            1,
         )
-        transcript_list = _FakeTranscriptList(transcript=transcript)
-        api = _FakeApi(transcript_list)
-        gateway = YoutubeTranscriptGateway(api_factory=lambda: api)
+        transport = _FakeTransport(
+            {
+                (
+                    ("only_available", "true"),
+                    ("transcript_type", "manual"),
+                    ("video_id", "svm8hlhF8PA"),
+                ): {
+                    "transcripts": [
+                        {"text": "こんにちは", "start": 0.0, "duration": 1.5},
+                    ]
+                }
+            }
+        )
+        gateway = YoutubeTranscriptGateway(transport=transport)
 
-        result = gateway.run("svm8hlhF8PA")
+        result = gateway.run("svm8hlhF8PA", api_key="searchapi-test-key")
 
         self.assertIn("こんにちは", result)
-        self.assertEqual(api.list_calls, ["svm8hlhF8PA"])
-        self.assertEqual(transcript_list.find_transcript_calls, [["ja", "en"]])
-
-    def test_falls_back_to_first_available_transcript_and_translates_when_possible(self):
-        fallback = _FakeTranscript(
-            language_code="es",
-            snippets=[_FakeSnippet("hola", 0.0, 1.0)],
-            is_translatable=True,
-            translation_languages=[{"language_code": "en"}],
+        mock_apply_scene_splitting.assert_called_once()
+        self.assertEqual(
+            transport.calls,
+            [
+                (
+                    {
+                        "engine": "youtube_transcripts",
+                        "video_id": "svm8hlhF8PA",
+                        "transcript_type": "manual",
+                        "only_available": "true",
+                    },
+                    "searchapi-test-key",
+                )
+            ],
         )
-        transcript_list = _FakeTranscriptList(
-            fallback=fallback,
-            error=RuntimeError("preferred transcript missing"),
-        )
-        api = _FakeApi(transcript_list)
-        gateway = YoutubeTranscriptGateway(api_factory=lambda: api)
 
-        result = gateway.run("abc123def45")
+    @patch("app.infrastructure.external.youtube_transcript_gateway.apply_scene_splitting")
+    def test_falls_back_to_first_available_transcript(self, mock_apply_scene_splitting):
+        mock_apply_scene_splitting.return_value = (
+            "1\n00:00:00,000 --> 00:00:01,000\nhola\n",
+            1,
+        )
+        transport = _FakeTransport(
+            {
+                (
+                    ("only_available", "true"),
+                    ("transcript_type", "manual"),
+                    ("video_id", "abc123def45"),
+                ): {
+                    "transcripts": [
+                        {"text": "hola", "start": 0.0, "duration": 1.0},
+                    ]
+                }
+            }
+        )
+        gateway = YoutubeTranscriptGateway(transport=transport)
+
+        result = gateway.run("abc123def45", api_key="searchapi-test-key")
 
         self.assertIn("hola", result)
-        self.assertEqual(fallback.translate_calls, ["en"])
+        self.assertEqual(len(transport.calls), 1)
+        self.assertEqual(transport.calls[0][0]["only_available"], "true")
 
-    def test_raises_when_no_transcripts_are_available(self):
-        transcript_list = _FakeTranscriptList(error=RuntimeError("missing"))
-        api = _FakeApi(transcript_list)
-        gateway = YoutubeTranscriptGateway(api_factory=lambda: api)
+    @patch("app.infrastructure.external.youtube_transcript_gateway.apply_scene_splitting")
+    def test_raises_when_no_transcripts_are_available(self, _mock_apply_scene_splitting):
+        transport = _FakeTransport({})
+        gateway = YoutubeTranscriptGateway(transport=transport)
 
         with self.assertRaises(RuntimeError):
+            gateway.run("abc123def45", api_key="searchapi-test-key")
+
+    def test_raises_when_searchapi_api_key_is_missing(self):
+        gateway = YoutubeTranscriptGateway(transport=_FakeTransport({}))
+
+        with self.assertRaises(RuntimeError) as context:
             gateway.run("abc123def45")
+
+        self.assertIn("SearchAPI API key", str(context.exception))
+
+    @patch("app.infrastructure.external.youtube_transcript_gateway.time.sleep")
+    @patch("app.infrastructure.external.youtube_transcript_gateway.urlopen")
+    def test_retries_when_timeout_occurs(self, mock_urlopen, mock_sleep):
+        mock_urlopen.side_effect = TimeoutError("The read operation timed out")
+        gateway = YoutubeTranscriptGateway(max_retries=1)
+
+        with self.assertRaises(RuntimeError) as context:
+            gateway.run("abc123def45", api_key="searchapi-test-key")
+
+        self.assertIn("timed out", str(context.exception))
+        self.assertEqual(mock_urlopen.call_count, 2)
+        mock_sleep.assert_called_once_with(1.0)

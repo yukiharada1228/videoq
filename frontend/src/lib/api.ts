@@ -49,6 +49,10 @@ export interface IntegrationApiKeyCreateResponse extends IntegrationApiKey {
   api_key: string;
 }
 
+export interface SearchApiKeyStatus {
+  has_api_key: boolean;
+}
+
 export interface SignupRequest {
   username: string;
   email: string;
@@ -643,6 +647,23 @@ class ApiClient {
 
   async revokeIntegrationApiKey(id: number): Promise<void> {
     await this.request(`/auth/api-keys/${id}/`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getSearchApiKeyStatus(): Promise<SearchApiKeyStatus> {
+    return this.request<SearchApiKeyStatus>('/auth/searchapi-key/');
+  }
+
+  async saveSearchApiKey(apiKey: string): Promise<void> {
+    await this.request('/auth/searchapi-key/', {
+      method: 'PUT',
+      body: { api_key: apiKey },
+    });
+  }
+
+  async deleteSearchApiKey(): Promise<void> {
+    await this.request('/auth/searchapi-key/', {
       method: 'DELETE',
     });
   }
