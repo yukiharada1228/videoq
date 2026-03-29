@@ -34,7 +34,6 @@ vi.mock('@/lib/api', () => ({
     createShareLink: vi.fn(),
     deleteShareLink: vi.fn(),
     getVideoUrl: vi.fn((url) => url),
-    getPopularScenes: vi.fn(() => Promise.resolve([])),
   },
 }))
 

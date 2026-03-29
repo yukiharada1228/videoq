@@ -273,18 +273,6 @@ classDiagram
         +render()
     }
 
-    class ShortsButton {
-        +int groupId
-        +string shareToken
-        +render()
-    }
-
-    class ShortsPlayer {
-        +Scene[] scenes
-        +function onClose
-        +render()
-    }
-
     class AnalyticsDashboard {
         +int groupId
         +render()
@@ -514,9 +502,6 @@ classDiagram
     class GetChatAnalyticsUseCase {
         +execute(group_id, user_id) AnalyticsDTO
     }
-    class GetPopularScenesUseCase {
-        +execute(group_id, limit, user_id, share_token) list~PopularSceneDTO~
-    }
     class LoginUseCase {
         +execute(username, password) TokenPairDto
     }
@@ -658,9 +643,6 @@ classDiagram
     class ChatAnalyticsView {
         +get() analytics response
     }
-    class PopularScenesView {
-        +get() scenes response
-    }
     class LoginView {
         +post() sets JWT cookies
     }
@@ -720,7 +702,6 @@ classDiagram
     ChatHistoryView ..> GetChatHistoryUseCase : delegates
     ChatFeedbackView ..> SubmitFeedbackUseCase : delegates
     ChatAnalyticsView ..> GetChatAnalyticsUseCase : delegates
-    PopularScenesView ..> GetPopularScenesUseCase : delegates
     ChatHistoryExportView ..> ExportChatHistoryUseCase : delegates
     LoginView ..> LoginUseCase : delegates
     AccountDeleteView ..> AccountDeletionUseCase : delegates

@@ -225,7 +225,7 @@ graph TB
         CreateShareLink, DeleteShareLink, AddTagsToVideo, RemoveTagFromVideo,
         EnforceVideoLimit, IndexVideoTranscript, ReindexAllVideos, RunTranscription"]
         UC["chat/ - SendMessage, GetChatHistory, ExportChatHistory,
-        SubmitFeedback, GetChatAnalytics, GetPopularScenes"]
+        SubmitFeedback, GetChatAnalytics"]
         UA["auth/ - Login, Signup, VerifyEmail, RequestPasswordReset, ConfirmPasswordReset,
         GetCurrentUser, DeleteAccount, DeleteAccountData,
         ListApiKeys, CreateApiKey, RevokeApiKey,

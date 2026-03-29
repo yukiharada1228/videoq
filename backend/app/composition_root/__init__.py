@@ -28,7 +28,6 @@ from app.composition_root.chat import (
     get_chat_analytics_use_case,
     get_chat_history_use_case,
     get_export_history_use_case,
-    get_popular_scenes_use_case,
     get_send_message_use_case,
     get_submit_feedback_use_case,
 )
@@ -113,7 +112,6 @@ __all__ = [
     "get_send_message_use_case",
     "get_chat_history_use_case",
     "get_chat_analytics_use_case",
-    "get_popular_scenes_use_case",
     "get_submit_feedback_use_case",
     "get_export_history_use_case",
     # auth

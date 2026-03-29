@@ -23,7 +23,6 @@ import { CSS } from '@dnd-kit/utilities';
 
 import { apiClient, type VideoGroup, type VideoInGroup } from '@/lib/api';
 import { ChatPanel } from '@/components/chat/ChatPanel';
-import { ShortsButton } from '@/components/shorts/ShortsButton';
 import { DashboardButton } from '@/components/dashboard/DashboardButton';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -674,11 +673,6 @@ export default function VideoGroupDetailPage() {
               <div className="p-4 border-b border-stone-100 flex items-center justify-between gap-2 shrink-0">
                 <h2 className="font-extrabold text-[#191c19]">{t('videos.groupDetail.videoListTitle')}</h2>
                 <div className="flex items-center gap-2 shrink-0">
-                  {group.videos && group.videos.length > 0 && groupId && (
-                    <div className="lg:hidden">
-                      <ShortsButton groupId={groupId} videos={group.videos} size="sm" />
-                    </div>
-                  )}
                   <span className="text-xs bg-[#f2f4ef] px-2 py-0.5 rounded-full text-[#6f7a6e] font-medium">
                     {t('videos.groupDetail.videoCount', { count: group.videos?.length ?? 0 })}
                   </span>
@@ -724,9 +718,6 @@ export default function VideoGroupDetailPage() {
                   {selectedVideo ? selectedVideo.title : t('videos.groupDetail.playerPlaceholder')}
                 </h1>
                 <div className="flex items-center gap-2 shrink-0">
-                  {group.videos && group.videos.length > 0 && groupId && (
-                    <ShortsButton groupId={groupId} videos={group.videos} size="sm" />
-                  )}
                   {groupId && <DashboardButton groupId={groupId} size="sm" />}
                 </div>
               </div>

@@ -415,14 +415,6 @@ sequenceDiagram
     Backend-->>Frontend: Analytics Response
     Frontend-->>User: Display Charts (Feedback Donut, Question TimeSeries)
 
-    %% View Popular Scenes
-    Frontend->>Backend: GET /api/chat/popular-scenes/?group_id={id}
-    Backend->>DB: Get ChatLogs with citations
-    DB-->>Backend: Scene Logs
-    Backend->>Backend: Aggregate scenes and attach referenced questions
-    Backend-->>Frontend: Popular Scenes (video segment + questions)
-    Frontend-->>User: Display Popular Scenes
-
     %% Export History
     User->>Frontend: Click Export History
     Frontend->>Backend: GET /api/chat/history/export/?group_id={id}

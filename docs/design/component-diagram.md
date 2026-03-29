@@ -58,11 +58,6 @@ graph TB
                 ChatPanel[ChatPanel]
             end
 
-            subgraph Shorts["Shorts Components"]
-                ShortsButton[ShortsButton]
-                ShortsPlayer[ShortsPlayer]
-            end
-
             subgraph Dashboard["Dashboard Components"]
                 AnalyticsDashboard[AnalyticsDashboard]
                 DashboardButton[DashboardButton]
@@ -165,7 +160,7 @@ graph TB
             subgraph ChatPres["chat/"]
                 ChatViews["Views - ChatView, ChatHistoryView,
                 ChatFeedbackView, ChatAnalyticsView,
-                PopularScenesView, ChatHistoryExportView"]
+                ChatHistoryExportView"]
                 ChatSer[Serializers]
             end
             subgraph MediaPres["media/"]
@@ -218,7 +213,6 @@ graph TB
                 ExportHistory[ExportChatHistoryUseCase]
                 SubmitFeedback[SubmitFeedbackUseCase]
                 GetAnalytics[GetChatAnalyticsUseCase]
-                GetPopularScenes[GetPopularScenesUseCase]
             end
             subgraph AuthUC["auth/"]
                 LoginUC[LoginUseCase]
