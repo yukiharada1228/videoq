@@ -6,17 +6,22 @@ from typing import List, Tuple
 
 from app.domain.video.exceptions import (
     GroupVideoOrderMismatch as DomainGroupVideoOrderMismatch,
+    InvalidShareSlug as DomainInvalidShareSlug,
+    ReservedShareSlug as DomainReservedShareSlug,
+    ShareSlugAlreadyExists as DomainShareSlugAlreadyExists,
     ShareLinkNotActive as DomainShareLinkNotActive,
     SomeVideosNotFound as DomainSomeVideosNotFound,
     VideoAlreadyInGroup as DomainVideoAlreadyInGroup,
     VideoNotInGroup as DomainVideoNotInGroup,
 )
 from app.domain.video.repositories import VideoGroupRepository, VideoRepository
-from app.domain.video.services import ShareLinkService, VideoGroupMembershipService
+from app.domain.video.services import ShareSlugPolicy, VideoGroupMembershipService
 from app.use_cases.video.dto import VideoGroupMemberResponseDTO
 from app.use_cases.video.exceptions import (
     GroupVideoOrderMismatch,
+    InvalidShareSlugInput,
     ResourceNotFound,
+    ShareSlugAlreadyExists,
     VideoAlreadyInGroup,
     VideoNotInGroup,
 )
@@ -168,15 +173,15 @@ class ReorderVideosInGroupUseCase:
 
 
 class CreateShareLinkUseCase:
-    """Generate a share link for a group."""
+    """Create or update a share slug for a group."""
 
     def __init__(self, group_repo: VideoGroupRepository):
         self.group_repo = group_repo
 
-    def execute(self, group_id: int, user_id: int) -> str:
+    def execute(self, group_id: int, user_id: int, share_slug: str) -> str:
         """
         Returns:
-            str: The generated share token.
+            str: The normalized share slug.
 
         Raises:
             ResourceNotFound: If the group is not found.
@@ -185,9 +190,16 @@ class CreateShareLinkUseCase:
         if group is None:
             raise ResourceNotFound("Group")
 
-        share_token = ShareLinkService.generate_token()
-        self.group_repo.update_share_token(group, share_token)
-        return share_token
+        try:
+            normalized_share_slug = ShareSlugPolicy.normalize(share_slug)
+        except (DomainInvalidShareSlug, DomainReservedShareSlug) as e:
+            raise InvalidShareSlugInput(str(e)) from e
+
+        try:
+            self.group_repo.update_share_slug(group, normalized_share_slug)
+        except DomainShareSlugAlreadyExists as e:
+            raise ShareSlugAlreadyExists() from e
+        return normalized_share_slug
 
 
 class DeleteShareLinkUseCase:
@@ -210,4 +222,4 @@ class DeleteShareLinkUseCase:
         except DomainShareLinkNotActive:
             raise ResourceNotFound("Share link")
 
-        self.group_repo.update_share_token(group, None)
+        self.group_repo.update_share_slug(group, None)

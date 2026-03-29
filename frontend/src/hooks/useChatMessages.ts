@@ -53,7 +53,7 @@ export function useChatMessages({ groupId, shareToken }: UseChatMessagesOptions)
       return await apiClient.chat({
         messages: [userMessage],
         ...(groupId ? { group_id: groupId } : {}),
-        ...(shareToken ? { share_token: shareToken } : {}),
+        ...(shareToken ? { share_slug: shareToken } : {}),
       });
     },
   });

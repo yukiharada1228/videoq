@@ -752,19 +752,73 @@ class ShareLinkTests(APITestCase):
         """Test creating a share link"""
         url = reverse("create-share-link", kwargs={"group_id": self.group.pk})
 
-        response = self.client.post(url)
+        response = self.client.post(url, {"share_slug": "My-Group"}, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertIn("share_token", response.data)
+        self.assertEqual(response.data["share_slug"], "my-group")
         self.group.refresh_from_db()
-        self.assertIsNotNone(self.group.share_token)
+        self.assertEqual(self.group.share_slug, "my-group")
+
+    def test_create_share_link_rejects_reserved_slug(self):
+        """Reserved slugs must be rejected."""
+        url = reverse("create-share-link", kwargs={"group_id": self.group.pk})
+
+        response = self.client.post(url, {"share_slug": "admin"}, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["error"]["message"], "This share link is reserved")
+
+    def test_create_share_link_rejects_invalid_format(self):
+        """Invalid slug formats must be rejected."""
+        url = reverse("create-share-link", kwargs={"group_id": self.group.pk})
+
+        response = self.client.post(url, {"share_slug": "bad slug"}, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(
+            response.data["error"]["message"],
+            "Share link must be 3-64 chars of lowercase letters, numbers, or hyphens",
+        )
+
+    def test_create_share_link_rejects_duplicate_case_insensitively(self):
+        """Case-insensitive duplicates must return conflict."""
+        other_user = User.objects.create_user(
+            username="otheruser",
+            email="other@example.com",
+            password="testpass123",
+        )
+        VideoGroup.objects.create(
+            user=other_user,
+            name="Other Group",
+            share_slug="taken-slug",
+        )
+
+        url = reverse("create-share-link", kwargs={"group_id": self.group.pk})
+        response = self.client.post(url, {"share_slug": "Taken-Slug"}, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
+        self.assertEqual(
+            response.data["error"]["message"],
+            "This share link is already in use",
+        )
+
+    def test_create_share_link_replaces_existing_slug(self):
+        """Updating a share slug should replace the old one."""
+        self.group.share_slug = "old-slug"
+        self.group.save(update_fields=["share_slug"])
+        url = reverse("create-share-link", kwargs={"group_id": self.group.pk})
+
+        response = self.client.post(url, {"share_slug": "new-slug"}, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["share_slug"], "new-slug")
+        self.group.refresh_from_db()
+        self.assertEqual(self.group.share_slug, "new-slug")
 
     def test_delete_share_link(self):
         """Test deleting a share link via DELETE /groups/<id>/share/"""
-        import secrets
-
-        self.group.share_token = secrets.token_urlsafe(32)
-        self.group.save()
+        self.group.share_slug = "test-group"
+        self.group.save(update_fields=["share_slug"])
 
         url = reverse("create-share-link", kwargs={"group_id": self.group.pk})
 
@@ -772,7 +826,7 @@ class ShareLinkTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.group.refresh_from_db()
-        self.assertIsNone(self.group.share_token)
+        self.assertIsNone(self.group.share_slug)
 
     @patch("app.presentation.video.views.logger.exception")
     @patch("app.presentation.video.views.DependencyResolverMixin.resolve_dependency")
@@ -809,23 +863,21 @@ class ShareLinkTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_get_shared_group(self):
-        """Test getting shared group via GET /groups/share/<token>/"""
-        import secrets
+        """Test getting shared group via GET /groups/share/<slug>/"""
+        self.group.share_slug = "my-group"
+        self.group.save(update_fields=["share_slug"])
 
-        share_token = secrets.token_urlsafe(32)
-        self.group.share_token = share_token
-        self.group.save()
-
-        url = reverse("get-shared-group", kwargs={"share_token": share_token})
+        url = reverse("get-shared-group", kwargs={"share_slug": "my-group"})
 
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["name"], "Test Group")
+        self.assertEqual(response.data["share_slug"], "my-group")
 
     def test_get_shared_group_not_found(self):
-        """Test getting shared group with invalid token"""
-        url = reverse("get-shared-group", kwargs={"share_token": "invalid-token"})
+        """Test getting shared group with invalid slug"""
+        url = reverse("get-shared-group", kwargs={"share_slug": "invalid-token"})
 
         response = self.client.get(url)
 
@@ -833,14 +885,11 @@ class ShareLinkTests(APITestCase):
 
     def test_old_shared_url_not_found(self):
         """Test that the old /groups/shared/<token>/ URL no longer exists."""
-        import secrets
-
-        share_token = secrets.token_urlsafe(32)
-        self.group.share_token = share_token
-        self.group.save()
+        self.group.share_slug = "my-group"
+        self.group.save(update_fields=["share_slug"])
 
         # 有効なトークンで旧URLを叩いてもルーティングレベルで404になるべき
-        response = self.client.get(f"/api/videos/groups/shared/{share_token}/")
+        response = self.client.get("/api/videos/groups/shared/my-group/")
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 

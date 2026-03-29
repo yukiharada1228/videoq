@@ -5,7 +5,7 @@ Django ORM implementations of video domain repository interfaces.
 import logging
 from typing import Dict, List, Optional, Tuple
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Count, Max, Prefetch
 
 from app.domain.video.dto import (
@@ -27,6 +27,7 @@ from app.domain.video.entities import (
 )
 from app.domain.video.exceptions import (
     InvalidVideoStatusTransition,
+    ShareSlugAlreadyExists,
     SomeTagsNotFound,
     TagNotAttachedToVideo,
     VideoAlreadyInGroup,
@@ -119,7 +120,7 @@ def _group_to_entity(
         description=group.description,
         created_at=group.created_at,
         updated_at=group.updated_at,
-        share_token=group.share_token,
+        share_slug=group.share_slug,
         video_count=video_count,
         videos=videos,
         members=members,
@@ -392,8 +393,8 @@ class DjangoVideoGroupRepository(VideoGroupRepository):
     def delete(self, group: VideoGroupEntity) -> None:
         VideoGroup.objects.filter(pk=group.id).delete()
 
-    def get_by_share_token(self, share_token: str) -> Optional[VideoGroupEntity]:
-        queryset = VideoGroup.objects.filter(share_token=share_token)
+    def get_by_share_slug(self, share_slug: str) -> Optional[VideoGroupEntity]:
+        queryset = VideoGroup.objects.filter(share_slug=share_slug)
         group = QueryOptimizer.optimize_video_group_queryset(
             queryset,
             include_videos=True,
@@ -492,10 +493,13 @@ class DjangoVideoGroupRepository(VideoGroupRepository):
                 members_to_update.append(member)
             VideoGroupMember.objects.bulk_update(members_to_update, ["order"])
 
-    def update_share_token(
-        self, group: VideoGroupEntity, token: Optional[str]
+    def update_share_slug(
+        self, group: VideoGroupEntity, slug: Optional[str]
     ) -> None:
-        VideoGroup.objects.filter(pk=group.id).update(share_token=token)
+        try:
+            VideoGroup.objects.filter(pk=group.id).update(share_slug=slug)
+        except IntegrityError as e:
+            raise ShareSlugAlreadyExists() from e
 
 
 # ---------------------------------------------------------------------------

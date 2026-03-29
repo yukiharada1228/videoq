@@ -647,14 +647,14 @@ describe('ApiClient', () => {
       expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/chat/messages/', expect.objectContaining({ method: 'POST' }));
     });
 
-    it('chat with share token calls correct endpoint', async () => {
+    it('chat with share slug calls correct endpoint', async () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
         headers: new Headers({ 'content-type': 'application/json' }),
         text: () => Promise.resolve(JSON.stringify({ role: 'assistant', content: 'hello' }))
       });
-      await apiClient.chat({ messages: [], share_token: 'abc' });
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/chat/messages/?share_token=abc', expect.objectContaining({ method: 'POST' }));
+      await apiClient.chat({ messages: [], share_slug: 'abc' });
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/chat/messages/?share_slug=abc', expect.objectContaining({ method: 'POST' }));
     });
 
     it('setChatFeedback calls correct endpoint', async () => {
@@ -712,10 +712,10 @@ describe('ApiClient', () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
         headers: new Headers({ 'content-type': 'application/json' }),
-        text: () => Promise.resolve(JSON.stringify({ share_token: 'abc' }))
+        text: () => Promise.resolve(JSON.stringify({ share_slug: 'abc' }))
       });
-      await apiClient.createShareLink(1);
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/groups/1/share/', expect.objectContaining({ method: 'POST' }));
+      await apiClient.createShareLink(1, 'my-group');
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/groups/1/share/', expect.objectContaining({ method: 'POST', body: JSON.stringify({ share_slug: 'my-group' }) }));
     });
 
     it('deleteShareLink calls correct endpoint', async () => {
@@ -792,16 +792,16 @@ describe('ApiClient', () => {
   });
 
   describe('getSharedVideoUrl', () => {
-    it('should add share_token parameter if URL origin matches API base URL', () => {
+    it('should add share_slug parameter if URL origin matches API base URL', () => {
       // Mock baseUrl to match the video URL origin
       // Default baseUrl is http://localhost:8000/api
       const videoFile = 'http://localhost:8000/api/media/video.mp4';
       const shareToken = 'abc123';
       const result = apiClient.getSharedVideoUrl(videoFile, shareToken);
-      expect(result).toBe('http://localhost:8000/api/media/video.mp4?share_token=abc123');
+      expect(result).toBe('http://localhost:8000/api/media/video.mp4?share_slug=abc123');
     });
 
-    it('should NOT add share_token parameter if URL origin differs (e.g. S3)', () => {
+    it('should NOT add share_slug parameter if URL origin differs (e.g. S3)', () => {
       // API is http://localhost:8000, Video is S3
       const videoFile = 'https://my-bucket.s3.amazonaws.com/video.mp4?Sign=123';
       const shareToken = 'abc123';

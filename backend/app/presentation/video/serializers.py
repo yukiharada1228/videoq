@@ -134,7 +134,7 @@ class VideoGroupDetailSerializer(serializers.Serializer):
     created_at = serializers.DateTimeField()
     updated_at = serializers.DateTimeField()
     video_count = serializers.IntegerField()
-    share_token = serializers.CharField(allow_null=True)
+    share_slug = serializers.CharField(allow_null=True)
     videos = serializers.SerializerMethodField()
 
     @extend_schema_field(serializers.ListField(child=serializers.DictField()))
@@ -407,9 +407,13 @@ class VideoActionMessageResponseSerializer(serializers.Serializer):
     message = serializers.CharField()
 
 
+class ShareLinkRequestSerializer(serializers.Serializer):
+    share_slug = serializers.CharField(trim_whitespace=True)
+
+
 class ShareLinkResponseSerializer(serializers.Serializer):
     message = serializers.CharField()
-    share_token = serializers.CharField()
+    share_slug = serializers.CharField()
 
 
 class TagCreateSerializer(serializers.Serializer):

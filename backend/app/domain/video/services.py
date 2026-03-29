@@ -6,7 +6,12 @@ Pure business logic with no external dependencies.
 import re
 import secrets
 
-from app.domain.video.exceptions import InvalidTagColor, InvalidTagName
+from app.domain.video.exceptions import (
+    InvalidShareSlug,
+    InvalidTagColor,
+    InvalidTagName,
+    ReservedShareSlug,
+)
 from app.domain.video.entities import VideoGroupEntity
 from app.domain.video.status import VideoStatus
 
@@ -18,6 +23,37 @@ class ShareLinkService:
     def generate_token() -> str:
         """Generate a cryptographically secure URL-safe share token."""
         return secrets.token_urlsafe(32)
+
+
+class ShareSlugPolicy:
+    """Domain policy for validating and normalizing share slugs."""
+
+    _SLUG_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+    _RESERVED_SLUGS = {
+        "about",
+        "admin",
+        "api",
+        "help",
+        "login",
+        "settings",
+        "share",
+        "signup",
+    }
+
+    @classmethod
+    def normalize(cls, share_slug: str) -> str:
+        normalized = share_slug.strip().lower()
+        if not normalized:
+            raise InvalidShareSlug()
+        if len(normalized) < 3 or len(normalized) > 64:
+            raise InvalidShareSlug()
+        if "--" in normalized:
+            raise InvalidShareSlug()
+        if not cls._SLUG_PATTERN.fullmatch(normalized):
+            raise InvalidShareSlug()
+        if normalized in cls._RESERVED_SLUGS:
+            raise ReservedShareSlug()
+        return normalized
 
 
 class VideoTranscriptionLifecycle:

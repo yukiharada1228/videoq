@@ -166,7 +166,7 @@ class VideoGroupDetailResponseDTO:
     video_count: int
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
-    share_token: Optional[str] = None
+    share_slug: Optional[str] = None
     members: List[VideoGroupMemberResponseDTO] = field(default_factory=list)
 
 

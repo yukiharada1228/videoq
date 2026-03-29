@@ -161,60 +161,85 @@ function SortableVideoItem({ video, isSelected, onSelect, onRemove, isMobile = f
 // ── Share link panel ──────────────────────────────────────────────────────────
 
 interface ShareLinkPanelProps {
+  shareSlug: string;
   shareLink: string | null;
   isGeneratingLink: boolean;
   isCopied: boolean;
-  onGenerate: () => void;
+  onGenerate: (shareSlug: string) => Promise<void> | void;
   onDelete: () => void;
   onCopy: () => void;
 }
 
-function ShareLinkPanel({ shareLink, isGeneratingLink, isCopied, onGenerate, onDelete, onCopy }: ShareLinkPanelProps) {
+function ShareLinkPanel({ shareSlug, shareLink, isGeneratingLink, isCopied, onGenerate, onDelete, onCopy }: ShareLinkPanelProps) {
   const { t } = useTranslation();
+  const [inputValue, setInputValue] = useState(shareSlug);
+
+  useEffect(() => {
+    setInputValue(shareSlug);
+  }, [shareSlug]);
+
   return (
-    <div className="bg-white rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 shadow-[0_4px_20px_rgba(28,25,23,0.04)]">
-      <span className="text-sm font-bold text-[#3f493f] whitespace-nowrap shrink-0">{t('videos.groupDetail.shareLinkLabel')}</span>
-      {shareLink ? (
-        <>
+    <div className="bg-white rounded-xl p-4 flex flex-col lg:flex-row lg:items-center gap-3 lg:gap-4 shadow-[0_4px_20px_rgba(28,25,23,0.04)]">
+      <div className="flex-1 min-w-0 space-y-2">
+        <div className="flex flex-col lg:flex-row lg:items-center gap-2 lg:gap-3">
           <div className="flex-1 bg-[#f2f4ef] rounded-xl px-4 py-2 border border-[#e1e3de]/40 min-w-0">
             <input
               type="text"
-              value={shareLink}
-              readOnly
-              className="w-full bg-transparent text-[#6f7a6e] text-sm outline-none cursor-default"
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              placeholder={t('videos.groupDetail.shareSlugPlaceholder')}
+              className="w-full bg-transparent text-[#3f493f] text-sm outline-none"
             />
           </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={onCopy}
-              className="flex items-center gap-2 px-4 py-2 bg-[#00652c] text-white rounded-xl text-sm font-bold hover:opacity-90 transition-opacity"
-            >
-              <Copy className="w-3.5 h-3.5" />
-              {isCopied ? t('videos.groupDetail.copied') : t('videos.groupDetail.copyButton')}
-            </button>
-            <button
-              onClick={onDelete}
-              className="px-4 py-2 text-red-600 text-sm font-bold hover:bg-red-50 rounded-xl transition-colors"
-            >
-              {t('videos.groupDetail.disable')}
-            </button>
-          </div>
-        </>
-      ) : (
-        <>
-          <div className="flex-1 bg-[#f2f4ef] rounded-xl px-4 py-2 border border-[#e1e3de]/40">
+          <p className="text-xs text-[#6f7a6e] whitespace-nowrap">
+            {t('videos.groupDetail.shareSlugHelp')}
+          </p>
+        </div>
+        <div className="flex flex-col lg:flex-row lg:items-center gap-2 lg:gap-3">
+          <span className="text-sm font-bold text-[#3f493f] whitespace-nowrap shrink-0">
+            {t('videos.groupDetail.shareLinkLabel')}
+          </span>
+          {shareLink ? (
+            <div className="flex-1 min-w-0 bg-white rounded-xl px-4 py-2 border border-[#e1e3de]/40">
+              <input
+                type="text"
+                value={shareLink}
+                readOnly
+                className="w-full bg-transparent text-[#6f7a6e] text-sm outline-none cursor-default"
+              />
+            </div>
+          ) : (
             <p className="text-sm text-[#6f7a6e]">{t('videos.groupDetail.share.disabled')}</p>
-          </div>
+          )}
+        </div>
+      </div>
+      <div className="flex items-center gap-2 shrink-0 self-start lg:self-center">
+        {shareLink && (
           <button
-            onClick={onGenerate}
-            disabled={isGeneratingLink}
-            className="flex items-center gap-2 px-4 py-2 bg-[#00652c] text-white rounded-xl text-sm font-bold hover:opacity-90 transition-opacity disabled:opacity-50 shrink-0"
+            onClick={onCopy}
+            className="flex items-center gap-2 px-4 py-2 bg-[#00652c] text-white rounded-xl text-sm font-bold hover:opacity-90 transition-opacity"
           >
-            {isGeneratingLink ? <InlineSpinner className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
-            {isGeneratingLink ? t('videos.groupDetail.generating') : t('videos.groupDetail.generate')}
+            <Copy className="w-3.5 h-3.5" />
+            {isCopied ? t('videos.groupDetail.copied') : t('videos.groupDetail.copyButton')}
           </button>
-        </>
-      )}
+        )}
+        <button
+          onClick={() => { void onGenerate(inputValue); }}
+          disabled={isGeneratingLink || !inputValue.trim()}
+          className="flex items-center gap-2 px-4 py-2 bg-[#00652c] text-white rounded-xl text-sm font-bold hover:opacity-90 transition-opacity disabled:opacity-50 shrink-0"
+        >
+          {isGeneratingLink ? <InlineSpinner className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+          {isGeneratingLink ? t('videos.groupDetail.generating') : t('common.actions.save')}
+        </button>
+        {shareLink && (
+          <button
+            onClick={onDelete}
+            className="px-4 py-2 text-red-600 text-sm font-bold hover:bg-red-50 rounded-xl transition-colors"
+          >
+            {t('videos.groupDetail.disable')}
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -656,6 +681,7 @@ export default function VideoGroupDetailPage() {
       <main className="mt-16 flex flex-col px-6 pt-4 gap-4 max-w-[1600px] mx-auto w-full overflow-y-auto pb-16 lg:pb-0 lg:h-[calc(100dvh-4rem)] lg:overflow-hidden">
         {/* Share link panel */}
         <ShareLinkPanel
+          shareSlug={group.share_slug ?? ''}
           shareLink={shareLink}
           isGeneratingLink={isGeneratingLink}
           isCopied={isCopied}
