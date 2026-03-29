@@ -4,12 +4,15 @@ Business logic (audio extraction, Whisper, scene splitting) is tested separately
 at the infrastructure/use-case level.
 """
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 
-from app.dependencies.tasks import TranscriptionTargetMissingError
+from app.dependencies.tasks import (
+    TranscriptionRejectedError,
+    TranscriptionTargetMissingError,
+)
 from app.entrypoints.tasks.transcription import transcribe_video
 from app.infrastructure.models import Video
 
@@ -78,3 +81,20 @@ class TranscribeVideoTaskTests(TestCase):
         """Non-existent video raises an exception"""
         with self.assertRaises(TranscriptionTargetMissingError):
             transcribe_video(99999)
+
+    @patch("app.entrypoints.tasks.transcription.run_transcription")
+    def test_does_not_retry_rejected_transcription(self, mock_run_transcription):
+        mock_run_transcription.side_effect = TranscriptionRejectedError("Processing limit exceeded")
+
+        video = Video.objects.create(user=self.user, title="Test Video", status="pending")
+
+        original_retry = transcribe_video.retry
+        original_retries = getattr(transcribe_video.request, "retries", 0)
+        transcribe_video.retry = MagicMock()
+        transcribe_video.request.retries = 0
+        self.addCleanup(setattr, transcribe_video, "retry", original_retry)
+        self.addCleanup(setattr, transcribe_video.request, "retries", original_retries)
+
+        transcribe_video(video.id)
+
+        transcribe_video.retry.assert_not_called()
