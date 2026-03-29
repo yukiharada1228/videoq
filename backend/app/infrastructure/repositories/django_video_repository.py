@@ -13,6 +13,7 @@ from app.domain.video.dto import (
     CreateTagParams,
     CreateVideoPendingParams,
     CreateVideoParams,
+    CreateYoutubeVideoParams,
     UpdateGroupParams,
     UpdateTagParams,
     UpdateVideoParams,
@@ -72,7 +73,10 @@ def _video_to_entity(video: Video) -> VideoEntity:
         title=video.title,
         status=video.status,
         description=video.description,
+        source_type=video.source_type,
         file_key=file_key,
+        source_url=video.source_url or None,
+        youtube_video_id=video.youtube_video_id or None,
         error_message=video.error_message or None,
         uploaded_at=video.uploaded_at,
         transcript=video.transcript or None,
@@ -199,8 +203,28 @@ class DjangoVideoRepository(VideoRepository):
             file=params.upload_file,
             title=params.title,
             description=params.description,
+            source_type="uploaded",
         )
         # Re-fetch with prefetch to populate tags (will be empty on creation)
+        video = (
+            Video.objects.filter(pk=video.pk)
+            .prefetch_related(
+                Prefetch("video_tags", queryset=VideoTag.objects.select_related("tag"))
+            )
+            .get()
+        )
+        return _video_to_entity(video)
+
+    def create_youtube(self, user_id: int, params: CreateYoutubeVideoParams) -> VideoEntity:
+        video = Video.objects.create(
+            user_id=user_id,
+            title=params.title,
+            description=params.description,
+            source_type="youtube",
+            source_url=params.source_url,
+            youtube_video_id=params.youtube_video_id,
+            status="pending",
+        )
         video = (
             Video.objects.filter(pk=video.pk)
             .prefetch_related(

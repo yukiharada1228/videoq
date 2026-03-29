@@ -61,6 +61,11 @@ function VideoPlaceholder() {
   );
 }
 
+function getYoutubeThumbnailUrl(videoId?: string | null): string | null {
+  if (!videoId) return null;
+  return `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+}
+
 const STATUS_COLORS: Record<string, string> = {
   completed: 'bg-[#d3ffd5] text-[#006d30]',
   processing: 'bg-[#ffdcc3] text-[#2f1500]',
@@ -129,7 +134,14 @@ export function VideoCard({ video, showLink = true, className = '', onClick }: V
     <div className={`h-full flex flex-col bg-white rounded-2xl shadow-[0_4px_20px_rgba(28,25,23,0.06)] overflow-hidden group hover:-translate-y-1 transition-transform duration-200 cursor-pointer ${className}`}>
       {/* Thumbnail */}
       <div ref={cardRef} className="relative w-full aspect-video bg-stone-200 overflow-hidden">
-        {video.file ? (
+        {video.source_type === 'youtube' && getYoutubeThumbnailUrl(video.youtube_video_id) ? (
+          <img
+            className="w-full h-full object-cover"
+            src={getYoutubeThumbnailUrl(video.youtube_video_id) ?? undefined}
+            alt={video.title}
+            loading="lazy"
+          />
+        ) : video.file ? (
           <>
             {isInView ? (
               <video

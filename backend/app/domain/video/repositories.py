@@ -11,6 +11,7 @@ from app.domain.video.dto import (
     CreateTagParams,
     CreateVideoPendingParams,
     CreateVideoParams,
+    CreateYoutubeVideoParams,
     UpdateGroupParams,
     UpdateTagParams,
     UpdateVideoParams,
@@ -76,6 +77,11 @@ class VideoCommandRepository(ABC):
     @abstractmethod
     def create_pending(self, user_id: int, params: CreateVideoPendingParams) -> VideoEntity:
         """Create a video record with file key only (no file upload). Status = uploading."""
+        ...
+
+    @abstractmethod
+    def create_youtube(self, user_id: int, params: CreateYoutubeVideoParams) -> VideoEntity:
+        """Create a YouTube-backed video record."""
         ...
 
     @abstractmethod

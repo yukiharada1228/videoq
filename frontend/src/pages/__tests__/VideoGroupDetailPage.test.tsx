@@ -8,8 +8,8 @@ const mockGroup = {
   description: 'Test Description',
   share_token: null,
   videos: [
-    { id: 1, title: 'Video 1', description: 'Desc 1', status: 'completed', file: 'video1.mp4', order: 0 },
-    { id: 2, title: 'Video 2', description: 'Desc 2', status: 'processing', file: 'video2.mp4', order: 1 },
+    { id: 1, title: 'Video 1', description: 'Desc 1', status: 'completed', file: 'video1.mp4', source_type: 'uploaded', order: 0 },
+    { id: 2, title: 'Video 2', description: 'Desc 2', status: 'processing', file: 'video2.mp4', source_type: 'uploaded', order: 1 },
   ],
 }
 
@@ -163,6 +163,33 @@ describe('VideoGroupDetailPage', () => {
 
     await waitFor(() => {
       expect(screen.getByText('videos.groupDetail.generate')).toBeInTheDocument()
+    })
+  })
+
+  it('should not autoplay youtube video on initial render', async () => {
+    const youtubeGroup = {
+      ...mockGroup,
+      videos: [
+        {
+          id: 1,
+          title: 'Video 1',
+          description: 'Desc 1',
+          status: 'completed',
+          file: null,
+          source_type: 'youtube' as const,
+          youtube_embed_url: 'https://www.youtube.com/embed/dQw4w9WgXcQ',
+          order: 0,
+        },
+      ],
+    }
+    ; (apiClient.getVideoGroup as ReturnType<typeof vi.fn>).mockResolvedValue(youtubeGroup)
+
+    const { container } = render(<VideoGroupDetailPage />)
+
+    await waitFor(() => {
+      const iframe = container.querySelector('iframe')
+      expect(iframe).not.toBeNull()
+      expect(iframe?.getAttribute('src')).toBe('https://www.youtube.com/embed/dQw4w9WgXcQ')
     })
   })
 })
