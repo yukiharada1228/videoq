@@ -172,7 +172,7 @@ export default function VideoDetailPage() {
   const videoId = params?.id ? Number.parseInt(params.id, 10) : null;
   const videoRef = useRef<HTMLVideoElement>(null);
   const startTime = searchParams.get('t');
-  const [youtubeStartSeconds, setYoutubeStartSeconds] = useState<number | null>(null);
+  const [manualYoutubeStartSeconds, setManualYoutubeStartSeconds] = useState<number | null>(null);
   const { t } = useTranslation();
   const locale = useLocale();
 
@@ -220,13 +220,15 @@ export default function VideoDetailPage() {
     }
   };
 
-  useEffect(() => {
-    if (!startTime) return;
-    const seconds = Number.parseInt(startTime, 10);
-    if (!Number.isNaN(seconds)) {
-      setYoutubeStartSeconds(seconds);
+  const queryYoutubeStartSeconds = (() => {
+    if (!startTime) {
+      return null;
     }
-  }, [startTime]);
+    const seconds = Number.parseInt(startTime, 10);
+    return Number.isNaN(seconds) ? null : seconds;
+  })();
+
+  const youtubeStartSeconds = manualYoutubeStartSeconds ?? queryYoutubeStartSeconds;
 
   const { deleteMutation, updateMutation } = useVideoDetailPageMutations({
     videoId,
@@ -253,7 +255,7 @@ export default function VideoDetailPage() {
 
   const handleSeek = (seconds: number, idx: number) => {
     if (video?.source_type === 'youtube') {
-      setYoutubeStartSeconds(seconds);
+      setManualYoutubeStartSeconds(seconds);
     } else if (videoRef.current) {
       videoRef.current.currentTime = seconds;
       void videoRef.current.play();
