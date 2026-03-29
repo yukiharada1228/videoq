@@ -50,6 +50,13 @@ import {
   Save, X, GraduationCap,
 } from 'lucide-react';
 
+function buildYoutubeEmbedSrc(embedUrl: string, startSeconds: number | null): string {
+  if (startSeconds === null) {
+    return embedUrl;
+  }
+  return `${embedUrl}?autoplay=1&start=${startSeconds}`;
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const MOBILE_SENSORS: SensorDescriptor<any>[] = [];
 
@@ -729,7 +736,7 @@ export default function VideoGroupDetailPage() {
                     <iframe
                       key={`${selectedVideo.id}-${youtubeStartSeconds ?? 0}`}
                       className="w-full h-full"
-                      src={`${selectedVideo.youtube_embed_url}?autoplay=1&start=${youtubeStartSeconds ?? 0}`}
+                      src={buildYoutubeEmbedSrc(selectedVideo.youtube_embed_url, youtubeStartSeconds)}
                       title={selectedVideo.title}
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                       allowFullScreen
