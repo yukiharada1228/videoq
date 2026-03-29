@@ -75,6 +75,23 @@ class InvalidTagColor(Exception):
         super().__init__(message)
 
 
+class InvalidShareSlug(Exception):
+    """Raised when a share slug violates format rules."""
+
+    def __init__(
+        self,
+        message: str = "Share link must be 3-64 chars of lowercase letters, numbers, or hyphens",
+    ):
+        super().__init__(message)
+
+
+class ReservedShareSlug(Exception):
+    """Raised when a share slug is reserved."""
+
+    def __init__(self, message: str = "This share link is reserved"):
+        super().__init__(message)
+
+
 class TranscriptionTargetNotFound(Exception):
     """Raised when transcription target video does not exist."""
 

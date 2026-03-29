@@ -36,7 +36,7 @@ def _chat_log_to_entity(
     group_share_token = None
     if include_group_fields and hasattr(log, "group") and log.group_id:
         group_user_id = log.group.user_id
-        group_share_token = log.group.share_token
+        group_share_token = log.group.share_slug
     citations = [
         CitationDTO(
             video_id=int(item.get("video_id", 0) or 0),
@@ -69,7 +69,7 @@ def _group_to_context_entity(group: VideoGroup) -> VideoGroupContextEntity:
         id=group.id,
         user_id=group.user_id,
         name=group.name,
-        share_token=group.share_token,
+        share_token=group.share_slug,
         members=members,
     )
 
@@ -249,7 +249,7 @@ class DjangoVideoGroupQueryRepository(VideoGroupQueryRepository):
 
         try:
             if share_token:
-                group = queryset.get(id=group_id, share_token=share_token)
+                group = queryset.get(id=group_id, share_slug=share_token)
             elif user_id:
                 group = queryset.get(id=group_id, user_id=user_id)
             else:

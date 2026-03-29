@@ -41,7 +41,7 @@ class ProtectedMediaView(DependencyResolverMixin, APIView):
         if (
             hasattr(request, "auth")
             and isinstance(request.auth, dict)
-            and "share_token" in request.auth
+            and "share_slug" in request.auth
         ):
             group_id = request.auth.get("group_id")
         elif request.user and request.user.is_authenticated:

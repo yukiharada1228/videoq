@@ -11,7 +11,7 @@ interface UseShareLinkReturn {
   shareLink: string | null;
   isGeneratingLink: boolean;
   isCopied: boolean;
-  generateShareLink: () => Promise<void>;
+  generateShareLink: (shareSlug: string) => Promise<void>;
   deleteShareLink: () => Promise<void>;
   copyShareLink: () => Promise<void>;
 }
@@ -23,33 +23,34 @@ export function useShareLink(group: VideoGroup | null): UseShareLinkReturn {
   const [isCopied, setIsCopied] = useState(false);
 
   const createShareLinkMutation = useMutation({
-    mutationFn: async (groupId: number) => await apiClient.createShareLink(groupId),
+    mutationFn: async ({ groupId, shareSlug }: { groupId: number; shareSlug: string }) =>
+      await apiClient.createShareLink(groupId, shareSlug),
   });
   const deleteShareLinkMutation = useMutation({
     mutationFn: async (groupId: number) => await apiClient.deleteShareLink(groupId),
   });
 
-  // Sync share link URL from group's share_token
+  // Sync share link URL from group's share_slug
   useEffect(() => {
-    if (group?.share_token) {
+    if (group?.share_slug) {
       const locale = i18n.language as Locale;
-      const shareUrl = `${window.location.origin}${addLocalePrefix(`/share/${group.share_token}`, locale)}`;
+      const shareUrl = `${window.location.origin}${addLocalePrefix(`/share/${group.share_slug}`, locale)}`;
       setShareLink(shareUrl);
     } else {
       setShareLink(null);
     }
     setIsCopied(false);
-  }, [group?.share_token, i18n.language]);
+  }, [group?.share_slug, i18n.language]);
 
-  const generateShareLink = useCallback(async () => {
+  const generateShareLink = useCallback(async (shareSlug: string) => {
     if (!group) return;
     try {
-      const result = await createShareLinkMutation.mutateAsync(group.id);
+      const result = await createShareLinkMutation.mutateAsync({ groupId: group.id, shareSlug });
       queryClient.setQueryData<VideoGroup>(queryKeys.videoGroups.detail(group.id), (prev) =>
-        prev ? { ...prev, share_token: result.share_token } : prev
+        prev ? { ...prev, share_slug: result.share_slug } : prev
       );
       const locale = i18n.language as Locale;
-      const shareUrl = `${window.location.origin}${addLocalePrefix(`/share/${result.share_token}`, locale)}`;
+      const shareUrl = `${window.location.origin}${addLocalePrefix(`/share/${result.share_slug}`, locale)}`;
       setShareLink(shareUrl);
     } catch (err) {
       handleAsyncError(err, t('videos.groupDetail.generateShareError'), () => { });
@@ -61,7 +62,7 @@ export function useShareLink(group: VideoGroup | null): UseShareLinkReturn {
     try {
       await deleteShareLinkMutation.mutateAsync(group.id);
       queryClient.setQueryData<VideoGroup>(queryKeys.videoGroups.detail(group.id), (prev) =>
-        prev ? { ...prev, share_token: null } : prev
+        prev ? { ...prev, share_slug: null } : prev
       );
       setShareLink(null);
     } catch (err) {

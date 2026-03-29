@@ -108,7 +108,7 @@ urlpatterns = [
         name="create-share-link",
     ),
     path(
-        "groups/share/<str:share_token>/",
+        "groups/share/<str:share_slug>/",
         get_shared_group,
         {"shared_group_use_case": video_dependencies.get_shared_group_use_case},
         name="get-shared-group",

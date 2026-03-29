@@ -6,7 +6,7 @@ const mockGroup = {
   id: 1,
   name: 'Test Group',
   description: 'Test Description',
-  share_token: null,
+  share_slug: null,
   videos: [
     { id: 1, title: 'Video 1', description: 'Desc 1', status: 'completed', file: 'video1.mp4', source_type: 'uploaded', order: 0 },
     { id: 2, title: 'Video 2', description: 'Desc 2', status: 'processing', file: 'video2.mp4', source_type: 'uploaded', order: 1 },
@@ -145,7 +145,7 @@ describe('VideoGroupDetailPage', () => {
 
     fireEvent.click(screen.getByTitle('videos.groupDetail.editTitle'))
 
-    expect(screen.getByText('common.actions.save')).toBeInTheDocument()
+    expect(screen.getAllByText('common.actions.save').length).toBeGreaterThan(0)
     expect(screen.getByText('common.actions.cancel')).toBeInTheDocument()
   })
 
@@ -157,11 +157,11 @@ describe('VideoGroupDetailPage', () => {
     })
   })
 
-  it('should show generate share link button when no share token', async () => {
+  it('should show save share link button when no share slug', async () => {
     render(<VideoGroupDetailPage />)
 
     await waitFor(() => {
-      expect(screen.getByText('videos.groupDetail.generate')).toBeInTheDocument()
+      expect(screen.getByText('common.actions.save')).toBeInTheDocument()
     })
   })
 
@@ -196,7 +196,7 @@ describe('VideoGroupDetailPage', () => {
 describe('VideoGroupDetailPage - Share Link', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    const groupWithShare = { ...mockGroup, share_token: 'test-token-123' }
+    const groupWithShare = { ...mockGroup, share_slug: 'test-token-123' }
       ; (apiClient.getVideoGroup as ReturnType<typeof vi.fn>).mockResolvedValue(groupWithShare)
   })
 
