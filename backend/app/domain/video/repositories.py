@@ -169,8 +169,8 @@ class VideoGroupRepository(ABC):
         ...
 
     @abstractmethod
-    def get_by_share_token(self, share_token: str) -> Optional[VideoGroupEntity]:
-        """Retrieve a group by its public share token."""
+    def get_by_share_slug(self, share_slug: str) -> Optional[VideoGroupEntity]:
+        """Retrieve a group by its public share slug."""
         ...
 
     @abstractmethod
@@ -212,10 +212,10 @@ class VideoGroupRepository(ABC):
         ...
 
     @abstractmethod
-    def update_share_token(
-        self, group: VideoGroupEntity, token: Optional[str]
+    def update_share_slug(
+        self, group: VideoGroupEntity, slug: Optional[str]
     ) -> None:
-        """Set or clear the share token for a group."""
+        """Set or clear the share slug for a group."""
         ...
 
 

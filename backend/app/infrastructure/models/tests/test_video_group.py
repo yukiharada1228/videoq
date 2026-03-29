@@ -42,28 +42,43 @@ class VideoGroupModelTests(TestCase):
 
         self.assertEqual(group.description, "")
 
-    def test_share_token_is_optional(self):
-        """Test that share_token is optional"""
+    def test_share_slug_is_optional(self):
+        """Test that share_slug is optional"""
         group = VideoGroup.objects.create(
             user=self.user,
             name="Test Group",
         )
 
-        self.assertIsNone(group.share_token)
+        self.assertIsNone(group.share_slug)
 
-    def test_share_token_is_unique(self):
-        """Test that share_token must be unique"""
+    def test_share_slug_is_unique(self):
+        """Test that share_slug must be unique"""
         VideoGroup.objects.create(
             user=self.user,
             name="Group 1",
-            share_token="unique-token-123",
+            share_slug="unique-token-123",
         )
 
         with self.assertRaises(IntegrityError):
             VideoGroup.objects.create(
                 user=self.user,
                 name="Group 2",
-                share_token="unique-token-123",
+                share_slug="unique-token-123",
+            )
+
+    def test_share_slug_is_case_insensitively_unique(self):
+        """Case-only variants of a share slug must conflict."""
+        VideoGroup.objects.create(
+            user=self.user,
+            name="Group 1",
+            share_slug="unique-token-123",
+        )
+
+        with self.assertRaises(IntegrityError):
+            VideoGroup.objects.create(
+                user=self.user,
+                name="Group 2",
+                share_slug="Unique-Token-123",
             )
 
     def test_created_at_is_auto_set(self):

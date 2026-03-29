@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from django.db.models.functions import Lower
 
 
 class VideoGroup(models.Model):
@@ -14,14 +15,13 @@ class VideoGroup(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    # Share token (for external sharing URLs)
-    share_token = models.CharField(
+    # Share slug (for external sharing URLs)
+    share_slug = models.CharField(
         max_length=64,
-        unique=True,
         null=True,
         blank=True,
         db_index=True,
-        help_text="Share token",
+        help_text="Share slug",
     )
 
     # Define relationship with videos using ManyToManyField
@@ -34,9 +34,16 @@ class VideoGroup(models.Model):
         indexes = [
             models.Index(fields=["user", "-created_at"]),
             models.Index(
-                fields=["share_token"],
-                condition=models.Q(share_token__isnull=False),
-                name="videogroup_share_token_idx",
+                fields=["share_slug"],
+                condition=models.Q(share_slug__isnull=False),
+                name="videogroup_share_slug_idx",
+            ),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                Lower("share_slug"),
+                condition=models.Q(share_slug__isnull=False),
+                name="videogroup_share_slug_ci_uniq",
             ),
         ]
 

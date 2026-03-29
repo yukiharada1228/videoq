@@ -38,7 +38,7 @@ _TEST_THROTTLE_RATES = {
 @override_settings(CACHES=_TEST_CACHES, ENABLE_SIGNUP=True)
 @patch.dict(SimpleRateThrottle.THROTTLE_RATES, _TEST_THROTTLE_RATES)
 class GetSharedGroupThrottleTest(APITestCase):
-    """Tests for ShareTokenIPThrottle applied to get_shared_group (path-param share_token)."""
+    """Tests for ShareTokenIPThrottle applied to get_shared_group (path-param share_slug)."""
 
     def setUp(self):
         cache.clear()
@@ -48,9 +48,9 @@ class GetSharedGroupThrottleTest(APITestCase):
         self.group = VideoGroup.objects.create(
             user=self.user,
             name="shared group",
-            share_token=secrets.token_urlsafe(32),
+            share_slug=secrets.token_urlsafe(32),
         )
-        self.url = f"/api/videos/groups/share/{self.group.share_token}/"
+        self.url = f"/api/videos/groups/share/{self.group.share_slug}/"
 
     def test_allows_requests_within_limit(self):
         """Requests within the rate limit should succeed (not 429)."""
@@ -70,7 +70,7 @@ class GetSharedGroupThrottleTest(APITestCase):
 @override_settings(CACHES=_TEST_CACHES, ENABLE_SIGNUP=True)
 @patch.dict(SimpleRateThrottle.THROTTLE_RATES, _TEST_THROTTLE_RATES)
 class ShareTokenIPThrottleTest(APITestCase):
-    """Tests for ShareTokenIPThrottle (per-IP limit on share_token chat)."""
+    """Tests for ShareTokenIPThrottle (per-IP limit on shared chat)."""
 
     def setUp(self):
         cache.clear()
@@ -80,9 +80,9 @@ class ShareTokenIPThrottleTest(APITestCase):
         self.group = VideoGroup.objects.create(
             user=self.user,
             name="test group",
-            share_token=secrets.token_urlsafe(32),
+            share_slug=secrets.token_urlsafe(32),
         )
-        self.url = f"/api/chat/messages/?share_token={self.group.share_token}"
+        self.url = f"/api/chat/messages/?share_slug={self.group.share_slug}"
         self.payload = {
             "messages": [{"role": "user", "content": "hi"}],
             "group_id": self.group.id,

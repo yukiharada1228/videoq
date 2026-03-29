@@ -93,7 +93,7 @@ def to_group_detail_response_dto(
         video_count=group.video_count,
         created_at=group.created_at,
         updated_at=group.updated_at,
-        share_token=group.share_token,
+        share_slug=group.share_slug,
         members=members,
     )
 

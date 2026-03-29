@@ -46,10 +46,17 @@ class CurrentUserOutput:
 
 
 @dataclass(frozen=True)
+class SearchApiKeyStatusOutput:
+    """Use-case output DTO for SearchAPI key configuration status."""
+
+    has_api_key: bool
+
+
+@dataclass(frozen=True)
 class ResolvedShareTokenOutput:
     """Use-case output DTO for resolved share-token auth context."""
 
-    share_token: str
+    share_slug: str
     group_id: int
 
 

@@ -410,6 +410,8 @@
       "editTitle": "グループを編集",
       "breadcrumbGroups": "動画グループ",
       "shareLinkLabel": "共有リンク:",
+      "shareSlugPlaceholder": "共有リンクを入力",
+      "shareSlugHelp": "3〜64文字。英小文字、数字、ハイフンのみ使えます",
       "copyButton": "コピー",
       "status": {
         "completed": "完了",
@@ -678,6 +680,27 @@
       "errorDeleting": "APIキーの削除に失敗しました",
       "successSaved": "APIキーを保存しました",
       "successDeleted": "APIキーを削除しました",
+      "configured": "設定済み"
+    },
+    "searchApiKey": {
+      "title": "SearchAPI キー",
+      "description": "YouTube 字幕の取り込みに使う、自分用の SearchAPI キーを設定します。",
+      "usageTitle": "YouTube 取り込みで使用",
+      "usageDescription": "YouTube 動画を取り込むとき、このキーを使って SearchAPI から字幕を取得します。料金は VideoQ ではなく、設定したご自身の SearchAPI アカウントに請求されます。",
+      "apiKeyLabel": "APIキー",
+      "apiKeyPlaceholder": "sa_...",
+      "hasApiKeyMessage": "すでに SearchAPI キーが設定されています。新しいキーを入力すると更新されます。",
+      "noApiKeyMessage": "YouTube 動画を取り込むには、先に自分の SearchAPI キーを設定してください。",
+      "getApiKeyMessage": "APIキーは",
+      "save": "保存",
+      "saving": "保存中...",
+      "delete": "削除",
+      "deleting": "削除中...",
+      "errorEmpty": "APIキーを入力してください",
+      "errorSaving": "SearchAPI キーの保存に失敗しました",
+      "errorDeleting": "SearchAPI キーの削除に失敗しました",
+      "successSaved": "SearchAPI キーを保存しました",
+      "successDeleted": "SearchAPI キーを削除しました",
       "configured": "設定済み"
     },
     "llm": {
