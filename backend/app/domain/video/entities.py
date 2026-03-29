@@ -91,7 +91,7 @@ class VideoGroupEntity:
     description: str = ""
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
-    share_token: Optional[str] = None
+    share_slug: Optional[str] = None
     video_count: int = 0
     videos: List[VideoEntity] = field(default_factory=list)
     members: List[VideoGroupMemberEntity] = field(default_factory=list)
@@ -147,5 +147,5 @@ class VideoGroupEntity:
             raise GroupVideoOrderMismatch()
 
     def assert_share_link_active(self) -> None:
-        if not self.share_token:
+        if not self.share_slug:
             raise ShareLinkNotActive()

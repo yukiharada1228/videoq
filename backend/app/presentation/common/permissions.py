@@ -21,15 +21,17 @@ class ShareTokenAuthentication(BaseAuthentication):
         self.resolve_share_token_use_case_factory = resolve_share_token_use_case_factory
 
     def authenticate(self, request: Request):
-        share_token = request.query_params.get("share_token")
-        if not share_token:
+        share_slug = request.query_params.get("share_slug") or request.query_params.get(
+            "share_token"
+        )
+        if not share_slug:
             return None
 
-        resolved = self.resolve_share_token_use_case_factory().execute(share_token)
+        resolved = self.resolve_share_token_use_case_factory().execute(share_slug)
         if resolved is None:
             return None
 
-        return (None, {"share_token": resolved.share_token, "group_id": resolved.group_id})
+        return (None, {"share_slug": resolved.share_slug, "group_id": resolved.group_id})
 
 
 class IsAuthenticatedOrSharedAccess(BasePermission):
@@ -40,7 +42,7 @@ class IsAuthenticatedOrSharedAccess(BasePermission):
             return True
 
         if hasattr(request, "auth") and isinstance(request.auth, dict):
-            if "share_token" in request.auth:
+            if "share_slug" in request.auth:
                 return True
 
         return False

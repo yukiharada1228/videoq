@@ -41,6 +41,20 @@ class InvalidTagInput(Exception):
         super().__init__(message)
 
 
+class InvalidShareSlugInput(Exception):
+    """Raised when share slug input violates domain validation rules."""
+
+    def __init__(self, message: str):
+        super().__init__(message)
+
+
+class ShareSlugAlreadyExists(Exception):
+    """Raised when a share slug is already in use."""
+
+    def __init__(self, message: str = "This share link is already in use"):
+        super().__init__(message)
+
+
 class FileSizeExceeded(Exception):
     """Raised when a file exceeds the user's upload size limit."""
 
@@ -100,11 +114,13 @@ __all__ = [
     "GroupVideoOrderMismatch",
     "IndexingExecutionFailed",
     "IndexingTargetMissing",
+    "InvalidShareSlugInput",
     "InvalidTagInput",
     "InvalidYoutubeUrl",
     "InvalidUploadState",
     "PermissionDenied",
     "ResourceNotFound",
+    "ShareSlugAlreadyExists",
     "TranscriptionExecutionFailed",
     "TranscriptionTargetMissing",
     "VideoAlreadyInGroup",

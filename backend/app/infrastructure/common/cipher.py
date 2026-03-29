@@ -10,7 +10,7 @@ from django.conf import settings
 class FernetCipher:
     """Encrypt/decrypt strings using a Fernet key derived from SECRET_KEY via PBKDF2."""
 
-    _SALT = b"videoq-openai-api-key"
+    _SALT = b"videoq-user-secret-key"
     _ITERATIONS = 480_000
 
     def __init__(self) -> None:

@@ -49,6 +49,10 @@ export interface IntegrationApiKeyCreateResponse extends IntegrationApiKey {
   api_key: string;
 }
 
+export interface SearchApiKeyStatus {
+  has_api_key: boolean;
+}
+
 export interface SignupRequest {
   username: string;
   email: string;
@@ -155,7 +159,7 @@ export interface ChatAnalytics {
 export interface ChatRequest {
   messages: ChatMessage[];
   group_id?: number;
-  share_token?: string;
+  share_slug?: string;
 }
 
 export interface Video {
@@ -214,7 +218,7 @@ export interface VideoGroup {
   updated_at?: string;
   video_count: number;
   videos?: VideoInGroup[];
-  share_token?: string | null;
+  share_slug?: string | null;
 }
 
 export interface VideoInGroup {
@@ -647,6 +651,23 @@ class ApiClient {
     });
   }
 
+  async getSearchApiKeyStatus(): Promise<SearchApiKeyStatus> {
+    return this.request<SearchApiKeyStatus>('/auth/searchapi-key/');
+  }
+
+  async saveSearchApiKey(apiKey: string): Promise<void> {
+    await this.request('/auth/searchapi-key/', {
+      method: 'PUT',
+      body: { api_key: apiKey },
+    });
+  }
+
+  async deleteSearchApiKey(): Promise<void> {
+    await this.request('/auth/searchapi-key/', {
+      method: 'DELETE',
+    });
+  }
+
   async deleteAccount(data?: AccountDeleteRequest): Promise<void> {
     await this.request('/auth/account/', {
       method: 'DELETE',
@@ -655,8 +676,8 @@ class ApiClient {
   }
 
   async chat(data: ChatRequest): Promise<ChatMessage> {
-    const { share_token, ...bodyData } = data;
-    const endpoint = share_token ? `/chat/messages/?share_token=${share_token}` : '/chat/messages/';
+    const { share_slug, ...bodyData } = data;
+    const endpoint = share_slug ? `/chat/messages/?share_slug=${share_slug}` : '/chat/messages/';
 
     return this.request<ChatMessage>(endpoint, {
       method: 'POST',
@@ -667,9 +688,9 @@ class ApiClient {
   async setChatFeedback(
     chatLogId: number,
     feedback: 'good' | 'bad' | null,
-    shareToken?: string,
+    shareSlug?: string,
   ): Promise<{ chat_log_id: number; feedback: 'good' | 'bad' | null }> {
-    const endpoint = shareToken ? `/chat/feedback/?share_token=${shareToken}` : '/chat/feedback/';
+    const endpoint = shareSlug ? `/chat/feedback/?share_slug=${shareSlug}` : '/chat/feedback/';
 
     return this.request(endpoint, {
       method: 'POST',
@@ -912,11 +933,12 @@ class ApiClient {
   }
 
   // Share link related
-  async createShareLink(groupId: number): Promise<{ message: string; share_token: string }> {
-    return this.request<{ message: string; share_token: string }>(
+  async createShareLink(groupId: number, shareSlug: string): Promise<{ message: string; share_slug: string }> {
+    return this.request<{ message: string; share_slug: string }>(
       `/videos/groups/${groupId}/share/`,
       {
         method: 'POST',
+        body: { share_slug: shareSlug },
       }
     );
   }
@@ -927,9 +949,9 @@ class ApiClient {
     });
   }
 
-  async getSharedGroup(shareToken: string): Promise<VideoGroup> {
+  async getSharedGroup(shareSlug: string): Promise<VideoGroup> {
     // Shared groups don't require authentication, so don't include credentials
-    const url = this.buildUrl(`/videos/groups/share/${shareToken}/`);
+    const url = this.buildUrl(`/videos/groups/share/${shareSlug}/`);
     const response = await fetch(url);
 
     if (!response.ok) {
@@ -965,8 +987,8 @@ class ApiClient {
     return `${resolvedBase.origin}${basePath}/${videoFile}`;
   }
 
-  // Get video URL for shared group (add share_token as query parameter)
-  getSharedVideoUrl(videoFile: string, shareToken: string): string {
+  // Get video URL for shared group (add share_slug as query parameter)
+  getSharedVideoUrl(videoFile: string, shareSlug: string): string {
     // First convert to absolute URL using backend origin
     const absoluteUrl = this.getVideoUrl(videoFile);
 
@@ -975,9 +997,9 @@ class ApiClient {
       return '';
     }
 
-    // Then add share_token parameter ONLY if the URL is served from our API (ProtectedMediaView)
+    // Then add share_slug parameter ONLY if the URL is served from our API (ProtectedMediaView)
     // S3 presigned URLs (external origin) already contain authentication info in query params,
-    // and appending share_token would invalidate the S3 signature.
+    // and appending share_slug would invalidate the S3 signature.
 
     // Check if the video URL shares the same origin with our API
     // We compare with this.baseUrl (which might be relative or absolute)
@@ -985,17 +1007,17 @@ class ApiClient {
       const videoUrlObj = new URL(absoluteUrl);
       const apiBaseUrlObj = new URL(this.baseUrl, window.location.origin);
 
-      // If origins match, it means we are serving the file, so we need the share token for permission check
+      // If origins match, it means we are serving the file, so we need the share slug for permission check
       if (videoUrlObj.origin === apiBaseUrlObj.origin) {
-        videoUrlObj.searchParams.set('share_token', shareToken);
+        videoUrlObj.searchParams.set('share_slug', shareSlug);
         return videoUrlObj.toString();
       }
 
-      // If origins differ (e.g. S3), do NOT append share_token
+      // If origins differ (e.g. S3), do NOT append share_slug
       return absoluteUrl;
     } catch (e) {
       // If URL parsing fails, fallback to original behavior (safer) or return as is
-      console.warn('Failed to parse video URL for share token check', e);
+      console.warn('Failed to parse video URL for share slug check', e);
       return absoluteUrl;
     }
   }

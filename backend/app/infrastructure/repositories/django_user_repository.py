@@ -7,6 +7,7 @@ from typing import Optional
 from django.contrib.auth import get_user_model
 from django.db.models import Count
 
+from app.infrastructure.common.cipher import FernetCipher
 from app.domain.user.entities import UserEntity
 from app.domain.user.repositories import UserRepository
 
@@ -14,6 +15,8 @@ User = get_user_model()
 
 
 def _to_entity(user, video_count: int = 0) -> UserEntity:
+    cipher = FernetCipher()
+    encrypted_api_key = getattr(user, "searchapi_api_key_encrypted", None)
     return UserEntity(
         id=user.pk,
         username=user.username,
@@ -21,6 +24,11 @@ def _to_entity(user, video_count: int = 0) -> UserEntity:
         is_active=user.is_active,
         max_video_upload_size_mb=user.max_video_upload_size_mb,
         video_count=video_count,
+        searchapi_api_key=(
+            cipher.decrypt(encrypted_api_key)
+            if encrypted_api_key
+            else None
+        ),
     )
 
 
@@ -38,3 +46,18 @@ class DjangoUserRepository(UserRepository):
         if user is None:
             return None
         return _to_entity(user, video_count=user.video_count)
+
+    def has_searchapi_api_key(self, user_id: int) -> bool:
+        return User.objects.filter(
+            pk=user_id,
+            searchapi_api_key_encrypted__isnull=False,
+        ).exists()
+
+    def set_searchapi_api_key(self, user_id: int, api_key: str) -> bool:
+        encrypted = FernetCipher().encrypt(api_key)
+        updated = User.objects.filter(pk=user_id).update(searchapi_api_key_encrypted=encrypted)
+        return updated > 0
+
+    def delete_searchapi_api_key(self, user_id: int) -> bool:
+        updated = User.objects.filter(pk=user_id).update(searchapi_api_key_encrypted=None)
+        return updated > 0

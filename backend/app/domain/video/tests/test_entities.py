@@ -102,7 +102,7 @@ class VideoGroupEntityTests(TestCase):
         self.assertEqual(skipped_count, 2)
 
     def test_assert_share_link_active_raises_when_inactive(self):
-        group = VideoGroupEntity(id=1, user_id=1, name="group", share_token=None)
+        group = VideoGroupEntity(id=1, user_id=1, name="group", share_slug=None)
 
         with self.assertRaises(ShareLinkNotActive):
             group.assert_share_link_active()

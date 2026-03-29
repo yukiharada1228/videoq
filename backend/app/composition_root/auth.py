@@ -33,6 +33,11 @@ from app.use_cases.auth.manage_api_keys import (
     ListApiKeysUseCase,
     RevokeApiKeyUseCase,
 )
+from app.use_cases.auth.manage_searchapi_api_key import (
+    DeleteSearchApiKeyUseCase,
+    GetSearchApiKeyStatusUseCase,
+    SetSearchApiKeyUseCase,
+)
 from app.use_cases.auth.refresh_token import RefreshTokenUseCase
 from app.use_cases.auth.resolve_api_key import ResolveApiKeyUseCase
 from app.use_cases.auth.resolve_share_token import ResolveShareTokenUseCase
@@ -170,6 +175,18 @@ def get_create_api_key_use_case() -> CreateApiKeyUseCase:
 
 def get_revoke_api_key_use_case() -> RevokeApiKeyUseCase:
     return RevokeApiKeyUseCase(_new_api_key_repository())
+
+
+def get_searchapi_key_status_use_case() -> GetSearchApiKeyStatusUseCase:
+    return GetSearchApiKeyStatusUseCase(_new_user_repository())
+
+
+def get_set_searchapi_key_use_case() -> SetSearchApiKeyUseCase:
+    return SetSearchApiKeyUseCase(_new_user_repository())
+
+
+def get_delete_searchapi_key_use_case() -> DeleteSearchApiKeyUseCase:
+    return DeleteSearchApiKeyUseCase(_new_user_repository())
 
 
 def get_authorize_api_key_use_case() -> AuthorizeApiKeyUseCase:

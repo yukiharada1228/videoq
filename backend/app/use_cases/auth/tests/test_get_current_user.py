@@ -19,6 +19,15 @@ class _StubUserRepository(UserRepository):
     def get_with_video_count(self, user_id: int):
         return self._with_count
 
+    def has_searchapi_api_key(self, user_id: int) -> bool:
+        return False
+
+    def set_searchapi_api_key(self, user_id: int, api_key: str) -> bool:
+        return True
+
+    def delete_searchapi_api_key(self, user_id: int) -> bool:
+        return True
+
 
 class GetCurrentUserUseCaseTests(unittest.TestCase):
     def test_execute_returns_user_when_found(self):

@@ -18,6 +18,11 @@ class User(AbstractUser):
         default=_default_max_video_upload_size_mb,
         help_text="Maximum video upload size in MB for this user.",
     )
+    searchapi_api_key_encrypted = models.BinaryField(
+        null=True,
+        blank=True,
+        help_text="Encrypted SearchAPI API key",
+    )
     deactivated_at = models.DateTimeField(null=True, blank=True, db_index=True)
 
     class Meta:

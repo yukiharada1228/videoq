@@ -410,6 +410,8 @@
       "editTitle": "Edit group",
       "breadcrumbGroups": "Video groups",
       "shareLinkLabel": "Share link:",
+      "shareSlugPlaceholder": "Enter a share link",
+      "shareSlugHelp": "3-64 chars, lowercase letters, numbers, and hyphens only",
       "copyButton": "Copy",
       "status": {
         "completed": "Completed",
@@ -678,6 +680,27 @@
       "errorDeleting": "Failed to delete API key",
       "successSaved": "API key saved successfully",
       "successDeleted": "API key deleted successfully",
+      "configured": "Configured"
+    },
+    "searchApiKey": {
+      "title": "SearchAPI Key",
+      "description": "Set your own SearchAPI key to import YouTube transcripts.",
+      "usageTitle": "Used for YouTube imports",
+      "usageDescription": "When you import a YouTube video, VideoQ uses this key to fetch the transcript from SearchAPI. Charges are billed to your own SearchAPI account.",
+      "apiKeyLabel": "API Key",
+      "apiKeyPlaceholder": "sa_...",
+      "hasApiKeyMessage": "A SearchAPI key is already configured. Enter a new key to update it.",
+      "noApiKeyMessage": "To import YouTube videos, you need to set your own SearchAPI key first.",
+      "getApiKeyMessage": "Get your API key from",
+      "save": "Save",
+      "saving": "Saving...",
+      "delete": "Delete",
+      "deleting": "Deleting...",
+      "errorEmpty": "Please enter an API key",
+      "errorSaving": "Failed to save SearchAPI key",
+      "errorDeleting": "Failed to delete SearchAPI key",
+      "successSaved": "SearchAPI key saved successfully",
+      "successDeleted": "SearchAPI key deleted successfully",
       "configured": "Configured"
     },
     "llm": {

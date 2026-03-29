@@ -11,7 +11,7 @@ class TokenPairDto:
 
 @dataclass
 class ShareAuthContextDTO:
-    share_token: str
+    share_slug: str
     group_id: int
 
 

@@ -27,20 +27,20 @@ class ShareTokenAuthenticationTests(APITestCase):
             email="test@example.com",
             password="testpass123",
         )
-        # Generate share_token for testing
-        share_token = secrets.token_urlsafe(32)
+        # Generate share_slug for testing
+        share_slug = secrets.token_urlsafe(32)
         self.group = VideoGroup.objects.create(
             user=self.user,
             name="Test Group",
             description="Test",
-            share_token=share_token,
+            share_slug=share_slug,
         )
         self.auth = ShareTokenAuthentication()
         self.factory = APIRequestFactory()
 
     def test_authenticate_with_valid_token(self):
         """Test authentication with valid share token"""
-        request = self.factory.get("/", {"share_token": self.group.share_token})
+        request = self.factory.get("/", {"share_slug": self.group.share_slug})
         drf_request = Request(request)
 
         result = self.auth.authenticate(drf_request)
@@ -48,7 +48,7 @@ class ShareTokenAuthenticationTests(APITestCase):
         self.assertIsNotNone(result)
         user, auth_data = result
         self.assertIsNone(user)
-        self.assertEqual(auth_data["share_token"], self.group.share_token)
+        self.assertEqual(auth_data["share_slug"], self.group.share_slug)
         self.assertEqual(auth_data["group_id"], self.group.id)
 
     def test_authenticate_with_invalid_token(self):
@@ -98,7 +98,7 @@ class IsAuthenticatedOrSharedAccessTests(APITestCase):
         )
         request = self.factory.get("/")
         request.user = None
-        request.auth = {"share_token": group.share_token, "group_id": group.id}
+        request.auth = {"share_slug": group.share_slug, "group_id": group.id}
 
         result = self.permission.has_permission(request, None)
 
@@ -187,7 +187,7 @@ class ApiKeyScopePermissionTests(APITestCase):
 
     def test_non_api_key_auth_bypasses_scope_check(self):
         request = self.factory.post("/")
-        request.auth = {"share_token": "x"}
+        request.auth = {"share_slug": "x"}
 
         result = self.permission.has_permission(request, self._DefaultView())
 

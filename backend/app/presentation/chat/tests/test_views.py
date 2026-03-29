@@ -42,13 +42,13 @@ class ChatViewTests(APITestCase):
             description="Test Description",
             status="completed",
         )
-        # Generate share_token for testing
-        share_token = secrets.token_urlsafe(32)
+        # Generate share_slug for testing
+        share_slug = secrets.token_urlsafe(32)
         self.group = VideoGroup.objects.create(
             user=self.user,
             name="Test Group",
             description="Test",
-            share_token=share_token,
+            share_slug=share_slug,
         )
         VideoGroupMember.objects.create(group=self.group, video=self.video, order=0)
 
@@ -190,8 +190,8 @@ class ChatViewTests(APITestCase):
         self.assertEqual(response.data["error"]["code"], "OVER_QUOTA")
 
     @patch("app.infrastructure.external.rag_gateway.RagChatGateway.generate_reply")
-    def test_chat_with_share_token(self, mock_generate_reply):
-        """Test chat with share token"""
+    def test_chat_with_share_slug(self, mock_generate_reply):
+        """Test chat with share slug"""
         mock_generate_reply.return_value = RagResult(
             content="Test response",
             query_text="Test question",
@@ -201,7 +201,7 @@ class ChatViewTests(APITestCase):
         # Don't force authenticate - use share token instead
         self.client.force_authenticate(user=None)
         url = reverse("chat-messages")
-        url += f"?share_token={self.group.share_token}"
+        url += f"?share_slug={self.group.share_slug}"
         data = {
             "messages": [{"role": "user", "content": "Test question"}],
             "group_id": self.group.id,
@@ -215,10 +215,10 @@ class ChatViewTests(APITestCase):
         chat_log = ChatLog.objects.get(id=response.data["chat_log_id"])
         self.assertTrue(chat_log.is_shared_origin)
 
-    def test_chat_share_token_group_not_found(self):
-        """Test chat with share token but group not found"""
+    def test_chat_share_slug_group_not_found(self):
+        """Test chat with share slug but group not found"""
         url = reverse("chat-messages")
-        url += "?share_token=invalid-token"
+        url += "?share_slug=invalid-token"
         data = {
             "messages": [{"role": "user", "content": "Test question"}],
             "group_id": self.group.id,
@@ -228,10 +228,10 @@ class ChatViewTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
-    def test_chat_share_token_missing_group_id(self):
-        """Test chat with share token but missing group_id"""
+    def test_chat_share_slug_missing_group_id(self):
+        """Test chat with share slug but missing group_id"""
         url = reverse("chat-messages")
-        url += f"?share_token={self.group.share_token}"
+        url += f"?share_slug={self.group.share_slug}"
         data = {"messages": [{"role": "user", "content": "Test question"}]}
 
         response = self.client.post(url, data, format="json")
