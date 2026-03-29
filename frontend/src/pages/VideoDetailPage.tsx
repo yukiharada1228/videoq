@@ -27,6 +27,13 @@ interface TranscriptSegment {
   text: string;
 }
 
+function buildYoutubeEmbedSrc(embedUrl: string, startSeconds: number | null): string {
+  if (startSeconds === null) {
+    return embedUrl;
+  }
+  return `${embedUrl}?autoplay=1&start=${startSeconds}`;
+}
+
 function isSRTFormat(text: string): boolean {
   return /\d{2}:\d{2}:\d{2}[,.]\d{3}\s*-->\s*\d{2}:\d{2}:\d{2}[,.]\d{3}/.test(text);
 }
@@ -481,7 +488,7 @@ export default function VideoDetailPage() {
                 key={`${video.id}-${youtubeStartSeconds ?? 0}`}
                 className="w-full aspect-video"
                 style={{ maxHeight: '55vh' }}
-                src={`${video.youtube_embed_url}?autoplay=1&start=${youtubeStartSeconds ?? 0}`}
+                src={buildYoutubeEmbedSrc(video.youtube_embed_url, youtubeStartSeconds)}
                 title={video.title}
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen

@@ -89,6 +89,33 @@ describe('SharePage', () => {
       expect(apiClient.getSharedGroup).toHaveBeenCalledWith('test-share-token')
     })
   })
+
+  it('should not autoplay youtube video on initial render', async () => {
+    const youtubeGroup = {
+      ...mockGroup,
+      videos: [
+        {
+          id: 1,
+          title: 'Shared Video 1',
+          description: 'Desc 1',
+          status: 'completed',
+          file: null,
+          source_type: 'youtube' as const,
+          youtube_embed_url: 'https://www.youtube.com/embed/dQw4w9WgXcQ',
+          order: 0,
+        },
+      ],
+    }
+    ; (apiClient.getSharedGroup as ReturnType<typeof vi.fn>).mockResolvedValue(youtubeGroup)
+
+    const { container } = render(<SharePage />)
+
+    await waitFor(() => {
+      const iframe = container.querySelector('iframe')
+      expect(iframe).not.toBeNull()
+      expect(iframe?.getAttribute('src')).toBe('https://www.youtube.com/embed/dQw4w9WgXcQ')
+    })
+  })
 })
 
 describe('SharePage - Error Handling', () => {
