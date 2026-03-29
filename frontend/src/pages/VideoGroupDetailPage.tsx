@@ -50,6 +50,13 @@ import {
   Save, X, GraduationCap,
 } from 'lucide-react';
 
+function buildYoutubeEmbedSrc(embedUrl: string, startSeconds: number | null): string {
+  if (startSeconds === null) {
+    return embedUrl;
+  }
+  return `${embedUrl}?autoplay=1&start=${startSeconds}`;
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const MOBILE_SENSORS: SensorDescriptor<any>[] = [];
 
@@ -414,7 +421,7 @@ export default function VideoGroupDetailPage() {
     if (v) setSelectedVideo(convertVideoInGroupToSelectedVideo(v));
   }, [group?.videos]);
 
-  const { videoRef, handleVideoCanPlay, handleVideoPlayFromTime } = useVideoPlayback({
+  const { videoRef, handleVideoCanPlay, handleVideoPlayFromTime, youtubeStartSeconds } = useVideoPlayback({
     selectedVideo,
     onVideoSelect: handleVideoSelect,
     onMobileSwitch: () => setMobileTab('player'),
@@ -725,7 +732,16 @@ export default function VideoGroupDetailPage() {
               </div>
               <div className="aspect-video lg:aspect-auto lg:flex-1 bg-[#1a1c1c] flex items-center justify-center lg:min-h-0">
                 {selectedVideo ? (
-                  selectedVideo.file ? (
+                  selectedVideo.source_type === 'youtube' && selectedVideo.youtube_embed_url ? (
+                    <iframe
+                      key={`${selectedVideo.id}-${youtubeStartSeconds ?? 0}`}
+                      className="w-full h-full"
+                      src={buildYoutubeEmbedSrc(selectedVideo.youtube_embed_url, youtubeStartSeconds)}
+                      title={selectedVideo.title}
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  ) : selectedVideo.file ? (
                     <video
                       ref={videoRef}
                       key={selectedVideo.id}

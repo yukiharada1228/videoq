@@ -51,6 +51,16 @@ class CreateVideoPendingParams:
 
 
 @dataclass(frozen=True)
+class CreateYoutubeVideoParams:
+    """Parameters for creating a YouTube-backed video record."""
+
+    source_url: str
+    youtube_video_id: str
+    title: str
+    description: str = ""
+
+
+@dataclass(frozen=True)
 class UpdateVideoParams:
     """Parameters for updating a video record (None = field not provided / skip)."""
 

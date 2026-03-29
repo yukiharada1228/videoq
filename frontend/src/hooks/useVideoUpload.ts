@@ -5,7 +5,9 @@ import { queryKeys } from '@/lib/queryKeys';
 import { useAuth } from '@/hooks/useAuth';
 
 interface UseVideoUploadReturn {
+  sourceMode: 'file' | 'youtube';
   file: File | null;
+  youtubeUrl: string;
   title: string;
   description: string;
   tagIds: number[];
@@ -16,6 +18,8 @@ interface UseVideoUploadReturn {
   success: boolean;
   setTitle: (title: string) => void;
   setDescription: (description: string) => void;
+  setYoutubeUrl: (url: string) => void;
+  setSourceMode: (mode: 'file' | 'youtube') => void;
   setTagIds: React.Dispatch<React.SetStateAction<number[]>>;
   handleFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleSubmit: (e: React.FormEvent, onSuccess?: () => void) => Promise<void>;
@@ -74,7 +78,9 @@ function validateVideoUpload(file: File | null, title: string, maxSizeMb: number
 export function useVideoUpload(): UseVideoUploadReturn {
   const { user } = useAuth({ redirectToLogin: false });
   const maxUploadSizeMb = user?.max_video_upload_size_mb ?? DEFAULT_MAX_VIDEO_UPLOAD_SIZE_MB;
+  const [sourceMode, setSourceMode] = useState<'file' | 'youtube'>('file');
   const [file, setFile] = useState<File | null>(null);
+  const [youtubeUrl, setYoutubeUrl] = useState('');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [tagIds, setTagIds] = useState<number[]>([]);
@@ -87,18 +93,24 @@ export function useVideoUpload(): UseVideoUploadReturn {
   const uploadMutation = useMutation({
     mutationFn: async () => {
       setProgress(0);
-      // Use filename (without extension) if title is empty
-      const finalTitle = title.trim() || (file ? file.name.replace(/\.[^/.]+$/, '') : '');
-
-      const request: VideoUploadRequest = {
-        file: file!,
-        title: finalTitle,
-        description: description.trim() || undefined,
-      };
-
-      const uploadedVideo = await apiClient.uploadVideo(request, (pct) => {
-        setProgress(pct);
-      });
+      let uploadedVideo;
+      if (sourceMode === 'youtube') {
+        uploadedVideo = await apiClient.createYoutubeVideo({
+          youtube_url: youtubeUrl.trim(),
+          title: title.trim(),
+          description: description.trim() || undefined,
+        });
+      } else {
+        const finalTitle = title.trim() || (file ? file.name.replace(/\.[^/.]+$/, '') : '');
+        const request: VideoUploadRequest = {
+          file: file!,
+          title: finalTitle,
+          description: description.trim() || undefined,
+        };
+        uploadedVideo = await apiClient.uploadVideo(request, (pct) => {
+          setProgress(pct);
+        });
+      }
 
       if (tagIds.length > 0) {
         try {
@@ -133,6 +145,9 @@ export function useVideoUpload(): UseVideoUploadReturn {
   });
 
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    if (sourceMode !== 'file') {
+      return;
+    }
     if (e.target.files && e.target.files[0]) {
       const selectedFile = e.target.files[0];
       const validation = validateVideoUpload(selectedFile, title, maxUploadSizeMb);
@@ -153,10 +168,12 @@ export function useVideoUpload(): UseVideoUploadReturn {
       const fileNameWithoutExt = selectedFile.name.replace(/\.[^/.]+$/, '');
       setTitle(fileNameWithoutExt);
     }
-  }, [setTitle, title, maxUploadSizeMb]);
+  }, [setTitle, title, maxUploadSizeMb, sourceMode]);
 
   const reset = useCallback(() => {
+    setSourceMode('file');
     setFile(null);
+    setYoutubeUrl('');
     setTitle('');
     setDescription('');
     setTagIds([]);
@@ -169,13 +186,26 @@ export function useVideoUpload(): UseVideoUploadReturn {
   const handleSubmit = useCallback(async (e: React.FormEvent, onSuccess?: () => void) => {
     e.preventDefault();
 
-    const validation = validateVideoUpload(file, title, maxUploadSizeMb);
-    if (!validation.isValid) {
-      setError(validation.error || 'videos.upload.validation.generic');
-      setErrorParams(validation.error === 'videos.upload.validation.fileTooLarge'
-        ? { max_size_mb: maxUploadSizeMb }
-        : {});
-      return;
+    if (sourceMode === 'youtube') {
+      if (!youtubeUrl.trim()) {
+        setError('videos.upload.validation.noYoutubeUrl');
+        setErrorParams({});
+        return;
+      }
+      if (!title.trim()) {
+        setError('videos.upload.validation.noTitle');
+        setErrorParams({});
+        return;
+      }
+    } else {
+      const validation = validateVideoUpload(file, title, maxUploadSizeMb);
+      if (!validation.isValid) {
+        setError(validation.error || 'videos.upload.validation.generic');
+        setErrorParams(validation.error === 'videos.upload.validation.fileTooLarge'
+          ? { max_size_mb: maxUploadSizeMb }
+          : {});
+        return;
+      }
     }
 
     setError(null);
@@ -186,10 +216,12 @@ export function useVideoUpload(): UseVideoUploadReturn {
     if (onSuccess) {
       onSuccess();
     }
-  }, [uploadMutation, file, title, setError, maxUploadSizeMb]);
+  }, [uploadMutation, file, title, setError, maxUploadSizeMb, sourceMode, youtubeUrl]);
 
   return {
+    sourceMode,
     file,
+    youtubeUrl,
     title,
     description,
     tagIds,
@@ -200,6 +232,8 @@ export function useVideoUpload(): UseVideoUploadReturn {
     success,
     setTitle,
     setDescription,
+    setYoutubeUrl,
+    setSourceMode,
     setTagIds,
     handleFileChange,
     handleSubmit,

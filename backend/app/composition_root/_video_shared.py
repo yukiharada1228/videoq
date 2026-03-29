@@ -73,3 +73,10 @@ def get_whisper_transcription_gateway():
     from app.infrastructure.external.transcription_gateway import WhisperTranscriptionGateway
 
     return WhisperTranscriptionGateway(get_video_file_accessor())
+
+
+@lru_cache(maxsize=1)
+def get_youtube_transcription_gateway():
+    from app.infrastructure.external.youtube_transcript_gateway import YoutubeTranscriptGateway
+
+    return YoutubeTranscriptGateway()

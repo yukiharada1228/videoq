@@ -5,6 +5,10 @@ export interface SelectedVideo {
   title: string;
   description: string;
   file: string | null;
+  source_type: 'uploaded' | 'youtube';
+  source_url?: string | null;
+  youtube_video_id?: string | null;
+  youtube_embed_url?: string | null;
   status: string;
 }
 
@@ -17,6 +21,10 @@ export function convertVideoInGroupToSelectedVideo(video: VideoInGroup): Selecte
     title: video.title,
     description: video.description,
     file: video.file,
+    source_type: video.source_type,
+    source_url: video.source_url,
+    youtube_video_id: video.youtube_video_id,
+    youtube_embed_url: video.youtube_embed_url,
     status: video.status,
   };
 }
@@ -30,6 +38,10 @@ export function convertVideoListToSelectedVideo(video: VideoList): SelectedVideo
     title: video.title,
     description: video.description,
     file: video.file,
+    source_type: video.source_type,
+    source_url: video.source_url,
+    youtube_video_id: video.youtube_video_id,
+    youtube_embed_url: video.youtube_embed_url,
     status: video.status,
   };
 }

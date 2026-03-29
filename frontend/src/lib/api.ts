@@ -172,6 +172,10 @@ export interface Video {
   id: number;
   user: number;
   file: string | null;
+  source_type: 'uploaded' | 'youtube';
+  source_url?: string | null;
+  youtube_video_id?: string | null;
+  youtube_embed_url?: string | null;
   title: string;
   description: string;
   uploaded_at: string;
@@ -184,6 +188,10 @@ export interface Video {
 export interface VideoList {
   id: number;
   file: string | null;
+  source_type: 'uploaded' | 'youtube';
+  source_url?: string | null;
+  youtube_video_id?: string | null;
+  youtube_embed_url?: string | null;
   title: string;
   description: string;
   uploaded_at: string;
@@ -193,6 +201,12 @@ export interface VideoList {
 
 export interface VideoUploadRequest {
   file: File;
+  title: string;
+  description?: string;
+}
+
+export interface YoutubeVideoCreateRequest {
+  youtube_url: string;
   title: string;
   description?: string;
 }
@@ -218,6 +232,10 @@ export interface VideoInGroup {
   title: string;
   description: string;
   file: string | null;
+  source_type: 'uploaded' | 'youtube';
+  source_url?: string | null;
+  youtube_video_id?: string | null;
+  youtube_embed_url?: string | null;
   uploaded_at: string;
   status: 'uploading' | 'pending' | 'processing' | 'indexing' | 'completed' | 'error';
   order: number;
@@ -824,6 +842,13 @@ class ApiClient {
     return this.request<Video>('/videos/', {
       method: 'POST',
       body: formData,
+    });
+  }
+
+  async createYoutubeVideo(data: YoutubeVideoCreateRequest): Promise<Video> {
+    return this.request<Video>('/videos/youtube/', {
+      method: 'POST',
+      body: data,
     });
   }
 

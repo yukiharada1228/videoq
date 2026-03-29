@@ -33,7 +33,9 @@ interface VideoUploadModalProps {
  */
 export function VideoUploadModal({ isOpen, onClose, onUploadSuccess }: VideoUploadModalProps) {
   const {
+    sourceMode,
     file,
+    youtubeUrl,
     title,
     description,
     tagIds,
@@ -43,6 +45,8 @@ export function VideoUploadModal({ isOpen, onClose, onUploadSuccess }: VideoUplo
     success,
     setTitle,
     setDescription,
+    setYoutubeUrl,
+    setSourceMode,
     setTagIds,
     handleFileChange,
     handleSubmit,
@@ -89,26 +93,91 @@ export function VideoUploadModal({ isOpen, onClose, onUploadSuccess }: VideoUplo
             {t('videos.upload.description')}
           </DialogDescription>
         </DialogHeader>
+        <div className="flex rounded-xl bg-[#f2f4ef] p-1">
+          {(['file', 'youtube'] as const).map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => setSourceMode(mode)}
+              className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
+                sourceMode === mode
+                  ? 'bg-white text-[#00652c] shadow-sm'
+                  : 'text-[#3f493f] hover:text-[#191c19]'
+              }`}
+            >
+              {mode === 'file' ? t('videos.upload.modes.file') : t('videos.upload.modes.youtube')}
+            </button>
+          ))}
+        </div>
         <form
           onSubmit={(e) => {
             handleSubmit(e, onUploadSuccess);
           }}
           className="space-y-4"
         >
-          <VideoUploadFormFields
-            title={title}
-            description={description}
-            isUploading={isUploading}
-            disabled={false}
-            error={error}
-            errorParams={errorParams}
-            success={success}
-            setTitle={setTitle}
-            setDescription={setDescription}
-            handleFileChange={handleFileChange}
-            file={file}
-            hideButtons={true}
-          />
+          {sourceMode === 'file' ? (
+            <VideoUploadFormFields
+              title={title}
+              description={description}
+              isUploading={isUploading}
+              disabled={false}
+              error={error}
+              errorParams={errorParams}
+              success={success}
+              setTitle={setTitle}
+              setDescription={setDescription}
+              handleFileChange={handleFileChange}
+              file={file}
+              hideButtons={true}
+            />
+          ) : (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label htmlFor="youtube_url" className="text-sm font-medium">
+                  {t('videos.upload.youtubeUrlLabel')}
+                </label>
+                <input
+                  id="youtube_url"
+                  type="url"
+                  value={youtubeUrl}
+                  onChange={(e) => setYoutubeUrl(e.target.value)}
+                  disabled={isUploading}
+                  placeholder={t('videos.upload.youtubeUrlPlaceholder')}
+                  className="w-full rounded-xl border border-[#e1e3de] bg-white px-3 py-2 text-sm outline-none focus:border-[#00652c]"
+                />
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="title" className="text-sm font-medium">
+                  {t('videos.upload.titleLabel')}
+                </label>
+                <input
+                  id="title"
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  disabled={isUploading}
+                  placeholder={t('videos.upload.titleEmptyPlaceholder')}
+                  className="w-full rounded-xl border border-[#e1e3de] bg-white px-3 py-2 text-sm outline-none focus:border-[#00652c]"
+                />
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="description" className="text-sm font-medium">
+                  {t('videos.upload.descriptionLabel')}
+                </label>
+                <textarea
+                  id="description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  disabled={isUploading}
+                  placeholder={t('videos.upload.descriptionPlaceholder')}
+                  rows={4}
+                  className="w-full rounded-xl border border-[#e1e3de] bg-white px-3 py-2 text-sm outline-none focus:border-[#00652c]"
+                />
+              </div>
+              {error && <p className="text-sm text-red-500">{t(error, errorParams)}</p>}
+              {success && <p className="text-sm text-[#00652c]">{t('videos.upload.success')}</p>}
+            </div>
+          )}
 
           <TagSelector
             tags={tags}

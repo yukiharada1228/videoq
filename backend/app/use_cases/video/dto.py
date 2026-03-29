@@ -35,6 +35,15 @@ class CreateVideoInput:
 
 
 @dataclass(frozen=True)
+class CreateYoutubeVideoInput:
+    """Input for CreateYoutubeVideoUseCase.execute()."""
+
+    youtube_url: str
+    title: str
+    description: str = ""
+
+
+@dataclass(frozen=True)
 class UpdateVideoInput:
     """Input for UpdateVideoUseCase.execute() (None = field not provided / skip)."""
 
@@ -113,7 +122,10 @@ class VideoResponseDTO:
     title: str
     status: str
     description: str = ""
+    source_type: str = "uploaded"
     file_key: Optional[str] = None
+    source_url: Optional[str] = None
+    youtube_video_id: Optional[str] = None
     error_message: Optional[str] = None
     uploaded_at: Optional[datetime] = None
     transcript: Optional[str] = None
