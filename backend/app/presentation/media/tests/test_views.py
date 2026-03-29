@@ -62,23 +62,23 @@ class ProtectedMediaViewTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("X-Accel-Redirect", response)
 
-    def test_get_media_with_share_token(self):
-        """Test accessing media with share token"""
+    def test_get_media_with_share_slug(self):
+        """Test accessing media with share slug"""
         import secrets
 
-        share_token = secrets.token_urlsafe(32)
+        share_slug = secrets.token_urlsafe(32)
         group = VideoGroup.objects.create(
             user=self.user,
             name="Test Group",
             description="Test",
-            share_token=share_token,
+            share_slug=share_slug,
         )
         VideoGroupMember.objects.create(group=group, video=self.video, order=0)
 
         # Don't force authenticate - use share token instead
         self.client.force_authenticate(user=None)
         url = reverse("app:protected_media", kwargs={"path": self.video.file.name})
-        url += f"?share_token={share_token}"
+        url += f"?share_slug={share_slug}"
 
         response = self.client.get(url)
 
@@ -110,23 +110,23 @@ class ProtectedMediaViewTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
-    def test_get_media_share_token_wrong_group(self):
-        """Test accessing media with share token for wrong group"""
+    def test_get_media_share_slug_wrong_group(self):
+        """Test accessing media with share slug for wrong group"""
         import secrets
 
-        share_token = secrets.token_urlsafe(32)
+        share_slug = secrets.token_urlsafe(32)
         # Create group but don't add video to it
         VideoGroup.objects.create(
             user=self.user,
             name="Test Group",
             description="Test",
-            share_token=share_token,
+            share_slug=share_slug,
         )
 
         # Don't force authenticate - use share token instead
         self.client.force_authenticate(user=None)
         url = reverse("app:protected_media", kwargs={"path": self.video.file.name})
-        url += f"?share_token={share_token}"
+        url += f"?share_slug={share_slug}"
 
         response = self.client.get(url)
 

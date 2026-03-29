@@ -27,14 +27,14 @@ class ResolveShareTokenUseCaseTests(unittest.TestCase):
     def test_execute_returns_use_case_output_dto(self):
         use_case = ResolveShareTokenUseCase(
             _StubShareTokenResolver(
-                ShareAuthContextDTO(share_token="share_123", group_id=9)
+                ShareAuthContextDTO(share_slug="share_123", group_id=9)
             )
         )
 
         result = use_case.execute("share_123")
 
         self.assertIsNotNone(result)
-        self.assertEqual(result.share_token, "share_123")
+        self.assertEqual(result.share_slug, "share_123")
         self.assertEqual(result.group_id, 9)
 
     def test_execute_returns_none_when_unresolved(self):

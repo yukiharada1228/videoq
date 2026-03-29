@@ -58,6 +58,10 @@ def _get_locale(request) -> str | None:
     return None
 
 
+def _get_share_slug(request):
+    return request.query_params.get("share_slug") or request.query_params.get("share_token")
+
+
 def _serialize_citations(citations):
     if not citations:
         return None
@@ -85,8 +89,8 @@ class ChatView(DependencyResolverMixin, APIView):
         description="Send a chat message and get AI response. Supports RAG when group_id is provided.",
     )
     def post(self, request):
-        share_token = request.query_params.get("share_token")
-        is_shared = share_token is not None
+        share_slug = _get_share_slug(request)
+        is_shared = share_slug is not None
 
         serializer = ChatRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -107,7 +111,7 @@ class ChatView(DependencyResolverMixin, APIView):
                 user_id=user_id,
                 messages=message_dtos,
                 group_id=group_id,
-                share_token=share_token,
+                share_token=share_slug,
                 is_shared=is_shared,
                 locale=_get_locale(request),
             )
@@ -163,7 +167,7 @@ class ChatFeedbackView(DependencyResolverMixin, APIView):
         description="Submit feedback (good/bad) for a chat log.",
     )
     def post(self, request):
-        share_token = request.query_params.get("share_token")
+        share_slug = _get_share_slug(request)
         chat_log_id = request.data.get("chat_log_id")
         feedback = request.data.get("feedback")
 
@@ -180,7 +184,7 @@ class ChatFeedbackView(DependencyResolverMixin, APIView):
                 chat_log_id=chat_log_id,
                 feedback=feedback,
                 user_id=getattr(request.user, "id", None),
-                share_token=share_token,
+                share_token=share_slug,
             )
         except InvalidFeedbackError as e:
             return create_error_response(str(e), status.HTTP_400_BAD_REQUEST)
