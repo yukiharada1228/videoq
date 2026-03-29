@@ -11,6 +11,7 @@ from app.domain.video.exceptions import InvalidVideoStatusTransition
 from app.domain.video.status import VideoStatus
 from app.use_cases.video.exceptions import (
     TranscriptionExecutionFailed,
+    TranscriptionRejected,
     TranscriptionTargetMissing,
 )
 from app.use_cases.video.run_transcription import RunTranscriptionUseCase, _parse_srt_duration_seconds
@@ -64,12 +65,18 @@ class _FakeYoutubeTranscriptionGateway:
         self.transcript = transcript
         self.error = error
         self.calls: list[tuple[str, str | None]] = []
+        self.duration_calls: list[tuple[str, str | None]] = []
+        self.estimated_duration_seconds: Optional[int] = None
 
     def run(self, youtube_video_id: str, api_key=None) -> str:
         self.calls.append((youtube_video_id, api_key))
         if self.error:
             raise self.error
         return self.transcript
+
+    def estimate_duration_seconds(self, youtube_video_id: str, api_key=None) -> Optional[int]:
+        self.duration_calls.append((youtube_video_id, api_key))
+        return self.estimated_duration_seconds
 
 
 class _FakeVideoTaskGateway:
@@ -278,7 +285,7 @@ class RunTranscriptionUseCaseTests(TestCase):
             processing_limit_check_use_case=mock_check,
         )
 
-        with self.assertRaises(TranscriptionExecutionFailed) as exc:
+        with self.assertRaises(TranscriptionRejected) as exc:
             use_case.execute(video.id)
 
         mock_check.execute.assert_called_once_with(10, 62)
@@ -318,6 +325,7 @@ class RunTranscriptionUseCaseTests(TestCase):
         self.assertEqual(video.transcript, youtube_transcription.transcript)
         self.assertEqual(transcription.calls, [])
         self.assertEqual(youtube_transcription.calls, [("dQw4w9WgXcQ", None)])
+        self.assertEqual(youtube_transcription.duration_calls, [])
 
     def test_uses_user_searchapi_key_for_youtube_transcription(self):
         from app.domain.user.entities import UserEntity
@@ -389,6 +397,87 @@ class RunTranscriptionUseCaseTests(TestCase):
         self.assertEqual(video.status, "error")
         self.assertIn("youtube_video_id", str(exc.exception))
         self.assertEqual(youtube_transcription.calls, [])
+
+    def test_youtube_processing_limit_exceeded_uses_estimated_duration_and_skips_transcription(self):
+        video = VideoEntity(
+            id=1,
+            user_id=10,
+            title="yt",
+            status="pending",
+            source_type="youtube",
+            youtube_video_id="dQw4w9WgXcQ",
+        )
+        repo = _FakeVideoTranscriptionRepository(video)
+        transcription = _FakeTranscriptionGateway(transcript="file transcript")
+        youtube_transcription = _FakeYoutubeTranscriptionGateway(
+            transcript="1\n00:00:00,000 --> 00:08:00,000\nHello from YouTube\n"
+        )
+        youtube_transcription.estimated_duration_seconds = 8 * 60
+        task_gateway = _FakeVideoTaskGateway()
+        upload_gw = _FakeUploadGateway()
+        tx = _FakeTransactionPort()
+        mock_check = MagicMock()
+        mock_check.execute.side_effect = ProcessingLimitExceeded("Processing limit exceeded")
+        mock_processing_record = MagicMock()
+        use_case = RunTranscriptionUseCase(
+            repo,
+            transcription,
+            task_gateway,
+            upload_gw,
+            tx,
+            processing_limit_check_use_case=mock_check,
+            processing_record_use_case=mock_processing_record,
+            youtube_transcription_gateway=youtube_transcription,
+        )
+
+        with self.assertRaises(TranscriptionRejected) as exc:
+            use_case.execute(video.id)
+
+        mock_check.execute.assert_called_once_with(10, 8 * 60)
+        mock_processing_record.execute.assert_not_called()
+        self.assertEqual(video.status, "error")
+        self.assertEqual(transcription.calls, [])
+        self.assertEqual(youtube_transcription.calls, [])
+        self.assertEqual(youtube_transcription.duration_calls, [("dQw4w9WgXcQ", None)])
+        self.assertIn("Processing limit exceeded", str(exc.exception))
+
+    def test_youtube_duration_estimation_failure_blocks_transcription(self):
+        video = VideoEntity(
+            id=1,
+            user_id=10,
+            title="yt",
+            status="pending",
+            source_type="youtube",
+            youtube_video_id="dQw4w9WgXcQ",
+        )
+        repo = _FakeVideoTranscriptionRepository(video)
+        transcription = _FakeTranscriptionGateway(transcript="file transcript")
+        youtube_transcription = _FakeYoutubeTranscriptionGateway(
+            transcript="1\n00:00:00,000 --> 00:03:00,000\nHello from YouTube\n"
+        )
+        task_gateway = _FakeVideoTaskGateway()
+        upload_gw = _FakeUploadGateway()
+        tx = _FakeTransactionPort()
+        mock_check = MagicMock()
+        use_case = RunTranscriptionUseCase(
+            repo,
+            transcription,
+            task_gateway,
+            upload_gw,
+            tx,
+            processing_limit_check_use_case=mock_check,
+            youtube_transcription_gateway=youtube_transcription,
+        )
+
+        with self.assertRaises(TranscriptionRejected) as exc:
+            use_case.execute(video.id)
+
+        mock_check.execute.assert_not_called()
+        self.assertEqual(video.status, "error")
+        self.assertEqual(transcription.calls, [])
+        self.assertEqual(youtube_transcription.calls, [])
+        self.assertEqual(youtube_transcription.duration_calls, [("dQw4w9WgXcQ", None)])
+        self.assertIn("Unable to determine YouTube video duration", str(exc.exception))
 
 
 class ParseSrtDurationTests(TestCase):

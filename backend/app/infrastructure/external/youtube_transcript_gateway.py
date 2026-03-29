@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 import socket
 import time
 from urllib.error import HTTPError, URLError
@@ -30,11 +31,7 @@ class YoutubeTranscriptGateway(YoutubeTranscriptionGateway):
         self._transport = transport
 
     def run(self, youtube_video_id: str, api_key=None) -> str:
-        if not api_key:
-            raise RuntimeError(
-                "SearchAPI API key is not configured. Set your SearchAPI API key in Settings before importing YouTube videos."
-            )
-
+        self._ensure_api_key(api_key)
         transcript = self._select_transcript(youtube_video_id, api_key)
         blocks = []
         for index, item in enumerate(transcript, start=1):
@@ -57,6 +54,25 @@ class YoutubeTranscriptGateway(YoutubeTranscriptionGateway):
             len(blocks),
         )
         return scene_split_srt
+
+    def estimate_duration_seconds(self, youtube_video_id: str, api_key=None) -> int | None:
+        self._ensure_api_key(api_key)
+        transcript = self._select_transcript(youtube_video_id, api_key)
+        max_end_seconds = 0.0
+        for item in transcript:
+            start = float(item.get("start", 0))
+            duration = float(item.get("duration", 0))
+            max_end_seconds = max(max_end_seconds, start + duration)
+        if max_end_seconds <= 0:
+            return None
+        return max(1, math.ceil(max_end_seconds))
+
+    def _ensure_api_key(self, api_key: str | None) -> None:
+        if api_key:
+            return
+        raise RuntimeError(
+            "SearchAPI API key is not configured. Set your SearchAPI API key in Settings before importing YouTube videos."
+        )
 
     def _select_transcript(self, youtube_video_id: str, api_key: str):
         attempts = [
