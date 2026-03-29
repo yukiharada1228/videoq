@@ -680,6 +680,27 @@
       "successDeleted": "API key deleted successfully",
       "configured": "Configured"
     },
+    "searchApiKey": {
+      "title": "SearchAPI Key",
+      "description": "Set your own SearchAPI key to import YouTube transcripts.",
+      "usageTitle": "Used for YouTube imports",
+      "usageDescription": "When you import a YouTube video, VideoQ uses this key to fetch the transcript from SearchAPI. Charges are billed to your own SearchAPI account.",
+      "apiKeyLabel": "API Key",
+      "apiKeyPlaceholder": "sa_...",
+      "hasApiKeyMessage": "A SearchAPI key is already configured. Enter a new key to update it.",
+      "noApiKeyMessage": "To import YouTube videos, you need to set your own SearchAPI key first.",
+      "getApiKeyMessage": "Get your API key from",
+      "save": "Save",
+      "saving": "Saving...",
+      "delete": "Delete",
+      "deleting": "Deleting...",
+      "errorEmpty": "Please enter an API key",
+      "errorSaving": "Failed to save SearchAPI key",
+      "errorDeleting": "Failed to delete SearchAPI key",
+      "successSaved": "SearchAPI key saved successfully",
+      "successDeleted": "SearchAPI key deleted successfully",
+      "configured": "Configured"
+    },
     "llm": {
       "title": "LLM Settings",
       "description": "Configure your preferred language model and temperature for chat responses.",

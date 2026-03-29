@@ -498,6 +498,48 @@ class ApiKeyViewTests(APITestCase):
         self.assertIsNotNone(api_key.revoked_at)
 
 
+class SearchApiKeyViewTests(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="searchapiuser",
+            email="searchapi@example.com",
+            password="testpass123",
+        )
+        self.client.force_authenticate(user=self.user)
+        self.url = reverse("auth-searchapi-key")
+
+    def test_get_searchapi_key_status_when_not_configured(self):
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, {"has_api_key": False})
+
+    def test_put_searchapi_key_saves_encrypted_value(self):
+        response = self.client.put(self.url, {"api_key": "sa_secret"}, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.user.refresh_from_db()
+        self.assertIsNotNone(self.user.searchapi_api_key_encrypted)
+        self.assertNotEqual(self.user.searchapi_api_key_encrypted, b"sa_secret")
+
+    def test_get_searchapi_key_status_when_configured(self):
+        self.client.put(self.url, {"api_key": "sa_secret"}, format="json")
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, {"has_api_key": True})
+
+    def test_delete_searchapi_key_clears_value(self):
+        self.client.put(self.url, {"api_key": "sa_secret"}, format="json")
+
+        response = self.client.delete(self.url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.user.refresh_from_db()
+        self.assertIsNone(self.user.searchapi_api_key_encrypted)
+
+
 class AccountDeleteViewTests(APITestCase):
     """Tests for AccountDeleteView"""
 
