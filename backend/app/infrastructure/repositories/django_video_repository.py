@@ -27,6 +27,7 @@ from app.domain.video.entities import (
 )
 from app.domain.video.exceptions import (
     InvalidVideoStatusTransition,
+    ShareSlugAlreadyExists,
     SomeTagsNotFound,
     TagNotAttachedToVideo,
     VideoAlreadyInGroup,
@@ -497,8 +498,8 @@ class DjangoVideoGroupRepository(VideoGroupRepository):
     ) -> None:
         try:
             VideoGroup.objects.filter(pk=group.id).update(share_slug=slug)
-        except IntegrityError:
-            raise
+        except IntegrityError as e:
+            raise ShareSlugAlreadyExists() from e
 
 
 # ---------------------------------------------------------------------------
