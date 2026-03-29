@@ -88,6 +88,15 @@ class TranscriptionExecutionFailed(Exception):
         super().__init__(f"Transcription failed for video {video_id}: {reason}")
 
 
+class TranscriptionRejected(Exception):
+    """Raised when transcription is blocked for a non-retryable reason."""
+
+    def __init__(self, video_id: int, reason: str):
+        self.video_id = video_id
+        self.reason = reason
+        super().__init__(f"Transcription rejected for video {video_id}: {reason}")
+
+
 class InvalidYoutubeUrl(ValueError):
     """Raised when a YouTube URL cannot be parsed into a valid video ID."""
 
@@ -122,6 +131,7 @@ __all__ = [
     "ResourceNotFound",
     "ShareSlugAlreadyExists",
     "TranscriptionExecutionFailed",
+    "TranscriptionRejected",
     "TranscriptionTargetMissing",
     "VideoAlreadyInGroup",
     "VideoLimitExceeded",

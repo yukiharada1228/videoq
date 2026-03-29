@@ -7,6 +7,7 @@ import re
 
 from typing import Callable, Optional
 
+from app.domain.billing.exceptions import ProcessingLimitExceeded
 from app.domain.shared.transaction import TransactionPort
 from app.domain.user.repositories import UserRepository
 from app.domain.video.gateways import (
@@ -20,6 +21,7 @@ from app.domain.video.services import VideoTranscriptionLifecycle
 from app.use_cases.video.exceptions import (
     FileSizeExceeded,
     TranscriptionExecutionFailed,
+    TranscriptionRejected,
     TranscriptionTargetMissing,
 )
 
@@ -91,6 +93,16 @@ class RunTranscriptionUseCase:
             return None
         return self._duration_estimator(video_id)
 
+    def _estimate_processing_duration_seconds(self, video, user=None) -> Optional[int]:
+        if video.source_type == "youtube":
+            if not video.youtube_video_id or self._youtube_transcription_gateway is None:
+                return None
+            return self._youtube_transcription_gateway.estimate_duration_seconds(
+                video.youtube_video_id,
+                api_key=(getattr(user, "searchapi_api_key", None) if user is not None else None),
+            )
+        return self._estimate_video_duration_seconds(video.id)
+
     def execute(self, video_id: int) -> None:
         video = self.video_repo.get_by_id_for_task(video_id)
         if video is None:
@@ -127,7 +139,12 @@ class RunTranscriptionUseCase:
                 self._processing_limit_check_use_case is not None
                 and video.user_id
             ):
-                estimated_duration_seconds = self._estimate_video_duration_seconds(video_id)
+                estimated_duration_seconds = self._estimate_processing_duration_seconds(video, user)
+                if video.source_type == "youtube" and estimated_duration_seconds is None:
+                    raise TranscriptionRejected(
+                        video_id=video_id,
+                        reason="Unable to determine YouTube video duration before transcription.",
+                    )
                 if estimated_duration_seconds is not None:
                     self._processing_limit_check_use_case.execute(
                         video.user_id,
@@ -154,6 +171,10 @@ class RunTranscriptionUseCase:
                 to_status=to_status,
                 error_message=error_msg,
             )
+            if isinstance(e, ProcessingLimitExceeded):
+                raise TranscriptionRejected(video_id=video_id, reason=error_msg) from e
+            if isinstance(e, TranscriptionRejected):
+                raise e
             raise TranscriptionExecutionFailed(video_id=video_id, reason=error_msg) from e
 
         logger.info("Transcription completed for video %d; indexing task enqueued", video_id)
