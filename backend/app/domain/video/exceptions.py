@@ -92,6 +92,13 @@ class ReservedShareSlug(Exception):
         super().__init__(message)
 
 
+class ShareSlugAlreadyExists(Exception):
+    """Raised when a share slug collides with another group's slug."""
+
+    def __init__(self, message: str = "This share link is already in use"):
+        super().__init__(message)
+
+
 class TranscriptionTargetNotFound(Exception):
     """Raised when transcription target video does not exist."""
 

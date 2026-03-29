@@ -4,12 +4,11 @@ Use cases for managing video groups: membership, ordering, and share links.
 
 from typing import List, Tuple
 
-from django.db import IntegrityError
-
 from app.domain.video.exceptions import (
     GroupVideoOrderMismatch as DomainGroupVideoOrderMismatch,
     InvalidShareSlug as DomainInvalidShareSlug,
     ReservedShareSlug as DomainReservedShareSlug,
+    ShareSlugAlreadyExists as DomainShareSlugAlreadyExists,
     ShareLinkNotActive as DomainShareLinkNotActive,
     SomeVideosNotFound as DomainSomeVideosNotFound,
     VideoAlreadyInGroup as DomainVideoAlreadyInGroup,
@@ -198,7 +197,7 @@ class CreateShareLinkUseCase:
 
         try:
             self.group_repo.update_share_slug(group, normalized_share_slug)
-        except IntegrityError as e:
+        except DomainShareSlugAlreadyExists as e:
             raise ShareSlugAlreadyExists() from e
         return normalized_share_slug
 
