@@ -419,6 +419,7 @@
         "processing": "Processing"
       },
       "remove": "Remove",
+      "removeFromGroup": "Remove from group",
       "deleteError": "Failed to delete the chat group"
     },
     "shared": {
