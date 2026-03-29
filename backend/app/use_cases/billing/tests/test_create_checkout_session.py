@@ -15,6 +15,7 @@ from app.use_cases.billing.create_checkout_session import CreateCheckoutSessionU
 from app.use_cases.billing.exceptions import (
     BillingNotEnabled,
     InvalidPlan,
+    InvalidReturnUrl,
 )
 
 
@@ -152,11 +153,15 @@ class _StubUserRepo:
         return user
 
 
+_DEFAULT_ALLOWED_ORIGINS = ["https://app.example.com"]
+
+
 def _make_use_case(
     entity: SubscriptionEntity,
     billing_enabled: bool = True,
     price_map: Optional[dict] = None,
     gateway: Optional[_StubBillingGateway] = None,
+    allowed_origins: Optional[list] = None,
 ) -> CreateCheckoutSessionUseCase:
     if price_map is None:
         price_map = {
@@ -165,12 +170,15 @@ def _make_use_case(
         }
     if gateway is None:
         gateway = _StubBillingGateway()
+    if allowed_origins is None:
+        allowed_origins = _DEFAULT_ALLOWED_ORIGINS
     return CreateCheckoutSessionUseCase(
         subscription_repo=_StubSubscriptionRepo(entity),
         billing_gateway=gateway,
         billing_enabled=billing_enabled,
         price_map=price_map,
         user_repo=_StubUserRepo(),
+        allowed_origins=allowed_origins,
     )
 
 
@@ -182,8 +190,8 @@ class BillingNotEnabledTests(TestCase):
             use_case.execute(
                 user_id=1,
                 plan="lite",
-                success_url="https://success",
-                cancel_url="https://cancel",
+                success_url="https://app.example.com/success",
+                cancel_url="https://app.example.com/cancel",
             )
 
 
@@ -194,8 +202,8 @@ class ValidPlanTests(TestCase):
         dto = use_case.execute(
             user_id=1,
             plan="lite",
-            success_url="https://success",
-            cancel_url="https://cancel",
+            success_url="https://app.example.com/success",
+            cancel_url="https://app.example.com/cancel",
             currency="jpy",
         )
         self.assertEqual(dto.checkout_url, "https://checkout.test")
@@ -206,8 +214,8 @@ class ValidPlanTests(TestCase):
         dto = use_case.execute(
             user_id=1,
             plan="standard",
-            success_url="https://success",
-            cancel_url="https://cancel",
+            success_url="https://app.example.com/success",
+            cancel_url="https://app.example.com/cancel",
             currency="jpy",
         )
         self.assertEqual(dto.checkout_url, "https://checkout.test")
@@ -219,8 +227,8 @@ class ValidPlanTests(TestCase):
         dto = use_case.execute(
             user_id=1,
             plan="lite",
-            success_url="https://success",
-            cancel_url="https://cancel",
+            success_url="https://app.example.com/success",
+            cancel_url="https://app.example.com/cancel",
             currency="usd",
         )
         self.assertEqual(dto.checkout_url, "https://checkout.test")
@@ -233,8 +241,8 @@ class ValidPlanTests(TestCase):
         dto = use_case.execute(
             user_id=1,
             plan="standard",
-            success_url="https://success",
-            cancel_url="https://cancel",
+            success_url="https://app.example.com/success",
+            cancel_url="https://app.example.com/cancel",
             currency="usd",
         )
         self.assertEqual(dto.checkout_url, "https://checkout.test")
@@ -247,8 +255,8 @@ class ValidPlanTests(TestCase):
         dto = use_case.execute(
             user_id=1,
             plan="lite",
-            success_url="https://success",
-            cancel_url="https://cancel",
+            success_url="https://app.example.com/success",
+            cancel_url="https://app.example.com/cancel",
         )
         self.assertEqual(dto.checkout_url, "https://checkout.test")
         self.assertEqual(gateway.last_price_id, "price_lite_jpy_001")
@@ -260,8 +268,8 @@ class ValidPlanTests(TestCase):
         dto = use_case.execute(
             user_id=1,
             plan="lite",
-            success_url="https://success",
-            cancel_url="https://cancel",
+            success_url="https://app.example.com/success",
+            cancel_url="https://app.example.com/cancel",
             currency="USD",
         )
         self.assertEqual(dto.checkout_url, "https://checkout.test")
@@ -283,8 +291,8 @@ class PendingCancellationTests(TestCase):
         dto = use_case.execute(
             user_id=1,
             plan="standard",
-            success_url="https://success",
-            cancel_url="https://cancel",
+            success_url="https://app.example.com/success",
+            cancel_url="https://app.example.com/cancel",
         )
         self.assertTrue(dto.upgraded)
         self.assertEqual(dto.checkout_url, "")
@@ -304,8 +312,8 @@ class AlreadySubscribedTests(TestCase):
         dto = use_case.execute(
             user_id=1,
             plan="standard",
-            success_url="https://success",
-            cancel_url="https://cancel",
+            success_url="https://app.example.com/success",
+            cancel_url="https://app.example.com/cancel",
         )
         self.assertTrue(dto.upgraded)
         self.assertEqual(dto.checkout_url, "")
@@ -326,8 +334,8 @@ class AlreadySubscribedTests(TestCase):
         dto = use_case.execute(
             user_id=1,
             plan="standard",
-            success_url="https://success",
-            cancel_url="https://cancel",
+            success_url="https://app.example.com/success",
+            cancel_url="https://app.example.com/cancel",
         )
 
         self.assertFalse(dto.upgraded)
@@ -356,8 +364,8 @@ class DowngradeTests(TestCase):
         dto = use_case.execute(
             user_id=1,
             plan="lite",
-            success_url="https://success",
-            cancel_url="https://cancel",
+            success_url="https://app.example.com/success",
+            cancel_url="https://app.example.com/cancel",
         )
 
         self.assertTrue(dto.upgraded)
@@ -372,8 +380,8 @@ class DowngradeTests(TestCase):
         dto = use_case.execute(
             user_id=1,
             plan="lite",
-            success_url="https://success",
-            cancel_url="https://cancel",
+            success_url="https://app.example.com/success",
+            cancel_url="https://app.example.com/cancel",
         )
 
         self.assertEqual(dto.checkout_url, "https://checkout.test")
@@ -387,8 +395,8 @@ class InvalidPlanTests(TestCase):
             use_case.execute(
                 user_id=1,
                 plan="enterprise",
-                success_url="https://success",
-                cancel_url="https://cancel",
+                success_url="https://app.example.com/success",
+                cancel_url="https://app.example.com/cancel",
             )
 
     def test_free_plan_raises_invalid_plan(self):
@@ -398,8 +406,8 @@ class InvalidPlanTests(TestCase):
             use_case.execute(
                 user_id=1,
                 plan="free",
-                success_url="https://success",
-                cancel_url="https://cancel",
+                success_url="https://app.example.com/success",
+                cancel_url="https://app.example.com/cancel",
             )
 
     def test_unknown_plan_raises_invalid_plan(self):
@@ -409,8 +417,8 @@ class InvalidPlanTests(TestCase):
             use_case.execute(
                 user_id=1,
                 plan="super_premium",
-                success_url="https://success",
-                cancel_url="https://cancel",
+                success_url="https://app.example.com/success",
+                cancel_url="https://app.example.com/cancel",
             )
 
     def test_invalid_currency_raises_invalid_plan(self):
@@ -420,8 +428,8 @@ class InvalidPlanTests(TestCase):
             use_case.execute(
                 user_id=1,
                 plan="lite",
-                success_url="https://success",
-                cancel_url="https://cancel",
+                success_url="https://app.example.com/success",
+                cancel_url="https://app.example.com/cancel",
                 currency="eur",
             )
 
@@ -452,8 +460,8 @@ class CustomerCreationAtomicityTests(TestCase):
         use_case.execute(
             user_id=1,
             plan="lite",
-            success_url="https://success",
-            cancel_url="https://cancel",
+            success_url="https://app.example.com/success",
+            cancel_url="https://app.example.com/cancel",
         )
         self.assertEqual(len(create_customer_calls), 0)
 
@@ -473,8 +481,8 @@ class CustomerCreationAtomicityTests(TestCase):
         use_case.execute(
             user_id=1,
             plan="lite",
-            success_url="https://success",
-            cancel_url="https://cancel",
+            success_url="https://app.example.com/success",
+            cancel_url="https://app.example.com/cancel",
         )
         self.assertEqual(len(create_customer_calls), 1)
 
@@ -510,6 +518,7 @@ class CustomerCreationAtomicityTests(TestCase):
                 PlanType.LITE: {"jpy": "price_lite_jpy_001"},
             },
             user_repo=_StubUserRepo(),
+            allowed_origins=_DEFAULT_ALLOWED_ORIGINS,
         )
         original_get_or_create = gateway.get_or_create_customer
 
@@ -521,8 +530,8 @@ class CustomerCreationAtomicityTests(TestCase):
         use_case.execute(
             user_id=1,
             plan="lite",
-            success_url="https://success",
-            cancel_url="https://cancel",
+            success_url="https://app.example.com/success",
+            cancel_url="https://app.example.com/cancel",
             currency="jpy",
         )
         self.assertEqual(len(create_customer_calls), 0)
@@ -549,8 +558,8 @@ class CustomerCreationAtomicityTests(TestCase):
         dto = use_case.execute(
             user_id=1,
             plan="lite",
-            success_url="https://success",
-            cancel_url="https://cancel",
+            success_url="https://app.example.com/success",
+            cancel_url="https://app.example.com/cancel",
         )
         # Recovery creates a new customer exactly once via the atomic repo method
         self.assertEqual(len(create_customer_calls), 1)
@@ -584,12 +593,13 @@ class CustomerCreationAtomicityTests(TestCase):
             billing_enabled=True,
             price_map={PlanType.LITE: {"jpy": "price_lite_jpy_001"}},
             user_repo=_StubUserRepo(),
+            allowed_origins=_DEFAULT_ALLOWED_ORIGINS,
         )
         use_case.execute(
             user_id=1,
             plan="lite",
-            success_url="https://success",
-            cancel_url="https://cancel",
+            success_url="https://app.example.com/success",
+            cancel_url="https://app.example.com/cancel",
             currency="jpy",
         )
         self.assertFalse(
@@ -633,12 +643,13 @@ class CasRecoveryTests(TestCase):
             billing_enabled=True,
             price_map={PlanType.LITE: {"jpy": "price_lite_jpy_001"}},
             user_repo=_StubUserRepo(),
+            allowed_origins=_DEFAULT_ALLOWED_ORIGINS,
         )
         use_case.execute(
             user_id=1,
             plan="lite",
-            success_url="https://success",
-            cancel_url="https://cancel",
+            success_url="https://app.example.com/success",
+            cancel_url="https://app.example.com/cancel",
             currency="jpy",
         )
         # 通常パス: replace_if_stale=None
@@ -699,12 +710,13 @@ class CasRecoveryTests(TestCase):
             billing_enabled=True,
             price_map={PlanType.LITE: {"jpy": "price_lite_jpy_001"}},
             user_repo=_StubUserRepo(),
+            allowed_origins=_DEFAULT_ALLOWED_ORIGINS,
         )
         dto = use_case.execute(
             user_id=1,
             plan="lite",
-            success_url="https://success",
-            cancel_url="https://cancel",
+            success_url="https://app.example.com/success",
+            cancel_url="https://app.example.com/cancel",
             currency="jpy",
         )
         self.assertEqual(dto.checkout_url, "https://checkout.test")
@@ -714,3 +726,63 @@ class CasRecoveryTests(TestCase):
             "Thread A がすでに新顧客を作っていた場合、Thread B は Stripe API を呼ばずに再利用すべき。"
             "create_fn が呼ばれると orphan 顧客が Stripe 上に生まれる。",
         )
+
+
+class ReturnUrlAllowlistTests(TestCase):
+    def test_raises_invalid_return_url_when_success_url_not_in_allowlist(self):
+        entity = _make_subscription()
+        use_case = _make_use_case(entity, allowed_origins=["https://app.example.com"])
+        with self.assertRaises(InvalidReturnUrl):
+            use_case.execute(
+                user_id=1,
+                plan="lite",
+                success_url="https://evil.example.com/success",
+                cancel_url="https://app.example.com/cancel",
+            )
+
+    def test_raises_invalid_return_url_when_cancel_url_not_in_allowlist(self):
+        entity = _make_subscription()
+        use_case = _make_use_case(entity, allowed_origins=["https://app.example.com"])
+        with self.assertRaises(InvalidReturnUrl):
+            use_case.execute(
+                user_id=1,
+                plan="lite",
+                success_url="https://app.example.com/success",
+                cancel_url="https://evil.example.com/cancel",
+            )
+
+    def test_allowed_url_passes_validation(self):
+        entity = _make_subscription()
+        use_case = _make_use_case(entity, allowed_origins=["https://app.example.com"])
+        dto = use_case.execute(
+            user_id=1,
+            plan="lite",
+            success_url="https://app.example.com/success",
+            cancel_url="https://app.example.com/cancel",
+        )
+        self.assertEqual(dto.checkout_url, "https://checkout.test")
+
+    def test_multiple_allowed_origins_accepts_any(self):
+        entity = _make_subscription()
+        use_case = _make_use_case(
+            entity,
+            allowed_origins=["https://app.example.com", "https://www.example.com"],
+        )
+        dto = use_case.execute(
+            user_id=1,
+            plan="lite",
+            success_url="https://www.example.com/success",
+            cancel_url="https://app.example.com/cancel",
+        )
+        self.assertEqual(dto.checkout_url, "https://checkout.test")
+
+    def test_raises_invalid_return_url_when_allowed_origins_is_empty(self):
+        entity = _make_subscription()
+        use_case = _make_use_case(entity, allowed_origins=[])
+        with self.assertRaises(InvalidReturnUrl):
+            use_case.execute(
+                user_id=1,
+                plan="lite",
+                success_url="https://app.example.com/success",
+                cancel_url="https://app.example.com/cancel",
+            )

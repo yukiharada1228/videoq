@@ -18,9 +18,5 @@ def get_export_history_use_case():
     return _cr.get_export_history_use_case()
 
 
-def get_popular_scenes_use_case():
-    return _cr.get_popular_scenes_use_case()
-
-
 def get_chat_analytics_use_case():
     return _cr.get_chat_analytics_use_case()

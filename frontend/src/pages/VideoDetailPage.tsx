@@ -27,6 +27,13 @@ interface TranscriptSegment {
   text: string;
 }
 
+function buildYoutubeEmbedSrc(embedUrl: string, startSeconds: number | null): string {
+  if (startSeconds === null) {
+    return embedUrl;
+  }
+  return `${embedUrl}?autoplay=1&start=${startSeconds}`;
+}
+
 function isSRTFormat(text: string): boolean {
   return /\d{2}:\d{2}:\d{2}[,.]\d{3}\s*-->\s*\d{2}:\d{2}:\d{2}[,.]\d{3}/.test(text);
 }
@@ -165,6 +172,7 @@ export default function VideoDetailPage() {
   const videoId = params?.id ? Number.parseInt(params.id, 10) : null;
   const videoRef = useRef<HTMLVideoElement>(null);
   const startTime = searchParams.get('t');
+  const [manualYoutubeStartSeconds, setManualYoutubeStartSeconds] = useState<number | null>(null);
   const { t } = useTranslation();
   const locale = useLocale();
 
@@ -212,6 +220,16 @@ export default function VideoDetailPage() {
     }
   };
 
+  const queryYoutubeStartSeconds = (() => {
+    if (!startTime) {
+      return null;
+    }
+    const seconds = Number.parseInt(startTime, 10);
+    return Number.isNaN(seconds) ? null : seconds;
+  })();
+
+  const youtubeStartSeconds = manualYoutubeStartSeconds ?? queryYoutubeStartSeconds;
+
   const { deleteMutation, updateMutation } = useVideoDetailPageMutations({
     videoId,
     onDeleteSuccess: () => navigate('/videos'),
@@ -236,7 +254,9 @@ export default function VideoDetailPage() {
   }, [transcriptSegments, transcriptSearch]);
 
   const handleSeek = (seconds: number, idx: number) => {
-    if (videoRef.current) {
+    if (video?.source_type === 'youtube') {
+      setManualYoutubeStartSeconds(seconds);
+    } else if (videoRef.current) {
       videoRef.current.currentTime = seconds;
       void videoRef.current.play();
     }
@@ -465,7 +485,17 @@ export default function VideoDetailPage() {
         <section className={`flex flex-col overflow-hidden bg-[#f8faf5] ${isMobile ? 'flex-1' : ''} ${isMobile && mobileTab !== 'video' ? 'hidden' : ''}`}>
           {/* Video player */}
           <div className="shrink-0 bg-[#1a1c1c] flex items-center justify-center" style={{ maxHeight: '55vh' }}>
-            {video.file ? (
+            {video.source_type === 'youtube' && video.youtube_embed_url ? (
+              <iframe
+                key={`${video.id}-${youtubeStartSeconds ?? 0}`}
+                className="w-full aspect-video"
+                style={{ maxHeight: '55vh' }}
+                src={buildYoutubeEmbedSrc(video.youtube_embed_url, youtubeStartSeconds)}
+                title={video.title}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            ) : video.file ? (
               <video
                 ref={videoRef}
                 controls

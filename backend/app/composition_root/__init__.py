@@ -28,7 +28,6 @@ from app.composition_root.chat import (
     get_chat_analytics_use_case,
     get_chat_history_use_case,
     get_export_history_use_case,
-    get_popular_scenes_use_case,
     get_send_message_use_case,
     get_submit_feedback_use_case,
 )
@@ -54,6 +53,7 @@ from app.composition_root.video import (
     get_create_share_link_use_case,
     get_create_tag_use_case,
     get_create_video_use_case,
+    get_create_youtube_video_use_case,
     get_delete_group_use_case,
     get_delete_share_link_use_case,
     get_delete_tag_use_case,
@@ -83,6 +83,7 @@ __all__ = [
     "get_run_transcription_use_case",
     "get_video_detail_use_case",
     "get_create_video_use_case",
+    "get_create_youtube_video_use_case",
     "get_update_video_use_case",
     "get_delete_video_use_case",
     "get_index_video_use_case",
@@ -111,7 +112,6 @@ __all__ = [
     "get_send_message_use_case",
     "get_chat_history_use_case",
     "get_chat_analytics_use_case",
-    "get_popular_scenes_use_case",
     "get_submit_feedback_use_case",
     "get_export_history_use_case",
     # auth

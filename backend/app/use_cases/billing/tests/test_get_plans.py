@@ -69,3 +69,21 @@ class GetPlansUseCaseTests(TestCase):
         plans = self.use_case.execute()
         free = next(p for p in plans if p.plan_id == "free")
         self.assertEqual(free.ai_answers, 500)
+
+
+class GetPlansUseCaseBillingDisabledTests(TestCase):
+    def setUp(self):
+        self.use_case = GetPlansUseCase(billing_enabled=False)
+
+    def test_returns_empty_list_when_billing_disabled(self):
+        plans = self.use_case.execute()
+        self.assertEqual(plans, [])
+
+
+class GetPlansUseCaseBillingEnabledTests(TestCase):
+    def setUp(self):
+        self.use_case = GetPlansUseCase(billing_enabled=True)
+
+    def test_returns_four_plans_when_billing_enabled(self):
+        plans = self.use_case.execute()
+        self.assertEqual(len(plans), 4)

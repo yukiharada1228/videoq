@@ -19,6 +19,7 @@ from app.use_cases.video.dto import (
     CreateGroupInput,
     CreateTagInput,
     CreateVideoInput,
+    CreateYoutubeVideoInput,
     ListVideosInput,
     RequestUploadInput,
     UpdateGroupInput,
@@ -63,6 +64,7 @@ from .serializers import (
     VideoUpdateSerializer,
     VideoUploadRequestResponseSerializer,
     VideoUploadRequestSerializer,
+    YoutubeVideoCreateSerializer,
 )
 
 logger = logging.getLogger(__name__)
@@ -166,6 +168,34 @@ class VideoListView(DependencyResolverMixin, AuthenticatedViewMixin, generics.Ge
             VideoSerializer(video, context=ctx).data,
             status=status.HTTP_201_CREATED,
         )
+
+
+class YoutubeVideoCreateView(DependencyResolverMixin, AuthenticatedViewMixin, generics.GenericAPIView):
+    serializer_class = YoutubeVideoCreateSerializer
+    create_youtube_video_use_case = None
+
+    @extend_schema(
+        request=YoutubeVideoCreateSerializer,
+        responses={201: VideoSerializer},
+        summary="Create YouTube video",
+        description="Register a YouTube URL and create a video resource.",
+    )
+    def post(self, request, *args, **kwargs):
+        serializer = YoutubeVideoCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        use_case = self.resolve_dependency(self.create_youtube_video_use_case)
+        data = serializer.validated_data
+        video = use_case.execute(
+            request.user.id,
+            CreateYoutubeVideoInput(
+                youtube_url=data["youtube_url"],
+                title=data["title"],
+                description=data["description"],
+            ),
+        )
+        ctx = {"request": request}
+        return Response(VideoSerializer(video, context=ctx).data, status=status.HTTP_201_CREATED)
 
 
 class VideoDetailView(DependencyResolverMixin, AuthenticatedViewMixin, APIView):

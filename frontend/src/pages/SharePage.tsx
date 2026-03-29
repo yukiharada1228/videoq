@@ -7,7 +7,6 @@ import {
 } from 'lucide-react';
 import { Link } from '@/lib/i18n';
 import { apiClient, type VideoInGroup } from '@/lib/api';
-import { ShortsButton } from '@/components/shorts/ShortsButton';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { ChatPanel } from '@/components/chat/ChatPanel';
 import { convertVideoInGroupToSelectedVideo, type SelectedVideo } from '@/lib/utils/videoConversion';
@@ -17,6 +16,13 @@ import { useSharedGroupQuery } from '@/hooks/useSharePageData';
 import { useI18nNavigate } from '@/lib/i18n';
 
 type MobileTab = 'videos' | 'player';
+
+function buildYoutubeEmbedSrc(embedUrl: string, startSeconds: number | null): string {
+  if (startSeconds === null) {
+    return embedUrl;
+  }
+  return `${embedUrl}?autoplay=1&start=${startSeconds}`;
+}
 
 // ── Status badge ──────────────────────────────────────────────────────────────
 
@@ -101,7 +107,7 @@ export default function SharePage() {
   }, [group, selectedVideoId]);
 
 
-  const { videoRef, handleVideoCanPlay, handleVideoPlayFromTime } = useVideoPlayback({
+  const { videoRef, handleVideoCanPlay, handleVideoPlayFromTime, youtubeStartSeconds } = useVideoPlayback({
     selectedVideo,
     onVideoSelect: handleVideoSelect,
     onMobileSwitch: () => setMobileTab('player'),
@@ -222,20 +228,19 @@ export default function SharePage() {
                 <h1 className="font-extrabold text-[#191c19] text-lg truncate flex-1 min-w-0">
                   {selectedVideo ? selectedVideo.title : t('videos.shared.playerPlaceholder')}
                 </h1>
-                {group.videos && group.videos.length > 0 && (
-                  <div className="shrink-0">
-                    <ShortsButton
-                      groupId={group.id}
-                      videos={group.videos}
-                      shareToken={shareToken}
-                      size="sm"
-                    />
-                  </div>
-                )}
               </div>
               <div className="aspect-video lg:aspect-auto lg:flex-1 bg-[#1a1c1c] flex items-center justify-center lg:min-h-0">
                 {selectedVideo ? (
-                  selectedVideo.file ? (
+                  selectedVideo.source_type === 'youtube' && selectedVideo.youtube_embed_url ? (
+                    <iframe
+                      key={`${selectedVideo.id}-${youtubeStartSeconds ?? 0}`}
+                      className="w-full h-full"
+                      src={buildYoutubeEmbedSrc(selectedVideo.youtube_embed_url, youtubeStartSeconds)}
+                      title={selectedVideo.title}
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  ) : selectedVideo.file ? (
                     <video
                       ref={videoRef}
                       key={selectedVideo.id}

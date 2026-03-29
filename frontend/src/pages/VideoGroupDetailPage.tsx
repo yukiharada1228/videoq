@@ -23,7 +23,6 @@ import { CSS } from '@dnd-kit/utilities';
 
 import { apiClient, type VideoGroup, type VideoInGroup } from '@/lib/api';
 import { ChatPanel } from '@/components/chat/ChatPanel';
-import { ShortsButton } from '@/components/shorts/ShortsButton';
 import { DashboardButton } from '@/components/dashboard/DashboardButton';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -49,6 +48,13 @@ import {
   Pencil, List, Play,
   Save, X, GraduationCap,
 } from 'lucide-react';
+
+function buildYoutubeEmbedSrc(embedUrl: string, startSeconds: number | null): string {
+  if (startSeconds === null) {
+    return embedUrl;
+  }
+  return `${embedUrl}?autoplay=1&start=${startSeconds}`;
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const MOBILE_SENSORS: SensorDescriptor<any>[] = [];
@@ -414,7 +420,7 @@ export default function VideoGroupDetailPage() {
     if (v) setSelectedVideo(convertVideoInGroupToSelectedVideo(v));
   }, [group?.videos]);
 
-  const { videoRef, handleVideoCanPlay, handleVideoPlayFromTime } = useVideoPlayback({
+  const { videoRef, handleVideoCanPlay, handleVideoPlayFromTime, youtubeStartSeconds } = useVideoPlayback({
     selectedVideo,
     onVideoSelect: handleVideoSelect,
     onMobileSwitch: () => setMobileTab('player'),
@@ -667,11 +673,6 @@ export default function VideoGroupDetailPage() {
               <div className="p-4 border-b border-stone-100 flex items-center justify-between gap-2 shrink-0">
                 <h2 className="font-extrabold text-[#191c19]">{t('videos.groupDetail.videoListTitle')}</h2>
                 <div className="flex items-center gap-2 shrink-0">
-                  {group.videos && group.videos.length > 0 && groupId && (
-                    <div className="lg:hidden">
-                      <ShortsButton groupId={groupId} videos={group.videos} size="sm" />
-                    </div>
-                  )}
                   <span className="text-xs bg-[#f2f4ef] px-2 py-0.5 rounded-full text-[#6f7a6e] font-medium">
                     {t('videos.groupDetail.videoCount', { count: group.videos?.length ?? 0 })}
                   </span>
@@ -717,15 +718,21 @@ export default function VideoGroupDetailPage() {
                   {selectedVideo ? selectedVideo.title : t('videos.groupDetail.playerPlaceholder')}
                 </h1>
                 <div className="flex items-center gap-2 shrink-0">
-                  {group.videos && group.videos.length > 0 && groupId && (
-                    <ShortsButton groupId={groupId} videos={group.videos} size="sm" />
-                  )}
                   {groupId && <DashboardButton groupId={groupId} size="sm" />}
                 </div>
               </div>
               <div className="aspect-video lg:aspect-auto lg:flex-1 bg-[#1a1c1c] flex items-center justify-center lg:min-h-0">
                 {selectedVideo ? (
-                  selectedVideo.file ? (
+                  selectedVideo.source_type === 'youtube' && selectedVideo.youtube_embed_url ? (
+                    <iframe
+                      key={`${selectedVideo.id}-${youtubeStartSeconds ?? 0}`}
+                      className="w-full h-full"
+                      src={buildYoutubeEmbedSrc(selectedVideo.youtube_embed_url, youtubeStartSeconds)}
+                      title={selectedVideo.title}
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  ) : selectedVideo.file ? (
                     <video
                       ref={videoRef}
                       key={selectedVideo.id}

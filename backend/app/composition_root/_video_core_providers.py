@@ -2,6 +2,7 @@
 from app.infrastructure.common.django_transaction import DjangoTransactionPort
 from app.use_cases.video.confirm_video_upload import ConfirmVideoUploadUseCase
 from app.use_cases.video.create_video import CreateVideoUseCase
+from app.use_cases.video.create_youtube_video import CreateYoutubeVideoUseCase
 from app.use_cases.video.delete_video import DeleteVideoUseCase
 from app.use_cases.video.get_video import GetVideoDetailUseCase
 from app.use_cases.video.index_video import IndexVideoTranscriptUseCase
@@ -56,6 +57,7 @@ def get_run_transcription_use_case() -> RunTranscriptionUseCase:
         duration_estimator=_make_duration_estimator(),
         processing_limit_check_use_case=_billing_cr.get_check_processing_limit_use_case(),
         processing_record_use_case=_billing_cr.get_record_processing_usage_use_case(),
+        youtube_transcription_gateway=shared.get_youtube_transcription_gateway(),
     )
 
 
@@ -77,6 +79,15 @@ def get_create_video_use_case() -> CreateVideoUseCase:
         shared.new_video_task_gateway(),
         DjangoTransactionPort(),
         storage_limit_check_use_case=_billing_cr.get_check_storage_limit_use_case(),
+    )
+
+
+def get_create_youtube_video_use_case() -> CreateYoutubeVideoUseCase:
+    return CreateYoutubeVideoUseCase(
+        shared.new_user_repository(),
+        shared.new_video_repository(),
+        shared.new_video_task_gateway(),
+        DjangoTransactionPort(),
     )
 
 

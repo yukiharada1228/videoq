@@ -116,16 +116,6 @@ export interface Citation {
   end_time: string;
 }
 
-export interface PopularScene {
-  video_id: number;
-  title: string;
-  start_time: string;
-  end_time: string;
-  reference_count: number;
-  file: string | null;
-  questions: string[];
-}
-
 export interface ChatHistoryItem {
   id: number;
   group: number;
@@ -172,6 +162,10 @@ export interface Video {
   id: number;
   user: number;
   file: string | null;
+  source_type: 'uploaded' | 'youtube';
+  source_url?: string | null;
+  youtube_video_id?: string | null;
+  youtube_embed_url?: string | null;
   title: string;
   description: string;
   uploaded_at: string;
@@ -184,6 +178,10 @@ export interface Video {
 export interface VideoList {
   id: number;
   file: string | null;
+  source_type: 'uploaded' | 'youtube';
+  source_url?: string | null;
+  youtube_video_id?: string | null;
+  youtube_embed_url?: string | null;
   title: string;
   description: string;
   uploaded_at: string;
@@ -193,6 +191,12 @@ export interface VideoList {
 
 export interface VideoUploadRequest {
   file: File;
+  title: string;
+  description?: string;
+}
+
+export interface YoutubeVideoCreateRequest {
+  youtube_url: string;
   title: string;
   description?: string;
 }
@@ -218,6 +222,10 @@ export interface VideoInGroup {
   title: string;
   description: string;
   file: string | null;
+  source_type: 'uploaded' | 'youtube';
+  source_url?: string | null;
+  youtube_video_id?: string | null;
+  youtube_embed_url?: string | null;
   uploaded_at: string;
   status: 'uploading' | 'pending' | 'processing' | 'indexing' | 'completed' | 'error';
   order: number;
@@ -827,6 +835,13 @@ class ApiClient {
     });
   }
 
+  async createYoutubeVideo(data: YoutubeVideoCreateRequest): Promise<Video> {
+    return this.request<Video>('/videos/youtube/', {
+      method: 'POST',
+      body: data,
+    });
+  }
+
   async updateVideo(id: number, data: VideoUpdateRequest): Promise<Video> {
     return this.request<Video>(`/videos/${id}/`, {
       method: 'PATCH',
@@ -1026,17 +1041,6 @@ class ApiClient {
     return this.request<void>(`/videos/${videoId}/tags/${tagId}/`, {
       method: 'DELETE',
     });
-  }
-
-  async getPopularScenes(groupId: number, shareToken?: string, limit?: number): Promise<PopularScene[]> {
-    const params = new URLSearchParams({ group_id: String(groupId) });
-    if (shareToken) {
-      params.set('share_token', shareToken);
-    }
-    if (limit) {
-      params.set('limit', String(limit));
-    }
-    return this.request<PopularScene[]>(`/chat/popular-scenes/?${params.toString()}`);
   }
 
   async getChatAnalytics(groupId: number): Promise<ChatAnalytics> {

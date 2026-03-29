@@ -260,18 +260,25 @@
       "fileLabel": "File",
       "titleLabel": "Title *",
       "descriptionLabel": "Description",
+      "youtubeUrlLabel": "YouTube URL",
+      "youtubeUrlPlaceholder": "https://www.youtube.com/watch?v=...",
       "groupLabel": "Chat group (optional)",
       "groupNone": "Don't add to group",
       "groupHelp": "Add the video to the selected chat group.",
       "titlePlaceholder": "{{fileName}} (default)",
       "titleEmptyPlaceholder": "Enter a video title",
       "descriptionPlaceholder": "Optional video description",
+      "modes": {
+        "file": "File Upload",
+        "youtube": "YouTube URL"
+      },
       "success": "Upload succeeded!",
       "cancel": "Cancel",
       "upload": "Upload",
       "uploading": "Uploading...",
       "validation": {
         "noFile": "Please select a file",
+        "noYoutubeUrl": "Please enter a YouTube URL",
         "noTitle": "Please enter a title",
         "invalidFileType": "Please select a supported video file",
         "fileTooLarge": "The selected file exceeds the upload size limit ({{max_size_mb}} MB)",
@@ -695,13 +702,6 @@
       "settingsLink": "Go to Settings"
     }
   },
-  "shorts": {
-    "button": "Short Videos",
-    "noScenes": "No scenes to display",
-    "referenceCount": "{{count}} references",
-    "tapToPlay": "Tap to play",
-    "question": "Question"
-  },
   "dashboard": {
     "button": "Dashboard",
     "title": "Educational Improvement Dashboard",
@@ -856,7 +856,8 @@
         "storage": "Custom",
         "transcription": "Custom",
         "aiAnswers": "Custom"
-      }
+      },
+      "notEnabled": "Billing is not enabled."
     },
     "manage": {
       "title": "Manage Subscription",
@@ -985,6 +986,30 @@
           "heading": "8. Contact",
           "body": "For questions or requests regarding this Privacy Policy, please contact us at:\nEmail: "
         }
+      }
+    }
+  },
+  "landing": {
+    "hero": {
+      "title": "Turn Any Video Into the Ultimate Learning Experience",
+      "subtitle": "AI-Powered Video Learning Platform",
+      "description": "Upload videos for automatic transcription via OpenAI Whisper, then ask questions about the content using RAG chat.",
+      "ctaSignup": "Get Started for Free",
+      "ctaDocs": "Developer Docs"
+    },
+    "features": {
+      "title": "Key Features",
+      "transcription": {
+        "title": "Automatic Transcription",
+        "description": "High-accuracy transcription powered by OpenAI Whisper"
+      },
+      "chat": {
+        "title": "RAG Chat",
+        "description": "Ask questions about video content in natural language"
+      },
+      "api": {
+        "title": "OpenAI-Compatible API",
+        "description": "Use any OpenAI client or SDK with your video library"
       }
     }
   }

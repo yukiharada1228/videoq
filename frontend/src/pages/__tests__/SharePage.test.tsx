@@ -7,8 +7,8 @@ const mockGroup = {
   name: 'Shared Group',
   description: 'Shared Description',
   videos: [
-    { id: 1, title: 'Shared Video 1', description: 'Desc 1', status: 'completed', file: 'video1.mp4', order: 0 },
-    { id: 2, title: 'Shared Video 2', description: '', status: 'completed', file: 'video2.mp4', order: 1 },
+    { id: 1, title: 'Shared Video 1', description: 'Desc 1', status: 'completed', file: 'video1.mp4', source_type: 'uploaded', order: 0 },
+    { id: 2, title: 'Shared Video 2', description: '', status: 'completed', file: 'video2.mp4', source_type: 'uploaded', order: 1 },
   ],
 }
 
@@ -25,7 +25,6 @@ vi.mock('@/lib/api', () => ({
     getMe: vi.fn(() => Promise.resolve({ id: '1', username: 'testuser', email: 'test@example.com' })),
     getSharedGroup: vi.fn(),
     getSharedVideoUrl: vi.fn((url, token) => `${url}?token=${token}`),
-    getPopularScenes: vi.fn(() => Promise.resolve([])),
   },
 }))
 
@@ -87,6 +86,33 @@ describe('SharePage', () => {
 
     await waitFor(() => {
       expect(apiClient.getSharedGroup).toHaveBeenCalledWith('test-share-token')
+    })
+  })
+
+  it('should not autoplay youtube video on initial render', async () => {
+    const youtubeGroup = {
+      ...mockGroup,
+      videos: [
+        {
+          id: 1,
+          title: 'Shared Video 1',
+          description: 'Desc 1',
+          status: 'completed',
+          file: null,
+          source_type: 'youtube' as const,
+          youtube_embed_url: 'https://www.youtube.com/embed/dQw4w9WgXcQ',
+          order: 0,
+        },
+      ],
+    }
+    ; (apiClient.getSharedGroup as ReturnType<typeof vi.fn>).mockResolvedValue(youtubeGroup)
+
+    const { container } = render(<SharePage />)
+
+    await waitFor(() => {
+      const iframe = container.querySelector('iframe')
+      expect(iframe).not.toBeNull()
+      expect(iframe?.getAttribute('src')).toBe('https://www.youtube.com/embed/dQw4w9WgXcQ')
     })
   })
 })

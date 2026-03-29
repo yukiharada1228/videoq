@@ -12,7 +12,8 @@ flowchart TD
     Upload --> Frontend[Frontend]
     Frontend --> API[Backend API]
     
-    API --> Validate{"Validation<br>- File<br>- User.video_limit"}
+    API --> Validate{"Validation<br>- File type/size (User.max_video_upload_size_mb)<br>- Storage quota (Subscription)"}
+    Validate -->|Over storage quota| QuotaError[StorageLimitExceeded]
     Validate -->|Invalid| Error[Error Response]
     Validate -->|Valid| SaveDB[(Database<br/>Save Video)]
     
@@ -335,12 +336,6 @@ flowchart TD
     GetRawData --> ComputeAnalytics[Compute Analytics<br>feedback distribution, time series]
     ComputeAnalytics --> Response2[Analytics Response]
     Response2 --> Frontend
-
-    Scenes --> API3[GET /api/chat/popular-scenes/?group_id=:id]
-    API3 --> GetSceneLogs[(Database<br>Scene Logs)]
-    GetSceneLogs --> AggregateScenes[Aggregate Scenes<br>+ Related Questions]
-    AggregateScenes --> Response3[Popular Scenes]
-    Response3 --> Frontend
 
     Export --> API4[GET /api/chat/history/export/?group_id=:id]
     API4 --> GetAllLogs[(Database<br>All ChatLogs)]
