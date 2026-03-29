@@ -19,6 +19,10 @@ def user_directory_path(instance, filename):
 
 
 class Video(models.Model):
+    SOURCE_TYPE_CHOICES = [
+        ("uploaded", "Uploaded"),
+        ("youtube", "YouTube"),
+    ]
     STATUS_CHOICES = [
         ("uploading", "Uploading"),
         ("pending", "Pending"),
@@ -37,9 +41,15 @@ class Video(models.Model):
     file = models.FileField(
         upload_to=user_directory_path,
         storage=get_default_storage(),
+        blank=True,
     )
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True)
+    source_type = models.CharField(
+        max_length=20, choices=SOURCE_TYPE_CHOICES, default="uploaded", db_index=True
+    )
+    source_url = models.URLField(blank=True)
+    youtube_video_id = models.CharField(max_length=32, blank=True, db_index=True)
     uploaded_at = models.DateTimeField(auto_now_add=True, db_index=True)
     transcript = models.TextField(blank=True)
     status = models.CharField(
@@ -55,6 +65,7 @@ class Video(models.Model):
         indexes = [
             models.Index(fields=["user", "status", "-uploaded_at"]),
             models.Index(fields=["user", "title"]),
+            models.Index(fields=["user", "source_type", "-uploaded_at"]),
         ]
 
     def __str__(self):

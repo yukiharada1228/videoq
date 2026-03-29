@@ -16,6 +16,7 @@ from app.contracts.media_validation import (
     InvalidMediaFileError,
     validate_video_media_file,
 )
+from app.use_cases.video.youtube import build_youtube_embed_url, extract_youtube_video_id
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +53,10 @@ class VideoListSerializer(serializers.Serializer):
     description = serializers.CharField()
     uploaded_at = serializers.DateTimeField()
     status = serializers.CharField()
+    source_type = serializers.CharField()
+    source_url = serializers.CharField(allow_null=True, required=False)
+    youtube_video_id = serializers.CharField(allow_null=True, required=False)
+    youtube_embed_url = serializers.SerializerMethodField()
     tags = serializers.SerializerMethodField()
 
     @extend_schema_field(serializers.ListField(child=serializers.DictField()))
@@ -64,6 +69,13 @@ class VideoListSerializer(serializers.Serializer):
     @extend_schema_field(serializers.CharField(allow_null=True))
     def get_file(self, obj):
         return _resolve_file_url(getattr(obj, "file_key", None), self.context)
+
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_youtube_embed_url(self, obj):
+        video_id = getattr(obj, "youtube_video_id", None)
+        if not video_id:
+            return None
+        return build_youtube_embed_url(video_id)
 
 
 class VideoSerializer(serializers.Serializer):
@@ -77,6 +89,10 @@ class VideoSerializer(serializers.Serializer):
     uploaded_at = serializers.DateTimeField()
     transcript = serializers.CharField(allow_null=True)
     status = serializers.CharField()
+    source_type = serializers.CharField()
+    source_url = serializers.CharField(allow_null=True, required=False)
+    youtube_video_id = serializers.CharField(allow_null=True, required=False)
+    youtube_embed_url = serializers.SerializerMethodField()
     error_message = serializers.CharField(allow_null=True)
     tags = serializers.SerializerMethodField()
 
@@ -90,6 +106,13 @@ class VideoSerializer(serializers.Serializer):
     @extend_schema_field(serializers.CharField(allow_null=True))
     def get_file(self, obj):
         return _resolve_file_url(getattr(obj, "file_key", None), self.context)
+
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_youtube_embed_url(self, obj):
+        video_id = getattr(obj, "youtube_video_id", None)
+        if not video_id:
+            return None
+        return build_youtube_embed_url(video_id)
 
 
 class VideoGroupListSerializer(serializers.Serializer):
@@ -265,6 +288,19 @@ class VideoCreateSerializer(serializers.Serializer):
         finally:
             if cleanup_path and os.path.exists(cleanup_path):
                 os.remove(cleanup_path)
+        return value
+
+
+class YoutubeVideoCreateSerializer(serializers.Serializer):
+    youtube_url = serializers.URLField()
+    title = serializers.CharField(max_length=255)
+    description = serializers.CharField(required=False, default="", allow_blank=True)
+
+    def validate_youtube_url(self, value):
+        try:
+            extract_youtube_video_id(value)
+        except Exception as exc:
+            raise serializers.ValidationError(str(exc)) from exc
         return value
 
 

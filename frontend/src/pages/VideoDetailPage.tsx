@@ -165,6 +165,7 @@ export default function VideoDetailPage() {
   const videoId = params?.id ? Number.parseInt(params.id, 10) : null;
   const videoRef = useRef<HTMLVideoElement>(null);
   const startTime = searchParams.get('t');
+  const [youtubeStartSeconds, setYoutubeStartSeconds] = useState<number | null>(null);
   const { t } = useTranslation();
   const locale = useLocale();
 
@@ -212,6 +213,14 @@ export default function VideoDetailPage() {
     }
   };
 
+  useEffect(() => {
+    if (!startTime) return;
+    const seconds = Number.parseInt(startTime, 10);
+    if (!Number.isNaN(seconds)) {
+      setYoutubeStartSeconds(seconds);
+    }
+  }, [startTime]);
+
   const { deleteMutation, updateMutation } = useVideoDetailPageMutations({
     videoId,
     onDeleteSuccess: () => navigate('/videos'),
@@ -236,7 +245,9 @@ export default function VideoDetailPage() {
   }, [transcriptSegments, transcriptSearch]);
 
   const handleSeek = (seconds: number, idx: number) => {
-    if (videoRef.current) {
+    if (video?.source_type === 'youtube') {
+      setYoutubeStartSeconds(seconds);
+    } else if (videoRef.current) {
       videoRef.current.currentTime = seconds;
       void videoRef.current.play();
     }
@@ -465,7 +476,17 @@ export default function VideoDetailPage() {
         <section className={`flex flex-col overflow-hidden bg-[#f8faf5] ${isMobile ? 'flex-1' : ''} ${isMobile && mobileTab !== 'video' ? 'hidden' : ''}`}>
           {/* Video player */}
           <div className="shrink-0 bg-[#1a1c1c] flex items-center justify-center" style={{ maxHeight: '55vh' }}>
-            {video.file ? (
+            {video.source_type === 'youtube' && video.youtube_embed_url ? (
+              <iframe
+                key={`${video.id}-${youtubeStartSeconds ?? 0}`}
+                className="w-full aspect-video"
+                style={{ maxHeight: '55vh' }}
+                src={`${video.youtube_embed_url}?autoplay=1&start=${youtubeStartSeconds ?? 0}`}
+                title={video.title}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            ) : video.file ? (
               <video
                 ref={videoRef}
                 controls

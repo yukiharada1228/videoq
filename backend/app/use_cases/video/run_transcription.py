@@ -9,7 +9,12 @@ from typing import Callable, Optional
 
 from app.domain.shared.transaction import TransactionPort
 from app.domain.user.repositories import UserRepository
-from app.domain.video.gateways import FileUploadGateway, TranscriptionGateway, VideoTaskGateway
+from app.domain.video.gateways import (
+    FileUploadGateway,
+    TranscriptionGateway,
+    VideoTaskGateway,
+    YoutubeTranscriptionGateway,
+)
 from app.domain.video.repositories import VideoRepository
 from app.domain.video.services import VideoTranscriptionLifecycle
 from app.use_cases.video.exceptions import (
@@ -68,6 +73,7 @@ class RunTranscriptionUseCase:
         duration_estimator: Optional[Callable[[int], Optional[int]]] = None,
         processing_limit_check_use_case=None,
         processing_record_use_case=None,
+        youtube_transcription_gateway: Optional[YoutubeTranscriptionGateway] = None,
     ):
         self.video_repo = video_repo
         self.transcription_gateway = transcription_gateway
@@ -78,6 +84,7 @@ class RunTranscriptionUseCase:
         self._duration_estimator = duration_estimator
         self._processing_limit_check_use_case = processing_limit_check_use_case
         self._processing_record_use_case = processing_record_use_case
+        self._youtube_transcription_gateway = youtube_transcription_gateway
 
     def _estimate_video_duration_seconds(self, video_id: int) -> Optional[int]:
         if self._duration_estimator is None:
@@ -126,7 +133,7 @@ class RunTranscriptionUseCase:
                         estimated_duration_seconds,
                     )
 
-            transcript = self.transcription_gateway.run(video_id, api_key=None)
+            transcript = self._run_transcription(video)
             with self.tx.atomic():
                 self.video_repo.save_transcript(video_id, transcript)
                 from_status, to_status = VideoTranscriptionLifecycle.plan_success()
@@ -162,3 +169,12 @@ class RunTranscriptionUseCase:
                         duration_seconds,
                         exc_info=True,
                     )
+
+    def _run_transcription(self, video) -> str:
+        if video.source_type == "youtube":
+            if not video.youtube_video_id:
+                raise RuntimeError("youtube_video_id is required for YouTube transcription.")
+            if self._youtube_transcription_gateway is None:
+                raise RuntimeError("YouTube transcription gateway is not configured.")
+            return self._youtube_transcription_gateway.run(video.youtube_video_id, api_key=None)
+        return self.transcription_gateway.run(video.id, api_key=None)

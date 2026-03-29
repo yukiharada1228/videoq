@@ -13,6 +13,7 @@ from .views import (
     VideoListView,
     VideoUploadConfirmView,
     VideoUploadRequestView,
+    YoutubeVideoCreateView,
     add_tags_to_video,
     add_videos_to_group,
     get_shared_group,
@@ -28,6 +29,13 @@ urlpatterns = [
             create_video_use_case=video_dependencies.get_create_video_use_case,
         ),
         name="video-list",
+    ),
+    path(
+        "youtube/",
+        YoutubeVideoCreateView.as_view(
+            create_youtube_video_use_case=video_dependencies.get_create_youtube_video_use_case,
+        ),
+        name="youtube-video-create",
     ),
     path(
         "upload-request/",

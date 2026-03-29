@@ -7,8 +7,8 @@ const mockGroup = {
   name: 'Shared Group',
   description: 'Shared Description',
   videos: [
-    { id: 1, title: 'Shared Video 1', description: 'Desc 1', status: 'completed', file: 'video1.mp4', order: 0 },
-    { id: 2, title: 'Shared Video 2', description: '', status: 'completed', file: 'video2.mp4', order: 1 },
+    { id: 1, title: 'Shared Video 1', description: 'Desc 1', status: 'completed', file: 'video1.mp4', source_type: 'uploaded', order: 0 },
+    { id: 2, title: 'Shared Video 2', description: '', status: 'completed', file: 'video2.mp4', source_type: 'uploaded', order: 1 },
   ],
 }
 

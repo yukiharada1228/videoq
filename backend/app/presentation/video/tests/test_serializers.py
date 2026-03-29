@@ -18,6 +18,7 @@ from app.presentation.video.serializers import (
     TagUpdateSerializer,
     VideoCreateSerializer,
     VideoGroupDetailSerializer,
+    YoutubeVideoCreateSerializer,
     VideoSerializer,
 )
 
@@ -301,6 +302,54 @@ class VideoSerializerTests(TestCase):
         self.assertIn("id", data["tags"][0])
         self.assertIn("name", data["tags"][0])
         self.assertIn("color", data["tags"][0])
+
+    def test_includes_youtube_source_fields(self):
+        from app.domain.video.entities import VideoEntity
+
+        video_entity = VideoEntity(
+            id=self.video.id,
+            user_id=self.user.id,
+            title="YouTube Video",
+            status="completed",
+            description="Test Description",
+            source_type="youtube",
+            source_url="https://youtu.be/dQw4w9WgXcQ",
+            youtube_video_id="dQw4w9WgXcQ",
+        )
+
+        serializer = VideoSerializer(video_entity)
+        data = serializer.data
+
+        self.assertEqual(data["source_type"], "youtube")
+        self.assertEqual(data["source_url"], "https://youtu.be/dQw4w9WgXcQ")
+        self.assertEqual(
+            data["youtube_embed_url"],
+            "https://www.youtube.com/embed/dQw4w9WgXcQ",
+        )
+
+
+class YoutubeVideoCreateSerializerTests(TestCase):
+    def test_accepts_valid_youtube_url(self):
+        serializer = YoutubeVideoCreateSerializer(
+            data={
+                "youtube_url": "https://youtu.be/dQw4w9WgXcQ",
+                "title": "Test",
+                "description": "desc",
+            }
+        )
+
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+
+    def test_rejects_invalid_youtube_url(self):
+        serializer = YoutubeVideoCreateSerializer(
+            data={
+                "youtube_url": "https://example.com/video",
+                "title": "Test",
+            }
+        )
+
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("youtube_url", serializer.errors)
 
 
 class VideoGroupDetailSerializerTests(TestCase):
