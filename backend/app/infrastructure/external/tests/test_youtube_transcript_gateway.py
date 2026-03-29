@@ -83,6 +83,27 @@ class YoutubeTranscriptGatewayTests(TestCase):
         self.assertEqual(len(transport.calls), 1)
         self.assertEqual(transport.calls[0][0]["only_available"], "true")
 
+    def test_estimates_duration_from_last_transcript_segment(self):
+        transport = _FakeTransport(
+            {
+                (
+                    ("only_available", "true"),
+                    ("transcript_type", "manual"),
+                    ("video_id", "abc123def45"),
+                ): {
+                    "transcripts": [
+                        {"text": "first", "start": 0.0, "duration": 2.0},
+                        {"text": "second", "start": 7.2, "duration": 1.1},
+                    ]
+                }
+            }
+        )
+        gateway = YoutubeTranscriptGateway(transport=transport)
+
+        result = gateway.estimate_duration_seconds("abc123def45", api_key="searchapi-test-key")
+
+        self.assertEqual(result, 9)
+
     @patch("app.infrastructure.external.youtube_transcript_gateway.apply_scene_splitting")
     def test_raises_when_no_transcripts_are_available(self, _mock_apply_scene_splitting):
         transport = _FakeTransport({})
