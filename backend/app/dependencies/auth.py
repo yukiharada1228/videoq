@@ -51,6 +51,18 @@ def get_revoke_api_key_use_case():
     return _cr.get_revoke_api_key_use_case()
 
 
+def get_searchapi_key_status_use_case():
+    return _cr.get_searchapi_key_status_use_case()
+
+
+def get_set_searchapi_key_use_case():
+    return _cr.get_set_searchapi_key_use_case()
+
+
+def get_delete_searchapi_key_use_case():
+    return _cr.get_delete_searchapi_key_use_case()
+
+
 def get_authorize_api_key_use_case():
     return _cr.get_authorize_api_key_use_case()
 

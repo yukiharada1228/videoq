@@ -1,27 +1,48 @@
 from __future__ import annotations
 
+import json
+import socket
+import time
+from urllib.error import HTTPError, URLError
+from urllib.parse import urlencode
+from urllib.request import Request, urlopen
+
+from django.conf import settings
+
 from app.domain.video.gateways import YoutubeTranscriptionGateway
+from app.infrastructure.transcription.srt_processing import apply_scene_splitting
 
 
 class YoutubeTranscriptGateway(YoutubeTranscriptionGateway):
     def __init__(
         self,
         *,
-        preferred_languages: tuple[str, ...] = ("ja", "en"),
-        api_factory=None,
+        base_url: str = "https://www.searchapi.io/api/v1/search",
+        timeout_seconds: int | None = None,
+        max_retries: int = 1,
+        transport=None,
     ):
-        self.preferred_languages = preferred_languages
-        self._api_factory = api_factory
+        self.base_url = base_url
+        self.timeout_seconds = timeout_seconds or getattr(
+            settings, "SEARCHAPI_TIMEOUT_SECONDS", 60
+        )
+        self.max_retries = max_retries
+        self._transport = transport
 
     def run(self, youtube_video_id: str, api_key=None) -> str:
-        del api_key
+        if not api_key:
+            raise RuntimeError(
+                "SearchAPI API key is not configured. Set your SearchAPI API key in Settings before importing YouTube videos."
+            )
 
-        transcript = self._select_transcript(youtube_video_id)
+        transcript = self._select_transcript(youtube_video_id, api_key)
         blocks = []
         for index, item in enumerate(transcript, start=1):
-            start_ms = int(item.start * 1000)
-            end_ms = int((item.start + item.duration) * 1000)
-            text = str(item.text).replace("\n", " ").strip()
+            start = float(item.get("start", 0))
+            duration = float(item.get("duration", 0))
+            start_ms = int(start * 1000)
+            end_ms = int((start + duration) * 1000)
+            text = str(item.get("text", "")).replace("\n", " ").strip()
             if not text:
                 continue
             blocks.append(
@@ -29,44 +50,88 @@ class YoutubeTranscriptGateway(YoutubeTranscriptionGateway):
             )
         if not blocks:
             raise RuntimeError("No transcript available for this YouTube video.")
-        return "\n\n".join(blocks) + "\n"
+        srt_content = "\n\n".join(blocks) + "\n"
+        scene_split_srt, _ = apply_scene_splitting(
+            srt_content,
+            getattr(settings, "OPENAI_API_KEY", None),
+            len(blocks),
+        )
+        return scene_split_srt
 
-    def _build_api(self):
-        if self._api_factory is not None:
-            return self._api_factory()
-        try:
-            from youtube_transcript_api import YouTubeTranscriptApi
-        except ImportError as exc:
-            raise RuntimeError("youtube-transcript-api is not installed.") from exc
-        return YouTubeTranscriptApi()
+    def _select_transcript(self, youtube_video_id: str, api_key: str):
+        attempts = [
+            {
+                "video_id": youtube_video_id,
+                "transcript_type": "manual",
+                "only_available": "true",
+            },
+            {
+                "video_id": youtube_video_id,
+                "transcript_type": "auto",
+                "only_available": "true",
+            },
+        ]
 
-    def _select_transcript(self, youtube_video_id: str):
-        transcript_list = self._build_api().list(youtube_video_id)
-        try:
-            return transcript_list.find_transcript(list(self.preferred_languages)).fetch()
-        except Exception:
-            fallback = next(iter(transcript_list), None)
-            if fallback is None:
-                raise
-            transcript = self._translate_if_possible(fallback)
-            return transcript.fetch()
+        last_error: RuntimeError | None = None
+        for params in attempts:
+            response = self._fetch_transcript_response(params, api_key)
+            transcripts = response.get("transcripts") or []
+            if transcripts:
+                return transcripts
 
-    def _translate_if_possible(self, transcript):
-        language_code = getattr(transcript, "language_code", None)
-        if language_code in self.preferred_languages:
-            return transcript
-        if not getattr(transcript, "is_translatable", False):
-            return transcript
+            available_languages = response.get("available_languages") or []
+            if available_languages:
+                last_error = RuntimeError(
+                    "No YouTube transcript was returned. Available languages: "
+                    + ", ".join(
+                        str(entry.get("lang") or entry.get("name"))
+                        for entry in available_languages
+                        if isinstance(entry, dict)
+                    )
+                )
 
-        available_translation_codes = {
-            entry.get("language_code")
-            for entry in getattr(transcript, "translation_languages", [])
-            if isinstance(entry, dict)
-        }
-        for language in reversed(self.preferred_languages):
-            if language in available_translation_codes:
-                return transcript.translate(language)
-        return transcript
+        if last_error is not None:
+            raise last_error
+        raise RuntimeError("No transcript available for this YouTube video.")
+
+    def _fetch_transcript_response(self, params: dict[str, str], api_key: str) -> dict:
+        query = {"engine": "youtube_transcripts", **params}
+        if self._transport is not None:
+            return self._transport(query, api_key)
+
+        request = Request(
+            f"{self.base_url}?{urlencode(query)}",
+            headers={
+                "Accept": "application/json",
+                "Authorization": f"Bearer {api_key}",
+            },
+        )
+        attempts = self.max_retries + 1
+        last_error: Exception | None = None
+
+        for attempt in range(attempts):
+            try:
+                with urlopen(request, timeout=self.timeout_seconds) as response:
+                    return json.loads(response.read().decode("utf-8"))
+            except HTTPError as exc:
+                detail = exc.read().decode("utf-8", errors="ignore")
+                message = detail or exc.reason
+                raise RuntimeError(f"SearchAPI request failed: {message}") from exc
+            except (TimeoutError, socket.timeout) as exc:
+                last_error = exc
+            except URLError as exc:
+                if isinstance(exc.reason, (TimeoutError, socket.timeout)):
+                    last_error = exc
+                else:
+                    raise RuntimeError(f"SearchAPI request failed: {exc.reason}") from exc
+
+            if attempt < self.max_retries:
+                time.sleep(1.0)
+
+        raise RuntimeError(
+            f"SearchAPI request timed out after {attempts} attempts. "
+            "Please try again in a moment."
+        ) from last_error
 
 
 def _format_srt_time(total_ms: int) -> str:
