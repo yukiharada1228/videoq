@@ -410,6 +410,8 @@
       "editTitle": "グループを編集",
       "breadcrumbGroups": "動画グループ",
       "shareLinkLabel": "共有リンク:",
+      "shareSlugPlaceholder": "共有リンクを入力",
+      "shareSlugHelp": "3〜64文字。英小文字、数字、ハイフンのみ使えます",
       "copyButton": "コピー",
       "status": {
         "completed": "完了",

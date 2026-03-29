@@ -410,6 +410,8 @@
       "editTitle": "Edit group",
       "breadcrumbGroups": "Video groups",
       "shareLinkLabel": "Share link:",
+      "shareSlugPlaceholder": "Enter a share link",
+      "shareSlugHelp": "3-64 chars, lowercase letters, numbers, and hyphens only",
       "copyButton": "Copy",
       "status": {
         "completed": "Completed",
