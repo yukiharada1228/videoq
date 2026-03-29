@@ -310,7 +310,7 @@ export default function SettingsPage() {
                 <p className="text-xs text-[#6f7a6e]">
                   {t('settings.searchApiKey.getApiKeyMessage')}{' '}
                   <a
-                    href="https://www.searchapi.io/docs/youtube-transcripts"
+                    href="https://www.searchapi.io/"
                     target="_blank"
                     rel="noreferrer"
                     className="font-semibold text-[#00652c] underline decoration-[#00652c]/35 underline-offset-2"
