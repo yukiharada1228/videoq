@@ -87,6 +87,10 @@ def get_create_video_use_case():
     return core.get_create_video_use_case()
 
 
+def get_create_youtube_video_use_case():
+    return core.get_create_youtube_video_use_case()
+
+
 def get_video_task_gateway() -> VideoTaskGateway:
     return shared.get_video_task_gateway()
 

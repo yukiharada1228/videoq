@@ -39,7 +39,10 @@ class VideoEntity:
     title: str
     status: str
     description: str = ""
+    source_type: str = "uploaded"
     file_key: Optional[str] = None  # storage path persisted in repository
+    source_url: Optional[str] = None
+    youtube_video_id: Optional[str] = None
     error_message: Optional[str] = None
     uploaded_at: Optional[datetime] = None
     transcript: Optional[str] = None

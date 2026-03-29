@@ -260,18 +260,25 @@
       "fileLabel": "ファイル",
       "titleLabel": "タイトル *",
       "descriptionLabel": "説明",
+      "youtubeUrlLabel": "YouTube URL",
+      "youtubeUrlPlaceholder": "https://www.youtube.com/watch?v=...",
       "groupLabel": "チャットグループ（任意）",
       "groupNone": "グループに追加しない",
       "groupHelp": "選択したチャットグループに動画を追加します。",
       "titlePlaceholder": "{{fileName}}（デフォルト）",
       "titleEmptyPlaceholder": "動画のタイトルを入力",
       "descriptionPlaceholder": "動画の説明（任意）",
+      "modes": {
+        "file": "ファイルアップロード",
+        "youtube": "YouTube URL登録"
+      },
       "success": "アップロード成功！",
       "cancel": "キャンセル",
       "upload": "アップロード",
       "uploading": "アップロード中...",
       "validation": {
         "noFile": "ファイルを選択してください",
+        "noYoutubeUrl": "YouTube URLを入力してください",
         "noTitle": "タイトルを入力してください",
         "invalidFileType": "対応している動画ファイルを選択してください",
         "fileTooLarge": "選択したファイルはアップロード上限（{{max_size_mb}} MB）を超えています",
@@ -986,6 +993,30 @@
           "heading": "8. お問い合わせ",
           "body": "本プライバシーポリシーに関するご質問やご要望は、以下までご連絡ください。\nメール："
         }
+      }
+    }
+  },
+  "landing": {
+    "hero": {
+      "title": "あらゆるビデオを、最高の学びの体験へ",
+      "subtitle": "AI動画学習プラットフォーム",
+      "description": "動画をアップロードしてOpenAI Whisperで自動文字起こし。RAGチャットで動画の内容に自然言語で質問できます。",
+      "ctaSignup": "無料で始める",
+      "ctaDocs": "開発者ドキュメント"
+    },
+    "features": {
+      "title": "主な機能",
+      "transcription": {
+        "title": "自動文字起こし",
+        "description": "OpenAI Whisperによる高精度な文字起こし"
+      },
+      "chat": {
+        "title": "RAGチャット",
+        "description": "動画の内容に自然言語で質問できます"
+      },
+      "api": {
+        "title": "OpenAI互換API",
+        "description": "既存のOpenAIクライアントやSDKでビデオライブラリを操作できます"
       }
     }
   }

@@ -74,6 +74,10 @@ class TranscriptionExecutionFailed(Exception):
         super().__init__(f"Transcription failed for video {video_id}: {reason}")
 
 
+class InvalidYoutubeUrl(ValueError):
+    """Raised when a YouTube URL cannot be parsed into a valid video ID."""
+
+
 class IndexingTargetMissing(Exception):
     """Raised when the video to index cannot be found or has no transcript."""
 
@@ -97,6 +101,7 @@ __all__ = [
     "IndexingExecutionFailed",
     "IndexingTargetMissing",
     "InvalidTagInput",
+    "InvalidYoutubeUrl",
     "InvalidUploadState",
     "PermissionDenied",
     "ResourceNotFound",
