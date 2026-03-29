@@ -702,13 +702,6 @@
       "settingsLink": "Go to Settings"
     }
   },
-  "shorts": {
-    "button": "Short Videos",
-    "noScenes": "No scenes to display",
-    "referenceCount": "{{count}} references",
-    "tapToPlay": "Tap to play",
-    "question": "Question"
-  },
   "dashboard": {
     "button": "Dashboard",
     "title": "Educational Improvement Dashboard",

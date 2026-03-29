@@ -337,12 +337,6 @@ flowchart TD
     ComputeAnalytics --> Response2[Analytics Response]
     Response2 --> Frontend
 
-    Scenes --> API3[GET /api/chat/popular-scenes/?group_id=:id]
-    API3 --> GetSceneLogs[(Database<br>Scene Logs)]
-    GetSceneLogs --> AggregateScenes[Aggregate Scenes<br>+ Related Questions]
-    AggregateScenes --> Response3[Popular Scenes]
-    Response3 --> Frontend
-
     Export --> API4[GET /api/chat/history/export/?group_id=:id]
     API4 --> GetAllLogs[(Database<br>All ChatLogs)]
     GetAllLogs --> FormatCSV[Format as CSV]

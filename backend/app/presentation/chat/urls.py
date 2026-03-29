@@ -7,7 +7,6 @@ from .views import (
     ChatFeedbackView,
     ChatHistoryView,
     ChatView,
-    PopularScenesView,
 )
 
 urlpatterns = [
@@ -30,13 +29,6 @@ urlpatterns = [
             submit_feedback_use_case=chat_dependencies.get_submit_feedback_use_case
         ),
         name="chat-feedback",
-    ),
-    path(
-        "popular-scenes/",
-        PopularScenesView.as_view(
-            popular_scenes_use_case=chat_dependencies.get_popular_scenes_use_case
-        ),
-        name="popular-scenes",
     ),
     path(
         "analytics/",
