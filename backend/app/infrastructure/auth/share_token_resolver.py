@@ -7,10 +7,10 @@ from app.infrastructure.models import VideoGroup
 
 
 class DjangoShareTokenResolver:
-    def resolve(self, token: str) -> ShareAuthContextDTO | None:
+    def resolve(self, share_slug: str) -> ShareAuthContextDTO | None:
         group = (
-            VideoGroup.objects.filter(share_token=token).only("id", "share_token").first()
+            VideoGroup.objects.filter(share_slug=share_slug).only("id", "share_slug").first()
         )
         if group is None:
             return None
-        return ShareAuthContextDTO(share_token=token, group_id=group.id)
+        return ShareAuthContextDTO(share_slug=group.share_slug, group_id=group.id)

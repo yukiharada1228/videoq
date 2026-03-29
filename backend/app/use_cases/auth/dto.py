@@ -56,7 +56,7 @@ class SearchApiKeyStatusOutput:
 class ResolvedShareTokenOutput:
     """Use-case output DTO for resolved share-token auth context."""
 
-    share_token: str
+    share_slug: str
     group_id: int
 
 

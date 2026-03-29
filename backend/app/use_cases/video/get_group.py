@@ -33,7 +33,7 @@ class GetVideoGroupUseCase:
 
 
 class GetSharedGroupUseCase:
-    """Retrieve a group by share token."""
+    """Retrieve a group by share slug."""
 
     def __init__(
         self,
@@ -41,12 +41,12 @@ class GetSharedGroupUseCase:
     ):
         self.group_repo = group_repo
 
-    def execute(self, share_token: str) -> VideoGroupDetailResponseDTO:
+    def execute(self, share_slug: str) -> VideoGroupDetailResponseDTO:
         """
         Raises:
-            ResourceNotFound: If the share token is invalid.
+            ResourceNotFound: If the share slug is invalid.
         """
-        group = self.group_repo.get_by_share_token(share_token=share_token)
+        group = self.group_repo.get_by_share_slug(share_slug=share_slug)
         if group is None:
             raise ResourceNotFound("Group")
         return to_group_detail_response_dto(group)

@@ -29,9 +29,11 @@ from app.use_cases.video.dto import (
 from app.use_cases.video.exceptions import (
     FileSizeExceeded,
     GroupVideoOrderMismatch,
+    InvalidShareSlugInput,
     InvalidTagInput,
     InvalidUploadState,
     ResourceNotFound,
+    ShareSlugAlreadyExists,
     VideoAlreadyInGroup,
     VideoNotInGroup,
 )
@@ -45,6 +47,7 @@ from .serializers import (
     AddVideosToGroupRequestSerializer,
     AddVideosToGroupResponseSerializer,
     ReorderVideosRequestSerializer,
+    ShareLinkRequestSerializer,
     ShareLinkResponseSerializer,
     TagCreateSerializer,
     TagDetailSerializer,
@@ -631,19 +634,32 @@ class CreateShareLinkView(DependencyResolverMixin, AuthenticatedViewMixin, APIVi
     delete_share_link_use_case = None
 
     @extend_schema(
+        request=ShareLinkRequestSerializer,
         responses={201: ShareLinkResponseSerializer},
         summary="Create share link",
-        description="Generate a share link token for a group.",
+        description="Create or update a share slug for a group.",
     )
     def post(self, request, group_id):
+        serializer = ShareLinkRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
         use_case = self.resolve_dependency(self.create_share_link_use_case)
         try:
-            share_token = use_case.execute(group_id, request.user.id)
+            share_slug = use_case.execute(
+                group_id,
+                request.user.id,
+                serializer.validated_data["share_slug"],
+            )
         except ResourceNotFound as e:
             return create_error_response(_not_found_message(e), status.HTTP_404_NOT_FOUND)
+        except InvalidShareSlugInput as e:
+            return create_error_response(str(e), status.HTTP_400_BAD_REQUEST)
+        except ShareSlugAlreadyExists as e:
+            return create_error_response(
+                str(e), status.HTTP_409_CONFLICT, code="CONFLICT"
+            )
 
         return Response(
-            {"message": "Share link generated", "share_token": share_token},
+            {"message": "Share link saved", "share_slug": share_slug},
             status=status.HTTP_201_CREATED,
         )
 
@@ -668,20 +684,20 @@ class CreateShareLinkView(DependencyResolverMixin, AuthenticatedViewMixin, APIVi
 @extend_schema(
     responses={200: VideoGroupDetailSerializer},
     summary="Get shared group",
-    description="Return a publicly shared group by share token.",
+    description="Return a publicly shared group by share slug.",
 )
 @api_view(["GET"])
 @permission_classes([AllowAny])
 @throttle_classes([ShareTokenIPThrottle])
 def get_shared_group(
     request,
-    share_token,
+    share_slug,
     shared_group_use_case,
 ):
-    """Get group by share token (no authentication required)."""
+    """Get group by share slug (no authentication required)."""
     use_case = DependencyResolverMixin.resolve_dependency(shared_group_use_case)
     try:
-        group = use_case.execute(share_token)
+        group = use_case.execute(share_slug)
     except ResourceNotFound:
         return create_error_response("Share link not found", status.HTTP_404_NOT_FOUND)
 
