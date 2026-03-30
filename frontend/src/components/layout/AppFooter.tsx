@@ -17,6 +17,9 @@ export function AppFooter() {
           <span>VideoQ</span>
         </div>
         <div className="flex flex-wrap justify-center gap-x-6 gap-y-1">
+          <Link to="/use-cases/education" className="text-xs text-stone-500 hover:text-stone-700">
+            {t('useCases.education.footer.link')}
+          </Link>
           <Link to="/terms" className="text-xs text-stone-500 hover:text-stone-700">
             {t('legal.terms.title')}
           </Link>
