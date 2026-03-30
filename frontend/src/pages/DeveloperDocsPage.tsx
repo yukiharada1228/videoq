@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from '@/lib/i18n';
 import { AppPageShell } from '@/components/layout/AppPageShell';
 import { AppPageHeader } from '@/components/layout/AppPageHeader';
+import { SeoHead } from '@/components/seo/SeoHead';
 import { Lock, Video, MessageCircle, Sparkles, ArrowRight, FileCode2, KeyRound } from 'lucide-react';
 
 const sectionIds = ['auth', 'videos', 'chat', 'openai'] as const;
@@ -26,6 +27,11 @@ export default function DeveloperDocsPage() {
 
   return (
     <AppPageShell activePage="docs">
+      <SeoHead
+        title={t('seo.docs.home.title')}
+        description={t('seo.docs.home.description')}
+        path="/docs"
+      />
       <AppPageHeader
         title={t('docs.home.title')}
         description={t('docs.home.subtitle')}

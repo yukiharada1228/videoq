@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { AppPageShell } from '@/components/layout/AppPageShell';
 import { AppPageHeader } from '@/components/layout/AppPageHeader';
+import { SeoHead } from '@/components/seo/SeoHead';
 import { operatorConfig } from '@/lib/operatorConfig';
 
 const sections = [
@@ -18,6 +19,11 @@ export default function PrivacyPolicyPage() {
 
   return (
     <AppPageShell isPublic>
+      <SeoHead
+        title={t('seo.privacy.title')}
+        description={t('seo.privacy.description')}
+        path="/privacy"
+      />
       <AppPageHeader title={t('legal.privacy.title')} />
       <div className="space-y-8 rounded-xl border border-stone-200 bg-white p-6 sm:p-8">
         {sections.map((section) => (

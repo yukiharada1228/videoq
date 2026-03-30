@@ -1,7 +1,16 @@
 import { render, screen } from '@testing-library/react'
 import UseCaseCorporateTrainingPage from '../UseCaseCorporateTrainingPage'
+import { AppNav } from '@/components/layout/AppNav'
+
+vi.mock('@/components/layout/AppNav', () => ({
+  AppNav: vi.fn(() => null),
+}))
 
 describe('UseCaseCorporateTrainingPage', () => {
+  afterEach(() => {
+    globalThis.__setMockLanguage('en')
+  })
+
   describe('Hero section', () => {
     it('renders hero title', () => {
       render(<UseCaseCorporateTrainingPage />)
@@ -130,10 +139,24 @@ describe('UseCaseCorporateTrainingPage', () => {
     })
   })
 
-  describe('SEO', () => {
-    it('sets document.title on mount', () => {
+  describe('Navbar', () => {
+    it('passes activePage="home" to AppNav', () => {
       render(<UseCaseCorporateTrainingPage />)
-      expect(document.title).toBe('社内研修動画をAI検索 | VideoQ 企業研修向け')
+      expect(vi.mocked(AppNav)).toHaveBeenCalledWith(
+        expect.objectContaining({ activePage: 'home' }),
+        undefined,
+      )
+    })
+  })
+
+  describe('SEO', () => {
+    it('sets english metadata on mount', () => {
+      globalThis.__setMockLanguage('en')
+      render(<UseCaseCorporateTrainingPage />)
+      expect(document.title).toBe('Corporate Training Use Case | VideoQ')
+      expect(document.querySelector('meta[name="description"]')?.getAttribute('content')).toBe(
+        'VideoQ for corporate training: transcribe training videos, power self-serve search, and integrate with internal tools.'
+      )
     })
 
     it('injects FAQPage schema on mount', () => {
@@ -154,61 +177,35 @@ describe('UseCaseCorporateTrainingPage', () => {
     })
 
     it('sets canonical href to EN URL on mount (en locale)', () => {
-      const link = document.createElement('link')
-      link.rel = 'canonical'
-      link.href = 'https://videoq.jp/'
-      document.head.appendChild(link)
-
+      globalThis.__setMockLanguage('en')
       render(<UseCaseCorporateTrainingPage />)
       expect(document.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(
         'https://videoq.jp/use-cases/corporate-training'
       )
-
-      link.remove()
-    })
-
-    it('restores canonical href on unmount', () => {
-      const link = document.createElement('link')
-      link.rel = 'canonical'
-      link.href = 'https://videoq.jp/'
-      document.head.appendChild(link)
-
-      const { unmount } = render(<UseCaseCorporateTrainingPage />)
-      unmount()
-      expect(document.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(
-        'https://videoq.jp/'
-      )
-
-      link.remove()
     })
 
     it('sets og:url to EN URL on mount', () => {
-      const meta = document.createElement('meta')
-      meta.setAttribute('property', 'og:url')
-      meta.setAttribute('content', 'https://videoq.jp/')
-      document.head.appendChild(meta)
-
+      globalThis.__setMockLanguage('en')
       render(<UseCaseCorporateTrainingPage />)
       expect(
         document.querySelector('meta[property="og:url"]')?.getAttribute('content')
       ).toBe('https://videoq.jp/use-cases/corporate-training')
-
-      meta.remove()
     })
 
-    it('restores og:url on unmount', () => {
-      const meta = document.createElement('meta')
-      meta.setAttribute('property', 'og:url')
-      meta.setAttribute('content', 'https://videoq.jp/')
-      document.head.appendChild(meta)
+    it('switches metadata for japanese locale', () => {
+      globalThis.__setMockLanguage('ja')
+      render(<UseCaseCorporateTrainingPage />)
 
-      const { unmount } = render(<UseCaseCorporateTrainingPage />)
-      unmount()
+      expect(document.title).toBe('企業研修向け | VideoQ')
+      expect(document.querySelector('meta[name="description"]')?.getAttribute('content')).toBe(
+        '企業研修向け VideoQ。社内研修動画を文字起こしし、社員が必要な場面を検索・質問できます。'
+      )
+      expect(document.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(
+        'https://videoq.jp/ja/use-cases/corporate-training'
+      )
       expect(
         document.querySelector('meta[property="og:url"]')?.getAttribute('content')
-      ).toBe('https://videoq.jp/')
-
-      meta.remove()
+      ).toBe('https://videoq.jp/ja/use-cases/corporate-training')
     })
   })
 })

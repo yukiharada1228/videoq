@@ -1178,5 +1178,49 @@
         "link": "企業研修向け"
       }
     }
+  },
+  "seo": {
+    "docs": {
+      "home": {
+        "title": "開発者ドキュメント | VideoQ",
+        "description": "VideoQ API リファレンス。認証、動画、チャット、OpenAI互換 API をまとめて確認できます。"
+      },
+      "sections": {
+        "auth": {
+          "title": "認証 API | VideoQ 開発者ドキュメント",
+          "description": "VideoQ の連携用 API キーを発行し、サーバー間認証で利用する方法。"
+        },
+        "videos": {
+          "title": "動画 API | VideoQ 開発者ドキュメント",
+          "description": "動画アップロード、処理状態の確認、動画グループ管理を行うための VideoQ API リファレンス。"
+        },
+        "chat": {
+          "title": "チャット API | VideoQ 開発者ドキュメント",
+          "description": "インデックス済み動画グループへの RAG チャット実行と分析取得のための VideoQ API リファレンス。"
+        },
+        "openai": {
+          "title": "OpenAI互換 API | VideoQ 開発者ドキュメント",
+          "description": "OpenAI SDK からそのまま使える VideoQ の OpenAI互換 API で動画 RAG チャットを実行できます。"
+        }
+      }
+    },
+    "terms": {
+      "title": "利用規約 | VideoQ",
+      "description": "VideoQ のアカウント、課金、禁止事項、免責事項などを定めた利用規約です。"
+    },
+    "privacy": {
+      "title": "プライバシーポリシー | VideoQ",
+      "description": "VideoQ が個人情報やアップロード動画をどのように収集・利用・保護するかを説明します。"
+    },
+    "useCases": {
+      "education": {
+        "title": "教育向け | VideoQ",
+        "description": "教育機関向け VideoQ。授業・講義動画を文字起こしし、学生が自然言語で検索・質問できます。"
+      },
+      "corporateTraining": {
+        "title": "企業研修向け | VideoQ",
+        "description": "企業研修向け VideoQ。社内研修動画を文字起こしし、社員が必要な場面を検索・質問できます。"
+      }
+    }
   }
 }
