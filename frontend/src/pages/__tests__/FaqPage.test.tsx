@@ -118,6 +118,34 @@ describe('FaqPage', () => {
       )
     })
 
+    it('sets OG tags for english', () => {
+      globalThis.__setMockLanguage('en')
+      render(<FaqPage />)
+      expect(
+        document.querySelector('meta[property="og:title"]')?.getAttribute('content')
+      ).toBe('FAQ | VideoQ')
+      expect(
+        document.querySelector('meta[property="og:description"]')?.getAttribute('content')
+      ).toBe('Frequently asked questions about VideoQ: pricing, features, security, and more.')
+      expect(
+        document.querySelector('meta[property="og:url"]')?.getAttribute('content')
+      ).toBe('https://videoq.jp/faq')
+    })
+
+    it('sets OG tags for japanese', () => {
+      globalThis.__setMockLanguage('ja')
+      render(<FaqPage />)
+      expect(
+        document.querySelector('meta[property="og:title"]')?.getAttribute('content')
+      ).toBe('よくある質問 | VideoQ')
+      expect(
+        document.querySelector('meta[property="og:description"]')?.getAttribute('content')
+      ).toBe('VideoQ のよくある質問。料金・機能・セキュリティ・API 連携などをまとめています。')
+      expect(
+        document.querySelector('meta[property="og:url"]')?.getAttribute('content')
+      ).toBe('https://videoq.jp/ja/faq')
+    })
+
     it('injects FAQPage JSON-LD schema with at least 10 entries', () => {
       render(<FaqPage />)
       const script = document.getElementById('faq-schema-faq')
