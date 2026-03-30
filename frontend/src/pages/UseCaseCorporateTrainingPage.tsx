@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Helmet } from 'react-helmet-async';
 import {
   Archive,
   ShieldCheck,
@@ -11,11 +11,8 @@ import {
   CheckCircle,
 } from 'lucide-react';
 import { AppPageShell } from '@/components/layout/AppPageShell';
-import { Link, useLocale } from '@/lib/i18n';
-
-const BASE_URL = 'https://videoq.jp';
-const EN_URL = `${BASE_URL}/use-cases/corporate-training`;
-const JA_URL = `${BASE_URL}/ja/use-cases/corporate-training`;
+import { Link } from '@/lib/i18n';
+import { SeoHead } from '@/components/seo/SeoHead';
 
 const CONTAINER = 'max-w-screen-xl mx-auto px-6 lg:px-8';
 
@@ -52,72 +49,19 @@ const FAQ_SCHEMA = {
 
 export default function UseCaseCorporateTrainingPage() {
   const { t } = useTranslation();
-  const locale = useLocale();
-  const currentUrl = locale === 'ja' ? JA_URL : EN_URL;
-
-  useEffect(() => {
-    // title
-    const prevTitle = document.title;
-    document.title = '社内研修動画をAI検索 | VideoQ 企業研修向け';
-
-    // meta description
-    const metaDesc = document.querySelector<HTMLMetaElement>('meta[name="description"]');
-    const prevDesc = metaDesc?.getAttribute('content') ?? '';
-    metaDesc?.setAttribute(
-      'content',
-      'VideoQ は企業研修向け AI 動画プラットフォームです。社内研修動画を Whisper で文字起こしし、社員が AI チャットで必要な場面を即検索。新入社員研修・コンプライアンス・業務マニュアルに対応。',
-    );
-
-    // canonical
-    const canonicalEl = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
-    const prevCanonical = canonicalEl?.getAttribute('href') ?? '';
-    canonicalEl?.setAttribute('href', currentUrl);
-
-    // hreflang alternates
-    const hreflangEn = document.querySelector<HTMLLinkElement>('link[rel="alternate"][hreflang="en"]');
-    const hreflangJa = document.querySelector<HTMLLinkElement>('link[rel="alternate"][hreflang="ja"]');
-    const hreflangXDefault = document.querySelector<HTMLLinkElement>('link[rel="alternate"][hreflang="x-default"]');
-    const prevHreflangEn = hreflangEn?.getAttribute('href') ?? '';
-    const prevHreflangJa = hreflangJa?.getAttribute('href') ?? '';
-    const prevHreflangXDefault = hreflangXDefault?.getAttribute('href') ?? '';
-    hreflangEn?.setAttribute('href', EN_URL);
-    hreflangJa?.setAttribute('href', JA_URL);
-    hreflangXDefault?.setAttribute('href', EN_URL);
-
-    // OGP
-    const ogTitle = document.querySelector<HTMLMetaElement>('meta[property="og:title"]');
-    const ogDesc = document.querySelector<HTMLMetaElement>('meta[property="og:description"]');
-    const ogUrl = document.querySelector<HTMLMetaElement>('meta[property="og:url"]');
-    const prevOgTitle = ogTitle?.getAttribute('content') ?? '';
-    const prevOgDesc = ogDesc?.getAttribute('content') ?? '';
-    const prevOgUrl = ogUrl?.getAttribute('content') ?? '';
-    ogTitle?.setAttribute('content', '社内研修動画をAI検索 | VideoQ 企業研修向け');
-    ogDesc?.setAttribute('content', 'VideoQ は企業研修向け AI 動画プラットフォームです。社内研修動画を Whisper で文字起こしし、社員が AI チャットで必要な場面を即検索できます。');
-    ogUrl?.setAttribute('content', currentUrl);
-
-    // FAQPage schema
-    const script = document.createElement('script');
-    script.type = 'application/ld+json';
-    script.id = 'faq-schema-corporate-training';
-    script.textContent = JSON.stringify(FAQ_SCHEMA);
-    document.head.appendChild(script);
-
-    return () => {
-      document.title = prevTitle;
-      metaDesc?.setAttribute('content', prevDesc);
-      canonicalEl?.setAttribute('href', prevCanonical);
-      hreflangEn?.setAttribute('href', prevHreflangEn);
-      hreflangJa?.setAttribute('href', prevHreflangJa);
-      hreflangXDefault?.setAttribute('href', prevHreflangXDefault);
-      ogTitle?.setAttribute('content', prevOgTitle);
-      ogDesc?.setAttribute('content', prevOgDesc);
-      ogUrl?.setAttribute('content', prevOgUrl);
-      document.getElementById('faq-schema-corporate-training')?.remove();
-    };
-  }, [currentUrl]);
 
   return (
-    <AppPageShell isPublic contentClassName="w-full px-0">
+    <AppPageShell activePage="home" isPublic contentClassName="w-full px-0">
+      <SeoHead
+        title={t('seo.useCases.corporateTraining.title')}
+        description={t('seo.useCases.corporateTraining.description')}
+        path="/use-cases/corporate-training"
+      />
+      <Helmet>
+        <script id="faq-schema-corporate-training" type="application/ld+json">
+          {JSON.stringify(FAQ_SCHEMA)}
+        </script>
+      </Helmet>
       {/* ── Hero ── */}
       <section className="w-full bg-[#f8faf5] py-16 lg:py-24">
         <div className={`${CONTAINER} text-center`}>

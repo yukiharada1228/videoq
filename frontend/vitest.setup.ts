@@ -3,7 +3,10 @@ import { cleanup } from '@testing-library/react'
 import '@testing-library/jest-dom/vitest'
 import React from 'react'
 import { QueryClientProvider } from '@tanstack/react-query'
+import { HelmetProvider } from 'react-helmet-async'
 import { createAppQueryClient } from './src/lib/queryClient'
+import enTranslation from './src/i18n/locales/en/translation.json'
+import jaTranslation from './src/i18n/locales/ja/translation.json'
 
 vi.mock('@testing-library/react', async () => {
   const actual = await vi.importActual<typeof import('@testing-library/react')>('@testing-library/react')
@@ -11,7 +14,11 @@ vi.mock('@testing-library/react', async () => {
   const createWrapper = (UserWrapper?: React.ComponentType<any>) => {
     const TestQueryWrapper = ({ children, ...props }: { children?: React.ReactNode } & Record<string, unknown>) => {
       const [queryClient] = React.useState(() => createAppQueryClient())
-      const content = React.createElement(QueryClientProvider, { client: queryClient }, children)
+      const content = React.createElement(
+        HelmetProvider,
+        {},
+        React.createElement(QueryClientProvider, { client: queryClient }, children),
+      )
       if (!UserWrapper) {
         return content
       }
@@ -41,6 +48,7 @@ vi.mock('@testing-library/react', async () => {
 declare global {
   interface GlobalThis {
     __setMockPathname: (pathname: string) => void
+    __setMockLanguage: (language: 'en' | 'ja') => void
   }
 }
 
@@ -84,10 +92,35 @@ const mockLocation: {
   state: unknown
   key: string
 } = { pathname: '/', search: '', hash: '', state: null, key: 'default' }
+let mockLanguage: 'en' | 'ja' = 'en'
+
+const seoTranslations = {
+  en: enTranslation.seo,
+  ja: jaTranslation.seo,
+} as const
+
+const lookupSeoTranslation = (language: 'en' | 'ja', key: string): string | undefined => {
+  if (!key.startsWith('seo.')) {
+    return undefined
+  }
+
+  let current: unknown = seoTranslations[language]
+  for (const segment of key.split('.').slice(1)) {
+    if (!current || typeof current !== 'object' || !(segment in current)) {
+      return undefined
+    }
+    current = (current as Record<string, unknown>)[segment]
+  }
+
+  return typeof current === 'string' ? current : undefined
+}
 
 // Allow tests to control the (de-localized) pathname returned by useLocation/useI18nLocation
 globalThis.__setMockPathname = (pathname: string) => {
   mockLocation.pathname = pathname
+}
+globalThis.__setMockLanguage = (language: 'en' | 'ja') => {
+  mockLanguage = language
 }
 
 vi.mock('react-router-dom', async () => {
@@ -109,12 +142,23 @@ vi.mock('react-router-dom', async () => {
 
 // Mock react-i18next
 vi.mock('react-i18next', () => ({
+  initReactI18next: {
+    type: '3rdParty',
+    init: () => undefined,
+  },
   useTranslation: () => ({
     t: (key: string, optionsOrDefault?: string | Record<string, unknown>) => {
+      const resolved = lookupSeoTranslation(mockLanguage, key)
+      if (resolved) {
+        return resolved
+      }
       if (typeof optionsOrDefault === 'string') {
         return key
       }
       if (optionsOrDefault && typeof optionsOrDefault === 'object') {
+        if ('returnObjects' in optionsOrDefault && key.endsWith('.bullets')) {
+          return [`${key}.0`, `${key}.1`]
+        }
         const rest = Object.fromEntries(
           Object.entries(optionsOrDefault as Record<string, unknown>).filter(([k]) => k !== 'defaultValue')
         )
@@ -126,7 +170,7 @@ vi.mock('react-i18next', () => ({
       return key
     },
     i18n: {
-      language: 'en',
+      language: mockLanguage,
       changeLanguage: vi.fn(),
     },
   }),
@@ -145,7 +189,7 @@ vi.mock('@/lib/i18n', () => ({
   useI18nLocation: () => mockLocation,
   removeLocalePrefix: (pathname: string) => pathname,
   addLocalePrefix: (pathname: string) => pathname,
-  useLocale: () => 'en',
+  useLocale: () => mockLanguage,
   Link: ({ children, to, href, ...props }: { children?: React.ReactNode; to?: unknown; href?: string } & Record<string, unknown>) =>
     React.createElement('a', { href: href || (typeof to === 'string' ? to : ''), ...props }, children),
   i18nConfig: {
