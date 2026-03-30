@@ -26,6 +26,9 @@ export function AppFooter() {
           <Link to="/commercial-disclosure" className="text-xs text-stone-500 hover:text-stone-700">
             {t('legal.disclosure.title')}
           </Link>
+          <Link to="/faq" className="text-xs text-stone-500 hover:text-stone-700">
+            {t('faq.pageTitle')}
+          </Link>
         </div>
         <p className="text-xs uppercase tracking-widest font-semibold text-stone-500">
           © {new Date().getFullYear()} VideoQ. All rights reserved.
