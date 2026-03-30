@@ -419,6 +419,7 @@
         "processing": "処理中"
       },
       "remove": "削除",
+      "removeFromGroup": "グループから削除",
       "deleteError": "チャットグループの削除に失敗しました"
     },
     "shared": {

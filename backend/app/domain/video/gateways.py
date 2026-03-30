@@ -94,6 +94,15 @@ class YoutubeTranscriptionGateway(ABC):
     """Abstract interface for fetching YouTube transcripts from video IDs."""
 
     @abstractmethod
+    def estimate_duration_seconds(
+        self,
+        youtube_video_id: str,
+        api_key: Optional[str] = None,
+    ) -> Optional[int]:
+        """Estimate YouTube transcript duration in whole seconds before transcription."""
+        ...
+
+    @abstractmethod
     def run(self, youtube_video_id: str, api_key: Optional[str] = None) -> str:
         """Fetch and normalize a YouTube transcript into SRT format."""
         ...

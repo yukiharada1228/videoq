@@ -212,11 +212,19 @@ describe('VideoGroupDetailPage - Share Link', () => {
 
 describe('VideoGroupDetailPage - Delete', () => {
   const originalConfirm = window.confirm
+  let currentGroup = structuredClone(mockGroup)
 
   beforeEach(() => {
     vi.clearAllMocks()
-      ; (apiClient.getVideoGroup as ReturnType<typeof vi.fn>).mockResolvedValue(mockGroup)
+    currentGroup = structuredClone(mockGroup)
+      ; (apiClient.getVideoGroup as ReturnType<typeof vi.fn>).mockImplementation(() => Promise.resolve(structuredClone(currentGroup)))
       ; (apiClient.deleteVideoGroup as ReturnType<typeof vi.fn>).mockResolvedValue({})
+      ; (apiClient.removeVideoFromGroup as ReturnType<typeof vi.fn>).mockImplementation(async (_groupId: number, videoId: number) => {
+        currentGroup = {
+          ...currentGroup,
+          videos: currentGroup.videos.filter((video) => video.id !== videoId),
+        }
+      })
     window.confirm = vi.fn(() => true)
   })
 
@@ -235,6 +243,36 @@ describe('VideoGroupDetailPage - Delete', () => {
 
     await waitFor(() => {
       expect(apiClient.deleteVideoGroup).toHaveBeenCalledWith(1)
+    })
+  })
+
+  it('should show a visible remove-from-group action for each video without hover-only classes', async () => {
+    render(<VideoGroupDetailPage />)
+
+    const removeButtons = await screen.findAllByRole('button', { name: 'videos.groupDetail.removeFromGroup' })
+
+    expect(removeButtons).toHaveLength(2)
+    removeButtons.forEach((button) => {
+      expect(button).not.toHaveClass('opacity-0')
+      expect(button).not.toHaveClass('group-hover:opacity-100')
+      expect(button).toHaveTextContent('')
+    })
+  })
+
+  it('should remove the video from the group list when removal is confirmed', async () => {
+    render(<VideoGroupDetailPage />)
+
+    const [firstRemoveButton] = await screen.findAllByRole('button', { name: 'videos.groupDetail.removeFromGroup' })
+    fireEvent.click(firstRemoveButton)
+
+    await waitFor(() => {
+      expect(window.confirm).toHaveBeenCalledWith('videos.groupDetail.removeVideoConfirm')
+      expect(apiClient.removeVideoFromGroup).toHaveBeenCalledWith(1, 1)
+    })
+
+    await waitFor(() => {
+      expect(screen.queryAllByText('Video 1')).toHaveLength(0)
+      expect(screen.getAllByText('Video 2').length).toBeGreaterThan(0)
     })
   })
 })
