@@ -1,7 +1,16 @@
 import { render, screen } from '@testing-library/react'
 import UseCaseEducationPage from '../UseCaseEducationPage'
+import { AppNav } from '@/components/layout/AppNav'
+
+vi.mock('@/components/layout/AppNav', () => ({
+  AppNav: vi.fn(() => null),
+}))
 
 describe('UseCaseEducationPage', () => {
+  afterEach(() => {
+    globalThis.__setMockLanguage('en')
+  })
+
   describe('Hero section', () => {
     it('renders hero title', () => {
       render(<UseCaseEducationPage />)
@@ -117,10 +126,24 @@ describe('UseCaseEducationPage', () => {
     })
   })
 
-  describe('SEO', () => {
-    it('sets document.title on mount', () => {
+  describe('Navbar', () => {
+    it('passes activePage="home" to AppNav', () => {
       render(<UseCaseEducationPage />)
-      expect(document.title).toBe('授業・講義動画を AI 検索 | VideoQ 教育向け')
+      expect(vi.mocked(AppNav)).toHaveBeenCalledWith(
+        expect.objectContaining({ activePage: 'home' }),
+        undefined,
+      )
+    })
+  })
+
+  describe('SEO', () => {
+    it('sets english metadata on mount', () => {
+      globalThis.__setMockLanguage('en')
+      render(<UseCaseEducationPage />)
+      expect(document.title).toBe('Education Use Case | VideoQ')
+      expect(document.querySelector('meta[name="description"]')?.getAttribute('content')).toBe(
+        'VideoQ for education: transcribe lectures, let students search by natural language, and share class videos.'
+      )
     })
 
     it('injects FAQPage schema on mount', () => {
@@ -141,61 +164,35 @@ describe('UseCaseEducationPage', () => {
     })
 
     it('sets canonical href to EN URL on mount (en locale)', () => {
-      const link = document.createElement('link')
-      link.rel = 'canonical'
-      link.href = 'https://videoq.jp/'
-      document.head.appendChild(link)
-
+      globalThis.__setMockLanguage('en')
       render(<UseCaseEducationPage />)
       expect(document.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(
         'https://videoq.jp/use-cases/education'
       )
-
-      link.remove()
-    })
-
-    it('restores canonical href on unmount', () => {
-      const link = document.createElement('link')
-      link.rel = 'canonical'
-      link.href = 'https://videoq.jp/'
-      document.head.appendChild(link)
-
-      const { unmount } = render(<UseCaseEducationPage />)
-      unmount()
-      expect(document.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(
-        'https://videoq.jp/'
-      )
-
-      link.remove()
     })
 
     it('sets og:url to EN URL on mount', () => {
-      const meta = document.createElement('meta')
-      meta.setAttribute('property', 'og:url')
-      meta.setAttribute('content', 'https://videoq.jp/')
-      document.head.appendChild(meta)
-
+      globalThis.__setMockLanguage('en')
       render(<UseCaseEducationPage />)
       expect(
         document.querySelector('meta[property="og:url"]')?.getAttribute('content')
       ).toBe('https://videoq.jp/use-cases/education')
-
-      meta.remove()
     })
 
-    it('restores og:url on unmount', () => {
-      const meta = document.createElement('meta')
-      meta.setAttribute('property', 'og:url')
-      meta.setAttribute('content', 'https://videoq.jp/')
-      document.head.appendChild(meta)
+    it('switches metadata for japanese locale', () => {
+      globalThis.__setMockLanguage('ja')
+      render(<UseCaseEducationPage />)
 
-      const { unmount } = render(<UseCaseEducationPage />)
-      unmount()
+      expect(document.title).toBe('教育向け | VideoQ')
+      expect(document.querySelector('meta[name="description"]')?.getAttribute('content')).toBe(
+        '教育機関向け VideoQ。授業・講義動画を文字起こしし、学生が自然言語で検索・質問できます。'
+      )
+      expect(document.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(
+        'https://videoq.jp/ja/use-cases/education'
+      )
       expect(
         document.querySelector('meta[property="og:url"]')?.getAttribute('content')
-      ).toBe('https://videoq.jp/')
-
-      meta.remove()
+      ).toBe('https://videoq.jp/ja/use-cases/education')
     })
   })
 })

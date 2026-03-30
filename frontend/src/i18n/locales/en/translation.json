@@ -1015,9 +1015,9 @@
   },
   "landing": {
     "hero": {
-      "title": "Turn Any Video Into the Ultimate Learning Experience",
-      "subtitle": "AI-Powered Video Learning Platform",
-      "description": "Upload videos for automatic transcription via OpenAI Whisper, then ask questions about the content using RAG chat.",
+      "title": "Just Upload Your Video. AI Transcribes & Instantly Searches Your Lessons & Training",
+      "subtitle": "AI Video Learning Platform for Education & Corporate Training",
+      "description": "Transcribe your lectures, training videos, and seminars with AI — then search any moment with natural language. Built for educators and training teams.",
       "ctaSignup": "Get Started for Free",
       "ctaDocs": "Developer Docs"
     },
@@ -1034,6 +1034,24 @@
       "api": {
         "title": "OpenAI-Compatible API",
         "description": "Use any OpenAI client or SDK with your video library"
+      }
+    },
+    "personas": {
+      "title": "Who It's For",
+      "educator": {
+        "title": "Educators & Instructors",
+        "description": "Turn recorded lessons into self-study materials. Students find answers with AI chat on their own.",
+        "ctaLink": "For Educational Institutions"
+      },
+      "corporateTrainer": {
+        "title": "Corporate Training Teams",
+        "description": "Transform training videos into an AI knowledge base. New hires find exactly what they need, any time.",
+        "ctaLink": "For Corporate Training"
+      },
+      "developer": {
+        "title": "Developers",
+        "description": "Embed video AI into your product with an OpenAI-compatible API. Works with any existing SDK.",
+        "ctaLink": "View API Docs"
       }
     }
   },
@@ -1158,6 +1176,50 @@
       },
       "footer": {
         "link": "For Corporate Training"
+      }
+    }
+  },
+  "seo": {
+    "docs": {
+      "home": {
+        "title": "Developer Docs | VideoQ",
+        "description": "VideoQ API reference. Authentication, videos, chat, and OpenAI-compatible API docs."
+      },
+      "sections": {
+        "auth": {
+          "title": "Authentication API | VideoQ Developer Docs",
+          "description": "How to issue and use VideoQ API keys for server-to-server authentication."
+        },
+        "videos": {
+          "title": "Videos API | VideoQ Developer Docs",
+          "description": "Upload videos, monitor processing status, and manage video groups with the VideoQ API."
+        },
+        "chat": {
+          "title": "Chat API | VideoQ Developer Docs",
+          "description": "Run RAG chat against indexed video groups and retrieve analytics with the VideoQ API."
+        },
+        "openai": {
+          "title": "OpenAI-Compatible API | VideoQ Developer Docs",
+          "description": "Use the OpenAI SDK with VideoQ's OpenAI-compatible API for video RAG chat."
+        }
+      }
+    },
+    "terms": {
+      "title": "Terms of Service | VideoQ",
+      "description": "Read the VideoQ Terms of Service covering accounts, billing, acceptable use, and liability."
+    },
+    "privacy": {
+      "title": "Privacy Policy | VideoQ",
+      "description": "Read how VideoQ collects, uses, stores, and protects personal data and uploaded content."
+    },
+    "useCases": {
+      "education": {
+        "title": "Education Use Case | VideoQ",
+        "description": "VideoQ for education: transcribe lectures, let students search by natural language, and share class videos."
+      },
+      "corporateTraining": {
+        "title": "Corporate Training Use Case | VideoQ",
+        "description": "VideoQ for corporate training: transcribe training videos, power self-serve search, and integrate with internal tools."
       }
     }
   }
