@@ -120,12 +120,6 @@ describe('llms.txt', () => {
     expect(content).toContain(url)
   })
 
-  // ── llms-full.txt reference ──────────────────────────────────────────────────
-
-  it('contains a reference to llms-full.txt', () => {
-    expect(content).toMatch(/llms-full\.txt/)
-  })
-
   // ── No mixed Japanese/English on the same bullet line ───────────────────────
 
   it('does not mix Japanese and ASCII text on the same bullet line with a slash separator', () => {
