@@ -3,6 +3,7 @@ import { defaultLocale, locales, type Locale } from '@/i18n/config';
 import { useLocale } from '@/lib/i18n';
 
 const BASE_URL = 'https://videoq.jp';
+const DEFAULT_OG_IMAGE = 'https://videoq.jp/og-image.png';
 
 function normalizePath(path: string): string {
   if (!path) {
@@ -21,9 +22,10 @@ type SeoHeadProps = {
   title: string;
   description: string;
   path: string;
+  ogImage?: string;
 };
 
-export function SeoHead({ title, description, path }: SeoHeadProps) {
+export function SeoHead({ title, description, path, ogImage = DEFAULT_OG_IMAGE }: SeoHeadProps) {
   const locale = useLocale();
   const canonicalUrl = buildAbsoluteUrl(path, locale);
   const alternateUrls = Object.fromEntries(
@@ -49,6 +51,10 @@ export function SeoHead({ title, description, path }: SeoHeadProps) {
       <meta property="og:title" content={title} />
       <meta property="og:description" content={description} />
       <meta property="og:url" content={canonicalUrl} />
+      <meta property="og:image" content={ogImage} />
+      <meta property="og:image:width" content="1200" />
+      <meta property="og:image:height" content="630" />
+      <meta name="twitter:image" content={ogImage} />
     </Helmet>
   );
 }
