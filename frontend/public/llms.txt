@@ -4,19 +4,75 @@
 
 VideoQ is an AI-powered video learning platform designed for educators and learners. Upload video files to receive automatic, high-accuracy transcriptions via OpenAI Whisper. Once transcribed, query the video content through a RAG (Retrieval-Augmented Generation) chat interface backed by PGVector semantic search. VideoQ exposes an OpenAI-compatible API endpoint (/api/v1/chat/completions), enabling any existing OpenAI client or SDK to interact with your video library without code changes. It also supports MCP (Model Context Protocol) server integration for use with Claude Desktop and other AI agent clients. A built-in educational analytics dashboard provides keyword cloud visualizations and question trend analysis to help instructors understand how learners engage with video content. Both Japanese and English interfaces are fully supported.
 
-## 主な機能 / Key Features
+## Key Features
 
-- 動画の自動文字起こし（OpenAI Whisper）/ Automatic video transcription via OpenAI Whisper
-- RAGチャット：動画の内容に自然言語で質問 / RAG chat: ask questions about video content in natural language
-- OpenAI互換APIエンドポイント（/api/v1/chat/completions）/ OpenAI-compatible API endpoint
-- MCPサーバー統合対応（Claude Desktop など）/ MCP server integration (Claude Desktop and more)
-- 動画グループとパブリック共有リンク / Video groups and public share links
-- 教育分析ダッシュボード（キーワードクラウド、質問トレンド）/ Educational analytics dashboard (keyword cloud, question trends)
-- マルチロケール対応（日本語・英語）/ Multi-locale support (Japanese and English)
+- 動画の自動文字起こし（OpenAI Whisper）
+- Automatic video transcription via OpenAI Whisper
+- RAGチャット：動画の内容に自然言語で質問
+- RAG chat: ask questions about video content in natural language
+- OpenAI互換APIエンドポイント（/api/v1/chat/completions）
+- OpenAI-compatible API endpoint (/api/v1/chat/completions)
+- MCPサーバー統合対応（Claude Desktop など）
+- MCP server integration (Claude Desktop and more)
+- 動画グループとパブリック共有リンク
+- Video groups and public share links
+- 教育分析ダッシュボード（キーワードクラウド、質問トレンド）
+- Educational analytics dashboard (keyword cloud, question trends)
+- マルチロケール対応（日本語・英語）
+- Multi-locale support (Japanese and English)
 
-## ドキュメント / Documentation
+## Use Cases
 
-- [認証 API / Authentication API](https://videoq.jp/docs/auth)
-- [動画 API / Video API](https://videoq.jp/docs/videos)
-- [チャット API / Chat API](https://videoq.jp/docs/chat)
-- [OpenAI互換 API / OpenAI-Compatible API](https://videoq.jp/docs/openai)
+### 教育機関 / Education
+
+大学・専門学校の講義録画をVideoQにアップロードすることで、学生は授業の内容を自然言語で検索・質問できます。
+
+Universities and vocational schools can upload lecture recordings to VideoQ, enabling students to search and ask questions about course content in natural language.
+
+- [Education use case (EN)](https://videoq.jp/use-cases/education)
+- [Education use case (JA)](https://videoq.jp/ja/use-cases/education)
+
+### 企業研修 / Corporate Training
+
+社内研修動画や製品説明動画を蓄積し、従業員がいつでも必要な情報をRAGチャットで引き出せる知識ベースを構築できます。
+
+Accumulate internal training and product explanation videos to build a knowledge base where employees can retrieve information at any time via RAG chat.
+
+- [Corporate training use case (EN)](https://videoq.jp/use-cases/corporate-training)
+- [Corporate training use case (JA)](https://videoq.jp/ja/use-cases/corporate-training)
+
+## Integrations
+
+### OpenAI-Compatible API
+
+VideoQはOpenAI Chat Completions APIと互換性のあるエンドポイントを提供します。
+
+VideoQ exposes an OpenAI-compatible endpoint so that any existing OpenAI client or SDK can query your video library without code changes.
+
+- Endpoint: `POST /api/v1/chat/completions`
+- Authentication: API key (`Authorization: Bearer <api-key>`)
+- Compatible with: OpenAI Python SDK, LangChain, LlamaIndex, and any OpenAI-compatible client
+
+### MCP (Model Context Protocol)
+
+VideoQはMCPサーバーとして動作し、Claude DesktopなどのAIエージェントクライアントから動画コンテンツに直接アクセスできます。
+
+VideoQ acts as an MCP server, allowing AI agent clients such as Claude Desktop to access video content directly via the Model Context Protocol.
+
+## Documentation
+
+- [FAQ (EN)](https://videoq.jp/faq)
+- [FAQ (JA)](https://videoq.jp/ja/faq)
+- [Authentication API](https://videoq.jp/docs/auth)
+- [Video API](https://videoq.jp/docs/videos)
+- [Chat API](https://videoq.jp/docs/chat)
+- [OpenAI-Compatible API](https://videoq.jp/docs/openai)
+
+## Legal
+
+- [Terms of Service (EN)](https://videoq.jp/terms)
+- [Terms of Service (JA)](https://videoq.jp/ja/terms)
+- [Privacy Policy (EN)](https://videoq.jp/privacy)
+- [Privacy Policy (JA)](https://videoq.jp/ja/privacy)
+- [Commercial Disclosure (EN)](https://videoq.jp/commercial-disclosure)
+- [Commercial Disclosure (JA)](https://videoq.jp/ja/commercial-disclosure)
