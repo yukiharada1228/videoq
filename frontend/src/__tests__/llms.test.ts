@@ -34,7 +34,6 @@ describe('llms.txt', () => {
     '## Key Features',
     '## Use Cases',
     '## Integrations',
-    '## Tech Stack',
     '## Documentation',
   ]
 
@@ -72,36 +71,6 @@ describe('llms.txt', () => {
     const nextSection = content.indexOf('\n## ', idx + 1)
     const section = content.slice(idx, nextSection === -1 ? undefined : nextSection)
     expect(section).toMatch(/MCP|Model Context Protocol/)
-  })
-
-  // ── Tech Stack section ───────────────────────────────────────────────────────
-
-  it('Tech Stack section mentions Django', () => {
-    const idx = content.indexOf('## Tech Stack')
-    const nextSection = content.indexOf('\n## ', idx + 1)
-    const section = content.slice(idx, nextSection === -1 ? undefined : nextSection)
-    expect(section).toContain('Django')
-  })
-
-  it('Tech Stack section mentions React', () => {
-    const idx = content.indexOf('## Tech Stack')
-    const nextSection = content.indexOf('\n## ', idx + 1)
-    const section = content.slice(idx, nextSection === -1 ? undefined : nextSection)
-    expect(section).toContain('React')
-  })
-
-  it('Tech Stack section mentions PGVector', () => {
-    const idx = content.indexOf('## Tech Stack')
-    const nextSection = content.indexOf('\n## ', idx + 1)
-    const section = content.slice(idx, nextSection === -1 ? undefined : nextSection)
-    expect(section).toContain('PGVector')
-  })
-
-  it('Tech Stack section mentions Whisper', () => {
-    const idx = content.indexOf('## Tech Stack')
-    const nextSection = content.indexOf('\n## ', idx + 1)
-    const section = content.slice(idx, nextSection === -1 ? undefined : nextSection)
-    expect(section).toContain('Whisper')
   })
 
   // ── Documentation links ──────────────────────────────────────────────────────
