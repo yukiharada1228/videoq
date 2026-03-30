@@ -5,6 +5,7 @@ import { AppPageShell } from '@/components/layout/AppPageShell';
 import { AppPageHeader } from '@/components/layout/AppPageHeader';
 import { ApiEndpointList } from '@/components/docs/ApiEndpointList';
 import { OpenAiSdkExampleList } from '@/components/docs/OpenAiSdkExampleList';
+import { SeoHead } from '@/components/seo/SeoHead';
 import { CheckCircle, ClipboardCheck, Braces } from 'lucide-react';
 
 const sectionIds = ['auth', 'videos', 'chat', 'openai'] as const;
@@ -31,6 +32,11 @@ export default function DeveloperDocsSectionPage() {
 
   return (
     <AppPageShell activePage="docs">
+      <SeoHead
+        title={t(`seo.docs.sections.${section}.title`)}
+        description={t(`seo.docs.sections.${section}.description`)}
+        path={`/docs/${section}`}
+      />
       <nav className="flex items-center gap-2 text-sm font-medium text-[#6f7a6e] mb-6">
         <Link href="/docs" className="hover:text-[#00652c] transition-colors">
           ← {t('docs.backToHome')}
