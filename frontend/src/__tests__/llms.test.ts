@@ -1,0 +1,142 @@
+// @vitest-environment node
+import { readFileSync } from 'fs'
+import { resolve, dirname } from 'path'
+import { fileURLToPath } from 'url'
+import { describe, it, expect, beforeAll } from 'vitest'
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
+
+const BASE = 'https://videoq.jp'
+
+describe('llms.txt', () => {
+  let content: string
+
+  beforeAll(() => {
+    content = readFileSync(
+      resolve(__dirname, '../../public/llms.txt'),
+      'utf-8'
+    )
+  })
+
+  // ── Structure ────────────────────────────────────────────────────────────────
+
+  it('starts with # VideoQ heading', () => {
+    expect(content.trimStart()).toMatch(/^# VideoQ/)
+  })
+
+  it('has a blockquote description (> ...)', () => {
+    expect(content).toMatch(/^>/m)
+  })
+
+  // ── Required sections ────────────────────────────────────────────────────────
+
+  const REQUIRED_SECTIONS = [
+    '## Key Features',
+    '## Use Cases',
+    '## Integrations',
+    '## Tech Stack',
+    '## Documentation',
+  ]
+
+  it.each(REQUIRED_SECTIONS)('contains section "%s"', (section) => {
+    expect(content).toContain(section)
+  })
+
+  // ── Use Cases section ────────────────────────────────────────────────────────
+
+  it('Use Cases section mentions education', () => {
+    const idx = content.indexOf('## Use Cases')
+    const nextSection = content.indexOf('\n## ', idx + 1)
+    const section = content.slice(idx, nextSection === -1 ? undefined : nextSection)
+    expect(section.toLowerCase()).toMatch(/educat/)
+  })
+
+  it('Use Cases section mentions corporate training', () => {
+    const idx = content.indexOf('## Use Cases')
+    const nextSection = content.indexOf('\n## ', idx + 1)
+    const section = content.slice(idx, nextSection === -1 ? undefined : nextSection)
+    expect(section.toLowerCase()).toMatch(/corporate|training|企業/)
+  })
+
+  // ── Integrations section ─────────────────────────────────────────────────────
+
+  it('Integrations section mentions OpenAI-compatible endpoint', () => {
+    const idx = content.indexOf('## Integrations')
+    const nextSection = content.indexOf('\n## ', idx + 1)
+    const section = content.slice(idx, nextSection === -1 ? undefined : nextSection)
+    expect(section).toMatch(/\/api\/v1\/chat\/completions/)
+  })
+
+  it('Integrations section mentions MCP', () => {
+    const idx = content.indexOf('## Integrations')
+    const nextSection = content.indexOf('\n## ', idx + 1)
+    const section = content.slice(idx, nextSection === -1 ? undefined : nextSection)
+    expect(section).toMatch(/MCP|Model Context Protocol/)
+  })
+
+  // ── Tech Stack section ───────────────────────────────────────────────────────
+
+  it('Tech Stack section mentions Django', () => {
+    const idx = content.indexOf('## Tech Stack')
+    const nextSection = content.indexOf('\n## ', idx + 1)
+    const section = content.slice(idx, nextSection === -1 ? undefined : nextSection)
+    expect(section).toContain('Django')
+  })
+
+  it('Tech Stack section mentions React', () => {
+    const idx = content.indexOf('## Tech Stack')
+    const nextSection = content.indexOf('\n## ', idx + 1)
+    const section = content.slice(idx, nextSection === -1 ? undefined : nextSection)
+    expect(section).toContain('React')
+  })
+
+  it('Tech Stack section mentions PGVector', () => {
+    const idx = content.indexOf('## Tech Stack')
+    const nextSection = content.indexOf('\n## ', idx + 1)
+    const section = content.slice(idx, nextSection === -1 ? undefined : nextSection)
+    expect(section).toContain('PGVector')
+  })
+
+  it('Tech Stack section mentions Whisper', () => {
+    const idx = content.indexOf('## Tech Stack')
+    const nextSection = content.indexOf('\n## ', idx + 1)
+    const section = content.slice(idx, nextSection === -1 ? undefined : nextSection)
+    expect(section).toContain('Whisper')
+  })
+
+  // ── Documentation links ──────────────────────────────────────────────────────
+
+  const REQUIRED_DOC_LINKS = [
+    `${BASE}/faq`,
+    `${BASE}/use-cases/education`,
+    `${BASE}/use-cases/corporate-training`,
+    `${BASE}/docs/auth`,
+    `${BASE}/docs/videos`,
+    `${BASE}/docs/chat`,
+    `${BASE}/docs/openai`,
+  ]
+
+  it.each(REQUIRED_DOC_LINKS)('contains link to %s', (url) => {
+    expect(content).toContain(url)
+  })
+
+  // ── llms-full.txt reference ──────────────────────────────────────────────────
+
+  it('contains a reference to llms-full.txt', () => {
+    expect(content).toMatch(/llms-full\.txt/)
+  })
+
+  // ── No mixed Japanese/English on the same bullet line ───────────────────────
+
+  it('does not mix Japanese and ASCII text on the same bullet line with a slash separator', () => {
+    const lines = content.split('\n')
+    const mixedLines = lines.filter((line) => {
+      if (!line.startsWith('- ')) return false
+      // Detect lines with Japanese characters AND " / " (slash-separated bilingual)
+      const hasJapanese = /[\u3000-\u9fff\uff00-\uffef]/.test(line)
+      const hasSlashSeparator = / \/ /.test(line)
+      return hasJapanese && hasSlashSeparator
+    })
+    expect(mixedLines).toHaveLength(0)
+  })
+})
