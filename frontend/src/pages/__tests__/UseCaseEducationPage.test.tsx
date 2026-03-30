@@ -139,5 +139,63 @@ describe('UseCaseEducationPage', () => {
       unmount()
       expect(document.title).toBe('original title')
     })
+
+    it('sets canonical href to EN URL on mount (en locale)', () => {
+      const link = document.createElement('link')
+      link.rel = 'canonical'
+      link.href = 'https://videoq.jp/'
+      document.head.appendChild(link)
+
+      render(<UseCaseEducationPage />)
+      expect(document.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(
+        'https://videoq.jp/use-cases/education'
+      )
+
+      link.remove()
+    })
+
+    it('restores canonical href on unmount', () => {
+      const link = document.createElement('link')
+      link.rel = 'canonical'
+      link.href = 'https://videoq.jp/'
+      document.head.appendChild(link)
+
+      const { unmount } = render(<UseCaseEducationPage />)
+      unmount()
+      expect(document.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(
+        'https://videoq.jp/'
+      )
+
+      link.remove()
+    })
+
+    it('sets og:url to EN URL on mount', () => {
+      const meta = document.createElement('meta')
+      meta.setAttribute('property', 'og:url')
+      meta.setAttribute('content', 'https://videoq.jp/')
+      document.head.appendChild(meta)
+
+      render(<UseCaseEducationPage />)
+      expect(
+        document.querySelector('meta[property="og:url"]')?.getAttribute('content')
+      ).toBe('https://videoq.jp/use-cases/education')
+
+      meta.remove()
+    })
+
+    it('restores og:url on unmount', () => {
+      const meta = document.createElement('meta')
+      meta.setAttribute('property', 'og:url')
+      meta.setAttribute('content', 'https://videoq.jp/')
+      document.head.appendChild(meta)
+
+      const { unmount } = render(<UseCaseEducationPage />)
+      unmount()
+      expect(
+        document.querySelector('meta[property="og:url"]')?.getAttribute('content')
+      ).toBe('https://videoq.jp/')
+
+      meta.remove()
+    })
   })
 })
