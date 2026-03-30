@@ -4,8 +4,9 @@ import { GraduationCap, LogOut, Menu, X, CreditCard, LogIn } from 'lucide-react'
 import { Link, useI18nNavigate } from '@/lib/i18n';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api';
+import { apiClient, type User } from '@/lib/api';
 import { APP_CONTAINER_CLASS } from '@/components/layout/layoutTokens';
+import { queryKeys } from '@/lib/queryKeys';
 
 export type ActivePage = 'home' | 'videos' | 'groups' | 'docs' | 'settings' | 'billing';
 
@@ -14,11 +15,14 @@ interface AppNavProps {
   isPublic?: boolean;
 }
 
-export function AppNav({ activePage, isPublic = false }: AppNavProps) {
+export function AppNav({ activePage }: AppNavProps) {
   const { t } = useTranslation();
   const navigate = useI18nNavigate();
   const queryClient = useQueryClient();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const cachedUser = queryClient.getQueryData<User | null>(queryKeys.auth.me);
+  const isAuthenticated = !!cachedUser;
 
   const logoutMutation = useMutation({
     mutationFn: async () => await apiClient.logout(),
@@ -37,14 +41,16 @@ export function AppNav({ activePage, isPublic = false }: AppNavProps) {
     }
   };
 
-  const navLinks: { href: string; label: string; key: ActivePage; icon?: React.ReactNode }[] = [
+  const allNavLinks: { href: string; label: string; key: ActivePage; icon?: React.ReactNode; authRequired?: boolean }[] = [
     { href: '/', label: t('navigation.home'), key: 'home' },
-    { href: '/videos', label: t('navigation.videosNav'), key: 'videos' },
-    { href: '/videos/groups', label: t('navigation.groupsNav'), key: 'groups' },
+    { href: '/videos', label: t('navigation.videosNav'), key: 'videos', authRequired: true },
+    { href: '/videos/groups', label: t('navigation.groupsNav'), key: 'groups', authRequired: true },
     { href: '/docs', label: t('navigation.docs'), key: 'docs' },
-    { href: '/settings', label: t('navigation.settings'), key: 'settings' },
-    { href: '/billing', label: t('billing.nav'), key: 'billing', icon: <CreditCard className="w-3.5 h-3.5" /> },
+    { href: '/settings', label: t('navigation.settings'), key: 'settings', authRequired: true },
+    { href: '/billing', label: t('billing.nav'), key: 'billing', icon: <CreditCard className="w-3.5 h-3.5" />, authRequired: true },
   ];
+
+  const navLinks = isAuthenticated ? allNavLinks : allNavLinks.filter((l) => !l.authRequired);
 
   return (
     <nav className="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-xl border-b border-stone-200/60">
@@ -76,7 +82,7 @@ export function AppNav({ activePage, isPublic = false }: AppNavProps) {
         </div>
 
         <div className="flex items-center gap-1 shrink-0">
-          {isPublic ? (
+          {!isAuthenticated ? (
             <Link
               href="/login"
               className="hidden md:flex items-center gap-1.5 text-sm font-semibold text-stone-600 hover:text-[#00652c] transition-colors px-2"
@@ -126,7 +132,7 @@ export function AppNav({ activePage, isPublic = false }: AppNavProps) {
               </Link>
             ))}
             <div className="border-t border-stone-200/60 mt-2 pt-2">
-              {isPublic ? (
+              {!isAuthenticated ? (
                 <Link
                   href="/login"
                   onClick={() => setIsMobileMenuOpen(false)}
