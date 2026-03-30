@@ -1221,6 +1221,93 @@
         "title": "Corporate Training Use Case | VideoQ",
         "description": "VideoQ for corporate training: transcribe training videos, power self-serve search, and integrate with internal tools."
       }
+    },
+    "faq": {
+      "title": "FAQ | VideoQ",
+      "description": "Frequently asked questions about VideoQ: pricing, features, security, and more."
+    }
+  },
+  "faq": {
+    "pageTitle": "Frequently Asked Questions",
+    "subtitle": "Everything you need to know about VideoQ",
+    "categories": {
+      "pricing": {
+        "title": "Pricing & Plans",
+        "items": {
+          "free": {
+            "question": "Is VideoQ free to use?",
+            "answer": "Yes. VideoQ offers a free plan with 1 GB of storage, up to 10 minutes of transcription per month, and 500 AI chat answers per month — no credit card required."
+          },
+          "paidPlan": {
+            "question": "Are there paid plans?",
+            "answer": "Yes. VideoQ offers three paid plans billed monthly via Stripe: Lite (¥980/month — 10 GB, 120 min transcription, 3,000 AI answers), Standard (¥2,980/month — 50 GB, 600 min, 7,000 answers), and Enterprise (custom pricing, unlimited). You can cancel at any time."
+          }
+        }
+      },
+      "features": {
+        "title": "Features",
+        "items": {
+          "formats": {
+            "question": "What video formats are supported?",
+            "answer": "VideoQ accepts MP4, MOV, AVI, MKV, WebM, M4V, MPEG, MPG, and 3GP files up to 500 MB per upload."
+          },
+          "accuracy": {
+            "question": "How accurate is the transcription?",
+            "answer": "VideoQ uses OpenAI's Whisper API (whisper-1 model) to produce timestamped, segment-level transcripts. Accuracy is high for clear audio and is not degraded by VideoQ's processing pipeline."
+          },
+          "japanese": {
+            "question": "Is Japanese transcription supported?",
+            "answer": "Yes. Whisper supports Japanese, and VideoQ's AI chat also responds in Japanese, making it fully usable in Japanese-language environments."
+          },
+          "duration": {
+            "question": "Is there a limit on video length?",
+            "answer": "There is no hard limit on video duration. The practical limits are the 500 MB file size cap per upload and your plan's monthly transcription minutes (10 min on Free, 120 min on Lite, 600 min on Standard, unlimited on Enterprise)."
+          }
+        }
+      },
+      "education": {
+        "title": "Education & Enterprise",
+        "items": {
+          "school": {
+            "question": "Can schools and educational institutions use VideoQ?",
+            "answer": "Yes. Teachers can upload lecture videos, organise them into groups, and share them with students via a public link. Students can view transcripts and ask questions through AI chat without needing a VideoQ account."
+          },
+          "sharing": {
+            "question": "Can videos be shared with multiple users?",
+            "answer": "Yes. Video groups can be shared via a link. Anyone with the link can view the videos, read transcripts, and use AI chat — no VideoQ account required."
+          },
+          "integration": {
+            "question": "Can VideoQ integrate with internal corporate systems?",
+            "answer": "Yes. VideoQ provides a REST API secured with API keys (prefixed vq_). Keys can be scoped to read-only or full access and generated from your account settings."
+          }
+        }
+      },
+      "security": {
+        "title": "Security & Privacy",
+        "items": {
+          "privacy": {
+            "question": "Are uploaded videos shared publicly?",
+            "answer": "No. All uploaded videos are private by default. They are accessible only to you or people you explicitly share them with via a group share link."
+          },
+          "storage": {
+            "question": "Where is my data stored?",
+            "answer": "Video files are stored in Cloudflare R2. Metadata, transcripts, and chat history are stored in Neon (serverless PostgreSQL). All data is encrypted in transit."
+          }
+        }
+      },
+      "technical": {
+        "title": "Technical",
+        "items": {
+          "api": {
+            "question": "Is API integration available?",
+            "answer": "Yes. VideoQ exposes a REST API for managing videos, groups, tags, and chat. API keys (prefixed vq_) are generated from account settings and can be restricted to read-only or full access."
+          },
+          "llm": {
+            "question": "Which AI model does VideoQ use for chat?",
+            "answer": "VideoQ uses OpenAI's GPT-4o-mini for AI chat answers and OpenAI Whisper for transcription."
+          }
+        }
+      }
     }
   }
 }
