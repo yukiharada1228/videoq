@@ -1096,6 +1096,69 @@
       "footer": {
         "link": "For Education"
       }
+    },
+    "corporateTraining": {
+      "hero": {
+        "title": "Search & Leverage Corporate Training Videos with AI. Maximize Training Effectiveness",
+        "subtitle": "Just upload your training videos. Employees can find exactly what they need, anytime.",
+        "ctaSignup": "Get Started for Free",
+        "ctaApiDocs": "View API Documentation"
+      },
+      "problems": {
+        "title": "Solving Corporate Training Challenges",
+        "tooMany": {
+          "problem": "Too many training videos — employees never rewatch them",
+          "solution": "Ask the AI \"How do I submit paid leave?\" and jump to the exact scene instantly"
+        },
+        "noRecord": {
+          "problem": "Training content is explained verbally and never recorded",
+          "solution": "Whisper transcription converts every word into searchable text"
+        },
+        "newHire": {
+          "problem": "New hires can't understand manuals and ask the same questions repeatedly",
+          "solution": "Video + AI Q&A enables self-directed learning"
+        },
+        "highCost": {
+          "problem": "Training coordinators spend too much time managing materials",
+          "solution": "Organize training programs with video groups and distribute instantly"
+        }
+      },
+      "useCases": {
+        "title": "Use Case Examples",
+        "onboarding": {
+          "title": "New Employee Onboarding Video Archive",
+          "description": "Centralize onboarding videos so new hires can learn at their own pace and get instant answers via AI chat."
+        },
+        "compliance": {
+          "title": "Compliance Training Review",
+          "description": "Digitize required training on harassment and security. Combine with attendance records to strengthen compliance."
+        },
+        "manual": {
+          "title": "Turn Product & Process Manuals into Internal Knowledge",
+          "description": "Convert procedural how-to videos into a searchable internal wiki. AI search instantly answers \"how do I do this again?\""
+        },
+        "seminar": {
+          "title": "Reuse Past Internal Seminars & Study Sessions",
+          "description": "Share recorded internal talks with the whole company. Employees who couldn't attend can catch up anytime."
+        }
+      },
+      "api": {
+        "title": "Integrate with Internal Systems via API",
+        "slack": {
+          "title": "Connect to Slack Bots & LMS",
+          "description": "Use the OpenAI-compatible API to power video search and AI Q&A from your internal Slack bot or LMS."
+        },
+        "mcp": {
+          "title": "Search Directly from Claude Desktop",
+          "description": "Via MCP server, search and reference corporate training videos directly from Claude Desktop."
+        }
+      },
+      "cta": {
+        "title": "Start Activating Your Corporate Training Videos Today"
+      },
+      "footer": {
+        "link": "For Corporate Training"
+      }
     }
   }
 }

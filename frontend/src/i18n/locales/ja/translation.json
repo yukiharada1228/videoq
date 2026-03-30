@@ -1096,6 +1096,69 @@
       "footer": {
         "link": "教育機関向け"
       }
+    },
+    "corporateTraining": {
+      "hero": {
+        "title": "社内研修動画を AI で検索・活用。研修効果を最大化する動画プラットフォーム",
+        "subtitle": "研修動画をアップロードするだけ。社員がいつでも必要な場面を自分で探せる",
+        "ctaSignup": "無料で始める",
+        "ctaApiDocs": "API ドキュメントを見る"
+      },
+      "problems": {
+        "title": "企業研修の課題を解決",
+        "tooMany": {
+          "problem": "研修動画が多すぎて社員が見返さない",
+          "solution": "AI チャットで「有給申請の手順は？」と聞くと該当シーンへジャンプ"
+        },
+        "noRecord": {
+          "problem": "研修内容が口頭説明で記録に残らない",
+          "solution": "Whisper 文字起こしで全発言をテキスト化・検索可能に"
+        },
+        "newHire": {
+          "problem": "新入社員がマニュアルを理解できず何度も質問",
+          "solution": "動画 + AI 質問応答でセルフラーニング化"
+        },
+        "highCost": {
+          "problem": "研修担当者の工数が多い",
+          "solution": "動画グループで研修プログラムを構造化して配布"
+        }
+      },
+      "useCases": {
+        "title": "ユースケース例",
+        "onboarding": {
+          "title": "新入社員研修動画のアーカイブ・検索",
+          "description": "入社研修の動画を一元管理。新入社員が自分のペースで見返し、AI チャットで疑問を即解決できます。"
+        },
+        "compliance": {
+          "title": "コンプライアンス研修の振り返り",
+          "description": "ハラスメント・情報セキュリティなど法定研修を動画化。受講記録と合わせてコンプライアンスを強化します。"
+        },
+        "manual": {
+          "title": "製品・業務マニュアル動画の社内ナレッジ化",
+          "description": "業務手順の説明動画を社内 Wiki 化。「あの操作どうやるんだっけ？」を AI 検索で即解決します。"
+        },
+        "seminar": {
+          "title": "過去の社内セミナー・勉強会の活用",
+          "description": "録画した社内勉強会を全社員に共有。参加できなかった社員も後から動画で学習できます。"
+        }
+      },
+      "api": {
+        "title": "API 連携で社内システムと統合",
+        "slack": {
+          "title": "Slack bot・LMS と連携",
+          "description": "OpenAI 互換 API で社内 Slack bot や LMS からビデオ検索・AI 質問応答を呼び出せます。"
+        },
+        "mcp": {
+          "title": "Claude Desktop から直接検索",
+          "description": "MCP サーバー経由で Claude Desktop から社内研修動画を直接検索・参照できます。"
+        }
+      },
+      "cta": {
+        "title": "社内研修の動画活用を、今すぐ始めよう"
+      },
+      "footer": {
+        "link": "企業研修向け"
+      }
     }
   }
 }
