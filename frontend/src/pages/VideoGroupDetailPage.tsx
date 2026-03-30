@@ -108,6 +108,7 @@ interface SortableVideoItemProps {
 }
 
 function SortableVideoItem({ video, isSelected, onSelect, onRemove, isMobile = false }: SortableVideoItemProps) {
+  const { t } = useTranslation();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: video.id,
     disabled: isMobile,
@@ -150,7 +151,8 @@ function SortableVideoItem({ video, isSelected, onSelect, onRemove, isMobile = f
         onClick={(e) => { e.stopPropagation(); onRemove(video.id); }}
         onPointerDown={(e) => e.stopPropagation()}
         onMouseDown={(e) => e.stopPropagation()}
-        className="opacity-0 group-hover:opacity-100 p-1 text-stone-300 hover:text-red-500 transition-all shrink-0"
+        aria-label={t('videos.groupDetail.removeFromGroup')}
+        className="inline-flex items-center rounded-lg p-1.5 text-red-600 hover:bg-red-50 transition-colors shrink-0"
       >
         <Trash2 className="w-3.5 h-3.5" />
       </button>
