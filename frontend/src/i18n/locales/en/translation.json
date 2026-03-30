@@ -1015,9 +1015,9 @@
   },
   "landing": {
     "hero": {
-      "title": "Turn Any Video Into the Ultimate Learning Experience",
-      "subtitle": "AI-Powered Video Learning Platform",
-      "description": "Upload videos for automatic transcription via OpenAI Whisper, then ask questions about the content using RAG chat.",
+      "title": "Just Upload Your Video. AI Transcribes & Instantly Searches Your Lessons & Training",
+      "subtitle": "AI Video Learning Platform for Education & Corporate Training",
+      "description": "Transcribe your lectures, training videos, and seminars with AI — then search any moment with natural language. Built for educators and training teams.",
       "ctaSignup": "Get Started for Free",
       "ctaDocs": "Developer Docs"
     },
@@ -1034,6 +1034,24 @@
       "api": {
         "title": "OpenAI-Compatible API",
         "description": "Use any OpenAI client or SDK with your video library"
+      }
+    },
+    "personas": {
+      "title": "Who It's For",
+      "educator": {
+        "title": "Educators & Instructors",
+        "description": "Turn recorded lessons into self-study materials. Students find answers with AI chat on their own.",
+        "ctaLink": "For Educational Institutions"
+      },
+      "corporateTrainer": {
+        "title": "Corporate Training Teams",
+        "description": "Transform training videos into an AI knowledge base. New hires find exactly what they need, any time.",
+        "ctaLink": "For Corporate Training"
+      },
+      "developer": {
+        "title": "Developers",
+        "description": "Embed video AI into your product with an OpenAI-compatible API. Works with any existing SDK.",
+        "ctaLink": "View API Docs"
       }
     }
   },

@@ -632,6 +632,18 @@ class ApiClient {
     return this.request<User>('/auth/me');
   }
 
+  async getMeOrNull(): Promise<User | null> {
+    try {
+      const url = this.buildUrl('/auth/me');
+      const headers = this.buildHeaders();
+      const response = await fetch(url, { credentials: 'include', headers });
+      if (!response.ok) return null;
+      return await this.parseJsonResponse<User>(response);
+    } catch {
+      return null;
+    }
+  }
+
   async getIntegrationApiKeys(): Promise<IntegrationApiKey[]> {
     return this.request<IntegrationApiKey[]>('/auth/api-keys/');
   }

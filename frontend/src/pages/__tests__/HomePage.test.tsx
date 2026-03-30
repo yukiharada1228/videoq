@@ -18,26 +18,11 @@ const mockGroups = [
   { id: 2, name: 'Group 2', video_count: 3 },
 ]
 
-vi.mock('@/lib/api', () => ({
-  apiClient: {
-    getMe: vi.fn(() => Promise.resolve({ id: '1', username: 'testuser', email: 'test@example.com' })),
-    getVideos: vi.fn(),
-    getVideoGroups: vi.fn(),
-    getVideoUrl: vi.fn((url) => url),
-  },
-}))
-
-vi.mock('@/hooks/useAuth', () => ({
-  useAuth: () => ({
-    user: { id: 1, username: 'testuser' },
-    isLoading: false,
-  }),
-}))
-
-describe('HomePage', () => {
+describe('HomePage - authenticated', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockNavigate = useI18nNavigate() as ReturnType<typeof vi.fn>
+    ;(apiClient.getMeOrNull as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 1, username: 'testuser' })
     ;(apiClient.getVideos as ReturnType<typeof vi.fn>).mockResolvedValue(mockVideos)
     ;(apiClient.getVideoGroups as ReturnType<typeof vi.fn>).mockResolvedValue(mockGroups)
   })
@@ -151,6 +136,7 @@ describe('HomePage', () => {
 describe('HomePage - Data Loading', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    ;(apiClient.getMeOrNull as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 1, username: 'testuser' })
     ;(apiClient.getVideos as ReturnType<typeof vi.fn>).mockResolvedValue(mockVideos)
     ;(apiClient.getVideoGroups as ReturnType<typeof vi.fn>).mockResolvedValue(mockGroups)
   })
@@ -164,6 +150,52 @@ describe('HomePage - Data Loading', () => {
     // Should still render the page (useHomePageData catches errors internally)
     await waitFor(() => {
       expect(screen.getByText('home.welcome.greeting {"username":"testuser"}')).toBeInTheDocument()
+    })
+  })
+})
+
+describe('HomePage - unauthenticated', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    ;(apiClient.getMeOrNull as ReturnType<typeof vi.fn>).mockResolvedValue(null)
+  })
+
+  it('should render landing page hero when user is not authenticated', async () => {
+    render(<HomePage />)
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('landing.hero.title')
+    })
+  })
+
+  it('should render persona cards when user is not authenticated', async () => {
+    render(<HomePage />)
+
+    await waitFor(() => {
+      expect(screen.getByText('landing.personas.title')).toBeInTheDocument()
+      expect(screen.getByText('landing.personas.educator.title')).toBeInTheDocument()
+      expect(screen.getByText('landing.personas.corporateTrainer.title')).toBeInTheDocument()
+      expect(screen.getByText('landing.personas.developer.title')).toBeInTheDocument()
+    })
+  })
+
+  it('should render use-case LP links when user is not authenticated', async () => {
+    render(<HomePage />)
+
+    await waitFor(() => {
+      const educationLink = screen.getByText('landing.personas.educator.ctaLink')
+      expect(educationLink.closest('a')).toHaveAttribute('href', '/use-cases/education')
+
+      const trainingLink = screen.getByText('landing.personas.corporateTrainer.ctaLink')
+      expect(trainingLink.closest('a')).toHaveAttribute('href', '/use-cases/corporate-training')
+    })
+  })
+
+  it('should NOT render home dashboard when user is not authenticated', async () => {
+    render(<HomePage />)
+
+    await waitFor(() => {
+      expect(screen.queryByText(/home\.welcome\.greeting/)).not.toBeInTheDocument()
     })
   })
 })

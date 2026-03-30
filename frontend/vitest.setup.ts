@@ -180,6 +180,7 @@ vi.mock('@/lib/api', async (importOriginal) => {
   ...actual,
   apiClient: {
     getMe: vi.fn(() => Promise.resolve({ id: '1', username: 'testuser', email: 'test@example.com' })),
+    getMeOrNull: vi.fn(() => Promise.resolve({ id: '1', username: 'testuser', email: 'test@example.com' })),
     signup: vi.fn(() => Promise.resolve()),
     verifyEmail: vi.fn(() => Promise.resolve()),
     requestPasswordReset: vi.fn(() => Promise.resolve()),
