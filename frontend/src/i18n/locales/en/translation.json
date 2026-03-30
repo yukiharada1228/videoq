@@ -1036,5 +1036,66 @@
         "description": "Use any OpenAI client or SDK with your video library"
       }
     }
+  },
+  "useCases": {
+    "education": {
+      "hero": {
+        "title": "Search & Ask Questions About Lecture Videos with AI",
+        "subtitle": "Transcribe recorded lessons → Students ask in natural language → Jump straight to the right moment",
+        "ctaSignup": "Get Started for Free",
+        "ctaFeatures": "View All Features"
+      },
+      "problems": {
+        "title": "Solving Real Classroom Challenges",
+        "findContent": {
+          "problem": "Students can't find what they need in long lecture videos",
+          "solution": "Ask the AI \"Where did you explain X?\" and jump instantly to the exact moment"
+        },
+        "repeatQuestions": {
+          "problem": "Students keep asking the same questions over and over",
+          "solution": "Share the video and let students find answers themselves with AI chat"
+        },
+        "lostLectures": {
+          "problem": "Whiteboard notes and verbal explanations leave no written record",
+          "solution": "High-accuracy transcription via Whisper captures every word of your lecture"
+        }
+      },
+      "useCases": {
+        "title": "Use Case Examples",
+        "university": {
+          "title": "University Lecture Archive Management",
+          "description": "Organize semester lectures into groups. Students use AI chat to pinpoint exactly what they need for review."
+        },
+        "school": {
+          "title": "High School & Middle School Video Archive",
+          "description": "Record and archive classes so absent students never fall behind — at minimal cost."
+        },
+        "flipped": {
+          "title": "Flipped Classroom Pre-Study Videos",
+          "description": "Distribute pre-study videos and let students ask the AI their questions before class begins."
+        }
+      },
+      "features": {
+        "title": "Feature Highlights",
+        "groups": {
+          "title": "Organize Lessons with Video Groups",
+          "description": "Manage videos by subject, semester, or class. Even large lecture libraries stay easy to navigate."
+        },
+        "sharing": {
+          "title": "Distribute via Share Links",
+          "description": "Generate a share link in one click. Students access videos and AI chat without creating an account."
+        },
+        "analytics": {
+          "title": "Track Learning with Analytics Dashboard",
+          "description": "See which videos get the most views to identify where students are struggling early."
+        }
+      },
+      "cta": {
+        "title": "Start Transforming Your Classroom Videos Today"
+      },
+      "footer": {
+        "link": "For Education"
+      }
+    }
   }
 }
