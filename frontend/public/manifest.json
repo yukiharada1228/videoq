@@ -1,0 +1,28 @@
+{
+  "name": "VideoQ",
+  "short_name": "VideoQ",
+  "description": "AI動画学習プラットフォーム。動画をアップロードするだけでAIが自動文字起こし・即検索。",
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#00652c",
+  "background_color": "#ffffff",
+  "lang": "ja",
+  "icons": [
+    {
+      "src": "/logo192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/logo512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/logo512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
