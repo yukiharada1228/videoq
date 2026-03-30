@@ -1,9 +1,8 @@
 import { useMemo } from 'react';
 import type { ReactNode } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useI18nNavigate } from '@/lib/i18n';
-import { useAuth } from '@/hooks/useAuth';
-import { type User } from '@/lib/api';
+import { apiClient, type User } from '@/lib/api';
 import { useHomePageData } from '@/hooks/useHomePageData';
 import { useVideoStats } from '@/hooks/useVideoStats';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
@@ -15,6 +14,7 @@ import { useTranslation } from 'react-i18next';
 import {
   Upload, Film, Users, ArrowRight, Lightbulb,
 } from 'lucide-react';
+import LandingPage from '@/pages/LandingPage';
 
 function ActionCard({ icon, iconBg, title, description, linkLabel, linkColor, onClick }: {
   icon: ReactNode;
@@ -46,11 +46,17 @@ export default function HomePage() {
   const navigate = useI18nNavigate();
   const queryClient = useQueryClient();
   const { t } = useTranslation();
-  const { user, isLoading } = useAuth();
+
+  const { data: user, isLoading } = useQuery<User | null>({
+    queryKey: queryKeys.auth.me,
+    queryFn: () => apiClient.getMeOrNull(),
+    retry: false,
+  });
+
   const cachedUser = queryClient.getQueryData<User | null>(queryKeys.auth.me) ?? null;
   const currentUser = user ?? cachedUser;
 
-  const { videos, groups, isLoading: isLoadingData } = useHomePageData({ userId: user?.id });
+  const { videos, groups, isLoading: isLoadingData } = useHomePageData({ userId: currentUser?.id });
   const videoStats = useVideoStats(videos);
 
   const recentVideos = useMemo(
@@ -61,7 +67,19 @@ export default function HomePage() {
     [videos],
   );
 
-  if (isLoading || !user || isLoadingData) {
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#f8faf5]">
+        <LoadingSpinner />
+      </div>
+    );
+  }
+
+  if (!currentUser) {
+    return <LandingPage />;
+  }
+
+  if (isLoadingData) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#f8faf5]">
         <LoadingSpinner />
