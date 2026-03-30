@@ -85,4 +85,18 @@
     <xhtml:link rel="alternate" hreflang="ja" href="https://videoq.jp/ja/docs/openai"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://videoq.jp/docs/openai"/>
   </url>
+  <url>
+    <loc>https://videoq.jp/use-cases/education</loc>
+    <lastmod>2026-03-30</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://videoq.jp/use-cases/education"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://videoq.jp/ja/use-cases/education"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://videoq.jp/use-cases/education"/>
+  </url>
+  <url>
+    <loc>https://videoq.jp/ja/use-cases/education</loc>
+    <lastmod>2026-03-30</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://videoq.jp/use-cases/education"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://videoq.jp/ja/use-cases/education"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://videoq.jp/use-cases/education"/>
+  </url>
 </urlset>
