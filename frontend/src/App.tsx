@@ -23,6 +23,7 @@ const BillingPage = lazy(() => import('@/pages/BillingPage'));
 const TermsPage = lazy(() => import('@/pages/TermsPage'));
 const PrivacyPolicyPage = lazy(() => import('@/pages/PrivacyPolicyPage'));
 const CommercialDisclosurePage = lazy(() => import('@/pages/CommercialDisclosurePage'));
+const UseCaseEducationPage = lazy(() => import('@/pages/UseCaseEducationPage'));
 
 function LocaleGate() {
   const params = useParams<{ locale?: string }>();
@@ -69,6 +70,7 @@ const routeChildren = (
     <Route path="terms" element={<TermsPage />} />
     <Route path="privacy" element={<PrivacyPolicyPage />} />
     <Route path="commercial-disclosure" element={<CommercialDisclosurePage />} />
+    <Route path="use-cases/education" element={<UseCaseEducationPage />} />
   </>
 );
 
