@@ -1015,9 +1015,9 @@
   },
   "landing": {
     "hero": {
-      "title": "あらゆるビデオを、最高の学びの体験へ",
-      "subtitle": "AI動画学習プラットフォーム",
-      "description": "動画をアップロードしてOpenAI Whisperで自動文字起こし。RAGチャットで動画の内容に自然言語で質問できます。",
+      "title": "動画をアップロードするだけ。教育・研修動画をAIで文字起こし→即検索",
+      "subtitle": "教育・企業研修向けAI動画学習プラットフォーム",
+      "description": "授業・研修・セミナーの動画をAIで文字起こし→自然言語で即検索。教育者・研修担当者が動画を最大活用できます。",
       "ctaSignup": "無料で始める",
       "ctaDocs": "開発者ドキュメント"
     },
@@ -1034,6 +1034,24 @@
       "api": {
         "title": "OpenAI互換API",
         "description": "既存のOpenAIクライアントやSDKでビデオライブラリを操作できます"
+      }
+    },
+    "personas": {
+      "title": "こんな方に",
+      "educator": {
+        "title": "教育者・講師",
+        "description": "授業録画を学生が自習できる教材に。AIチャットで学生が自力で答えを探せます。",
+        "ctaLink": "教育機関の方はこちら"
+      },
+      "corporateTrainer": {
+        "title": "企業の研修担当者",
+        "description": "研修動画をAIナレッジベースに。新入社員が必要な情報をいつでも自分で検索できます。",
+        "ctaLink": "企業研修の方はこちら"
+      },
+      "developer": {
+        "title": "開発者",
+        "description": "OpenAI互換APIで自社サービスに動画AIを組み込む。既存のSDKでそのまま使えます。",
+        "ctaLink": "APIドキュメントを見る"
       }
     }
   },
