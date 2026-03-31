@@ -121,7 +121,7 @@ class RagChatService:
         vector_store = self._create_vector_store()
         return vector_store.as_retriever(
             search_kwargs={
-                "k": 4,
+                "k": 20,
                 "filter": {
                     "user_id": self.user.id,
                     "video_id": {"$in": group_video_ids},
