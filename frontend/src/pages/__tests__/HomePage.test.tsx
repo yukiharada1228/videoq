@@ -131,6 +131,36 @@ describe('HomePage - authenticated', () => {
       expect(apiClient.getVideoGroups).toHaveBeenCalled()
     })
   })
+
+  it('sets authenticated metadata in english', async () => {
+    globalThis.__setMockLanguage('en')
+    render(<HomePage />)
+
+    await waitFor(() => {
+      expect(document.title).toBe('Home | VideoQ')
+    })
+    expect(document.querySelector('meta[name="description"]')?.getAttribute('content')).toBe(
+      'View your VideoQ dashboard, recent uploads, and quick actions for managing videos and groups.'
+    )
+    expect(document.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(
+      'https://videoq.jp/'
+    )
+  })
+
+  it('switches authenticated metadata for japanese locale', async () => {
+    globalThis.__setMockLanguage('ja')
+    render(<HomePage />)
+
+    await waitFor(() => {
+      expect(document.title).toBe('ホーム | VideoQ')
+    })
+    expect(document.querySelector('meta[name="description"]')?.getAttribute('content')).toBe(
+      'VideoQ のダッシュボードで、最近のアップロード、動画管理、グループ管理へのクイック操作を確認できます。'
+    )
+    expect(document.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(
+      'https://videoq.jp/ja/'
+    )
+  })
 })
 
 describe('HomePage - Data Loading', () => {
@@ -158,6 +188,10 @@ describe('HomePage - unauthenticated', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     ;(apiClient.getMeOrNull as ReturnType<typeof vi.fn>).mockResolvedValue(null)
+  })
+
+  afterEach(() => {
+    globalThis.__setMockLanguage('en')
   })
 
   it('should render landing page hero when user is not authenticated', async () => {
