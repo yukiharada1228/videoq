@@ -81,22 +81,6 @@ jobs:
           pip install -r requirements.txt --quiet
           python manage.py migrate --noinput
 
-      - name: Run collectstatic to R2
-        env:
-          IMAGE_URI: ${{ steps.build-backend.outputs.image_uri }}
-        run: |
-          docker run --rm \
-            -e USE_S3_STORAGE=true \
-            -e AWS_ACCESS_KEY_ID="${{ secrets.R2_ACCESS_KEY_ID }}" \
-            -e AWS_SECRET_ACCESS_KEY="${{ secrets.R2_SECRET_ACCESS_KEY }}" \
-            -e AWS_S3_ENDPOINT_URL="${{ secrets.R2_ENDPOINT_URL }}" \
-            -e AWS_STORAGE_BUCKET_NAME="${{ secrets.R2_BUCKET_NAME }}" \
-            -e AWS_S3_REGION_NAME=auto \
-            -e DJANGO_ENV=production \
-            -e SECRET_KEY=tmp \
-            "$IMAGE_URI" python manage.py collectstatic --noinput \
-              --settings=videoq.settings
-
       - name: Update Lambda function code
         env:
           IMAGE_URI: ${{ steps.build-backend.outputs.image_uri }}
