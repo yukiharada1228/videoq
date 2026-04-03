@@ -140,9 +140,9 @@ describe('UseCaseEducationPage', () => {
     it('sets english metadata on mount', () => {
       globalThis.__setMockLanguage('en')
       render(<UseCaseEducationPage />)
-      expect(document.title).toBe('Education Use Case | VideoQ')
+      expect(document.title).toBe('AI Video Transcription & Search for Education | VideoQ')
       expect(document.querySelector('meta[name="description"]')?.getAttribute('content')).toBe(
-        'VideoQ for education: transcribe lectures, let students search by natural language, and share class videos.'
+        'VideoQ for education: auto-transcribe lectures with AI, let students search video content by natural language, and share class recordings instantly.'
       )
     })
 
@@ -183,9 +183,9 @@ describe('UseCaseEducationPage', () => {
       globalThis.__setMockLanguage('ja')
       render(<UseCaseEducationPage />)
 
-      expect(document.title).toBe('教育向け | VideoQ')
+      expect(document.title).toBe('授業・講義動画をAI文字起こし→学生がAIチャットで即検索 | VideoQ')
       expect(document.querySelector('meta[name="description"]')?.getAttribute('content')).toBe(
-        '教育機関向け VideoQ。授業・講義動画を文字起こしし、学生が自然言語で検索・質問できます。'
+        '教育機関向け VideoQ。授業・講義動画をアップロードするだけでAIが自動文字起こし。学生が自然言語で「〇〇の説明は？」と質問すれば即座に該当箇所へ。'
       )
       expect(document.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(
         'https://videoq.jp/ja/use-cases/education'
