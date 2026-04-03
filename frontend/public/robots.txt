@@ -16,6 +16,12 @@ Allow: /
 User-agent: *
 Disallow: /videos
 Disallow: /settings
+Disallow: /billing
+Disallow: /login
+Disallow: /signup
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /verify-email
 Disallow: /api/
 Allow: /
 
