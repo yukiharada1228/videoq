@@ -1180,6 +1180,10 @@
     }
   },
   "seo": {
+    "landing": {
+      "title": "Upload Your Video. AI Transcription & Instant Search for Education & Training | VideoQ",
+      "description": "VideoQ is an AI video learning platform for education and corporate training. Upload your video and AI transcribes lectures, training sessions, and seminars. Search instantly in natural language. Free to start."
+    },
     "docs": {
       "home": {
         "title": "Developer Docs | VideoQ",

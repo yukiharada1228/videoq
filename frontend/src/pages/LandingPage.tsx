@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   GraduationCap,
@@ -11,37 +10,20 @@ import {
 } from 'lucide-react';
 import { AppPageShell } from '@/components/layout/AppPageShell';
 import { Link } from '@/lib/i18n';
+import { SeoHead } from '@/components/seo/SeoHead';
 
-const BASE_URL = 'https://videoq.jp';
 const CONTAINER = 'max-w-screen-xl mx-auto px-6 lg:px-8';
 
 export default function LandingPage() {
   const { t } = useTranslation();
 
-  useEffect(() => {
-    const prevTitle = document.title;
-    document.title = '動画をアップロードするだけ。教育・研修動画をAIで文字起こし→即検索 | VideoQ';
-
-    const metaDesc = document.querySelector<HTMLMetaElement>('meta[name="description"]');
-    const prevDesc = metaDesc?.getAttribute('content') ?? '';
-    metaDesc?.setAttribute(
-      'content',
-      'VideoQは教育・企業研修向けのAI動画学習プラットフォームです。動画をアップロードするだけでAIが授業・研修・セミナーを文字起こし。自然言語で即検索できます。無料で始められます。',
-    );
-
-    const canonicalEl = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
-    const prevCanonical = canonicalEl?.getAttribute('href') ?? '';
-    canonicalEl?.setAttribute('href', `${BASE_URL}/`);
-
-    return () => {
-      document.title = prevTitle;
-      metaDesc?.setAttribute('content', prevDesc);
-      canonicalEl?.setAttribute('href', prevCanonical);
-    };
-  }, []);
-
   return (
     <AppPageShell isPublic activePage="home" contentClassName="w-full px-0">
+      <SeoHead
+        title={t('seo.landing.title')}
+        description={t('seo.landing.description')}
+        path="/"
+      />
       {/* ── Hero ── */}
       <section className="w-full bg-[#f8faf5] py-16 lg:py-28">
         <div className={`${CONTAINER} text-center`}>
