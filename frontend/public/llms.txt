@@ -23,13 +23,12 @@ VideoQ is an AI-powered video learning platform designed for educators and learn
 
 ## Pricing
 
-VideoQは無料で始められます。アカウント登録後すぐに動画のアップロードと文字起こしが利用可能です。
+VideoQは無料で始められます。アカウント登録後すぐに動画のアップロードと文字起こしが利用可能です。クレジットカード不要。
 
 VideoQ is free to start. After signing up, you can immediately upload videos and use AI transcription with no credit card required.
 
-- Free plan available: [Sign up](https://videoq.jp/signup)
-- [Pricing details (EN)](https://videoq.jp/pricing)
-- [Pricing details (JA)](https://videoq.jp/ja/pricing)
+- [Sign up for free (EN)](https://videoq.jp/signup)
+- [Sign up for free (JA)](https://videoq.jp/ja/signup)
 
 ## Use Cases
 
