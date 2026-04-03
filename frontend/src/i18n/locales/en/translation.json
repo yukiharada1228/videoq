@@ -1218,17 +1218,21 @@
     },
     "useCases": {
       "education": {
-        "title": "Education Use Case | VideoQ",
-        "description": "VideoQ for education: transcribe lectures, let students search by natural language, and share class videos."
+        "title": "AI Video Transcription & Search for Education | VideoQ",
+        "description": "VideoQ for education: auto-transcribe lectures with AI, let students search video content by natural language, and share class recordings instantly."
       },
       "corporateTraining": {
-        "title": "Corporate Training Use Case | VideoQ",
-        "description": "VideoQ for corporate training: transcribe training videos, power self-serve search, and integrate with internal tools."
+        "title": "AI Transcription & Search for Corporate Training Videos | VideoQ",
+        "description": "VideoQ for corporate training: auto-transcribe training videos with AI, enable self-serve search across sessions, and integrate with Slack, LMS, and internal tools."
       }
     },
     "faq": {
       "title": "FAQ | VideoQ",
       "description": "Frequently asked questions about VideoQ: pricing, features, security, and more."
+    },
+    "commercialDisclosure": {
+      "title": "Specified Commercial Transaction Act Disclosure | VideoQ",
+      "description": "Legal disclosure required under Japan's Specified Commercial Transaction Act for VideoQ services."
     }
   },
   "faq": {
