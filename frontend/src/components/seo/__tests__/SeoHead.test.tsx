@@ -30,6 +30,13 @@ describe('SeoHead', () => {
       ).toBe('https://videoq.jp/custom.png')
     })
 
+    it('outputs og:image:alt using the title', () => {
+      render(<SeoHead title="My Page | VideoQ" description="Test desc" path="/test" />)
+      expect(
+        document.querySelector('meta[property="og:image:alt"]')?.getAttribute('content')
+      ).toBe('My Page | VideoQ')
+    })
+
     it('outputs og:image:width as 1200', () => {
       render(<SeoHead title="Test" description="Test desc" path="/test" />)
       expect(
