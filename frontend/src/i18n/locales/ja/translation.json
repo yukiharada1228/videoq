@@ -1218,17 +1218,21 @@
     },
     "useCases": {
       "education": {
-        "title": "教育向け | VideoQ",
-        "description": "教育機関向け VideoQ。授業・講義動画を文字起こしし、学生が自然言語で検索・質問できます。"
+        "title": "授業・講義動画をAI文字起こし→学生がAIチャットで即検索 | VideoQ",
+        "description": "教育機関向け VideoQ。授業・講義動画をアップロードするだけでAIが自動文字起こし。学生が自然言語で「〇〇の説明は？」と質問すれば即座に該当箇所へ。"
       },
       "corporateTraining": {
-        "title": "企業研修向け | VideoQ",
-        "description": "企業研修向け VideoQ。社内研修動画を文字起こしし、社員が必要な場面を検索・質問できます。"
+        "title": "社内研修動画をAI文字起こし→必要な場面を自然言語で即検索 | VideoQ",
+        "description": "企業研修向け VideoQ。研修・セミナー動画をアップロードするだけでAIが自動文字起こし。社員が必要な情報を自然言語で検索でき、Slack や LMS とも連携可能。"
       }
     },
     "faq": {
       "title": "よくある質問 | VideoQ",
       "description": "VideoQ のよくある質問。料金・機能・セキュリティ・API 連携などをまとめています。"
+    },
+    "commercialDisclosure": {
+      "title": "特定商取引法に基づく表記 | VideoQ",
+      "description": "VideoQ サービスにおける特定商取引法に基づく販売業者情報・返品ポリシー等の法定表示。"
     }
   },
   "faq": {
