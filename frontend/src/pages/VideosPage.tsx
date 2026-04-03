@@ -12,6 +12,7 @@ import { useI18nNavigate } from '@/lib/i18n';
 import { useTags } from '@/hooks/useTags';
 import { AppPageShell } from '@/components/layout/AppPageShell';
 import { AppPageHeader } from '@/components/layout/AppPageHeader';
+import { SeoHead } from '@/components/seo/SeoHead';
 import { Plus, Search, Tag } from 'lucide-react';
 
 type StatusFilter = 'all' | 'completed' | 'processing' | 'error';
@@ -89,6 +90,11 @@ export default function VideosPage() {
 
   return (
     <AppPageShell activePage="videos">
+      <SeoHead
+        title={t('seo.app.videos.title')}
+        description={t('seo.app.videos.description')}
+        path="/videos"
+      />
       <AppPageHeader
         title={t('videos.list.title')}
         description={t('videos.list.managingCount', { count: stats.total })}

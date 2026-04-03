@@ -8,6 +8,7 @@ import { InlineSpinner } from '@/components/common/InlineSpinner';
 import { AuthLayout } from '@/components/layout/AuthLayout';
 import { AuthPageIntro } from '@/components/layout/AuthPageIntro';
 import { AuthPageFooter } from '@/components/layout/AuthPageFooter';
+import { SeoHead } from '@/components/seo/SeoHead';
 
 export default function LoginPage() {
   const navigate = useI18nNavigate();
@@ -24,6 +25,11 @@ export default function LoginPage() {
 
   return (
     <AuthLayout>
+      <SeoHead
+        title={t('seo.auth.login.title')}
+        description={t('seo.auth.login.description')}
+        path="/login"
+      />
       <AuthPageIntro badge={t('auth.login.badge')} title={t('auth.login.title')} />
 
       {/* Error Message */}

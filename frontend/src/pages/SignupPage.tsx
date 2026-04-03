@@ -8,6 +8,7 @@ import { InlineSpinner } from '@/components/common/InlineSpinner';
 import { AuthLayout } from '@/components/layout/AuthLayout';
 import { AuthPageIntro } from '@/components/layout/AuthPageIntro';
 import { AuthPageFooter } from '@/components/layout/AuthPageFooter';
+import { SeoHead } from '@/components/seo/SeoHead';
 
 export default function SignupPage() {
   const navigate = useI18nNavigate();
@@ -32,6 +33,11 @@ export default function SignupPage() {
 
   return (
     <AuthLayout>
+      <SeoHead
+        title={t('seo.auth.signup.title')}
+        description={t('seo.auth.signup.description')}
+        path="/signup"
+      />
       <AuthPageIntro badge={t('auth.signup.badge')} title={t('auth.signup.title')} />
 
       {/* Error Message */}
