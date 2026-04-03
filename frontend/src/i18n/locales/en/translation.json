@@ -1180,6 +1180,63 @@
     }
   },
   "seo": {
+    "app": {
+      "home": {
+        "title": "Home | VideoQ",
+        "description": "View your VideoQ dashboard, recent uploads, and quick actions for managing videos and groups."
+      },
+      "videos": {
+        "title": "Video Library | VideoQ",
+        "description": "Browse, search, and manage your uploaded videos in VideoQ."
+      },
+      "groups": {
+        "title": "Group Management | VideoQ",
+        "description": "Create and manage video groups for searchable AI chat and shared learning flows."
+      },
+      "videoDetail": {
+        "description": "Review the video, transcript, and metadata in your VideoQ library."
+      },
+      "groupDetail": {
+        "description": "View the video group, its playlist, and related AI chat workspace in VideoQ."
+      },
+      "settings": {
+        "title": "Settings | VideoQ",
+        "description": "Manage your VideoQ account, API keys, and integration settings."
+      },
+      "billing": {
+        "title": "Billing & Plans | VideoQ",
+        "description": "Review your current plan, usage, and billing options in VideoQ."
+      }
+    },
+    "auth": {
+      "login": {
+        "title": "Log In | VideoQ",
+        "description": "Log in to VideoQ to manage videos, search transcripts with AI, and access your learning workspace."
+      },
+      "checkEmail": {
+        "title": "Check Your Email | VideoQ",
+        "description": "Check your inbox to verify your email address and finish creating your VideoQ account."
+      },
+      "signup": {
+        "title": "Sign Up | VideoQ",
+        "description": "Create a VideoQ account to upload videos, transcribe them with AI, and start searchable learning workflows."
+      },
+      "forgotPassword": {
+        "title": "Reset Your Password | VideoQ",
+        "description": "Request a password reset email to regain access to your VideoQ account."
+      },
+      "resetPassword": {
+        "title": "Set a New Password | VideoQ",
+        "description": "Set a new password to restore access to your VideoQ account."
+      },
+      "verifyEmail": {
+        "title": "Verify Your Email | VideoQ",
+        "description": "Verify your email address to activate your VideoQ account."
+      }
+    },
+    "shared": {
+      "description": "Open the shared VideoQ group and browse videos with AI chat."
+    },
     "landing": {
       "title": "Upload Your Video. AI Transcription & Instant Search for Education & Training | VideoQ",
       "description": "VideoQ is an AI video learning platform for education and corporate training. Upload your video and AI transcribes lectures, training sessions, and seminars. Search instantly in natural language. Free to start."

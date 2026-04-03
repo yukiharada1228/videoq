@@ -8,6 +8,7 @@ import {
 import { Link } from '@/lib/i18n';
 import { apiClient, type VideoInGroup } from '@/lib/api';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
+import { SeoHead } from '@/components/seo/SeoHead';
 import { ChatPanel } from '@/components/chat/ChatPanel';
 import { convertVideoInGroupToSelectedVideo, type SelectedVideo } from '@/lib/utils/videoConversion';
 import { useVideoPlayback } from '@/hooks/useVideoPlayback';
@@ -148,10 +149,16 @@ export default function SharePage() {
   // ── Main ───────────────────────────────────────────────────────────────────
 
   return (
-    <div
-      className="bg-[#f8faf5] flex flex-col"
-      style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-    >
+    <>
+      <SeoHead
+        title={`${group.name} | VideoQ`}
+        description={group.description || t('seo.shared.description')}
+        path={`/share/${shareToken}`}
+      />
+      <div
+        className="bg-[#f8faf5] flex flex-col"
+        style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+      >
       {/* ── Fixed Header ────────────────────────────────────────────────── */}
       <header className="fixed top-0 w-full bg-white/80 backdrop-blur-xl border-b border-stone-200/60 z-50">
         <div className="max-w-screen-xl px-6 lg:px-8 mx-auto w-full flex justify-between items-center py-4">
@@ -302,6 +309,7 @@ export default function SharePage() {
           );
         })}
       </nav>
-    </div>
+      </div>
+    </>
   );
 }

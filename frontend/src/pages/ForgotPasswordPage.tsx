@@ -7,6 +7,7 @@ import { useRequestPasswordResetMutation } from '@/hooks/usePasswordRecovery';
 import { AuthLayout } from '@/components/layout/AuthLayout';
 import { AuthPageIntro } from '@/components/layout/AuthPageIntro';
 import { AuthPageFooter } from '@/components/layout/AuthPageFooter';
+import { SeoHead } from '@/components/seo/SeoHead';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -36,6 +37,11 @@ export default function ForgotPasswordPage() {
 
   return (
     <AuthLayout>
+      <SeoHead
+        title={t('seo.auth.forgotPassword.title')}
+        description={t('seo.auth.forgotPassword.description')}
+        path="/forgot-password"
+      />
       {/* Back Link */}
       <Link
         href="/login"

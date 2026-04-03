@@ -22,6 +22,10 @@ describe('VerifyEmailPage', () => {
     vi.clearAllMocks()
   })
 
+  afterEach(() => {
+    globalThis.__setMockLanguage('en')
+  })
+
   it('should render page title', () => {
     ; (apiClient.verifyEmail as ReturnType<typeof vi.fn>).mockImplementation(
       () => new Promise(() => { })
@@ -109,6 +113,40 @@ describe('VerifyEmailPage', () => {
       expect(screen.getByText('Invalid token')).toBeInTheDocument()
     }, { timeout: 3000 })
   }, 10000)
+
+  it('sets english metadata', () => {
+    ;(apiClient.verifyEmail as ReturnType<typeof vi.fn>).mockImplementation(
+      () => new Promise(() => { })
+    )
+    globalThis.__setMockLanguage('en')
+
+    render(<VerifyEmailPage />)
+
+    expect(document.title).toBe('Verify Your Email | VideoQ')
+    expect(document.querySelector('meta[name="description"]')?.getAttribute('content')).toBe(
+      'Verify your email address to activate your VideoQ account.'
+    )
+    expect(document.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(
+      'https://videoq.jp/verify-email'
+    )
+  })
+
+  it('switches metadata for japanese locale', () => {
+    ;(apiClient.verifyEmail as ReturnType<typeof vi.fn>).mockImplementation(
+      () => new Promise(() => { })
+    )
+    globalThis.__setMockLanguage('ja')
+
+    render(<VerifyEmailPage />)
+
+    expect(document.title).toBe('メールアドレス認証 | VideoQ')
+    expect(document.querySelector('meta[name="description"]')?.getAttribute('content')).toBe(
+      'VideoQ アカウントを有効化するため、メールアドレス認証を行います。'
+    )
+    expect(document.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(
+      'https://videoq.jp/ja/verify-email'
+    )
+  })
 })
 
 describe('VerifyEmailPage - API Calls', () => {

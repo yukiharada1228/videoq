@@ -18,6 +18,10 @@ describe('LoginPage', () => {
     mockNavigate = useI18nNavigate() as ReturnType<typeof vi.fn>
   })
 
+  afterEach(() => {
+    globalThis.__setMockLanguage('en')
+  })
+
   it('should render login form', () => {
     render(<LoginPage />)
 
@@ -54,7 +58,7 @@ describe('LoginPage', () => {
   })
 
   it('should call apiClient.login on submit', async () => {
-    ; (apiClient.login as ReturnType<typeof vi.fn>).mockResolvedValue({})
+    ;(apiClient.login as ReturnType<typeof vi.fn>).mockResolvedValue({})
 
     render(<LoginPage />)
 
@@ -73,7 +77,7 @@ describe('LoginPage', () => {
   })
 
   it('should navigate to home on successful login', async () => {
-    ; (apiClient.login as ReturnType<typeof vi.fn>).mockResolvedValue({})
+    ;(apiClient.login as ReturnType<typeof vi.fn>).mockResolvedValue({})
 
     render(<LoginPage />)
 
@@ -97,5 +101,31 @@ describe('LoginPage', () => {
     const container = screen.getByText('auth.login.title').closest('main')
     expect(container).toBeInTheDocument()
     expect(container).toHaveClass('flex', 'min-h-screen', 'flex-col')
+  })
+
+  it('sets english metadata', () => {
+    globalThis.__setMockLanguage('en')
+    render(<LoginPage />)
+
+    expect(document.title).toBe('Log In | VideoQ')
+    expect(document.querySelector('meta[name="description"]')?.getAttribute('content')).toBe(
+      'Log in to VideoQ to manage videos, search transcripts with AI, and access your learning workspace.'
+    )
+    expect(document.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(
+      'https://videoq.jp/login'
+    )
+  })
+
+  it('switches metadata for japanese locale', () => {
+    globalThis.__setMockLanguage('ja')
+    render(<LoginPage />)
+
+    expect(document.title).toBe('ログイン | VideoQ')
+    expect(document.querySelector('meta[name="description"]')?.getAttribute('content')).toBe(
+      'VideoQ にログインして、動画管理、AI による文字起こし検索、学習ワークスペースにアクセスできます。'
+    )
+    expect(document.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(
+      'https://videoq.jp/ja/login'
+    )
   })
 })

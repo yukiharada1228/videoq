@@ -6,6 +6,7 @@ import { useVideo } from '@/hooks/useVideos';
 import { apiClient } from '@/lib/api';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
+import { SeoHead } from '@/components/seo/SeoHead';
 import { formatDate } from '@/lib/utils/video';
 import { TagSelector } from '@/components/video/TagSelector';
 import { TagCreateDialog } from '@/components/video/TagCreateDialog';
@@ -297,10 +298,16 @@ export default function VideoDetailPage() {
   const isPlainTextTranscript = video.transcript?.trim() && !isSRTFormat(video.transcript);
 
   return (
-    <div
-      className="bg-[#f8faf5] h-screen flex flex-col overflow-hidden"
-      style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-    >
+    <>
+      <SeoHead
+        title={`${video.title} | VideoQ`}
+        description={video.description || t('seo.app.videoDetail.description')}
+        path={`/videos/${video.id}`}
+      />
+      <div
+        className="bg-[#f8faf5] h-screen flex flex-col overflow-hidden"
+        style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+      >
       {/* ── Header ───────────────────────────────────────────────────────── */}
       <header className="fixed top-0 w-full bg-white/80 backdrop-blur-xl border-b border-stone-200/60 z-50">
         <div className="max-w-screen-xl px-6 lg:px-8 mx-auto w-full flex justify-between items-center py-4">
@@ -592,6 +599,7 @@ export default function VideoDetailPage() {
         onClose={() => setIsCreateDialogOpen(false)}
         onCreate={handleCreateTag}
       />
-    </div>
+      </div>
+    </>
   );
 }

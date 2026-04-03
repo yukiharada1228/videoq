@@ -7,6 +7,7 @@ import { apiClient, ApiError, type IntegrationApiKeyCreateResponse } from '@/lib
 import { queryKeys } from '@/lib/queryKeys';
 import { AppPageShell } from '@/components/layout/AppPageShell';
 import { AppPageHeader } from '@/components/layout/AppPageHeader';
+import { SeoHead } from '@/components/seo/SeoHead';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { Input } from '@/components/ui/input';
@@ -231,6 +232,11 @@ export default function SettingsPage() {
 
   return (
     <AppPageShell activePage="settings">
+      <SeoHead
+        title={t('seo.app.settings.title')}
+        description={t('seo.app.settings.description')}
+        path="/settings"
+      />
       <AppPageHeader
         title={t('settings.title')}
         description={t('settings.subtitle')}

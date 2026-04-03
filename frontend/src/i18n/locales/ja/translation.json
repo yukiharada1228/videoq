@@ -1180,6 +1180,63 @@
     }
   },
   "seo": {
+    "app": {
+      "home": {
+        "title": "ホーム | VideoQ",
+        "description": "VideoQ のダッシュボードで、最近のアップロード、動画管理、グループ管理へのクイック操作を確認できます。"
+      },
+      "videos": {
+        "title": "動画ライブラリ | VideoQ",
+        "description": "VideoQ にアップロードした動画を一覧・検索・管理できます。"
+      },
+      "groups": {
+        "title": "グループ管理 | VideoQ",
+        "description": "AI チャットや共有学習フローに使う動画グループを作成・管理できます。"
+      },
+      "videoDetail": {
+        "description": "VideoQ の動画詳細画面で、動画、文字起こし、メタデータを確認できます。"
+      },
+      "groupDetail": {
+        "description": "VideoQ のグループ詳細画面で、動画一覧、再生、AI チャット連携を確認できます。"
+      },
+      "settings": {
+        "title": "設定 | VideoQ",
+        "description": "VideoQ のアカウント、API キー、各種連携設定を管理できます。"
+      },
+      "billing": {
+        "title": "課金・プラン | VideoQ",
+        "description": "現在のプラン、使用量、課金オプションを VideoQ 上で確認できます。"
+      }
+    },
+    "auth": {
+      "login": {
+        "title": "ログイン | VideoQ",
+        "description": "VideoQ にログインして、動画管理、AI による文字起こし検索、学習ワークスペースにアクセスできます。"
+      },
+      "checkEmail": {
+        "title": "メールをご確認ください | VideoQ",
+        "description": "受信メールを確認して、メールアドレス認証を完了し、VideoQ アカウント登録を完了してください。"
+      },
+      "signup": {
+        "title": "新規登録 | VideoQ",
+        "description": "VideoQ アカウントを作成して、動画をアップロードし、AI 文字起こしと検索可能な学習フローを始めましょう。"
+      },
+      "forgotPassword": {
+        "title": "パスワード再設定 | VideoQ",
+        "description": "VideoQ アカウントに再度アクセスするためのパスワード再設定メールを送信します。"
+      },
+      "resetPassword": {
+        "title": "新しいパスワードを設定 | VideoQ",
+        "description": "VideoQ アカウントに再度アクセスするため、新しいパスワードを設定します。"
+      },
+      "verifyEmail": {
+        "title": "メールアドレス認証 | VideoQ",
+        "description": "VideoQ アカウントを有効化するため、メールアドレス認証を行います。"
+      }
+    },
+    "shared": {
+      "description": "共有された VideoQ グループを開き、動画一覧と AI チャットを利用できます。"
+    },
     "landing": {
       "title": "動画をアップロードするだけ。教育・研修動画をAIで文字起こし→即検索 | VideoQ",
       "description": "VideoQは教育・企業研修向けのAI動画学習プラットフォームです。動画をアップロードするだけでAIが授業・研修・セミナーを文字起こし。自然言語で即検索できます。無料で始められます。"
