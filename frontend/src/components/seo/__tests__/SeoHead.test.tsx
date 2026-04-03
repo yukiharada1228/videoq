@@ -30,6 +30,13 @@ describe('SeoHead', () => {
       ).toBe('https://videoq.jp/custom.png')
     })
 
+    it('outputs og:image:alt using the title', () => {
+      render(<SeoHead title="My Page | VideoQ" description="Test desc" path="/test" />)
+      expect(
+        document.querySelector('meta[property="og:image:alt"]')?.getAttribute('content')
+      ).toBe('My Page | VideoQ')
+    })
+
     it('outputs og:image:width as 1200', () => {
       render(<SeoHead title="Test" description="Test desc" path="/test" />)
       expect(
@@ -95,6 +102,63 @@ describe('SeoHead', () => {
       expect(
         document.querySelector('link[rel="canonical"]')?.getAttribute('href')
       ).toBe('https://videoq.jp/ja/test')
+    })
+  })
+
+  describe('og:locale', () => {
+    it('outputs en_US for english locale', () => {
+      globalThis.__setMockLanguage('en')
+      render(<SeoHead title="Test" description="desc" path="/test" />)
+      expect(
+        document.querySelector('meta[property="og:locale"]')?.getAttribute('content')
+      ).toBe('en_US')
+    })
+
+    it('outputs ja_JP for japanese locale', () => {
+      globalThis.__setMockLanguage('ja')
+      render(<SeoHead title="Test" description="desc" path="/test" />)
+      expect(
+        document.querySelector('meta[property="og:locale"]')?.getAttribute('content')
+      ).toBe('ja_JP')
+    })
+
+    it('outputs og:locale:alternate for the other locale (en → ja_JP)', () => {
+      globalThis.__setMockLanguage('en')
+      render(<SeoHead title="Test" description="desc" path="/test" />)
+      expect(
+        document.querySelector('meta[property="og:locale:alternate"]')?.getAttribute('content')
+      ).toBe('ja_JP')
+    })
+
+    it('outputs og:locale:alternate for the other locale (ja → en_US)', () => {
+      globalThis.__setMockLanguage('ja')
+      render(<SeoHead title="Test" description="desc" path="/test" />)
+      expect(
+        document.querySelector('meta[property="og:locale:alternate"]')?.getAttribute('content')
+      ).toBe('en_US')
+    })
+  })
+
+  describe('twitter tags', () => {
+    it('sets twitter:card to summary_large_image', () => {
+      render(<SeoHead title="Test" description="desc" path="/test" />)
+      expect(
+        document.querySelector('meta[name="twitter:card"]')?.getAttribute('content')
+      ).toBe('summary_large_image')
+    })
+
+    it('sets twitter:title from title prop', () => {
+      render(<SeoHead title="My Page | VideoQ" description="desc" path="/test" />)
+      expect(
+        document.querySelector('meta[name="twitter:title"]')?.getAttribute('content')
+      ).toBe('My Page | VideoQ')
+    })
+
+    it('sets twitter:description from description prop', () => {
+      render(<SeoHead title="Test" description="My description" path="/test" />)
+      expect(
+        document.querySelector('meta[name="twitter:description"]')?.getAttribute('content')
+      ).toBe('My description')
     })
   })
 })
