@@ -1,5 +1,6 @@
 import { Navigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { Helmet } from 'react-helmet-async';
 import { Link } from '@/lib/i18n';
 import { AppPageShell } from '@/components/layout/AppPageShell';
 import { AppPageHeader } from '@/components/layout/AppPageHeader';
@@ -30,6 +31,31 @@ export default function DeveloperDocsSectionPage() {
 
   const isOpenAi = section === 'openai';
 
+  const breadcrumbSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      {
+        '@type': 'ListItem',
+        position: 1,
+        name: 'VideoQ',
+        item: 'https://videoq.jp/',
+      },
+      {
+        '@type': 'ListItem',
+        position: 2,
+        name: 'Developer Docs',
+        item: 'https://videoq.jp/docs',
+      },
+      {
+        '@type': 'ListItem',
+        position: 3,
+        name: sectionTitle,
+        item: `https://videoq.jp/docs/${section}`,
+      },
+    ],
+  };
+
   return (
     <AppPageShell activePage="docs">
       <SeoHead
@@ -37,6 +63,11 @@ export default function DeveloperDocsSectionPage() {
         description={t(`seo.docs.sections.${section}.description`)}
         path={`/docs/${section}`}
       />
+      <Helmet>
+        <script id={`breadcrumb-schema-docs-${section}`} type="application/ld+json">
+          {JSON.stringify(breadcrumbSchema)}
+        </script>
+      </Helmet>
       <nav className="flex items-center gap-2 text-sm font-medium text-[#6f7a6e] mb-6">
         <Link href="/docs" className="hover:text-[#00652c] transition-colors">
           ← {t('docs.backToHome')}

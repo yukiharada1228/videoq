@@ -92,6 +92,10 @@ export default function App() {
           {routeChildren}
         </Route>
 
+        {/* Legacy URL redirects */}
+        <Route path="legal/commercial-disclosure" element={<Navigate to="/commercial-disclosure" replace />} />
+        <Route path="ja/legal/commercial-disclosure" element={<Navigate to="/ja/commercial-disclosure" replace />} />
+
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Suspense>
