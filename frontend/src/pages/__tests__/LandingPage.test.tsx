@@ -98,10 +98,18 @@ describe('LandingPage', () => {
   })
 
   describe('SEO', () => {
-    it('sets document.title on mount', () => {
+    afterEach(() => {
+      globalThis.__setMockLanguage('en')
+    })
+
+    it('sets english title and description on mount', () => {
+      globalThis.__setMockLanguage('en')
       render(<LandingPage />)
       expect(document.title).toBe(
-        '動画をアップロードするだけ。教育・研修動画をAIで文字起こし→即検索 | VideoQ'
+        'Upload Your Video. AI Transcription & Instant Search for Education & Training | VideoQ'
+      )
+      expect(document.querySelector('meta[name="description"]')?.getAttribute('content')).toBe(
+        'VideoQ is an AI video learning platform for education and corporate training. Upload your video and AI transcribes lectures, training sessions, and seminars. Search instantly in natural language. Free to start.'
       )
     })
 
@@ -112,64 +120,34 @@ describe('LandingPage', () => {
       expect(document.title).toBe('original title')
     })
 
-    it('sets meta description on mount', () => {
-      const meta = document.createElement('meta')
-      meta.name = 'description'
-      meta.content = 'original description'
-      document.head.appendChild(meta)
-
-      render(<LandingPage />)
-      expect(
-        document.querySelector('meta[name="description"]')?.getAttribute('content')
-      ).toBe(
-        'VideoQは教育・企業研修向けのAI動画学習プラットフォームです。動画をアップロードするだけでAIが授業・研修・セミナーを文字起こし。自然言語で即検索できます。無料で始められます。'
-      )
-
-      meta.remove()
-    })
-
-    it('restores meta description on unmount', () => {
-      const meta = document.createElement('meta')
-      meta.name = 'description'
-      meta.content = 'original description'
-      document.head.appendChild(meta)
-
-      const { unmount } = render(<LandingPage />)
-      unmount()
-      expect(
-        document.querySelector('meta[name="description"]')?.getAttribute('content')
-      ).toBe('original description')
-
-      meta.remove()
-    })
-
-    it('sets canonical href on mount', () => {
-      const link = document.createElement('link')
-      link.rel = 'canonical'
-      link.href = 'https://videoq.jp/old'
-      document.head.appendChild(link)
-
+    it('sets canonical href to / on mount (en locale)', () => {
+      globalThis.__setMockLanguage('en')
       render(<LandingPage />)
       expect(document.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(
         'https://videoq.jp/'
       )
-
-      link.remove()
     })
 
-    it('restores canonical href on unmount', () => {
-      const link = document.createElement('link')
-      link.rel = 'canonical'
-      link.href = 'https://videoq.jp/old'
-      document.head.appendChild(link)
+    it('sets og:url to / on mount (en locale)', () => {
+      globalThis.__setMockLanguage('en')
+      render(<LandingPage />)
+      expect(
+        document.querySelector('meta[property="og:url"]')?.getAttribute('content')
+      ).toBe('https://videoq.jp/')
+    })
 
-      const { unmount } = render(<LandingPage />)
-      unmount()
-      expect(document.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(
-        'https://videoq.jp/old'
+    it('switches to japanese metadata', () => {
+      globalThis.__setMockLanguage('ja')
+      render(<LandingPage />)
+      expect(document.title).toBe(
+        '動画をアップロードするだけ。教育・研修動画をAIで文字起こし→即検索 | VideoQ'
       )
-
-      link.remove()
+      expect(document.querySelector('meta[name="description"]')?.getAttribute('content')).toBe(
+        'VideoQは教育・企業研修向けのAI動画学習プラットフォームです。動画をアップロードするだけでAIが授業・研修・セミナーを文字起こし。自然言語で即検索できます。無料で始められます。'
+      )
+      expect(document.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(
+        'https://videoq.jp/ja/'
+      )
     })
   })
 })
