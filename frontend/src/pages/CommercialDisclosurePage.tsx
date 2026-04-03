@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { AppPageShell } from '@/components/layout/AppPageShell';
 import { AppPageHeader } from '@/components/layout/AppPageHeader';
+import { SeoHead } from '@/components/seo/SeoHead';
 import { operatorConfig } from '@/lib/operatorConfig';
 
 export default function CommercialDisclosurePage() {
@@ -23,6 +24,11 @@ export default function CommercialDisclosurePage() {
 
   return (
     <AppPageShell isPublic>
+      <SeoHead
+        title={t('seo.commercialDisclosure.title')}
+        description={t('seo.commercialDisclosure.description')}
+        path="/commercial-disclosure"
+      />
       <AppPageHeader title={t('legal.disclosure.title')} />
       <div className="overflow-hidden rounded-xl border border-stone-200 bg-white">
         <table className="w-full">
