@@ -28,6 +28,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Checkbox } from '@/components/ui/checkbox';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
+import { SeoHead } from '@/components/seo/SeoHead';
 import { Link, useI18nNavigate } from '@/lib/i18n';
 import { handleAsyncError } from '@/lib/utils/errorHandling';
 import { convertVideoInGroupToSelectedVideo, type SelectedVideo } from '@/lib/utils/videoConversion';
@@ -570,10 +571,16 @@ export default function VideoGroupDetailPage() {
   };
 
   return (
-    <div
-      className="bg-[#f8faf5] flex flex-col"
-      style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-    >
+    <>
+      <SeoHead
+        title={`${group.name} | VideoQ`}
+        description={group.description || t('seo.app.groupDetail.description')}
+        path={`/videos/groups/${group.id}`}
+      />
+      <div
+        className="bg-[#f8faf5] flex flex-col"
+        style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+      >
       {/* ── Fixed Header ─────────────────────────────────────────────────── */}
       <header className="fixed top-0 w-full bg-white/80 backdrop-blur-xl border-b border-stone-200/60 z-50">
         <div className="max-w-screen-xl px-6 lg:px-8 mx-auto w-full flex justify-between items-center py-4">
@@ -829,6 +836,7 @@ export default function VideoGroupDetailPage() {
         groupId={groupId}
         group={group}
       />
-    </div>
+      </div>
+    </>
   );
 }
