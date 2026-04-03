@@ -10,6 +10,7 @@ import { VideoCard } from '@/components/video/VideoCard';
 import { queryKeys } from '@/lib/queryKeys';
 import { AppPageShell } from '@/components/layout/AppPageShell';
 import { AppPageHeader } from '@/components/layout/AppPageHeader';
+import { SeoHead } from '@/components/seo/SeoHead';
 import { useTranslation } from 'react-i18next';
 import {
   Upload, Film, Users, ArrowRight, Lightbulb,
@@ -89,6 +90,11 @@ export default function HomePage() {
 
   return (
     <AppPageShell activePage="home">
+      <SeoHead
+        title={t('seo.app.home.title')}
+        description={t('seo.app.home.description')}
+        path="/"
+      />
       <AppPageHeader
         title={t('home.welcome.greeting', { username: currentUser?.username })}
         description={t('home.welcome.dailyMotivation')}

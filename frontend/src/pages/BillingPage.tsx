@@ -7,6 +7,7 @@ import { queryKeys } from '@/lib/queryKeys';
 import { useAuth } from '@/hooks/useAuth';
 import { AppPageShell } from '@/components/layout/AppPageShell';
 import { AppPageHeader } from '@/components/layout/AppPageHeader';
+import { SeoHead } from '@/components/seo/SeoHead';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { Button } from '@/components/ui/button';
 import { operatorConfig } from '@/lib/operatorConfig';
@@ -315,6 +316,11 @@ export default function BillingPage() {
   if (isError) {
     return (
       <AppPageShell activePage="billing">
+        <SeoHead
+          title={t('seo.app.billing.title')}
+          description={t('seo.app.billing.description')}
+          path="/billing"
+        />
         <AppPageHeader title={t('billing.title')} description={t('billing.subtitle')} />
         <div className="bg-red-50 border border-red-200 rounded-xl p-5 text-sm text-red-700">
           {subscriptionQuery.error instanceof Error
@@ -353,6 +359,11 @@ export default function BillingPage() {
 
   return (
     <AppPageShell activePage="billing">
+      <SeoHead
+        title={t('seo.app.billing.title')}
+        description={t('seo.app.billing.description')}
+        path="/billing"
+      />
       <AppPageHeader title={t('billing.title')} description={t('billing.subtitle')} />
 
       <div className="flex flex-col gap-6">
