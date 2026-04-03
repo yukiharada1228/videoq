@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { Helmet } from 'react-helmet-async';
 import { Link } from '@/lib/i18n';
 import { AppPageShell } from '@/components/layout/AppPageShell';
 import { AppPageHeader } from '@/components/layout/AppPageHeader';
@@ -32,6 +33,18 @@ export default function DeveloperDocsPage() {
         description={t('seo.docs.home.description')}
         path="/docs"
       />
+      <Helmet>
+        <script id="breadcrumb-schema-docs" type="application/ld+json">
+          {JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'BreadcrumbList',
+            itemListElement: [
+              { '@type': 'ListItem', position: 1, name: 'VideoQ', item: 'https://videoq.jp/' },
+              { '@type': 'ListItem', position: 2, name: 'Developer Docs', item: 'https://videoq.jp/docs' },
+            ],
+          })}
+        </script>
+      </Helmet>
       <AppPageHeader
         title={t('docs.home.title')}
         description={t('docs.home.subtitle')}
