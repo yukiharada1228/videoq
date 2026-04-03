@@ -114,6 +114,22 @@ describe('SeoHead', () => {
         document.querySelector('meta[property="og:locale"]')?.getAttribute('content')
       ).toBe('ja_JP')
     })
+
+    it('outputs og:locale:alternate for the other locale (en → ja_JP)', () => {
+      globalThis.__setMockLanguage('en')
+      render(<SeoHead title="Test" description="desc" path="/test" />)
+      expect(
+        document.querySelector('meta[property="og:locale:alternate"]')?.getAttribute('content')
+      ).toBe('ja_JP')
+    })
+
+    it('outputs og:locale:alternate for the other locale (ja → en_US)', () => {
+      globalThis.__setMockLanguage('ja')
+      render(<SeoHead title="Test" description="desc" path="/test" />)
+      expect(
+        document.querySelector('meta[property="og:locale:alternate"]')?.getAttribute('content')
+      ).toBe('en_US')
+    })
   })
 
   describe('twitter tags', () => {

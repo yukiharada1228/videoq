@@ -153,9 +153,9 @@ describe('UseCaseCorporateTrainingPage', () => {
     it('sets english metadata on mount', () => {
       globalThis.__setMockLanguage('en')
       render(<UseCaseCorporateTrainingPage />)
-      expect(document.title).toBe('Corporate Training Use Case | VideoQ')
+      expect(document.title).toBe('AI Transcription & Search for Corporate Training Videos | VideoQ')
       expect(document.querySelector('meta[name="description"]')?.getAttribute('content')).toBe(
-        'VideoQ for corporate training: transcribe training videos, power self-serve search, and integrate with internal tools.'
+        'VideoQ for corporate training: auto-transcribe training videos with AI, enable self-serve search across sessions, and integrate with Slack, LMS, and internal tools.'
       )
     })
 
@@ -196,9 +196,9 @@ describe('UseCaseCorporateTrainingPage', () => {
       globalThis.__setMockLanguage('ja')
       render(<UseCaseCorporateTrainingPage />)
 
-      expect(document.title).toBe('企業研修向け | VideoQ')
+      expect(document.title).toBe('社内研修動画をAI文字起こし→必要な場面を自然言語で即検索 | VideoQ')
       expect(document.querySelector('meta[name="description"]')?.getAttribute('content')).toBe(
-        '企業研修向け VideoQ。社内研修動画を文字起こしし、社員が必要な場面を検索・質問できます。'
+        '企業研修向け VideoQ。研修・セミナー動画をアップロードするだけでAIが自動文字起こし。社員が必要な情報を自然言語で検索でき、Slack や LMS とも連携可能。'
       )
       expect(document.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(
         'https://videoq.jp/ja/use-cases/corporate-training'

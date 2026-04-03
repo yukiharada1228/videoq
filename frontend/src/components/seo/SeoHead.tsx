@@ -54,6 +54,11 @@ export function SeoHead({ title, description, path, ogImage = DEFAULT_OG_IMAGE }
       <meta property="og:type" content="website" />
       <meta property="og:site_name" content="VideoQ" />
       <meta property="og:locale" content={OG_LOCALE_MAP[locale]} />
+      {locales
+        .filter((l) => l !== locale)
+        .map((l) => (
+          <meta key={l} property="og:locale:alternate" content={OG_LOCALE_MAP[l]} />
+        ))}
       <meta property="og:title" content={title} />
       <meta property="og:description" content={description} />
       <meta property="og:url" content={canonicalUrl} />
