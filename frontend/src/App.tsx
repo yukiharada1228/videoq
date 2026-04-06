@@ -39,6 +39,12 @@ function LocaleGate() {
     return <Navigate to="/" replace />;
   }
 
+  // Strip redundant default-locale prefix (/en/foo → /foo).
+  if (locale === defaultLocale) {
+    const withoutLocale = location.pathname.replace(/^\/[^/]+(\/|$)/, '$1') || '/';
+    return <Navigate to={withoutLocale + location.search} replace />;
+  }
+
   // If user prefers non-default locale, redirect to /:locale/... automatically.
   if (!locale) {
     const preferred = getPreferredLocale();
@@ -93,6 +99,8 @@ export default function App() {
         </Route>
 
         {/* Legacy URL redirects */}
+        <Route path="legal/privacy" element={<Navigate to="/privacy" replace />} />
+        <Route path="legal/terms" element={<Navigate to="/terms" replace />} />
         <Route path="legal/commercial-disclosure" element={<Navigate to="/commercial-disclosure" replace />} />
         <Route path="ja/legal/commercial-disclosure" element={<Navigate to="/ja/commercial-disclosure" replace />} />
 
