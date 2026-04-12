@@ -681,7 +681,7 @@ export default function VideoGroupDetailPage() {
       </Dialog>
 
       {/* ── Main ─────────────────────────────────────────────────────────── */}
-      <main className="mt-16 flex flex-col px-6 pt-4 gap-4 max-w-[1600px] mx-auto w-full overflow-y-auto pb-16 lg:pb-0 lg:h-[calc(100dvh-4rem)] lg:overflow-hidden">
+      <main className="mt-16 flex flex-col px-6 pt-4 gap-4 max-w-[1600px] mx-auto w-full overflow-y-auto pb-16 lg:pb-4 lg:h-[calc(100dvh-4rem)] lg:overflow-hidden">
         {/* Share link panel */}
         <ShareLinkPanel
           shareSlug={group.share_slug ?? ''}
