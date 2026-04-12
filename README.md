@@ -80,7 +80,7 @@ docker compose exec backend python manage.py createsuperuser
 
 ### 📋 先に確認：ユーザー制限の設定
 
-VideoQ はユーザーごとに2種類の制限を管理できます。
+VideoQ はユーザーごとに制限を管理できます。
 
 #### 1. ファイルサイズ上限（1本あたりの最大サイズ）
 
@@ -92,8 +92,7 @@ VideoQ はユーザーごとに2種類の制限を管理できます。
 
 #### 2. ストレージ・使用量制限
 
-ストレージ容量・文字起こし処理時間・AI回答数の月次クォータは管理パネルで設定します。
-`Plan` は基本枠として使われ、各カスタム値はすべてのユーザーでそのまま利用できます。
+ストレージ容量・文字起こし処理時間・AI回答数の上限は管理パネルでユーザーごとに直接設定します。
 
 **設定場所**
 1. [管理パネル](http://localhost/api/admin) にアクセス
@@ -103,10 +102,9 @@ VideoQ はユーザーごとに2種類の制限を管理できます。
 
 | 設定項目 | 説明 |
 |----------|------|
-| `Plan` | 基本の制限枠（`free` / `lite` / `standard`） |
-| `Custom storage gb` | ストレージ上限（GB）。空欄はプラン既定値 |
-| `Custom processing minutes` | 文字起こし処理時間上限（分/月）。空欄はプラン既定値 |
-| `Custom ai answers` | AI回答数上限（回/月）。空欄はプラン既定値 |
+| `Storage limit gb` | ストレージ上限（GB）（デフォルト: 0） |
+| `Processing limit minutes` | 文字起こし処理時間上限（分/月）（デフォルト: 0） |
+| `Ai answers limit` | AI回答数上限（回/月）（デフォルト: 0） |
 | `Unlimited processing minutes` | オンにすると処理時間を無制限にする |
 | `Unlimited ai answers` | オンにするとAI回答数を無制限にする |
 
