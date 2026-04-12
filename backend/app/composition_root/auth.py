@@ -143,22 +143,9 @@ def get_delete_account_use_case() -> AccountDeletionUseCase:
 
 
 def get_delete_account_data_use_case() -> DeleteAccountDataUseCase:
-    import os
     from app.infrastructure.repositories.django_user_data_deletion_gateway import (
         DjangoUserDataDeletionGateway,
     )
-
-    billing_enabled = os.environ.get("BILLING_ENABLED", "false").lower() == "true"
-    if billing_enabled:
-        from app.infrastructure.billing.stripe_gateway import StripeBillingGateway
-        from app.infrastructure.repositories.django_subscription_repository import (
-            DjangoSubscriptionRepository,
-        )
-        return DeleteAccountDataUseCase(
-            user_data_deletion_gateway=DjangoUserDataDeletionGateway(),
-            subscription_repo=DjangoSubscriptionRepository(),
-            billing_gateway=StripeBillingGateway(),
-        )
 
     return DeleteAccountDataUseCase(
         user_data_deletion_gateway=DjangoUserDataDeletionGateway(),

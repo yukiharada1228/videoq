@@ -15,7 +15,7 @@ class AccountDeletionUseCase:
     Orchestrates account deletion:
     1. Record the deletion request
     2. Deactivate and anonymize the user
-    3. Dispatch async data cleanup task (which handles data deletion and Stripe cancellation)
+    3. Dispatch async data cleanup task
     """
 
     def __init__(

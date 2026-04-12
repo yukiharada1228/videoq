@@ -43,29 +43,5 @@ describe('SignupCheckEmailPage', () => {
     expect(container).toBeInTheDocument()
   })
 
-  it('sets english metadata', () => {
-    globalThis.__setMockLanguage('en')
-    render(<SignupCheckEmailPage />)
 
-    expect(document.title).toBe('Check Your Email | VideoQ')
-    expect(document.querySelector('meta[name="description"]')?.getAttribute('content')).toBe(
-      'Check your inbox to verify your email address and finish creating your VideoQ account.'
-    )
-    expect(document.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(
-      'https://videoq.jp/signup/check-email'
-    )
-  })
-
-  it('switches metadata for japanese locale', () => {
-    globalThis.__setMockLanguage('ja')
-    render(<SignupCheckEmailPage />)
-
-    expect(document.title).toBe('メールをご確認ください | VideoQ')
-    expect(document.querySelector('meta[name="description"]')?.getAttribute('content')).toBe(
-      '受信メールを確認して、メールアドレス認証を完了し、VideoQ アカウント登録を完了してください。'
-    )
-    expect(document.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(
-      'https://videoq.jp/ja/signup/check-email'
-    )
-  })
 })

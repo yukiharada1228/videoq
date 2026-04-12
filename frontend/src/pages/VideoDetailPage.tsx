@@ -6,7 +6,6 @@ import { useVideo } from '@/hooks/useVideos';
 import { apiClient } from '@/lib/api';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
-import { SeoHead } from '@/components/seo/SeoHead';
 import { formatDate } from '@/lib/utils/video';
 import { TagSelector } from '@/components/video/TagSelector';
 import { TagCreateDialog } from '@/components/video/TagCreateDialog';
@@ -299,11 +298,6 @@ export default function VideoDetailPage() {
 
   return (
     <>
-      <SeoHead
-        title={`${video.title} | VideoQ`}
-        description={video.description || t('seo.app.videoDetail.description')}
-        path={`/videos/${video.id}`}
-      />
       <div
         className="bg-[#f8faf5] h-screen flex flex-col overflow-hidden"
         style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}

@@ -64,17 +64,6 @@ services:
     networks:
       - videoq-network
 
-  stripe-cli:
-    image: stripe/stripe-cli:latest
-    container_name: videoq-stripe-cli
-    command: listen --api-key ${STRIPE_SECRET_KEY} --forward-to http://backend:8000/api/billing/webhook/
-    env_file:
-      - .env
-    depends_on:
-      - backend
-    networks:
-      - videoq-network
-
   nginx:
     image: nginx:alpine
     container_name: videoq-nginx

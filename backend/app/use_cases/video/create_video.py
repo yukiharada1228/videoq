@@ -22,7 +22,7 @@ class CreateVideoUseCase:
     1. Enforce per-user video limit
     2. Persist the video record
     3. Dispatch transcription task after the transaction commits
-    4. (Optional) Record storage usage for billing
+    4. (Optional) Record storage usage for account limits
     """
 
     def __init__(

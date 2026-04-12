@@ -1,5 +1,4 @@
 import { useTranslation } from 'react-i18next';
-import { Helmet } from 'react-helmet-async';
 import {
   Archive,
   ShieldCheck,
@@ -12,56 +11,14 @@ import {
 } from 'lucide-react';
 import { AppPageShell } from '@/components/layout/AppPageShell';
 import { Link } from '@/lib/i18n';
-import { SeoHead } from '@/components/seo/SeoHead';
 
 const CONTAINER = 'max-w-screen-xl mx-auto px-6 lg:px-8';
-
-const FAQ_SCHEMA = {
-  '@context': 'https://schema.org',
-  '@type': 'FAQPage',
-  mainEntity: [
-    {
-      '@type': 'Question',
-      name: '料金はどのくらいかかりますか？',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'VideoQ は無料プランからご利用いただけます。チームの規模や利用量に応じたプランをご用意しています。',
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'セキュリティは大丈夫ですか？社内の機密動画をアップロードしても安全ですか？',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'VideoQ はアクセス制御機能を備えており、共有リンクの発行範囲を制限できます。社内の機密情報を安全に管理できます。',
-      },
-    },
-    {
-      '@type': 'Question',
-      name: '既存の LMS や社内システムと連携できますか？',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'OpenAI 互換 API を提供しており、既存の LMS・Slack bot・社内システムと簡単に統合できます。MCP サーバーにも対応しています。',
-      },
-    },
-  ],
-};
 
 export default function UseCaseCorporateTrainingPage() {
   const { t } = useTranslation();
 
   return (
     <AppPageShell activePage="home" isPublic contentClassName="w-full px-0">
-      <SeoHead
-        title={t('seo.useCases.corporateTraining.title')}
-        description={t('seo.useCases.corporateTraining.description')}
-        path="/use-cases/corporate-training"
-      />
-      <Helmet>
-        <script id="faq-schema-corporate-training" type="application/ld+json">
-          {JSON.stringify(FAQ_SCHEMA)}
-        </script>
-      </Helmet>
       {/* ── Hero ── */}
       <section className="w-full bg-[#f8faf5] py-16 lg:py-24">
         <div className={`${CONTAINER} text-center`}>
