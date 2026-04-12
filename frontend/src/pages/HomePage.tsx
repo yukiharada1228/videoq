@@ -10,12 +10,11 @@ import { VideoCard } from '@/components/video/VideoCard';
 import { queryKeys } from '@/lib/queryKeys';
 import { AppPageShell } from '@/components/layout/AppPageShell';
 import { AppPageHeader } from '@/components/layout/AppPageHeader';
-import { SeoHead } from '@/components/seo/SeoHead';
 import { useTranslation } from 'react-i18next';
+import LoginPage from '@/pages/LoginPage';
 import {
   Upload, Film, Users, ArrowRight, Lightbulb,
 } from 'lucide-react';
-import LandingPage from '@/pages/LandingPage';
 
 function ActionCard({ icon, iconBg, title, description, linkLabel, linkColor, onClick }: {
   icon: ReactNode;
@@ -56,6 +55,7 @@ export default function HomePage() {
 
   const cachedUser = queryClient.getQueryData<User | null>(queryKeys.auth.me) ?? null;
   const currentUser = user ?? cachedUser;
+  const usageSource: Partial<User> = currentUser ?? {};
 
   const { videos, groups, isLoading: isLoadingData } = useHomePageData({ userId: currentUser?.id });
   const videoStats = useVideoStats(videos);
@@ -68,6 +68,54 @@ export default function HomePage() {
     [videos],
   );
 
+  const usageItems = useMemo(() => {
+    const formatBytesToGb = (bytes?: number | null) => {
+      if (bytes == null) return '0.0';
+      return (bytes / 1024 ** 3).toFixed(bytes >= 10 * 1024 ** 3 ? 0 : 1);
+    };
+    const formatSecondsToMinutes = (seconds?: number | null) => {
+      if (seconds == null) return 0;
+      return Math.ceil(seconds / 60);
+    };
+
+    return [
+      {
+        label: t('billing.usage.storage'),
+        value: formatBytesToGb(usageSource.used_storage_bytes),
+        limit:
+          usageSource.storage_limit_bytes == null
+            ? null
+            : formatBytesToGb(usageSource.storage_limit_bytes),
+        unit: t('billing.usage.gb'),
+      },
+      {
+        label: t('billing.usage.transcription'),
+        value: String(formatSecondsToMinutes(usageSource.used_processing_seconds)),
+        limit:
+          usageSource.processing_limit_seconds == null
+            ? null
+            : String(formatSecondsToMinutes(usageSource.processing_limit_seconds)),
+        unit: t('billing.usage.min'),
+      },
+      {
+        label: t('billing.usage.aiAnswers'),
+        value: String(usageSource.used_ai_answers ?? 0),
+        limit:
+          usageSource.ai_answers_limit == null
+            ? null
+            : String(usageSource.ai_answers_limit),
+      },
+    ];
+  }, [
+    usageSource.ai_answers_limit,
+    usageSource.storage_limit_bytes,
+    usageSource.used_ai_answers,
+    usageSource.used_processing_seconds,
+    usageSource.used_storage_bytes,
+    usageSource.processing_limit_seconds,
+    t,
+  ]);
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#f8faf5]">
@@ -77,7 +125,7 @@ export default function HomePage() {
   }
 
   if (!currentUser) {
-    return <LandingPage />;
+    return <LoginPage />;
   }
 
   if (isLoadingData) {
@@ -90,11 +138,6 @@ export default function HomePage() {
 
   return (
     <AppPageShell activePage="home">
-      <SeoHead
-        title={t('seo.app.home.title')}
-        description={t('seo.app.home.description')}
-        path="/"
-      />
       <AppPageHeader
         title={t('home.welcome.greeting', { username: currentUser?.username })}
         description={t('home.welcome.dailyMotivation')}
@@ -153,6 +196,45 @@ export default function HomePage() {
           linkColor="text-[#904d00]"
           onClick={() => navigate('/videos/groups')}
         />
+      </section>
+
+      <section className="mb-8">
+        <div className="bg-white rounded-2xl shadow-[0_4px_20px_rgba(28,25,23,0.04)] p-5 border border-[#e1e3de]/70">
+          <div className="flex items-start justify-between gap-4 mb-5">
+            <div>
+              <h2 className="text-base font-bold text-[#191c19]">{t('home.usage.title')}</h2>
+              <p className="text-sm text-[#6f7a6e]">{t('home.usage.description')}</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            {usageItems.map(({ label, value, limit, unit }) => (
+              <div
+                key={label}
+                className="rounded-xl bg-[#f2f4ef] px-4 py-4 border border-white"
+              >
+                <div className="text-xs font-bold tracking-widest uppercase text-[#6f7a6e] mb-2">
+                  {label}
+                </div>
+                <div className="text-lg font-bold text-[#191c19]">
+                  {value}
+                  {unit ? <span className="ml-1 text-sm text-[#6f7a6e]">{unit}</span> : null}
+                  <span className="mx-2 text-[#9aa59a]">/</span>
+                  {limit ?? t('billing.usage.unlimited')}
+                  {unit && limit !== null ? (
+                    <span className="ml-1 text-sm text-[#6f7a6e]">{unit}</span>
+                  ) : null}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {currentUser.is_over_quota && (
+            <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {t('billing.errors.overQuota')}
+            </div>
+          )}
+        </div>
       </section>
 
       {/* Recent Videos */}

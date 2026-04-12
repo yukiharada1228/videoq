@@ -28,7 +28,6 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Checkbox } from '@/components/ui/checkbox';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
-import { SeoHead } from '@/components/seo/SeoHead';
 import { Link, useI18nNavigate } from '@/lib/i18n';
 import { handleAsyncError } from '@/lib/utils/errorHandling';
 import { convertVideoInGroupToSelectedVideo, type SelectedVideo } from '@/lib/utils/videoConversion';
@@ -572,11 +571,6 @@ export default function VideoGroupDetailPage() {
 
   return (
     <>
-      <SeoHead
-        title={`${group.name} | VideoQ`}
-        description={group.description || t('seo.app.groupDetail.description')}
-        path={`/videos/groups/${group.id}`}
-      />
       <div
         className="bg-[#f8faf5] flex flex-col"
         style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}

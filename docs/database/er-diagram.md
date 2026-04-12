@@ -37,15 +37,8 @@ erDiagram
         datetime deactivated_at
     }
 
-    Subscription {
-        int id PK
-        int user_id FK
+    User {
         string plan
-        string stripe_customer_id UK
-        string stripe_subscription_id UK
-        string stripe_status
-        datetime current_period_end
-        bool cancel_at_period_end
         bigint used_storage_bytes
         int used_processing_seconds
         int used_ai_answers
@@ -224,8 +217,6 @@ erDiagram
 - `VideoTag(video_id, tag_id)`: 同じタグを同じ動画に複数回付与不可
 - `UserApiKey.hashed_key`: ハッシュ済みAPIキーはユニーク
 - `UserApiKey(user, name)` WHERE `revoked_at IS NULL`: アクティブなAPIキー名はユーザーごとにユニーク（部分ユニーク制約）
-- `Subscription.stripe_customer_id`: Stripe顧客IDはユニーク（NULL許容）
-- `Subscription.stripe_subscription_id`: StripeサブスクリプションIDはユニーク（NULL許容）
 
 ### 外部キー制約
 - 全外部キーにCASCADE削除が設定済み

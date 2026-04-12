@@ -1,5 +1,4 @@
 import { useTranslation } from 'react-i18next';
-import { Helmet } from 'react-helmet-async';
 import {
   BookOpen,
   School,
@@ -12,56 +11,14 @@ import {
 } from 'lucide-react';
 import { AppPageShell } from '@/components/layout/AppPageShell';
 import { Link } from '@/lib/i18n';
-import { SeoHead } from '@/components/seo/SeoHead';
 
 const CONTAINER = 'max-w-screen-xl mx-auto px-6 lg:px-8';
-
-const FAQ_SCHEMA = {
-  '@context': 'https://schema.org',
-  '@type': 'FAQPage',
-  mainEntity: [
-    {
-      '@type': 'Question',
-      name: '長い講義動画のどこに何が入っているか分からない場合はどうすればいいですか？',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'VideoQ の AI チャットで「〇〇について説明した場面は？」と聞けば即座に該当箇所へジャンプできます。',
-      },
-    },
-    {
-      '@type': 'Question',
-      name: '学生が繰り返し同じ質問をしてきます。どう解決できますか？',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: '動画を共有するだけで学生が自分で AI チャットを使って答えを探せます。',
-      },
-    },
-    {
-      '@type': 'Question',
-      name: '板書や口頭説明を記録に残したいのですがどうすればいいですか？',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'VideoQ は Whisper による高精度文字起こしで授業内容を完全にテキスト化します。',
-      },
-    },
-  ],
-};
 
 export default function UseCaseEducationPage() {
   const { t } = useTranslation();
 
   return (
     <AppPageShell activePage="home" isPublic contentClassName="w-full px-0">
-      <SeoHead
-        title={t('seo.useCases.education.title')}
-        description={t('seo.useCases.education.description')}
-        path="/use-cases/education"
-      />
-      <Helmet>
-        <script id="faq-schema-education" type="application/ld+json">
-          {JSON.stringify(FAQ_SCHEMA)}
-        </script>
-      </Helmet>
       {/* ── Hero ── */}
       <section className="w-full bg-[#f8faf5] py-16 lg:py-24">
         <div className={`${CONTAINER} text-center`}>

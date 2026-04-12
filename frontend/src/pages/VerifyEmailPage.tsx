@@ -8,7 +8,6 @@ import { AuthPageIntro } from '@/components/layout/AuthPageIntro';
 import { AuthPageFooter } from '@/components/layout/AuthPageFooter';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
-import { SeoHead } from '@/components/seo/SeoHead';
 import { useVerifyEmailQuery } from '@/hooks/useVerifyEmailData';
 
 type VerificationState = 'loading' | 'success' | 'error';
@@ -57,11 +56,6 @@ function VerifyEmailContent() {
 
   return (
     <AuthLayout>
-      <SeoHead
-        title={t('seo.auth.verifyEmail.title')}
-        description={t('seo.auth.verifyEmail.description')}
-        path="/verify-email"
-      />
       <Link
         href="/login"
         className="inline-flex items-center text-[#00652c] font-bold text-sm mb-12 hover:opacity-80 transition-opacity"

@@ -22,4 +22,21 @@ class GetCurrentUserUseCase:
             is_active=user.is_active,
             video_count=user.video_count,
             max_video_upload_size_mb=user.max_video_upload_size_mb,
+            used_storage_bytes=user.used_storage_bytes,
+            storage_limit_bytes=(
+                None
+                if user.storage_limit_gb is None
+                else int(user.storage_limit_gb * 1024 ** 3)
+            ),
+            used_processing_seconds=user.used_processing_seconds,
+            processing_limit_seconds=(
+                None
+                if user.unlimited_processing_minutes
+                else user.processing_limit_minutes * 60
+            ),
+            used_ai_answers=user.used_ai_answers,
+            ai_answers_limit=(
+                None if user.unlimited_ai_answers else user.ai_answers_limit
+            ),
+            is_over_quota=user.is_over_quota,
         )

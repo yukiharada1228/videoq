@@ -38,7 +38,7 @@ class SendMessageUseCase:
     2. Run the RAG chain
     3. Persist the ChatLog
     4. Return a structured result
-    5. (Optional) Record AI answer usage for billing
+    5. (Optional) Record AI answer usage for account limits
     """
 
     def __init__(

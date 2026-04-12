@@ -8,7 +8,6 @@ import {
 import { Link } from '@/lib/i18n';
 import { apiClient, type VideoInGroup } from '@/lib/api';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
-import { SeoHead } from '@/components/seo/SeoHead';
 import { ChatPanel } from '@/components/chat/ChatPanel';
 import { convertVideoInGroupToSelectedVideo, type SelectedVideo } from '@/lib/utils/videoConversion';
 import { useVideoPlayback } from '@/hooks/useVideoPlayback';
@@ -150,11 +149,6 @@ export default function SharePage() {
 
   return (
     <>
-      <SeoHead
-        title={`${group.name} | VideoQ`}
-        description={group.description || t('seo.shared.description')}
-        path={`/share/${shareToken}`}
-      />
       <div
         className="bg-[#f8faf5] flex flex-col"
         style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}

@@ -70,18 +70,7 @@ VideoQ acts as an MCP server, allowing AI agent clients such as Claude Desktop t
 
 ## Documentation
 
-- [FAQ (EN)](https://videoq.jp/faq)
-- [FAQ (JA)](https://videoq.jp/ja/faq)
 - [Authentication API](https://videoq.jp/docs/auth)
 - [Video API](https://videoq.jp/docs/videos)
 - [Chat API](https://videoq.jp/docs/chat)
 - [OpenAI-Compatible API](https://videoq.jp/docs/openai)
-
-## Legal
-
-- [Terms of Service (EN)](https://videoq.jp/terms)
-- [Terms of Service (JA)](https://videoq.jp/ja/terms)
-- [Privacy Policy (EN)](https://videoq.jp/privacy)
-- [Privacy Policy (JA)](https://videoq.jp/ja/privacy)
-- [Commercial Disclosure (EN)](https://videoq.jp/commercial-disclosure)
-- [Commercial Disclosure (JA)](https://videoq.jp/ja/commercial-disclosure)
