@@ -262,10 +262,10 @@ export function ChatPanel({ groupId, onVideoPlay, shareToken, className }: ChatP
   return (
     <div className={containerClass}>
       {/* Header */}
-      <div className="p-4 border-b border-stone-100 shrink-0">
-        <h2 className="font-extrabold text-[#191c19]">{t('chat.title')}</h2>
+      <div className="px-4 py-3 border-b border-stone-100 shrink-0 flex items-center justify-between gap-4">
+        <h2 className="font-extrabold text-[#191c19] shrink-0">{t('chat.title')}</h2>
         {showTabs && (
-          <div className="flex gap-4 mt-3">
+          <div className="flex gap-4">
             <button
               onClick={() => setTab('chat')}
               className={`text-xs font-bold pb-1 transition-colors ${
