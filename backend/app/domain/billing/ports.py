@@ -1,100 +1,25 @@
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
-from typing import Callable, Optional, Tuple
+from typing import Optional
 
-from app.domain.billing.entities import SubscriptionEntity
-
-
-@dataclass
-class SessionResult:
-    """Minimal result object returned by BillingGateway session methods."""
-    url: str
+from app.domain.billing.entities import UserLimitsEntity
 
 
-@dataclass
-class WebhookEvent:
-    """Domain representation of a Stripe webhook event.
-
-    Isolates the rest of the codebase from stripe's StripeObject type.
-    type: the Stripe event type string (e.g. "customer.subscription.created")
-    data_object: the normalized subscription data used by the domain
-    """
-    type: str
-    data_object: "SubscriptionEventData"
-
-
-@dataclass
-class SubscriptionEventData:
-    """Normalized subscription data extracted from a Stripe webhook."""
-
-    id: str
-    customer: str
-    status: str
-    cancel_at_period_end: bool
-    current_period_end: Optional[int]
-    price_id: Optional[str]
-
-
-class SubscriptionRepository(ABC):
+class UserLimitsRepository(ABC):
     @abstractmethod
-    def get_or_create(self, user_id: int) -> SubscriptionEntity: ...
+    def get_or_create(self, user_id: int) -> UserLimitsEntity: ...
 
     @abstractmethod
-    def get_by_user_id(self, user_id: int) -> Optional[SubscriptionEntity]: ...
+    def get_by_user_id(self, user_id: int) -> Optional[UserLimitsEntity]: ...
 
     @abstractmethod
-    def get_by_stripe_customer_id(self, customer_id: str) -> Optional[SubscriptionEntity]: ...
-
-    @abstractmethod
-    def save(self, entity: SubscriptionEntity) -> SubscriptionEntity: ...
-
-    @abstractmethod
-    def create_stripe_customer(self, user_id: int, customer_id: str) -> SubscriptionEntity: ...
-
-    @abstractmethod
-    def clear_stripe_customer(self, user_id: int) -> None:
-        """Clear a stale Stripe customer ID (e.g. after 'No such customer' error)."""
-        ...
-
-    @abstractmethod
-    def get_or_create_stripe_customer(
-        self,
-        user_id: int,
-        create_fn: Callable[[], str],
-        replace_if_stale: Optional[str] = None,
-    ) -> Tuple[str, SubscriptionEntity]:
-        """Atomically get or create a Stripe customer ID for the given user.
-
-        Uses select_for_update to prevent duplicate customer creation under concurrent
-        requests.
-
-        Normal path (replace_if_stale=None):
-            If stripe_customer_id is already set, returns it without calling create_fn.
-            Otherwise calls create_fn() once, persists the result, and returns the
-            customer ID together with the updated entity.
-
-        Recovery path (replace_if_stale="cus_stale"):
-            Compare-and-swap: if the DB value under the lock equals replace_if_stale,
-            the ID is still stale — call create_fn() and save the new ID.
-            If the DB value differs from replace_if_stale, another concurrent thread
-            has already created a valid customer — return it without calling create_fn.
-            This prevents both the unlocked-clear race and orphan customer creation.
-        """
-        ...
+    def save(self, entity: UserLimitsEntity) -> UserLimitsEntity: ...
 
     @abstractmethod
     def reset_monthly_usage(self, user_id: int, period_start) -> None: ...
 
     @abstractmethod
     def maybe_reset_monthly_usage(self, user_id: int) -> None:
-        """Reset monthly usage counters if a new billing period has started.
-
-        For free users (no current_period_end): resets if usage_period_start is
-        from a previous calendar month.
-        For paid users: resets if we are past the previous period_start + 1 month.
-        After a reset, usage_period_start is updated to now and
-        used_processing_seconds / used_ai_answers are zeroed out.
-        """
+        """Reset monthly usage counters if a new calendar month has started."""
         ...
 
     @abstractmethod
@@ -105,7 +30,7 @@ class SubscriptionRepository(ABC):
         to prevent race conditions between concurrent upload requests. The WHERE
         clause and UPDATE are evaluated atomically by the DB engine, so no
         row-level locking is required. If adding additional_bytes would exceed
-        the plan's storage limit, raises StorageLimitExceeded without modifying
+        the configured storage limit, raises StorageLimitExceeded without modifying
         used_storage_bytes. On success, increments used_storage_bytes by additional_bytes.
         """
         ...
@@ -140,38 +65,10 @@ class SubscriptionRepository(ABC):
 
     @abstractmethod
     def clear_over_quota_if_within_limit(self, user_id: int) -> None:
-        """Clear the is_over_quota flag if used_storage_bytes is now within the plan limit.
+        """Clear the is_over_quota flag if used_storage_bytes is now within the configured limit.
 
         Called after a video deletion reduces storage. If the user's storage is now
-        within their plan limit, is_over_quota is set to False, re-enabling AI chat
+        within their configured limit, is_over_quota is set to False, re-enabling AI chat
         and new uploads.
         """
         ...
-
-
-class BillingGateway(ABC):
-    @abstractmethod
-    def get_or_create_customer(self, user_id: int, email: str, username: str) -> str: ...
-
-    @abstractmethod
-    def create_checkout_session(
-        self,
-        customer_id: str,
-        price_id: str,
-        success_url: str,
-        cancel_url: str,
-        user_id: int,
-        plan: str,
-    ) -> SessionResult: ...
-
-    @abstractmethod
-    def update_subscription(self, subscription_id: str, price_id: str) -> None: ...
-
-    @abstractmethod
-    def create_billing_portal(self, customer_id: str, return_url: str) -> SessionResult: ...
-
-    @abstractmethod
-    def verify_webhook(self, payload: bytes, sig_header: str, secret: str) -> WebhookEvent: ...
-
-    @abstractmethod
-    def cancel_subscription(self, subscription_id: str) -> None: ...

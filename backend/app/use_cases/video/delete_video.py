@@ -20,7 +20,7 @@ class DeleteVideoUseCase:
     2. Delete the DB record (CASCADE handles VideoGroupMember)
     3. Delete associated vectors
     4. File cleanup is handled by the repository after the transaction commits
-    5. (Optional) Record storage usage reduction for billing
+    5. (Optional) Record storage usage reduction for account limits
     """
 
     def __init__(
@@ -48,7 +48,7 @@ class DeleteVideoUseCase:
         if video is None:
             raise ResourceNotFound("Video")
 
-        # Capture file size before deletion for billing (best-effort)
+        # Capture file size before deletion for limit accounting (best-effort)
         file_size_bytes: Optional[int] = None
         if (
             self._storage_record_use_case is not None

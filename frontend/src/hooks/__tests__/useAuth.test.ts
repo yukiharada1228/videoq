@@ -64,9 +64,9 @@ describe('useAuth', () => {
     expect(apiClient.getMe).not.toHaveBeenCalled()
   })
 
-  it('should not load user data for legal routes', async () => {
-    ;(globalThis as any).__setMockPathname?.('/terms')
-    window.history.pushState({}, '', '/terms')
+  it('should not load user data for share routes', async () => {
+    ;(globalThis as any).__setMockPathname?.('/share/abc')
+    window.history.pushState({}, '', '/share/abc')
 
     const { result } = renderHook(() => useAuth())
 
