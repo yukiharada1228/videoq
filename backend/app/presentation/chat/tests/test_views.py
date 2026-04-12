@@ -32,6 +32,8 @@ class ChatViewTests(APITestCase):
             email="test@example.com",
             password="testpass123",
         )
+        self.user.ai_answers_limit = 1000
+        self.user.save()
 
         self.client = APIClient()
         self.client.force_authenticate(user=self.user)
