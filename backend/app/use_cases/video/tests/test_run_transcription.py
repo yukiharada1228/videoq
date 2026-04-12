@@ -219,7 +219,7 @@ class RunTranscriptionUseCaseTests(TestCase):
         upload_gw = _FakeUploadGateway()
         tx = _FakeTransactionPort()
         mock_processing_record = MagicMock()
-        mock_processing_record.execute.side_effect = RuntimeError("billing down")
+        mock_processing_record.execute.side_effect = RuntimeError("limits accounting down")
         use_case = RunTranscriptionUseCase(
             repo, transcription, task_gateway, upload_gw, tx,
             processing_record_use_case=mock_processing_record,

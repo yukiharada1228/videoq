@@ -41,11 +41,6 @@ describe('AppNav - no authenticated user (empty cache)', () => {
     expect(screen.queryByText('navigation.groupsNav')).not.toBeInTheDocument()
   })
 
-  it('hides billing nav link', () => {
-    render(<AppNav />)
-    expect(screen.queryByText('billing.nav')).not.toBeInTheDocument()
-  })
-
   it('hides settings nav link', () => {
     render(<AppNav />)
     expect(screen.queryByText('navigation.settings')).not.toBeInTheDocument()
@@ -71,11 +66,6 @@ describe('AppNav - authenticated user (cache populated)', () => {
   it('shows groups nav link', () => {
     renderWithUser(<AppNav />)
     expect(screen.getByText('navigation.groupsNav')).toBeInTheDocument()
-  })
-
-  it('shows billing nav link', () => {
-    renderWithUser(<AppNav />)
-    expect(screen.getByText('billing.nav')).toBeInTheDocument()
   })
 
   it('shows settings nav link', () => {

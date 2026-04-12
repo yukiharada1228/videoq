@@ -19,13 +19,8 @@ const SharePage = lazy(() => import('@/pages/SharePage'));
 const SettingsPage = lazy(() => import('@/pages/SettingsPage'));
 const DeveloperDocsPage = lazy(() => import('@/pages/DeveloperDocsPage'));
 const DeveloperDocsSectionPage = lazy(() => import('@/pages/DeveloperDocsSectionPage'));
-const BillingPage = lazy(() => import('@/pages/BillingPage'));
-const TermsPage = lazy(() => import('@/pages/TermsPage'));
-const PrivacyPolicyPage = lazy(() => import('@/pages/PrivacyPolicyPage'));
-const CommercialDisclosurePage = lazy(() => import('@/pages/CommercialDisclosurePage'));
 const UseCaseEducationPage = lazy(() => import('@/pages/UseCaseEducationPage'));
 const UseCaseCorporateTrainingPage = lazy(() => import('@/pages/UseCaseCorporateTrainingPage'));
-const FaqPage = lazy(() => import('@/pages/FaqPage'));
 
 function LocaleGate() {
   const params = useParams<{ locale?: string }>();
@@ -74,13 +69,8 @@ const routeChildren = (
     <Route path="settings" element={<SettingsPage />} />
     <Route path="docs" element={<DeveloperDocsPage />} />
     <Route path="docs/:section" element={<DeveloperDocsSectionPage />} />
-    <Route path="billing" element={<BillingPage />} />
-    <Route path="terms" element={<TermsPage />} />
-    <Route path="privacy" element={<PrivacyPolicyPage />} />
-    <Route path="commercial-disclosure" element={<CommercialDisclosurePage />} />
     <Route path="use-cases/education" element={<UseCaseEducationPage />} />
     <Route path="use-cases/corporate-training" element={<UseCaseCorporateTrainingPage />} />
-    <Route path="faq" element={<FaqPage />} />
   </>
 );
 
@@ -97,13 +87,6 @@ export default function App() {
         <Route path=":locale" element={<LocaleGate />}>
           {routeChildren}
         </Route>
-
-        {/* Legacy URL redirects */}
-        <Route path="legal/privacy" element={<Navigate to="/privacy" replace />} />
-        <Route path="legal/terms" element={<Navigate to="/terms" replace />} />
-        <Route path="legal/commercial-disclosure" element={<Navigate to="/commercial-disclosure" replace />} />
-        <Route path="ja/legal/commercial-disclosure" element={<Navigate to="/ja/commercial-disclosure" replace />} />
-
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Suspense>

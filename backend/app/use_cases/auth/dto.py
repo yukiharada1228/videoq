@@ -43,6 +43,13 @@ class CurrentUserOutput:
     is_active: bool
     video_count: int
     max_video_upload_size_mb: int = 500
+    used_storage_bytes: int = 0
+    storage_limit_bytes: Optional[int] = None
+    used_processing_seconds: int = 0
+    processing_limit_seconds: Optional[int] = None
+    used_ai_answers: int = 0
+    ai_answers_limit: Optional[int] = None
+    is_over_quota: bool = False
 
 
 @dataclass(frozen=True)

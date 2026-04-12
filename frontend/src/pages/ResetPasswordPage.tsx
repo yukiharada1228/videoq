@@ -8,7 +8,6 @@ import { AuthPageIntro } from '@/components/layout/AuthPageIntro';
 import { AuthPageFooter } from '@/components/layout/AuthPageFooter';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
-import { SeoHead } from '@/components/seo/SeoHead';
 import { useConfirmPasswordResetMutation } from '@/hooks/usePasswordRecovery';
 
 function ResetPasswordContent() {
@@ -58,11 +57,6 @@ function ResetPasswordContent() {
 
   return (
     <AuthLayout>
-      <SeoHead
-        title={t('seo.auth.resetPassword.title')}
-        description={t('seo.auth.resetPassword.description')}
-        path="/reset-password"
-      />
       <Link
         href="/login"
         className="inline-flex items-center text-[#00652c] font-bold text-sm mb-12 hover:opacity-80 transition-opacity"

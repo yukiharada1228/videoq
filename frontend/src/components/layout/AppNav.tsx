@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type React from 'react';
-import { GraduationCap, LogOut, Menu, X, CreditCard, LogIn } from 'lucide-react';
+import { GraduationCap, LogOut, Menu, X, LogIn } from 'lucide-react';
 import { Link, useI18nNavigate } from '@/lib/i18n';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -8,7 +8,7 @@ import { apiClient, type User } from '@/lib/api';
 import { APP_CONTAINER_CLASS } from '@/components/layout/layoutTokens';
 import { queryKeys } from '@/lib/queryKeys';
 
-export type ActivePage = 'home' | 'videos' | 'groups' | 'docs' | 'settings' | 'billing';
+export type ActivePage = 'home' | 'videos' | 'groups' | 'docs' | 'settings';
 
 interface AppNavProps {
   activePage?: ActivePage;
@@ -47,7 +47,6 @@ export function AppNav({ activePage }: AppNavProps) {
     { href: '/videos/groups', label: t('navigation.groupsNav'), key: 'groups', authRequired: true },
     { href: '/docs', label: t('navigation.docs'), key: 'docs' },
     { href: '/settings', label: t('navigation.settings'), key: 'settings', authRequired: true },
-    { href: '/billing', label: t('billing.nav'), key: 'billing', icon: <CreditCard className="w-3.5 h-3.5" />, authRequired: true },
   ];
 
   const navLinks = isAuthenticated ? allNavLinks : allNavLinks.filter((l) => !l.authRequired);

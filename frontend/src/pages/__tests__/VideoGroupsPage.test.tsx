@@ -143,35 +143,7 @@ describe('VideoGroupsPage', () => {
     })
   })
 
-  it('sets english metadata', async () => {
-    globalThis.__setMockLanguage('en')
-    render(<VideoGroupsPage />)
 
-    await waitFor(() => {
-      expect(document.title).toBe('Group Management | VideoQ')
-    })
-    expect(document.querySelector('meta[name="description"]')?.getAttribute('content')).toBe(
-      'Create and manage video groups for searchable AI chat and shared learning flows.'
-    )
-    expect(document.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(
-      'https://videoq.jp/videos/groups'
-    )
-  })
-
-  it('switches metadata for japanese locale', async () => {
-    globalThis.__setMockLanguage('ja')
-    render(<VideoGroupsPage />)
-
-    await waitFor(() => {
-      expect(document.title).toBe('グループ管理 | VideoQ')
-    })
-    expect(document.querySelector('meta[name="description"]')?.getAttribute('content')).toBe(
-      'AI チャットや共有学習フローに使う動画グループを作成・管理できます。'
-    )
-    expect(document.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(
-      'https://videoq.jp/ja/videos/groups'
-    )
-  })
 })
 
 describe('VideoGroupsPage - Error Handling', () => {

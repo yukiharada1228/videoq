@@ -148,7 +148,7 @@ class SendMessageAiAnswerBillingTests(unittest.TestCase):
 
     def test_does_not_fail_when_billing_record_raises(self):
         mock_ai_record = MagicMock()
-        mock_ai_record.execute.side_effect = RuntimeError("billing down")
+        mock_ai_record.execute.side_effect = RuntimeError("limits accounting down")
         use_case = self._make_use_case(ai_answer_record_use_case=mock_ai_record)
 
         # Should not raise

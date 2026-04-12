@@ -1,4 +1,4 @@
-"""Backward-compatible usage-limit dependency providers."""
+"""Usage-limit dependency providers."""
 
 from app.composition_root import limits as _cr
 

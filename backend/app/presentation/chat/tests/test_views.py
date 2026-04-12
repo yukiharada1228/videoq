@@ -32,6 +32,8 @@ class ChatViewTests(APITestCase):
             email="test@example.com",
             password="testpass123",
         )
+        self.user.ai_answers_limit = 1000
+        self.user.save()
 
         self.client = APIClient()
         self.client.force_authenticate(user=self.user)
@@ -175,7 +177,7 @@ class ChatViewTests(APITestCase):
     def test_chat_returns_403_when_over_quota(self, mock_check):
         """is_over_quota=True must return 403 OVER_QUOTA to the client."""
         mock_check.side_effect = OverQuotaError(
-            "AI chat is unavailable: account storage is over the plan limit."
+            "AI chat is unavailable: account storage is over the configured limit."
         )
 
         url = reverse("chat-messages")
@@ -273,7 +275,7 @@ class ChatViewTests(APITestCase):
 
 
 class OpenAIChatCompletionsViewTests(APITestCase):
-    """Regression tests for OpenAIChatCompletionsView billing exception handling."""
+    """Regression tests for OpenAIChatCompletionsView limit exception handling."""
 
     def setUp(self):
         self.user = User.objects.create_user(
@@ -293,7 +295,7 @@ class OpenAIChatCompletionsViewTests(APITestCase):
     def test_over_quota_returns_403_with_openai_error_format(self, mock_check):
         """OverQuotaError must return 403 in OpenAI-compatible error format."""
         mock_check.side_effect = OverQuotaError(
-            "AI chat is unavailable: account storage is over the plan limit."
+            "AI chat is unavailable: account storage is over the configured limit."
         )
 
         response = self.client.post(self.url, self.payload, format="json")
