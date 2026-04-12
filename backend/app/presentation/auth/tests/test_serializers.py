@@ -92,6 +92,24 @@ class UserSerializerTests(APITestCase):
         serializer = UserSerializer(entity)
         self.assertEqual(serializer.data["video_count"], 7)
 
+    def test_serialize_user_entity_includes_usage_fields(self):
+        entity = UserEntity(
+            id=1,
+            username="entityuser",
+            email="entity@example.com",
+            is_active=True,
+            video_count=7,
+            used_storage_bytes=2048,
+            used_processing_seconds=120,
+            used_ai_answers=9,
+            is_over_quota=True,
+        )
+        serializer = UserSerializer(entity)
+        self.assertEqual(serializer.data["used_storage_bytes"], 2048)
+        self.assertEqual(serializer.data["used_processing_seconds"], 120)
+        self.assertEqual(serializer.data["used_ai_answers"], 9)
+        self.assertTrue(serializer.data["is_over_quota"])
+
 
 class EmailVerificationSerializerTests(APITestCase):
     """Tests for EmailVerificationSerializer — field presence validation only.

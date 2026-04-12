@@ -49,14 +49,6 @@ describe('LoginPage', () => {
     expect(screen.getByText('auth.login.footerLink')).toBeInTheDocument()
   })
 
-  it('should render legal links', () => {
-    render(<LoginPage />)
-
-    expect(screen.getByText('legal.terms.title')).toBeInTheDocument()
-    expect(screen.getByText('legal.privacy.title')).toBeInTheDocument()
-    expect(screen.getByText('legal.disclosure.title')).toBeInTheDocument()
-  })
-
   it('should call apiClient.login on submit', async () => {
     ;(apiClient.login as ReturnType<typeof vi.fn>).mockResolvedValue({})
 
@@ -91,6 +83,7 @@ describe('LoginPage', () => {
     fireEvent.click(submitButton)
 
     await waitFor(() => {
+      expect(apiClient.getMe).toHaveBeenCalled()
       expect(mockNavigate).toHaveBeenCalledWith('/')
     })
   })
@@ -103,29 +96,4 @@ describe('LoginPage', () => {
     expect(container).toHaveClass('flex', 'min-h-screen', 'flex-col')
   })
 
-  it('sets english metadata', () => {
-    globalThis.__setMockLanguage('en')
-    render(<LoginPage />)
-
-    expect(document.title).toBe('Log In | VideoQ')
-    expect(document.querySelector('meta[name="description"]')?.getAttribute('content')).toBe(
-      'Log in to VideoQ to manage videos, search transcripts with AI, and access your learning workspace.'
-    )
-    expect(document.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(
-      'https://videoq.jp/login'
-    )
-  })
-
-  it('switches metadata for japanese locale', () => {
-    globalThis.__setMockLanguage('ja')
-    render(<LoginPage />)
-
-    expect(document.title).toBe('ログイン | VideoQ')
-    expect(document.querySelector('meta[name="description"]')?.getAttribute('content')).toBe(
-      'VideoQ にログインして、動画管理、AI による文字起こし検索、学習ワークスペースにアクセスできます。'
-    )
-    expect(document.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(
-      'https://videoq.jp/ja/login'
-    )
-  })
 })

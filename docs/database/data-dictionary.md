@@ -400,39 +400,30 @@ VideoとTagの多対多リレーションの中間テーブルです。
 
 ---
 
-## Subscriptionテーブル
+## Userのプラン・利用枠管理
 
 ### テーブル名
-`app_subscription`
+`app_user`
 
 ### 説明
-ユーザーのサブスクリプション情報（プラン・Stripe連携・使用量）を保存するテーブルです。
-各ユーザーに対して1レコードのみ存在（`OneToOneField`）。フリープランの場合、Stripe関連カラムは NULL になります。
+ユーザーごとのプラン、カスタム上限、利用量を `User` テーブル上で直接管理します。
+基本プランは `free / lite / standard` で、必要に応じてカスタム上限や無制限フラグを個別に設定します。
 
 ### カラム定義
 
 | カラム名 | データ型 | 制約 | デフォルト値 | 説明 |
 |------------|-----------|-------------|---------------|-------------|
-| id | BIGINT | PRIMARY KEY, AUTO_INCREMENT | - | Subscription ID |
-| user_id | BIGINT | UNIQUE, NOT NULL, FK→User.id | - | ユーザーID（1:1） |
 | plan | VARCHAR(20) | NOT NULL | 'free' | プランタイプ（free / lite / standard / enterprise） |
-| stripe_customer_id | VARCHAR(255) | UNIQUE, NULL | NULL | Stripe顧客ID |
-| stripe_subscription_id | VARCHAR(255) | UNIQUE, NULL | NULL | StripeサブスクリプションID |
-| stripe_status | VARCHAR(50) | NOT NULL | '' | Stripeサブスクリプションステータス（active / trialing / canceled 等） |
-| current_period_end | TIMESTAMPTZ | NULL | NULL | 現在の契約期間終了日時 |
-| cancel_at_period_end | BOOLEAN | NOT NULL | False | 期間終了時にキャンセル予定かどうか |
 | used_storage_bytes | BIGINT | NOT NULL | 0 | 今期の使用ストレージ量（バイト） |
 | used_processing_seconds | INTEGER | NOT NULL | 0 | 今期の文字起こし処理時間（秒） |
 | used_ai_answers | INTEGER | NOT NULL | 0 | 今期のAI回答数 |
 | usage_period_start | TIMESTAMPTZ | NULL | NULL | 現在の使用量カウント期間の開始日時 |
-| custom_storage_gb | FLOAT | NULL | NULL | エンタープライズ向けカスタムストレージ上限（GB） |
-| custom_processing_minutes | INTEGER | NULL | NULL | エンタープライズ向けカスタム処理時間上限（分） |
-| custom_ai_answers | INTEGER | NULL | NULL | エンタープライズ向けカスタムAI回答数上限 |
-| unlimited_processing_minutes | BOOLEAN | NOT NULL | False | エンタープライズ向け処理時間無制限フラグ |
-| unlimited_ai_answers | BOOLEAN | NOT NULL | False | エンタープライズ向けAI回答数無制限フラグ |
+| custom_storage_gb | FLOAT | NULL | NULL | 個別のカスタムストレージ上限（GB） |
+| custom_processing_minutes | INTEGER | NULL | NULL | 個別のカスタム処理時間上限（分） |
+| custom_ai_answers | INTEGER | NULL | NULL | 個別のカスタムAI回答数上限 |
+| unlimited_processing_minutes | BOOLEAN | NOT NULL | False | 処理時間無制限フラグ |
+| unlimited_ai_answers | BOOLEAN | NOT NULL | False | AI回答数無制限フラグ |
 | is_over_quota | BOOLEAN | NOT NULL | False | ストレージ超過によりダウングレード後クォータオーバー状態かどうか |
-| created_at | TIMESTAMPTZ | NOT NULL | now() | 作成日時 |
-| updated_at | TIMESTAMPTZ | NOT NULL | now() | 更新日時 |
 
 ### プラン別制限（デフォルト値）
 
@@ -441,16 +432,14 @@ VideoとTagの多対多リレーションの中間テーブルです。
 | free | 1 GB | 10分/月 | 500回/月 |
 | lite | 10 GB | 120分/月 | 3,000回/月 |
 | standard | 50 GB | 600分/月 | 7,000回/月 |
-| enterprise | カスタム | カスタム | カスタム |
+| custom override | ユーザー単位で上書き | ユーザー単位で上書き | ユーザー単位で上書き |
 
 ### インデックス
-- PRIMARY KEY: `id`
-- UNIQUE: `user_id`（1:1関係）
-- UNIQUE: `stripe_customer_id`（NULL許容）
-- UNIQUE: `stripe_subscription_id`（NULL許容）
+- `User.email`
+- `User.username`
 
 ### リレーション
-- `user`: One-to-one relationship with User table（CASCADE削除）
+- `User` 自身の属性として保持
 
 ---
 
@@ -469,8 +458,6 @@ VideoとTagの多対多リレーションの中間テーブルです。
 - `VideoGroupMember(group_id, video_id)`: 同じ動画を同じグループに複数回追加不可
 - `UserApiKey.hashed_key`: ハッシュ済みAPIキーはユニーク
 - `UserApiKey(user, name)` WHERE `revoked_at IS NULL`: アクティブなAPIキー名はユーザーごとにユニーク
-- `Subscription.stripe_customer_id`: Stripe顧客IDはユニーク（NULL許容）
-- `Subscription.stripe_subscription_id`: StripeサブスクリプションIDはユニーク（NULL許容）
 
 ### チェック制約
 - `Video.status`: 指定された値のみ許可

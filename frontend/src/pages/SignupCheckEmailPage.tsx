@@ -4,18 +4,12 @@ import { Mail } from 'lucide-react';
 import { AuthLayout } from '@/components/layout/AuthLayout';
 import { AuthPageIntro } from '@/components/layout/AuthPageIntro';
 import { AuthPageFooter } from '@/components/layout/AuthPageFooter';
-import { SeoHead } from '@/components/seo/SeoHead';
 
 export default function SignupCheckEmailPage() {
   const { t } = useTranslation();
 
   return (
     <AuthLayout>
-      <SeoHead
-        title={t('seo.auth.checkEmail.title')}
-        description={t('seo.auth.checkEmail.description')}
-        path="/signup/check-email"
-      />
       <div className="space-y-6">
         <AuthPageIntro
           badge={t('auth.checkEmail.badge')}

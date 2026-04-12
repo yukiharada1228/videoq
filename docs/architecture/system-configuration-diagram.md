@@ -88,11 +88,6 @@ graph TB
         Email["Email Service
         - SMTP
         - Email Sending"]
-        Stripe["Stripe
-        Optional
-        - Subscription Billing
-        - Checkout / Portal
-        - Webhooks"]
     end
 
     Browser -->|HTTP/HTTPS| Nginx
@@ -106,7 +101,6 @@ graph TB
     Django --> OpenAI
     Django -.->|Optional| Ollama
     Django --> Email
-    Django -.->|Optional| Stripe
 
     Celery --> Redis
     Celery --> PostgreSQL
@@ -253,7 +247,7 @@ graph TB
         ShareTokenResolverPort, ApiKeyResolverPort"]
         DM[media/ - ProtectedMediaRepository ABC]
         DB["billing/ - SubscriptionEntity, PlanType,
-        SubscriptionRepository ABC, BillingGateway ABC,
+        SubscriptionRepository ABC,
         StorageLimitExceeded, ProcessingLimitExceeded,
         AiAnswersLimitExceeded, OverQuotaError"]
         DU["user/ - UserEntity, UserRepository ABC"]
@@ -274,7 +268,6 @@ graph TB
         IT[transcription/ - audio_processing, srt_processing, DjangoVideoFileAccessor]
         IA["auth/ - SimpleJWTGateway, DjangoAuthGateway,
         CookieJWTValidator, ApiKeyResolver, ShareTokenResolver"]
-        IB[billing/ - StripeGateway]
         ITk[tasks/ - CeleryVideoTaskGateway, CeleryAuthTaskGateway]
         IC["chat/ - JanomeNltkKeywordExtractor, DjangoSceneVideoInfoProvider"]
         ICo["common/ - email, embeddings, whisper_client,

@@ -14,7 +14,6 @@ from django.db.models import Count
 from app.dependencies.admin import get_video_task_gateway
 User = get_user_model()
 Video = apps.get_model("app", "Video")
-Subscription = apps.get_model("app", "Subscription")
 VideoGroup = apps.get_model("app", "VideoGroup")
 VideoGroupMember = apps.get_model("app", "VideoGroupMember")
 AccountDeletionRequest = apps.get_model("app", "AccountDeletionRequest")
@@ -45,6 +44,12 @@ class CustomUserAdmin(UserAdmin):
         "last_login",
         "is_active",
         "max_video_upload_size_mb",
+        "storage_limit_gb",
+        "processing_limit_minutes",
+        "ai_answers_limit",
+        "used_storage_bytes",
+        "used_processing_seconds",
+        "used_ai_answers",
     )
     list_filter = (
         "is_staff",
@@ -54,7 +59,31 @@ class CustomUserAdmin(UserAdmin):
     ordering = ("-date_joined",)
 
     fieldsets = UserAdmin.fieldsets + (
-        ("Video Settings", {"fields": ("max_video_upload_size_mb",)}),
+        (
+            "Limit Settings",
+            {
+                "fields": (
+                    "max_video_upload_size_mb",
+                    "storage_limit_gb",
+                    "processing_limit_minutes",
+                    "ai_answers_limit",
+                    "unlimited_processing_minutes",
+                    "unlimited_ai_answers",
+                )
+            },
+        ),
+        (
+            "Usage",
+            {
+                "fields": (
+                    "used_storage_bytes",
+                    "used_processing_seconds",
+                    "used_ai_answers",
+                    "usage_period_start",
+                    "is_over_quota",
+                )
+            },
+        ),
     )
     add_fieldsets = UserAdmin.add_fieldsets
 
@@ -140,55 +169,3 @@ class AccountDeletionRequestAdmin(admin.ModelAdmin):
         return BaseAdminMixin.optimize_queryset(
             super().get_queryset(request), select_related_fields=["user"]
         )
-
-
-@admin.register(Subscription)
-class SubscriptionAdmin(admin.ModelAdmin):
-    list_display = ("user", "plan", "stripe_status", "used_storage_bytes", "used_processing_seconds", "used_ai_answers")
-    list_filter = ("plan",)
-    search_fields = ("user__username", "user__email", "stripe_customer_id")
-    readonly_fields = ("created_at", "updated_at")
-
-    fieldsets = (
-        (
-            "Subscription",
-            {
-                "fields": (
-                    "user",
-                    "plan",
-                    "stripe_customer_id",
-                    "stripe_subscription_id",
-                    "stripe_status",
-                    "current_period_end",
-                    "cancel_at_period_end",
-                )
-            },
-        ),
-        (
-            "Usage",
-            {
-                "fields": (
-                    "used_storage_bytes",
-                    "used_processing_seconds",
-                    "used_ai_answers",
-                    "usage_period_start",
-                )
-            },
-        ),
-        (
-            "Enterprise Custom Limits",
-            {
-                "fields": (
-                    "custom_storage_gb",
-                    "custom_processing_minutes",
-                    "custom_ai_answers",
-                    "unlimited_processing_minutes",
-                    "unlimited_ai_answers",
-                )
-            },
-        ),
-        (
-            "Timestamps",
-            {"fields": ("created_at", "updated_at")},
-        ),
-    )

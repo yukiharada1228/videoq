@@ -15,13 +15,11 @@ from .storage import (
 from .tag import Tag, VideoTag
 from .user import User
 from .video import Video, user_directory_path
-from .subscription import Subscription
 from .video_group import VideoGroup, VideoGroupMember
 
 __all__ = [
     "AccountDeletionRequest",
     "ChatLog",
-    "Subscription",
     "SafeFilenameMixin",
     "SafeFileSystemStorage",
     "SafeS3Boto3Storage",

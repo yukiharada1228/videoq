@@ -146,31 +146,7 @@ describe('VideosPage', () => {
     expect(statCards.length).toBeGreaterThan(0)
   })
 
-  it('sets english metadata', () => {
-    globalThis.__setMockLanguage('en')
-    render(<VideosPage />)
 
-    expect(document.title).toBe('Video Library | VideoQ')
-    expect(document.querySelector('meta[name="description"]')?.getAttribute('content')).toBe(
-      'Browse, search, and manage your uploaded videos in VideoQ.'
-    )
-    expect(document.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(
-      'https://videoq.jp/videos'
-    )
-  })
-
-  it('switches metadata for japanese locale', () => {
-    globalThis.__setMockLanguage('ja')
-    render(<VideosPage />)
-
-    expect(document.title).toBe('動画ライブラリ | VideoQ')
-    expect(document.querySelector('meta[name="description"]')?.getAttribute('content')).toBe(
-      'VideoQ にアップロードした動画を一覧・検索・管理できます。'
-    )
-    expect(document.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(
-      'https://videoq.jp/ja/videos'
-    )
-  })
 })
 
 describe('VideosPage - Upload Limit', () => {

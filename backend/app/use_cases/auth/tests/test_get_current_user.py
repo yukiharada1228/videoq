@@ -61,6 +61,33 @@ class GetCurrentUserUseCaseTests(unittest.TestCase):
 
         self.assertEqual(result.max_video_upload_size_mb, 1000)
 
+    def test_current_user_includes_usage_and_limit_fields(self):
+        user = UserEntity(
+            id=1,
+            username="u1",
+            email="u1@example.com",
+            is_active=True,
+            video_count=3,
+            storage_limit_gb=12.5,
+            processing_limit_minutes=180,
+            ai_answers_limit=7000,
+            used_storage_bytes=1024,
+            used_processing_seconds=3600,
+            used_ai_answers=24,
+            is_over_quota=True,
+        )
+        use_case = GetCurrentUserUseCase(_StubUserRepository(with_count=user))
+
+        result = use_case.execute(1)
+
+        self.assertEqual(result.used_storage_bytes, 1024)
+        self.assertEqual(result.storage_limit_bytes, int(12.5 * 1024 ** 3))
+        self.assertEqual(result.used_processing_seconds, 3600)
+        self.assertEqual(result.processing_limit_seconds, 180 * 60)
+        self.assertEqual(result.used_ai_answers, 24)
+        self.assertEqual(result.ai_answers_limit, 7000)
+        self.assertTrue(result.is_over_quota)
+
     def test_execute_raises_resource_not_found_when_missing(self):
         use_case = GetCurrentUserUseCase(_StubUserRepository(with_count=None))
 

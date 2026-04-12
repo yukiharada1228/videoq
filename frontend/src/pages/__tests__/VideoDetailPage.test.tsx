@@ -121,31 +121,7 @@ describe('VideoDetailPage', () => {
     expect(mockLoadVideo).not.toHaveBeenCalled()
   })
 
-  it('sets english metadata', () => {
-    globalThis.__setMockLanguage('en')
-    render(<VideoDetailPage />)
 
-    expect(document.title).toBe('Test Video | VideoQ')
-    expect(document.querySelector('meta[name="description"]')?.getAttribute('content')).toBe(
-      'Test Description'
-    )
-    expect(document.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(
-      'https://videoq.jp/videos/1'
-    )
-  })
-
-  it('switches metadata for japanese locale', () => {
-    globalThis.__setMockLanguage('ja')
-    render(<VideoDetailPage />)
-
-    expect(document.title).toBe('Test Video | VideoQ')
-    expect(document.querySelector('meta[name="description"]')?.getAttribute('content')).toBe(
-      'Test Description'
-    )
-    expect(document.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(
-      'https://videoq.jp/ja/videos/1'
-    )
-  })
 })
 
 describe('VideoDetailPage - Delete', () => {

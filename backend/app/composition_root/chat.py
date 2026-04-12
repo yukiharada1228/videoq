@@ -18,7 +18,7 @@ from app.use_cases.chat.get_analytics import GetChatAnalyticsUseCase
 from app.use_cases.chat.get_history import GetChatHistoryUseCase
 from app.use_cases.chat.send_message import SendMessageUseCase
 from app.use_cases.chat.submit_feedback import SubmitFeedbackUseCase
-from app.composition_root import billing as _billing_cr
+from app.composition_root import limits as _limits_cr
 
 
 def _new_chat_repository() -> DjangoChatRepository:
@@ -46,8 +46,8 @@ def get_send_message_use_case() -> SendMessageUseCase:
         _new_chat_repository(),
         _new_video_group_query_repository(),
         _get_rag_gateway(),
-        ai_answer_limit_check_use_case=_billing_cr.get_check_ai_answers_limit_use_case(),
-        ai_answer_record_use_case=_billing_cr.get_record_ai_answer_usage_use_case(),
+        ai_answer_limit_check_use_case=_limits_cr.get_check_ai_answers_limit_use_case(),
+        ai_answer_record_use_case=_limits_cr.get_record_ai_answer_usage_use_case(),
     )
 
 def get_chat_history_use_case() -> GetChatHistoryUseCase:

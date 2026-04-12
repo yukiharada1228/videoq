@@ -109,15 +109,8 @@ classDiagram
         +datetime requested_at
     }
 
-    class Subscription {
-        +int id
-        +OneToOneField user
+    class UserPlan {
         +string plan
-        +string stripe_customer_id
-        +string stripe_subscription_id
-        +string stripe_status
-        +datetime current_period_end
-        +bool cancel_at_period_end
         +bigint used_storage_bytes
         +int used_processing_seconds
         +int used_ai_answers
@@ -722,7 +715,7 @@ classDiagram
 - **User** は複数の **Video** インスタンスを所有
 - **User** は複数の **VideoGroup** インスタンスを所有
 - **User** は複数の **UserApiKey** インスタンスを所有
-- **User** は1つの **Subscription** を持つ（1:1、プラン・使用量管理・Stripe連携）
+- **User** は自身の属性としてプラン・使用量・カスタム制限を保持
 - **VideoGroup** は **VideoGroupMember** を通じて複数の **Video** に関連
 - **ChatLog** は **User** と **VideoGroup** に関連付け
 - **Video** は **SafeFileSystemStorage** または **SafeS3Boto3Storage** を使用
@@ -730,7 +723,7 @@ classDiagram
 - **Use Cases** は **Domain** の抽象（ABCs / ports）のみに依存
 - **Infrastructure** は **Domain** のポートを実装（リポジトリ、ゲートウェイ）
 - **Entrypoints**（Celeryタスク）はcomposition root経由で **Use Cases** に委譲
-- **billing/** はサブスクリプション管理（プラン別クォータ・使用量チェック・Stripe連携）を担当
+- **billing/** はプラン別クォータと使用量チェックを担当
 
 ### フロントエンド
 - **PageLayout** は **Header** と **Footer** を含む
