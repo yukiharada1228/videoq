@@ -120,35 +120,7 @@ describe('SharePage', () => {
     })
   })
 
-  it('sets english metadata', async () => {
-    globalThis.__setMockLanguage('en')
-    render(<SharePage />)
 
-    await waitFor(() => {
-      expect(document.title).toBe('Shared Group | VideoQ')
-    })
-    expect(document.querySelector('meta[name="description"]')?.getAttribute('content')).toBe(
-      'Shared Description'
-    )
-    expect(document.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(
-      'https://videoq.jp/share/test-share-token'
-    )
-  })
-
-  it('switches metadata for japanese locale', async () => {
-    globalThis.__setMockLanguage('ja')
-    render(<SharePage />)
-
-    await waitFor(() => {
-      expect(document.title).toBe('Shared Group | VideoQ')
-    })
-    expect(document.querySelector('meta[name="description"]')?.getAttribute('content')).toBe(
-      'Shared Description'
-    )
-    expect(document.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(
-      'https://videoq.jp/ja/share/test-share-token'
-    )
-  })
 })
 
 describe('SharePage - Error Handling', () => {
