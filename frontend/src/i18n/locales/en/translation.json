@@ -283,7 +283,7 @@
         "invalidFileType": "Please select a supported video file",
         "fileTooLarge": "The selected file exceeds the upload size limit ({{max_size_mb}} MB)",
         "generic": "Validation error",
-        "storageLimitExceeded": "Upload is unavailable because your storage is over the plan limit. Please delete videos to free up space."
+        "storageLimitExceeded": "Upload is unavailable because your storage is over the configured limit. Please delete videos to free up space."
       }
     },
     "detail": {
@@ -553,7 +553,7 @@
     "placeholder": "Type a message...",
     "assistantGreeting": "Hello! Ask me anything about your videos.",
     "error": "An error occurred in the chat.",
-    "errorOverQuota": "AI chat is unavailable because your storage is over the plan limit. Please delete videos to free up space."
+    "errorOverQuota": "AI chat is unavailable because your storage is over the configured limit. Please delete videos to free up space."
   },
   "shared": {
     "loadError": "Failed to load the shared chat group.",
@@ -915,13 +915,13 @@
         "additionalFees": "Additional Fees",
         "additionalFeesValue": "Internet connection and data communication fees are the responsibility of the customer.",
         "paymentMethod": "Payment Method",
-        "paymentMethodValue": "Credit card (via Stripe)",
+        "paymentMethodValue": "As separately described in the Service",
         "paymentTiming": "Payment Timing",
-        "paymentTimingValue": "First charge upon subscription registration; thereafter billed automatically on each monthly renewal.",
+        "paymentTimingValue": "At the timing defined for the applicable plan or individually provided terms",
         "delivery": "Service Delivery",
-        "deliveryValue": "Service is available immediately upon payment completion.",
+        "deliveryValue": "The Service becomes available once the applicable access conditions are met.",
         "returns": "Returns & Cancellation",
-        "returnsValue": "Due to the nature of digital services, refunds are not available after purchase. Subscriptions may be cancelled at any time; access continues until the end of the current billing period.",
+        "returnsValue": "Because this is a digital service, refunds are generally not available after use begins. Any change or cancellation terms are governed by the Service or separately provided terms.",
         "environment": "System Requirements",
         "environmentValue": "Modern browsers (latest version of Chrome, Firefox, Safari, or Edge)"
       }
@@ -947,11 +947,11 @@
         },
         "paymentAndBilling": {
           "heading": "5. Payment and Billing",
-          "body": "The Service offers free and paid subscription plans. Paid plans are billed monthly via credit card through Stripe. Prices are displayed in Japanese Yen (JPY) or US Dollars (USD). By subscribing to a paid plan, you authorize recurring monthly charges until you cancel."
+          "body": "The Service is operated with account-specific usage limits. Available storage, transcription time, AI answer limits, and other quotas are governed by the limits configured for your account or by terms we provide separately."
         },
         "cancellation": {
           "heading": "6. Cancellation and Refunds",
-          "body": "You may cancel your subscription at any time through the billing management page. Upon cancellation, you will continue to have access to paid features until the end of your current billing period. Due to the nature of digital services, refunds are not provided for partial billing periods."
+          "body": "Changes to account limits and any refund handling are governed by the terms shown in the Service or otherwise provided to you. Because this is a digital service, refunds may not be available for functionality or processing already provided."
         },
         "intellectualProperty": {
           "heading": "7. Intellectual Property",
@@ -980,7 +980,7 @@
       "sections": {
         "dataCollected": {
           "heading": "1. Data We Collect",
-          "body": "We collect the following types of information:\n- Account information: email address, username, and password (hashed)\n- Uploaded content: video files and generated transcriptions\n- Usage data: chat messages, AI interaction history, and service usage statistics\n- Payment information: processed securely by Stripe; we do not store credit card numbers\n- Technical data: IP address, browser type, and access logs"
+          "body": "We collect the following types of information:\n- Account information: email address, username, and password (hashed)\n- Uploaded content: video files and generated transcriptions\n- Usage data: chat messages, AI interaction history, and service usage statistics\n- Limit management data: configured quota limits and usage counters used to operate the Service\n- Technical data: IP address, browser type, and access logs"
         },
         "purposeOfUse": {
           "heading": "2. Purpose of Use",
@@ -988,7 +988,7 @@
         },
         "thirdPartySharing": {
           "heading": "3. Third-Party Services",
-          "body": "We may share data with the following third-party services as necessary to operate the Service:\n- Stripe: payment processing (name, email, payment details)\n- OpenAI: video transcription (audio data) and AI chat functionality (chat messages)\n- Neon: serverless PostgreSQL database (stores account information, video metadata, transcription data, chat history, usage statistics, etc.)\n- Mailgun: email delivery service (used for system emails such as email verification and password reset; includes email address)\n- AWS (SQS, Lambda): used for task queuing (SQS) and serverless processing (Lambda). Video files and related data are included.\n- Cloudflare R2: used for video file storage.\n\nThese providers process data in accordance with their own privacy policies. Third-party services may process data on servers located outside of Japan. We do not sell your personal information to third parties."
+          "body": "We may share data with the following third-party services as necessary to operate the Service:\n- OpenAI: video transcription (audio data) and AI chat functionality (chat messages)\n- Neon: serverless PostgreSQL database (stores account information, video metadata, transcription data, chat history, usage statistics, etc.)\n- Mailgun: email delivery service (used for system emails such as email verification and password reset; includes email address)\n- AWS (SQS, Lambda): used for task queuing (SQS) and serverless processing (Lambda). Video files and related data are included.\n- Cloudflare R2: used for video file storage.\n\nThese providers process data in accordance with their own privacy policies. Third-party services may process data on servers located outside of Japan. We do not sell your personal information to third parties."
         },
         "cookies": {
           "heading": "4. Cookies and Local Storage",
@@ -1301,11 +1301,11 @@
         "items": {
           "free": {
             "question": "Is VideoQ free to use?",
-            "answer": "Yes. VideoQ offers a free plan with 1 GB of storage, up to 10 minutes of transcription per month, and 500 AI chat answers per month — no credit card required."
+            "answer": "Yes. VideoQ can be used without payment. The actual storage, transcription, and AI answer limits depend on the limits configured for your account."
           },
           "paidPlan": {
             "question": "Are there paid plans?",
-            "answer": "Yes. VideoQ offers three paid plans billed monthly via Stripe: Lite (¥980/month — 10 GB, 120 min transcription, 3,000 AI answers), Standard (¥2,980/month — 50 GB, 600 min, 7,000 answers), and Enterprise (custom pricing, unlimited). You can cancel at any time."
+            "answer": "Yes. VideoQ can provide larger account limits when needed. The limits that apply to your account are determined directly by the configured quota values on your user."
           }
         }
       },
@@ -1326,7 +1326,7 @@
           },
           "duration": {
             "question": "Is there a limit on video length?",
-            "answer": "There is no hard limit on video duration. The practical limits are the 500 MB file size cap per upload and your plan's monthly transcription minutes (10 min on Free, 120 min on Lite, 600 min on Standard, unlimited on Enterprise)."
+            "answer": "There is no hard limit on video duration. The practical limits are the per-upload file size cap and the transcription minutes configured for your account."
           }
         }
       },

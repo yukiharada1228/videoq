@@ -971,6 +971,8 @@ class VideoUploadTests(APITestCase):
             email="test@example.com",
             password="testpass123",
         )
+        self.user.storage_limit_gb = 50
+        self.user.save()
         self.client = APIClient()
         self.client.force_authenticate(user=self.user)
 

@@ -22,7 +22,17 @@ describe('HomePage - authenticated', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockNavigate = useI18nNavigate() as ReturnType<typeof vi.fn>
-    ;(apiClient.getMeOrNull as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 1, username: 'testuser' })
+    ;(apiClient.getMeOrNull as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: 1,
+      username: 'testuser',
+      used_storage_bytes: 2.5 * 1024 ** 3,
+      storage_limit_bytes: 10 * 1024 ** 3,
+      used_processing_seconds: 65 * 60,
+      processing_limit_seconds: 180 * 60,
+      used_ai_answers: 12,
+      ai_answers_limit: 100,
+      is_over_quota: false,
+    })
     ;(apiClient.getVideos as ReturnType<typeof vi.fn>).mockResolvedValue(mockVideos)
     ;(apiClient.getVideoGroups as ReturnType<typeof vi.fn>).mockResolvedValue(mockGroups)
   })
@@ -79,6 +89,25 @@ describe('HomePage - authenticated', () => {
     })
   })
 
+  it('should render usage cards from the current user payload', async () => {
+    render(<HomePage />)
+
+    await waitFor(() => {
+      expect(screen.getByText('home.usage.title')).toBeInTheDocument()
+    })
+
+    const storageCard = screen.getByText('billing.usage.storage').parentElement
+    const transcriptionCard = screen.getByText('billing.usage.transcription').parentElement
+    const aiAnswersCard = screen.getByText('billing.usage.aiAnswers').parentElement
+
+    expect(storageCard?.textContent).toContain('2.5')
+    expect(storageCard?.textContent).toContain('10')
+    expect(transcriptionCard?.textContent).toContain('65')
+    expect(transcriptionCard?.textContent).toContain('180')
+    expect(aiAnswersCard?.textContent).toContain('12')
+    expect(aiAnswersCard?.textContent).toContain('100')
+  })
+
   it('should navigate to videos page with upload param when upload button is clicked', async () => {
     render(<HomePage />)
 
@@ -132,35 +161,6 @@ describe('HomePage - authenticated', () => {
     })
   })
 
-  it('sets authenticated metadata in english', async () => {
-    globalThis.__setMockLanguage('en')
-    render(<HomePage />)
-
-    await waitFor(() => {
-      expect(document.title).toBe('Home | VideoQ')
-    })
-    expect(document.querySelector('meta[name="description"]')?.getAttribute('content')).toBe(
-      'View your VideoQ dashboard, recent uploads, and quick actions for managing videos and groups.'
-    )
-    expect(document.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(
-      'https://videoq.jp/'
-    )
-  })
-
-  it('switches authenticated metadata for japanese locale', async () => {
-    globalThis.__setMockLanguage('ja')
-    render(<HomePage />)
-
-    await waitFor(() => {
-      expect(document.title).toBe('ホーム | VideoQ')
-    })
-    expect(document.querySelector('meta[name="description"]')?.getAttribute('content')).toBe(
-      'VideoQ のダッシュボードで、最近のアップロード、動画管理、グループ管理へのクイック操作を確認できます。'
-    )
-    expect(document.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(
-      'https://videoq.jp/ja/'
-    )
-  })
 })
 
 describe('HomePage - Data Loading', () => {
@@ -194,42 +194,27 @@ describe('HomePage - unauthenticated', () => {
     globalThis.__setMockLanguage('en')
   })
 
-  it('should render landing page hero when user is not authenticated', async () => {
+  it('should render login page when user is not authenticated', async () => {
     render(<HomePage />)
 
     await waitFor(() => {
-      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('landing.hero.title')
+      expect(screen.getByText('auth.login.title')).toBeInTheDocument()
     })
   })
 
-  it('should render persona cards when user is not authenticated', async () => {
-    render(<HomePage />)
-
-    await waitFor(() => {
-      expect(screen.getByText('landing.personas.title')).toBeInTheDocument()
-      expect(screen.getByText('landing.personas.educator.title')).toBeInTheDocument()
-      expect(screen.getByText('landing.personas.corporateTrainer.title')).toBeInTheDocument()
-      expect(screen.getByText('landing.personas.developer.title')).toBeInTheDocument()
-    })
-  })
-
-  it('should render use-case LP links when user is not authenticated', async () => {
-    render(<HomePage />)
-
-    await waitFor(() => {
-      const educationLink = screen.getByText('landing.personas.educator.ctaLink')
-      expect(educationLink.closest('a')).toHaveAttribute('href', '/use-cases/education')
-
-      const trainingLink = screen.getByText('landing.personas.corporateTrainer.ctaLink')
-      expect(trainingLink.closest('a')).toHaveAttribute('href', '/use-cases/corporate-training')
-    })
-  })
-
-  it('should NOT render home dashboard when user is not authenticated', async () => {
+  it('should not render home dashboard when user is not authenticated', async () => {
     render(<HomePage />)
 
     await waitFor(() => {
       expect(screen.queryByText(/home\.welcome\.greeting/)).not.toBeInTheDocument()
+    })
+  })
+
+  it('should render login submit when user is not authenticated', async () => {
+    render(<HomePage />)
+
+    await waitFor(() => {
+      expect(screen.getByText('auth.login.submit')).toBeInTheDocument()
     })
   })
 })

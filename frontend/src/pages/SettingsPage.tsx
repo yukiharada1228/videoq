@@ -7,7 +7,6 @@ import { apiClient, ApiError, type IntegrationApiKeyCreateResponse } from '@/lib
 import { queryKeys } from '@/lib/queryKeys';
 import { AppPageShell } from '@/components/layout/AppPageShell';
 import { AppPageHeader } from '@/components/layout/AppPageHeader';
-import { SeoHead } from '@/components/seo/SeoHead';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { Input } from '@/components/ui/input';
@@ -20,7 +19,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Plus, Trash2, X, CreditCard } from 'lucide-react';
+import { Plus, Trash2, X } from 'lucide-react';
 
 type AccessLevel = 'all' | 'read_only';
 
@@ -232,42 +231,12 @@ export default function SettingsPage() {
 
   return (
     <AppPageShell activePage="settings">
-      <SeoHead
-        title={t('seo.app.settings.title')}
-        description={t('seo.app.settings.description')}
-        path="/settings"
-      />
       <AppPageHeader
         title={t('settings.title')}
         description={t('settings.subtitle')}
       />
 
       <div className="flex flex-col gap-5">
-          {/* ── Billing & Plans ──────────────────────────────────────── */}
-          <section className="bg-white rounded-xl shadow-[0_4px_20px_rgba(28,25,23,0.04)] p-5">
-            <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <CreditCard className="w-4 h-4 text-[#00652c]" />
-                  <h2 className="text-base font-bold text-[#191c19]">
-                    {t('billing.settingsLink.title')}
-                  </h2>
-                </div>
-                <p className="text-sm text-[#6f7a6e]">
-                  {t('billing.settingsLink.description')}
-                </p>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigate('/billing')}
-                className="shrink-0"
-              >
-                {t('billing.settingsLink.button')}
-              </Button>
-            </div>
-          </section>
-
           <section className="bg-white rounded-xl shadow-[0_4px_20px_rgba(28,25,23,0.04)] p-5">
             <div className="flex items-start justify-between gap-4 mb-5">
               <div>

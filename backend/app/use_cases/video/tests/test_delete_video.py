@@ -136,7 +136,7 @@ class DeleteVideoStorageBillingTests(TestCase):
         upload_gateway = MagicMock()
         upload_gateway.get_file_size.return_value = 2048
         storage_record = MagicMock()
-        storage_record.execute.side_effect = RuntimeError("billing down")
+        storage_record.execute.side_effect = RuntimeError("limits accounting down")
 
         video_repo, use_case = self._make_use_case(
             upload_gateway=upload_gateway,

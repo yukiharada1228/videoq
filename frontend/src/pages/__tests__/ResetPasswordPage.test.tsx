@@ -62,32 +62,6 @@ describe('ResetPasswordPage', () => {
     expect(screen.getByText('auth.resetPassword.backToLogin')).toBeInTheDocument()
   })
 
-  it('sets english metadata', () => {
-    globalThis.__setMockLanguage('en')
-    render(<ResetPasswordPage />)
-
-    expect(document.title).toBe('Set a New Password | VideoQ')
-    expect(document.querySelector('meta[name="description"]')?.getAttribute('content')).toBe(
-      'Set a new password to restore access to your VideoQ account.'
-    )
-    expect(document.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(
-      'https://videoq.jp/reset-password'
-    )
-  })
-
-  it('switches metadata for japanese locale', () => {
-    globalThis.__setMockLanguage('ja')
-    render(<ResetPasswordPage />)
-
-    expect(document.title).toBe('新しいパスワードを設定 | VideoQ')
-    expect(document.querySelector('meta[name="description"]')?.getAttribute('content')).toBe(
-      'VideoQ アカウントに再度アクセスするため、新しいパスワードを設定します。'
-    )
-    expect(document.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(
-      'https://videoq.jp/ja/reset-password'
-    )
-  })
-
   it('should call confirmPasswordReset on submit', async () => {
     ;(apiClient.confirmPasswordReset as ReturnType<typeof vi.fn>).mockResolvedValue({})
 

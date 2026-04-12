@@ -166,12 +166,6 @@ graph TB
             subgraph MediaPres["media/"]
                 MediaViews[ProtectedMediaView]
             end
-            subgraph BillingPres["billing/"]
-                BillingViews["Views - PlanListView, CurrentSubscriptionView,
-                CreateCheckoutSessionView, CreateBillingPortalView,
-                stripe_webhook_view"]
-                BillingSer[Serializers]
-            end
             CommonPres["common/ - auth (CookieJWTAuthentication,
             ApiKeyAuthentication, ShareTokenAuthentication),
             permissions, throttles"]
@@ -288,9 +282,8 @@ graph TB
             end
             subgraph BillingDomain["billing/"]
                 BillingEntities["SubscriptionEntity, PlanType,
-                PLAN_LIMITS, PLAN_PRICES"]
+                PLAN_LIMITS"]
                 BillingRepos["SubscriptionRepository ABC"]
-                BillingGateways["BillingGateway ABC"]
                 BillingExc["StorageLimitExceeded, ProcessingLimitExceeded,
                 AiAnswersLimitExceeded, OverQuotaError"]
             end
@@ -308,7 +301,6 @@ graph TB
                 TagModel[Tag / VideoTag]
                 AccDeleteModel[AccountDeletionRequest]
                 ApiKeyModel[UserApiKey]
-                SubModel[Subscription]
                 StorageModel["SafeFileSystemStorage /
                 SafeS3Boto3Storage"]
             end
@@ -347,9 +339,6 @@ graph TB
                 CookieJWT[CookieJWTValidator]
                 ApiKeyResolver[ApiKeyResolver]
                 ShareTokenResolver[ShareTokenResolver]
-            end
-            subgraph BillingInfra["billing/"]
-                StripeGW[StripeGateway]
             end
             subgraph TasksInfra["tasks/"]
                 CeleryTaskGW[CeleryTaskGateway]

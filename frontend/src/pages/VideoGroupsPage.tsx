@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import { useI18nNavigate } from '@/lib/i18n';
 import { AppPageShell } from '@/components/layout/AppPageShell';
 import { AppPageHeader } from '@/components/layout/AppPageHeader';
-import { SeoHead } from '@/components/seo/SeoHead';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { useAuth } from '@/hooks/useAuth';
 import { useVideoGroups } from '@/hooks/useVideoGroups';
@@ -27,11 +26,6 @@ export default function VideoGroupsPage() {
 
   return (
     <AppPageShell activePage="groups">
-      <SeoHead
-        title={t('seo.app.groups.title')}
-        description={t('seo.app.groups.description')}
-        path="/videos/groups"
-      />
       <AppPageHeader
         title={t('videos.groups.title')}
         description={t('videos.groups.subtitle')}

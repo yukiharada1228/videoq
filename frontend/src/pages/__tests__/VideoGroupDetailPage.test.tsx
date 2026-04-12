@@ -196,35 +196,7 @@ describe('VideoGroupDetailPage', () => {
     })
   })
 
-  it('sets english metadata', async () => {
-    globalThis.__setMockLanguage('en')
-    render(<VideoGroupDetailPage />)
 
-    await waitFor(() => {
-      expect(document.title).toBe('Test Group | VideoQ')
-    })
-    expect(document.querySelector('meta[name="description"]')?.getAttribute('content')).toBe(
-      'Test Description'
-    )
-    expect(document.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(
-      'https://videoq.jp/videos/groups/1'
-    )
-  })
-
-  it('switches metadata for japanese locale', async () => {
-    globalThis.__setMockLanguage('ja')
-    render(<VideoGroupDetailPage />)
-
-    await waitFor(() => {
-      expect(document.title).toBe('Test Group | VideoQ')
-    })
-    expect(document.querySelector('meta[name="description"]')?.getAttribute('content')).toBe(
-      'Test Description'
-    )
-    expect(document.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(
-      'https://videoq.jp/ja/videos/groups/1'
-    )
-  })
 })
 
 describe('VideoGroupDetailPage - Share Link', () => {

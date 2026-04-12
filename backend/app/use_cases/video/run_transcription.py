@@ -61,7 +61,7 @@ class RunTranscriptionUseCase:
     5. Persist transcript and transition status PROCESSING → INDEXING
     6. Enqueue async indexing task (INDEXING → COMPLETED handled by IndexVideoTranscriptUseCase)
     On error: transition status PROCESSING → ERROR and re-raise.
-    7. (Optional) Record processing usage for billing
+    7. (Optional) Record processing usage for account limits
     """
 
     def __init__(

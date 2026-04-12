@@ -6,23 +6,7 @@ from app.domain.billing.exceptions import (  # noqa: F401
 )
 
 
-class BillingNotEnabled(Exception):
-    pass
-
-
 class AlreadySubscribed(Exception):
-    pass
-
-
-class NoStripeCustomer(Exception):
-    pass
-
-
-class InvalidPlan(Exception):
-    pass
-
-
-class InvalidReturnUrl(Exception):
     pass
 
 
@@ -32,5 +16,5 @@ class DowngradeNotAllowed(Exception):
         self.target_limit_bytes = target_limit_bytes
         self.over_quota_bytes = max(0, used_storage_bytes - target_limit_bytes)
         super().__init__(
-            "Current storage usage exceeds the target plan limit."
+            "Current storage usage exceeds the target storage limit."
         )
