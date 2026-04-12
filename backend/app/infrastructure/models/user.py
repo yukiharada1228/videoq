@@ -18,9 +18,9 @@ class User(AbstractUser):
         default=_default_max_video_upload_size_mb,
         help_text="Maximum video upload size in MB for this user.",
     )
-    storage_limit_gb = models.FloatField(default=50)
-    processing_limit_minutes = models.IntegerField(default=600)
-    ai_answers_limit = models.IntegerField(default=7000)
+    storage_limit_gb = models.FloatField(default=0)
+    processing_limit_minutes = models.IntegerField(default=0)
+    ai_answers_limit = models.IntegerField(default=0)
     used_storage_bytes = models.BigIntegerField(default=0)
     used_processing_seconds = models.IntegerField(default=0)
     used_ai_answers = models.IntegerField(default=0)
