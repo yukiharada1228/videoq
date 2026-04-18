@@ -34,6 +34,7 @@ class RagChatGateway(RagGateway):
         video_ids: Optional[Sequence[int]] = None,
         locale: Optional[str] = None,
         api_key: Optional[str] = None,
+        group_context: Optional[str] = None,
     ) -> RagResult:
         User = get_user_model()
         try:
@@ -58,6 +59,7 @@ class RagChatGateway(RagGateway):
                 messages=raw_messages,
                 video_ids=raw_video_ids,
                 locale=locale,
+                group_context=group_context or None,
             )
         except OpenAIAuthenticationError as exc:
             raise LLMConfigurationError(

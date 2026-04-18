@@ -38,7 +38,7 @@ class _StubGroupRepository(VideoGroupQueryRepository):
 
 
 class _RagGatewayUserNotFound(RagGateway):
-    def generate_reply(self, messages, user_id, video_ids=None, locale=None, api_key=None):
+    def generate_reply(self, messages, user_id, video_ids=None, locale=None, api_key=None, group_context=None):
         raise RagUserNotFoundError(f"User not found: {user_id}")
 
 class SendMessageUseCaseTests(unittest.TestCase):
@@ -77,7 +77,7 @@ class SendMessageUseCaseTests(unittest.TestCase):
 class _SuccessRagGateway(RagGateway):
     """RAG gateway stub that returns a fixed successful answer."""
 
-    def generate_reply(self, messages, user_id, video_ids=None, locale=None, api_key=None):
+    def generate_reply(self, messages, user_id, video_ids=None, locale=None, api_key=None, group_context=None):
         from app.domain.chat.gateways import RagResult
         return RagResult(content="Hello!", query_text="q", citations=[])
 

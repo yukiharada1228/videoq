@@ -133,6 +133,7 @@ class SendMessageUseCase:
                 video_ids=video_ids,
                 locale=locale,
                 api_key=None,
+                group_context=group.description if group is not None else None,
             )
         except _DomainRagUserNotFoundError as e:
             raise ResourceNotFound("User") from e
