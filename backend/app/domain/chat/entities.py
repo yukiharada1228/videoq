@@ -35,6 +35,7 @@ class VideoGroupContextEntity:
     id: int
     user_id: int
     name: str
+    description: str = ""
     share_token: Optional[str] = None
     members: List[VideoGroupMemberRef] = field(default_factory=list)
 
