@@ -129,7 +129,9 @@ def _build_reference_lines(
 
 
 def build_system_prompt(
-    locale: Optional[str] = None, references: Optional[Sequence[str]] = None
+    locale: Optional[str] = None,
+    references: Optional[Sequence[str]] = None,
+    group_context: Optional[str] = None,
 ) -> str:
     """Build system message based on detailed prompt template."""
     config = _resolve_locale_config(locale)
@@ -148,6 +150,7 @@ def build_system_prompt(
     rules_label = section_titles.get("rules", "# Rules")
     format_label = section_titles.get("format", "# Format")
     reference_label = section_titles.get("reference", "# Reference Materials")
+    group_context_label = section_titles.get("group_context", "# Group Context")
 
     header = header_template.format(
         role=role,
@@ -159,7 +162,12 @@ def build_system_prompt(
         reference_label=reference_label,
     )
 
-    lines: List[str] = [header.strip(), "", rules_label]
+    lines: List[str] = [header.strip()]
+
+    if group_context and group_context.strip():
+        lines.extend(["", group_context_label, group_context.strip()])
+
+    lines.extend(["", rules_label])
 
     if rules:
         for idx, rule in enumerate(rules, start=1):

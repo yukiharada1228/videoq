@@ -49,6 +49,7 @@ class RagChatService:
         group: Optional["VideoGroup"] = None,
         locale: Optional[str] = None,
         video_ids: Optional[List[int]] = None,
+        group_context: Optional[str] = None,
     ) -> RagChatResult:
         if self.llm is None:
             raise RuntimeError("LLM is required for full RAG response generation.")
@@ -63,6 +64,7 @@ class RagChatService:
                     {
                         "query_text": itemgetter("query_text"),
                         "locale": itemgetter("locale"),
+                        "group_context": itemgetter("group_context"),
                         "docs": itemgetter("query_text") | retriever,
                     }
                 )
@@ -84,7 +86,7 @@ class RagChatService:
                 }
             )
 
-        result = rag_chain.invoke({"query_text": query_text, "locale": locale})
+        result = rag_chain.invoke({"query_text": query_text, "locale": locale, "group_context": group_context})
         llm_response = cast(AIMessage, result.get("llm_response"))
         citations = result.get("citations")
 
@@ -165,9 +167,14 @@ class RagChatService:
         docs = cast(Sequence[Any], docs_obj)
         query_text = cast(str, data.get("query_text", ""))
         locale = cast(Optional[str], data.get("locale"))
+        group_context = cast(Optional[str], data.get("group_context")) or None
 
         reference_entries = self._build_reference_entries(docs)
-        system_prompt = build_system_prompt(locale=locale, references=reference_entries)
+        system_prompt = build_system_prompt(
+            locale=locale,
+            references=reference_entries,
+            group_context=group_context,
+        )
 
         return {
             "prompt_input": {
