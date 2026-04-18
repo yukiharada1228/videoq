@@ -69,6 +69,7 @@ def _group_to_context_entity(group: VideoGroup) -> VideoGroupContextEntity:
         id=group.id,
         user_id=group.user_id,
         name=group.name,
+        description=group.description,
         share_token=group.share_slug,
         members=members,
     )

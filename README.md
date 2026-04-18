@@ -80,19 +80,7 @@ docker compose exec backend python manage.py createsuperuser
 
 ### 📋 先に確認：ユーザー制限の設定
 
-VideoQ はユーザーごとに制限を管理できます。
-
-#### 1. ファイルサイズ上限（1本あたりの最大サイズ）
-
-**設定場所**
-1. [管理パネル](http://localhost/api/admin) にアクセス
-2. `Users` を開く
-3. 対象ユーザーを選ぶ
-4. `Max video upload size mb` を設定して保存（デフォルト: 500 MB）
-
-#### 2. ストレージ・使用量制限
-
-ストレージ容量・文字起こし処理時間・AI回答数の上限は管理パネルでユーザーごとに直接設定します。
+VideoQ はユーザーごとに制限を管理パネルで直接設定します。
 
 **設定場所**
 1. [管理パネル](http://localhost/api/admin) にアクセス
@@ -102,6 +90,7 @@ VideoQ はユーザーごとに制限を管理できます。
 
 | 設定項目 | 説明 |
 |----------|------|
+| `Max video upload size mb` | 1本あたりのアップロード上限（MB）（デフォルト: 500） |
 | `Storage limit gb` | ストレージ上限（GB）（デフォルト: 0） |
 | `Processing limit minutes` | 文字起こし処理時間上限（分/月）（デフォルト: 0） |
 | `Ai answers limit` | AI回答数上限（回/月）（デフォルト: 0） |

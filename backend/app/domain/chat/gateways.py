@@ -42,6 +42,7 @@ class RagGateway(ABC):
         video_ids: Optional[Sequence[int]] = None,
         locale: Optional[str] = None,
         api_key: Optional[str] = None,
+        group_context: Optional[str] = None,
     ) -> RagResult:
         """
         Execute the RAG pipeline and return the assistant's reply.
