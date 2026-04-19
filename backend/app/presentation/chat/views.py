@@ -85,6 +85,15 @@ class ChatView(DependencyResolverMixin, APIView):
 
     @extend_schema(
         request=ChatRequestSerializer,
+        parameters=[
+            OpenApiParameter(
+                "share_slug",
+                str,
+                OpenApiParameter.QUERY,
+                required=False,
+                description="Optional share link token for shared-access chat.",
+            ),
+        ],
         responses={200: ChatResponseSerializer},
         summary="Send chat message",
         description="Send a chat message and get AI response. Supports RAG when group_id is provided.",
@@ -348,6 +357,32 @@ class StreamChatView(DependencyResolverMixin, APIView):
     ]
     send_message_use_case = None
 
+    @extend_schema(
+        request=ChatRequestSerializer,
+        parameters=[
+            OpenApiParameter(
+                "share_slug",
+                str,
+                OpenApiParameter.QUERY,
+                required=False,
+                description="Optional share link token for shared-access chat.",
+            ),
+        ],
+        responses={
+            200: OpenApiResponse(
+                response=OpenApiTypes.STR,
+                description=(
+                    "Server-Sent Events stream (`text/event-stream`). "
+                    "Emits `content_chunk`, `done`, and `error` events as JSON in SSE `data:` frames."
+                ),
+            )
+        },
+        summary="Send chat message (streaming)",
+        description=(
+            "Send a chat message and receive the assistant response as Server-Sent Events. "
+            "Supports RAG when `group_id` is provided."
+        ),
+    )
     def post(self, request):
         share_slug = _get_share_slug(request)
         is_shared = share_slug is not None
