@@ -138,8 +138,8 @@ class RagChatGatewayStreamingTests(TestCase):
 
         content_chunks = [c for c in chunks if c.text is not None]
         self.assertEqual("".join(chunk.text for chunk in content_chunks), "Hello World")
-        self.assertEqual(content_chunks[0].text, "H")
-        self.assertEqual(content_chunks[-1].text, "d")
+        self.assertEqual(content_chunks[0].text, "Hello ")
+        self.assertEqual(content_chunks[-1].text, "World")
 
     @patch("app.infrastructure.external.rag_gateway.get_langchain_llm")
     @patch("app.infrastructure.external.rag_gateway.RagChatService")
@@ -162,7 +162,7 @@ class RagChatGatewayStreamingTests(TestCase):
         chunks = list(gateway.stream_reply(messages=messages, user_id=self.user.id))
 
         content_chunks = [c.text for c in chunks if c.text is not None]
-        self.assertEqual(content_chunks, ["A", "B"])
+        self.assertEqual(content_chunks, ["AB"])
 
     @patch("app.infrastructure.external.rag_gateway.get_langchain_llm")
     @patch("app.infrastructure.external.rag_gateway.RagChatService")
