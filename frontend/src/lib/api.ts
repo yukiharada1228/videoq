@@ -144,6 +144,11 @@ export interface ChatRequest {
   share_slug?: string;
 }
 
+export type ChatStreamEvent =
+  | { type: 'content_chunk'; text: string }
+  | { type: 'done'; chat_log_id: number | null; feedback: 'good' | 'bad' | null; citations?: Citation[] }
+  | { type: 'error'; code: string; message: string };
+
 export interface Video {
   id: number;
   user: number;
@@ -677,6 +682,66 @@ class ApiClient {
       method: 'POST',
       body: bodyData,
     });
+  }
+
+  async *chatStream(data: ChatRequest): AsyncGenerator<ChatStreamEvent> {
+    const { share_slug, ...bodyData } = data;
+    const endpoint = share_slug
+      ? `/chat/messages/stream/?share_slug=${share_slug}`
+      : '/chat/messages/stream/';
+
+    const url = this.buildUrl(endpoint);
+    const headers = this.buildHeaders(bodyData);
+
+    const csrfToken = await this.ensureCsrfToken();
+    if (csrfToken) {
+      headers['X-CSRFToken'] = csrfToken;
+    }
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(bodyData),
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      await this.handleError(response);
+      return;
+    }
+
+    if (!response.body) return;
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? '';
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (trimmed.startsWith('data: ')) {
+            const jsonStr = trimmed.slice(6).trim();
+            if (jsonStr) {
+              try {
+                yield JSON.parse(jsonStr) as ChatStreamEvent;
+              } catch {
+                // ignore malformed JSON
+              }
+            }
+          }
+        }
+      }
+    } finally {
+      reader.releaseLock();
+    }
   }
 
   async setChatFeedback(

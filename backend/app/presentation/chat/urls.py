@@ -7,6 +7,7 @@ from .views import (
     ChatFeedbackView,
     ChatHistoryView,
     ChatView,
+    StreamChatView,
 )
 
 urlpatterns = [
@@ -14,6 +15,11 @@ urlpatterns = [
         "messages/",
         ChatView.as_view(send_message_use_case=chat_dependencies.get_send_message_use_case),
         name="chat-messages",
+    ),
+    path(
+        "messages/stream/",
+        StreamChatView.as_view(send_message_use_case=chat_dependencies.get_send_message_use_case),
+        name="chat-messages-stream",
     ),
     path(
         "history/",
