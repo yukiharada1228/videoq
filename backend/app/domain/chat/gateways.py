@@ -5,7 +5,7 @@ Abstract contracts for external services used by chat use cases.
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Optional, Sequence
+from typing import Iterator, Optional, Sequence
 
 from app.domain.chat.dtos import ChatMessageDTO, CitationDTO
 
@@ -29,6 +29,20 @@ class RagResult:
     content: str
     query_text: str
     citations: Optional[Sequence[CitationDTO]] = field(default=None)
+
+
+@dataclass
+class RagStreamChunk:
+    """A single chunk emitted during streaming from the RAG gateway.
+
+    Content chunks have ``text`` set.
+    The final chunk has ``is_final=True`` and carries ``citations`` / ``query_text``.
+    """
+
+    text: Optional[str] = None
+    citations: Optional[Sequence[CitationDTO]] = field(default=None)
+    query_text: Optional[str] = None
+    is_final: bool = False
 
 
 class RagGateway(ABC):
@@ -62,3 +76,25 @@ class RagGateway(ABC):
             LLMProviderError: If the LLM provider returns an error.
         """
         ...
+
+    def stream_reply(
+        self,
+        messages: Sequence[ChatMessageDTO],
+        user_id: int,
+        video_ids: Optional[Sequence[int]] = None,
+        locale: Optional[str] = None,
+        api_key: Optional[str] = None,
+        group_context: Optional[str] = None,
+    ) -> Iterator[RagStreamChunk]:
+        """Stream the RAG reply token by token.
+
+        Yields ``RagStreamChunk`` objects:
+        - Content chunks have ``text`` set (non-empty string).
+        - The final chunk has ``is_final=True`` and carries ``citations`` / ``query_text``.
+
+        Raises:
+            RagUserNotFoundError: If the user context does not exist.
+            LLMConfigurationError: If the LLM cannot be initialised.
+            LLMProviderError: If the LLM provider returns an error during generation.
+        """
+        raise NotImplementedError("stream_reply is not implemented for this gateway")

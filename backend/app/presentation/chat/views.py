@@ -4,6 +4,7 @@ Views are thin HTTP adapters that delegate to use cases.
 """
 
 import csv
+import json
 import time
 import uuid
 
@@ -16,7 +17,7 @@ from rest_framework.views import APIView
 
 from app.presentation.common.authentication import APIKeyAuthentication, BearerAPIKeyAuthentication, CookieJWTAuthentication
 from app.use_cases.billing.exceptions import AiAnswersLimitExceeded, OverQuotaError
-from app.use_cases.chat.dto import ChatMessageInput
+from app.use_cases.chat.dto import ChatMessageInput, StreamContentChunk, StreamDoneEvent
 from app.presentation.common.mixins import DependencyResolverMixin
 from app.presentation.common.permissions import (
     ApiKeyScopePermission,
@@ -37,7 +38,7 @@ from app.use_cases.chat.exceptions import (
     LLMProviderError,
 )
 from app.use_cases.shared.exceptions import PermissionDenied, ResourceNotFound
-from django.http import HttpResponse
+from django.http import HttpResponse, StreamingHttpResponse
 
 from .exporters import write_chat_history_csv
 from .serializers import (
@@ -319,6 +320,102 @@ class ChatAnalyticsView(DependencyResolverMixin, APIView):
                 for item in dto.keywords
             ],
         })
+
+
+def _sse_event(data: dict) -> str:
+    return f"data: {json.dumps(data)}\n\n"
+
+
+class StreamChatView(DependencyResolverMixin, APIView):
+    """Streaming chat endpoint using Server-Sent Events (SSE).
+
+    Returns ``text/event-stream`` response with the following event types:
+    - ``{"type": "content_chunk", "text": "..."}`` — incremental LLM tokens
+    - ``{"type": "done", "chat_log_id": ..., "feedback": ..., "citations": [...]}`` — final
+    - ``{"type": "error", "code": "...", "message": "..."}`` — on error
+    """
+
+    authentication_classes = [
+        APIKeyAuthentication,
+        CookieJWTAuthentication,
+        ShareTokenAuthentication,
+    ]
+    permission_classes = [IsAuthenticatedOrSharedAccess, ApiKeyScopePermission]
+    required_scope = "chat_write"
+    throttle_classes = [
+        ShareTokenIPThrottle,
+        AuthenticatedChatThrottle,
+    ]
+    send_message_use_case = None
+
+    def post(self, request):
+        share_slug = _get_share_slug(request)
+        is_shared = share_slug is not None
+
+        serializer = ChatRequestSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(
+                {"error": {"code": "VALIDATION_ERROR", "message": serializer.errors}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        group_id = serializer.validated_data.get("group_id")
+        user_id = getattr(request.user, "id", None)
+        validated_messages = serializer.validated_data.get("messages", [])
+
+        if not validated_messages:
+            return Response(
+                {"error": {"code": "INVALID_REQUEST", "message": "Messages are empty."}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        message_dtos = [
+            ChatMessageInput(role=m["role"], content=m["content"])
+            for m in validated_messages
+        ]
+
+        use_case = self.resolve_dependency(self.send_message_use_case)
+
+        def event_stream():
+            try:
+                for event in use_case.stream_execute(
+                    user_id=user_id,
+                    messages=message_dtos,
+                    group_id=group_id,
+                    share_token=share_slug,
+                    is_shared=is_shared,
+                    locale=_get_locale(request),
+                ):
+                    if isinstance(event, StreamContentChunk):
+                        yield _sse_event({"type": "content_chunk", "text": event.text})
+                    elif isinstance(event, StreamDoneEvent):
+                        done_data: dict = {
+                            "type": "done",
+                            "chat_log_id": event.chat_log_id,
+                            "feedback": event.feedback,
+                        }
+                        if group_id is not None and event.citations:
+                            done_data["citations"] = _serialize_citations(event.citations)
+                        yield _sse_event(done_data)
+            except InvalidChatRequestError as e:
+                yield _sse_event({"type": "error", "code": "INVALID_REQUEST", "message": str(e)})
+            except ResourceNotFound as e:
+                yield _sse_event({"type": "error", "code": "NOT_FOUND", "message": str(e)})
+            except PermissionDenied as e:
+                yield _sse_event({"type": "error", "code": "PERMISSION_DENIED", "message": str(e)})
+            except OverQuotaError as e:
+                yield _sse_event({"type": "error", "code": "OVER_QUOTA", "message": str(e)})
+            except AiAnswersLimitExceeded as e:
+                yield _sse_event({"type": "error", "code": "AI_ANSWERS_LIMIT_EXCEEDED", "message": str(e)})
+            except LLMConfigurationError as e:
+                yield _sse_event({"type": "error", "code": "LLM_CONFIGURATION_ERROR", "message": str(e)})
+            except LLMProviderError:
+                yield _sse_event({"type": "error", "code": "LLM_PROVIDER_ERROR", "message": "An internal server error occurred."})
+
+        response = StreamingHttpResponse(event_stream(), content_type="text/event-stream")
+        response["Cache-Control"] = "no-cache"
+        response["X-Accel-Buffering"] = "no"
+        return response
 
 
 class OpenAIChatCompletionsView(DependencyResolverMixin, APIView):
