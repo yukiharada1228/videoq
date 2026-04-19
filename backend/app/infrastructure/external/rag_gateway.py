@@ -28,18 +28,6 @@ logger = logging.getLogger(__name__)
 class RagChatGateway(RagGateway):
     """Implements RagGateway by delegating to RagChatService."""
 
-    @staticmethod
-    def _iter_text_units(text: str) -> Iterator[str]:
-        """Yield the smallest display units for streaming updates.
-
-        Upstream LLM providers may coalesce multiple characters into a single
-        streamed chunk. Split those chunks here so the downstream SSE contract
-        can update incrementally even when the provider batches output.
-        """
-        for unit in text:
-            if unit:
-                yield unit
-
     def generate_reply(
         self,
         messages: Sequence[ChatMessageDTO],
@@ -155,8 +143,8 @@ class RagChatGateway(RagGateway):
                         query_text=item.query_text,
                     )
                 else:
-                    for unit in self._iter_text_units(item):
-                        yield RagStreamChunk(text=unit)
+                    if item:
+                        yield RagStreamChunk(text=item)
         except OpenAIAuthenticationError as exc:
             raise LLMConfigurationError(
                 "Invalid OpenAI API key. Please check your API key in Settings."
