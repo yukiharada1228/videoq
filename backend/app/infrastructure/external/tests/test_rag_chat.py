@@ -168,8 +168,6 @@ class RagChatGatewayStreamingTests(TestCase):
     @patch("app.infrastructure.external.rag_gateway.RagChatService")
     @override_settings(LLM_PROVIDER="openai")
     def test_stream_reply_yields_final_chunk(self, mock_service_cls, mock_get_llm):
-        from app.domain.chat.gateways import RagStreamChunk
-
         mock_get_llm.return_value = MagicMock()
         mock_service = MagicMock()
 
