@@ -5,7 +5,7 @@ Moved from app/chat/services/rag_chat.py.
 
 from dataclasses import dataclass
 from operator import itemgetter
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, cast
+from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Sequence, Union, cast
 
 from langchain_core.messages import AIMessage
 from langchain_core.prompts import ChatPromptTemplate
@@ -27,6 +27,14 @@ class RagChatResult:
     llm_response: AIMessage
     query_text: str
     citations: Optional[List[Dict[str, str]]]
+
+
+@dataclass
+class _RagServiceStreamEnd:
+    """Sentinel yielded at the end of RagChatService.stream() carrying metadata."""
+
+    citations: Optional[List[Dict[str, str]]]
+    query_text: str
 
 
 class RagChatService:
@@ -95,6 +103,44 @@ class RagChatService:
             query_text=query_text,
             citations=citations,
         )
+
+    def stream(
+        self,
+        messages: Sequence[Dict[str, str]],
+        group: Optional["VideoGroup"] = None,
+        locale: Optional[str] = None,
+        video_ids: Optional[List[int]] = None,
+        group_context: Optional[str] = None,
+    ) -> Iterator[Union[str, _RagServiceStreamEnd]]:
+        """Stream LLM response token by token.
+
+        Yields:
+            - ``str`` for each content token from the LLM.
+            - ``_RagServiceStreamEnd`` as the final sentinel with citations + query_text.
+        """
+        if self.llm is None:
+            raise RuntimeError("LLM is required for streaming.")
+
+        query_text = self._extract_latest_user_query(messages)
+        retriever = self._get_retriever(group, video_ids=video_ids)
+
+        docs = retriever.invoke(query_text) if retriever is not None else []
+
+        payload = self._build_prompt_payload({
+            "docs": docs,
+            "query_text": query_text,
+            "locale": locale,
+            "group_context": group_context,
+        })
+        citations = payload["citations"]
+        prompt_messages = self.prompt.invoke(payload["prompt_input"])
+
+        for chunk in self.llm.stream(prompt_messages):
+            content = chunk.content
+            if isinstance(content, str) and content:
+                yield content
+
+        yield _RagServiceStreamEnd(citations=citations, query_text=query_text)
 
     def _extract_latest_user_query(self, messages: Sequence[Dict[str, str]]) -> str:
         for msg in reversed(messages):

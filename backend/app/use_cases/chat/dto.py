@@ -129,3 +129,20 @@ class KeywordCountDTO:
 
     word: str
     count: int
+
+
+@dataclass(frozen=True)
+class StreamContentChunk:
+    """A single content token emitted by stream_execute()."""
+
+    text: str
+
+
+@dataclass
+class StreamDoneEvent:
+    """Final event from stream_execute() carrying full result metadata."""
+
+    content: str
+    citations: Optional[Sequence[CitationResponseDTO]]
+    chat_log_id: Optional[int]
+    feedback: Optional[str]
