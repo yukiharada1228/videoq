@@ -9,6 +9,7 @@ vi.mock('@/lib/api', async (importOriginal) => {
     ...actual,
     apiClient: {
       chat: vi.fn(),
+      chatStream: vi.fn(),
       getChatHistory: vi.fn(),
       exportChatHistoryCsv: vi.fn(),
       setChatFeedback: vi.fn(),
@@ -16,6 +17,21 @@ vi.mock('@/lib/api', async (importOriginal) => {
     },
   }
 })
+
+// Helper: create async generator mock for chatStream
+function makeStreamMock(
+  response: { content: string; chat_log_id?: number; feedback?: 'good' | 'bad' | null; citations?: any[] }
+) {
+  return async function* () {
+    yield { type: 'content_chunk' as const, text: response.content }
+    yield {
+      type: 'done' as const,
+      chat_log_id: response.chat_log_id ?? null,
+      feedback: response.feedback ?? null,
+      citations: response.citations,
+    }
+  }
+}
 
 // Mock window.open
 const mockOpen = vi.fn()
@@ -30,12 +46,9 @@ async function sendMessage(input: HTMLElement, message: string) {
 describe('ChatPanel', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    ;(apiClient.chat as any).mockResolvedValue({
-      role: 'assistant',
-      content: 'Test response',
-      chat_log_id: 1,
-      feedback: null,
-    })
+    ;(apiClient.chatStream as any).mockImplementation(
+      makeStreamMock({ content: 'Test response', chat_log_id: 1, feedback: null }),
+    )
     ;(apiClient.getOpenAIApiKeyStatus as any).mockResolvedValue({ has_api_key: true })
   })
 
@@ -55,7 +68,7 @@ describe('ChatPanel', () => {
     })
 
     await waitFor(() => {
-      expect(apiClient.chat).toHaveBeenCalled()
+      expect(apiClient.chatStream).toHaveBeenCalled()
     })
   })
 
@@ -68,7 +81,7 @@ describe('ChatPanel', () => {
       fireEvent.keyDown(input, { key: 'Enter', shiftKey: false })
     })
 
-    expect(apiClient.chat).not.toHaveBeenCalled()
+    expect(apiClient.chatStream).not.toHaveBeenCalled()
   })
 
   it('should open history when history button is clicked', async () => {
@@ -95,21 +108,12 @@ describe('ChatPanel', () => {
 
   it('should handle video navigation', async () => {
     const onVideoPlay = vi.fn()
-    ;(apiClient.chat as any).mockResolvedValue({
-      role: 'assistant',
+    ;(apiClient.chatStream as any).mockImplementation(makeStreamMock({
       content: 'This is grounded text[1].',
-      citations: [
-        {
-          id: 1,
-          video_id: 1,
-          title: 'Test Video',
-          start_time: '00:01:30',
-          end_time: '00:15:30',
-        },
-      ],
+      citations: [{ id: 1, video_id: 1, title: 'Test Video', start_time: '00:01:30', end_time: '00:15:30' }],
       chat_log_id: 1,
       feedback: null,
-    })
+    }))
 
     render(<ChatPanel onVideoPlay={onVideoPlay} />)
 
@@ -135,21 +139,12 @@ describe('ChatPanel', () => {
   })
 
   it('should open video in new tab when onVideoPlay is not provided', async () => {
-    ;(apiClient.chat as any).mockResolvedValue({
-      role: 'assistant',
+    ;(apiClient.chatStream as any).mockImplementation(makeStreamMock({
       content: 'This is grounded text[1].',
-      citations: [
-        {
-          id: 1,
-          video_id: 1,
-          title: 'Test Video',
-          start_time: '00:01:30',
-          end_time: '00:15:30',
-        },
-      ],
+      citations: [{ id: 1, video_id: 1, title: 'Test Video', start_time: '00:01:30', end_time: '00:15:30' }],
       chat_log_id: 1,
       feedback: null,
-    })
+    }))
 
     render(<ChatPanel />)
 
@@ -183,7 +178,7 @@ describe('ChatPanel', () => {
     })
 
     await waitFor(() => {
-      expect(apiClient.chat).toHaveBeenCalled()
+      expect(apiClient.chatStream).toHaveBeenCalled()
     })
   })
 
@@ -197,16 +192,13 @@ describe('ChatPanel', () => {
       fireEvent.keyDown(input, { key: 'Enter', shiftKey: true })
     })
 
-    expect(apiClient.chat).not.toHaveBeenCalled()
+    expect(apiClient.chatStream).not.toHaveBeenCalled()
   })
 
   it('should handle feedback good button click', async () => {
-    ;(apiClient.chat as any).mockResolvedValue({
-      role: 'assistant',
-      content: 'Response',
-      chat_log_id: 1,
-      feedback: null,
-    })
+    ;(apiClient.chatStream as any).mockImplementation(
+      makeStreamMock({ content: 'Response', chat_log_id: 1, feedback: null }),
+    )
     ;(apiClient.setChatFeedback as any).mockResolvedValue({
       chat_log_id: 1,
       feedback: 'good',
@@ -256,12 +248,9 @@ describe('ChatPanel', () => {
   })
 
   it('should handle feedback bad button click', async () => {
-    ;(apiClient.chat as any).mockResolvedValue({
-      role: 'assistant',
-      content: 'Response',
-      chat_log_id: 1,
-      feedback: null,
-    })
+    ;(apiClient.chatStream as any).mockImplementation(
+      makeStreamMock({ content: 'Response', chat_log_id: 1, feedback: null }),
+    )
     ;(apiClient.setChatFeedback as any).mockResolvedValue({
       chat_log_id: 1,
       feedback: 'bad',
@@ -295,12 +284,9 @@ describe('ChatPanel', () => {
   })
 
   it('should toggle feedback when clicking same button', async () => {
-    ;(apiClient.chat as any).mockResolvedValue({
-      role: 'assistant',
-      content: 'Response',
-      chat_log_id: 1,
-      feedback: 'good',
-    })
+    ;(apiClient.chatStream as any).mockImplementation(
+      makeStreamMock({ content: 'Response', chat_log_id: 1, feedback: 'good' }),
+    )
     ;(apiClient.setChatFeedback as any).mockResolvedValue({
       chat_log_id: 1,
       feedback: null,
@@ -430,7 +416,10 @@ describe('ChatPanel', () => {
   })
 
   it('should display error message when chat fails', async () => {
-    ;(apiClient.chat as any).mockRejectedValue(new Error('Chat failed'))
+    ;(apiClient.chatStream as any).mockImplementation(async function* () {
+      throw new Error('Chat failed')
+      yield // make it a generator
+    })
 
     render(<ChatPanel />)
 
@@ -529,12 +518,9 @@ describe('ChatPanel', () => {
 
   it('should handle setChatFeedback error', async () => {
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    ;(apiClient.chat as any).mockResolvedValue({
-      role: 'assistant',
-      content: 'Response',
-      chat_log_id: 1,
-      feedback: null,
-    })
+    ;(apiClient.chatStream as any).mockImplementation(
+      makeStreamMock({ content: 'Response', chat_log_id: 1, feedback: null }),
+    )
     ;(apiClient.setChatFeedback as any).mockRejectedValue(new Error('Failed to update feedback'))
 
     render(<ChatPanel />)
@@ -585,7 +571,7 @@ describe('ChatPanel', () => {
     })
 
     // Should not call chat API during composition
-    expect(apiClient.chat).not.toHaveBeenCalled()
+    expect(apiClient.chatStream).not.toHaveBeenCalled()
   })
 
   it('should display citation timestamps in history', async () => {
@@ -628,28 +614,15 @@ describe('ChatPanel', () => {
   })
 
   it('should render multiple reference ids as separate buttons', async () => {
-    ;(apiClient.chat as any).mockResolvedValue({
-      role: 'assistant',
+    ;(apiClient.chatStream as any).mockImplementation(makeStreamMock({
       content: 'This is grounded text[1][2].',
       citations: [
-        {
-          id: 1,
-          video_id: 1,
-          title: 'Video One',
-          start_time: '00:01:30',
-          end_time: '00:15:30',
-        },
-        {
-          id: 2,
-          video_id: 2,
-          title: 'Video Two',
-          start_time: '00:02:30',
-          end_time: '00:08:30',
-        },
+        { id: 1, video_id: 1, title: 'Video One', start_time: '00:01:30', end_time: '00:15:30' },
+        { id: 2, video_id: 2, title: 'Video Two', start_time: '00:02:30', end_time: '00:08:30' },
       ],
       chat_log_id: 1,
       feedback: null,
-    })
+    }))
 
     render(<ChatPanel />)
 
@@ -671,21 +644,12 @@ describe('ChatPanel', () => {
   })
 
   it('should normalize millisecond timestamps in inline links', async () => {
-    ;(apiClient.chat as any).mockResolvedValue({
-      role: 'assistant',
+    ;(apiClient.chatStream as any).mockImplementation(makeStreamMock({
       content: 'Deep learning is useful[1]. It finds a good function.',
-      citations: [
-        {
-          id: 1,
-          video_id: 1,
-          title: 'Test Video',
-          start_time: '00:06:37,480',
-          end_time: '00:07:47,900',
-        },
-      ],
+      citations: [{ id: 1, video_id: 1, title: 'Test Video', start_time: '00:06:37,480', end_time: '00:07:47,900' }],
       chat_log_id: 1,
       feedback: null,
-    })
+    }))
 
     render(<ChatPanel />)
 
@@ -703,12 +667,9 @@ describe('ChatPanel', () => {
   })
 
   it('should keep unmatched citation markers as plain text', async () => {
-    ;(apiClient.chat as any).mockResolvedValue({
-      role: 'assistant',
-      content: 'Response [2]',
-      chat_log_id: 1,
-      feedback: null,
-    })
+    ;(apiClient.chatStream as any).mockImplementation(
+      makeStreamMock({ content: 'Response [2]', chat_log_id: 1, feedback: null }),
+    )
 
     render(<ChatPanel />)
 
