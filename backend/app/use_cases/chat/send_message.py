@@ -1,7 +1,7 @@
 """Use case: Send a chat message with optional RAG context."""
 
 import logging
-from typing import Generator, Iterator, List, Optional, Union
+from typing import Generator, List, Optional, Union
 
 from app.domain.chat.dtos import ChatMessageDTO
 from app.domain.chat.gateways import LLMConfigurationError as _DomainLLMConfigError
