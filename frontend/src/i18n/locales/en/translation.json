@@ -561,9 +561,9 @@
         "failed": "Could not evaluate"
       },
       "metrics": {
-        "faithfulness": "Grounding match",
-        "answerRelevancy": "Question relevance",
-        "contextPrecision": "Reference precision"
+        "faithfulness": "Faithfulness",
+        "answerRelevancy": "Answer relevancy",
+        "contextPrecision": "Context precision"
       }
     }
   },
@@ -766,13 +766,13 @@
       "none": "Not rated"
     },
     "evaluation": {
-      "title": "RAG Evaluation Summary",
+      "title": "RAGAS Metrics",
       "evaluatedCount": "{{count}} evaluated answers",
       "empty": "No answers have been evaluated yet",
       "metrics": {
-        "faithfulness": "Grounding match",
-        "answerRelevancy": "Question relevance",
-        "contextPrecision": "Reference precision"
+        "faithfulness": "Faithfulness",
+        "answerRelevancy": "Answer relevancy",
+        "contextPrecision": "Context precision"
       }
     },
     "keywords": {
