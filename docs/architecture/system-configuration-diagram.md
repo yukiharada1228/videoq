@@ -152,8 +152,8 @@ graph TB
     end
 
     Browser -->|Request| CloudFront
-    CloudFront -->|/* (Static)| Pages
-    CloudFront -->|/api/*| API_GW
+    CloudFront -->|"/* (Static)"| Pages
+    CloudFront -->|"/api/*"| API_GW
     
     API_GW --> LambdaAPI
     LambdaAPI --> NeonDB

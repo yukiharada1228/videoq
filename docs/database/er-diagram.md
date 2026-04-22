@@ -37,7 +37,9 @@ erDiagram
         datetime deactivated_at
     }
 
-    User {
+    Subscription {
+        int id PK
+        int user_id FK
         string plan
         bigint used_storage_bytes
         int used_processing_seconds

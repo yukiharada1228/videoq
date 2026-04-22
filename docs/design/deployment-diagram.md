@@ -295,12 +295,12 @@ graph TB
     subgraph AWSCloud["AWS Region (ap-northeast-1)"]
         subgraph API_Layer["API Layer"]
             APIGW[API Gateway HTTP API]
-            LambdaAPI[Lambda API (Django + LWA)]
+            LambdaAPI["Lambda API (Django + LWA)"]
         end
         
         subgraph Worker_Layer["Worker Layer"]
             SQS[Amazon SQS Queue]
-            LambdaWorker[Lambda Worker (Celery)]
+            LambdaWorker["Lambda Worker (Celery)"]
         end
         
         subgraph ECR["Container Registry"]
@@ -329,8 +329,8 @@ graph TB
         NeonDB[(Neon Serverless<br>PostgreSQL)]
     end
     
-    CF -->|/*| Pages
-    CF -->|/api/*| APIGW
+    CF -->|"/*"| Pages
+    CF -->|"/api/*"| APIGW
     LambdaAPI -->|PostgreSQL connection| NeonDB
     LambdaWorker -->|PostgreSQL connection| NeonDB
     LambdaAPI -->|S3 API| R2
