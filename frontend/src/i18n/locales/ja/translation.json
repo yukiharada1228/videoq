@@ -553,7 +553,19 @@
     "placeholder": "メッセージを入力...",
     "assistantGreeting": "こんにちは！動画に関する質問にお答えします。何か質問はありますか？",
     "error": "チャットでエラーが発生しました。",
-    "errorOverQuota": "ストレージ超過のためAIチャットを利用できません。動画を削除してストレージを空けてください。"
+    "errorOverQuota": "ストレージ超過のためAIチャットを利用できません。動画を削除してストレージを空けてください。",
+    "evaluation": {
+      "status": {
+        "pending": "評価中",
+        "completed": "評価済み",
+        "failed": "評価できませんでした"
+      },
+      "metrics": {
+        "faithfulness": "根拠との一致",
+        "answerRelevancy": "質問への関連度",
+        "contextPrecision": "参照情報の的確さ"
+      }
+    }
   },
   "shared": {
     "loadError": "共有チャットグループの読み込みに失敗しました。",
@@ -752,6 +764,16 @@
       "good": "Good",
       "bad": "Bad",
       "none": "未評価"
+    },
+    "evaluation": {
+      "title": "RAGAS指標",
+      "evaluatedCount": "評価済み回答 {{count}}件",
+      "empty": "まだ評価された回答はありません",
+      "metrics": {
+        "faithfulness": "根拠との一致",
+        "answerRelevancy": "質問への関連度",
+        "contextPrecision": "参照情報の的確さ"
+      }
     },
     "keywords": {
       "title": "頻出キーワード"

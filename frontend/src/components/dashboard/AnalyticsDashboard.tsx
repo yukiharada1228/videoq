@@ -1,18 +1,25 @@
 import { useTranslation } from 'react-i18next';
-import type { ChatAnalytics } from '@/lib/api';
+import type { ChatAnalytics, EvaluationSummary } from '@/lib/api';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { DashboardEmptyState } from './DashboardEmptyState';
-import { SceneDistributionChart } from './SceneDistributionChart';
 import { QuestionTimeSeriesChart } from './QuestionTimeSeriesChart';
 import { FeedbackDonutChart } from './FeedbackDonutChart';
 import { KeywordCloudChart } from './KeywordCloudChart';
+import { EvaluationSummaryCard } from './EvaluationSummaryCard';
 
 interface AnalyticsDashboardProps {
   data: ChatAnalytics | undefined;
+  evaluationSummary?: EvaluationSummary;
   isLoading: boolean;
+  isEvaluationLoading?: boolean;
 }
 
-export function AnalyticsDashboard({ data, isLoading }: AnalyticsDashboardProps) {
+export function AnalyticsDashboard({
+  data,
+  evaluationSummary,
+  isLoading,
+  isEvaluationLoading = false,
+}: AnalyticsDashboardProps) {
   const { t } = useTranslation();
 
   if (isLoading) {
@@ -52,11 +59,12 @@ export function AnalyticsDashboard({ data, isLoading }: AnalyticsDashboardProps)
           <FeedbackDonutChart data={data.feedback} />
         </div>
 
-        {data.scene_distribution.length > 0 && (
-          <div className="bg-white border border-gray-200 rounded-lg p-4">
-            <SceneDistributionChart data={data.scene_distribution} />
-          </div>
-        )}
+        <div className="bg-white border border-gray-200 rounded-lg p-4">
+          <EvaluationSummaryCard
+            summary={evaluationSummary}
+            isLoading={isEvaluationLoading}
+          />
+        </div>
 
         {data.keywords.length > 0 && (
           <div className="bg-white border border-gray-200 rounded-lg p-4">
