@@ -166,6 +166,12 @@ graph TB
             subgraph MediaPres["media/"]
                 MediaViews[ProtectedMediaView]
             end
+            subgraph BillingPres["billing/"]
+                BillingViews["Views - PlanList, CurrentSubscription,
+                CreateCheckoutSession, CreateBillingPortal,
+                HandleWebhook"]
+                BillingSer[Serializers]
+            end
             CommonPres["common/ - auth (CookieJWTAuthentication,
             ApiKeyAuthentication, ShareTokenAuthentication),
             permissions, throttles"]
@@ -341,7 +347,8 @@ graph TB
                 ShareTokenResolver[ShareTokenResolver]
             end
             subgraph TasksInfra["tasks/"]
-                CeleryTaskGW[CeleryTaskGateway]
+                CeleryVideoTaskGW[CeleryVideoTaskGateway]
+                CeleryAuthTaskGW[CeleryAuthTaskGateway]
             end
             subgraph ChatInfra["chat/"]
                 KwExtractor[JanomeNltkKeywordExtractor]

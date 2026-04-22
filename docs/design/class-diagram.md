@@ -66,7 +66,7 @@ classDiagram
         +datetime created_at
     }
 
-    Note: ChatLog.feedback uses FeedbackChoices (good/bad)
+    %% ChatLog.feedback: FeedbackChoices (good/bad)
 
     class Tag {
         +int id
@@ -109,7 +109,7 @@ classDiagram
         +datetime requested_at
     }
 
-    class UserPlan {
+    class Subscription {
         +string plan
         +bigint used_storage_bytes
         +int used_processing_seconds
