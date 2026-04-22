@@ -27,6 +27,11 @@ class RagChatResult:
     llm_response: AIMessage
     query_text: str
     citations: Optional[List[Dict[str, str]]]
+    retrieved_contexts: List[str] = None  # type: ignore[assignment]
+
+    def __post_init__(self):
+        if self.retrieved_contexts is None:
+            self.retrieved_contexts = []
 
 
 @dataclass
@@ -35,6 +40,11 @@ class _RagServiceStreamEnd:
 
     citations: Optional[List[Dict[str, str]]]
     query_text: str
+    retrieved_contexts: List[str] = None  # type: ignore[assignment]
+
+    def __post_init__(self):
+        if self.retrieved_contexts is None:
+            self.retrieved_contexts = []
 
 
 class RagChatService:
@@ -63,45 +73,26 @@ class RagChatService:
             raise RuntimeError("LLM is required for full RAG response generation.")
 
         query_text = self._extract_latest_user_query(messages)
-        # video_ids takes precedence over group (allows gateway to pass IDs directly)
         retriever = self._get_retriever(group, video_ids=video_ids)
 
-        if retriever is not None:
-            rag_chain = (
-                RunnableParallel(
-                    {
-                        "query_text": itemgetter("query_text"),
-                        "locale": itemgetter("locale"),
-                        "group_context": itemgetter("group_context"),
-                        "docs": itemgetter("query_text") | retriever,
-                    }
-                )
-                | RunnableLambda(self._build_prompt_payload)
-                | RunnableParallel(
-                    {
-                        "llm_response": itemgetter("prompt_input")
-                        | self.prompt
-                        | self.llm,
-                        "citations": itemgetter("citations"),
-                    }
-                )
-            )
-        else:
-            rag_chain = RunnableLambda(self._build_prompt_payload) | RunnableParallel(
-                {
-                    "llm_response": itemgetter("prompt_input") | self.prompt | self.llm,
-                    "citations": itemgetter("citations"),
-                }
-            )
+        # Retrieve docs upfront to capture page_content for evaluation.
+        docs: List[Any] = retriever.invoke(query_text) if retriever is not None else []
 
-        result = rag_chain.invoke({"query_text": query_text, "locale": locale, "group_context": group_context})
-        llm_response = cast(AIMessage, result.get("llm_response"))
-        citations = result.get("citations")
+        payload = self._build_prompt_payload({
+            "docs": docs,
+            "query_text": query_text,
+            "locale": locale,
+            "group_context": group_context,
+        })
+        citations = payload["citations"]
+        prompt_messages = self.prompt.invoke(payload["prompt_input"])
+        llm_response = cast(AIMessage, self.llm.invoke(prompt_messages))
 
         return RagChatResult(
             llm_response=llm_response,
             query_text=query_text,
             citations=citations,
+            retrieved_contexts=self._extract_page_contents(docs),
         )
 
     def stream(
@@ -133,6 +124,7 @@ class RagChatService:
             "group_context": group_context,
         })
         citations = payload["citations"]
+        retrieved_contexts = self._extract_page_contents(docs)
         prompt_messages = self.prompt.invoke(payload["prompt_input"])
 
         for chunk in self.llm.stream(prompt_messages):
@@ -140,7 +132,11 @@ class RagChatService:
             if isinstance(content, str) and content:
                 yield content
 
-        yield _RagServiceStreamEnd(citations=citations, query_text=query_text)
+        yield _RagServiceStreamEnd(
+            citations=citations,
+            query_text=query_text,
+            retrieved_contexts=retrieved_contexts,
+        )
 
     def _extract_latest_user_query(self, messages: Sequence[Dict[str, str]]) -> str:
         for msg in reversed(messages):
@@ -176,6 +172,9 @@ class RagChatService:
                 },
             }
         )
+
+    def _extract_page_contents(self, docs: Sequence[Any]) -> List[str]:
+        return [getattr(doc, "page_content", "") for doc in docs if getattr(doc, "page_content", "")]
 
     def _build_reference_entries(self, docs: Sequence[Any]) -> List[str]:
         if not docs:

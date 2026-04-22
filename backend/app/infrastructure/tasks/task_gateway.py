@@ -4,9 +4,11 @@ from celery import current_app
 from django.db import transaction
 
 from app.domain.auth.gateways import AuthTaskGateway
+from app.domain.evaluation.gateways import EvaluationTaskGateway
 from app.domain.video.gateways import VideoTaskGateway
 from app.contracts.tasks import (
     DELETE_ACCOUNT_DATA_TASK,
+    EVALUATE_CHAT_LOG_TASK,
     INDEX_VIDEO_TRANSCRIPT_TASK,
     REINDEX_ALL_VIDEOS_EMBEDDINGS_TASK,
     TRANSCRIBE_VIDEO_TASK,
@@ -49,5 +51,18 @@ class CeleryAuthTaskGateway(AuthTaskGateway):
             lambda: current_app.send_task(
                 DELETE_ACCOUNT_DATA_TASK,
                 args=[user_id],
+            )
+        )
+
+
+class CeleryEvaluationTaskGateway(EvaluationTaskGateway):
+    """Implements EvaluationTaskGateway using Celery tasks."""
+
+    def dispatch_evaluate_chat_log(self, chat_log_id: int) -> None:
+        """Enqueue RAGAS evaluation after the current DB transaction commits."""
+        transaction.on_commit(
+            lambda: current_app.send_task(
+                EVALUATE_CHAT_LOG_TASK,
+                args=[chat_log_id],
             )
         )
