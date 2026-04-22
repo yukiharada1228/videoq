@@ -5,7 +5,7 @@ Abstract contracts for external services used by chat use cases.
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Iterator, Optional, Sequence
+from typing import Iterator, List, Optional, Sequence
 
 from app.domain.chat.dtos import ChatMessageDTO, CitationDTO
 
@@ -29,6 +29,7 @@ class RagResult:
     content: str
     query_text: str
     citations: Optional[Sequence[CitationDTO]] = field(default=None)
+    retrieved_contexts: List[str] = field(default_factory=list)
 
 
 @dataclass
@@ -42,6 +43,7 @@ class RagStreamChunk:
     text: Optional[str] = None
     citations: Optional[Sequence[CitationDTO]] = field(default=None)
     query_text: Optional[str] = None
+    retrieved_contexts: List[str] = field(default_factory=list)
     is_final: bool = False
 
 

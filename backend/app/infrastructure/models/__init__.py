@@ -6,6 +6,7 @@ Persistence implementations should import ORM models from this package.
 from .account_deletion import AccountDeletionRequest
 from .api_key import UserApiKey
 from .chat import ChatLog
+from .evaluation import ChatLogEvaluation
 from .storage import (
     SafeFilenameMixin,
     SafeFileSystemStorage,
@@ -20,6 +21,7 @@ from .video_group import VideoGroup, VideoGroupMember
 __all__ = [
     "AccountDeletionRequest",
     "ChatLog",
+    "ChatLogEvaluation",
     "SafeFilenameMixin",
     "SafeFileSystemStorage",
     "SafeS3Boto3Storage",

@@ -28,6 +28,7 @@ from app.use_cases.chat.exceptions import (
     LLMConfigurationError,
     LLMProviderError,
 )
+from app.domain.evaluation.gateways import EvaluationTaskGateway
 from app.use_cases.shared.exceptions import PermissionDenied, ResourceNotFound
 
 logger = logging.getLogger(__name__)
@@ -50,12 +51,14 @@ class SendMessageUseCase:
         rag_gateway: RagGateway,
         ai_answer_limit_check_use_case=None,
         ai_answer_record_use_case=None,
+        evaluation_task_gateway: Optional[EvaluationTaskGateway] = None,
     ):
         self.chat_repo = chat_repo
         self.group_query_repo = group_query_repo
         self.rag_gateway = rag_gateway
         self._ai_answer_limit_check_use_case = ai_answer_limit_check_use_case
         self._ai_answer_record_use_case = ai_answer_record_use_case
+        self._evaluation_task_gateway = evaluation_task_gateway
 
     def execute(
         self,
@@ -155,9 +158,19 @@ class SendMessageUseCase:
                 answer=rag_result.content,
                 citations=rag_result.citations,
                 is_shared=is_shared,
+                retrieved_contexts=rag_result.retrieved_contexts,
             )
             chat_log_id = chat_log.id
             feedback = chat_log.feedback
+            if self._evaluation_task_gateway is not None and chat_log_id is not None:
+                try:
+                    self._evaluation_task_gateway.dispatch_evaluate_chat_log(chat_log_id)
+                except Exception:
+                    logger.warning(
+                        "Failed to dispatch evaluation task for ChatLog %s",
+                        chat_log_id,
+                        exc_info=True,
+                    )
 
         result = SendMessageResultDTO(
             content=rag_result.content,
@@ -254,6 +267,7 @@ class SendMessageUseCase:
 
         full_content = ""
         final_citations = None
+        final_retrieved_contexts: list = []
         query_text = ""
 
         try:
@@ -267,6 +281,7 @@ class SendMessageUseCase:
             ):
                 if chunk.is_final:
                     final_citations = chunk.citations
+                    final_retrieved_contexts = chunk.retrieved_contexts
                     query_text = chunk.query_text or ""
                 elif chunk.text is not None:
                     full_content += chunk.text
@@ -289,9 +304,19 @@ class SendMessageUseCase:
                 answer=full_content,
                 citations=final_citations,
                 is_shared=is_shared,
+                retrieved_contexts=final_retrieved_contexts,
             )
             chat_log_id = chat_log.id
             feedback = chat_log.feedback
+            if self._evaluation_task_gateway is not None and chat_log_id is not None:
+                try:
+                    self._evaluation_task_gateway.dispatch_evaluate_chat_log(chat_log_id)
+                except Exception:
+                    logger.warning(
+                        "Failed to dispatch evaluation task for ChatLog %s",
+                        chat_log_id,
+                        exc_info=True,
+                    )
 
         yield StreamDoneEvent(
             content=full_content,

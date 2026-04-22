@@ -89,6 +89,7 @@ class RagChatGateway(RagGateway):
             content=content_text,
             query_text=result.query_text,
             citations=citations,
+            retrieved_contexts=result.retrieved_contexts,
         )
 
     def stream_reply(
@@ -141,6 +142,7 @@ class RagChatGateway(RagGateway):
                         is_final=True,
                         citations=citations,
                         query_text=item.query_text,
+                        retrieved_contexts=item.retrieved_contexts,
                     )
                 else:
                     if item:
