@@ -766,7 +766,7 @@
       "none": "未評価"
     },
     "evaluation": {
-      "title": "RAG評価サマリー",
+      "title": "RAGAS指標",
       "evaluatedCount": "評価済み回答 {{count}}件",
       "empty": "まだ評価された回答はありません",
       "metrics": {
