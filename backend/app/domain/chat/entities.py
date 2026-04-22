@@ -55,6 +55,7 @@ class ChatLogEntity:
     question: str
     answer: str
     citations: List[CitationDTO] = field(default_factory=list)
+    retrieved_contexts: List[str] = field(default_factory=list)
     is_shared_origin: bool = False
     feedback: Optional[str] = None
     created_at: Optional[datetime] = None
