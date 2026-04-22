@@ -55,6 +55,7 @@ def _chat_log_to_entity(
         question=log.question,
         answer=log.answer,
         citations=citations,
+        retrieved_contexts=list(log.retrieved_contexts or []),
         is_shared_origin=log.is_shared_origin,
         feedback=log.feedback,
         created_at=log.created_at,
@@ -98,6 +99,7 @@ class DjangoChatRepository(ChatRepository):
         answer: str,
         citations: Optional[Sequence[CitationDTO]],
         is_shared: bool,
+        retrieved_contexts: Optional[List[str]] = None,
     ) -> ChatLogEntity:
         citation_dicts = [
             {
@@ -114,6 +116,7 @@ class DjangoChatRepository(ChatRepository):
             question=question,
             answer=answer,
             citations=citation_dicts,
+            retrieved_contexts=retrieved_contexts or [],
             is_shared_origin=is_shared,
         )
         return _chat_log_to_entity(log)

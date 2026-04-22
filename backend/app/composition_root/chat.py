@@ -13,6 +13,7 @@ from app.infrastructure.repositories.django_chat_repository import (
     DjangoChatRepository,
     DjangoVideoGroupQueryRepository,
 )
+from app.infrastructure.tasks.task_gateway import CeleryEvaluationTaskGateway
 from app.use_cases.chat.export_history import ExportChatHistoryUseCase
 from app.use_cases.chat.get_analytics import GetChatAnalyticsUseCase
 from app.use_cases.chat.get_history import GetChatHistoryUseCase
@@ -41,6 +42,11 @@ def _get_keyword_extractor() -> JanomeNltkKeywordExtractor:
     return JanomeNltkKeywordExtractor()
 
 
+@lru_cache(maxsize=1)
+def _get_evaluation_task_gateway() -> CeleryEvaluationTaskGateway:
+    return CeleryEvaluationTaskGateway()
+
+
 def get_send_message_use_case() -> SendMessageUseCase:
     return SendMessageUseCase(
         _new_chat_repository(),
@@ -48,6 +54,7 @@ def get_send_message_use_case() -> SendMessageUseCase:
         _get_rag_gateway(),
         ai_answer_limit_check_use_case=_limits_cr.get_check_ai_answers_limit_use_case(),
         ai_answer_record_use_case=_limits_cr.get_record_ai_answer_usage_use_case(),
+        evaluation_task_gateway=_get_evaluation_task_gateway(),
     )
 
 def get_chat_history_use_case() -> GetChatHistoryUseCase:

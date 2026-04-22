@@ -4,7 +4,7 @@ No Django / ORM / external service dependencies.
 """
 
 from abc import ABC, abstractmethod
-from typing import List, Optional, Sequence
+from typing import List, Optional, Sequence  # noqa: F401 (Sequence used by submodule)
 
 from app.domain.chat.dtos import CitationDTO
 from app.domain.chat.entities import (
@@ -34,6 +34,7 @@ class ChatRepository(ABC):
         answer: str,
         citations: Optional[Sequence[CitationDTO]],
         is_shared: bool,
+        retrieved_contexts: Optional[List[str]] = None,
     ) -> ChatLogEntity:
         """Persist a new chat log entry."""
         ...
