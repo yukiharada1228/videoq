@@ -1,6 +1,5 @@
 """Django ORM implementation of EvaluationRepository."""
 
-from datetime import datetime, timezone
 from typing import List, Optional
 
 from django.db.models import Avg

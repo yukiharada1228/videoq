@@ -4,12 +4,10 @@ Moved from app/chat/services/rag_chat.py.
 """
 
 from dataclasses import dataclass
-from operator import itemgetter
 from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Sequence, Union, cast
 
 from langchain_core.messages import AIMessage
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.runnables import RunnableLambda, RunnableParallel
 from langchain_postgres import PGVectorStore
 
 from app.infrastructure.external.prompts import build_system_prompt
