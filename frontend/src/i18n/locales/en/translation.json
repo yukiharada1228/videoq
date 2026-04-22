@@ -553,7 +553,19 @@
     "placeholder": "Type a message...",
     "assistantGreeting": "Hello! Ask me anything about your videos.",
     "error": "An error occurred in the chat.",
-    "errorOverQuota": "AI chat is unavailable because your storage is over the configured limit. Please delete videos to free up space."
+    "errorOverQuota": "AI chat is unavailable because your storage is over the configured limit. Please delete videos to free up space.",
+    "evaluation": {
+      "status": {
+        "pending": "Evaluating",
+        "completed": "Evaluated",
+        "failed": "Could not evaluate"
+      },
+      "metrics": {
+        "faithfulness": "Grounding match",
+        "answerRelevancy": "Question relevance",
+        "contextPrecision": "Reference precision"
+      }
+    }
   },
   "shared": {
     "loadError": "Failed to load the shared chat group.",
@@ -752,6 +764,16 @@
       "good": "Good",
       "bad": "Bad",
       "none": "Not rated"
+    },
+    "evaluation": {
+      "title": "RAG Evaluation Summary",
+      "evaluatedCount": "{{count}} evaluated answers",
+      "empty": "No answers have been evaluated yet",
+      "metrics": {
+        "faithfulness": "Grounding match",
+        "answerRelevancy": "Question relevance",
+        "contextPrecision": "Reference precision"
+      }
     },
     "keywords": {
       "title": "Frequent Keywords"
