@@ -1,7 +1,7 @@
 """TDD tests for GetEvaluationSummaryUseCase."""
 
 import unittest
-from typing import List, Optional
+from typing import Optional
 
 from app.domain.evaluation.entities import ChatLogEvaluationEntity
 from app.domain.evaluation.ports import (
@@ -17,13 +17,18 @@ class _FakeEvaluationRepository(EvaluationRepository):
     def __init__(self, aggregate: EvaluationAggregateDTO):
         self._aggregate = aggregate
 
-    def save(self, evaluation):
+    def save(self, evaluation: ChatLogEvaluationEntity) -> ChatLogEvaluationEntity:
         return evaluation
 
     def get_by_chat_log_id(self, chat_log_id: int) -> Optional[ChatLogEvaluationEntity]:
         return None
 
-    def list_by_group_id(self, group_id: int, limit: int = 50, offset: int = 0):
+    def list_by_group_id(
+        self,
+        group_id: int,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> list[ChatLogEvaluationEntity]:
         return []
 
     def get_aggregate_by_group_id(self, group_id: int) -> EvaluationAggregateDTO:

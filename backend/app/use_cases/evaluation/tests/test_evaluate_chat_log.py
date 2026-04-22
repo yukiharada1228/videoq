@@ -1,7 +1,6 @@
 """TDD tests for EvaluateChatLogUseCase."""
 
 import unittest
-from datetime import datetime, timezone
 from typing import List, Optional
 
 from app.domain.evaluation.entities import ChatLogEvaluationEntity
@@ -53,7 +52,12 @@ class _FakeEvaluationRepository(EvaluationRepository):
     def get_by_chat_log_id(self, chat_log_id: int) -> Optional[ChatLogEvaluationEntity]:
         return next((e for e in self.saved if e.chat_log_id == chat_log_id), None)
 
-    def list_by_group_id(self, group_id: int, limit: int = 50, offset: int = 0):
+    def list_by_group_id(
+        self,
+        group_id: int,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> List[ChatLogEvaluationEntity]:
         return []
 
     def get_aggregate_by_group_id(self, group_id: int) -> EvaluationAggregateDTO:
@@ -70,7 +74,7 @@ class _FakeRagEvaluationGateway(RagEvaluationGateway):
     def __init__(self, scores: EvaluationScores, error: Optional[Exception] = None):
         self.scores = scores
         self.error = error
-        self.calls: list = []
+        self.calls: List[tuple[str, str, List[str]]] = []
 
     def evaluate(self, question: str, answer: str, retrieved_contexts: List[str]) -> EvaluationScores:
         self.calls.append((question, answer, retrieved_contexts))
