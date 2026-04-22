@@ -4,6 +4,7 @@ import { BarChart3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useChatAnalytics } from '@/hooks/useChatAnalytics';
+import { useEvaluationSummary } from '@/hooks/useEvaluationSummary';
 import { AnalyticsDashboard } from './AnalyticsDashboard';
 
 interface DashboardButtonProps {
@@ -15,6 +16,10 @@ export function DashboardButton({ groupId, size = 'default' }: DashboardButtonPr
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const { data, isLoading } = useChatAnalytics(groupId, isOpen);
+  const {
+    data: evaluationSummary,
+    isLoading: isEvaluationLoading,
+  } = useEvaluationSummary(groupId, isOpen);
 
   return (
     <>
@@ -33,7 +38,12 @@ export function DashboardButton({ groupId, size = 'default' }: DashboardButtonPr
           <DialogHeader>
             <DialogTitle>{t('dashboard.title')}</DialogTitle>
           </DialogHeader>
-          <AnalyticsDashboard data={data} isLoading={isLoading} />
+          <AnalyticsDashboard
+            data={data}
+            evaluationSummary={evaluationSummary}
+            isLoading={isLoading}
+            isEvaluationLoading={isEvaluationLoading}
+          />
         </DialogContent>
       </Dialog>
     </>

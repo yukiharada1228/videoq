@@ -677,6 +677,36 @@ describe('ApiClient', () => {
       expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/chat/history/?group_id=1', expect.anything());
     });
 
+    it('getEvaluationSummary calls correct endpoint', async () => {
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        text: () => Promise.resolve(JSON.stringify({
+          group_id: 1,
+          evaluated_count: 2,
+          avg_faithfulness: 0.86,
+          avg_answer_relevancy: 0.81,
+          avg_context_precision: 0.78,
+        }))
+      });
+
+      await apiClient.getEvaluationSummary(1);
+
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/evaluation/summary/?group_id=1', expect.anything());
+    });
+
+    it('getChatEvaluations calls correct endpoint', async () => {
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        text: () => Promise.resolve(JSON.stringify([]))
+      });
+
+      await apiClient.getChatEvaluations(1);
+
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/evaluation/logs/?group_id=1&limit=200', expect.anything());
+    });
+
     it('exportChatHistoryCsv should download file', async () => {
       // Mock DOM methods
       const mockUrl = 'blob:url';
