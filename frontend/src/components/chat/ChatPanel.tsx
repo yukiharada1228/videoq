@@ -1,5 +1,5 @@
 import { Fragment, useState } from 'react';
-import { type ChatHistoryItem, type Citation } from '@/lib/api';
+import { type ChatHistoryItem, type ChatLogEvaluation, type Citation } from '@/lib/api';
 import { timeStringToSeconds } from '@/lib/utils/video';
 import { cn } from '@/lib/utils';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
@@ -154,6 +154,70 @@ function ChatMessageBubble({ message, feedbackUpdatingId, onVideoNavigate, onFee
 
 // ── History item ──────────────────────────────────────────────────────────────
 
+function formatEvaluationPercent(value: number | null | undefined) {
+  if (value == null) return '-';
+  return `${Math.round(value * 100)}%`;
+}
+
+function EvaluationMetric({
+  label,
+  value,
+}: {
+  label: string;
+  value: number | null | undefined;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-stone-500">{label}</span>
+      <span className="font-semibold text-stone-800">{formatEvaluationPercent(value)}</span>
+    </div>
+  );
+}
+
+function HistoryEvaluation({ evaluation }: { evaluation?: ChatLogEvaluation }) {
+  const { t } = useTranslation();
+
+  if (!evaluation) return null;
+
+  if (evaluation.status === 'pending') {
+    return (
+      <div className="rounded-lg bg-stone-50 px-3 py-2 text-[11px] font-medium text-stone-500">
+        {t('chat.evaluation.status.pending')}
+      </div>
+    );
+  }
+
+  if (evaluation.status === 'failed') {
+    return (
+      <div className="rounded-lg bg-stone-50 px-3 py-2 text-[11px] font-medium text-stone-500">
+        {t('chat.evaluation.status.failed')}
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-lg border border-stone-100 bg-stone-50/70 px-3 py-2">
+      <div className="mb-2 text-[11px] font-semibold text-[#00652c]">
+        {t('chat.evaluation.status.completed')}
+      </div>
+      <div className="space-y-1.5 text-[11px]">
+        <EvaluationMetric
+          label={t('chat.evaluation.metrics.faithfulness')}
+          value={evaluation.faithfulness}
+        />
+        <EvaluationMetric
+          label={t('chat.evaluation.metrics.answerRelevancy')}
+          value={evaluation.answer_relevancy}
+        />
+        <EvaluationMetric
+          label={t('chat.evaluation.metrics.contextPrecision')}
+          value={evaluation.context_precision}
+        />
+      </div>
+    </div>
+  );
+}
+
 function HistoryItem({ item, onVideoNavigate }: { item: ChatHistoryItem; onVideoNavigate: (videoId: number, startTime: string) => void }) {
   const { t } = useTranslation();
   return (
@@ -184,6 +248,7 @@ function HistoryItem({ item, onVideoNavigate }: { item: ChatHistoryItem; onVideo
             citations={item.citations}
             onVideoNavigate={onVideoNavigate}
           />
+          <HistoryEvaluation evaluation={item.evaluation} />
           {item.feedback && (
             <div className={`flex items-center gap-1 pt-1 text-[10px] font-bold ${item.feedback === 'good' ? 'text-[#00652c]' : 'text-red-400'}`}>
               {item.feedback === 'good' ? <ThumbsUp className="w-3 h-3" /> : <ThumbsDown className="w-3 h-3" />}

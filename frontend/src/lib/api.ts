@@ -111,6 +111,7 @@ export interface ChatHistoryItem {
   is_shared_origin: boolean;
   feedback?: 'good' | 'bad' | null;
   created_at: string;
+  evaluation?: ChatLogEvaluation;
 }
 
 export interface ChatMessage {
@@ -136,6 +137,26 @@ export interface ChatAnalytics {
   time_series: { date: string; count: number }[];
   feedback: { good: number; bad: number; none: number };
   keywords: { word: string; count: number }[];
+}
+
+export type EvaluationStatus = 'pending' | 'completed' | 'failed';
+
+export interface EvaluationSummary {
+  group_id: number;
+  evaluated_count: number;
+  avg_faithfulness: number | null;
+  avg_answer_relevancy: number | null;
+  avg_context_precision: number | null;
+}
+
+export interface ChatLogEvaluation {
+  chat_log_id: number;
+  status: EvaluationStatus;
+  faithfulness: number | null;
+  answer_relevancy: number | null;
+  context_precision: number | null;
+  error_message: string;
+  evaluated_at: string | null;
 }
 
 export interface ChatRequest {
@@ -762,6 +783,14 @@ class ApiClient {
 
   async getChatHistory(groupId: number): Promise<ChatHistoryItem[]> {
     return this.request<ChatHistoryItem[]>(`/chat/history/?group_id=${groupId}`);
+  }
+
+  async getEvaluationSummary(groupId: number): Promise<EvaluationSummary> {
+    return this.request<EvaluationSummary>(`/evaluation/summary/?group_id=${groupId}`);
+  }
+
+  async getChatEvaluations(groupId: number, limit = 200): Promise<ChatLogEvaluation[]> {
+    return this.request<ChatLogEvaluation[]>(`/evaluation/logs/?group_id=${groupId}&limit=${limit}`);
   }
 
 

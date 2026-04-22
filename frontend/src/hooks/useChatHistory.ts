@@ -1,6 +1,6 @@
 import { useCallback, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiClient, type ChatHistoryItem } from '@/lib/api';
+import { apiClient, type ChatHistoryItem, type ChatLogEvaluation } from '@/lib/api';
 import { queryKeys } from '@/lib/queryKeys';
 
 interface UseChatHistoryParams {
@@ -23,11 +23,42 @@ export function useChatHistory({ groupId, shareToken, enabled }: UseChatHistoryP
     },
   });
 
+  const evaluationsQuery = useQuery<ChatLogEvaluation[]>({
+    queryKey: queryKeys.chat.evaluations(groupId ?? null),
+    enabled: enabled && !!groupId && !shareToken,
+    queryFn: async () => {
+      if (!groupId || shareToken) {
+        return [];
+      }
+      return await apiClient.getChatEvaluations(groupId);
+    },
+  });
+
   useEffect(() => {
     if (enabled && historyQuery.error) {
       console.error('Failed to load history', historyQuery.error);
     }
   }, [enabled, historyQuery.error]);
+
+  useEffect(() => {
+    if (enabled && evaluationsQuery.error) {
+      console.error('Failed to load chat evaluations', evaluationsQuery.error);
+    }
+  }, [enabled, evaluationsQuery.error]);
+
+  const historyWithEvaluations = (() => {
+    const history = historyQuery.data ?? null;
+    if (!history) return null;
+
+    const evaluationsByChatLogId = new Map(
+      (evaluationsQuery.data ?? []).map((evaluation) => [evaluation.chat_log_id, evaluation]),
+    );
+
+    return history.map((item) => ({
+      ...item,
+      evaluation: evaluationsByChatLogId.get(item.id),
+    }));
+  })();
 
   const exportHistoryCsvMutation = useMutation({
     mutationFn: async () => {
@@ -68,8 +99,12 @@ export function useChatHistory({ groupId, shareToken, enabled }: UseChatHistoryP
   );
 
   return {
-    history: historyQuery.data ?? null,
-    historyLoading: historyQuery.isLoading || historyQuery.isFetching,
+    history: historyWithEvaluations,
+    historyLoading:
+      historyQuery.isLoading ||
+      historyQuery.isFetching ||
+      evaluationsQuery.isLoading ||
+      evaluationsQuery.isFetching,
     historyError: historyQuery.error,
     exportHistoryCsv,
     isExportingHistoryCsv: exportHistoryCsvMutation.isPending,

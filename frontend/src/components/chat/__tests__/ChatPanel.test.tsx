@@ -11,6 +11,7 @@ vi.mock('@/lib/api', async (importOriginal) => {
       chat: vi.fn(),
       chatStream: vi.fn(),
       getChatHistory: vi.fn(),
+      getChatEvaluations: vi.fn(),
       exportChatHistoryCsv: vi.fn(),
       setChatFeedback: vi.fn(),
       getOpenAIApiKeyStatus: vi.fn(),
@@ -49,6 +50,7 @@ describe('ChatPanel', () => {
     ;(apiClient.chatStream as any).mockImplementation(
       makeStreamMock({ content: 'Test response', chat_log_id: 1, feedback: null }),
     )
+    ;(apiClient.getChatEvaluations as any).mockResolvedValue([])
     ;(apiClient.getOpenAIApiKeyStatus as any).mockResolvedValue({ has_api_key: true })
   })
 
@@ -345,6 +347,119 @@ describe('ChatPanel', () => {
       expect(screen.getByText('Test question')).toBeInTheDocument()
       expect(screen.getByText('Test answer')).toBeInTheDocument()
     })
+  })
+
+  it('should display RAGAS evaluation scores for history answers', async () => {
+    const mockHistory = [
+      {
+        id: 1,
+        group: 1,
+        question: 'Test question',
+        answer: 'Test answer',
+        is_shared_origin: false,
+        created_at: '2024-01-15T10:00:00Z',
+        feedback: null,
+      },
+    ]
+    ;(apiClient.getChatHistory as any).mockResolvedValue(mockHistory)
+    ;(apiClient.getChatEvaluations as any).mockResolvedValue([
+      {
+        chat_log_id: 1,
+        status: 'completed',
+        faithfulness: 0.86,
+        answer_relevancy: 0.81,
+        context_precision: 0.78,
+        error_message: '',
+        evaluated_at: '2024-01-15T10:01:00Z',
+      },
+    ])
+
+    render(<ChatPanel groupId={1} />)
+
+    const historyButton = screen.getByText(/chat.history/)
+
+    await act(async () => {
+      fireEvent.click(historyButton)
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('chat.evaluation.status.completed')).toBeInTheDocument()
+      expect(screen.getByText('chat.evaluation.metrics.faithfulness')).toBeInTheDocument()
+      expect(screen.getByText('86%')).toBeInTheDocument()
+      expect(screen.getByText('chat.evaluation.metrics.answerRelevancy')).toBeInTheDocument()
+      expect(screen.getByText('81%')).toBeInTheDocument()
+      expect(screen.getByText('chat.evaluation.metrics.contextPrecision')).toBeInTheDocument()
+      expect(screen.getByText('78%')).toBeInTheDocument()
+    })
+  })
+
+  it('should display pending and failed evaluation states without showing missing evaluations', async () => {
+    const mockHistory = [
+      {
+        id: 1,
+        group: 1,
+        question: 'Pending question',
+        answer: 'Pending answer',
+        is_shared_origin: false,
+        created_at: '2024-01-15T10:00:00Z',
+        feedback: null,
+      },
+      {
+        id: 2,
+        group: 1,
+        question: 'Failed question',
+        answer: 'Failed answer',
+        is_shared_origin: false,
+        created_at: '2024-01-15T10:01:00Z',
+        feedback: null,
+      },
+      {
+        id: 3,
+        group: 1,
+        question: 'No evaluation question',
+        answer: 'No evaluation answer',
+        is_shared_origin: false,
+        created_at: '2024-01-15T10:02:00Z',
+        feedback: null,
+      },
+    ]
+    ;(apiClient.getChatHistory as any).mockResolvedValue(mockHistory)
+    ;(apiClient.getChatEvaluations as any).mockResolvedValue([
+      {
+        chat_log_id: 1,
+        status: 'pending',
+        faithfulness: null,
+        answer_relevancy: null,
+        context_precision: null,
+        error_message: '',
+        evaluated_at: null,
+      },
+      {
+        chat_log_id: 2,
+        status: 'failed',
+        faithfulness: null,
+        answer_relevancy: null,
+        context_precision: null,
+        error_message: 'ragas error',
+        evaluated_at: null,
+      },
+    ])
+
+    render(<ChatPanel groupId={1} />)
+
+    const historyButton = screen.getByText(/chat.history/)
+
+    await act(async () => {
+      fireEvent.click(historyButton)
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('chat.evaluation.status.pending')).toBeInTheDocument()
+      expect(screen.getByText('chat.evaluation.status.failed')).toBeInTheDocument()
+      expect(screen.getByText('No evaluation answer')).toBeInTheDocument()
+    })
+
+    expect(screen.queryByText('chat.evaluation.status.completed')).not.toBeInTheDocument()
   })
 
   it('should switch back to chat tab from history', async () => {
