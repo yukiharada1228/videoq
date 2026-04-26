@@ -104,6 +104,30 @@ export function Link({ to, href, ...props }: AppLinkProps) {
   return createElement(RouterLink, { to: localized, ...props });
 }
 
+const OG_LOCALE_MAP: Record<Locale, string> = {
+  en: 'en_US',
+  ja: 'ja_JP',
+};
+
+function setMeta(selector: string, attribute: string, value: string) {
+  const el = document.querySelector(selector);
+  if (el) el.setAttribute(attribute, value);
+}
+
+function applyLocaleToDocument(locale: Locale, i18n: ReturnType<typeof useTranslation>['i18n']) {
+  document.documentElement.lang = locale;
+  const t = i18n.getFixedT(locale);
+  const title = t('site.title');
+  const description = t('site.description');
+  const ogLocale = OG_LOCALE_MAP[locale];
+
+  document.title = title;
+  setMeta('meta[name="description"]', 'content', description);
+  setMeta('meta[property="og:title"]', 'content', title);
+  setMeta('meta[property="og:description"]', 'content', description);
+  setMeta('meta[property="og:locale"]', 'content', ogLocale);
+}
+
 export function useLocaleSync() {
   const params = useParams<{ locale?: string }>();
   const { i18n } = useTranslation();
@@ -115,7 +139,7 @@ export function useLocaleSync() {
         i18n.changeLanguage(normalized);
       }
       setPreferredLocale(normalized);
-      document.documentElement.lang = normalized;
+      applyLocaleToDocument(normalized, i18n);
       return;
     }
 
@@ -123,7 +147,7 @@ export function useLocaleSync() {
     if (preferred !== i18n.language) {
       i18n.changeLanguage(preferred);
     }
-    document.documentElement.lang = preferred;
+    applyLocaleToDocument(preferred, i18n);
   }, [params.locale, i18n]);
 }
 
