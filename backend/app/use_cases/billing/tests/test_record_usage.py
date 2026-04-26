@@ -20,8 +20,6 @@ def _make_user_limits(**kwargs) -> UserLimitsEntity:
         "used_processing_seconds": 0,
         "used_ai_answers": 0,
         "usage_period_start": None,
-        "unlimited_processing_minutes": False,
-        "unlimited_ai_answers": False,
     }
     defaults.update(kwargs)
     return UserLimitsEntity(**defaults)  # type: ignore[arg-type]

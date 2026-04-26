@@ -24,8 +24,6 @@ class DjangoUserLimitsRepository(UserLimitsRepository):
             used_processing_seconds=obj.used_processing_seconds,
             used_ai_answers=obj.used_ai_answers,
             usage_period_start=obj.usage_period_start,
-            unlimited_processing_minutes=obj.unlimited_processing_minutes,
-            unlimited_ai_answers=obj.unlimited_ai_answers,
             is_over_quota=obj.is_over_quota,
         )
 
@@ -46,8 +44,6 @@ class DjangoUserLimitsRepository(UserLimitsRepository):
             used_processing_seconds=entity.used_processing_seconds,
             used_ai_answers=entity.used_ai_answers,
             usage_period_start=entity.usage_period_start,
-            unlimited_processing_minutes=entity.unlimited_processing_minutes,
-            unlimited_ai_answers=entity.unlimited_ai_answers,
             is_over_quota=entity.is_over_quota,
         )
         return entity
