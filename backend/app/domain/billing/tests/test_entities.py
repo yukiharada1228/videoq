@@ -15,8 +15,6 @@ def _make_user_limits(**kwargs) -> UserLimitsEntity:
         "used_processing_seconds": 0,
         "used_ai_answers": 0,
         "usage_period_start": None,
-        "unlimited_processing_minutes": False,
-        "unlimited_ai_answers": False,
     }
     defaults.update(kwargs)
     return UserLimitsEntity(**defaults)  # type: ignore[arg-type]
@@ -39,8 +37,8 @@ class ProcessingLimitTests(TestCase):
         expected = 135 * 60
         self.assertEqual(sub.get_processing_limit_seconds(), expected)
 
-    def test_processing_unlimited_with_flag(self):
-        sub = _make_user_limits(unlimited_processing_minutes=True)
+    def test_processing_unlimited_with_none(self):
+        sub = _make_user_limits(processing_limit_minutes=None)
         self.assertIsNone(sub.get_processing_limit_seconds())
 
     def test_processing_limit_default(self):
@@ -53,8 +51,8 @@ class AiAnswersLimitTests(TestCase):
         sub = _make_user_limits(ai_answers_limit=1234)
         self.assertEqual(sub.get_ai_answers_limit(), 1234)
 
-    def test_ai_answers_unlimited_with_flag(self):
-        sub = _make_user_limits(unlimited_ai_answers=True)
+    def test_ai_answers_unlimited_with_none(self):
+        sub = _make_user_limits(ai_answers_limit=None)
         self.assertIsNone(sub.get_ai_answers_limit())
 
     def test_ai_answers_default(self):
@@ -111,6 +109,6 @@ class CanAnswerTests(TestCase):
         sub = _make_user_limits(ai_answers_limit=3000, used_ai_answers=3000)
         self.assertFalse(sub.can_answer())
 
-    def test_can_answer_unlimited_with_flag(self):
-        sub = _make_user_limits(unlimited_ai_answers=True, used_ai_answers=999999)
+    def test_can_answer_unlimited_with_none(self):
+        sub = _make_user_limits(ai_answers_limit=None, used_ai_answers=999999)
         self.assertTrue(sub.can_answer())
