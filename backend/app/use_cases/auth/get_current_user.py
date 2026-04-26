@@ -31,12 +31,10 @@ class GetCurrentUserUseCase:
             used_processing_seconds=user.used_processing_seconds,
             processing_limit_seconds=(
                 None
-                if user.unlimited_processing_minutes
+                if user.processing_limit_minutes is None
                 else user.processing_limit_minutes * 60
             ),
             used_ai_answers=user.used_ai_answers,
-            ai_answers_limit=(
-                None if user.unlimited_ai_answers else user.ai_answers_limit
-            ),
+            ai_answers_limit=user.ai_answers_limit,
             is_over_quota=user.is_over_quota,
         )

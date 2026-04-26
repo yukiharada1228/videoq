@@ -26,8 +26,6 @@ def _make_user_limits(**kwargs) -> UserLimitsEntity:
         "used_processing_seconds": 0,
         "used_ai_answers": 0,
         "usage_period_start": None,
-        "unlimited_processing_minutes": False,
-        "unlimited_ai_answers": False,
     }
     defaults.update(kwargs)
     return UserLimitsEntity(**defaults)  # type: ignore[arg-type]
@@ -184,7 +182,7 @@ class CheckProcessingLimitTests(TestCase):
 
     def test_processing_enterprise_unlimited_does_not_raise(self):
         entity = _make_user_limits(
-            unlimited_processing_minutes=True,
+            processing_limit_minutes=None,
             used_processing_seconds=9999 * 60
         )
         use_case = CheckProcessingLimitUseCase(_StubUserLimitsRepo(entity))
@@ -227,7 +225,7 @@ class CheckAiAnswersLimitTests(TestCase):
 
     def test_ai_answers_enterprise_unlimited_does_not_raise(self):
         entity = _make_user_limits(
-            unlimited_ai_answers=True, used_ai_answers=999999
+            ai_answers_limit=None, used_ai_answers=999999
         )
         use_case = CheckAiAnswersLimitUseCase(_StubUserLimitsRepo(entity))
         use_case.execute(user_id=1)
