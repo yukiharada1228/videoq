@@ -25,12 +25,14 @@ class QueueStack(Stack):
         # ── メインキュー (Celery ブローカー) ──────────────────────────────────
         # visibility_timeout は Worker Lambda のタイムアウト以上に設定すること。
         # Lambda が処理中にメッセージが再度見えてしまうのを防ぐため。
+        # receive_message_wait_time=20s: ロングポーリングで空のポーリングを削減。
         self.main_queue = sqs.Queue(self, "WorkerQueue",
             queue_name=f"videoq-worker-{config.env_name}",
             visibility_timeout=Duration.seconds(
                 config.sqs_visibility_timeout_seconds),
             retention_period=Duration.days(4),
             encryption=sqs.QueueEncryption.SQS_MANAGED,
+            receive_message_wait_time=Duration.seconds(20),
             dead_letter_queue=sqs.DeadLetterQueue(
                 max_receive_count=config.sqs_max_receive_count,
                 queue=self.dlq,
