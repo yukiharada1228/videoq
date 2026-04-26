@@ -6,16 +6,14 @@ from typing import Optional
 @dataclass
 class UserLimitsEntity:
     user_id: int
-    storage_limit_gb: float
-    processing_limit_minutes: int
-    ai_answers_limit: int
+    storage_limit_gb: Optional[float]
+    processing_limit_minutes: Optional[int]
+    ai_answers_limit: Optional[int]
     # Usage tracking (current period)
     used_storage_bytes: int
     used_processing_seconds: int
     used_ai_answers: int
     usage_period_start: Optional[datetime]
-    unlimited_processing_minutes: bool
-    unlimited_ai_answers: bool
     is_over_quota: bool = False
 
     def get_storage_limit_bytes(self) -> Optional[int]:
@@ -26,14 +24,12 @@ class UserLimitsEntity:
 
     def get_processing_limit_seconds(self) -> Optional[int]:
         """Returns monthly processing limit in seconds. None = unlimited."""
-        if self.unlimited_processing_minutes:
+        if self.processing_limit_minutes is None:
             return None
         return self.processing_limit_minutes * 60
 
     def get_ai_answers_limit(self) -> Optional[int]:
         """Returns monthly AI answers limit. None = unlimited."""
-        if self.unlimited_ai_answers:
-            return None
         return self.ai_answers_limit
 
     def can_use_storage(self, additional_bytes: int) -> bool:

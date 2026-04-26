@@ -67,8 +67,6 @@ class CustomUserAdmin(UserAdmin):
                     "storage_limit_gb",
                     "processing_limit_minutes",
                     "ai_answers_limit",
-                    "unlimited_processing_minutes",
-                    "unlimited_ai_answers",
                 )
             },
         ),
