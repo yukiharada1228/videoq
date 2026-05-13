@@ -170,9 +170,7 @@ WHISPER_LOCAL_URL=http://host.docker.internal:8080
 
 **モデルを取得:**
 ```bash
-ollama pull qwen3:0.6b  # 小さく高速なモデル
-# または
-ollama pull llama3:8b   # より大きく高性能なモデル
+ollama pull qwen3:0.6b
 ```
 
 **VideoQを設定:**
