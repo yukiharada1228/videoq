@@ -38,8 +38,8 @@ class _FakeEvaluationRepository(EvaluationRepository):
     def get_by_chat_log_id(self, chat_log_id: int) -> Optional[ChatLogEvaluationEntity]:
         return None
 
-    def list_by_group_id(self, group_id: int, limit: int = 50, offset: int = 0):
-        return self._entities[offset : offset + limit]
+    def list_by_group_id(self, group_id: int):
+        return self._entities
 
     def get_aggregate_by_group_id(self, group_id: int) -> EvaluationAggregateDTO:
         return EvaluationAggregateDTO(
@@ -81,19 +81,6 @@ class ListChatLogEvaluationsUseCaseTests(unittest.TestCase):
         result = uc.execute(group_id=99, user_id=10)
 
         self.assertEqual(result, [])
-
-    def test_respects_limit_and_offset(self):
-        entities = [_make_entity(i) for i in range(1, 11)]
-        uc = ListChatLogEvaluationsUseCase(
-            evaluation_repo=_FakeEvaluationRepository(entities),
-            group_ownership=_FakeGroupOwnership({1}),
-        )
-
-        result = uc.execute(group_id=1, user_id=10, limit=3, offset=2)
-
-        # The fake slices from offset=2 with limit=3 → entities 3,4,5
-        self.assertEqual(len(result), 3)
-        self.assertEqual(result[0].chat_log_id, 3)
 
     def test_raises_when_group_not_owned(self):
         entities = [_make_entity(1)]

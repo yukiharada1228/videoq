@@ -20,13 +20,7 @@ class ListChatLogEvaluationsUseCase:
         self,
         group_id: int,
         user_id: int,
-        limit: int = 50,
-        offset: int = 0,
     ) -> List[ChatLogEvaluationEntity]:
         if not self.group_ownership.is_owner(group_id=group_id, user_id=user_id):
             raise ResourceNotFound("Group")
-        return self.evaluation_repo.list_by_group_id(
-            group_id=group_id,
-            limit=limit,
-            offset=offset,
-        )
+        return self.evaluation_repo.list_by_group_id(group_id=group_id)

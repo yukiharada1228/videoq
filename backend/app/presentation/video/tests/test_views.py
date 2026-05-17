@@ -55,9 +55,9 @@ class VideoGroupAPITestCase(APITestCase):
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 2)
+        self.assertEqual(len(response.data["results"]), 2)
         # Verify video_count is included
-        self.assertIn("video_count", response.data[0])
+        self.assertIn("video_count", response.data["results"][0])
 
     def test_get_video_group_detail(self):
         """Test retrieving group details"""
@@ -287,8 +287,8 @@ class VideoGroupPermissionTestCase(APITestCase):
         response = self.client1.get(url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
-        self.assertEqual(response.data[0]["name"], "User1 Group")
+        self.assertEqual(len(response.data["results"]), 1)
+        self.assertEqual(response.data["results"][0]["name"], "User1 Group")
 
     def test_user_cannot_access_other_user_group(self):
         """Users cannot access other users' groups"""
@@ -346,8 +346,8 @@ class VideoListViewTests(APITestCase):
         response = self.client.get(url, {"q": "Python"})
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
-        self.assertEqual(response.data[0]["title"], "Python Tutorial")
+        self.assertEqual(len(response.data["results"]), 1)
+        self.assertEqual(response.data["results"][0]["title"], "Python Tutorial")
 
     def test_list_videos_with_status_filter(self):
         """Test video list with status filter"""
@@ -355,8 +355,8 @@ class VideoListViewTests(APITestCase):
         response = self.client.get(url, {"status": "completed"})
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 2)
-        for video in response.data:
+        self.assertEqual(len(response.data["results"]), 2)
+        for video in response.data["results"]:
             self.assertEqual(video["status"], "completed")
 
     def test_list_videos_with_ordering(self):
@@ -365,10 +365,10 @@ class VideoListViewTests(APITestCase):
         response = self.client.get(url, {"ordering": "title_asc"})
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 3)
-        self.assertEqual(response.data[0]["title"], "Django Guide")
-        self.assertEqual(response.data[1]["title"], "JavaScript Basics")
-        self.assertEqual(response.data[2]["title"], "Python Tutorial")
+        self.assertEqual(len(response.data["results"]), 3)
+        self.assertEqual(response.data["results"][0]["title"], "Django Guide")
+        self.assertEqual(response.data["results"][1]["title"], "JavaScript Basics")
+        self.assertEqual(response.data["results"][2]["title"], "Python Tutorial")
 
     def test_list_videos_with_combined_filters(self):
         """Test video list with search and status filter"""
@@ -376,8 +376,8 @@ class VideoListViewTests(APITestCase):
         response = self.client.get(url, {"q": "Django", "status": "pending"})
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
-        self.assertEqual(response.data[0]["title"], "Django Guide")
+        self.assertEqual(len(response.data["results"]), 1)
+        self.assertEqual(response.data["results"][0]["title"], "Django Guide")
 
 
 class VideoDetailViewTests(APITestCase):
@@ -1078,3 +1078,104 @@ class VideoUploadTests(APITestCase):
         video = Video.objects.get()
         self.assertEqual(video.source_type, "youtube")
         self.assertEqual(video.youtube_video_id, "dQw4w9WgXcQ")
+
+
+class VideoListPaginationTests(APITestCase):
+    """Tests for pagination on VideoListView."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="pagtest_video",
+            email="pagtest_video@example.com",
+            password="testpass",
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+        for i in range(5):
+            Video.objects.create(user=self.user, title=f"Video {i}", status="completed")
+
+    def test_response_has_pagination_envelope(self):
+        url = reverse("video-list")
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("count", response.data)
+        self.assertIn("results", response.data)
+        self.assertIn("next", response.data)
+        self.assertIn("previous", response.data)
+
+    def test_count_reflects_total(self):
+        url = reverse("video-list")
+        response = self.client.get(url)
+        self.assertEqual(response.data["count"], 5)
+        self.assertEqual(len(response.data["results"]), 5)
+
+    def test_limit_reduces_results(self):
+        url = reverse("video-list")
+        response = self.client.get(url, {"limit": 2})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 5)
+        self.assertEqual(len(response.data["results"]), 2)
+        self.assertIsNotNone(response.data["next"])
+
+    def test_offset_shifts_results(self):
+        url = reverse("video-list")
+        response = self.client.get(url, {"limit": 2, "offset": 4})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data["results"]), 1)
+        self.assertIsNone(response.data["next"])
+
+
+class VideoGroupListPaginationTests(APITestCase):
+    """Tests for pagination on VideoGroupListView."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="pagtest_group",
+            email="pagtest_group@example.com",
+            password="testpass",
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+        for i in range(5):
+            VideoGroup.objects.create(user=self.user, name=f"Group {i}")
+
+    def test_response_has_pagination_envelope(self):
+        url = reverse("video-group-list")
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("count", response.data)
+        self.assertIn("results", response.data)
+
+    def test_limit_and_offset_work(self):
+        url = reverse("video-group-list")
+        response = self.client.get(url, {"limit": 2, "offset": 0})
+        self.assertEqual(response.data["count"], 5)
+        self.assertEqual(len(response.data["results"]), 2)
+
+
+class TagListPaginationTests(APITestCase):
+    """Tests for pagination on TagListView."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="pagtest_tag",
+            email="pagtest_tag@example.com",
+            password="testpass",
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+        for i in range(5):
+            Tag.objects.create(user=self.user, name=f"Tag {i}", color="#ffffff")
+
+    def test_response_has_pagination_envelope(self):
+        url = reverse("tag-list")
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("count", response.data)
+        self.assertIn("results", response.data)
+
+    def test_limit_and_offset_work(self):
+        url = reverse("tag-list")
+        response = self.client.get(url, {"limit": 3})
+        self.assertEqual(response.data["count"], 5)
+        self.assertEqual(len(response.data["results"]), 3)

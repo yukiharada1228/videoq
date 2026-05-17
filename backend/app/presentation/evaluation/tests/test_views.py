@@ -116,10 +116,10 @@ class EvaluationLogsViewTests(TestCase):
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 2)
-        self.assertEqual(response.data[0]["chat_log_id"], 1)
-        self.assertEqual(response.data[0]["status"], "completed")
-        self.assertAlmostEqual(response.data[0]["faithfulness"], 0.9)
+        self.assertEqual(len(response.data["results"]), 2)
+        self.assertEqual(response.data["results"][0]["chat_log_id"], 1)
+        self.assertEqual(response.data["results"][0]["status"], "completed")
+        self.assertAlmostEqual(response.data["results"][0]["faithfulness"], 0.9)
 
     def test_requires_authentication(self):
         url = reverse("evaluation-group-logs", kwargs={"group_id": self.group.id})
@@ -139,3 +139,49 @@ class EvaluationLogsViewTests(TestCase):
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+
+class EvaluationLogsPaginationTests(TestCase):
+    """Tests for pagination on EvaluationLogsView."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="pagtest_eval",
+            email="pagtest_eval@example.com",
+            password="pass",
+        )
+        self.group = VideoGroup.objects.create(user=self.user, name="EvalG", description="")
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+
+    def _make_entity(self, i):
+        return ChatLogEvaluationEntity(
+            id=i,
+            chat_log_id=i,
+            status="completed",
+            faithfulness=0.9,
+            answer_relevancy=0.85,
+            context_precision=0.7,
+            error_message="",
+            evaluated_at=datetime(2026, 4, 1, tzinfo=timezone.utc),
+            created_at=datetime(2026, 4, 1, tzinfo=timezone.utc),
+        )
+
+    @patch(_LIST_UC)
+    def test_response_has_pagination_envelope(self, mock_list):
+        mock_list.return_value = [self._make_entity(i) for i in range(1, 4)]
+        url = reverse("evaluation-group-logs", kwargs={"group_id": self.group.id})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("count", response.data)
+        self.assertIn("results", response.data)
+        self.assertIn("next", response.data)
+        self.assertIn("previous", response.data)
+
+    @patch(_LIST_UC)
+    def test_limit_reduces_results(self, mock_list):
+        mock_list.return_value = [self._make_entity(i) for i in range(1, 6)]
+        url = reverse("evaluation-group-logs", kwargs={"group_id": self.group.id})
+        response = self.client.get(url, {"limit": 2})
+        self.assertEqual(response.data["count"], 5)
+        self.assertEqual(len(response.data["results"]), 2)

@@ -397,7 +397,7 @@ describe('ApiClient', () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
         headers: new Headers({ 'content-type': 'application/json' }),
-        text: () => Promise.resolve(JSON.stringify([]))
+        text: () => Promise.resolve(JSON.stringify({ count: 0, next: null, previous: null, results: [] }))
       });
 
       await apiClient.getVideos({ q: 'search', status: 'pending', tags: [1, 2] });
@@ -409,7 +409,7 @@ describe('ApiClient', () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
         headers: new Headers({ 'content-type': 'application/json' }),
-        text: () => Promise.resolve(JSON.stringify([]))
+        text: () => Promise.resolve(JSON.stringify({ count: 0, next: null, previous: null, results: [] }))
       });
       await apiClient.getVideos();
       expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/', expect.anything());
@@ -497,7 +497,7 @@ describe('ApiClient', () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
         headers: new Headers({ 'content-type': 'application/json' }),
-        text: () => Promise.resolve(JSON.stringify([]))
+        text: () => Promise.resolve(JSON.stringify({ count: 0, next: null, previous: null, results: [] }))
       });
       await apiClient.getVideoGroups();
       expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/groups/', expect.anything());
@@ -577,7 +577,7 @@ describe('ApiClient', () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
         headers: new Headers({ 'content-type': 'application/json' }),
-        text: () => Promise.resolve(JSON.stringify([]))
+        text: () => Promise.resolve(JSON.stringify({ count: 0, next: null, previous: null, results: [] }))
       });
       await apiClient.getTags();
       expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/tags/', expect.anything());
@@ -671,7 +671,7 @@ describe('ApiClient', () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
         headers: new Headers({ 'content-type': 'application/json' }),
-        text: () => Promise.resolve(JSON.stringify([]))
+        text: () => Promise.resolve(JSON.stringify({ count: 0, next: null, previous: null, results: [] }))
       });
       await apiClient.getChatHistory(1);
       expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/chat/groups/1/history/', expect.anything());
