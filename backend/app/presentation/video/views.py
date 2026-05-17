@@ -572,30 +572,6 @@ def add_videos_to_group(
 
 
 @extend_schema(
-    responses={200: VideoActionMessageResponseSerializer},
-    summary="Remove video from group",
-    description="Remove a video from a group.",
-)
-@authenticated_view_with_error_handling(["DELETE"])
-def remove_video_from_group(
-    request,
-    group_id,
-    video_id,
-    remove_video_from_group_use_case,
-):
-    """Remove video from group."""
-    use_case = DependencyResolverMixin.resolve_dependency(remove_video_from_group_use_case)
-    try:
-        use_case.execute(group_id, video_id, request.user.id)
-    except ResourceNotFound as e:
-        return create_error_response(_not_found_message(e), status.HTTP_404_NOT_FOUND)
-    except VideoNotInGroup:
-        return create_error_response("This video is not added to the group", status.HTTP_404_NOT_FOUND)
-
-    return Response({"message": "Video removed from group"}, status=status.HTTP_200_OK)
-
-
-@extend_schema(
     request=ReorderVideosRequestSerializer,
     responses={200: VideoActionMessageResponseSerializer},
     summary="Reorder videos in group",

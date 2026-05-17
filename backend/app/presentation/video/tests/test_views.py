@@ -232,6 +232,15 @@ class VideoGroupMemberAPITestCase(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         self.assertEqual(VideoGroupMember.objects.count(), 0)
 
+    def test_remove_video_from_group_function_does_not_exist(self):
+        """remove_video_from_group 関数ベースビューはデッドコードのため存在しないこと"""
+        import app.presentation.video.views as views_module
+
+        self.assertFalse(
+            hasattr(views_module, "remove_video_from_group"),
+            "remove_video_from_group is dead code and should not exist in views.py",
+        )
+
     def test_video_group_detail_with_members(self):
         """Test group details with videos"""
         VideoGroupMember.objects.create(group=self.group, video=self.video, order=0)
