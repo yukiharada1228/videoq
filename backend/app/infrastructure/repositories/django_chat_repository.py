@@ -155,6 +155,9 @@ class DjangoChatRepository(ChatRepository):
             result.append(ChatSceneLog(question=row["question"], citations=refs))
         return result
 
+    def delete_logs_for_group(self, group_id: int) -> None:
+        ChatLog.objects.filter(group_id=group_id).delete()
+
     def get_analytics_raw(self, group_id: int) -> ChatAnalyticsRaw:
         qs = ChatLog.objects.filter(group_id=group_id)
         total = qs.count()
