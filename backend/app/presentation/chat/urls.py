@@ -26,6 +26,7 @@ urlpatterns = [
         ChatHistoryView.as_view(
             chat_history_use_case=chat_dependencies.get_chat_history_use_case,
             export_history_use_case=chat_dependencies.get_export_history_use_case,
+            reset_history_use_case=chat_dependencies.get_reset_history_use_case,
         ),
         name="chat-history",
     ),

@@ -24,7 +24,7 @@ from app.presentation.common.permissions import (
     IsAuthenticatedOrSharedAccess,
     ShareTokenAuthentication,
 )
-from app.presentation.common.responses import create_error_response
+from app.presentation.common.responses import create_error_response, create_success_response
 from app.presentation.common.throttles import (
     AuthenticatedChatThrottle,
     ShareTokenIPThrottle,
@@ -217,6 +217,7 @@ class ChatHistoryView(DependencyResolverMixin, APIView):
     serializer_class = ChatLogSerializer
     chat_history_use_case = None
     export_history_use_case = None
+    reset_history_use_case = None
 
     @extend_schema(
         parameters=[
@@ -272,6 +273,25 @@ class ChatHistoryView(DependencyResolverMixin, APIView):
         except ResourceNotFound as e:
             return create_error_response(str(e), status.HTTP_404_NOT_FOUND)
         return Response(ChatLogSerializer(logs, many=True).data)
+
+    @extend_schema(
+        parameters=[OpenApiParameter("group_id", int, required=True)],
+        responses={200: {"type": "object", "properties": {"message": {"type": "string"}}}},
+        summary="Reset chat history",
+        description="Delete all chat logs for a group (owner only).",
+    )
+    def delete(self, request, *args, **kwargs):
+        group_id = request.query_params.get("group_id")
+        if not group_id:
+            return create_error_response("Group ID not specified", status.HTTP_400_BAD_REQUEST)
+
+        use_case = self.resolve_dependency(self.reset_history_use_case)
+        try:
+            use_case.execute(group_id=int(group_id), user_id=request.user.id)
+        except ResourceNotFound as e:
+            return create_error_response(str(e), status.HTTP_404_NOT_FOUND)
+
+        return create_success_response(message="Chat history has been reset.")
 
 
 class ChatAnalyticsView(DependencyResolverMixin, APIView):
