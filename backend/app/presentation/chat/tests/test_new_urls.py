@@ -4,7 +4,6 @@ These tests define the desired behavior for the refactored endpoints.
 """
 
 import secrets
-from unittest.mock import patch
 
 from django.apps import apps
 from django.contrib.auth import get_user_model
