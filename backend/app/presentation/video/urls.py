@@ -11,7 +11,6 @@ from .views import (
     VideoGroupDetailView,
     VideoGroupListView,
     VideoListView,
-    VideoUploadConfirmView,
     VideoUploadRequestView,
     YoutubeVideoCreateView,
     add_tags_to_video,
@@ -38,18 +37,11 @@ urlpatterns = [
         name="youtube-video-create",
     ),
     path(
-        "upload-request/",
+        "uploads/",
         VideoUploadRequestView.as_view(
             request_video_upload_use_case=video_dependencies.get_request_video_upload_use_case,
         ),
-        name="video-upload-request",
-    ),
-    path(
-        "<int:pk>/upload-complete/",
-        VideoUploadConfirmView.as_view(
-            confirm_video_upload_use_case=video_dependencies.get_confirm_video_upload_use_case,
-        ),
-        name="video-upload-complete",
+        name="video-uploads",
     ),
     path(
         "<int:pk>/",
@@ -57,6 +49,7 @@ urlpatterns = [
             video_detail_use_case=video_dependencies.get_video_detail_use_case,
             update_video_use_case=video_dependencies.get_update_video_use_case,
             delete_video_use_case=video_dependencies.get_delete_video_use_case,
+            confirm_video_upload_use_case=video_dependencies.get_confirm_video_upload_use_case,
         ),
         name="video-detail",
     ),
@@ -91,7 +84,7 @@ urlpatterns = [
             add_video_to_group_use_case=video_dependencies.get_add_video_to_group_use_case,
             remove_video_from_group_use_case=video_dependencies.get_remove_video_from_group_use_case,
         ),
-        name="add-video-to-group",
+        name="group-video-detail",
     ),
     path(
         "groups/<int:group_id>/videos/order/",

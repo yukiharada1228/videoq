@@ -149,8 +149,8 @@ describe('ApiClient', () => {
         text: () => Promise.resolve(JSON.stringify({}))
       });
       await apiClient.verifyEmail({ uid: 'uid', token: 'token' });
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/email-verifications/', expect.objectContaining({
-        method: 'POST',
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/email-verifications/uid/token/', expect.objectContaining({
+        method: 'PATCH',
       }));
     });
 
@@ -165,9 +165,9 @@ describe('ApiClient', () => {
     it('confirmPasswordReset should call password-resets/<token> endpoint', async () => {
       fetchMock.mockResolvedValueOnce({ ok: true, headers: new Headers() });
       await apiClient.confirmPasswordReset({ uid: 'uid', token: 'token', new_password: 'new' });
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/password-resets/token/', expect.objectContaining({
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/password-resets/uid/token/', expect.objectContaining({
         method: 'PATCH',
-        body: JSON.stringify({ uid: 'uid', new_password: 'new' }),
+        body: JSON.stringify({ new_password: 'new' }),
       }));
     });
 
@@ -182,7 +182,7 @@ describe('ApiClient', () => {
       const result = await apiClient.refreshToken();
       expect(result).toEqual(mockResponse);
       expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/tokens/', expect.objectContaining({
-        method: 'PUT',
+        method: 'POST',
         credentials: 'include',
         headers: expect.objectContaining({
           'X-CSRFToken': 'test-csrf-token',
@@ -664,7 +664,7 @@ describe('ApiClient', () => {
         text: () => Promise.resolve(JSON.stringify({}))
       });
       await apiClient.setChatFeedback(1, 'good');
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/chat/feedback/', expect.objectContaining({ method: 'POST' }));
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/chat/logs/1/feedback/', expect.objectContaining({ method: 'PATCH' }));
     });
 
     it('getChatHistory calls correct endpoint', async () => {
@@ -674,7 +674,7 @@ describe('ApiClient', () => {
         text: () => Promise.resolve(JSON.stringify([]))
       });
       await apiClient.getChatHistory(1);
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/chat/history/?group_id=1', expect.anything());
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/chat/groups/1/history/', expect.anything());
     });
 
     it('getEvaluationSummary calls correct endpoint', async () => {
@@ -692,7 +692,7 @@ describe('ApiClient', () => {
 
       await apiClient.getEvaluationSummary(1);
 
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/evaluation/summary/?group_id=1', expect.anything());
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/evaluation/groups/1/summary/', expect.anything());
     });
 
     it('getChatEvaluations calls correct endpoint', async () => {
@@ -704,7 +704,7 @@ describe('ApiClient', () => {
 
       await apiClient.getChatEvaluations(1);
 
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/evaluation/logs/?group_id=1&limit=200', expect.anything());
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/evaluation/groups/1/logs/?limit=200', expect.anything());
     });
 
     it('exportChatHistoryCsv should download file', async () => {
@@ -728,7 +728,7 @@ describe('ApiClient', () => {
 
       await apiClient.exportChatHistoryCsv(1);
 
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/chat/history/?group_id=1&download=csv', expect.anything());
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/chat/groups/1/history/?download=csv', expect.anything());
       expect(createElementSpy).toHaveBeenCalledWith('a');
       expect(appendChildSpy).toHaveBeenCalledWith(mockLink);
       expect(mockLink.click).toHaveBeenCalled();

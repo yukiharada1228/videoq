@@ -64,9 +64,8 @@ class PasswordResetRequestSerializer(serializers.Serializer):
 
 
 class PasswordResetConfirmBodySerializer(serializers.Serializer):
-    """Serializer for PATCH /password-resets/<token>/: token comes from URL path."""
+    """Serializer for PATCH /password-resets/<uidb64>/<token>/: both uid and token in URL path."""
 
-    uid = serializers.CharField()
     new_password = serializers.CharField(
         write_only=True, style={"input_type": "password"}, min_length=8
     )

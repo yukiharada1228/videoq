@@ -1,7 +1,7 @@
 from django.test import SimpleTestCase
 
 from app.presentation.chat.serializers import ChatLogSerializer
-from app.presentation.chat.views import ChatHistoryView
+from app.presentation.chat.views import ChatGroupHistoryView as ChatHistoryView
 from app.presentation.video.serializers import (
     TagDetailSerializer,
     VideoGroupDetailSerializer,
