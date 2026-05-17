@@ -132,7 +132,7 @@ class VideoGroupMemberAPITestCase(APITestCase):
     def test_add_video_to_group(self):
         """Test adding video to group"""
         url = reverse(
-            "add-video-to-group",
+            "group-video-detail",
             kwargs={"group_id": self.group.pk, "video_id": self.video.pk},
         )
         response = self.client.post(url)
@@ -148,7 +148,7 @@ class VideoGroupMemberAPITestCase(APITestCase):
         VideoGroupMember.objects.create(group=self.group, video=self.video)
 
         url = reverse(
-            "add-video-to-group",
+            "group-video-detail",
             kwargs={"group_id": self.group.pk, "video_id": self.video.pk},
         )
         response = self.client.post(url)
@@ -213,18 +213,18 @@ class VideoGroupMemberAPITestCase(APITestCase):
         VideoGroupMember.objects.create(group=self.group, video=self.video)
 
         url = reverse(
-            "add-video-to-group",
+            "group-video-detail",
             kwargs={"group_id": self.group.pk, "video_id": self.video.pk},
         )
         response = self.client.delete(url)
 
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertEqual(VideoGroupMember.objects.count(), 0)
 
     def test_remove_video_from_group_not_member(self):
         """Test error when trying to remove video not in the group"""
         url = reverse(
-            "add-video-to-group",
+            "group-video-detail",
             kwargs={"group_id": self.group.pk, "video_id": self.video.pk},
         )
         response = self.client.delete(url)
@@ -833,7 +833,7 @@ class ShareLinkTests(APITestCase):
 
         response = self.client.delete(url)
 
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.group.refresh_from_db()
         self.assertIsNone(self.group.share_slug)
 
