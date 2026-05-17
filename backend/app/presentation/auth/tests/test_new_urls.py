@@ -4,7 +4,6 @@ TDD tests for new REST URL patterns in auth domain (issue #651).
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import default_token_generator
-from django.core import mail
 from django.test import override_settings
 from django.urls import reverse
 from django.utils.encoding import force_bytes

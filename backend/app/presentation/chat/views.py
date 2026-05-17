@@ -24,7 +24,7 @@ from app.presentation.common.permissions import (
     IsAuthenticatedOrSharedAccess,
     ShareTokenAuthentication,
 )
-from app.presentation.common.responses import create_error_response, create_success_response
+from app.presentation.common.responses import create_error_response
 from app.presentation.common.throttles import (
     AuthenticatedChatThrottle,
     ShareTokenIPThrottle,
