@@ -208,6 +208,7 @@ class VideoDetailView(DependencyResolverMixin, AuthenticatedViewMixin, APIView):
     video_detail_use_case = None
     update_video_use_case = None
     delete_video_use_case = None
+    confirm_video_upload_use_case = None
 
     def _get_video(self, pk, user_id):
         use_case = self.resolve_dependency(self.video_detail_use_case)
@@ -229,9 +230,24 @@ class VideoDetailView(DependencyResolverMixin, AuthenticatedViewMixin, APIView):
         request=VideoUpdateSerializer,
         responses={200: VideoSerializer},
         summary="Update video",
-        description="Update a video and return the updated video resource.",
+        description=(
+            "Update a video. Pass {'status': 'uploaded'} to confirm a presigned-URL upload "
+            "(replaces POST /upload-complete/). Otherwise updates title/description."
+        ),
     )
     def patch(self, request, pk):
+        # Handle upload confirmation: {"status": "uploaded"} in body
+        if request.data.get("status") == "uploaded":
+            use_case = self.resolve_dependency(self.confirm_video_upload_use_case)
+            try:
+                video = use_case.execute(pk, request.user.id)
+            except ResourceNotFound:
+                return create_error_response("Video not found", status.HTTP_404_NOT_FOUND)
+            except InvalidUploadState as e:
+                return create_error_response(str(e), status.HTTP_400_BAD_REQUEST)
+            ctx = {"request": request}
+            return Response(VideoSerializer(video, context=ctx).data)
+
         video = self._get_video(pk, request.user.id)
         if video is None:
             return create_error_response("Video not found", status.HTTP_404_NOT_FOUND)
@@ -341,29 +357,6 @@ class VideoUploadRequestView(DependencyResolverMixin, AuthenticatedViewMixin, ge
             },
             status=status.HTTP_201_CREATED,
         )
-
-
-class VideoUploadConfirmView(DependencyResolverMixin, AuthenticatedViewMixin, APIView):
-    """Confirm that a presigned-URL upload has completed."""
-
-    confirm_video_upload_use_case = None
-
-    @extend_schema(
-        responses={200: VideoSerializer},
-        summary="Confirm video upload",
-        description="Transition video from uploading to pending and dispatch transcription.",
-    )
-    def post(self, request, pk):
-        use_case = self.resolve_dependency(self.confirm_video_upload_use_case)
-        try:
-            video = use_case.execute(pk, request.user.id)
-        except ResourceNotFound:
-            return create_error_response("Video not found", status.HTTP_404_NOT_FOUND)
-        except InvalidUploadState as e:
-            return create_error_response(str(e), status.HTTP_400_BAD_REQUEST)
-
-        ctx = {"request": request}
-        return Response(VideoSerializer(video, context=ctx).data)
 
 
 # ---------------------------------------------------------------------------
@@ -519,9 +512,9 @@ class AddVideoToGroupView(DependencyResolverMixin, AuthenticatedViewMixin, APIVi
         )
 
     @extend_schema(
-        responses={200: VideoActionMessageResponseSerializer},
+        responses={204: None},
         summary="Remove video from group",
-        description="Remove a video from a group.",
+        description="Remove a video from a group. Returns 204 No Content.",
     )
     def delete(self, request, group_id, video_id):
         use_case = self.resolve_dependency(self.remove_video_from_group_use_case)
@@ -534,7 +527,7 @@ class AddVideoToGroupView(DependencyResolverMixin, AuthenticatedViewMixin, APIVi
                 "This video is not added to the group", status.HTTP_404_NOT_FOUND
             )
 
-        return Response({"message": "Video removed from group"}, status=status.HTTP_200_OK)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 @extend_schema(
@@ -640,9 +633,9 @@ class CreateShareLinkView(DependencyResolverMixin, AuthenticatedViewMixin, APIVi
         )
 
     @extend_schema(
-        responses={200: VideoActionMessageResponseSerializer},
+        responses={204: None},
         summary="Delete share link",
-        description="Disable the current share link for a group.",
+        description="Disable the current share link for a group. Returns 204 No Content.",
     )
     def delete(self, request, group_id):
         use_case = self.resolve_dependency(self.delete_share_link_use_case)
@@ -654,7 +647,7 @@ class CreateShareLinkView(DependencyResolverMixin, AuthenticatedViewMixin, APIVi
             logger.exception("Unhandled exception in CreateShareLinkView.delete")
             return create_error_response("", status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        return Response({"message": "Share link disabled"}, status=status.HTTP_200_OK)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 @extend_schema(

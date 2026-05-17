@@ -275,7 +275,7 @@ class ChatViewTests(APITestCase):
 
 
 class ChatHistoryDeleteViewTests(APITestCase):
-    """Tests for DELETE /api/v1/chat/history/ (ResetChatHistoryUseCase)."""
+    """Tests for GET/DELETE /api/chat/groups/{group_id}/history/ (ChatGroupHistoryView)."""
 
     def setUp(self):
         self.user = User.objects.create_user(
@@ -297,7 +297,10 @@ class ChatHistoryDeleteViewTests(APITestCase):
             description="Test",
             share_slug=secrets.token_urlsafe(32),
         )
-        self.url = reverse("chat-history")
+
+    def _url(self, group_id=None):
+        gid = group_id if group_id is not None else self.group.id
+        return reverse("chat-group-history", kwargs={"group_id": gid})
 
     def _create_chat_log(self, group=None):
         return ChatLog.objects.create(
@@ -309,20 +312,15 @@ class ChatHistoryDeleteViewTests(APITestCase):
             retrieved_contexts=[],
         )
 
-    def test_delete_resets_chat_history_and_returns_200(self):
+    def test_delete_resets_chat_history_and_returns_204(self):
         self._create_chat_log()
         self._create_chat_log()
-        response = self.client.delete(f"{self.url}?group_id={self.group.id}")
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["message"], "Chat history has been reset.")
+        response = self.client.delete(self._url())
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertEqual(ChatLog.objects.filter(group=self.group).count(), 0)
 
-    def test_delete_without_group_id_returns_400(self):
-        response = self.client.delete(self.url)
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-
     def test_delete_nonexistent_group_returns_404(self):
-        response = self.client.delete(f"{self.url}?group_id=99999")
+        response = self.client.delete(self._url(99999))
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_delete_other_users_group_returns_404(self):
@@ -331,19 +329,19 @@ class ChatHistoryDeleteViewTests(APITestCase):
             name="Other Group",
             share_slug=secrets.token_urlsafe(32),
         )
-        response = self.client.delete(f"{self.url}?group_id={other_group.id}")
+        response = self.client.delete(self._url(other_group.id))
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_get_after_delete_returns_empty_list(self):
         self._create_chat_log()
-        self.client.delete(f"{self.url}?group_id={self.group.id}")
-        response = self.client.get(self.url, {"group_id": self.group.id})
+        self.client.delete(self._url())
+        response = self.client.get(self._url())
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data, [])
 
     def test_delete_unauthenticated_returns_401(self):
         client = APIClient()
-        response = client.delete(f"{self.url}?group_id={self.group.id}")
+        response = client.delete(self._url())
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
 

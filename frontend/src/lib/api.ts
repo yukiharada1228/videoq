@@ -575,10 +575,10 @@ class ApiClient {
   }
 
   async verifyEmail(data: VerifyEmailRequest): Promise<VerifyEmailResponse> {
-    return this.request<VerifyEmailResponse>('/auth/email-verifications/', {
-      method: 'POST',
-      body: data,
-    });
+    return this.request<VerifyEmailResponse>(
+      `/auth/email-verifications/${data.uid}/${data.token}/`,
+      { method: 'PATCH' },
+    );
   }
 
   async login(data: LoginRequest): Promise<LoginResponse> {
@@ -601,10 +601,10 @@ class ApiClient {
   }
 
   async confirmPasswordReset(data: PasswordResetConfirmRequest): Promise<void> {
-    const { token, uid, new_password } = data;
-    await this.request(`/auth/password-resets/${token}/`, {
+    const { uid, token, new_password } = data;
+    await this.request(`/auth/password-resets/${uid}/${token}/`, {
       method: 'PATCH',
-      body: { uid, new_password },
+      body: { new_password },
     });
   }
 
@@ -624,7 +624,7 @@ class ApiClient {
     }
 
     const response = await this.executeRequest(url, {
-      method: 'PUT',
+      method: 'POST',
       headers,
       credentials: 'include',
     });
@@ -770,32 +770,31 @@ class ApiClient {
     feedback: 'good' | 'bad' | null,
     shareSlug?: string,
   ): Promise<{ chat_log_id: number; feedback: 'good' | 'bad' | null }> {
-    const endpoint = shareSlug ? `/chat/feedback/?share_slug=${shareSlug}` : '/chat/feedback/';
+    const endpoint = shareSlug
+      ? `/chat/logs/${chatLogId}/feedback/?share_slug=${shareSlug}`
+      : `/chat/logs/${chatLogId}/feedback/`;
 
     return this.request(endpoint, {
-      method: 'POST',
-      body: {
-        chat_log_id: chatLogId,
-        feedback,
-      },
+      method: 'PATCH',
+      body: { feedback },
     });
   }
 
   async getChatHistory(groupId: number): Promise<ChatHistoryItem[]> {
-    return this.request<ChatHistoryItem[]>(`/chat/history/?group_id=${groupId}`);
+    return this.request<ChatHistoryItem[]>(`/chat/groups/${groupId}/history/`);
   }
 
   async getEvaluationSummary(groupId: number): Promise<EvaluationSummary> {
-    return this.request<EvaluationSummary>(`/evaluation/summary/?group_id=${groupId}`);
+    return this.request<EvaluationSummary>(`/evaluation/groups/${groupId}/summary/`);
   }
 
   async getChatEvaluations(groupId: number, limit = 200): Promise<ChatLogEvaluation[]> {
-    return this.request<ChatLogEvaluation[]>(`/evaluation/logs/?group_id=${groupId}&limit=${limit}`);
+    return this.request<ChatLogEvaluation[]>(`/evaluation/groups/${groupId}/logs/?limit=${limit}`);
   }
 
 
   async exportChatHistoryCsv(groupId: number): Promise<void> {
-    const url = this.buildUrl(`/chat/history/?group_id=${groupId}&download=csv`);
+    const url = this.buildUrl(`/chat/groups/${groupId}/history/?download=csv`);
 
     const doFetch = async (): Promise<Response> => {
       return fetch(url, {
@@ -866,15 +865,16 @@ class ApiClient {
     title: string;
     description?: string;
   }): Promise<UploadRequestResponse> {
-    return this.request<UploadRequestResponse>('/videos/upload-request/', {
+    return this.request<UploadRequestResponse>('/videos/uploads/', {
       method: 'POST',
       body: data,
     });
   }
 
   async confirmUpload(videoId: number): Promise<Video> {
-    return this.request<Video>(`/videos/${videoId}/upload-complete/`, {
-      method: 'POST',
+    return this.request<Video>(`/videos/${videoId}/`, {
+      method: 'PATCH',
+      body: { status: 'uploaded' },
     });
   }
 
@@ -1031,8 +1031,8 @@ class ApiClient {
     );
   }
 
-  async deleteShareLink(groupId: number): Promise<{ message: string }> {
-    return this.request<{ message: string }>(`/videos/groups/${groupId}/share/`, {
+  async deleteShareLink(groupId: number): Promise<void> {
+    await this.request<void>(`/videos/groups/${groupId}/share/`, {
       method: 'DELETE',
     });
   }
@@ -1154,7 +1154,7 @@ class ApiClient {
   }
 
   async getChatAnalytics(groupId: number): Promise<ChatAnalytics> {
-    return this.request<ChatAnalytics>(`/chat/analytics/?group_id=${groupId}`);
+    return this.request<ChatAnalytics>(`/chat/groups/${groupId}/analytics/`);
   }
 
 }

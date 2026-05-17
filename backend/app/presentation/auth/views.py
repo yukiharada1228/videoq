@@ -150,9 +150,9 @@ class SessionView(PublicAPIView):
         return response
 
     @extend_schema(
-        responses={200: MessageResponseSerializer},
+        responses={204: None},
         summary="User logout",
-        description="Logout by invalidating refresh token and deleting HttpOnly cookies.",
+        description="Logout by invalidating refresh token and deleting HttpOnly cookies. Returns 204.",
     )
     def delete(self, request):
         refresh_token = request.COOKIES.get("refresh_token")
@@ -160,7 +160,7 @@ class SessionView(PublicAPIView):
             use_case = self.resolve_dependency(self.logout_use_case)
             use_case.execute(refresh_token)
 
-        response = create_success_response(message="Logged out successfully")
+        response = Response(status=status.HTTP_204_NO_CONTENT)
 
         samesite_value = "None" if settings.SECURE_COOKIES else "Lax"
 
@@ -178,11 +178,11 @@ class AccountDeleteView(AuthenticatedAPIView):
 
     @extend_schema(
         request=AccountDeleteSerializer,
-        responses={200: MessageResponseSerializer},
+        responses={204: None},
         summary="Account delete",
         description=(
             "Deactivate the current user, enqueue async data deletion, "
-            "and remove auth cookies."
+            "and remove auth cookies. Returns 204 No Content."
         ),
     )
     def delete(self, request):
@@ -193,7 +193,7 @@ class AccountDeleteView(AuthenticatedAPIView):
         use_case = self.resolve_dependency(self.delete_account_use_case)
         use_case.execute(request.user.id, reason)
 
-        response = create_success_response(message="Account deletion started.")
+        response = Response(status=status.HTTP_204_NO_CONTENT)
 
         samesite_value = "None" if settings.SECURE_COOKIES else "Lax"
 
@@ -219,7 +219,7 @@ class RefreshView(PublicAPIView):
             "Refresh token is rotated and old token is invalidated."
         ),
     )
-    def put(self, request):
+    def post(self, request):
         refresh_token = request.COOKIES.get("refresh_token")
 
         if not refresh_token:
@@ -288,26 +288,21 @@ class CsrfTokenView(PublicAPIView):
 
 
 class EmailVerificationView(PublicAPIView):
-    """Email verification completion view"""
+    """Email verification completion view (uid and token in URL path)."""
 
-    serializer_class = EmailVerificationSerializer
+    serializer_class = None
     verify_email_use_case = None
 
     @extend_schema(
-        request=EmailVerificationSerializer,
+        request=None,
         responses={200: MessageResponseSerializer},
         summary="Verify email",
-        description="Complete email verification using uid and token from verification link.",
+        description="Complete email verification using uid and token from URL path.",
     )
-    def post(self, request):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        d = serializer.validated_data
+    def patch(self, request, uidb64, token):
         use_case = self.resolve_dependency(self.verify_email_use_case)
         try:
-            use_case.execute(
-                uidb64=d["uid"], token=d["token"]
-            )
+            use_case.execute(uidb64=uidb64, token=token)
         except InvalidVerificationLink as e:
             return create_error_response(str(e), status.HTTP_400_BAD_REQUEST)
         return create_success_response(
@@ -341,7 +336,7 @@ class PasswordResetRequestView(PublicAPIView):
 
 
 class PasswordResetConfirmView(PublicAPIView):
-    """Password reset confirmation view"""
+    """Password reset confirmation view (uid and token in URL path)."""
 
     serializer_class = PasswordResetConfirmBodySerializer
     confirm_password_reset_use_case = None
@@ -350,16 +345,16 @@ class PasswordResetConfirmView(PublicAPIView):
         request=PasswordResetConfirmBodySerializer,
         responses={200: MessageResponseSerializer},
         summary="Confirm password reset",
-        description="Reset password using token in URL path, uid and new password in request body.",
+        description="Reset password using uid and token in URL path. Body contains new_password only.",
     )
-    def patch(self, request, token):
+    def patch(self, request, uidb64, token):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         d = serializer.validated_data
         use_case = self.resolve_dependency(self.confirm_password_reset_use_case)
         try:
             use_case.execute(
-                uidb64=d["uid"], token=token, new_password=d["new_password"]
+                uidb64=uidb64, token=token, new_password=d["new_password"]
             )
         except InvalidResetLink as e:
             return create_error_response(str(e), status.HTTP_400_BAD_REQUEST)
@@ -428,9 +423,9 @@ class ApiKeyDetailView(AuthenticatedAPIView, generics.GenericAPIView):
     revoke_api_key_use_case = None
 
     @extend_schema(
-        responses={200: MessageResponseSerializer},
+        responses={204: None},
         summary="Revoke API key",
-        description="Revoke an active API key so it can no longer access the API.",
+        description="Revoke an active API key so it can no longer access the API. Returns 204.",
     )
     def delete(self, request, *args, **kwargs):
         pk = self.kwargs.get("pk")
@@ -441,7 +436,7 @@ class ApiKeyDetailView(AuthenticatedAPIView, generics.GenericAPIView):
             )
         except ResourceNotFound:
             return create_error_response("API key not found", status.HTTP_404_NOT_FOUND)
-        return create_success_response(message="API key revoked.")
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class SearchApiKeyView(AuthenticatedAPIView, generics.GenericAPIView):

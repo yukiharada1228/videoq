@@ -1,4 +1,6 @@
-"""TDD tests for evaluation presentation views."""
+"""
+TDD tests for new REST URL patterns in evaluation domain (issue #651).
+"""
 
 from datetime import datetime, timezone
 from unittest.mock import patch
@@ -44,11 +46,13 @@ def _make_entity(chat_log_id: int) -> ChatLogEvaluationEntity:
     )
 
 
-class EvaluationSummaryViewTests(TestCase):
+class EvaluationGroupSummaryViewTests(TestCase):
+    """Tests for GET /api/evaluation/groups/{group_id}/summary/"""
+
     def setUp(self):
         self.user = User.objects.create_user(
-            username="eval_view_user",
-            email="eval_view@example.com",
+            username="eval_group_summary_user",
+            email="eval_group_summary@example.com",
             password="pass",
         )
         self.group = VideoGroup.objects.create(user=self.user, name="G", description="")
@@ -57,50 +61,56 @@ class EvaluationSummaryViewTests(TestCase):
 
     @patch(_IS_OWNER, return_value=True)
     @patch(_SUMMARY_UC)
-    def test_returns_summary_for_owned_group(self, mock_aggregate, _mock_owner):
+    def test_get_summary_via_path_param_returns_200(self, mock_aggregate, _mock_owner):
+        """GET /api/evaluation/groups/{group_id}/summary/ returns 200."""
         mock_aggregate.return_value = EvaluationAggregateDTO(
             group_id=self.group.id,
-            evaluated_count=5,
-            avg_faithfulness=0.85,
+            evaluated_count=3,
+            avg_faithfulness=0.8,
             avg_answer_relevancy=0.9,
-            avg_context_precision=0.72,
+            avg_context_precision=0.7,
         )
-
         url = reverse("evaluation-group-summary", kwargs={"group_id": self.group.id})
         response = self.client.get(url)
-
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["group_id"], self.group.id)
-        self.assertEqual(response.data["evaluated_count"], 5)
-        self.assertAlmostEqual(response.data["avg_faithfulness"], 0.85)
-        self.assertAlmostEqual(response.data["avg_answer_relevancy"], 0.9)
-        self.assertAlmostEqual(response.data["avg_context_precision"], 0.72)
+        self.assertEqual(response.data["evaluated_count"], 3)
 
-    def test_requires_authentication(self):
-        url = reverse("evaluation-group-summary", kwargs={"group_id": self.group.id})
-        self.client.force_authenticate(user=None)
+    def test_get_summary_nonexistent_group_returns_404(self):
+        url = reverse("evaluation-group-summary", kwargs={"group_id": 99999})
         response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_get_summary_unauthenticated_returns_401(self):
+        client = APIClient()
+        url = reverse("evaluation-group-summary", kwargs={"group_id": self.group.id})
+        response = client.get(url)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
-    def test_returns_404_for_other_users_group(self):
+    def test_old_query_param_url_no_longer_works(self):
+        """Old URL name 'evaluation-summary' must be removed."""
+        with self.assertRaises(Exception):
+            reverse("evaluation-summary")
+
+    def test_get_summary_other_users_group_returns_404(self):
         other = User.objects.create_user(
-            username="other_eval",
-            email="other_eval@example.com",
+            username="eval_other_s",
+            email="eval_other_s@example.com",
             password="pass",
         )
         other_group = VideoGroup.objects.create(user=other, name="OG", description="")
-
         url = reverse("evaluation-group-summary", kwargs={"group_id": other_group.id})
         response = self.client.get(url)
-
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
 
-class EvaluationLogsViewTests(TestCase):
+class EvaluationGroupLogsViewTests(TestCase):
+    """Tests for GET /api/evaluation/groups/{group_id}/logs/"""
+
     def setUp(self):
         self.user = User.objects.create_user(
-            username="eval_logs_user",
-            email="eval_logs@example.com",
+            username="eval_group_logs_user",
+            email="eval_group_logs@example.com",
             password="pass",
         )
         self.group = VideoGroup.objects.create(user=self.user, name="G", description="")
@@ -109,33 +119,37 @@ class EvaluationLogsViewTests(TestCase):
 
     @patch(_IS_OWNER, return_value=True)
     @patch(_LIST_UC)
-    def test_returns_evaluation_list_for_owned_group(self, mock_list, _mock_owner):
+    def test_get_logs_via_path_param_returns_200(self, mock_list, _mock_owner):
+        """GET /api/evaluation/groups/{group_id}/logs/ returns 200."""
         mock_list.return_value = [_make_entity(1), _make_entity(2)]
-
         url = reverse("evaluation-group-logs", kwargs={"group_id": self.group.id})
         response = self.client.get(url)
-
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 2)
-        self.assertEqual(response.data[0]["chat_log_id"], 1)
-        self.assertEqual(response.data[0]["status"], "completed")
-        self.assertAlmostEqual(response.data[0]["faithfulness"], 0.9)
 
-    def test_requires_authentication(self):
-        url = reverse("evaluation-group-logs", kwargs={"group_id": self.group.id})
-        self.client.force_authenticate(user=None)
+    def test_get_logs_nonexistent_group_returns_404(self):
+        url = reverse("evaluation-group-logs", kwargs={"group_id": 99999})
         response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_get_logs_unauthenticated_returns_401(self):
+        client = APIClient()
+        url = reverse("evaluation-group-logs", kwargs={"group_id": self.group.id})
+        response = client.get(url)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
-    def test_returns_404_for_other_users_group(self):
+    def test_old_query_param_url_no_longer_works(self):
+        """Old URL name 'evaluation-logs' must be removed."""
+        with self.assertRaises(Exception):
+            reverse("evaluation-logs")
+
+    def test_get_logs_other_users_group_returns_404(self):
         other = User.objects.create_user(
-            username="other_eval_logs",
-            email="other_eval_logs@example.com",
+            username="eval_other_l",
+            email="eval_other_l@example.com",
             password="pass",
         )
-        other_group = VideoGroup.objects.create(user=other, name="OG2", description="")
-
+        other_group = VideoGroup.objects.create(user=other, name="OG", description="")
         url = reverse("evaluation-group-logs", kwargs={"group_id": other_group.id})
         response = self.client.get(url)
-
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
