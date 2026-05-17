@@ -16,6 +16,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from app.presentation.common.authentication import APIKeyAuthentication, BearerAPIKeyAuthentication, CookieJWTAuthentication
+from app.presentation.common.pagination import StandardLimitOffsetPagination
 from app.use_cases.billing.exceptions import AiAnswersLimitExceeded, OverQuotaError
 from app.use_cases.chat.dto import ChatMessageInput, StreamContentChunk, StreamDoneEvent
 from app.presentation.common.mixins import DependencyResolverMixin
@@ -255,7 +256,10 @@ class ChatGroupHistoryView(DependencyResolverMixin, APIView):
             )
         except ResourceNotFound as e:
             return create_error_response(str(e), status.HTTP_404_NOT_FOUND)
-        return Response(ChatLogSerializer(logs, many=True).data)
+        data = ChatLogSerializer(logs, many=True).data
+        paginator = StandardLimitOffsetPagination()
+        page = paginator.paginate_queryset(data, request)
+        return paginator.get_paginated_response(page)
 
     @extend_schema(
         responses={204: None},
