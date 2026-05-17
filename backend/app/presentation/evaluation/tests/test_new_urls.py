@@ -125,7 +125,7 @@ class EvaluationGroupLogsViewTests(TestCase):
         url = reverse("evaluation-group-logs", kwargs={"group_id": self.group.id})
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 2)
+        self.assertEqual(len(response.data["results"]), 2)
 
     def test_get_logs_nonexistent_group_returns_404(self):
         url = reverse("evaluation-group-logs", kwargs={"group_id": 99999})

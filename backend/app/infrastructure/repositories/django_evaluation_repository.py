@@ -47,8 +47,6 @@ class DjangoChatLogEvaluationRepository(EvaluationRepository):
     def list_by_group_id(
         self,
         group_id: int,
-        limit: int = 50,
-        offset: int = 0,
     ) -> List[ChatLogEvaluationEntity]:
         qs = (
             ChatLogEvaluation.objects
@@ -56,7 +54,7 @@ class DjangoChatLogEvaluationRepository(EvaluationRepository):
             .select_related("chat_log")
             .order_by("-chat_log__created_at")
         )
-        return [_to_entity(obj) for obj in qs[offset : offset + limit]]
+        return [_to_entity(obj) for obj in qs]
 
     def get_aggregate_by_group_id(self, group_id: int) -> EvaluationAggregateDTO:
         qs = ChatLogEvaluation.objects.filter(

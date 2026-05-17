@@ -2,7 +2,7 @@
 
 import logging
 
-from drf_spectacular.utils import OpenApiParameter, extend_schema  # OpenApiParameter used for limit/offset
+from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -10,6 +10,7 @@ from rest_framework.views import APIView
 
 from app.dependencies import evaluation as eval_deps
 from app.presentation.common.authentication import APIKeyAuthentication, CookieJWTAuthentication
+from app.presentation.common.pagination import StandardLimitOffsetPagination
 from app.presentation.common.responses import create_error_response
 from app.use_cases.shared.exceptions import ResourceNotFound
 
@@ -52,28 +53,16 @@ class EvaluationLogsView(APIView):
     permission_classes = [IsAuthenticated]
 
     @extend_schema(
-        parameters=[
-            OpenApiParameter("limit", int, required=False),
-            OpenApiParameter("offset", int, required=False),
-        ],
         responses={200: ChatLogEvaluationSerializer(many=True)},
         summary="List chat log evaluations",
         description="Return paginated RAGAS evaluation scores for a group's chat logs.",
     )
     def get(self, request, group_id):
-        try:
-            limit = int(request.query_params.get("limit", 50))
-            offset = int(request.query_params.get("offset", 0))
-        except (TypeError, ValueError):
-            return create_error_response("limit/offset must be integers", status.HTTP_400_BAD_REQUEST)
-
         uc = eval_deps.get_list_chat_log_evaluations_use_case()
         try:
             entities = uc.execute(
                 group_id=group_id,
                 user_id=request.user.id,
-                limit=limit,
-                offset=offset,
             )
         except ResourceNotFound:
             return create_error_response("Group not found", status.HTTP_404_NOT_FOUND)
@@ -90,4 +79,7 @@ class EvaluationLogsView(APIView):
             }
             for e in entities
         ]
-        return Response(ChatLogEvaluationSerializer(data, many=True).data)
+        serialized = ChatLogEvaluationSerializer(data, many=True).data
+        paginator = StandardLimitOffsetPagination()
+        page = paginator.paginate_queryset(serialized, request)
+        return paginator.get_paginated_response(page)

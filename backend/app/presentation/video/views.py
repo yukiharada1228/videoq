@@ -12,6 +12,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from app.presentation.common.pagination import StandardLimitOffsetPagination
 from app.presentation.common.responses import create_error_response
 from app.presentation.common.throttles import ShareTokenIPThrottle
 from app.use_cases.billing.exceptions import StorageLimitExceeded
@@ -127,9 +128,10 @@ class VideoListView(DependencyResolverMixin, AuthenticatedViewMixin, generics.Ge
             input=input_dto,
         )
         ctx = {"request": request}
-        return Response(
-            VideoListSerializer(videos, many=True, context=ctx).data
-        )
+        data = VideoListSerializer(videos, many=True, context=ctx).data
+        paginator = StandardLimitOffsetPagination()
+        page = paginator.paginate_queryset(data, request)
+        return paginator.get_paginated_response(page)
 
     @extend_schema(
         request=VideoCreateSerializer,
@@ -379,7 +381,10 @@ class VideoGroupListView(DependencyResolverMixin, AuthenticatedViewMixin, generi
     def get(self, request, *args, **kwargs):
         use_case = self.resolve_dependency(self.list_groups_use_case)
         groups = use_case.execute(user_id=request.user.id, include_videos=False)
-        return Response(VideoGroupListSerializer(groups, many=True).data)
+        data = VideoGroupListSerializer(groups, many=True).data
+        paginator = StandardLimitOffsetPagination()
+        page = paginator.paginate_queryset(data, request)
+        return paginator.get_paginated_response(page)
 
     @extend_schema(
         request=VideoGroupCreateSerializer,
@@ -695,7 +700,10 @@ class TagListView(DependencyResolverMixin, AuthenticatedViewMixin, generics.Gene
     def get(self, request, *args, **kwargs):
         use_case = self.resolve_dependency(self.list_tags_use_case)
         tags = use_case.execute(user_id=request.user.id)
-        return Response(TagListSerializer(tags, many=True).data)
+        data = TagListSerializer(tags, many=True).data
+        paginator = StandardLimitOffsetPagination()
+        page = paginator.paginate_queryset(data, request)
+        return paginator.get_paginated_response(page)
 
     @extend_schema(
         request=TagCreateSerializer,
