@@ -251,7 +251,7 @@ class VideoQMcpServer:
 
     def _get_chat_history(self, arguments: JSON) -> JSON:
         group_id = int(arguments["group_id"])
-        history = self.api.get("/chat/history/", query={"group_id": group_id})
+        history = self.api.get(f"/chat/groups/{group_id}/history/")
         return {"count": len(history), "history": history}
 
     def serve_forever(self) -> None:

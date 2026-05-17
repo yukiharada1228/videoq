@@ -194,11 +194,11 @@ class LogoutViewTests(APITestCase):
         return client, csrf_token
 
     def test_logout_success(self):
-        """Test successful logout"""
+        """Test successful logout returns 204"""
         client, csrf_token = self._build_cookie_authenticated_client()
         response = client.delete(self.url, HTTP_X_CSRFTOKEN=csrf_token)
 
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         # Check cookies are deleted
         self.assertEqual(response.cookies.get("access_token").value, "")
         self.assertEqual(response.cookies.get("refresh_token").value, "")
@@ -221,10 +221,10 @@ class LogoutViewTests(APITestCase):
         self.client.cookies["refresh_token"] = refresh_token
 
         response = self.client.delete(self.url)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
         refresh_url = reverse("auth-tokens")
-        refresh_response = self.client.put(
+        refresh_response = self.client.post(
             refresh_url, {"refresh": refresh_token}, format="json"
         )
         self.assertEqual(refresh_response.status_code, status.HTTP_401_UNAUTHORIZED)
@@ -255,7 +255,7 @@ class RefreshViewTests(APITestCase):
         refresh = RefreshToken.for_user(self.user)
         self.client.cookies["refresh_token"] = str(refresh)
 
-        response = self.client.put(self.url)
+        response = self.client.post(self.url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data, {})
@@ -268,7 +268,7 @@ class RefreshViewTests(APITestCase):
         client = self._get_csrf_client()
         client.cookies["refresh_token"] = str(RefreshToken.for_user(self.user))
 
-        response = client.put(self.url)
+        response = client.post(self.url)
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
@@ -280,7 +280,7 @@ class RefreshViewTests(APITestCase):
         csrf_token = client.cookies["csrftoken"].value
         client.cookies["refresh_token"] = str(RefreshToken.for_user(self.user))
 
-        response = client.put(self.url, HTTP_X_CSRFTOKEN=csrf_token)
+        response = client.post(self.url, HTTP_X_CSRFTOKEN=csrf_token)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("access_token", response.cookies)
@@ -292,7 +292,7 @@ class RefreshViewTests(APITestCase):
         refresh = RefreshToken.for_user(self.user)
         data = {"refresh": str(refresh)}
 
-        response = self.client.put(self.url, data, format="json")
+        response = self.client.post(self.url, data, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
@@ -300,7 +300,7 @@ class RefreshViewTests(APITestCase):
         """Test token refresh with invalid token"""
         self.client.cookies["refresh_token"] = "invalid-token"
 
-        response = self.client.put(self.url)
+        response = self.client.post(self.url)
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
@@ -308,7 +308,7 @@ class RefreshViewTests(APITestCase):
         """Test token refresh with empty cookie"""
         self.client.cookies["refresh_token"] = ""
 
-        response = self.client.put(self.url, {"refresh": ""}, format="json")
+        response = self.client.post(self.url, {"refresh": ""}, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
@@ -318,7 +318,7 @@ class RefreshViewTests(APITestCase):
 
         original_refresh = str(RefreshToken.for_user(self.user))
         self.client.cookies["refresh_token"] = original_refresh
-        first_response = self.client.put(self.url)
+        first_response = self.client.post(self.url)
         self.assertEqual(first_response.status_code, status.HTTP_200_OK)
         self.assertIn("refresh_token", first_response.cookies)
 
@@ -327,7 +327,7 @@ class RefreshViewTests(APITestCase):
 
 
 class EmailVerificationViewTests(APITestCase):
-    """Tests for EmailVerificationView"""
+    """Tests for EmailVerificationView (uid and token in URL path)."""
 
     def setUp(self):
         self.user = User.objects.create_user(
@@ -338,12 +338,14 @@ class EmailVerificationViewTests(APITestCase):
         )
         self.uid = urlsafe_base64_encode(force_bytes(self.user.pk))
         self.token = default_token_generator.make_token(self.user)
-        self.url = reverse("auth-email-verifications")
 
     def test_verify_email_success(self):
-        """Test successful email verification"""
-        data = {"uid": self.uid, "token": self.token}
-        response = self.client.post(self.url, data, format="json")
+        """PATCH /auth/email-verifications/{uid}/{token}/ verifies email."""
+        url = reverse(
+            "auth-email-verifications-confirm",
+            kwargs={"uidb64": self.uid, "token": self.token},
+        )
+        response = self.client.patch(url, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.user.refresh_from_db()
@@ -382,7 +384,7 @@ class PasswordResetRequestViewTests(APITestCase):
 
 
 class PasswordResetConfirmViewTests(APITestCase):
-    """Tests for PasswordResetConfirmView"""
+    """Tests for PasswordResetConfirmView (uid and token in URL path)."""
 
     def setUp(self):
         self.user = User.objects.create_user(
@@ -393,15 +395,15 @@ class PasswordResetConfirmViewTests(APITestCase):
         )
         self.uid = urlsafe_base64_encode(force_bytes(self.user.pk))
         self.token = default_token_generator.make_token(self.user)
-        self.url = reverse("auth-password-resets-confirm", args=[self.token])
 
     def test_confirm_reset_success(self):
-        """Test successful password reset confirmation"""
-        data = {
-            "uid": self.uid,
-            "new_password": "NewSecurePass123",
-        }
-        response = self.client.patch(self.url, data, format="json")
+        """PATCH /auth/password-resets/{uid}/{token}/ resets password."""
+        url = reverse(
+            "auth-password-resets-confirm",
+            kwargs={"uidb64": self.uid, "token": self.token},
+        )
+        data = {"new_password": "NewSecurePass123"}
+        response = self.client.patch(url, data, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.user.refresh_from_db()
@@ -488,12 +490,12 @@ class ApiKeyViewTests(APITestCase):
         self.assertEqual(response.data[0]["name"], "integration")
 
     def test_revoke_api_key(self):
-        """Test revoking an API key."""
+        """Test revoking an API key returns 204."""
         api_key, _ = UserApiKey.create_for_user(user=self.user, name="integration")
 
         response = self.client.delete(reverse("auth-api-key-detail", args=[api_key.pk]))
 
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         api_key.refresh_from_db()
         self.assertIsNotNone(api_key.revoked_at)
 
@@ -560,7 +562,7 @@ class AccountDeleteViewTests(APITestCase):
                 self.url, {"reason": "no longer needed"}, format="json"
             )
 
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.user.refresh_from_db()
         self.assertFalse(self.user.is_active)
         self.assertIsNotNone(self.user.deactivated_at)

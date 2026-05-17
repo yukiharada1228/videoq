@@ -43,7 +43,7 @@ class EmailVerificationTests(APITestCase):
         verification_url = email_body.strip().splitlines()[-1]
         self.assertTrue(verification_url.startswith("http"))
 
-        # Extract uid and token for API endpoint
+        # Extract uid and token from verification URL path or query params
         try:
             parsed = urlparse(verification_url)
             query = parse_qs(parsed.query)
@@ -51,8 +51,11 @@ class EmailVerificationTests(APITestCase):
         except Exception as exc:  # pragma: no cover
             self.fail(f"Failed to parse verification URL: {exc}")
 
-        verify_url = reverse("auth-email-verifications")
-        verify_response = self.client.post(verify_url, params, format="json")
+        verify_url = reverse(
+            "auth-email-verifications-confirm",
+            kwargs={"uidb64": params["uid"], "token": params["token"]},
+        )
+        verify_response = self.client.patch(verify_url, format="json")
 
         self.assertEqual(verify_response.status_code, status.HTTP_200_OK)
         self.assertEqual(
