@@ -55,7 +55,7 @@ class ChatGroupHistoryViewTests(APITestCase):
         url = reverse("chat-group-history", kwargs={"group_id": self.group.id})
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
+        self.assertEqual(len(response.data["results"]), 1)
 
     def test_get_history_nonexistent_group_returns_404(self):
         url = reverse("chat-group-history", kwargs={"group_id": 99999})

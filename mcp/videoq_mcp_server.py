@@ -226,8 +226,9 @@ class VideoQMcpServer:
         tags = arguments.get("tags")
         if tags:
             query["tags"] = ",".join(str(tag_id) for tag_id in tags)
-        videos = self.api.get("/videos/", query=query)
-        return {"count": len(videos), "videos": videos}
+        response = self.api.get("/videos/", query=query)
+        videos = response["results"]
+        return {"count": response["count"], "videos": videos}
 
     def _get_video(self, arguments: JSON) -> JSON:
         video_id = int(arguments["video_id"])
@@ -236,8 +237,9 @@ class VideoQMcpServer:
 
     def _list_groups(self, arguments: JSON) -> JSON:
         del arguments
-        groups = self.api.get("/videos/groups/")
-        return {"count": len(groups), "groups": groups}
+        response = self.api.get("/videos/groups/")
+        groups = response["results"]
+        return {"count": response["count"], "groups": groups}
 
     def _get_group(self, arguments: JSON) -> JSON:
         group_id = int(arguments["group_id"])
@@ -246,13 +248,15 @@ class VideoQMcpServer:
 
     def _list_tags(self, arguments: JSON) -> JSON:
         del arguments
-        tags = self.api.get("/videos/tags/")
-        return {"count": len(tags), "tags": tags}
+        response = self.api.get("/videos/tags/")
+        tags = response["results"]
+        return {"count": response["count"], "tags": tags}
 
     def _get_chat_history(self, arguments: JSON) -> JSON:
         group_id = int(arguments["group_id"])
-        history = self.api.get(f"/chat/groups/{group_id}/history/")
-        return {"count": len(history), "history": history}
+        response = self.api.get(f"/chat/groups/{group_id}/history/")
+        history = response["results"]
+        return {"count": response["count"], "history": history}
 
     def serve_forever(self) -> None:
         stdin = sys.stdin.buffer

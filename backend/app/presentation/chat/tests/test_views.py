@@ -337,7 +337,7 @@ class ChatHistoryDeleteViewTests(APITestCase):
         self.client.delete(self._url())
         response = self.client.get(self._url())
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data, [])
+        self.assertEqual(response.data["results"], [])
 
     def test_delete_unauthenticated_returns_401(self):
         client = APIClient()
@@ -385,3 +385,49 @@ class OpenAIChatCompletionsViewTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("error", response.data)
         self.assertEqual(response.data["error"]["type"], "insufficient_quota")
+
+
+class ChatHistoryPaginationTests(APITestCase):
+    """Tests for pagination on ChatGroupHistoryView."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="pagtest_chat",
+            email="pagtest_chat@example.com",
+            password="testpass",
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+        self.group = VideoGroup.objects.create(
+            user=self.user, name="Test Group", share_slug=secrets.token_urlsafe(16)
+        )
+        for i in range(5):
+            ChatLog.objects.create(
+                user=self.user,
+                group=self.group,
+                question=f"Q{i}",
+                answer=f"A{i}",
+                citations=[],
+                retrieved_contexts=[],
+            )
+
+    def _url(self):
+        return reverse("chat-group-history", kwargs={"group_id": self.group.id})
+
+    def test_response_has_pagination_envelope(self):
+        response = self.client.get(self._url())
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("count", response.data)
+        self.assertIn("results", response.data)
+        self.assertIn("next", response.data)
+        self.assertIn("previous", response.data)
+
+    def test_count_reflects_total(self):
+        response = self.client.get(self._url())
+        self.assertEqual(response.data["count"], 5)
+
+    def test_limit_reduces_results(self):
+        response = self.client.get(self._url(), {"limit": 2})
+        self.assertEqual(response.data["count"], 5)
+        self.assertEqual(len(response.data["results"]), 2)
+        self.assertIsNotNone(response.data["next"])

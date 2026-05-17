@@ -3,6 +3,13 @@ const USE_S3_STORAGE = import.meta.env.VITE_USE_S3_STORAGE === 'true';
 
 type RequestBody = BodyInit | object | null | undefined;
 
+interface PaginatedResponse<T> {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+}
+
 /**
  * Structured API error carrying error code and optional params from the backend.
  * Backend format: { error: { code, message, params? } }
@@ -781,7 +788,8 @@ class ApiClient {
   }
 
   async getChatHistory(groupId: number): Promise<ChatHistoryItem[]> {
-    return this.request<ChatHistoryItem[]>(`/chat/groups/${groupId}/history/`);
+    const response = await this.request<PaginatedResponse<ChatHistoryItem>>(`/chat/groups/${groupId}/history/`);
+    return response.results;
   }
 
   async getEvaluationSummary(groupId: number): Promise<EvaluationSummary> {
@@ -789,7 +797,8 @@ class ApiClient {
   }
 
   async getChatEvaluations(groupId: number, limit = 200): Promise<ChatLogEvaluation[]> {
-    return this.request<ChatLogEvaluation[]>(`/evaluation/groups/${groupId}/logs/?limit=${limit}`);
+    const response = await this.request<PaginatedResponse<ChatLogEvaluation>>(`/evaluation/groups/${groupId}/logs/?limit=${limit}`);
+    return response.results;
   }
 
 
@@ -851,7 +860,8 @@ class ApiClient {
       ? `?${new URLSearchParams(queryParams).toString()}`
       : '';
 
-    return this.request<VideoList[]>(`/videos/${query}`);
+    const response = await this.request<PaginatedResponse<VideoList>>(`/videos/${query}`);
+    return response.results;
   }
 
   async getVideo(id: number): Promise<Video> {
@@ -966,7 +976,8 @@ class ApiClient {
 
   // VideoGroup-related methods
   async getVideoGroups(): Promise<VideoGroupList[]> {
-    return this.request<VideoGroupList[]>('/videos/groups/');
+    const response = await this.request<PaginatedResponse<VideoGroupList>>('/videos/groups/');
+    return response.results;
   }
 
   async getVideoGroup(id: number): Promise<VideoGroup> {
@@ -1112,7 +1123,8 @@ class ApiClient {
 
   // Tag management methods
   async getTags(): Promise<Tag[]> {
-    return this.request<Tag[]>('/videos/tags/');
+    const response = await this.request<PaginatedResponse<Tag>>('/videos/tags/');
+    return response.results;
   }
 
   async getTag(id: number): Promise<TagDetail> {

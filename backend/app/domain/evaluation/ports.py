@@ -44,10 +44,8 @@ class EvaluationRepository(ABC):
     def list_by_group_id(
         self,
         group_id: int,
-        limit: int = 50,
-        offset: int = 0,
     ) -> List[ChatLogEvaluationEntity]:
-        """Return paginated evaluations for all chat logs belonging to a group."""
+        """Return all evaluations for all chat logs belonging to a group."""
         ...
 
     @abstractmethod
