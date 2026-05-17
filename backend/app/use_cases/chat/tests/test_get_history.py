@@ -32,6 +32,9 @@ class _StubChatRepository(ChatRepository):
     def get_analytics_raw(self, group_id: int):
         raise NotImplementedError
 
+    def delete_logs_for_group(self, group_id: int) -> None:
+        raise NotImplementedError
+
 
 class _StubGroupRepository(VideoGroupQueryRepository):
     def __init__(self, group):
