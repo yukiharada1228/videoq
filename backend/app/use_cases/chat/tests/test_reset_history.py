@@ -1,7 +1,7 @@
 """Tests for ResetChatHistoryUseCase."""
 
 import unittest
-from typing import List, Optional, Sequence
+from typing import Optional
 
 from app.domain.chat.entities import VideoGroupContextEntity
 from app.domain.chat.repositories import ChatRepository, VideoGroupQueryRepository
