@@ -95,6 +95,7 @@ def get_update_video_use_case() -> UpdateVideoUseCase:
     return UpdateVideoUseCase(
         shared.new_video_repository(),
         shared.new_vector_store_gateway(),
+        shared.get_vector_indexing_gateway(),
         DjangoTransactionPort(),
     )
 

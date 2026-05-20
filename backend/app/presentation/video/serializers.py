@@ -358,10 +358,11 @@ class VideoUploadRequestResponseSerializer(serializers.Serializer):
 
 
 class VideoUpdateSerializer(serializers.Serializer):
-    """Serializer for video updates (title and description only)."""
+    """Serializer for video updates."""
 
     title = serializers.CharField(max_length=255, required=False)
     description = serializers.CharField(required=False, allow_blank=True)
+    transcript = serializers.CharField(required=False, allow_blank=True, trim_whitespace=False)
 
 
 class VideoGroupCreateSerializer(serializers.Serializer):
