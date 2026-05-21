@@ -150,6 +150,57 @@ class QueryOptimizerTests(TestCase):
         self.assertEqual(groups.first(), group)
 
 
+class TranscriptDeferTests(TestCase):
+    """Tests that transcript is deferred in list/group queries."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="deferuser",
+            email="defer@example.com",
+            password="pass",
+        )
+        self.video = Video.objects.create(
+            user=self.user,
+            title="Test",
+            status="completed",
+            transcript="long transcript text",
+        )
+
+    def test_optimize_video_queryset_defers_transcript_by_default(self):
+        queryset = Video.objects.all()
+        optimized = QueryOptimizer.optimize_video_queryset(queryset)
+        video = optimized.get(pk=self.video.pk)
+        self.assertIn("transcript", video.get_deferred_fields())
+
+    def test_optimize_video_queryset_defers_transcript_when_false(self):
+        queryset = Video.objects.all()
+        optimized = QueryOptimizer.optimize_video_queryset(queryset, include_transcript=False)
+        video = optimized.get(pk=self.video.pk)
+        self.assertIn("transcript", video.get_deferred_fields())
+
+    def test_optimize_video_queryset_does_not_defer_transcript_when_true(self):
+        queryset = Video.objects.all()
+        optimized = QueryOptimizer.optimize_video_queryset(queryset, include_transcript=True)
+        video = optimized.get(pk=self.video.pk)
+        self.assertNotIn("transcript", video.get_deferred_fields())
+
+    def test_get_videos_with_metadata_defers_transcript_by_default(self):
+        qs = QueryOptimizer.get_videos_with_metadata(user_id=self.user.id)
+        video = qs.get(pk=self.video.pk)
+        self.assertIn("transcript", video.get_deferred_fields())
+
+    def test_optimize_video_group_queryset_defers_transcript_in_nested_videos(self):
+        group = VideoGroup.objects.create(user=self.user, name="G", description="")
+        VideoGroupMember.objects.create(group=group, video=self.video, order=0)
+
+        qs = QueryOptimizer.optimize_video_group_queryset(
+            VideoGroup.objects.filter(pk=group.pk), include_videos=True
+        )
+        fetched_group = qs.first()
+        member = fetched_group.members.all()[0]
+        self.assertIn("transcript", member.video.get_deferred_fields())
+
+
 class BatchProcessorTests(TestCase):
     """Tests for BatchProcessor class"""
 

@@ -80,7 +80,7 @@ def _video_to_entity(video: Video) -> VideoEntity:
         youtube_video_id=video.youtube_video_id or None,
         error_message=video.error_message or None,
         uploaded_at=video.uploaded_at,
-        transcript=video.transcript or None,
+        transcript=None if "transcript" in video.get_deferred_fields() else (video.transcript or None),
         tags=tags,
     )
 
