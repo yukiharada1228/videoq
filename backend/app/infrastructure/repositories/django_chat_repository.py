@@ -55,7 +55,7 @@ def _chat_log_to_entity(
         question=log.question,
         answer=log.answer,
         citations=citations,
-        retrieved_contexts=list(log.retrieved_contexts or []),
+        retrieved_contexts=[] if "retrieved_contexts" in log.get_deferred_fields() else list(log.retrieved_contexts or []),
         is_shared_origin=log.is_shared_origin,
         feedback=log.feedback,
         created_at=log.created_at,
@@ -88,7 +88,7 @@ class DjangoChatRepository(ChatRepository):
         self, group_id: int, ascending: bool = True
     ) -> List[ChatLogEntity]:
         order_field = "created_at" if ascending else "-created_at"
-        logs = ChatLog.objects.filter(group_id=group_id).order_by(order_field)
+        logs = ChatLog.objects.filter(group_id=group_id).defer("retrieved_contexts").order_by(order_field)
         return [_chat_log_to_entity(log) for log in logs]
 
     def create_log(
@@ -124,6 +124,7 @@ class DjangoChatRepository(ChatRepository):
     def get_log_by_id(self, log_id: int) -> Optional[ChatLogEntity]:
         log = (
             ChatLog.objects.select_related("group")
+            .defer("retrieved_contexts")
             .filter(id=log_id)
             .first()
         )
@@ -135,7 +136,7 @@ class DjangoChatRepository(ChatRepository):
         self, log: ChatLogEntity, feedback: Optional[str]
     ) -> ChatLogEntity:
         ChatLog.objects.filter(pk=log.id).update(feedback=feedback)
-        updated = ChatLog.objects.select_related("group").get(pk=log.id)
+        updated = ChatLog.objects.select_related("group").defer("retrieved_contexts").get(pk=log.id)
         return _chat_log_to_entity(updated, include_group_fields=True)
 
     def get_logs_values_for_group(self, group_id: int) -> List[ChatSceneLog]:
