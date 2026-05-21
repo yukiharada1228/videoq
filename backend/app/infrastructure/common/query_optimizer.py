@@ -47,10 +47,8 @@ class QueryOptimizer:
 
         queryset = QueryOptimizer._apply_prefetch_related(queryset, prefetch_objects)
 
-        if include_transcript:
-            queryset = queryset.only(
-                "id", "title", "file", "status", "transcript", "uploaded_at", "user_id"
-            )
+        if not include_transcript:
+            queryset = queryset.defer("transcript")
 
         return queryset
 
@@ -69,8 +67,8 @@ class QueryOptimizer:
             queryset = queryset.prefetch_related(
                 Prefetch(
                     "members",
-                    queryset=VideoGroupMember.objects.select_related(
-                        "video"
+                    queryset=VideoGroupMember.objects.select_related("video").defer(
+                        "video__transcript"
                     ).prefetch_related(
                         Prefetch(
                             "video__video_tags",
