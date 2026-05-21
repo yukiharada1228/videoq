@@ -110,6 +110,15 @@ def get_request_video_upload_use_case():
 def get_confirm_video_upload_use_case():
     return _cr.get_confirm_video_upload_use_case()
 
+
+def get_video_play_url_use_case():
+    return _cr.get_video_play_url_use_case()
+
+
+def get_shared_video_play_url_use_case():
+    return _cr.get_shared_video_play_url_use_case()
+
+
 __all__ = [
     "get_list_videos_use_case",
     "get_create_video_use_case",
@@ -138,4 +147,6 @@ __all__ = [
     "get_remove_tag_from_video_use_case",
     "get_request_video_upload_use_case",
     "get_confirm_video_upload_use_case",
+    "get_video_play_url_use_case",
+    "get_shared_video_play_url_use_case",
 ]

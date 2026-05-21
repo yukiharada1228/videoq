@@ -45,10 +45,14 @@ def _resolve_file_url(file_key, context):
 
 
 class VideoListSerializer(serializers.Serializer):
-    """Serializer for video list view (reads VideoEntity attributes)."""
+    """Serializer for video list view (reads VideoEntity attributes).
+
+    Note: ``file`` URL is intentionally excluded to avoid bulk signed-URL
+    generation. Use the dedicated ``/play-url/`` endpoint to fetch a signed
+    URL for a single video on demand.
+    """
 
     id = serializers.IntegerField()
-    file = serializers.SerializerMethodField()
     title = serializers.CharField()
     description = serializers.CharField()
     uploaded_at = serializers.DateTimeField()
@@ -65,10 +69,6 @@ class VideoListSerializer(serializers.Serializer):
             {"id": t.id, "name": t.name, "color": t.color}
             for t in obj.tags
         ]
-
-    @extend_schema_field(serializers.CharField(allow_null=True))
-    def get_file(self, obj):
-        return _resolve_file_url(getattr(obj, "file_key", None), self.context)
 
     @extend_schema_field(serializers.CharField(allow_null=True))
     def get_youtube_embed_url(self, obj):
@@ -148,6 +148,12 @@ class VideoGroupDetailSerializer(serializers.Serializer):
                 video_data = VideoListSerializer(member.video, context=self.context).data
                 result.append({**video_data, "order": member.order})
         return result
+
+
+class VideoPlayUrlSerializer(serializers.Serializer):
+    """Response serializer for the play-URL endpoint."""
+
+    file_url = serializers.CharField(allow_null=True)
 
 
 class TagListSerializer(serializers.Serializer):

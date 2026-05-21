@@ -4,6 +4,7 @@ from app.use_cases.video.confirm_video_upload import ConfirmVideoUploadUseCase
 from app.use_cases.video.create_video import CreateVideoUseCase
 from app.use_cases.video.create_youtube_video import CreateYoutubeVideoUseCase
 from app.use_cases.video.delete_video import DeleteVideoUseCase
+from app.use_cases.video.get_play_url import GetVideoPlayUrlUseCase
 from app.use_cases.video.get_video import GetVideoDetailUseCase
 from app.use_cases.video.index_video import IndexVideoTranscriptUseCase
 from app.use_cases.video.list_videos import ListVideosUseCase
@@ -70,6 +71,10 @@ def get_index_video_use_case() -> IndexVideoTranscriptUseCase:
 
 def get_video_detail_use_case() -> GetVideoDetailUseCase:
     return GetVideoDetailUseCase(shared.new_video_repository())
+
+
+def get_video_play_url_use_case() -> GetVideoPlayUrlUseCase:
+    return GetVideoPlayUrlUseCase(shared.new_video_repository())
 
 
 def get_create_video_use_case() -> CreateVideoUseCase:

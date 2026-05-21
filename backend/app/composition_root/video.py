@@ -90,6 +90,10 @@ def get_video_detail_use_case():
     return core.get_video_detail_use_case()
 
 
+def get_video_play_url_use_case():
+    return core.get_video_play_url_use_case()
+
+
 def get_create_video_use_case():
     return core.get_create_video_use_case()
 
@@ -139,6 +143,10 @@ def get_video_group_use_case():
 
 def get_shared_group_use_case():
     return group.get_shared_group_use_case()
+
+
+def get_shared_video_play_url_use_case():
+    return group.get_shared_video_play_url_use_case()
 
 
 def get_add_video_to_group_use_case():

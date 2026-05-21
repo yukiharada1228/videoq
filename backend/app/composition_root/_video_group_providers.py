@@ -3,6 +3,7 @@
 from app.use_cases.video.create_group_with_detail import CreateVideoGroupWithDetailUseCase
 from app.use_cases.video.delete_group import DeleteVideoGroupUseCase
 from app.use_cases.video.get_group import GetSharedGroupUseCase, GetVideoGroupUseCase
+from app.use_cases.video.get_play_url import GetSharedVideoPlayUrlUseCase
 from app.use_cases.video.list_groups import ListVideoGroupsUseCase
 from app.use_cases.video.manage_groups import (
     AddVideoToGroupUseCase,
@@ -39,6 +40,10 @@ def get_video_group_use_case() -> GetVideoGroupUseCase:
 
 def get_shared_group_use_case() -> GetSharedGroupUseCase:
     return GetSharedGroupUseCase(shared.new_video_group_repository())
+
+
+def get_shared_video_play_url_use_case() -> GetSharedVideoPlayUrlUseCase:
+    return GetSharedVideoPlayUrlUseCase(shared.new_video_group_repository())
 
 
 def get_add_video_to_group_use_case() -> AddVideoToGroupUseCase:

@@ -11,11 +11,13 @@ from .views import (
     VideoGroupDetailView,
     VideoGroupListView,
     VideoListView,
+    VideoPlayUrlView,
     VideoUploadRequestView,
     YoutubeVideoCreateView,
     add_tags_to_video,
     add_videos_to_group,
     get_shared_group,
+    get_shared_video_play_url,
     remove_tag_from_video,
     reorder_videos_in_group,
 )
@@ -105,6 +107,21 @@ urlpatterns = [
         get_shared_group,
         {"shared_group_use_case": video_dependencies.get_shared_group_use_case},
         name="get-shared-group",
+    ),
+    path(
+        "groups/share/<str:share_slug>/videos/<int:video_id>/play-url/",
+        get_shared_video_play_url,
+        {
+            "get_shared_video_play_url_use_case": video_dependencies.get_shared_video_play_url_use_case,
+        },
+        name="shared-video-play-url",
+    ),
+    path(
+        "<int:pk>/play-url/",
+        VideoPlayUrlView.as_view(
+            get_video_play_url_use_case=video_dependencies.get_video_play_url_use_case,
+        ),
+        name="video-play-url",
     ),
     path(
         "tags/",

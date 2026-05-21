@@ -64,11 +64,13 @@ from .serializers import (
     VideoGroupListSerializer,
     VideoGroupUpdateSerializer,
     VideoListSerializer,
+    VideoPlayUrlSerializer,
     VideoSerializer,
     VideoUpdateSerializer,
     VideoUploadRequestResponseSerializer,
     VideoUploadRequestSerializer,
     YoutubeVideoCreateSerializer,
+    _resolve_file_url,
 )
 
 logger = logging.getLogger(__name__)
@@ -677,6 +679,56 @@ def get_shared_group(
 
     ctx = {"request": request}
     return Response(VideoGroupDetailSerializer(group, context=ctx).data, status=status.HTTP_200_OK)
+
+
+# ---------------------------------------------------------------------------
+# Play URL views
+# ---------------------------------------------------------------------------
+
+
+class VideoPlayUrlView(DependencyResolverMixin, AuthenticatedViewMixin, APIView):
+    """Return the signed play URL for a single video (on demand)."""
+
+    serializer_class = VideoPlayUrlSerializer
+    get_video_play_url_use_case = None
+
+    @extend_schema(
+        responses={200: VideoPlayUrlSerializer},
+        summary="Get video play URL",
+        description="Return a signed play URL for the specified video. Only the requesting user's own videos are accessible.",
+    )
+    def get(self, request, pk):
+        use_case = self.resolve_dependency(self.get_video_play_url_use_case)
+        try:
+            file_key = use_case.execute(pk, request.user.id)
+        except ResourceNotFound:
+            return create_error_response("Video not found", status.HTTP_404_NOT_FOUND)
+        file_url = _resolve_file_url(file_key, {"request": request})
+        return Response({"file_url": file_url})
+
+
+@extend_schema(
+    responses={200: VideoPlayUrlSerializer},
+    summary="Get shared video play URL",
+    description="Return a signed play URL for a video in a publicly shared group.",
+)
+@api_view(["GET"])
+@permission_classes([AllowAny])
+@throttle_classes([ShareTokenIPThrottle])
+def get_shared_video_play_url(
+    request,
+    share_slug,
+    video_id,
+    get_shared_video_play_url_use_case,
+):
+    """Get signed play URL for a video in a shared group (no authentication required)."""
+    use_case = DependencyResolverMixin.resolve_dependency(get_shared_video_play_url_use_case)
+    try:
+        file_key = use_case.execute(share_slug, video_id)
+    except ResourceNotFound:
+        return create_error_response("Not found", status.HTTP_404_NOT_FOUND)
+    file_url = _resolve_file_url(file_key, {"request": request})
+    return Response({"file_url": file_url})
 
 
 # ---------------------------------------------------------------------------
