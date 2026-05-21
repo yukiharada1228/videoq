@@ -21,7 +21,7 @@ from app.use_cases.video.youtube import build_youtube_embed_url, extract_youtube
 logger = logging.getLogger(__name__)
 
 
-def _resolve_file_url(file_key, context):
+def resolve_file_url(file_key, context):
     """Build an absolute media URL from file_key and serializer context."""
     if not file_key:
         return None
@@ -105,7 +105,7 @@ class VideoSerializer(serializers.Serializer):
 
     @extend_schema_field(serializers.CharField(allow_null=True))
     def get_file(self, obj):
-        return _resolve_file_url(getattr(obj, "file_key", None), self.context)
+        return resolve_file_url(getattr(obj, "file_key", None), self.context)
 
     @extend_schema_field(serializers.CharField(allow_null=True))
     def get_youtube_embed_url(self, obj):

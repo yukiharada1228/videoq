@@ -70,7 +70,7 @@ from .serializers import (
     VideoUploadRequestResponseSerializer,
     VideoUploadRequestSerializer,
     YoutubeVideoCreateSerializer,
-    _resolve_file_url,
+    resolve_file_url,
 )
 
 logger = logging.getLogger(__name__)
@@ -703,7 +703,7 @@ class VideoPlayUrlView(DependencyResolverMixin, AuthenticatedViewMixin, APIView)
             file_key = use_case.execute(pk, request.user.id)
         except ResourceNotFound:
             return create_error_response("Video not found", status.HTTP_404_NOT_FOUND)
-        file_url = _resolve_file_url(file_key, {"request": request})
+        file_url = resolve_file_url(file_key, {"request": request})
         return Response({"file_url": file_url})
 
 
@@ -727,7 +727,7 @@ def get_shared_video_play_url(
         file_key = use_case.execute(share_slug, video_id)
     except ResourceNotFound:
         return create_error_response("Not found", status.HTTP_404_NOT_FOUND)
-    file_url = _resolve_file_url(file_key, {"request": request})
+    file_url = resolve_file_url(file_key, {"request": request})
     return Response({"file_url": file_url})
 
 
