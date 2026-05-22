@@ -26,12 +26,11 @@ class UserLimitsRepository(ABC):
     def check_and_reserve_storage(self, user_id: int, additional_bytes: int) -> None:
         """Atomically check storage limit and reserve space if within limit.
 
-        Uses a conditional F() UPDATE (WHERE used_storage_bytes <= limit - additional_bytes)
-        to prevent race conditions between concurrent upload requests. The WHERE
-        clause and UPDATE are evaluated atomically by the DB engine, so no
-        row-level locking is required. If adding additional_bytes would exceed
-        the configured storage limit, raises StorageLimitExceeded without modifying
-        used_storage_bytes. On success, increments used_storage_bytes by additional_bytes.
+        The capacity check and reservation must be one atomic mutation so
+        concurrent upload requests cannot both pass on stale usage. If adding
+        additional_bytes would exceed the configured storage limit, raises
+        StorageLimitExceeded without modifying used_storage_bytes. On success,
+        increments used_storage_bytes by additional_bytes.
         """
         ...
 
@@ -40,8 +39,8 @@ class UserLimitsRepository(ABC):
         """Atomically update used_storage_bytes by bytes_delta.
 
         Result is clamped to >= 0 to prevent negative storage values.
-        Must use a database-level atomic operation (e.g. F() expression) to
-        avoid lost updates under concurrent requests.
+        The counter mutation must be atomic to avoid lost updates under
+        concurrent requests.
         """
         ...
 
@@ -49,8 +48,8 @@ class UserLimitsRepository(ABC):
     def increment_processing_seconds(self, user_id: int, seconds: int) -> None:
         """Atomically increment used_processing_seconds by seconds.
 
-        Must use a database-level atomic operation (e.g. F() expression) to
-        avoid lost updates under concurrent requests.
+        The counter mutation must be atomic to avoid lost updates under
+        concurrent requests.
         """
         ...
 
@@ -58,8 +57,8 @@ class UserLimitsRepository(ABC):
     def increment_ai_answers(self, user_id: int) -> None:
         """Atomically increment used_ai_answers by 1.
 
-        Must use a database-level atomic operation (e.g. F() expression) to
-        avoid lost updates under concurrent requests.
+        The counter mutation must be atomic to avoid lost updates under
+        concurrent requests.
         """
         ...
 

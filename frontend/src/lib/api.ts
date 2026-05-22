@@ -134,15 +134,11 @@ export interface ChatAnalytics {
     total_questions: number;
     date_range: { first?: string; last?: string };
   };
-  scene_distribution: {
-    video_id: number;
-    title: string;
-    start_time: string;
-    end_time: string;
-    question_count: number;
-  }[];
   time_series: { date: string; count: number }[];
   feedback: { good: number; bad: number; none: number };
+}
+
+export interface ChatAnalyticsKeywords {
   keywords: { word: string; count: number }[];
 }
 
@@ -1168,6 +1164,10 @@ class ApiClient {
 
   async getChatAnalytics(groupId: number): Promise<ChatAnalytics> {
     return this.request<ChatAnalytics>(`/chat/groups/${groupId}/analytics/`);
+  }
+
+  async getChatKeywords(groupId: number): Promise<ChatAnalyticsKeywords> {
+    return this.request<ChatAnalyticsKeywords>(`/chat/groups/${groupId}/analytics/keywords/`);
   }
 
 }

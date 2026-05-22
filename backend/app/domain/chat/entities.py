@@ -12,7 +12,6 @@ from typing import List, Optional
 from app.domain.chat.dtos import CitationDTO
 from app.domain.chat.exceptions import FeedbackAccessDenied, InvalidFeedbackValue
 from app.domain.chat.value_objects import (
-    ChatSceneLog,
     FeedbackSummary,
     TimeSeriesPoint,
 )
@@ -82,13 +81,10 @@ class ChatLogEntity:
 class ChatAnalyticsRaw:
     """
     Raw data bundle collected from the persistence layer for analytics computation.
-    The use case applies domain services (keyword extraction, scene aggregation) on top of this.
     """
 
     total: int
     first_date: Optional[datetime]
     last_date: Optional[datetime]
-    logs_for_scenes: List[ChatSceneLog]
     time_series: List[TimeSeriesPoint]
     feedback: FeedbackSummary
-    questions: List[str]
