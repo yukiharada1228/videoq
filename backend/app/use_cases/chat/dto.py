@@ -76,26 +76,13 @@ class ChatFeedbackResultDTO:
 
 
 @dataclass
-class SceneDistributionItemDTO:
-    """A scene entry in the analytics scene distribution."""
-
-    video_id: int
-    title: str
-    start_time: Optional[str]
-    end_time: Optional[str]
-    question_count: int
-
-
-@dataclass
 class ChatAnalyticsDTO:
     """Output of GetChatAnalyticsUseCase."""
 
     total_questions: int
     date_range: "DateRangeDTO"
-    scene_distribution: List[SceneDistributionItemDTO]
     time_series: List["TimeSeriesPointDTO"]
     feedback: "FeedbackSummaryDTO"
-    keywords: List["KeywordCountDTO"]
 
 
 @dataclass(frozen=True)

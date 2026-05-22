@@ -200,6 +200,20 @@ class ChatGroupAnalyticsViewTests(APITestCase):
         self.assertIn("summary", response.data)
         self.assertIn("feedback", response.data)
 
+    def test_get_analytics_does_not_include_keywords(self):
+        """GET /api/chat/groups/{group_id}/analytics/ must NOT return keywords."""
+        url = reverse("chat-group-analytics", kwargs={"group_id": self.group.id})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertNotIn("keywords", response.data)
+
+    def test_get_analytics_does_not_include_scene_distribution(self):
+        """GET /api/chat/groups/{group_id}/analytics/ must NOT return scene_distribution."""
+        url = reverse("chat-group-analytics", kwargs={"group_id": self.group.id})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertNotIn("scene_distribution", response.data)
+
     def test_get_analytics_nonexistent_group_returns_404(self):
         url = reverse("chat-group-analytics", kwargs={"group_id": 99999})
         response = self.client.get(url)
@@ -220,3 +234,74 @@ class ChatGroupAnalyticsViewTests(APITestCase):
         url = reverse("chat-group-analytics", kwargs={"group_id": self.group.id})
         response = client.get(url)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+class ChatGroupAnalyticsKeywordsViewTests(APITestCase):
+    """Tests for GET /api/chat/groups/{group_id}/analytics/keywords/"""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="keywords_path_user",
+            email="keywords_path@example.com",
+            password="testpass123",
+        )
+        self.other_user = User.objects.create_user(
+            username="keywords_other_user",
+            email="keywords_other@example.com",
+            password="testpass123",
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+        self.group = VideoGroup.objects.create(
+            user=self.user,
+            name="Test Group",
+            description="Test",
+            share_slug=secrets.token_urlsafe(32),
+        )
+
+    def test_get_keywords_returns_200_with_keywords_key(self):
+        """GET /api/chat/groups/{group_id}/analytics/keywords/ returns 200 with keywords."""
+        url = reverse("chat-group-analytics-keywords", kwargs={"group_id": self.group.id})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("keywords", response.data)
+        self.assertIsInstance(response.data["keywords"], list)
+
+    def test_get_keywords_nonexistent_group_returns_404(self):
+        url = reverse("chat-group-analytics-keywords", kwargs={"group_id": 99999})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_get_keywords_other_users_group_returns_404(self):
+        other_group = VideoGroup.objects.create(
+            user=self.other_user,
+            name="Other",
+            share_slug=secrets.token_urlsafe(32),
+        )
+        url = reverse("chat-group-analytics-keywords", kwargs={"group_id": other_group.id})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_get_keywords_unauthenticated_returns_401(self):
+        client = APIClient()
+        url = reverse("chat-group-analytics-keywords", kwargs={"group_id": self.group.id})
+        response = client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_get_keywords_returns_word_and_count_fields(self):
+        """Each keyword item must have word and count fields."""
+        ChatLog.objects.create(
+            user=self.user,
+            group=self.group,
+            question="What is machine learning?",
+            answer="A",
+            citations=[],
+            retrieved_contexts=[],
+        )
+        url = reverse("chat-group-analytics-keywords", kwargs={"group_id": self.group.id})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        if response.data["keywords"]:
+            kw = response.data["keywords"][0]
+            self.assertIn("word", kw)
+            self.assertIn("count", kw)

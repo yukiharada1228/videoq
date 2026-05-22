@@ -3,6 +3,7 @@ from django.urls import path
 from app.dependencies import chat as chat_dependencies
 
 from .views import (
+    ChatGroupAnalyticsKeywordsView,
     ChatGroupAnalyticsView,
     ChatGroupHistoryView,
     ChatLogFeedbackView,
@@ -43,5 +44,12 @@ urlpatterns = [
             chat_analytics_use_case=chat_dependencies.get_chat_analytics_use_case
         ),
         name="chat-group-analytics",
+    ),
+    path(
+        "groups/<int:group_id>/analytics/keywords/",
+        ChatGroupAnalyticsKeywordsView.as_view(
+            chat_keywords_use_case=chat_dependencies.get_chat_keywords_use_case
+        ),
+        name="chat-group-analytics-keywords",
     ),
 ]

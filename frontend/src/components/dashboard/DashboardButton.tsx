@@ -4,6 +4,7 @@ import { BarChart3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useChatAnalytics } from '@/hooks/useChatAnalytics';
+import { useChatKeywords } from '@/hooks/useChatKeywords';
 import { useEvaluationSummary } from '@/hooks/useEvaluationSummary';
 import { AnalyticsDashboard } from './AnalyticsDashboard';
 
@@ -20,6 +21,10 @@ export function DashboardButton({ groupId, size = 'default' }: DashboardButtonPr
     data: evaluationSummary,
     isLoading: isEvaluationLoading,
   } = useEvaluationSummary(groupId, isOpen);
+  const {
+    data: keywordsData,
+    isLoading: isKeywordsLoading,
+  } = useChatKeywords(groupId, isOpen);
 
   return (
     <>
@@ -43,6 +48,8 @@ export function DashboardButton({ groupId, size = 'default' }: DashboardButtonPr
             evaluationSummary={evaluationSummary}
             isLoading={isLoading}
             isEvaluationLoading={isEvaluationLoading}
+            keywordsData={keywordsData}
+            isKeywordsLoading={isKeywordsLoading}
           />
         </DialogContent>
       </Dialog>

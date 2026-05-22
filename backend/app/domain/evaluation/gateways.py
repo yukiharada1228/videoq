@@ -39,7 +39,7 @@ class RagEvaluationGateway(ABC):
 
 
 class EvaluationTaskGateway(ABC):
-    """Abstract interface for dispatching evaluation Celery tasks."""
+    """Abstract interface for dispatching asynchronous evaluation work."""
 
     @abstractmethod
     def dispatch_evaluate_chat_log(self, chat_log_id: int) -> None:
