@@ -29,7 +29,7 @@ class EvaluateChatLogUseCase:
     Fetches a ChatLog by ID, runs RAGAS evaluation, and saves the result.
 
     On any failure the evaluation is persisted with status='failed' and the
-    error message — the task never re-raises so the Celery worker does not retry.
+    error message without asking the task runner to retry.
     """
 
     def __init__(
@@ -57,7 +57,7 @@ class EvaluateChatLogUseCase:
 
         chat_log = self.chat_log_repo.get_by_id(chat_log_id)
         if chat_log is None:
-            # No FK exists → cannot persist. Log and return silently.
+            # No source record exists, so there is nothing to persist.
             logger.warning("ChatLog %s not found; skipping evaluation.", chat_log_id)
             pending.status = "failed"
             pending.error_message = f"ChatLog {chat_log_id} not found."
