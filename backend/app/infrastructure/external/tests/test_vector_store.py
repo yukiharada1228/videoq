@@ -250,12 +250,21 @@ class DeleteVideoVectorsTests(SimpleTestCase):
 
     @patch.object(PGVectorManager, "_get_management_store")
     @patch("app.infrastructure.external.vector_store.logger")
-    def test_delete_video_vectors_error(self, mock_logger, mock_get_store):
+    def test_delete_video_vectors_logs_and_propagates_error(self, mock_logger, mock_get_store):
         mock_get_store.side_effect = Exception("Database error")
 
-        delete_video_vectors(123)
+        with self.assertRaises(Exception):
+            delete_video_vectors(123)
 
         mock_logger.warning.assert_called()
+
+    @patch.object(PGVectorManager, "_get_management_store")
+    def test_delete_video_vectors_propagates_exception(self, mock_get_store):
+        """Exceptions from the store must propagate so callers can handle failures."""
+        mock_get_store.side_effect = RuntimeError("Vector deletion failed")
+
+        with self.assertRaises(RuntimeError, msg="Vector deletion failed"):
+            delete_video_vectors(123)
 
 
 class UpdateVideoTitleTests(SimpleTestCase):
