@@ -263,6 +263,7 @@ class VideoDetailView(DependencyResolverMixin, AuthenticatedViewMixin, APIView):
             input_dto = UpdateVideoInput(
                 title=data.get("title"),
                 description=data.get("description"),
+                transcript=data.get("transcript"),
             )
             updated = use_case.execute(pk, request.user.id, input_dto)
         except ResourceNotFound:

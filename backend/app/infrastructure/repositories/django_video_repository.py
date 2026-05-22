@@ -244,6 +244,9 @@ class DjangoVideoRepository(VideoRepository):
         if params.description is not None:
             orm_video.description = params.description
             update_fields.append("description")
+        if params.transcript is not None:
+            orm_video.transcript = params.transcript
+            update_fields.append("transcript")
         if update_fields:
             orm_video.save(update_fields=update_fields)
         # Re-fetch with prefetches

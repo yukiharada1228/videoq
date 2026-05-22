@@ -223,6 +223,7 @@ export interface YoutubeVideoCreateRequest {
 export interface VideoUpdateRequest {
   title?: string;
   description?: string;
+  transcript?: string;
 }
 
 export interface VideoGroup {
