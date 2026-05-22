@@ -436,20 +436,30 @@ class VideoDetailViewTests(APITestCase):
     @patch("app.infrastructure.external.scene_indexer.index_scenes_batch")
     def test_update_video_transcript_reindexes_pgvector(self, mock_index, mock_delete):
         """Test that updating video transcript refreshes PGVector contents."""
-        self.video.transcript = "old transcript"
+        old_srt = "1\n00:00:01,000 --> 00:00:03,000\nold transcript"
+        new_srt = "1\n00:00:01,000 --> 00:00:03,000\nnew transcript"
+        self.video.transcript = old_srt
         self.video.save(update_fields=["transcript"])
         url = reverse("video-detail", kwargs={"pk": self.video.pk})
-        data = {"transcript": "new transcript"}
+        data = {"transcript": new_srt}
 
         with self.captureOnCommitCallbacks(execute=True):
             response = self.client.patch(url, data, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["transcript"], "new transcript")
+        self.assertEqual(response.data["transcript"], new_srt)
         self.video.refresh_from_db()
-        self.assertEqual(self.video.transcript, "new transcript")
+        self.assertEqual(self.video.transcript, new_srt)
         mock_delete.assert_called_once_with(self.video.id)
-        self.assertEqual(mock_index.call_args.args[0], "new transcript")
+        self.assertEqual(mock_index.call_args.args[0], new_srt)
+
+    def test_update_video_with_plain_text_transcript_returns_400(self):
+        """Submitting plain text as transcript is rejected with 400."""
+        url = reverse("video-detail", kwargs={"pk": self.video.pk})
+        response = self.client.patch(url, {"transcript": "plain text"}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.video.refresh_from_db()
+        self.assertNotEqual(self.video.transcript, "plain text")
 
 
 class TagViewTests(APITestCase):
