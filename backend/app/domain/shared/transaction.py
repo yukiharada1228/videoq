@@ -1,6 +1,6 @@
 """
 Abstract interface for managing database transactions.
-Allows use cases to enforce atomic boundaries without importing Django.
+Allows use cases to enforce atomic boundaries without a transaction framework.
 """
 
 from abc import ABC, abstractmethod

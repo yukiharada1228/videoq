@@ -1,6 +1,6 @@
 """
 Use case: Reindex a video's transcript in the vector store after a manual edit.
-Runs asynchronously via Celery after the transcript update is committed.
+Can run asynchronously after the transcript update is committed.
 """
 
 import logging
