@@ -8,6 +8,7 @@ from app.use_cases.video.get_video import GetVideoDetailUseCase
 from app.use_cases.video.index_video import IndexVideoTranscriptUseCase
 from app.use_cases.video.list_videos import ListVideosUseCase
 from app.use_cases.video.reindex_all_videos import ReindexAllVideosUseCase
+from app.use_cases.video.reindex_video_transcript import ReindexVideoTranscriptUseCase
 from app.use_cases.video.request_video_upload import RequestVideoUploadUseCase
 from app.use_cases.video.run_transcription import RunTranscriptionUseCase
 from app.use_cases.video.update_video import UpdateVideoUseCase
@@ -95,7 +96,16 @@ def get_update_video_use_case() -> UpdateVideoUseCase:
     return UpdateVideoUseCase(
         shared.new_video_repository(),
         shared.new_vector_store_gateway(),
+        shared.new_video_task_gateway(),
         DjangoTransactionPort(),
+    )
+
+
+def get_reindex_video_transcript_use_case() -> ReindexVideoTranscriptUseCase:
+    return ReindexVideoTranscriptUseCase(
+        shared.new_video_repository(),
+        shared.new_vector_store_gateway(),
+        shared.get_vector_indexing_gateway(),
     )
 
 

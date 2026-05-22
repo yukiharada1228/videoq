@@ -52,14 +52,14 @@ class PasswordResetConfirmTests(APITestCase):
         )
         self.uid = urlsafe_base64_encode(force_bytes(self.user.pk))
         self.token = default_token_generator.make_token(self.user)
-        self.url = reverse("auth-password-resets-confirm", args=[self.token])
 
     def test_confirm_updates_password(self):
-        payload = {
-            "uid": self.uid,
-            "new_password": "NewSecret456",
-        }
-        response = self.client.patch(self.url, payload, format="json")
+        url = reverse(
+            "auth-password-resets-confirm",
+            kwargs={"uidb64": self.uid, "token": self.token},
+        )
+        payload = {"new_password": "NewSecret456"}
+        response = self.client.patch(url, payload, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(
@@ -70,11 +70,11 @@ class PasswordResetConfirmTests(APITestCase):
         self.assertTrue(self.user.check_password("NewSecret456"))
 
     def test_confirm_with_invalid_token_fails(self):
-        url = reverse("auth-password-resets-confirm", args=["invalid-token"])
-        payload = {
-            "uid": self.uid,
-            "new_password": "NewSecret456",
-        }
+        url = reverse(
+            "auth-password-resets-confirm",
+            kwargs={"uidb64": self.uid, "token": "invalid-token"},
+        )
+        payload = {"new_password": "NewSecret456"}
         response = self.client.patch(url, payload, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)

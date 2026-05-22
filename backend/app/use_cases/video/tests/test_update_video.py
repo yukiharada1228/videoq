@@ -25,9 +25,11 @@ class UpdateVideoUseCaseTests(TestCase):
     def setUp(self):
         self.video_repo = MagicMock()
         self.vector_gateway = MagicMock()
+        self.task_gateway = MagicMock()
         self.use_case = UpdateVideoUseCase(
             self.video_repo,
             self.vector_gateway,
+            self.task_gateway,
             _FakeTransactionPort(),
         )
 
@@ -80,6 +82,7 @@ class UpdateVideoUseCaseTests(TestCase):
         )
 
         self.vector_gateway.update_video_title.assert_not_called()
+        self.task_gateway.enqueue_reindex_transcript.assert_not_called()
 
     def test_vector_sync_failure_is_non_fatal(self):
         before = VideoEntity(id=7, user_id=10, title="old", status="completed")
@@ -96,3 +99,75 @@ class UpdateVideoUseCaseTests(TestCase):
 
         self.assertEqual(result.title, "new")
         self.video_repo.update.assert_called_once()
+
+    def test_enqueues_reindex_when_transcript_changed(self):
+        before = VideoEntity(
+            id=7,
+            user_id=10,
+            title="Video",
+            transcript="old transcript",
+            status="completed",
+        )
+        after = VideoEntity(
+            id=7,
+            user_id=10,
+            title="Video",
+            transcript="new transcript",
+            status="completed",
+        )
+        self.video_repo.get_by_id.return_value = before
+        self.video_repo.update.return_value = after
+
+        result = self.use_case.execute(
+            video_id=7,
+            user_id=10,
+            input=UpdateVideoInput(transcript="new transcript"),
+        )
+
+        self.assertEqual(result.transcript, "new transcript")
+        self.task_gateway.enqueue_reindex_transcript.assert_called_once_with(7)
+
+    def test_enqueues_reindex_when_transcript_cleared(self):
+        before = VideoEntity(
+            id=7,
+            user_id=10,
+            title="Video",
+            transcript="old transcript",
+            status="completed",
+        )
+        after = VideoEntity(
+            id=7,
+            user_id=10,
+            title="Video",
+            transcript="",
+            status="completed",
+        )
+        self.video_repo.get_by_id.return_value = before
+        self.video_repo.update.return_value = after
+
+        self.use_case.execute(
+            video_id=7,
+            user_id=10,
+            input=UpdateVideoInput(transcript=""),
+        )
+
+        self.task_gateway.enqueue_reindex_transcript.assert_called_once_with(7)
+
+    def test_does_not_enqueue_reindex_when_transcript_unchanged(self):
+        video = VideoEntity(
+            id=7,
+            user_id=10,
+            title="Video",
+            transcript="same transcript",
+            status="completed",
+        )
+        self.video_repo.get_by_id.return_value = video
+        self.video_repo.update.return_value = video
+
+        self.use_case.execute(
+            video_id=7,
+            user_id=10,
+            input=UpdateVideoInput(transcript="same transcript"),
+        )
+
+        self.task_gateway.enqueue_reindex_transcript.assert_not_called()

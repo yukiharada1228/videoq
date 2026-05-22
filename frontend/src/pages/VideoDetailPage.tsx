@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link, useI18nNavigate, useLocale } from '@/lib/i18n';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -12,6 +13,7 @@ import { TagCreateDialog } from '@/components/video/TagCreateDialog';
 import { useTags } from '@/hooks/useTags';
 import { useVideoEditing } from '@/hooks/useVideoEditing';
 import { useVideoDetailPageMutations } from '@/hooks/useVideoDetailPageData';
+import { queryKeys } from '@/lib/queryKeys';
 import type { Tag } from '@/lib/api';
 import {
   ArrowLeft, Calendar, CheckCircle, Search, ChevronRight,
@@ -175,8 +177,12 @@ export default function VideoDetailPage() {
   const [manualYoutubeStartSeconds, setManualYoutubeStartSeconds] = useState<number | null>(null);
   const { t } = useTranslation();
   const locale = useLocale();
+  const queryClient = useQueryClient();
 
   const [transcriptSearch, setTranscriptSearch] = useState('');
+  const [isTranscriptEditing, setIsTranscriptEditing] = useState(false);
+  const [editedTranscript, setEditedTranscript] = useState('');
+  const [transcriptSaveError, setTranscriptSaveError] = useState<string | null>(null);
   const [activeSegmentIdx, setActiveSegmentIdx] = useState<number | null>(null);
   const [mobileTab, setMobileTab] = useState<'info' | 'video'>('video');
   const [isMobile, setIsMobile] = useState(false);
@@ -239,6 +245,39 @@ export default function VideoDetailPage() {
 
   const isDeleting = deleteMutation.isPending;
   const isUpdating = updateMutation.isPending;
+
+  const transcriptUpdateMutation = useMutation({
+    mutationFn: async () => {
+      if (!videoId) return;
+      await apiClient.updateVideo(videoId, { transcript: editedTranscript });
+    },
+    onSuccess: async () => {
+      if (videoId) {
+        await queryClient.invalidateQueries({ queryKey: queryKeys.videos.detail(videoId) });
+        await queryClient.invalidateQueries({ queryKey: ['videoGroup'] });
+        await queryClient.invalidateQueries({ queryKey: ['sharedVideoGroup'] });
+        await queryClient.invalidateQueries({ queryKey: ['popularScenes'] });
+      }
+      setIsTranscriptEditing(false);
+      setTranscriptSearch('');
+      setTranscriptSaveError(null);
+    },
+    onError: (err: unknown) => {
+      setTranscriptSaveError(err instanceof Error ? err.message : String(err));
+    },
+  });
+
+  const startTranscriptEditing = () => {
+    setEditedTranscript(video?.transcript ?? '');
+    setTranscriptSaveError(null);
+    setIsTranscriptEditing(true);
+  };
+
+  const cancelTranscriptEditing = () => {
+    setEditedTranscript(video?.transcript ?? '');
+    setTranscriptSaveError(null);
+    setIsTranscriptEditing(false);
+  };
 
   // Transcript parsing
   const transcript = video?.transcript ?? null;
@@ -519,71 +558,125 @@ export default function VideoDetailPage() {
           <div className="flex-1 overflow-hidden flex flex-col p-6 gap-4 bg-[#f2f4ef]/40">
             <div className="flex items-center justify-between gap-4 shrink-0">
               <h2 className="text-base font-bold text-[#191c19] shrink-0">{t('videos.detail.transcriptSection')}</h2>
-              <div className="relative w-full max-w-xs">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6f7a6e] w-3.5 h-3.5" />
-                <input
-                  type="text"
-                  value={transcriptSearch}
-                  onChange={(e) => setTranscriptSearch(e.target.value)}
-                  placeholder={t('videos.detail.transcriptSearchPlaceholder')}
-                  className="w-full pl-9 pr-4 py-2 bg-white border border-[#e1e3de] rounded-xl text-sm focus:ring-2 focus:ring-[#00652c]/20 focus:border-[#00652c] outline-none transition-all shadow-sm"
-                />
+              <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
+                {!isTranscriptEditing && (
+                  <>
+                    <div className="relative w-full max-w-xs">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6f7a6e] w-3.5 h-3.5" />
+                      <input
+                        type="text"
+                        value={transcriptSearch}
+                        onChange={(e) => setTranscriptSearch(e.target.value)}
+                        placeholder={t('videos.detail.transcriptSearchPlaceholder')}
+                        className="w-full pl-9 pr-4 py-2 bg-white border border-[#e1e3de] rounded-xl text-sm focus:ring-2 focus:ring-[#00652c]/20 focus:border-[#00652c] outline-none transition-all shadow-sm"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={startTranscriptEditing}
+                      disabled={!video.transcript}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-[#e1e3de] bg-white px-3 py-2 text-xs font-bold text-[#3f493f] shadow-sm transition-colors hover:bg-[#f8faf5] disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                      {t('videos.detail.editTranscriptButton')}
+                    </button>
+                  </>
+                )}
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto space-y-2 pr-1">
-              {filteredSegments.length > 0 ? (
-                filteredSegments.map((seg, idx) => (
-                  <div
-                    key={idx}
-                    onClick={() => handleSeek(seg.seconds, idx)}
-                    className={`flex gap-4 p-4 rounded-xl cursor-pointer transition-all group ${
-                      activeSegmentIdx === idx
-                        ? 'bg-white border-l-4 border-[#00652c] shadow-sm'
-                        : 'hover:bg-white'
-                    }`}
-                  >
-                    <span className="text-[#00652c] font-mono text-[11px] mt-0.5 shrink-0 bg-[#00652c]/8 px-2.5 py-1 rounded h-fit whitespace-nowrap">
-                      {seg.timestamp}
-                    </span>
-                    <p
-                      className={`text-sm leading-relaxed ${
+            {isTranscriptEditing ? (
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-[#e1e3de] bg-white shadow-sm">
+                <div className="flex shrink-0 flex-col gap-3 border-b border-[#e1e3de] bg-white p-3 lg:flex-row lg:items-center lg:justify-between">
+                  <p className="text-xs text-[#6f7a6e]">{t('videos.detail.transcriptEditHint')}</p>
+                  <div className="flex shrink-0 gap-2">
+                    <button
+                      type="button"
+                      onClick={cancelTranscriptEditing}
+                      disabled={transcriptUpdateMutation.isPending}
+                      className="rounded-xl border border-[#e1e3de] bg-white px-4 py-2 text-sm font-bold text-[#3f493f] transition-colors hover:bg-[#f8faf5] disabled:opacity-50"
+                    >
+                      {t('videos.detail.cancel')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => transcriptUpdateMutation.mutate()}
+                      disabled={transcriptUpdateMutation.isPending}
+                      className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#00652c] px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-[#005323] disabled:opacity-50"
+                    >
+                      {transcriptUpdateMutation.isPending ? <InlineSpinner className="h-3.5 w-3.5" /> : <Save className="h-3.5 w-3.5" />}
+                      {transcriptUpdateMutation.isPending ? t('videos.detail.saving') : t('videos.detail.saveTranscriptButton')}
+                    </button>
+                  </div>
+                </div>
+                {transcriptSaveError && (
+                  <p className="shrink-0 px-3 py-2 text-xs text-red-700 bg-red-50 border-b border-red-200">
+                    {transcriptSaveError}
+                  </p>
+                )}
+                <textarea
+                  value={editedTranscript}
+                  onChange={(event) => setEditedTranscript(event.target.value)}
+                  disabled={transcriptUpdateMutation.isPending}
+                  spellCheck={false}
+                  className="min-h-0 flex-1 resize-none border-0 bg-white p-4 font-mono text-xs leading-relaxed text-[#191c19] outline-none focus:ring-2 focus:ring-inset focus:ring-[#00652c]/20 disabled:opacity-60"
+                />
+              </div>
+            ) : (
+              <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+                {filteredSegments.length > 0 ? (
+                  filteredSegments.map((seg, idx) => (
+                    <div
+                      key={idx}
+                      onClick={() => handleSeek(seg.seconds, idx)}
+                      className={`flex gap-4 p-4 rounded-xl cursor-pointer transition-all group ${
                         activeSegmentIdx === idx
-                          ? 'text-[#191c19] font-medium'
-                          : 'text-[#3f493f] group-hover:text-[#191c19]'
+                          ? 'bg-white border-l-4 border-[#00652c] shadow-sm'
+                          : 'hover:bg-white'
                       }`}
                     >
-                      {seg.text}
+                      <span className="text-[#00652c] font-mono text-[11px] mt-0.5 shrink-0 bg-[#00652c]/8 px-2.5 py-1 rounded h-fit whitespace-nowrap">
+                        {seg.timestamp}
+                      </span>
+                      <p
+                        className={`text-sm leading-relaxed ${
+                          activeSegmentIdx === idx
+                            ? 'text-[#191c19] font-medium'
+                            : 'text-[#3f493f] group-hover:text-[#191c19]'
+                        }`}
+                      >
+                        {seg.text}
+                      </p>
+                    </div>
+                  ))
+                ) : isPlainTextTranscript ? (
+                  <div className="p-4 bg-white rounded-xl">
+                    <p className="text-sm text-[#3f493f] whitespace-pre-wrap leading-relaxed">
+                      {video.transcript}
                     </p>
                   </div>
-                ))
-              ) : isPlainTextTranscript ? (
-                <div className="p-4 bg-white rounded-xl">
-                  <p className="text-sm text-[#3f493f] whitespace-pre-wrap leading-relaxed">
-                    {video.transcript}
-                  </p>
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center py-16 text-[#6f7a6e]">
-                  <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mb-4 shadow-sm">
-                    <Search className="w-8 h-8 text-[#becabc]" />
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-16 text-[#6f7a6e]">
+                    <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mb-4 shadow-sm">
+                      <Search className="w-8 h-8 text-[#becabc]" />
+                    </div>
+                    <p className="text-sm font-medium">
+                      {transcriptSearch
+                        ? t('videos.detail.transcriptNotFound')
+                        : (() => {
+                            const statusMsgs: Record<string, string> = {
+                              pending: t('videos.detail.transcriptStatus.pending'),
+                              processing: t('videos.detail.transcriptStatus.processing'),
+                              indexing: t('videos.detail.transcriptStatus.indexing'),
+                              error: t('videos.detail.transcriptStatus.error'),
+                            };
+                            return statusMsgs[video.status] ?? t('videos.detail.transcriptStatus.unavailable');
+                          })()}
+                    </p>
                   </div>
-                  <p className="text-sm font-medium">
-                    {transcriptSearch
-                      ? t('videos.detail.transcriptNotFound')
-                      : (() => {
-                          const statusMsgs: Record<string, string> = {
-                            pending: t('videos.detail.transcriptStatus.pending'),
-                            processing: t('videos.detail.transcriptStatus.processing'),
-                            indexing: t('videos.detail.transcriptStatus.indexing'),
-                            error: t('videos.detail.transcriptStatus.error'),
-                          };
-                          return statusMsgs[video.status] ?? t('videos.detail.transcriptStatus.unavailable');
-                        })()}
-                  </p>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            )}
           </div>
         </section>
       </main>

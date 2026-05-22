@@ -14,7 +14,9 @@ from rest_framework.request import Request
 
 def _make_drf_request(params):
     """Build a DRF Request with an authenticated user, bypassing auth middleware."""
-    django_request = RequestFactory().get("/chat/history/", params)
+    # group_id is now a URL path param, not a query param
+    query_params = {k: v for k, v in params.items() if k != "group_id"}
+    django_request = RequestFactory().get("/chat/groups/1/history/", query_params)
     drf_request = Request(django_request)
     user = MagicMock()
     user.id = 1
@@ -41,14 +43,16 @@ def _call_get(view_class, use_cases, params):
     for attr, val in use_cases.items():
         setattr(instance, attr, val)
     instance.kwargs = {}
-    return instance.get(_make_drf_request(params))
+    group_id_str = params.get("group_id")
+    group_id = int(group_id_str) if group_id_str is not None else None
+    return instance.get(_make_drf_request(params), group_id=group_id)
 
 
 class ChatHistoryDownloadCsvTests(unittest.TestCase):
     """ChatHistoryView handles ?download=csv to return CSV export."""
 
     def test_download_csv_returns_200(self):
-        from app.presentation.chat.views import ChatHistoryView
+        from app.presentation.chat.views import ChatGroupHistoryView as ChatHistoryView
 
         response = _call_get(
             ChatHistoryView,
@@ -61,7 +65,7 @@ class ChatHistoryDownloadCsvTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
 
     def test_download_csv_content_type_is_text_csv(self):
-        from app.presentation.chat.views import ChatHistoryView
+        from app.presentation.chat.views import ChatGroupHistoryView as ChatHistoryView
 
         response = _call_get(
             ChatHistoryView,
@@ -74,7 +78,7 @@ class ChatHistoryDownloadCsvTests(unittest.TestCase):
         self.assertIn("text/csv", response.get("Content-Type", ""))
 
     def test_download_csv_content_disposition_contains_filename(self):
-        from app.presentation.chat.views import ChatHistoryView
+        from app.presentation.chat.views import ChatGroupHistoryView as ChatHistoryView
 
         response = _call_get(
             ChatHistoryView,
@@ -87,7 +91,7 @@ class ChatHistoryDownloadCsvTests(unittest.TestCase):
         self.assertIn("chat_history_group_42.csv", response.get("Content-Disposition", ""))
 
     def test_download_csv_calls_export_use_case_not_history_use_case(self):
-        from app.presentation.chat.views import ChatHistoryView
+        from app.presentation.chat.views import ChatGroupHistoryView as ChatHistoryView
 
         history_uc = _make_history_use_case()
         export_uc = _make_export_use_case()
@@ -103,7 +107,7 @@ class ChatHistoryDownloadCsvTests(unittest.TestCase):
         history_uc.execute.assert_not_called()
 
     def test_no_download_param_returns_json(self):
-        from app.presentation.chat.views import ChatHistoryView
+        from app.presentation.chat.views import ChatGroupHistoryView as ChatHistoryView
 
         history_uc = _make_history_use_case()
         response = _call_get(
@@ -117,18 +121,19 @@ class ChatHistoryDownloadCsvTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         history_uc.execute.assert_called_once()
 
-    def test_download_csv_missing_group_id_returns_400(self):
-        from app.presentation.chat.views import ChatHistoryView
+    def test_download_csv_with_group_id_calls_export_use_case(self):
+        from app.presentation.chat.views import ChatGroupHistoryView as ChatHistoryView
 
-        response = _call_get(
+        export_uc = _make_export_use_case(group_id=99)
+        _call_get(
             ChatHistoryView,
             {
                 "chat_history_use_case": _make_history_use_case(),
-                "export_history_use_case": _make_export_use_case(),
+                "export_history_use_case": export_uc,
             },
-            {"download": "csv"},
+            {"group_id": "99", "download": "csv"},
         )
-        self.assertEqual(response.status_code, 400)
+        export_uc.execute.assert_called_once_with(group_id=99, user_id=1)
 
 
 class ChatHistoryDownloadCsvDispatchTests(unittest.TestCase):
@@ -136,34 +141,35 @@ class ChatHistoryDownloadCsvDispatchTests(unittest.TestCase):
 
     def _make_view_and_request(self, params):
         from rest_framework.test import APIRequestFactory, force_authenticate
-        from app.presentation.chat.views import ChatHistoryView
+        from app.presentation.chat.views import ChatGroupHistoryView
 
         export_uc = _make_export_use_case()
-        view = ChatHistoryView.as_view(
+        view = ChatGroupHistoryView.as_view(
             chat_history_use_case=_make_history_use_case(),
             export_history_use_case=export_uc,
         )
         factory = APIRequestFactory()
-        req = factory.get("/chat/history/", params, HTTP_ACCEPT="application/json")
+        group_id = int(params.pop("group_id", "1"))
+        req = factory.get(f"/chat/groups/{group_id}/history/", params, HTTP_ACCEPT="application/json")
         user = MagicMock()
         user.id = 1
         user.is_authenticated = True
         force_authenticate(req, user=user)
-        return view, req, export_uc
+        return view, req, export_uc, group_id
 
     def test_dispatch_download_csv_returns_200(self):
-        view, req, _ = self._make_view_and_request({"group_id": "1", "download": "csv"})
-        resp = view(req)
+        view, req, _, group_id = self._make_view_and_request({"group_id": "1", "download": "csv"})
+        resp = view(req, group_id=group_id)
         self.assertEqual(resp.status_code, 200)
 
     def test_dispatch_download_csv_content_type_is_text_csv(self):
-        view, req, _ = self._make_view_and_request({"group_id": "1", "download": "csv"})
-        resp = view(req)
+        view, req, _, group_id = self._make_view_and_request({"group_id": "1", "download": "csv"})
+        resp = view(req, group_id=group_id)
         self.assertIn("text/csv", resp.get("Content-Type", ""))
 
     def test_dispatch_no_download_returns_json(self):
-        view, req, _ = self._make_view_and_request({"group_id": "1"})
-        resp = view(req)
+        view, req, _, group_id = self._make_view_and_request({"group_id": "1"})
+        resp = view(req, group_id=group_id)
         self.assertEqual(resp.status_code, 200)
         self.assertIn("application/json", getattr(resp, "accepted_media_type", ""))
 

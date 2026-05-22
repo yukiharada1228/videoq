@@ -6,7 +6,7 @@ import logging
 
 from app.domain.shared.transaction import TransactionPort
 from app.domain.video.dto import UpdateVideoParams
-from app.domain.video.gateways import VectorStoreGateway
+from app.domain.video.gateways import VideoTaskGateway, VectorStoreGateway
 from app.domain.video.repositories import VideoRepository
 from app.use_cases.video.dto import UpdateVideoInput, VideoResponseDTO
 from app.use_cases.video.exceptions import ResourceNotFound
@@ -21,16 +21,19 @@ class UpdateVideoUseCase:
     1. Retrieve the video
     2. Apply changes
     3. Sync PGVector metadata if the title changed
+    4. Enqueue async transcript reindex if the transcript changed
     """
 
     def __init__(
         self,
         video_repo: VideoRepository,
         vector_gateway: VectorStoreGateway,
+        task_gateway: VideoTaskGateway,
         tx: TransactionPort,
     ):
         self.video_repo = video_repo
         self.vector_gateway = vector_gateway
+        self.task_gateway = task_gateway
         self.tx = tx
 
     def execute(self, video_id: int, user_id: int, input: UpdateVideoInput) -> VideoResponseDTO:
@@ -47,8 +50,14 @@ class UpdateVideoUseCase:
 
         with self.tx.atomic():
             old_title = video.title
-            params = UpdateVideoParams(title=input.title, description=input.description)
+            old_transcript = video.transcript or ""
+            params = UpdateVideoParams(
+                title=input.title,
+                description=input.description,
+                transcript=input.transcript,
+            )
             video = self.video_repo.update(video, params)
+            transcript_changed = input.transcript is not None and input.transcript != old_transcript
 
             if input.title is not None and old_title != video.title:
                 def _sync_vector_title() -> None:
@@ -62,5 +71,8 @@ class UpdateVideoUseCase:
                         )
 
                 self.tx.on_commit(_sync_vector_title)
+
+            if transcript_changed:
+                self.tx.on_commit(lambda: self.task_gateway.enqueue_reindex_transcript(video.id))
 
         return to_video_response_dto(video)

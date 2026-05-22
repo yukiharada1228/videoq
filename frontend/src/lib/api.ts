@@ -3,6 +3,13 @@ const USE_S3_STORAGE = import.meta.env.VITE_USE_S3_STORAGE === 'true';
 
 type RequestBody = BodyInit | object | null | undefined;
 
+interface PaginatedResponse<T> {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+}
+
 /**
  * Structured API error carrying error code and optional params from the backend.
  * Backend format: { error: { code, message, params? } }
@@ -216,6 +223,7 @@ export interface YoutubeVideoCreateRequest {
 export interface VideoUpdateRequest {
   title?: string;
   description?: string;
+  transcript?: string;
 }
 
 export interface VideoGroup {
@@ -575,10 +583,10 @@ class ApiClient {
   }
 
   async verifyEmail(data: VerifyEmailRequest): Promise<VerifyEmailResponse> {
-    return this.request<VerifyEmailResponse>('/auth/email-verifications/', {
-      method: 'POST',
-      body: data,
-    });
+    return this.request<VerifyEmailResponse>(
+      `/auth/email-verifications/${data.uid}/${data.token}/`,
+      { method: 'PATCH' },
+    );
   }
 
   async login(data: LoginRequest): Promise<LoginResponse> {
@@ -601,10 +609,10 @@ class ApiClient {
   }
 
   async confirmPasswordReset(data: PasswordResetConfirmRequest): Promise<void> {
-    const { token, uid, new_password } = data;
-    await this.request(`/auth/password-resets/${token}/`, {
+    const { uid, token, new_password } = data;
+    await this.request(`/auth/password-resets/${uid}/${token}/`, {
       method: 'PATCH',
-      body: { uid, new_password },
+      body: { new_password },
     });
   }
 
@@ -624,7 +632,7 @@ class ApiClient {
     }
 
     const response = await this.executeRequest(url, {
-      method: 'PUT',
+      method: 'POST',
       headers,
       credentials: 'include',
     });
@@ -770,32 +778,33 @@ class ApiClient {
     feedback: 'good' | 'bad' | null,
     shareSlug?: string,
   ): Promise<{ chat_log_id: number; feedback: 'good' | 'bad' | null }> {
-    const endpoint = shareSlug ? `/chat/feedback/?share_slug=${shareSlug}` : '/chat/feedback/';
+    const endpoint = shareSlug
+      ? `/chat/logs/${chatLogId}/feedback/?share_slug=${shareSlug}`
+      : `/chat/logs/${chatLogId}/feedback/`;
 
     return this.request(endpoint, {
-      method: 'POST',
-      body: {
-        chat_log_id: chatLogId,
-        feedback,
-      },
+      method: 'PATCH',
+      body: { feedback },
     });
   }
 
   async getChatHistory(groupId: number): Promise<ChatHistoryItem[]> {
-    return this.request<ChatHistoryItem[]>(`/chat/history/?group_id=${groupId}`);
+    const response = await this.request<PaginatedResponse<ChatHistoryItem>>(`/chat/groups/${groupId}/history/`);
+    return response.results;
   }
 
   async getEvaluationSummary(groupId: number): Promise<EvaluationSummary> {
-    return this.request<EvaluationSummary>(`/evaluation/summary/?group_id=${groupId}`);
+    return this.request<EvaluationSummary>(`/evaluation/groups/${groupId}/summary/`);
   }
 
   async getChatEvaluations(groupId: number, limit = 200): Promise<ChatLogEvaluation[]> {
-    return this.request<ChatLogEvaluation[]>(`/evaluation/logs/?group_id=${groupId}&limit=${limit}`);
+    const response = await this.request<PaginatedResponse<ChatLogEvaluation>>(`/evaluation/groups/${groupId}/logs/?limit=${limit}`);
+    return response.results;
   }
 
 
   async exportChatHistoryCsv(groupId: number): Promise<void> {
-    const url = this.buildUrl(`/chat/history/?group_id=${groupId}&download=csv`);
+    const url = this.buildUrl(`/chat/groups/${groupId}/history/?download=csv`);
 
     const doFetch = async (): Promise<Response> => {
       return fetch(url, {
@@ -852,7 +861,8 @@ class ApiClient {
       ? `?${new URLSearchParams(queryParams).toString()}`
       : '';
 
-    return this.request<VideoList[]>(`/videos/${query}`);
+    const response = await this.request<PaginatedResponse<VideoList>>(`/videos/${query}`);
+    return response.results;
   }
 
   async getVideo(id: number): Promise<Video> {
@@ -866,15 +876,16 @@ class ApiClient {
     title: string;
     description?: string;
   }): Promise<UploadRequestResponse> {
-    return this.request<UploadRequestResponse>('/videos/upload-request/', {
+    return this.request<UploadRequestResponse>('/videos/uploads/', {
       method: 'POST',
       body: data,
     });
   }
 
   async confirmUpload(videoId: number): Promise<Video> {
-    return this.request<Video>(`/videos/${videoId}/upload-complete/`, {
-      method: 'POST',
+    return this.request<Video>(`/videos/${videoId}/`, {
+      method: 'PATCH',
+      body: { status: 'uploaded' },
     });
   }
 
@@ -966,7 +977,8 @@ class ApiClient {
 
   // VideoGroup-related methods
   async getVideoGroups(): Promise<VideoGroupList[]> {
-    return this.request<VideoGroupList[]>('/videos/groups/');
+    const response = await this.request<PaginatedResponse<VideoGroupList>>('/videos/groups/');
+    return response.results;
   }
 
   async getVideoGroup(id: number): Promise<VideoGroup> {
@@ -1031,8 +1043,8 @@ class ApiClient {
     );
   }
 
-  async deleteShareLink(groupId: number): Promise<{ message: string }> {
-    return this.request<{ message: string }>(`/videos/groups/${groupId}/share/`, {
+  async deleteShareLink(groupId: number): Promise<void> {
+    await this.request<void>(`/videos/groups/${groupId}/share/`, {
       method: 'DELETE',
     });
   }
@@ -1112,7 +1124,8 @@ class ApiClient {
 
   // Tag management methods
   async getTags(): Promise<Tag[]> {
-    return this.request<Tag[]>('/videos/tags/');
+    const response = await this.request<PaginatedResponse<Tag>>('/videos/tags/');
+    return response.results;
   }
 
   async getTag(id: number): Promise<TagDetail> {
@@ -1154,7 +1167,7 @@ class ApiClient {
   }
 
   async getChatAnalytics(groupId: number): Promise<ChatAnalytics> {
-    return this.request<ChatAnalytics>(`/chat/analytics/?group_id=${groupId}`);
+    return this.request<ChatAnalytics>(`/chat/groups/${groupId}/analytics/`);
   }
 
 }
