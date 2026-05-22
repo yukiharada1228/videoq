@@ -42,8 +42,8 @@ class GetChatKeywordsUseCase:
         except _DomainGroupContextNotFound:
             raise ResourceNotFound("Group")
 
-        raw = self.chat_repo.get_analytics_raw(group_id)
-        keywords = self.keyword_extractor.extract(raw.questions)
+        questions = self.chat_repo.get_questions_for_group(group_id)
+        keywords = self.keyword_extractor.extract(questions)
 
         return [
             KeywordCountDTO(word=item.word, count=item.count)
