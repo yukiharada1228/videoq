@@ -16,6 +16,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from app.presentation.common.authentication import APIKeyAuthentication, BearerAPIKeyAuthentication, CookieJWTAuthentication
+from app.presentation.common.pagination import StandardLimitOffsetPagination
 from app.use_cases.billing.exceptions import AiAnswersLimitExceeded, OverQuotaError
 from app.use_cases.chat.dto import ChatMessageInput, StreamContentChunk, StreamDoneEvent
 from app.presentation.common.mixins import DependencyResolverMixin
@@ -158,8 +159,8 @@ class ChatView(DependencyResolverMixin, APIView):
         return Response(response_data)
 
 
-class ChatFeedbackView(DependencyResolverMixin, APIView):
-    """Submit feedback for a chat log entry."""
+class ChatLogFeedbackView(DependencyResolverMixin, APIView):
+    """Submit feedback for a chat log entry (log_id comes from URL path)."""
 
     authentication_classes = [
         APIKeyAuthentication,
@@ -174,24 +175,18 @@ class ChatFeedbackView(DependencyResolverMixin, APIView):
         request=ChatFeedbackRequestSerializer,
         responses={200: ChatFeedbackResponseSerializer},
         summary="Submit chat feedback",
-        description="Submit feedback (good/bad) for a chat log.",
+        description="Submit feedback (good/bad) for a chat log. log_id comes from URL path.",
     )
-    def post(self, request):
+    def patch(self, request, log_id):
         share_slug = _get_share_slug(request)
-        chat_log_id = request.data.get("chat_log_id")
         feedback = request.data.get("feedback")
-
-        if chat_log_id is None:
-            return create_error_response(
-                "chat_log_id not specified", status.HTTP_400_BAD_REQUEST
-            )
         if feedback == "":
             feedback = None
 
         use_case = self.resolve_dependency(self.submit_feedback_use_case)
         try:
             log = use_case.execute(
-                chat_log_id=chat_log_id,
+                chat_log_id=log_id,
                 feedback=feedback,
                 user_id=getattr(request.user, "id", None),
                 share_token=share_slug,
@@ -206,8 +201,8 @@ class ChatFeedbackView(DependencyResolverMixin, APIView):
         return Response({"chat_log_id": log.id, "feedback": log.feedback})
 
 
-class ChatHistoryView(DependencyResolverMixin, APIView):
-    """Get conversation history for a group (owner only).
+class ChatGroupHistoryView(DependencyResolverMixin, APIView):
+    """Get/delete conversation history for a group (group_id in URL path).
 
     Pass ?download=csv to download history as a CSV file.
     """
@@ -217,10 +212,10 @@ class ChatHistoryView(DependencyResolverMixin, APIView):
     serializer_class = ChatLogSerializer
     chat_history_use_case = None
     export_history_use_case = None
+    reset_history_use_case = None
 
     @extend_schema(
         parameters=[
-            OpenApiParameter("group_id", int, required=False),
             OpenApiParameter("download", str, required=False, description="Pass 'csv' to download as a CSV file."),
         ],
         responses={
@@ -232,22 +227,15 @@ class ChatHistoryView(DependencyResolverMixin, APIView):
         summary="Get chat history",
         description=(
             "Return chat history for a group. "
-            "Pass ?download=csv to download as a CSV file. "
-            "Empty list is returned when group_id is omitted."
+            "Pass ?download=csv to download as a CSV file."
         ),
     )
-    def get(self, request, *args, **kwargs):
-        group_id = request.query_params.get("group_id")
-
+    def get(self, request, group_id, *args, **kwargs):
         if request.query_params.get("download") == "csv":
-            if not group_id:
-                return create_error_response(
-                    "Group ID not specified", status.HTTP_400_BAD_REQUEST
-                )
             use_case = self.resolve_dependency(self.export_history_use_case)
             try:
                 resolved_group_id, rows = use_case.execute(
-                    group_id=int(group_id), user_id=request.user.id
+                    group_id=group_id, user_id=request.user.id
                 )
             except ResourceNotFound as e:
                 return create_error_response(str(e), status.HTTP_404_NOT_FOUND)
@@ -259,23 +247,37 @@ class ChatHistoryView(DependencyResolverMixin, APIView):
             write_chat_history_csv(csv.writer(http_response), rows)
             return http_response
 
-        if not group_id:
-            return Response([])
-
         use_case = self.resolve_dependency(self.chat_history_use_case)
         try:
             logs = use_case.execute(
-                group_id=int(group_id),
+                group_id=group_id,
                 user_id=request.user.id,
                 ascending=False,
             )
         except ResourceNotFound as e:
             return create_error_response(str(e), status.HTTP_404_NOT_FOUND)
-        return Response(ChatLogSerializer(logs, many=True).data)
+        data = ChatLogSerializer(logs, many=True).data
+        paginator = StandardLimitOffsetPagination()
+        page = paginator.paginate_queryset(data, request)
+        return paginator.get_paginated_response(page)
+
+    @extend_schema(
+        responses={204: None},
+        summary="Reset chat history",
+        description="Delete all chat logs for a group (owner only). Returns 204 No Content.",
+    )
+    def delete(self, request, group_id, *args, **kwargs):
+        use_case = self.resolve_dependency(self.reset_history_use_case)
+        try:
+            use_case.execute(group_id=group_id, user_id=request.user.id)
+        except ResourceNotFound as e:
+            return create_error_response(str(e), status.HTTP_404_NOT_FOUND)
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class ChatAnalyticsView(DependencyResolverMixin, APIView):
-    """Analytics dashboard data for a chat group."""
+class ChatGroupAnalyticsView(DependencyResolverMixin, APIView):
+    """Analytics dashboard data for a chat group (group_id in URL path)."""
 
     authentication_classes = [APIKeyAuthentication, CookieJWTAuthentication]
     permission_classes = [IsAuthenticated, ApiKeyScopePermission]
@@ -286,14 +288,10 @@ class ChatAnalyticsView(DependencyResolverMixin, APIView):
         summary="Get chat analytics",
         description="Return analytics dashboard data for a chat group.",
     )
-    def get(self, request):
-        group_id = request.query_params.get("group_id")
-        if not group_id:
-            return create_error_response("Group ID not specified", status.HTTP_400_BAD_REQUEST)
-
+    def get(self, request, group_id):
         use_case = self.resolve_dependency(self.chat_analytics_use_case)
         try:
-            dto = use_case.execute(group_id=int(group_id), user_id=request.user.id)
+            dto = use_case.execute(group_id=group_id, user_id=request.user.id)
         except ResourceNotFound as e:
             return create_error_response(str(e), status.HTTP_404_NOT_FOUND)
 

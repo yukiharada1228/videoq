@@ -83,6 +83,13 @@ urlpatterns = [
         name="auth-email-verifications",
     ),
     path(
+        "email-verifications/<str:uidb64>/<str:token>/",
+        EmailVerificationView.as_view(
+            verify_email_use_case=auth_dependencies.get_verify_email_use_case
+        ),
+        name="auth-email-verifications-confirm",
+    ),
+    path(
         "password-resets/",
         PasswordResetRequestView.as_view(
             request_password_reset_use_case=(
@@ -92,7 +99,7 @@ urlpatterns = [
         name="auth-password-resets",
     ),
     path(
-        "password-resets/<str:token>/",
+        "password-resets/<str:uidb64>/<str:token>/",
         PasswordResetConfirmView.as_view(
             confirm_password_reset_use_case=(
                 auth_dependencies.get_confirm_password_reset_use_case

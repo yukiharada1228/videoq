@@ -66,6 +66,7 @@ class UpdateVideoParams:
 
     title: Optional[str] = None
     description: Optional[str] = None
+    transcript: Optional[str] = None
 
 
 @dataclass(frozen=True)

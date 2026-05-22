@@ -12,6 +12,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from app.presentation.common.pagination import StandardLimitOffsetPagination
 from app.presentation.common.responses import create_error_response
 from app.presentation.common.throttles import ShareTokenIPThrottle
 from app.use_cases.billing.exceptions import StorageLimitExceeded
@@ -127,9 +128,10 @@ class VideoListView(DependencyResolverMixin, AuthenticatedViewMixin, generics.Ge
             input=input_dto,
         )
         ctx = {"request": request}
-        return Response(
-            VideoListSerializer(videos, many=True, context=ctx).data
-        )
+        data = VideoListSerializer(videos, many=True, context=ctx).data
+        paginator = StandardLimitOffsetPagination()
+        page = paginator.paginate_queryset(data, request)
+        return paginator.get_paginated_response(page)
 
     @extend_schema(
         request=VideoCreateSerializer,
@@ -208,6 +210,7 @@ class VideoDetailView(DependencyResolverMixin, AuthenticatedViewMixin, APIView):
     video_detail_use_case = None
     update_video_use_case = None
     delete_video_use_case = None
+    confirm_video_upload_use_case = None
 
     def _get_video(self, pk, user_id):
         use_case = self.resolve_dependency(self.video_detail_use_case)
@@ -229,9 +232,24 @@ class VideoDetailView(DependencyResolverMixin, AuthenticatedViewMixin, APIView):
         request=VideoUpdateSerializer,
         responses={200: VideoSerializer},
         summary="Update video",
-        description="Update a video and return the updated video resource.",
+        description=(
+            "Update a video. Pass {'status': 'uploaded'} to confirm a presigned-URL upload "
+            "(replaces POST /upload-complete/). Otherwise updates title/description."
+        ),
     )
     def patch(self, request, pk):
+        # Handle upload confirmation: {"status": "uploaded"} in body
+        if request.data.get("status") == "uploaded":
+            use_case = self.resolve_dependency(self.confirm_video_upload_use_case)
+            try:
+                video = use_case.execute(pk, request.user.id)
+            except ResourceNotFound:
+                return create_error_response("Video not found", status.HTTP_404_NOT_FOUND)
+            except InvalidUploadState as e:
+                return create_error_response(str(e), status.HTTP_400_BAD_REQUEST)
+            ctx = {"request": request}
+            return Response(VideoSerializer(video, context=ctx).data)
+
         video = self._get_video(pk, request.user.id)
         if video is None:
             return create_error_response("Video not found", status.HTTP_404_NOT_FOUND)
@@ -245,6 +263,7 @@ class VideoDetailView(DependencyResolverMixin, AuthenticatedViewMixin, APIView):
             input_dto = UpdateVideoInput(
                 title=data.get("title"),
                 description=data.get("description"),
+                transcript=data.get("transcript"),
             )
             updated = use_case.execute(pk, request.user.id, input_dto)
         except ResourceNotFound:
@@ -343,29 +362,6 @@ class VideoUploadRequestView(DependencyResolverMixin, AuthenticatedViewMixin, ge
         )
 
 
-class VideoUploadConfirmView(DependencyResolverMixin, AuthenticatedViewMixin, APIView):
-    """Confirm that a presigned-URL upload has completed."""
-
-    confirm_video_upload_use_case = None
-
-    @extend_schema(
-        responses={200: VideoSerializer},
-        summary="Confirm video upload",
-        description="Transition video from uploading to pending and dispatch transcription.",
-    )
-    def post(self, request, pk):
-        use_case = self.resolve_dependency(self.confirm_video_upload_use_case)
-        try:
-            video = use_case.execute(pk, request.user.id)
-        except ResourceNotFound:
-            return create_error_response("Video not found", status.HTTP_404_NOT_FOUND)
-        except InvalidUploadState as e:
-            return create_error_response(str(e), status.HTTP_400_BAD_REQUEST)
-
-        ctx = {"request": request}
-        return Response(VideoSerializer(video, context=ctx).data)
-
-
 # ---------------------------------------------------------------------------
 # Video group views
 # ---------------------------------------------------------------------------
@@ -386,7 +382,10 @@ class VideoGroupListView(DependencyResolverMixin, AuthenticatedViewMixin, generi
     def get(self, request, *args, **kwargs):
         use_case = self.resolve_dependency(self.list_groups_use_case)
         groups = use_case.execute(user_id=request.user.id, include_videos=False)
-        return Response(VideoGroupListSerializer(groups, many=True).data)
+        data = VideoGroupListSerializer(groups, many=True).data
+        paginator = StandardLimitOffsetPagination()
+        page = paginator.paginate_queryset(data, request)
+        return paginator.get_paginated_response(page)
 
     @extend_schema(
         request=VideoGroupCreateSerializer,
@@ -519,9 +518,9 @@ class AddVideoToGroupView(DependencyResolverMixin, AuthenticatedViewMixin, APIVi
         )
 
     @extend_schema(
-        responses={200: VideoActionMessageResponseSerializer},
+        responses={204: None},
         summary="Remove video from group",
-        description="Remove a video from a group.",
+        description="Remove a video from a group. Returns 204 No Content.",
     )
     def delete(self, request, group_id, video_id):
         use_case = self.resolve_dependency(self.remove_video_from_group_use_case)
@@ -534,7 +533,7 @@ class AddVideoToGroupView(DependencyResolverMixin, AuthenticatedViewMixin, APIVi
                 "This video is not added to the group", status.HTTP_404_NOT_FOUND
             )
 
-        return Response({"message": "Video removed from group"}, status=status.HTTP_200_OK)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 @extend_schema(
@@ -569,30 +568,6 @@ def add_videos_to_group(
         },
         status=status.HTTP_201_CREATED,
     )
-
-
-@extend_schema(
-    responses={200: VideoActionMessageResponseSerializer},
-    summary="Remove video from group",
-    description="Remove a video from a group.",
-)
-@authenticated_view_with_error_handling(["DELETE"])
-def remove_video_from_group(
-    request,
-    group_id,
-    video_id,
-    remove_video_from_group_use_case,
-):
-    """Remove video from group."""
-    use_case = DependencyResolverMixin.resolve_dependency(remove_video_from_group_use_case)
-    try:
-        use_case.execute(group_id, video_id, request.user.id)
-    except ResourceNotFound as e:
-        return create_error_response(_not_found_message(e), status.HTTP_404_NOT_FOUND)
-    except VideoNotInGroup:
-        return create_error_response("This video is not added to the group", status.HTTP_404_NOT_FOUND)
-
-    return Response({"message": "Video removed from group"}, status=status.HTTP_200_OK)
 
 
 @extend_schema(
@@ -664,9 +639,9 @@ class CreateShareLinkView(DependencyResolverMixin, AuthenticatedViewMixin, APIVi
         )
 
     @extend_schema(
-        responses={200: VideoActionMessageResponseSerializer},
+        responses={204: None},
         summary="Delete share link",
-        description="Disable the current share link for a group.",
+        description="Disable the current share link for a group. Returns 204 No Content.",
     )
     def delete(self, request, group_id):
         use_case = self.resolve_dependency(self.delete_share_link_use_case)
@@ -678,7 +653,7 @@ class CreateShareLinkView(DependencyResolverMixin, AuthenticatedViewMixin, APIVi
             logger.exception("Unhandled exception in CreateShareLinkView.delete")
             return create_error_response("", status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        return Response({"message": "Share link disabled"}, status=status.HTTP_200_OK)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 @extend_schema(
@@ -726,7 +701,10 @@ class TagListView(DependencyResolverMixin, AuthenticatedViewMixin, generics.Gene
     def get(self, request, *args, **kwargs):
         use_case = self.resolve_dependency(self.list_tags_use_case)
         tags = use_case.execute(user_id=request.user.id)
-        return Response(TagListSerializer(tags, many=True).data)
+        data = TagListSerializer(tags, many=True).data
+        paginator = StandardLimitOffsetPagination()
+        page = paginator.paginate_queryset(data, request)
+        return paginator.get_paginated_response(page)
 
     @extend_schema(
         request=TagCreateSerializer,

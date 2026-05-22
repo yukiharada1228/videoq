@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import VideoDetailPage from '../VideoDetailPage'
-import { apiClient } from '@/lib/api'
+import { apiClient, ApiError } from '@/lib/api'
 
 const mockVideo = {
   id: 1,
@@ -42,16 +42,20 @@ vi.mock('@/hooks/useTags', () => ({
   }),
 }))
 
-vi.mock('@/lib/api', () => ({
-  apiClient: {
-    getMe: vi.fn(() => Promise.resolve({ id: '1', username: 'testuser', email: 'test@example.com' })),
-    updateVideo: vi.fn(),
-    deleteVideo: vi.fn(),
-    getVideoUrl: vi.fn((url) => url),
-    addTagsToVideo: vi.fn(),
-    removeTagFromVideo: vi.fn(),
-  },
-}))
+vi.mock('@/lib/api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/api')>()
+  return {
+    ...actual,
+    apiClient: {
+      getMe: vi.fn(() => Promise.resolve({ id: '1', username: 'testuser', email: 'test@example.com' })),
+      updateVideo: vi.fn(),
+      deleteVideo: vi.fn(),
+      getVideoUrl: vi.fn((url: string) => url),
+      addTagsToVideo: vi.fn(),
+      removeTagFromVideo: vi.fn(),
+    },
+  }
+})
 
 describe('VideoDetailPage', () => {
   beforeEach(() => {
@@ -122,6 +126,66 @@ describe('VideoDetailPage', () => {
   })
 
 
+})
+
+describe('VideoDetailPage - Transcript save error', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('should show error message when transcript save returns API error', async () => {
+    ;(apiClient.updateVideo as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new ApiError('Transcript must be in valid SRT format.', 'INVALID_SRT_FORMAT'),
+    )
+
+    render(<VideoDetailPage />)
+
+    fireEvent.click(screen.getByText('videos.detail.editTranscriptButton'))
+    fireEvent.click(screen.getByText('videos.detail.saveTranscriptButton'))
+
+    await waitFor(() => {
+      expect(screen.getByText('Transcript must be in valid SRT format.')).toBeInTheDocument()
+    })
+  })
+
+  it('should clear error message when transcript editing is cancelled', async () => {
+    ;(apiClient.updateVideo as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new ApiError('Transcript must be in valid SRT format.', 'INVALID_SRT_FORMAT'),
+    )
+
+    render(<VideoDetailPage />)
+
+    fireEvent.click(screen.getByText('videos.detail.editTranscriptButton'))
+    fireEvent.click(screen.getByText('videos.detail.saveTranscriptButton'))
+
+    await waitFor(() => {
+      expect(screen.getByText('Transcript must be in valid SRT format.')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByText('videos.detail.cancel'))
+
+    expect(screen.queryByText('Transcript must be in valid SRT format.')).not.toBeInTheDocument()
+  })
+
+  it('should clear error message when transcript editing is restarted', async () => {
+    ;(apiClient.updateVideo as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new ApiError('Transcript must be in valid SRT format.', 'INVALID_SRT_FORMAT'),
+    )
+
+    render(<VideoDetailPage />)
+
+    fireEvent.click(screen.getByText('videos.detail.editTranscriptButton'))
+    fireEvent.click(screen.getByText('videos.detail.saveTranscriptButton'))
+
+    await waitFor(() => {
+      expect(screen.getByText('Transcript must be in valid SRT format.')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByText('videos.detail.cancel'))
+    fireEvent.click(screen.getByText('videos.detail.editTranscriptButton'))
+
+    expect(screen.queryByText('Transcript must be in valid SRT format.')).not.toBeInTheDocument()
+  })
 })
 
 describe('VideoDetailPage - Delete', () => {

@@ -4,13 +4,13 @@ from .views import EvaluationLogsView, EvaluationSummaryView
 
 urlpatterns = [
     path(
-        "summary/",
+        "groups/<int:group_id>/summary/",
         EvaluationSummaryView.as_view(),
-        name="evaluation-summary",
+        name="evaluation-group-summary",
     ),
     path(
-        "logs/",
+        "groups/<int:group_id>/logs/",
         EvaluationLogsView.as_view(),
-        name="evaluation-logs",
+        name="evaluation-group-logs",
     ),
 ]

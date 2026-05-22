@@ -274,6 +274,77 @@ class ChatViewTests(APITestCase):
         self.assertEqual(response.data["citations"][0]["video_id"], self.video.id)
 
 
+class ChatHistoryDeleteViewTests(APITestCase):
+    """Tests for GET/DELETE /api/chat/groups/{group_id}/history/ (ChatGroupHistoryView)."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="history_user",
+            email="history@example.com",
+            password="testpass123",
+        )
+        self.other_user = User.objects.create_user(
+            username="other_user",
+            email="other@example.com",
+            password="testpass123",
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+
+        self.group = VideoGroup.objects.create(
+            user=self.user,
+            name="Test Group",
+            description="Test",
+            share_slug=secrets.token_urlsafe(32),
+        )
+
+    def _url(self, group_id=None):
+        gid = group_id if group_id is not None else self.group.id
+        return reverse("chat-group-history", kwargs={"group_id": gid})
+
+    def _create_chat_log(self, group=None):
+        return ChatLog.objects.create(
+            user=self.user,
+            group=group or self.group,
+            question="Q",
+            answer="A",
+            citations=[],
+            retrieved_contexts=[],
+        )
+
+    def test_delete_resets_chat_history_and_returns_204(self):
+        self._create_chat_log()
+        self._create_chat_log()
+        response = self.client.delete(self._url())
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(ChatLog.objects.filter(group=self.group).count(), 0)
+
+    def test_delete_nonexistent_group_returns_404(self):
+        response = self.client.delete(self._url(99999))
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_delete_other_users_group_returns_404(self):
+        other_group = VideoGroup.objects.create(
+            user=self.other_user,
+            name="Other Group",
+            share_slug=secrets.token_urlsafe(32),
+        )
+        response = self.client.delete(self._url(other_group.id))
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_get_after_delete_returns_empty_list(self):
+        self._create_chat_log()
+        self.client.delete(self._url())
+        response = self.client.get(self._url())
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["results"], [])
+
+    def test_delete_unauthenticated_returns_401(self):
+        client = APIClient()
+        response = client.delete(self._url())
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
 class OpenAIChatCompletionsViewTests(APITestCase):
     """Regression tests for OpenAIChatCompletionsView limit exception handling."""
 
@@ -314,3 +385,49 @@ class OpenAIChatCompletionsViewTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("error", response.data)
         self.assertEqual(response.data["error"]["type"], "insufficient_quota")
+
+
+class ChatHistoryPaginationTests(APITestCase):
+    """Tests for pagination on ChatGroupHistoryView."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="pagtest_chat",
+            email="pagtest_chat@example.com",
+            password="testpass",
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+        self.group = VideoGroup.objects.create(
+            user=self.user, name="Test Group", share_slug=secrets.token_urlsafe(16)
+        )
+        for i in range(5):
+            ChatLog.objects.create(
+                user=self.user,
+                group=self.group,
+                question=f"Q{i}",
+                answer=f"A{i}",
+                citations=[],
+                retrieved_contexts=[],
+            )
+
+    def _url(self):
+        return reverse("chat-group-history", kwargs={"group_id": self.group.id})
+
+    def test_response_has_pagination_envelope(self):
+        response = self.client.get(self._url())
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("count", response.data)
+        self.assertIn("results", response.data)
+        self.assertIn("next", response.data)
+        self.assertIn("previous", response.data)
+
+    def test_count_reflects_total(self):
+        response = self.client.get(self._url())
+        self.assertEqual(response.data["count"], 5)
+
+    def test_limit_reduces_results(self):
+        response = self.client.get(self._url(), {"limit": 2})
+        self.assertEqual(response.data["count"], 5)
+        self.assertEqual(len(response.data["results"]), 2)
+        self.assertIsNotNone(response.data["next"])

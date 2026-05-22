@@ -67,6 +67,11 @@ class ChatRepository(ABC):
         """
         ...
 
+    @abstractmethod
+    def delete_logs_for_group(self, group_id: int) -> None:
+        """Delete all chat logs for the given group."""
+        ...
+
 
 class VideoGroupQueryRepository(ABC):
     """Abstract interface for fetching video groups in chat contexts."""

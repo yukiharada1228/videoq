@@ -3,9 +3,9 @@ from django.urls import path
 from app.dependencies import chat as chat_dependencies
 
 from .views import (
-    ChatAnalyticsView,
-    ChatFeedbackView,
-    ChatHistoryView,
+    ChatGroupAnalyticsView,
+    ChatGroupHistoryView,
+    ChatLogFeedbackView,
     ChatView,
     StreamChatView,
 )
@@ -22,25 +22,26 @@ urlpatterns = [
         name="chat-messages-stream",
     ),
     path(
-        "history/",
-        ChatHistoryView.as_view(
+        "groups/<int:group_id>/history/",
+        ChatGroupHistoryView.as_view(
             chat_history_use_case=chat_dependencies.get_chat_history_use_case,
             export_history_use_case=chat_dependencies.get_export_history_use_case,
+            reset_history_use_case=chat_dependencies.get_reset_history_use_case,
         ),
-        name="chat-history",
+        name="chat-group-history",
     ),
     path(
-        "feedback/",
-        ChatFeedbackView.as_view(
+        "logs/<int:log_id>/feedback/",
+        ChatLogFeedbackView.as_view(
             submit_feedback_use_case=chat_dependencies.get_submit_feedback_use_case
         ),
-        name="chat-feedback",
+        name="chat-log-feedback",
     ),
     path(
-        "analytics/",
-        ChatAnalyticsView.as_view(
+        "groups/<int:group_id>/analytics/",
+        ChatGroupAnalyticsView.as_view(
             chat_analytics_use_case=chat_dependencies.get_chat_analytics_use_case
         ),
-        name="chat-analytics",
+        name="chat-group-analytics",
     ),
 ]
