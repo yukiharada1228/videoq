@@ -432,6 +432,25 @@ class VideoDetailViewTests(APITestCase):
         self.assertEqual(self.video.description, "Updated Description")
         self.assertEqual(self.video.title, "Original Title")
 
+    @patch("app.infrastructure.external.vector_gateway.delete_video_vectors")
+    @patch("app.infrastructure.external.scene_indexer.index_scenes_batch")
+    def test_update_video_transcript_reindexes_pgvector(self, mock_index, mock_delete):
+        """Test that updating video transcript refreshes PGVector contents."""
+        self.video.transcript = "old transcript"
+        self.video.save(update_fields=["transcript"])
+        url = reverse("video-detail", kwargs={"pk": self.video.pk})
+        data = {"transcript": "new transcript"}
+
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.patch(url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["transcript"], "new transcript")
+        self.video.refresh_from_db()
+        self.assertEqual(self.video.transcript, "new transcript")
+        mock_delete.assert_called_once_with(self.video.id)
+        self.assertEqual(mock_index.call_args.args[0], "new transcript")
+
 
 class TagViewTests(APITestCase):
     """Tests for tag responses and related delete behaviors."""
