@@ -176,23 +176,6 @@ class DjangoChatRepository(ChatRepository):
                 .first()
             )
 
-        raw_rows = list(qs.values("question", "citations"))
-        logs_for_scenes = []
-        for row in raw_rows:
-            refs = [
-                SceneReference(
-                    video_id=rv.get("video_id"),
-                    title=rv.get("title", ""),
-                    start_time=rv.get("start_time"),
-                    end_time=rv.get("end_time"),
-                )
-                for rv in (row["citations"] or [])
-                if rv.get("video_id") and rv.get("start_time")
-            ]
-            logs_for_scenes.append(
-                ChatSceneLog(question=row["question"], citations=refs)
-            )
-
         time_series_qs = (
             qs.annotate(date=TruncDate("created_at"))
             .values("date")
@@ -224,7 +207,6 @@ class DjangoChatRepository(ChatRepository):
             total=total,
             first_date=first_date,
             last_date=last_date,
-            logs_for_scenes=logs_for_scenes,
             time_series=time_series,
             feedback=feedback,
         )

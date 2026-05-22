@@ -87,14 +87,6 @@ class ChatAnalyticsSummarySerializer(serializers.Serializer):
     date_range = serializers.DictField(child=serializers.CharField(allow_null=True))
 
 
-class ChatAnalyticsSceneSerializer(serializers.Serializer):
-    video_id = serializers.IntegerField()
-    title = serializers.CharField()
-    start_time = serializers.CharField()
-    end_time = serializers.CharField()
-    question_count = serializers.IntegerField()
-
-
 class ChatAnalyticsTimeSeriesSerializer(serializers.Serializer):
     date = serializers.CharField()
     count = serializers.IntegerField()
@@ -113,7 +105,6 @@ class ChatAnalyticsKeywordSerializer(serializers.Serializer):
 
 class ChatAnalyticsResponseSerializer(serializers.Serializer):
     summary = ChatAnalyticsSummarySerializer()
-    scene_distribution = ChatAnalyticsSceneSerializer(many=True)
     time_series = ChatAnalyticsTimeSeriesSerializer(many=True)
     feedback = ChatAnalyticsFeedbackSerializer()
 

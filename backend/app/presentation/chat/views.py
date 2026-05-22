@@ -304,16 +304,6 @@ class ChatGroupAnalyticsView(DependencyResolverMixin, APIView):
                     "last": dto.date_range.last,
                 },
             },
-            "scene_distribution": [
-                {
-                    "video_id": s.video_id,
-                    "title": s.title,
-                    "start_time": s.start_time,
-                    "end_time": s.end_time,
-                    "question_count": s.question_count,
-                }
-                for s in dto.scene_distribution
-            ],
             "time_series": [
                 {"date": item.date, "count": item.count}
                 for item in dto.time_series
