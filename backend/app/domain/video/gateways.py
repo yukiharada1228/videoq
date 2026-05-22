@@ -39,6 +39,11 @@ class VideoTaskGateway(ABC):
         """Enqueue full re-indexing task and return the created task id."""
         ...
 
+    @abstractmethod
+    def enqueue_reindex_transcript(self, video_id: int) -> None:
+        """Enqueue async transcript reindex (delete old vectors + re-index) for a single video."""
+        ...
+
 
 class VectorIndexingGateway(ABC):
     """Abstract interface for vector store indexing operations."""
