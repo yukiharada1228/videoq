@@ -152,6 +152,7 @@ def delete_video_vectors(video_id: int) -> None:
         logger.warning(
             "Failed to delete vectors for video ID %s: %s", video_id, e, exc_info=True
         )
+        raise
 
 
 def update_video_title_in_vectors(video_id: int, new_title: str) -> int:
