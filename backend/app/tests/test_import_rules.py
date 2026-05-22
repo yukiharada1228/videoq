@@ -2,8 +2,8 @@
 CI test: detect forbidden cross-layer imports.
 
 Acceptance criteria:
-  - app/domain/**   : no app.models, django, rest_framework, celery, app.infrastructure, app.use_cases
-  - app/use_cases/**: no app.models, django, rest_framework, app.infrastructure
+  - app/domain/**   : no framework imports or outer app-layer imports
+  - app/use_cases/**: no framework imports or outer app-layer imports
   - app/presentation/**: no app.models, no app.infrastructure.*
   - app/dependencies/**: no app.models, django, rest_framework, app.infrastructure
   - app/composition_root/**: no app.models, django, rest_framework, app.presentation
@@ -34,6 +34,40 @@ LAYER_ROOTS = {
     "tests",
     "migrations",
 }
+
+# Domain and use-case code must keep running as plain Python when Django, DRF,
+# or task-worker adapters are replaced.
+CORE_FRAMEWORK_IMPORTS = [
+    "celery",
+    "django",
+    "drf_spectacular",
+    "rest_framework",
+    "rest_framework_simplejwt",
+]
+CORE_OUTER_APP_IMPORTS = [
+    "app.admin",
+    "app.apps",
+    "app.celery_config",
+    "app.composition_root",
+    "app.contracts",
+    "app.dependencies",
+    "app.entrypoints",
+    "app.infrastructure",
+    "app.presentation",
+    "app.urls",
+    "videoq",
+]
+DOMAIN_FORBIDDEN_IMPORTS = [
+    "app.models",
+    "app.use_cases",
+    *CORE_FRAMEWORK_IMPORTS,
+    *CORE_OUTER_APP_IMPORTS,
+]
+USE_CASE_FORBIDDEN_IMPORTS = [
+    "app.models",
+    *CORE_FRAMEWORK_IMPORTS,
+    *CORE_OUTER_APP_IMPORTS,
+]
 
 # Service locator is prohibited in framework entrypoints.
 # Keep this allowlist empty by default; if temporary exceptions are needed,
@@ -361,19 +395,26 @@ class ImportRulesTest(unittest.TestCase):
             ),
         )
 
-    def test_domain_has_no_forbidden_imports(self):
-        """domain layer must not import from app.models, django, rest_framework, celery, app.infrastructure, or app.use_cases."""
-        self._check(
-            "domain",
-            [
-                "app.models",
-                "django",
-                "rest_framework",
-                "celery",
-                "app.infrastructure",
-                "app.use_cases",
-            ],
+    def _check_tests(self, layer_paths, forbidden):
+        all_violations = {}
+        for layer_path in layer_paths:
+            for fp in sorted(self._iter_layer_test_files(layer_path)):
+                rel = os.path.relpath(fp, BASE)
+                v = check_forbidden_imports(fp, forbidden)
+                if v:
+                    all_violations[rel] = v
+        self.assertEqual(
+            {},
+            all_violations,
+            "Forbidden imports found in core-layer tests:\n"
+            + "\n".join(
+                f"  {f}: {vs}" for f, vs in all_violations.items()
+            ),
         )
+
+    def test_domain_has_no_forbidden_imports(self):
+        """domain must not import frameworks, use cases, or outer app layers."""
+        self._check("domain", DOMAIN_FORBIDDEN_IMPORTS)
 
     def test_layer_scan_counts_are_non_zero(self):
         counts = {
@@ -393,8 +434,19 @@ class ImportRulesTest(unittest.TestCase):
             )
 
     def test_use_cases_has_no_forbidden_imports(self):
-        """use_cases layer must not import from app.models, django, rest_framework, or app.infrastructure."""
-        self._check("use_cases", ["app.models", "django", "rest_framework", "app.infrastructure"])
+        """use_cases must not import frameworks or outer app layers."""
+        self._check("use_cases", USE_CASE_FORBIDDEN_IMPORTS)
+
+    def test_core_layer_tests_have_no_framework_or_outer_layer_imports(self):
+        """Core tests stay plain unit tests without framework or adapter wiring."""
+        self._check_tests(
+            ["domain", "use_cases"],
+            [
+                "app.models",
+                *CORE_FRAMEWORK_IMPORTS,
+                *CORE_OUTER_APP_IMPORTS,
+            ],
+        )
 
     def test_core_layers_have_no_dynamic_import_calls(self):
         """Dynamic imports are disallowed in app layers guarded by import rules."""
