@@ -18,3 +18,6 @@ INDEX_VIDEO_TRANSCRIPT_TASK = (
     "app.entrypoints.tasks.indexing.index_video_transcript"
 )
 EVALUATE_CHAT_LOG_TASK = "app.entrypoints.tasks.evaluation.evaluate_chat_log"
+REINDEX_VIDEO_TRANSCRIPT_TASK = (
+    "app.entrypoints.tasks.reindex_video_transcript.reindex_video_transcript"
+)
