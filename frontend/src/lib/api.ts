@@ -134,13 +134,6 @@ export interface ChatAnalytics {
     total_questions: number;
     date_range: { first?: string; last?: string };
   };
-  scene_distribution: {
-    video_id: number;
-    title: string;
-    start_time: string;
-    end_time: string;
-    question_count: number;
-  }[];
   time_series: { date: string; count: number }[];
   feedback: { good: number; bad: number; none: number };
 }

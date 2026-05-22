@@ -207,6 +207,13 @@ class ChatGroupAnalyticsViewTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertNotIn("keywords", response.data)
 
+    def test_get_analytics_does_not_include_scene_distribution(self):
+        """GET /api/chat/groups/{group_id}/analytics/ must NOT return scene_distribution."""
+        url = reverse("chat-group-analytics", kwargs={"group_id": self.group.id})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertNotIn("scene_distribution", response.data)
+
     def test_get_analytics_nonexistent_group_returns_404(self):
         url = reverse("chat-group-analytics", kwargs={"group_id": 99999})
         response = self.client.get(url)
