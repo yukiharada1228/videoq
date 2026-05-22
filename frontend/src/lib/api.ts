@@ -143,6 +143,9 @@ export interface ChatAnalytics {
   }[];
   time_series: { date: string; count: number }[];
   feedback: { good: number; bad: number; none: number };
+}
+
+export interface ChatAnalyticsKeywords {
   keywords: { word: string; count: number }[];
 }
 
@@ -1168,6 +1171,10 @@ class ApiClient {
 
   async getChatAnalytics(groupId: number): Promise<ChatAnalytics> {
     return this.request<ChatAnalytics>(`/chat/groups/${groupId}/analytics/`);
+  }
+
+  async getChatKeywords(groupId: number): Promise<ChatAnalyticsKeywords> {
+    return this.request<ChatAnalyticsKeywords>(`/chat/groups/${groupId}/analytics/keywords/`);
   }
 
 }

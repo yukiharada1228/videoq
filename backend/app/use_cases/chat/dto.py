@@ -95,7 +95,6 @@ class ChatAnalyticsDTO:
     scene_distribution: List[SceneDistributionItemDTO]
     time_series: List["TimeSeriesPointDTO"]
     feedback: "FeedbackSummaryDTO"
-    keywords: List["KeywordCountDTO"]
 
 
 @dataclass(frozen=True)
