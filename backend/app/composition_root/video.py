@@ -106,6 +106,14 @@ def get_update_video_use_case():
     return core.get_update_video_use_case()
 
 
+def get_reindex_video_transcript_use_case():
+    return core.get_reindex_video_transcript_use_case()
+
+
+def reindex_video_transcript(video_id: int) -> None:
+    get_reindex_video_transcript_use_case().execute(video_id)
+
+
 def get_delete_video_use_case():
     return core.get_delete_video_use_case()
 
