@@ -2,7 +2,7 @@
 
 import unittest
 from datetime import datetime
-from typing import List, Optional
+from typing import Optional
 
 from app.domain.chat.entities import ChatAnalyticsRaw, VideoGroupContextEntity
 from app.domain.chat.repositories import ChatRepository, VideoGroupQueryRepository
