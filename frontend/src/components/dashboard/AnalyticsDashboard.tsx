@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import type { ChatAnalytics, EvaluationSummary } from '@/lib/api';
+import type { ChatAnalytics, ChatAnalyticsKeywords, EvaluationSummary } from '@/lib/api';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { DashboardEmptyState } from './DashboardEmptyState';
 import { QuestionTimeSeriesChart } from './QuestionTimeSeriesChart';
@@ -12,6 +12,8 @@ interface AnalyticsDashboardProps {
   evaluationSummary?: EvaluationSummary;
   isLoading: boolean;
   isEvaluationLoading?: boolean;
+  keywordsData?: ChatAnalyticsKeywords;
+  isKeywordsLoading?: boolean;
 }
 
 export function AnalyticsDashboard({
@@ -19,6 +21,8 @@ export function AnalyticsDashboard({
   evaluationSummary,
   isLoading,
   isEvaluationLoading = false,
+  keywordsData,
+  isKeywordsLoading = false,
 }: AnalyticsDashboardProps) {
   const { t } = useTranslation();
 
@@ -66,9 +70,15 @@ export function AnalyticsDashboard({
           />
         </div>
 
-        {data.keywords.length > 0 && (
+        {isKeywordsLoading && (
+          <div className="bg-white border border-gray-200 rounded-lg p-4 flex justify-center items-center" data-testid="keywords-loading">
+            <LoadingSpinner />
+          </div>
+        )}
+
+        {!isKeywordsLoading && keywordsData && keywordsData.keywords.length > 0 && (
           <div className="bg-white border border-gray-200 rounded-lg p-4">
-            <KeywordCloudChart data={data.keywords} />
+            <KeywordCloudChart data={keywordsData.keywords} />
           </div>
         )}
       </div>

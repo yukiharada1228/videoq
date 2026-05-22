@@ -1,6 +1,16 @@
 import { render, screen } from '@testing-library/react'
 import { AnalyticsDashboard } from '../AnalyticsDashboard'
-import type { ChatAnalytics, EvaluationSummary } from '@/lib/api'
+import type { ChatAnalytics, ChatAnalyticsKeywords, EvaluationSummary } from '@/lib/api'
+
+vi.mock('../KeywordCloudChart', () => ({
+  KeywordCloudChart: ({ data }: { data: { word: string; count: number }[] }) => (
+    <div data-testid="keyword-cloud">
+      {data.map((kw) => (
+        <span key={kw.word}>{kw.word}</span>
+      ))}
+    </div>
+  ),
+}))
 
 const analytics: ChatAnalytics = {
   summary: {
@@ -18,7 +28,6 @@ const analytics: ChatAnalytics = {
   ],
   time_series: [],
   feedback: { good: 1, bad: 0, none: 23 },
-  keywords: [],
 }
 
 const evaluationSummary: EvaluationSummary = {
@@ -27,6 +36,13 @@ const evaluationSummary: EvaluationSummary = {
   avg_faithfulness: 0.86,
   avg_answer_relevancy: 0.81,
   avg_context_precision: 0.78,
+}
+
+const keywordsData: ChatAnalyticsKeywords = {
+  keywords: [
+    { word: 'machine learning', count: 5 },
+    { word: 'python', count: 3 },
+  ],
 }
 
 describe('AnalyticsDashboard', () => {
@@ -59,5 +75,54 @@ describe('AnalyticsDashboard', () => {
     )
 
     expect(screen.getByText('dashboard.evaluation.empty')).toBeInTheDocument()
+  })
+
+  it('renders keyword cloud when keywords data is provided', () => {
+    render(
+      <AnalyticsDashboard
+        data={analytics}
+        evaluationSummary={evaluationSummary}
+        isLoading={false}
+        isEvaluationLoading={false}
+        keywordsData={keywordsData}
+        isKeywordsLoading={false}
+      />,
+    )
+
+    expect(screen.getByText('machine learning')).toBeInTheDocument()
+  })
+
+  it('shows keywords loading spinner independently when keywords are loading', () => {
+    render(
+      <AnalyticsDashboard
+        data={analytics}
+        evaluationSummary={evaluationSummary}
+        isLoading={false}
+        isEvaluationLoading={false}
+        isKeywordsLoading={true}
+      />,
+    )
+
+    // Main dashboard content should still be visible
+    expect(screen.getByText(/dashboard\.totalQuestions/)).toBeInTheDocument()
+    // Keywords spinner should appear inside keywords card area
+    expect(screen.getByTestId('keywords-loading')).toBeInTheDocument()
+  })
+
+  it('does not render keywords section when keywords data is undefined and not loading', () => {
+    render(
+      <AnalyticsDashboard
+        data={analytics}
+        evaluationSummary={evaluationSummary}
+        isLoading={false}
+        isEvaluationLoading={false}
+        isKeywordsLoading={false}
+      />,
+    )
+
+    // Main dashboard should be shown regardless
+    expect(screen.getByText(/dashboard\.totalQuestions/)).toBeInTheDocument()
+    // No keyword cloud when data is absent and not loading
+    expect(screen.queryByTestId('keywords-loading')).not.toBeInTheDocument()
   })
 })

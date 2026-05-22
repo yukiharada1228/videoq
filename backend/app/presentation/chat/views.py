@@ -43,6 +43,7 @@ from django.http import HttpResponse, StreamingHttpResponse
 
 from .exporters import write_chat_history_csv
 from .serializers import (
+    ChatAnalyticsKeywordsResponseSerializer,
     ChatAnalyticsResponseSerializer,
     ChatFeedbackRequestSerializer,
     ChatFeedbackResponseSerializer,
@@ -322,9 +323,32 @@ class ChatGroupAnalyticsView(DependencyResolverMixin, APIView):
                 "bad": dto.feedback.bad,
                 "none": dto.feedback.none,
             },
+        })
+
+
+class ChatGroupAnalyticsKeywordsView(DependencyResolverMixin, APIView):
+    """Keyword extraction for a chat group's analytics (group_id in URL path)."""
+
+    authentication_classes = [APIKeyAuthentication, CookieJWTAuthentication]
+    permission_classes = [IsAuthenticated, ApiKeyScopePermission]
+    chat_keywords_use_case = None
+
+    @extend_schema(
+        responses={200: ChatAnalyticsKeywordsResponseSerializer},
+        summary="Get chat analytics keywords",
+        description="Return keyword frequency data for a chat group's questions.",
+    )
+    def get(self, request, group_id):
+        use_case = self.resolve_dependency(self.chat_keywords_use_case)
+        try:
+            keywords = use_case.execute(group_id=group_id, user_id=request.user.id)
+        except ResourceNotFound as e:
+            return create_error_response(str(e), status.HTTP_404_NOT_FOUND)
+
+        return Response({
             "keywords": [
                 {"word": item.word, "count": item.count}
-                for item in dto.keywords
+                for item in keywords
             ],
         })
 
