@@ -68,6 +68,11 @@ class ChatRepository(ABC):
         ...
 
     @abstractmethod
+    def get_questions_for_group(self, group_id: int) -> List[str]:
+        """Return all question strings for a group (used for keyword extraction)."""
+        ...
+
+    @abstractmethod
     def delete_logs_for_group(self, group_id: int) -> None:
         """Delete all chat logs for the given group."""
         ...

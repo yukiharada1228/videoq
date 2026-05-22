@@ -91,4 +91,3 @@ class ChatAnalyticsRaw:
     logs_for_scenes: List[ChatSceneLog]
     time_series: List[TimeSeriesPoint]
     feedback: FeedbackSummary
-    questions: List[str]

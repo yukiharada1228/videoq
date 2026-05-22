@@ -220,8 +220,6 @@ class DjangoChatRepository(ChatRepository):
             none=feedback_counts.get("none", 0) or 0,
         )
 
-        questions = list(qs.values_list("question", flat=True))
-
         return ChatAnalyticsRaw(
             total=total,
             first_date=first_date,
@@ -229,7 +227,11 @@ class DjangoChatRepository(ChatRepository):
             logs_for_scenes=logs_for_scenes,
             time_series=time_series,
             feedback=feedback,
-            questions=questions,
+        )
+
+    def get_questions_for_group(self, group_id: int) -> List[str]:
+        return list(
+            ChatLog.objects.filter(group_id=group_id).values_list("question", flat=True)
         )
 
 
