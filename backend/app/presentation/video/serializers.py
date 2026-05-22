@@ -6,6 +6,7 @@ Business logic (quota enforcement, task dispatch) lives in use cases.
 
 import logging
 import os
+import re
 import tempfile
 
 from django.conf import settings
@@ -357,12 +358,39 @@ class VideoUploadRequestResponseSerializer(serializers.Serializer):
     upload_url = serializers.URLField()
 
 
+_SRT_TIMESTAMP_RE = re.compile(
+    r"^\d{2}:\d{2}:\d{2},\d{3}\s+-->\s+\d{2}:\d{2}:\d{2},\d{3}$"
+)
+
+
 class VideoUpdateSerializer(serializers.Serializer):
     """Serializer for video updates."""
 
     title = serializers.CharField(max_length=255, required=False)
     description = serializers.CharField(required=False, allow_blank=True)
     transcript = serializers.CharField(required=False, allow_blank=True, trim_whitespace=False)
+
+    def validate_transcript(self, value):
+        if not value or not value.strip():
+            return value
+        blocks = [b.strip() for b in value.split("\n\n") if b.strip()]
+        for block in blocks:
+            lines = block.split("\n")
+            if len(lines) < 3:
+                raise serializers.ValidationError(
+                    "Transcript must be in valid SRT format."
+                )
+            try:
+                int(lines[0].strip())
+            except ValueError:
+                raise serializers.ValidationError(
+                    "Transcript must be in valid SRT format."
+                )
+            if not _SRT_TIMESTAMP_RE.match(lines[1].strip()):
+                raise serializers.ValidationError(
+                    "Transcript must be in valid SRT format."
+                )
+        return value
 
 
 class VideoGroupCreateSerializer(serializers.Serializer):

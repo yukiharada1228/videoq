@@ -18,6 +18,7 @@ from app.presentation.video.serializers import (
     TagUpdateSerializer,
     VideoCreateSerializer,
     VideoGroupDetailSerializer,
+    VideoUpdateSerializer,
     YoutubeVideoCreateSerializer,
     VideoSerializer,
 )
@@ -424,6 +425,70 @@ class VideoGroupDetailSerializerTests(TestCase):
 
         self.assertEqual(data["videos"], [])
         self.assertEqual(data["video_count"], 0)
+
+
+class VideoUpdateSerializerTests(TestCase):
+    """Tests for VideoUpdateSerializer — validates SRT format for transcript field."""
+
+    VALID_SRT = (
+        "1\n"
+        "00:00:01,000 --> 00:00:03,000\n"
+        "Hello world\n\n"
+        "2\n"
+        "00:00:04,000 --> 00:00:06,000\n"
+        "Goodbye world"
+    )
+
+    def test_valid_srt_transcript_passes(self):
+        """Valid SRT content is accepted."""
+        serializer = VideoUpdateSerializer(data={"transcript": self.VALID_SRT})
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+
+    def test_blank_transcript_passes(self):
+        """Empty transcript is accepted (field is optional)."""
+        serializer = VideoUpdateSerializer(data={"transcript": ""})
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+
+    def test_missing_transcript_passes(self):
+        """Omitting transcript is accepted (title-only update)."""
+        serializer = VideoUpdateSerializer(data={"title": "New Title"})
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+
+    def test_plain_text_transcript_rejected(self):
+        """Plain text without SRT timestamps is rejected."""
+        serializer = VideoUpdateSerializer(
+            data={"transcript": "This is plain text without SRT format"}
+        )
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("transcript", serializer.errors)
+
+    def test_broken_timestamp_rejected(self):
+        """SRT block with malformed timestamp arrow is rejected."""
+        broken = "1\n00:00:01 -> 00:00:03\nHello world"
+        serializer = VideoUpdateSerializer(data={"transcript": broken})
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("transcript", serializer.errors)
+
+    def test_missing_text_line_rejected(self):
+        """SRT block with index and timestamp but no text line is rejected."""
+        no_text = "1\n00:00:01,000 --> 00:00:03,000"
+        serializer = VideoUpdateSerializer(data={"transcript": no_text})
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("transcript", serializer.errors)
+
+    def test_non_integer_index_rejected(self):
+        """SRT block whose first line is not a sequence number is rejected."""
+        bad_index = "one\n00:00:01,000 --> 00:00:03,000\nHello world"
+        serializer = VideoUpdateSerializer(data={"transcript": bad_index})
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("transcript", serializer.errors)
+
+    def test_dot_separator_timestamp_rejected(self):
+        """WebVTT-style dots in timestamp (00:00:01.000) are rejected."""
+        vtt_style = "1\n00:00:01.000 --> 00:00:03.000\nHello world"
+        serializer = VideoUpdateSerializer(data={"transcript": vtt_style})
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("transcript", serializer.errors)
 
 
 class TagDetailSerializerTests(TestCase):
