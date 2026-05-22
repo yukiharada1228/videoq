@@ -116,4 +116,7 @@ class ChatAnalyticsResponseSerializer(serializers.Serializer):
     scene_distribution = ChatAnalyticsSceneSerializer(many=True)
     time_series = ChatAnalyticsTimeSeriesSerializer(many=True)
     feedback = ChatAnalyticsFeedbackSerializer()
+
+
+class ChatAnalyticsKeywordsResponseSerializer(serializers.Serializer):
     keywords = ChatAnalyticsKeywordSerializer(many=True)
