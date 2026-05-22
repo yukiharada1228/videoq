@@ -182,6 +182,7 @@ export default function VideoDetailPage() {
   const [transcriptSearch, setTranscriptSearch] = useState('');
   const [isTranscriptEditing, setIsTranscriptEditing] = useState(false);
   const [editedTranscript, setEditedTranscript] = useState('');
+  const [transcriptSaveError, setTranscriptSaveError] = useState<string | null>(null);
   const [activeSegmentIdx, setActiveSegmentIdx] = useState<number | null>(null);
   const [mobileTab, setMobileTab] = useState<'info' | 'video'>('video');
   const [isMobile, setIsMobile] = useState(false);
@@ -259,16 +260,22 @@ export default function VideoDetailPage() {
       }
       setIsTranscriptEditing(false);
       setTranscriptSearch('');
+      setTranscriptSaveError(null);
+    },
+    onError: (err: unknown) => {
+      setTranscriptSaveError(err instanceof Error ? err.message : String(err));
     },
   });
 
   const startTranscriptEditing = () => {
     setEditedTranscript(video?.transcript ?? '');
+    setTranscriptSaveError(null);
     setIsTranscriptEditing(true);
   };
 
   const cancelTranscriptEditing = () => {
     setEditedTranscript(video?.transcript ?? '');
+    setTranscriptSaveError(null);
     setIsTranscriptEditing(false);
   };
 
@@ -593,7 +600,7 @@ export default function VideoDetailPage() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => void transcriptUpdateMutation.mutateAsync()}
+                      onClick={() => transcriptUpdateMutation.mutate()}
                       disabled={transcriptUpdateMutation.isPending}
                       className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#00652c] px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-[#005323] disabled:opacity-50"
                     >
@@ -602,6 +609,11 @@ export default function VideoDetailPage() {
                     </button>
                   </div>
                 </div>
+                {transcriptSaveError && (
+                  <p className="shrink-0 px-3 py-2 text-xs text-red-700 bg-red-50 border-b border-red-200">
+                    {transcriptSaveError}
+                  </p>
+                )}
                 <textarea
                   value={editedTranscript}
                   onChange={(event) => setEditedTranscript(event.target.value)}
