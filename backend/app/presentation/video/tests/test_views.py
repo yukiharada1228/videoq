@@ -432,10 +432,9 @@ class VideoDetailViewTests(APITestCase):
         self.assertEqual(self.video.description, "Updated Description")
         self.assertEqual(self.video.title, "Original Title")
 
-    @patch("app.infrastructure.external.vector_gateway.delete_video_vectors")
-    @patch("app.infrastructure.external.scene_indexer.index_scenes_batch")
-    def test_update_video_transcript_reindexes_pgvector(self, mock_index, mock_delete):
-        """Test that updating video transcript refreshes PGVector contents."""
+    @patch("app.infrastructure.tasks.task_gateway.current_app")
+    def test_update_video_transcript_enqueues_reindex_task(self, mock_celery):
+        """Test that updating video transcript enqueues async reindex task."""
         old_srt = "1\n00:00:01,000 --> 00:00:03,000\nold transcript"
         new_srt = "1\n00:00:01,000 --> 00:00:03,000\nnew transcript"
         self.video.transcript = old_srt
@@ -450,8 +449,10 @@ class VideoDetailViewTests(APITestCase):
         self.assertEqual(response.data["transcript"], new_srt)
         self.video.refresh_from_db()
         self.assertEqual(self.video.transcript, new_srt)
-        mock_delete.assert_called_once_with(self.video.id)
-        self.assertEqual(mock_index.call_args.args[0], new_srt)
+        mock_celery.send_task.assert_called_once_with(
+            "app.entrypoints.tasks.reindex_video_transcript.reindex_video_transcript",
+            args=[self.video.id],
+        )
 
     def test_update_video_with_plain_text_transcript_returns_400(self):
         """Submitting plain text as transcript is rejected with 400."""
