@@ -64,3 +64,7 @@ def get_delete_account_data_use_case():
 
 def get_reindex_all_videos_use_case():
     return _cr_video.get_reindex_all_videos_use_case()
+
+
+def reindex_video_transcript(video_id: int) -> None:
+    _cr_video.reindex_video_transcript(video_id)

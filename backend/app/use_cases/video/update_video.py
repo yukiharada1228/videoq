@@ -6,7 +6,7 @@ import logging
 
 from app.domain.shared.transaction import TransactionPort
 from app.domain.video.dto import UpdateVideoParams
-from app.domain.video.gateways import VectorIndexingGateway, VectorStoreGateway
+from app.domain.video.gateways import VideoTaskGateway, VectorStoreGateway
 from app.domain.video.repositories import VideoRepository
 from app.use_cases.video.dto import UpdateVideoInput, VideoResponseDTO
 from app.use_cases.video.exceptions import ResourceNotFound
@@ -21,18 +21,19 @@ class UpdateVideoUseCase:
     1. Retrieve the video
     2. Apply changes
     3. Sync PGVector metadata if the title changed
+    4. Enqueue async transcript reindex if the transcript changed
     """
 
     def __init__(
         self,
         video_repo: VideoRepository,
         vector_gateway: VectorStoreGateway,
-        vector_indexing_gateway: VectorIndexingGateway,
+        task_gateway: VideoTaskGateway,
         tx: TransactionPort,
     ):
         self.video_repo = video_repo
         self.vector_gateway = vector_gateway
-        self.vector_indexing_gateway = vector_indexing_gateway
+        self.task_gateway = task_gateway
         self.tx = tx
 
     def execute(self, video_id: int, user_id: int, input: UpdateVideoInput) -> VideoResponseDTO:
@@ -72,24 +73,6 @@ class UpdateVideoUseCase:
                 self.tx.on_commit(_sync_vector_title)
 
             if transcript_changed:
-                def _reindex_transcript() -> None:
-                    try:
-                        self.vector_gateway.delete_video_vectors(video.id)
-                        if video.transcript:
-                            self.vector_indexing_gateway.index_video_transcript(
-                                video.id,
-                                video.user_id,
-                                video.title,
-                                video.transcript,
-                                api_key=None,
-                            )
-                    except Exception:
-                        logger.warning(
-                            "Failed to reindex transcript for video %s after manual edit",
-                            video.id,
-                            exc_info=True,
-                        )
-
-                self.tx.on_commit(_reindex_transcript)
+                self.tx.on_commit(lambda: self.task_gateway.enqueue_reindex_transcript(video.id))
 
         return to_video_response_dto(video)

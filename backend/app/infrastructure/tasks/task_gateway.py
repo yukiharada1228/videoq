@@ -11,6 +11,7 @@ from app.contracts.tasks import (
     EVALUATE_CHAT_LOG_TASK,
     INDEX_VIDEO_TRANSCRIPT_TASK,
     REINDEX_ALL_VIDEOS_EMBEDDINGS_TASK,
+    REINDEX_VIDEO_TRANSCRIPT_TASK,
     TRANSCRIBE_VIDEO_TASK,
 )
 
@@ -40,6 +41,15 @@ class CeleryVideoTaskGateway(VideoTaskGateway):
         """Dispatch full re-indexing task immediately and return task id."""
         result = current_app.send_task(REINDEX_ALL_VIDEOS_EMBEDDINGS_TASK)
         return result.id
+
+    def enqueue_reindex_transcript(self, video_id: int) -> None:
+        """Dispatch transcript reindex task after the current DB transaction commits."""
+        transaction.on_commit(
+            lambda: current_app.send_task(
+                REINDEX_VIDEO_TRANSCRIPT_TASK,
+                args=[video_id],
+            )
+        )
 
 
 class CeleryAuthTaskGateway(AuthTaskGateway):
