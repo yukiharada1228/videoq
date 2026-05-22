@@ -17,15 +17,6 @@ const analytics: ChatAnalytics = {
     total_questions: 24,
     date_range: { first: '2026-04-01T00:00:00Z', last: '2026-04-22T00:00:00Z' },
   },
-  scene_distribution: [
-    {
-      video_id: 1,
-      title: 'Scene title',
-      start_time: '00:00:10',
-      end_time: '00:00:20',
-      question_count: 3,
-    },
-  ],
   time_series: [],
   feedback: { good: 1, bad: 0, none: 23 },
 }
