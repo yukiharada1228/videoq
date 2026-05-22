@@ -2,7 +2,6 @@
 Use case: Build analytics dashboard data for a chat group.
 """
 
-from app.domain.chat.ports import KeywordExtractor
 from app.domain.chat.repositories import ChatRepository, VideoGroupQueryRepository
 from app.domain.chat.services import (
     GroupContextNotFound as _DomainGroupContextNotFound,
@@ -15,7 +14,6 @@ from app.use_cases.chat.dto import (
     ChatAnalyticsDTO,
     DateRangeDTO,
     FeedbackSummaryDTO,
-    KeywordCountDTO,
     SceneDistributionItemDTO,
     TimeSeriesPointDTO,
 )
@@ -23,22 +21,20 @@ from app.use_cases.shared.exceptions import ResourceNotFound
 
 
 class GetChatAnalyticsUseCase:
-    """Aggregate chat analytics: summary, scene distribution, time series, feedback, keywords."""
+    """Aggregate chat analytics: summary, scene distribution, time series, feedback."""
 
     def __init__(
         self,
         chat_repo: ChatRepository,
         group_query_repo: VideoGroupQueryRepository,
-        keyword_extractor: KeywordExtractor,
     ):
         self.chat_repo = chat_repo
         self.group_query_repo = group_query_repo
-        self.keyword_extractor = keyword_extractor
 
     def execute(self, group_id: int, user_id: int) -> ChatAnalyticsDTO:
         """
         Returns:
-            ChatAnalyticsDTO with summary, scene_distribution, time_series, feedback, keywords.
+            ChatAnalyticsDTO with summary, scene_distribution, time_series, feedback.
 
         Raises:
             ResourceNotFound: If the group does not exist.
@@ -71,8 +67,6 @@ class GetChatAnalyticsUseCase:
             for key, count in top_scenes
         ]
 
-        keywords = self.keyword_extractor.extract(raw.questions)
-
         return ChatAnalyticsDTO(
             total_questions=raw.total,
             date_range=date_range,
@@ -86,8 +80,4 @@ class GetChatAnalyticsUseCase:
                 bad=raw.feedback.bad,
                 none=raw.feedback.none,
             ),
-            keywords=[
-                KeywordCountDTO(word=item.word, count=item.count)
-                for item in keywords
-            ],
         )
