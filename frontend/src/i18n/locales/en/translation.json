@@ -415,6 +415,7 @@
       "addVideoButton": "Add video",
       "backToGroups": "Back to groups",
       "editTitle": "Edit group",
+      "editDescription": "Update the group name and description.",
       "breadcrumbGroups": "Video groups",
       "shareLinkLabel": "Share link:",
       "shareSlugPlaceholder": "Enter a share link",
