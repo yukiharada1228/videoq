@@ -19,7 +19,7 @@ import { AppNav } from '@/components/layout/AppNav';
 import {
   ArrowLeft, Calendar, CheckCircle, Search, ChevronRight,
   Trash2, Pencil, X, Save, Video as VideoIcon,
-  Info, Play,
+  Play, AlignLeft,
 } from 'lucide-react';
 
 // ── Transcript parser ─────────────────────────────────────────────────────────
@@ -185,7 +185,7 @@ export default function VideoDetailPage() {
   const [editedTranscript, setEditedTranscript] = useState('');
   const [transcriptSaveError, setTranscriptSaveError] = useState<string | null>(null);
   const [activeSegmentIdx, setActiveSegmentIdx] = useState<number | null>(null);
-  const [mobileTab, setMobileTab] = useState<'info' | 'video'>('video');
+  const [mobileTab, setMobileTab] = useState<'transcript' | 'video'>('video');
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -387,15 +387,15 @@ export default function VideoDetailPage() {
               {t('videos.detail.video')}
             </button>
             <button
-              onClick={() => setMobileTab('info')}
+              onClick={() => setMobileTab('transcript')}
               className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-semibold transition-colors ${
-                mobileTab === 'info'
+                mobileTab === 'transcript'
                   ? 'text-[#00652c] border-b-2 border-[#00652c]'
                   : 'text-stone-500 hover:text-stone-700'
               }`}
             >
-              <Info className="w-4 h-4" />
-              {t('videos.detail.info')}
+              <AlignLeft className="w-4 h-4" />
+              {t('videos.detail.transcriptSection')}
             </button>
           </div>
         )}
@@ -567,8 +567,8 @@ export default function VideoDetailPage() {
           {/* ── Right Column: Transcript ───────────────────────────────────── */}
           <div
             className={`lg:col-span-4 flex flex-col bg-white rounded-xl shadow-[0_4px_20px_rgba(28,25,23,0.04)] ${
-              isMobile ? 'min-h-[500px]' : 'h-[calc(100vh-6rem)] sticky top-20'
-            } ${isMobile && mobileTab !== 'info' ? 'hidden' : ''}`}
+              isMobile ? 'min-h-[500px]' : 'h-[calc(100vh-120px)] sticky top-[120px]'
+            } ${isMobile && mobileTab !== 'transcript' ? 'hidden' : ''}`}
           >
             {/* Transcript Header */}
             <div className="p-4 border-b border-stone-100 flex flex-col gap-3 shrink-0">
