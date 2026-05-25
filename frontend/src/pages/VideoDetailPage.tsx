@@ -369,28 +369,6 @@ export default function VideoDetailPage() {
                 {video.title}
               </span>
             </div>
-            {!isEditing && (
-              <div className="flex items-center gap-2 shrink-0">
-                <button
-                  onClick={startEditing}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-[#e1e3de] hover:bg-[#f2f4ef] transition-colors text-[#191c19] text-xs font-bold shadow-sm"
-                >
-                  <Pencil className="w-3.5 h-3.5" />
-                  {t('videos.detail.editButton')}
-                </button>
-                <button
-                  onClick={() => {
-                    if (!window.confirm(t('confirmations.deleteVideo'))) return;
-                    void deleteMutation.mutateAsync();
-                  }}
-                  disabled={isDeleting}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-[#e1e3de] hover:bg-red-50 transition-colors text-red-600 text-xs font-bold shadow-sm disabled:opacity-50"
-                >
-                  {isDeleting ? <InlineSpinner className="w-3.5 h-3.5" /> : <Trash2 className="w-3.5 h-3.5" />}
-                  {isDeleting ? t('common.actions.deleting') : t('videos.detail.deleteButton')}
-                </button>
-              </div>
-            )}
           </div>
         </div>
 
@@ -557,6 +535,28 @@ export default function VideoDetailPage() {
                     <p className="text-sm text-[#3f493f] leading-relaxed">{video.description}</p>
                   </div>
                 )}
+
+                {/* Actions */}
+                <div className="border-t border-[#e1e3de]/50 pt-4 flex items-center gap-2">
+                  <button
+                    onClick={startEditing}
+                    className="flex items-center gap-1.5 px-4 py-2 border border-[#e1e3de] text-[#3f493f] text-sm font-bold rounded-xl hover:bg-[#f2f4ef] transition-colors"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                    {t('videos.detail.editButton')}
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (!window.confirm(t('confirmations.deleteVideo'))) return;
+                      void deleteMutation.mutateAsync();
+                    }}
+                    disabled={isDeleting}
+                    className="flex items-center gap-1.5 px-4 py-2 text-red-600 text-sm font-bold rounded-xl hover:bg-red-50 transition-colors disabled:opacity-50"
+                  >
+                    {isDeleting ? <InlineSpinner className="w-3.5 h-3.5" /> : <Trash2 className="w-3.5 h-3.5" />}
+                    {isDeleting ? t('common.actions.deleting') : t('videos.detail.deleteButton')}
+                  </button>
+                </div>
               </div>
             )}
           </div>
