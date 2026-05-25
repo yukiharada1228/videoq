@@ -23,7 +23,7 @@ export function AppNav({ activePage }: AppNavProps) {
 
   const authQuery = useQuery<User | null>({
     queryKey: queryKeys.auth.me,
-    queryFn: async () => (await apiClient.getMe()) ?? null,
+    queryFn: async () => await apiClient.getMeOrNull(),
     retry: false,
   });
   const isAuthenticated = !!authQuery.data;
