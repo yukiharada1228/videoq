@@ -31,6 +31,7 @@ import { InlineSpinner } from '@/components/common/InlineSpinner';
 import { Link, useI18nNavigate } from '@/lib/i18n';
 import { handleAsyncError } from '@/lib/utils/errorHandling';
 import { convertVideoInGroupToSelectedVideo, type SelectedVideo } from '@/lib/utils/videoConversion';
+import { useAuth } from '@/hooks/useAuth';
 import { useTags } from '@/hooks/useTags';
 import { useShareLink } from '@/hooks/useShareLink';
 import { useVideoPlayback } from '@/hooks/useVideoPlayback';
@@ -430,6 +431,8 @@ export default function VideoGroupDetailPage() {
   const groupId = params?.id ? Number.parseInt(params.id, 10) : null;
   const { t } = useTranslation();
 
+  useAuth();
+
   const { group, isLoading: groupIsLoading, isFetching: groupIsFetching, errorMessage: error } =
     useVideoGroupDetailQuery(groupId);
 
@@ -603,7 +606,7 @@ export default function VideoGroupDetailPage() {
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-[#e1e3de] hover:bg-[#f2f4ef] transition-colors text-[#191c19] text-xs font-bold shadow-sm"
             >
               <Plus className="w-3.5 h-3.5" />
-              {t('videos.groupDetail.addVideoButton')}
+              <span className="hidden sm:inline">{t('videos.groupDetail.addVideoButton')}</span>
             </button>
             <button
               onClick={() => setIsEditing(true)}
