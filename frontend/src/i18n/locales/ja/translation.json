@@ -319,10 +319,10 @@
       "editButton": "編集",
       "deleteButton": "削除",
       "transcriptSection": "文字起こし",
-      "editTranscriptButton": "文字起こしを編集",
+      "editTranscriptButton": "編集",
       "saveTranscriptButton": "文字起こしを保存",
       "transcriptEditHint": "時間情報の行はそのまま残し、誤字や漢字だけを修正すると動画ジャンプとAI検索が保たれます。保存後、AI検索用のインデックスも更新されます。",
-      "transcriptSearchPlaceholder": "文字起こしを検索...",
+      "transcriptSearchPlaceholder": "検索...",
       "statusSection": "ステータス",
       "transcriptNotFound": "検索結果が見つかりませんでした",
       "pipeline": {
