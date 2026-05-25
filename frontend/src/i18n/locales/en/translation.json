@@ -319,10 +319,9 @@
       "editButton": "Edit",
       "deleteButton": "Delete",
       "transcriptSection": "Transcript",
-      "editTranscriptButton": "Edit transcript",
+      "editTranscriptButton": "Edit",
       "saveTranscriptButton": "Save transcript",
-      "transcriptEditHint": "Keep timestamp lines unchanged when possible, and edit only transcription text. After saving, the AI search index is refreshed.",
-      "transcriptSearchPlaceholder": "Search transcript...",
+      "transcriptSearchPlaceholder": "Search...",
       "statusSection": "Status",
       "transcriptNotFound": "No results found",
       "pipeline": {
@@ -359,6 +358,7 @@
     "groupDetail": {
       "edit": "Edit",
       "addVideos": "Add videos",
+      "addVideosDescription": "Select videos to add to this group.",
       "addDescription": "Select the videos to add to this chat group",
       "back": "Back to list",
       "delete": "Delete",
@@ -415,6 +415,7 @@
       "addVideoButton": "Add video",
       "backToGroups": "Back to groups",
       "editTitle": "Edit group",
+      "editDescription": "Update the group name and description.",
       "breadcrumbGroups": "Video groups",
       "shareLinkLabel": "Share link:",
       "shareSlugPlaceholder": "Enter a share link",

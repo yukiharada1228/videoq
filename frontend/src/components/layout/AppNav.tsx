@@ -3,7 +3,7 @@ import type React from 'react';
 import { GraduationCap, LogOut, Menu, X, LogIn } from 'lucide-react';
 import { Link, useI18nNavigate } from '@/lib/i18n';
 import { useTranslation } from 'react-i18next';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient, type User } from '@/lib/api';
 import { APP_CONTAINER_CLASS } from '@/components/layout/layoutTokens';
 import { queryKeys } from '@/lib/queryKeys';
@@ -21,8 +21,12 @@ export function AppNav({ activePage }: AppNavProps) {
   const queryClient = useQueryClient();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const cachedUser = queryClient.getQueryData<User | null>(queryKeys.auth.me);
-  const isAuthenticated = !!cachedUser;
+  const authQuery = useQuery<User | null>({
+    queryKey: queryKeys.auth.me,
+    queryFn: async () => await apiClient.getMeOrNull(),
+    retry: false,
+  });
+  const isAuthenticated = !!authQuery.data;
 
   const logoutMutation = useMutation({
     mutationFn: async () => await apiClient.logout(),
