@@ -496,6 +496,9 @@ export default function VideoDetailPage() {
 
                 {/* Status Pipeline (horizontal) */}
                 <div className="border-t border-[#e1e3de]/50 pt-4 flex items-center gap-3 flex-wrap">
+                  <span className="text-xs font-bold text-[#6f7a6e] uppercase tracking-widest shrink-0">
+                    {t('videos.detail.statusSection')}
+                  </span>
                   {pipelineSteps.map(({ key, label, doneStatuses }, idx) => {
                     const done = doneStatuses.includes(video.status);
                     return (
