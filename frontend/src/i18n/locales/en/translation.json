@@ -321,7 +321,6 @@
       "transcriptSection": "Transcript",
       "editTranscriptButton": "Edit",
       "saveTranscriptButton": "Save transcript",
-      "transcriptEditHint": "Keep timestamp lines unchanged when possible, and edit only transcription text. After saving, the AI search index is refreshed.",
       "transcriptSearchPlaceholder": "Search...",
       "statusSection": "Status",
       "transcriptNotFound": "No results found",
