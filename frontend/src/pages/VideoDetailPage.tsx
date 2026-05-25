@@ -15,10 +15,11 @@ import { useVideoEditing } from '@/hooks/useVideoEditing';
 import { useVideoDetailPageMutations } from '@/hooks/useVideoDetailPageData';
 import { queryKeys } from '@/lib/queryKeys';
 import type { Tag } from '@/lib/api';
+import { AppNav } from '@/components/layout/AppNav';
 import {
   ArrowLeft, Calendar, CheckCircle, Search, ChevronRight,
-  Trash2, Pencil, X, Save, Video as VideoIcon, GraduationCap,
-  Info, Play,
+  Trash2, Pencil, X, Save, Video as VideoIcon,
+  Play, AlignLeft,
 } from 'lucide-react';
 
 // ── Transcript parser ─────────────────────────────────────────────────────────
@@ -82,9 +83,9 @@ function getStatusClassName(status: string): string {
   }
 }
 
-// ── Sidebar edit form ─────────────────────────────────────────────────────────
+// ── Inline edit form ──────────────────────────────────────────────────────────
 
-interface SidebarEditFormProps {
+interface InlineEditFormProps {
   editedTitle: string;
   editedDescription: string;
   editedTagIds: number[];
@@ -98,13 +99,13 @@ interface SidebarEditFormProps {
   onCancel: () => void;
 }
 
-function SidebarEditForm({
+function InlineEditForm({
   editedTitle, editedDescription, editedTagIds, tags, isUpdating,
   onTitleChange, onDescriptionChange, onTagToggle, onCreateTag, onSave, onCancel,
-}: SidebarEditFormProps) {
+}: InlineEditFormProps) {
   const { t } = useTranslation();
   return (
-    <div className="flex flex-col gap-4 h-full">
+    <div className="bg-white rounded-xl shadow-[0_4px_20px_rgba(28,25,23,0.04)] p-6 flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <span className="text-xs font-bold text-[#6f7a6e] uppercase tracking-widest">{t('videos.detail.editMode')}</span>
         <button onClick={onCancel} className="text-[#6f7a6e] hover:text-[#191c19] transition-colors">
@@ -134,7 +135,7 @@ function SidebarEditForm({
         />
       </div>
 
-      <div className="space-y-1 flex-1 min-h-0">
+      <div className="space-y-1">
         <TagSelector
           tags={tags}
           selectedTagIds={editedTagIds}
@@ -148,7 +149,7 @@ function SidebarEditForm({
         <button
           onClick={onSave}
           disabled={isUpdating || !editedTitle.trim()}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-[#00652c] text-white text-sm font-bold rounded-xl hover:bg-[#005323] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-[#00652c] text-white text-sm font-bold rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isUpdating ? <InlineSpinner className="w-3.5 h-3.5" /> : <Save className="w-3.5 h-3.5" />}
           {isUpdating ? t('videos.detail.saving') : t('videos.detail.save')}
@@ -184,7 +185,7 @@ export default function VideoDetailPage() {
   const [editedTranscript, setEditedTranscript] = useState('');
   const [transcriptSaveError, setTranscriptSaveError] = useState<string | null>(null);
   const [activeSegmentIdx, setActiveSegmentIdx] = useState<number | null>(null);
-  const [mobileTab, setMobileTab] = useState<'info' | 'video'>('video');
+  const [mobileTab, setMobileTab] = useState<'transcript' | 'video'>('video');
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -335,266 +336,282 @@ export default function VideoDetailPage() {
   const statusClassName = getStatusClassName(video.status);
   const isPlainTextTranscript = video.transcript?.trim() && !isSRTFormat(video.transcript);
 
+  const pipelineSteps = [
+    { key: 'upload',     label: t('videos.detail.pipeline.upload'),     doneStatuses: ['processing', 'indexing', 'completed', 'error'] },
+    { key: 'transcript', label: t('videos.detail.pipeline.transcript'), doneStatuses: ['indexing', 'completed'] },
+    { key: 'aiAnalysis', label: t('videos.detail.pipeline.aiAnalysis'), doneStatuses: ['completed'] },
+  ] as { key: string; label: string; doneStatuses: string[] }[];
+
   return (
     <>
       <div
-        className="bg-[#f8faf5] h-screen flex flex-col overflow-hidden"
+        className="bg-[#f8faf5] flex flex-col min-h-screen"
         style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
       >
-      {/* ── Header ───────────────────────────────────────────────────────── */}
-      <header className="fixed top-0 w-full bg-white/80 backdrop-blur-xl border-b border-stone-200/60 z-50">
-        <div className="max-w-screen-xl px-6 lg:px-8 mx-auto w-full flex justify-between items-center py-4">
-        <div className="flex items-center gap-6 min-w-0">
-          <Link href="/" className="flex items-center gap-2 text-xl font-bold text-stone-900 shrink-0" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-            <GraduationCap className="text-[#00652c] w-6 h-6" />
-            <span>VideoQ</span>
-          </Link>
-          <div className="hidden md:flex items-center gap-1 text-sm text-[#6f7a6e] font-medium min-w-0">
-            <Link href="/videos" className="text-stone-400 hover:text-[#00652c] transition-colors shrink-0">
-              {t('videos.detail.videosBreadcrumb')}
-            </Link>
-            <ChevronRight className="w-3.5 h-3.5 text-stone-300 shrink-0" />
-            <span className="text-[#00652c] font-bold border-b-2 border-[#00652c] truncate max-w-[200px]">
-              {video.title}
-            </span>
+        {/* ── Header ───────────────────────────────────────────────────────── */}
+        <AppNav activePage="videos" />
+
+        {/* ── Sub-header: Breadcrumb + Actions ─────────────────────────────── */}
+        <div className="fixed top-16 w-full z-40 bg-white border-b border-stone-100">
+          <div className="max-w-screen-xl mx-auto w-full px-6 lg:px-8 flex justify-between items-center h-14">
+            <div className="flex items-center gap-2 min-w-0">
+              <button
+                onClick={() => navigate('/videos')}
+                className="p-1 rounded-lg hover:bg-stone-100 transition-all shrink-0"
+              >
+                <ArrowLeft className="w-4 h-4 text-[#3f493f]" />
+              </button>
+              <Link href="/videos" className="text-sm text-stone-400 hover:text-[#00652c] transition-colors shrink-0">
+                {t('videos.detail.videosBreadcrumb')}
+              </Link>
+              <ChevronRight className="w-3.5 h-3.5 text-stone-300 shrink-0" />
+              <span className="text-sm font-bold text-[#00652c] truncate">
+                {video.title}
+              </span>
+            </div>
           </div>
         </div>
 
-        </div>
-      </header>
+        {/* ── Mobile tabs ───────────────────────────────────────────────────── */}
+        {isMobile && (
+          <div className="mt-[112px] flex border-b border-stone-200 bg-white shrink-0">
+            <button
+              onClick={() => setMobileTab('video')}
+              className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-semibold transition-colors ${
+                mobileTab === 'video'
+                  ? 'text-[#00652c] border-b-2 border-[#00652c]'
+                  : 'text-stone-500 hover:text-stone-700'
+              }`}
+            >
+              <Play className="w-4 h-4" />
+              {t('videos.detail.video')}
+            </button>
+            <button
+              onClick={() => setMobileTab('transcript')}
+              className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-semibold transition-colors ${
+                mobileTab === 'transcript'
+                  ? 'text-[#00652c] border-b-2 border-[#00652c]'
+                  : 'text-stone-500 hover:text-stone-700'
+              }`}
+            >
+              <AlignLeft className="w-4 h-4" />
+              {t('videos.detail.transcriptSection')}
+            </button>
+          </div>
+        )}
 
-      {/* ── Mobile tabs ──────────────────────────────────────────────────── */}
-      {isMobile && (
-        <div className="mt-16 flex border-b border-stone-200 bg-white shrink-0">
-          <button
-            onClick={() => setMobileTab('video')}
-            className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-semibold transition-colors ${
-              mobileTab === 'video'
-                ? 'text-[#00652c] border-b-2 border-[#00652c]'
-                : 'text-stone-500 hover:text-stone-700'
+        {/* ── Main Content ──────────────────────────────────────────────────── */}
+        <main
+          className={`flex-grow max-w-screen-xl mx-auto w-full px-6 lg:px-8 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6 ${
+            isMobile ? 'mt-0' : 'mt-[112px]'
+          }`}
+        >
+          {/* ── Left Column: Video + Info ──────────────────────────────────── */}
+          <div
+            className={`lg:col-span-8 flex flex-col gap-4 ${
+              isMobile && mobileTab !== 'video' ? 'hidden' : ''
             }`}
           >
-            <Play className="w-4 h-4" />
-            {t('videos.detail.video')}
-          </button>
-          <button
-            onClick={() => setMobileTab('info')}
-            className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-semibold transition-colors ${
-              mobileTab === 'info'
-                ? 'text-[#00652c] border-b-2 border-[#00652c]'
-                : 'text-stone-500 hover:text-stone-700'
-            }`}
-          >
-            <Info className="w-4 h-4" />
-            {t('videos.detail.info')}
-          </button>
-        </div>
-      )}
-
-      {/* ── Main grid ────────────────────────────────────────────────────── */}
-      <main
-        className={`flex-1 overflow-hidden ${isMobile ? 'flex flex-col' : 'mt-16 grid grid-cols-[280px_1fr]'}`}
-      >
-        {/* ── Left sidebar ─────────────────────────────────────────────── */}
-        <aside className={`bg-white border-r border-stone-100 overflow-y-auto p-6 flex flex-col gap-6 ${isMobile ? 'flex-1' : ''} ${isMobile && mobileTab !== 'info' ? 'hidden' : ''}`}>
-          {isEditing ? (
-            <SidebarEditForm
-              editedTitle={editedTitle}
-              editedDescription={editedDescription}
-              editedTagIds={editedTagIds}
-              tags={tags}
-              isUpdating={isUpdating}
-              onTitleChange={setEditedTitle}
-              onDescriptionChange={setEditedDescription}
-              onTagToggle={(tagId) =>
-                setEditedTagIds((prev) =>
-                  prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId],
-                )
-              }
-              onCreateTag={() => setIsCreateDialogOpen(true)}
-              onSave={() => void updateMutation.mutateAsync()}
-              onCancel={cancelEditing}
-            />
-          ) : (
-            <>
-              {/* Title & status */}
-              <section>
-                <h1 className="font-bold text-lg text-[#191c19] leading-tight mb-3">
-                  {video.title}
-                </h1>
-                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${statusClassName}`}>
-                  {video.status === 'completed' && <CheckCircle className="w-3 h-3" />}
-                  {t(`common.status.${video.status}`, video.status)}
-                </span>
-              </section>
-
-              {/* Metadata */}
-              <section className="space-y-3">
-                <div className="flex items-center gap-3 text-sm text-[#6f7a6e]">
-                  <Calendar className="w-4 h-4 text-[#6f7a6e] shrink-0" />
-                  <span>{formatDate(video.uploaded_at, 'full', locale)}</span>
+            {/* Video Player */}
+            <div className="w-full aspect-video bg-[#1a1c1c] rounded-xl overflow-hidden shadow-[0_8px_30px_rgba(28,25,23,0.08)]">
+              {video.source_type === 'youtube' && video.youtube_embed_url ? (
+                <iframe
+                  key={`${video.id}-${youtubeStartSeconds ?? 0}`}
+                  className="w-full h-full"
+                  src={buildYoutubeEmbedSrc(video.youtube_embed_url, youtubeStartSeconds)}
+                  title={video.title}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              ) : video.file ? (
+                <video
+                  ref={videoRef}
+                  controls
+                  className="w-full h-full object-contain"
+                  src={apiClient.getVideoUrl(video.file)}
+                  onLoadedMetadata={handleVideoLoaded}
+                >
+                  {t('common.messages.browserNoVideoSupport')}
+                </video>
+              ) : (
+                <div className="w-full h-full flex flex-col items-center justify-center gap-3 text-gray-500">
+                  <VideoIcon className="w-16 h-16 text-gray-600" />
+                  <p className="text-sm">{t('common.messages.videoFileMissing')}</p>
                 </div>
-                {video.description && (
-                  <p className="text-sm text-[#3f493f] leading-relaxed">{video.description}</p>
-                )}
-              </section>
-
-              {/* Tags */}
-              {video.tags && video.tags.length > 0 && (
-                <section className="flex flex-wrap gap-2">
-                  {video.tags.map((tag) => (
-                    <span
-                      key={tag.id}
-                      className="px-3 py-1 rounded-full text-[11px] font-bold uppercase"
-                      style={{ backgroundColor: `${tag.color}20`, color: tag.color }}
-                    >
-                      {tag.name}
-                    </span>
-                  ))}
-                </section>
               )}
+            </div>
 
-              {/* Status pipeline */}
-              <section>
-                <h3 className="text-xs font-bold text-[#6f7a6e] uppercase tracking-widest mb-4">
-                  {t('videos.detail.statusSection')}
-                </h3>
-                <div className="relative space-y-5">
-                  <div className="absolute left-3 top-2 bottom-2 w-0.5 bg-[#d3ffd5]" />
-                  {([
-                    { key: 'upload', label: t('videos.detail.pipeline.upload'), doneStatuses: ['processing', 'indexing', 'completed', 'error'] },
-                    { key: 'transcript', label: t('videos.detail.pipeline.transcript'), doneStatuses: ['indexing', 'completed'] },
-                    { key: 'aiAnalysis', label: t('videos.detail.pipeline.aiAnalysis'), doneStatuses: ['completed'] },
-                  ] as { key: string; label: string; doneStatuses: string[] }[]).map(({ key, label, doneStatuses }) => {
+            {/* Info Card / Edit Form */}
+            {isEditing ? (
+              <InlineEditForm
+                editedTitle={editedTitle}
+                editedDescription={editedDescription}
+                editedTagIds={editedTagIds}
+                tags={tags}
+                isUpdating={isUpdating}
+                onTitleChange={setEditedTitle}
+                onDescriptionChange={setEditedDescription}
+                onTagToggle={(tagId) =>
+                  setEditedTagIds((prev) =>
+                    prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId],
+                  )
+                }
+                onCreateTag={() => setIsCreateDialogOpen(true)}
+                onSave={() => void updateMutation.mutateAsync()}
+                onCancel={cancelEditing}
+              />
+            ) : (
+              <div className="bg-white rounded-xl shadow-[0_4px_20px_rgba(28,25,23,0.04)] p-6 flex flex-col gap-4">
+                {/* Title + Status */}
+                <div className="flex justify-between items-start gap-4">
+                  <div>
+                    <h1 className="font-bold text-xl text-[#191c19] leading-tight mb-1">
+                      {video.title}
+                    </h1>
+                    <div className="flex items-center gap-2 text-sm text-[#6f7a6e]">
+                      <Calendar className="w-3.5 h-3.5 shrink-0" />
+                      <span>{formatDate(video.uploaded_at, 'full', locale)}</span>
+                    </div>
+                  </div>
+                  <span className={`shrink-0 inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${statusClassName}`}>
+                    {video.status === 'completed' && <CheckCircle className="w-3 h-3" />}
+                    {t(`common.status.${video.status}`, video.status)}
+                  </span>
+                </div>
+
+                {/* Tags */}
+                {video.tags && video.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {video.tags.map((tag) => (
+                      <span
+                        key={tag.id}
+                        className="px-3 py-1 rounded-full text-[11px] font-bold uppercase"
+                        style={{ backgroundColor: `${tag.color}20`, color: tag.color }}
+                      >
+                        {tag.name}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {/* Status Pipeline (horizontal) */}
+                <div className="border-t border-[#e1e3de]/50 pt-4 flex items-center gap-3 flex-wrap">
+                  <span className="text-xs font-bold text-[#6f7a6e] uppercase tracking-widest shrink-0">
+                    {t('videos.detail.statusSection')}
+                  </span>
+                  {pipelineSteps.map(({ key, label, doneStatuses }, idx) => {
                     const done = doneStatuses.includes(video.status);
                     return (
-                      <div key={key} className="flex items-center gap-4 relative z-10">
-                        <div
-                          className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${
-                            done ? 'bg-[#15803d]' : 'bg-[#e1e3de]'
-                          }`}
-                        >
-                          {done ? (
-                            <CheckCircle className="w-3.5 h-3.5 text-white" />
-                          ) : (
-                            <div className="w-2 h-2 rounded-full bg-[#becabc]" />
-                          )}
+                      <div key={key} className="flex items-center gap-2">
+                        {idx > 0 && <div className="w-6 h-px bg-[#e1e3de]" />}
+                        <div className="flex items-center gap-1.5">
+                          <div
+                            className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${
+                              done ? 'bg-[#15803d]' : 'bg-[#e1e3de]'
+                            }`}
+                          >
+                            {done ? (
+                              <CheckCircle className="w-3 h-3 text-white" />
+                            ) : (
+                              <div className="w-1.5 h-1.5 rounded-full bg-[#becabc]" />
+                            )}
+                          </div>
+                          <span className={`text-xs font-semibold ${done ? 'text-[#191c19]' : 'text-[#becabc]'}`}>
+                            {label}
+                          </span>
                         </div>
-                        <span className={`text-sm font-medium ${done ? 'text-[#191c19]' : 'text-[#becabc]'}`}>
-                          {label}
-                        </span>
                       </div>
                     );
                   })}
                 </div>
-              </section>
 
-              {/* Error message */}
-              {video.error_message && (
-                <section className="p-3 bg-red-50 border border-red-200 rounded-xl">
-                  <p className="text-xs text-red-700 leading-relaxed">{video.error_message}</p>
-                </section>
-              )}
+                {/* Error message */}
+                {video.error_message && (
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-xl">
+                    <p className="text-xs text-red-700 leading-relaxed">{video.error_message}</p>
+                  </div>
+                )}
 
-              {/* Actions */}
-              <section className="mt-auto pt-4 space-y-2">
-                <button
-                  onClick={startEditing}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 border border-[#e1e3de] text-[#3f493f] font-bold text-sm rounded-xl hover:bg-[#f2f4ef] transition-all"
-                >
-                  <Pencil className="w-4 h-4" />
-                  {t('videos.detail.editButton')}
-                </button>
-                <button
-                  onClick={() => {
-                    if (!window.confirm(t('confirmations.deleteVideo'))) return;
-                    void deleteMutation.mutateAsync();
-                  }}
-                  disabled={isDeleting}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-red-600 font-bold text-sm rounded-xl hover:bg-red-50 transition-all disabled:opacity-50"
-                >
-                  {isDeleting ? <InlineSpinner className="w-4 h-4" /> : <Trash2 className="w-4 h-4" />}
-                  {isDeleting ? t('common.actions.deleting') : t('videos.detail.deleteButton')}
-                </button>
-              </section>
-            </>
-          )}
-        </aside>
+                {/* Description */}
+                {video.description && (
+                  <div className="border-t border-[#e1e3de]/50 pt-4">
+                    <p className="text-sm text-[#3f493f] leading-relaxed">{video.description}</p>
+                  </div>
+                )}
 
-        {/* ── Right: video + transcript ─────────────────────────────────── */}
-        <section className={`flex flex-col overflow-hidden bg-[#f8faf5] ${isMobile ? 'flex-1' : ''} ${isMobile && mobileTab !== 'video' ? 'hidden' : ''}`}>
-          {/* Video player */}
-          <div className="shrink-0 bg-[#1a1c1c] flex items-center justify-center" style={{ maxHeight: '55vh' }}>
-            {video.source_type === 'youtube' && video.youtube_embed_url ? (
-              <iframe
-                key={`${video.id}-${youtubeStartSeconds ?? 0}`}
-                className="w-full aspect-video"
-                style={{ maxHeight: '55vh' }}
-                src={buildYoutubeEmbedSrc(video.youtube_embed_url, youtubeStartSeconds)}
-                title={video.title}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
-            ) : video.file ? (
-              <video
-                ref={videoRef}
-                controls
-                className="w-full h-full object-contain"
-                style={{ maxHeight: '55vh' }}
-                src={apiClient.getVideoUrl(video.file)}
-                onLoadedMetadata={handleVideoLoaded}
-              >
-                {t('common.messages.browserNoVideoSupport')}
-              </video>
-            ) : (
-              <div className="aspect-video w-full flex flex-col items-center justify-center gap-3 text-gray-500">
-                <VideoIcon className="w-16 h-16 text-gray-600" />
-                <p className="text-sm">{t('common.messages.videoFileMissing')}</p>
+                {/* Actions */}
+                <div className="border-t border-[#e1e3de]/50 pt-4 flex items-center gap-2">
+                  <button
+                    onClick={startEditing}
+                    className="flex items-center gap-1.5 px-4 py-2 border border-[#e1e3de] text-[#3f493f] text-sm font-bold rounded-xl hover:bg-[#f2f4ef] transition-colors"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                    {t('videos.detail.editButton')}
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (!window.confirm(t('confirmations.deleteVideo'))) return;
+                      void deleteMutation.mutateAsync();
+                    }}
+                    disabled={isDeleting}
+                    className="flex items-center gap-1.5 px-4 py-2 text-red-600 text-sm font-bold rounded-xl hover:bg-red-50 transition-colors disabled:opacity-50"
+                  >
+                    {isDeleting ? <InlineSpinner className="w-3.5 h-3.5" /> : <Trash2 className="w-3.5 h-3.5" />}
+                    {isDeleting ? t('common.actions.deleting') : t('videos.detail.deleteButton')}
+                  </button>
+                </div>
               </div>
             )}
           </div>
 
-          {/* Transcript */}
-          <div className="flex-1 overflow-hidden flex flex-col p-6 gap-4 bg-[#f2f4ef]/40">
-            <div className="flex items-center justify-between gap-4 shrink-0">
-              <h2 className="text-base font-bold text-[#191c19] shrink-0">{t('videos.detail.transcriptSection')}</h2>
-              <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
+          {/* ── Right Column: Transcript ───────────────────────────────────── */}
+          <div
+            className={`lg:col-span-4 flex flex-col bg-white rounded-xl shadow-[0_4px_20px_rgba(28,25,23,0.04)] ${
+              isMobile ? 'min-h-[500px]' : 'h-[calc(100vh-120px)] sticky top-[120px]'
+            } ${isMobile && mobileTab !== 'transcript' ? 'hidden' : ''}`}
+          >
+            {/* Transcript Header */}
+            <div className="p-4 border-b border-stone-100 flex flex-col gap-3 shrink-0">
+              <div className="flex justify-between items-center">
+                <h2 className="font-extrabold text-[#191c19]">{t('videos.detail.transcriptSection')}</h2>
                 {!isTranscriptEditing && (
-                  <>
-                    <div className="relative w-full max-w-xs">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6f7a6e] w-3.5 h-3.5" />
-                      <input
-                        type="text"
-                        value={transcriptSearch}
-                        onChange={(e) => setTranscriptSearch(e.target.value)}
-                        placeholder={t('videos.detail.transcriptSearchPlaceholder')}
-                        className="w-full pl-9 pr-4 py-2 bg-white border border-[#e1e3de] rounded-xl text-sm focus:ring-2 focus:ring-[#00652c]/20 focus:border-[#00652c] outline-none transition-all shadow-sm"
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={startTranscriptEditing}
-                      disabled={!video.transcript}
-                      className="inline-flex items-center gap-1.5 rounded-xl border border-[#e1e3de] bg-white px-3 py-2 text-xs font-bold text-[#3f493f] shadow-sm transition-colors hover:bg-[#f8faf5] disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                      {t('videos.detail.editTranscriptButton')}
-                    </button>
-                  </>
+                  <button
+                    type="button"
+                    onClick={startTranscriptEditing}
+                    disabled={!video.transcript}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-[#e1e3de] bg-white px-3 py-1.5 text-xs font-bold text-[#3f493f] shadow-sm transition-colors hover:bg-[#f8faf5] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                    {t('videos.detail.editTranscriptButton')}
+                  </button>
                 )}
               </div>
+              {/* Search Bar */}
+              {!isTranscriptEditing && (
+                <div className="relative w-full">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6f7a6e] w-3.5 h-3.5" />
+                  <input
+                    type="text"
+                    value={transcriptSearch}
+                    onChange={(e) => setTranscriptSearch(e.target.value)}
+                    placeholder={t('videos.detail.transcriptSearchPlaceholder')}
+                    className="w-full h-9 pl-9 pr-3 bg-[#f2f4ef] border border-[#e1e3de] rounded-xl text-sm focus:outline-none focus:border-[#00652c] focus:ring-2 focus:ring-[#00652c]/20 transition-all placeholder:text-[#3f493f]/60"
+                  />
+                </div>
+              )}
             </div>
 
+            {/* Transcript Body */}
             {isTranscriptEditing ? (
-              <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-[#e1e3de] bg-white shadow-sm">
-                <div className="flex shrink-0 flex-col gap-3 border-b border-[#e1e3de] bg-white p-3 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex-1 overflow-hidden flex flex-col">
+                <div className="flex shrink-0 flex-col gap-3 border-b border-stone-100 bg-[#f8faf5] p-3 lg:flex-row lg:items-center lg:justify-between">
                   <p className="text-xs text-[#6f7a6e]">{t('videos.detail.transcriptEditHint')}</p>
                   <div className="flex shrink-0 gap-2">
                     <button
                       type="button"
                       onClick={cancelTranscriptEditing}
                       disabled={transcriptUpdateMutation.isPending}
-                      className="rounded-xl border border-[#e1e3de] bg-white px-4 py-2 text-sm font-bold text-[#3f493f] transition-colors hover:bg-[#f8faf5] disabled:opacity-50"
+                      className="rounded-xl border border-[#e1e3de] bg-white px-3 py-1.5 text-xs font-bold text-[#3f493f] transition-colors hover:bg-[#f8faf5] disabled:opacity-50"
                     >
                       {t('videos.detail.cancel')}
                     </button>
@@ -602,9 +619,9 @@ export default function VideoDetailPage() {
                       type="button"
                       onClick={() => transcriptUpdateMutation.mutate()}
                       disabled={transcriptUpdateMutation.isPending}
-                      className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#00652c] px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-[#005323] disabled:opacity-50"
+                      className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#00652c] px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-[#005323] disabled:opacity-50"
                     >
-                      {transcriptUpdateMutation.isPending ? <InlineSpinner className="h-3.5 w-3.5" /> : <Save className="h-3.5 w-3.5" />}
+                      {transcriptUpdateMutation.isPending ? <InlineSpinner className="h-3 w-3" /> : <Save className="h-3 w-3" />}
                       {transcriptUpdateMutation.isPending ? t('videos.detail.saving') : t('videos.detail.saveTranscriptButton')}
                     </button>
                   </div>
@@ -623,19 +640,19 @@ export default function VideoDetailPage() {
                 />
               </div>
             ) : (
-              <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+              <div className="flex-1 overflow-y-auto p-2 flex flex-col gap-1">
                 {filteredSegments.length > 0 ? (
                   filteredSegments.map((seg, idx) => (
                     <div
                       key={idx}
                       onClick={() => handleSeek(seg.seconds, idx)}
-                      className={`flex gap-4 p-4 rounded-xl cursor-pointer transition-all group ${
+                      className={`flex gap-4 p-3 rounded-xl cursor-pointer transition-all group ${
                         activeSegmentIdx === idx
-                          ? 'bg-white border-l-4 border-[#00652c] shadow-sm'
-                          : 'hover:bg-white'
+                          ? 'bg-[#f0fdf4] border-l-4 border-[#00652c]'
+                          : 'hover:bg-stone-50'
                       }`}
                     >
-                      <span className="text-[#00652c] font-mono text-[11px] mt-0.5 shrink-0 bg-[#00652c]/8 px-2.5 py-1 rounded h-fit whitespace-nowrap">
+                      <span className="text-[#00652c] font-mono text-[11px] mt-0.5 shrink-0 bg-[#00652c]/8 px-2 py-0.5 rounded-lg h-fit whitespace-nowrap font-semibold">
                         {seg.timestamp}
                       </span>
                       <p
@@ -657,10 +674,10 @@ export default function VideoDetailPage() {
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center py-16 text-[#6f7a6e]">
-                    <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mb-4 shadow-sm">
+                    <div className="w-16 h-16 bg-[#f2f4ef] rounded-full flex items-center justify-center mb-4">
                       <Search className="w-8 h-8 text-[#becabc]" />
                     </div>
-                    <p className="text-sm font-medium">
+                    <p className="text-sm font-medium text-center px-4">
                       {transcriptSearch
                         ? t('videos.detail.transcriptNotFound')
                         : (() => {
@@ -678,14 +695,13 @@ export default function VideoDetailPage() {
               </div>
             )}
           </div>
-        </section>
-      </main>
+        </main>
 
-      <TagCreateDialog
-        isOpen={isCreateDialogOpen}
-        onClose={() => setIsCreateDialogOpen(false)}
-        onCreate={handleCreateTag}
-      />
+        <TagCreateDialog
+          isOpen={isCreateDialogOpen}
+          onClose={() => setIsCreateDialogOpen(false)}
+          onCreate={handleCreateTag}
+        />
       </div>
     </>
   );
