@@ -605,7 +605,6 @@ export default function VideoDetailPage() {
             {isTranscriptEditing ? (
               <div className="flex-1 overflow-hidden flex flex-col">
                 <div className="flex shrink-0 flex-col gap-3 border-b border-stone-100 bg-[#f8faf5] p-3 lg:flex-row lg:items-center lg:justify-between">
-                  <p className="text-xs text-[#6f7a6e]">{t('videos.detail.transcriptEditHint')}</p>
                   <div className="flex shrink-0 gap-2">
                     <button
                       type="button"
