@@ -359,6 +359,7 @@
     "groupDetail": {
       "edit": "編集",
       "addVideos": "動画を追加",
+      "addVideosDescription": "このグループに追加する動画を選択してください。",
       "addDescription": "チャットグループに追加する動画を選択してください",
       "back": "一覧に戻る",
       "delete": "削除",
