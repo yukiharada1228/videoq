@@ -403,7 +403,7 @@ export default function VideoDetailPage() {
         {/* ── Main Content ──────────────────────────────────────────────────── */}
         <main
           className={`flex-grow max-w-screen-xl mx-auto w-full px-6 lg:px-8 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6 ${
-            isMobile ? 'mt-[160px]' : 'mt-[112px]'
+            isMobile ? 'mt-0' : 'mt-[112px]'
           }`}
         >
           {/* ── Left Column: Video + Info ──────────────────────────────────── */}
