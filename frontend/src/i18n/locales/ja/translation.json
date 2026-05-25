@@ -415,6 +415,7 @@
       "addVideoButton": "動画を追加",
       "backToGroups": "グループ一覧",
       "editTitle": "グループを編集",
+      "editDescription": "グループ名と説明を更新します。",
       "breadcrumbGroups": "動画グループ",
       "shareLinkLabel": "共有リンク:",
       "shareSlugPlaceholder": "共有リンクを入力",
