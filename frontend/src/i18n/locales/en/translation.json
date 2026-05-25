@@ -359,6 +359,7 @@
     "groupDetail": {
       "edit": "Edit",
       "addVideos": "Add videos",
+      "addVideosDescription": "Select videos to add to this group.",
       "addDescription": "Select the videos to add to this chat group",
       "back": "Back to list",
       "delete": "Delete",
