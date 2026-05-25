@@ -81,8 +81,17 @@ describe('AppNav - authenticated user (cache populated)', () => {
 })
 
 describe('AppNav - auth cache uninitialized (fetches from API)', () => {
+  it('uses getMeOrNull (no redirect side effects) instead of getMe', async () => {
+    render(<AppNav />)
+    await waitFor(() => {
+      expect(screen.getByText('navigation.videosNav')).toBeInTheDocument()
+    })
+    expect(apiClient.getMe).not.toHaveBeenCalled()
+    expect(apiClient.getMeOrNull).toHaveBeenCalled()
+  })
+
   it('shows authenticated menu after fetching user from API when cache is empty', async () => {
-    ;(apiClient.getMe as ReturnType<typeof vi.fn>).mockResolvedValue({ id: '1', username: 'testuser' })
+    ;(apiClient.getMeOrNull as ReturnType<typeof vi.fn>).mockResolvedValue({ id: '1', username: 'testuser' })
     render(<AppNav />)
     await waitFor(() => {
       expect(screen.getByText('navigation.videosNav')).toBeInTheDocument()
@@ -91,7 +100,7 @@ describe('AppNav - auth cache uninitialized (fetches from API)', () => {
   })
 
   it('shows login button when API returns null and cache is empty', async () => {
-    ;(apiClient.getMe as ReturnType<typeof vi.fn>).mockResolvedValue(null)
+    ;(apiClient.getMeOrNull as ReturnType<typeof vi.fn>).mockResolvedValue(null)
     render(<AppNav />)
     await waitFor(() => {
       expect(screen.getByText('auth.login.submit')).toBeInTheDocument()
