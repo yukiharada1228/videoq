@@ -657,7 +657,7 @@ export default function VideoGroupDetailPage() {
           <aside className={`lg:col-span-1 flex flex-col min-h-0 ${mobileTab === 'videos' ? 'flex' : 'hidden lg:flex'}`}>
             <div className="bg-white rounded-xl flex flex-col h-full overflow-hidden shadow-[0_4px_20px_rgba(28,25,23,0.04)]">
               <div className="p-4 border-b border-stone-100 flex items-center justify-between gap-2 shrink-0">
-                <h2 className="font-extrabold text-[#191c19] truncate">{group.name}</h2>
+                <h2 className="font-extrabold text-[#191c19] truncate flex-1 min-w-0">{group.name}</h2>
                 <div className="flex items-center gap-2 shrink-0">
                   <span className="text-xs bg-[#f2f4ef] px-2 py-0.5 rounded-full text-[#6f7a6e] font-medium">
                     {t('videos.groupDetail.videoCount', { count: group.videos?.length ?? 0 })}
