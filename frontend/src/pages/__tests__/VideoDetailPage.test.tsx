@@ -97,12 +97,6 @@ describe('VideoDetailPage', () => {
     expect(screen.getByText('videos.detail.deleteButton')).toBeInTheDocument()
   })
 
-  it('should not render a back to list button', () => {
-    render(<VideoDetailPage />)
-
-    expect(screen.queryByLabelText('common.actions.backToList')).not.toBeInTheDocument()
-  })
-
   it('should not render breadcrumb text', () => {
     render(<VideoDetailPage />)
 

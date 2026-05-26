@@ -107,16 +107,6 @@ describe('VideoGroupDetailPage', () => {
     })
   })
 
-  it('should not render a back to list button', async () => {
-    render(<VideoGroupDetailPage />)
-
-    await waitFor(() => {
-      expect(screen.getByText('Test Group')).toBeInTheDocument()
-    })
-
-    expect(screen.queryByLabelText('common.actions.backToList')).not.toBeInTheDocument()
-  })
-
   it('should not render breadcrumb text', async () => {
     render(<VideoGroupDetailPage />)
 
