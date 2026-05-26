@@ -433,7 +433,7 @@ export default function VideoGroupDetailPage() {
 
   useAuth();
 
-  const { group, isLoading: groupIsLoading, isFetching: groupIsFetching, errorMessage: error } =
+  const { group, isLoading: groupIsLoading, errorMessage: error } =
     useVideoGroupDetailQuery(groupId);
 
   const [isDeleting, setIsDeleting] = useState(false);
