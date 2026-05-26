@@ -229,38 +229,8 @@ export default function VideoDetailPage() {
     setActiveSegmentIdx(idx);
   };
 
-  // ── Loading / error states ───────────────────────────────────────────────
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f8faf5]">
-        <LoadingSpinner />
-      </div>
-    );
-  }
-
-  if (error && !video) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[#f8faf5] gap-4">
-        <p className="text-red-500">{error}</p>
-        <Link href="/videos" className="text-[#00652c] font-bold hover:underline flex items-center gap-1">
-          <ArrowLeft className="w-4 h-4" />
-          {t('common.actions.backToList')}
-        </Link>
-      </div>
-    );
-  }
-
-  if (!video) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f8faf5]">
-        <p className="text-[#3f493f]">{t('common.messages.videoNotFound')}</p>
-      </div>
-    );
-  }
-
-  const statusClassName = getStatusClassName(video.status);
-  const isPlainTextTranscript = video.transcript?.trim() && !isSRTFormat(video.transcript);
+  const statusClassName = video ? getStatusClassName(video.status) : '';
+  const isPlainTextTranscript = video?.transcript?.trim() && !isSRTFormat(video.transcript ?? '');
 
   const pipelineSteps = [
     { key: 'upload',     label: t('videos.detail.pipeline.upload'),     doneStatuses: ['processing', 'indexing', 'completed', 'error'] },
@@ -277,6 +247,25 @@ export default function VideoDetailPage() {
         {/* ── Header ───────────────────────────────────────────────────────── */}
         <AppNav activePage="videos" />
 
+        {/* ── Loading / error states ─────────────────────────────────────── */}
+        {isLoading ? (
+          <div className="flex-1 flex items-center justify-center">
+            <LoadingSpinner />
+          </div>
+        ) : error && !video ? (
+          <div className="flex-1 flex flex-col items-center justify-center gap-4">
+            <p className="text-red-500">{error}</p>
+            <Link href="/videos" className="text-[#00652c] font-bold hover:underline flex items-center gap-1">
+              <ArrowLeft className="w-4 h-4" />
+              {t('common.actions.backToList')}
+            </Link>
+          </div>
+        ) : !video ? (
+          <div className="flex-1 flex items-center justify-center">
+            <p className="text-[#3f493f]">{t('common.messages.videoNotFound')}</p>
+          </div>
+        ) : (
+          <>
         {/* ── Edit Modal ───────────────────────────────────────────────────── */}
         <Dialog open={isEditing} onOpenChange={(open) => !open && handleCancelEdit()}>
           <DialogContent className="max-w-md">
@@ -664,6 +653,8 @@ export default function VideoDetailPage() {
           onClose={() => setIsCreateDialogOpen(false)}
           onCreate={handleCreateTag}
         />
+          </>
+        )}
       </div>
     </>
   );

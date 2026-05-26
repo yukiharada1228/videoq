@@ -43,6 +43,10 @@ vi.mock('@/hooks/useTags', () => ({
   }),
 }))
 
+vi.mock('@/components/layout/AppNav', () => ({
+  AppNav: () => <nav data-testid="app-nav" />,
+}))
+
 vi.mock('@/components/chat/ChatPanel', () => ({
   ChatPanel: () => <div data-testid="chat-panel">Chat Panel</div>,
 }))
@@ -260,6 +264,29 @@ describe('VideoGroupDetailPage - Share Link', () => {
       expect(screen.getByText('videos.groupDetail.copyButton')).toBeInTheDocument()
       expect(screen.getByText('videos.groupDetail.disable')).toBeInTheDocument()
     })
+  })
+})
+
+describe('VideoGroupDetailPage - Loading state', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    // Never-resolving promise simulates initial loading
+    ;(apiClient.getVideoGroup as ReturnType<typeof vi.fn>).mockImplementation(() => new Promise(() => {}))
+  })
+
+  it('should render AppNav during initial loading', async () => {
+    render(<VideoGroupDetailPage />)
+    expect(screen.getByTestId('app-nav')).toBeInTheDocument()
+  })
+
+  it('should show loading spinner in content area below nav (not full-screen overlay)', async () => {
+    const { container } = render(<VideoGroupDetailPage />)
+    // Must NOT be a standalone full-screen wrapper (old behavior without AppNav)
+    const fullScreenWrapper = container.querySelector('.min-h-screen.flex.items-center.justify-center')
+    expect(fullScreenWrapper).toBeNull()
+    // Must be positioned below the nav with viewport-filling height
+    const contentArea = container.querySelector('.mt-16.flex.items-center.justify-center')
+    expect(contentArea).not.toBeNull()
   })
 })
 
