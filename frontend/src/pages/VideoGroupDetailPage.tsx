@@ -45,7 +45,7 @@ import {
 import { TagFilterPanel } from '@/components/video/TagFilterPanel';
 import { AppNav } from '@/components/layout/AppNav';
 import {
-  ArrowLeft, ChevronRight, Plus, GripVertical,
+  ArrowLeft, Plus, GripVertical,
   CheckCircle, Clock, AlertCircle, Copy, Trash2,
   Pencil, List, Play,
   Save, X,
@@ -582,51 +582,6 @@ export default function VideoGroupDetailPage() {
       {/* ── Header ───────────────────────────────────────────────────────── */}
       <AppNav activePage="groups" />
 
-      {/* ── Sub-header: Breadcrumb + Actions ─────────────────────────────── */}
-      <div className="fixed top-16 w-full z-40 bg-white border-b border-stone-100">
-        <div className="max-w-screen-xl mx-auto w-full px-6 lg:px-8 flex justify-between items-center h-14">
-          <div className="flex items-center gap-2 min-w-0">
-            <button
-              onClick={() => navigate('/videos/groups')}
-              className="p-1 rounded-lg hover:bg-stone-100 transition-all shrink-0"
-            >
-              <ArrowLeft className="w-4 h-4 text-[#3f493f]" />
-            </button>
-            <Link href="/videos/groups" className="text-sm text-stone-400 hover:text-[#00652c] transition-colors shrink-0">
-              {t('videos.groupDetail.breadcrumbGroups')}
-            </Link>
-            <ChevronRight className="w-3.5 h-3.5 text-stone-300 shrink-0" />
-            <span className="text-sm font-bold text-[#00652c] truncate">
-              {group.name}
-            </span>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={() => setIsAddModalOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-[#e1e3de] hover:bg-[#f2f4ef] transition-colors text-[#191c19] text-xs font-bold shadow-sm"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">{t('videos.groupDetail.addVideoButton')}</span>
-            </button>
-            <button
-              onClick={() => setIsEditing(true)}
-              className="p-2 text-[#3f493f] hover:bg-stone-100 rounded-full transition-colors"
-              title={t('videos.groupDetail.editTitle')}
-            >
-              <Pencil className="w-4 h-4" />
-            </button>
-            <button
-              onClick={handleDelete}
-              disabled={isDeleting}
-              className="p-2 text-red-500 hover:bg-red-50 rounded-full transition-colors disabled:opacity-50"
-              title={t('videos.groupDetail.delete')}
-            >
-              {isDeleting ? <InlineSpinner className="w-4 h-4" /> : <Trash2 className="w-4 h-4" />}
-            </button>
-          </div>
-        </div>
-      </div>
-
       {/* ── Edit Dialog ──────────────────────────────────────────────────── */}
       <Dialog open={isEditing} onOpenChange={(open) => !open && handleCancelEdit()}>
         <DialogContent className="max-w-md">
@@ -683,7 +638,7 @@ export default function VideoGroupDetailPage() {
       </Dialog>
 
       {/* ── Main ─────────────────────────────────────────────────────────── */}
-      <main className="mt-[112px] flex flex-col px-6 pt-4 gap-4 max-w-[1600px] mx-auto w-full overflow-y-auto pb-16 lg:pb-4 lg:h-[calc(100dvh-112px)] lg:overflow-hidden">
+      <main className="mt-16 flex flex-col px-6 pt-4 gap-4 max-w-[1600px] mx-auto w-full overflow-y-auto pb-16 lg:pb-4 lg:h-[calc(100dvh-64px)] lg:overflow-hidden">
         {/* Share link panel */}
         <ShareLinkPanel
           shareSlug={group.share_slug ?? ''}
@@ -702,11 +657,33 @@ export default function VideoGroupDetailPage() {
           <aside className={`lg:col-span-1 flex flex-col min-h-0 ${mobileTab === 'videos' ? 'flex' : 'hidden lg:flex'}`}>
             <div className="bg-white rounded-xl flex flex-col h-full overflow-hidden shadow-[0_4px_20px_rgba(28,25,23,0.04)]">
               <div className="p-4 border-b border-stone-100 flex items-center justify-between gap-2 shrink-0">
-                <h2 className="font-extrabold text-[#191c19]">{t('videos.groupDetail.videoListTitle')}</h2>
+                <h2 className="font-extrabold text-[#191c19] truncate">{group.name}</h2>
                 <div className="flex items-center gap-2 shrink-0">
                   <span className="text-xs bg-[#f2f4ef] px-2 py-0.5 rounded-full text-[#6f7a6e] font-medium">
                     {t('videos.groupDetail.videoCount', { count: group.videos?.length ?? 0 })}
                   </span>
+                  <button
+                    onClick={() => setIsAddModalOpen(true)}
+                    className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white border border-[#e1e3de] hover:bg-[#f2f4ef] transition-colors text-[#191c19] text-xs font-bold shadow-sm"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">{t('videos.groupDetail.add')}</span>
+                  </button>
+                  <button
+                    onClick={() => setIsEditing(true)}
+                    className="p-1.5 text-[#3f493f] hover:bg-stone-100 rounded-lg transition-colors"
+                    title={t('videos.groupDetail.editTitle')}
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={handleDelete}
+                    disabled={isDeleting}
+                    className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                    title={t('videos.groupDetail.delete')}
+                  >
+                    {isDeleting ? <InlineSpinner className="w-3.5 h-3.5" /> : <Trash2 className="w-3.5 h-3.5" />}
+                  </button>
                 </div>
               </div>
               <div className="flex-1 overflow-y-auto p-2 space-y-1">
