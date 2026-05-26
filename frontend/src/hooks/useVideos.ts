@@ -99,7 +99,7 @@ export function useVideo(videoId: number | null): UseVideoReturn {
 
   return {
     video: videoQuery.data || null,
-    isLoading: (!!videoId && authQuery.isLoading) || videoQuery.isLoading || videoQuery.isFetching,
+    isLoading: (!!videoId && authQuery.isLoading) || videoQuery.isLoading,
     error: videoQuery.error instanceof Error ? videoQuery.error.message : null,
     loadVideo: handleLoadVideo,
     refetch: handleLoadVideo,

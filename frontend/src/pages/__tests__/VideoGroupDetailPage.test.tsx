@@ -43,6 +43,10 @@ vi.mock('@/hooks/useTags', () => ({
   }),
 }))
 
+vi.mock('@/components/layout/AppNav', () => ({
+  AppNav: () => <nav data-testid="app-nav" />,
+}))
+
 vi.mock('@/components/chat/ChatPanel', () => ({
   ChatPanel: () => <div data-testid="chat-panel">Chat Panel</div>,
 }))
@@ -260,6 +264,25 @@ describe('VideoGroupDetailPage - Share Link', () => {
       expect(screen.getByText('videos.groupDetail.copyButton')).toBeInTheDocument()
       expect(screen.getByText('videos.groupDetail.disable')).toBeInTheDocument()
     })
+  })
+})
+
+describe('VideoGroupDetailPage - Loading state', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    // Never-resolving promise simulates initial loading
+    ;(apiClient.getVideoGroup as ReturnType<typeof vi.fn>).mockImplementation(() => new Promise(() => {}))
+  })
+
+  it('should render AppNav during initial loading', async () => {
+    render(<VideoGroupDetailPage />)
+    expect(screen.getByTestId('app-nav')).toBeInTheDocument()
+  })
+
+  it('should not show full-screen loading overlay (AppNav is separate)', async () => {
+    const { container } = render(<VideoGroupDetailPage />)
+    const loadingWrapper = container.querySelector('.min-h-screen.flex.items-center.justify-center')
+    expect(loadingWrapper).toBeNull()
   })
 })
 

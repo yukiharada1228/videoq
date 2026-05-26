@@ -550,40 +550,10 @@ export default function VideoGroupDetailPage() {
     }
   };
 
-  const isLoading = groupIsLoading || groupIsFetching;
+  const isLoading = groupIsLoading;
   const isDeleting = deleteGroupMutation.isPending;
   const isUpdating = updateGroupMutation.isPending;
   const updateError = updateGroupMutation.error instanceof Error ? updateGroupMutation.error.message : null;
-
-  // ── Loading / error states ───────────────────────────────────────────────
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f8faf5]">
-        <LoadingSpinner />
-      </div>
-    );
-  }
-
-  if (error && !group) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[#f8faf5] gap-4">
-        <p className="text-red-500">{error}</p>
-        <Link href="/videos/groups" className="text-[#00652c] font-bold hover:underline flex items-center gap-1">
-          <ArrowLeft className="w-4 h-4" />
-          {t('common.actions.backToList')}
-        </Link>
-      </div>
-    );
-  }
-
-  if (!group) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f8faf5]">
-        <p className="text-[#3f493f]">{t('common.messages.groupNotFound')}</p>
-      </div>
-    );
-  }
 
   const mobileTabIcon: Record<MobileTab, typeof List> = { videos: List, player: Play };
   const mobileTabLabel: Record<MobileTab, string> = {
@@ -600,6 +570,25 @@ export default function VideoGroupDetailPage() {
       {/* ── Header ───────────────────────────────────────────────────────── */}
       <AppNav activePage="groups" />
 
+      {/* ── Loading / error states ─────────────────────────────────────── */}
+      {isLoading ? (
+        <div className="flex-1 flex items-center justify-center">
+          <LoadingSpinner />
+        </div>
+      ) : error && !group ? (
+        <div className="flex-1 flex flex-col items-center justify-center gap-4">
+          <p className="text-red-500">{error}</p>
+          <Link href="/videos/groups" className="text-[#00652c] font-bold hover:underline flex items-center gap-1">
+            <ArrowLeft className="w-4 h-4" />
+            {t('common.actions.backToList')}
+          </Link>
+        </div>
+      ) : !group ? (
+        <div className="flex-1 flex items-center justify-center">
+          <p className="text-[#3f493f]">{t('common.messages.groupNotFound')}</p>
+        </div>
+      ) : (
+        <>
       {/* ── Edit Dialog ──────────────────────────────────────────────────── */}
       <Dialog open={isEditing} onOpenChange={(open) => !open && handleCancelEdit()}>
         <DialogContent className="max-w-md">
@@ -836,6 +825,8 @@ export default function VideoGroupDetailPage() {
         groupId={groupId}
         group={group}
       />
+        </>
+      )}
       </div>
     </>
   );
