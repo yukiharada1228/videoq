@@ -276,6 +276,24 @@ describe('VideoGroupDetailPage - Delete', () => {
     })
   })
 
+  it('should show delete error when delete fails', async () => {
+    ;(apiClient.deleteVideoGroup as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new Error('Delete failed'),
+    )
+
+    render(<VideoGroupDetailPage />)
+
+    await waitFor(() => {
+      expect(screen.getByTitle('videos.groupDetail.delete')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByTitle('videos.groupDetail.delete'))
+
+    await waitFor(() => {
+      expect(screen.getByText('Delete failed')).toBeInTheDocument()
+    })
+  })
+
   it('should remove the video from the group list when removal is confirmed', async () => {
     render(<VideoGroupDetailPage />)
 

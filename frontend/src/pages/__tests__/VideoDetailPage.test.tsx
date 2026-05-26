@@ -110,13 +110,25 @@ describe('VideoDetailPage', () => {
     expect(screen.getByText(/Hello world/)).toBeInTheDocument()
   })
 
-  it('should enter edit mode when edit button is clicked', () => {
+  it('should open edit modal when edit button is clicked', () => {
     render(<VideoDetailPage />)
 
     fireEvent.click(screen.getByText('videos.detail.editButton'))
 
-    expect(screen.getByText('videos.detail.save')).toBeInTheDocument()
-    expect(screen.getByText('videos.detail.cancel')).toBeInTheDocument()
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(screen.getByText('common.actions.save')).toBeInTheDocument()
+    expect(screen.getByText('common.actions.cancel')).toBeInTheDocument()
+  })
+
+  it('should not replace info card with inline form when edit button is clicked', () => {
+    render(<VideoDetailPage />)
+
+    fireEvent.click(screen.getByText('videos.detail.editButton'))
+
+    // Info card should still be visible (title appears in card + in modal dialog)
+    expect(screen.getAllByText('Test Video').length).toBeGreaterThan(0)
+    // The dialog should be open
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
   })
 
   it('should not manually load video on mount (query handles initial fetch)', () => {
@@ -131,6 +143,67 @@ describe('VideoDetailPage', () => {
     expect(subHeader).toBeNull()
   })
 
+})
+
+describe('VideoDetailPage - Edit modal', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('should show update error in modal when save fails', async () => {
+    ;(apiClient.updateVideo as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new Error('Update failed'),
+    )
+
+    render(<VideoDetailPage />)
+
+    fireEvent.click(screen.getByText('videos.detail.editButton'))
+    fireEvent.click(screen.getByText('common.actions.save'))
+
+    await waitFor(() => {
+      expect(screen.getByText('Update failed')).toBeInTheDocument()
+    })
+  })
+
+  it('should close modal and clear error on cancel', async () => {
+    ;(apiClient.updateVideo as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new Error('Update failed'),
+    )
+
+    render(<VideoDetailPage />)
+
+    fireEvent.click(screen.getByText('videos.detail.editButton'))
+    fireEvent.click(screen.getByText('common.actions.save'))
+
+    await waitFor(() => {
+      expect(screen.getByText('Update failed')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByText('common.actions.cancel'))
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+})
+
+describe('VideoDetailPage - Delete error', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('should show delete error when delete fails', async () => {
+    window.confirm = vi.fn(() => true)
+    ;(apiClient.deleteVideo as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new Error('Delete failed'),
+    )
+
+    render(<VideoDetailPage />)
+
+    fireEvent.click(screen.getByText('videos.detail.deleteButton'))
+
+    await waitFor(() => {
+      expect(screen.getByText('Delete failed')).toBeInTheDocument()
+    })
+  })
 })
 
 describe('VideoDetailPage - Transcript save error', () => {
