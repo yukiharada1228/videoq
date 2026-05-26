@@ -116,6 +116,32 @@ describe('useAuth', () => {
     expect(onAuthError).toHaveBeenCalled()
   })
 
+  it('should keep isLoading false when background-refetching cached user', async () => {
+    const mockUser = { id: 1, username: 'testuser' }
+    ;(apiClient.getMe as any).mockResolvedValueOnce(mockUser)
+
+    const { result } = renderHook(() => useAuth())
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false)
+      expect(result.current.user).toEqual(mockUser)
+    })
+
+    // Hang the next fetch to simulate background refetch with cached data
+    ;(apiClient.getMe as any).mockReturnValueOnce(new Promise(() => {}))
+
+    void result.current.refetch()
+
+    // Wait for the refetch to have started (API called twice)
+    await waitFor(() => {
+      expect(apiClient.getMe).toHaveBeenCalledTimes(2)
+    })
+
+    // isLoading should remain false — cached data is displayed, no full-screen spinner
+    expect(result.current.isLoading).toBe(false)
+    expect(result.current.user).toEqual(mockUser)
+  })
+
   it('should refetch user data', async () => {
     const mockUser = { id: 1, username: 'testuser' }
     ;(apiClient.getMe as any).mockResolvedValue(mockUser)

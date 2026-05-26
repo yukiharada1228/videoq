@@ -82,7 +82,7 @@ export function useAuth(options: UseAuthOptions = {}): UseAuthReturn {
 
   return {
     user: authRequired ? authQuery.data ?? null : null,
-    isLoading: authRequired ? (authQuery.isLoading || authQuery.isFetching) : false,
+    isLoading: authRequired ? authQuery.isLoading : false,
     refetch: checkAuth,
   };
 }

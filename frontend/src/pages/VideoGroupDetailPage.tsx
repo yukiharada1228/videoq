@@ -533,7 +533,7 @@ export default function VideoGroupDetailPage() {
     }
   };
 
-  const isLoading = groupIsLoading || groupIsFetching;
+  const isLoading = groupIsLoading;
   const isUpdating = updateGroupMutation.isPending;
   const updateError = updateGroupMutation.error instanceof Error ? updateGroupMutation.error.message : null;
 

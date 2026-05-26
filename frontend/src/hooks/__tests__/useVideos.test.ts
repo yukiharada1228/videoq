@@ -19,6 +19,34 @@ describe('useVideos', () => {
     window.history.pushState({}, '', '/')
   })
 
+  it('should keep isLoading false when background-refetching cached video list', async () => {
+    const mockVideos = [
+      { id: 1, title: 'Video 1', user: 1, file: '', uploaded_at: '', status: 'completed' as const },
+    ]
+    ;(apiClient.getVideos as any).mockResolvedValueOnce(mockVideos)
+
+    const { result } = renderHook(() => useVideos())
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false)
+      expect(result.current.videos).toEqual(mockVideos)
+    })
+
+    // Hang the next fetch to simulate background refetch with cached data
+    ;(apiClient.getVideos as any).mockReturnValueOnce(new Promise(() => {}))
+
+    void result.current.refetch()
+
+    // Wait for the refetch to have started (API called twice)
+    await waitFor(() => {
+      expect(apiClient.getVideos).toHaveBeenCalledTimes(2)
+    })
+
+    // isLoading should remain false — cached data is displayed, no full-screen spinner
+    expect(result.current.isLoading).toBe(false)
+    expect(result.current.videos).toEqual(mockVideos)
+  })
+
   it('should initialize with empty videos array', () => {
     ;(apiClient.getVideos as any).mockReturnValue(new Promise(() => {}))
     const { result } = renderHook(() => useVideos())
@@ -73,6 +101,41 @@ describe('useVideo', () => {
     vi.clearAllMocks()
     ;(globalThis as any).__setMockPathname?.('/')
     window.history.pushState({}, '', '/')
+  })
+
+  it('should keep isLoading false when background-refetching cached video', async () => {
+    const mockVideo = {
+      id: 1,
+      title: 'Test Video',
+      user: 1,
+      file: '',
+      uploaded_at: '',
+      status: 'completed' as const,
+    }
+    ;(apiClient.isAuthenticated as any).mockResolvedValue(true)
+    ;(apiClient.getVideo as any).mockResolvedValueOnce(mockVideo)
+
+    const { result } = renderHook(() => useVideo(1))
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false)
+      expect(result.current.video).toEqual(mockVideo)
+    })
+
+    // Hang the next fetch to simulate background refetch with cached data
+    ;(apiClient.isAuthenticated as any).mockResolvedValue(true)
+    ;(apiClient.getVideo as any).mockReturnValueOnce(new Promise(() => {}))
+
+    void result.current.refetch()
+
+    // Wait for the refetch to have started (API called twice)
+    await waitFor(() => {
+      expect(apiClient.getVideo).toHaveBeenCalledTimes(2)
+    })
+
+    // isLoading should remain false — cached data is displayed, no full-screen spinner
+    expect(result.current.isLoading).toBe(false)
+    expect(result.current.video).toEqual(mockVideo)
   })
 
   it('should initialize with null video', () => {

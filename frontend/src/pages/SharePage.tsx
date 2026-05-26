@@ -92,7 +92,7 @@ export default function SharePage() {
   const groupQuery = useSharedGroupQuery(shareToken);
   const group = groupQuery.data ?? null;
   const error = groupQuery.error ? t('common.messages.shareLoadFailed') : null;
-  const isLoading = groupQuery.isLoading || groupQuery.isFetching;
+  const isLoading = groupQuery.isLoading;
 
   const handleVideoSelect = useCallback((videoId: number) => {
     setSelectedVideoId(videoId);

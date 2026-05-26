@@ -36,7 +36,7 @@ export function useVideos(tagIds?: number[]): UseVideosReturn {
 
   return {
     videos: videosQuery.data || [],
-    isLoading: videosQuery.isLoading || videosQuery.isFetching,
+    isLoading: videosQuery.isLoading,
     error: videosQuery.error instanceof Error ? videosQuery.error.message : null,
     loadVideos: handleRefetch,
     refetch: handleRefetch,
@@ -99,7 +99,7 @@ export function useVideo(videoId: number | null): UseVideoReturn {
 
   return {
     video: videoQuery.data || null,
-    isLoading: (!!videoId && authQuery.isLoading) || videoQuery.isLoading || videoQuery.isFetching,
+    isLoading: (!!videoId && authQuery.isLoading) || videoQuery.isLoading,
     error: videoQuery.error instanceof Error ? videoQuery.error.message : null,
     loadVideo: handleLoadVideo,
     refetch: handleLoadVideo,
