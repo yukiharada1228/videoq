@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
@@ -438,18 +438,27 @@ export default function VideoGroupDetailPage() {
 
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [selectedVideo, setSelectedVideo] = useState<SelectedVideo | null>(null);
+  const [selectedVideoId, setSelectedVideoId] = useState<number | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState('');
   const [editedDescription, setEditedDescription] = useState('');
+
+  const selectedVideo = useMemo<SelectedVideo | null>(() => {
+    const videos = group?.videos;
+    if (!videos || videos.length === 0) return null;
+    if (selectedVideoId !== null) {
+      const found = videos.find((v) => v.id === selectedVideoId);
+      if (found) return convertVideoInGroupToSelectedVideo(found);
+    }
+    return convertVideoInGroupToSelectedVideo(videos[0]);
+  }, [group?.videos, selectedVideoId]);
 
   const { mobileTab, setMobileTab, isMobile } = useMobileTab();
   const { shareLink, isGeneratingLink, isCopied, generateShareLink, deleteShareLink, copyShareLink } = useShareLink(group);
 
   const handleVideoSelect = useCallback((videoId: number) => {
-    const v = group?.videos?.find((vv) => vv.id === videoId);
-    if (v) setSelectedVideo(convertVideoInGroupToSelectedVideo(v));
-  }, [group?.videos]);
+    setSelectedVideoId(videoId);
+  }, []);
 
   const { videoRef, handleVideoCanPlay, handleVideoPlayFromTime, youtubeStartSeconds } = useVideoPlayback({
     selectedVideo,
@@ -469,29 +478,14 @@ export default function VideoGroupDetailPage() {
       onUpdateSuccess: () => setIsEditing(false),
     });
 
-  useEffect(() => {
-    if (group) {
-      setEditedName(group.name);
-      setEditedDescription(group.description || '');
-    }
-  }, [group]);
 
-  useEffect(() => {
-    const videos = group?.videos;
-    if (!videos || videos.length === 0) {
-      if (selectedVideo) setSelectedVideo(null);
-      return;
-    }
-    const exists = selectedVideo ? videos.some((v) => v.id === selectedVideo.id) : false;
-    if (!exists) setSelectedVideo(convertVideoInGroupToSelectedVideo(videos[0]));
-  }, [group?.videos, selectedVideo]);
 
 
   const handleRemoveVideo = async (videoId: number) => {
     if (!confirm(t('videos.groupDetail.removeVideoConfirm')) || !groupId) return;
     try {
       await removeVideoMutation.mutateAsync(videoId);
-      if (selectedVideo?.id === videoId) setSelectedVideo(null);
+      if (selectedVideoId === videoId) setSelectedVideoId(null);
     } catch (err) {
       handleAsyncError(err, t('videos.groupDetail.removeVideoError'), () => {});
     }
@@ -674,7 +668,11 @@ export default function VideoGroupDetailPage() {
                     <span className="hidden sm:inline">{t('videos.groupDetail.add')}</span>
                   </button>
                   <button
-                    onClick={() => setIsEditing(true)}
+                    onClick={() => {
+                      setEditedName(group.name);
+                      setEditedDescription(group.description || '');
+                      setIsEditing(true);
+                    }}
                     className="p-1.5 text-[#3f493f] hover:bg-stone-100 rounded-lg transition-colors"
                     title={t('videos.groupDetail.editTitle')}
                   >

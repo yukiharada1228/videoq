@@ -14,7 +14,6 @@ import { useTags } from '@/hooks/useTags';
 import { useVideoEditing } from '@/hooks/useVideoEditing';
 import { useVideoDetailPageMutations } from '@/hooks/useVideoDetailPageData';
 import { queryKeys } from '@/lib/queryKeys';
-import type { Tag } from '@/lib/api';
 import { AppNav } from '@/components/layout/AppNav';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
