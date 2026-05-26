@@ -17,6 +17,13 @@ const mockVideo = {
 
 const mockLoadVideo = vi.fn()
 
+let mockUseVideoReturn = {
+  video: mockVideo as typeof mockVideo | null,
+  isLoading: false,
+  error: null as string | null,
+  loadVideo: mockLoadVideo,
+}
+
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom')
   return {
@@ -27,12 +34,11 @@ vi.mock('react-router-dom', async () => {
 })
 
 vi.mock('@/hooks/useVideos', () => ({
-  useVideo: () => ({
-    video: mockVideo,
-    isLoading: false,
-    error: null,
-    loadVideo: mockLoadVideo,
-  }),
+  useVideo: () => mockUseVideoReturn,
+}))
+
+vi.mock('@/components/layout/AppNav', () => ({
+  AppNav: () => <nav data-testid="app-nav" />,
 }))
 
 vi.mock('@/hooks/useTags', () => ({
@@ -60,6 +66,7 @@ vi.mock('@/lib/api', async (importOriginal) => {
 describe('VideoDetailPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockUseVideoReturn = { video: mockVideo, isLoading: false, error: null, loadVideo: mockLoadVideo }
   })
 
   afterEach(() => {
@@ -148,6 +155,7 @@ describe('VideoDetailPage', () => {
 describe('VideoDetailPage - Edit modal', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockUseVideoReturn = { video: mockVideo, isLoading: false, error: null, loadVideo: mockLoadVideo }
   })
 
   it('should show update error in modal when save fails', async () => {
@@ -211,6 +219,7 @@ describe('VideoDetailPage - Edit modal', () => {
 describe('VideoDetailPage - Delete error', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockUseVideoReturn = { video: mockVideo, isLoading: false, error: null, loadVideo: mockLoadVideo }
   })
 
   it('should show delete error when delete fails', async () => {
@@ -232,6 +241,7 @@ describe('VideoDetailPage - Delete error', () => {
 describe('VideoDetailPage - Transcript save error', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockUseVideoReturn = { video: mockVideo, isLoading: false, error: null, loadVideo: mockLoadVideo }
   })
 
   it('should show error message when transcript save returns API error', async () => {
@@ -286,6 +296,61 @@ describe('VideoDetailPage - Transcript save error', () => {
     fireEvent.click(screen.getByText('videos.detail.editTranscriptButton'))
 
     expect(screen.queryByText('Transcript must be in valid SRT format.')).not.toBeInTheDocument()
+  })
+})
+
+describe('VideoDetailPage - Loading state', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockUseVideoReturn = { video: null, isLoading: true, error: null, loadVideo: vi.fn() }
+  })
+
+  afterEach(() => {
+    mockUseVideoReturn = { video: mockVideo, isLoading: false, error: null, loadVideo: mockLoadVideo }
+  })
+
+  it('should render AppNav during initial loading', () => {
+    render(<VideoDetailPage />)
+    expect(screen.getByTestId('app-nav')).toBeInTheDocument()
+  })
+
+  it('should not show full-screen loading overlay (AppNav is separate)', () => {
+    const { container } = render(<VideoDetailPage />)
+    // The outer wrapper should NOT be the sole full-screen centering container
+    const loadingWrapper = container.querySelector('.min-h-screen.flex.items-center.justify-center')
+    expect(loadingWrapper).toBeNull()
+  })
+})
+
+describe('VideoDetailPage - Error state', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockUseVideoReturn = { video: null, isLoading: false, error: 'Network error', loadVideo: vi.fn() }
+  })
+
+  afterEach(() => {
+    mockUseVideoReturn = { video: mockVideo, isLoading: false, error: null, loadVideo: mockLoadVideo }
+  })
+
+  it('should render AppNav when there is an error', () => {
+    render(<VideoDetailPage />)
+    expect(screen.getByTestId('app-nav')).toBeInTheDocument()
+  })
+})
+
+describe('VideoDetailPage - Not found state', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockUseVideoReturn = { video: null, isLoading: false, error: null, loadVideo: vi.fn() }
+  })
+
+  afterEach(() => {
+    mockUseVideoReturn = { video: mockVideo, isLoading: false, error: null, loadVideo: mockLoadVideo }
+  })
+
+  it('should render AppNav when video is not found', () => {
+    render(<VideoDetailPage />)
+    expect(screen.getByTestId('app-nav')).toBeInTheDocument()
   })
 })
 
