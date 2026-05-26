@@ -412,7 +412,7 @@
       "videoListEmpty": "No videos yet",
       "videoCount": "{{count}} videos",
       "nextVideo": "Next video:",
-      "addVideoButton": "Add video",
+      "addVideoButton": "Add",
       "backToGroups": "Back to groups",
       "editTitle": "Edit group",
       "editDescription": "Update the group name and description.",
