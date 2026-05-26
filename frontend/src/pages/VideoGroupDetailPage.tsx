@@ -572,11 +572,11 @@ export default function VideoGroupDetailPage() {
 
       {/* ── Loading / error states ─────────────────────────────────────── */}
       {isLoading ? (
-        <div className="flex-1 flex items-center justify-center">
+        <div className="mt-16 min-h-[calc(100dvh-64px)] flex items-center justify-center">
           <LoadingSpinner />
         </div>
       ) : error && !group ? (
-        <div className="flex-1 flex flex-col items-center justify-center gap-4">
+        <div className="mt-16 min-h-[calc(100dvh-64px)] flex flex-col items-center justify-center gap-4">
           <p className="text-red-500">{error}</p>
           <Link href="/videos/groups" className="text-[#00652c] font-bold hover:underline flex items-center gap-1">
             <ArrowLeft className="w-4 h-4" />
@@ -584,7 +584,7 @@ export default function VideoGroupDetailPage() {
           </Link>
         </div>
       ) : !group ? (
-        <div className="flex-1 flex items-center justify-center">
+        <div className="mt-16 min-h-[calc(100dvh-64px)] flex items-center justify-center">
           <p className="text-[#3f493f]">{t('common.messages.groupNotFound')}</p>
         </div>
       ) : (

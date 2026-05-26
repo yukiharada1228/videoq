@@ -279,10 +279,14 @@ describe('VideoGroupDetailPage - Loading state', () => {
     expect(screen.getByTestId('app-nav')).toBeInTheDocument()
   })
 
-  it('should not show full-screen loading overlay (AppNav is separate)', async () => {
+  it('should show loading spinner in content area below nav (not full-screen overlay)', async () => {
     const { container } = render(<VideoGroupDetailPage />)
-    const loadingWrapper = container.querySelector('.min-h-screen.flex.items-center.justify-center')
-    expect(loadingWrapper).toBeNull()
+    // Must NOT be a standalone full-screen wrapper (old behavior without AppNav)
+    const fullScreenWrapper = container.querySelector('.min-h-screen.flex.items-center.justify-center')
+    expect(fullScreenWrapper).toBeNull()
+    // Must be positioned below the nav with viewport-filling height
+    const contentArea = container.querySelector('.mt-16.flex.items-center.justify-center')
+    expect(contentArea).not.toBeNull()
   })
 })
 
