@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
@@ -45,7 +45,7 @@ import {
 import { TagFilterPanel } from '@/components/video/TagFilterPanel';
 import { AppNav } from '@/components/layout/AppNav';
 import {
-  ArrowLeft, ChevronRight, Plus, GripVertical,
+  ArrowLeft, Plus, GripVertical,
   CheckCircle, Clock, AlertCircle, Copy, Trash2,
   Pencil, List, Play,
   Save, X,
@@ -436,20 +436,53 @@ export default function VideoGroupDetailPage() {
   const { group, isLoading: groupIsLoading, isFetching: groupIsFetching, errorMessage: error } =
     useVideoGroupDetailQuery(groupId);
 
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [selectedVideo, setSelectedVideo] = useState<SelectedVideo | null>(null);
+  const [selectedVideoId, setSelectedVideoId] = useState<number | null>(null);
+  // autoVideoId stores the ID of the first-shown video for stability during reorders.
+  // Initialized once when group data first arrives using React's "derived state" pattern
+  // (react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes).
+  const [autoVideoId, setAutoVideoId] = useState<number | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState('');
   const [editedDescription, setEditedDescription] = useState('');
+
+  // Keep autoVideoId in sync with the current video list using React's "derived state" pattern
+  // (react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes).
+  // We update autoVideoId when:
+  //   - It is null (initial load)
+  //   - It refers to a video that is no longer in the list (e.g. after deletion or group change)
+  // This prevents the player from switching to videos[0] during reorders when autoVideoId is stale.
+  const currentVideos = group?.videos;
+  const firstVideoId = currentVideos?.[0]?.id ?? null;
+  const autoVideoInList = autoVideoId !== null && (currentVideos?.some((v) => v.id === autoVideoId) ?? false);
+  if (!autoVideoInList && firstVideoId !== null) {
+    setAutoVideoId(firstVideoId);
+  }
+
+  const selectedVideo = useMemo<SelectedVideo | null>(() => {
+    const videos = group?.videos;
+    if (!videos || videos.length === 0) return null;
+    // Explicit user selection takes priority
+    if (selectedVideoId !== null) {
+      const found = videos.find((v) => v.id === selectedVideoId);
+      if (found) return convertVideoInGroupToSelectedVideo(found);
+    }
+    // Fall back to auto-selected video (stable across reorders thanks to autoVideoId)
+    const targetId = autoVideoId;
+    if (targetId !== null) {
+      const found = videos.find((v) => v.id === targetId);
+      if (found) return convertVideoInGroupToSelectedVideo(found);
+    }
+    return convertVideoInGroupToSelectedVideo(videos[0]);
+  }, [group?.videos, selectedVideoId, autoVideoId]);
 
   const { mobileTab, setMobileTab, isMobile } = useMobileTab();
   const { shareLink, isGeneratingLink, isCopied, generateShareLink, deleteShareLink, copyShareLink } = useShareLink(group);
 
   const handleVideoSelect = useCallback((videoId: number) => {
-    const v = group?.videos?.find((vv) => vv.id === videoId);
-    if (v) setSelectedVideo(convertVideoInGroupToSelectedVideo(v));
-  }, [group?.videos]);
+    setSelectedVideoId(videoId);
+  }, []);
 
   const { videoRef, handleVideoCanPlay, handleVideoPlayFromTime, youtubeStartSeconds } = useVideoPlayback({
     selectedVideo,
@@ -469,29 +502,14 @@ export default function VideoGroupDetailPage() {
       onUpdateSuccess: () => setIsEditing(false),
     });
 
-  useEffect(() => {
-    if (group) {
-      setEditedName(group.name);
-      setEditedDescription(group.description || '');
-    }
-  }, [group]);
 
-  useEffect(() => {
-    const videos = group?.videos;
-    if (!videos || videos.length === 0) {
-      if (selectedVideo) setSelectedVideo(null);
-      return;
-    }
-    const exists = selectedVideo ? videos.some((v) => v.id === selectedVideo.id) : false;
-    if (!exists) setSelectedVideo(convertVideoInGroupToSelectedVideo(videos[0]));
-  }, [group?.videos, selectedVideo]);
 
 
   const handleRemoveVideo = async (videoId: number) => {
     if (!confirm(t('videos.groupDetail.removeVideoConfirm')) || !groupId) return;
     try {
       await removeVideoMutation.mutateAsync(videoId);
-      if (selectedVideo?.id === videoId) setSelectedVideo(null);
+      if (selectedVideoId === videoId) setSelectedVideoId(null);
     } catch (err) {
       handleAsyncError(err, t('videos.groupDetail.removeVideoError'), () => {});
     }
@@ -515,18 +533,17 @@ export default function VideoGroupDetailPage() {
 
   const handleDelete = async () => {
     if (!groupId || !confirm(t('confirmations.deleteGroup'))) return;
+    setDeleteError(null);
     try {
-      setIsDeleting(true);
       await deleteGroupMutation.mutateAsync();
     } catch (err) {
-      handleAsyncError(err, t('videos.groupDetail.deleteError'), () => {});
-    } finally {
-      setIsDeleting(false);
+      handleAsyncError(err, t('videos.groupDetail.deleteError'), setDeleteError);
     }
   };
 
   const handleCancelEdit = () => {
     setIsEditing(false);
+    updateGroupMutation.reset();
     if (group) {
       setEditedName(group.name);
       setEditedDescription(group.description || '');
@@ -534,6 +551,7 @@ export default function VideoGroupDetailPage() {
   };
 
   const isLoading = groupIsLoading || groupIsFetching;
+  const isDeleting = deleteGroupMutation.isPending;
   const isUpdating = updateGroupMutation.isPending;
   const updateError = updateGroupMutation.error instanceof Error ? updateGroupMutation.error.message : null;
 
@@ -582,51 +600,6 @@ export default function VideoGroupDetailPage() {
       {/* ── Header ───────────────────────────────────────────────────────── */}
       <AppNav activePage="groups" />
 
-      {/* ── Sub-header: Breadcrumb + Actions ─────────────────────────────── */}
-      <div className="fixed top-16 w-full z-40 bg-white border-b border-stone-100">
-        <div className="max-w-screen-xl mx-auto w-full px-6 lg:px-8 flex justify-between items-center h-14">
-          <div className="flex items-center gap-2 min-w-0">
-            <button
-              onClick={() => navigate('/videos/groups')}
-              className="p-1 rounded-lg hover:bg-stone-100 transition-all shrink-0"
-            >
-              <ArrowLeft className="w-4 h-4 text-[#3f493f]" />
-            </button>
-            <Link href="/videos/groups" className="text-sm text-stone-400 hover:text-[#00652c] transition-colors shrink-0">
-              {t('videos.groupDetail.breadcrumbGroups')}
-            </Link>
-            <ChevronRight className="w-3.5 h-3.5 text-stone-300 shrink-0" />
-            <span className="text-sm font-bold text-[#00652c] truncate">
-              {group.name}
-            </span>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={() => setIsAddModalOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-[#e1e3de] hover:bg-[#f2f4ef] transition-colors text-[#191c19] text-xs font-bold shadow-sm"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">{t('videos.groupDetail.addVideoButton')}</span>
-            </button>
-            <button
-              onClick={() => setIsEditing(true)}
-              className="p-2 text-[#3f493f] hover:bg-stone-100 rounded-full transition-colors"
-              title={t('videos.groupDetail.editTitle')}
-            >
-              <Pencil className="w-4 h-4" />
-            </button>
-            <button
-              onClick={handleDelete}
-              disabled={isDeleting}
-              className="p-2 text-red-500 hover:bg-red-50 rounded-full transition-colors disabled:opacity-50"
-              title={t('videos.groupDetail.delete')}
-            >
-              {isDeleting ? <InlineSpinner className="w-4 h-4" /> : <Trash2 className="w-4 h-4" />}
-            </button>
-          </div>
-        </div>
-      </div>
-
       {/* ── Edit Dialog ──────────────────────────────────────────────────── */}
       <Dialog open={isEditing} onOpenChange={(open) => !open && handleCancelEdit()}>
         <DialogContent className="max-w-md">
@@ -671,7 +644,7 @@ export default function VideoGroupDetailPage() {
               {t('common.actions.cancel')}
             </button>
             <button
-              onClick={() => void updateGroupMutation.mutateAsync({ name: editedName, description: editedDescription })}
+              onClick={() => updateGroupMutation.mutate({ name: editedName, description: editedDescription })}
               disabled={isUpdating || !editedName.trim()}
               className="flex items-center gap-1.5 px-4 py-2 bg-[#00652c] text-white rounded-xl text-sm font-bold hover:opacity-90 transition-opacity disabled:opacity-50"
             >
@@ -683,7 +656,7 @@ export default function VideoGroupDetailPage() {
       </Dialog>
 
       {/* ── Main ─────────────────────────────────────────────────────────── */}
-      <main className="mt-[112px] flex flex-col px-6 pt-4 gap-4 max-w-[1600px] mx-auto w-full overflow-y-auto pb-16 lg:pb-4 lg:h-[calc(100dvh-112px)] lg:overflow-hidden">
+      <main className="mt-16 flex flex-col px-6 pt-4 gap-4 max-w-[1600px] mx-auto w-full overflow-y-auto pb-16 lg:pb-4 lg:h-[calc(100dvh-64px)] lg:overflow-hidden">
         {/* Share link panel */}
         <ShareLinkPanel
           shareSlug={group.share_slug ?? ''}
@@ -701,12 +674,43 @@ export default function VideoGroupDetailPage() {
           {/* LEFT: Video list */}
           <aside className={`lg:col-span-1 flex flex-col min-h-0 ${mobileTab === 'videos' ? 'flex' : 'hidden lg:flex'}`}>
             <div className="bg-white rounded-xl flex flex-col h-full overflow-hidden shadow-[0_4px_20px_rgba(28,25,23,0.04)]">
+              {deleteError && (
+                <div className="px-4 pt-3 shrink-0">
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600">{deleteError}</div>
+                </div>
+              )}
               <div className="p-4 border-b border-stone-100 flex items-center justify-between gap-2 shrink-0">
-                <h2 className="font-extrabold text-[#191c19]">{t('videos.groupDetail.videoListTitle')}</h2>
+                <h2 className="font-extrabold text-[#191c19] truncate flex-1 min-w-0">{group.name}</h2>
                 <div className="flex items-center gap-2 shrink-0">
                   <span className="text-xs bg-[#f2f4ef] px-2 py-0.5 rounded-full text-[#6f7a6e] font-medium">
                     {t('videos.groupDetail.videoCount', { count: group.videos?.length ?? 0 })}
                   </span>
+                  <button
+                    onClick={() => setIsAddModalOpen(true)}
+                    className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white border border-[#e1e3de] hover:bg-[#f2f4ef] transition-colors text-[#191c19] text-xs font-bold shadow-sm"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">{t('videos.groupDetail.add')}</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setEditedName(group.name);
+                      setEditedDescription(group.description || '');
+                      setIsEditing(true);
+                    }}
+                    className="p-1.5 text-[#3f493f] hover:bg-stone-100 rounded-lg transition-colors"
+                    title={t('videos.groupDetail.editTitle')}
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={handleDelete}
+                    disabled={isDeleting}
+                    className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                    title={t('videos.groupDetail.delete')}
+                  >
+                    {isDeleting ? <InlineSpinner className="w-3.5 h-3.5" /> : <Trash2 className="w-3.5 h-3.5" />}
+                  </button>
                 </div>
               </div>
               <div className="flex-1 overflow-y-auto p-2 space-y-1">
