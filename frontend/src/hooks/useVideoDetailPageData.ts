@@ -5,6 +5,7 @@ import { queryKeys } from '@/lib/queryKeys';
 interface UseVideoDetailPageMutationsParams {
   videoId: number | null;
   onDeleteSuccess: () => void;
+  onDeleteError?: (err: unknown) => void;
   onUpdate: () => Promise<void>;
   onUpdateSuccess: () => void;
 }
@@ -12,6 +13,7 @@ interface UseVideoDetailPageMutationsParams {
 export function useVideoDetailPageMutations({
   videoId,
   onDeleteSuccess,
+  onDeleteError,
   onUpdate,
   onUpdateSuccess,
 }: UseVideoDetailPageMutationsParams) {
@@ -34,6 +36,9 @@ export function useVideoDetailPageMutations({
       await queryClient.invalidateQueries({ queryKey: ['popularScenes'] });
       onDeleteSuccess();
     },
+    onError: (err) => {
+      onDeleteError?.(err);
+    },
   });
 
   const updateMutation = useMutation({
@@ -44,6 +49,9 @@ export function useVideoDetailPageMutations({
       onUpdateSuccess();
       if (videoId) {
         await queryClient.invalidateQueries({ queryKey: queryKeys.videos.detail(videoId) });
+        await queryClient.invalidateQueries({ queryKey: queryKeys.videos.all });
+        await queryClient.invalidateQueries({ queryKey: ['videoGroup'] });
+        await queryClient.invalidateQueries({ queryKey: ['sharedVideoGroup'] });
       }
     },
   });

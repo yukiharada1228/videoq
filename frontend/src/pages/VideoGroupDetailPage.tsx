@@ -436,7 +436,7 @@ export default function VideoGroupDetailPage() {
   const { group, isLoading: groupIsLoading, isFetching: groupIsFetching, errorMessage: error } =
     useVideoGroupDetailQuery(groupId);
 
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedVideo, setSelectedVideo] = useState<SelectedVideo | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -515,13 +515,11 @@ export default function VideoGroupDetailPage() {
 
   const handleDelete = async () => {
     if (!groupId || !confirm(t('confirmations.deleteGroup'))) return;
+    setDeleteError(null);
     try {
-      setIsDeleting(true);
       await deleteGroupMutation.mutateAsync();
     } catch (err) {
-      handleAsyncError(err, t('videos.groupDetail.deleteError'), () => {});
-    } finally {
-      setIsDeleting(false);
+      handleAsyncError(err, t('videos.groupDetail.deleteError'), setDeleteError);
     }
   };
 
@@ -534,6 +532,7 @@ export default function VideoGroupDetailPage() {
   };
 
   const isLoading = groupIsLoading || groupIsFetching;
+  const isDeleting = deleteGroupMutation.isPending;
   const isUpdating = updateGroupMutation.isPending;
   const updateError = updateGroupMutation.error instanceof Error ? updateGroupMutation.error.message : null;
 
@@ -656,6 +655,11 @@ export default function VideoGroupDetailPage() {
           {/* LEFT: Video list */}
           <aside className={`lg:col-span-1 flex flex-col min-h-0 ${mobileTab === 'videos' ? 'flex' : 'hidden lg:flex'}`}>
             <div className="bg-white rounded-xl flex flex-col h-full overflow-hidden shadow-[0_4px_20px_rgba(28,25,23,0.04)]">
+              {deleteError && (
+                <div className="px-4 pt-3 shrink-0">
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600">{deleteError}</div>
+                </div>
+              )}
               <div className="p-4 border-b border-stone-100 flex items-center justify-between gap-2 shrink-0">
                 <h2 className="font-extrabold text-[#191c19] truncate flex-1 min-w-0">{group.name}</h2>
                 <div className="flex items-center gap-2 shrink-0">
