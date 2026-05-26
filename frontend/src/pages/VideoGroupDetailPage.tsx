@@ -439,19 +439,36 @@ export default function VideoGroupDetailPage() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedVideoId, setSelectedVideoId] = useState<number | null>(null);
+  // autoVideoId stores the ID of the first-shown video for stability during reorders.
+  // Initialized once when group data first arrives using React's "derived state" pattern
+  // (react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes).
+  const [autoVideoId, setAutoVideoId] = useState<number | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState('');
   const [editedDescription, setEditedDescription] = useState('');
 
+  // Initialize autoVideoId once when the first video becomes available.
+  // Calling setState during render is intentional here: React immediately
+  // re-renders with the updated state before committing to the DOM, so no
+  // extra paint occurs.
+  const firstVideoId = group?.videos?.[0]?.id ?? null;
+  if (autoVideoId === null && firstVideoId !== null) {
+    setAutoVideoId(firstVideoId);
+  }
+
   const selectedVideo = useMemo<SelectedVideo | null>(() => {
     const videos = group?.videos;
     if (!videos || videos.length === 0) return null;
+    // Explicit user selection takes priority
     if (selectedVideoId !== null) {
       const found = videos.find((v) => v.id === selectedVideoId);
       if (found) return convertVideoInGroupToSelectedVideo(found);
     }
-    return convertVideoInGroupToSelectedVideo(videos[0]);
-  }, [group?.videos, selectedVideoId]);
+    // Fallback to auto-selected video (stable across reorders)
+    const targetId = autoVideoId ?? videos[0].id;
+    const found = videos.find((v) => v.id === targetId);
+    return convertVideoInGroupToSelectedVideo(found ?? videos[0]);
+  }, [group?.videos, selectedVideoId, autoVideoId]);
 
   const { mobileTab, setMobileTab, isMobile } = useMobileTab();
   const { shareLink, isGeneratingLink, isCopied, generateShareLink, deleteShareLink, copyShareLink } = useShareLink(group);
@@ -519,6 +536,7 @@ export default function VideoGroupDetailPage() {
 
   const handleCancelEdit = () => {
     setIsEditing(false);
+    updateGroupMutation.reset();
     if (group) {
       setEditedName(group.name);
       setEditedDescription(group.description || '');
@@ -619,7 +637,7 @@ export default function VideoGroupDetailPage() {
               {t('common.actions.cancel')}
             </button>
             <button
-              onClick={() => void updateGroupMutation.mutateAsync({ name: editedName, description: editedDescription })}
+              onClick={() => updateGroupMutation.mutate({ name: editedName, description: editedDescription })}
               disabled={isUpdating || !editedName.trim()}
               className="flex items-center gap-1.5 px-4 py-2 bg-[#00652c] text-white rounded-xl text-sm font-bold hover:opacity-90 transition-opacity disabled:opacity-50"
             >
