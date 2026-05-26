@@ -97,10 +97,16 @@ describe('VideoDetailPage', () => {
     expect(screen.getByText('videos.detail.deleteButton')).toBeInTheDocument()
   })
 
-  it('should render back to list button', () => {
+  it('should not render a back to list button', () => {
     render(<VideoDetailPage />)
 
-    expect(screen.getByText('videos.detail.videosBreadcrumb')).toBeInTheDocument()
+    expect(screen.queryByLabelText('common.actions.backToList')).not.toBeInTheDocument()
+  })
+
+  it('should not render breadcrumb text', () => {
+    render(<VideoDetailPage />)
+
+    expect(screen.queryByText('videos.detail.videosBreadcrumb')).not.toBeInTheDocument()
   })
 
   it('should render transcript when available', () => {
@@ -125,6 +131,11 @@ describe('VideoDetailPage', () => {
     expect(mockLoadVideo).not.toHaveBeenCalled()
   })
 
+  it('should not render a fixed sub-header below the nav', () => {
+    const { container } = render(<VideoDetailPage />)
+    const subHeader = container.querySelector('.fixed.top-16.z-40')
+    expect(subHeader).toBeNull()
+  })
 
 })
 

@@ -103,16 +103,28 @@ describe('VideoGroupDetailPage', () => {
     render(<VideoGroupDetailPage />)
 
     await waitFor(() => {
-      expect(screen.getByText('videos.groupDetail.addVideoButton')).toBeInTheDocument()
+      expect(screen.getByText('videos.groupDetail.add')).toBeInTheDocument()
     })
   })
 
-  it('should render back to list button', async () => {
+  it('should not render a back to list button', async () => {
     render(<VideoGroupDetailPage />)
 
     await waitFor(() => {
-      expect(screen.getByText('videos.groupDetail.breadcrumbGroups')).toBeInTheDocument()
+      expect(screen.getByText('Test Group')).toBeInTheDocument()
     })
+
+    expect(screen.queryByLabelText('common.actions.backToList')).not.toBeInTheDocument()
+  })
+
+  it('should not render breadcrumb text', async () => {
+    render(<VideoGroupDetailPage />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Test Group')).toBeInTheDocument()
+    })
+
+    expect(screen.queryByText('videos.groupDetail.breadcrumbGroups')).not.toBeInTheDocument()
   })
 
   it('should render delete button', async () => {
@@ -167,6 +179,15 @@ describe('VideoGroupDetailPage', () => {
     await waitFor(() => {
       expect(screen.getByText('common.actions.save')).toBeInTheDocument()
     })
+  })
+
+  it('should not render a fixed sub-header below the nav', async () => {
+    const { container } = render(<VideoGroupDetailPage />)
+    await waitFor(() => {
+      expect(screen.getByText('Test Group')).toBeInTheDocument()
+    })
+    const subHeader = container.querySelector('.fixed.top-16.z-40')
+    expect(subHeader).toBeNull()
   })
 
   it('should not autoplay youtube video on initial render', async () => {

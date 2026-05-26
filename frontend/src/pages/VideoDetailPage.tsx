@@ -17,7 +17,7 @@ import { queryKeys } from '@/lib/queryKeys';
 import type { Tag } from '@/lib/api';
 import { AppNav } from '@/components/layout/AppNav';
 import {
-  ArrowLeft, Calendar, CheckCircle, Search, ChevronRight,
+  ArrowLeft, Calendar, CheckCircle, Search,
   Trash2, Pencil, X, Save, Video as VideoIcon,
   Play, AlignLeft,
 } from 'lucide-react';
@@ -351,30 +351,9 @@ export default function VideoDetailPage() {
         {/* ── Header ───────────────────────────────────────────────────────── */}
         <AppNav activePage="videos" />
 
-        {/* ── Sub-header: Breadcrumb + Actions ─────────────────────────────── */}
-        <div className="fixed top-16 w-full z-40 bg-white border-b border-stone-100">
-          <div className="max-w-screen-xl mx-auto w-full px-6 lg:px-8 flex justify-between items-center h-14">
-            <div className="flex items-center gap-2 min-w-0">
-              <button
-                onClick={() => navigate('/videos')}
-                className="p-1 rounded-lg hover:bg-stone-100 transition-all shrink-0"
-              >
-                <ArrowLeft className="w-4 h-4 text-[#3f493f]" />
-              </button>
-              <Link href="/videos" className="text-sm text-stone-400 hover:text-[#00652c] transition-colors shrink-0">
-                {t('videos.detail.videosBreadcrumb')}
-              </Link>
-              <ChevronRight className="w-3.5 h-3.5 text-stone-300 shrink-0" />
-              <span className="text-sm font-bold text-[#00652c] truncate">
-                {video.title}
-              </span>
-            </div>
-          </div>
-        </div>
-
         {/* ── Mobile tabs ───────────────────────────────────────────────────── */}
         {isMobile && (
-          <div className="mt-[112px] flex border-b border-stone-200 bg-white shrink-0">
+          <div className="mt-16 flex border-b border-stone-200 bg-white shrink-0">
             <button
               onClick={() => setMobileTab('video')}
               className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-semibold transition-colors ${
@@ -402,10 +381,11 @@ export default function VideoDetailPage() {
 
         {/* ── Main Content ──────────────────────────────────────────────────── */}
         <main
-          className={`flex-grow max-w-screen-xl mx-auto w-full px-6 lg:px-8 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6 ${
-            isMobile ? 'mt-0' : 'mt-[112px]'
+          className={`flex-grow max-w-screen-xl mx-auto w-full px-6 lg:px-8 py-6 flex flex-col gap-6 ${
+            isMobile ? 'mt-0' : 'mt-16'
           }`}
         >
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* ── Left Column: Video + Info ──────────────────────────────────── */}
           <div
             className={`lg:col-span-8 flex flex-col gap-4 ${
@@ -567,7 +547,7 @@ export default function VideoDetailPage() {
           {/* ── Right Column: Transcript ───────────────────────────────────── */}
           <div
             className={`lg:col-span-4 flex flex-col bg-white rounded-xl shadow-[0_4px_20px_rgba(28,25,23,0.04)] ${
-              isMobile ? 'min-h-[500px]' : 'h-[calc(100vh-120px)] sticky top-[120px]'
+              isMobile ? 'min-h-[500px]' : 'h-[calc(100vh-64px)] sticky top-16'
             } ${isMobile && mobileTab !== 'transcript' ? 'hidden' : ''}`}
           >
             {/* Transcript Header */}
@@ -693,6 +673,7 @@ export default function VideoDetailPage() {
                 )}
               </div>
             )}
+          </div>
           </div>
         </main>
 
