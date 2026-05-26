@@ -165,7 +165,7 @@ describe('VideoDetailPage - Edit modal', () => {
     })
   })
 
-  it('should close modal and clear error on cancel', async () => {
+  it('should close modal on cancel', async () => {
     ;(apiClient.updateVideo as ReturnType<typeof vi.fn>).mockRejectedValue(
       new Error('Update failed'),
     )
@@ -182,6 +182,29 @@ describe('VideoDetailPage - Edit modal', () => {
     fireEvent.click(screen.getByText('common.actions.cancel'))
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('should clear error when modal is reopened after cancel', async () => {
+    ;(apiClient.updateVideo as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new Error('Update failed'),
+    )
+
+    render(<VideoDetailPage />)
+
+    // Open → save → error appears
+    fireEvent.click(screen.getByText('videos.detail.editButton'))
+    fireEvent.click(screen.getByText('common.actions.save'))
+    await waitFor(() => {
+      expect(screen.getByText('Update failed')).toBeInTheDocument()
+    })
+
+    // Cancel closes modal
+    fireEvent.click(screen.getByText('common.actions.cancel'))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+
+    // Reopen → error should NOT be visible
+    fireEvent.click(screen.getByText('videos.detail.editButton'))
+    expect(screen.queryByText('Update failed')).not.toBeInTheDocument()
   })
 })
 

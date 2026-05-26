@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import VideoGroupDetailPage from '../VideoGroupDetailPage'
 import { apiClient } from '@/lib/api'
 
@@ -208,6 +208,42 @@ describe('VideoGroupDetailPage', () => {
   })
 
 
+})
+
+describe('VideoGroupDetailPage - Edit modal error', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    ;(apiClient.getVideoGroup as ReturnType<typeof vi.fn>).mockResolvedValue(mockGroup)
+    ;(apiClient.updateVideoGroup as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new Error('Update failed'),
+    )
+  })
+
+  it('should clear update error when modal is reopened after cancel', async () => {
+    render(<VideoGroupDetailPage />)
+
+    // Open edit modal
+    await waitFor(() => {
+      expect(screen.getByTitle('videos.groupDetail.editTitle')).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByTitle('videos.groupDetail.editTitle'))
+
+    const dialog = await screen.findByRole('dialog')
+
+    // Try to save → error appears
+    fireEvent.click(within(dialog).getByText('common.actions.save'))
+    await waitFor(() => {
+      expect(within(dialog).getByText('Update failed')).toBeInTheDocument()
+    })
+
+    // Cancel closes modal
+    fireEvent.click(within(dialog).getByText('common.actions.cancel'))
+
+    // Reopen → error should NOT be visible
+    fireEvent.click(screen.getByTitle('videos.groupDetail.editTitle'))
+    const dialog2 = await screen.findByRole('dialog')
+    expect(within(dialog2).queryByText('Update failed')).not.toBeInTheDocument()
+  })
 })
 
 describe('VideoGroupDetailPage - Share Link', () => {

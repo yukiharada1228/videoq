@@ -168,6 +168,11 @@ export default function VideoDetailPage() {
   const isUpdating = updateMutation.isPending;
   const updateError = updateMutation.error instanceof Error ? updateMutation.error.message : null;
 
+  const handleCancelEdit = useCallback(() => {
+    cancelEditing();
+    updateMutation.reset();
+  }, [cancelEditing, updateMutation]);
+
   const transcriptUpdateMutation = useMutation({
     mutationFn: async () => {
       if (!videoId) return;
@@ -273,7 +278,7 @@ export default function VideoDetailPage() {
         <AppNav activePage="videos" />
 
         {/* ── Edit Modal ───────────────────────────────────────────────────── */}
-        <Dialog open={isEditing} onOpenChange={(open) => !open && cancelEditing()}>
+        <Dialog open={isEditing} onOpenChange={(open) => !open && handleCancelEdit()}>
           <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle>{t('videos.detail.editButton')}</DialogTitle>
@@ -321,7 +326,7 @@ export default function VideoDetailPage() {
             </div>
             <DialogFooter>
               <button
-                onClick={cancelEditing}
+                onClick={handleCancelEdit}
                 disabled={isUpdating}
                 className="flex items-center gap-1.5 px-4 py-2 border border-[#e1e3de] rounded-xl text-sm font-bold hover:bg-[#f2f4ef] transition-colors disabled:opacity-50"
               >
