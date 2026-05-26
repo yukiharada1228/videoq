@@ -14,10 +14,10 @@ import { useTags } from '@/hooks/useTags';
 import { useVideoEditing } from '@/hooks/useVideoEditing';
 import { useVideoDetailPageMutations } from '@/hooks/useVideoDetailPageData';
 import { queryKeys } from '@/lib/queryKeys';
-import type { Tag } from '@/lib/api';
 import { AppNav } from '@/components/layout/AppNav';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
-  ArrowLeft, Calendar, CheckCircle, Search, ChevronRight,
+  ArrowLeft, Calendar, CheckCircle, Search,
   Trash2, Pencil, X, Save, Video as VideoIcon,
   Play, AlignLeft,
 } from 'lucide-react';
@@ -81,89 +81,6 @@ function getStatusClassName(status: string): string {
     case 'processing':return 'bg-[#ffdcc3] text-[#2f1500]';
     default:          return 'bg-gray-100 text-gray-500';
   }
-}
-
-// ── Inline edit form ──────────────────────────────────────────────────────────
-
-interface InlineEditFormProps {
-  editedTitle: string;
-  editedDescription: string;
-  editedTagIds: number[];
-  tags: Tag[];
-  isUpdating: boolean;
-  onTitleChange: (v: string) => void;
-  onDescriptionChange: (v: string) => void;
-  onTagToggle: (id: number) => void;
-  onCreateTag: () => void;
-  onSave: () => void;
-  onCancel: () => void;
-}
-
-function InlineEditForm({
-  editedTitle, editedDescription, editedTagIds, tags, isUpdating,
-  onTitleChange, onDescriptionChange, onTagToggle, onCreateTag, onSave, onCancel,
-}: InlineEditFormProps) {
-  const { t } = useTranslation();
-  return (
-    <div className="bg-white rounded-xl shadow-[0_4px_20px_rgba(28,25,23,0.04)] p-6 flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-bold text-[#6f7a6e] uppercase tracking-widest">{t('videos.detail.editMode')}</span>
-        <button onClick={onCancel} className="text-[#6f7a6e] hover:text-[#191c19] transition-colors">
-          <X className="w-4 h-4" />
-        </button>
-      </div>
-
-      <div className="space-y-1">
-        <label className="text-xs font-bold text-[#3f493f]">{t('videos.detail.editTitleLabel')}</label>
-        <input
-          type="text"
-          value={editedTitle}
-          onChange={(e) => onTitleChange(e.target.value)}
-          disabled={isUpdating}
-          className="w-full px-3 py-2 bg-[#f2f4ef] border border-[#e1e3de] rounded-xl text-sm focus:ring-2 focus:ring-[#00652c]/20 focus:border-[#00652c] outline-none transition-all"
-        />
-      </div>
-
-      <div className="space-y-1">
-        <label className="text-xs font-bold text-[#3f493f]">{t('videos.detail.editDescriptionLabel')}</label>
-        <textarea
-          value={editedDescription}
-          onChange={(e) => onDescriptionChange(e.target.value)}
-          disabled={isUpdating}
-          rows={4}
-          className="w-full px-3 py-2 bg-[#f2f4ef] border border-[#e1e3de] rounded-xl text-sm focus:ring-2 focus:ring-[#00652c]/20 focus:border-[#00652c] outline-none transition-all resize-none"
-        />
-      </div>
-
-      <div className="space-y-1">
-        <TagSelector
-          tags={tags}
-          selectedTagIds={editedTagIds}
-          onToggle={onTagToggle}
-          onCreateNew={onCreateTag}
-          disabled={isUpdating}
-        />
-      </div>
-
-      <div className="flex gap-2 pt-2">
-        <button
-          onClick={onSave}
-          disabled={isUpdating || !editedTitle.trim()}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-[#00652c] text-white text-sm font-bold rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {isUpdating ? <InlineSpinner className="w-3.5 h-3.5" /> : <Save className="w-3.5 h-3.5" />}
-          {isUpdating ? t('videos.detail.saving') : t('videos.detail.save')}
-        </button>
-        <button
-          onClick={onCancel}
-          disabled={isUpdating}
-          className="px-4 py-2.5 border border-[#e1e3de] text-[#3f493f] text-sm font-bold rounded-xl hover:bg-[#f2f4ef] transition-colors disabled:opacity-50"
-        >
-          {t('videos.detail.cancel')}
-        </button>
-      </div>
-    </div>
-  );
 }
 
 // ── Main page ─────────────────────────────────────────────────────────────────
@@ -237,15 +154,24 @@ export default function VideoDetailPage() {
 
   const youtubeStartSeconds = manualYoutubeStartSeconds ?? queryYoutubeStartSeconds;
 
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   const { deleteMutation, updateMutation } = useVideoDetailPageMutations({
     videoId,
     onDeleteSuccess: () => navigate('/videos'),
     onUpdate: handleUpdateVideo,
     onUpdateSuccess: cancelEditing,
+    onDeleteError: (err) => setDeleteError(err instanceof Error ? err.message : String(err)),
   });
 
   const isDeleting = deleteMutation.isPending;
   const isUpdating = updateMutation.isPending;
+  const updateError = updateMutation.error instanceof Error ? updateMutation.error.message : null;
+
+  const handleCancelEdit = useCallback(() => {
+    cancelEditing();
+    updateMutation.reset();
+  }, [cancelEditing, updateMutation]);
 
   const transcriptUpdateMutation = useMutation({
     mutationFn: async () => {
@@ -351,30 +277,77 @@ export default function VideoDetailPage() {
         {/* ── Header ───────────────────────────────────────────────────────── */}
         <AppNav activePage="videos" />
 
-        {/* ── Sub-header: Breadcrumb + Actions ─────────────────────────────── */}
-        <div className="fixed top-16 w-full z-40 bg-white border-b border-stone-100">
-          <div className="max-w-screen-xl mx-auto w-full px-6 lg:px-8 flex justify-between items-center h-14">
-            <div className="flex items-center gap-2 min-w-0">
-              <button
-                onClick={() => navigate('/videos')}
-                className="p-1 rounded-lg hover:bg-stone-100 transition-all shrink-0"
-              >
-                <ArrowLeft className="w-4 h-4 text-[#3f493f]" />
-              </button>
-              <Link href="/videos" className="text-sm text-stone-400 hover:text-[#00652c] transition-colors shrink-0">
-                {t('videos.detail.videosBreadcrumb')}
-              </Link>
-              <ChevronRight className="w-3.5 h-3.5 text-stone-300 shrink-0" />
-              <span className="text-sm font-bold text-[#00652c] truncate">
-                {video.title}
-              </span>
+        {/* ── Edit Modal ───────────────────────────────────────────────────── */}
+        <Dialog open={isEditing} onOpenChange={(open) => !open && handleCancelEdit()}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>{t('videos.detail.editButton')}</DialogTitle>
+              <DialogDescription>
+                {t('videos.detail.editDescriptionLabel')}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              {updateError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600">{updateError}</div>
+              )}
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-[#3f493f]">{t('videos.detail.editTitleLabel')}</label>
+                <input
+                  type="text"
+                  value={editedTitle}
+                  onChange={(e) => setEditedTitle(e.target.value)}
+                  disabled={isUpdating}
+                  className="w-full px-3 py-2.5 bg-[#f2f4ef] border border-[#e1e3de] rounded-xl text-sm focus:ring-2 focus:ring-[#00652c]/20 focus:border-[#00652c] outline-none transition-all"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-[#3f493f]">{t('videos.detail.editDescriptionLabel')}</label>
+                <textarea
+                  value={editedDescription}
+                  onChange={(e) => setEditedDescription(e.target.value)}
+                  disabled={isUpdating}
+                  rows={4}
+                  className="w-full px-3 py-2 bg-[#f2f4ef] border border-[#e1e3de] rounded-xl text-sm focus:ring-2 focus:ring-[#00652c]/20 focus:border-[#00652c] outline-none transition-all resize-none"
+                />
+              </div>
+              <div className="space-y-1">
+                <TagSelector
+                  tags={tags}
+                  selectedTagIds={editedTagIds}
+                  onToggle={(tagId) =>
+                    setEditedTagIds((prev) =>
+                      prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId],
+                    )
+                  }
+                  onCreateNew={() => setIsCreateDialogOpen(true)}
+                  disabled={isUpdating}
+                />
+              </div>
             </div>
-          </div>
-        </div>
+            <DialogFooter>
+              <button
+                onClick={handleCancelEdit}
+                disabled={isUpdating}
+                className="flex items-center gap-1.5 px-4 py-2 border border-[#e1e3de] rounded-xl text-sm font-bold hover:bg-[#f2f4ef] transition-colors disabled:opacity-50"
+              >
+                <X className="w-3.5 h-3.5" />
+                {t('common.actions.cancel')}
+              </button>
+              <button
+                onClick={() => updateMutation.mutate()}
+                disabled={isUpdating || !editedTitle.trim()}
+                className="flex items-center gap-1.5 px-4 py-2 bg-[#00652c] text-white rounded-xl text-sm font-bold hover:opacity-90 transition-opacity disabled:opacity-50"
+              >
+                {isUpdating ? <InlineSpinner className="w-3.5 h-3.5" /> : <Save className="w-3.5 h-3.5" />}
+                {isUpdating ? t('common.actions.saving') : t('common.actions.save')}
+              </button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* ── Mobile tabs ───────────────────────────────────────────────────── */}
         {isMobile && (
-          <div className="mt-[112px] flex border-b border-stone-200 bg-white shrink-0">
+          <div className="mt-16 flex border-b border-stone-200 bg-white shrink-0">
             <button
               onClick={() => setMobileTab('video')}
               className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-semibold transition-colors ${
@@ -402,10 +375,11 @@ export default function VideoDetailPage() {
 
         {/* ── Main Content ──────────────────────────────────────────────────── */}
         <main
-          className={`flex-grow max-w-screen-xl mx-auto w-full px-6 lg:px-8 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6 ${
-            isMobile ? 'mt-0' : 'mt-[112px]'
+          className={`flex-grow max-w-screen-xl mx-auto w-full px-6 lg:px-8 py-6 flex flex-col gap-6 ${
+            isMobile ? 'mt-0' : 'mt-16'
           }`}
         >
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* ── Left Column: Video + Info ──────────────────────────────────── */}
           <div
             className={`lg:col-span-8 flex flex-col gap-4 ${
@@ -441,133 +415,121 @@ export default function VideoDetailPage() {
               )}
             </div>
 
-            {/* Info Card / Edit Form */}
-            {isEditing ? (
-              <InlineEditForm
-                editedTitle={editedTitle}
-                editedDescription={editedDescription}
-                editedTagIds={editedTagIds}
-                tags={tags}
-                isUpdating={isUpdating}
-                onTitleChange={setEditedTitle}
-                onDescriptionChange={setEditedDescription}
-                onTagToggle={(tagId) =>
-                  setEditedTagIds((prev) =>
-                    prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId],
-                  )
-                }
-                onCreateTag={() => setIsCreateDialogOpen(true)}
-                onSave={() => void updateMutation.mutateAsync()}
-                onCancel={cancelEditing}
-              />
-            ) : (
-              <div className="bg-white rounded-xl shadow-[0_4px_20px_rgba(28,25,23,0.04)] p-6 flex flex-col gap-4">
-                {/* Title + Status */}
-                <div className="flex justify-between items-start gap-4">
-                  <div>
-                    <h1 className="font-bold text-xl text-[#191c19] leading-tight mb-1">
-                      {video.title}
-                    </h1>
-                    <div className="flex items-center gap-2 text-sm text-[#6f7a6e]">
-                      <Calendar className="w-3.5 h-3.5 shrink-0" />
-                      <span>{formatDate(video.uploaded_at, 'full', locale)}</span>
-                    </div>
+            {/* Info Card */}
+            <div className="bg-white rounded-xl shadow-[0_4px_20px_rgba(28,25,23,0.04)] p-6 flex flex-col gap-4">
+              {/* Title + Status */}
+              <div className="flex justify-between items-start gap-4">
+                <div>
+                  <h1 className="font-bold text-xl text-[#191c19] leading-tight mb-1">
+                    {video.title}
+                  </h1>
+                  <div className="flex items-center gap-2 text-sm text-[#6f7a6e]">
+                    <Calendar className="w-3.5 h-3.5 shrink-0" />
+                    <span>{formatDate(video.uploaded_at, 'full', locale)}</span>
                   </div>
-                  <span className={`shrink-0 inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${statusClassName}`}>
-                    {video.status === 'completed' && <CheckCircle className="w-3 h-3" />}
-                    {t(`common.status.${video.status}`, video.status)}
-                  </span>
                 </div>
-
-                {/* Tags */}
-                {video.tags && video.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {video.tags.map((tag) => (
-                      <span
-                        key={tag.id}
-                        className="px-3 py-1 rounded-full text-[11px] font-bold uppercase"
-                        style={{ backgroundColor: `${tag.color}20`, color: tag.color }}
-                      >
-                        {tag.name}
-                      </span>
-                    ))}
-                  </div>
-                )}
-
-                {/* Status Pipeline (horizontal) */}
-                <div className="border-t border-[#e1e3de]/50 pt-4 flex items-center gap-3 flex-wrap">
-                  <span className="text-xs font-bold text-[#6f7a6e] uppercase tracking-widest shrink-0">
-                    {t('videos.detail.statusSection')}
-                  </span>
-                  {pipelineSteps.map(({ key, label, doneStatuses }, idx) => {
-                    const done = doneStatuses.includes(video.status);
-                    return (
-                      <div key={key} className="flex items-center gap-2">
-                        {idx > 0 && <div className="w-6 h-px bg-[#e1e3de]" />}
-                        <div className="flex items-center gap-1.5">
-                          <div
-                            className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${
-                              done ? 'bg-[#15803d]' : 'bg-[#e1e3de]'
-                            }`}
-                          >
-                            {done ? (
-                              <CheckCircle className="w-3 h-3 text-white" />
-                            ) : (
-                              <div className="w-1.5 h-1.5 rounded-full bg-[#becabc]" />
-                            )}
-                          </div>
-                          <span className={`text-xs font-semibold ${done ? 'text-[#191c19]' : 'text-[#becabc]'}`}>
-                            {label}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Error message */}
-                {video.error_message && (
-                  <div className="p-3 bg-red-50 border border-red-200 rounded-xl">
-                    <p className="text-xs text-red-700 leading-relaxed">{video.error_message}</p>
-                  </div>
-                )}
-
-                {/* Description */}
-                {video.description && (
-                  <div className="border-t border-[#e1e3de]/50 pt-4">
-                    <p className="text-sm text-[#3f493f] leading-relaxed">{video.description}</p>
-                  </div>
-                )}
-
-                {/* Actions */}
-                <div className="border-t border-[#e1e3de]/50 pt-4 flex items-center gap-2">
-                  <button
-                    onClick={startEditing}
-                    className="flex items-center gap-1.5 px-4 py-2 border border-[#e1e3de] text-[#3f493f] text-sm font-bold rounded-xl hover:bg-[#f2f4ef] transition-colors"
-                  >
-                    <Pencil className="w-3.5 h-3.5" />
-                    {t('videos.detail.editButton')}
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (!window.confirm(t('confirmations.deleteVideo'))) return;
-                      void deleteMutation.mutateAsync();
-                    }}
-                    disabled={isDeleting}
-                    className="flex items-center gap-1.5 px-4 py-2 text-red-600 text-sm font-bold rounded-xl hover:bg-red-50 transition-colors disabled:opacity-50"
-                  >
-                    {isDeleting ? <InlineSpinner className="w-3.5 h-3.5" /> : <Trash2 className="w-3.5 h-3.5" />}
-                    {isDeleting ? t('common.actions.deleting') : t('videos.detail.deleteButton')}
-                  </button>
-                </div>
+                <span className={`shrink-0 inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${statusClassName}`}>
+                  {video.status === 'completed' && <CheckCircle className="w-3 h-3" />}
+                  {t(`common.status.${video.status}`, video.status)}
+                </span>
               </div>
-            )}
+
+              {/* Tags */}
+              {video.tags && video.tags.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {video.tags.map((tag) => (
+                    <span
+                      key={tag.id}
+                      className="px-3 py-1 rounded-full text-[11px] font-bold uppercase"
+                      style={{ backgroundColor: `${tag.color}20`, color: tag.color }}
+                    >
+                      {tag.name}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Status Pipeline (horizontal) */}
+              <div className="border-t border-[#e1e3de]/50 pt-4 flex items-center gap-3 flex-wrap">
+                <span className="text-xs font-bold text-[#6f7a6e] uppercase tracking-widest shrink-0">
+                  {t('videos.detail.statusSection')}
+                </span>
+                {pipelineSteps.map(({ key, label, doneStatuses }, idx) => {
+                  const done = doneStatuses.includes(video.status);
+                  return (
+                    <div key={key} className="flex items-center gap-2">
+                      {idx > 0 && <div className="w-6 h-px bg-[#e1e3de]" />}
+                      <div className="flex items-center gap-1.5">
+                        <div
+                          className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${
+                            done ? 'bg-[#15803d]' : 'bg-[#e1e3de]'
+                          }`}
+                        >
+                          {done ? (
+                            <CheckCircle className="w-3 h-3 text-white" />
+                          ) : (
+                            <div className="w-1.5 h-1.5 rounded-full bg-[#becabc]" />
+                          )}
+                        </div>
+                        <span className={`text-xs font-semibold ${done ? 'text-[#191c19]' : 'text-[#becabc]'}`}>
+                          {label}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Video error message */}
+              {video.error_message && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-xl">
+                  <p className="text-xs text-red-700 leading-relaxed">{video.error_message}</p>
+                </div>
+              )}
+
+              {/* Description */}
+              {video.description && (
+                <div className="border-t border-[#e1e3de]/50 pt-4">
+                  <p className="text-sm text-[#3f493f] leading-relaxed">{video.description}</p>
+                </div>
+              )}
+
+              {/* Delete error */}
+              {deleteError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-xl">
+                  <p className="text-xs text-red-700 leading-relaxed">{deleteError}</p>
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="border-t border-[#e1e3de]/50 pt-4 flex items-center gap-2">
+                <button
+                  onClick={startEditing}
+                  className="flex items-center gap-1.5 px-4 py-2 border border-[#e1e3de] text-[#3f493f] text-sm font-bold rounded-xl hover:bg-[#f2f4ef] transition-colors"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                  {t('videos.detail.editButton')}
+                </button>
+                <button
+                  onClick={() => {
+                    if (!window.confirm(t('confirmations.deleteVideo'))) return;
+                    setDeleteError(null);
+                    deleteMutation.mutate();
+                  }}
+                  disabled={isDeleting}
+                  className="flex items-center gap-1.5 px-4 py-2 text-red-600 text-sm font-bold rounded-xl hover:bg-red-50 transition-colors disabled:opacity-50"
+                >
+                  {isDeleting ? <InlineSpinner className="w-3.5 h-3.5" /> : <Trash2 className="w-3.5 h-3.5" />}
+                  {isDeleting ? t('common.actions.deleting') : t('videos.detail.deleteButton')}
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* ── Right Column: Transcript ───────────────────────────────────── */}
           <div
             className={`lg:col-span-4 flex flex-col bg-white rounded-xl shadow-[0_4px_20px_rgba(28,25,23,0.04)] ${
-              isMobile ? 'min-h-[500px]' : 'h-[calc(100vh-120px)] sticky top-[120px]'
+              isMobile ? 'min-h-[500px]' : 'h-[calc(100vh-64px)] sticky top-16'
             } ${isMobile && mobileTab !== 'transcript' ? 'hidden' : ''}`}
           >
             {/* Transcript Header */}
@@ -693,6 +655,7 @@ export default function VideoDetailPage() {
                 )}
               </div>
             )}
+          </div>
           </div>
         </main>
 

@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import VideoGroupDetailPage from '../VideoGroupDetailPage'
 import { apiClient } from '@/lib/api'
 
@@ -103,16 +103,18 @@ describe('VideoGroupDetailPage', () => {
     render(<VideoGroupDetailPage />)
 
     await waitFor(() => {
-      expect(screen.getByText('videos.groupDetail.addVideoButton')).toBeInTheDocument()
+      expect(screen.getByText('videos.groupDetail.add')).toBeInTheDocument()
     })
   })
 
-  it('should render back to list button', async () => {
+  it('should not render breadcrumb text', async () => {
     render(<VideoGroupDetailPage />)
 
     await waitFor(() => {
-      expect(screen.getByText('videos.groupDetail.breadcrumbGroups')).toBeInTheDocument()
+      expect(screen.getByText('Test Group')).toBeInTheDocument()
     })
+
+    expect(screen.queryByText('videos.groupDetail.breadcrumbGroups')).not.toBeInTheDocument()
   })
 
   it('should render delete button', async () => {
@@ -169,6 +171,15 @@ describe('VideoGroupDetailPage', () => {
     })
   })
 
+  it('should not render a fixed sub-header below the nav', async () => {
+    const { container } = render(<VideoGroupDetailPage />)
+    await waitFor(() => {
+      expect(screen.getByText('Test Group')).toBeInTheDocument()
+    })
+    const subHeader = container.querySelector('.fixed.top-16.z-40')
+    expect(subHeader).toBeNull()
+  })
+
   it('should not autoplay youtube video on initial render', async () => {
     const youtubeGroup = {
       ...mockGroup,
@@ -197,6 +208,42 @@ describe('VideoGroupDetailPage', () => {
   })
 
 
+})
+
+describe('VideoGroupDetailPage - Edit modal error', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    ;(apiClient.getVideoGroup as ReturnType<typeof vi.fn>).mockResolvedValue(mockGroup)
+    ;(apiClient.updateVideoGroup as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new Error('Update failed'),
+    )
+  })
+
+  it('should clear update error when modal is reopened after cancel', async () => {
+    render(<VideoGroupDetailPage />)
+
+    // Open edit modal
+    await waitFor(() => {
+      expect(screen.getByTitle('videos.groupDetail.editTitle')).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByTitle('videos.groupDetail.editTitle'))
+
+    const dialog = await screen.findByRole('dialog')
+
+    // Try to save → error appears
+    fireEvent.click(within(dialog).getByText('common.actions.save'))
+    await waitFor(() => {
+      expect(within(dialog).getByText('Update failed')).toBeInTheDocument()
+    })
+
+    // Cancel closes modal
+    fireEvent.click(within(dialog).getByText('common.actions.cancel'))
+
+    // Reopen → error should NOT be visible
+    fireEvent.click(screen.getByTitle('videos.groupDetail.editTitle'))
+    const dialog2 = await screen.findByRole('dialog')
+    expect(within(dialog2).queryByText('Update failed')).not.toBeInTheDocument()
+  })
 })
 
 describe('VideoGroupDetailPage - Share Link', () => {
@@ -265,6 +312,24 @@ describe('VideoGroupDetailPage - Delete', () => {
     })
   })
 
+  it('should show delete error when delete fails', async () => {
+    ;(apiClient.deleteVideoGroup as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new Error('Delete failed'),
+    )
+
+    render(<VideoGroupDetailPage />)
+
+    await waitFor(() => {
+      expect(screen.getByTitle('videos.groupDetail.delete')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByTitle('videos.groupDetail.delete'))
+
+    await waitFor(() => {
+      expect(screen.getByText('Delete failed')).toBeInTheDocument()
+    })
+  })
+
   it('should remove the video from the group list when removal is confirmed', async () => {
     render(<VideoGroupDetailPage />)
 
@@ -279,6 +344,78 @@ describe('VideoGroupDetailPage - Delete', () => {
     await waitFor(() => {
       expect(screen.queryAllByText('Video 1')).toHaveLength(0)
       expect(screen.getAllByText('Video 2').length).toBeGreaterThan(0)
+    })
+  })
+
+  it('should reset autoVideoId when the auto-selected video is removed from the group', async () => {
+    // After Video 1 (initially auto-selected) is removed, autoVideoId should
+    // update to Video 2. Subsequent title queries confirm Video 2 is now tracked.
+    render(<VideoGroupDetailPage />)
+
+    // Wait for initial render with Video 1 auto-selected
+    await screen.findAllByRole('button', { name: 'videos.groupDetail.removeFromGroup' })
+
+    // Remove Video 1 (the auto-selected one)
+    const [firstRemoveButton] = screen.getAllByRole('button', { name: 'videos.groupDetail.removeFromGroup' })
+    fireEvent.click(firstRemoveButton)
+
+    await waitFor(() => {
+      expect(screen.queryAllByText('Video 1')).toHaveLength(0)
+    })
+
+    // Video 2 should now be shown in the list (and become the new auto-selected)
+    expect(screen.getAllByText('Video 2').length).toBeGreaterThan(0)
+  })
+
+  it('should keep player on Video 2 after deleting Video 1 (auto-selected) and then receiving a reordered list [Video 3, Video 2]', async () => {
+    // Regression: after deletion shifts autoVideoId to V2, a subsequent reorder
+    // that puts V3 first must NOT override autoVideoId with V3.
+
+    // Override to 3-video group for this test
+    const video3 = { id: 3, title: 'Video 3', description: 'Desc 3', status: 'completed', file: 'video3.mp4', source_type: 'uploaded', order: 2 }
+    currentGroup = { ...mockGroup, videos: [...mockGroup.videos, video3] }
+    ;(apiClient.updateVideoGroup as ReturnType<typeof vi.fn>).mockResolvedValue({})
+
+    const { container } = render(<VideoGroupDetailPage />)
+
+    // Wait for all 3 remove buttons (initial load with V1, V2, V3)
+    await waitFor(() => {
+      expect(screen.getAllByRole('button', { name: 'videos.groupDetail.removeFromGroup' })).toHaveLength(3)
+    })
+
+    // Step 1: Delete Video 1 (auto-selected)
+    // removeVideoFromGroup mock mutates currentGroup → [V2, V3]
+    // syncGroupDetail → invalidateQueries → refetch returns [V2, V3]
+    // autoVideoId: V1 stale → resets to V2 (first in new list)
+    const [firstRemoveButton] = screen.getAllByRole('button', { name: 'videos.groupDetail.removeFromGroup' })
+    fireEvent.click(firstRemoveButton)
+
+    await waitFor(() => {
+      expect(screen.queryAllByText('Video 1')).toHaveLength(0)
+    })
+
+    // Step 2: Simulate an external reorder — V3 moves before V2
+    // Override currentGroup so the next refetch returns [V3, V2]
+    currentGroup = {
+      ...currentGroup,
+      videos: [
+        { id: 3, title: 'Video 3', description: 'Desc 3', status: 'completed', file: 'video3.mp4', source_type: 'uploaded', order: 0 },
+        { id: 2, title: 'Video 2', description: 'Desc 2', status: 'processing', file: 'video2.mp4', source_type: 'uploaded', order: 1 },
+      ],
+    }
+
+    // Trigger a refetch by saving the edit modal (updateGroupMutation.onSuccess → syncGroupDetail)
+    fireEvent.click(screen.getByTitle('videos.groupDetail.editTitle'))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByText('common.actions.save'))
+
+    // After re-render with [V3, V2]:
+    //   autoVideoId is still V2 (V2 is in the list → no reset)
+    //   selectedVideo → V2 (from autoVideoId)
+    //   Player must show video2.mp4, NOT video3.mp4
+    await waitFor(() => {
+      const videoEl = container.querySelector('video')
+      expect(videoEl?.getAttribute('src')).toBe('video2.mp4')
     })
   })
 })
