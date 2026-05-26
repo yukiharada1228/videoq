@@ -447,12 +447,16 @@ export default function VideoGroupDetailPage() {
   const [editedName, setEditedName] = useState('');
   const [editedDescription, setEditedDescription] = useState('');
 
-  // Initialize autoVideoId once when the first video becomes available.
-  // Calling setState during render is intentional here: React immediately
-  // re-renders with the updated state before committing to the DOM, so no
-  // extra paint occurs.
-  const firstVideoId = group?.videos?.[0]?.id ?? null;
-  if (autoVideoId === null && firstVideoId !== null) {
+  // Keep autoVideoId in sync with the current video list using React's "derived state" pattern
+  // (react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes).
+  // We update autoVideoId when:
+  //   - It is null (initial load)
+  //   - It refers to a video that is no longer in the list (e.g. after deletion or group change)
+  // This prevents the player from switching to videos[0] during reorders when autoVideoId is stale.
+  const currentVideos = group?.videos;
+  const firstVideoId = currentVideos?.[0]?.id ?? null;
+  const autoVideoInList = autoVideoId !== null && (currentVideos?.some((v) => v.id === autoVideoId) ?? false);
+  if (!autoVideoInList && firstVideoId !== null) {
     setAutoVideoId(firstVideoId);
   }
 
@@ -464,10 +468,13 @@ export default function VideoGroupDetailPage() {
       const found = videos.find((v) => v.id === selectedVideoId);
       if (found) return convertVideoInGroupToSelectedVideo(found);
     }
-    // Fallback to auto-selected video (stable across reorders)
-    const targetId = autoVideoId ?? videos[0].id;
-    const found = videos.find((v) => v.id === targetId);
-    return convertVideoInGroupToSelectedVideo(found ?? videos[0]);
+    // Fall back to auto-selected video (stable across reorders thanks to autoVideoId)
+    const targetId = autoVideoId;
+    if (targetId !== null) {
+      const found = videos.find((v) => v.id === targetId);
+      if (found) return convertVideoInGroupToSelectedVideo(found);
+    }
+    return convertVideoInGroupToSelectedVideo(videos[0]);
   }, [group?.videos, selectedVideoId, autoVideoId]);
 
   const { mobileTab, setMobileTab, isMobile } = useMobileTab();

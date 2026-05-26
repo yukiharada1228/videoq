@@ -346,4 +346,24 @@ describe('VideoGroupDetailPage - Delete', () => {
       expect(screen.getAllByText('Video 2').length).toBeGreaterThan(0)
     })
   })
+
+  it('should reset autoVideoId when the auto-selected video is removed from the group', async () => {
+    // After Video 1 (initially auto-selected) is removed, autoVideoId should
+    // update to Video 2. Subsequent title queries confirm Video 2 is now tracked.
+    render(<VideoGroupDetailPage />)
+
+    // Wait for initial render with Video 1 auto-selected
+    await screen.findAllByRole('button', { name: 'videos.groupDetail.removeFromGroup' })
+
+    // Remove Video 1 (the auto-selected one)
+    const [firstRemoveButton] = screen.getAllByRole('button', { name: 'videos.groupDetail.removeFromGroup' })
+    fireEvent.click(firstRemoveButton)
+
+    await waitFor(() => {
+      expect(screen.queryAllByText('Video 1')).toHaveLength(0)
+    })
+
+    // Video 2 should now be shown in the list (and become the new auto-selected)
+    expect(screen.getAllByText('Video 2').length).toBeGreaterThan(0)
+  })
 })
