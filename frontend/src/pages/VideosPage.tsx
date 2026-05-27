@@ -27,10 +27,9 @@ export default function VideosPage() {
     videos,
     isLoading,
     error,
-    hasNextPage,
-    fetchNextPage,
     isFetchingNextPage,
     totalCount,
+    sentinelRef,
     refetch: refetchVideos,
   } = useVideos({
     tagIds: selectedTagIds,
@@ -233,18 +232,11 @@ export default function VideosPage() {
               </div>
             )}
 
-            {(hasNextPage || isFetchingNextPage) && (
-              <div className="flex justify-center mt-8">
-                {isFetchingNextPage ? (
-                  <span className="text-sm text-[#3f493f]">{t('videos.list.loadingMore')}</span>
-                ) : (
-                  <button
-                    onClick={fetchNextPage}
-                    className="px-6 py-2.5 bg-[#f2f4ef] border border-[#e1e3de] rounded-xl text-sm font-semibold text-[#3f493f] hover:bg-[#e7e9e4] transition-colors"
-                  >
-                    {t('videos.list.loadMore')}
-                  </button>
-                )}
+            <div ref={sentinelRef} data-testid="infinite-scroll-sentinel" />
+
+            {isFetchingNextPage && (
+              <div className="flex justify-center mt-4">
+                <span className="text-sm text-[#3f493f]">{t('videos.list.loadingMore')}</span>
               </div>
             )}
           </>

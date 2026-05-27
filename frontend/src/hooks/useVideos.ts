@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useEffect } from 'react';
+import { useCallback, useMemo, useEffect, useState, useRef } from 'react';
 import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import { apiClient, type Video, type VideoList as VideoListType } from '@/lib/api';
 import { useI18nNavigate } from '@/lib/i18n';
@@ -27,6 +27,7 @@ interface UseVideosReturn {
   totalCount: number;
   loadVideos: () => Promise<void>;
   refetch: () => Promise<void>;
+  sentinelRef: React.RefCallback<HTMLElement>;
 }
 
 export function useVideos(params?: UseVideosParams): UseVideosReturn {
@@ -74,6 +75,29 @@ export function useVideos(params?: UseVideosParams): UseVideosReturn {
     void videosQuery.fetchNextPage();
   }, [videosQuery]);
 
+  // Keep a ref to the latest fetchNextPage so the observer is not recreated on every render
+  const fetchNextPageRef = useRef(fetchNextPage);
+  useEffect(() => {
+    fetchNextPageRef.current = fetchNextPage;
+  });
+
+  const [sentinelNode, setSentinelNode] = useState<HTMLElement | null>(null);
+
+  const sentinelRef: React.RefCallback<HTMLElement> = useCallback((node) => {
+    setSentinelNode(node);
+  }, []);
+
+  useEffect(() => {
+    if (!sentinelNode) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) {
+        fetchNextPageRef.current();
+      }
+    });
+    observer.observe(sentinelNode);
+    return () => observer.disconnect();
+  }, [sentinelNode]);
+
   return {
     videos,
     isLoading: videosQuery.isLoading,
@@ -84,6 +108,7 @@ export function useVideos(params?: UseVideosParams): UseVideosReturn {
     totalCount,
     loadVideos: handleRefetch,
     refetch: handleRefetch,
+    sentinelRef,
   };
 }
 
