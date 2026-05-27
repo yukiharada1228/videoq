@@ -215,21 +215,23 @@ export default function VideosPage() {
           </div>
         ) : error ? (
           <div className="text-center py-24 text-red-500">{error}</div>
-        ) : filteredVideos.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-24 text-[#3f493f]">
-            <div className="w-24 h-24 bg-[#f2f4ef] rounded-full flex items-center justify-center mb-4">
-              <Search className="w-12 h-12 text-[#becabc]" />
-            </div>
-            <p className="text-base font-medium">{t('videos.list.noVideos')}</p>
-            <p className="text-sm mt-1 text-[#6f7a6e]">{t('videos.list.noVideosHint')}</p>
-          </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredVideos.map((video) => (
-                <VideoCard key={video.id} video={video} />
-              ))}
-            </div>
+            {filteredVideos.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-24 text-[#3f493f]">
+                <div className="w-24 h-24 bg-[#f2f4ef] rounded-full flex items-center justify-center mb-4">
+                  <Search className="w-12 h-12 text-[#becabc]" />
+                </div>
+                <p className="text-base font-medium">{t('videos.list.noVideos')}</p>
+                <p className="text-sm mt-1 text-[#6f7a6e]">{t('videos.list.noVideosHint')}</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredVideos.map((video) => (
+                  <VideoCard key={video.id} video={video} />
+                ))}
+              </div>
+            )}
 
             {(hasNextPage || isFetchingNextPage) && (
               <div className="flex justify-center mt-8">

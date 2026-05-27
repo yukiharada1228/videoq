@@ -190,6 +190,17 @@ describe('VideosPage', () => {
 
     expect(screen.getByText('videos.list.loadingMore')).toBeInTheDocument()
   })
+
+  it('should show load more button even when status filter results in empty list', () => {
+    mockHasNextPage = true
+    render(<VideosPage />)
+
+    // error フィルタを選択 — mockVideos に error ステータスはないので空になる
+    fireEvent.click(screen.getByText('videos.list.filter.error'))
+
+    // 絞り込み結果が空でも hasNextPage があるので load more は表示される
+    expect(screen.getByText('videos.list.loadMore')).toBeInTheDocument()
+  })
 })
 
 describe('VideosPage - Upload Limit', () => {
