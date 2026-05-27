@@ -69,14 +69,14 @@ export function useAddableVideosQuery({
         return [];
       }
 
-      const videos = await apiClient.getVideos({
+      const response = await apiClient.getVideos({
         q: q || undefined,
         status: status || undefined,
         ordering: normalizedOrdering,
         tags: tagIds,
       });
       const currentVideoIdSet = createVideoIdSet(group.videos.map((v) => v.id));
-      return videos.filter((v) => !currentVideoIdSet.has(v.id));
+      return response.results.filter((v) => !currentVideoIdSet.has(v.id));
     },
   });
 }

@@ -1,7 +1,7 @@
 import { useMemo, useState, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useVideos } from '@/hooks/useVideos';
+import { useVideos, type VideosOrdering } from '@/hooks/useVideos';
 import { useVideoStats } from '@/hooks/useVideoStats';
 import { VideoUploadModal } from '@/components/video/VideoUploadModal';
 import { VideoCard } from '@/components/video/VideoCard';
@@ -15,7 +15,7 @@ import { AppPageHeader } from '@/components/layout/AppPageHeader';
 import { Plus, Search, Tag } from 'lucide-react';
 
 type StatusFilter = 'all' | 'completed' | 'processing' | 'error';
-type SortOrder = 'uploaded_at_desc' | 'uploaded_at_asc' | 'title_asc';
+type SortOrder = Extract<VideosOrdering, 'uploaded_at_desc' | 'uploaded_at_asc' | 'title_asc'>;
 
 export default function VideosPage() {
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
