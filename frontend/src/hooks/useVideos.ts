@@ -4,7 +4,7 @@ import { apiClient, type Video, type VideoList as VideoListType } from '@/lib/ap
 import { useI18nNavigate } from '@/lib/i18n';
 import { queryKeys } from '@/lib/queryKeys';
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 24;
 
 export type VideosOrdering = 'uploaded_at_desc' | 'uploaded_at_asc' | 'title_asc' | 'title_desc';
 
