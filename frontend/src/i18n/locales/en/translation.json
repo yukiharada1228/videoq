@@ -256,7 +256,9 @@
         "message": "You have reached the video upload limit ({{limit}} videos). To upload new videos, please delete existing ones."
       },
       "subtitle_one": "{{count}} video",
-      "subtitle_other": "{{count}} videos"
+      "subtitle_other": "{{count}} videos",
+      "loadMore": "Load more",
+      "loadingMore": "Loading..."
     },
     "upload": {
       "title": "Upload video",

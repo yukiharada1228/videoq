@@ -12,14 +12,23 @@ vi.mock('@/lib/api', () => ({
   },
 }))
 
+const mockPaginatedResponse = (
+  results: any[],
+  count = results.length,
+  next: string | null = null,
+) => ({
+  count,
+  next,
+  previous: null,
+  results,
+})
+
 describe('useVideos', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    ;(globalThis as any).__setMockPathname?.('/')
-    window.history.pushState({}, '', '/')
   })
 
-  it('should initialize with empty videos array', () => {
+  it('should initialize with empty videos and loading state', () => {
     ;(apiClient.getVideos as any).mockReturnValue(new Promise(() => {}))
     const { result } = renderHook(() => useVideos())
 
@@ -28,22 +37,171 @@ describe('useVideos', () => {
     expect(result.current.error).toBeNull()
   })
 
-  it('should load videos', async () => {
+  it('should load videos from first page', async () => {
     const mockVideos = [
       { id: 1, title: 'Video 1', user: 1, file: '', uploaded_at: '', status: 'completed' as const },
       { id: 2, title: 'Video 2', user: 1, file: '', uploaded_at: '', status: 'completed' as const },
     ]
-    ;(apiClient.getVideos as any).mockResolvedValue(mockVideos)
+    ;(apiClient.getVideos as any).mockResolvedValue(mockPaginatedResponse(mockVideos))
 
     const { result } = renderHook(() => useVideos())
-
-    await act(async () => {
-      await result.current.loadVideos()
-    })
 
     await waitFor(() => {
       expect(result.current.videos).toEqual(mockVideos)
       expect(result.current.isLoading).toBe(false)
+    })
+  })
+
+  it('should set hasNextPage to true when next is not null', async () => {
+    const mockVideos = Array.from({ length: 20 }, (_, i) => ({
+      id: i + 1,
+      title: `Video ${i + 1}`,
+      user: 1,
+      file: '',
+      uploaded_at: '',
+      status: 'completed' as const,
+    }))
+    ;(apiClient.getVideos as any).mockResolvedValue(
+      mockPaginatedResponse(mockVideos, 25, '/api/videos/?limit=20&offset=20'),
+    )
+
+    const { result } = renderHook(() => useVideos())
+
+    await waitFor(() => {
+      expect(result.current.hasNextPage).toBe(true)
+    })
+  })
+
+  it('should set hasNextPage to false when next is null', async () => {
+    const mockVideos = [
+      { id: 1, title: 'Video 1', user: 1, file: '', uploaded_at: '', status: 'completed' as const },
+    ]
+    ;(apiClient.getVideos as any).mockResolvedValue(mockPaginatedResponse(mockVideos, 1, null))
+
+    const { result } = renderHook(() => useVideos())
+
+    await waitFor(() => {
+      expect(result.current.hasNextPage).toBe(false)
+    })
+  })
+
+  it('should expose totalCount from API response', async () => {
+    const mockVideos = [
+      { id: 1, title: 'Video 1', user: 1, file: '', uploaded_at: '', status: 'completed' as const },
+    ]
+    ;(apiClient.getVideos as any).mockResolvedValue(mockPaginatedResponse(mockVideos, 42))
+
+    const { result } = renderHook(() => useVideos())
+
+    await waitFor(() => {
+      expect(result.current.totalCount).toBe(42)
+    })
+  })
+
+  it('should pass tags param to API', async () => {
+    ;(apiClient.getVideos as any).mockResolvedValue(mockPaginatedResponse([]))
+
+    renderHook(() => useVideos({ tagIds: [1, 2] }))
+
+    await waitFor(() => {
+      expect(apiClient.getVideos).toHaveBeenCalledWith(
+        expect.objectContaining({ tags: [1, 2] }),
+      )
+    })
+  })
+
+  it('should pass q param to API', async () => {
+    ;(apiClient.getVideos as any).mockResolvedValue(mockPaginatedResponse([]))
+
+    renderHook(() => useVideos({ q: 'test query' }))
+
+    await waitFor(() => {
+      expect(apiClient.getVideos).toHaveBeenCalledWith(
+        expect.objectContaining({ q: 'test query' }),
+      )
+    })
+  })
+
+  it('should pass ordering param to API', async () => {
+    ;(apiClient.getVideos as any).mockResolvedValue(mockPaginatedResponse([]))
+
+    renderHook(() => useVideos({ ordering: 'uploaded_at_asc' }))
+
+    await waitFor(() => {
+      expect(apiClient.getVideos).toHaveBeenCalledWith(
+        expect.objectContaining({ ordering: 'uploaded_at_asc' }),
+      )
+    })
+  })
+
+  it('should load next page when fetchNextPage is called', async () => {
+    const page1 = Array.from({ length: 20 }, (_, i) => ({
+      id: i + 1,
+      title: `Video ${i + 1}`,
+      user: 1,
+      file: '',
+      uploaded_at: '',
+      status: 'completed' as const,
+    }))
+    const page2 = [
+      { id: 21, title: 'Video 21', user: 1, file: '', uploaded_at: '', status: 'completed' as const },
+    ]
+
+    ;(apiClient.getVideos as any)
+      .mockResolvedValueOnce(
+        mockPaginatedResponse(page1, 21, '/api/videos/?limit=20&offset=20'),
+      )
+      .mockResolvedValueOnce(mockPaginatedResponse(page2, 21, null))
+
+    const { result } = renderHook(() => useVideos())
+
+    await waitFor(() => expect(result.current.videos).toHaveLength(20))
+
+    await act(async () => {
+      result.current.fetchNextPage()
+    })
+
+    await waitFor(() => {
+      expect(result.current.videos).toHaveLength(21)
+    })
+  })
+
+  it('should flatten videos from multiple pages', async () => {
+    const page1 = Array.from({ length: 20 }, (_, i) => ({
+      id: i + 1,
+      title: `Video ${i + 1}`,
+      user: 1,
+      file: '',
+      uploaded_at: '',
+      status: 'completed' as const,
+    }))
+    const page2 = Array.from({ length: 5 }, (_, i) => ({
+      id: i + 21,
+      title: `Video ${i + 21}`,
+      user: 1,
+      file: '',
+      uploaded_at: '',
+      status: 'completed' as const,
+    }))
+
+    ;(apiClient.getVideos as any)
+      .mockResolvedValueOnce(
+        mockPaginatedResponse(page1, 25, '/api/videos/?limit=20&offset=20'),
+      )
+      .mockResolvedValueOnce(mockPaginatedResponse(page2, 25, null))
+
+    const { result } = renderHook(() => useVideos())
+
+    await waitFor(() => expect(result.current.videos).toHaveLength(20))
+
+    await act(async () => {
+      result.current.fetchNextPage()
+    })
+
+    await waitFor(() => {
+      expect(result.current.videos).toHaveLength(25)
+      expect(result.current.videos[0].id).toBe(1)
+      expect(result.current.videos[20].id).toBe(21)
     })
   })
 
@@ -52,14 +210,6 @@ describe('useVideos', () => {
     ;(apiClient.getVideos as any).mockRejectedValue(error)
 
     const { result } = renderHook(() => useVideos())
-
-    await act(async () => {
-      try {
-        await result.current.loadVideos()
-      } catch {
-        // Expected to throw
-      }
-    })
 
     await waitFor(() => {
       expect(result.current.error).toBe('Failed to load')
