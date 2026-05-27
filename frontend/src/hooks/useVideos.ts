@@ -90,13 +90,13 @@ export function useVideos(params?: UseVideosParams): UseVideosReturn {
   useEffect(() => {
     if (!sentinelNode) return;
     const observer = new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting) {
+      if (entries[0].isIntersecting && videosQuery.hasNextPage && !videosQuery.isFetchingNextPage) {
         fetchNextPageRef.current();
       }
     });
     observer.observe(sentinelNode);
     return () => observer.disconnect();
-  }, [sentinelNode]);
+  }, [sentinelNode, videosQuery.hasNextPage, videosQuery.isFetchingNextPage]);
 
   return {
     videos,
