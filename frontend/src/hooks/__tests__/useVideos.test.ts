@@ -53,7 +53,7 @@ describe('useVideos', () => {
   })
 
   it('should set hasNextPage to true when next is not null', async () => {
-    const mockVideos = Array.from({ length: 20 }, (_, i) => ({
+    const mockVideos = Array.from({ length: 24 }, (_, i) => ({
       id: i + 1,
       title: `Video ${i + 1}`,
       user: 1,
@@ -62,7 +62,7 @@ describe('useVideos', () => {
       status: 'completed' as const,
     }))
     ;(apiClient.getVideos as any).mockResolvedValue(
-      mockPaginatedResponse(mockVideos, 25, '/api/videos/?limit=20&offset=20'),
+      mockPaginatedResponse(mockVideos, 25, '/api/videos/?limit=24&offset=24'),
     )
 
     const { result } = renderHook(() => useVideos())
@@ -135,7 +135,7 @@ describe('useVideos', () => {
   })
 
   it('should load next page when fetchNextPage is called', async () => {
-    const page1 = Array.from({ length: 20 }, (_, i) => ({
+    const page1 = Array.from({ length: 24 }, (_, i) => ({
       id: i + 1,
       title: `Video ${i + 1}`,
       user: 1,
@@ -144,30 +144,30 @@ describe('useVideos', () => {
       status: 'completed' as const,
     }))
     const page2 = [
-      { id: 21, title: 'Video 21', user: 1, file: '', uploaded_at: '', status: 'completed' as const },
+      { id: 25, title: 'Video 25', user: 1, file: '', uploaded_at: '', status: 'completed' as const },
     ]
 
     ;(apiClient.getVideos as any)
       .mockResolvedValueOnce(
-        mockPaginatedResponse(page1, 21, '/api/videos/?limit=20&offset=20'),
+        mockPaginatedResponse(page1, 25, '/api/videos/?limit=24&offset=24'),
       )
-      .mockResolvedValueOnce(mockPaginatedResponse(page2, 21, null))
+      .mockResolvedValueOnce(mockPaginatedResponse(page2, 25, null))
 
     const { result } = renderHook(() => useVideos())
 
-    await waitFor(() => expect(result.current.videos).toHaveLength(20))
+    await waitFor(() => expect(result.current.videos).toHaveLength(24))
 
     await act(async () => {
       result.current.fetchNextPage()
     })
 
     await waitFor(() => {
-      expect(result.current.videos).toHaveLength(21)
+      expect(result.current.videos).toHaveLength(25)
     })
   })
 
   it('should flatten videos from multiple pages', async () => {
-    const page1 = Array.from({ length: 20 }, (_, i) => ({
+    const page1 = Array.from({ length: 24 }, (_, i) => ({
       id: i + 1,
       title: `Video ${i + 1}`,
       user: 1,
@@ -176,8 +176,8 @@ describe('useVideos', () => {
       status: 'completed' as const,
     }))
     const page2 = Array.from({ length: 5 }, (_, i) => ({
-      id: i + 21,
-      title: `Video ${i + 21}`,
+      id: i + 25,
+      title: `Video ${i + 25}`,
       user: 1,
       file: '',
       uploaded_at: '',
@@ -186,22 +186,22 @@ describe('useVideos', () => {
 
     ;(apiClient.getVideos as any)
       .mockResolvedValueOnce(
-        mockPaginatedResponse(page1, 25, '/api/videos/?limit=20&offset=20'),
+        mockPaginatedResponse(page1, 29, '/api/videos/?limit=24&offset=24'),
       )
-      .mockResolvedValueOnce(mockPaginatedResponse(page2, 25, null))
+      .mockResolvedValueOnce(mockPaginatedResponse(page2, 29, null))
 
     const { result } = renderHook(() => useVideos())
 
-    await waitFor(() => expect(result.current.videos).toHaveLength(20))
+    await waitFor(() => expect(result.current.videos).toHaveLength(24))
 
     await act(async () => {
       result.current.fetchNextPage()
     })
 
     await waitFor(() => {
-      expect(result.current.videos).toHaveLength(25)
+      expect(result.current.videos).toHaveLength(29)
       expect(result.current.videos[0].id).toBe(1)
-      expect(result.current.videos[20].id).toBe(21)
+      expect(result.current.videos[24].id).toBe(25)
     })
   })
 
