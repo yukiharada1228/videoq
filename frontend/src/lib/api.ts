@@ -844,7 +844,7 @@ class ApiClient {
 
 
   // Video-related methods
-  async getVideos(params?: { q?: string; status?: string; ordering?: 'uploaded_at_desc' | 'uploaded_at_asc' | 'title_asc' | 'title_desc'; tags?: number[] }): Promise<VideoList[]> {
+  async getVideos(params?: { q?: string; status?: string; ordering?: 'uploaded_at_desc' | 'uploaded_at_asc' | 'title_asc' | 'title_desc'; tags?: number[]; limit?: number; offset?: number }): Promise<PaginatedResponse<VideoList>> {
     const queryParams: Record<string, string> = {};
     if (params?.q && params.q.trim() !== '') queryParams.q = params.q.trim();
     if (params?.status && params.status.trim() !== '') queryParams.status = params.status.trim();
@@ -852,13 +852,14 @@ class ApiClient {
     if (params?.tags && params.tags.length > 0) {
       queryParams.tags = params.tags.join(',');
     }
+    if (params?.limit !== undefined) queryParams.limit = String(params.limit);
+    if (params?.offset !== undefined) queryParams.offset = String(params.offset);
 
     const query = Object.keys(queryParams).length
       ? `?${new URLSearchParams(queryParams).toString()}`
       : '';
 
-    const response = await this.request<PaginatedResponse<VideoList>>(`/videos/${query}`);
-    return response.results;
+    return this.request<PaginatedResponse<VideoList>>(`/videos/${query}`);
   }
 
   async getVideo(id: number): Promise<Video> {
