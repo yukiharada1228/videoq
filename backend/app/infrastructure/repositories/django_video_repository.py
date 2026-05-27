@@ -167,8 +167,7 @@ class DjangoVideoRepository(VideoRepository):
             queryset = queryset.filter(status=search.status_filter)
 
         if search.tag_ids:
-            for tag_id in search.tag_ids:
-                queryset = queryset.filter(tags__id=tag_id)
+            queryset = queryset.filter(tags__id__in=search.tag_ids).distinct()
 
         ordering_map = {
             "uploaded_at_desc": "-uploaded_at",
