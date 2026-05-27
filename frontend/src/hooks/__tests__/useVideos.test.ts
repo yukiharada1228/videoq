@@ -134,6 +134,18 @@ describe('useVideos', () => {
     })
   })
 
+  it('should pass limit=24 and offset=0 to API on first page', async () => {
+    ;(apiClient.getVideos as any).mockResolvedValue(mockPaginatedResponse([]))
+
+    renderHook(() => useVideos())
+
+    await waitFor(() => {
+      expect(apiClient.getVideos).toHaveBeenCalledWith(
+        expect.objectContaining({ limit: 24, offset: 0 }),
+      )
+    })
+  })
+
   it('should load next page when fetchNextPage is called', async () => {
     const page1 = Array.from({ length: 24 }, (_, i) => ({
       id: i + 1,
@@ -163,6 +175,12 @@ describe('useVideos', () => {
 
     await waitFor(() => {
       expect(result.current.videos).toHaveLength(25)
+      expect(apiClient.getVideos).toHaveBeenCalledWith(
+        expect.objectContaining({ limit: 24, offset: 0 }),
+      )
+      expect(apiClient.getVideos).toHaveBeenCalledWith(
+        expect.objectContaining({ limit: 24, offset: 24 }),
+      )
     })
   })
 
