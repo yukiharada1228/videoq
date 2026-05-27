@@ -6,10 +6,12 @@ import { queryKeys } from '@/lib/queryKeys';
 
 const PAGE_SIZE = 20;
 
+export type VideosOrdering = 'uploaded_at_desc' | 'uploaded_at_asc' | 'title_asc' | 'title_desc';
+
 interface UseVideosParams {
   tagIds?: number[];
   q?: string;
-  ordering?: string;
+  ordering?: VideosOrdering;
 }
 
 /**
@@ -33,7 +35,7 @@ export function useVideos(params?: UseVideosParams): UseVideosReturn {
     [params?.tagIds],
   );
   const q = params?.q || undefined;
-  const ordering = params?.ordering || undefined;
+  const ordering: VideosOrdering | undefined = params?.ordering || undefined;
 
   const videosQuery = useInfiniteQuery({
     queryKey: queryKeys.videos.list({ tags: normalizedTagIds, q, ordering }),
@@ -41,7 +43,7 @@ export function useVideos(params?: UseVideosParams): UseVideosReturn {
       return apiClient.getVideos({
         tags: normalizedTagIds,
         q,
-        ordering: ordering as any,
+        ordering,
         limit: PAGE_SIZE,
         offset: pageParam as number,
       });
