@@ -38,7 +38,7 @@ export function useVideos(params?: UseVideosParams): UseVideosReturn {
   const ordering: VideosOrdering | undefined = params?.ordering || undefined;
 
   const videosQuery = useInfiniteQuery({
-    queryKey: queryKeys.videos.list({ tags: normalizedTagIds, q, ordering }),
+    queryKey: queryKeys.videos.infinite({ tags: normalizedTagIds, q, ordering }),
     queryFn: async ({ pageParam }) => {
       return apiClient.getVideos({
         tags: normalizedTagIds,
