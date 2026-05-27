@@ -1,7 +1,7 @@
 import { useMemo, useState, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useVideos } from '@/hooks/useVideos';
+import { useVideos, type VideosOrdering } from '@/hooks/useVideos';
 import { useVideoStats } from '@/hooks/useVideoStats';
 import { VideoUploadModal } from '@/components/video/VideoUploadModal';
 import { VideoCard } from '@/components/video/VideoCard';
@@ -15,7 +15,7 @@ import { AppPageHeader } from '@/components/layout/AppPageHeader';
 import { Plus, Search, Tag } from 'lucide-react';
 
 type StatusFilter = 'all' | 'completed' | 'processing' | 'error';
-type SortOrder = 'uploaded_at_desc' | 'uploaded_at_asc' | 'title_asc';
+type SortOrder = Extract<VideosOrdering, 'uploaded_at_desc' | 'uploaded_at_asc' | 'title_asc'>;
 
 export default function VideosPage() {
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
@@ -23,7 +23,21 @@ export default function VideosPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOrder, setSortOrder] = useState<SortOrder>('uploaded_at_desc');
 
-  const { videos, isLoading, error, refetch: refetchVideos } = useVideos(selectedTagIds);
+  const {
+    videos,
+    isLoading,
+    error,
+    hasNextPage,
+    fetchNextPage,
+    isFetchingNextPage,
+    totalCount,
+    refetch: refetchVideos,
+  } = useVideos({
+    tagIds: selectedTagIds,
+    q: searchQuery,
+    ordering: sortOrder,
+  });
+
   const stats = useVideoStats(videos);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isTagManagementOpen, setIsTagManagementOpen] = useState(false);
@@ -58,40 +72,26 @@ export default function VideosPage() {
 
   const isUploadDisabled = useMemo(() => !user || userLoading, [user, userLoading]);
 
-  const filteredAndSortedVideos = useMemo(() => {
-    let result = [...videos];
-
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter((v) => v.title.toLowerCase().includes(q));
-    }
-
+  const filteredVideos = useMemo(() => {
     if (statusFilter === 'completed') {
-      result = result.filter((v) => v.status === 'completed');
-    } else if (statusFilter === 'processing') {
-      result = result.filter((v) =>
+      return videos.filter((v) => v.status === 'completed');
+    }
+    if (statusFilter === 'processing') {
+      return videos.filter((v) =>
         ['pending', 'processing', 'indexing', 'uploading'].includes(v.status),
       );
-    } else if (statusFilter === 'error') {
-      result = result.filter((v) => v.status === 'error');
     }
-
-    if (sortOrder === 'uploaded_at_desc') {
-      result.sort((a, b) => new Date(b.uploaded_at).getTime() - new Date(a.uploaded_at).getTime());
-    } else if (sortOrder === 'uploaded_at_asc') {
-      result.sort((a, b) => new Date(a.uploaded_at).getTime() - new Date(b.uploaded_at).getTime());
-    } else if (sortOrder === 'title_asc') {
-      result.sort((a, b) => a.title.localeCompare(b.title, 'ja'));
+    if (statusFilter === 'error') {
+      return videos.filter((v) => v.status === 'error');
     }
-
-    return result;
-  }, [videos, searchQuery, statusFilter, sortOrder]);
+    return videos;
+  }, [videos, statusFilter]);
 
   return (
     <AppPageShell activePage="videos">
       <AppPageHeader
         title={t('videos.list.title')}
-        description={t('videos.list.managingCount', { count: stats.total })}
+        description={t('videos.list.managingCount', { count: totalCount })}
         action={(
           <button
             onClick={() => setIsUploadModalOpen(true)}
@@ -215,20 +215,39 @@ export default function VideosPage() {
           </div>
         ) : error ? (
           <div className="text-center py-24 text-red-500">{error}</div>
-        ) : filteredAndSortedVideos.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-24 text-[#3f493f]">
-            <div className="w-24 h-24 bg-[#f2f4ef] rounded-full flex items-center justify-center mb-4">
-              <Search className="w-12 h-12 text-[#becabc]" />
-            </div>
-            <p className="text-base font-medium">{t('videos.list.noVideos')}</p>
-            <p className="text-sm mt-1 text-[#6f7a6e]">{t('videos.list.noVideosHint')}</p>
-          </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredAndSortedVideos.map((video) => (
-              <VideoCard key={video.id} video={video} />
-            ))}
-          </div>
+          <>
+            {filteredVideos.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-24 text-[#3f493f]">
+                <div className="w-24 h-24 bg-[#f2f4ef] rounded-full flex items-center justify-center mb-4">
+                  <Search className="w-12 h-12 text-[#becabc]" />
+                </div>
+                <p className="text-base font-medium">{t('videos.list.noVideos')}</p>
+                <p className="text-sm mt-1 text-[#6f7a6e]">{t('videos.list.noVideosHint')}</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredVideos.map((video) => (
+                  <VideoCard key={video.id} video={video} />
+                ))}
+              </div>
+            )}
+
+            {(hasNextPage || isFetchingNextPage) && (
+              <div className="flex justify-center mt-8">
+                {isFetchingNextPage ? (
+                  <span className="text-sm text-[#3f493f]">{t('videos.list.loadingMore')}</span>
+                ) : (
+                  <button
+                    onClick={fetchNextPage}
+                    className="px-6 py-2.5 bg-[#f2f4ef] border border-[#e1e3de] rounded-xl text-sm font-semibold text-[#3f493f] hover:bg-[#e7e9e4] transition-colors"
+                  >
+                    {t('videos.list.loadMore')}
+                  </button>
+                )}
+              </div>
+            )}
+          </>
         )}
       <VideoUploadModal
         isOpen={shouldOpenModalFromQuery || isUploadModalOpen}

@@ -1,43 +1,87 @@
 import { useCallback, useMemo, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import { apiClient, type Video, type VideoList as VideoListType } from '@/lib/api';
 import { useI18nNavigate } from '@/lib/i18n';
 import { queryKeys } from '@/lib/queryKeys';
 
+const PAGE_SIZE = 20;
+
+export type VideosOrdering = 'uploaded_at_desc' | 'uploaded_at_asc' | 'title_asc' | 'title_desc';
+
+interface UseVideosParams {
+  tagIds?: number[];
+  q?: string;
+  ordering?: VideosOrdering;
+}
+
 /**
- * Hook to fetch video list
+ * Hook to fetch video list with infinite scroll pagination
  */
 interface UseVideosReturn {
   videos: VideoListType[];
   isLoading: boolean;
   error: string | null;
-  loadVideos: (tagIds?: number[]) => Promise<void>;
+  hasNextPage: boolean;
+  fetchNextPage: () => void;
+  isFetchingNextPage: boolean;
+  totalCount: number;
+  loadVideos: () => Promise<void>;
   refetch: () => Promise<void>;
 }
 
-export function useVideos(tagIds?: number[]): UseVideosReturn {
+export function useVideos(params?: UseVideosParams): UseVideosReturn {
   const normalizedTagIds = useMemo(
-    () => (tagIds && tagIds.length > 0 ? tagIds : undefined),
-    [tagIds],
+    () => (params?.tagIds && params.tagIds.length > 0 ? params.tagIds : undefined),
+    [params?.tagIds],
+  );
+  const q = params?.q || undefined;
+  const ordering: VideosOrdering | undefined = params?.ordering || undefined;
+
+  const videosQuery = useInfiniteQuery({
+    queryKey: queryKeys.videos.infinite({ tags: normalizedTagIds, q, ordering }),
+    queryFn: async ({ pageParam }) => {
+      return apiClient.getVideos({
+        tags: normalizedTagIds,
+        q,
+        ordering,
+        limit: PAGE_SIZE,
+        offset: pageParam as number,
+      });
+    },
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, allPages) => {
+      if (!lastPage.next) return undefined;
+      return allPages.reduce((sum, page) => sum + page.results.length, 0);
+    },
+  });
+
+  const videos = useMemo(
+    () => videosQuery.data?.pages.flatMap((page) => page.results) ?? [],
+    [videosQuery.data],
   );
 
-  const videosQuery = useQuery<VideoListType[]>({
-    queryKey: queryKeys.videos.list({ tags: normalizedTagIds }),
-    queryFn: async () => await apiClient.getVideos({ tags: normalizedTagIds }),
-  });
+  const totalCount = videosQuery.data?.pages[0]?.count ?? 0;
 
   const handleRefetch = useCallback(async () => {
     const result = await videosQuery.refetch();
     if (result.error) {
-      console.error('Failed to load video:', result.error);
+      console.error('Failed to load videos:', result.error);
       throw result.error;
     }
   }, [videosQuery]);
 
+  const fetchNextPage = useCallback(() => {
+    void videosQuery.fetchNextPage();
+  }, [videosQuery]);
+
   return {
-    videos: videosQuery.data || [],
-    isLoading: videosQuery.isLoading || videosQuery.isFetching,
+    videos,
+    isLoading: videosQuery.isLoading,
     error: videosQuery.error instanceof Error ? videosQuery.error.message : null,
+    hasNextPage: videosQuery.hasNextPage,
+    fetchNextPage,
+    isFetchingNextPage: videosQuery.isFetchingNextPage,
+    totalCount,
     loadVideos: handleRefetch,
     refetch: handleRefetch,
   };

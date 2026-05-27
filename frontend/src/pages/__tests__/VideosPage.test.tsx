@@ -9,12 +9,21 @@ const mockVideos = [
 ]
 
 const mockLoadVideos = vi.fn()
+const mockFetchNextPage = vi.fn()
+
+let mockHasNextPage = false
+let mockIsFetchingNextPage = false
+let mockTotalCount = 4
 
 vi.mock('@/hooks/useVideos', () => ({
   useVideos: () => ({
     videos: mockVideos,
     isLoading: false,
     error: null,
+    hasNextPage: mockHasNextPage,
+    fetchNextPage: mockFetchNextPage,
+    isFetchingNextPage: mockIsFetchingNextPage,
+    totalCount: mockTotalCount,
     loadVideos: mockLoadVideos,
     refetch: mockLoadVideos,
   }),
@@ -65,6 +74,10 @@ describe('VideosPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockLoadVideos.mockClear()
+    mockFetchNextPage.mockClear()
+    mockHasNextPage = false
+    mockIsFetchingNextPage = false
+    mockTotalCount = 4
   })
 
   afterEach(() => {
@@ -77,7 +90,7 @@ describe('VideosPage', () => {
     expect(screen.getByText('videos.list.title')).toBeInTheDocument()
   })
 
-  it('should render video count subtitle', () => {
+  it('should render video count subtitle using totalCount', () => {
     render(<VideosPage />)
 
     expect(screen.getByText('videos.list.managingCount {"count":4}')).toBeInTheDocument()
@@ -146,10 +159,57 @@ describe('VideosPage', () => {
     expect(statCards.length).toBeGreaterThan(0)
   })
 
+  it('should not render load more button when hasNextPage is false', () => {
+    mockHasNextPage = false
+    render(<VideosPage />)
 
+    expect(screen.queryByText('videos.list.loadMore')).not.toBeInTheDocument()
+  })
+
+  it('should render load more button when hasNextPage is true', () => {
+    mockHasNextPage = true
+    render(<VideosPage />)
+
+    expect(screen.getByText('videos.list.loadMore')).toBeInTheDocument()
+  })
+
+  it('should call fetchNextPage when load more button is clicked', async () => {
+    mockHasNextPage = true
+    render(<VideosPage />)
+
+    const loadMoreButton = screen.getByText('videos.list.loadMore')
+    fireEvent.click(loadMoreButton)
+
+    expect(mockFetchNextPage).toHaveBeenCalledTimes(1)
+  })
+
+  it('should show loading text when isFetchingNextPage is true', () => {
+    mockHasNextPage = true
+    mockIsFetchingNextPage = true
+    render(<VideosPage />)
+
+    expect(screen.getByText('videos.list.loadingMore')).toBeInTheDocument()
+  })
+
+  it('should show load more button even when status filter results in empty list', () => {
+    mockHasNextPage = true
+    render(<VideosPage />)
+
+    // error フィルタを選択 — mockVideos に error ステータスはないので空になる
+    fireEvent.click(screen.getByText('videos.list.filter.error'))
+
+    // 絞り込み結果が空でも hasNextPage があるので load more は表示される
+    expect(screen.getByText('videos.list.loadMore')).toBeInTheDocument()
+  })
 })
 
 describe('VideosPage - Upload Limit', () => {
+  beforeEach(() => {
+    mockHasNextPage = false
+    mockIsFetchingNextPage = false
+    mockTotalCount = 4
+  })
+
   it('should show upload button', () => {
     render(<VideosPage />)
 
