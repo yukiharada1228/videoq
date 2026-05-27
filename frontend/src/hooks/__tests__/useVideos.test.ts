@@ -305,6 +305,57 @@ describe('useVideos - sentinelRef', () => {
     })
   })
 
+  it('should not make duplicate API requests on rapid intersections while fetching', async () => {
+    const page1 = Array.from({ length: 24 }, (_, i) => ({
+      id: i + 1,
+      title: `Video ${i + 1}`,
+      user: 1,
+      file: '',
+      uploaded_at: '',
+      status: 'completed' as const,
+    }))
+
+    let resolvePage2!: (value: any) => void
+    const page2Promise = new Promise<any>(resolve => { resolvePage2 = resolve })
+
+    ;(apiClient.getVideos as any)
+      .mockResolvedValueOnce(mockPaginatedResponse(page1, 25, '/api/videos/?limit=24&offset=24'))
+      .mockReturnValueOnce(page2Promise)
+
+    const { result } = renderHook(() => useVideos())
+    await waitFor(() => expect(result.current.hasNextPage).toBe(true))
+
+    const div = document.createElement('div')
+    await act(async () => { result.current.sentinelRef(div) })
+
+    // First intersection — starts page 2 fetch
+    act(() => {
+      capturedCallback!([{ isIntersecting: true } as IntersectionObserverEntry], {} as IntersectionObserver)
+    })
+
+    // Wait for isFetchingNextPage to become true (effect re-runs → new observer with guard)
+    await waitFor(() => expect(result.current.isFetchingNextPage).toBe(true))
+
+    // Second intersection while still fetching — guard should prevent duplicate
+    act(() => {
+      capturedCallback!([{ isIntersecting: true } as IntersectionObserverEntry], {} as IntersectionObserver)
+    })
+
+    // Resolve page 2
+    await act(async () => {
+      resolvePage2(mockPaginatedResponse(
+        [{ id: 25, title: 'Video 25', user: 1, file: '', uploaded_at: '', status: 'completed' as const }],
+        25,
+        null,
+      ))
+    })
+
+    await waitFor(() => expect(result.current.isFetchingNextPage).toBe(false))
+
+    // initial fetch (1) + page 2 (1) = 2 total — no duplicate page 2 request
+    expect(apiClient.getVideos).toHaveBeenCalledTimes(2)
+  })
+
   it('should disconnect observer when sentinel is detached', async () => {
     ;(apiClient.getVideos as any).mockResolvedValue(mockPaginatedResponse([]))
     const { result } = renderHook(() => useVideos())
