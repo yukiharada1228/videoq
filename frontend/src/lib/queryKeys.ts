@@ -5,8 +5,11 @@ export const queryKeys = {
     searchApiKey: ['auth', 'searchApiKey'] as const,
   },
   videoGroups: {
+    prefix: ['videoGroups'] as const,
     all: (userId: number | string | null) => ['videoGroups', userId] as const,
+    allDetail: ['videoGroup'] as const,
     detail: (groupId: number | null) => ['videoGroup', groupId] as const,
+    allShared: ['sharedVideoGroup'] as const,
     shared: (shareToken: string) => ['sharedVideoGroup', shareToken] as const,
     addableVideos: (params: {
       groupId: number | null;
@@ -24,6 +27,10 @@ export const queryKeys = {
     infinite: (params?: { tags?: number[]; q?: string; ordering?: string }) =>
       ['videos', 'infinite', { tags: params?.tags ?? [], q: params?.q ?? '', ordering: params?.ordering ?? '' }] as const,
     detail: (videoId: number | null) => ['videos', 'detail', videoId] as const,
+  },
+  popularScenes: {
+    all: ['popularScenes'] as const,
+    byGroup: (groupId: number) => ['popularScenes', groupId] as const,
   },
   tags: {
     all: ['tags'] as const,
