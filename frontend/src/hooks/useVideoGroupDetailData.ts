@@ -2,6 +2,10 @@ import { useCallback } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient, type VideoGroup, type VideoList } from '@/lib/api';
 import { queryKeys } from '@/lib/queryKeys';
+import {
+  invalidateAfterGroupDelete,
+  invalidateAfterGroupVideoRemove,
+} from '@/lib/cacheInvalidation';
 import { createVideoIdSet } from '@/lib/utils/videoConversion';
 
 interface UseVideoGroupDetailQueryResult {
@@ -138,9 +142,8 @@ export function useVideoGroupDetailMutations({
       return videoId;
     },
     onSuccess: async () => {
-      await syncGroupDetail();
       if (groupId) {
-        await queryClient.invalidateQueries({ queryKey: ['popularScenes', groupId] });
+        await invalidateAfterGroupVideoRemove(queryClient, groupId);
       }
     },
   });
@@ -162,7 +165,7 @@ export function useVideoGroupDetailMutations({
       await apiClient.deleteVideoGroup(groupId);
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['videoGroups'] });
+      await invalidateAfterGroupDelete(queryClient);
       onDeleteSuccess();
     },
   });
