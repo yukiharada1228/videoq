@@ -644,11 +644,23 @@ class ApiClient {
     return this.request<User>('/auth/me');
   }
 
+  private fetchMe(): Promise<Response> {
+    const url = this.buildUrl('/auth/me');
+    const headers = this.buildHeaders();
+    return fetch(url, { credentials: 'include', headers });
+  }
+
   async getMeOrNull(): Promise<User | null> {
     try {
-      const url = this.buildUrl('/auth/me');
-      const headers = this.buildHeaders();
-      const response = await fetch(url, { credentials: 'include', headers });
+      let response = await this.fetchMe();
+      if (response.status === 401) {
+        try {
+          await this.refreshToken();
+        } catch {
+          return null;
+        }
+        response = await this.fetchMe();
+      }
       if (!response.ok) return null;
       return await this.parseJsonResponse<User>(response);
     } catch {
@@ -723,12 +735,26 @@ class ApiClient {
       headers['X-CSRFToken'] = csrfToken;
     }
 
-    const response = await fetch(url, {
+    const fetchStream = () => fetch(url, {
       method: 'POST',
       headers,
       body: JSON.stringify(bodyData),
       credentials: 'include',
     });
+
+    let response = await fetchStream();
+    if (response.status === 401) {
+      try {
+        await this.refreshToken();
+        response = await fetchStream();
+      } catch {
+        await this.handleAuthError();
+      }
+    }
+
+    if (response.status === 401) {
+      await this.handleAuthError();
+    }
 
     if (!response.ok) {
       await this.handleError(response);
