@@ -213,6 +213,69 @@ describe('ApiClient', () => {
       expect(result).toEqual(mockUser);
     });
 
+    it('getMeOrNull should refresh once and retry when access token is expired', async () => {
+      const mockUser = { id: 1, username: 'test' };
+      fetchMock
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 401,
+          headers: new Headers({ 'content-type': 'application/json' }),
+          text: () => Promise.resolve('{}'),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          headers: new Headers({ 'content-type': 'application/json' }),
+          text: () => Promise.resolve('{}'),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          headers: new Headers({ 'content-type': 'application/json' }),
+          text: () => Promise.resolve(JSON.stringify(mockUser)),
+        });
+
+      const result = await apiClient.getMeOrNull();
+
+      expect(result).toEqual(mockUser);
+      expect(fetchMock).toHaveBeenNthCalledWith(
+        1,
+        'http://localhost:8000/api/auth/me',
+        expect.objectContaining({ credentials: 'include' }),
+      );
+      expect(fetchMock).toHaveBeenNthCalledWith(
+        2,
+        'http://localhost:8000/api/auth/tokens/',
+        expect.objectContaining({ method: 'POST', credentials: 'include' }),
+      );
+      expect(fetchMock).toHaveBeenNthCalledWith(
+        3,
+        'http://localhost:8000/api/auth/me',
+        expect.objectContaining({ credentials: 'include' }),
+      );
+    });
+
+    it('getMeOrNull should return null when refresh also fails', async () => {
+      fetchMock
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 401,
+          headers: new Headers({ 'content-type': 'application/json' }),
+          text: () => Promise.resolve('{}'),
+        })
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 401,
+          headers: new Headers({ 'content-type': 'application/json' }),
+          text: () => Promise.resolve('{}'),
+        });
+
+      const result = await apiClient.getMeOrNull();
+
+      expect(result).toBeNull();
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
     it('getIntegrationApiKeys should return api key summaries', async () => {
       const mockKeys = [{ id: 1, name: 'integration', access_level: 'all', prefix: 'vq_123', last_used_at: null, created_at: '2026-03-02T00:00:00Z' }];
       fetchMock.mockResolvedValueOnce({
