@@ -122,6 +122,41 @@ describe('apiClient.chatStream', () => {
     })).rejects.toThrow()
   })
 
+  it('refreshes once and retries the stream request when access token is expired', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ error: { code: 'AUTHENTICATION_FAILED', message: 'Expired' } }), {
+          status: 401,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response('{}', {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      )
+      .mockResolvedValueOnce(
+        makeSSEResponse([
+          'data: {"type":"content_chunk","text":"Recovered"}',
+          'data: {"type":"done","chat_log_id":7,"feedback":null}',
+        ]),
+      )
+
+    const events = await collectStreamEvents({
+      messages: [{ role: 'user', content: 'hi' }],
+    })
+
+    expect(events).toEqual([
+      { type: 'content_chunk', text: 'Recovered' },
+      { type: 'done', chat_log_id: 7, feedback: null },
+    ])
+    expect(fetchSpy).toHaveBeenCalledTimes(3)
+    expect(fetchSpy.mock.calls[0][0]).toBe('http://localhost:8000/api/chat/messages/stream/')
+    expect(fetchSpy.mock.calls[1][0]).toBe('http://localhost:8000/api/auth/tokens/')
+    expect(fetchSpy.mock.calls[2][0]).toBe('http://localhost:8000/api/chat/messages/stream/')
+  })
+
   it('handles chunked SSE delivery across multiple reads', async () => {
     const encoder = new TextEncoder()
     // Split a single SSE line across two reads
