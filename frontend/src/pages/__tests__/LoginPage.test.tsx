@@ -43,6 +43,12 @@ describe('LoginPage', () => {
     expect(forgotLink).toBeInTheDocument()
   })
 
+  it('should not render an inert stay signed in checkbox', () => {
+    render(<LoginPage />)
+
+    expect(screen.queryByText('auth.login.rememberMe')).not.toBeInTheDocument()
+  })
+
   it('should render signup link', () => {
     render(<LoginPage />)
 

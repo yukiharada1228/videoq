@@ -88,16 +88,7 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <div className="flex items-center justify-between py-1">
-          <label className="flex items-center gap-2 cursor-pointer group">
-            <input
-              type="checkbox"
-              className="w-4 h-4 rounded border-gray-300 text-[#00652c] focus:ring-[#00652c]/30 cursor-pointer accent-[#00652c]"
-            />
-            <span className="text-xs text-gray-500 group-hover:text-[#00652c] transition-colors">
-              {t('auth.login.rememberMe')}
-            </span>
-          </label>
+        <div className="flex justify-end py-1">
           <Link
             href="/forgot-password"
             className="text-xs font-bold text-[#00652c] hover:text-[#005323] transition-colors"
