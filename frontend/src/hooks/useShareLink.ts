@@ -6,6 +6,7 @@ import { addLocalePrefix } from '@/lib/i18n';
 import { type Locale } from '@/i18n/config';
 import { handleAsyncError } from '@/lib/utils/errorHandling';
 import { queryKeys } from '@/lib/queryKeys';
+import { useConfirm, useToast } from '@/components/common/feedback';
 
 interface UseShareLinkReturn {
   shareLink: string | null;
@@ -19,6 +20,8 @@ interface UseShareLinkReturn {
 export function useShareLink(group: VideoGroup | null): UseShareLinkReturn {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
+  const requestConfirmation = useConfirm();
+  const toast = useToast();
   const [shareLink, setShareLink] = useState<string | null>(null);
   const [isCopied, setIsCopied] = useState(false);
 
@@ -58,7 +61,14 @@ export function useShareLink(group: VideoGroup | null): UseShareLinkReturn {
   }, [group, createShareLinkMutation, queryClient, i18n.language, t]);
 
   const deleteShareLink = useCallback(async () => {
-    if (!group || !confirm(t('confirmations.disableShareLink'))) return;
+    if (!group) return;
+    const confirmed = await requestConfirmation({
+      title: t('confirmations.disableShareLink'),
+      confirmLabel: t('common.actions.disable'),
+      cancelLabel: t('common.actions.cancel'),
+      variant: 'danger',
+    });
+    if (!confirmed) return;
     try {
       await deleteShareLinkMutation.mutateAsync(group.id);
       queryClient.setQueryData<VideoGroup>(queryKeys.videoGroups.detail(group.id), (prev) =>
@@ -68,7 +78,7 @@ export function useShareLink(group: VideoGroup | null): UseShareLinkReturn {
     } catch (err) {
       handleAsyncError(err, t('videos.groupDetail.disableShareError'), () => { });
     }
-  }, [group, deleteShareLinkMutation, queryClient, t]);
+  }, [requestConfirmation, group, deleteShareLinkMutation, queryClient, t]);
 
   const copyShareLink = useCallback(async () => {
     if (!shareLink) return;
@@ -96,9 +106,9 @@ export function useShareLink(group: VideoGroup | null): UseShareLinkReturn {
       setTimeout(() => setIsCopied(false), 2000);
     } catch (err) {
       console.error('Failed to copy:', err);
-      alert(t('common.messages.copyFailed'));
+      toast({ message: t('common.messages.copyFailed'), variant: 'error' });
     }
-  }, [shareLink, t]);
+  }, [shareLink, t, toast]);
 
   return {
     shareLink,

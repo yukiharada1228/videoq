@@ -16,6 +16,7 @@ import { useVideoDetailPageMutations } from '@/hooks/useVideoDetailPageData';
 import { invalidateAfterTranscriptEdit } from '@/lib/cacheInvalidation';
 import { AppNav } from '@/components/layout/AppNav';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useConfirm } from '@/components/common/feedback';
 import {
   ArrowLeft, Calendar, CheckCircle, Search,
   Trash2, Pencil, X, Save, Video as VideoIcon,
@@ -94,6 +95,7 @@ export default function VideoDetailPage() {
   const startTime = searchParams.get('t');
   const [manualYoutubeStartSeconds, setManualYoutubeStartSeconds] = useState<number | null>(null);
   const { t } = useTranslation();
+  const requestConfirmation = useConfirm();
   const locale = useLocale();
   const queryClient = useQueryClient();
 
@@ -167,6 +169,18 @@ export default function VideoDetailPage() {
   const isDeleting = deleteMutation.isPending;
   const isUpdating = updateMutation.isPending;
   const updateError = updateMutation.error instanceof Error ? updateMutation.error.message : null;
+
+  const handleDeleteVideo = useCallback(async () => {
+    const confirmed = await requestConfirmation({
+      title: t('confirmations.deleteVideo'),
+      confirmLabel: t('common.actions.delete'),
+      cancelLabel: t('common.actions.cancel'),
+      variant: 'danger',
+    });
+    if (!confirmed) return;
+    setDeleteError(null);
+    deleteMutation.mutate();
+  }, [requestConfirmation, deleteMutation, t]);
 
   const handleCancelEdit = useCallback(() => {
     cancelEditing();
@@ -497,11 +511,7 @@ export default function VideoDetailPage() {
                   {t('videos.detail.editButton')}
                 </button>
                 <button
-                  onClick={() => {
-                    if (!window.confirm(t('confirmations.deleteVideo'))) return;
-                    setDeleteError(null);
-                    deleteMutation.mutate();
-                  }}
+                  onClick={handleDeleteVideo}
                   disabled={isDeleting}
                   className="flex items-center gap-1.5 px-4 py-2 text-red-600 text-sm font-bold rounded-xl hover:bg-red-50 transition-colors disabled:opacity-50"
                 >

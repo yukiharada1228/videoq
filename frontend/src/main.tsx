@@ -7,6 +7,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import i18n from './i18n/config'
 import App from './App.tsx'
 import { AuthProvider } from './components/auth/AuthProvider'
+import { FeedbackProvider } from './components/common/FeedbackProvider'
 import { appQueryClient } from './lib/queryClient'
 import './index.css'
 
@@ -15,9 +16,11 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <BrowserRouter>
       <I18nextProvider i18n={i18n}>
         <QueryClientProvider client={appQueryClient}>
-          <AuthProvider>
-            <App />
-          </AuthProvider>
+          <FeedbackProvider>
+            <AuthProvider>
+              <App />
+            </AuthProvider>
+          </FeedbackProvider>
           {import.meta.env.DEV && <ReactQueryDevtools initialIsOpen={false} />}
         </QueryClientProvider>
       </I18nextProvider>

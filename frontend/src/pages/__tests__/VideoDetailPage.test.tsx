@@ -223,7 +223,6 @@ describe('VideoDetailPage - Delete error', () => {
   })
 
   it('should show delete error when delete fails', async () => {
-    window.confirm = vi.fn(() => true)
     ;(apiClient.deleteVideo as ReturnType<typeof vi.fn>).mockRejectedValue(
       new Error('Delete failed'),
     )
@@ -231,6 +230,7 @@ describe('VideoDetailPage - Delete error', () => {
     render(<VideoDetailPage />)
 
     fireEvent.click(screen.getByText('videos.detail.deleteButton'))
+    fireEvent.click(await screen.findByRole('button', { name: 'common.actions.delete' }))
 
     await waitFor(() => {
       expect(screen.getByText('Delete failed')).toBeInTheDocument()
@@ -356,13 +356,13 @@ describe('VideoDetailPage - Not found state', () => {
 
 describe('VideoDetailPage - Delete', () => {
   it('should call deleteVideo when delete is confirmed', async () => {
-    window.confirm = vi.fn(() => true)
       ; (apiClient.deleteVideo as ReturnType<typeof vi.fn>).mockResolvedValue({})
 
     render(<VideoDetailPage />)
 
     const deleteButton = screen.getByText('videos.detail.deleteButton')
     fireEvent.click(deleteButton)
+    fireEvent.click(await screen.findByRole('button', { name: 'common.actions.delete' }))
 
     await waitFor(() => {
       expect(apiClient.deleteVideo).toHaveBeenCalledWith(1)
