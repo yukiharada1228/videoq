@@ -1,4 +1,4 @@
-import { renderHook, act, waitFor } from '@testing-library/react'
+import { renderHook, act, waitFor, screen, fireEvent } from '@testing-library/react'
 import { useAsyncState } from '../useAsyncState'
 
 describe('useAsyncState', () => {
@@ -121,30 +121,40 @@ describe('useAsyncState', () => {
   })
 
   it('should use mutate with confirmation when user confirms', async () => {
-    window.confirm = vi.fn(() => true)
     const { result } = renderHook(() => useAsyncState({ confirmMessage: 'Confirm?' }))
+    let mutatePromise!: Promise<string | undefined>
     
-    await act(async () => {
-      const mutateResult = await result.current.mutate(async () => 'success')
-      expect(mutateResult).toBe('success')
+    act(() => {
+      mutatePromise = result.current.mutate(async () => 'success')
     })
 
-    expect(window.confirm).toHaveBeenCalledWith('Confirm?')
+    expect(await screen.findByRole('dialog', { name: 'Confirm?' })).toBeInTheDocument()
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Confirm' }))
+      expect(await mutatePromise).toBe('success')
+    })
+
     await waitFor(() => {
       expect(result.current.data).toBe('success')
     })
   })
 
   it('should use mutate with confirmation when user cancels', async () => {
-    window.confirm = vi.fn(() => false)
     const { result } = renderHook(() => useAsyncState({ confirmMessage: 'Confirm?' }))
+    let mutatePromise!: Promise<string | undefined>
     
-    await act(async () => {
-      const mutateResult = await result.current.mutate(async () => 'success')
-      expect(mutateResult).toBeUndefined()
+    act(() => {
+      mutatePromise = result.current.mutate(async () => 'success')
     })
 
-    expect(window.confirm).toHaveBeenCalledWith('Confirm?')
+    expect(await screen.findByRole('dialog', { name: 'Confirm?' })).toBeInTheDocument()
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+      expect(await mutatePromise).toBeUndefined()
+    })
+
     expect(result.current.data).toBeNull()
   })
 
@@ -168,17 +178,20 @@ describe('useAsyncState', () => {
   })
 
   it('should handle non-Error exceptions in mutate', async () => {
-    window.confirm = vi.fn(() => true)
     const { result } = renderHook(() => useAsyncState({ confirmMessage: 'Confirm?' }))
+    let mutatePromise!: Promise<unknown>
     
+    act(() => {
+      mutatePromise = result.current.mutate(async () => {
+        throw 'String error'
+      })
+    })
+
+    await screen.findByRole('dialog', { name: 'Confirm?' })
+
     await act(async () => {
-      try {
-        await result.current.mutate(async () => {
-          throw 'String error'
-        })
-      } catch {
-        // Expected to throw
-      }
+      fireEvent.click(screen.getByRole('button', { name: 'Confirm' }))
+      await expect(mutatePromise).rejects.toBe('String error')
     })
 
     await waitFor(() => {
@@ -210,18 +223,21 @@ describe('useAsyncState', () => {
   })
 
   it('should call onError with Error object when non-Error is thrown in mutate', async () => {
-    window.confirm = vi.fn(() => true)
     const onError = vi.fn()
     const { result } = renderHook(() => useAsyncState({ onError, confirmMessage: 'Confirm?' }))
+    let mutatePromise!: Promise<unknown>
     
+    act(() => {
+      mutatePromise = result.current.mutate(async () => {
+        throw 'String error'
+      })
+    })
+
+    await screen.findByRole('dialog', { name: 'Confirm?' })
+
     await act(async () => {
-      try {
-        await result.current.mutate(async () => {
-          throw 'String error'
-        })
-      } catch {
-        // Expected to throw
-      }
+      fireEvent.click(screen.getByRole('button', { name: 'Confirm' }))
+      await expect(mutatePromise).rejects.toBe('String error')
     })
 
     await waitFor(() => {
@@ -232,4 +248,3 @@ describe('useAsyncState', () => {
     })
   })
 })
-
