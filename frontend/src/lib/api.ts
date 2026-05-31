@@ -102,6 +102,15 @@ export interface PasswordResetConfirmRequest {
   new_password: string;
 }
 
+export interface EmailChangeRequest {
+  email: string;
+}
+
+export interface EmailChangeConfirmRequest {
+  uid: string;
+  token: string;
+}
+
 export interface AccountDeleteRequest {
   reason?: string;
 }
@@ -627,6 +636,19 @@ export class ApiClient {
     await this.request(`/auth/password-resets/${uid}/${token}/`, {
       method: 'PATCH',
       body: { new_password },
+    });
+  }
+
+  async requestEmailChange(data: EmailChangeRequest): Promise<void> {
+    await this.request('/auth/me/email/', {
+      method: 'PATCH',
+      body: data,
+    });
+  }
+
+  async confirmEmailChange(data: EmailChangeConfirmRequest): Promise<void> {
+    await this.request(`/auth/email-change/${data.uid}/${data.token}/`, {
+      method: 'PATCH',
     });
   }
 

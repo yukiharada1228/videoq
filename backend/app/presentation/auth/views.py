@@ -10,6 +10,7 @@ from app.presentation.auth.serializers import (AccountDeleteSerializer,
                                                ApiKeyCreateResponseSerializer,
                                                ApiKeyCreateSerializer,
                                                ApiKeySerializer,
+                                               EmailChangeRequestSerializer,
                                                LoginResponseSerializer,
                                                LoginSerializer,
                                                MessageResponseSerializer,
@@ -23,6 +24,11 @@ from app.presentation.auth.serializers import (AccountDeleteSerializer,
 from app.use_cases.auth.signup import EmailAlreadyRegistered, VerificationEmailSendFailed
 from app.use_cases.auth.verify_email import InvalidVerificationLink
 from app.use_cases.auth.reset_password import InvalidResetLink
+from app.use_cases.auth.change_email import (
+    EmailAlreadyRegistered as EmailChangeEmailAlreadyRegistered,
+    EmailChangeEmailSendFailed,
+    InvalidEmailChangeLink,
+)
 from app.use_cases.auth.exceptions import AuthenticationFailed, InvalidToken
 from app.presentation.common.authentication import APIKeyAuthentication, CookieJWTAuthentication
 from app.presentation.common.exceptions import ErrorCode
@@ -360,6 +366,60 @@ class PasswordResetConfirmView(PublicAPIView):
         return create_success_response(
             message="Password reset successfully. Please sign in with your new password."
         )
+
+
+class EmailChangeRequestView(AuthenticatedAPIView):
+    """Request email address change for the current user."""
+
+    serializer_class = EmailChangeRequestSerializer
+    request_email_change_use_case = None
+
+    @extend_schema(
+        request=EmailChangeRequestSerializer,
+        responses={200: MessageResponseSerializer},
+        summary="Request email change",
+        description="Send an email-change confirmation link to the new email address.",
+    )
+    def patch(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        use_case = self.resolve_dependency(self.request_email_change_use_case)
+        try:
+            use_case.execute(
+                user_id=request.user.id,
+                new_email=serializer.validated_data["email"],
+            )
+        except EmailChangeEmailAlreadyRegistered as e:
+            return create_error_response(str(e), status.HTTP_400_BAD_REQUEST)
+        except EmailChangeEmailSendFailed:
+            return create_error_response(
+                "Failed to send email-change confirmation email. Please try again later.",
+                status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+        return create_success_response(
+            message="Email change confirmation sent. Please check your new email address."
+        )
+
+
+class EmailChangeConfirmView(PublicAPIView):
+    """Email change confirmation view (uid and token in URL path)."""
+
+    serializer_class = None
+    confirm_email_change_use_case = None
+
+    @extend_schema(
+        request=None,
+        responses={200: MessageResponseSerializer},
+        summary="Confirm email change",
+        description="Complete email change using uid and token from URL path.",
+    )
+    def patch(self, request, uidb64, token):
+        use_case = self.resolve_dependency(self.confirm_email_change_use_case)
+        try:
+            use_case.execute(uidb64=uidb64, token=token)
+        except InvalidEmailChangeLink as e:
+            return create_error_response(str(e), status.HTTP_400_BAD_REQUEST)
+        return create_success_response(message="Email address updated.")
 
 
 class MeView(AuthenticatedAPIView, generics.RetrieveAPIView):

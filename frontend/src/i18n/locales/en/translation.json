@@ -522,6 +522,16 @@
       "fallbackLoading": "Checking your email verification...",
       "redirectPart1": "You will be redirected to the sign-in page shortly. If not, click"
     },
+    "emailChange": {
+      "badge": "Email change",
+      "title": "Email change confirmation",
+      "description": "We are confirming your new email address.",
+      "loading": "Checking your email change link...",
+      "invalidLink": "The email change link is invalid.",
+      "success": "Your email address has been updated.",
+      "error": "Email change failed. The link may have expired.",
+      "backToLogin": "Back to sign-in"
+    },
     "fields": {
       "email": {
         "label": "Email address",
@@ -608,6 +618,19 @@
   "settings": {
     "title": "Settings",
     "subtitle": "Manage your account and integration settings",
+    "emailChange": {
+      "title": "Email address",
+      "description": "Change the email address associated with your account. The change is applied only after you confirm the new address.",
+      "currentEmailLabel": "Current email address",
+      "newEmailLabel": "New email address",
+      "newEmailPlaceholder": "Enter your new email",
+      "help": "We will send a confirmation link to the new email address. Your current address stays active until confirmation.",
+      "submit": "Send confirmation email",
+      "submitting": "Sending...",
+      "success": "Confirmation email sent. Please check your new email address.",
+      "errorEmpty": "Please enter a new email address",
+      "errorSubmitting": "Failed to request email change"
+    },
     "accountDeletion": {
       "title": "Delete account",
       "description": "Deleting your account will permanently remove all videos and data, and immediately cancel any active subscription.",

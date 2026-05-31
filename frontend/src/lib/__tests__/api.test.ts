@@ -171,6 +171,27 @@ describe('ApiClient', () => {
       }));
     });
 
+    it('requestEmailChange should call current-user email endpoint', async () => {
+      fetchMock.mockResolvedValueOnce({ ok: true, headers: new Headers() });
+
+      await apiClient.requestEmailChange({ email: 'new@example.com' });
+
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/me/email/', expect.objectContaining({
+        method: 'PATCH',
+        body: JSON.stringify({ email: 'new@example.com' }),
+      }));
+    });
+
+    it('confirmEmailChange should call email-change endpoint', async () => {
+      fetchMock.mockResolvedValueOnce({ ok: true, headers: new Headers() });
+
+      await apiClient.confirmEmailChange({ uid: 'uid', token: 'token' });
+
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/email-change/uid/token/', expect.objectContaining({
+        method: 'PATCH',
+      }));
+    });
+
     it('refreshToken should call refresh endpoint', async () => {
       document.cookie = 'csrftoken=test-csrf-token';
       const mockResponse = {};
