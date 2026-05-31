@@ -242,5 +242,6 @@ vi.mock('@/lib/api', async (importOriginal) => {
     getVideoUrl: vi.fn(mockGetVideoUrl),
     getSharedVideoUrl: vi.fn(mockGetSharedVideoUrl),
     logout: vi.fn(() => Promise.resolve()),
+    setUnauthorizedHandler: vi.fn(),
   },
 }});

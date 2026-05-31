@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useI18nNavigate, useI18nLocation, removeLocalePrefix } from '@/lib/i18n';
 import { apiClient, type User } from '@/lib/api';
 import { queryKeys } from '@/lib/queryKeys';
+import { isPublicAuthPath } from '@/lib/authConfig';
 
 interface UseAuthReturn {
   user: User | null;
@@ -31,17 +32,7 @@ export function useAuth(options: UseAuthOptions = {}): UseAuthReturn {
     onAuthErrorRef.current = onAuthError;
   }, [onAuthError]);
 
-  const publicPaths = [
-    '/login',
-    '/signup',
-    '/signup/check-email',
-    '/forgot-password',
-    '/reset-password',
-    '/verify-email',
-    '/share',
-    '/docs',
-  ];
-  const authRequired = !publicPaths.some((path) => pathname.startsWith(path));
+  const authRequired = !isPublicAuthPath(pathname);
 
   const authQuery = useQuery<User | null>({
     queryKey: queryKeys.auth.me,

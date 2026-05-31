@@ -59,3 +59,17 @@ export const AUTH_FIELDS = {
   } as FormFieldConfig,
 } as const;
 
+export const PUBLIC_AUTH_PATHS = [
+  '/login',
+  '/signup',
+  '/signup/check-email',
+  '/forgot-password',
+  '/reset-password',
+  '/verify-email',
+  '/share',
+  '/docs',
+] as const;
+
+export function isPublicAuthPath(pathname: string): boolean {
+  return PUBLIC_AUTH_PATHS.some((path) => pathname.startsWith(path));
+}
