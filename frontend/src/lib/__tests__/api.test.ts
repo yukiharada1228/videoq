@@ -11,7 +11,7 @@ vi.stubGlobal('import.meta', {
 });
 
 // Import the apiClient singleton
-import { apiClient } from '../api';
+import { apiClient, createApiClient } from '../api';
 
 describe('ApiClient', () => {
   // Mock fetch
@@ -414,7 +414,14 @@ describe('ApiClient', () => {
       expect(fetchMock).toHaveBeenCalledTimes(3);
     });
 
-    it('should handle 401 and redirect to login if refresh fails', async () => {
+    it('should handle 401 and call onUnauthorized if refresh fails', async () => {
+      const onUnauthorized = vi.fn();
+      const client = createApiClient({
+        baseUrl: 'http://localhost:8000/api',
+        fetchFn: fetchMock,
+        onUnauthorized,
+      });
+
       // First call fails with 401
       fetchMock.mockResolvedValueOnce({
         ok: false,
@@ -427,11 +434,19 @@ describe('ApiClient', () => {
       // Mock logout (which is called on auth error)
       fetchMock.mockResolvedValueOnce({ ok: true });
 
-      await expect(apiClient.getMe()).rejects.toThrow('Authentication failed');
-      expect(window.location.href).toBe('/login');
+      await expect(client.getMe()).rejects.toThrow('Authentication failed');
+      expect(onUnauthorized).toHaveBeenCalledTimes(1);
+      expect(window.location.href).toBe('http://frontend.example.com/');
     });
 
     it('should not cause infinite loop when refreshToken gets 401 (original request → refresh 401 → auth error)', async () => {
+      const onUnauthorized = vi.fn();
+      const client = createApiClient({
+        baseUrl: 'http://localhost:8000/api',
+        fetchFn: fetchMock,
+        onUnauthorized,
+      });
+
       // Original API call returns 401
       fetchMock.mockResolvedValueOnce({
         ok: false,
@@ -447,11 +462,53 @@ describe('ApiClient', () => {
       // Mock logout call
       fetchMock.mockResolvedValueOnce({ ok: true });
 
-      await expect(apiClient.getMe()).rejects.toThrow('Authentication failed');
+      await expect(client.getMe()).rejects.toThrow('Authentication failed');
       // Should be called exactly 3 times: original request + refresh attempt + logout
       // (NOT infinite calls)
       expect(fetchMock).toHaveBeenCalledTimes(3);
-      expect(window.location.href).toBe('/login');
+      expect(onUnauthorized).toHaveBeenCalledTimes(1);
+      expect(window.location.href).toBe('http://frontend.example.com/');
+    });
+
+    it('createApiClient should inject baseUrl and fetch implementation', async () => {
+      const customFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        text: () => Promise.resolve(JSON.stringify({ id: 1, username: 'custom' })),
+      });
+      const client = createApiClient({
+        baseUrl: 'https://api.example.test/v1',
+        fetchFn: customFetch,
+      });
+
+      const result = await client.getMe();
+
+      expect(result).toEqual({ id: 1, username: 'custom' });
+      expect(customFetch).toHaveBeenCalledWith(
+        'https://api.example.test/v1/auth/me',
+        expect.objectContaining({ credentials: 'include' }),
+      );
+    });
+
+    it('setUnauthorizedHandler should update the handler used by later auth failures', async () => {
+      const firstHandler = vi.fn();
+      const secondHandler = vi.fn();
+      const client = createApiClient({
+        baseUrl: 'http://localhost:8000/api',
+        fetchFn: fetchMock,
+        onUnauthorized: firstHandler,
+      });
+      client.setUnauthorizedHandler(secondHandler);
+
+      fetchMock
+        .mockResolvedValueOnce({ ok: false, status: 401 })
+        .mockRejectedValueOnce(new Error('Refresh failed'))
+        .mockResolvedValueOnce({ ok: true });
+
+      await expect(client.getMe()).rejects.toThrow('Authentication failed');
+
+      expect(firstHandler).not.toHaveBeenCalled();
+      expect(secondHandler).toHaveBeenCalledTimes(1);
     });
   });
 
