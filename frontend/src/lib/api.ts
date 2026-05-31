@@ -2,6 +2,16 @@ export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/ap
 const USE_S3_STORAGE = import.meta.env.VITE_USE_S3_STORAGE === 'true';
 
 type RequestBody = BodyInit | object | null | undefined;
+type ApiFetch = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+const defaultFetch: ApiFetch = (input, init) => (
+  init === undefined ? fetch(input) : fetch(input, init)
+);
+
+export interface ApiClientOptions {
+  baseUrl?: string;
+  fetchFn?: ApiFetch;
+  onUnauthorized?: () => void | Promise<void>;
+}
 
 interface PaginatedResponse<T> {
   count: number;
@@ -294,11 +304,19 @@ export interface TagUpdateRequest {
   color?: string;
 }
 
-class ApiClient {
+export class ApiClient {
   private baseUrl: string;
+  private fetchFn: ApiFetch;
+  private onUnauthorized?: () => void | Promise<void>;
 
-  constructor() {
-    this.baseUrl = API_URL;
+  constructor(options: ApiClientOptions = {}) {
+    this.baseUrl = options.baseUrl ?? API_URL;
+    this.fetchFn = options.fetchFn ?? defaultFetch;
+    this.onUnauthorized = options.onUnauthorized;
+  }
+
+  setUnauthorizedHandler(onUnauthorized: ApiClientOptions['onUnauthorized']): void {
+    this.onUnauthorized = onUnauthorized;
   }
 
   // HttpOnly Cookie-based authentication (security enhancement)
@@ -306,7 +324,7 @@ class ApiClient {
 
   async isAuthenticated(): Promise<boolean> {
     try {
-      const response = await fetch(`${this.baseUrl}/auth/me/`, {
+      const response = await this.fetchFn(`${this.baseUrl}/auth/me/`, {
         method: 'GET',
         credentials: 'include', // Send HttpOnly Cookie
         headers: {
@@ -322,7 +340,7 @@ class ApiClient {
   async logout(): Promise<void> {
     try {
       const csrfToken = await this.ensureCsrfToken();
-      await fetch(`${this.baseUrl}/auth/sessions/`, {
+      await this.fetchFn(`${this.baseUrl}/auth/sessions/`, {
         method: 'DELETE',
         credentials: 'include', // Send HttpOnly Cookie
         headers: {
@@ -384,7 +402,7 @@ class ApiClient {
     }
 
     // Fetch from server; cross-origin deployments return token in body
-    const response = await fetch(this.buildUrl('/auth/csrf/'), {
+    const response = await this.fetchFn(this.buildUrl('/auth/csrf/'), {
       method: 'GET',
       credentials: 'include',
       headers: {},
@@ -452,7 +470,7 @@ class ApiClient {
   private async handleAuthError(): Promise<void> {
     // With HttpOnly Cookie-based authentication, delegate logout to backend
     await this.logout();
-    window.location.href = '/login';
+    await this.onUnauthorized?.();
     throw new Error("Authentication failed");
   }
 
@@ -514,7 +532,7 @@ class ApiClient {
     url: string,
     config: RequestInit
   ): Promise<Response> {
-    const response = await fetch(url, config);
+    const response = await this.fetchFn(url, config);
 
     // Process errors other than 401 immediately
     if (!response.ok && response.status !== 401) {
@@ -647,7 +665,7 @@ class ApiClient {
   private fetchMe(): Promise<Response> {
     const url = this.buildUrl('/auth/me');
     const headers = this.buildHeaders();
-    return fetch(url, { credentials: 'include', headers });
+    return this.fetchFn(url, { credentials: 'include', headers });
   }
 
   async getMeOrNull(): Promise<User | null> {
@@ -735,7 +753,7 @@ class ApiClient {
       headers['X-CSRFToken'] = csrfToken;
     }
 
-    const fetchStream = () => fetch(url, {
+    const fetchStream = () => this.fetchFn(url, {
       method: 'POST',
       headers,
       body: JSON.stringify(bodyData),
@@ -829,7 +847,7 @@ class ApiClient {
     const url = this.buildUrl(`/chat/groups/${groupId}/history/?download=csv`);
 
     const doFetch = async (): Promise<Response> => {
-      return fetch(url, {
+      return this.fetchFn(url, {
         method: 'GET',
         credentials: 'include',
         headers: {},
@@ -1075,7 +1093,7 @@ class ApiClient {
   async getSharedGroup(shareSlug: string): Promise<VideoGroup> {
     // Shared groups don't require authentication, so don't include credentials
     const url = this.buildUrl(`/videos/groups/share/${shareSlug}/`);
-    const response = await fetch(url);
+    const response = await this.fetchFn(url);
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -1199,4 +1217,8 @@ class ApiClient {
 
 }
 
-export const apiClient = new ApiClient();
+export function createApiClient(options?: ApiClientOptions): ApiClient {
+  return new ApiClient(options);
+}
+
+export const apiClient = createApiClient();
