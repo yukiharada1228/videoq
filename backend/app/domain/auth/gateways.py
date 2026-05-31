@@ -95,6 +95,16 @@ class UserManagementGateway(ABC):
         """Update the password for the given user."""
         ...
 
+    @abstractmethod
+    def set_pending_email(self, user_id: int, email: str) -> None:
+        """Store a pending email address until the user confirms it."""
+        ...
+
+    @abstractmethod
+    def confirm_pending_email(self, uidb64: str, token: str) -> bool:
+        """Confirm a pending email change from a uid/token link."""
+        ...
+
 
 class EmailSenderGateway(ABC):
     """Abstract interface for sending auth-related emails."""
@@ -107,4 +117,9 @@ class EmailSenderGateway(ABC):
     @abstractmethod
     def send_password_reset(self, user_id: int) -> None:
         """Send a password-reset link to the user."""
+        ...
+
+    @abstractmethod
+    def send_email_change_confirmation(self, user_id: int) -> None:
+        """Send an email-change confirmation link to the user's pending email."""
         ...

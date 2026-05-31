@@ -64,6 +64,44 @@ class DjangoUserManagementGateway(UserManagementGateway):
         user.set_password(new_password)
         user.save(update_fields=["password"])
 
+    def set_pending_email(self, user_id: int, email: str) -> None:
+        User = self._get_user_model()
+        User.objects.filter(pk=user_id).update(pending_email=email)
+
+    def confirm_pending_email(self, uidb64: str, token: str) -> bool:
+        from django.db import IntegrityError, transaction
+        from django.utils.encoding import force_str
+        from django.utils.http import urlsafe_base64_decode
+
+        from app.infrastructure.common.email import email_change_token_generator
+
+        User = self._get_user_model()
+        try:
+            uid = force_str(urlsafe_base64_decode(uidb64))
+            user = User.objects.get(pk=uid)
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            return False
+
+        if not user.pending_email:
+            return False
+        if not email_change_token_generator.check_token(user, token):
+            return False
+        if (
+            User.objects.filter(email__iexact=user.pending_email)
+            .exclude(pk=user.pk)
+            .exists()
+        ):
+            return False
+
+        try:
+            with transaction.atomic():
+                user.email = user.pending_email
+                user.pending_email = None
+                user.save(update_fields=["email", "pending_email"])
+        except IntegrityError:
+            return False
+        return True
+
 
 class DjangoEmailSenderGateway(EmailSenderGateway):
     """Implements EmailSenderGateway by delegating to existing email utils."""
@@ -81,3 +119,10 @@ class DjangoEmailSenderGateway(EmailSenderGateway):
         User = get_user_model()
         user = User.objects.get(pk=user_id)
         send_password_reset_email(user)
+
+    def send_email_change_confirmation(self, user_id: int) -> None:
+        from django.contrib.auth import get_user_model
+        from app.infrastructure.common.email import send_email_change_confirmation
+        User = get_user_model()
+        user = User.objects.get(pk=user_id)
+        send_email_change_confirmation(user)

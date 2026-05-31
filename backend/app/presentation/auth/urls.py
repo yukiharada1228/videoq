@@ -8,6 +8,8 @@ from .views import (
     ApiKeyDetailView,
     ApiKeyListCreateView,
     CsrfTokenView,
+    EmailChangeConfirmView,
+    EmailChangeRequestView,
     EmailVerificationView,
     MeView,
     PasswordResetConfirmView,
@@ -50,6 +52,15 @@ urlpatterns = [
         "me/",
         MeView.as_view(current_user_use_case=auth_dependencies.get_current_user_use_case),
         name="auth-me",
+    ),
+    path(
+        "me/email/",
+        EmailChangeRequestView.as_view(
+            request_email_change_use_case=(
+                auth_dependencies.get_request_email_change_use_case
+            )
+        ),
+        name="auth-me-email",
     ),
     path(
         "api-keys/",
@@ -106,6 +117,15 @@ urlpatterns = [
             )
         ),
         name="auth-password-resets-confirm",
+    ),
+    path(
+        "email-change/<str:uidb64>/<str:token>/",
+        EmailChangeConfirmView.as_view(
+            confirm_email_change_use_case=(
+                auth_dependencies.get_confirm_email_change_use_case
+            )
+        ),
+        name="auth-email-change-confirm",
     ),
 ]
 
