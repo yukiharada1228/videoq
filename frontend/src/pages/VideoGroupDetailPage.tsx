@@ -44,6 +44,7 @@ import {
 } from '@/hooks/useVideoGroupDetailData';
 import { TagFilterPanel } from '@/components/video/TagFilterPanel';
 import { AppNav } from '@/components/layout/AppNav';
+import { useConfirm, useToast } from '@/components/common/feedback';
 import {
   ArrowLeft, Plus, GripVertical,
   CheckCircle, Clock, AlertCircle, Copy, Trash2,
@@ -260,6 +261,7 @@ interface AddVideosDialogProps {
 
 function AddVideosDialog({ isOpen, onOpenChange, groupId, group, onVideosAdded }: AddVideosDialogProps) {
   const { t } = useTranslation();
+  const toast = useToast();
   const { tags } = useTags();
 
   const [videoSearchInput, setVideoSearchInput] = useState('');
@@ -305,7 +307,10 @@ function AddVideosDialog({ isOpen, onOpenChange, groupId, group, onVideosAdded }
       onOpenChange(false);
       setSelectedVideos([]);
       if (result.skipped_count > 0) {
-        alert(t('videos.groupDetail.addResult', { added: result.added_count, skipped: result.skipped_count }));
+        toast({
+          message: t('videos.groupDetail.addResult', { added: result.added_count, skipped: result.skipped_count }),
+          variant: 'info',
+        });
       }
     } catch (err) {
       handleAsyncError(err, t('videos.groupDetail.addError'), () => {});
@@ -430,6 +435,7 @@ export default function VideoGroupDetailPage() {
   const navigate = useI18nNavigate();
   const groupId = params?.id ? Number.parseInt(params.id, 10) : null;
   const { t } = useTranslation();
+  const requestConfirmation = useConfirm();
 
   useAuth();
 
@@ -506,7 +512,14 @@ export default function VideoGroupDetailPage() {
 
 
   const handleRemoveVideo = async (videoId: number) => {
-    if (!confirm(t('videos.groupDetail.removeVideoConfirm')) || !groupId) return;
+    if (!groupId) return;
+    const confirmed = await requestConfirmation({
+      title: t('videos.groupDetail.removeVideoConfirm'),
+      confirmLabel: t('common.actions.confirm'),
+      cancelLabel: t('common.actions.cancel'),
+      variant: 'danger',
+    });
+    if (!confirmed) return;
     try {
       await removeVideoMutation.mutateAsync(videoId);
       if (selectedVideoId === videoId) setSelectedVideoId(null);
@@ -532,7 +545,14 @@ export default function VideoGroupDetailPage() {
   };
 
   const handleDelete = async () => {
-    if (!groupId || !confirm(t('confirmations.deleteGroup'))) return;
+    if (!groupId) return;
+    const confirmed = await requestConfirmation({
+      title: t('confirmations.deleteGroup'),
+      confirmLabel: t('common.actions.delete'),
+      cancelLabel: t('common.actions.cancel'),
+      variant: 'danger',
+    });
+    if (!confirmed) return;
     setDeleteError(null);
     try {
       await deleteGroupMutation.mutateAsync();

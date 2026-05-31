@@ -291,7 +291,6 @@ describe('VideoGroupDetailPage - Loading state', () => {
 })
 
 describe('VideoGroupDetailPage - Delete', () => {
-  const originalConfirm = window.confirm
   let currentGroup = structuredClone(mockGroup)
 
   beforeEach(() => {
@@ -305,11 +304,6 @@ describe('VideoGroupDetailPage - Delete', () => {
           videos: currentGroup.videos.filter((video) => video.id !== videoId),
         }
       })
-    window.confirm = vi.fn(() => true)
-  })
-
-  afterEach(() => {
-    window.confirm = originalConfirm
   })
 
   it('should call deleteVideoGroup when delete is confirmed', async () => {
@@ -320,6 +314,7 @@ describe('VideoGroupDetailPage - Delete', () => {
     })
 
     fireEvent.click(screen.getByTitle('videos.groupDetail.delete'))
+    fireEvent.click(await screen.findByRole('button', { name: 'common.actions.delete' }))
 
     await waitFor(() => {
       expect(apiClient.deleteVideoGroup).toHaveBeenCalledWith(1)
@@ -351,6 +346,7 @@ describe('VideoGroupDetailPage - Delete', () => {
     })
 
     fireEvent.click(screen.getByTitle('videos.groupDetail.delete'))
+    fireEvent.click(await screen.findByRole('button', { name: 'common.actions.delete' }))
 
     await waitFor(() => {
       expect(screen.getByText('Delete failed')).toBeInTheDocument()
@@ -362,9 +358,9 @@ describe('VideoGroupDetailPage - Delete', () => {
 
     const [firstRemoveButton] = await screen.findAllByRole('button', { name: 'videos.groupDetail.removeFromGroup' })
     fireEvent.click(firstRemoveButton)
+    fireEvent.click(await screen.findByRole('button', { name: 'common.actions.confirm' }))
 
     await waitFor(() => {
-      expect(window.confirm).toHaveBeenCalledWith('videos.groupDetail.removeVideoConfirm')
       expect(apiClient.removeVideoFromGroup).toHaveBeenCalledWith(1, 1)
     })
 
@@ -385,6 +381,7 @@ describe('VideoGroupDetailPage - Delete', () => {
     // Remove Video 1 (the auto-selected one)
     const [firstRemoveButton] = screen.getAllByRole('button', { name: 'videos.groupDetail.removeFromGroup' })
     fireEvent.click(firstRemoveButton)
+    fireEvent.click(await screen.findByRole('button', { name: 'common.actions.confirm' }))
 
     await waitFor(() => {
       expect(screen.queryAllByText('Video 1')).toHaveLength(0)
@@ -416,6 +413,7 @@ describe('VideoGroupDetailPage - Delete', () => {
     // autoVideoId: V1 stale → resets to V2 (first in new list)
     const [firstRemoveButton] = screen.getAllByRole('button', { name: 'videos.groupDetail.removeFromGroup' })
     fireEvent.click(firstRemoveButton)
+    fireEvent.click(await screen.findByRole('button', { name: 'common.actions.confirm' }))
 
     await waitFor(() => {
       expect(screen.queryAllByText('Video 1')).toHaveLength(0)

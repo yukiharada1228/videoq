@@ -5,6 +5,7 @@ import React from 'react'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { HelmetProvider } from 'react-helmet-async'
 import { createAppQueryClient } from './src/lib/queryClient'
+import { FeedbackProvider } from './src/components/common/FeedbackProvider'
 import enTranslation from './src/i18n/locales/en/translation.json'
 import jaTranslation from './src/i18n/locales/ja/translation.json'
 
@@ -17,7 +18,11 @@ vi.mock('@testing-library/react', async () => {
       const content = React.createElement(
         HelmetProvider,
         {},
-        React.createElement(QueryClientProvider, { client: queryClient }, children),
+        React.createElement(
+          QueryClientProvider,
+          { client: queryClient },
+          React.createElement(FeedbackProvider, {}, children),
+        ),
       )
       if (!UserWrapper) {
         return content

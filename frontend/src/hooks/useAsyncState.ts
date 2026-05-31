@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
+import { useConfirm } from '@/components/common/feedback';
 
 /**
  * Custom hook to unify state management for async operations
@@ -31,6 +32,7 @@ export function useAsyncState<T = unknown>(
   options: UseAsyncStateOptions<T> = {}
 ): UseAsyncStateReturn<T> {
   const { initialData = null, onSuccess, onError, confirmMessage } = options;
+  const requestConfirmation = useConfirm();
   
   const [data, setData] = useState<T | null>(initialData);
   const [isLoading, setIsLoading] = useState(false);
@@ -71,7 +73,7 @@ export function useAsyncState<T = unknown>(
   }, []);
 
   const mutate = useCallback(async (asyncFn: () => Promise<T>): Promise<T | undefined> => {
-    if (confirmMessage && !confirm(confirmMessage)) {
+    if (confirmMessage && !(await requestConfirmation(confirmMessage))) {
       return;
     }
 
@@ -101,7 +103,7 @@ export function useAsyncState<T = unknown>(
     } finally {
       setIsLoading(false);
     }
-  }, [confirmMessage]);
+  }, [confirmMessage, requestConfirmation]);
 
   const reset = useCallback(() => {
     setData(initialData);
