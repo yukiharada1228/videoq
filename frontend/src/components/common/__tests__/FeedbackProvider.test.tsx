@@ -36,6 +36,14 @@ function ToastHarness() {
 }
 
 describe('FeedbackProvider', () => {
+  beforeEach(() => {
+    globalThis.__setMockPathname('/')
+  })
+
+  afterEach(() => {
+    globalThis.__setMockPathname('/')
+  })
+
   it('renders an accessible confirm dialog and resolves true on confirm', async () => {
     const onResult = vi.fn()
 
@@ -73,6 +81,32 @@ describe('FeedbackProvider', () => {
 
     await waitFor(() => {
       expect(onResult).toHaveBeenCalledWith(false)
+    })
+  })
+
+  it('resolves false and closes pending confirm dialogs when the route changes', async () => {
+    const onResult = vi.fn()
+    const ui = (
+      <FeedbackProvider>
+        <ConfirmHarness onResult={onResult} />
+      </FeedbackProvider>
+    )
+    const { rerender } = render(ui)
+
+    fireEvent.click(screen.getByText('Open confirm'))
+
+    expect(await screen.findByRole('dialog', { name: 'Delete video?' })).toBeInTheDocument()
+
+    globalThis.__setMockPathname('/videos')
+    rerender(
+      <FeedbackProvider>
+        <ConfirmHarness onResult={onResult} />
+      </FeedbackProvider>,
+    )
+
+    await waitFor(() => {
+      expect(onResult).toHaveBeenCalledWith(false)
+      expect(screen.queryByRole('dialog', { name: 'Delete video?' })).not.toBeInTheDocument()
     })
   })
 
