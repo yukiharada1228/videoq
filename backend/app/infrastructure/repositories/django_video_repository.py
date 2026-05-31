@@ -164,7 +164,15 @@ class DjangoVideoRepository(VideoRepository):
             )
 
         if search.status_filter:
-            queryset = queryset.filter(status=search.status_filter)
+            status_values = [
+                status_value.strip()
+                for status_value in search.status_filter.split(",")
+                if status_value.strip()
+            ]
+            if len(status_values) == 1:
+                queryset = queryset.filter(status=status_values[0])
+            elif status_values:
+                queryset = queryset.filter(status__in=status_values)
 
         if search.tag_ids:
             queryset = queryset.filter(tags__id__in=search.tag_ids).distinct()

@@ -134,6 +134,18 @@ describe('useVideos', () => {
     })
   })
 
+  it('should pass status param to API', async () => {
+    ;(apiClient.getVideos as any).mockResolvedValue(mockPaginatedResponse([]))
+
+    renderHook(() => useVideos({ status: 'completed' }))
+
+    await waitFor(() => {
+      expect(apiClient.getVideos).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'completed' }),
+      )
+    })
+  })
+
   it('should pass limit=24 and offset=0 to API on first page', async () => {
     ;(apiClient.getVideos as any).mockResolvedValue(mockPaginatedResponse([]))
 

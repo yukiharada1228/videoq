@@ -11,6 +11,7 @@ export type VideosOrdering = 'uploaded_at_desc' | 'uploaded_at_asc' | 'title_asc
 interface UseVideosParams {
   tagIds?: number[];
   q?: string;
+  status?: string;
   ordering?: VideosOrdering;
 }
 
@@ -35,15 +36,17 @@ export function useVideos(params?: UseVideosParams): UseVideosReturn {
     () => (params?.tagIds && params.tagIds.length > 0 ? params.tagIds : undefined),
     [params?.tagIds],
   );
-  const q = params?.q || undefined;
+  const q = params?.q?.trim() || undefined;
+  const status = params?.status?.trim() || undefined;
   const ordering: VideosOrdering | undefined = params?.ordering || undefined;
 
   const videosQuery = useInfiniteQuery({
-    queryKey: queryKeys.videos.infinite({ tags: normalizedTagIds, q, ordering }),
+    queryKey: queryKeys.videos.infinite({ tags: normalizedTagIds, q, status, ordering }),
     queryFn: async ({ pageParam }) => {
       return apiClient.getVideos({
         tags: normalizedTagIds,
         q,
+        status,
         ordering,
         limit: PAGE_SIZE,
         offset: pageParam as number,
