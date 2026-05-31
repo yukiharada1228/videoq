@@ -489,6 +489,27 @@ describe('ApiClient', () => {
         expect.objectContaining({ credentials: 'include' }),
       );
     });
+
+    it('setUnauthorizedHandler should update the handler used by later auth failures', async () => {
+      const firstHandler = vi.fn();
+      const secondHandler = vi.fn();
+      const client = createApiClient({
+        baseUrl: 'http://localhost:8000/api',
+        fetchFn: fetchMock,
+        onUnauthorized: firstHandler,
+      });
+      client.setUnauthorizedHandler(secondHandler);
+
+      fetchMock
+        .mockResolvedValueOnce({ ok: false, status: 401 })
+        .mockRejectedValueOnce(new Error('Refresh failed'))
+        .mockResolvedValueOnce({ ok: true });
+
+      await expect(client.getMe()).rejects.toThrow('Authentication failed');
+
+      expect(firstHandler).not.toHaveBeenCalled();
+      expect(secondHandler).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('Video Methods', () => {

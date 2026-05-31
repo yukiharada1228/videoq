@@ -315,6 +315,10 @@ export class ApiClient {
     this.onUnauthorized = options.onUnauthorized;
   }
 
+  setUnauthorizedHandler(onUnauthorized: ApiClientOptions['onUnauthorized']): void {
+    this.onUnauthorized = onUnauthorized;
+  }
+
   // HttpOnly Cookie-based authentication (security enhancement)
   // Use HttpOnly Cookie instead of localStorage to prevent XSS attacks
 
