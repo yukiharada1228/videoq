@@ -48,6 +48,8 @@ vi.mock('@testing-library/react', async () => {
 declare global {
   interface GlobalThis {
     __setMockPathname: (pathname: string) => void
+    __setMockSearchParams: (search: string) => void
+    __getMockSetSearchParams: () => ReturnType<typeof vi.fn>
     __setMockLanguage: (language: 'en' | 'ja') => void
   }
 }
@@ -81,10 +83,19 @@ Object.defineProperty(globalThis, 'IntersectionObserver', {
 // Cleanup after each test
 afterEach(() => {
   cleanup()
+  mockLocation.search = ''
+  mockSetSearchParams.mockClear()
 })
 
 // Mock React Router
 const mockNavigate = vi.fn()
+const mockSetSearchParams = vi.fn((nextInit: URLSearchParams | string) => {
+  const next = nextInit instanceof URLSearchParams
+    ? nextInit
+    : new URLSearchParams(nextInit)
+  const nextSearch = next.toString()
+  mockLocation.search = nextSearch ? `?${nextSearch}` : ''
+})
 const mockLocation: {
   pathname: string
   search: string
@@ -119,6 +130,11 @@ const lookupSeoTranslation = (language: 'en' | 'ja', key: string): string | unde
 globalThis.__setMockPathname = (pathname: string) => {
   mockLocation.pathname = pathname
 }
+globalThis.__setMockSearchParams = (search: string) => {
+  const normalizedSearch = search.startsWith('?') ? search.slice(1) : search
+  mockLocation.search = normalizedSearch ? `?${normalizedSearch}` : ''
+}
+globalThis.__getMockSetSearchParams = () => mockSetSearchParams
 globalThis.__setMockLanguage = (language: 'en' | 'ja') => {
   mockLanguage = language
 }
@@ -134,7 +150,7 @@ vi.mock('react-router-dom', async () => {
     useNavigate: () => mockNavigate,
     useLocation: () => mockLocation,
     useParams: () => ({}),
-    useSearchParams: () => [new URLSearchParams(), vi.fn()],
+    useSearchParams: () => [new URLSearchParams(mockLocation.search), mockSetSearchParams],
     Link: ({ children, to, ...props }: MockLinkProps) =>
       React.createElement('a', { href: typeof to === 'string' ? to : '', ...props }, children),
   }
