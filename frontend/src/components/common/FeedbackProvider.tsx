@@ -1,4 +1,5 @@
-import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useLocation } from 'react-router-dom';
 import { X } from 'lucide-react';
 import {
   Dialog,
@@ -15,6 +16,7 @@ import { FeedbackContext, type ConfirmOptions, type FeedbackContextValue, type T
 interface ConfirmRequest {
   options: Required<Pick<ConfirmOptions, 'title' | 'confirmLabel' | 'cancelLabel' | 'variant'>> &
     Pick<ConfirmOptions, 'description'>;
+  navigationKey: string;
   resolve: (confirmed: boolean) => void;
 }
 
@@ -43,25 +45,58 @@ function normalizeConfirmOptions(options: ConfirmOptions | string): ConfirmReque
 }
 
 export function FeedbackProvider({ children }: { children: ReactNode }) {
-  const [confirmRequest, setConfirmRequest] = useState<ConfirmRequest | null>(null);
+  const location = useLocation();
+  const navigationKey = `${location.pathname}${location.search}${location.hash}`;
+  const previousNavigationKey = useRef(navigationKey);
+  const activeConfirmRequest = useRef<ConfirmRequest | null>(null);
+  const [confirmRequest, setConfirmRequestState] = useState<ConfirmRequest | null>(null);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const nextToastId = useRef(1);
 
   const resolveConfirm = useCallback((confirmed: boolean) => {
-    setConfirmRequest((current) => {
-      current?.resolve(confirmed);
-      return null;
-    });
+    const current = activeConfirmRequest.current;
+    if (!current) return;
+
+    activeConfirmRequest.current = null;
+    setConfirmRequestState(null);
+    current.resolve(confirmed);
   }, []);
 
   const requestConfirmation = useCallback((options: ConfirmOptions | string) => {
     return new Promise<boolean>((resolve) => {
-      setConfirmRequest({
+      activeConfirmRequest.current?.resolve(false);
+
+      const nextRequest = {
         options: normalizeConfirmOptions(options),
+        navigationKey,
         resolve,
-      });
+      };
+      activeConfirmRequest.current = nextRequest;
+      setConfirmRequestState(nextRequest);
     });
-  }, []);
+  }, [navigationKey]);
+
+  useLayoutEffect(() => {
+    if (previousNavigationKey.current === navigationKey) {
+      return;
+    }
+
+    previousNavigationKey.current = navigationKey;
+    const current = activeConfirmRequest.current;
+    if (current && current.navigationKey !== navigationKey) {
+      activeConfirmRequest.current = null;
+      current.resolve(false);
+      window.queueMicrotask(() => {
+        setConfirmRequestState((latest) => (latest === current ? null : latest));
+      });
+    }
+  }, [navigationKey]);
+
+  const visibleConfirmRequest =
+    confirmRequest &&
+    confirmRequest.navigationKey === navigationKey
+      ? confirmRequest
+      : null;
 
   const dismissToast = useCallback((id: number) => {
     setToasts((current) => current.filter((toast) => toast.id !== id));
@@ -92,12 +127,12 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
     <FeedbackContext.Provider value={contextValue}>
       {children}
 
-      <Dialog open={!!confirmRequest} onOpenChange={(open) => !open && resolveConfirm(false)}>
+      <Dialog open={!!visibleConfirmRequest} onOpenChange={(open) => !open && resolveConfirm(false)}>
         <DialogContent className="sm:max-w-md" showCloseButton={false}>
           <DialogHeader>
-            <DialogTitle>{confirmRequest?.options.title}</DialogTitle>
-            {confirmRequest?.options.description ? (
-              <DialogDescription>{confirmRequest.options.description}</DialogDescription>
+            <DialogTitle>{visibleConfirmRequest?.options.title}</DialogTitle>
+            {visibleConfirmRequest?.options.description ? (
+              <DialogDescription>{visibleConfirmRequest.options.description}</DialogDescription>
             ) : (
               <DialogDescription className="sr-only">Confirm this action.</DialogDescription>
             )}
@@ -109,14 +144,14 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
               autoFocus
               onClick={() => resolveConfirm(false)}
             >
-              {confirmRequest?.options.cancelLabel}
+              {visibleConfirmRequest?.options.cancelLabel}
             </Button>
             <Button
               type="button"
-              variant={confirmRequest?.options.variant === 'danger' ? 'destructive' : 'default'}
+              variant={visibleConfirmRequest?.options.variant === 'danger' ? 'destructive' : 'default'}
               onClick={() => resolveConfirm(true)}
             >
-              {confirmRequest?.options.confirmLabel}
+              {visibleConfirmRequest?.options.confirmLabel}
             </Button>
           </DialogFooter>
         </DialogContent>
