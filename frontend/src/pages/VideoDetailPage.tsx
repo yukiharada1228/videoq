@@ -13,7 +13,7 @@ import { TagCreateDialog } from '@/components/video/TagCreateDialog';
 import { useTags } from '@/hooks/useTags';
 import { useVideoEditing } from '@/hooks/useVideoEditing';
 import { useVideoDetailPageMutations } from '@/hooks/useVideoDetailPageData';
-import { queryKeys } from '@/lib/queryKeys';
+import { invalidateAfterTranscriptEdit } from '@/lib/cacheInvalidation';
 import { AppNav } from '@/components/layout/AppNav';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
@@ -180,10 +180,7 @@ export default function VideoDetailPage() {
     },
     onSuccess: async () => {
       if (videoId) {
-        await queryClient.invalidateQueries({ queryKey: queryKeys.videos.detail(videoId) });
-        await queryClient.invalidateQueries({ queryKey: ['videoGroup'] });
-        await queryClient.invalidateQueries({ queryKey: ['sharedVideoGroup'] });
-        await queryClient.invalidateQueries({ queryKey: ['popularScenes'] });
+        await invalidateAfterTranscriptEdit(queryClient, videoId);
       }
       setIsTranscriptEditing(false);
       setTranscriptSearch('');

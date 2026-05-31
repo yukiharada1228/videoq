@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient, ApiError, type VideoUploadRequest } from '@/lib/api';
-import { queryKeys } from '@/lib/queryKeys';
+import { invalidateAfterVideoUpload } from '@/lib/cacheInvalidation';
 import { useAuth } from '@/hooks/useAuth';
 
 interface UseVideoUploadReturn {
@@ -127,7 +127,7 @@ export function useVideoUpload(): UseVideoUploadReturn {
       setError(null);
       setErrorParams({});
       setProgress(100);
-      await queryClient.invalidateQueries({ queryKey: queryKeys.videos.all });
+      await invalidateAfterVideoUpload(queryClient);
     },
     onError: (err) => {
       if (err instanceof ApiError && err.code === 'FILE_TOO_LARGE') {
