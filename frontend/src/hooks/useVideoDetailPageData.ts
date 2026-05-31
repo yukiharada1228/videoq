@@ -1,6 +1,9 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api';
-import { queryKeys } from '@/lib/queryKeys';
+import {
+  invalidateAfterVideoDelete,
+  invalidateAfterVideoUpdate,
+} from '@/lib/cacheInvalidation';
 
 interface UseVideoDetailPageMutationsParams {
   videoId: number | null;
@@ -28,12 +31,8 @@ export function useVideoDetailPageMutations({
     },
     onSuccess: async () => {
       if (videoId) {
-        queryClient.removeQueries({ queryKey: queryKeys.videos.detail(videoId) });
+        await invalidateAfterVideoDelete(queryClient, videoId);
       }
-      await queryClient.invalidateQueries({ queryKey: queryKeys.videos.all });
-      await queryClient.invalidateQueries({ queryKey: ['videoGroup'] });
-      await queryClient.invalidateQueries({ queryKey: ['sharedVideoGroup'] });
-      await queryClient.invalidateQueries({ queryKey: ['popularScenes'] });
       onDeleteSuccess();
     },
     onError: (err) => {
@@ -48,10 +47,7 @@ export function useVideoDetailPageMutations({
     onSuccess: async () => {
       onUpdateSuccess();
       if (videoId) {
-        await queryClient.invalidateQueries({ queryKey: queryKeys.videos.detail(videoId) });
-        await queryClient.invalidateQueries({ queryKey: queryKeys.videos.all });
-        await queryClient.invalidateQueries({ queryKey: ['videoGroup'] });
-        await queryClient.invalidateQueries({ queryKey: ['sharedVideoGroup'] });
+        await invalidateAfterVideoUpdate(queryClient, videoId);
       }
     },
   });
