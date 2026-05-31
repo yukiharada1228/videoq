@@ -55,8 +55,8 @@ export function useAuth(options: UseAuthOptions = {}): UseAuthReturn {
       return;
     }
 
-    // 401 errors are handled in apiClient.getMe(), and token refresh is attempted.
-    // If refresh also fails, apiClient redirects to /login.
+    // apiClient retries token refresh, then reports auth failure without routing.
+    // Redirect decisions stay in this hook so API calls remain UI-agnostic.
     console.error('Authentication check failed:', authQuery.error);
     if (redirectToLogin) {
       const currentPath = removeLocalePrefix(window.location.pathname);

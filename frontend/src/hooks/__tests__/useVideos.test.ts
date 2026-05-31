@@ -8,7 +8,7 @@ vi.mock('@/lib/api', () => ({
   apiClient: {
     getVideos: vi.fn(),
     getVideo: vi.fn(),
-    isAuthenticated: vi.fn(),
+    getMe: vi.fn(),
   },
 }))
 
@@ -377,7 +377,7 @@ describe('useVideo', () => {
   })
 
   it('should initialize with null video', () => {
-    ;(apiClient.isAuthenticated as any).mockReturnValue(true)
+    ;(apiClient.getMe as any).mockReturnValue(new Promise(() => {}))
     ;(apiClient.getVideo as any).mockReturnValue(new Promise(() => {}))
     const { result } = renderHook(() => useVideo(1))
 
@@ -397,6 +397,7 @@ describe('useVideo', () => {
   })
 
   it('should load video', async () => {
+    const mockUser = { id: 1, username: 'testuser' }
     const mockVideo = {
       id: 1,
       title: 'Test Video',
@@ -405,7 +406,7 @@ describe('useVideo', () => {
       uploaded_at: '',
       status: 'completed' as const,
     }
-    ;(apiClient.isAuthenticated as any).mockReturnValue(true)
+    ;(apiClient.getMe as any).mockResolvedValue(mockUser)
     ;(apiClient.getVideo as any).mockResolvedValue(mockVideo)
 
     const { result } = renderHook(() => useVideo(1))
@@ -421,7 +422,7 @@ describe('useVideo', () => {
   })
 
   it('should redirect to login if not authenticated', async () => {
-    ;(apiClient.isAuthenticated as any).mockReturnValue(false)
+    ;(apiClient.getMe as any).mockRejectedValue(new Error('Unauthorized'))
 
     const { result } = renderHook(() => useVideo(1))
 
@@ -434,11 +435,36 @@ describe('useVideo', () => {
     })
 
     const navigate = useI18nNavigate()
-    expect(navigate).toHaveBeenCalledWith('/login')
+    await waitFor(() => {
+      expect(navigate).toHaveBeenCalledWith('/login')
+    })
+    expect(apiClient.getVideo).not.toHaveBeenCalled()
+  })
+
+  it('should use the shared auth query instead of a separate isAuthenticated check', async () => {
+    const mockUser = { id: 1, username: 'testuser' }
+    const mockVideo = {
+      id: 1,
+      title: 'Test Video',
+      user: 1,
+      file: '',
+      uploaded_at: '',
+      status: 'completed' as const,
+    }
+    ;(apiClient.getMe as any).mockResolvedValue(mockUser)
+    ;(apiClient.getVideo as any).mockResolvedValue(mockVideo)
+
+    renderHook(() => useVideo(1))
+
+    await waitFor(() => {
+      expect(apiClient.getMe).toHaveBeenCalled()
+      expect(apiClient.getVideo).toHaveBeenCalledWith(1)
+    })
+    expect((apiClient as any).isAuthenticated).toBeUndefined()
   })
 
   it('should handle loading errors', async () => {
-    ;(apiClient.isAuthenticated as any).mockReturnValue(true)
+    ;(apiClient.getMe as any).mockResolvedValue({ id: 1, username: 'testuser' })
     ;(apiClient.getVideo as any).mockRejectedValue(new Error('Failed to load'))
 
     const { result } = renderHook(() => useVideo(1))
