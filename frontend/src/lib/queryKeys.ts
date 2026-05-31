@@ -24,8 +24,8 @@ export const queryKeys = {
     all: ['videos'] as const,
     list: (params?: { tags?: number[] }) =>
       ['videos', 'list', { tags: params?.tags ?? [] }] as const,
-    infinite: (params?: { tags?: number[]; q?: string; ordering?: string }) =>
-      ['videos', 'infinite', { tags: params?.tags ?? [], q: params?.q ?? '', ordering: params?.ordering ?? '' }] as const,
+    infinite: (params?: { tags?: number[]; q?: string; status?: string; ordering?: string }) =>
+      ['videos', 'infinite', { tags: params?.tags ?? [], q: params?.q ?? '', status: params?.status ?? '', ordering: params?.ordering ?? '' }] as const,
     detail: (videoId: number | null) => ['videos', 'detail', videoId] as const,
   },
   popularScenes: {

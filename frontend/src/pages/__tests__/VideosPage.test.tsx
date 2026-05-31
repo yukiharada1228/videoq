@@ -10,24 +10,14 @@ const mockVideos = [
 
 const mockLoadVideos = vi.fn()
 const mockFetchNextPage = vi.fn()
+const mockUseVideos = vi.fn()
 
 let mockHasNextPage = false
 let mockIsFetchingNextPage = false
 let mockTotalCount = 4
 
 vi.mock('@/hooks/useVideos', () => ({
-  useVideos: () => ({
-    videos: mockVideos,
-    isLoading: false,
-    error: null,
-    hasNextPage: mockHasNextPage,
-    fetchNextPage: mockFetchNextPage,
-    isFetchingNextPage: mockIsFetchingNextPage,
-    totalCount: mockTotalCount,
-    loadVideos: mockLoadVideos,
-    refetch: mockLoadVideos,
-    sentinelRef: vi.fn(),
-  }),
+  useVideos: (params: unknown) => mockUseVideos(params),
 }))
 
 vi.mock('@/hooks/useVideoStats', () => ({
@@ -79,6 +69,20 @@ describe('VideosPage', () => {
     mockHasNextPage = false
     mockIsFetchingNextPage = false
     mockTotalCount = 4
+    globalThis.__setMockSearchParams('')
+    globalThis.__getMockSetSearchParams().mockClear()
+    mockUseVideos.mockImplementation(() => ({
+      videos: mockVideos,
+      isLoading: false,
+      error: null,
+      hasNextPage: mockHasNextPage,
+      fetchNextPage: mockFetchNextPage,
+      isFetchingNextPage: mockIsFetchingNextPage,
+      totalCount: mockTotalCount,
+      loadVideos: mockLoadVideos,
+      refetch: mockLoadVideos,
+      sentinelRef: vi.fn(),
+    }))
   })
 
   afterEach(() => {
@@ -120,6 +124,47 @@ describe('VideosPage', () => {
     expect(screen.getByText('Video 2')).toBeInTheDocument()
     expect(screen.getByText('Video 3')).toBeInTheDocument()
     expect(screen.getByText('Video 4')).toBeInTheDocument()
+  })
+
+  it('should pass URL filters to useVideos on initial render', () => {
+    globalThis.__setMockSearchParams('q=python&status=completed&ordering=title_asc&tags=2,1')
+
+    render(<VideosPage />)
+
+    expect(mockUseVideos).toHaveBeenCalledWith({
+      tagIds: [1, 2],
+      q: 'python',
+      status: 'completed',
+      ordering: 'title_asc',
+    })
+  })
+
+  it('should map the processing URL filter to all in-progress API statuses', () => {
+    globalThis.__setMockSearchParams('status=processing')
+
+    render(<VideosPage />)
+
+    expect(mockUseVideos).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: 'pending,processing,indexing,uploading',
+      }),
+    )
+  })
+
+  it('should update the URL when filters change', () => {
+    render(<VideosPage />)
+
+    fireEvent.change(screen.getByPlaceholderText('videos.list.searchPlaceholder'), {
+      target: { value: 'django' },
+    })
+    let lastCall = globalThis.__getMockSetSearchParams().mock.calls.at(-1)
+    expect(lastCall?.[0].toString()).toBe('q=django')
+    expect(lastCall?.[1]).toEqual({ replace: true })
+
+    fireEvent.click(screen.getByText('videos.list.filter.completed'))
+    lastCall = globalThis.__getMockSetSearchParams().mock.calls.at(-1)
+    expect(lastCall?.[0].toString()).toBe('status=completed')
+    expect(lastCall?.[1]).toEqual({ replace: true })
   })
 
   it('should not manually load videos on mount (query handles initial fetch)', () => {

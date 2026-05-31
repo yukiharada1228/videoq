@@ -359,6 +359,28 @@ class VideoListViewTests(APITestCase):
         for video in response.data["results"]:
             self.assertEqual(video["status"], "completed")
 
+    def test_list_videos_with_multiple_status_filter(self):
+        """Test video list with comma-separated status filters"""
+        Video.objects.create(
+            user=self.user,
+            title="Processing Video",
+            description="Currently processing",
+            status="processing",
+        )
+        Video.objects.create(
+            user=self.user,
+            title="Indexing Video",
+            description="Currently indexing",
+            status="indexing",
+        )
+
+        url = reverse("video-list")
+        response = self.client.get(url, {"status": "pending,processing,indexing,uploading"})
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        statuses = {video["status"] for video in response.data["results"]}
+        self.assertEqual(statuses, {"pending", "processing", "indexing"})
+
     def test_list_videos_with_ordering(self):
         """Test video list with ordering"""
         url = reverse("video-list")

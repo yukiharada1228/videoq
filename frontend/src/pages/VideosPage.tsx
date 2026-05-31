@@ -8,20 +8,72 @@ import { VideoCard } from '@/components/video/VideoCard';
 import { TagManagementModal } from '@/components/video/TagManagementModal';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { useAuth } from '@/hooks/useAuth';
-import { useI18nNavigate } from '@/lib/i18n';
 import { useTags } from '@/hooks/useTags';
 import { AppPageShell } from '@/components/layout/AppPageShell';
 import { AppPageHeader } from '@/components/layout/AppPageHeader';
 import { Plus, Search, Tag } from 'lucide-react';
 
-type StatusFilter = 'all' | 'completed' | 'processing' | 'error';
+const STATUS_FILTERS = ['all', 'completed', 'processing', 'error'] as const;
+type StatusFilter = (typeof STATUS_FILTERS)[number];
+
 type SortOrder = Extract<VideosOrdering, 'uploaded_at_desc' | 'uploaded_at_asc' | 'title_asc'>;
+const SORT_ORDERS: SortOrder[] = ['uploaded_at_desc', 'uploaded_at_asc', 'title_asc'];
+const IN_PROGRESS_STATUSES = ['pending', 'processing', 'indexing', 'uploading'];
+
+function parseStatusFilter(value: string | null): StatusFilter {
+  return STATUS_FILTERS.includes(value as StatusFilter) ? (value as StatusFilter) : 'all';
+}
+
+function parseSortOrder(value: string | null): SortOrder {
+  return SORT_ORDERS.includes(value as SortOrder) ? (value as SortOrder) : 'uploaded_at_desc';
+}
+
+function parseTagIds(value: string | null): number[] {
+  if (!value) return [];
+  const ids = value
+    .split(',')
+    .map((raw) => Number(raw))
+    .filter((id) => Number.isInteger(id) && id > 0);
+  return Array.from(new Set(ids)).sort((a, b) => a - b);
+}
+
+function toApiStatusFilter(statusFilter: StatusFilter): string | undefined {
+  if (statusFilter === 'all') return undefined;
+  if (statusFilter === 'processing') return IN_PROGRESS_STATUSES.join(',');
+  return statusFilter;
+}
 
 export default function VideosPage() {
-  const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [sortOrder, setSortOrder] = useState<SortOrder>('uploaded_at_desc');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const selectedTagIds = useMemo(
+    () => parseTagIds(searchParams.get('tags')),
+    [searchParams],
+  );
+  const statusFilter = useMemo(
+    () => parseStatusFilter(searchParams.get('status')),
+    [searchParams],
+  );
+  const searchQuery = searchParams.get('q') ?? '';
+  const sortOrder = useMemo(
+    () => parseSortOrder(searchParams.get('ordering')),
+    [searchParams],
+  );
+  const apiStatusFilter = useMemo(() => toApiStatusFilter(statusFilter), [statusFilter]);
+
+  const updateSearchParams = useCallback(
+    (updates: Record<string, string | null>) => {
+      const next = new URLSearchParams(searchParams);
+      Object.entries(updates).forEach(([key, value]) => {
+        if (value === null || value === '') {
+          next.delete(key);
+          return;
+        }
+        next.set(key, value);
+      });
+      setSearchParams(next, { replace: true });
+    },
+    [searchParams, setSearchParams],
+  );
 
   const {
     videos,
@@ -34,14 +86,13 @@ export default function VideosPage() {
   } = useVideos({
     tagIds: selectedTagIds,
     q: searchQuery,
+    status: apiStatusFilter,
     ordering: sortOrder,
   });
 
   const stats = useVideoStats(videos);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isTagManagementOpen, setIsTagManagementOpen] = useState(false);
-  const [searchParams] = useSearchParams();
-  const navigate = useI18nNavigate();
   const { t } = useTranslation();
   const { user, isLoading: userLoading, refetch: refetchUser } = useAuth();
   const { tags } = useTags();
@@ -52,10 +103,13 @@ export default function VideosPage() {
   );
 
   const handleTagToggle = useCallback((tagId: number) => {
-    setSelectedTagIds((prev) =>
-      prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId],
-    );
-  }, []);
+    const nextTagIds = selectedTagIds.includes(tagId)
+      ? selectedTagIds.filter((id) => id !== tagId)
+      : [...selectedTagIds, tagId].sort((a, b) => a - b);
+    updateSearchParams({
+      tags: nextTagIds.length > 0 ? nextTagIds.join(',') : null,
+    });
+  }, [selectedTagIds, updateSearchParams]);
 
   const handleUploadSuccess = useCallback(() => {
     void refetchVideos();
@@ -65,26 +119,11 @@ export default function VideosPage() {
   const handleCloseModal = () => {
     setIsUploadModalOpen(false);
     if (shouldOpenModalFromQuery) {
-      navigate('/videos', { replace: true });
+      updateSearchParams({ upload: null });
     }
   };
 
   const isUploadDisabled = useMemo(() => !user || userLoading, [user, userLoading]);
-
-  const filteredVideos = useMemo(() => {
-    if (statusFilter === 'completed') {
-      return videos.filter((v) => v.status === 'completed');
-    }
-    if (statusFilter === 'processing') {
-      return videos.filter((v) =>
-        ['pending', 'processing', 'indexing', 'uploading'].includes(v.status),
-      );
-    }
-    if (statusFilter === 'error') {
-      return videos.filter((v) => v.status === 'error');
-    }
-    return videos;
-  }, [videos, statusFilter]);
 
   return (
     <AppPageShell activePage="videos">
@@ -129,14 +168,19 @@ export default function VideosPage() {
                 placeholder={t('videos.list.searchPlaceholder')}
                 type="text"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => updateSearchParams({ q: e.target.value })}
               />
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <span className="text-sm font-medium text-[#3f493f]">{t('videos.list.sortLabel')}</span>
               <select
                 value={sortOrder}
-                onChange={(e) => setSortOrder(e.target.value as SortOrder)}
+                onChange={(e) => {
+                  const nextOrdering = e.target.value as SortOrder;
+                  updateSearchParams({
+                    ordering: nextOrdering === 'uploaded_at_desc' ? null : nextOrdering,
+                  });
+                }}
                 className="bg-[#f2f4ef] border border-[#e1e3de] px-4 py-3 rounded-xl text-sm font-medium hover:bg-[#e7e9e4] transition-colors outline-none cursor-pointer"
               >
                 <option value="uploaded_at_desc">{t('videos.list.sort.uploadedDesc')}</option>
@@ -158,7 +202,7 @@ export default function VideosPage() {
               ).map(({ key, label }) => (
                 <button
                   key={key}
-                  onClick={() => setStatusFilter(key)}
+                  onClick={() => updateSearchParams({ status: key === 'all' ? null : key })}
                   className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-colors ${
                     statusFilter === key
                       ? 'bg-[#00652c] text-white'
@@ -216,7 +260,7 @@ export default function VideosPage() {
           <div className="text-center py-24 text-red-500">{error}</div>
         ) : (
           <>
-            {filteredVideos.length === 0 ? (
+            {videos.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-24 text-[#3f493f]">
                 <div className="w-24 h-24 bg-[#f2f4ef] rounded-full flex items-center justify-center mb-4">
                   <Search className="w-12 h-12 text-[#becabc]" />
@@ -226,7 +270,7 @@ export default function VideosPage() {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredVideos.map((video) => (
+                {videos.map((video) => (
                   <VideoCard key={video.id} video={video} />
                 ))}
               </div>
