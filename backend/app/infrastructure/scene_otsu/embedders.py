@@ -10,6 +10,12 @@ from langchain_openai import OpenAIEmbeddings
 from pydantic import SecretStr
 from tqdm import tqdm
 
+from app.infrastructure.common.provider_registry import (
+    create_from_provider_registry,
+    get_provider_setting,
+    resolve_openai_api_key,
+)
+
 
 class BaseEmbedder(ABC):
     """Abstract base class for embedding generation"""
@@ -73,21 +79,33 @@ def create_embedder(
     api_key: Optional[str] = None, batch_size: int = 16
 ) -> BaseEmbedder:
     """Create embedder based on EMBEDDING_PROVIDER setting"""
-    provider = settings.EMBEDDING_PROVIDER
+    provider = get_provider_setting("EMBEDDING_PROVIDER", "openai")
+    return create_from_provider_registry(
+        "EMBEDDING_PROVIDER",
+        provider,
+        {
+            "openai": lambda: _create_openai_embedder(api_key, batch_size),
+            "ollama": lambda: _create_ollama_embedder(batch_size),
+        },
+    )
 
-    if provider == "openai":
-        if not api_key:
-            raise ValueError("OpenAI API key is required when using OpenAI embeddings")
-        return OpenAIEmbedder(
-            api_key=api_key, model=settings.EMBEDDING_MODEL, batch_size=batch_size
-        )
-    elif provider == "ollama":
-        return OllamaEmbedder(
-            model=settings.EMBEDDING_MODEL,
-            base_url=settings.OLLAMA_BASE_URL,
-            batch_size=batch_size,
-        )
-    else:
-        raise ValueError(
-            f"Invalid EMBEDDING_PROVIDER: {provider}. Must be 'openai' or 'ollama'."
-        )
+
+def _create_openai_embedder(api_key: Optional[str], batch_size: int) -> BaseEmbedder:
+    resolved_key = resolve_openai_api_key(
+        api_key,
+        allow_settings_fallback=False,
+        purpose="OpenAI embeddings",
+    )
+    return OpenAIEmbedder(
+        api_key=resolved_key,
+        model=settings.EMBEDDING_MODEL,
+        batch_size=batch_size,
+    )
+
+
+def _create_ollama_embedder(batch_size: int) -> BaseEmbedder:
+    return OllamaEmbedder(
+        model=settings.EMBEDDING_MODEL,
+        base_url=settings.OLLAMA_BASE_URL,
+        batch_size=batch_size,
+    )
