@@ -4,14 +4,14 @@ Tests for llm module
 
 from unittest.mock import patch
 
-from django.test import TestCase, override_settings
+from django.test import SimpleTestCase, override_settings
 from pydantic import SecretStr
 
+from app.domain.shared.exceptions import ProviderConfigError
 from app.infrastructure.external.llm import get_langchain_llm
-from app.domain.shared.exceptions import LLMConfigError
 
 
-class GetLangchainLLMTests(TestCase):
+class GetLangchainLLMTests(SimpleTestCase):
     """Tests for get_langchain_llm function"""
 
     @patch("app.infrastructure.external.llm.ChatOpenAI")
@@ -42,14 +42,14 @@ class GetLangchainLLMTests(TestCase):
 
     @override_settings(LLM_PROVIDER="openai", LLM_MODEL="gpt-4o-mini", OPENAI_API_KEY="")
     def test_get_langchain_llm_without_api_key(self):
-        """Test get_langchain_llm raises LLMConfigError when no key provided"""
-        with self.assertRaises(LLMConfigError):
+        """Test get_langchain_llm raises ProviderConfigError when no key provided"""
+        with self.assertRaises(ProviderConfigError):
             get_langchain_llm()
 
     @override_settings(LLM_PROVIDER="openai", LLM_MODEL="gpt-4o-mini", OPENAI_API_KEY="")
     def test_get_langchain_llm_with_none_api_key(self):
-        """Test get_langchain_llm raises LLMConfigError when API key is None"""
-        with self.assertRaises(LLMConfigError):
+        """Test get_langchain_llm raises ProviderConfigError when API key is None"""
+        with self.assertRaises(ProviderConfigError):
             get_langchain_llm(api_key=None)
 
     @patch("app.infrastructure.external.llm.ChatOpenAI")
@@ -84,7 +84,7 @@ class GetLangchainLLMTests(TestCase):
 
     @override_settings(LLM_PROVIDER="unknown_provider")
     def test_get_langchain_llm_with_invalid_provider(self):
-        """Test get_langchain_llm raises LLMConfigError for unknown provider"""
-        with self.assertRaises(LLMConfigError) as ctx:
+        """Test get_langchain_llm raises ProviderConfigError for unknown provider"""
+        with self.assertRaises(ProviderConfigError) as ctx:
             get_langchain_llm()
         self.assertIn("Invalid LLM_PROVIDER", str(ctx.exception))
