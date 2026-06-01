@@ -114,7 +114,8 @@ class DefaultSettings:
     LLM_MODEL = "gpt-4o-mini"  # Default LLM model (provider-agnostic)
 
     # Whisper configuration
-    WHISPER_BACKEND = "openai"  # openai or local
+    WHISPER_BACKEND = "openai"  # openai or whisper.cpp
+    WHISPER_LOCAL_URL = "http://host.docker.internal:8080"
     SEARCHAPI_TIMEOUT_SECONDS = 60
 
 
@@ -581,7 +582,12 @@ LLM_PROVIDER = os.environ.get("LLM_PROVIDER", DefaultSettings.LLM_PROVIDER).lowe
 LLM_MODEL = os.environ.get("LLM_MODEL", DefaultSettings.LLM_MODEL)
 
 # Whisper configuration
-WHISPER_BACKEND = os.environ.get("WHISPER_BACKEND", DefaultSettings.WHISPER_BACKEND).lower()
+WHISPER_BACKEND = os.environ.get(
+    "WHISPER_BACKEND", DefaultSettings.WHISPER_BACKEND
+).lower()
+WHISPER_LOCAL_URL = os.environ.get(
+    "WHISPER_LOCAL_URL", DefaultSettings.WHISPER_LOCAL_URL
+)
 SEARCHAPI_TIMEOUT_SECONDS = int(
     os.environ.get("SEARCHAPI_TIMEOUT_SECONDS", DefaultSettings.SEARCHAPI_TIMEOUT_SECONDS)
 )

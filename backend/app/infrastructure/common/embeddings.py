@@ -1,33 +1,41 @@
 """Embedding provider factory for supporting multiple embedding backends."""
 
+from django.conf import settings
 from langchain_core.embeddings import Embeddings
 from langchain_ollama import OllamaEmbeddings
 from langchain_openai import OpenAIEmbeddings
 from pydantic import SecretStr
 
-from videoq import settings
+from app.infrastructure.common.provider_registry import (
+    create_from_provider_registry,
+    get_provider_setting,
+    resolve_openai_api_key,
+)
 
 
 def get_embeddings() -> Embeddings:
     """Get the configured embedding model based on EMBEDDING_PROVIDER setting."""
-    provider = settings.EMBEDDING_PROVIDER
+    provider = get_provider_setting("EMBEDDING_PROVIDER", "openai")
+    return create_from_provider_registry(
+        "EMBEDDING_PROVIDER",
+        provider,
+        {
+            "openai": _create_openai_embeddings,
+            "ollama": _create_ollama_embeddings,
+        },
+    )
 
-    if provider == "openai":
-        api_key = getattr(settings, "OPENAI_API_KEY", None)
-        if not api_key:
-            raise ValueError(
-                "OpenAI API key is required when using OpenAI embeddings. "
-                "Please set OPENAI_API_KEY in the server environment."
-            )
-        return OpenAIEmbeddings(
-            model=settings.EMBEDDING_MODEL, api_key=SecretStr(api_key)
-        )
 
-    if provider == "ollama":
-        return OllamaEmbeddings(
-            model=settings.EMBEDDING_MODEL, base_url=settings.OLLAMA_BASE_URL
-        )
+def _create_openai_embeddings() -> Embeddings:
+    api_key = resolve_openai_api_key(purpose="OpenAI embeddings")
+    return OpenAIEmbeddings(
+        model=settings.EMBEDDING_MODEL,
+        api_key=SecretStr(api_key),
+    )
 
-    raise ValueError(
-        f"Invalid EMBEDDING_PROVIDER: {provider}. Must be 'openai' or 'ollama'."
+
+def _create_ollama_embeddings() -> Embeddings:
+    return OllamaEmbeddings(
+        model=settings.EMBEDDING_MODEL,
+        base_url=settings.OLLAMA_BASE_URL,
     )

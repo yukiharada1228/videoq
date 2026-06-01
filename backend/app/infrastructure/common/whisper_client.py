@@ -1,9 +1,16 @@
 """Whisper client factory for OpenAI API and local whisper.cpp server."""
 
 import logging
-import os
 
+from django.conf import settings
 from openai import AsyncOpenAI, OpenAI
+
+from app.infrastructure.common.provider_registry import (
+    create_from_provider_registry,
+    get_provider_setting,
+    resolve_openai_api_key,
+    validate_provider,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -15,9 +22,14 @@ class WhisperConfig:
     BACKEND_LOCAL = "whisper.cpp"
 
     def __init__(self):
-        self.backend = os.getenv("WHISPER_BACKEND", self.BACKEND_OPENAI).lower()
-        self.local_url = os.getenv(
-            "WHISPER_LOCAL_URL", "http://host.docker.internal:8080"
+        provider = get_provider_setting("WHISPER_BACKEND", self.BACKEND_OPENAI)
+        self.backend = validate_provider(
+            "WHISPER_BACKEND",
+            provider,
+            (self.BACKEND_OPENAI, self.BACKEND_LOCAL),
+        )
+        self.local_url = getattr(
+            settings, "WHISPER_LOCAL_URL", "http://host.docker.internal:8080"
         )
 
         logger.info("Whisper backend configured: %s", self.backend)
@@ -36,15 +48,14 @@ def create_whisper_client(api_key, config=None):
     if config is None:
         config = WhisperConfig()
 
-    if config.is_local():
-        logger.debug("Creating local whisper client: %s", config.local_url)
-        return OpenAI(
-            api_key=api_key or "dummy-key-for-local",
-            base_url=config.local_url,
-        )
-
-    logger.debug("Creating OpenAI whisper client")
-    return OpenAI(api_key=api_key)
+    return create_from_provider_registry(
+        "WHISPER_BACKEND",
+        config.backend,
+        {
+            config.BACKEND_OPENAI: lambda: _create_openai_whisper_client(api_key),
+            config.BACKEND_LOCAL: lambda: _create_local_whisper_client(api_key, config),
+        },
+    )
 
 
 def create_async_whisper_client(api_key, config=None):
@@ -52,15 +63,16 @@ def create_async_whisper_client(api_key, config=None):
     if config is None:
         config = WhisperConfig()
 
-    if config.is_local():
-        logger.debug("Creating async local whisper client: %s", config.local_url)
-        return AsyncOpenAI(
-            api_key=api_key or "dummy-key-for-local",
-            base_url=config.local_url,
-        )
-
-    logger.debug("Creating async OpenAI whisper client")
-    return AsyncOpenAI(api_key=api_key)
+    return create_from_provider_registry(
+        "WHISPER_BACKEND",
+        config.backend,
+        {
+            config.BACKEND_OPENAI: lambda: _create_async_openai_whisper_client(api_key),
+            config.BACKEND_LOCAL: lambda: _create_async_local_whisper_client(
+                api_key, config
+            ),
+        },
+    )
 
 
 def get_whisper_model_name(config=None):
@@ -68,6 +80,39 @@ def get_whisper_model_name(config=None):
     if config is None:
         config = WhisperConfig()
 
-    if config.is_local():
-        return "whisper-local"
-    return "whisper-1"
+    return create_from_provider_registry(
+        "WHISPER_BACKEND",
+        config.backend,
+        {
+            config.BACKEND_OPENAI: lambda: "whisper-1",
+            config.BACKEND_LOCAL: lambda: "whisper-local",
+        },
+    )
+
+
+def _create_openai_whisper_client(api_key):
+    logger.debug("Creating OpenAI whisper client")
+    return OpenAI(api_key=resolve_openai_api_key(api_key, purpose="OpenAI Whisper"))
+
+
+def _create_local_whisper_client(api_key, config):
+    logger.debug("Creating local whisper client: %s", config.local_url)
+    return OpenAI(
+        api_key=api_key or "dummy-key-for-local",
+        base_url=config.local_url,
+    )
+
+
+def _create_async_openai_whisper_client(api_key):
+    logger.debug("Creating async OpenAI whisper client")
+    return AsyncOpenAI(
+        api_key=resolve_openai_api_key(api_key, purpose="OpenAI Whisper")
+    )
+
+
+def _create_async_local_whisper_client(api_key, config):
+    logger.debug("Creating async local whisper client: %s", config.local_url)
+    return AsyncOpenAI(
+        api_key=api_key or "dummy-key-for-local",
+        base_url=config.local_url,
+    )
