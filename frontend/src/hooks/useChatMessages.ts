@@ -1,18 +1,25 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { flushSync } from 'react-dom';
 import { useMutation } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { apiClient, ApiError, type Citation } from '@/lib/api';
-
-const STREAM_RENDER_TICK_MS = 24;
-const STREAM_RENDER_CHARS_PER_TICK = 3;
+import {
+  ChatStreamController,
+  type ChatStreamDoneEvent,
+  type ChatStreamErrorEvent,
+} from '@/lib/chatStreamController';
+import {
+  applyChatFeedback,
+  getNextChatFeedback,
+  type ChatFeedbackValue,
+} from '@/lib/chatFeedback';
 
 export interface Message {
   role: 'user' | 'assistant';
   content: string;
   citations?: Citation[];
   chatLogId?: number;
-  feedback?: 'good' | 'bad' | null;
+  feedback?: ChatFeedbackValue;
 }
 
 interface UseChatMessagesOptions {
@@ -31,11 +38,12 @@ interface UseChatMessagesReturn {
   messagesContainerRef: React.RefObject<HTMLDivElement | null>;
   handleSend: () => Promise<void>;
   handleKeyPress: (e: React.KeyboardEvent<HTMLInputElement>) => void;
-  handleFeedback: (chatLogId: number, value: 'good' | 'bad') => Promise<void>;
+  handleFeedback: (chatLogId: number, value: 'good' | 'bad') => Promise<ChatFeedbackValue | undefined>;
 }
 
 export function useChatMessages({ groupId, shareToken }: UseChatMessagesOptions): UseChatMessagesReturn {
   const { t } = useTranslation();
+  const tRef = useRef(t);
   const [messages, setMessages] = useState<Message[]>(() => [
     { role: 'assistant', content: t('chat.assistantGreeting') },
   ]);
@@ -44,21 +52,31 @@ export function useChatMessages({ groupId, shareToken }: UseChatMessagesOptions)
   const [feedbackUpdatingId, setFeedbackUpdatingId] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
-  const pendingContentRef = useRef('');
-  const pendingDoneEventRef = useRef<Extract<Awaited<ReturnType<typeof apiClient.chatStream>> extends AsyncGenerator<infer T> ? T : never, { type: 'done' }> | null>(null);
-  const drainTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const streamFinishedRef = useRef(false);
-  const drainWaitersRef = useRef<Array<() => void>>([]);
+  const sendInFlightRef = useRef(false);
 
-  const stopDrainTimer = useCallback(() => {
-    if (drainTimerRef.current !== null) {
-      clearInterval(drainTimerRef.current);
-      drainTimerRef.current = null;
-    }
+  useEffect(() => {
+    tRef.current = t;
+  }, [t]);
+
+  const appendAssistantContent = useCallback((text: string) => {
+    setMessages((prev) => {
+      if (prev.length === 0) {
+        return [{ role: 'assistant', content: text }];
+      }
+
+      const updated = [...prev];
+      const last = updated[updated.length - 1];
+      updated[updated.length - 1] = { ...last, content: last.content + text };
+      return updated;
+    });
   }, []);
 
-  const applyDoneMetadata = useCallback((event: NonNullable<typeof pendingDoneEventRef.current>) => {
+  const applyDoneMetadata = useCallback((event: ChatStreamDoneEvent) => {
     setMessages((prev) => {
+      if (prev.length === 0) {
+        return prev;
+      }
+
       const updated = [...prev];
       updated[updated.length - 1] = {
         ...updated[updated.length - 1],
@@ -70,62 +88,36 @@ export function useChatMessages({ groupId, shareToken }: UseChatMessagesOptions)
     });
   }, []);
 
-  const flushDrainWaiters = useCallback(() => {
-    const waiters = drainWaitersRef.current.splice(0);
-    waiters.forEach((resolve) => resolve());
+  const replaceLastAssistantMessage = useCallback((content: string) => {
+    setMessages((prev) => {
+      if (prev.length === 0) {
+        return [{ role: 'assistant', content }];
+      }
+
+      const updated = [...prev];
+      updated[updated.length - 1] = { role: 'assistant', content };
+      return updated;
+    });
   }, []);
 
-  const tryFinalizeDrain = useCallback(() => {
-    if (pendingContentRef.current !== '' || !streamFinishedRef.current) {
-      return;
-    }
-    stopDrainTimer();
-    if (pendingDoneEventRef.current) {
-      applyDoneMetadata(pendingDoneEventRef.current);
-      pendingDoneEventRef.current = null;
-    }
-    flushDrainWaiters();
-  }, [applyDoneMetadata, flushDrainWaiters, stopDrainTimer]);
+  const handleStreamError = useCallback((event: ChatStreamErrorEvent) => {
+    const errorMessage =
+      event.code === 'OVER_QUOTA'
+        ? tRef.current('chat.errorOverQuota')
+        : tRef.current('chat.error');
+    replaceLastAssistantMessage(errorMessage);
+  }, [replaceLastAssistantMessage]);
 
-  const drainNextSlice = useCallback(() => {
-    if (pendingContentRef.current === '') {
-      tryFinalizeDrain();
-      return;
-    }
-
-    const nextText = pendingContentRef.current.slice(0, STREAM_RENDER_CHARS_PER_TICK);
-    pendingContentRef.current = pendingContentRef.current.slice(STREAM_RENDER_CHARS_PER_TICK);
-
-    flushSync(() => {
-      setMessages((prev) => {
-        const updated = [...prev];
-        const last = updated[updated.length - 1];
-        updated[updated.length - 1] = { ...last, content: last.content + nextText };
-        return updated;
-      });
-    });
-
-    tryFinalizeDrain();
-  }, [tryFinalizeDrain]);
-
-  const ensureDrainTimer = useCallback(() => {
-    if (drainTimerRef.current !== null) {
-      return;
-    }
-    drainTimerRef.current = setInterval(() => {
-      drainNextSlice();
-    }, STREAM_RENDER_TICK_MS);
-  }, [drainNextSlice]);
-
-  const waitForDrainCompletion = useCallback(async () => {
-    if (pendingContentRef.current === '' && streamFinishedRef.current) {
-      tryFinalizeDrain();
-      return;
-    }
-    await new Promise<void>((resolve) => {
-      drainWaitersRef.current.push(resolve);
-    });
-  }, [tryFinalizeDrain]);
+  const streamController = useMemo(
+    () =>
+      new ChatStreamController({
+        flush: flushSync,
+        onAppendContent: appendAssistantContent,
+        onDone: applyDoneMetadata,
+        onError: handleStreamError,
+      }),
+    [appendAssistantContent, applyDoneMetadata, handleStreamError],
+  );
 
   // Auto-scroll on new messages
   useEffect(() => {
@@ -134,19 +126,23 @@ export function useChatMessages({ groupId, shareToken }: UseChatMessagesOptions)
     }
   }, [messages]);
 
+  useEffect(() => {
+    return () => {
+      streamController.dispose();
+    };
+  }, [streamController]);
+
   const feedbackMutation = useMutation({
-    mutationFn: async ({ chatLogId, nextFeedback }: { chatLogId: number; nextFeedback: 'good' | 'bad' | null }) =>
+    mutationFn: async ({ chatLogId, nextFeedback }: { chatLogId: number; nextFeedback: ChatFeedbackValue }) =>
       await apiClient.setChatFeedback(chatLogId, nextFeedback, shareToken),
   });
 
   const handleSend = useCallback(async () => {
-    if (!input.trim() || isLoading) return;
+    if (!input.trim() || sendInFlightRef.current) return;
 
     const userMessage: Message = { role: 'user', content: input };
-    pendingContentRef.current = '';
-    pendingDoneEventRef.current = null;
-    streamFinishedRef.current = false;
-    stopDrainTimer();
+    sendInFlightRef.current = true;
+    streamController.start();
     setMessages((prev) => [...prev, userMessage, { role: 'assistant', content: '' }]);
     setInput('');
     setIsLoading(true);
@@ -157,63 +153,30 @@ export function useChatMessages({ groupId, shareToken }: UseChatMessagesOptions)
         ...(groupId ? { group_id: groupId } : {}),
         ...(shareToken ? { share_slug: shareToken } : {}),
       })) {
-        if (event.type === 'content_chunk') {
-          pendingContentRef.current += event.text;
-          ensureDrainTimer();
-        } else if (event.type === 'done') {
-          pendingDoneEventRef.current = event;
-          streamFinishedRef.current = true;
-          tryFinalizeDrain();
-        } else if (event.type === 'error') {
-          pendingContentRef.current = '';
-          pendingDoneEventRef.current = null;
-          streamFinishedRef.current = true;
-          stopDrainTimer();
-          flushDrainWaiters();
-          const errorMessage =
-            event.code === 'OVER_QUOTA'
-              ? t('chat.errorOverQuota')
-              : t('chat.error');
-          setMessages((prev) => {
-            const updated = [...prev];
-            updated[updated.length - 1] = { role: 'assistant', content: errorMessage };
-            return updated;
-          });
+        streamController.handleEvent(event);
+        if (event.type === 'error') {
+          return;
         }
       }
-      streamFinishedRef.current = true;
-      await waitForDrainCompletion();
+      await streamController.complete();
     } catch (error) {
-      pendingContentRef.current = '';
-      pendingDoneEventRef.current = null;
-      streamFinishedRef.current = true;
-      stopDrainTimer();
-      flushDrainWaiters();
+      streamController.abort();
       console.error('Chat error:', error);
       const errorMessage =
         error instanceof ApiError && error.code === 'OVER_QUOTA'
-          ? t('chat.errorOverQuota')
-          : t('chat.error');
-      setMessages((prev) => {
-        const updated = [...prev];
-        updated[updated.length - 1] = { role: 'assistant', content: errorMessage };
-        return updated;
-      });
+          ? tRef.current('chat.errorOverQuota')
+          : tRef.current('chat.error');
+      replaceLastAssistantMessage(errorMessage);
     } finally {
+      sendInFlightRef.current = false;
       setIsLoading(false);
     }
   }, [
-    applyDoneMetadata,
-    ensureDrainTimer,
-    flushDrainWaiters,
     groupId,
     input,
-    isLoading,
+    replaceLastAssistantMessage,
     shareToken,
-    stopDrainTimer,
-    t,
-    tryFinalizeDrain,
-    waitForDrainCompletion,
+    streamController,
   ]);
 
   const handleKeyPress = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -226,34 +189,24 @@ export function useChatMessages({ groupId, shareToken }: UseChatMessagesOptions)
 
   const handleFeedback = useCallback(async (chatLogId: number, value: 'good' | 'bad') => {
     const targetMessage = messages.find((message) => message.chatLogId === chatLogId);
-    if (!targetMessage) return;
+    if (!targetMessage) return undefined;
 
-    const nextFeedback = targetMessage.feedback === value ? null : value;
+    const nextFeedback = getNextChatFeedback(targetMessage.feedback, value);
 
     setFeedbackUpdatingId(chatLogId);
     try {
       const result = await feedbackMutation.mutateAsync({ chatLogId, nextFeedback });
       const normalizedFeedback = result.feedback ?? null;
 
-      setMessages((prev) =>
-        prev.map((message) =>
-          message.chatLogId === chatLogId
-            ? { ...message, feedback: normalizedFeedback }
-            : message,
-        ),
-      );
+      setMessages((prev) => applyChatFeedback(prev, chatLogId, normalizedFeedback));
+      return normalizedFeedback;
     } catch (error) {
       console.error('Failed to update feedback', error);
+      return undefined;
     } finally {
       setFeedbackUpdatingId(null);
     }
   }, [messages, feedbackMutation]);
-
-  useEffect(() => {
-    return () => {
-      stopDrainTimer();
-    };
-  }, [stopDrainTimer]);
 
   return {
     messages,
