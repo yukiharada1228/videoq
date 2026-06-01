@@ -6,6 +6,8 @@ from unittest.mock import MagicMock, patch
 
 from django.test import SimpleTestCase, override_settings
 
+from app.domain.shared.exceptions import ProviderConfigError
+
 
 class BaseEmbedderTests(SimpleTestCase):
     """Tests for BaseEmbedder class"""
@@ -138,10 +140,10 @@ class CreateEmbedderOpenAITests(SimpleTestCase):
         )
 
     def test_raises_without_api_key(self):
-        """Test that ValueError is raised without API key"""
+        """Test that ProviderConfigError is raised without API key"""
         from app.infrastructure.scene_otsu.embedders import create_embedder
 
-        with self.assertRaises(ValueError) as context:
+        with self.assertRaises(ProviderConfigError) as context:
             create_embedder(api_key=None)
 
         self.assertIn("OpenAI API key is required", str(context.exception))
@@ -182,10 +184,10 @@ class CreateEmbedderInvalidTests(SimpleTestCase):
     """Tests for create_embedder function with invalid provider"""
 
     def test_raises_for_invalid_provider(self):
-        """Test that ValueError is raised for invalid provider"""
+        """Test that ProviderConfigError is raised for invalid provider"""
         from app.infrastructure.scene_otsu.embedders import create_embedder
 
-        with self.assertRaises(ValueError) as context:
+        with self.assertRaises(ProviderConfigError) as context:
             create_embedder(api_key="test-key")
 
         self.assertIn("Invalid EMBEDDING_PROVIDER", str(context.exception))

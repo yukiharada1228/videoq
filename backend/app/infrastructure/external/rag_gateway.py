@@ -18,9 +18,9 @@ from app.domain.chat.gateways import (
     RagUserNotFoundError,
 )
 from app.domain.chat.dtos import ChatMessageDTO, CitationDTO
+from app.domain.shared.exceptions import ProviderConfigError
 from app.infrastructure.external.llm import get_langchain_llm
 from app.infrastructure.external.rag_service import RagChatService, _RagServiceStreamEnd
-from app.domain.shared.exceptions import LLMConfigError
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +45,7 @@ class RagChatGateway(RagGateway):
 
         try:
             llm = get_langchain_llm(api_key=api_key)
-        except LLMConfigError as e:
+        except ProviderConfigError as e:
             raise LLMConfigurationError(str(e)) from e
 
         service = RagChatService(user=user, llm=llm, api_key=api_key)
@@ -109,7 +109,7 @@ class RagChatGateway(RagGateway):
 
         try:
             llm = get_langchain_llm(api_key=api_key)
-        except LLMConfigError as e:
+        except ProviderConfigError as e:
             raise LLMConfigurationError(str(e)) from e
 
         service = RagChatService(user=user, llm=llm, api_key=api_key)
