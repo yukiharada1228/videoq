@@ -104,7 +104,11 @@ function assertValid(result: UploadValidationResult): asserts result is UploadVa
 }
 
 export class FileUploadCommand implements UploadCommand {
-  constructor(private readonly input: FileUploadCommandInput) {}
+  private readonly input: FileUploadCommandInput;
+
+  constructor(input: FileUploadCommandInput) {
+    this.input = input;
+  }
 
   validate(): UploadValidationResult {
     const { file, title, maxSizeMb } = this.input;
@@ -153,7 +157,11 @@ export class FileUploadCommand implements UploadCommand {
 }
 
 export class YoutubeImportCommand implements UploadCommand {
-  constructor(private readonly input: YoutubeImportCommandInput) {}
+  private readonly input: YoutubeImportCommandInput;
+
+  constructor(input: YoutubeImportCommandInput) {
+    this.input = input;
+  }
 
   validate(): UploadValidationResult {
     const { youtubeUrl, title } = this.input;
