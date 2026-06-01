@@ -63,6 +63,10 @@ class PasswordResetRequestSerializer(serializers.Serializer):
     email = serializers.EmailField()
 
 
+class EmailChangeRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+
 class PasswordResetConfirmBodySerializer(serializers.Serializer):
     """Serializer for PATCH /password-resets/<uidb64>/<token>/: both uid and token in URL path."""
 

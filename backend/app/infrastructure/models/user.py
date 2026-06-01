@@ -14,6 +14,12 @@ def _default_max_video_upload_size_mb():
 
 class User(AbstractUser):
     email = models.EmailField("email address", unique=True)
+    pending_email = models.EmailField(
+        "pending email address",
+        null=True,
+        blank=True,
+        db_index=True,
+    )
     max_video_upload_size_mb = models.PositiveIntegerField(
         default=_default_max_video_upload_size_mb,
         help_text="Maximum video upload size in MB for this user.",

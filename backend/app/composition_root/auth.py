@@ -23,6 +23,10 @@ from app.infrastructure.repositories.django_user_repository import DjangoUserRep
 from app.infrastructure.common.django_transaction import DjangoTransactionPort
 from app.infrastructure.tasks.task_gateway import CeleryAuthTaskGateway
 from app.use_cases.auth.authorize_api_key import AuthorizeApiKeyUseCase
+from app.use_cases.auth.change_email import (
+    ConfirmEmailChangeUseCase,
+    RequestEmailChangeUseCase,
+)
 from app.use_cases.auth.delete_account import AccountDeletionUseCase
 from app.use_cases.auth.delete_account_data import DeleteAccountDataUseCase
 from app.use_cases.auth.get_current_user import GetCurrentUserUseCase
@@ -132,6 +136,17 @@ def get_request_password_reset_use_case() -> RequestPasswordResetUseCase:
 
 def get_confirm_password_reset_use_case() -> ConfirmPasswordResetUseCase:
     return ConfirmPasswordResetUseCase(_new_user_management_gateway())
+
+
+def get_request_email_change_use_case() -> RequestEmailChangeUseCase:
+    return RequestEmailChangeUseCase(
+        _new_user_management_gateway(),
+        _new_email_sender_gateway(),
+    )
+
+
+def get_confirm_email_change_use_case() -> ConfirmEmailChangeUseCase:
+    return ConfirmEmailChangeUseCase(_new_user_management_gateway())
 
 
 def get_delete_account_use_case() -> AccountDeletionUseCase:

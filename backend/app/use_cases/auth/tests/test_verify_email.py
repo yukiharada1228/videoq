@@ -29,6 +29,12 @@ class _StubUserGateway(UserManagementGateway):
     def set_password(self, user_id: int, new_password: str) -> None:
         raise NotImplementedError
 
+    def set_pending_email(self, user_id: int, email: str) -> None:
+        raise NotImplementedError
+
+    def confirm_pending_email(self, uidb64: str, token: str) -> bool:
+        raise NotImplementedError
+
 
 class VerifyEmailUseCaseTests(TestCase):
     def test_execute_raises_when_uid_token_invalid(self):
