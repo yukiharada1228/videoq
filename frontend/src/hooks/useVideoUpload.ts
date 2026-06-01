@@ -1,11 +1,19 @@
 import { useState, useCallback } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiClient, ApiError, type VideoUploadRequest } from '@/lib/api';
+import { apiClient, ApiError } from '@/lib/api';
 import { invalidateAfterVideoUpload } from '@/lib/cacheInvalidation';
 import { useAuth } from '@/hooks/useAuth';
+import {
+  FileUploadCommand,
+  VideoUploadValidationError,
+  YoutubeImportCommand,
+  runUploadWorkflow,
+  type UploadCommand,
+  type UploadSourceMode,
+} from '@/lib/videoUploadCommands';
 
 interface UseVideoUploadReturn {
-  sourceMode: 'file' | 'youtube';
+  sourceMode: UploadSourceMode;
   file: File | null;
   youtubeUrl: string;
   title: string;
@@ -15,70 +23,30 @@ interface UseVideoUploadReturn {
   progress: number;
   error: string | null;
   errorParams: Record<string, unknown>;
+  warning: string | null;
+  warningParams: Record<string, unknown>;
   success: boolean;
   setTitle: (title: string) => void;
   setDescription: (description: string) => void;
   setYoutubeUrl: (url: string) => void;
-  setSourceMode: (mode: 'file' | 'youtube') => void;
+  setSourceMode: (mode: UploadSourceMode) => void;
   setTagIds: React.Dispatch<React.SetStateAction<number[]>>;
   handleFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleSubmit: (e: React.FormEvent, onSuccess?: () => void) => Promise<void>;
   reset: () => void;
 }
 
-interface ValidationResult {
-  isValid: boolean;
-  error?: string;
-}
-
 const DEFAULT_MAX_VIDEO_UPLOAD_SIZE_MB = Number(import.meta.env.VITE_MAX_VIDEO_UPLOAD_SIZE_MB || 500);
-const ALLOWED_VIDEO_EXTENSIONS = [
-  '.mp4',
-  '.mov',
-  '.avi',
-  '.mkv',
-  '.webm',
-  '.m4v',
-  '.mpeg',
-  '.mpg',
-  '.3gp',
-];
 
-function isLikelyVideoFile(file: File): boolean {
-  if (file.type.startsWith('video/')) {
-    return true;
-  }
-
-  const lowerName = file.name.toLowerCase();
-  return ALLOWED_VIDEO_EXTENSIONS.some((ext) => lowerName.endsWith(ext));
-}
-
-/**
- * Validation logic
- * Returns translation keys for errors
- */
-function validateVideoUpload(file: File | null, title: string, maxSizeMb: number): ValidationResult {
-  if (!file) {
-    return { isValid: false, error: 'videos.upload.validation.noFile' };
-  }
-  if (!isLikelyVideoFile(file)) {
-    return { isValid: false, error: 'videos.upload.validation.invalidFileType' };
-  }
-  if (file.size > maxSizeMb * 1024 * 1024) {
-    return { isValid: false, error: 'videos.upload.validation.fileTooLarge' };
-  }
-  // File is OK if title is empty since filename will be used
-  const finalTitle = title.trim() || file.name.replace(/\.[^/.]+$/, '');
-  if (!finalTitle) {
-    return { isValid: false, error: 'videos.upload.validation.noTitle' };
-  }
-  return { isValid: true };
+interface RunUploadMutationVariables {
+  command: UploadCommand;
+  tagIds: number[];
 }
 
 export function useVideoUpload(): UseVideoUploadReturn {
   const { user } = useAuth({ redirectToLogin: false });
   const maxUploadSizeMb = user?.max_video_upload_size_mb ?? DEFAULT_MAX_VIDEO_UPLOAD_SIZE_MB;
-  const [sourceMode, setSourceMode] = useState<'file' | 'youtube'>('file');
+  const [sourceMode, setSourceMode] = useState<UploadSourceMode>('file');
   const [file, setFile] = useState<File | null>(null);
   const [youtubeUrl, setYoutubeUrl] = useState('');
   const [title, setTitle] = useState('');
@@ -87,50 +55,30 @@ export function useVideoUpload(): UseVideoUploadReturn {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [errorParams, setErrorParams] = useState<Record<string, unknown>>({});
+  const [warning, setWarning] = useState<string | null>(null);
+  const [warningParams, setWarningParams] = useState<Record<string, unknown>>({});
   const [progress, setProgress] = useState(0);
   const queryClient = useQueryClient();
 
   const uploadMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async ({ command, tagIds }: RunUploadMutationVariables) => {
       setProgress(0);
-      let uploadedVideo;
-      if (sourceMode === 'youtube') {
-        uploadedVideo = await apiClient.createYoutubeVideo({
-          youtube_url: youtubeUrl.trim(),
-          title: title.trim(),
-          description: description.trim() || undefined,
-        });
-      } else {
-        const finalTitle = title.trim() || (file ? file.name.replace(/\.[^/.]+$/, '') : '');
-        const request: VideoUploadRequest = {
-          file: file!,
-          title: finalTitle,
-          description: description.trim() || undefined,
-        };
-        uploadedVideo = await apiClient.uploadVideo(request, (pct) => {
-          setProgress(pct);
-        });
-      }
-
-      if (tagIds.length > 0) {
-        try {
-          await apiClient.addTagsToVideo(uploadedVideo.id, tagIds);
-        } catch {
-          // Silently fail if tag addition fails; upload itself succeeded.
-        }
-      }
-
-      return uploadedVideo;
+      return runUploadWorkflow(command, tagIds, apiClient);
     },
-    onSuccess: async () => {
+    onSuccess: async ({ warning }) => {
       setSuccess(true);
       setError(null);
       setErrorParams({});
+      setWarning(warning?.message ?? null);
+      setWarningParams(warning?.params ?? {});
       setProgress(100);
       await invalidateAfterVideoUpload(queryClient);
     },
     onError: (err) => {
-      if (err instanceof ApiError && err.code === 'FILE_TOO_LARGE') {
+      if (err instanceof VideoUploadValidationError) {
+        setError(err.translationKey);
+        setErrorParams(err.params);
+      } else if (err instanceof ApiError && err.code === 'FILE_TOO_LARGE') {
         setError('videos.upload.validation.fileTooLarge');
         setErrorParams(err.params ?? {});
       } else if (err instanceof ApiError && err.code === 'STORAGE_LIMIT_EXCEEDED') {
@@ -140,9 +88,29 @@ export function useVideoUpload(): UseVideoUploadReturn {
         setError(err instanceof Error ? err.message : String(err));
         setErrorParams({});
       }
+      setWarning(null);
+      setWarningParams({});
       setProgress(0);
     },
   });
+
+  const createUploadCommand = useCallback((progressHandler?: (pct: number) => void): UploadCommand => {
+    if (sourceMode === 'youtube') {
+      return new YoutubeImportCommand({
+        youtubeUrl,
+        title,
+        description,
+      });
+    }
+
+    return new FileUploadCommand({
+      file,
+      title,
+      description,
+      maxSizeMb: maxUploadSizeMb,
+      onProgress: progressHandler,
+    });
+  }, [description, file, maxUploadSizeMb, sourceMode, title, youtubeUrl]);
 
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     if (sourceMode !== 'file') {
@@ -150,25 +118,32 @@ export function useVideoUpload(): UseVideoUploadReturn {
     }
     if (e.target.files && e.target.files[0]) {
       const selectedFile = e.target.files[0];
-      const validation = validateVideoUpload(selectedFile, title, maxUploadSizeMb);
+      const validation = new FileUploadCommand({
+        file: selectedFile,
+        title,
+        description,
+        maxSizeMb: maxUploadSizeMb,
+      }).validate();
       if (!validation.isValid) {
         setFile(null);
         setTitle('');
-        setError(validation.error || 'videos.upload.validation.generic');
-        setErrorParams(validation.error === 'videos.upload.validation.fileTooLarge'
-          ? { max_size_mb: maxUploadSizeMb }
-          : {});
+        setError(validation.error);
+        setErrorParams(validation.errorParams ?? {});
+        setWarning(null);
+        setWarningParams({});
         return;
       }
 
       setError(null);
       setErrorParams({});
+      setWarning(null);
+      setWarningParams({});
       setFile(selectedFile);
       // Automatically set filename (without extension) as title
       const fileNameWithoutExt = selectedFile.name.replace(/\.[^/.]+$/, '');
       setTitle(fileNameWithoutExt);
     }
-  }, [setTitle, title, maxUploadSizeMb, sourceMode]);
+  }, [description, setTitle, title, maxUploadSizeMb, sourceMode]);
 
   const reset = useCallback(() => {
     setSourceMode('file');
@@ -180,43 +155,37 @@ export function useVideoUpload(): UseVideoUploadReturn {
     setSuccess(false);
     setError(null);
     setErrorParams({});
+    setWarning(null);
+    setWarningParams({});
     setProgress(0);
   }, []);
 
   const handleSubmit = useCallback(async (e: React.FormEvent, onSuccess?: () => void) => {
     e.preventDefault();
 
-    if (sourceMode === 'youtube') {
-      if (!youtubeUrl.trim()) {
-        setError('videos.upload.validation.noYoutubeUrl');
-        setErrorParams({});
-        return;
-      }
-      if (!title.trim()) {
-        setError('videos.upload.validation.noTitle');
-        setErrorParams({});
-        return;
-      }
-    } else {
-      const validation = validateVideoUpload(file, title, maxUploadSizeMb);
-      if (!validation.isValid) {
-        setError(validation.error || 'videos.upload.validation.generic');
-        setErrorParams(validation.error === 'videos.upload.validation.fileTooLarge'
-          ? { max_size_mb: maxUploadSizeMb }
-          : {});
-        return;
-      }
+    const command = createUploadCommand((pct) => {
+      setProgress(pct);
+    });
+    const validation = command.validate();
+    if (!validation.isValid) {
+      setError(validation.error);
+      setErrorParams(validation.errorParams ?? {});
+      setWarning(null);
+      setWarningParams({});
+      return;
     }
 
     setError(null);
     setErrorParams({});
+    setWarning(null);
+    setWarningParams({});
     setSuccess(false);
-    await uploadMutation.mutateAsync();
+    await uploadMutation.mutateAsync({ command, tagIds });
 
     if (onSuccess) {
       onSuccess();
     }
-  }, [uploadMutation, file, title, setError, maxUploadSizeMb, sourceMode, youtubeUrl]);
+  }, [createUploadCommand, tagIds, uploadMutation]);
 
   return {
     sourceMode,
@@ -229,6 +198,8 @@ export function useVideoUpload(): UseVideoUploadReturn {
     progress,
     error,
     errorParams,
+    warning,
+    warningParams,
     success,
     setTitle,
     setDescription,

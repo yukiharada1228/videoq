@@ -28,6 +28,8 @@ describe('VideoUploadModal', () => {
     isUploading: false,
     error: null,
     errorParams: {},
+    warning: null,
+    warningParams: {},
     success: false,
     setTitle: vi.fn(),
     setDescription: vi.fn(),
@@ -71,5 +73,17 @@ describe('VideoUploadModal', () => {
     expect(screen.getByLabelText('videos.upload.youtubeUrlLabel')).toBeInTheDocument()
     expect(screen.getByLabelText('videos.upload.titleLabel')).toBeInTheDocument()
     expect(screen.getByLabelText('videos.upload.descriptionLabel')).toBeInTheDocument()
+  })
+
+  it('renders upload warning in youtube mode', () => {
+    ;(useVideoUpload as any).mockReturnValue({
+      ...baseHook,
+      sourceMode: 'youtube',
+      warning: 'videos.upload.warning.tagsFailed',
+    })
+
+    render(<VideoUploadModal isOpen={true} onClose={vi.fn()} />)
+
+    expect(screen.getByText('videos.upload.warning.tagsFailed')).toBeInTheDocument()
   })
 })
