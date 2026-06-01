@@ -42,6 +42,8 @@ export function VideoUploadModal({ isOpen, onClose, onUploadSuccess }: VideoUplo
     isUploading,
     error,
     errorParams,
+    warning,
+    warningParams,
     success,
     setTitle,
     setDescription,
@@ -123,6 +125,8 @@ export function VideoUploadModal({ isOpen, onClose, onUploadSuccess }: VideoUplo
               disabled={false}
               error={error}
               errorParams={errorParams}
+              warning={warning}
+              warningParams={warningParams}
               success={success}
               setTitle={setTitle}
               setDescription={setDescription}
@@ -175,6 +179,7 @@ export function VideoUploadModal({ isOpen, onClose, onUploadSuccess }: VideoUplo
                 />
               </div>
               {error && <p className="text-sm text-red-500">{t(error, errorParams)}</p>}
+              {warning && <p className="text-sm text-amber-700">{t(warning, warningParams)}</p>}
               {success && <p className="text-sm text-[#00652c]">{t('videos.upload.success')}</p>}
             </div>
           )}
