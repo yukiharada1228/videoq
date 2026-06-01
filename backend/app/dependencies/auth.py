@@ -35,6 +35,14 @@ def get_confirm_password_reset_use_case():
     return _cr.get_confirm_password_reset_use_case()
 
 
+def get_request_email_change_use_case():
+    return _cr.get_request_email_change_use_case()
+
+
+def get_confirm_email_change_use_case():
+    return _cr.get_confirm_email_change_use_case()
+
+
 def get_current_user_use_case():
     return _cr.get_current_user_use_case()
 

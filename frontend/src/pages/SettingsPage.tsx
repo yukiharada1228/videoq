@@ -19,12 +19,12 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Plus, Trash2, X } from 'lucide-react';
+import { Mail, Plus, Trash2, X } from 'lucide-react';
 
 type AccessLevel = 'all' | 'read_only';
 
 export default function SettingsPage() {
-  useAuth();
+  const { user } = useAuth();
   const { t } = useTranslation();
   const navigate = useI18nNavigate();
   const queryClient = useQueryClient();
@@ -52,6 +52,11 @@ export default function SettingsPage() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [searchApiKey, setSearchApiKey] = useState('');
   const [searchApiStatusMessage, setSearchApiStatusMessage] = useState<{
+    tone: 'success' | 'error';
+    text: string;
+  } | null>(null);
+  const [emailChangeEmail, setEmailChangeEmail] = useState('');
+  const [emailChangeStatusMessage, setEmailChangeStatusMessage] = useState<{
     tone: 'success' | 'error';
     text: string;
   } | null>(null);
@@ -87,6 +92,10 @@ export default function SettingsPage() {
       window.clearTimeout(timeoutId);
     };
   }, [isCopyAcknowledged]);
+
+  useEffect(() => {
+    setEmailChangeEmail(user?.email ?? '');
+  }, [user?.email]);
 
   const apiKeysQuery = useQuery({
     queryKey: queryKeys.auth.apiKeys,
@@ -154,6 +163,24 @@ export default function SettingsPage() {
           ? error.message
           : t('settings.accountDeletion.error'),
       );
+    },
+  });
+
+  const requestEmailChangeMutation = useMutation({
+    mutationFn: async (email: string) => apiClient.requestEmailChange({ email }),
+    onSuccess: () => {
+      setEmailChangeStatusMessage({
+        tone: 'success',
+        text: t('settings.emailChange.success'),
+      });
+    },
+    onError: (error) => {
+      setEmailChangeStatusMessage({
+        tone: 'error',
+        text: error instanceof Error
+          ? error.message
+          : t('settings.emailChange.errorSubmitting'),
+      });
     },
   });
 
@@ -237,6 +264,86 @@ export default function SettingsPage() {
       />
 
       <div className="flex flex-col gap-5">
+          <section className="bg-white rounded-xl shadow-[0_4px_20px_rgba(28,25,23,0.04)] p-5">
+            <div className="flex items-start justify-between gap-4 mb-5">
+              <div>
+                <h2 className="text-base font-bold text-[#191c19] mb-1">
+                  {t('settings.emailChange.title')}
+                </h2>
+                <p className="text-sm text-[#6f7a6e]">
+                  {t('settings.emailChange.description')}
+                </p>
+              </div>
+              <div className="shrink-0 rounded-xl bg-[#f0fdf4] p-2 text-[#00652c]">
+                <Mail className="w-5 h-5" />
+              </div>
+            </div>
+
+            {emailChangeStatusMessage && (
+              <div className={`mb-5 p-3 rounded-xl text-sm border ${emailChangeStatusMessage.tone === 'success' ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-600'}`}>
+                {emailChangeStatusMessage.text}
+              </div>
+            )}
+
+            <form
+              className="space-y-4"
+              onSubmit={async (event) => {
+                event.preventDefault();
+                const trimmedEmail = emailChangeEmail.trim();
+                if (!trimmedEmail) {
+                  setEmailChangeStatusMessage({
+                    tone: 'error',
+                    text: t('settings.emailChange.errorEmpty'),
+                  });
+                  return;
+                }
+                setEmailChangeStatusMessage(null);
+                try {
+                  await requestEmailChangeMutation.mutateAsync(trimmedEmail);
+                } catch {
+                  // onError renders the user-facing message.
+                }
+              }}
+            >
+              <div className="rounded-xl bg-[#f2f4ef] p-4 text-sm text-[#3f493f]">
+                <div className="font-semibold text-[#191c19] mb-1">
+                  {t('settings.emailChange.currentEmailLabel')}
+                </div>
+                <p>{user?.email ?? t('common.notProvided')}</p>
+              </div>
+
+              <div className="space-y-2">
+                <label
+                  htmlFor="email-change-email"
+                  className="text-sm font-medium text-[#191c19]"
+                >
+                  {t('settings.emailChange.newEmailLabel')}
+                </label>
+                <Input
+                  id="email-change-email"
+                  type="email"
+                  value={emailChangeEmail}
+                  onChange={(event) => setEmailChangeEmail(event.target.value)}
+                  placeholder={t('settings.emailChange.newEmailPlaceholder')}
+                />
+                <p className="text-xs text-[#6f7a6e]">
+                  {t('settings.emailChange.help')}
+                </p>
+              </div>
+
+              <div className="flex justify-end">
+                <Button type="submit" disabled={requestEmailChangeMutation.isPending}>
+                  {requestEmailChangeMutation.isPending ? (
+                    <span className="flex items-center gap-2">
+                      <InlineSpinner className="w-4 h-4" />
+                      {t('settings.emailChange.submitting')}
+                    </span>
+                  ) : t('settings.emailChange.submit')}
+                </Button>
+              </div>
+            </form>
+          </section>
+
           <section className="bg-white rounded-xl shadow-[0_4px_20px_rgba(28,25,23,0.04)] p-5">
             <div className="flex items-start justify-between gap-4 mb-5">
               <div>
