@@ -14,6 +14,8 @@ interface VideoUploadFormFieldsProps {
   disabled?: boolean;
   error: string | null;
   errorParams?: Record<string, unknown>;
+  warning?: string | null;
+  warningParams?: Record<string, unknown>;
   success: boolean;
   setTitle: (title: string) => void;
   setDescription: (description: string) => void;
@@ -33,6 +35,8 @@ export function VideoUploadFormFields({
   disabled = false,
   error,
   errorParams = {},
+  warning = null,
+  warningParams = {},
   success,
   setTitle,
   setDescription,
@@ -95,6 +99,7 @@ export function VideoUploadFormFields({
       </div>
 
       {error && <MessageAlert type="error" message={t(error, { defaultValue: error, ...errorParams })} />}
+      {warning && <MessageAlert type="warning" message={t(warning, { defaultValue: warning, ...warningParams })} />}
       {success && <MessageAlert type="success" message={t('videos.upload.success')} />}
 
       {!hideButtons && (

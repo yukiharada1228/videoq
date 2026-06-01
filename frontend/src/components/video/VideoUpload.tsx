@@ -22,6 +22,8 @@ export function VideoUpload({ onUploadSuccess }: VideoUploadProps) {
     isUploading,
     error,
     errorParams,
+    warning,
+    warningParams,
     success,
     setTitle,
     setDescription,
@@ -69,6 +71,8 @@ export function VideoUpload({ onUploadSuccess }: VideoUploadProps) {
             isUploading={isUploading}
             error={error}
             errorParams={errorParams}
+            warning={warning}
+            warningParams={warningParams}
             success={success}
             setTitle={setTitle}
             setDescription={setDescription}
