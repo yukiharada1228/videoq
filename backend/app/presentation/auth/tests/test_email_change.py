@@ -1,6 +1,7 @@
 from urllib.parse import parse_qs, urlparse
 
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.core import mail
 from django.test import override_settings
 from django.urls import reverse
@@ -13,6 +14,7 @@ User = get_user_model()
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
 class EmailChangeTests(APITestCase):
     def setUp(self):
+        cache.clear()
         self.user = User.objects.create_user(
             username="alice",
             email="alice@example.com",
@@ -89,7 +91,7 @@ class EmailChangeTests(APITestCase):
         self.assertEqual(self.user.email, "alice@example.com")
         self.assertEqual(self.user.pending_email, "new@example.com")
 
-    def test_request_rejects_existing_email(self):
+    def test_request_existing_email_returns_generic_success_without_sending_email(self):
         User.objects.create_user(
             username="bob",
             email="bob@example.com",
@@ -103,7 +105,11 @@ class EmailChangeTests(APITestCase):
             format="json",
         )
 
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            response.data["message"],
+            "Email change confirmation sent. Please check your new email address.",
+        )
         self.user.refresh_from_db()
         self.assertIsNone(self.user.pending_email)
         self.assertEqual(len(mail.outbox), 0)

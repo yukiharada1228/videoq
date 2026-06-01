@@ -339,6 +339,8 @@ REST_FRAMEWORK = {
         "signup_email": "3/hour",
         "password_reset_ip": "3/hour",
         "password_reset_email": "3/hour",
+        "email_change_user": "3/hour",
+        "email_change_email": "3/hour",
     },
 }
 

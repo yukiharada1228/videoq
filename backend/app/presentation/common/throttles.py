@@ -125,3 +125,33 @@ class PasswordResetEmailThrottle(SimpleRateThrottle):
             "scope": self.scope,
             "ident": _normalize_throttle_email(str(email)),
         }
+
+
+class EmailChangeUserThrottle(SimpleRateThrottle):
+    scope = "email_change_user"
+
+    def get_cache_key(self, request, view):
+        if request.user and request.user.is_authenticated:
+            ident = request.user.pk
+        else:
+            ident = self.get_ident(request)
+        return self.cache_format % {
+            "scope": self.scope,
+            "ident": ident,
+        }
+
+
+class EmailChangeEmailThrottle(SimpleRateThrottle):
+    scope = "email_change_email"
+
+    def get_cache_key(self, request, view):
+        email = request.data.get("email")
+        if not email:
+            return self.cache_format % {
+                "scope": self.scope,
+                "ident": self.get_ident(request),
+            }
+        return self.cache_format % {
+            "scope": self.scope,
+            "ident": _normalize_throttle_email(str(email)),
+        }

@@ -4,7 +4,6 @@ from unittest import TestCase
 
 from app.domain.auth.gateways import EmailSenderGateway, UserManagementGateway
 from app.use_cases.auth.change_email import (
-    EmailAlreadyRegistered,
     EmailChangeEmailSendFailed,
     ConfirmEmailChangeUseCase,
     InvalidEmailChangeLink,
@@ -75,13 +74,12 @@ class RequestEmailChangeUseCaseTests(TestCase):
         self.assertEqual(user_gateway.pending_email_for, (7, "new@example.com"))
         self.assertEqual(email_sender.email_change_sent_to, 7)
 
-    def test_request_rejects_registered_email_without_sending_confirmation(self):
+    def test_request_silently_ignores_registered_email_without_sending_confirmation(self):
         user_gateway = _StubUserGateway(email_exists=True)
         email_sender = _StubEmailSender()
         use_case = RequestEmailChangeUseCase(user_gateway, email_sender)
 
-        with self.assertRaises(EmailAlreadyRegistered):
-            use_case.execute(user_id=7, new_email="used@example.com")
+        use_case.execute(user_id=7, new_email="used@example.com")
 
         self.assertIsNone(user_gateway.pending_email_for)
         self.assertIsNone(email_sender.email_change_sent_to)
