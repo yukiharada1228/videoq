@@ -32,6 +32,8 @@ _TEST_THROTTLE_RATES = {
     "signup_email": "2/minute",
     "password_reset_ip": "2/minute",
     "password_reset_email": "2/minute",
+    "email_change_user": "2/minute",
+    "email_change_email": "2/minute",
 }
 
 
@@ -396,3 +398,79 @@ class PasswordResetThrottleTest(APITestCase):
         self.assertEqual(resp.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
         self.assertEqual(resp.json()["error"]["code"], "LIMIT_EXCEEDED")
         self.assertIn("Retry-After", resp)
+
+
+@override_settings(
+    CACHES=_TEST_CACHES,
+    EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+)
+@patch.dict(SimpleRateThrottle.THROTTLE_RATES, _TEST_THROTTLE_RATES)
+class EmailChangeThrottleTest(APITestCase):
+    """Tests for EmailChangeUserThrottle and EmailChangeEmailThrottle."""
+
+    def setUp(self):
+        cache.clear()
+        self.user = User.objects.create_user(
+            username="emailchangeuser",
+            email="emailchange@example.com",
+            password="pass1234",
+            is_active=True,
+        )
+        self.client.force_authenticate(user=self.user)
+        self.url = "/api/auth/me/email/"
+
+    def test_user_throttle_blocks_after_limit(self):
+        """Same authenticated user is blocked after 2 email change requests/min."""
+        for i in range(2):
+            resp = self.client.patch(
+                self.url,
+                {"email": f"new{i}@example.com"},
+                format="json",
+                REMOTE_ADDR=f"10.0.0.{i + 1}",
+            )
+            self.assertNotEqual(resp.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+
+        resp = self.client.patch(
+            self.url,
+            {"email": "new99@example.com"},
+            format="json",
+            REMOTE_ADDR="10.0.0.99",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+        self.assertEqual(resp.json()["error"]["code"], "LIMIT_EXCEEDED")
+
+    def test_email_throttle_blocks_same_target_email_across_users_and_ips(self):
+        """Same target email is blocked even from different users and IPs."""
+        target_email = "  Victim@Example.COM  "
+
+        for i in range(2):
+            user = User.objects.create_user(
+                username=f"emailchangeuser{i}",
+                email=f"emailchange{i}@example.com",
+                password="pass1234",
+                is_active=True,
+            )
+            self.client.force_authenticate(user=user)
+            resp = self.client.patch(
+                self.url,
+                {"email": target_email},
+                format="json",
+                REMOTE_ADDR=f"10.0.0.{i + 1}",
+            )
+            self.assertNotEqual(resp.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+
+        user = User.objects.create_user(
+            username="emailchangeuser99",
+            email="emailchange99@example.com",
+            password="pass1234",
+            is_active=True,
+        )
+        self.client.force_authenticate(user=user)
+        resp = self.client.patch(
+            self.url,
+            {"email": "victim@example.com"},
+            format="json",
+            REMOTE_ADDR="10.0.0.99",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+        self.assertEqual(resp.json()["error"]["code"], "LIMIT_EXCEEDED")

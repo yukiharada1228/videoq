@@ -25,7 +25,6 @@ from app.use_cases.auth.signup import EmailAlreadyRegistered, VerificationEmailS
 from app.use_cases.auth.verify_email import InvalidVerificationLink
 from app.use_cases.auth.reset_password import InvalidResetLink
 from app.use_cases.auth.change_email import (
-    EmailAlreadyRegistered as EmailChangeEmailAlreadyRegistered,
     EmailChangeEmailSendFailed,
     InvalidEmailChangeLink,
 )
@@ -33,7 +32,9 @@ from app.use_cases.auth.exceptions import AuthenticationFailed, InvalidToken
 from app.presentation.common.authentication import APIKeyAuthentication, CookieJWTAuthentication
 from app.presentation.common.exceptions import ErrorCode
 from app.presentation.common.responses import create_error_response, create_success_response
-from app.presentation.common.throttles import (LoginIPThrottle, LoginUsernameThrottle,
+from app.presentation.common.throttles import (EmailChangeEmailThrottle,
+                                               EmailChangeUserThrottle,
+                                               LoginIPThrottle, LoginUsernameThrottle,
                                                PasswordResetEmailThrottle,
                                                PasswordResetIPThrottle,
                                                SignupEmailThrottle,
@@ -372,6 +373,7 @@ class EmailChangeRequestView(AuthenticatedAPIView):
     """Request email address change for the current user."""
 
     serializer_class = EmailChangeRequestSerializer
+    throttle_classes = [EmailChangeUserThrottle, EmailChangeEmailThrottle]
     request_email_change_use_case = None
 
     @extend_schema(
@@ -389,8 +391,6 @@ class EmailChangeRequestView(AuthenticatedAPIView):
                 user_id=request.user.id,
                 new_email=serializer.validated_data["email"],
             )
-        except EmailChangeEmailAlreadyRegistered as e:
-            return create_error_response(str(e), status.HTTP_400_BAD_REQUEST)
         except EmailChangeEmailSendFailed:
             return create_error_response(
                 "Failed to send email-change confirmation email. Please try again later.",

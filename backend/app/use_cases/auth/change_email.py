@@ -7,10 +7,6 @@ from app.domain.auth.gateways import EmailSenderGateway, UserManagementGateway
 logger = logging.getLogger(__name__)
 
 
-class EmailAlreadyRegistered(Exception):
-    """Raised when the requested email address is already registered."""
-
-
 class EmailChangeEmailSendFailed(Exception):
     """Raised when sending the email-change confirmation email fails."""
 
@@ -31,7 +27,7 @@ class RequestEmailChangeUseCase:
     def execute(self, user_id: int, new_email: str) -> None:
         normalized_email = new_email.strip().lower()
         if self.user_gateway.email_exists(normalized_email):
-            raise EmailAlreadyRegistered("This email address is already registered.")
+            return
 
         self.user_gateway.set_pending_email(user_id, normalized_email)
         try:
