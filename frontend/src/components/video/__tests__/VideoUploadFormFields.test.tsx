@@ -65,6 +65,12 @@ describe('VideoUploadFormFields', () => {
     expect(screen.getByText(/videos.upload.success/)).toBeInTheDocument()
   })
 
+  it('should display warning message', () => {
+    render(<VideoUploadFormFields {...defaultProps} warning="videos.upload.warning.tagsFailed" />)
+
+    expect(screen.getByText(/videos.upload.warning.tagsFailed/)).toBeInTheDocument()
+  })
+
   it('should disable inputs when uploading', () => {
     render(<VideoUploadFormFields {...defaultProps} isUploading={true} />)
     

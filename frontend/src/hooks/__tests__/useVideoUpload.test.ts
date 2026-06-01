@@ -35,6 +35,7 @@ describe('useVideoUpload', () => {
     expect(result.current.description).toBe('')
     expect(result.current.isUploading).toBe(false)
     expect(result.current.error).toBeNull()
+    expect(result.current.warning).toBeNull()
     expect(result.current.success).toBe(false)
   })
 
@@ -243,6 +244,36 @@ describe('useVideoUpload', () => {
         description: 'YouTube Description',
       })
       expect(result.current.success).toBe(true)
+    })
+  })
+
+  it('should keep upload successful and expose warning when tag assignment fails', async () => {
+    const { result } = renderHook(() => useVideoUpload())
+    const file = new File(['content'], 'tagged-video.mp4', { type: 'video/mp4' })
+    ;(apiClient.uploadVideo as any).mockResolvedValue({ id: 1 })
+    ;(apiClient.addTagsToVideo as any).mockRejectedValue(new Error('Tag write failed'))
+
+    act(() => {
+      result.current.handleFileChange({
+        target: { files: [file] },
+      } as unknown as React.ChangeEvent<HTMLInputElement>)
+    })
+
+    act(() => {
+      result.current.setTagIds([10, 20])
+    })
+
+    await act(async () => {
+      await result.current.handleSubmit({
+        preventDefault: vi.fn(),
+      } as unknown as React.FormEvent)
+    })
+
+    await waitFor(() => {
+      expect(apiClient.addTagsToVideo).toHaveBeenCalledWith(1, [10, 20])
+      expect(result.current.success).toBe(true)
+      expect(result.current.warning).toBe('videos.upload.warning.tagsFailed')
+      expect(result.current.error).toBeNull()
     })
   })
 

@@ -290,6 +290,9 @@
         "fileTooLarge": "The selected file exceeds the upload size limit ({{max_size_mb}} MB)",
         "generic": "Validation error",
         "storageLimitExceeded": "Upload is unavailable because your storage is over the configured limit. Please delete videos to free up space."
+      },
+      "warning": {
+        "tagsFailed": "The video was uploaded, but tags could not be added. You can add tags later from the video details."
       }
     },
     "detail": {
