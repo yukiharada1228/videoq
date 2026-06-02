@@ -8,7 +8,6 @@ import {
   useSensor,
   useSensors,
   type DragEndEvent,
-  type SensorDescriptor,
 } from '@dnd-kit/core';
 import {
   SortableContext,
@@ -60,8 +59,7 @@ import {
   useAddVideosToGroupMutation,
 } from '@/hooks/useVideoGroupDetailData';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const MOBILE_SENSORS: SensorDescriptor<any>[] = [];
+const MOBILE_SENSORS: ReturnType<typeof useSensors> = [];
 
 type MobileTab = 'videos' | 'player';
 
@@ -107,7 +105,7 @@ interface VideoGroupDetailViewProps {
   onRemoveVideo: (videoId: number) => Promise<void> | void;
   onDragEnd: (event: DragEndEvent) => Promise<void> | void;
   onVideoCanPlay: () => void;
-  onVideoPlayFromTime: (videoId: number, seconds: number) => void;
+  onVideoPlayFromTime: (videoId: number, startTime: string) => void;
   onGenerateShareLink: (shareSlug: string) => Promise<void> | void;
   onDeleteShareLink: () => void;
   onCopyShareLink: () => void;
@@ -593,7 +591,7 @@ function GroupVideoList({
   isDeleting: boolean;
   isMobile: boolean;
   mobileTab: MobileTab;
-  sensors: SensorDescriptor[];
+  sensors: ReturnType<typeof useSensors>;
   onOpenAdd: () => void;
   onStartEditing: () => void;
   onDeleteGroup: () => void;
@@ -691,7 +689,7 @@ function GroupPlayerPanel({
   videoRef: RefObject<HTMLVideoElement | null>;
   youtubeStartSeconds: number | null;
   onVideoCanPlay: () => void;
-  onVideoPlayFromTime: (videoId: number, seconds: number) => void;
+  onVideoPlayFromTime: (videoId: number, startTime: string) => void;
 }) {
   const { t } = useTranslation();
 

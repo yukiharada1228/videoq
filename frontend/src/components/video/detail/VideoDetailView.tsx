@@ -47,7 +47,7 @@ interface VideoDetailViewProps {
   tags: Tag[];
   isCreateDialogOpen: boolean;
   onCreateDialogOpenChange: (open: boolean) => void;
-  onCreateTag: (name: string, color: string) => Promise<void> | void;
+  onCreateTag: (name: string, color: string) => Promise<void>;
   isEditing: boolean;
   editedTitle: string;
   editedDescription: string;
