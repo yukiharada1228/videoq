@@ -224,4 +224,60 @@ describe('useChatMessages streaming', () => {
       )
     })
   })
+
+  it('guards against rapid consecutive sends before loading state rerenders', async () => {
+    const resolvers: Array<() => void> = []
+    ;(apiClient.chatStream as any).mockImplementation(async function* () {
+      await new Promise<void>((resolve) => resolvers.push(resolve))
+      yield { type: 'done' as const, chat_log_id: null, feedback: null }
+    })
+
+    const { result } = renderHook(() => useChatMessages({}))
+
+    act(() => { result.current.setInput('Hi') })
+
+    await waitFor(() => {
+      expect(result.current.input).toBe('Hi')
+    })
+
+    act(() => {
+      void result.current.handleSend()
+      void result.current.handleSend()
+    })
+
+    await waitFor(() => {
+      expect(apiClient.chatStream).toHaveBeenCalledTimes(1)
+    })
+
+    act(() => {
+      resolvers[0]?.()
+    })
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false)
+    })
+  })
+
+  it('toggles feedback back to null when the same feedback is selected', async () => {
+    ;(apiClient.setChatFeedback as any).mockResolvedValue({
+      chat_log_id: 42,
+      feedback: null,
+    })
+
+    const { result } = renderHook(() => useChatMessages({ shareToken: 'shared' }))
+
+    act(() => {
+      result.current.setMessages([
+        { role: 'assistant', content: 'Answer', chatLogId: 42, feedback: 'good' },
+      ])
+    })
+
+    await act(async () => {
+      await result.current.handleFeedback(42, 'good')
+    })
+
+    expect(apiClient.setChatFeedback).toHaveBeenCalledWith(42, null, 'shared')
+    expect(result.current.messages[0].feedback).toBeNull()
+    expect(result.current.feedbackUpdatingId).toBeNull()
+  })
 })
