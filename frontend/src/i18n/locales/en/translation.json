@@ -95,6 +95,7 @@
     },
     "management": {
       "title": "Manage Tags",
+      "description": "Review existing tags and remove tags you no longer need.",
       "create": "Create New",
       "edit": "Edit",
       "delete": "Delete",

@@ -95,6 +95,7 @@
     },
     "management": {
       "title": "タグ管理",
+      "description": "既存のタグを確認し、不要になったタグを削除できます。",
       "create": "新規作成",
       "edit": "編集",
       "delete": "削除",
