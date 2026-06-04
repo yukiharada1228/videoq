@@ -78,6 +78,17 @@ describe('HomePage - authenticated', () => {
     })
   })
 
+  it('should not render the redundant groups tip', async () => {
+    render(<HomePage />)
+
+    await waitFor(() => {
+      expect(screen.getByText('home.actions.groups.title')).toBeInTheDocument()
+    })
+
+    expect(screen.queryByText('home.tips.hint')).not.toBeInTheDocument()
+    expect(screen.queryByText('home.tips.message')).not.toBeInTheDocument()
+  })
+
   it('should render stats cards', async () => {
     render(<HomePage />)
 
