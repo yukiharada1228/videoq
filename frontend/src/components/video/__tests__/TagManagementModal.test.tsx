@@ -1,16 +1,40 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { TagManagementModal } from '../TagManagementModal'
 import { useTags } from '@/hooks/useTags'
+import enTranslation from '@/i18n/locales/en/translation.json'
+import jaTranslation from '@/i18n/locales/ja/translation.json'
+
+const i18nMock = vi.hoisted(() => ({
+    language: 'en' as 'en' | 'ja',
+    t: vi.fn(),
+    changeLanguage: vi.fn(),
+}))
+
+const lookupTranslation = (language: 'en' | 'ja', key: string): string | undefined => {
+    const resources = { en: enTranslation, ja: jaTranslation }
+    let current: unknown = resources[language]
+    for (const segment of key.split('.')) {
+        if (!current || typeof current !== 'object' || !(segment in current)) {
+            return undefined
+        }
+        current = (current as Record<string, unknown>)[segment]
+    }
+    return typeof current === 'string' ? current : undefined
+}
 
 // Mock useTags
 vi.mock('@/hooks/useTags', () => ({
     useTags: vi.fn(),
 }))
 
-// Mock useTranslation
+// Mock useTranslation with the real translation resources so missing keys fall back like production.
 vi.mock('react-i18next', () => ({
     useTranslation: () => ({
-        t: (key: string, defaultValue?: string) => defaultValue || key,
+        t: i18nMock.t,
+        i18n: {
+            language: i18nMock.language,
+            changeLanguage: i18nMock.changeLanguage,
+        },
     }),
 }))
 
@@ -34,6 +58,13 @@ describe('TagManagementModal', () => {
 
     beforeEach(() => {
         vi.clearAllMocks()
+        i18nMock.language = 'en'
+        i18nMock.t.mockImplementation((key: string, defaultValue?: string) =>
+            lookupTranslation(i18nMock.language, key) ?? defaultValue ?? key
+        )
+        i18nMock.changeLanguage.mockImplementation((language: 'en' | 'ja') => {
+            i18nMock.language = language
+        })
         mockDeleteTag.mockResolvedValue(undefined)
             ; (useTags as any).mockReturnValue({
                 tags: mockTags,
@@ -49,10 +80,29 @@ describe('TagManagementModal', () => {
     it('should render tags list when open', () => {
         render(<TagManagementModal isOpen={true} onClose={vi.fn()} />)
 
-        expect(screen.getByText('Tag Management')).toBeInTheDocument()
+        expect(screen.getByText('Manage Tags')).toBeInTheDocument()
         expect(screen.getByText('Review existing tags and remove tags you no longer need.')).toBeInTheDocument()
         expect(screen.getByText('Tag 1')).toBeInTheDocument()
         expect(screen.getByText('Tag 2')).toBeInTheDocument()
+    })
+
+    it('should render the description in Japanese locale', () => {
+        i18nMock.language = 'ja'
+
+        render(<TagManagementModal isOpen={true} onClose={vi.fn()} />)
+
+        expect(screen.getByText('タグ管理')).toBeInTheDocument()
+        expect(screen.getByText('既存のタグを確認し、不要になったタグを削除できます。')).toBeInTheDocument()
+        expect(screen.queryByText('Review existing tags and remove tags you no longer need.')).not.toBeInTheDocument()
+    })
+
+    it('should define the management description in each locale resource', () => {
+        expect(enTranslation.tags.management).toMatchObject({
+            description: 'Review existing tags and remove tags you no longer need.',
+        })
+        expect(jaTranslation.tags.management).toMatchObject({
+            description: '既存のタグを確認し、不要になったタグを削除できます。',
+        })
     })
 
     it('should show no tags message when tags list is empty', () => {
@@ -63,7 +113,7 @@ describe('TagManagementModal', () => {
 
         render(<TagManagementModal isOpen={true} onClose={vi.fn()} />)
 
-        expect(screen.getByText('No tags available')).toBeInTheDocument()
+        expect(screen.getByText('No available tags')).toBeInTheDocument()
     })
 
     it('should show delete confirmation when trash icon is clicked', () => {
