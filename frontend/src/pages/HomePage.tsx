@@ -13,7 +13,7 @@ import { AppPageHeader } from '@/components/layout/AppPageHeader';
 import { useTranslation } from 'react-i18next';
 import LoginPage from '@/pages/LoginPage';
 import {
-  Upload, Film, Users, ArrowRight, Lightbulb,
+  Upload, Film, Users, ArrowRight,
 } from 'lucide-react';
 
 function ActionCard({ icon, iconBg, title, description, linkLabel, linkColor, onClick }: {
@@ -254,17 +254,6 @@ export default function HomePage() {
         </section>
       )}
 
-      {/* Tips Card */}
-      <section className="mt-8">
-        <div className="bg-[#95f8a7]/20 border-2 border-[#00652c]/20 rounded-xl p-6 flex items-center gap-4 shadow-sm">
-          <div className="bg-[#00652c] text-white p-2 rounded-full flex items-center justify-center shrink-0">
-            <Lightbulb className="w-5 h-5" />
-          </div>
-          <p className="text-[#005323] font-medium text-sm leading-snug">
-            <span className="font-bold">{t('home.tips.hint')}:</span> {t('home.tips.message')}
-          </p>
-        </div>
-      </section>
     </AppPageShell>
   );
 }
