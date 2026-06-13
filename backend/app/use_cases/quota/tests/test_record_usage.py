@@ -3,11 +3,11 @@
 from typing import Optional
 from unittest import TestCase
 
-from app.domain.billing.entities import UserLimitsEntity
-from app.domain.billing.ports import UserLimitsRepository
-from app.use_cases.billing.record_ai_answer_usage import RecordAiAnswerUsageUseCase
-from app.use_cases.billing.record_processing_usage import RecordProcessingUsageUseCase
-from app.use_cases.billing.record_storage_usage import RecordStorageUsageUseCase
+from app.domain.quota.entities import UserLimitsEntity
+from app.domain.quota.ports import UserLimitsRepository
+from app.use_cases.quota.record_ai_answer_usage import RecordAiAnswerUsageUseCase
+from app.use_cases.quota.record_processing_usage import RecordProcessingUsageUseCase
+from app.use_cases.quota.record_storage_usage import RecordStorageUsageUseCase
 
 
 def _make_user_limits(**kwargs) -> UserLimitsEntity:

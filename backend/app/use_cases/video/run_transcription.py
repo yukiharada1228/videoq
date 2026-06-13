@@ -7,7 +7,7 @@ import re
 
 from typing import Callable, Optional
 
-from app.domain.billing.exceptions import ProcessingLimitExceeded
+from app.domain.quota.exceptions import ProcessingLimitExceeded
 from app.domain.shared.transaction import TransactionPort
 from app.domain.user.repositories import UserRepository
 from app.domain.video.gateways import (

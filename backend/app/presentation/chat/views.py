@@ -17,7 +17,7 @@ from rest_framework.views import APIView
 
 from app.presentation.common.authentication import APIKeyAuthentication, BearerAPIKeyAuthentication, CookieJWTAuthentication
 from app.presentation.common.pagination import StandardLimitOffsetPagination
-from app.use_cases.billing.exceptions import AiAnswersLimitExceeded, OverQuotaError
+from app.use_cases.quota.exceptions import AiAnswersLimitExceeded, OverQuotaError
 from app.use_cases.chat.dto import ChatMessageInput, StreamContentChunk, StreamDoneEvent
 from app.presentation.common.mixins import DependencyResolverMixin
 from app.presentation.common.permissions import (

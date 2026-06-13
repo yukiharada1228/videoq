@@ -1,5 +1,5 @@
-from app.domain.billing.exceptions import AiAnswersLimitExceeded, OverQuotaError
-from app.domain.billing.ports import UserLimitsRepository
+from app.domain.quota.exceptions import AiAnswersLimitExceeded, OverQuotaError
+from app.domain.quota.ports import UserLimitsRepository
 
 
 class CheckAiAnswersLimitUseCase:

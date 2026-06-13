@@ -7,8 +7,8 @@ from django.contrib.auth import get_user_model
 from django.db.models import F, Value
 from django.db.models.functions import Greatest
 
-from app.domain.billing.entities import UserLimitsEntity
-from app.domain.billing.ports import UserLimitsRepository
+from app.domain.quota.entities import UserLimitsEntity
+from app.domain.quota.ports import UserLimitsRepository
 
 User = get_user_model()
 
@@ -56,7 +56,7 @@ class DjangoUserLimitsRepository(UserLimitsRepository):
         )
 
     def check_and_reserve_storage(self, user_id: int, additional_bytes: int) -> None:
-        from app.domain.billing.exceptions import StorageLimitExceeded
+        from app.domain.quota.exceptions import StorageLimitExceeded
 
         obj = User.objects.get(pk=user_id)
         entity = self._to_entity(obj)
