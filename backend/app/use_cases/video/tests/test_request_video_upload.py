@@ -5,7 +5,7 @@ from typing import Callable, Generator
 from unittest import TestCase
 from unittest.mock import MagicMock
 
-from app.domain.billing.exceptions import StorageLimitExceeded
+from app.domain.quota.exceptions import StorageLimitExceeded
 from app.domain.user.entities import UserEntity
 from app.domain.video.entities import VideoEntity
 from app.use_cases.video.dto import RequestUploadInput

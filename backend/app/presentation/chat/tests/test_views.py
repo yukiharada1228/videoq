@@ -13,7 +13,7 @@ from rest_framework.test import APIClient, APITestCase
 
 from app.domain.chat.dtos import CitationDTO
 from app.domain.chat.gateways import LLMConfigurationError, RagResult
-from app.use_cases.billing.exceptions import AiAnswersLimitExceeded, OverQuotaError
+from app.use_cases.quota.exceptions import AiAnswersLimitExceeded, OverQuotaError
 from app.use_cases.chat.exceptions import LLMProviderError
 
 User = get_user_model()
@@ -173,7 +173,7 @@ class ChatViewTests(APITestCase):
             },
         )
 
-    @patch("app.use_cases.billing.check_ai_answers_limit.CheckAiAnswersLimitUseCase.execute")
+    @patch("app.use_cases.quota.check_ai_answers_limit.CheckAiAnswersLimitUseCase.execute")
     def test_chat_returns_403_when_over_quota(self, mock_check):
         """is_over_quota=True must return 403 OVER_QUOTA to the client."""
         mock_check.side_effect = OverQuotaError(
@@ -362,7 +362,7 @@ class OpenAIChatCompletionsViewTests(APITestCase):
             "messages": [{"role": "user", "content": "Hello"}],
         }
 
-    @patch("app.use_cases.billing.check_ai_answers_limit.CheckAiAnswersLimitUseCase.execute")
+    @patch("app.use_cases.quota.check_ai_answers_limit.CheckAiAnswersLimitUseCase.execute")
     def test_over_quota_returns_403_with_openai_error_format(self, mock_check):
         """OverQuotaError must return 403 in OpenAI-compatible error format."""
         mock_check.side_effect = OverQuotaError(
@@ -375,7 +375,7 @@ class OpenAIChatCompletionsViewTests(APITestCase):
         self.assertIn("error", response.data)
         self.assertEqual(response.data["error"]["type"], "insufficient_quota")
 
-    @patch("app.use_cases.billing.check_ai_answers_limit.CheckAiAnswersLimitUseCase.execute")
+    @patch("app.use_cases.quota.check_ai_answers_limit.CheckAiAnswersLimitUseCase.execute")
     def test_ai_answers_limit_exceeded_returns_400_with_openai_error_format(self, mock_check):
         """AiAnswersLimitExceeded must return 400 in OpenAI-compatible error format."""
         mock_check.side_effect = AiAnswersLimitExceeded("AI answers limit exceeded. Limit: 100.")

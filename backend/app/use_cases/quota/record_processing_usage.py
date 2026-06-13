@@ -1,4 +1,4 @@
-from app.domain.billing.ports import UserLimitsRepository
+from app.domain.quota.ports import UserLimitsRepository
 
 
 class RecordProcessingUsageUseCase:
