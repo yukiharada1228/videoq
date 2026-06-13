@@ -212,6 +212,11 @@ class VideoGroupRepository(ABC):
         ...
 
     @abstractmethod
+    def reorder_groups(self, user_id: int, group_ids: List[int]) -> None:
+        """Persist display order for the given subset of a user's groups."""
+        ...
+
+    @abstractmethod
     def update_share_slug(
         self, group: VideoGroupEntity, slug: Optional[str]
     ) -> None:

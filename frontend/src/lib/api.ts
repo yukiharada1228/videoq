@@ -13,7 +13,7 @@ export interface ApiClientOptions {
   onUnauthorized?: () => void | Promise<void>;
 }
 
-interface PaginatedResponse<T> {
+export interface PaginatedResponse<T> {
   count: number;
   next: string | null;
   previous: string | null;
@@ -245,6 +245,7 @@ export interface VideoGroup {
   id: number;
   name: string;
   description: string;
+  display_order: number;
   created_at: string;
   updated_at?: string;
   video_count: number;
@@ -285,6 +286,7 @@ export interface VideoGroupList {
   id: number;
   name: string;
   description: string;
+  display_order: number;
   created_at: string;
   video_count: number;
 }
@@ -1039,8 +1041,19 @@ export class ApiClient {
   }
 
   // VideoGroup-related methods
+  async getVideoGroupsPage(params?: { limit?: number; offset?: number }): Promise<PaginatedResponse<VideoGroupList>> {
+    const queryParams: Record<string, string> = {};
+    if (params?.limit !== undefined) queryParams.limit = String(params.limit);
+    if (params?.offset !== undefined) queryParams.offset = String(params.offset);
+    const query = Object.keys(queryParams).length
+      ? `?${new URLSearchParams(queryParams).toString()}`
+      : '';
+
+    return this.request<PaginatedResponse<VideoGroupList>>(`/videos/groups/${query}`);
+  }
+
   async getVideoGroups(): Promise<VideoGroupList[]> {
-    const response = await this.request<PaginatedResponse<VideoGroupList>>('/videos/groups/');
+    const response = await this.getVideoGroupsPage();
     return response.results;
   }
 
@@ -1065,6 +1078,13 @@ export class ApiClient {
   async deleteVideoGroup(id: number): Promise<void> {
     return this.request<void>(`/videos/groups/${id}/`, {
       method: 'DELETE',
+    });
+  }
+
+  async reorderVideoGroups(groupIds: number[]): Promise<{ message: string }> {
+    return this.request<{ message: string }>('/videos/groups/order/', {
+      method: 'PATCH',
+      body: { group_ids: groupIds },
     });
   }
 
