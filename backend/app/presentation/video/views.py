@@ -15,7 +15,7 @@ from rest_framework.views import APIView
 from app.presentation.common.pagination import StandardLimitOffsetPagination
 from app.presentation.common.responses import create_error_response
 from app.presentation.common.throttles import ShareTokenIPThrottle
-from app.use_cases.billing.exceptions import StorageLimitExceeded
+from app.use_cases.quota.exceptions import StorageLimitExceeded
 from app.use_cases.video.dto import (
     CreateGroupInput,
     CreateTagInput,

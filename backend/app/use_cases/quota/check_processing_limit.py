@@ -1,5 +1,5 @@
-from app.domain.billing.exceptions import ProcessingLimitExceeded
-from app.domain.billing.ports import UserLimitsRepository
+from app.domain.quota.exceptions import ProcessingLimitExceeded
+from app.domain.quota.ports import UserLimitsRepository
 
 
 class CheckProcessingLimitUseCase:

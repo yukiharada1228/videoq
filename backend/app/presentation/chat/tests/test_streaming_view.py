@@ -13,7 +13,7 @@ from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 
 from app.domain.chat.gateways import LLMConfigurationError, RagStreamChunk
-from app.use_cases.billing.exceptions import AiAnswersLimitExceeded, OverQuotaError
+from app.use_cases.quota.exceptions import AiAnswersLimitExceeded, OverQuotaError
 from app.use_cases.chat.exceptions import LLMProviderError
 
 User = get_user_model()
@@ -156,7 +156,7 @@ class StreamChatViewTests(APITestCase):
         # Must not expose internal error details
         self.assertNotIn("provider exploded", error_events[0].get("message", ""))
 
-    @patch("app.use_cases.billing.check_ai_answers_limit.CheckAiAnswersLimitUseCase.execute")
+    @patch("app.use_cases.quota.check_ai_answers_limit.CheckAiAnswersLimitUseCase.execute")
     def test_yields_error_event_on_over_quota(self, mock_check):
         mock_check.side_effect = OverQuotaError("Over quota")
 
@@ -170,7 +170,7 @@ class StreamChatViewTests(APITestCase):
         self.assertEqual(len(error_events), 1)
         self.assertEqual(error_events[0]["code"], "OVER_QUOTA")
 
-    @patch("app.use_cases.billing.check_ai_answers_limit.CheckAiAnswersLimitUseCase.execute")
+    @patch("app.use_cases.quota.check_ai_answers_limit.CheckAiAnswersLimitUseCase.execute")
     def test_yields_error_event_on_ai_answers_limit_exceeded(self, mock_check):
         mock_check.side_effect = AiAnswersLimitExceeded("AI answers limit exceeded")
 

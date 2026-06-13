@@ -2,7 +2,7 @@
 
 from unittest import TestCase
 
-from app.domain.billing.entities import UserLimitsEntity
+from app.domain.quota.entities import UserLimitsEntity
 
 
 def _make_user_limits(**kwargs) -> UserLimitsEntity:
