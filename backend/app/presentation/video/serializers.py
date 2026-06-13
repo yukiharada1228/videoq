@@ -122,6 +122,7 @@ class VideoGroupListSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     name = serializers.CharField()
     description = serializers.CharField()
+    display_order = serializers.IntegerField()
     created_at = serializers.DateTimeField()
     video_count = serializers.IntegerField()
 
@@ -132,6 +133,7 @@ class VideoGroupDetailSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     name = serializers.CharField()
     description = serializers.CharField()
+    display_order = serializers.IntegerField()
     created_at = serializers.DateTimeField()
     updated_at = serializers.DateTimeField()
     video_count = serializers.IntegerField()
@@ -429,6 +431,13 @@ class ReorderVideosRequestSerializer(serializers.Serializer):
     video_ids = serializers.ListField(
         child=serializers.IntegerField(),
         help_text="List of video IDs in the desired order",
+    )
+
+
+class ReorderGroupsRequestSerializer(serializers.Serializer):
+    group_ids = serializers.ListField(
+        child=serializers.IntegerField(),
+        help_text="List of group IDs in the desired display order",
     )
 
 

@@ -4,6 +4,7 @@ from unittest import TestCase
 
 from app.domain.video.entities import TagEntity, VideoEntity, VideoGroupEntity, VideoGroupMemberEntity
 from app.domain.video.exceptions import (
+    GroupOrderMismatch as DomainGroupOrderMismatch,
     SomeTagsNotFound,
     TagNotAttachedToVideo,
     VideoAlreadyInGroup as DomainVideoAlreadyInGroup,
@@ -21,6 +22,7 @@ from app.use_cases.video.dto import (
 )
 from app.use_cases.video.exceptions import (
     GroupVideoOrderMismatch,
+    GroupOrderMismatch,
     InvalidTagInput,
     ResourceNotFound,
     VideoAlreadyInGroup,
@@ -30,6 +32,7 @@ from app.use_cases.video.manage_groups import (
     AddVideoToGroupUseCase,
     AddVideosToGroupUseCase,
     RemoveVideoFromGroupUseCase,
+    ReorderVideoGroupsUseCase,
     ReorderVideosInGroupUseCase,
 )
 from app.use_cases.video.manage_tags import AddTagsToVideoUseCase, RemoveTagFromVideoUseCase
@@ -69,6 +72,7 @@ class _FakeGroupRepo:
         self.update_called = False
         self.bulk_add_args = None
         self.reorder_args = None
+        self.reorder_group_args = None
 
     def get_by_id(self, group_id: int, user_id: int, include_videos: bool = False):
         if self.group and self.group.id == group_id and self.group.user_id == user_id:
@@ -87,6 +91,9 @@ class _FakeGroupRepo:
 
     def reorder_videos(self, group, video_ids):
         self.reorder_args = (group.id, list(video_ids))
+
+    def reorder_groups(self, user_id, group_ids):
+        self.reorder_group_args = (user_id, list(group_ids))
 
     def create(self, user_id: int, params):
         self.create_called = True
@@ -258,6 +265,25 @@ class GroupTagContractsUseCaseTests(TestCase):
         with self.assertRaises(GroupVideoOrderMismatch):
             use_case.execute(self.group.id, [999], self.user_id)
         self.assertIsNone(repo.reorder_args)
+
+    def test_reorder_groups_delegates_order_to_repository(self):
+        repo = _FakeGroupRepo(self.group)
+        use_case = ReorderVideoGroupsUseCase(repo)
+
+        use_case.execute([30, 20], self.user_id)
+
+        self.assertEqual(repo.reorder_group_args, (self.user_id, [30, 20]))
+
+    def test_reorder_groups_maps_domain_mismatch(self):
+        class _MismatchGroupRepo(_FakeGroupRepo):
+            def reorder_groups(self, user_id, group_ids):
+                raise DomainGroupOrderMismatch()
+
+        repo = _MismatchGroupRepo(self.group)
+        use_case = ReorderVideoGroupsUseCase(repo)
+
+        with self.assertRaises(GroupOrderMismatch):
+            use_case.execute([self.group.id], self.user_id)
 
     def test_remove_tag_maps_not_attached_to_resource_not_found(self):
         use_case = RemoveTagFromVideoUseCase(_FakeVideoRepo(self.video), _FakeTagRepo(self.tag))

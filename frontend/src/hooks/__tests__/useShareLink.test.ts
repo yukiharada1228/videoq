@@ -13,6 +13,7 @@ const group: VideoGroup = {
   id: 1,
   name: 'Group',
   description: '',
+  display_order: 0,
   videos: [],
   video_count: 0,
   created_at: '2024-01-01T00:00:00Z',

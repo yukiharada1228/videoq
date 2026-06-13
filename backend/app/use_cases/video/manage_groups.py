@@ -5,6 +5,7 @@ Use cases for managing video groups: membership, ordering, and share links.
 from typing import List, Tuple
 
 from app.domain.video.exceptions import (
+    GroupOrderMismatch as DomainGroupOrderMismatch,
     GroupVideoOrderMismatch as DomainGroupVideoOrderMismatch,
     InvalidShareSlug as DomainInvalidShareSlug,
     ReservedShareSlug as DomainReservedShareSlug,
@@ -19,6 +20,7 @@ from app.domain.video.services import ShareSlugPolicy, VideoGroupMembershipServi
 from app.use_cases.video.dto import VideoGroupMemberResponseDTO
 from app.use_cases.video.exceptions import (
     GroupVideoOrderMismatch,
+    GroupOrderMismatch,
     InvalidShareSlugInput,
     ResourceNotFound,
     ShareSlugAlreadyExists,
@@ -170,6 +172,24 @@ class ReorderVideosInGroupUseCase:
             raise GroupVideoOrderMismatch()
 
         self.group_repo.reorder_videos(group, video_ids)
+
+
+class ReorderVideoGroupsUseCase:
+    """Reorder a user's video groups."""
+
+    def __init__(self, group_repo: VideoGroupRepository):
+        self.group_repo = group_repo
+
+    def execute(self, group_ids: List[int], user_id: int) -> None:
+        """
+        Raises:
+            GroupOrderMismatch: If group_ids is empty, duplicated, or contains
+                groups not owned by the user.
+        """
+        try:
+            self.group_repo.reorder_groups(user_id, group_ids)
+        except DomainGroupOrderMismatch as e:
+            raise GroupOrderMismatch(str(e)) from e
 
 
 class CreateShareLinkUseCase:

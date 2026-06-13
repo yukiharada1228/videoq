@@ -6,6 +6,8 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 
+from app.use_cases.video.dto import VideoGroupListPageResponseDTO
+
 User = get_user_model()
 Tag = apps.get_model("app", "Tag")
 Video = apps.get_model("app", "Video")
@@ -37,6 +39,7 @@ class VideoGroupAPITestCase(APITestCase):
         self.assertIn("id", response.data)
         self.assertEqual(response.data["name"], "Test Group")
         self.assertEqual(response.data["description"], "Test Description")
+        self.assertEqual(response.data["display_order"], 0)
         self.assertEqual(response.data["video_count"], 0)
         self.assertIn("created_at", response.data)
         self.assertIn("videos", response.data)
@@ -1023,6 +1026,99 @@ class ReorderVideosTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
 
+class ReorderVideoGroupsTests(APITestCase):
+    """Tests for reordering video groups."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="group_order_user",
+            email="group_order@example.com",
+            password="testpass123",
+        )
+        self.other_user = User.objects.create_user(
+            username="other_group_order_user",
+            email="other_group_order@example.com",
+            password="testpass123",
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+        self.group1 = VideoGroup.objects.create(
+            user=self.user, name="Group 1", display_order=0
+        )
+        self.group2 = VideoGroup.objects.create(
+            user=self.user, name="Group 2", display_order=1
+        )
+        self.group3 = VideoGroup.objects.create(
+            user=self.user, name="Group 3", display_order=2
+        )
+        self.other_group = VideoGroup.objects.create(
+            user=self.other_user, name="Other", display_order=0
+        )
+
+    def test_reorder_video_groups(self):
+        url = reverse("reorder-video-groups")
+        data = {"group_ids": [self.group3.pk, self.group1.pk, self.group2.pk]}
+
+        response = self.client.patch(url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        groups = list(VideoGroup.objects.filter(user=self.user))
+        self.assertEqual(
+            [group.id for group in groups],
+            [self.group3.id, self.group1.id, self.group2.id],
+        )
+
+    def test_reorder_partial_loaded_groups_keeps_other_slots(self):
+        url = reverse("reorder-video-groups")
+        data = {"group_ids": [self.group3.pk, self.group2.pk]}
+
+        response = self.client.patch(url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        groups = list(VideoGroup.objects.filter(user=self.user))
+        self.assertEqual(
+            [group.id for group in groups],
+            [self.group1.id, self.group3.id, self.group2.id],
+        )
+
+    def test_reorder_rejects_other_users_group(self):
+        url = reverse("reorder-video-groups")
+        data = {"group_ids": [self.group1.pk, self.other_group.pk]}
+
+        response = self.client.patch(url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_reorder_rejects_duplicate_group_ids(self):
+        url = reverse("reorder-video-groups")
+        data = {"group_ids": [self.group1.pk, self.group1.pk]}
+
+        response = self.client.patch(url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_reorder_accepts_string_group_ids_after_validation(self):
+        url = reverse("reorder-video-groups")
+        data = {"group_ids": [str(self.group2.pk), str(self.group1.pk)]}
+
+        response = self.client.patch(url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        groups = list(VideoGroup.objects.filter(user=self.user))
+        self.assertEqual(
+            [group.id for group in groups],
+            [self.group2.id, self.group1.id, self.group3.id],
+        )
+
+    def test_reorder_rejects_non_integer_group_id(self):
+        url = reverse("reorder-video-groups")
+        data = {"group_ids": ["not-a-number"]}
+
+        response = self.client.patch(url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+
 class VideoUploadTests(APITestCase):
     """Tests for video upload"""
 
@@ -1203,6 +1299,24 @@ class VideoGroupListPaginationTests(APITestCase):
         response = self.client.get(url, {"limit": 2, "offset": 0})
         self.assertEqual(response.data["count"], 5)
         self.assertEqual(len(response.data["results"]), 2)
+
+    @patch("app.use_cases.video.list_groups.ListVideoGroupsUseCase.execute_page")
+    def test_limit_and_offset_are_passed_to_use_case(self, mock_execute_page):
+        mock_execute_page.return_value = VideoGroupListPageResponseDTO(
+            count=5,
+            results=[],
+        )
+        url = reverse("video-group-list")
+
+        response = self.client.get(url, {"limit": 2, "offset": 4})
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        mock_execute_page.assert_called_once_with(
+            user_id=self.user.id,
+            include_videos=False,
+            limit=2,
+            offset=4,
+        )
 
 
 class TagListPaginationTests(APITestCase):
