@@ -165,6 +165,10 @@ def get_reorder_videos_use_case():
     return group.get_reorder_videos_use_case()
 
 
+def get_reorder_groups_use_case():
+    return group.get_reorder_groups_use_case()
+
+
 def get_create_share_link_use_case():
     return group.get_create_share_link_use_case()
 

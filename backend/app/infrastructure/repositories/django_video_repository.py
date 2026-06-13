@@ -26,6 +26,7 @@ from app.domain.video.entities import (
     VideoGroupMemberEntity,
 )
 from app.domain.video.exceptions import (
+    GroupOrderMismatch,
     InvalidVideoStatusTransition,
     ShareSlugAlreadyExists,
     SomeTagsNotFound,
@@ -118,6 +119,7 @@ def _group_to_entity(
         user_id=group.user_id,
         name=group.name,
         description=group.description,
+        display_order=group.display_order,
         created_at=group.created_at,
         updated_at=group.updated_at,
         share_slug=group.share_slug,
@@ -374,11 +376,22 @@ class DjangoVideoGroupRepository(VideoGroupRepository):
         return [_group_to_entity(g, include_videos=include_videos) for g in queryset]
 
     def create(self, user_id: int, params: CreateGroupParams) -> VideoGroupEntity:
-        group = VideoGroup.objects.create(
-            user_id=user_id,
-            name=params.name,
-            description=params.description,
-        )
+        with transaction.atomic():
+            VideoGroup.objects.select_for_update().filter(user_id=user_id).order_by(
+                "id"
+            ).first()
+            max_order = (
+                VideoGroup.objects.filter(user_id=user_id)
+                .aggregate(max_order=Max("display_order"))
+                .get("max_order")
+            )
+            next_order = (max_order if max_order is not None else -1) + 1
+            group = VideoGroup.objects.create(
+                user_id=user_id,
+                name=params.name,
+                description=params.description,
+                display_order=next_order,
+            )
         group = VideoGroup.objects.annotate(
             video_count=Count("members__video", distinct=True)
         ).get(pk=group.pk)
@@ -502,6 +515,30 @@ class DjangoVideoGroupRepository(VideoGroupRepository):
                 member.order = index
                 members_to_update.append(member)
             VideoGroupMember.objects.bulk_update(members_to_update, ["order"])
+
+    def reorder_groups(self, user_id: int, group_ids: List[int]) -> None:
+        if not group_ids:
+            raise GroupOrderMismatch()
+        if len(group_ids) != len(set(group_ids)):
+            raise GroupOrderMismatch()
+
+        with transaction.atomic():
+            selected_groups = list(
+                VideoGroup.objects.select_for_update()
+                .filter(user_id=user_id, id__in=group_ids)
+                .order_by("display_order", "-created_at", "id")
+            )
+            if len(selected_groups) != len(group_ids):
+                raise GroupOrderMismatch()
+
+            order_slots = [group.display_order for group in selected_groups]
+            group_by_id = {group.id: group for group in selected_groups}
+            groups_to_update = []
+            for display_order, group_id in zip(order_slots, group_ids):
+                group = group_by_id[group_id]
+                group.display_order = display_order
+                groups_to_update.append(group)
+            VideoGroup.objects.bulk_update(groups_to_update, ["display_order"])
 
     def update_share_slug(
         self, group: VideoGroupEntity, slug: Optional[str]

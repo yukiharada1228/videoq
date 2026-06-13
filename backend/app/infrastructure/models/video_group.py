@@ -12,6 +12,11 @@ class VideoGroup(models.Model):
     )
     name = models.CharField(max_length=255, help_text="Group name")
     description = models.TextField(blank=True, help_text="Group description")
+    display_order = models.IntegerField(
+        default=0,
+        db_index=True,
+        help_text="Display order in the user's group list",
+    )
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -30,9 +35,9 @@ class VideoGroup(models.Model):
     )
 
     class Meta:
-        ordering = ["-created_at"]
+        ordering = ["display_order", "-created_at", "id"]
         indexes = [
-            models.Index(fields=["user", "-created_at"]),
+            models.Index(fields=["user", "display_order", "-created_at"]),
             models.Index(
                 fields=["share_slug"],
                 condition=models.Q(share_slug__isnull=False),

@@ -644,6 +644,16 @@ describe('ApiClient', () => {
       expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/groups/', expect.anything());
     });
 
+    it('getVideoGroupsPage calls correct endpoint with pagination params', async () => {
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        text: () => Promise.resolve(JSON.stringify({ count: 0, next: null, previous: null, results: [] }))
+      });
+      await apiClient.getVideoGroupsPage({ limit: 24, offset: 48 });
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/groups/?limit=24&offset=48', expect.anything());
+    });
+
     it('getVideoGroup calls correct endpoint', async () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
@@ -678,6 +688,16 @@ describe('ApiClient', () => {
       fetchMock.mockResolvedValueOnce({ ok: true, headers: new Headers() });
       await apiClient.deleteVideoGroup(1);
       expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/groups/1/', expect.objectContaining({ method: 'DELETE' }));
+    });
+
+    it('reorderVideoGroups calls correct endpoint', async () => {
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        text: () => Promise.resolve(JSON.stringify({ message: "OK" }))
+      });
+      await apiClient.reorderVideoGroups([2, 1]);
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/groups/order/', expect.objectContaining({ method: 'PATCH' }));
     });
 
     it('addVideoToGroup calls correct endpoint', async () => {

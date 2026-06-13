@@ -7,6 +7,7 @@ export const queryKeys = {
   videoGroups: {
     prefix: ['videoGroups'] as const,
     all: (userId: number | string | null) => ['videoGroups', userId] as const,
+    infinite: (userId: number | string | null) => ['videoGroups', 'infinite', userId] as const,
     allDetail: ['videoGroup'] as const,
     detail: (groupId: number | null) => ['videoGroup', groupId] as const,
     allShared: ['sharedVideoGroup'] as const,

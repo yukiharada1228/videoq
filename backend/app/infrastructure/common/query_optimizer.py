@@ -126,7 +126,7 @@ class QueryOptimizer:
             include_videos=include_videos,
             include_user=True,
             annotate_video_count=annotate_video_count,
-        ).order_by("-created_at")
+        ).order_by("display_order", "-created_at", "id")
 
 
 class BatchProcessor:

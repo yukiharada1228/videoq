@@ -10,6 +10,7 @@ from app.use_cases.video.manage_groups import (
     CreateShareLinkUseCase,
     DeleteShareLinkUseCase,
     RemoveVideoFromGroupUseCase,
+    ReorderVideoGroupsUseCase,
     ReorderVideosInGroupUseCase,
 )
 from app.use_cases.video.update_group_with_detail import UpdateVideoGroupWithDetailUseCase
@@ -64,6 +65,10 @@ def get_remove_video_from_group_use_case() -> RemoveVideoFromGroupUseCase:
 
 def get_reorder_videos_use_case() -> ReorderVideosInGroupUseCase:
     return ReorderVideosInGroupUseCase(shared.new_video_group_repository())
+
+
+def get_reorder_groups_use_case() -> ReorderVideoGroupsUseCase:
+    return ReorderVideoGroupsUseCase(shared.new_video_group_repository())
 
 
 def get_create_share_link_use_case() -> CreateShareLinkUseCase:

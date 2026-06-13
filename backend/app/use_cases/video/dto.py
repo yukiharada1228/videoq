@@ -165,6 +165,7 @@ class VideoGroupDetailResponseDTO:
     name: str
     description: str
     video_count: int
+    display_order: int = 0
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     share_slug: Optional[str] = None
@@ -180,6 +181,7 @@ class VideoGroupListResponseDTO:
     name: str
     description: str
     video_count: int
+    display_order: int = 0
     created_at: Optional[datetime] = None
 
 

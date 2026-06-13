@@ -33,6 +33,13 @@ class GroupVideoOrderMismatch(Exception):
         super().__init__(message)
 
 
+class GroupOrderMismatch(Exception):
+    """Raised when the provided group order is invalid for the user."""
+
+    def __init__(self, message: str = "Specified group IDs do not match user groups"):
+        super().__init__(message)
+
+
 class SomeVideosNotFound(Exception):
     """Raised when one or more target videos cannot be resolved."""
 
