@@ -1,13 +1,13 @@
 """Usage-limit DI wiring."""
 
 from app.infrastructure.repositories.django_subscription_repository import DjangoUserLimitsRepository
-from app.use_cases.billing.check_ai_answers_limit import CheckAiAnswersLimitUseCase
-from app.use_cases.billing.check_processing_limit import CheckProcessingLimitUseCase
-from app.use_cases.billing.check_storage_limit import CheckStorageLimitUseCase
-from app.use_cases.billing.clear_over_quota import ClearOverQuotaIfWithinLimitUseCase
-from app.use_cases.billing.record_ai_answer_usage import RecordAiAnswerUsageUseCase
-from app.use_cases.billing.record_processing_usage import RecordProcessingUsageUseCase
-from app.use_cases.billing.record_storage_usage import RecordStorageUsageUseCase
+from app.use_cases.quota.check_ai_answers_limit import CheckAiAnswersLimitUseCase
+from app.use_cases.quota.check_processing_limit import CheckProcessingLimitUseCase
+from app.use_cases.quota.check_storage_limit import CheckStorageLimitUseCase
+from app.use_cases.quota.clear_over_quota import ClearOverQuotaIfWithinLimitUseCase
+from app.use_cases.quota.record_ai_answer_usage import RecordAiAnswerUsageUseCase
+from app.use_cases.quota.record_processing_usage import RecordProcessingUsageUseCase
+from app.use_cases.quota.record_storage_usage import RecordStorageUsageUseCase
 
 
 def _new_user_limits_repo() -> DjangoUserLimitsRepository:

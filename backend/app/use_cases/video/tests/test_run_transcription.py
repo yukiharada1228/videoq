@@ -5,7 +5,7 @@ from typing import Callable, Generator, Optional
 from unittest import TestCase
 from unittest.mock import MagicMock
 
-from app.domain.billing.exceptions import ProcessingLimitExceeded
+from app.domain.quota.exceptions import ProcessingLimitExceeded
 from app.domain.video.entities import VideoEntity
 from app.domain.video.exceptions import InvalidVideoStatusTransition
 from app.domain.video.status import VideoStatus

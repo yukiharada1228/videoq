@@ -3,17 +3,17 @@
 from typing import Optional
 from unittest import TestCase
 
-from app.domain.billing.entities import UserLimitsEntity
-from app.domain.billing.exceptions import (
+from app.domain.quota.entities import UserLimitsEntity
+from app.domain.quota.exceptions import (
     AiAnswersLimitExceeded,
     OverQuotaError,
     ProcessingLimitExceeded,
     StorageLimitExceeded,
 )
-from app.domain.billing.ports import UserLimitsRepository
-from app.use_cases.billing.check_ai_answers_limit import CheckAiAnswersLimitUseCase
-from app.use_cases.billing.check_processing_limit import CheckProcessingLimitUseCase
-from app.use_cases.billing.check_storage_limit import CheckStorageLimitUseCase
+from app.domain.quota.ports import UserLimitsRepository
+from app.use_cases.quota.check_ai_answers_limit import CheckAiAnswersLimitUseCase
+from app.use_cases.quota.check_processing_limit import CheckProcessingLimitUseCase
+from app.use_cases.quota.check_storage_limit import CheckStorageLimitUseCase
 
 
 def _make_user_limits(**kwargs) -> UserLimitsEntity:
