@@ -366,14 +366,25 @@ class DjangoVideoGroupRepository(VideoGroupRepository):
         return _group_to_entity(group, include_videos=include_videos)
 
     def list_for_user(
-        self, user_id: int, include_videos: bool = False
+        self,
+        user_id: int,
+        include_videos: bool = False,
+        limit: Optional[int] = None,
+        offset: int = 0,
     ) -> List[VideoGroupEntity]:
         queryset = QueryOptimizer.get_video_groups_with_videos(
             user_id=user_id,
             include_videos=include_videos,
             annotate_video_count=True,
         )
+        if limit is not None:
+            queryset = queryset[offset : offset + limit]
+        elif offset:
+            queryset = queryset[offset:]
         return [_group_to_entity(g, include_videos=include_videos) for g in queryset]
+
+    def count_for_user(self, user_id: int) -> int:
+        return VideoGroup.objects.filter(user_id=user_id).count()
 
     def create(self, user_id: int, params: CreateGroupParams) -> VideoGroupEntity:
         with transaction.atomic():
