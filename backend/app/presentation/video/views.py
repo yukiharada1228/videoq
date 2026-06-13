@@ -383,11 +383,21 @@ class VideoGroupListView(DependencyResolverMixin, AuthenticatedViewMixin, generi
     )
     def get(self, request, *args, **kwargs):
         use_case = self.resolve_dependency(self.list_groups_use_case)
-        groups = use_case.execute(user_id=request.user.id, include_videos=False)
-        data = VideoGroupListSerializer(groups, many=True).data
         paginator = StandardLimitOffsetPagination()
-        page = paginator.paginate_queryset(data, request)
-        return paginator.get_paginated_response(page)
+        limit = paginator.get_limit(request)
+        offset = paginator.get_offset(request)
+        page = use_case.execute_page(
+            user_id=request.user.id,
+            include_videos=False,
+            limit=limit,
+            offset=offset,
+        )
+        data = VideoGroupListSerializer(page.results, many=True).data
+        paginator.request = request
+        paginator.limit = limit
+        paginator.offset = offset
+        paginator.count = page.count
+        return paginator.get_paginated_response(data)
 
     @extend_schema(
         request=VideoGroupCreateSerializer,
@@ -615,9 +625,9 @@ def reorder_video_groups(
     reorder_groups_use_case,
 ):
     """Update video group display order."""
-    group_ids = request.data.get("group_ids", [])
-    if not isinstance(group_ids, list):
-        return create_error_response("group_ids must be an array", status.HTTP_400_BAD_REQUEST)
+    serializer = ReorderGroupsRequestSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    group_ids = serializer.validated_data["group_ids"]
 
     use_case = DependencyResolverMixin.resolve_dependency(reorder_groups_use_case)
     try:

@@ -98,6 +98,24 @@ class DjangoVideoGroupRepositoryOrderTests(TestCase):
             [self.group1.id, self.group2.id, self.group3.id],
         )
 
+    def test_list_for_user_applies_limit_and_offset(self):
+        groups = self.repo.list_for_user(self.user.id, limit=2, offset=1)
+
+        self.assertEqual(
+            [group.id for group in groups],
+            [self.group2.id, self.group3.id],
+        )
+
+    def test_count_for_user_counts_only_users_groups(self):
+        other_user = User.objects.create_user(
+            username="othergrouporder",
+            email="othergrouporder@example.com",
+            password="testpass123",
+        )
+        VideoGroup.objects.create(user=other_user, name="Other", display_order=0)
+
+        self.assertEqual(self.repo.count_for_user(self.user.id), 3)
+
     def test_create_group_appends_after_existing_groups(self):
         group = self.repo.create(
             self.user.id,

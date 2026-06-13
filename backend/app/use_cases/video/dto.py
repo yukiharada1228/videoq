@@ -185,6 +185,14 @@ class VideoGroupListResponseDTO:
     created_at: Optional[datetime] = None
 
 
+@dataclass(frozen=True)
+class VideoGroupListPageResponseDTO:
+    """Use-case output DTO for a paginated video group list."""
+
+    count: int
+    results: List[VideoGroupListResponseDTO]
+
+
 @dataclass
 class TagDetailResponseDTO:
     """

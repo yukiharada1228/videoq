@@ -6,6 +6,8 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 
+from app.use_cases.video.dto import VideoGroupListPageResponseDTO
+
 User = get_user_model()
 Tag = apps.get_model("app", "Tag")
 Video = apps.get_model("app", "Video")
@@ -1095,6 +1097,27 @@ class ReorderVideoGroupsTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
+    def test_reorder_accepts_string_group_ids_after_validation(self):
+        url = reverse("reorder-video-groups")
+        data = {"group_ids": [str(self.group2.pk), str(self.group1.pk)]}
+
+        response = self.client.patch(url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        groups = list(VideoGroup.objects.filter(user=self.user))
+        self.assertEqual(
+            [group.id for group in groups],
+            [self.group2.id, self.group1.id, self.group3.id],
+        )
+
+    def test_reorder_rejects_non_integer_group_id(self):
+        url = reverse("reorder-video-groups")
+        data = {"group_ids": ["not-a-number"]}
+
+        response = self.client.patch(url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
 
 class VideoUploadTests(APITestCase):
     """Tests for video upload"""
@@ -1276,6 +1299,24 @@ class VideoGroupListPaginationTests(APITestCase):
         response = self.client.get(url, {"limit": 2, "offset": 0})
         self.assertEqual(response.data["count"], 5)
         self.assertEqual(len(response.data["results"]), 2)
+
+    @patch("app.use_cases.video.list_groups.ListVideoGroupsUseCase.execute_page")
+    def test_limit_and_offset_are_passed_to_use_case(self, mock_execute_page):
+        mock_execute_page.return_value = VideoGroupListPageResponseDTO(
+            count=5,
+            results=[],
+        )
+        url = reverse("video-group-list")
+
+        response = self.client.get(url, {"limit": 2, "offset": 4})
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        mock_execute_page.assert_called_once_with(
+            user_id=self.user.id,
+            include_videos=False,
+            limit=2,
+            offset=4,
+        )
 
 
 class TagListPaginationTests(APITestCase):

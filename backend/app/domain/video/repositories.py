@@ -144,13 +144,24 @@ class VideoGroupRepository(ABC):
 
     @abstractmethod
     def list_for_user(
-        self, user_id: int, include_videos: bool = False
+        self,
+        user_id: int,
+        include_videos: bool = False,
+        limit: Optional[int] = None,
+        offset: int = 0,
     ) -> List[VideoGroupEntity]:
         """List video groups for a user.
 
         Args:
             include_videos: When True, include member videos in each group.
+            limit: Maximum number of groups to return.
+            offset: Number of groups to skip.
         """
+        ...
+
+    @abstractmethod
+    def count_for_user(self, user_id: int) -> int:
+        """Return the number of video groups owned by the user."""
         ...
 
     @abstractmethod
