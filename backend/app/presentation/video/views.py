@@ -125,15 +125,22 @@ class VideoListView(DependencyResolverMixin, AuthenticatedViewMixin, generics.Ge
             sort_key=ordering,
             tag_ids=tag_ids,
         )
-        videos = use_case.execute(
+        paginator = StandardLimitOffsetPagination()
+        limit = paginator.get_limit(request)
+        offset = paginator.get_offset(request)
+        page = use_case.execute_page(
             user_id=request.user.id,
             input=input_dto,
+            limit=limit,
+            offset=offset,
         )
         ctx = {"request": request}
-        data = VideoListSerializer(videos, many=True, context=ctx).data
-        paginator = StandardLimitOffsetPagination()
-        page = paginator.paginate_queryset(data, request)
-        return paginator.get_paginated_response(page)
+        data = VideoListSerializer(page.results, many=True, context=ctx).data
+        paginator.request = request
+        paginator.limit = limit
+        paginator.offset = offset
+        paginator.count = page.count
+        return paginator.get_paginated_response(data)
 
     @extend_schema(
         request=VideoCreateSerializer,
