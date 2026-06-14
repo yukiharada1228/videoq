@@ -155,7 +155,7 @@ describe('VideoGroupsPage', () => {
     })
   })
 
-  it('should save reordered group order', async () => {
+  it('should show drag handles without entering reorder mode', async () => {
     render(<VideoGroupsPage />)
 
     await waitFor(() => {
@@ -163,9 +163,19 @@ describe('VideoGroupsPage', () => {
       expect(screen.getByText('Group 2')).toBeInTheDocument()
     })
 
-    fireEvent.click(screen.getByText('videos.groups.reorder'))
+    expect(screen.queryByText('videos.groups.reorder')).not.toBeInTheDocument()
+    expect(screen.getAllByLabelText('videos.groups.dragHandle')).toHaveLength(2)
+  })
+
+  it('should save reordered group order immediately', async () => {
+    render(<VideoGroupsPage />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Group 1')).toBeInTheDocument()
+      expect(screen.getByText('Group 2')).toBeInTheDocument()
+    })
+
     fireEvent.click(screen.getByLabelText('videos.groups.moveDown {"name":"Group 1"}'))
-    fireEvent.click(screen.getByText('videos.groups.saveOrder'))
 
     await waitFor(() => {
       expect(apiClient.reorderVideoGroups).toHaveBeenCalledWith([2, 1])
