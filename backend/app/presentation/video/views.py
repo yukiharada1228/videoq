@@ -29,6 +29,7 @@ from app.use_cases.video.dto import (
 )
 from app.use_cases.video.exceptions import (
     FileSizeExceeded,
+    GroupOrderMismatch,
     GroupVideoOrderMismatch,
     InvalidShareSlugInput,
     InvalidTagInput,
@@ -47,6 +48,7 @@ from .serializers import (
     AddVideoToGroupResponseSerializer,
     AddVideosToGroupRequestSerializer,
     AddVideosToGroupResponseSerializer,
+    ReorderGroupsRequestSerializer,
     ReorderVideosRequestSerializer,
     ShareLinkRequestSerializer,
     ShareLinkResponseSerializer,
@@ -381,11 +383,21 @@ class VideoGroupListView(DependencyResolverMixin, AuthenticatedViewMixin, generi
     )
     def get(self, request, *args, **kwargs):
         use_case = self.resolve_dependency(self.list_groups_use_case)
-        groups = use_case.execute(user_id=request.user.id, include_videos=False)
-        data = VideoGroupListSerializer(groups, many=True).data
         paginator = StandardLimitOffsetPagination()
-        page = paginator.paginate_queryset(data, request)
-        return paginator.get_paginated_response(page)
+        limit = paginator.get_limit(request)
+        offset = paginator.get_offset(request)
+        page = use_case.execute_page(
+            user_id=request.user.id,
+            include_videos=False,
+            limit=limit,
+            offset=offset,
+        )
+        data = VideoGroupListSerializer(page.results, many=True).data
+        paginator.request = request
+        paginator.limit = limit
+        paginator.offset = offset
+        paginator.count = page.count
+        return paginator.get_paginated_response(data)
 
     @extend_schema(
         request=VideoGroupCreateSerializer,
@@ -599,6 +611,34 @@ def reorder_videos_in_group(
         )
 
     return Response({"message": "Video order updated"}, status=status.HTTP_200_OK)
+
+
+@extend_schema(
+    request=ReorderGroupsRequestSerializer,
+    responses={200: VideoActionMessageResponseSerializer},
+    summary="Reorder video groups",
+    description="Update the display order of video groups by providing group IDs in the desired order.",
+)
+@authenticated_view_with_error_handling(["PATCH"])
+def reorder_video_groups(
+    request,
+    reorder_groups_use_case,
+):
+    """Update video group display order."""
+    serializer = ReorderGroupsRequestSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    group_ids = serializer.validated_data["group_ids"]
+
+    use_case = DependencyResolverMixin.resolve_dependency(reorder_groups_use_case)
+    try:
+        use_case.execute(group_ids, request.user.id)
+    except GroupOrderMismatch:
+        return create_error_response(
+            "Specified group IDs do not match user groups",
+            status.HTTP_400_BAD_REQUEST,
+        )
+
+    return Response({"message": "Group order updated"}, status=status.HTTP_200_OK)
 
 
 class CreateShareLinkView(DependencyResolverMixin, AuthenticatedViewMixin, APIView):

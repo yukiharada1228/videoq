@@ -63,6 +63,10 @@ def get_reorder_videos_use_case():
     return _cr.get_reorder_videos_use_case()
 
 
+def get_reorder_groups_use_case():
+    return _cr.get_reorder_groups_use_case()
+
+
 def get_create_share_link_use_case():
     return _cr.get_create_share_link_use_case()
 
@@ -126,6 +130,7 @@ __all__ = [
     "get_add_videos_to_group_use_case",
     "get_remove_video_from_group_use_case",
     "get_reorder_videos_use_case",
+    "get_reorder_groups_use_case",
     "get_create_share_link_use_case",
     "get_delete_share_link_use_case",
     "get_shared_group_use_case",

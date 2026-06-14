@@ -1,31 +1,47 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import VideoGroupsPage from '../VideoGroupsPage'
 import { apiClient } from '@/lib/api'
+import { useI18nNavigate } from '@/lib/i18n'
+
+let mockNavigate: ReturnType<typeof vi.fn>
 
 const mockGroups = [
-  { id: 1, name: 'Group 1', description: 'Description 1', video_count: 5 },
-  { id: 2, name: 'Group 2', description: '', video_count: 0 },
+  { id: 1, name: 'Group 1', description: 'Description 1', display_order: 0, created_at: '2024-01-01', video_count: 5 },
+  { id: 2, name: 'Group 2', description: '', display_order: 1, created_at: '2024-01-02', video_count: 0 },
 ]
+
+type MockGroup = (typeof mockGroups)[number]
+
+const mockPaginatedGroups = (results: MockGroup[] = mockGroups) => ({
+  count: results.length,
+  next: null,
+  previous: null,
+  results,
+})
 
 vi.mock('@/lib/api', () => ({
   apiClient: {
     getMe: vi.fn(() => Promise.resolve({ id: '1', username: 'testuser', email: 'test@example.com' })),
     getVideoGroups: vi.fn(),
+    getVideoGroupsPage: vi.fn(),
     createVideoGroup: vi.fn(),
+    reorderVideoGroups: vi.fn(),
   },
 }))
 
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({
     user: { id: 1, username: 'testuser' },
-    loading: false,
+    isLoading: false,
   }),
 }))
 
 describe('VideoGroupsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-      ; (apiClient.getVideoGroups as ReturnType<typeof vi.fn>).mockResolvedValue(mockGroups)
+    mockNavigate = useI18nNavigate() as ReturnType<typeof vi.fn>
+      ; (apiClient.getVideoGroupsPage as ReturnType<typeof vi.fn>).mockResolvedValue(mockPaginatedGroups())
+      ; (apiClient.reorderVideoGroups as ReturnType<typeof vi.fn>).mockResolvedValue({ message: 'OK' })
   })
 
   afterEach(() => {
@@ -66,7 +82,7 @@ describe('VideoGroupsPage', () => {
   })
 
   it('should display empty message when no groups', async () => {
-    ; (apiClient.getVideoGroups as ReturnType<typeof vi.fn>).mockResolvedValue([])
+    ; (apiClient.getVideoGroupsPage as ReturnType<typeof vi.fn>).mockResolvedValue(mockPaginatedGroups([]))
 
     render(<VideoGroupsPage />)
 
@@ -143,6 +159,34 @@ describe('VideoGroupsPage', () => {
     })
   })
 
+  it('should show drag handles without entering reorder mode', async () => {
+    render(<VideoGroupsPage />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Group 1')).toBeInTheDocument()
+      expect(screen.getByText('Group 2')).toBeInTheDocument()
+    })
+
+    expect(screen.queryByText('videos.groups.reorder')).not.toBeInTheDocument()
+    expect(screen.getAllByLabelText('videos.groups.dragHandle')).toHaveLength(2)
+  })
+
+  it('should save reordered group order immediately', async () => {
+    render(<VideoGroupsPage />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Group 1')).toBeInTheDocument()
+      expect(screen.getByText('Group 2')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByLabelText('videos.groups.moveDown {"name":"Group 1"}'))
+
+    await waitFor(() => {
+      expect(apiClient.reorderVideoGroups).toHaveBeenCalledWith([2, 1])
+    })
+    expect(mockNavigate).not.toHaveBeenCalled()
+  })
+
 
 })
 
@@ -152,7 +196,7 @@ describe('VideoGroupsPage - Error Handling', () => {
   })
 
   it('should display error message on load failure', async () => {
-    ; (apiClient.getVideoGroups as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Load failed'))
+    ; (apiClient.getVideoGroupsPage as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Load failed'))
 
     render(<VideoGroupsPage />)
 

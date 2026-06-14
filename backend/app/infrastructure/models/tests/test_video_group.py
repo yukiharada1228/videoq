@@ -113,17 +113,28 @@ class VideoGroupModelTests(TestCase):
 
         self.assertEqual(str(group), "My Group (by testuser)")
 
-    def test_ordering_by_created_at_desc(self):
-        """Test that groups are ordered by created_at descending"""
-        group1 = VideoGroup.objects.create(user=self.user, name="Group 1")
-        group2 = VideoGroup.objects.create(user=self.user, name="Group 2")
-        group3 = VideoGroup.objects.create(user=self.user, name="Group 3")
+    def test_default_display_order_is_zero(self):
+        """Test that display order defaults to 0"""
+        group = VideoGroup.objects.create(user=self.user, name="Group")
+
+        self.assertEqual(group.display_order, 0)
+
+    def test_ordering_by_display_order_then_created_at_desc(self):
+        """Test that groups are ordered by display_order first"""
+        group1 = VideoGroup.objects.create(
+            user=self.user, name="Group 1", display_order=2
+        )
+        group2 = VideoGroup.objects.create(
+            user=self.user, name="Group 2", display_order=0
+        )
+        group3 = VideoGroup.objects.create(
+            user=self.user, name="Group 3", display_order=1
+        )
 
         groups = list(VideoGroup.objects.all())
 
-        # Most recently created should be first
-        self.assertEqual(groups[0], group3)
-        self.assertEqual(groups[1], group2)
+        self.assertEqual(groups[0], group2)
+        self.assertEqual(groups[1], group3)
         self.assertEqual(groups[2], group1)
 
     def test_cascade_delete_on_user(self):

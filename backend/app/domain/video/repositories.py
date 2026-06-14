@@ -144,13 +144,24 @@ class VideoGroupRepository(ABC):
 
     @abstractmethod
     def list_for_user(
-        self, user_id: int, include_videos: bool = False
+        self,
+        user_id: int,
+        include_videos: bool = False,
+        limit: Optional[int] = None,
+        offset: int = 0,
     ) -> List[VideoGroupEntity]:
         """List video groups for a user.
 
         Args:
             include_videos: When True, include member videos in each group.
+            limit: Maximum number of groups to return.
+            offset: Number of groups to skip.
         """
+        ...
+
+    @abstractmethod
+    def count_for_user(self, user_id: int) -> int:
+        """Return the number of video groups owned by the user."""
         ...
 
     @abstractmethod
@@ -209,6 +220,11 @@ class VideoGroupRepository(ABC):
     @abstractmethod
     def reorder_videos(self, group: VideoGroupEntity, video_ids: List[int]) -> None:
         """Persist video order in a group according to the given ID list."""
+        ...
+
+    @abstractmethod
+    def reorder_groups(self, user_id: int, group_ids: List[int]) -> None:
+        """Persist display order for the given subset of a user's groups."""
         ...
 
     @abstractmethod

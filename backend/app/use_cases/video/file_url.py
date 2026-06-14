@@ -91,6 +91,7 @@ def to_group_detail_response_dto(
         name=group.name,
         description=group.description,
         video_count=group.video_count,
+        display_order=group.display_order,
         created_at=group.created_at,
         updated_at=group.updated_at,
         share_slug=group.share_slug,
@@ -107,6 +108,7 @@ def to_group_list_response_dtos(groups: Iterable[VideoGroupEntity]) -> List[Vide
             name=g.name,
             description=g.description,
             video_count=g.video_count,
+            display_order=g.display_order,
             created_at=g.created_at,
         )
         for g in groups
