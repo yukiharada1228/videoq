@@ -6,7 +6,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 
-from app.use_cases.video.dto import VideoGroupListPageResponseDTO
+from app.use_cases.video.dto import VideoGroupListPageResponseDTO, VideoListPageResponseDTO
 
 User = get_user_model()
 Tag = apps.get_model("app", "Tag")
@@ -1271,6 +1271,23 @@ class VideoListPaginationTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data["results"]), 1)
         self.assertIsNone(response.data["next"])
+
+    @patch("app.use_cases.video.list_videos.ListVideosUseCase.execute_page")
+    def test_limit_and_offset_are_passed_to_use_case(self, mock_execute_page):
+        mock_execute_page.return_value = VideoListPageResponseDTO(
+            count=5,
+            results=[],
+        )
+        url = reverse("video-list")
+
+        response = self.client.get(url, {"limit": 2, "offset": 4})
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        mock_execute_page.assert_called_once()
+        _, kwargs = mock_execute_page.call_args
+        self.assertEqual(kwargs["user_id"], self.user.id)
+        self.assertEqual(kwargs["limit"], 2)
+        self.assertEqual(kwargs["offset"], 4)
 
 
 class VideoGroupListPaginationTests(APITestCase):

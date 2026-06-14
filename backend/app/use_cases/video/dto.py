@@ -134,6 +134,14 @@ class VideoResponseDTO:
 
 
 @dataclass(frozen=True)
+class VideoListPageResponseDTO:
+    """Use-case output DTO for a paginated video list."""
+
+    count: int
+    results: List[VideoResponseDTO]
+
+
+@dataclass(frozen=True)
 class UploadRequestResponseDTO:
     """Output for RequestVideoUploadUseCase — video record + presigned upload URL."""
 

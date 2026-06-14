@@ -6,7 +6,7 @@ import logging
 from typing import Dict, List, Optional, Tuple
 
 from django.db import IntegrityError, transaction
-from django.db.models import Count, Max, Prefetch
+from django.db.models import Count, Max, Prefetch, Q, QuerySet
 
 from app.domain.video.dto import (
     CreateGroupParams,
@@ -153,11 +153,30 @@ class DjangoVideoRepository(VideoRepository):
         self,
         user_id: int,
         criteria: Optional[VideoSearchCriteria] = None,
+        limit: Optional[int] = None,
+        offset: int = 0,
     ) -> List[VideoEntity]:
-        from django.db.models import Q
+        queryset = self._build_list_queryset(user_id=user_id, criteria=criteria)
 
+        if limit is not None:
+            queryset = queryset[offset : offset + limit]
+        elif offset:
+            queryset = queryset[offset:]
+        return [_video_to_entity(v) for v in queryset]
+
+    def count_for_user(
+        self,
+        user_id: int,
+        criteria: Optional[VideoSearchCriteria] = None,
+    ) -> int:
+        return self._build_list_queryset(user_id=user_id, criteria=criteria).count()
+
+    def _build_list_queryset(
+        self,
+        user_id: int,
+        criteria: Optional[VideoSearchCriteria] = None,
+    ) -> QuerySet:
         search = criteria or VideoSearchCriteria()
-
         queryset = QueryOptimizer.get_videos_with_metadata(user_id=user_id)
 
         if search.keyword:
@@ -188,7 +207,7 @@ class DjangoVideoRepository(VideoRepository):
         if search.sort_key in ordering_map:
             queryset = queryset.order_by(ordering_map[search.sort_key])
 
-        return [_video_to_entity(v) for v in queryset]
+        return queryset
 
     def create_pending(self, user_id: int, params: CreateVideoPendingParams) -> VideoEntity:
         video = Video.objects.create(
@@ -277,9 +296,6 @@ class DjangoVideoRepository(VideoRepository):
         orm_video.delete()
         if file_ref:
             transaction.on_commit(lambda: file_ref.delete(save=False))
-
-    def count_for_user(self, user_id: int) -> int:
-        return Video.objects.filter(user_id=user_id).count()
 
     def get_file_keys_for_ids(
         self, video_ids: List[int], user_id: int

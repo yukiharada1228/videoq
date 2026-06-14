@@ -36,7 +36,8 @@ class NPlusOneTestCase(TestCase):
 
         # 1. Main Video Query (includes User join)
         # 2. VideoTag Query (includes Tag join) - Prefetch
-        with self.assertNumQueries(2):
+        # 3. Count Query for paginated response metadata
+        with self.assertNumQueries(3):
             response = self.client.get(url)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
 
