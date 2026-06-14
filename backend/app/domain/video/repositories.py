@@ -39,13 +39,24 @@ class VideoQueryRepository(ABC):
         self,
         user_id: int,
         criteria: Optional[VideoSearchCriteria] = None,
+        limit: Optional[int] = None,
+        offset: int = 0,
     ) -> List[VideoEntity]:
-        """List videos for a user with optional filters."""
+        """List videos for a user with optional filters.
+
+        Args:
+            limit: Maximum number of videos to return.
+            offset: Number of videos to skip.
+        """
         ...
 
     @abstractmethod
-    def count_for_user(self, user_id: int) -> int:
-        """Return the number of videos owned by the user."""
+    def count_for_user(
+        self,
+        user_id: int,
+        criteria: Optional[VideoSearchCriteria] = None,
+    ) -> int:
+        """Return the number of videos owned by the user with optional filters."""
         ...
 
     @abstractmethod

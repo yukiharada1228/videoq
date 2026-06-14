@@ -69,6 +69,17 @@ class DjangoVideoRepositoryTagFilterTests(TestCase):
         results = self.repo.list_for_user(self.user.id, VideoSearchCriteria())
         self.assertEqual(len(results), 3)
 
+    def test_list_for_user_applies_limit_and_offset(self):
+        criteria = VideoSearchCriteria(sort_key="title_asc")
+        results = self.repo.list_for_user(self.user.id, criteria, limit=2, offset=1)
+
+        self.assertEqual([video.title for video in results], ["Video AB", "Video B"])
+
+    def test_count_for_user_applies_filters_without_limit(self):
+        criteria = VideoSearchCriteria(tag_ids=[self.tag_a.id])
+
+        self.assertEqual(self.repo.count_for_user(self.user.id, criteria), 2)
+
 
 class DjangoVideoGroupRepositoryOrderTests(TestCase):
     """Tests for video group display ordering behavior."""
