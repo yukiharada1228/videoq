@@ -122,7 +122,7 @@ class VideoAdmin(admin.ModelAdmin):
 
 @admin.register(VideoGroup)
 class VideoGroupAdmin(admin.ModelAdmin):
-    list_display = ("name", "user", "get_video_count", "created_at")
+    list_display = ("name", "user", "display_order", "get_video_count", "created_at")
     list_filter = ("created_at",)
     search_fields = ("name", "user__username")
     readonly_fields = ("created_at", "updated_at", "get_video_count")

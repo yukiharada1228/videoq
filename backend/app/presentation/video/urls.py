@@ -17,6 +17,7 @@ from .views import (
     add_videos_to_group,
     get_shared_group,
     remove_tag_from_video,
+    reorder_video_groups,
     reorder_videos_in_group,
 )
 
@@ -60,6 +61,12 @@ urlpatterns = [
             create_group_use_case=video_dependencies.get_create_group_use_case,
         ),
         name="video-group-list",
+    ),
+    path(
+        "groups/order/",
+        reorder_video_groups,
+        {"reorder_groups_use_case": video_dependencies.get_reorder_groups_use_case},
+        name="reorder-video-groups",
     ),
     path(
         "groups/<int:pk>/",
