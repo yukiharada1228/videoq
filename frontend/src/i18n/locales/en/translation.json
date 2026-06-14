@@ -359,6 +359,7 @@
       "cancelReorder": "Cancel",
       "reorderHint": "{{count}} of {{total}} groups loaded. Drag groups or use the up and down buttons to change the order.",
       "dragHandle": "Drag to reorder",
+      "open": "Open {{name}}",
       "moveUp": "Move {{name}} up",
       "moveDown": "Move {{name}} down",
       "loadingMore": "Loading...",
