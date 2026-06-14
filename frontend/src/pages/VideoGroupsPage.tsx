@@ -1,4 +1,4 @@
-import { useEffect, useState, type KeyboardEvent } from 'react';
+import { useEffect, useState } from 'react';
 import {
   DndContext,
   KeyboardSensor,
@@ -69,26 +69,11 @@ function SortableGroupCard({
     opacity: isDragging ? 0.5 : 1,
   };
 
-  const handleOpen = () => {
-    onOpen(group.id);
-  };
-
-  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      onOpen(group.id);
-    }
-  };
-
   return (
     <div
       ref={setNodeRef}
       style={style}
-      role="button"
-      tabIndex={0}
-      onClick={handleOpen}
-      onKeyDown={handleKeyDown}
-      className={`group text-left bg-white rounded-2xl shadow-[0_4px_20px_rgba(28,25,23,0.04)] overflow-hidden border border-transparent hover:shadow-[0_8px_30px_rgba(28,25,23,0.10)] cursor-pointer transition-colors ${isDragging ? 'shadow-lg z-50' : ''}`}
+      className={`group text-left bg-white rounded-2xl shadow-[0_4px_20px_rgba(28,25,23,0.04)] overflow-hidden border border-transparent hover:shadow-[0_8px_30px_rgba(28,25,23,0.10)] transition-colors ${isDragging ? 'shadow-lg z-50' : ''}`}
     >
       <div className="p-5">
         <div className="flex items-start gap-3">
@@ -104,8 +89,14 @@ function SortableGroupCard({
             </span>
           )}
           <div className="min-w-0 flex-1">
-            <h2 className="font-extrabold text-[#191c19] text-base leading-snug mb-2 group-hover:text-[#00652c] transition-colors">
-              {group.name}
+            <h2 className="mb-2">
+              <button
+                type="button"
+                onClick={() => onOpen(group.id)}
+                className="block w-full rounded-md text-left font-extrabold text-[#191c19] text-base leading-snug hover:text-[#00652c] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00652c] focus-visible:ring-offset-2 transition-colors"
+              >
+                {group.name}
+              </button>
             </h2>
             <p className="text-sm text-[#6f7a6e] leading-relaxed line-clamp-2 mb-4 min-h-[2.5rem]">
               {group.description || t('common.messages.noDescription')}
@@ -145,9 +136,14 @@ function SortableGroupCard({
                 </button>
               </>
             )}
-            <span className="w-8 h-8 rounded-full flex items-center justify-center bg-[#f0fdf4] text-[#00652c] opacity-0 group-hover:opacity-100 transition-opacity">
+            <button
+              type="button"
+              onClick={() => onOpen(group.id)}
+              aria-label={t('videos.groups.open', { name: group.name })}
+              className="w-8 h-8 rounded-full flex items-center justify-center bg-[#f0fdf4] text-[#00652c] opacity-0 group-hover:opacity-100 focus:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00652c] focus-visible:ring-offset-2 transition-opacity"
+            >
               <ArrowRight className="w-4 h-4" />
-            </span>
+            </button>
           </div>
         </div>
       </div>

@@ -1,6 +1,9 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import VideoGroupsPage from '../VideoGroupsPage'
 import { apiClient } from '@/lib/api'
+import { useI18nNavigate } from '@/lib/i18n'
+
+let mockNavigate: ReturnType<typeof vi.fn>
 
 const mockGroups = [
   { id: 1, name: 'Group 1', description: 'Description 1', display_order: 0, created_at: '2024-01-01', video_count: 5 },
@@ -36,6 +39,7 @@ vi.mock('@/hooks/useAuth', () => ({
 describe('VideoGroupsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockNavigate = useI18nNavigate() as ReturnType<typeof vi.fn>
       ; (apiClient.getVideoGroupsPage as ReturnType<typeof vi.fn>).mockResolvedValue(mockPaginatedGroups())
       ; (apiClient.reorderVideoGroups as ReturnType<typeof vi.fn>).mockResolvedValue({ message: 'OK' })
   })
@@ -180,6 +184,7 @@ describe('VideoGroupsPage', () => {
     await waitFor(() => {
       expect(apiClient.reorderVideoGroups).toHaveBeenCalledWith([2, 1])
     })
+    expect(mockNavigate).not.toHaveBeenCalled()
   })
 
 
