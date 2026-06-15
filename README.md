@@ -1,218 +1,242 @@
 # VideoQ
 
-🎥 **AIに質問するだけで、見たいシーンに瞬時にジャンプ**
+**Jump instantly to the scenes you want by asking AI questions**
 
-VideoQは、動画を自動で文字起こしし、自然言語で動画と会話できるAI搭載の動画ナビゲーターです。
+VideoQ is an AI-powered video navigator that automatically transcribes videos and lets you chat with them in natural language.
 
 **[https://videoq.jp/](https://videoq.jp/)**
 
+Japanese version: [README.ja.md](README.ja.md)
+
 ![VideoQ Application Screenshot](assets/screenshot.gif)
 
-> 🔌 **API連携にも対応** — APIキー認証と OpenAI 互換 API で既存システムと連携できます。詳しくは[開発者向けAPI連携](#developer-api)をご覧ください。
+> **API integration supported** - Connect VideoQ with existing systems through API key authentication and an OpenAI-compatible API. See [Developer API Integration](#developer-api) for details.
 >
-> 📖 **設計ドキュメント** — アーキテクチャ図、ER図、シーケンス図などの詳細は[docs/](docs/README.md)を参照してください。
+> **Design documentation** - See [docs/](docs/README.md) for architecture diagrams, ER diagrams, sequence diagrams, and other technical details.
 
-## ✨ できること
+## Features
 
-- **対応形式の動画をアップロード** - MP4、MOV、AVI、MKV、WebM、M4V、MPEG、3GP など
-- **質問する** - 「予算について何と言っていた？」「要点をまとめて」など
-- **コンテンツを検索** - 何時間もの映像をスクラブせずに特定の瞬間を見つける
-- **タグで整理** - カスタムタグと色で動画を整理
-- **インサイトを共有** - チームコラボレーション用の共有可能な動画グループを作成
-- **多言語対応** - 日本語・英語インターフェースの切り替え
+- **Upload supported video formats** - MP4, MOV, AVI, MKV, WebM, M4V, MPEG, 3GP, and more
+- **Ask questions** - For example, "What did they say about the budget?" or "Summarize the key points"
+- **Search video content** - Find specific moments without scrubbing through hours of footage
+- **Organize with tags** - Manage videos with custom tags and colors
+- **Share insights** - Create shareable video groups for team collaboration
+- **Multilingual UI** - Switch between Japanese and English interfaces
 
-## 🚀 クイックスタート（5分）
+## Quick Start (5 minutes)
 
-### 必要なもの
+### Requirements
 
-- [Docker](https://docs.docker.com/get-docker/) と [Docker Compose](https://docs.docker.com/compose/install/) がインストール済み
-- デフォルト構成で使う場合は [OpenAI APIキー](https://platform.openai.com/api-keys)
-- YouTube動画を取り込む場合は [SearchAPI の APIキー](https://www.searchapi.io/)
+- [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/) installed
+- An [OpenAI API key](https://platform.openai.com/api-keys) for the default configuration
+- A [SearchAPI API key](https://www.searchapi.io/) if you want to import YouTube videos
 
-ここでは、ローカルで VideoQ を起動して、ブラウザで使い始めるまでを順番に進めます。
+This guide walks you through starting VideoQ locally and opening it in your browser.
 
-### ステップ1: デフォルト構成用の OpenAI APIキーを取得
+### Step 1: Get an OpenAI API key for the default setup
 
-1. [OpenAI Platform](https://platform.openai.com/api-keys) にアクセス
-2. サインアップまたはログイン
-3. 「Create new secret key」をクリック
-4. キーをコピー（`sk-...` で始まります）
+1. Go to [OpenAI Platform](https://platform.openai.com/api-keys)
+2. Sign up or log in
+3. Click "Create new secret key"
+4. Copy the key, which starts with `sk-...`
 
-デフォルト構成では、文字起こし・埋め込み・チャットに OpenAI を使用します。完全ローカル構成にする場合は、後述のローカル Whisper / Ollama 設定に切り替えてください。
+The default setup uses OpenAI for transcription, embeddings, and chat. If you want a fully local setup, switch to the local Whisper / Ollama configuration described below.
 
-### ステップ2: VideoQをセットアップ
+### Step 2: Set up VideoQ
 
 ```bash
-# プロジェクトをクローンして移動
+# Clone the project and enter the directory
 git clone https://github.com/yukiharada1228/videoq.git
 cd videoq
 
-# 設定ファイルをコピー
+# Copy the environment file
 cp .env.example .env
 ```
 
-`.env` を開き、デフォルト構成で使用する OpenAI API キーを設定してください。
+Open `.env` and set the OpenAI API key used by the default configuration.
 
 ```bash
 OPENAI_API_KEY=sk-proj-...
 ```
 
-YouTube URL から字幕を取得したい場合は、VideoQ の Settings 画面で各ユーザーが自分の `SearchAPI` キーを設定してください。
+If you want to fetch subtitles from YouTube URLs, each user should configure their own `SearchAPI` key from the VideoQ Settings screen.
 
-### ステップ3: VideoQを起動
+### Step 3: Start VideoQ
 
 ```bash
-# 全サービスを起動（初回は数分かかることがあります）
+# Start all services. The first run may take a few minutes.
 docker compose up --build -d
 
-# 初期セットアップ
+# Initial setup
 docker compose exec backend python manage.py migrate
 docker compose exec backend python manage.py collectstatic --noinput
 docker compose exec backend python manage.py createsuperuser
 ```
 
-### ステップ4: VideoQを使い始める！
+### Step 4: Start using VideoQ
 
-ブラウザで [http://localhost](http://localhost) を開けば準備完了です！
+Open [http://localhost](http://localhost) in your browser.
 
-**便利なリンク:**
-- **管理パネル:** [http://localhost/api/admin](http://localhost/api/admin) （ユーザー、動画の管理）
-- **API ドキュメント:** [http://localhost/api/docs/](http://localhost/api/docs/) （開発者向け）
+**Useful links:**
+- **Admin panel:** [http://localhost/api/admin](http://localhost/api/admin) for managing users and videos
+- **API docs:** [http://localhost/api/docs/](http://localhost/api/docs/) for developers
 
-**最初にやること:**
-1. 作成した管理者アカウントでログイン
-2. 必要なら一般ユーザーを作成
-3. 一般ユーザーには動画アップロード上限を設定
-4. 動画をアップロードして、文字起こし完了後にチャットを試す
+**First steps:**
+1. Log in with the admin account you created
+2. Create regular users if needed
+3. Configure upload limits for regular users
+4. Upload a video, wait for transcription, and try chatting with it
 
-### 📋 先に確認：ユーザー制限の設定
+### Check first: user limit settings
 
-VideoQ はユーザーごとに制限を管理パネルで直接設定します。
+VideoQ manages per-user limits directly from the admin panel.
 
-**設定場所**
-1. [管理パネル](http://localhost/api/admin) にアクセス
-2. `Users` を開く
-3. 対象ユーザーを選ぶ
-4. 以下を設定して保存
+**Where to configure them**
+1. Open the [admin panel](http://localhost/api/admin)
+2. Open `Users`
+3. Select the target user
+4. Configure the following values and save
 
-| 設定項目 | 説明 |
-|----------|------|
-| `Max video upload size mb` | 1本あたりのアップロード上限（MB）（デフォルト: 500） |
-| `Storage limit gb` | ストレージ上限（GB）（デフォルト: 0、空欄で無制限） |
-| `Processing limit minutes` | 文字起こし処理時間上限（分/月）（デフォルト: 0、空欄で無制限） |
-| `Ai answers limit` | AI回答数上限（回/月）（デフォルト: 0、空欄で無制限） |
+| Setting | Description |
+|----------|-------------|
+| `Max video upload size mb` | Maximum upload size per video in MB. Default: 500 |
+| `Storage limit gb` | Storage limit in GB. Default: 0, or leave blank for unlimited |
+| `Processing limit minutes` | Monthly transcription processing limit in minutes. Default: 0, or leave blank for unlimited |
+| `Ai answers limit` | Monthly AI answer limit. Default: 0, or leave blank for unlimited |
 
 <details>
-<summary><strong>📦 オプション：クラウドストレージの設定 (AWS S3 / Cloudflare R2)</strong></summary>
+<summary><strong>Optional: cloud storage setup (AWS S3 / Cloudflare R2)</strong></summary>
 
-**※このステップは必須ではありません。** デフォルトではローカルのファイルシステムに動画を保存しますが、AWS S3やCloudflare R2などのオブジェクトストレージを使用することも可能です。
+**This step is optional.** VideoQ stores videos on the local filesystem by default, but you can also use object storage such as AWS S3 or Cloudflare R2.
 
-`.env` ファイルで以下を設定：
+Configure the following values in `.env`:
+
 ```bash
 USE_S3_STORAGE=true
 AWS_ACCESS_KEY_ID=your-key
 AWS_SECRET_ACCESS_KEY=your-secret
 AWS_STORAGE_BUCKET_NAME=your-bucket
 
-# AWS S3 の場合
+# AWS S3
 AWS_S3_REGION_NAME=ap-northeast-1
 
-# Cloudflare R2 の場合
+# Cloudflare R2
 AWS_S3_ENDPOINT_URL=https://<account-id>.r2.cloudflarestorage.com
 AWS_S3_REGION_NAME=auto
 ```
 
-再起動: `docker compose restart backend celery-worker`
+Restart the services:
+
+```bash
+docker compose restart backend celery-worker
+```
 
 </details>
 
 <details>
-<summary><strong>💰 オプション：ローカルAIでコストを節約</strong></summary>
+<summary><strong>Optional: reduce costs with local AI</strong></summary>
 
-**※このステップは必須ではありません。** デフォルトのOpenAI設定で問題ない場合は、スキップして構いません。
+**This step is optional.** Skip it if the default OpenAI setup works for you.
 
-コストを抑えたい場合や、プライバシーを重視して完全オフラインで動かしたい場合のみ、以下の手順で無料のローカルAIモデルに切り替えることができます。
+If you want to reduce costs or run fully offline for privacy reasons, you can switch to free local AI models with the following steps.
 
 <details>
-<summary><strong>🖥️ ローカルWhisper（無料の文字起こし）</strong></summary>
+<summary><strong>Local Whisper for free transcription</strong></summary>
 
-コンピューターのGPUを使用して、より高速で無料の文字起こしを実現。
+Use your computer's GPU for faster, free transcription.
 
-**クイックセットアップ:**
+**Quick setup:**
 
 ```bash
-# 1. whisper.cppを取得（VideoQルートディレクトリから）
+# 1. Fetch whisper.cpp from the VideoQ root directory
 git submodule update --init --recursive
 cd whisper.cpp
 
-# 2. ビルド
+# 2. Build
 cmake -B build
 cmake --build build -j --config Release
 
-# 3. モデルをダウンロード
+# 3. Download a model
 bash ./models/download-ggml-model.sh large-v3-turbo
 
-# 4. サーバーを起動
+# 4. Start the server
 ./build/bin/whisper-server -m models/ggml-large-v3-turbo.bin --inference-path /audio/transcriptions -l ja
 ```
 
-**VideoQを設定:**
+**Configure VideoQ:**
 
-`.env` ファイルを編集：
+Edit `.env`:
+
 ```bash
 WHISPER_BACKEND=whisper.cpp
 WHISPER_LOCAL_URL=http://host.docker.internal:8080
 ```
 
-再起動: `docker compose restart backend celery-worker`
+Restart the services:
+
+```bash
+docker compose restart backend celery-worker
+```
 
 </details>
 
 <details>
-<summary><strong>🤖 OllamaでローカルAIチャット（無料のChatGPT代替）</strong></summary>
+<summary><strong>Local AI chat with Ollama as a free ChatGPT alternative</strong></summary>
 
-**Ollamaをインストール:**
-1. [ollama.com](https://ollama.com) からダウンロード
-2. インストールして実行
+**Install Ollama:**
+1. Download it from [ollama.com](https://ollama.com)
+2. Install and run it
 
-**モデルを取得:**
+**Pull a model:**
+
 ```bash
 ollama pull qwen3:0.6b
 ```
 
-**VideoQを設定:**
+**Configure VideoQ:**
 
-`.env` ファイルを編集：
+Edit `.env`:
+
 ```bash
 LLM_PROVIDER=ollama
 LLM_MODEL=qwen3:0.6b
 OLLAMA_BASE_URL=http://host.docker.internal:11434
 ```
 
-再起動: `docker compose restart backend celery-worker`
+Restart the services:
+
+```bash
+docker compose restart backend celery-worker
+```
 
 </details>
 
 <details>
-<summary><strong>🔍 ローカル埋め込み（無料のテキスト検索）</strong></summary>
+<summary><strong>Local embeddings for free text search</strong></summary>
 
-**埋め込みモデルを取得:**
+**Pull an embedding model:**
+
 ```bash
 ollama pull qwen3-embedding:0.6b
 ```
 
-**VideoQを設定:**
+**Configure VideoQ:**
 
-`.env` ファイルを編集：
+Edit `.env`:
+
 ```bash
 EMBEDDING_PROVIDER=ollama
 EMBEDDING_MODEL=qwen3-embedding:0.6b
 OLLAMA_BASE_URL=http://host.docker.internal:11434
 ```
 
-再起動: `docker compose restart backend celery-worker`
+Restart the services:
 
-**重要:** OpenAIからローカル埋め込みに切り替える場合、管理パネルで既存の動画を再インデックスする必要があります。
+```bash
+docker compose restart backend celery-worker
+```
+
+**Important:** If you switch from OpenAI embeddings to local embeddings, you must re-index existing videos from the admin panel.
 
 </details>
 
@@ -220,31 +244,31 @@ OLLAMA_BASE_URL=http://host.docker.internal:11434
 
 <a id="developer-api"></a>
 
-## 🔌 開発者向けAPI連携
+## Developer API Integration
 
-VideoQ は連携用 API キー認証に対応しており、既存システムやバッチからサーバー間通信で利用できます。
+VideoQ supports API key authentication for integrations, so you can use it from existing systems and batch jobs through server-to-server communication.
 
-Settings 画面の「連携用APIキー」から `vq_...` 形式のキーを発行し、REST API では `X-API-Key` ヘッダー、OpenAI 互換 API では `Authorization: Bearer <vq_...>` で認証します。連携手順・認証・エンドポイント別サンプルコード（cURL / JavaScript / TypeScript / Python / Go / Java / C# / PHP / Ruby）は、アプリ内の開発者Docsを参照してください。
+Issue a `vq_...` integration key from "Integration API Keys" in the Settings screen. Use the `X-API-Key` header for the REST API and `Authorization: Bearer <vq_...>` for the OpenAI-compatible API. For integration steps, authentication details, and endpoint-specific sample code in cURL / JavaScript / TypeScript / Python / Go / Java / C# / PHP / Ruby, see the in-app developer docs.
 
-- **開発者Docs:** [http://localhost/docs](http://localhost/docs)
+- **Developer docs:** [http://localhost/docs](http://localhost/docs)
 - **OpenAPI (Swagger UI):** [http://localhost/api/docs/](http://localhost/api/docs/)
 - **ReDoc:** [http://localhost/api/redoc/](http://localhost/api/redoc/)
 
-## 🤝 貢献
+## Contributing
 
-バグを見つけた？機能を追加したい？貢献を歓迎します！
+Found a bug or want to add a feature? Contributions are welcome.
 
-1. リポジトリをフォーク
-2. 機能ブランチを作成
-3. 変更を加える
-4. 必要に応じてテストを追加
-5. プルリクエストを送信
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests as needed
+5. Submit a pull request
 
-## 📚 引用
+## Citation
 
-- 藤吉 弘亘. "AIと共に生きる時代における教育への生成 AI 活用：「藤吉 AI先生」". 情報処理学会 会誌「情報処理」 Vol.66, No.11 (2025).
+- Hirotsugu Fujiyoshi. "Using Generative AI in Education in an Era of Living with AI: 'Professor Fujiyoshi AI'". IPSJ Magazine "Information Processing" Vol.66, No.11 (2025).
   - [https://ipsj.ixsq.nii.ac.jp/records/2004788](https://ipsj.ixsq.nii.ac.jp/records/2004788)
 
-## 📄 ライセンス
+## License
 
-詳細は [LICENSE](LICENSE) ファイルをご覧ください。
+See the [LICENSE](LICENSE) file for details.
