@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Mail, Plus, Trash2, X } from 'lucide-react';
+import { ConnectedAppsSection } from '@/components/auth/ConnectedAppsSection';
 
 type AccessLevel = 'all' | 'read_only';
 
@@ -519,6 +520,9 @@ export default function SettingsPage() {
               </div>
             )}
           </section>
+
+          {/* ── Connected Apps (OAuth tokens) ────────────────────────── */}
+          <ConnectedAppsSection />
 
           {/* ── Danger Zone ─────────────────────────────────────────── */}
           <section className="bg-white rounded-xl shadow-[0_4px_20px_rgba(28,25,23,0.04)] p-5 border-l-4 border-red-400">

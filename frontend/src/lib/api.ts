@@ -77,6 +77,15 @@ export interface SearchApiKeyStatus {
   has_api_key: boolean;
 }
 
+export interface AuthorizedOAuthToken {
+  id: number;
+  client_id: string;
+  client_name: string;
+  scope: string;
+  issued_at: string;
+  expires_at: string | null;
+}
+
 export interface SignupRequest {
   username: string;
   email: string;
@@ -725,6 +734,19 @@ export class ApiClient {
 
   async revokeIntegrationApiKey(id: number): Promise<void> {
     await this.request(`/auth/api-keys/${id}/`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getAuthorizedOAuthTokens(): Promise<AuthorizedOAuthToken[]> {
+    const data = await this.request<{ tokens: AuthorizedOAuthToken[] }>(
+      '/oauth/tokens/',
+    );
+    return data.tokens;
+  }
+
+  async revokeAuthorizedOAuthToken(id: number): Promise<void> {
+    await this.request(`/oauth/tokens/${id}/`, {
       method: 'DELETE',
     });
   }

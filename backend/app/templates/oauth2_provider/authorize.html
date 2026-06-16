@@ -1,0 +1,82 @@
+{% load i18n %}<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% trans "Authorize" %} {{ application.name }} — VideoQ</title>
+  <style>
+    :root { color-scheme: light; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #f7f8f4;
+      color: #191c19;
+      padding: 24px;
+    }
+    .card {
+      width: 100%;
+      max-width: 420px;
+      background: #ffffff;
+      border-radius: 16px;
+      box-shadow: 0 6px 30px rgba(28, 25, 23, 0.08);
+      padding: 32px;
+    }
+    .brand { font-weight: 700; color: #00652c; font-size: 14px; letter-spacing: 0.04em; }
+    h1 { font-size: 22px; margin: 12px 0 8px; }
+    p { color: #3f493f; line-height: 1.5; }
+    ul { background: #f2f4ef; border-radius: 12px; padding: 16px 24px; }
+    li { margin: 4px 0; color: #191c19; }
+    .actions { display: flex; gap: 12px; margin-top: 24px; }
+    button {
+      flex: 1;
+      border: 0;
+      border-radius: 12px;
+      padding: 12px 16px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .cancel { background: #f2f4ef; color: #3f493f; }
+    .allow { background: #00652c; color: #ffffff; }
+    .allow:hover { background: #004b1f; }
+    .error { background: #fff0f0; color: #b91d1d; padding: 16px; border-radius: 12px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="brand">VideoQ</div>
+    {% if not error %}
+      <h1>{% blocktrans with app_name=application.name %}Authorize {{ app_name }}?{% endblocktrans %}</h1>
+      <p>{% trans "This app is requesting access to your VideoQ account with the following scope:" %}</p>
+      <ul>
+        {% for scope in scopes_descriptions %}
+          <li>{{ scope }}</li>
+        {% endfor %}
+      </ul>
+
+      <form id="authorizationForm" method="post">
+        {% csrf_token %}
+        {% for field in form %}
+          {% if field.is_hidden %}{{ field }}{% endif %}
+        {% endfor %}
+        {{ form.errors }}
+        {{ form.non_field_errors }}
+        <div class="actions">
+          <button class="cancel" type="submit" name="allow" value="">{% trans "Cancel" %}</button>
+          <button class="allow" type="submit" name="allow" value="True">{% trans "Authorize" %}</button>
+        </div>
+      </form>
+    {% else %}
+      <h1>{% trans "Authorization error" %}</h1>
+      <div class="error">
+        <strong>{{ error.error }}</strong>
+        <p>{{ error.description }}</p>
+      </div>
+    {% endif %}
+  </div>
+</body>
+</html>

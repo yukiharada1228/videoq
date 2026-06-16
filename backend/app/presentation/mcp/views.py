@@ -19,6 +19,7 @@ from rest_framework.views import APIView
 from app.presentation.common.authentication import (
     APIKeyAuthentication,
     BearerAPIKeyAuthentication,
+    MCPOAuth2Authentication,
 )
 from app.presentation.common.mixins import DependencyResolverMixin
 from app.presentation.common.permissions import ApiKeyScopePermission
@@ -41,7 +42,16 @@ _INTERNAL_ERROR = -32603
 class MCPEndpointView(DependencyResolverMixin, APIView):
     """Stateless MCP Streamable HTTP endpoint."""
 
-    authentication_classes = [BearerAPIKeyAuthentication, APIKeyAuthentication]
+    # MCPOAuth2Authentication is listed FIRST so that anonymous 401 responses
+    # include a Bearer challenge with the ``resource_metadata`` parameter, which
+    # is what Claude Desktop / claude.ai's built-in connector uses to discover
+    # the OAuth authorization server. Existing ``vq_*`` API keys continue to
+    # work via BearerAPIKeyAuthentication / APIKeyAuthentication.
+    authentication_classes = [
+        MCPOAuth2Authentication,
+        BearerAPIKeyAuthentication,
+        APIKeyAuthentication,
+    ]
     permission_classes = [IsAuthenticated, ApiKeyScopePermission]
 
     # Injected via as_view(...) wiring in urls.py
