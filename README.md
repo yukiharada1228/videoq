@@ -254,6 +254,88 @@ Issue a `vq_...` integration key from "Integration API Keys" in the Settings scr
 - **OpenAPI (Swagger UI):** [http://localhost/api/docs/](http://localhost/api/docs/)
 - **ReDoc:** [http://localhost/api/redoc/](http://localhost/api/redoc/)
 
+## MCP (Model Context Protocol) Integration
+
+VideoQ ships with an **analytics-only** stdio MCP server (`mcp/videoq_mcp_server.py`) that connects from MCP clients such as Claude Desktop, Cursor, and Claude Code. In addition to browsing videos, groups, tags, and chat history, it exposes chat analytics and RAGAS evaluation scores.
+
+> 🛡️ **Design policy:** Sending RAG chat questions is intentionally excluded. MCP access is limited to **reading and analyzing existing data**.
+
+### Available tools
+
+| Tool | Purpose |
+|---|---|
+| `list_videos` / `get_video` | List videos and view details (including transcripts) |
+| `list_groups` / `get_group` | List groups and their member videos |
+| `list_tags` | List tags |
+| `get_chat_history` | Chat history for a group (with feedback) |
+| `get_chat_analytics` | Question counts, period, daily time series, feedback aggregates |
+| `get_chat_analytics_keywords` | Keyword frequency in questions |
+| `get_evaluation_summary` | RAGAS average scores (faithfulness / answer_relevancy / context_precision) |
+| `list_evaluation_logs` | Per-log RAGAS scores |
+
+List tools support `limit` / `offset` pagination (default 20, maximum 100).
+
+### Setup
+
+#### Step 1: Issue an integration API key
+
+Log in to VideoQ and issue a `vq_...` key from **Settings → Integration API Keys**, then copy it.
+
+#### Step 2: Register the server with your MCP client
+
+The MCP server runs on the Python standard library alone and has no external dependencies. Any environment with Python 3.9+ can launch it without extra installs.
+
+For **Claude Desktop**, add the following to `claude_desktop_config.json`.
+
+```json
+{
+  "mcpServers": {
+    "videoq": {
+      "command": "python3",
+      "args": ["/absolute/path/to/videoq/mcp/videoq_mcp_server.py"],
+      "env": {
+        "VIDEOQ_API_KEY": "vq_xxxxxxxxxxxxxxxx",
+        "VIDEOQ_BASE_URL": "http://localhost"
+      }
+    }
+  }
+}
+```
+
+Config file locations:
+- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+
+For **Claude Code**, register the server with this command.
+
+```bash
+claude mcp add videoq python3 /absolute/path/to/videoq/mcp/videoq_mcp_server.py \
+  --env VIDEOQ_API_KEY=vq_xxxxxxxxxxxxxxxx \
+  --env VIDEOQ_BASE_URL=http://localhost
+```
+
+Other clients such as **Cursor** work the same way as long as `command` and `env` use the same format.
+
+#### Step 3: Verify
+
+Restart the client and confirm that the MCP server appears as `videoq`. Try prompts like "Show the RAGAS evaluation summary for group 1" or "What keywords have come up in recent questions?" to trigger the matching tools.
+
+### Environment variables
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `VIDEOQ_API_KEY` | ✅ | — | The `vq_...` key issued in Settings |
+| `VIDEOQ_BASE_URL` | — | `http://localhost/api` | Base URL of the VideoQ API. A trailing `/api` is appended automatically if missing (use `https://your-domain.example.com` in production) |
+| `VIDEOQ_TIMEOUT_SECONDS` | — | `30` | HTTP timeout (seconds) |
+| `VIDEOQ_MCP_DEBUG` | — | — | Set to `1` / `true` to emit debug logs on stderr |
+
+### Troubleshooting
+
+- **Fails to start with `VIDEOQ_API_KEY is required`** → The API key is not being passed via the client's `env` settings.
+- **`Could not connect to VideoQ API`** → Check `VIDEOQ_BASE_URL`. Use `http://localhost` for the local Docker setup, or the HTTPS domain when running remotely.
+- **`401` / `403` responses** → The API key has expired or lacks the required scope. Reissue it from Settings.
+- **Want more visibility into what's happening** → Set `VIDEOQ_MCP_DEBUG=1` to emit the size of received messages and outgoing responses on stderr.
+
 ## Contributing
 
 Found a bug or want to add a feature? Contributions are welcome.
