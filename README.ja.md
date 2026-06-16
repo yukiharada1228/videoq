@@ -292,7 +292,15 @@ claude mcp add --transport http videoq https://your-domain.example.com/api/mcp/ 
   --header "Authorization: Bearer vq_xxxxxxxxxxxxxxxx"
 ```
 
-**Claude Desktop** はビルトインのリモート MCP 統合が OAuth を要求するため、現状は `mcp-remote` をローカルブリッジとして使う形で接続します。`claude_desktop_config.json` に以下を追記してください。
+**Claude Desktop / claude.ai のビルトインコネクタ（OAuth 2.1）** の場合は、Settings → Connectors → Add custom connector に MCP URL を貼り付け、同意画面で「Authorize」を押すだけで接続できます。API キーは不要です。VideoQ は MCP Authorization 仕様準拠の OAuth 2.1 + Dynamic Client Registration (RFC 7591) を実装しており、クライアントが自動でクライアント登録 → 認可コード（PKCE）→ アクセストークン取得を行います。
+
+```
+https://your-domain.example.com/api/mcp/
+```
+
+裏側では `/.well-known/oauth-protected-resource/api/mcp` と `/.well-known/oauth-authorization-server` を通じて認可サーバーを自動検出し、`/api/oauth/register/` に動的にクライアント登録、`/api/oauth/authorize/`（PKCE 必須）→ `/api/oauth/token/` の順で標準フローを完了します。発行されたトークンは **Settings → Connected Apps** からいつでも失効できます。
+
+旧来のクライアントで `mcp-remote` ブリッジを使う場合は、API キー方式で `claude_desktop_config.json` に以下を追記してください。
 
 ```json
 {
@@ -322,9 +330,9 @@ claude mcp add --transport http videoq https://your-domain.example.com/api/mcp/ 
 
 ### トラブルシューティング
 
-- **`401 Unauthorized`** → API キーが渡っていない、または失効しています。Settings で再発行し、ヘッダ値を更新してください。
+- **`401 Unauthorized`** → API キー（または OAuth トークン）が渡っていない、または失効しています。Settings で再発行 / 再連携し、ヘッダ値を更新してください。
 - **`404 Not Found`** → URL が誤っています。ホスト名と `/api/mcp/`（末尾スラッシュは任意）を再確認してください。
-- **Claude Desktop からつながらない** → 現状ビルトインのリモート MCP は OAuth が必要なため、上記の `mcp-remote` ブリッジ構成で接続してください。
+- **OAuth コネクタが認可サーバーを検出できない** → `https://<host>/.well-known/oauth-authorization-server` と `https://<host>/.well-known/oauth-protected-resource/api/mcp` が JSON を返すか確認してください。これらは API ホストのルートで公開する必要があるため、nginx / リバースプロキシ側で `/.well-known/oauth-*` をバックエンドへフォワードしてください。
 
 ## 🤝 貢献
 

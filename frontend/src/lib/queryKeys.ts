@@ -3,6 +3,7 @@ export const queryKeys = {
     me: ['auth', 'me'] as const,
     apiKeys: ['auth', 'apiKeys'] as const,
     searchApiKey: ['auth', 'searchApiKey'] as const,
+    oauthTokens: ['auth', 'oauthTokens'] as const,
   },
   videoGroups: {
     prefix: ['videoGroups'] as const,

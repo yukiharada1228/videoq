@@ -292,7 +292,15 @@ claude mcp add --transport http videoq https://your-domain.example.com/api/mcp/ 
   --header "Authorization: Bearer vq_xxxxxxxxxxxxxxxx"
 ```
 
-For **Claude Desktop**, use `mcp-remote` as a local bridge (Claude Desktop's built-in remote MCP integration requires OAuth, which this endpoint does not currently provide):
+For **Claude Desktop / claude.ai (built-in connector, OAuth 2.1)**, paste just the MCP URL into **Settings → Connectors → Add custom connector** and approve the consent screen. No API key needed — VideoQ implements OAuth 2.1 + Dynamic Client Registration (RFC 7591) per the MCP Authorization spec.
+
+```
+https://your-domain.example.com/api/mcp/
+```
+
+Behind the scenes the client discovers the authorization server via `/.well-known/oauth-protected-resource/api/mcp` and `/.well-known/oauth-authorization-server`, registers itself dynamically at `/api/oauth/register/`, and runs the standard authorization-code flow with PKCE. You can revoke any granted token at any time from **Settings → Connected Apps**.
+
+If you need to fall back to the `mcp-remote` bridge for an older client, configure it with your API key instead:
 
 ```json
 {
@@ -322,9 +330,9 @@ Restart the client and confirm that the MCP server appears as `videoq`. Try prom
 
 ### Troubleshooting
 
-- **`401 Unauthorized`** → The API key is missing, malformed, or revoked. Reissue from Settings and update the header.
+- **`401 Unauthorized`** → The API key (or OAuth token) is missing, malformed, or revoked. Reissue from Settings and update the header, or re-approve the OAuth connector.
 - **`404 Not Found`** → The URL is wrong. Confirm the host and the `/api/mcp/` path (trailing slash is optional).
-- **Claude Desktop cannot connect** → It does not yet speak Streamable HTTP directly; use the `mcp-remote` bridge configuration above.
+- **OAuth connector cannot discover the server** → Confirm that `https://<host>/.well-known/oauth-authorization-server` and `https://<host>/.well-known/oauth-protected-resource/api/mcp` return JSON. These paths must be served by the API host at the root (not under `/api/`), so nginx / reverse proxies must forward `/.well-known/oauth-*` to the backend.
 
 ## Contributing
 

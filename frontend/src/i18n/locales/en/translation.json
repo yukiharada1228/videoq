@@ -714,6 +714,24 @@
       "successRevoked": "API key revoked",
       "successCopied": "API key copied"
     },
+    "connectedApps": {
+      "title": "Connected Apps",
+      "description": "Apps you authorized via OAuth (e.g. Claude Desktop, claude.ai). Revoke a token to disconnect that app immediately.",
+      "empty": "No apps are currently connected.",
+      "columns": {
+        "app": "App",
+        "scope": "Scope",
+        "issued": "Authorized",
+        "expires": "Expires",
+        "action": "Action"
+      },
+      "expiresNever": "—",
+      "revoke": "Revoke",
+      "revoking": "Revoking...",
+      "errorLoading": "Failed to load connected apps",
+      "errorRevoking": "Failed to revoke token",
+      "successRevoked": "Connection revoked"
+    },
     "openaiApiKey": {
       "title": "OpenAI API Key",
       "description": "Set your OpenAI API key to use transcription and chat features.",
