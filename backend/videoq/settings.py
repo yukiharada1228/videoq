@@ -204,6 +204,7 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt",
     "drf_spectacular",
     "corsheaders",
+    "oauth2_provider",
     "storages",
     "app",
     "anymail",
@@ -351,6 +352,30 @@ SIMPLE_JWT = {
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": False,
     "AUTH_HEADER_TYPES": ("Bearer",),
+}
+
+# OAuth 2.1 Provider for the MCP Remote Endpoint.
+#
+# Issued tokens authorize calls to /api/mcp/ from Claude Desktop /
+# claude.ai's built-in Remote MCP connector (which speaks OAuth 2.1 +
+# Dynamic Client Registration, RFC 7591). Existing API-key auth still
+# works alongside this for clients like Claude Code.
+OAUTH2_PROVIDER_ISSUER_URL = os.environ.get(
+    "OAUTH2_PROVIDER_ISSUER_URL",
+    # Falls back to the API origin (without trailing slash). Override in
+    # production with the public HTTPS origin of the API.
+    "http://localhost:8000",
+).rstrip("/")
+
+OAUTH2_PROVIDER = {
+    "SCOPES": {
+        "read": "Read-only access to VideoQ via the MCP endpoint",
+    },
+    "DEFAULT_SCOPES": ["read"],
+    "PKCE_REQUIRED": True,
+    "ACCESS_TOKEN_EXPIRE_SECONDS": 60 * 60,  # 1 hour
+    "REFRESH_TOKEN_EXPIRE_SECONDS": 60 * 60 * 24 * 30,  # 30 days
+    "ALLOWED_REDIRECT_URI_SCHEMES": ["https", "http"],
 }
 
 SPECTACULAR_SETTINGS = {

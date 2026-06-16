@@ -23,6 +23,10 @@ from drf_spectacular.views import (SpectacularAPIView, SpectacularRedocView,
                                    SpectacularSwaggerView)
 
 from app.presentation.common.health import HealthCheckView
+from app.presentation.oauth.views import (
+    AuthorizationServerMetadataView,
+    ProtectedResourceMetadataView,
+)
 
 urlpatterns = [
     path("api/health/", HealthCheckView.as_view(), name="health"),
@@ -39,6 +43,19 @@ urlpatterns = [
     path("api/videos/", include("app.presentation.video.urls")),
     path("api/evaluation/", include("app.presentation.evaluation.urls")),
     path("api/mcp/", include("app.presentation.mcp.urls")),
+    path("api/oauth/", include("app.presentation.oauth.urls")),
+    # OAuth metadata documents (RFC 8414 / RFC 9728). Per the specs these
+    # must live at the well-known path under the resource origin.
+    path(
+        ".well-known/oauth-authorization-server",
+        AuthorizationServerMetadataView.as_view(),
+        name="oauth-authorization-server-metadata",
+    ),
+    path(
+        ".well-known/oauth-protected-resource/api/mcp",
+        ProtectedResourceMetadataView.as_view(),
+        name="oauth-protected-resource-metadata",
+    ),
     path("api/", include("app.urls")),
     path("api/v1/", include("app.presentation.chat.openai_urls")),
 ]

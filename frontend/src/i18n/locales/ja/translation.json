@@ -714,6 +714,24 @@
       "successRevoked": "APIキーを失効しました",
       "successCopied": "APIキーをコピーしました"
     },
+    "connectedApps": {
+      "title": "連携アプリ",
+      "description": "OAuth で連携を許可したアプリ（例: Claude Desktop / claude.ai）。トークンを失効するとそのアプリは即座に切断されます。",
+      "empty": "現在連携中のアプリはありません。",
+      "columns": {
+        "app": "アプリ",
+        "scope": "スコープ",
+        "issued": "連携日時",
+        "expires": "有効期限",
+        "action": "操作"
+      },
+      "expiresNever": "—",
+      "revoke": "失効",
+      "revoking": "失効中...",
+      "errorLoading": "連携アプリの読み込みに失敗しました",
+      "errorRevoking": "失効に失敗しました",
+      "successRevoked": "連携を失効しました"
+    },
     "openaiApiKey": {
       "title": "OpenAI APIキー",
       "description": "文字起こしとチャット機能を使用するには、OpenAI APIキーを設定してください。",
