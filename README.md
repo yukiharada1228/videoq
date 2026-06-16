@@ -256,7 +256,7 @@ Issue a `vq_...` integration key from "Integration API Keys" in the Settings scr
 
 ## MCP (Model Context Protocol) Integration
 
-VideoQ ships with an **analytics-only** stdio MCP server (`mcp/videoq_mcp_server.py`) that connects from MCP clients such as Claude Desktop, Cursor, and Claude Code. In addition to browsing videos, groups, tags, and chat history, it exposes chat analytics and RAGAS evaluation scores.
+VideoQ exposes a built-in **analytics-only** remote MCP server at `POST /api/mcp/`. Any MCP client that speaks Streamable HTTP — Claude Code, Cursor, and any client that can launch `mcp-remote` — can connect with just a URL and an API key. No local process to install.
 
 > 🛡️ **Design policy:** Sending RAG chat questions is intentionally excluded. MCP access is limited to **reading and analyzing existing data**.
 
@@ -281,22 +281,30 @@ List tools support `limit` / `offset` pagination (default 20, maximum 100).
 
 Log in to VideoQ and issue a `vq_...` key from **Settings → Integration API Keys**, then copy it.
 
-#### Step 2: Register the server with your MCP client
+#### Step 2: Register the endpoint with your MCP client
 
-The MCP server runs on the Python standard library alone and has no external dependencies. Any environment with Python 3.9+ can launch it without extra installs.
+The endpoint URL is your VideoQ host followed by `/api/mcp/` — for example, `http://localhost/api/mcp/` for a local Docker setup or `https://your-domain.example.com/api/mcp/` in production. Authenticate with `Authorization: Bearer vq_...` (or the equivalent `X-API-Key` header).
 
-For **Claude Desktop**, add the following to `claude_desktop_config.json`.
+For **Claude Code**:
+
+```bash
+claude mcp add --transport http videoq https://your-domain.example.com/api/mcp/ \
+  --header "Authorization: Bearer vq_xxxxxxxxxxxxxxxx"
+```
+
+For **Claude Desktop**, use `mcp-remote` as a local bridge (Claude Desktop's built-in remote MCP integration requires OAuth, which this endpoint does not currently provide):
 
 ```json
 {
   "mcpServers": {
     "videoq": {
-      "command": "python3",
-      "args": ["/absolute/path/to/videoq/mcp/videoq_mcp_server.py"],
-      "env": {
-        "VIDEOQ_API_KEY": "vq_xxxxxxxxxxxxxxxx",
-        "VIDEOQ_BASE_URL": "http://localhost"
-      }
+      "command": "npx",
+      "args": [
+        "mcp-remote",
+        "https://your-domain.example.com/api/mcp/",
+        "--header",
+        "Authorization: Bearer vq_xxxxxxxxxxxxxxxx"
+      ]
     }
   }
 }
@@ -306,35 +314,17 @@ Config file locations:
 - macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
 - Windows: `%APPDATA%\Claude\claude_desktop_config.json`
 
-For **Claude Code**, register the server with this command.
-
-```bash
-claude mcp add videoq python3 /absolute/path/to/videoq/mcp/videoq_mcp_server.py \
-  --env VIDEOQ_API_KEY=vq_xxxxxxxxxxxxxxxx \
-  --env VIDEOQ_BASE_URL=http://localhost
-```
-
-Other clients such as **Cursor** work the same way as long as `command` and `env` use the same format.
+**Cursor** and other Streamable HTTP-capable clients use the same URL + header pattern.
 
 #### Step 3: Verify
 
 Restart the client and confirm that the MCP server appears as `videoq`. Try prompts like "Show the RAGAS evaluation summary for group 1" or "What keywords have come up in recent questions?" to trigger the matching tools.
 
-### Environment variables
-
-| Variable | Required | Default | Description |
-|---|---|---|---|
-| `VIDEOQ_API_KEY` | ✅ | — | The `vq_...` key issued in Settings |
-| `VIDEOQ_BASE_URL` | — | `http://localhost/api` | Base URL of the VideoQ API. A trailing `/api` is appended automatically if missing (use `https://your-domain.example.com` in production) |
-| `VIDEOQ_TIMEOUT_SECONDS` | — | `30` | HTTP timeout (seconds) |
-| `VIDEOQ_MCP_DEBUG` | — | — | Set to `1` / `true` to emit debug logs on stderr |
-
 ### Troubleshooting
 
-- **Fails to start with `VIDEOQ_API_KEY is required`** → The API key is not being passed via the client's `env` settings.
-- **`Could not connect to VideoQ API`** → Check `VIDEOQ_BASE_URL`. Use `http://localhost` for the local Docker setup, or the HTTPS domain when running remotely.
-- **`401` / `403` responses** → The API key has expired or lacks the required scope. Reissue it from Settings.
-- **Want more visibility into what's happening** → Set `VIDEOQ_MCP_DEBUG=1` to emit the size of received messages and outgoing responses on stderr.
+- **`401 Unauthorized`** → The API key is missing, malformed, or revoked. Reissue from Settings and update the header.
+- **`404 Not Found`** → The URL is wrong. Confirm the host and the `/api/mcp/` path (trailing slash is optional).
+- **Claude Desktop cannot connect** → It does not yet speak Streamable HTTP directly; use the `mcp-remote` bridge configuration above.
 
 ## Contributing
 
