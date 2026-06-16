@@ -142,12 +142,28 @@ class VideoQMcpServer:
         self.transport_mode = "content-length"
 
     def _build_tools(self) -> Dict[str, ToolDefinition]:
+        pagination_props = {
+            "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100,
+                "description": "Max items to return (default 20, max 100).",
+            },
+            "offset": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Number of items to skip.",
+            },
+        }
         return {
             tool.name: tool
             for tool in [
                 ToolDefinition(
                     name="list_videos",
-                    description="List your videos. Supports keyword, status, ordering, and tag filters.",
+                    description=(
+                        "List your videos. Supports keyword, status, ordering, tag filters, "
+                        "and limit/offset pagination. Returns count/next/previous/videos."
+                    ),
                     input_schema={
                         "type": "object",
                         "properties": {
@@ -164,6 +180,7 @@ class VideoQMcpServer:
                                 "type": "array",
                                 "items": {"type": "integer"},
                             },
+                            **pagination_props,
                         },
                         "additionalProperties": False,
                     },
@@ -182,8 +199,12 @@ class VideoQMcpServer:
                 ),
                 ToolDefinition(
                     name="list_groups",
-                    description="List your video groups.",
-                    input_schema={"type": "object", "properties": {}, "additionalProperties": False},
+                    description="List your video groups. Supports limit/offset pagination.",
+                    input_schema={
+                        "type": "object",
+                        "properties": {**pagination_props},
+                        "additionalProperties": False,
+                    },
                     handler=self._list_groups,
                 ),
                 ToolDefinition(
@@ -199,26 +220,116 @@ class VideoQMcpServer:
                 ),
                 ToolDefinition(
                     name="list_tags",
-                    description="List your tags.",
-                    input_schema={"type": "object", "properties": {}, "additionalProperties": False},
+                    description="List your tags. Supports limit/offset pagination.",
+                    input_schema={
+                        "type": "object",
+                        "properties": {**pagination_props},
+                        "additionalProperties": False,
+                    },
                     handler=self._list_tags,
                 ),
                 ToolDefinition(
                     name="get_chat_history",
-                    description="Get chat history for a group.",
+                    description=(
+                        "Get chat history for a group. Each entry includes role, content, "
+                        "feedback (good/bad/null), citations, and timestamps. Supports limit/offset."
+                    ),
+                    input_schema={
+                        "type": "object",
+                        "properties": {
+                            "group_id": {"type": "integer"},
+                            **pagination_props,
+                        },
+                        "required": ["group_id"],
+                        "additionalProperties": False,
+                    },
+                    handler=self._get_chat_history,
+                ),
+                ToolDefinition(
+                    name="get_chat_analytics",
+                    description=(
+                        "Get aggregated chat analytics for a group: total question count, "
+                        "date range, daily time series, and feedback breakdown (good/bad/none)."
+                    ),
                     input_schema={
                         "type": "object",
                         "properties": {"group_id": {"type": "integer"}},
                         "required": ["group_id"],
                         "additionalProperties": False,
                     },
-                    handler=self._get_chat_history,
+                    handler=self._get_chat_analytics,
+                ),
+                ToolDefinition(
+                    name="get_chat_analytics_keywords",
+                    description=(
+                        "Get keyword frequency for questions asked in a group's chat. "
+                        "Returns a list of {word, count} entries."
+                    ),
+                    input_schema={
+                        "type": "object",
+                        "properties": {"group_id": {"type": "integer"}},
+                        "required": ["group_id"],
+                        "additionalProperties": False,
+                    },
+                    handler=self._get_chat_analytics_keywords,
+                ),
+                ToolDefinition(
+                    name="get_evaluation_summary",
+                    description=(
+                        "Get averaged RAGAS evaluation scores for a group: evaluated_count, "
+                        "avg_faithfulness, avg_answer_relevancy, avg_context_precision."
+                    ),
+                    input_schema={
+                        "type": "object",
+                        "properties": {"group_id": {"type": "integer"}},
+                        "required": ["group_id"],
+                        "additionalProperties": False,
+                    },
+                    handler=self._get_evaluation_summary,
+                ),
+                ToolDefinition(
+                    name="list_evaluation_logs",
+                    description=(
+                        "List per-ChatLog RAGAS evaluation results for a group. Each entry has "
+                        "chat_log_id, status, faithfulness, answer_relevancy, context_precision, "
+                        "error_message, evaluated_at. Supports limit/offset pagination."
+                    ),
+                    input_schema={
+                        "type": "object",
+                        "properties": {
+                            "group_id": {"type": "integer"},
+                            **pagination_props,
+                        },
+                        "required": ["group_id"],
+                        "additionalProperties": False,
+                    },
+                    handler=self._list_evaluation_logs,
                 ),
             ]
         }
 
+    @staticmethod
+    def _pagination_query(arguments: JSON) -> Dict[str, Any]:
+        query: Dict[str, Any] = {}
+        if "limit" in arguments and arguments["limit"] is not None:
+            query["limit"] = int(arguments["limit"])
+        if "offset" in arguments and arguments["offset"] is not None:
+            query["offset"] = int(arguments["offset"])
+        return query
+
+    @staticmethod
+    def _paginated_envelope(response: Any, items_key: str) -> JSON:
+        if not isinstance(response, dict):
+            return {"count": 0, "next": None, "previous": None, items_key: []}
+        return {
+            "count": response.get("count", 0),
+            "next": response.get("next"),
+            "previous": response.get("previous"),
+            items_key: response.get("results", []),
+        }
+
     def _list_videos(self, arguments: JSON) -> JSON:
-        query = {
+        query: Dict[str, Any] = {
             "q": arguments.get("q"),
             "status": arguments.get("status"),
             "ordering": arguments.get("ordering"),
@@ -226,9 +337,9 @@ class VideoQMcpServer:
         tags = arguments.get("tags")
         if tags:
             query["tags"] = ",".join(str(tag_id) for tag_id in tags)
+        query.update(self._pagination_query(arguments))
         response = self.api.get("/videos/", query=query)
-        videos = response["results"]
-        return {"count": response["count"], "videos": videos}
+        return self._paginated_envelope(response, "videos")
 
     def _get_video(self, arguments: JSON) -> JSON:
         video_id = int(arguments["video_id"])
@@ -236,10 +347,8 @@ class VideoQMcpServer:
         return {"video": video}
 
     def _list_groups(self, arguments: JSON) -> JSON:
-        del arguments
-        response = self.api.get("/videos/groups/")
-        groups = response["results"]
-        return {"count": response["count"], "groups": groups}
+        response = self.api.get("/videos/groups/", query=self._pagination_query(arguments))
+        return self._paginated_envelope(response, "groups")
 
     def _get_group(self, arguments: JSON) -> JSON:
         group_id = int(arguments["group_id"])
@@ -247,16 +356,40 @@ class VideoQMcpServer:
         return {"group": group}
 
     def _list_tags(self, arguments: JSON) -> JSON:
-        del arguments
-        response = self.api.get("/videos/tags/")
-        tags = response["results"]
-        return {"count": response["count"], "tags": tags}
+        response = self.api.get("/videos/tags/", query=self._pagination_query(arguments))
+        return self._paginated_envelope(response, "tags")
 
     def _get_chat_history(self, arguments: JSON) -> JSON:
         group_id = int(arguments["group_id"])
-        response = self.api.get(f"/chat/groups/{group_id}/history/")
-        history = response["results"]
-        return {"count": response["count"], "history": history}
+        response = self.api.get(
+            f"/chat/groups/{group_id}/history/",
+            query=self._pagination_query(arguments),
+        )
+        return self._paginated_envelope(response, "history")
+
+    def _get_chat_analytics(self, arguments: JSON) -> JSON:
+        group_id = int(arguments["group_id"])
+        analytics = self.api.get(f"/chat/groups/{group_id}/analytics/")
+        return {"analytics": analytics}
+
+    def _get_chat_analytics_keywords(self, arguments: JSON) -> JSON:
+        group_id = int(arguments["group_id"])
+        response = self.api.get(f"/chat/groups/{group_id}/analytics/keywords/")
+        keywords = response.get("keywords", []) if isinstance(response, dict) else []
+        return {"keywords": keywords}
+
+    def _get_evaluation_summary(self, arguments: JSON) -> JSON:
+        group_id = int(arguments["group_id"])
+        summary = self.api.get(f"/evaluation/groups/{group_id}/summary/")
+        return {"summary": summary}
+
+    def _list_evaluation_logs(self, arguments: JSON) -> JSON:
+        group_id = int(arguments["group_id"])
+        response = self.api.get(
+            f"/evaluation/groups/{group_id}/logs/",
+            query=self._pagination_query(arguments),
+        )
+        return self._paginated_envelope(response, "logs")
 
     def serve_forever(self) -> None:
         stdin = sys.stdin.buffer
