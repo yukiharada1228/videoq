@@ -10,7 +10,7 @@ parameter so they can return to the consent screen after signing in.
 
 from __future__ import annotations
 
-from urllib.parse import quote, urlencode
+from urllib.parse import quote
 
 from django.conf import settings
 from django.http import HttpResponseRedirect
