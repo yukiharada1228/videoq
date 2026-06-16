@@ -38,6 +38,7 @@ urlpatterns = [
     path("api/chat/", include("app.presentation.chat.urls")),
     path("api/videos/", include("app.presentation.video.urls")),
     path("api/evaluation/", include("app.presentation.evaluation.urls")),
+    path("api/mcp/", include("app.presentation.mcp.urls")),
     path("api/", include("app.urls")),
     path("api/v1/", include("app.presentation.chat.openai_urls")),
 ]
