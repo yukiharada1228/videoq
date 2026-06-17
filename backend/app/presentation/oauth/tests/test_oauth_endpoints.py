@@ -102,6 +102,39 @@ class DynamicClientRegistrationTests(TestCase):
         app = ApplicationModel.objects.get(client_id=payload["client_id"])
         self.assertEqual(app.client_type, ApplicationModel.CLIENT_PUBLIC)
 
+    def test_registers_confidential_client_returns_plaintext_secret(self):
+        # Regression for ofid_11632eb5d8076f28: when DCR auth method requires
+        # a client secret, the response must contain the plaintext so the
+        # client can use it on the token endpoint. Previously we returned
+        # the PBKDF2 hash that DOT writes to the DB on save(), which made
+        # token exchange always 401 with invalid_client.
+        body = {
+            "redirect_uris": ["https://claude.ai/api/mcp/auth_callback"],
+            "client_name": "Confidential client",
+            "token_endpoint_auth_method": "client_secret_basic",
+        }
+        resp = self.client.post(
+            "/api/oauth/register/",
+            data=json.dumps(body),
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
+        payload = resp.json()
+        self.assertIn("client_secret", payload)
+        secret = payload["client_secret"]
+        # Plaintext, not a PBKDF2 hash.
+        self.assertFalse(
+            secret.startswith("pbkdf2_"),
+            f"client_secret leaked as hash: {secret}",
+        )
+        # The DB row must actually validate the plaintext we returned: DOT
+        # stored it as a Django password hash on save(), so the stored value
+        # is not the plaintext and we verify it via the password hasher.
+        from django.contrib.auth.hashers import check_password
+        app = ApplicationModel.objects.get(client_id=payload["client_id"])
+        self.assertEqual(app.client_type, ApplicationModel.CLIENT_CONFIDENTIAL)
+        self.assertTrue(check_password(secret, app.client_secret))
+
     def test_rejects_non_localhost_http_redirect(self):
         body = {
             "redirect_uris": ["http://example.com/callback"],
