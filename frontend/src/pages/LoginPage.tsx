@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link, useI18nNavigate } from '@/lib/i18n';
 import { useTranslation } from 'react-i18next';
@@ -11,10 +12,21 @@ import { AuthLayout } from '@/components/layout/AuthLayout';
 import { AuthPageIntro } from '@/components/layout/AuthPageIntro';
 import { AuthPageFooter } from '@/components/layout/AuthPageFooter';
 
+// Only allow same-origin absolute paths to prevent open redirects to attacker
+// origins (e.g. ?next=//evil.com or ?next=https://evil.com).
+function getSafeNextPath(next: string | null): string | null {
+  if (!next) return null;
+  if (!next.startsWith('/')) return null;
+  if (next.startsWith('//') || next.startsWith('/\\')) return null;
+  return next;
+}
+
 export default function LoginPage() {
   const navigate = useI18nNavigate();
   const queryClient = useQueryClient();
   const { t } = useTranslation();
+  const [searchParams] = useSearchParams();
+  const nextPath = getSafeNextPath(searchParams.get('next'));
   const [showPassword, setShowPassword] = useState(false);
 
   const { formData, error, isLoading, handleChange, handleSubmit } = useAuthForm({
@@ -27,7 +39,16 @@ export default function LoginPage() {
       });
     },
     initialData: { username: '', password: '' },
-    onSuccessRedirect: () => navigate('/'),
+    onSuccessRedirect: () => {
+      if (nextPath) {
+        // Full-page navigation: `next` typically points at the Django
+        // OAuth authorize endpoint (/api/oauth/authorize/...) which the
+        // SPA router cannot serve.
+        window.location.href = nextPath;
+        return;
+      }
+      navigate('/');
+    },
   });
 
   return (
