@@ -54,6 +54,22 @@ class MCPEndpointTests(TestCase):
         response = self._post(self._jsonrpc("initialize"), auth=False)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
+    def test_no_trailing_slash_url_does_not_redirect(self):
+        # Claude.ai's Remote MCP connector cannot follow a 301 on POST and
+        # surfaces "Couldn't reach the MCP server" when the user enters the
+        # URL without the trailing slash. ``/api/mcp`` must route to the
+        # same view as ``/api/mcp/`` rather than being 301'd by APPEND_SLASH.
+        response = self.client.post(
+            "/api/mcp",
+            data=json.dumps(self._jsonrpc("initialize")),
+            content_type="application/json",
+            HTTP_AUTHORIZATION=self.auth_header,
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        body = response.json()
+        self.assertIn("result", body)
+        self.assertEqual(body["result"]["serverInfo"]["name"], "videoq-api")
+
     def test_invalid_api_key_is_rejected(self):
         self.client.credentials(HTTP_AUTHORIZATION="Bearer vq_" + "x" * 32)
         response = self.client.post(
