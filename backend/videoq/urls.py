@@ -43,6 +43,13 @@ urlpatterns = [
     path("api/videos/", include("app.presentation.video.urls")),
     path("api/evaluation/", include("app.presentation.evaluation.urls")),
     path("api/mcp/", include("app.presentation.mcp.urls")),
+    # Tolerate ``/api/mcp`` (no trailing slash). Django's ``APPEND_SLASH``
+    # middleware would otherwise 301 to ``/api/mcp/``, which Claude.ai's
+    # Remote MCP connector cannot follow on a POST and surfaces as
+    # "Couldn't reach the MCP server". Registering the include twice
+    # routes both forms to the same view; the canonical with-slash form
+    # is registered first so ``reverse('mcp-endpoint')`` returns it.
+    path("api/mcp", include("app.presentation.mcp.urls")),
     path("api/oauth/", include("app.presentation.oauth.urls")),
     # OAuth metadata documents (RFC 8414 / RFC 9728). Per the specs these
     # must live at the well-known path under the resource origin.
