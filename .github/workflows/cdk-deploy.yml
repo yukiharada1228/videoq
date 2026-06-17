@@ -1,12 +1,18 @@
 name: CDK Deploy
 
+# Trigger directly on push to main with a path filter rather than chaining
+# off the CI workflow_run. workflow_run + dorny/paths-filter silently
+# skips deploys on merge commits because the workflow_run payload has no
+# `before` SHA, so paths-filter falls back to `git log -n 1 HEAD` which
+# returns no files for a merge commit. The native push `paths:` filter
+# evaluates the actual push diff and handles merge commits correctly.
 on:
-  workflow_run:
-    workflows: ["CI"]
-    types:
-      - completed
+  push:
     branches:
       - main
+    paths:
+      - 'infra/**'
+      - '.github/workflows/cdk-deploy.yml'
   workflow_dispatch:
 
 permissions:
@@ -17,36 +23,12 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  changes:
-    name: Detect Changes
-    runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
-    outputs:
-      infra: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.infra == 'true' }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
-          fetch-depth: 2
-      - uses: dorny/paths-filter@v3
-        id: filter
-        if: github.event_name != 'workflow_dispatch'
-        with:
-          filters: |
-            infra:
-              - 'infra/**'
-              - '.github/workflows/cdk-deploy.yml'
-
   cdk-deploy:
     name: CDK Deploy (production)
     runs-on: ubuntu-latest
-    needs: changes
-    if: needs.changes.outputs.infra == 'true'
     environment: production
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
