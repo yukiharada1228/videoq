@@ -61,6 +61,17 @@ class CdnStack(Stack):
                     origin_request_policy=cloudfront.OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER,
                     allowed_methods=cloudfront.AllowedMethods.ALLOW_ALL,
                 ),
+                # RFC 8414 / RFC 9728: OAuth metadata documents must live at
+                # the well-known path under the resource origin. Route to the
+                # API Lambda instead of the SPA so Claude.ai's Remote MCP
+                # connector receives JSON, not the frontend index.html.
+                "/.well-known/*": cloudfront.BehaviorOptions(
+                    origin=api_origin,
+                    viewer_protocol_policy=cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+                    cache_policy=cloudfront.CachePolicy.CACHING_DISABLED,
+                    origin_request_policy=cloudfront.OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER,
+                    allowed_methods=cloudfront.AllowedMethods.ALLOW_ALL,
+                ),
             },
         )
 

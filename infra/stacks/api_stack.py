@@ -131,6 +131,11 @@ class ApiStack(Stack):
             "FRONTEND_URL": frontend_url,
             "ALLOWED_HOSTS": f".execute-api.{self.region}.amazonaws.com,localhost",
             "CORS_ALLOWED_ORIGINS": cors_origins,
+            # OAuth 2.1 issuer for the Remote MCP endpoint. Must be the
+            # public HTTPS origin Claude.ai's connector talks to; otherwise
+            # the WWW-Authenticate `resource_metadata` URL and the metadata
+            # documents themselves leak `http://localhost:8000`.
+            "OAUTH2_PROVIDER_ISSUER_URL": frontend_url,
             # Secrets Manager
             # DB_SECRET_ARN: {"DATABASE_URL": "postgresql://...@neon.tech/..."}
             "DB_SECRET_ARN": db_secret.secret_arn,
