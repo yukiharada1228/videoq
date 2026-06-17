@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import cast
 
 from django.utils import timezone
+from oauth2_provider.generators import generate_client_secret
 from oauth2_provider.models import (
     AccessToken,
     Application,
@@ -32,6 +33,19 @@ class DOTOAuthClientGateway(OAuthClientGateway):
         else:
             client_type = ApplicationModel.CLIENT_CONFIDENTIAL
 
+        # django-oauth-toolkit hashes Application.client_secret on save when
+        # HASH_CLIENT_SECRET=True (default since 2.4). If we let create()
+        # auto-generate the secret and then read ``application.client_secret``,
+        # we get the PBKDF2 hash, not the plaintext, which we then leak to the
+        # client. The client stores the hash as its credential, sends it back
+        # on /api/oauth/token/, DOT re-hashes it, no match → invalid_client.
+        # Generate the plaintext ourselves and let save() hash it on the way in.
+        plaintext_secret: str | None
+        if client_type == ApplicationModel.CLIENT_CONFIDENTIAL:
+            plaintext_secret = generate_client_secret()
+        else:
+            plaintext_secret = None
+
         application: Application = ApplicationModel.objects.create(
             name=request.client_name or "MCP Client",
             client_type=client_type,
@@ -41,17 +55,14 @@ class DOTOAuthClientGateway(OAuthClientGateway):
             redirect_uris=" ".join(request.redirect_uris),
             # PKCE is required project-wide via OAUTH2_PROVIDER.PKCE_REQUIRED;
             # public clients use PKCE in place of a client_secret.
+            client_secret=plaintext_secret or "",
             skip_authorization=False,
         )
 
-        plaintext_secret: str | None
-        # django-oauth-toolkit returns the raw secret on create() before hashing.
-        raw_secret = getattr(application, "client_secret", "") or ""
-        if client_type == ApplicationModel.CLIENT_CONFIDENTIAL:
-            plaintext_secret = raw_secret
-        else:
-            plaintext_secret = None
-            # Public clients must not present a usable secret.
+        if client_type != ApplicationModel.CLIENT_CONFIDENTIAL:
+            # Public clients must not present a usable secret. Re-save with an
+            # empty secret so DOT's authenticate_client_id path is the only way
+            # to authenticate this client.
             application.client_secret = ""
             application.save(update_fields=["client_secret"])
 
