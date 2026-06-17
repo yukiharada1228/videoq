@@ -21,8 +21,9 @@ _mcp_view = MCPEndpointView.as_view(
     evaluation_logs_use_case=eval_deps.get_list_chat_log_evaluations_use_case,
 )
 
-# Match the include() prefix exactly; trailing-slash tolerance comes from
-# registering the include twice in videoq/urls.py.
+# Match the include() prefix exactly. ``videoq/urls.py`` mounts this
+# include under both ``api/mcp/`` and ``api/mcp`` so the endpoint
+# responds to either form without an APPEND_SLASH 301 redirect.
 urlpatterns = [
     re_path(r"^$", _mcp_view, name="mcp-endpoint"),
 ]
