@@ -63,6 +63,17 @@ urlpatterns = [
         ProtectedResourceMetadataView.as_view(),
         name="oauth-protected-resource-metadata",
     ),
+    # Also serve the same document at the bare ``/.well-known/oauth-protected-resource``
+    # path. RFC 9728 path-concatenates the resource path onto the well-known
+    # prefix, but Claude.ai's Remote MCP connector additionally probes the bare
+    # path and treats a 404 here as "server is not an MCP-compliant resource",
+    # giving up before it even opens the authorize URL (observed via gunicorn
+    # access logs during the ofid_5a2b07ad211b3330 attempt).
+    path(
+        ".well-known/oauth-protected-resource",
+        ProtectedResourceMetadataView.as_view(),
+        name="oauth-protected-resource-metadata-bare",
+    ),
     path("api/", include("app.urls")),
     path("api/v1/", include("app.presentation.chat.openai_urls")),
 ]

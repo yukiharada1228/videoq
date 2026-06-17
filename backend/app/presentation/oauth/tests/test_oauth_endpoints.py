@@ -68,6 +68,17 @@ class WellKnownMetadataTests(TestCase):
         self.assertEqual(body["resource"], "http://testserver/api/mcp/")
         self.assertIn("http://testserver", body["authorization_servers"])
 
+    def test_protected_resource_metadata_also_served_at_bare_path(self):
+        # Claude.ai's Remote MCP connector probes the bare
+        # ``/.well-known/oauth-protected-resource`` path in addition to the
+        # path-concatenated form. A 404 there causes the connector to
+        # abort discovery before opening the authorize URL.
+        resp = self.client.get("/.well-known/oauth-protected-resource")
+        self.assertEqual(resp.status_code, 200)
+        body = resp.json()
+        self.assertEqual(body["resource"], "http://testserver/api/mcp/")
+        self.assertIn("http://testserver", body["authorization_servers"])
+
 
 @override_settings(OAUTH2_PROVIDER_ISSUER_URL="http://testserver")
 class DynamicClientRegistrationTests(TestCase):
