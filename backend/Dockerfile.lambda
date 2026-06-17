@@ -47,4 +47,6 @@ CMD ["gunicorn", "videoq.asgi:application", \
     "--threads", "4", \
     "--timeout", "0", \
     "--worker-tmp-dir", "/tmp", \
-    "--log-file", "-"]
+    "--log-file", "-", \
+    "--access-logfile", "-", \
+    "--access-logformat", "ACCESS \"%(r)s\" %(s)s %(D)sus origin=%({origin}i)s referer=%({referer}i)s ua=%({user-agent}i)s"]
