@@ -102,4 +102,79 @@ describe('LoginPage', () => {
     expect(container).toHaveClass('flex', 'min-h-screen', 'flex-col')
   })
 
+  describe('?next= redirect after login', () => {
+    let originalLocation: Location
+    let hrefSetter: ReturnType<typeof vi.fn>
+
+    beforeEach(() => {
+      originalLocation = window.location
+      hrefSetter = vi.fn()
+      Object.defineProperty(window, 'location', {
+        configurable: true,
+        value: new Proxy({ href: '' } as { href: string }, {
+          set(target, prop, value) {
+            if (prop === 'href') {
+              hrefSetter(value)
+              target.href = value
+              return true
+            }
+            return false
+          },
+          get(target, prop) {
+            return target[prop as keyof typeof target]
+          },
+        }),
+      })
+    })
+
+    afterEach(() => {
+      Object.defineProperty(window, 'location', {
+        configurable: true,
+        value: originalLocation,
+      })
+      globalThis.__setMockSearchParams('')
+    })
+
+    const submitLoginForm = async () => {
+      ;(apiClient.login as ReturnType<typeof vi.fn>).mockResolvedValue({})
+      render(<LoginPage />)
+      fireEvent.change(screen.getByPlaceholderText('auth.fields.username.placeholder'), { target: { value: 'u' } })
+      fireEvent.change(screen.getByPlaceholderText('auth.fields.password.placeholder'), { target: { value: 'p' } })
+      fireEvent.click(screen.getByText('auth.login.submit'))
+    }
+
+    it('redirects to the safe next path via full navigation', async () => {
+      globalThis.__setMockSearchParams('?next=%2Fapi%2Foauth%2Fauthorize%2F%3Fclient_id%3Dabc')
+
+      await submitLoginForm()
+
+      await waitFor(() => {
+        expect(hrefSetter).toHaveBeenCalledWith('/api/oauth/authorize/?client_id=abc')
+      })
+      expect(mockNavigate).not.toHaveBeenCalled()
+    })
+
+    it('ignores a protocol-relative next and falls back to home', async () => {
+      globalThis.__setMockSearchParams('?next=%2F%2Fevil.com%2Fphish')
+
+      await submitLoginForm()
+
+      await waitFor(() => {
+        expect(mockNavigate).toHaveBeenCalledWith('/')
+      })
+      expect(hrefSetter).not.toHaveBeenCalled()
+    })
+
+    it('ignores an absolute URL next and falls back to home', async () => {
+      globalThis.__setMockSearchParams('?next=https%3A%2F%2Fevil.com')
+
+      await submitLoginForm()
+
+      await waitFor(() => {
+        expect(mockNavigate).toHaveBeenCalledWith('/')
+      })
+      expect(hrefSetter).not.toHaveBeenCalled()
+    })
+  })
+
 })
