@@ -12,8 +12,8 @@ FROM public.ecr.aws/docker/library/python:3.12-slim
 COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:1.0.0-rc1 /lambda-adapter /opt/extensions/lambda-adapter 
 WORKDIR /var/task
 
-# ffmpeg
-RUN apt-get update && apt-get install -y --no-install-recommends curl xz-utils \
+# ffmpeg + gettext (for compilemessages)
+RUN apt-get update && apt-get install -y --no-install-recommends curl xz-utils gettext \
     && curl -fsSL \
     "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz" \
     | tar -xJ --wildcards --strip-components=1 \
@@ -32,6 +32,9 @@ RUN python -m nltk.downloader -d /usr/local/nltk_data \
     averaged_perceptron_tagger_eng punkt_tab
 
 COPY . .
+
+# Django gettext message catalogs (.po → .mo) for OAuth consent screen i18n
+RUN python manage.py compilemessages
 
 # Django static files を収集
 RUN python manage.py collectstatic --noinput || true

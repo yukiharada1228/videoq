@@ -1,0 +1,57 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: videoq\n"
+"Report-Msgid-Bugs-To: \n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: app/templates/oauth2_provider/authorize.html
+msgid "Authorize %(app_name)s — VideoQ"
+msgstr "Authorize %(app_name)s — VideoQ"
+
+#: app/templates/oauth2_provider/authorize.html
+msgid "Transform every video into the ultimate learning experience"
+msgstr "Transform every video into the ultimate learning experience"
+
+#: app/templates/oauth2_provider/authorize.html
+msgid "Connect a client"
+msgstr "Connect a client"
+
+#: app/templates/oauth2_provider/authorize.html
+msgid "Authorize %(app_name)s?"
+msgstr "Authorize %(app_name)s?"
+
+#: app/templates/oauth2_provider/authorize.html
+msgid "This app is requesting access to your VideoQ account with the following scopes."
+msgstr "This app is requesting access to your VideoQ account with the following scopes."
+
+#: app/templates/oauth2_provider/authorize.html
+msgid "Client"
+msgstr "Client"
+
+#: app/templates/oauth2_provider/authorize.html
+msgid "Redirects to"
+msgstr "Redirects to"
+
+#: app/templates/oauth2_provider/authorize.html
+msgid "This client registered itself via Dynamic Client Registration and has not been reviewed by VideoQ. Make sure the client name and redirect destination match the app you expect before authorizing."
+msgstr "This client registered itself via Dynamic Client Registration and has not been reviewed by VideoQ. Make sure the client name and redirect destination match the app you expect before authorizing."
+
+#: app/templates/oauth2_provider/authorize.html
+msgid "Cancel"
+msgstr "Cancel"
+
+#: app/templates/oauth2_provider/authorize.html
+msgid "Authorize"
+msgstr "Authorize"
+
+#: app/templates/oauth2_provider/authorize.html
+msgid "Authorization error"
+msgstr "Authorization error"
+
+#: app/templates/oauth2_provider/authorize.html
+msgid "© %(year)s VideoQ — Every learning moment"
+msgstr "© %(year)s VideoQ — Every learning moment"
