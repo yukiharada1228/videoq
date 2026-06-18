@@ -1,0 +1,57 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: videoq\n"
+"Report-Msgid-Bugs-To: \n"
+"Language: ja\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+#: app/templates/oauth2_provider/authorize.html
+msgid "Authorize %(app_name)s — VideoQ"
+msgstr "%(app_name)s を許可 — VideoQ"
+
+#: app/templates/oauth2_provider/authorize.html
+msgid "Transform every video into the ultimate learning experience"
+msgstr "あらゆるビデオを、最高の学びの体験へ"
+
+#: app/templates/oauth2_provider/authorize.html
+msgid "Connect a client"
+msgstr "コネクター連携"
+
+#: app/templates/oauth2_provider/authorize.html
+msgid "Authorize %(app_name)s?"
+msgstr "%(app_name)s を許可しますか？"
+
+#: app/templates/oauth2_provider/authorize.html
+msgid "This app is requesting access to your VideoQ account with the following scopes."
+msgstr "このアプリは次のスコープで VideoQ アカウントへのアクセスを求めています。"
+
+#: app/templates/oauth2_provider/authorize.html
+msgid "Client"
+msgstr "クライアント"
+
+#: app/templates/oauth2_provider/authorize.html
+msgid "Redirects to"
+msgstr "リダイレクト先"
+
+#: app/templates/oauth2_provider/authorize.html
+msgid "This client registered itself via Dynamic Client Registration and has not been reviewed by VideoQ. Make sure the client name and redirect destination match the app you expect before authorizing."
+msgstr "このクライアントは Dynamic Client Registration によって自動登録された未審査のアプリです。クライアント名とリダイレクト先が想定どおりであることを確認してから許可してください。"
+
+#: app/templates/oauth2_provider/authorize.html
+msgid "Cancel"
+msgstr "キャンセル"
+
+#: app/templates/oauth2_provider/authorize.html
+msgid "Authorize"
+msgstr "許可する"
+
+#: app/templates/oauth2_provider/authorize.html
+msgid "Authorization error"
+msgstr "認可エラー"
+
+#: app/templates/oauth2_provider/authorize.html
+msgid "© %(year)s VideoQ — Every learning moment"
+msgstr "© %(year)s VideoQ — あらゆる学びのシーンに"

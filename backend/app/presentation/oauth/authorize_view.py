@@ -10,7 +10,7 @@ parameter so they can return to the consent screen after signing in.
 
 from __future__ import annotations
 
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 
 from django.conf import settings
 from django.http import HttpResponseRedirect
@@ -36,6 +36,32 @@ class CookieAuthorizationView(AuthorizationView):
             return self._redirect_to_login(request)
 
         return super().dispatch(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Surface the redirect_uri's host so the consent UI can show users
+        # *where* they're about to be sent. Without this the screen only
+        # shows the (attacker-controlled, DCR-supplied) client_name.
+        redirect_uri = None
+        form = context.get("form")
+        if form is not None:
+            initial = getattr(form, "initial", None) or {}
+            redirect_uri = initial.get("redirect_uri")
+            if not redirect_uri:
+                bound = form.data.get("redirect_uri") if hasattr(form, "data") else None
+                redirect_uri = bound
+        if not redirect_uri:
+            application = context.get("application")
+            if application is not None:
+                redirect_uri = getattr(application, "default_redirect_uri", None)
+        if redirect_uri:
+            try:
+                context["redirect_uri_host"] = (
+                    urlparse(redirect_uri).hostname or redirect_uri
+                )
+            except ValueError:
+                context["redirect_uri_host"] = redirect_uri
+        return context
 
     @staticmethod
     def _redirect_to_login(request) -> HttpResponseRedirect:
