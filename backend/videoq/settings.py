@@ -214,6 +214,7 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "corsheaders.middleware.CorsMiddleware",
+    "django.middleware.locale.LocaleMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -226,7 +227,10 @@ ROOT_URLCONF = "videoq.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        # Listed before APP_DIRS lookup so our overrides (e.g. the OAuth
+        # consent screen at app/templates/oauth2_provider/authorize.html)
+        # win against the third-party defaults shipped by oauth2_provider.
+        "DIRS": [BASE_DIR / "app" / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -294,6 +298,13 @@ AUTH_PASSWORD_VALIDATORS = [
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
 LANGUAGE_CODE = "en-us"
+
+LANGUAGES = [
+    ("en", "English"),
+    ("ja", "日本語"),
+]
+
+LOCALE_PATHS = [BASE_DIR / "locale"]
 
 TIME_ZONE = "America/Chicago"
 

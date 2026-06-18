@@ -1,82 +1,360 @@
 {% load i18n %}<!DOCTYPE html>
-<html lang="en">
+<html lang="{{ LANGUAGE_CODE|default:'en' }}">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>{% trans "Authorize" %} {{ application.name }} — VideoQ</title>
+  <title>{% blocktrans with app_name=application.name %}Authorize {{ app_name }} — VideoQ{% endblocktrans %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&display=swap" />
   <style>
-    :root { color-scheme: light; }
+    :root {
+      color-scheme: light;
+      --green-dark: #00652c;
+      --green-mid: #15803d;
+      --green-pale: #d3ffd5;
+      --ink: #191c19;
+      --ink-soft: #3f493f;
+      --ink-mute: #6f7a6e;
+      --border: #e6e8e4;
+      --bg: #ffffff;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       margin: 0;
+      /* Match Tailwind's default font-sans stack used by the SPA body.
+         Plus Jakarta Sans is applied per-element to brand text only. */
+      font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji",
+        "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+      color: var(--ink);
+      background: var(--bg);
+    }
+    main {
+      display: flex;
+      flex-direction: column;
       min-height: 100vh;
+    }
+    .brand-pane {
+      display: none;
+      position: relative;
+      background: var(--green-mid);
+      color: #ffffff;
+      padding: 48px;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    .brand-pane::before,
+    .brand-pane::after {
+      content: "";
+      position: absolute;
+      width: 384px;
+      height: 384px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 50%;
+      filter: blur(64px);
+    }
+    .brand-pane::before { bottom: -96px; left: -96px; }
+    .brand-pane::after { top: -96px; right: -96px; }
+    .brand-stack {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 24px;
+    }
+    .brand-icon {
+      background: rgba(255, 255, 255, 0.1);
+      -webkit-backdrop-filter: blur(12px);
+      backdrop-filter: blur(12px);
+      padding: 16px;
+      border-radius: 16px;
+    }
+    .brand-text { text-align: center; }
+    .brand-name {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-weight: 800;
+      font-size: 36px;
+      line-height: 40px;
+      letter-spacing: -0.025em;
+      margin: 0 0 8px;
+    }
+    .brand-tagline {
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 14px;
+      line-height: 20px;
+      font-weight: 500;
+      letter-spacing: 0.025em;
+      margin: 0;
+    }
+    .form-pane {
+      flex: 1;
+      background: #ffffff;
       display: flex;
       align-items: center;
       justify-content: center;
-      background: #f7f8f4;
-      color: #191c19;
-      padding: 24px;
-    }
-    .card {
-      width: 100%;
-      max-width: 420px;
-      background: #ffffff;
-      border-radius: 16px;
-      box-shadow: 0 6px 30px rgba(28, 25, 23, 0.08);
       padding: 32px;
     }
-    .brand { font-weight: 700; color: #00652c; font-size: 14px; letter-spacing: 0.04em; }
-    h1 { font-size: 22px; margin: 12px 0 8px; }
-    p { color: #3f493f; line-height: 1.5; }
-    ul { background: #f2f4ef; border-radius: 12px; padding: 16px 24px; }
-    li { margin: 4px 0; color: #191c19; }
-    .actions { display: flex; gap: 12px; margin-top: 24px; }
+    .form-stack {
+      width: 100%;
+      max-width: 440px;
+      display: flex;
+      flex-direction: column;
+    }
+    .mobile-brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      justify-content: center;
+      margin-bottom: 32px;
+      color: var(--green-dark);
+    }
+    .mobile-brand-name {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-weight: 800;
+      font-size: 24px;
+      line-height: 32px;
+      letter-spacing: -0.025em;
+    }
+    .intro { margin-bottom: 32px; }
+    .badge {
+      display: inline-flex;
+      padding: 6px 16px;
+      border-radius: 999px;
+      background: var(--green-pale);
+      color: #2c4e32;
+      font-size: 12px;
+      line-height: 16px;
+      font-weight: 700;
+      letter-spacing: 0.025em;
+      margin-bottom: 24px;
+    }
+    h1 {
+      font-weight: 800;
+      font-size: 30px;
+      line-height: 1.25;
+      letter-spacing: -0.025em;
+      color: var(--ink);
+      margin: 0;
+    }
+    .accent {
+      height: 6px;
+      width: 56px;
+      background: var(--green-dark);
+      border-radius: 999px;
+      margin: 16px 0 24px;
+    }
+    .lead {
+      color: var(--ink-mute);
+      font-size: 14px;
+      line-height: 1.625;
+      margin: 0;
+    }
+    .meta {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 8px 16px;
+      padding: 16px 20px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      margin: 0 0 24px;
+    }
+    .meta dt {
+      font-weight: 700;
+      color: #6b7280;
+      font-size: 12px;
+      line-height: 16px;
+      align-self: center;
+    }
+    .meta dd {
+      margin: 0;
+      color: var(--ink);
+      font-size: 14px;
+      line-height: 20px;
+      word-break: break-all;
+    }
+    .scopes {
+      list-style: none;
+      margin: 0 0 24px;
+      padding: 16px 20px;
+      background: #f2f4ef;
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .scopes li {
+      color: var(--ink);
+      font-size: 14px;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+    .scopes li::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--green-dark);
+      margin-top: 8px;
+      flex-shrink: 0;
+    }
+    .warning {
+      display: flex;
+      gap: 12px;
+      padding: 14px 16px;
+      background: #fff9e6;
+      border: 1px solid #f5d780;
+      border-radius: 12px;
+      color: #6b4f00;
+      font-size: 13px;
+      line-height: 1.5;
+      margin-bottom: 24px;
+    }
+    .warning svg { flex-shrink: 0; margin-top: 2px; }
+    .actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 8px;
+    }
     button {
       flex: 1;
       border: 0;
       border-radius: 12px;
-      padding: 12px 16px;
+      padding: 16px;
       font-size: 14px;
       font-weight: 700;
+      font-family: inherit;
       cursor: pointer;
+      transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
     }
-    .cancel { background: #f2f4ef; color: #3f493f; }
-    .allow { background: #00652c; color: #ffffff; }
-    .allow:hover { background: #004b1f; }
-    .error { background: #fff0f0; color: #b91d1d; padding: 16px; border-radius: 12px; }
+    .cancel {
+      background: #f2f4ef;
+      color: var(--ink-soft);
+    }
+    .cancel:hover { background: #e6e8e0; }
+    .allow {
+      background: var(--green-dark);
+      color: #ffffff;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+    }
+    .allow:hover {
+      background: #005323;
+      transform: translateY(-2px);
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    }
+    .allow:active { transform: scale(0.98); }
+    .error-card {
+      background: #fef2f2;
+      color: #dc2626;
+      border: 1px solid #fecaca;
+      padding: 12px;
+      border-radius: 12px;
+      font-size: 14px;
+    }
+    .error-card strong { display: block; margin-bottom: 4px; }
+    .error-card p { margin: 0; line-height: 1.5; }
+    .footer {
+      margin-top: 64px;
+      text-align: center;
+      color: #9ca3af;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+    }
+    @media (min-width: 640px) {
+      .form-pane { padding: 48px; }
+    }
+    @media (min-width: 768px) {
+      main { flex-direction: row; }
+      .brand-pane { display: flex; width: 50%; }
+      .form-pane { width: 50%; }
+      .mobile-brand { display: none; }
+    }
   </style>
 </head>
 <body>
-  <div class="card">
-    <div class="brand">VideoQ</div>
-    {% if not error %}
-      <h1>{% blocktrans with app_name=application.name %}Authorize {{ app_name }}?{% endblocktrans %}</h1>
-      <p>{% trans "This app is requesting access to your VideoQ account with the following scope:" %}</p>
-      <ul>
-        {% for scope in scopes_descriptions %}
-          <li>{{ scope }}</li>
-        {% endfor %}
-      </ul>
-
-      <form id="authorizationForm" method="post">
-        {% csrf_token %}
-        {% for field in form %}
-          {% if field.is_hidden %}{{ field }}{% endif %}
-        {% endfor %}
-        {{ form.errors }}
-        {{ form.non_field_errors }}
-        <div class="actions">
-          <button class="cancel" type="submit" name="allow" value="">{% trans "Cancel" %}</button>
-          <button class="allow" type="submit" name="allow" value="True">{% trans "Authorize" %}</button>
+  <main>
+    <section class="brand-pane">
+      <div class="brand-stack">
+        <div class="brand-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 9.003a1 1 0 0 1 1.517-.859l4.997 2.997a1 1 0 0 1 0 1.718l-4.997 2.997A1 1 0 0 1 9 14.996z"/><circle cx="12" cy="12" r="10"/></svg>
         </div>
-      </form>
-    {% else %}
-      <h1>{% trans "Authorization error" %}</h1>
-      <div class="error">
-        <strong>{{ error.error }}</strong>
-        <p>{{ error.description }}</p>
+        <div class="brand-text">
+          <h2 class="brand-name">VideoQ</h2>
+          <p class="brand-tagline">{% trans "Transform every video into the ultimate learning experience" %}</p>
+        </div>
       </div>
-    {% endif %}
-  </div>
+    </section>
+
+    <section class="form-pane">
+      <div class="form-stack">
+        <div class="mobile-brand">
+          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 9.003a1 1 0 0 1 1.517-.859l4.997 2.997a1 1 0 0 1 0 1.718l-4.997 2.997A1 1 0 0 1 9 14.996z"/><circle cx="12" cy="12" r="10"/></svg>
+          <span class="mobile-brand-name">VideoQ</span>
+        </div>
+
+        {% if not error %}
+          <div class="intro">
+            <span class="badge">{% trans "Connect a client" %}</span>
+            <h1>{% blocktrans with app_name=application.name %}Authorize {{ app_name }}?{% endblocktrans %}</h1>
+            <div class="accent"></div>
+            <p class="lead">{% trans "This app is requesting access to your VideoQ account with the following scopes." %}</p>
+          </div>
+
+          <dl class="meta">
+            <dt>{% trans "Client" %}</dt>
+            <dd>{{ application.name }}</dd>
+            {% if redirect_uri_host %}
+              <dt>{% trans "Redirects to" %}</dt>
+              <dd>{{ redirect_uri_host }}</dd>
+            {% endif %}
+          </dl>
+
+          <ul class="scopes">
+            {% for scope in scopes_descriptions %}
+              <li>{{ scope }}</li>
+            {% endfor %}
+          </ul>
+
+          {% if not application.user_id %}
+            <div class="warning" role="note">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              <span>{% trans "This client registered itself via Dynamic Client Registration and has not been reviewed by VideoQ. Make sure the client name and redirect destination match the app you expect before authorizing." %}</span>
+            </div>
+          {% endif %}
+
+          <form id="authorizationForm" method="post">
+            {% csrf_token %}
+            {% for field in form %}
+              {% if field.is_hidden %}{{ field }}{% endif %}
+            {% endfor %}
+            {{ form.errors }}
+            {{ form.non_field_errors }}
+            <div class="actions">
+              <button class="cancel" type="submit" name="allow" value="">{% trans "Cancel" %}</button>
+              <button class="allow" type="submit" name="allow" value="True">{% trans "Authorize" %}</button>
+            </div>
+          </form>
+        {% else %}
+          <div class="intro">
+            <span class="badge">{% trans "Connect a client" %}</span>
+            <h1>{% trans "Authorization error" %}</h1>
+            <div class="accent"></div>
+          </div>
+          <div class="error-card">
+            <strong>{{ error.error }}</strong>
+            <p>{{ error.description }}</p>
+          </div>
+        {% endif %}
+
+        <div class="footer">{% now "Y" as current_year %}{% blocktrans with year=current_year %}© {{ year }} VideoQ — Every learning moment{% endblocktrans %}</div>
+      </div>
+    </section>
+  </main>
 </body>
 </html>
