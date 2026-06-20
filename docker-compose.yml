@@ -68,8 +68,6 @@ services:
     image: nginx:alpine
     container_name: videoq-nginx
     command: /bin/sh -c "envsubst '$$MAX_VIDEO_UPLOAD_SIZE_MB' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf && nginx -g 'daemon off;'"
-    ports:
-      - "80:80"
     environment:
       - MAX_VIDEO_UPLOAD_SIZE_MB=${MAX_VIDEO_UPLOAD_SIZE_MB:-500}
     volumes:
@@ -82,9 +80,29 @@ services:
     networks:
       - videoq-network
 
+  gateway:
+    image: caddy:2-alpine
+    container_name: videoq-gateway
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      - SITE_ADDRESS=${SITE_ADDRESS:-http://localhost}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - nginx
+    networks:
+      - videoq-network
+
 volumes:
   staticfiles:
   postgres_data:
+  caddy_data:
+  caddy_config:
 
 
 networks:
