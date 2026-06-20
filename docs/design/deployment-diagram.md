@@ -106,6 +106,7 @@ graph LR
         S3 --> S2
         S3 --> S1
         S4 --> S1
+        S4 --> S2
         S5 --> S3
         S6 --> S3
         S6 --> S5
@@ -157,17 +158,17 @@ graph TB
 ```mermaid
 graph TB
     subgraph NamedVolumes["Named Volumes"]
-        V1[postgres_data<br/>/var/lib/postgresql/data]
-        V2[staticfiles<br/>/app/staticfiles]
-        V2b[caddy_data<br/>Certificates]
-        V2c[caddy_config<br/>Runtime Config]
+        V1[postgres_data]
+        V2[staticfiles]
+        V2b[caddy_data]
+        V2c[caddy_config]
     end
     
     subgraph BindMounts["Bind Mounts"]
-        V3[./backend<br/>/app]
-        V4[./backend/media<br/>/media]
-        V5[./nginx.conf<br/>/etc/nginx/nginx.conf.template]
-        V6[./Caddyfile<br/>/etc/caddy/Caddyfile]
+        V3["./backend (Host)"]
+        V4["./backend/media (Host)"]
+        V5["./nginx.conf (Host)"]
+        V6["./Caddyfile (Host)"]
     end
     
     subgraph Containers["Containers"]
@@ -178,16 +179,16 @@ graph TB
         C5[gateway]
     end
     
-    C1 --> V1
-    C2 --> V2
-    C2 --> V3
-    C3 --> V3
-    C4 --> V2
-    C4 --> V4
-    C4 --> V5
-    C5 --> V2b
-    C5 --> V2c
-    C5 --> V6
+    C1 -->|/var/lib/postgresql/data| V1
+    C2 -->|/app/staticfiles| V2
+    C2 -->|/app| V3
+    C3 -->|/app| V3
+    C4 -->|/static| V2
+    C4 -->|/media| V4
+    C4 -->|/etc/nginx/nginx.conf.template| V5
+    C5 -->|/data| V2b
+    C5 -->|/config| V2c
+    C5 -->|/etc/caddy/Caddyfile| V6
 ```
 
 ## デプロイフロー
