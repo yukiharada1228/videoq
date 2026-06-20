@@ -15,7 +15,7 @@ flowchart TD
     Validate2 -->|Exceeds| Error2[Error Display<br/>Size Exceeded]
     Validate2 -->|OK| Validate3{"File size vs<br>User.max_video_upload_size_mb"}
     Validate3 -->|Exceeded| Error4[Error Display<br/>File Size Exceeded]
-    Validate3 -->|OK| Validate4{"Storage quota check<br>(Subscription)"}
+    Validate3 -->|OK| Validate4{"Storage quota check<br>(User limits)"}
     Validate4 -->|Exceeded| Error5[Error Display<br/>Storage Limit Exceeded]
     Validate4 -->|OK| Upload[Start File Upload]
     Upload --> SaveDB[(Database<br/>Save Video<br/>status: pending)]
@@ -227,7 +227,7 @@ flowchart TD
     SelectGroup --> ValidateOwner{Ownership Verification}
     ValidateOwner -->|Invalid| ErrorOwner[Ownership Error]
     ValidateOwner -->|Valid| GenerateToken[Generate Share Token]
-    GenerateToken --> SaveToken[(Database<br/>Save share_token)]
+    GenerateToken --> SaveToken[(Database<br/>Save share_slug)]
     SaveToken --> CreateURL[Create Share URL]
     CreateURL --> DisplayURL[Display Share URL]
     DisplayURL --> End([Complete])
@@ -237,7 +237,7 @@ flowchart TD
     ValidateOwner2 -->|Invalid| ErrorOwner2[Ownership Error]
     ValidateOwner2 -->|Valid| CheckToken{"Token Exists<br>Check"}
     CheckToken -->|Not Exists| ErrorNoToken[Token Not Set Error]
-    CheckToken -->|Exists| DeleteToken[(Database<br/>Delete share_token)]
+    CheckToken -->|Exists| DeleteToken[(Database<br/>Delete share_slug)]
     DeleteToken --> SuccessDelete[Delete Success]
     SuccessDelete --> End
     

@@ -18,7 +18,7 @@ sequenceDiagram
 
     User->>Frontend: Upload Video File
     Frontend->>Backend: POST /api/videos/
-    Backend->>Backend: Validate request (file type/size vs User.max_video_upload_size_mb, storage quota vs Subscription)
+    Backend->>Backend: Validate request (file type/size vs User.max_video_upload_size_mb, storage quota vs User limits)
     Backend->>DB: Create Video(status: pending)
     DB-->>Backend: Video Saved
     Backend->>Celery: enqueue_transcription(video_id)
@@ -144,7 +144,7 @@ sequenceDiagram
     Backend->>DB: Get Group & Verify Ownership
     DB-->>Backend: VideoGroup Information
     Backend->>Backend: Generate Share Token
-    Backend->>DB: Save share_token
+    Backend->>DB: Save share_slug
     DB-->>Backend: Update Complete
     Backend-->>Frontend: Share URL
     Frontend-->>Owner: Display Share URL
@@ -152,14 +152,14 @@ sequenceDiagram
     Owner->>Guest: Send Share URL
     Guest->>Frontend: Access Share URL(/share/{token})
     Frontend->>Backend: GET /api/videos/groups/shared/{token}/
-    Backend->>DB: Search Group by share_token
+    Backend->>DB: Search Group by share_slug
     DB-->>Backend: VideoGroup Information
     Backend-->>Frontend: Group Information
     Frontend-->>Guest: Display Group Information
     
     Guest->>Frontend: Send Chat
-    Frontend->>Backend: POST /api/chat/?share_token={token} (body: group_id={id})
-    Backend->>DB: Get VideoGroup by id + share_token
+    Frontend->>Backend: POST /api/chat/messages/?share_slug={slug} (body: group_id={id})
+    Backend->>DB: Get VideoGroup by id + share_slug
     DB-->>Backend: VideoGroup Information
     Note over Backend: Uses global LLM_PROVIDER and EMBEDDING_PROVIDER settings
     Backend->>Backend: Execute RAG Processing
@@ -400,7 +400,7 @@ sequenceDiagram
     Frontend->>Backend: POST /api/chat/feedback/ (chat_log_id, feedback)
     Backend->>DB: Get ChatLog by ID
     DB-->>Backend: ChatLog
-    Backend->>Backend: Verify ownership (user_id or share_token)
+    Backend->>Backend: Verify ownership (user_id or share_slug)
     Backend->>DB: Update feedback field
     DB-->>Backend: Updated ChatLog
     Backend-->>Frontend: Updated Feedback

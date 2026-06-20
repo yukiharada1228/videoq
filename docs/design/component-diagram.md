@@ -158,19 +158,25 @@ graph TB
                 VideoSer[Serializers]
             end
             subgraph ChatPres["chat/"]
-                ChatViews["Views - ChatView, ChatHistoryView,
-                ChatFeedbackView, ChatAnalyticsView,
-                ChatHistoryExportView"]
+                ChatViews["Views - ChatView, StreamChatView,
+                ChatGroupHistoryView, ChatLogFeedbackView,
+                ChatGroupAnalyticsView, ChatGroupAnalyticsKeywordsView,
+                OpenAIChatCompletionsView"]
                 ChatSer[Serializers]
             end
             subgraph MediaPres["media/"]
                 MediaViews[ProtectedMediaView]
             end
-            subgraph BillingPres["billing/"]
-                BillingViews["Views - PlanList, CurrentSubscription,
-                CreateCheckoutSession, CreateBillingPortal,
-                HandleWebhook"]
-                BillingSer[Serializers]
+            subgraph EvaluationPres["evaluation/"]
+                EvaluationViews["EvaluationSummaryView,
+                EvaluationLogsView"]
+            end
+            subgraph OAuthPres["oauth/"]
+                OAuthViews["Metadata, DynamicClientRegistration,
+                Authorized Token Management"]
+            end
+            subgraph MCPPres["mcp/"]
+                MCPViews["MCPEndpointView, MCPToolRegistry"]
             end
             CommonPres["common/ - auth (CookieJWTAuthentication,
             ApiKeyAuthentication, ShareTokenAuthentication),
@@ -186,7 +192,6 @@ graph TB
                 UpdateVideo[UpdateVideoUseCase]
                 DeleteVideo[DeleteVideoUseCase]
                 FileUrl[GetVideoFileUrlUseCase]
-                EnforceLimit[EnforceVideoLimitUseCase]
                 RequestUpload[RequestVideoUploadUseCase]
                 ConfirmUpload[ConfirmVideoUploadUseCase]
                 IndexVideo[IndexVideoTranscriptUseCase]
@@ -206,13 +211,16 @@ graph TB
                 ManageTags[AddTagsToVideo / RemoveTagFromVideo]
                 RunTrans[RunTranscriptionUseCase]
                 ReindexAll[ReindexAllVideosUseCase]
+                ReindexVideo[ReindexVideoTranscriptUseCase]
             end
             subgraph ChatUC["chat/"]
                 SendMsg[SendMessageUseCase]
                 GetHistory[GetChatHistoryUseCase]
                 ExportHistory[ExportChatHistoryUseCase]
+                ResetHistory[ResetChatHistoryUseCase]
                 SubmitFeedback[SubmitFeedbackUseCase]
                 GetAnalytics[GetChatAnalyticsUseCase]
+                GetKeywords[GetChatKeywordsUseCase]
             end
             subgraph AuthUC["auth/"]
                 LoginUC[LoginUseCase]
@@ -232,17 +240,21 @@ graph TB
             subgraph MediaUC["media/"]
                 ResolveMedia[ResolveProtectedMediaUseCase]
             end
-            subgraph BillingUC["billing/"]
-                GetSubscription[GetSubscriptionUseCase]
-                GetPlans[GetPlansUseCase]
-                CreateCheckout[CreateCheckoutSessionUseCase]
-                CreatePortal[CreateBillingPortalUseCase]
-                HandleWebhook[HandleWebhookUseCase]
+            subgraph QuotaUC["quota/"]
                 CheckStorage[CheckStorageLimitUseCase]
                 CheckProcessing[CheckProcessingLimitUseCase]
                 CheckAiAnswers[CheckAiAnswersLimitUseCase]
                 RecordUsage["RecordStorageUsage / RecordProcessingUsage / RecordAiAnswerUsage"]
-                ClearOverQuota[ClearOverQuotaUseCase]
+                ClearOverQuota[ClearOverQuotaIfWithinLimitUseCase]
+            end
+            subgraph EvaluationUC["evaluation/"]
+                EvaluateChatLog[EvaluateChatLogUseCase]
+                EvaluationQueries["GetEvaluationSummaryUseCase /
+                ListChatLogEvaluationsUseCase"]
+            end
+            subgraph OAuthUC["oauth/"]
+                OAuthCommands["RegisterOAuthClientUseCase /
+                ListAuthorizedTokensUseCase / RevokeAuthorizedTokenUseCase"]
             end
             SharedExc["shared/exceptions - ResourceNotFound, PermissionDenied"]
         end
@@ -286,12 +298,20 @@ graph TB
             subgraph MediaDomain["media/"]
                 MediaRepo[ProtectedMediaRepository ABC]
             end
-            subgraph BillingDomain["billing/"]
-                BillingEntities["SubscriptionEntity, PlanType,
-                PLAN_LIMITS"]
-                BillingRepos["SubscriptionRepository ABC"]
-                BillingExc["StorageLimitExceeded, ProcessingLimitExceeded,
+            subgraph QuotaDomain["quota/"]
+                QuotaEntities[UserLimitsEntity]
+                QuotaRepos["UserLimitsRepository ABC"]
+                QuotaExc["StorageLimitExceeded, ProcessingLimitExceeded,
                 AiAnswersLimitExceeded, OverQuotaError"]
+            end
+            subgraph EvaluationDomain["evaluation/"]
+                EvaluationEntity[ChatLogEvaluationEntity]
+                EvaluationPorts["EvaluationRepository ABC,
+                RagEvaluationGateway, EvaluationTaskGateway"]
+            end
+            subgraph OAuthDomain["oauth/"]
+                OAuthPorts["OAuthClientGateway,
+                OAuthAccessTokenGateway"]
             end
             UserEntity["user/ - UserEntity, UserRepository ABC"]
             SharedDomain["shared/ - ResourceNotFound, PermissionDenied,
@@ -304,6 +324,7 @@ graph TB
                 VideoModel[Video]
                 GroupModel[VideoGroup / VideoGroupMember]
                 ChatLogModel[ChatLog]
+                EvaluationModel[ChatLogEvaluation]
                 TagModel[Tag / VideoTag]
                 AccDeleteModel[AccountDeletionRequest]
                 ApiKeyModel[UserApiKey]
@@ -319,7 +340,8 @@ graph TB
                 DjangoApiKeyRepo[DjangoApiKeyRepository]
                 DjangoUserAuthGW[DjangoUserAuthGateway]
                 DjangoUserDataGW[DjangoUserDataDeletionGateway]
-                DjangoSubRepo2[DjangoSubscriptionRepository]
+                DjangoLimitsRepo[DjangoUserLimitsRepository]
+                DjangoEvaluationRepo[DjangoChatLogEvaluationRepository]
             end
             subgraph ExtGateways["external/"]
                 RagChatGW[RagChatGateway]
@@ -349,6 +371,14 @@ graph TB
             subgraph TasksInfra["tasks/"]
                 CeleryVideoTaskGW[CeleryVideoTaskGateway]
                 CeleryAuthTaskGW[CeleryAuthTaskGateway]
+                CeleryEvaluationTaskGW[CeleryEvaluationTaskGateway]
+            end
+            subgraph EvaluationInfra["evaluation/"]
+                RagasGateway[RagasEvaluationGateway]
+            end
+            subgraph OAuthInfra["oauth/"]
+                DotClientGateway["DOTOAuthClientGateway /
+                DOTOAuthAccessTokenGateway"]
             end
             subgraph ChatInfra["chat/"]
                 KwExtractor[JanomeNltkKeywordExtractor]
@@ -376,7 +406,9 @@ graph TB
             TranscribeTask[transcription.py]
             DeleteAccTask[account_deletion.py]
             ReindexTask[reindexing.py]
+            ReindexVideoTask[reindex_video_transcript.py]
             IndexingTask[indexing.py]
+            EvaluationTask[evaluation.py]
         end
 
         subgraph Container["Dependency Providers / Composition Root"]
@@ -412,6 +444,7 @@ graph TB
     end
     
     subgraph Gateway["Gateway"]
+        Caddy[Caddy Public Gateway]
         Nginx[Nginx Reverse Proxy]
     end
     
@@ -431,11 +464,11 @@ graph TB
         EmailService[Email Service]
     end
     
-    Browser --> Nginx
+    Browser --> Caddy
+    Caddy --> Nginx
     Nginx --> FrontendSPA
     Nginx --> DjangoAPI
     FrontendSPA --> DjangoAPI
-    DjangoAPI --> PostgreSQL
     DjangoAPI --> Redis
     DjangoAPI --> FileStorage
     CeleryWorker --> Redis

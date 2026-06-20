@@ -81,11 +81,8 @@ graph TB
         UC41[Manage Upload Limits]
     end
 
-    subgraph Billing["Billing & Subscription"]
-        UC42[View Subscription]
-        UC43[View Plans]
-        UC44[Start Subscription]
-        UC45[Manage Billing Portal]
+    subgraph Quota["Usage & Quota"]
+        UC42[View Usage and Limits]
     end
     
     User --> UC1
@@ -127,9 +124,6 @@ graph TB
     User --> UC39
     User --> UC40
     User --> UC42
-    User --> UC43
-    User --> UC44
-    User --> UC45
 
     Guest --> UC29
     Guest --> UC30
@@ -214,15 +208,14 @@ graph TB
 - **UC36 再インデックス進捗監視**: Celeryログで再インデックスタスクの進捗を監視
 - **UC41 アップロード上限管理**: Django Admin から `User.max_video_upload_size_mb`（1ファイルあたりのサイズ上限）と各種上限値を設定し、ストレージ・処理時間・AI回答数の月次クォータを制御
 
-### Billing & Subscription
-- **UC42 プラン確認**: 現在のプラン・使用量（ストレージ・処理時間・AI回答数）を確認
-- **UC43 プラン制限確認**: 利用可能な基本プラン（free / lite / standard）と制限値を確認
+### 利用量・利用枠
+- **UC42 利用量・利用枠確認**: ホーム画面でストレージ・月間処理時間・月間AI回答数の使用量と、管理者が設定した上限値を確認
 
 **注記:**
 - LLMとエンベディングの設定は環境変数（`LLM_PROVIDER`、`LLM_MODEL`、`EMBEDDING_PROVIDER`、`EMBEDDING_MODEL`）でグローバルに管理されます。
 - サインアップは `ENABLE_SIGNUP` で制御されます。無効時は `POST /api/auth/signup/` がルーティングされません。
 - ローカル whisper.cpp サーバー（WHISPER_BACKEND=whisper.cpp）使用時は、文字起こしにOpenAI APIキーは不要です。
-- 再インデックスは動画所有者ごとの `OpenAI API キー`（DB保存） または `OLLAMA_BASE_URL` 環境変数（`EMBEDDING_PROVIDER` に依存）を使用し、エンベディングプロバイダー（OpenAI ↔ Ollama）やモデルの切り替え時に必要です。
+- 再インデックスはサーバー側の `OPENAI_API_KEY` または `OLLAMA_BASE_URL`（`EMBEDDING_PROVIDER` に依存）を使用し、エンベディングプロバイダー（OpenAI ↔ Ollama）やモデルの切り替え時に必要です。
 - APIキーはサーバー間連携を可能にします。生のキーは作成時に1回のみ表示され、SHA-256ハッシュのみが保存されます。
 - `read_only` APIキーはreadスコープと `chat_write` スコープ（`POST /api/chat/`）にアクセスできますが、その他の書き込み操作はできません。
 

@@ -17,6 +17,14 @@ classDiagram
         +bool is_staff
         +bool is_superuser
         +int max_video_upload_size_mb
+        +float storage_limit_gb (nullable)
+        +int processing_limit_minutes (nullable)
+        +int ai_answers_limit (nullable)
+        +bigint used_storage_bytes
+        +int used_processing_seconds
+        +int used_ai_answers
+        +datetime usage_period_start (nullable)
+        +bool is_over_quota
         +datetime deactivated_at (nullable)
     }
     
@@ -26,6 +34,9 @@ classDiagram
         +FileField file
         +string title
         +string description
+        +string source_type
+        +string source_url
+        +string youtube_video_id
         +datetime uploaded_at
         +string transcript
         +string status
@@ -38,9 +49,10 @@ classDiagram
         +ForeignKey user
         +string name
         +string description
+        +int display_order
         +datetime created_at
         +datetime updated_at
-        +string share_token
+        +string share_slug
         +ManyToManyField videos
         +__str__()
     }
@@ -61,12 +73,24 @@ classDiagram
         +string question
         +string answer
         +JSONField citations
+        +JSONField retrieved_contexts
         +bool is_shared_origin
         +string feedback
         +datetime created_at
     }
 
     %% ChatLog.feedback: FeedbackChoices (good/bad)
+
+    class ChatLogEvaluation {
+        +OneToOneField chat_log
+        +string status
+        +float faithfulness
+        +float answer_relevancy
+        +float context_precision
+        +string error_message
+        +datetime evaluated_at
+        +datetime created_at
+    }
 
     class Tag {
         +int id
@@ -109,20 +133,6 @@ classDiagram
         +datetime requested_at
     }
 
-    class Subscription {
-        +string plan
-        +bigint used_storage_bytes
-        +int used_processing_seconds
-        +int used_ai_answers
-        +datetime usage_period_start
-        +float custom_storage_gb
-        +int custom_processing_minutes
-        +int custom_ai_answers
-        +bool unlimited_processing_minutes
-        +bool unlimited_ai_answers
-        +bool is_over_quota
-    }
-    
     class SafeFilenameMixin {
         +get_available_name()
         +_get_safe_filename()
@@ -143,12 +153,12 @@ classDiagram
     User "1" --> "*" Tag : owns
     User "1" --> "*" UserApiKey : owns
     User "1" --> "*" AccountDeletionRequest : creates
-    User "1" --> "1" Subscription : has
     VideoGroup "1" --> "*" VideoGroupMember : contains
     Video "1" --> "*" VideoGroupMember : belongs_to
     Video "1" --> "*" VideoTag : has
     Tag "1" --> "*" VideoTag : used_in
     VideoGroup "1" --> "*" ChatLog : has
+    ChatLog "1" --> "0..1" ChatLogEvaluation : evaluated by
     SafeFileSystemStorage --|> SafeFilenameMixin : extends
     SafeS3Boto3Storage --|> SafeFilenameMixin : extends
     Video --> SafeFileSystemStorage : uses (local)
@@ -342,12 +352,12 @@ classDiagram
         +create(user_id, params) VideoGroupEntity
         +update(group, params) VideoGroupEntity
         +delete(group) None
-        +get_by_share_token(token) VideoGroupEntity
+        +get_by_share_slug(slug) VideoGroupEntity
         +add_video(group, video) VideoGroupMemberEntity
         +add_videos_bulk(group, video_ids, user_id) tuple
         +remove_video(group, video) None
         +reorder_videos(group, video_ids) None
-        +update_share_token(group, token) None
+        +update_share_slug(group, slug) None
     }
     class TagRepository {
         <<abstract>>
@@ -418,7 +428,7 @@ classDiagram
         +execute(group_id, user_id, include_videos) GroupOutputDTO
     }
     class GetSharedGroupUseCase {
-        +execute(share_token) GroupOutputDTO
+        +execute(share_slug) GroupOutputDTO
     }
     class ListVideoGroupsUseCase {
         +execute(user_id, include_videos) list~GroupOutputDTO~
@@ -489,6 +499,9 @@ classDiagram
     class ExportChatHistoryUseCase {
         +execute(group_id, user_id) tuple~int,list~
     }
+    class ResetChatHistoryUseCase {
+        +execute(group_id, user_id) None
+    }
     class SubmitFeedbackUseCase {
         +execute(chat_log_id, feedback, user_id, share_token) ChatLogDTO
     }
@@ -535,7 +548,7 @@ classDiagram
         +execute(raw_key) ApiKeyResolution
     }
     class ResolveShareTokenUseCase {
-        +execute(share_token) ShareTokenResolution
+        +execute(share_slug) ShareTokenResolution
     }
     class AuthorizeApiKeyUseCase {
         +execute(access_level, required_scope) bool
@@ -555,26 +568,11 @@ classDiagram
     class IndexVideoTranscriptUseCase {
         +execute(video_id) None
     }
-    class EnforceVideoLimitUseCase {
-        +execute(user_id) None
-    }
     class ReindexAllVideosUseCase {
         +execute() None
     }
-    class GetSubscriptionUseCase {
-        +execute(user_id) SubscriptionDTO
-    }
-    class GetPlansUseCase {
-        +execute() list~PlanDTO~
-    }
-    class CreateCheckoutSessionUseCase {
-        +execute(user_id, plan, success_url, cancel_url) CheckoutDTO
-    }
-    class CreateBillingPortalUseCase {
-        +execute(user_id, return_url) PortalDTO
-    }
-    class HandleWebhookUseCase {
-        +execute(payload, sig_header) None
+    class ReindexVideoTranscriptUseCase {
+        +execute(video_id) None
     }
     class CheckStorageLimitUseCase {
         +execute(user_id, additional_bytes) None
@@ -594,7 +592,7 @@ classDiagram
     class RecordAiAnswerUsageUseCase {
         +execute(user_id) None
     }
-    class ClearOverQuotaUseCase {
+    class ClearOverQuotaIfWithinLimitUseCase {
         +execute(user_id) None
     }
 ```
@@ -624,16 +622,14 @@ classDiagram
     class ChatView {
         +post() answer response
     }
-    class ChatHistoryView {
+    class ChatGroupHistoryView {
         +get() history list response
+        +delete() clears history
     }
-    class ChatHistoryExportView {
-        +get() CSV response
+    class ChatLogFeedbackView {
+        +patch() feedback response
     }
-    class ChatFeedbackView {
-        +post() feedback response
-    }
-    class ChatAnalyticsView {
+    class ChatGroupAnalyticsView {
         +get() analytics response
     }
     class LoginView {
@@ -673,29 +669,17 @@ classDiagram
     class ProtectedMediaView {
         +get() redirects to signed media URL
     }
-    class PlanListView {
-        +get() list of plans
-    }
-    class CurrentSubscriptionView {
-        +get() subscription detail
-    }
-    class CreateCheckoutSessionView {
-        +post() checkout URL
-    }
-    class CreateBillingPortalView {
-        +post() portal URL
-    }
-
     VideoListView ..> CreateVideoUseCase : delegates
     VideoListView ..> ListVideosUseCase : delegates
     VideoDetailView ..> GetVideoDetailUseCase : delegates
     VideoDetailView ..> UpdateVideoUseCase : delegates
     VideoDetailView ..> DeleteVideoUseCase : delegates
     ChatView ..> SendMessageUseCase : delegates
-    ChatHistoryView ..> GetChatHistoryUseCase : delegates
-    ChatFeedbackView ..> SubmitFeedbackUseCase : delegates
-    ChatAnalyticsView ..> GetChatAnalyticsUseCase : delegates
-    ChatHistoryExportView ..> ExportChatHistoryUseCase : delegates
+    ChatGroupHistoryView ..> GetChatHistoryUseCase : delegates
+    ChatGroupHistoryView ..> ExportChatHistoryUseCase : delegates
+    ChatGroupHistoryView ..> ResetChatHistoryUseCase : delegates
+    ChatLogFeedbackView ..> SubmitFeedbackUseCase : delegates
+    ChatGroupAnalyticsView ..> GetChatAnalyticsUseCase : delegates
     LoginView ..> LoginUseCase : delegates
     AccountDeleteView ..> AccountDeletionUseCase : delegates
     MeView ..> GetCurrentUserUseCase : delegates
@@ -703,10 +687,6 @@ classDiagram
     ApiKeyListCreateView ..> CreateApiKeyUseCase : delegates
     ApiKeyDetailView ..> RevokeApiKeyUseCase : delegates
     ProtectedMediaView ..> ResolveProtectedMediaUseCase : delegates
-    PlanListView ..> GetPlansUseCase : delegates
-    CurrentSubscriptionView ..> GetSubscriptionUseCase : delegates
-    CreateCheckoutSessionView ..> CreateCheckoutSessionUseCase : delegates
-    CreateBillingPortalView ..> CreateBillingPortalUseCase : delegates
 ```
 
 ## 主要なリレーション
@@ -715,7 +695,7 @@ classDiagram
 - **User** は複数の **Video** インスタンスを所有
 - **User** は複数の **VideoGroup** インスタンスを所有
 - **User** は複数の **UserApiKey** インスタンスを所有
-- **User** は自身の属性としてプラン・使用量・カスタム制限を保持
+- **User** は自身の属性として利用上限・使用量・クォータ超過状態を保持
 - **VideoGroup** は **VideoGroupMember** を通じて複数の **Video** に関連
 - **ChatLog** は **User** と **VideoGroup** に関連付け
 - **Video** は **SafeFileSystemStorage** または **SafeS3Boto3Storage** を使用
@@ -723,7 +703,7 @@ classDiagram
 - **Use Cases** は **Domain** の抽象（ABCs / ports）のみに依存
 - **Infrastructure** は **Domain** のポートを実装（リポジトリ、ゲートウェイ）
 - **Entrypoints**（Celeryタスク）はcomposition root経由で **Use Cases** に委譲
-- **billing/** はプラン別クォータと使用量チェックを担当
+- **quota/** はユーザー単位の利用上限チェック、使用量記録、月次カウンター更新を担当
 
 ### フロントエンド
 - **PageLayout** は **Header** と **Footer** を含む

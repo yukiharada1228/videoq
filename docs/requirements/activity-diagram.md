@@ -13,7 +13,7 @@ flowchart TD
     Validate -->|Invalid| Error1[Error Display]
     Validate -->|Valid| CheckFileSize{"File size vs<br>User.max_video_upload_size_mb"}
     CheckFileSize -->|Exceeded| ErrorLimit[Error: File Size Exceeded]
-    CheckFileSize -->|OK| CheckStorage{"Storage quota<br>check (Subscription)"}
+    CheckFileSize -->|OK| CheckStorage{"Storage quota<br>check (User limits)"}
     CheckStorage -->|Exceeded| ErrorStorage[Error: Storage Limit Exceeded]
     CheckStorage -->|OK| Save[Save to Database<br/>status: pending]
     Save --> Queue[Add Celery Task to Queue]

@@ -10,6 +10,9 @@ VideoQの現行 `docker-compose.yml` に基づくデフォルトデプロイを�
 graph TB
     subgraph DockerHost["Docker Host"]
         subgraph Network["videoq-network"]
+            subgraph GatewayContainer["gateway"]
+                Caddy[Caddy Public Gateway<br/>Ports: 80 / 443]
+            end
             subgraph FrontendContainer["frontend (built SPA)"]
                 FrontendSPA[nginx serving React build<br/>Port: 80]
             end
@@ -55,7 +58,8 @@ graph TB
         OllamaLocal[Ollama Server<br/>Local LLM & Embeddings]
     end
 
-    User -->|HTTP/HTTPS| Nginx
+    User -->|HTTP/HTTPS| Caddy
+    Caddy -->|Reverse Proxy| Nginx
     Nginx -->|Proxy| FrontendSPA
     Nginx -->|Proxy| Django
     Django --> PostgreSQL
@@ -70,7 +74,7 @@ graph TB
     Django -->|API Call| OpenAI
     Django -.->|Optional| OllamaLocal
     Django -->|SMTP| EmailService
-    ApiClient -->|HTTP/HTTPS| Nginx
+    ApiClient -->|HTTP/HTTPS| Caddy
     
     PostgreSQL -.->|Persist| PostgresData
     Django -.->|Static Files| StaticFiles
@@ -94,6 +98,8 @@ graph LR
         nginx serving built SPA"]
         S6["nginx
         nginx:alpine"]
+        S7["gateway
+        caddy:2-alpine"]
     end
 
     subgraph Dependencies["Dependencies"]
@@ -103,14 +109,15 @@ graph LR
         S5 --> S3
         S6 --> S3
         S6 --> S5
+        S7 --> S6
     end
 
     subgraph Ports["Port Mapping"]
-        P1["80:80
-        nginx"]
+        P1["80:80 / 443:443
+        gateway"]
     end
 
-    S6 --> P1
+    S7 --> P1
 ```
 
 ## ネットワーク構成
@@ -118,6 +125,7 @@ graph LR
 ```mermaid
 graph TB
     subgraph Network["videoq-network (bridge)"]
+        N0[gateway]
         N1[nginx]
         N2[frontend]
         N3[backend]
@@ -127,6 +135,7 @@ graph TB
         M1[shared media/static assets]
     end
     
+    N0 -.->|HTTP| N1
     N1 -.->|HTTP| N2
     N1 -.->|HTTP| N3
     N3 -.->|PostgreSQL| N5
@@ -140,7 +149,7 @@ graph TB
         Internet[Internet]
     end
     
-    Internet -->|Port 80| N1
+    Internet -->|Ports 80 / 443| N0
 ```
 
 ## ボリューム構成
@@ -150,12 +159,15 @@ graph TB
     subgraph NamedVolumes["Named Volumes"]
         V1[postgres_data<br/>/var/lib/postgresql/data]
         V2[staticfiles<br/>/app/staticfiles]
+        V2b[caddy_data<br/>Certificates]
+        V2c[caddy_config<br/>Runtime Config]
     end
     
     subgraph BindMounts["Bind Mounts"]
         V3[./backend<br/>/app]
         V4[./backend/media<br/>/media]
         V5[./nginx.conf<br/>/etc/nginx/nginx.conf.template]
+        V6[./Caddyfile<br/>/etc/caddy/Caddyfile]
     end
     
     subgraph Containers["Containers"]
@@ -163,6 +175,7 @@ graph TB
         C2[backend]
         C3[celery-worker]
         C4[nginx]
+        C5[gateway]
     end
     
     C1 --> V1
@@ -170,9 +183,11 @@ graph TB
     C2 --> V3
     C3 --> V3
     C4 --> V2
-    C4 --> V3
     C4 --> V4
     C4 --> V5
+    C5 --> V2b
+    C5 --> V2c
+    C5 --> V6
 ```
 
 ## デプロイフロー
@@ -208,6 +223,9 @@ sequenceDiagram
     
     Containers->>Services: Start nginx
     Services->>Services: nginx Ready
+
+    Containers->>Services: Start gateway
+    Services->>Services: gateway Ready
     
     Services-->>Dev: All Services Started
 ```
@@ -228,7 +246,7 @@ graph TB
         E7[ENABLE_SIGNUP]
         E8[ALLOWED_HOSTS]
         E9[CORS_ALLOWED_ORIGINS]
-        E10[SECURE_COOKIES]
+        E10[DJANGO_ENV]
         E11[FRONTEND_URL]
         E12[USE_S3_STORAGE]
         E13[AWS_*]
@@ -242,6 +260,8 @@ graph TB
         E22["OLLAMA_BASE_URL<br/>(Ollama server URL)"]
         E23["EMBEDDING_VECTOR_SIZE<br/>(must match EMBEDDING_MODEL)"]
         E24["PGVECTOR_COLLECTION_NAME<br/>(vector storage table name)"]
+        E25["SITE_ADDRESS<br/>(Caddy public address)"]
+        E26["OAUTH2_PROVIDER_ISSUER_URL<br/>(public OAuth issuer)"]
     end
     
     subgraph Containers["Containers"]
@@ -249,6 +269,7 @@ graph TB
         C2[backend]
         C3[celery-worker]
         C4[frontend]
+        C5[gateway]
     end
     
     E1 --> C1
@@ -283,6 +304,8 @@ graph TB
     E23 --> C3
     E24 --> C2
     E24 --> C3
+    E25 --> C5
+    E26 --> C2
 ```
 
 ## 本番環境: サーバーレス構成 (AWS)
@@ -346,4 +369,3 @@ graph TB
 - [コンポーネント図](component-diagram.md) — フロントエンド・バックエンドのコンポーネント構成
 - [データフロー図](../database/data-flow-diagram.md) — データの流れ
 - [シーケンス図](sequence-diagram.md) — 処理シーケンスの詳細
-
