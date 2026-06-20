@@ -1,0 +1,10 @@
+{
+	servers {
+		protocols h1 h2 h3
+	}
+}
+
+{$SITE_ADDRESS:http://localhost} {
+	encode zstd gzip
+	reverse_proxy nginx:80
+}
