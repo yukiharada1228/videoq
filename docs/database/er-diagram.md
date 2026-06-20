@@ -14,17 +14,18 @@ erDiagram
     User ||--o{ Tag : owns
     User ||--o{ AccountDeletionRequest : creates
     User ||--o{ UserApiKey : owns
-    User ||--|| Subscription : has
     VideoGroup ||--o{ VideoGroupMember : contains
     Video ||--o{ VideoGroupMember : belongs_to
     Video ||--o{ VideoTag : has
     Tag ||--o{ VideoTag : used_in
     VideoGroup ||--o{ ChatLog : has
+    ChatLog ||--o| ChatLogEvaluation : evaluated_by
 
     User {
         int id PK
         string username UK
         string email UK
+        string pending_email
         string password
         datetime date_joined
         datetime last_login
@@ -34,25 +35,16 @@ erDiagram
         string first_name
         string last_name
         int max_video_upload_size_mb
-        datetime deactivated_at
-    }
-
-    Subscription {
-        int id PK
-        int user_id FK
-        string plan
+        float storage_limit_gb
+        int processing_limit_minutes
+        int ai_answers_limit
         bigint used_storage_bytes
         int used_processing_seconds
         int used_ai_answers
         datetime usage_period_start
-        float custom_storage_gb
-        int custom_processing_minutes
-        int custom_ai_answers
-        bool unlimited_processing_minutes
-        bool unlimited_ai_answers
         bool is_over_quota
-        datetime created_at
-        datetime updated_at
+        binary searchapi_api_key_encrypted
+        datetime deactivated_at
     }
     
     Video {
@@ -61,6 +53,9 @@ erDiagram
         string file
         string title
         text description
+        string source_type
+        string source_url
+        string youtube_video_id
         datetime uploaded_at
         text transcript
         string status
@@ -72,9 +67,10 @@ erDiagram
         int user_id FK
         string name
         text description
+        int display_order
         datetime created_at
         datetime updated_at
-        string share_token UK
+        string share_slug UK
     }
     
     VideoGroupMember {
@@ -92,8 +88,21 @@ erDiagram
         text question
         text answer
         json citations
+        json retrieved_contexts
         bool is_shared_origin
         string feedback
+        datetime created_at
+    }
+
+    ChatLogEvaluation {
+        int id PK
+        int chat_log_id FK,UK
+        string status
+        float faithfulness
+        float answer_relevancy
+        float context_precision
+        text error_message
+        datetime evaluated_at
         datetime created_at
     }
 
@@ -189,11 +198,10 @@ erDiagram
 - **外部キー**: `ChatLog.group_id` → `VideoGroup.id`
 - **削除アクション**: CASCADE（グループ削除時にチャットログも削除）
 
-### User - Subscription（1:1）
-- **リレーション**: 1人のユーザーが1つのサブスクリプションを持つ
-- **外部キー**: `Subscription.user_id` → `User.id`
-- **削除アクション**: CASCADE（ユーザー削除時にサブスクリプションも削除）
-- **プラン**: `free` / `lite` / `standard` / `enterprise`
+### ChatLog - ChatLogEvaluation（1:0..1）
+- **リレーション**: 1つのチャットログに最大1つのRAGAS評価を持つ
+- **外部キー**: `ChatLogEvaluation.chat_log_id` → `ChatLog.id`（UNIQUE）
+- **削除アクション**: CASCADE（チャットログ削除時に評価も削除）
 
 ### VideoGroup - Video（N:M — VideoGroupMember経由）
 - **リレーション**: 多対多のリレーション（中間テーブル経由）
@@ -213,7 +221,7 @@ erDiagram
 ### ユニーク制約
 - `User.username`: ユーザー名はユニーク
 - `User.email`: メールアドレスはユニーク
-- `VideoGroup.share_token`: 共有トークンはユニーク（NULL許容）
+- `VideoGroup.share_slug`: 大文字小文字を区別せずユニーク（NULL許容、部分ユニーク制約）
 - `VideoGroupMember(group_id, video_id)`: 同じ動画を同じグループに複数回追加不可
 - `Tag(user_id, name)`: タグ名はユーザーごとにユニーク
 - `VideoTag(video_id, tag_id)`: 同じタグを同じ動画に複数回付与不可
@@ -225,7 +233,7 @@ erDiagram
 - 参照整合性を保証
 
 ### チェック制約
-- `Video.status`: 'pending', 'processing', 'indexing', 'completed', 'error' のいずれか
+- `Video.status`: 'uploading', 'pending', 'processing', 'indexing', 'completed', 'error' のいずれか
 - `ChatLog.feedback`: 'good', 'bad', または NULL
 - `UserApiKey.access_level`: 'all' または 'read_only'
 
@@ -234,7 +242,7 @@ erDiagram
 ### 自動インデックス
 - 主キー: 全 `id` カラム
 - 外部キー: 全外部キーカラム
-- ユニーク制約: `username`, `email`, `share_token`, `hashed_key`
+- ユニーク制約: `username`, `email`, `share_slug`, `hashed_key`
 
 ### カスタムインデックス
 - `User(email, is_active)`: ログイン検索用
@@ -243,8 +251,8 @@ erDiagram
 - `Video.uploaded_at`: 降順ソート用（Meta.ordering）
 - `Video(user, status, -uploaded_at)`: フィルタ付きユーザー動画一覧用
 - `Video(user, title)`: タイトル検索用
-- `VideoGroup(user, -created_at)`: オーナーのグループ一覧用
-- `VideoGroup.share_token`（部分: NOT NULL）: 共有トークン検索用
+- `VideoGroup(user, display_order, -created_at)`: オーナーのグループ一覧・表示順用
+- `VideoGroup.share_slug`（部分: NOT NULL）: 共有スラッグ検索用
 - `ChatLog.created_at`: 降順ソート用（Meta.ordering）
 - `ChatLog(user, -created_at)`: ユーザー別チャット履歴用
 - `ChatLog(group, -created_at)`: グループ別チャット履歴用

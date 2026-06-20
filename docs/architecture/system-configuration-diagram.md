@@ -14,8 +14,12 @@ graph TB
     end
 
     subgraph Gateway["Gateway Layer"]
+        Caddy["Caddy Public Gateway
+        Ports: 80 / 443
+        - Automatic HTTPS
+        - HTTP to HTTPS Redirect"]
         Nginx["Nginx Reverse Proxy
-        Port: 80
+        Internal Port: 80
         - Reverse Proxy
         - Static / Media Delivery
         - Frontend / API Routing"]
@@ -90,10 +94,10 @@ graph TB
         - Email Sending"]
     end
 
-    Browser -->|HTTP/HTTPS| Nginx
+    Browser -->|HTTP/HTTPS| Caddy
+    Caddy -->|Reverse Proxy| Nginx
     Nginx -->|Proxy| FrontendSPA
     Nginx -->|Proxy| Django
-    Browser -->|API Calls| Nginx
     Django --> PostgreSQL
     Django --> Redis
     Django --> LocalFS
@@ -204,7 +208,8 @@ graph TB
 ```mermaid
 graph TB
     subgraph Presentation["presentation/"]
-        PV["Views - thin HTTP layer (video/, chat/, auth/, media/, billing/)"]
+        PV["Views - thin HTTP layer (video/, chat/, auth/, media/,
+        evaluation/, oauth/, mcp/, common/)"]
         PS[Serializers]
         PA[Django Admin - operational privileged path]
     end
@@ -225,10 +230,12 @@ graph TB
         ListApiKeys, CreateApiKey, RevokeApiKey,
         AuthorizeApiKey, ResolveApiKey, ResolveShareToken, RefreshToken"]
         UM[media/ - ResolveProtectedMedia]
-        UB["billing/ - GetSubscription, GetPlans, CreateCheckoutSession,
-        CreateBillingPortal, HandleWebhook,
-        CheckStorageLimit, CheckProcessingLimit, CheckAiAnswersLimit,
-        RecordStorageUsage, RecordProcessingUsage, RecordAiAnswerUsage, ClearOverQuota"]
+        UQ["quota/ - CheckStorageLimit, CheckProcessingLimit, CheckAiAnswersLimit,
+        RecordStorageUsage, RecordProcessingUsage, RecordAiAnswerUsage,
+        ClearOverQuotaIfWithinLimit"]
+        UE["evaluation/ - EvaluateChatLog, GetEvaluationSummary,
+        ListChatLogEvaluations"]
+        UO["oauth/ - RegisterOAuthClient, ListAuthorizedTokens, RevokeAuthorizedToken"]
         US[shared/ - ResourceNotFound, PermissionDenied]
     end
 
@@ -246,10 +253,12 @@ graph TB
         UserDataDeletionGateway, EmailSenderGateway, AuthTaskGateway,
         ShareTokenResolverPort, ApiKeyResolverPort"]
         DM[media/ - ProtectedMediaRepository ABC]
-        DB["billing/ - SubscriptionEntity, PlanType,
-        SubscriptionRepository ABC,
+        DQ["quota/ - UserLimitsEntity, UserLimitsRepository ABC,
         StorageLimitExceeded, ProcessingLimitExceeded,
         AiAnswersLimitExceeded, OverQuotaError"]
+        DE["evaluation/ - ChatLogEvaluationEntity,
+        EvaluationRepository ABC, RagEvaluationGateway, EvaluationTaskGateway"]
+        DO["oauth/ - OAuthClientGateway, OAuthAccessTokenGateway"]
         DU["user/ - UserEntity, UserRepository ABC"]
         DS["shared/ - ResourceNotFound, PermissionDenied,
         transaction.py (TransactionManager port)"]
@@ -260,7 +269,7 @@ graph TB
         DjangoUserRepository, DjangoMediaRepository,
         DjangoAccountDeletionRepository, DjangoApiKeyRepository,
         DjangoUserAuthGateway, DjangoUserDataDeletionGateway,
-        DjangoSubscriptionRepository"]
+        DjangoUserLimitsRepository"]
         IE["external/ - RagChatGateway, DjangoVectorIndexingGateway,
         DjangoVectorStoreGateway, WhisperTranscriptionGateway,
         DjangoFileUrlResolver, FileUploadGateway,
@@ -268,7 +277,8 @@ graph TB
         IT[transcription/ - audio_processing, srt_processing, DjangoVideoFileAccessor]
         IA["auth/ - SimpleJWTGateway, DjangoAuthGateway,
         CookieJWTValidator, ApiKeyResolver, ShareTokenResolver"]
-        ITk[tasks/ - CeleryVideoTaskGateway, CeleryAuthTaskGateway]
+        ITk[tasks/ - CeleryVideoTaskGateway, CeleryAuthTaskGateway,
+        CeleryEvaluationTaskGateway]
         IC["chat/ - JanomeNltkKeywordExtractor, DjangoSceneVideoInfoProvider"]
         ICo["common/ - email, embeddings, whisper_client,
         query_optimizer, performance_utils, task_helpers,
@@ -276,8 +286,9 @@ graph TB
         ISo[scene_otsu/ - splitter, parsers, embedders, utils]
         ISt[storage/ - LocalMediaStorage]
         IM["models/ - User, Video, VideoGroup, VideoGroupMember,
-        ChatLog, Tag, VideoTag, AccountDeletionRequest, UserApiKey,
-        Subscription, SafeFileSystemStorage, SafeS3Boto3Storage"]
+        ChatLog, ChatLogEvaluation, Tag, VideoTag,
+        AccountDeletionRequest, UserApiKey,
+        SafeFileSystemStorage, SafeS3Boto3Storage"]
     end
 
     subgraph Container["Composition Root"]
@@ -287,7 +298,8 @@ graph TB
     end
 
     subgraph Entrypoints["Celery Entrypoints"]
-        ET[entrypoints/tasks/ - transcription, account_deletion, reindexing, indexing]
+        ET[entrypoints/tasks/ - transcription, account_deletion, evaluation,
+        reindexing, reindex_video_transcript, indexing]
     end
 
     subgraph Infra["Infrastructure (external)"]
@@ -325,6 +337,8 @@ graph TB
 
     subgraph AppNetwork["Docker Compose Network
     videoq-network"]
+        Caddy["gateway
+        Caddy :80/:443"]
         Nginx["nginx
         :80"]
         Frontend["frontend
@@ -342,7 +356,8 @@ graph TB
         :6379")]
     end
 
-    Users -->|HTTP:80| Nginx
+    Users -->|HTTP:80 / HTTPS:443| Caddy
+    Caddy -->|Reverse Proxy| Nginx
     Nginx -->|Proxy| Frontend
     Nginx -->|Proxy /api| Backend
     Backend -->|PostgreSQL| DB

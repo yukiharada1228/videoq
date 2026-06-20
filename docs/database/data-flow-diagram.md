@@ -12,7 +12,7 @@ flowchart TD
     Upload --> Frontend[Frontend]
     Frontend --> API[Backend API]
     
-    API --> Validate{"Validation<br>- File type/size (User.max_video_upload_size_mb)<br>- Storage quota (Subscription)"}
+    API --> Validate{"Validation<br>- File type/size (User.max_video_upload_size_mb)<br>- Storage quota (User limits)"}
     Validate -->|Over storage quota| QuotaError[StorageLimitExceeded]
     Validate -->|Invalid| Error[Error Response]
     Validate -->|Valid| SaveDB[(Database<br/>Save Video)]
@@ -131,7 +131,7 @@ flowchart TD
     Generate --> API1[POST /api/videos/groups/:id/share/]
     API1 --> Validate1[(Database<br>Verify Ownership)]
     Validate1 --> GenerateToken[Generate Token]
-    GenerateToken --> SaveToken[(Database<br>Save share_token)]
+    GenerateToken --> SaveToken[(Database<br>Save share_slug)]
     SaveToken --> ReturnURL[Return Share URL]
     ReturnURL --> Share[Send Share URL]
     
@@ -148,7 +148,7 @@ flowchart TD
     Frontend --> Guest
     
     Guest --> Chat[Send Chat]
-    Chat --> API3[POST /api/chat/?share_token=:token]
+    Chat --> API3[POST /api/chat/messages/?share_slug=:slug]
     API3 --> ValidateToken2[(Database<br>Verify Token)]
     ValidateToken2 --> RAG[RAG Processing]
     RAG --> SaveLog[(Database<br>Save ChatLog<br>is_shared_origin: True)]
