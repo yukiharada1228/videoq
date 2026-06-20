@@ -242,6 +242,33 @@ docker compose restart backend celery-worker
 
 </details>
 
+## HTTPS Deployment with Docker Compose
+
+The default Docker Compose stack uses Caddy as its public gateway. Local development remains HTTP by default. Set a production DNS name to enable automatic Let's Encrypt certificate issuance, HTTP-to-HTTPS redirects, and certificate renewal; no Certbot container or renewal cron is required.
+
+1. Point the A/AAAA record for a stable domain (for example, `videoq.example.com`) to the server's public IP address.
+2. Allow inbound TCP ports 80 and 443. UDP 443 is optional and enables HTTP/3.
+3. Configure the production values in `.env`:
+
+```dotenv
+SITE_ADDRESS=videoq.example.com
+DJANGO_ENV=production
+ALLOWED_HOSTS=videoq.example.com
+CORS_ALLOWED_ORIGINS=https://videoq.example.com
+FRONTEND_URL=https://videoq.example.com
+SECRET_KEY=<a-long-random-value>
+```
+
+4. Start the stack:
+
+```bash
+docker compose up -d --build
+```
+
+Once DNS is active and ports 80/443 are externally reachable, Caddy obtains and renews the certificate automatically. Open `https://videoq.example.com` to confirm that the application is available over HTTPS.
+
+Keeping the same DNS name means a later server or cloud migration only requires a DNS change. The public application URL can remain unchanged.
+
 <a id="developer-api"></a>
 
 ## Developer API Integration
@@ -255,35 +282,6 @@ Issue a `vq_...` integration key from "Integration API Keys" in the Settings scr
 - **ReDoc:** [http://localhost/api/redoc/](http://localhost/api/redoc/)
 
 ## MCP (Model Context Protocol) Integration
-
-### Optional HTTPS deployment on Sakura
-
-The default Docker Compose stack uses Caddy as its public gateway. Local development remains HTTP by default. Set a production DNS name to enable automatic Let's Encrypt certificate issuance, HTTP-to-HTTPS redirects, and certificate renewal; no Certbot container or renewal cron is required.
-
-1. Point the A/AAAA record for a stable subdomain (for example, `videoq.example.com`) to the Sakura server's public IP address.
-2. Allow inbound TCP ports 80 and 443. UDP 443 is optional and enables HTTP/3.
-3. Configure the production values in `.env`:
-
-```dotenv
-SITE_ADDRESS=videoq.example.com
-DJANGO_ENV=production
-ALLOWED_HOSTS=videoq.example.com
-CORS_ALLOWED_ORIGINS=https://videoq.example.com
-FRONTEND_URL=https://videoq.example.com
-OAUTH2_PROVIDER_ISSUER_URL=https://videoq.example.com
-SECRET_KEY=<a-long-random-value>
-```
-
-4. Run `docker compose up -d --build`. Once DNS is active and ports 80/443 are externally reachable, Caddy obtains and renews the certificate automatically.
-5. Verify the OAuth metadata endpoints below, then register the final URL as the Cowork custom connector:
-
-```text
-https://videoq.example.com/.well-known/oauth-authorization-server
-https://videoq.example.com/.well-known/oauth-protected-resource/api/mcp
-https://videoq.example.com/api/mcp/
-```
-
-Keeping the same DNS name means a later cloud migration only requires a DNS change; the connector URL remains unchanged.
 
 VideoQ exposes a built-in **analytics-only** remote MCP server at `POST /api/mcp/`. Any MCP client that speaks Streamable HTTP — Claude Code, Cursor, and any client that can launch `mcp-remote` — can connect with just a URL and an API key. No local process to install.
 
@@ -328,6 +326,24 @@ https://your-domain.example.com/api/mcp/
 ```
 
 Behind the scenes the client discovers the authorization server via `/.well-known/oauth-protected-resource/api/mcp` and `/.well-known/oauth-authorization-server`, registers itself dynamically at `/api/oauth/register/`, and runs the standard authorization-code flow with PKCE. You can revoke any granted token at any time from **Settings → Connected Apps**.
+
+For a self-hosted production instance, first complete the [Docker Compose HTTPS deployment](#https-deployment-with-docker-compose). The OAuth issuer must match the public HTTPS origin, so set it in `.env` and apply the change to the backend:
+
+```dotenv
+OAUTH2_PROVIDER_ISSUER_URL=https://videoq.example.com
+```
+
+```bash
+docker compose up -d backend
+```
+
+Then confirm that the MCP endpoint and OAuth metadata are publicly available before registering the connector:
+
+```text
+https://videoq.example.com/api/mcp/
+https://videoq.example.com/.well-known/oauth-authorization-server
+https://videoq.example.com/.well-known/oauth-protected-resource/api/mcp
+```
 
 If you need to fall back to the `mcp-remote` bridge for an older client, configure it with your API key instead:
 
