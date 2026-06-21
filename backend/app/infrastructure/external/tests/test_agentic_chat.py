@@ -190,6 +190,22 @@ class AgenticChatGatewayTests(TestCase):
     def _gateway(self):
         return AgenticChatGateway(dispatcher=_make_dispatcher(), budget=AgentBudget())
 
+    def test_system_prompt_keeps_legacy_retrieval_as_the_default(self):
+        """Ordinary questions retain the legacy query + k=20 retrieval policy."""
+        prompt = self._gateway()._build_system_prompt("ja", None)
+
+        self.assertIn("latest question unchanged", prompt)
+        self.assertIn("k=20", prompt)
+        self.assertIn("If they are sufficient, answer without retrieving more", prompt)
+        self.assertIn("NEVER ask the user which video", prompt)
+        self.assertIn('FIRST call list_catalog(kind="videos", limit=50)', prompt)
+        self.assertIn("Do not use a generic operation request", prompt)
+        self.assertIn("cover every listed video", prompt)
+        self.assertIn("multiple tool calls in the same turn", prompt)
+        self.assertIn("3 to 6 sentences", prompt)
+        self.assertIn("one short line per listed video", prompt)
+        self.assertIn("1000 Japanese characters", prompt)
+
     @patch("app.infrastructure.external.agentic.agentic_gateway.get_langchain_llm")
     def test_generate_reply_returns_content_citations_and_tool_trace(self, mock_get_llm):
         """generate_reply returns content + citations + non-empty tool_trace."""

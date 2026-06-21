@@ -163,6 +163,48 @@ class AgenticChatGateway(RagGateway):
             "not rely on prior knowledge that is not grounded in their results."
         )
         lines.append(
+            "This chat is already scoped to a specific set of videos. NEVER ask "
+            "the user which video, scene, or topic to use — discover it yourself "
+            "with the tools. If you don't know what is in scope, call "
+            "list_catalog(kind=\"videos\") first to see the available videos. "
+            "Only ask the user to clarify as a last resort, after the tools have "
+            "returned nothing usable."
+        )
+        lines.append(
+            "Stay close to the legacy RAG behavior for ordinary content questions: "
+            "first call search_scenes with the user's latest question unchanged as "
+            "the query and k=20, then treat those scenes as the primary evidence. "
+            "If they are sufficient, answer without retrieving more material. Use "
+            "list_catalog to identify an in-scope video or to answer catalog/meta "
+            "questions."
+        )
+        lines.append(
+            "For summary, overview, or recap requests, determine the scope before "
+            "retrieving content. If the user names a video, resolve it if necessary "
+            "and call get_video for that video. If no video is named, FIRST call "
+            "list_catalog(kind=\"videos\", limit=50). Do not use a generic operation "
+            "request such as 'summarize this' as the semantic search query."
+        )
+        lines.append(
+            "If the catalog contains one video, call get_video and summarize it. If "
+            "it contains multiple videos, cover every listed video rather than "
+            "arbitrarily choosing one. Request get_video for the listed videos, "
+            "using multiple tool calls in the same turn when possible; it will "
+            "return either an inline transcript or a size-gated summary. Stay within "
+            "tool limits. If some listed videos cannot be inspected, name them "
+            "briefly and say that the summary is based on the material that could be "
+            "retrieved; never invent their contents or claim exhaustive coverage."
+        )
+        lines.append(
+            "Keep ordinary answers concise: normally 3 to 6 sentences and about "
+            "400 Japanese characters or 120 English words. For a multi-video "
+            "summary, instead use exactly three compact sections: (1) Overall "
+            "summary, at most 3 sentences; (2) one short line per listed video; "
+            "(3) at most 3 key points across the scope. Aim for at most about 1000 "
+            "Japanese characters or 300 English words unless the user requests "
+            "detail, and do not repeat points."
+        )
+        lines.append(
             "Cite every claim inline with the [ref_id] shown in the tool "
             "results (the 'ref_id' field of each scene). Do not invent "
             "timestamps or write times in prose — the UI renders the time from "
@@ -243,7 +285,9 @@ class AgenticChatGateway(RagGateway):
     # ------------------------------------------------------------------
     # Tool loop
     # ------------------------------------------------------------------
-    def _run_tool_loop(self, bound, conversation, ctx, registry, ledger, tool_trace):
+    def _run_tool_loop(
+        self, bound, conversation, ctx, registry, ledger, tool_trace, llm
+    ):
         """Drive the bounded tool-calling loop (§3.1 steps 4-5).
 
         Invokes the tool-bound LLM repeatedly, dispatching every requested tool
@@ -284,7 +328,7 @@ class AgenticChatGateway(RagGateway):
                 start = time.monotonic()
                 try:
                     result = self._dispatcher.dispatch(
-                        name, args, ctx, registry, ledger
+                        name, args, ctx, registry, ledger, llm=llm
                     )
                     content = result.content
                 except AgentToolError as exc:
@@ -352,7 +396,7 @@ class AgenticChatGateway(RagGateway):
         try:
             bound = llm.bind_tools(self._dispatcher.tool_schemas())
             answered = self._run_tool_loop(
-                bound, conversation, ctx, registry, ledger, tool_trace
+                bound, conversation, ctx, registry, ledger, tool_trace, llm
             )
 
             if answered:
@@ -424,7 +468,7 @@ class AgenticChatGateway(RagGateway):
         try:
             bound = llm.bind_tools(self._dispatcher.tool_schemas())
             answered = self._run_tool_loop(
-                bound, conversation, ctx, registry, ledger, tool_trace
+                bound, conversation, ctx, registry, ledger, tool_trace, llm
             )
 
             if answered:

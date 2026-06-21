@@ -198,8 +198,10 @@ class AgentToolDispatcher:
                 "function": {
                     "name": "list_catalog",
                     "description": (
-                        "List the user's videos, groups, or tags. Use for "
-                        "meta/out-of-scope questions about what is available."
+                        "List the current scope's videos, or the user's groups or "
+                        "tags. Use first for a summary request that does not name "
+                        "a video, and for meta/out-of-scope questions about what "
+                        "is available."
                     ),
                     "parameters": {
                         "type": "object",
@@ -237,6 +239,8 @@ class AgentToolDispatcher:
         ctx: AgentToolContext,
         registry: CitationRegistry,
         ledger: ContextLedger,
+        *,
+        llm: Any = None,
     ) -> ToolCallResult:
         """Validate, scope, and execute a single tool call (§5.1, §9.1).
 
@@ -246,6 +250,7 @@ class AgentToolDispatcher:
             ctx: Fixed scope context (``user_id`` / ``video_ids`` / ``locale``).
             registry: Active turn :class:`CitationRegistry` (refs registered here).
             ledger: Active turn :class:`ContextLedger` (retrieved contexts here).
+            llm: Optional request-scoped model for oversized transcript summaries.
 
         Returns:
             A :class:`ToolCallResult` to be returned to the LLM as a
@@ -270,7 +275,7 @@ class AgentToolDispatcher:
         if name == "search_scenes":
             result = self._handle_search_scenes(args, ctx, registry, ledger)
         elif name == "get_video":
-            result = self._handle_get_video(args, ctx, registry, ledger)
+            result = self._handle_get_video(args, ctx, registry, ledger, llm=llm)
         elif name == "list_catalog":
             result = self._handle_list_catalog(args, ctx, ledger)
         else:  # pragma: no cover - guarded by ALLOWED_TOOLS above.
@@ -362,6 +367,8 @@ class AgentToolDispatcher:
         ctx: AgentToolContext,
         registry: CitationRegistry,
         ledger: ContextLedger,
+        *,
+        llm: Any = None,
     ) -> ToolCallResult:
         """Handle ``get_video`` (§5.1.2): full transcript with double scope check.
 
@@ -380,6 +387,14 @@ class AgentToolDispatcher:
         # Group boundary first (cheap), then ownership via the use case.
         if video_id not in ctx.video_ids:
             raise AgentToolError("Video not in current group", status=403)
+
+        budget = self._budget
+        if self._get_video_calls >= budget.max_get_video_calls:
+            raise AgentToolError(
+                "get_video call limit reached for this turn; summarize the "
+                "retrieved videos and disclose which listed videos were not inspected.",
+                status=429,
+            )
 
         video = self._get_video.execute(video_id, ctx.user_id)
         if video is None:
@@ -400,18 +415,15 @@ class AgentToolDispatcher:
         self._get_video_calls += 1
 
         token_count = count_tokens(transcript)
-        budget = self._budget
 
         # §7.3 budget gates: force a summary (instead of full inline) when any
-        # full-transcript / get_video / token budget has been exhausted.
-        over_get_video_cap = self._get_video_calls > budget.max_get_video_calls
+        # full-transcript / token budget has been exhausted. The get_video call
+        # cap itself is enforced before retrieval above.
         over_full_transcript_cap = self._full_transcripts >= budget.max_full_transcripts
         over_token_budget = (
             self._tool_result_tokens >= budget.tool_result_token_budget
         )
-        force_summary = (
-            over_get_video_cap or over_full_transcript_cap or over_token_budget
-        )
+        force_summary = over_full_transcript_cap or over_token_budget
 
         # §7.2 size gate: inline only when small enough AND budget allows it.
         if token_count <= budget.transcript_inline_token_limit and not force_summary:
@@ -427,14 +439,15 @@ class AgentToolDispatcher:
                 scenes=scenes,
             )
 
-        # Otherwise: map-reduce summary (§7.2.1). Note the LLM is NOT injected
-        # into the dispatcher; summarization needs a model, so callers that want
-        # a summary path must use a get_video use case that itself summarizes,
-        # OR the gateway must summarize. Here we summarize with the chunker only
-        # when an LLM is available on the use case; otherwise we degrade to a
-        # truncated transcript so the tool never hard-fails.
+        # Otherwise use the request-scoped model for a map-reduce summary
+        # (§7.2.1). Direct dispatcher callers without a model retain the
+        # compatibility fallback in _summarize_transcript.
         summary_content = self._summarize_transcript(
-            transcript, video_id=video_id, title=title, locale=ctx.locale
+            transcript,
+            video_id=video_id,
+            title=title,
+            locale=ctx.locale,
+            llm=llm,
         )
         return ToolCallResult(
             content=summary_content,
@@ -450,17 +463,18 @@ class AgentToolDispatcher:
         video_id: int,
         title: str,
         locale: Optional[str],
+        llm: Any = None,
     ) -> str:
         """Build the map-reduce summary JSON for an oversized transcript (§7.2.1).
 
-        The summarizer needs a LangChain chat model. The dispatcher does not own
-        one, so the model is resolved from the injected get_video use case when
-        it exposes an ``llm`` attribute. If no model is available, the transcript
-        is degraded to a token-truncated inline body so the tool never hard-fails
-        (pinpoint detail then remains available via ``search_scenes``).
+        The request-scoped LangChain chat model is preferred so the user's API
+        key and provider configuration are preserved. The get_video use case's
+        optional ``llm`` attribute remains as a compatibility fallback for direct
+        dispatcher callers. If neither is available, the transcript is truncated
+        so the tool never hard-fails.
         """
-        llm = getattr(self._get_video, "llm", None)
-        if llm is None:
+        summary_llm = llm or getattr(self._get_video, "llm", None)
+        if summary_llm is None:
             logger.info(
                 "No LLM available for get_video summarization (video %s); "
                 "degrading to truncated transcript.",
@@ -473,7 +487,7 @@ class AgentToolDispatcher:
         chunks = chunk_transcript_srt(transcript)
         summary = map_reduce_summarize(
             chunks,
-            llm,
+            summary_llm,
             video_id=video_id,
             title=title,
             locale=locale,
@@ -537,21 +551,32 @@ class AgentToolDispatcher:
         # is built positionally-compatibly: the use case's execute_page accepts
         # an `input` object carrying a `keyword`. We avoid importing the DTO by
         # delegating shape construction to the use case via a duck-typed object.
-        page = self._list_videos.execute_page(
-            ctx.user_id,
-            _ListVideosInputProxy(keyword=q),
-            limit=limit,
-            offset=0,
-        )
         group_ids = set(ctx.video_ids)
+        if not group_ids:
+            return [], 0
+
         items: List[dict] = []
-        for video in page.results:
-            if group_ids and video.id not in group_ids:
-                continue
-            items.append(
-                {"id": video.id, "title": video.title, "status": video.status}
+        offset = 0
+        page_size = 50
+        while len(items) < limit:
+            page = self._list_videos.execute_page(
+                ctx.user_id,
+                _ListVideosInputProxy(keyword=q),
+                limit=page_size,
+                offset=offset,
             )
-            if len(items) >= limit:
+            results = list(page.results)
+            for video in results:
+                if video.id not in group_ids:
+                    continue
+                items.append(
+                    {"id": video.id, "title": video.title, "status": video.status}
+                )
+                if len(items) >= limit:
+                    break
+
+            offset += len(results)
+            if not results or offset >= page.count:
                 break
         return items, len(items)
 
