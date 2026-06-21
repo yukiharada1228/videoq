@@ -311,7 +311,16 @@ class AgentToolDispatcher:
 
         items: List[dict] = []
         scenes: List[SceneRef] = []
+        allowed_video_ids = set(ctx.video_ids)
         for hit in search_result.results:
+            # Scope guard (§9.2): never register a scene outside the current
+            # group. This must happen BEFORE registry.register so no out-of-scope
+            # scene ever receives a ref_id — otherwise dropping it later would
+            # shift the citation ordinals and break the body[n] == citations[n-1]
+            # contract. get_video is already double-scoped; this closes the
+            # search_scenes path (the use case is trusted but not re-verified).
+            if hit.video_id not in allowed_video_ids:
+                continue
             scene = SceneRef(
                 video_id=hit.video_id,
                 video_title=hit.video_title,

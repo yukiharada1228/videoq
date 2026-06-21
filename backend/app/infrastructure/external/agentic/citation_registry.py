@@ -57,6 +57,21 @@ class CitationRegistry:
         self._index[key] = ref_id
         return ref_id
 
+    def scene_at(self, ref_id: int) -> Optional[SceneRef]:
+        """Return the SceneRef for a 1-based ref_id, or None if out of range.
+
+        Args:
+            ref_id: The 1-based ref_id assigned by :meth:`register`.
+
+        Returns:
+            The registered :class:`SceneRef`, or ``None`` when ``ref_id`` is not
+            a valid registered id (used by the streaming remapper to detect and
+            drop orphan ``[n]`` tokens, §8.5.6).
+        """
+        if ref_id < 1 or ref_id > len(self._scenes):
+            return None
+        return self._scenes[ref_id - 1]
+
     def finalize(
         self, answer_text: str
     ) -> Tuple[str, List[CitationDTO], List[str]]:

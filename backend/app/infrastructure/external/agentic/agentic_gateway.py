@@ -56,6 +56,9 @@ from app.infrastructure.external.agentic.agent_config import (
 )
 from app.infrastructure.external.agentic.agent_tools import AgentToolDispatcher
 from app.infrastructure.external.agentic.citation_registry import CitationRegistry
+from app.infrastructure.external.agentic.citation_stream import (
+    StreamingCitationRemapper,
+)
 from app.infrastructure.external.agentic.context_collector import ContextLedger
 from app.infrastructure.external.agentic.dtos import AgentToolContext
 from app.infrastructure.external.agentic.token_counter import count_tokens
@@ -141,7 +144,9 @@ class AgenticChatGateway(RagGateway):
 
         References are left empty (the agent retrieves dynamically). The base
         prompt is augmented with the prompt-injection / tool-scope defence rules
-        and the explicit tool-usage + appearance-order citation instruction.
+        and the explicit tool-usage + ref_id citation instruction. The server
+        remaps [ref_id] tokens to compact ordinals (§8.4), so exact numbering by
+        the model is non-critical, but prose timestamps are discouraged.
         """
         base = build_system_prompt(
             locale=locale,
@@ -158,9 +163,10 @@ class AgenticChatGateway(RagGateway):
             "not rely on prior knowledge that is not grounded in their results."
         )
         lines.append(
-            "Cite supporting scenes inline as [N] in order of first appearance, "
-            "numbering from 1. The first scene you cite is [1], the next new "
-            "scene is [2], and so on."
+            "Cite every claim inline with the [ref_id] shown in the tool "
+            "results (the 'ref_id' field of each scene). Do not invent "
+            "timestamps or write times in prose — the UI renders the time from "
+            "the citation, so a [ref_id] token is all you need."
         )
         if security_rules:
             lines.append("")
@@ -208,12 +214,31 @@ class AgenticChatGateway(RagGateway):
         return merged
 
     @staticmethod
-    def _filter_citations(
+    def _assert_citations_in_scope(
         citations: List[CitationDTO], ctx: AgentToolContext
     ) -> List[CitationDTO]:
-        """Drop citations whose ``video_id`` is out of scope (§9.2)."""
+        """Verify every citation is in scope (§9.2), without mutating the list.
+
+        Scope is enforced upstream at registration time (``_handle_search_scenes``
+        skips out-of-group hits before assigning a ref_id; ``_handle_get_video``
+        double-scopes), so this is a defensive net only. It deliberately does NOT
+        drop offenders: removing a citation here would shift the ordinals of all
+        later citations while the body ``[n]`` tokens (already renumbered, and in
+        streaming already on the wire) stay fixed — re-breaking the
+        ``body[n] == citations[n-1]`` contract. An out-of-scope citation reaching
+        this point is a logged invariant violation, not something to silently
+        paper over with a mis-aligning drop.
+        """
         allowed = set(ctx.video_ids)
-        return [c for c in citations if c.video_id in allowed]
+        offenders = [c.video_id for c in citations if c.video_id not in allowed]
+        if offenders:
+            logger.warning(
+                "Out-of-scope citation(s) reached finalization (video_ids=%s, "
+                "offenders=%s); scope should be enforced at registration.",
+                sorted(allowed),
+                sorted(set(offenders)),
+            )
+        return citations
 
     # ------------------------------------------------------------------
     # Tool loop
@@ -351,7 +376,7 @@ class AgenticChatGateway(RagGateway):
         renumbered_text, citations, registry_contexts = registry.finalize(
             answer_text
         )
-        citations = self._filter_citations(citations, ctx)
+        citations = self._assert_citations_in_scope(citations, ctx)
         retrieved_contexts = self._merge_retrieved_contexts(
             registry_contexts, ledger
         )
@@ -416,17 +441,23 @@ class AgenticChatGateway(RagGateway):
                 self._force_final_message(conversation)
                 stream_source = llm
 
-            # Only the FINAL answer turn streams (§7.4). Registration-order
-            # numbering means streamed [n] are already correct (§8.4 option A),
-            # so tokens are emitted verbatim without mid-stream rewriting. The
-            # text is accumulated so finalize() can prune uncited refs.
-            streamed_parts: List[str] = []
+            # Only the FINAL answer turn streams (§7.4). The model cites raw
+            # registration-order ref_ids that accumulate across tool calls (so
+            # they can exceed the number of cited scenes), but the citations
+            # array is compacted to 1..K in first-appearance order. The remapper
+            # rewrites [n] tokens LIVE so the emitted body matches the compacted
+            # citations array (§8.4), preserving token streaming. Orphan/unknown
+            # refs are dropped mid-stream (§8.5.6).
+            remapper = StreamingCitationRemapper(registry)
             for chunk in stream_source.stream(conversation):
                 content = getattr(chunk, "content", None)
                 if isinstance(content, str) and content:
-                    streamed_parts.append(content)
-                    yield RagStreamChunk(text=content)
-            streamed_text = "".join(streamed_parts)
+                    out = remapper.feed(content)
+                    if out:
+                        yield RagStreamChunk(text=out)
+            tail = remapper.flush()
+            if tail:
+                yield RagStreamChunk(text=tail)
         except OpenAIAuthenticationError as exc:
             raise LLMConfigurationError(
                 "Invalid OpenAI API key. Please check your API key in Settings."
@@ -437,12 +468,27 @@ class AgenticChatGateway(RagGateway):
             logger.exception("Agentic stream_reply failed: %s", exc)
             raise LLMProviderError(str(exc)) from exc
 
-        # Finalize once the stream is exhausted. Citations are aligned to the
-        # streamed [n] tokens via registration-order numbering, so finalize only
-        # prunes uncited refs and drops out-of-scope citations (§8.4, §9.2).
-        # The accumulated streamed text is scanned for the surviving [n] tokens.
-        _renumbered, citations, registry_contexts = registry.finalize(streamed_text)
-        citations = self._filter_citations(citations, ctx)
+        # Build citations from the remapper's survivors (the scenes actually
+        # cited, in first-appearance == ordinal order). Each SceneRef is reduced
+        # to a 4-field CitationDTO, the same reduction finalize() performs, so
+        # the citations array order matches the [n] tokens already streamed.
+        survivors = remapper.survivors()
+        citations = [
+            CitationDTO(
+                video_id=scene.video_id,
+                title=scene.video_title,
+                start_time=scene.start_time,
+                end_time=scene.end_time,
+            )
+            for scene in survivors
+        ]
+        registry_contexts = [scene.text for scene in survivors]
+        # Scope is enforced at registration (out-of-group scenes never get a
+        # ref_id), so survivors — and thus citations — are already in scope and
+        # aligned with the [n] tokens already streamed. This is a non-mutating
+        # safety check only: dropping a citation here would shift ordinals the
+        # streamed body cannot match (§9.2).
+        citations = self._assert_citations_in_scope(citations, ctx)
         retrieved_contexts = self._merge_retrieved_contexts(
             registry_contexts, ledger
         )

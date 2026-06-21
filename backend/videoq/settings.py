@@ -12,11 +12,24 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 import json
 import os
+import sys
 from datetime import timedelta
 from pathlib import Path
 
 import dj_database_url
 from django.core.exceptions import ImproperlyConfigured
+
+
+# ── Test determinism ─────────────────────────────────────────────────────────
+# The chat gateway is selected from USE_AGENT_CHAT at runtime (composition_root).
+# Pin it OFF during test runs so the suite never depends on a developer's local
+# .env: the presentation/use-case chat tests are written against the legacy
+# RagChatGateway, and the agentic path has its own direct tests
+# (app/infrastructure/external/tests/test_agentic_chat.py) that build
+# AgenticChatGateway explicitly. settings is imported before any test executes,
+# so this is in place before _get_rag_gateway() is first called.
+if "test" in sys.argv:
+    os.environ["USE_AGENT_CHAT"] = "false"
 
 
 # ── AWS Secrets Manager サポート ─────────────────────────────────────────────
