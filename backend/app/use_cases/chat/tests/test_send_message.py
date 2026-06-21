@@ -163,3 +163,88 @@ class SendMessageAiAnswerBillingTests(unittest.TestCase):
             messages=[ChatMessageInput(role="user", content="hello")],
         )
         self.assertEqual(result.content, "Hello!")
+
+
+# ---------------------------------------------------------------------------
+# Tool-trace persistence (§11.2)
+# ---------------------------------------------------------------------------
+
+
+class _RecordingChatLog:
+    """Minimal ChatLog returned by the recording fake repo."""
+
+    def __init__(self, log_id: int):
+        self.id = log_id
+        self.feedback = None
+
+
+class _RecordingChatRepository(_StubChatRepository):
+    """Chat repo that records the kwargs passed to ``create_log``."""
+
+    def __init__(self):
+        self.create_log_kwargs = None
+
+    def create_log(self, **kwargs):
+        self.create_log_kwargs = kwargs
+        return _RecordingChatLog(log_id=777)
+
+
+class _FakeGroup:
+    """Minimal group context object accepted by ``require_group_context``."""
+
+    def __init__(self):
+        self.id = 5
+        self.user_id = 99
+        self.member_video_ids = [11, 22]
+        self.description = "Robotics videos"
+
+
+class _GroupRepository(VideoGroupQueryRepository):
+    def __init__(self, group):
+        self._group = group
+
+    def get_with_members(self, group_id: int, user_id=None, share_token=None):
+        return self._group
+
+
+class _ToolTraceRagGateway(RagGateway):
+    """RAG gateway returning a RagResult carrying a tool_trace."""
+
+    def __init__(self, tool_trace):
+        self._tool_trace = tool_trace
+
+    def generate_reply(self, messages, user_id, video_ids=None, locale=None, api_key=None, group_context=None):
+        from app.domain.chat.gateways import RagResult
+
+        return RagResult(
+            content="Answer",
+            query_text="q",
+            citations=[],
+            retrieved_contexts=["ctx-1"],
+            tool_trace=self._tool_trace,
+        )
+
+
+class SendMessageToolTracePersistenceTests(unittest.TestCase):
+    """Asserts the RagResult.tool_trace is forwarded to ChatRepository.create_log."""
+
+    def test_tool_trace_passed_to_create_log(self):
+        tool_trace = [
+            {"tool": "get_video", "args": {"video_id": 11}, "result_kind": "summary"},
+            {"tool": "search_scenes", "args": {"query": "arm"}, "result_kind": "snippets"},
+        ]
+        chat_repo = _RecordingChatRepository()
+        use_case = SendMessageUseCase(
+            chat_repo=chat_repo,
+            group_query_repo=_GroupRepository(_FakeGroup()),
+            rag_gateway=_ToolTraceRagGateway(tool_trace),
+        )
+
+        use_case.execute(
+            user_id=99,
+            messages=[ChatMessageInput(role="user", content="hello")],
+            group_id=5,
+        )
+
+        self.assertIsNotNone(chat_repo.create_log_kwargs)
+        self.assertEqual(chat_repo.create_log_kwargs["tool_trace"], tool_trace)

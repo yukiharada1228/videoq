@@ -22,6 +22,11 @@ def _get_ragas_gateway() -> RagasEvaluationGateway:
     return RagasEvaluationGateway()
 
 
+def get_ragas_evaluation_gateway() -> RagasEvaluationGateway:
+    """Expose the RAGAS evaluation gateway for offline tooling (eval command, §13)."""
+    return _get_ragas_gateway()
+
+
 def get_evaluate_chat_log_use_case() -> EvaluateChatLogUseCase:
     return EvaluateChatLogUseCase(
         chat_log_repo=DjangoChatLogForEvaluationRepository(),

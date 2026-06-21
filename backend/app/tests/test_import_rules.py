@@ -30,6 +30,7 @@ LAYER_ROOTS = {
     "dependencies",
     "composition_root",
     "entrypoints",
+    "management",
     "contracts",
     "tests",
     "migrations",
@@ -842,6 +843,18 @@ class ImportRulesTest(unittest.TestCase):
     def test_admin_has_no_infrastructure_imports(self):
         """admin must not import app.infrastructure directly."""
         self._check_single_file("admin.py", ["app.infrastructure"])
+
+    def test_management_has_no_inner_layer_imports(self):
+        """management commands must call dependencies/contracts, not use_cases/composition_root/infrastructure.
+
+        Django discovers management commands under ``app/management/commands``;
+        they are an entrypoint-like edge and obey the same boundary as
+        ``entrypoints`` (resolve via ``app.dependencies`` only).
+        """
+        self._check(
+            "management",
+            ["app.use_cases", "app.composition_root", "app.infrastructure"],
+        )
 
     def test_non_layer_modules_are_explicitly_governed(self):
         """Files outside standard layer roots must stay in an explicit governed set."""

@@ -57,7 +57,10 @@ class EvaluateChatLogUseCase:
 
         chat_log = self.chat_log_repo.get_by_id(chat_log_id)
         if chat_log is None:
-            # No source record exists, so there is nothing to persist.
+            # No source record exists, so there is nothing to persist:
+            # ChatLogEvaluation.chat_log is a non-null OneToOne FK to ChatLog,
+            # so saving a "failed" row for a missing chat_log would violate the
+            # FK constraint. Skip persistence (the task must not raise/retry).
             logger.warning("ChatLog %s not found; skipping evaluation.", chat_log_id)
             pending.status = "failed"
             pending.error_message = f"ChatLog {chat_log_id} not found."

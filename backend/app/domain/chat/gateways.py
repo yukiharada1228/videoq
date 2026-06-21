@@ -30,6 +30,7 @@ class RagResult:
     query_text: str
     citations: Optional[Sequence[CitationDTO]] = field(default=None)
     retrieved_contexts: List[str] = field(default_factory=list)
+    tool_trace: List[dict] = field(default_factory=list)
 
 
 @dataclass
@@ -45,6 +46,7 @@ class RagStreamChunk:
     query_text: Optional[str] = None
     retrieved_contexts: List[str] = field(default_factory=list)
     is_final: bool = False
+    tool_trace: List[dict] = field(default_factory=list)
 
 
 class RagGateway(ABC):
@@ -100,3 +102,58 @@ class RagGateway(ABC):
             LLMProviderError: If the LLM provider returns an error during generation.
         """
         raise NotImplementedError("stream_reply is not implemented for this gateway")
+
+
+@dataclass(frozen=True)
+class SceneSearchResultDTO:
+    """A single scene matched by a semantic scene search.
+
+    Attributes:
+        video_id: ID of the video the scene belongs to.
+        video_title: Human-readable title of the video.
+        start_time: Subtitle-formatted start timestamp (e.g. ``"00:01:23,000"``), if known.
+        end_time: Subtitle-formatted end timestamp, if known.
+        start_sec: Scene start offset in seconds, if known.
+        end_sec: Scene end offset in seconds, if known.
+        scene_index: Zero-based index of the scene within the video, if known.
+        text: Transcript/subtitle text of the matched scene.
+    """
+
+    video_id: int
+    video_title: str
+    start_time: Optional[str]
+    end_time: Optional[str]
+    start_sec: Optional[float]
+    end_sec: Optional[float]
+    scene_index: Optional[int]
+    text: str
+
+
+class SceneSearchGateway(ABC):
+    """Abstract interface for semantic scene search over indexed videos.
+
+    Decouples the scene-search use case from any vector-store implementation,
+    keeping the use-case layer free of infrastructure dependencies.
+    """
+
+    @abstractmethod
+    def search(
+        self,
+        *,
+        user_id: int,
+        video_ids: Sequence[int],
+        query: str,
+        k: int,
+    ) -> List[SceneSearchResultDTO]:
+        """Return up to ``k`` scenes most relevant to ``query``.
+
+        Args:
+            user_id: ID of the user making the request (for retrieval scoping).
+            video_ids: Video IDs to scope the search to.
+            query: Natural-language search query.
+            k: Maximum number of scenes to return.
+
+        Returns:
+            A list of ``SceneSearchResultDTO`` ordered by relevance.
+        """
+        ...

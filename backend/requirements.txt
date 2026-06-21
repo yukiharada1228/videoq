@@ -14,6 +14,12 @@ drf-spectacular>=0.29.0
 gunicorn>=23.0.0
 janome>=0.5.0
 nltk>=3.9.0
+# langchain-community is pinned (not a loose floor) because ragas 0.4.3 hard-imports
+# langchain_community.chat_models.vertexai, which was removed in langchain-community 0.4.x.
+# 0.3.31 still ships that module AND allows langchain-core<2.0 (>=0.3.78), so it stays
+# compatible with the langchain 1.x stack below. Bumping it breaks `import ragas`.
+# Keep in lock-step with the ragas pin. See app/infrastructure/evaluation/tests/test_ragas_import.py.
+langchain-community==0.3.31
 langchain-ollama>=1.0.1
 langchain-openai>=1.0.1
 langchain-postgres>=0.0.17
@@ -21,8 +27,11 @@ langchain>=1.0.2
 numpy>=2.0.0
 openai>=2.6.1
 psycopg2-binary>=2.9.11
-ragas>=0.4.3
+# Pinned (not a floor) and kept in lock-step with langchain-community==0.3.31 above:
+# ragas 0.4.3 requires the vertexai module that only langchain-community 0.3.x ships.
+ragas==0.4.3
 redis>=7.0.0
 scikit-learn>=1.7.2
+tiktoken>=0.13.0
 uvicorn-worker>=0.4.0
 uvicorn>=0.38.0

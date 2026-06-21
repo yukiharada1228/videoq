@@ -200,3 +200,89 @@ class StreamExecuteBillingTests(unittest.TestCase):
             messages=[ChatMessageInput(role="user", content="hello")],
         ))
         self.assertIsInstance(events[-1], StreamDoneEvent)
+
+
+# ---------------------------------------------------------------------------
+# Tool-trace persistence (§11.2)
+# ---------------------------------------------------------------------------
+
+
+class _RecordingChatLog:
+    """Minimal ChatLog returned by the recording fake repo."""
+
+    def __init__(self, log_id):
+        self.id = log_id
+        self.feedback = None
+
+
+class _RecordingChatRepository(_StubChatRepository):
+    """Chat repo that records the kwargs passed to ``create_log``."""
+
+    def __init__(self):
+        self.create_log_kwargs = None
+
+    def create_log(self, **kwargs):
+        self.create_log_kwargs = kwargs
+        return _RecordingChatLog(log_id=777)
+
+
+class _FakeGroup:
+    """Minimal group context object accepted by ``require_group_context``."""
+
+    def __init__(self):
+        self.id = 5
+        self.user_id = 99
+        self.member_video_ids = [11, 22]
+        self.description = "Robotics videos"
+
+
+class _GroupRepository(VideoGroupQueryRepository):
+    def __init__(self, group):
+        self._group = group
+
+    def get_with_members(self, group_id, user_id=None, share_token=None):
+        return self._group
+
+
+class _ToolTraceStreamingRagGateway(RagGateway):
+    """Streaming gateway whose final chunk carries a tool_trace."""
+
+    def __init__(self, tool_trace):
+        self._tool_trace = tool_trace
+
+    def generate_reply(self, messages, user_id, video_ids=None, locale=None, api_key=None, group_context=None):
+        raise NotImplementedError
+
+    def stream_reply(self, messages, user_id, video_ids=None, locale=None, api_key=None, group_context=None):
+        yield RagStreamChunk(text="Answer")
+        yield RagStreamChunk(
+            is_final=True,
+            citations=[],
+            query_text="q",
+            retrieved_contexts=["ctx-1"],
+            tool_trace=self._tool_trace,
+        )
+
+
+class StreamExecuteToolTracePersistenceTests(unittest.TestCase):
+    """Asserts the final chunk's tool_trace is forwarded to create_log."""
+
+    def test_tool_trace_passed_to_create_log(self):
+        tool_trace = [
+            {"tool": "get_video", "args": {"video_id": 11}, "result_kind": "summary"},
+        ]
+        chat_repo = _RecordingChatRepository()
+        use_case = SendMessageUseCase(
+            chat_repo=chat_repo,
+            group_query_repo=_GroupRepository(_FakeGroup()),
+            rag_gateway=_ToolTraceStreamingRagGateway(tool_trace),
+        )
+
+        list(use_case.stream_execute(
+            user_id=99,
+            messages=[ChatMessageInput(role="user", content="hello")],
+            group_id=5,
+        ))
+
+        self.assertIsNotNone(chat_repo.create_log_kwargs)
+        self.assertEqual(chat_repo.create_log_kwargs["tool_trace"], tool_trace)

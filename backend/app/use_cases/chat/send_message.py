@@ -159,6 +159,7 @@ class SendMessageUseCase:
                 citations=rag_result.citations,
                 is_shared=is_shared,
                 retrieved_contexts=rag_result.retrieved_contexts,
+                tool_trace=getattr(rag_result, "tool_trace", None),
             )
             chat_log_id = chat_log.id
             feedback = chat_log.feedback
@@ -268,6 +269,7 @@ class SendMessageUseCase:
         full_content = ""
         final_citations = None
         final_retrieved_contexts: list = []
+        final_tool_trace = None
         query_text = ""
 
         try:
@@ -282,6 +284,7 @@ class SendMessageUseCase:
                 if chunk.is_final:
                     final_citations = chunk.citations
                     final_retrieved_contexts = chunk.retrieved_contexts
+                    final_tool_trace = getattr(chunk, "tool_trace", None)
                     query_text = chunk.query_text or ""
                 elif chunk.text is not None:
                     full_content += chunk.text
@@ -305,6 +308,7 @@ class SendMessageUseCase:
                 citations=final_citations,
                 is_shared=is_shared,
                 retrieved_contexts=final_retrieved_contexts,
+                tool_trace=final_tool_trace,
             )
             chat_log_id = chat_log.id
             feedback = chat_log.feedback

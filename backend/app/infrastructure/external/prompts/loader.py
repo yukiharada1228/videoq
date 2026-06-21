@@ -179,3 +179,25 @@ def build_system_prompt(
     lines.extend(_build_reference_lines(reference_config, references))
 
     return "\n".join(lines)
+
+
+def get_agent_security_rules(locale: Optional[str] = None) -> List[str]:
+    """Return the locale-resolved ``agent_security_rules`` lines (§8.5.2, §9.1).
+
+    These are the prompt-injection / tool-scope defence statements added to the
+    agentic chat system prompt. They are stored under the ``agent_security_rules``
+    key in ``prompts.json`` and resolved with the same locale-fallback rules as
+    :func:`build_system_prompt`.
+
+    Args:
+        locale: Accept-Language locale hint (e.g. ``"ja"``), or None.
+
+    Returns:
+        The list of security-rule strings for the resolved locale. Returns an
+        empty list when the key is absent (defensive; the key should exist).
+    """
+    config = _resolve_locale_config(locale)
+    rules = config.get("agent_security_rules", [])
+    if not isinstance(rules, list):
+        return []
+    return [str(rule) for rule in rules if isinstance(rule, str) and rule.strip()]

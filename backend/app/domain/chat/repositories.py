@@ -35,6 +35,7 @@ class ChatRepository(ABC):
         citations: Optional[Sequence[CitationDTO]],
         is_shared: bool,
         retrieved_contexts: Optional[List[str]] = None,
+        tool_trace: Optional[List[dict]] = None,
     ) -> ChatLogEntity:
         """Persist a new chat log entry."""
         ...

@@ -100,6 +100,7 @@ class DjangoChatRepository(ChatRepository):
         citations: Optional[Sequence[CitationDTO]],
         is_shared: bool,
         retrieved_contexts: Optional[List[str]] = None,
+        tool_trace: Optional[List[dict]] = None,
     ) -> ChatLogEntity:
         citation_dicts = [
             {
@@ -118,6 +119,7 @@ class DjangoChatRepository(ChatRepository):
             citations=citation_dicts,
             retrieved_contexts=retrieved_contexts or [],
             is_shared_origin=is_shared,
+            tool_trace=tool_trace or [],
         )
         return _chat_log_to_entity(log)
 

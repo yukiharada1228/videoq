@@ -73,7 +73,17 @@ class RagasEvaluationGateway(RagEvaluationGateway):
     @staticmethod
     def _run_metric(metric, sample) -> Optional[float]:
         try:
-            score = asyncio.run(metric.single_turn_ascore(sample))
+            try:
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                loop = None
+            coro = metric.single_turn_ascore(sample)
+            if loop is None:
+                score = asyncio.run(coro)
+            else:
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+                    score = ex.submit(asyncio.run, coro).result()
             return float(score) if score is not None else None
         except Exception as exc:
             logger.warning("Metric %s failed: %s", metric.__class__.__name__, exc)

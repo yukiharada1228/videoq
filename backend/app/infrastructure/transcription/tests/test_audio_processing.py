@@ -12,6 +12,8 @@ from unittest.mock import MagicMock, patch
 
 import unittest
 
+from django.conf import settings
+
 from app.infrastructure.transcription.audio_processing import (
     SUPPORTED_FORMATS,
     _extract_audio_segment,
@@ -106,7 +108,10 @@ class ProbeMediaFileTests(unittest.TestCase):
         result = probe_media_file("/path/to/video.mp4")
 
         self.assertEqual(result["format"]["format_name"], "mp4")
-        self.assertEqual(mock_run.call_args.kwargs["timeout"], 10)
+        self.assertEqual(
+            mock_run.call_args.kwargs["timeout"],
+            settings.FFPROBE_VALIDATION_TIMEOUT_SECONDS,
+        )
 
     @patch("subprocess.run")
     def test_raises_for_ffprobe_failure(self, mock_run):
@@ -216,7 +221,10 @@ class ExtractFullAudioTests(unittest.TestCase):
             self.assertIn("mp3", args)
             self.assertIn("-ab", args)
             self.assertIn("128k", args)
-            self.assertEqual(mock_run.call_args.kwargs["timeout"], 120)
+            self.assertEqual(
+                mock_run.call_args.kwargs["timeout"],
+                settings.FFMPEG_PROCESS_TIMEOUT_SECONDS,
+            )
 
     @patch("os.path.getsize")
     @patch("subprocess.run")
@@ -257,7 +265,10 @@ class ExtractAudioSegmentTests(unittest.TestCase):
             t_index = args.index("-t")
             self.assertEqual(args[ss_index + 1], "10.0")
             self.assertEqual(args[t_index + 1], "15.0")  # 25.0 - 10.0
-            self.assertEqual(mock_run.call_args.kwargs["timeout"], 120)
+            self.assertEqual(
+                mock_run.call_args.kwargs["timeout"],
+                settings.FFMPEG_PROCESS_TIMEOUT_SECONDS,
+            )
 
     @patch("subprocess.run")
     def test_segment_index_in_filename(self, mock_run):

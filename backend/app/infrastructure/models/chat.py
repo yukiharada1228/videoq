@@ -20,6 +20,7 @@ class ChatLog(models.Model):
     answer = models.TextField()
     citations = models.JSONField(default=list, blank=True)
     retrieved_contexts = models.JSONField(default=list, blank=True)
+    tool_trace = models.JSONField(default=list, blank=True)
     is_shared_origin = models.BooleanField(default=False, db_index=True)
     feedback = models.CharField(
         max_length=4,

@@ -13,3 +13,7 @@ def get_get_evaluation_summary_use_case():
 
 def get_list_chat_log_evaluations_use_case():
     return _cr.get_list_chat_log_evaluations_use_case()
+
+
+def get_ragas_evaluation_gateway():
+    return _cr.get_ragas_evaluation_gateway()
