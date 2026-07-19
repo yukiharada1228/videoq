@@ -233,6 +233,9 @@ export const useDialog = (options: UseDialogOptions): UseDialogResult => {
     if (!dialog) return
 
     const handleCancel = (e: Event) => {
+      // File inputs also fire bubbled `cancel` when the OS picker is dismissed.
+      // Only treat Escape on the dialog itself as a close request.
+      if (e.target !== dialog) return
       e.preventDefault()
       executeRequestClose()
     }
