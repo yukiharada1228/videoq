@@ -236,10 +236,6 @@ function ShareLinkDialog({
   const { t } = useTranslation();
   const [inputValue, setInputValue] = useState(shareSlug);
 
-  useEffect(() => {
-    if (isOpen) setInputValue(shareSlug);
-  }, [isOpen, shareSlug]);
-
   const dialog = useDialog({
     open: isOpen,
     onOpenChange,
@@ -247,8 +243,6 @@ function ShareLinkDialog({
       if (isGeneratingLink) event.preventDefault();
     },
   });
-
-  if (!isOpen) return null;
 
   return (
     <Dialog {...dialog.dialogProps} width="min(42rem, 92vw)">
@@ -946,17 +940,20 @@ export function VideoGroupDetailView({
             onSave={onUpdateGroup}
           />
 
-          <ShareLinkDialog
-            isOpen={isShareDialogOpen}
-            shareSlug={shareSlug}
-            shareLink={shareLink}
-            isGeneratingLink={isGeneratingLink}
-            isCopied={isCopied}
-            onOpenChange={setIsShareDialogOpen}
-            onGenerate={onGenerateShareLink}
-            onDelete={onDeleteShareLink}
-            onCopy={onCopyShareLink}
-          />
+          {isShareDialogOpen && (
+            <ShareLinkDialog
+              key={shareSlug}
+              isOpen={isShareDialogOpen}
+              shareSlug={shareSlug}
+              shareLink={shareLink}
+              isGeneratingLink={isGeneratingLink}
+              isCopied={isCopied}
+              onOpenChange={setIsShareDialogOpen}
+              onGenerate={onGenerateShareLink}
+              onDelete={onDeleteShareLink}
+              onCopy={onCopyShareLink}
+            />
+          )}
 
           <main className="mx-auto flex w-full max-w-[1600px] flex-col gap-4 overflow-y-auto px-6 py-4 pb-20 lg:h-[calc(100dvh-var(--app-header-offset,5rem))] lg:gap-5 lg:overflow-hidden lg:px-8 lg:pb-4">
             <div className="shrink-0 space-y-4">
