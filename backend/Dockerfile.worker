@@ -6,6 +6,7 @@
 FROM public.ecr.aws/lambda/python:3.12
 
 ARG APP_HOME=/var/task
+ENV NLTK_DATA=/usr/local/nltk_data
 WORKDIR ${APP_HOME}
 
 # ffmpeg: AL2023 最小イメージには tar/xz が未インストールのため先にインストール
@@ -23,7 +24,7 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir --upgrade "pip>=26.0" \
     && pip install --no-cache-dir -r requirements.txt
 
-RUN python -m nltk.downloader -d /usr/local/nltk_data \
+RUN python -m nltk.downloader -e -d "${NLTK_DATA}" \
     averaged_perceptron_tagger_eng punkt_tab
 
 COPY . .
