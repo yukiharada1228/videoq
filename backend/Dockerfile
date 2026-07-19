@@ -1,6 +1,7 @@
 FROM python:3.12-slim
 
 ARG APP_HOME=/app
+ENV NLTK_DATA=/usr/local/nltk_data
 WORKDIR ${APP_HOME}
 
 RUN apt-get update && apt-get install -y \
@@ -14,7 +15,7 @@ RUN python -m pip install --no-cache-dir --upgrade "pip>=26.0"
 
 RUN pip install --no-cache-dir -r requirements.txt
 
-RUN python -m nltk.downloader -d /usr/local/nltk_data averaged_perceptron_tagger_eng punkt_tab
+RUN python -m nltk.downloader -e -d "${NLTK_DATA}" averaged_perceptron_tagger_eng punkt_tab
 
 COPY . .
 
