@@ -190,7 +190,7 @@ class TagCreateSerializerTests(TestCase):
         """Test valid tag creation"""
         data = {
             "name": "Important",
-            "color": "#FF0000",
+            "color": "red",
         }
 
         serializer = TagCreateSerializer(data=data, context=self._get_request_context())
@@ -201,7 +201,7 @@ class TagCreateSerializerTests(TestCase):
         """Test that empty name is invalid"""
         data = {
             "name": "",
-            "color": "#FF0000",
+            "color": "red",
         }
 
         serializer = TagCreateSerializer(data=data, context=self._get_request_context())
@@ -213,7 +213,7 @@ class TagCreateSerializerTests(TestCase):
         """Whitespace-only checks are enforced in use-cases/domain."""
         data = {
             "name": "   ",
-            "color": "#FF0000",
+            "color": "red",
         }
 
         serializer = TagCreateSerializer(data=data, context=self._get_request_context())
@@ -224,7 +224,7 @@ class TagCreateSerializerTests(TestCase):
         """Normalization is handled by use-cases/domain."""
         data = {
             "name": "  Important  ",
-            "color": "#FF0000",
+            "color": "red",
         }
 
         serializer = TagCreateSerializer(data=data, context=self._get_request_context())
@@ -281,8 +281,8 @@ class VideoSerializerTests(TestCase):
         """Test that tags are included in serialization"""
         from app.domain.video.entities import TagEntity, VideoEntity
 
-        tag1 = Tag.objects.create(user=self.user, name="Tag1", color="#FF0000")
-        tag2 = Tag.objects.create(user=self.user, name="Tag2", color="#00FF00")
+        tag1 = Tag.objects.create(user=self.user, name="Tag1", color="red")
+        tag2 = Tag.objects.create(user=self.user, name="Tag2", color="green")
 
         video_entity = VideoEntity(
             id=self.video.id,
@@ -291,8 +291,8 @@ class VideoSerializerTests(TestCase):
             status="completed",
             description="Test Description",
             tags=[
-                TagEntity(id=tag1.id, user_id=self.user.id, name="Tag1", color="#FF0000"),
-                TagEntity(id=tag2.id, user_id=self.user.id, name="Tag2", color="#00FF00"),
+                TagEntity(id=tag1.id, user_id=self.user.id, name="Tag1", color="red"),
+                TagEntity(id=tag2.id, user_id=self.user.id, name="Tag2", color="green"),
             ],
         )
 
@@ -504,7 +504,7 @@ class TagDetailSerializerTests(TestCase):
         self.tag = Tag.objects.create(
             user=self.user,
             name="Test Tag",
-            color="#FF0000",
+            color="red",
         )
 
     def _get_request_context(self):
@@ -523,7 +523,7 @@ class TagDetailSerializerTests(TestCase):
             id=self.tag.id,
             user_id=self.user.id,
             name="Test Tag",
-            color="#FF0000",
+            color="red",
             video_count=2,
             videos=[
                 VideoEntity(id=video1.id, user_id=self.user.id, title="Video 1", status="processing", description=""),

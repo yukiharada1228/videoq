@@ -8,7 +8,6 @@ from django.test import SimpleTestCase, override_settings
 from app.domain.shared.exceptions import ProviderConfigError
 from app.infrastructure.common.whisper_client import (
     WhisperConfig,
-    create_async_whisper_client,
     create_whisper_client,
     get_whisper_model_name,
 )
@@ -45,7 +44,7 @@ class WhisperConfigTests(SimpleTestCase):
 
 
 class CreateWhisperClientTests(SimpleTestCase):
-    """Tests for sync and async Whisper client factories."""
+    """Tests for Whisper client factories."""
 
     @patch("app.infrastructure.common.whisper_client.OpenAI")
     @override_settings(WHISPER_BACKEND="openai", OPENAI_API_KEY="server-key")
@@ -68,19 +67,6 @@ class CreateWhisperClientTests(SimpleTestCase):
             base_url="http://localhost:8080",
         )
 
-    @patch("app.infrastructure.common.whisper_client.AsyncOpenAI")
-    @override_settings(
-        WHISPER_BACKEND="whisper.cpp",
-        WHISPER_LOCAL_URL="http://localhost:8080",
-        OPENAI_API_KEY="",
-    )
-    def test_async_local_client_uses_dummy_key_and_local_url(self, mock_async_openai):
-        create_async_whisper_client(api_key=None)
-
-        mock_async_openai.assert_called_once_with(
-            api_key="dummy-key-for-local",
-            base_url="http://localhost:8080",
-        )
 
     @override_settings(WHISPER_BACKEND="openai", OPENAI_API_KEY="")
     def test_openai_client_requires_api_key(self):

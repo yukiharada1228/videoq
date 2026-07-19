@@ -3,7 +3,7 @@
 import logging
 
 from django.conf import settings
-from openai import AsyncOpenAI, OpenAI
+from openai import OpenAI
 
 from app.infrastructure.common.provider_registry import (
     create_from_provider_registry,
@@ -58,23 +58,6 @@ def create_whisper_client(api_key, config=None):
     )
 
 
-def create_async_whisper_client(api_key, config=None):
-    """Create async OpenAI client configured for selected Whisper backend."""
-    if config is None:
-        config = WhisperConfig()
-
-    return create_from_provider_registry(
-        "WHISPER_BACKEND",
-        config.backend,
-        {
-            config.BACKEND_OPENAI: lambda: _create_async_openai_whisper_client(api_key),
-            config.BACKEND_LOCAL: lambda: _create_async_local_whisper_client(
-                api_key, config
-            ),
-        },
-    )
-
-
 def get_whisper_model_name(config=None):
     """Get model name for transcription."""
     if config is None:
@@ -98,21 +81,6 @@ def _create_openai_whisper_client(api_key):
 def _create_local_whisper_client(api_key, config):
     logger.debug("Creating local whisper client: %s", config.local_url)
     return OpenAI(
-        api_key=api_key or "dummy-key-for-local",
-        base_url=config.local_url,
-    )
-
-
-def _create_async_openai_whisper_client(api_key):
-    logger.debug("Creating async OpenAI whisper client")
-    return AsyncOpenAI(
-        api_key=resolve_openai_api_key(api_key, purpose="OpenAI Whisper")
-    )
-
-
-def _create_async_local_whisper_client(api_key, config):
-    logger.debug("Creating async local whisper client: %s", config.local_url)
-    return AsyncOpenAI(
         api_key=api_key or "dummy-key-for-local",
         base_url=config.local_url,
     )

@@ -2,6 +2,7 @@
 
 import { useI18nNavigate } from '@/lib/i18n';
 import { useTranslation } from 'react-i18next';
+import { Button } from '@/components/ui/button';
 
 interface VideoNavBarProps {
   onUploadClick: () => void;
@@ -12,25 +13,32 @@ export function VideoNavBar({ onUploadClick }: VideoNavBarProps) {
   const { t } = useTranslation();
 
   return (
-    <div className="bg-white border-b">
+    <div className="border-b border-solid-gray-200 bg-white">
       <div className="px-4 py-3">
-        <nav className="flex items-center gap-6">
-          <button
+        <nav className="flex items-center gap-3">
+          <Button
+            type="button"
+            variant="text"
+            size="sm"
             onClick={() => navigate('/')}
-            className="text-gray-600 hover:text-gray-900 transition-colors"
+            className="min-w-0 px-2"
           >
             ← {t('common.actions.backToHome')}
-          </button>
-          <span className="text-gray-300">|</span>
-          <button
+          </Button>
+          <span className="text-solid-gray-300" aria-hidden="true">
+            |
+          </span>
+          <Button
+            type="button"
+            variant="text"
+            size="sm"
             onClick={onUploadClick}
-            className="text-gray-600 hover:text-gray-900 transition-colors"
+            className="min-w-0 px-2"
           >
             ＋ {t('videos.list.uploadButton')}
-          </button>
+          </Button>
         </nav>
       </div>
     </div>
   );
 }
-

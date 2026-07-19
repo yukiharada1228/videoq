@@ -2,6 +2,8 @@
 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { RequirementBadge } from '@/components/ui/requirement-badge';
 import { MessageAlert } from '@/components/common/MessageAlert';
 import { Button } from '@/components/ui/button';
 import { VideoUploadButton } from './VideoUploadButton';
@@ -61,8 +63,11 @@ export function VideoUploadFormFields({
 
   return (
     <>
-      <div className="space-y-2">
-        <Label htmlFor="file">{t('videos.upload.fileLabel')}</Label>
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="file">
+          {t('videos.upload.fileLabel')}
+          <RequirementBadge>{t('common.labels.required')}</RequirementBadge>
+        </Label>
         <Input
           id="file"
           type="file"
@@ -73,8 +78,11 @@ export function VideoUploadFormFields({
         />
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="title">{t('videos.upload.titleLabel')}</Label>
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="title">
+          {t('videos.upload.titleLabel')}
+          <RequirementBadge>{t('common.labels.required')}</RequirementBadge>
+        </Label>
         <Input
           id="title"
           type="text"
@@ -86,15 +94,18 @@ export function VideoUploadFormFields({
         />
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="description">{t('videos.upload.descriptionLabel')}</Label>
-        <textarea
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="description">
+          {t('videos.upload.descriptionLabel')}
+          <RequirementBadge isOptional>{t('common.labels.optional')}</RequirementBadge>
+        </Label>
+        <Textarea
           id="description"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder={t('videos.upload.descriptionPlaceholder')}
           disabled={isUploading || disabled}
-          className="w-full min-h-[100px] px-3 py-2 bg-[#f2f4ef] border border-[#e1e3de] rounded-xl resize-none outline-none focus:ring-2 focus:ring-[#00652c]/20 focus:border-[#00652c] transition-all"
+          className="min-h-[100px] resize-none"
         />
       </div>
 

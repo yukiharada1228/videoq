@@ -21,8 +21,8 @@ vi.mock('react-i18next', () => ({
 
 describe('TagFilterPanel', () => {
     const mockTags = [
-        { id: 1, name: 'Tag 1', color: '#ff0000', created_at: '2023-01-01' },
-        { id: 2, name: 'Tag 2', color: '#00ff00', created_at: '2023-01-02' },
+        { id: 1, name: 'Tag 1', color: 'red', created_at: '2023-01-01' },
+        { id: 2, name: 'Tag 2', color: 'green', created_at: '2023-01-02' },
     ]
     const mockOnToggle = vi.fn()
     const mockOnClear = vi.fn()
@@ -44,7 +44,7 @@ describe('TagFilterPanel', () => {
 
         expect(screen.getByText('Tag 1')).toBeInTheDocument()
         expect(screen.getByText('Tag 2')).toBeInTheDocument()
-        expect(screen.getByText('Filter by Tags')).toBeInTheDocument()
+        expect(screen.getByText('tags.filter.title')).toBeInTheDocument()
     })
 
     it('should handle tag selection', () => {

@@ -76,9 +76,15 @@ class InvalidTagName(Exception):
 
 
 class InvalidTagColor(Exception):
-    """Raised when a tag color is not a #RRGGBB hex value."""
+    """Raised when a tag color is not a Digital Agency ChipLabel palette name."""
 
-    def __init__(self, message: str = "Invalid color format. Use #RRGGBB"):
+    def __init__(
+        self,
+        message: str = (
+            "Invalid color. Use a ChipLabel palette name "
+            "(gray, blue, light-blue, cyan, green, lime, yellow, orange, red, magenta, purple)"
+        ),
+    ):
         super().__init__(message)
 
 
@@ -105,19 +111,3 @@ class ShareSlugAlreadyExists(Exception):
     def __init__(self, message: str = "This share link is already in use"):
         super().__init__(message)
 
-
-class TranscriptionTargetNotFound(Exception):
-    """Raised when transcription target video does not exist."""
-
-    def __init__(self, video_id: int):
-        self.video_id = video_id
-        super().__init__(f"Video {video_id} not found")
-
-
-class TranscriptionFailed(Exception):
-    """Raised when transcription processing fails for a video."""
-
-    def __init__(self, video_id: int, reason: str):
-        self.video_id = video_id
-        self.reason = reason
-        super().__init__(f"Transcription failed for video {video_id}: {reason}")

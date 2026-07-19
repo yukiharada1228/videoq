@@ -103,9 +103,12 @@ class TagPolicyTests(TestCase):
         with self.assertRaises(InvalidTagName):
             TagPolicy.normalize_name("   ")
 
-    def test_validate_color_accepts_hex(self):
-        self.assertEqual(TagPolicy.validate_color("#Ab12F0"), "#Ab12F0")
+    def test_validate_color_accepts_palette_name(self):
+        self.assertEqual(TagPolicy.validate_color("blue"), "blue")
+        self.assertEqual(TagPolicy.validate_color("light-blue"), "light-blue")
 
     def test_validate_color_rejects_invalid_format(self):
         with self.assertRaises(InvalidTagColor):
-            TagPolicy.validate_color("red")
+            TagPolicy.validate_color("#3B82F6")
+        with self.assertRaises(InvalidTagColor):
+            TagPolicy.validate_color("pink")

@@ -3,11 +3,12 @@ import { useLocation } from 'react-router-dom';
 import { X } from 'lucide-react';
 import {
   Dialog,
+  DialogActions,
+  DialogBody,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
   DialogHeader,
-  DialogTitle,
+  DialogHeading,
+  useDialog,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -98,6 +99,15 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
       ? confirmRequest
       : null;
 
+  const isConfirmOpen = !!visibleConfirmRequest;
+
+  const confirmDialog = useDialog({
+    open: isConfirmOpen,
+    onOpenChange: (open) => {
+      if (!open) resolveConfirm(false);
+    },
+  });
+
   const dismissToast = useCallback((id: number) => {
     setToasts((current) => current.filter((toast) => toast.id !== id));
   }, []);
@@ -127,35 +137,49 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
     <FeedbackContext.Provider value={contextValue}>
       {children}
 
-      <Dialog open={!!visibleConfirmRequest} onOpenChange={(open) => !open && resolveConfirm(false)}>
-        <DialogContent className="sm:max-w-md" showCloseButton={false}>
-          <DialogHeader>
-            <DialogTitle>{visibleConfirmRequest?.options.title}</DialogTitle>
-            {visibleConfirmRequest?.options.description ? (
-              <DialogDescription>{visibleConfirmRequest.options.description}</DialogDescription>
-            ) : (
-              <DialogDescription className="sr-only">Confirm this action.</DialogDescription>
-            )}
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              autoFocus
-              onClick={() => resolveConfirm(false)}
-            >
-              {visibleConfirmRequest?.options.cancelLabel}
-            </Button>
-            <Button
-              type="button"
-              variant={visibleConfirmRequest?.options.variant === 'danger' ? 'destructive' : 'default'}
-              onClick={() => resolveConfirm(true)}
-            >
-              {visibleConfirmRequest?.options.confirmLabel}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {isConfirmOpen && visibleConfirmRequest && (
+        <Dialog {...confirmDialog.dialogProps} width="min(28rem, 92vw)">
+          <DialogContent>
+            <DialogHeader>
+              <DialogHeading {...confirmDialog.headingProps}>
+                {visibleConfirmRequest.options.title}
+              </DialogHeading>
+            </DialogHeader>
+            <DialogBody>
+              {visibleConfirmRequest.options.description ? (
+                <p className="text-std-16N-170 text-solid-gray-700">
+                  {visibleConfirmRequest.options.description}
+                </p>
+              ) : (
+                <p className="sr-only">Confirm this action.</p>
+              )}
+            </DialogBody>
+            <DialogActions>
+              <div className="flex justify-end gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => resolveConfirm(false)}
+                >
+                  {visibleConfirmRequest.options.cancelLabel}
+                </Button>
+                <Button
+                  type="button"
+                  variant="solid"
+                  className={
+                    visibleConfirmRequest.options.variant === 'danger'
+                      ? 'bg-error-1 hover:bg-red-1000 active:bg-red-1200'
+                      : undefined
+                  }
+                  onClick={() => resolveConfirm(true)}
+                >
+                  {visibleConfirmRequest.options.confirmLabel}
+                </Button>
+              </div>
+            </DialogActions>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {toasts.length > 0 && (
         <div className="fixed bottom-4 right-4 z-50 flex w-[min(calc(100vw-2rem),24rem)] flex-col gap-2">
@@ -164,10 +188,10 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
               key={toastItem.id}
               role={toastItem.variant === 'error' ? 'alert' : 'status'}
               className={cn(
-                'flex items-start gap-3 rounded-xl border bg-white px-4 py-3 text-sm font-medium shadow-[0_8px_30px_rgba(28,25,23,0.12)]',
-                toastItem.variant === 'error' && 'border-red-200 text-red-700',
-                toastItem.variant === 'success' && 'border-green-200 text-green-700',
-                toastItem.variant === 'info' && 'border-[#e1e3de] text-[#191c19]',
+                'flex items-start gap-3 border bg-white px-4 py-3 text-sm font-medium',
+                toastItem.variant === 'error' && 'border-error-1 text-error-1',
+                toastItem.variant === 'success' && 'border-success-2 text-success-2',
+                toastItem.variant === 'info' && 'border-solid-gray-420 text-solid-gray-800',
               )}
             >
               <span className="flex-1 leading-5">{toastItem.message}</span>

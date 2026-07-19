@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { cn } from '@/lib/utils';
 
 interface AuthPageFooterProps {
   bordered?: boolean;
@@ -9,8 +10,13 @@ export function AuthPageFooter({ bordered = false, align = 'center' }: AuthPageF
   const { t } = useTranslation();
 
   return (
-    <div className={`${bordered ? 'mt-24 pt-8 border-t border-gray-100' : 'pt-0'} ${align === 'left' ? 'text-left' : 'text-center'}`}>
-      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em]">
+    <div
+      className={cn(
+        bordered ? 'mt-16 border-t border-solid-gray-420 pt-6' : 'border-t border-solid-gray-420 pt-6',
+        align === 'left' ? 'text-left' : 'text-center',
+      )}
+    >
+      <p className="text-oln-14N-100 text-solid-gray-600">
         {t('layout.authFooter', { year: new Date().getFullYear() })}
       </p>
     </div>

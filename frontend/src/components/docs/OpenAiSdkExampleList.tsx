@@ -1,14 +1,16 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useTranslation } from 'react-i18next';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Disclosure, DisclosureSummary } from '@/components/ui/disclosure';
+import { Heading, HeadingTitle } from '@/components/ui/heading';
+import { Tab, TabItem, TabList, TabPanel, useTabAria } from '@/components/ui/tabs';
 
 const tabs = ['python', 'typescript', 'javascript'] as const;
-type Tab = (typeof tabs)[number];
+type TabId = (typeof tabs)[number];
 
 type Example = {
   titleKey: string;
   descriptionKey: string;
-  snippets: Record<Tab, string>;
+  snippets: Record<TabId, string>;
 };
 
 type CodeStrings = {
@@ -109,9 +111,21 @@ console.log('chat_log_id:', msg.chat_log_id);`,
   ];
 }
 
+const tabLabels: Record<TabId, string> = {
+  python: 'Python',
+  typescript: 'TypeScript',
+  javascript: 'JavaScript',
+};
+
 export function OpenAiSdkExampleList() {
   const { t } = useTranslation();
-  const [activeTab, setActiveTab] = useState<Tab>('python');
+  const [activeTab, setActiveTab] = useState<TabId>('python');
+  const tabAria = useTabAria({
+    defaultSelectedIndex: 0,
+    onTabChange: ({ selectedIndex }) => {
+      setActiveTab(tabs[selectedIndex] ?? 'python');
+    },
+  });
 
   const baseUrl = `${window.location.origin}/api/v1/`;
 
@@ -124,37 +138,40 @@ export function OpenAiSdkExampleList() {
   const examples = buildExamples(baseUrl, codeStrings);
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1 text-xs">
-        {tabs.map((tab) => (
-          <button
-            key={tab}
-            type="button"
-            onClick={() => setActiveTab(tab)}
-            className={`rounded-md px-3 py-1.5 font-medium transition ${
-              activeTab === tab
-                ? 'bg-slate-900 text-white'
-                : 'text-slate-600 hover:bg-slate-200'
-            }`}
-          >
-            {tab === 'typescript' ? 'TypeScript' : tab === 'javascript' ? 'JavaScript' : 'Python'}
-          </button>
+    <Tab>
+      <TabList aria-label="SDK language" {...tabAria.getListProps()} className="mb-6">
+        {tabs.map((tab, index) => (
+          <TabItem key={tab} {...tabAria.getTabProps(index)}>
+            {tabLabels[tab]}
+          </TabItem>
         ))}
-      </div>
+      </TabList>
 
-      {examples.map((example) => (
-        <Card key={example.titleKey}>
-          <CardHeader>
-            <CardTitle className="text-base">{t(example.titleKey)}</CardTitle>
-            <CardDescription>{t(example.descriptionKey)}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <pre className="overflow-x-auto rounded-lg border border-slate-200 bg-slate-950 p-4 text-xs text-slate-100">
-              <code>{example.snippets[activeTab]}</code>
-            </pre>
-          </CardContent>
-        </Card>
+      {tabs.map((tab, index) => (
+        <TabPanel key={tab} {...tabAria.getPanelProps(index)} className="space-y-4">
+          {examples.map((example) => (
+            <Disclosure
+              key={`${example.titleKey}-${tab}`}
+              className="border-t border-solid-gray-420 py-4"
+              open
+            >
+              <DisclosureSummary>
+                <Heading size="16">
+                  <HeadingTitle level="h3">{t(example.titleKey)}</HeadingTitle>
+                </Heading>
+              </DisclosureSummary>
+              <div className="mt-4 space-y-3 pl-8">
+                <p className="text-std-16N-170 text-solid-gray-700">
+                  {t(example.descriptionKey)}
+                </p>
+                <pre className="overflow-x-auto border border-solid-gray-420 bg-solid-gray-800 p-4 text-dns-14N-130 text-white">
+                  <code>{example.snippets[activeTab]}</code>
+                </pre>
+              </div>
+            </Disclosure>
+          ))}
+        </TabPanel>
       ))}
-    </div>
+    </Tab>
   );
 }

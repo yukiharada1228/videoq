@@ -33,8 +33,6 @@ class _StubChatRepository(ChatRepository):
     def update_feedback(self, log, feedback):
         raise NotImplementedError
 
-    def get_logs_values_for_group(self, group_id):
-        raise NotImplementedError
 
     def delete_logs_for_group(self, group_id):
         raise NotImplementedError

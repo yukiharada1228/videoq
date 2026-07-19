@@ -6,8 +6,7 @@ from django.contrib.auth import get_user_model
 from rest_framework.test import APITestCase
 
 from app.domain.user.entities import UserEntity
-from app.presentation.auth.serializers import (EmailVerificationSerializer,
-                                               LoginSerializer,
+from app.presentation.auth.serializers import (LoginSerializer,
                                                PasswordResetRequestSerializer,
                                                UserSerializer,
                                                UserSignupSerializer)
@@ -110,29 +109,6 @@ class UserSerializerTests(APITestCase):
         self.assertEqual(serializer.data["used_ai_answers"], 9)
         self.assertTrue(serializer.data["is_over_quota"])
 
-
-class EmailVerificationSerializerTests(APITestCase):
-    """Tests for EmailVerificationSerializer — field presence validation only.
-    Token validity is verified by the use case (VerifyEmailUseCase).
-    """
-
-    def test_valid_data_passes(self):
-        """Test that valid uid and token pass serializer validation"""
-        data = {"uid": "some-uid", "token": "some-token"}
-        serializer = EmailVerificationSerializer(data=data)
-        self.assertTrue(serializer.is_valid())
-
-    def test_missing_uid(self):
-        """Test that missing uid fails validation"""
-        serializer = EmailVerificationSerializer(data={"token": "some-token"})
-        self.assertFalse(serializer.is_valid())
-        self.assertIn("uid", serializer.errors)
-
-    def test_missing_token(self):
-        """Test that missing token fails validation"""
-        serializer = EmailVerificationSerializer(data={"uid": "some-uid"})
-        self.assertFalse(serializer.is_valid())
-        self.assertIn("token", serializer.errors)
 
 
 class PasswordResetRequestSerializerTests(APITestCase):

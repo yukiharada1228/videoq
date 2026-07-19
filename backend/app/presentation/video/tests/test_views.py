@@ -508,12 +508,12 @@ class TagViewTests(APITestCase):
 
     def test_update_tag_returns_id(self):
         """Test tag update response includes id."""
-        tag = Tag.objects.create(user=self.user, name="Tag 1", color="#111111")
+        tag = Tag.objects.create(user=self.user, name="Tag 1", color="gray")
         url = reverse("tag-detail", kwargs={"pk": tag.pk})
 
         response = self.client.patch(
             url,
-            {"name": "Tag 2", "color": "#222222"},
+            {"name": "Tag 2", "color": "blue"},
             format="json",
         )
 
@@ -530,7 +530,7 @@ class TagViewTests(APITestCase):
 
         response = self.client.post(
             url,
-            {"name": "Tag 1", "color": "#111111"},
+            {"name": "Tag 1", "color": "gray"},
             format="json",
         )
 
@@ -545,18 +545,18 @@ class TagViewTests(APITestCase):
         url = reverse("tag-list")
         response = self.client.post(
             url,
-            {"name": "Tag 1", "color": "red"},
+            {"name": "Tag 1", "color": "pink"},
             format="json",
         )
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(
-            response.data["error"]["message"], "Invalid color format. Use #RRGGBB"
+            response.data["error"]["message"], "Invalid color. Use a ChipLabel palette name (gray, blue, light-blue, cyan, green, lime, yellow, orange, red, magenta, purple)"
         )
 
     def test_update_tag_returns_400_for_whitespace_name(self):
         """Whitespace-only tag name should be rejected at use-case/domain boundary."""
-        tag = Tag.objects.create(user=self.user, name="Tag 1", color="#111111")
+        tag = Tag.objects.create(user=self.user, name="Tag 1", color="gray")
         url = reverse("tag-detail", kwargs={"pk": tag.pk})
         response = self.client.patch(
             url,
@@ -569,7 +569,7 @@ class TagViewTests(APITestCase):
 
     def test_remove_tag_from_video(self):
         """Test removing a tag from a video via DELETE /videos/<id>/tags/<tag_id>/"""
-        tag = Tag.objects.create(user=self.user, name="Tag 1", color="#111111")
+        tag = Tag.objects.create(user=self.user, name="Tag 1", color="gray")
         VideoTag.objects.create(video=self.video, tag=tag)
 
         url = reverse(
@@ -583,7 +583,7 @@ class TagViewTests(APITestCase):
 
     def test_remove_tag_from_video_not_attached(self):
         """Test 404 when tag is not attached to the video"""
-        tag = Tag.objects.create(user=self.user, name="Tag 1", color="#111111")
+        tag = Tag.objects.create(user=self.user, name="Tag 1", color="gray")
 
         url = reverse(
             "remove-tag-from-video",
@@ -758,13 +758,13 @@ class TagPutViewTests(APITestCase):
         self.tag = Tag.objects.create(
             user=self.user,
             name="Original Tag",
-            color="#111111",
+            color="gray",
         )
 
     def test_put_tag_requires_name(self):
         """PUT without name should return 400"""
         url = reverse("tag-detail", kwargs={"pk": self.tag.pk})
-        response = self.client.put(url, {"color": "#222222"}, format="json")
+        response = self.client.put(url, {"color": "blue"}, format="json")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_put_tag_requires_color(self):
@@ -778,14 +778,14 @@ class TagPutViewTests(APITestCase):
         url = reverse("tag-detail", kwargs={"pk": self.tag.pk})
         response = self.client.put(
             url,
-            {"name": "New Tag", "color": "#222222"},
+            {"name": "New Tag", "color": "blue"},
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["name"], "New Tag")
         self.tag.refresh_from_db()
         self.assertEqual(self.tag.name, "New Tag")
-        self.assertEqual(self.tag.color, "#222222")
+        self.assertEqual(self.tag.color, "blue")
 
     def test_put_tag_is_not_partial(self):
         """PUT should not behave the same as PATCH (partial update)"""
@@ -1348,7 +1348,7 @@ class TagListPaginationTests(APITestCase):
         self.client = APIClient()
         self.client.force_authenticate(user=self.user)
         for i in range(5):
-            Tag.objects.create(user=self.user, name=f"Tag {i}", color="#ffffff")
+            Tag.objects.create(user=self.user, name=f"Tag {i}", color="gray")
 
     def test_response_has_pagination_envelope(self):
         url = reverse("tag-list")

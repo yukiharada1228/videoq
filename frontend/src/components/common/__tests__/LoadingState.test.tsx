@@ -3,16 +3,13 @@ import { LoadingState } from '../LoadingState'
 
 describe('LoadingState', () => {
   it('should render loading spinner when isLoading is true', () => {
-    const { container } = render(
+    render(
       <LoadingState isLoading={true} error={null}>
         <div>Content</div>
       </LoadingState>
     )
 
-    // Check for spinner element
-    expect(screen.getByRole('status')).toBeInTheDocument()
-    const spinnerRing = container.querySelector('.loading-ring')
-    expect(spinnerRing).toBeInTheDocument()
+    expect(screen.getByRole('progressbar')).toBeInTheDocument()
     expect(screen.queryByText('Content')).not.toBeInTheDocument()
   })
 

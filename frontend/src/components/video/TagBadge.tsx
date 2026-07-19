@@ -1,6 +1,9 @@
 'use client';
 
 import { X } from 'lucide-react';
+import { ChipLabel } from '@/components/ui/chip-label';
+import { resolveTagChipColor } from '@/lib/tagColors';
+import { cn } from '@/lib/utils';
 
 interface TagBadgeProps {
   tag: { id: number; name: string; color: string };
@@ -10,27 +13,30 @@ interface TagBadgeProps {
 }
 
 export function TagBadge({ tag, onRemove, size = 'md', className = '' }: TagBadgeProps) {
-  const sizeClasses = size === 'sm' ? 'text-xs px-2 py-0.5' : 'text-sm px-2.5 py-1';
-
   return (
-    <span
-      className={`inline-flex items-center gap-1 rounded-full font-medium ${sizeClasses} ${className}`}
-      style={{ backgroundColor: `${tag.color}20`, color: tag.color, borderColor: tag.color }}
+    <ChipLabel
+      variant="outlined"
+      color={resolveTagChipColor(tag.color)}
+      className={cn(
+        'min-h-0',
+        size === 'sm' ? 'px-2 py-0.5 text-oln-14N-100' : 'px-2.5 py-1 text-std-16N-170',
+        className,
+      )}
     >
       {tag.name}
-      {onRemove && (
+      {onRemove ? (
         <button
           type="button"
           onClick={(e) => {
             e.stopPropagation();
             onRemove(tag.id);
           }}
-          className="hover:opacity-70 transition-opacity"
+          className="ml-1 transition-opacity hover:opacity-70"
           aria-label={`Remove ${tag.name}`}
         >
-          <X className="w-3 h-3" />
+          <X className="h-3 w-3" />
         </button>
-      )}
-    </span>
+      ) : null}
+    </ChipLabel>
   );
 }

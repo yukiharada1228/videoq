@@ -74,7 +74,7 @@ describe('VideoGroupDetailPage', () => {
     render(<VideoGroupDetailPage />)
 
     await waitFor(() => {
-      expect(screen.getByText('Test Group')).toBeInTheDocument()
+      expect(screen.getAllByText('Test Group').length).toBeGreaterThan(0)
     })
   })
 
@@ -111,14 +111,13 @@ describe('VideoGroupDetailPage', () => {
     })
   })
 
-  it('should not render breadcrumb text', async () => {
+  it('should render breadcrumbs for the group hierarchy', async () => {
     render(<VideoGroupDetailPage />)
 
     await waitFor(() => {
-      expect(screen.getByText('Test Group')).toBeInTheDocument()
+      expect(screen.getByText('navigation.groupsNav')).toBeInTheDocument()
+      expect(screen.getAllByText('Test Group').length).toBeGreaterThan(0)
     })
-
-    expect(screen.queryByText('videos.groupDetail.breadcrumbGroups')).not.toBeInTheDocument()
   })
 
   it('should render delete button', async () => {
@@ -159,26 +158,23 @@ describe('VideoGroupDetailPage', () => {
     expect(screen.getByText('common.actions.cancel')).toBeInTheDocument()
   })
 
-  it('should show share section', async () => {
+  it('should show share section in dialog', async () => {
     render(<VideoGroupDetailPage />)
 
     await waitFor(() => {
-      expect(screen.getByText('videos.groupDetail.shareLinkLabel')).toBeInTheDocument()
+      expect(screen.getByText('videos.groupDetail.shareOpen')).toBeInTheDocument()
     })
-  })
+    fireEvent.click(screen.getByText('videos.groupDetail.shareOpen'))
 
-  it('should show save share link button when no share slug', async () => {
-    render(<VideoGroupDetailPage />)
-
-    await waitFor(() => {
-      expect(screen.getByText('common.actions.save')).toBeInTheDocument()
-    })
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText('videos.groupDetail.shareLinkLabel')).toBeInTheDocument()
+    expect(within(dialog).getByText('common.actions.save')).toBeInTheDocument()
   })
 
   it('should not render a fixed sub-header below the nav', async () => {
     const { container } = render(<VideoGroupDetailPage />)
     await waitFor(() => {
-      expect(screen.getByText('Test Group')).toBeInTheDocument()
+      expect(screen.getAllByText('Test Group').length).toBeGreaterThan(0)
     })
     const subHeader = container.querySelector('.fixed.top-16.z-40')
     expect(subHeader).toBeNull()
@@ -261,9 +257,14 @@ describe('VideoGroupDetailPage - Share Link', () => {
     render(<VideoGroupDetailPage />)
 
     await waitFor(() => {
-      expect(screen.getByText('videos.groupDetail.copyButton')).toBeInTheDocument()
-      expect(screen.getByText('videos.groupDetail.disable')).toBeInTheDocument()
+      expect(screen.getByText('videos.groupDetail.sharingBadge')).toBeInTheDocument()
+      expect(screen.getByText('videos.groupDetail.shareOpen')).toBeInTheDocument()
     })
+    fireEvent.click(screen.getByText('videos.groupDetail.shareOpen'))
+
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText('videos.groupDetail.copyButton')).toBeInTheDocument()
+    expect(within(dialog).getByText('videos.groupDetail.disable')).toBeInTheDocument()
   })
 })
 
@@ -285,7 +286,7 @@ describe('VideoGroupDetailPage - Loading state', () => {
     const fullScreenWrapper = container.querySelector('.min-h-screen.flex.items-center.justify-center')
     expect(fullScreenWrapper).toBeNull()
     // Must be positioned below the nav with viewport-filling height
-    const contentArea = container.querySelector('.mt-16.flex.items-center.justify-center')
+    const contentArea = container.querySelector('.flex.items-center.justify-center')
     expect(contentArea).not.toBeNull()
   })
 })

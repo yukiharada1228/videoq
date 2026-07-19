@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { WordCloud, type Word } from '@isoterik/react-word-cloud';
+import { DashboardChartTitle } from './DashboardPanel';
 
 interface KeywordCloudChartProps {
   data: { word: string; count: number }[];
@@ -28,10 +29,8 @@ export function KeywordCloudChart({ data }: KeywordCloudChartProps) {
 
   return (
     <div>
-      <h3 className="text-sm font-semibold text-gray-900 mb-3">
-        {t('dashboard.keywords.title')}
-      </h3>
-      <div style={{ width: '100%', height: 250 }}>
+      <DashboardChartTitle>{t('dashboard.keywords.title')}</DashboardChartTitle>
+      <div className="h-[250px] w-full text-key-900">
         <WordCloud
           words={words}
           width={400}

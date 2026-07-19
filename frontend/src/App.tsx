@@ -20,8 +20,6 @@ const SharePage = lazy(() => import('@/pages/SharePage'));
 const SettingsPage = lazy(() => import('@/pages/SettingsPage'));
 const DeveloperDocsPage = lazy(() => import('@/pages/DeveloperDocsPage'));
 const DeveloperDocsSectionPage = lazy(() => import('@/pages/DeveloperDocsSectionPage'));
-const UseCaseEducationPage = lazy(() => import('@/pages/UseCaseEducationPage'));
-const UseCaseCorporateTrainingPage = lazy(() => import('@/pages/UseCaseCorporateTrainingPage'));
 
 function LocaleGate() {
   const params = useParams<{ locale?: string }>();
@@ -71,8 +69,6 @@ const routeChildren = (
     <Route path="settings" element={<SettingsPage />} />
     <Route path="docs" element={<DeveloperDocsPage />} />
     <Route path="docs/:section" element={<DeveloperDocsSectionPage />} />
-    <Route path="use-cases/education" element={<UseCaseEducationPage />} />
-    <Route path="use-cases/corporate-training" element={<UseCaseCorporateTrainingPage />} />
   </>
 );
 

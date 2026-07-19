@@ -21,15 +21,32 @@ import type { TranscriptSegment } from '@/lib/transcript/srt';
 import { AppNav } from '@/components/layout/AppNav';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
+import { StatusBadge } from '@/components/common/StatusBadge';
+import { ErrorMessage } from '@/components/auth/ErrorMessage';
 import { TagCreateDialog } from '@/components/video/TagCreateDialog';
 import { TagSelector } from '@/components/video/TagSelector';
+import { TagBadge } from '@/components/video/TagBadge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  Breadcrumbs,
+  BreadcrumbsLabel,
+} from '@/components/ui/breadcrumbs';
+import { Heading, HeadingTitle } from '@/components/ui/heading';
+import { UtilityLink } from '@/components/ui/utility-link';
 import {
   Dialog,
+  DialogActions,
+  DialogBody,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
   DialogHeader,
-  DialogTitle,
+  DialogHeading,
+  useDialog,
 } from '@/components/ui/dialog';
 
 type MobileTab = 'transcript' | 'video';
@@ -79,20 +96,6 @@ interface VideoDetailViewProps {
   isPlainTextTranscript: boolean;
 }
 
-function getStatusClassName(status: Video['status']): string {
-  switch (status) {
-    case 'completed':
-      return 'bg-[#d3ffd5] text-[#006d30]';
-    case 'error':
-      return 'bg-red-100 text-red-700';
-    case 'indexing':
-    case 'processing':
-      return 'bg-[#ffdcc3] text-[#2f1500]';
-    default:
-      return 'bg-gray-100 text-gray-500';
-  }
-}
-
 function VideoDetailEditDialog({
   isOpen,
   tags,
@@ -124,71 +127,86 @@ function VideoDetailEditDialog({
 }) {
   const { t } = useTranslation();
 
+  const dialog = useDialog({
+    open: isOpen,
+    onOpenChange,
+    onRequestClose: (event) => {
+      if (isUpdating) event.preventDefault();
+    },
+  });
+
+  if (!isOpen) return null;
+
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+    <Dialog {...dialog.dialogProps} width="min(32rem, 92vw)">
+      <DialogContent>
         <DialogHeader>
-          <DialogTitle>{t('videos.detail.editButton')}</DialogTitle>
-          <DialogDescription>
-            {t('videos.detail.editDescriptionLabel')}
-          </DialogDescription>
+          <DialogHeading {...dialog.headingProps}>{t('videos.detail.editButton')}</DialogHeading>
         </DialogHeader>
-        <div className="space-y-4 py-2">
-          {updateError && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600">{updateError}</div>
-          )}
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-[#3f493f]">{t('videos.detail.editTitleLabel')}</label>
-            <input
-              type="text"
-              value={editedTitle}
-              onChange={(event) => onEditedTitleChange(event.target.value)}
-              disabled={isUpdating}
-              className="w-full px-3 py-2.5 bg-[#f2f4ef] border border-[#e1e3de] rounded-xl text-sm focus:ring-2 focus:ring-[#00652c]/20 focus:border-[#00652c] outline-none transition-all"
-            />
+        <DialogBody>
+          <p className="mb-4 text-std-16N-170 text-solid-gray-700">
+            {t('videos.detail.editDescriptionLabel')}
+          </p>
+          <div className="space-y-4">
+            {updateError && <ErrorMessage message={updateError} />}
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="video-edit-title">{t('videos.detail.editTitleLabel')}</Label>
+              <Input
+                id="video-edit-title"
+                type="text"
+                value={editedTitle}
+                onChange={(event) => onEditedTitleChange(event.target.value)}
+                disabled={isUpdating}
+                blockSize="md"
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="video-edit-description">{t('videos.detail.editDescriptionLabel')}</Label>
+              <Textarea
+                id="video-edit-description"
+                value={editedDescription}
+                onChange={(event) => onEditedDescriptionChange(event.target.value)}
+                disabled={isUpdating}
+                rows={4}
+                className="resize-none"
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <TagSelector
+                tags={tags}
+                selectedTagIds={editedTagIds}
+                onToggle={(tagId) =>
+                  onEditedTagIdsChange((prev) =>
+                    prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId],
+                  )
+                }
+                onCreateNew={onCreateNewTag}
+                disabled={isUpdating}
+              />
+            </div>
           </div>
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-[#3f493f]">{t('videos.detail.editDescriptionLabel')}</label>
-            <textarea
-              value={editedDescription}
-              onChange={(event) => onEditedDescriptionChange(event.target.value)}
+        </DialogBody>
+        <DialogActions>
+          <div className="flex justify-end gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
               disabled={isUpdating}
-              rows={4}
-              className="w-full px-3 py-2 bg-[#f2f4ef] border border-[#e1e3de] rounded-xl text-sm focus:ring-2 focus:ring-[#00652c]/20 focus:border-[#00652c] outline-none transition-all resize-none"
-            />
+            >
+              <X className="w-3.5 h-3.5" />
+              {t('common.actions.cancel')}
+            </Button>
+            <Button
+              type="button"
+              onClick={onSave}
+              disabled={isUpdating || !editedTitle.trim()}
+            >
+              {isUpdating ? <InlineSpinner className="w-3.5 h-3.5" /> : <Save className="w-3.5 h-3.5" />}
+              {isUpdating ? t('common.actions.saving') : t('common.actions.save')}
+            </Button>
           </div>
-          <div className="space-y-1">
-            <TagSelector
-              tags={tags}
-              selectedTagIds={editedTagIds}
-              onToggle={(tagId) =>
-                onEditedTagIdsChange((prev) =>
-                  prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId],
-                )
-              }
-              onCreateNew={onCreateNewTag}
-              disabled={isUpdating}
-            />
-          </div>
-        </div>
-        <DialogFooter>
-          <button
-            onClick={() => onOpenChange(false)}
-            disabled={isUpdating}
-            className="flex items-center gap-1.5 px-4 py-2 border border-[#e1e3de] rounded-xl text-sm font-bold hover:bg-[#f2f4ef] transition-colors disabled:opacity-50"
-          >
-            <X className="w-3.5 h-3.5" />
-            {t('common.actions.cancel')}
-          </button>
-          <button
-            onClick={onSave}
-            disabled={isUpdating || !editedTitle.trim()}
-            className="flex items-center gap-1.5 px-4 py-2 bg-[#00652c] text-white rounded-xl text-sm font-bold hover:opacity-90 transition-opacity disabled:opacity-50"
-          >
-            {isUpdating ? <InlineSpinner className="w-3.5 h-3.5" /> : <Save className="w-3.5 h-3.5" />}
-            {isUpdating ? t('common.actions.saving') : t('common.actions.save')}
-          </button>
-        </DialogFooter>
+        </DialogActions>
       </DialogContent>
     </Dialog>
   );
@@ -204,24 +222,26 @@ function VideoDetailMobileTabs({
   const { t } = useTranslation();
 
   return (
-    <div className="mt-16 flex border-b border-stone-200 bg-white shrink-0">
+    <div className="flex shrink-0 border-b border-solid-gray-200 bg-white">
       <button
+        type="button"
         onClick={() => onChange('video')}
-        className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-semibold transition-colors ${
+        className={`flex-1 flex items-center justify-center gap-2 py-3 text-oln-16B-100 transition-colors ${
           activeTab === 'video'
-            ? 'text-[#00652c] border-b-2 border-[#00652c]'
-            : 'text-stone-500 hover:text-stone-700'
+            ? 'text-key-900 border-b-2 border-key-900'
+            : 'text-solid-gray-536 hover:text-solid-gray-800'
         }`}
       >
         <Play className="w-4 h-4" />
         {t('videos.detail.video')}
       </button>
       <button
+        type="button"
         onClick={() => onChange('transcript')}
-        className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-semibold transition-colors ${
+        className={`flex-1 flex items-center justify-center gap-2 py-3 text-oln-16B-100 transition-colors ${
           activeTab === 'transcript'
-            ? 'text-[#00652c] border-b-2 border-[#00652c]'
-            : 'text-stone-500 hover:text-stone-700'
+            ? 'text-key-900 border-b-2 border-key-900'
+            : 'text-solid-gray-536 hover:text-solid-gray-800'
         }`}
       >
         <AlignLeft className="w-4 h-4" />
@@ -245,7 +265,7 @@ function VideoPlayerPanel({
   const { t } = useTranslation();
 
   return (
-    <div className="w-full aspect-video bg-[#1a1c1c] rounded-xl overflow-hidden shadow-[0_8px_30px_rgba(28,25,23,0.08)]">
+    <div className="w-full aspect-video overflow-hidden border border-solid-gray-420 bg-solid-gray-800">
       {video.source_type === 'youtube' && video.youtube_embed_url ? (
         <iframe
           key={`${video.id}-${youtubeStartSeconds ?? 0}`}
@@ -266,9 +286,9 @@ function VideoPlayerPanel({
           {t('common.messages.browserNoVideoSupport')}
         </video>
       ) : (
-        <div className="w-full h-full flex flex-col items-center justify-center gap-3 text-gray-500">
-          <VideoIcon className="w-16 h-16 text-gray-600" />
-          <p className="text-sm">{t('common.messages.videoFileMissing')}</p>
+        <div className="w-full h-full flex flex-col items-center justify-center gap-3 text-solid-gray-420">
+          <VideoIcon className="w-16 h-16 text-solid-gray-536" />
+          <p className="text-std-16N-170">{t('common.messages.videoFileMissing')}</p>
         </div>
       )}
     </div>
@@ -290,7 +310,6 @@ function VideoMetaPanel({
 }) {
   const { t } = useTranslation();
   const locale = useLocale();
-  const statusClassName = getStatusClassName(video.status);
   const pipelineSteps = [
     { key: 'upload', label: t('videos.detail.pipeline.upload'), doneStatuses: ['processing', 'indexing', 'completed', 'error'] },
     { key: 'transcript', label: t('videos.detail.pipeline.transcript'), doneStatuses: ['indexing', 'completed'] },
@@ -298,59 +317,50 @@ function VideoMetaPanel({
   ] as { key: string; label: string; doneStatuses: Video['status'][] }[];
 
   return (
-    <div className="bg-white rounded-xl shadow-[0_4px_20px_rgba(28,25,23,0.04)] p-6 flex flex-col gap-4">
+    <div className="flex flex-col gap-4 border border-solid-gray-420 bg-white p-6">
       <div className="flex justify-between items-start gap-4">
         <div>
-          <h1 className="font-bold text-xl text-[#191c19] leading-tight mb-1">
-            {video.title}
-          </h1>
-          <div className="flex items-center gap-2 text-sm text-[#6f7a6e]">
+          <Heading size="20" className="mb-1">
+            <HeadingTitle level="h1">{video.title}</HeadingTitle>
+          </Heading>
+          <div className="flex items-center gap-2 text-std-16N-170 text-solid-gray-600">
             <Calendar className="w-3.5 h-3.5 shrink-0" />
             <span>{formatDate(video.uploaded_at, 'full', locale)}</span>
           </div>
         </div>
-        <span className={`shrink-0 inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${statusClassName}`}>
-          {video.status === 'completed' && <CheckCircle className="w-3 h-3" />}
-          {t(`common.status.${video.status}`, video.status)}
-        </span>
+        <StatusBadge status={video.status} size="sm" className="ml-0 shrink-0" />
       </div>
 
       {video.tags && video.tags.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {video.tags.map((tag) => (
-            <span
-              key={tag.id}
-              className="px-3 py-1 rounded-full text-[11px] font-bold uppercase"
-              style={{ backgroundColor: `${tag.color}20`, color: tag.color }}
-            >
-              {tag.name}
-            </span>
+            <TagBadge key={tag.id} tag={tag} size="sm" />
           ))}
         </div>
       )}
 
-      <div className="border-t border-[#e1e3de]/50 pt-4 flex items-center gap-3 flex-wrap">
-        <span className="text-xs font-bold text-[#6f7a6e] uppercase tracking-widest shrink-0">
+      <div className="border-t border-solid-gray-200 pt-4 flex items-center gap-3 flex-wrap">
+        <span className="text-dns-14B-120 text-solid-gray-600 uppercase tracking-widest shrink-0">
           {t('videos.detail.statusSection')}
         </span>
         {pipelineSteps.map(({ key, label, doneStatuses }, index) => {
           const done = doneStatuses.includes(video.status);
           return (
             <div key={key} className="flex items-center gap-2">
-              {index > 0 && <div className="w-6 h-px bg-[#e1e3de]" />}
+              {index > 0 && <div className="w-6 h-px bg-solid-gray-300" />}
               <div className="flex items-center gap-1.5">
                 <div
                   className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${
-                    done ? 'bg-[#15803d]' : 'bg-[#e1e3de]'
+                    done ? 'bg-key-900' : 'bg-solid-gray-300'
                   }`}
                 >
                   {done ? (
                     <CheckCircle className="w-3 h-3 text-white" />
                   ) : (
-                    <div className="w-1.5 h-1.5 rounded-full bg-[#becabc]" />
+                    <div className="w-1.5 h-1.5 rounded-full bg-solid-gray-420" />
                   )}
                 </div>
-                <span className={`text-xs font-semibold ${done ? 'text-[#191c19]' : 'text-[#becabc]'}`}>
+                <span className={`text-dns-14B-120 ${done ? 'text-solid-gray-800' : 'text-solid-gray-420'}`}>
                   {label}
                 </span>
               </div>
@@ -359,40 +369,32 @@ function VideoMetaPanel({
         })}
       </div>
 
-      {video.error_message && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded-xl">
-          <p className="text-xs text-red-700 leading-relaxed">{video.error_message}</p>
-        </div>
-      )}
+      {video.error_message && <ErrorMessage message={video.error_message} />}
 
       {video.description && (
-        <div className="border-t border-[#e1e3de]/50 pt-4">
-          <p className="text-sm text-[#3f493f] leading-relaxed">{video.description}</p>
+        <div className="border-t border-solid-gray-200 pt-4">
+          <p className="text-std-16N-170 text-solid-gray-700 leading-relaxed">{video.description}</p>
         </div>
       )}
 
-      {deleteError && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded-xl">
-          <p className="text-xs text-red-700 leading-relaxed">{deleteError}</p>
-        </div>
-      )}
+      {deleteError && <ErrorMessage message={deleteError} />}
 
-      <div className="border-t border-[#e1e3de]/50 pt-4 flex items-center gap-2">
-        <button
-          onClick={onEdit}
-          className="flex items-center gap-1.5 px-4 py-2 border border-[#e1e3de] text-[#3f493f] text-sm font-bold rounded-xl hover:bg-[#f2f4ef] transition-colors"
-        >
-          <Pencil className="w-3.5 h-3.5" />
+      <div className="border-t border-solid-gray-200 pt-4 flex items-center gap-2">
+        <Button type="button" variant="outline" size="sm" onClick={onEdit}>
+          <Pencil className="w-3.5 h-3.5 mr-1.5" />
           {t('videos.detail.editButton')}
-        </button>
-        <button
+        </Button>
+        <Button
+          type="button"
+          variant="text"
+          size="sm"
           onClick={onDelete}
           disabled={isDeleting}
-          className="flex items-center gap-1.5 px-4 py-2 text-red-600 text-sm font-bold rounded-xl hover:bg-red-50 transition-colors disabled:opacity-50"
+          className="text-error-1 hover:bg-red-50"
         >
-          {isDeleting ? <InlineSpinner className="w-3.5 h-3.5" /> : <Trash2 className="w-3.5 h-3.5" />}
+          {isDeleting ? <InlineSpinner className="w-3.5 h-3.5 mr-1.5" /> : <Trash2 className="w-3.5 h-3.5 mr-1.5" />}
           {isDeleting ? t('common.actions.deleting') : t('videos.detail.deleteButton')}
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -439,34 +441,40 @@ function TranscriptPanel({
 
   return (
     <div
-      className={`lg:col-span-4 flex flex-col bg-white rounded-xl shadow-[0_4px_20px_rgba(28,25,23,0.04)] ${
-        isMobile ? 'min-h-[500px]' : 'h-[calc(100vh-64px)] sticky top-16'
+      className={`lg:col-span-4 flex flex-col border border-solid-gray-420 bg-white ${
+        isMobile
+          ? 'min-h-[500px]'
+          : 'sticky top-[var(--app-header-offset,8.5rem)] h-[calc(100vh-var(--app-header-offset,8.5rem))]'
       } ${isMobile && mobileTab !== 'transcript' ? 'hidden' : ''}`}
     >
-      <div className="p-4 border-b border-stone-100 flex flex-col gap-3 shrink-0">
+      <div className="p-4 border-b border-solid-gray-200 flex flex-col gap-3 shrink-0">
         <div className="flex justify-between items-center">
-          <h2 className="font-extrabold text-[#191c19]">{t('videos.detail.transcriptSection')}</h2>
+          <Heading size="18">
+            <HeadingTitle level="h2">{t('videos.detail.transcriptSection')}</HeadingTitle>
+          </Heading>
           {!isTranscriptEditing && (
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="xs"
               onClick={onStartTranscriptEditing}
               disabled={!video.transcript}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-[#e1e3de] bg-white px-3 py-1.5 text-xs font-bold text-[#3f493f] shadow-sm transition-colors hover:bg-[#f8faf5] disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <Pencil className="h-3.5 w-3.5" />
+              <Pencil className="h-3.5 w-3.5 mr-1.5" />
               {t('videos.detail.editTranscriptButton')}
-            </button>
+            </Button>
           )}
         </div>
         {!isTranscriptEditing && (
           <div className="relative w-full">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6f7a6e] w-3.5 h-3.5" />
-            <input
-              type="text"
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-solid-gray-600 w-3.5 h-3.5 z-10" />
+            <Input
+              type="search"
+              blockSize="sm"
               value={transcriptSearch}
               onChange={(event) => onTranscriptSearchChange(event.target.value)}
               placeholder={t('videos.detail.transcriptSearchPlaceholder')}
-              className="w-full h-9 pl-9 pr-3 bg-[#f2f4ef] border border-[#e1e3de] rounded-xl text-sm focus:outline-none focus:border-[#00652c] focus:ring-2 focus:ring-[#00652c]/20 transition-all placeholder:text-[#3f493f]/60"
+              className="pl-9"
             />
           </div>
         )}
@@ -474,38 +482,40 @@ function TranscriptPanel({
 
       {isTranscriptEditing ? (
         <div className="flex-1 overflow-hidden flex flex-col">
-          <div className="flex shrink-0 flex-col gap-3 border-b border-stone-100 bg-[#f8faf5] p-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex shrink-0 flex-col gap-3 border-b border-solid-gray-200 bg-solid-gray-50 p-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex shrink-0 gap-2">
-              <button
+              <Button
                 type="button"
+                variant="outline"
+                size="xs"
                 onClick={onCancelTranscriptEditing}
                 disabled={isTranscriptSaving}
-                className="rounded-xl border border-[#e1e3de] bg-white px-3 py-1.5 text-xs font-bold text-[#3f493f] transition-colors hover:bg-[#f8faf5] disabled:opacity-50"
               >
                 {t('videos.detail.cancel')}
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
+                variant="solid"
+                size="xs"
                 onClick={onSaveTranscript}
                 disabled={isTranscriptSaving}
-                className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#00652c] px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-[#005323] disabled:opacity-50"
               >
-                {isTranscriptSaving ? <InlineSpinner className="h-3 w-3" /> : <Save className="h-3 w-3" />}
+                {isTranscriptSaving ? <InlineSpinner className="h-3 w-3 mr-1.5" /> : <Save className="h-3 w-3 mr-1.5" />}
                 {isTranscriptSaving ? t('videos.detail.saving') : t('videos.detail.saveTranscriptButton')}
-              </button>
+              </Button>
             </div>
           </div>
           {transcriptSaveError && (
-            <p className="shrink-0 px-3 py-2 text-xs text-red-700 bg-red-50 border-b border-red-200">
-              {transcriptSaveError}
-            </p>
+            <div className="shrink-0 p-3 border-b border-solid-gray-200">
+              <ErrorMessage message={transcriptSaveError} />
+            </div>
           )}
-          <textarea
+          <Textarea
             value={editedTranscript}
             onChange={(event) => onEditedTranscriptChange(event.target.value)}
             disabled={isTranscriptSaving}
             spellCheck={false}
-            className="min-h-0 flex-1 resize-none border-0 bg-white p-4 font-mono text-xs leading-relaxed text-[#191c19] outline-none focus:ring-2 focus:ring-inset focus:ring-[#00652c]/20 disabled:opacity-60"
+            className="min-h-0 flex-1 resize-none rounded-none border-0 font-mono text-dns-14N-130 leading-relaxed focus:outline-none focus:ring-0"
           />
         </div>
       ) : (
@@ -515,20 +525,20 @@ function TranscriptPanel({
               <div
                 key={index}
                 onClick={() => onSeek(segment.seconds, index)}
-                className={`flex gap-4 p-3 rounded-xl cursor-pointer transition-all group ${
+                className={`flex cursor-pointer gap-4 rounded-8 p-3 transition-colors group ${
                   activeSegmentIdx === index
-                    ? 'bg-[#f0fdf4] border-l-4 border-[#00652c]'
-                    : 'hover:bg-stone-50'
+                    ? 'border-l-4 border-key-900 bg-blue-50'
+                    : 'hover:bg-solid-gray-50'
                 }`}
               >
-                <span className="text-[#00652c] font-mono text-[11px] mt-0.5 shrink-0 bg-[#00652c]/8 px-2 py-0.5 rounded-lg h-fit whitespace-nowrap font-semibold">
+                <span className="mt-0.5 h-fit shrink-0 whitespace-nowrap rounded-8 bg-blue-50 px-2 py-0.5 font-mono text-dns-14B-120 text-key-900">
                   {segment.timestamp}
                 </span>
                 <p
-                  className={`text-sm leading-relaxed ${
+                  className={`text-std-16N-170 leading-relaxed ${
                     activeSegmentIdx === index
-                      ? 'text-[#191c19] font-medium'
-                      : 'text-[#3f493f] group-hover:text-[#191c19]'
+                      ? 'text-solid-gray-800 font-medium'
+                      : 'text-solid-gray-700 group-hover:text-solid-gray-800'
                   }`}
                 >
                   {segment.text}
@@ -536,17 +546,17 @@ function TranscriptPanel({
               </div>
             ))
           ) : isPlainTextTranscript ? (
-            <div className="p-4 bg-white rounded-xl">
-              <p className="text-sm text-[#3f493f] whitespace-pre-wrap leading-relaxed">
+            <div className="p-4 bg-white rounded-8">
+              <p className="text-std-16N-170 text-solid-gray-700 whitespace-pre-wrap leading-relaxed">
                 {video.transcript}
               </p>
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center py-16 text-[#6f7a6e]">
-              <div className="w-16 h-16 bg-[#f2f4ef] rounded-full flex items-center justify-center mb-4">
-                <Search className="w-8 h-8 text-[#becabc]" />
+            <div className="flex flex-col items-center justify-center py-16 text-solid-gray-600">
+              <div className="w-16 h-16 bg-solid-gray-50 border border-solid-gray-200 rounded-full flex items-center justify-center mb-4">
+                <Search className="w-8 h-8 text-solid-gray-420" />
               </div>
-              <p className="text-sm font-medium text-center px-4">
+              <p className="text-std-16N-170 font-medium text-center px-4">
                 {transcriptSearch
                   ? t('videos.detail.transcriptNotFound')
                   : (() => {
@@ -614,10 +624,7 @@ export function VideoDetailView({
   const { t } = useTranslation();
 
   return (
-    <div
-      className="bg-[#f8faf5] flex flex-col min-h-screen"
-      style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-    >
+    <div className="bg-solid-gray-50 flex flex-col min-h-screen text-solid-gray-800">
       <AppNav activePage="videos" />
 
       {isLoading ? (
@@ -626,15 +633,17 @@ export function VideoDetailView({
         </div>
       ) : error && !video ? (
         <div className="flex-1 flex flex-col items-center justify-center gap-4">
-          <p className="text-red-500">{error}</p>
-          <Link href="/videos" className="text-[#00652c] font-bold hover:underline flex items-center gap-1">
-            <ArrowLeft className="w-4 h-4" />
-            {t('common.actions.backToList')}
-          </Link>
+          <ErrorMessage message={error} />
+          <UtilityLink asChild>
+            <Link href="/videos" className="inline-flex items-center gap-1">
+              <ArrowLeft className="w-4 h-4" />
+              {t('common.actions.backToList')}
+            </Link>
+          </UtilityLink>
         </div>
       ) : !video ? (
         <div className="flex-1 flex items-center justify-center">
-          <p className="text-[#3f493f]">{t('common.messages.videoNotFound')}</p>
+          <p className="text-solid-gray-700">{t('common.messages.videoNotFound')}</p>
         </div>
       ) : (
         <>
@@ -658,11 +667,21 @@ export function VideoDetailView({
             <VideoDetailMobileTabs activeTab={mobileTab} onChange={onMobileTabChange} />
           )}
 
-          <main
-            className={`flex-grow max-w-screen-xl mx-auto w-full px-6 lg:px-8 py-6 flex flex-col gap-6 ${
-              isMobile ? 'mt-0' : 'mt-16'
-            }`}
-          >
+          <main className="mx-auto flex w-full max-w-screen-xl flex-grow flex-col gap-6 px-6 py-6 lg:px-8">
+            <Breadcrumbs aria-label={t('common.actions.backToList')}>
+              <BreadcrumbsLabel className="sr-only">
+                {t('common.actions.backToList')}
+              </BreadcrumbsLabel>
+              <BreadcrumbList>
+                <BreadcrumbItem>
+                  <BreadcrumbLink asChild>
+                    <Link href="/videos">{t('navigation.videosNav')}</Link>
+                  </BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbItem isCurrent>{video.title}</BreadcrumbItem>
+              </BreadcrumbList>
+            </Breadcrumbs>
+
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               <div
                 className={`lg:col-span-8 flex flex-col gap-4 ${

@@ -2,14 +2,15 @@ import { Suspense } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, MailCheck } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { Link } from '@/lib/i18n';
 import { apiClient } from '@/lib/api';
 import { AuthLayout } from '@/components/layout/AuthLayout';
-import { AuthPageFooter } from '@/components/layout/AuthPageFooter';
 import { AuthPageIntro } from '@/components/layout/AuthPageIntro';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
+import { MessageAlert } from '@/components/common/MessageAlert';
+import { UtilityLink } from '@/components/ui/utility-link';
 
 type EmailChangeState = 'loading' | 'success' | 'error';
 
@@ -58,13 +59,12 @@ function EmailChangeConfirmContent() {
 
   return (
     <AuthLayout>
-      <Link
-        href="/login"
-        className="inline-flex items-center text-[#00652c] font-bold text-sm mb-12 hover:opacity-80 transition-opacity"
-      >
-        <ArrowLeft className="mr-2 w-4 h-4" />
-        {t('auth.emailChange.backToLogin')}
-      </Link>
+      <UtilityLink asChild className="mb-12 inline-flex items-center text-sm font-bold">
+        <Link href="/login">
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          {t('auth.emailChange.backToLogin')}
+        </Link>
+      </UtilityLink>
 
       <div className="space-y-6">
         <AuthPageIntro
@@ -74,39 +74,33 @@ function EmailChangeConfirmContent() {
         />
 
         {state === 'loading' && (
-          <div className="flex items-center gap-3 p-4 bg-[#f8faf5] rounded-xl border border-[#d3e8d3]">
-            <InlineSpinner className="w-4 h-4 text-[#00652c]" />
-            <span className="text-sm text-[#3f493f]">{message}</span>
+          <div className="flex items-center gap-3 rounded-8 border border-solid-gray-300 bg-solid-gray-50 p-4">
+            <InlineSpinner />
+            <span className="text-sm text-solid-gray-700">{message}</span>
           </div>
         )}
 
         {state === 'success' && (
           <div className="space-y-4">
-            <div className="p-4 bg-green-50 border border-green-200 rounded-xl flex items-start gap-3">
-              <MailCheck className="w-5 h-5 text-green-600 mt-0.5 shrink-0" />
-              <p className="text-sm text-green-700">{message}</p>
-            </div>
-            <p className="text-sm text-gray-500 text-center">
-              <Link href="/login" className="text-[#00652c] font-bold hover:underline">
-                {t('auth.emailChange.backToLogin')}
-              </Link>
+            <MessageAlert type="success" message={message} />
+            <p className="text-center text-sm text-solid-gray-600">
+              <UtilityLink asChild>
+                <Link href="/login">{t('auth.emailChange.backToLogin')}</Link>
+              </UtilityLink>
             </p>
           </div>
         )}
 
         {state === 'error' && (
           <div className="space-y-4">
-            <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600">
-              {message}
-            </div>
-            <Link href="/login" className="text-[#00652c] font-bold hover:underline block text-sm">
-              {t('auth.emailChange.backToLogin')}
-            </Link>
+            <MessageAlert type="error" message={message} />
+            <UtilityLink asChild>
+              <Link href="/login">{t('auth.emailChange.backToLogin')}</Link>
+            </UtilityLink>
           </div>
         )}
       </div>
 
-      <AuthPageFooter bordered align="left" />
     </AuthLayout>
   );
 }

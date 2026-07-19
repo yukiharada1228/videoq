@@ -10,17 +10,39 @@ import { AppPageHeader } from '@/components/layout/AppPageHeader';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { SupportText } from '@/components/ui/support-text';
+import { Link as DaLink } from '@/components/ui/link';
+import { ChipLabel } from '@/components/ui/chip-label';
+import { Heading, HeadingTitle } from '@/components/ui/heading';
 import {
   Dialog,
+  DialogActions,
+  DialogBody,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
   DialogHeader,
-  DialogTitle,
+  DialogHeading,
+  useDialog,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Mail, Plus, Trash2, X } from 'lucide-react';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Plus, Trash2, X } from 'lucide-react';
 import { ConnectedAppsSection } from '@/components/auth/ConnectedAppsSection';
+import { ErrorMessage } from '@/components/auth/ErrorMessage';
+import { MessageAlert } from '@/components/common/MessageAlert';
+
+const SETTINGS_SECTION_CLASS =
+  'border-t border-solid-gray-420 pt-8';
+const SETTINGS_CALLOUT_CLASS =
+  'border border-solid-gray-420 bg-solid-gray-50 p-4 text-std-16N-170 text-solid-gray-700';
 
 type AccessLevel = 'all' | 'read_only';
 
@@ -224,6 +246,53 @@ export default function SettingsPage() {
     },
   });
 
+  const createApiKeyDialog = useDialog({
+    open: isCreateApiKeyDialogOpen,
+    onOpenChange: (open) => {
+      setIsCreateApiKeyDialogOpen(open);
+      if (!open) {
+        setApiKeyName('');
+        setApiKeyAccessLevel('all');
+        setApiKeyDialogError(null);
+      }
+    },
+    onRequestClose: (event) => {
+      if (createApiKeyMutation.isPending) event.preventDefault();
+    },
+  });
+
+  const generatedApiKeyDialog = useDialog({
+    open: generatedApiKey !== null,
+    onOpenChange: (open) => {
+      if (!open) {
+        setGeneratedApiKey(null);
+        setIsCopyAcknowledged(false);
+        setGeneratedDialogError(null);
+      }
+    },
+  });
+
+  const revokeConfirmDialog = useDialog({
+    open: pendingRevokeKey !== null,
+    onOpenChange: (open) => {
+      if (!open) setPendingRevokeKey(null);
+    },
+    onRequestClose: (event) => {
+      if (revokeApiKeyMutation.isPending) event.preventDefault();
+    },
+  });
+
+  const deleteAccountDialog = useDialog({
+    open: isDialogOpen,
+    onOpenChange: (open) => {
+      setIsDialogOpen(open);
+      if (!open) setConfirmText('');
+    },
+    onRequestClose: (event) => {
+      if (deleteMutation.isPending) event.preventDefault();
+    },
+  });
+
   const handleCopyApiKey = async () => {
     if (!generatedApiKey) return;
     if (navigator.clipboard && window.isSecureContext) {
@@ -238,15 +307,15 @@ export default function SettingsPage() {
   const getAccessLevelBadge = (accessLevel: AccessLevel) => {
     if (accessLevel === 'read_only') {
       return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700">
+        <ChipLabel variant="filled-1" color="blue" className="min-h-0 text-oln-14N-100">
           {t('settings.integrationApiKeys.permissions.readOnlyTitle')}
-        </span>
+        </ChipLabel>
       );
     }
     return (
-      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#d3ffd5] text-[#006d30]">
+      <ChipLabel variant="filled-1" color="gray" className="min-h-0 text-oln-14N-100">
         {t('settings.integrationApiKeys.permissions.allTitle')}
-      </span>
+      </ChipLabel>
     );
   };
 
@@ -264,25 +333,23 @@ export default function SettingsPage() {
         description={t('settings.subtitle')}
       />
 
-      <div className="flex flex-col gap-5">
-          <section className="bg-white rounded-xl shadow-[0_4px_20px_rgba(28,25,23,0.04)] p-5">
-            <div className="flex items-start justify-between gap-4 mb-5">
-              <div>
-                <h2 className="text-base font-bold text-[#191c19] mb-1">
-                  {t('settings.emailChange.title')}
-                </h2>
-                <p className="text-sm text-[#6f7a6e]">
-                  {t('settings.emailChange.description')}
-                </p>
-              </div>
-              <div className="shrink-0 rounded-xl bg-[#f0fdf4] p-2 text-[#00652c]">
-                <Mail className="w-5 h-5" />
-              </div>
+      <div className="flex flex-col gap-12">
+          <section className={SETTINGS_SECTION_CLASS}>
+            <div className="mb-5">
+              <Heading size="18" hasChip className="mb-2">
+                <HeadingTitle level="h2">{t('settings.emailChange.title')}</HeadingTitle>
+              </Heading>
+              <p className="text-std-16N-170 text-solid-gray-600">
+                {t('settings.emailChange.description')}
+              </p>
             </div>
 
             {emailChangeStatusMessage && (
-              <div className={`mb-5 p-3 rounded-xl text-sm border ${emailChangeStatusMessage.tone === 'success' ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-600'}`}>
-                {emailChangeStatusMessage.text}
+              <div className="mb-5">
+                <MessageAlert
+                  type={emailChangeStatusMessage.tone}
+                  message={emailChangeStatusMessage.text}
+                />
               </div>
             )}
 
@@ -306,20 +373,17 @@ export default function SettingsPage() {
                 }
               }}
             >
-              <div className="rounded-xl bg-[#f2f4ef] p-4 text-sm text-[#3f493f]">
-                <div className="font-semibold text-[#191c19] mb-1">
+              <div className={SETTINGS_CALLOUT_CLASS}>
+                <div className="font-bold text-solid-gray-800 mb-1">
                   {t('settings.emailChange.currentEmailLabel')}
                 </div>
                 <p>{user?.email ?? t('common.notProvided')}</p>
               </div>
 
-              <div className="space-y-2">
-                <label
-                  htmlFor="email-change-email"
-                  className="text-sm font-medium text-[#191c19]"
-                >
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="email-change-email">
                   {t('settings.emailChange.newEmailLabel')}
-                </label>
+                </Label>
                 <Input
                   id="email-change-email"
                   type="email"
@@ -327,9 +391,7 @@ export default function SettingsPage() {
                   onChange={(event) => setEmailChangeEmail(event.target.value)}
                   placeholder={t('settings.emailChange.newEmailPlaceholder')}
                 />
-                <p className="text-xs text-[#6f7a6e]">
-                  {t('settings.emailChange.help')}
-                </p>
+                <SupportText>{t('settings.emailChange.help')}</SupportText>
               </div>
 
               <div className="flex justify-end">
@@ -345,62 +407,65 @@ export default function SettingsPage() {
             </form>
           </section>
 
-          <section className="bg-white rounded-xl shadow-[0_4px_20px_rgba(28,25,23,0.04)] p-5">
-            <div className="flex items-start justify-between gap-4 mb-5">
+          <section className={SETTINGS_SECTION_CLASS}>
+            <div className="mb-5 flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-base font-bold text-[#191c19] mb-1">
-                  {t('settings.searchApiKey.title')}
-                </h2>
-                <p className="text-sm text-[#6f7a6e]">
+                <Heading size="18" hasChip className="mb-2">
+                  <HeadingTitle level="h2">{t('settings.searchApiKey.title')}</HeadingTitle>
+                </Heading>
+                <p className="text-std-16N-170 text-solid-gray-600">
                   {t('settings.searchApiKey.description')}
                 </p>
               </div>
               {searchApiKeyStatusQuery.data?.has_api_key && (
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#d3ffd5] text-[#006d30]">
+                <ChipLabel variant="filled-1" color="blue" className="min-h-0 text-oln-14N-100">
                   {t('settings.searchApiKey.configured')}
-                </span>
+                </ChipLabel>
               )}
             </div>
 
             {searchApiStatusMessage && (
-              <div className={`mb-5 p-3 rounded-xl text-sm border ${searchApiStatusMessage.tone === 'success' ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-600'}`}>
-                {searchApiStatusMessage.text}
+              <div className="mb-5">
+                <MessageAlert
+                  type={searchApiStatusMessage.tone}
+                  message={searchApiStatusMessage.text}
+                />
               </div>
             )}
 
             <div className="space-y-4">
-              <div className="rounded-xl bg-[#f2f4ef] p-4 text-sm text-[#3f493f]">
-                <div className="font-semibold text-[#191c19] mb-1">
+              <div className={SETTINGS_CALLOUT_CLASS}>
+                <div className="font-bold text-solid-gray-800 mb-1">
                   {t('settings.searchApiKey.usageTitle')}
                 </div>
                 <p>{t('settings.searchApiKey.usageDescription')}</p>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-[#191c19]">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="search-api-key">
                   {t('settings.searchApiKey.apiKeyLabel')}
-                </label>
+                </Label>
                 <Input
+                  id="search-api-key"
                   value={searchApiKey}
                   onChange={(event) => setSearchApiKey(event.target.value)}
                   placeholder={t('settings.searchApiKey.apiKeyPlaceholder')}
                 />
-                <p className="text-xs text-[#6f7a6e]">
+                <SupportText>
                   {searchApiKeyStatusQuery.data?.has_api_key
                     ? t('settings.searchApiKey.hasApiKeyMessage')
                     : t('settings.searchApiKey.noApiKeyMessage')}
-                </p>
-                <p className="text-xs text-[#6f7a6e]">
+                </SupportText>
+                <SupportText>
                   {t('settings.searchApiKey.getApiKeyMessage')}{' '}
-                  <a
+                  <DaLink
                     href="https://www.searchapi.io/"
                     target="_blank"
                     rel="noreferrer"
-                    className="font-semibold text-[#00652c] underline decoration-[#00652c]/35 underline-offset-2"
                   >
                     SearchAPI
-                  </a>
-                </p>
+                  </DaLink>
+                </SupportText>
               </div>
 
               <div className="flex flex-wrap items-center justify-end gap-2">
@@ -436,17 +501,21 @@ export default function SettingsPage() {
           </section>
 
           {/* ── Integration API Keys ─────────────────────────────────── */}
-          <section className="bg-white rounded-xl shadow-[0_4px_20px_rgba(28,25,23,0.04)] p-5">
-            <div className="flex items-start justify-between mb-5">
+          <section className={SETTINGS_SECTION_CLASS}>
+            <div className="mb-5 flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-base font-bold text-[#191c19] mb-1">
-                  {t('settings.integrationApiKeys.title')}
-                </h2>
-                <p className="text-sm text-[#6f7a6e]">
+                <Heading size="18" hasChip className="mb-2">
+                  <HeadingTitle level="h2">{t('settings.integrationApiKeys.title')}</HeadingTitle>
+                </Heading>
+                <p className="text-std-16N-170 text-solid-gray-600">
                   {t('settings.integrationApiKeys.description')}
                 </p>
               </div>
-              <button
+              <Button
+                type="button"
+                variant="solid"
+                size="sm"
+                className="shrink-0"
                 onClick={() => {
                   setStatusMessage(null);
                   setApiKeyDialogError(null);
@@ -454,69 +523,76 @@ export default function SettingsPage() {
                   setApiKeyAccessLevel('all');
                   setIsCreateApiKeyDialogOpen(true);
                 }}
-                className="shrink-0 flex items-center gap-2 bg-[#00652c] hover:bg-[#004b1f] text-white text-xs font-bold px-5 py-2.5 rounded-xl transition-all active:scale-95"
               >
-                <Plus className="w-4 h-4" />
+                <Plus className="w-4 h-4 mr-2" />
                 {t('settings.integrationApiKeys.create')}
-              </button>
+              </Button>
             </div>
 
             {statusMessage && (
-              <div className={`mb-5 p-3 rounded-xl text-sm border ${statusMessage.tone === 'success' ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-600'}`}>
-                {statusMessage.text}
+              <div className="mb-5">
+                <MessageAlert type={statusMessage.tone} message={statusMessage.text} />
               </div>
             )}
 
             {apiKeysQuery.isLoading && <LoadingSpinner />}
             {apiKeysQuery.isError && (
-              <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-600">
-                {t('settings.integrationApiKeys.errorLoading')}
-              </div>
+              <ErrorMessage message={t('settings.integrationApiKeys.errorLoading')} />
             )}
             {!apiKeysQuery.isLoading && !apiKeysQuery.isError && apiKeysQuery.data?.length === 0 && (
-              <div className="p-6 rounded-xl bg-[#f2f4ef] text-sm text-[#6f7a6e] text-center">
+              <p className="border-t border-solid-gray-420 py-6 text-std-16N-170 text-solid-gray-600">
                 {t('settings.integrationApiKeys.empty')}
-              </div>
+              </p>
             )}
 
             {apiKeysQuery.data && apiKeysQuery.data.length > 0 && (
-              <div className="overflow-x-auto bg-[#f2f4ef] rounded-xl">
-                <table className="w-full text-left border-collapse min-w-[560px]">
-                  <thead>
-                    <tr className="text-[10px] uppercase font-bold tracking-widest text-[#3f493f]">
-                      <th className="px-5 py-4">{t('settings.integrationApiKeys.columns.name')}</th>
-                      <th className="px-5 py-4">{t('settings.integrationApiKeys.columns.secret')}</th>
-                      <th className="px-5 py-4">{t('settings.integrationApiKeys.columns.permissions')}</th>
-                      <th className="px-5 py-4">{t('settings.integrationApiKeys.columns.lastUsed')}</th>
-                      <th className="px-5 py-4 text-center">{t('settings.integrationApiKeys.columns.action')}</th>
-                    </tr>
-                  </thead>
-                  <tbody className="text-sm divide-y divide-white/50">
+              <div className="overflow-x-auto border-t border-solid-gray-420">
+                <Table className="min-w-[560px]">
+                  <TableHeader>
+                    <TableRow className="text-dns-14B-120 text-solid-gray-600">
+                      <TableHead>{t('settings.integrationApiKeys.columns.name')}</TableHead>
+                      <TableHead>{t('settings.integrationApiKeys.columns.secret')}</TableHead>
+                      <TableHead>{t('settings.integrationApiKeys.columns.permissions')}</TableHead>
+                      <TableHead>{t('settings.integrationApiKeys.columns.lastUsed')}</TableHead>
+                      <TableHead className="text-center">
+                        {t('settings.integrationApiKeys.columns.action')}
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {apiKeysQuery.data.map((apiKey) => (
-                      <tr key={apiKey.id} className="hover:bg-white/40 transition-colors">
-                        <td className="px-5 py-4 font-medium text-[#191c19]">{apiKey.name}</td>
-                        <td className="px-5 py-4 font-mono text-xs text-[#6f7a6e]">{apiKey.prefix}...</td>
-                        <td className="px-5 py-4">{getAccessLevelBadge(apiKey.access_level)}</td>
-                        <td className="px-5 py-4 text-xs text-[#6f7a6e]">
+                      <TableRow key={apiKey.id}>
+                        <TableCell className="font-medium text-solid-gray-800">
+                          {apiKey.name}
+                        </TableCell>
+                        <TableCell className="font-mono text-dns-14N-130 text-solid-gray-600">
+                          {apiKey.prefix}...
+                        </TableCell>
+                        <TableCell>{getAccessLevelBadge(apiKey.access_level)}</TableCell>
+                        <TableCell className="text-dns-14N-130 text-solid-gray-600">
                           {apiKey.last_used_at
                             ? new Date(apiKey.last_used_at).toLocaleDateString()
                             : t('settings.integrationApiKeys.neverUsed')}
-                        </td>
-                        <td className="px-5 py-4 text-center">
-                          <button
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Button
+                            type="button"
+                            variant="text"
+                            size="xs"
                             disabled={revokeApiKeyMutation.isPending && revokingId === apiKey.id}
                             onClick={() => setPendingRevokeKey({ id: apiKey.id, name: apiKey.name, prefix: apiKey.prefix })}
-                            className="text-red-500 opacity-60 hover:opacity-100 transition-opacity disabled:opacity-30"
+                            className="min-w-0 text-error-1 hover:bg-red-50"
+                            aria-label={t('settings.integrationApiKeys.revoke')}
                           >
                             {revokeApiKeyMutation.isPending && revokingId === apiKey.id
                               ? <InlineSpinner className="w-4 h-4" />
                               : <X className="w-4 h-4" />}
-                          </button>
-                        </td>
-                      </tr>
+                          </Button>
+                        </TableCell>
+                      </TableRow>
                     ))}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               </div>
             )}
           </section>
@@ -525,351 +601,348 @@ export default function SettingsPage() {
           <ConnectedAppsSection />
 
           {/* ── Danger Zone ─────────────────────────────────────────── */}
-          <section className="bg-white rounded-xl shadow-[0_4px_20px_rgba(28,25,23,0.04)] p-5 border-l-4 border-red-400">
+          <section className={`${SETTINGS_SECTION_CLASS} border-l-4 border-error-1 pl-4`}>
             <div className="mb-5">
-              <h2 className="text-base font-bold text-red-700 mb-1">
-                {t('settings.accountDeletion.title')}
-              </h2>
-              <p className="text-sm text-[#6f7a6e]">
+              <Heading size="18" hasChip className="mb-2 text-error-1">
+                <HeadingTitle level="h2">{t('settings.accountDeletion.title')}</HeadingTitle>
+              </Heading>
+              <p className="text-std-16N-170 text-solid-gray-600">
                 {t('settings.accountDeletion.description')}
               </p>
             </div>
 
-            <div className="space-y-1.5 mb-6">
-              <label className="text-xs font-bold text-[#3f493f] px-1">
+            <div className="flex flex-col gap-2 mb-6">
+              <Label htmlFor="account-deletion-reason">
                 {t('settings.accountDeletion.reasonLabel')}
-              </label>
-              <textarea
+              </Label>
+              <Textarea
+                id="account-deletion-reason"
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 placeholder={t('settings.accountDeletion.reasonPlaceholder')}
                 rows={4}
-                className="w-full bg-[#f2f4ef] border-transparent border rounded-xl px-4 py-3 text-sm text-[#191c19] placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-red-600/20 focus:bg-white transition-all resize-none"
+                className="resize-none"
               />
             </div>
 
             {deleteError && (
-              <div className="mb-5 p-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-600">
-                {deleteError}
+              <div className="mb-5">
+                <ErrorMessage message={deleteError} />
               </div>
             )}
 
             <div className="flex justify-end">
-              <button
+              <Button
+                variant="solid"
+                className="bg-error-1 hover:bg-red-1000 active:bg-red-1200"
                 onClick={() => setIsDialogOpen(true)}
-                className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white text-sm font-bold px-5 py-2.5 rounded-xl transition-all active:scale-95"
               >
-                <Trash2 className="w-4 h-4" />
+                <Trash2 className="w-4 h-4 mr-2" />
                 {t('settings.accountDeletion.cta')}
-              </button>
+              </Button>
             </div>
           </section>
       </div>
 
       {/* ── Create API Key Dialog ──────────────────────────────────────── */}
-      <Dialog
-        open={isCreateApiKeyDialogOpen}
-        onOpenChange={(open) => {
-          setIsCreateApiKeyDialogOpen(open);
-          if (!open) {
-            setApiKeyName('');
-            setApiKeyAccessLevel('all');
-            setApiKeyDialogError(null);
-          }
-        }}
-      >
-        <DialogContent className="sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>{t('settings.integrationApiKeys.createDialogTitle')}</DialogTitle>
-            <DialogDescription>
-              {t('settings.integrationApiKeys.createDialogDescription')}
-            </DialogDescription>
-          </DialogHeader>
+      {isCreateApiKeyDialogOpen && (
+        <Dialog {...createApiKeyDialog.dialogProps} width="min(42rem, 92vw)">
+          <DialogContent>
+            <DialogHeader>
+              <DialogHeading {...createApiKeyDialog.headingProps}>
+                {t('settings.integrationApiKeys.createDialogTitle')}
+              </DialogHeading>
+            </DialogHeader>
 
-          <div className="space-y-6">
-            {apiKeyDialogError && (
-              <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-600">
-                {apiKeyDialogError}
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-[#191c19]">
-                {t('settings.integrationApiKeys.nameLabel')}
-              </label>
-              <Input
-                value={apiKeyName}
-                onChange={(event) => setApiKeyName(event.target.value)}
-                placeholder={t('settings.integrationApiKeys.namePlaceholder')}
-              />
-              <p className="text-xs text-[#6f7a6e]">
-                {t('settings.integrationApiKeys.nameHelp')}
+            <DialogBody>
+              <p className="mb-4 text-std-16N-170 text-solid-gray-700">
+                {t('settings.integrationApiKeys.createDialogDescription')}
               </p>
-            </div>
 
-            <div className="space-y-3">
-              <div className="space-y-1">
-                <div className="text-sm font-medium text-[#191c19]">
-                  {t('settings.integrationApiKeys.permissionsLabel')}
+              <div className="space-y-6">
+                {apiKeyDialogError && <ErrorMessage message={apiKeyDialogError} />}
+
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="api-key-name">
+                    {t('settings.integrationApiKeys.nameLabel')}
+                  </Label>
+                  <Input
+                    id="api-key-name"
+                    value={apiKeyName}
+                    onChange={(event) => setApiKeyName(event.target.value)}
+                    placeholder={t('settings.integrationApiKeys.namePlaceholder')}
+                  />
+                  <SupportText>{t('settings.integrationApiKeys.nameHelp')}</SupportText>
                 </div>
-                <p className="text-xs text-[#6f7a6e]">
-                  {t('settings.integrationApiKeys.permissionsHelp')}
-                </p>
-              </div>
-              <div className="space-y-3">
-                {accessLevelOptions.map((option) => {
-                  const isSelected = apiKeyAccessLevel === option.value;
-                  return (
-                    <button
-                      key={option.value}
-                      type="button"
-                      className={`w-full rounded-xl border px-4 py-4 text-left transition-colors ${
-                        isSelected
-                          ? 'border-[#00652c] bg-[#00652c] text-white'
-                          : 'border-[#e1e3de] bg-white text-[#191c19] hover:border-[#c9cec7] hover:bg-[#f8faf5]'
-                      }`}
-                      onClick={() => setApiKeyAccessLevel(option.value)}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="space-y-1">
-                          <div className="text-sm font-semibold">{option.title}</div>
-                          <div className={`text-sm ${isSelected ? 'text-white/80' : 'text-[#6f7a6e]'}`}>
-                            {option.description}
-                          </div>
-                        </div>
-                        <span className={`mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full border text-[10px] font-bold ${
-                          isSelected
-                            ? 'border-white bg-white text-[#00652c]'
-                            : 'border-[#c9cec7] text-transparent'
-                        }`}>
-                          •
-                        </span>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
 
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setIsCreateApiKeyDialogOpen(false)}>
-              {t('settings.integrationApiKeys.cancel')}
-            </Button>
-            <Button
-              disabled={createApiKeyMutation.isPending}
-              onClick={async () => {
-                const trimmedName = apiKeyName.trim();
-                if (!trimmedName) {
-                  setApiKeyDialogError(t('settings.integrationApiKeys.errorEmpty'));
-                  return;
-                }
-                setApiKeyDialogError(null);
-                await createApiKeyMutation.mutateAsync();
-              }}
-            >
-              {createApiKeyMutation.isPending ? (
-                <span className="flex items-center gap-2">
-                  <InlineSpinner className="w-4 h-4" />
-                  {t('settings.integrationApiKeys.creating')}
-                </span>
-              ) : t('settings.integrationApiKeys.createDialogCta')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <p className="text-std-17B-170 text-solid-gray-800">
+                      {t('settings.integrationApiKeys.permissionsLabel')}
+                    </p>
+                    <SupportText>{t('settings.integrationApiKeys.permissionsHelp')}</SupportText>
+                  </div>
+                  <div className="space-y-3">
+                    {accessLevelOptions.map((option) => {
+                      const isSelected = apiKeyAccessLevel === option.value;
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          className={`w-full rounded-8 border px-4 py-4 text-left transition-colors focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-[calc(2/16*1rem)] focus-visible:outline-black focus-visible:ring-[calc(2/16*1rem)] focus-visible:ring-yellow-300 ${
+                            isSelected
+                              ? 'border-key-900 bg-key-900 text-white'
+                              : 'border-solid-gray-300 bg-white text-solid-gray-800 hover:border-solid-gray-420 hover:bg-solid-gray-50'
+                          }`}
+                          onClick={() => setApiKeyAccessLevel(option.value)}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="space-y-1">
+                              <div className="text-std-16B-170">{option.title}</div>
+                              <div className={`text-std-16N-170 ${isSelected ? 'text-white/80' : 'text-solid-gray-600'}`}>
+                                {option.description}
+                              </div>
+                            </div>
+                            <span className={`mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full border text-[10px] font-bold ${
+                              isSelected
+                                ? 'border-white bg-white text-key-900'
+                                : 'border-solid-gray-420 text-transparent'
+                            }`}>
+                              •
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </DialogBody>
+
+            <DialogActions>
+              <div className="flex justify-end gap-3">
+                <Button variant="outline" onClick={() => setIsCreateApiKeyDialogOpen(false)}>
+                  {t('settings.integrationApiKeys.cancel')}
+                </Button>
+                <Button
+                  disabled={createApiKeyMutation.isPending}
+                  onClick={async () => {
+                    const trimmedName = apiKeyName.trim();
+                    if (!trimmedName) {
+                      setApiKeyDialogError(t('settings.integrationApiKeys.errorEmpty'));
+                      return;
+                    }
+                    setApiKeyDialogError(null);
+                    await createApiKeyMutation.mutateAsync();
+                  }}
+                >
+                  {createApiKeyMutation.isPending ? (
+                    <span className="flex items-center gap-2">
+                      <InlineSpinner className="w-4 h-4" />
+                      {t('settings.integrationApiKeys.creating')}
+                    </span>
+                  ) : t('settings.integrationApiKeys.createDialogCta')}
+                </Button>
+              </div>
+            </DialogActions>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* ── Generated API Key Dialog ───────────────────────────────────── */}
-      <Dialog
-        open={generatedApiKey !== null}
-        onOpenChange={(open) => {
-          if (!open) {
-            setGeneratedApiKey(null);
-            setIsCopyAcknowledged(false);
-            setGeneratedDialogError(null);
-          }
-        }}
-      >
-        <DialogContent className="sm:max-w-xl" showCloseButton={false}>
-          {generatedApiKey && (
-            <div className="space-y-6">
-              <DialogHeader className="space-y-3">
-                <DialogTitle>{t('settings.integrationApiKeys.generatedDialogTitle')}</DialogTitle>
-                <DialogDescription className="leading-6 sm:text-left">
-                  {t('settings.integrationApiKeys.generatedDialogDescription')}
-                </DialogDescription>
-              </DialogHeader>
+      {generatedApiKey && (
+        <Dialog {...generatedApiKeyDialog.dialogProps} width="min(36rem, 92vw)">
+          <DialogContent>
+            <DialogHeader>
+              <DialogHeading {...generatedApiKeyDialog.headingProps}>
+                {t('settings.integrationApiKeys.generatedDialogTitle')}
+              </DialogHeading>
+            </DialogHeader>
+
+            <DialogBody>
+              <p className="mb-4 text-std-16N-170 text-solid-gray-700">
+                {t('settings.integrationApiKeys.generatedDialogDescription')}
+              </p>
 
               {generatedDialogError && (
-                <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-600">
-                  {generatedDialogError}
+                <div className="mb-4">
+                  <ErrorMessage message={generatedDialogError} />
                 </div>
               )}
 
-              <div className="space-y-2">
-                <div className="text-sm font-medium text-[#191c19]">
-                  {t('settings.integrationApiKeys.secretKeyLabel')}
-                </div>
-                <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_112px] sm:items-center">
-                  <div className="min-w-0 rounded-xl border border-[#e1e3de] bg-[#f2f4ef] px-4 py-3 font-mono text-sm text-[#191c19]">
-                    <span className="block truncate">{generatedApiKey.api_key}</span>
+              <div className="space-y-6">
+                <div className="flex flex-col gap-2">
+                  <p className="text-std-17B-170 text-solid-gray-800">
+                    {t('settings.integrationApiKeys.secretKeyLabel')}
+                  </p>
+                  <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_112px] sm:items-center">
+                    <div className="min-w-0 rounded-8 border border-solid-gray-300 bg-solid-gray-50 px-4 py-3 font-mono text-std-16N-170 text-solid-gray-800">
+                      <span className="block truncate">{generatedApiKey.api_key}</span>
+                    </div>
+                    <Button
+                      variant={isCopyAcknowledged ? 'solid' : 'outline'}
+                      className="h-10 w-full"
+                      onClick={handleCopyApiKey}
+                    >
+                      {isCopyAcknowledged ? t('settings.integrationApiKeys.copyDone') : t('settings.integrationApiKeys.copy')}
+                    </Button>
                   </div>
-                  <Button
-                    variant={isCopyAcknowledged ? 'default' : 'secondary'}
-                    className={isCopyAcknowledged ? 'h-10 w-full' : 'h-10 w-full border border-[#d7dbd4] bg-white text-[#191c19] hover:bg-[#f8faf5]'}
-                    onClick={handleCopyApiKey}
-                  >
-                    {isCopyAcknowledged ? t('settings.integrationApiKeys.copyDone') : t('settings.integrationApiKeys.copy')}
-                  </Button>
+                  <SupportText>{t('settings.integrationApiKeys.generatedTitle')}</SupportText>
                 </div>
-                <p className="text-sm text-[#6f7a6e]">
-                  {t('settings.integrationApiKeys.generatedTitle')}
-                </p>
-              </div>
 
-              <div className="space-y-2">
-                <div className="text-sm font-medium text-[#191c19]">
-                  {t('settings.integrationApiKeys.permissionsLabel')}
-                </div>
-                <div className="text-sm text-[#191c19]">
-                  {getAccessLevelLabel(generatedApiKey.access_level)}
-                </div>
-                <div className="text-sm text-[#6f7a6e]">
-                  {generatedApiKey.access_level === 'read_only'
-                    ? t('settings.integrationApiKeys.permissions.readOnlyDescription')
-                    : t('settings.integrationApiKeys.permissions.allDescription')}
+                <div className="flex flex-col gap-2">
+                  <p className="text-std-17B-170 text-solid-gray-800">
+                    {t('settings.integrationApiKeys.permissionsLabel')}
+                  </p>
+                  <p className="text-std-16N-170 text-solid-gray-800">
+                    {getAccessLevelLabel(generatedApiKey.access_level)}
+                  </p>
+                  <SupportText>
+                    {generatedApiKey.access_level === 'read_only'
+                      ? t('settings.integrationApiKeys.permissions.readOnlyDescription')
+                      : t('settings.integrationApiKeys.permissions.allDescription')}
+                  </SupportText>
                 </div>
               </div>
-            </div>
-          )}
+            </DialogBody>
 
-          <DialogFooter>
-            <Button
-              variant="secondary"
-              onClick={() => {
-                setGeneratedApiKey(null);
-                setIsCopyAcknowledged(false);
-                setGeneratedDialogError(null);
-                setStatusMessage({ tone: 'success', text: t('settings.integrationApiKeys.successCreated') });
-              }}
-            >
-              {t('settings.integrationApiKeys.generatedDoneCta')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            <DialogActions>
+              <div className="flex justify-end gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setGeneratedApiKey(null);
+                    setIsCopyAcknowledged(false);
+                    setGeneratedDialogError(null);
+                    setStatusMessage({ tone: 'success', text: t('settings.integrationApiKeys.successCreated') });
+                  }}
+                >
+                  {t('settings.integrationApiKeys.generatedDoneCta')}
+                </Button>
+              </div>
+            </DialogActions>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* ── Revoke Confirm Dialog ──────────────────────────────────────── */}
-      <Dialog
-        open={pendingRevokeKey !== null}
-        onOpenChange={(open) => {
-          if (!open) setPendingRevokeKey(null);
-        }}
-      >
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>{t('settings.integrationApiKeys.revokeConfirmTitle')}</DialogTitle>
-            <DialogDescription>
-              {t('settings.integrationApiKeys.revokeConfirmDescription')}
-            </DialogDescription>
-          </DialogHeader>
+      {pendingRevokeKey && (
+        <Dialog {...revokeConfirmDialog.dialogProps} width="min(32rem, 92vw)">
+          <DialogContent>
+            <DialogHeader>
+              <DialogHeading {...revokeConfirmDialog.headingProps}>
+                {t('settings.integrationApiKeys.revokeConfirmTitle')}
+              </DialogHeading>
+            </DialogHeader>
 
-          {pendingRevokeKey && (
-            <div className="space-y-4">
-              <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-600">
-                {t('settings.integrationApiKeys.revokeConfirmWarning')}
-              </div>
-              <div className="rounded-xl border border-[#e1e3de] bg-[#f8faf5] px-4 py-4">
-                <div className="text-sm font-semibold text-[#191c19]">{pendingRevokeKey.name}</div>
-                <div className="mt-1 font-mono text-xs text-[#6f7a6e]">{pendingRevokeKey.prefix}...</div>
-              </div>
-            </div>
-          )}
+            <DialogBody>
+              <p className="mb-4 text-std-16N-170 text-solid-gray-700">
+                {t('settings.integrationApiKeys.revokeConfirmDescription')}
+              </p>
 
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setPendingRevokeKey(null)}>
-              {t('settings.integrationApiKeys.cancel')}
-            </Button>
-            <Button
-              variant="destructive"
-              disabled={!pendingRevokeKey || revokeApiKeyMutation.isPending}
-              onClick={async () => {
-                if (!pendingRevokeKey) return;
-                setStatusMessage(null);
-                setRevokingId(pendingRevokeKey.id);
-                try {
-                  await revokeApiKeyMutation.mutateAsync(pendingRevokeKey.id);
-                  setPendingRevokeKey(null);
-                } finally {
-                  setRevokingId(null);
-                }
-              }}
-            >
-              {revokeApiKeyMutation.isPending ? (
-                <span className="flex items-center gap-2">
-                  <InlineSpinner className="w-4 h-4" color="red" />
-                  {t('settings.integrationApiKeys.revoking')}
-                </span>
-              ) : t('settings.integrationApiKeys.revokeConfirmCta')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+              <div className="space-y-4">
+                <MessageAlert
+                  type="warning"
+                  message={t('settings.integrationApiKeys.revokeConfirmWarning')}
+                />
+                <div className="rounded-8 border border-solid-gray-200 bg-solid-gray-50 px-4 py-4">
+                  <div className="text-std-16B-170 text-solid-gray-800">{pendingRevokeKey.name}</div>
+                  <div className="mt-1 font-mono text-dns-14N-130 text-solid-gray-600">{pendingRevokeKey.prefix}...</div>
+                </div>
+              </div>
+            </DialogBody>
+
+            <DialogActions>
+              <div className="flex justify-end gap-3">
+                <Button variant="outline" onClick={() => setPendingRevokeKey(null)}>
+                  {t('settings.integrationApiKeys.cancel')}
+                </Button>
+                <Button
+                  variant="solid"
+                  className="bg-error-1 hover:bg-red-1000 active:bg-red-1200"
+                  disabled={revokeApiKeyMutation.isPending}
+                  onClick={async () => {
+                    setStatusMessage(null);
+                    setRevokingId(pendingRevokeKey.id);
+                    try {
+                      await revokeApiKeyMutation.mutateAsync(pendingRevokeKey.id);
+                      setPendingRevokeKey(null);
+                    } finally {
+                      setRevokingId(null);
+                    }
+                  }}
+                >
+                  {revokeApiKeyMutation.isPending ? (
+                    <span className="flex items-center gap-2">
+                      <InlineSpinner className="w-4 h-4" color="red" />
+                      {t('settings.integrationApiKeys.revoking')}
+                    </span>
+                  ) : t('settings.integrationApiKeys.revokeConfirmCta')}
+                </Button>
+              </div>
+            </DialogActions>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* ── Delete Account Dialog ──────────────────────────────────────── */}
-      <Dialog
-        open={isDialogOpen}
-        onOpenChange={(open) => {
-          setIsDialogOpen(open);
-          if (!open) setConfirmText('');
-        }}
-      >
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>{t('settings.accountDeletion.confirmTitle')}</DialogTitle>
-            <DialogDescription>{t('settings.accountDeletion.confirmDescription')}</DialogDescription>
-          </DialogHeader>
+      {isDialogOpen && (
+        <Dialog {...deleteAccountDialog.dialogProps} width="min(32rem, 92vw)">
+          <DialogContent>
+            <DialogHeader>
+              <DialogHeading {...deleteAccountDialog.headingProps}>
+                {t('settings.accountDeletion.confirmTitle')}
+              </DialogHeading>
+            </DialogHeader>
 
-          <div className="space-y-4">
-            <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-600">
-              {t('settings.accountDeletion.confirmWarning')}
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-[#191c19]">
-                {t('settings.accountDeletion.confirmLabel', { keyword: confirmationKeyword })}
-              </label>
-              <Input
-                value={confirmText}
-                onChange={(event) => setConfirmText(event.target.value)}
-                placeholder={confirmationKeyword}
-              />
-            </div>
-            {deleteError && (
-              <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-600">
-                {deleteError}
+            <DialogBody>
+              <p className="mb-4 text-std-16N-170 text-solid-gray-700">
+                {t('settings.accountDeletion.confirmDescription')}
+              </p>
+
+              <div className="space-y-4">
+                <MessageAlert
+                  type="warning"
+                  message={t('settings.accountDeletion.confirmWarning')}
+                />
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="account-deletion-confirm">
+                    {t('settings.accountDeletion.confirmLabel', { keyword: confirmationKeyword })}
+                  </Label>
+                  <Input
+                    id="account-deletion-confirm"
+                    value={confirmText}
+                    onChange={(event) => setConfirmText(event.target.value)}
+                    placeholder={confirmationKeyword}
+                  />
+                </div>
+                {deleteError && <ErrorMessage message={deleteError} />}
               </div>
-            )}
-          </div>
+            </DialogBody>
 
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-              {t('settings.accountDeletion.cancel')}
-            </Button>
-            <Button
-              variant="destructive"
-              disabled={!canConfirm || deleteMutation.isPending}
-              onClick={async () => { await deleteMutation.mutateAsync(); }}
-            >
-              {deleteMutation.isPending ? (
-                <span className="flex items-center gap-2">
-                  <InlineSpinner className="w-4 h-4" color="red" />
-                  {t('settings.accountDeletion.deleting')}
-                </span>
-              ) : t('settings.accountDeletion.confirmCta')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            <DialogActions>
+              <div className="flex justify-end gap-3">
+                <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+                  {t('settings.accountDeletion.cancel')}
+                </Button>
+                <Button
+                  variant="solid"
+                  className="bg-error-1 hover:bg-red-1000 active:bg-red-1200"
+                  disabled={!canConfirm || deleteMutation.isPending}
+                  onClick={async () => { await deleteMutation.mutateAsync(); }}
+                >
+                  {deleteMutation.isPending ? (
+                    <span className="flex items-center gap-2">
+                      <InlineSpinner className="w-4 h-4" color="red" />
+                      {t('settings.accountDeletion.deleting')}
+                    </span>
+                  ) : t('settings.accountDeletion.confirmCta')}
+                </Button>
+              </div>
+            </DialogActions>
+          </DialogContent>
+        </Dialog>
+      )}
     </AppPageShell>
   );
 }

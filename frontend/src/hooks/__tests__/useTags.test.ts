@@ -31,8 +31,8 @@ describe('useTags', () => {
 
     it('should load tags on mount', async () => {
         const mockTags = [
-            { id: 1, name: 'Tag 1', color: '#ff0000', created_at: '2023-01-01' },
-            { id: 2, name: 'Tag 2', color: '#00ff00', created_at: '2023-01-02' },
+            { id: 1, name: 'Tag 1', color: 'red', created_at: '2023-01-01' },
+            { id: 2, name: 'Tag 2', color: 'green', created_at: '2023-01-02' },
         ]
             ; (apiClient.getTags as any).mockResolvedValue(mockTags)
 
@@ -45,25 +45,25 @@ describe('useTags', () => {
     })
 
     it('should create a tag', async () => {
-        const mockTag = { id: 3, name: 'New Tag', color: '#0000ff', created_at: '2023-01-03' }
+        const mockTag = { id: 3, name: 'New Tag', color: 'blue', created_at: '2023-01-03' }
             ; (apiClient.createTag as any).mockResolvedValue(mockTag)
             ; (apiClient.getTags as any).mockResolvedValue([])
 
         const { result } = renderHook(() => useTags())
 
         await act(async () => {
-            await result.current.createTag('New Tag', '#0000ff')
+            await result.current.createTag('New Tag', 'blue')
         })
 
-        expect(apiClient.createTag).toHaveBeenCalledWith({ name: 'New Tag', color: '#0000ff' })
+        expect(apiClient.createTag).toHaveBeenCalledWith({ name: 'New Tag', color: 'blue' })
         await waitFor(() => {
             expect(result.current.tags).toContainEqual(mockTag)
         })
     })
 
     it('should update a tag', async () => {
-        const initialTags = [{ id: 1, name: 'Old Tag', color: '#ff0000', created_at: '2023-01-01' }]
-        const updatedTag = { id: 1, name: 'Updated Tag', color: '#ffff00', created_at: '2023-01-01' }
+        const initialTags = [{ id: 1, name: 'Old Tag', color: 'red', created_at: '2023-01-01' }]
+        const updatedTag = { id: 1, name: 'Updated Tag', color: 'yellow', created_at: '2023-01-01' }
             ; (apiClient.getTags as any).mockResolvedValue(initialTags)
             ; (apiClient.updateTag as any).mockResolvedValue(updatedTag)
 
@@ -74,10 +74,10 @@ describe('useTags', () => {
         })
 
         await act(async () => {
-            await result.current.updateTag(1, 'Updated Tag', '#ffff00')
+            await result.current.updateTag(1, 'Updated Tag', 'yellow')
         })
 
-        expect(apiClient.updateTag).toHaveBeenCalledWith(1, { name: 'Updated Tag', color: '#ffff00' })
+        expect(apiClient.updateTag).toHaveBeenCalledWith(1, { name: 'Updated Tag', color: 'yellow' })
         await waitFor(() => {
             expect(result.current.tags).toEqual([updatedTag])
         })
@@ -85,8 +85,8 @@ describe('useTags', () => {
 
     it('should delete a tag', async () => {
         const initialTags = [
-            { id: 1, name: 'Tag 1', color: '#ff0000', created_at: '2023-01-01' },
-            { id: 2, name: 'Tag 2', color: '#00ff00', created_at: '2023-01-02' },
+            { id: 1, name: 'Tag 1', color: 'red', created_at: '2023-01-01' },
+            { id: 2, name: 'Tag 2', color: 'green', created_at: '2023-01-02' },
         ]
             ; (apiClient.getTags as any).mockResolvedValue(initialTags)
             ; (apiClient.deleteTag as any).mockResolvedValue(undefined)
