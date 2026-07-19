@@ -3,7 +3,6 @@ import { cleanup } from '@testing-library/react'
 import '@testing-library/jest-dom/vitest'
 import React from 'react'
 import { QueryClientProvider } from '@tanstack/react-query'
-import { HelmetProvider } from 'react-helmet-async'
 import { createAppQueryClient } from './src/lib/queryClient'
 import { FeedbackProvider } from './src/components/common/FeedbackProvider'
 import enTranslation from './src/i18n/locales/en/translation.json'
@@ -16,13 +15,9 @@ vi.mock('@testing-library/react', async () => {
     const TestQueryWrapper = ({ children, ...props }: { children?: React.ReactNode } & Record<string, unknown>) => {
       const [queryClient] = React.useState(() => createAppQueryClient())
       const content = React.createElement(
-        HelmetProvider,
-        {},
-        React.createElement(
-          QueryClientProvider,
-          { client: queryClient },
-          React.createElement(FeedbackProvider, {}, children),
-        ),
+        QueryClientProvider,
+        { client: queryClient },
+        React.createElement(FeedbackProvider, {}, children),
       )
       if (!UserWrapper) {
         return content

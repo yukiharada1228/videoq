@@ -102,41 +102,9 @@ const MenuListItemButton = React.forwardRef<
 })
 MenuListItemButton.displayName = "MenuListItemButton"
 
-type MenuListItemLinkProps = Omit<React.ComponentProps<"a">, "type"> &
-  MenuListItemSharedProps
-
-const MenuListItemLink = React.forwardRef<
-  HTMLAnchorElement,
-  MenuListItemLinkProps
->(({ children, className, type, size, current, ...props }, ref) => {
-  return (
-    <a
-      ref={ref}
-      data-slot="menu-list-item-link"
-      data-type={type}
-      data-size={size}
-      data-current={current ? "" : undefined}
-      className={cn(menuListItemVariants(), className)}
-      {...props}
-    >
-      {children}
-    </a>
-  )
-})
-MenuListItemLink.displayName = "MenuListItemLink"
-
 export {
   MenuList,
   MenuListItem,
   MenuListItemButton,
-  MenuListItemLink,
   menuListItemVariants,
-}
-export type {
-  MenuListProps,
-  MenuListItemProps,
-  MenuListItemButtonProps,
-  MenuListItemLinkProps,
-  MenuListType,
-  MenuListSize,
 }

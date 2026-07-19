@@ -3,6 +3,9 @@
 import { useTranslation } from 'react-i18next';
 import type { Tag } from '@/lib/api';
 import { Button } from '@/components/ui/button';
+import { ChipLabel } from '@/components/ui/chip-label';
+import { resolveTagChipColor } from '@/lib/tagColors';
+import { cn } from '@/lib/utils';
 import { Settings2 } from 'lucide-react';
 
 interface TagFilterPanelProps {
@@ -71,22 +74,22 @@ export function TagFilterPanel({
               type="button"
               onClick={() => onToggle(tag.id)}
               disabled={disabled}
-              className={`inline-flex items-center rounded-full px-3 py-1.5 text-sm font-medium transition-opacity disabled:cursor-not-allowed ${
-                isSelected ? 'opacity-100' : 'opacity-60 hover:opacity-80'
-              }`}
-              style={{
-                backgroundColor: isSelected ? `${tag.color}30` : `${tag.color}20`,
-                color: tag.color,
-                ...(isSelected && {
-                  outline: `2px solid ${tag.color}`,
-                  outlineOffset: '2px',
-                }),
-              }}
-            >
-              {tag.name}
-              {tag.video_count !== undefined && (
-                <span className="ml-1.5 text-xs opacity-75">({tag.video_count})</span>
+              className={cn(
+                'rounded-8 transition-opacity focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-black focus-visible:ring-2 focus-visible:ring-yellow-300 disabled:cursor-not-allowed',
+                isSelected ? 'opacity-100' : 'opacity-60 hover:opacity-80',
               )}
+              aria-pressed={isSelected}
+            >
+              <ChipLabel
+                variant={isSelected ? 'filled-1' : 'outlined'}
+                color={resolveTagChipColor(tag.color)}
+                className="min-h-0 text-oln-14N-100"
+              >
+                {tag.name}
+                {tag.video_count !== undefined && (
+                  <span className="ml-1.5 opacity-75">({tag.video_count})</span>
+                )}
+              </ChipLabel>
             </button>
           );
         })}

@@ -16,8 +16,8 @@ class FileUrlMappingTests(TestCase):
             status="completed",
             file_key="videos/a.mp4",
             tags=[
-                TagEntity(id=100, user_id=10, name="Tag1", color="#111111"),
-                TagEntity(id=101, user_id=10, name="Tag2", color="#222222"),
+                TagEntity(id=100, user_id=10, name="Tag1", color="gray"),
+                TagEntity(id=101, user_id=10, name="Tag2", color="blue"),
             ],
         )
 

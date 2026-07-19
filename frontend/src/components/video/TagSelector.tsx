@@ -3,7 +3,10 @@
 import { useTranslation } from 'react-i18next';
 import type { Tag } from '@/lib/api';
 import { Button } from '@/components/ui/button';
+import { ChipLabel } from '@/components/ui/chip-label';
 import { Label } from '@/components/ui/label';
+import { resolveTagChipColor } from '@/lib/tagColors';
+import { cn } from '@/lib/utils';
 
 interface TagSelectorProps {
   tags: Tag[];
@@ -53,19 +56,20 @@ export function TagSelector({
                 type="button"
                 onClick={() => !disabled && onToggle(tag.id)}
                 disabled={disabled}
-                className={`rounded-full px-3 py-1.5 text-sm font-medium transition-opacity ${
-                  isSelected ? '' : 'opacity-60 hover:opacity-100'
-                } ${disabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}
-                style={{
-                  backgroundColor: `${tag.color}20`,
-                  color: tag.color,
-                  ...(isSelected && {
-                    outline: `2px solid ${tag.color}`,
-                    outlineOffset: '2px',
-                  }),
-                }}
+                className={cn(
+                  'rounded-8 transition-opacity focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-black focus-visible:ring-2 focus-visible:ring-yellow-300',
+                  isSelected ? 'opacity-100' : 'opacity-60 hover:opacity-100',
+                  disabled ? 'cursor-not-allowed' : 'cursor-pointer',
+                )}
+                aria-pressed={isSelected}
               >
-                {tag.name}
+                <ChipLabel
+                  variant={isSelected ? 'filled-1' : 'outlined'}
+                  color={resolveTagChipColor(tag.color)}
+                  className="min-h-0 text-oln-14N-100"
+                >
+                  {tag.name}
+                </ChipLabel>
               </button>
             );
           })

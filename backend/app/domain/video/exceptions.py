@@ -76,9 +76,15 @@ class InvalidTagName(Exception):
 
 
 class InvalidTagColor(Exception):
-    """Raised when a tag color is not a #RRGGBB hex value."""
+    """Raised when a tag color is not a Digital Agency ChipLabel palette name."""
 
-    def __init__(self, message: str = "Invalid color format. Use #RRGGBB"):
+    def __init__(
+        self,
+        message: str = (
+            "Invalid color. Use a ChipLabel palette name "
+            "(gray, blue, light-blue, cyan, green, lime, yellow, orange, red, magenta, purple)"
+        ),
+    ):
         super().__init__(message)
 
 

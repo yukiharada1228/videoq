@@ -25,7 +25,7 @@ class VideoEntityTests(TestCase):
             user_id=1,
             title="video",
             status="completed",
-            tags=[TagEntity(id=10, user_id=1, name="t1", color="#111111")],
+            tags=[TagEntity(id=10, user_id=1, name="t1", color="gray")],
         )
 
         ids_to_add, skipped_count = video.plan_tag_attachment([10, 11, 11, 12])
@@ -39,7 +39,7 @@ class VideoEntityTests(TestCase):
             user_id=1,
             title="video",
             status="completed",
-            tags=[TagEntity(id=10, user_id=1, name="t1", color="#111111")],
+            tags=[TagEntity(id=10, user_id=1, name="t1", color="gray")],
         )
 
         with self.assertRaises(TagNotAttachedToVideo):

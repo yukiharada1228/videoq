@@ -20,8 +20,8 @@ class NPlusOneTestCase(TestCase):
         self.client.force_authenticate(user=self.user)
 
         # Create tags
-        self.tag1 = Tag.objects.create(user=self.user, name="Tag1", color="#000000")
-        self.tag2 = Tag.objects.create(user=self.user, name="Tag2", color="#ffffff")
+        self.tag1 = Tag.objects.create(user=self.user, name="Tag1", color="gray")
+        self.tag2 = Tag.objects.create(user=self.user, name="Tag2", color="gray")
 
         # Create 5 videos with tags
         for i in range(5):
