@@ -114,7 +114,22 @@ class VideoGroupMembershipService:
 class TagPolicy:
     """Domain policy for tag normalization and validation."""
 
-    _HEX_COLOR_PATTERN = re.compile(r"^#[0-9A-Fa-f]{6}$")
+    # Digital Agency ChipLabel palette (shadcn-digital-agency-jp)
+    ALLOWED_COLORS = frozenset(
+        {
+            "gray",
+            "blue",
+            "light-blue",
+            "cyan",
+            "green",
+            "lime",
+            "yellow",
+            "orange",
+            "red",
+            "magenta",
+            "purple",
+        }
+    )
 
     @staticmethod
     def normalize_name(name: str) -> str:
@@ -131,7 +146,7 @@ class TagPolicy:
 
     @classmethod
     def validate_color(cls, color: str) -> str:
-        if not cls._HEX_COLOR_PATTERN.match(color):
+        if color not in cls.ALLOWED_COLORS:
             raise InvalidTagColor()
         return color
 

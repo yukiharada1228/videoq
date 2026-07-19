@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { ChipLabel } from '@/components/ui/chip-label';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
 import {
   Dialog,
@@ -14,6 +15,12 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  DEFAULT_TAG_CHIP_COLOR,
+  TAG_CHIP_COLORS,
+  type TagChipColor,
+} from '@/lib/tagColors';
+import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
 
 interface TagCreateDialogProps {
@@ -22,27 +29,16 @@ interface TagCreateDialogProps {
   onCreate: (name: string, color: string) => Promise<void>;
 }
 
-const DEFAULT_COLORS = [
-  '#3B82F6',
-  '#10B981',
-  '#F59E0B',
-  '#EF4444',
-  '#8B5CF6',
-  '#EC4899',
-  '#6366F1',
-  '#14B8A6',
-];
-
 export function TagCreateDialog({ isOpen, onClose, onCreate }: TagCreateDialogProps) {
   const { t } = useTranslation();
   const [name, setName] = useState('');
-  const [color, setColor] = useState(DEFAULT_COLORS[0]);
+  const [color, setColor] = useState<TagChipColor>(DEFAULT_TAG_CHIP_COLOR);
   const [isCreating, setIsCreating] = useState(false);
 
   const handleClose = () => {
     if (!isCreating) {
       setName('');
-      setColor(DEFAULT_COLORS[0]);
+      setColor(DEFAULT_TAG_CHIP_COLOR);
       onClose();
     }
   };
@@ -64,7 +60,7 @@ export function TagCreateDialog({ isOpen, onClose, onCreate }: TagCreateDialogPr
     try {
       await onCreate(name.trim(), color);
       setName('');
-      setColor(DEFAULT_COLORS[0]);
+      setColor(DEFAULT_TAG_CHIP_COLOR);
       onClose();
     } catch (error) {
       console.error('Failed to create tag:', error);
@@ -107,19 +103,32 @@ export function TagCreateDialog({ isOpen, onClose, onCreate }: TagCreateDialogPr
             <div className="flex flex-col gap-2">
               <Label>{t('tags.create.colorLabel')}</Label>
               <div className="flex flex-wrap gap-2">
-                {DEFAULT_COLORS.map((c) => (
+                {TAG_CHIP_COLORS.map((paletteColor) => (
                   <button
-                    key={c}
+                    key={paletteColor}
                     type="button"
-                    onClick={() => setColor(c)}
+                    onClick={() => setColor(paletteColor)}
                     disabled={isCreating}
-                    className={`h-8 w-8 rounded-full transition-transform disabled:cursor-not-allowed disabled:opacity-50 ${
-                      color === c ? 'ring-2 ring-key-900 ring-offset-2' : 'hover:scale-110'
-                    }`}
-                    style={{ backgroundColor: c }}
-                    aria-label={`Select color ${c}`}
-                    aria-pressed={color === c}
-                  />
+                    className={cn(
+                      'rounded-8 transition-opacity disabled:cursor-not-allowed disabled:opacity-50',
+                      color === paletteColor
+                        ? 'opacity-100 ring-2 ring-key-900 ring-offset-2'
+                        : 'opacity-70 hover:opacity-100',
+                    )}
+                    aria-label={t('tags.create.selectColor', {
+                      color: paletteColor,
+                      defaultValue: `Select color ${paletteColor}`,
+                    })}
+                    aria-pressed={color === paletteColor}
+                  >
+                    <ChipLabel
+                      variant="filled-1"
+                      color={paletteColor}
+                      className="min-h-0 px-2.5 py-1 text-oln-14N-100"
+                    >
+                      {paletteColor}
+                    </ChipLabel>
+                  </button>
                 ))}
               </div>
             </div>
@@ -127,12 +136,9 @@ export function TagCreateDialog({ isOpen, onClose, onCreate }: TagCreateDialogPr
             <div className="flex flex-col gap-2">
               <Label>{t('tags.create.preview')}</Label>
               <div className="rounded-8 border border-solid-gray-300 bg-solid-gray-50 p-3">
-                <span
-                  className="inline-flex items-center rounded-full px-2.5 py-1 text-sm font-medium"
-                  style={{ backgroundColor: `${color}20`, color }}
-                >
+                <ChipLabel variant="outlined" color={color} className="min-h-0">
                   {name || t('tags.create.previewPlaceholder')}
-                </span>
+                </ChipLabel>
               </div>
             </div>
           </div>

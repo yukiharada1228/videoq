@@ -31,8 +31,8 @@ export function ChatComposer({
           onKeyDown={onKeyDown}
           disabled={isLoading}
           placeholder={t('chat.placeholder')}
-          blockSize="md"
-          className="pr-14"
+          blockSize="lg"
+          className="w-full pr-14"
           aria-label={t('chat.placeholder')}
         />
         <Button

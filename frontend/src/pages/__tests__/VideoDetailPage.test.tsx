@@ -11,7 +11,7 @@ const mockVideo = {
   source_type: 'uploaded',
   uploaded_at: '2024-01-01T00:00:00Z',
   transcript: '1\n00:00:00,000 --> 00:00:05,000\nHello world',
-  tags: [{ id: 1, name: 'Tag1', color: '#FF0000' }],
+  tags: [{ id: 1, name: 'Tag1', color: 'red' }],
   error_message: '',
 }
 
@@ -43,7 +43,7 @@ vi.mock('@/components/layout/AppNav', () => ({
 
 vi.mock('@/hooks/useTags', () => ({
   useTags: () => ({
-    tags: [{ id: 1, name: 'Tag1', color: '#FF0000' }],
+    tags: [{ id: 1, name: 'Tag1', color: 'red' }],
     createTag: vi.fn(),
   }),
 }))

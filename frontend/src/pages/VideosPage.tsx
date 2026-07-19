@@ -23,7 +23,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Divider } from '@/components/ui/divider';
+import { ChipLabel } from '@/components/ui/chip-label';
 import { MenuList, MenuListItem } from '@/components/ui/menu-list';
+import { resolveTagChipColor } from '@/lib/tagColors';
+import { cn } from '@/lib/utils';
 import { Plus, Search, Tag } from 'lucide-react';
 
 const STATUS_FILTERS = ['all', 'completed', 'processing', 'error'] as const;
@@ -246,23 +249,27 @@ export default function VideosPage() {
                 {tags.map((tag) => {
                   const isSelected = selectedTagIds.includes(tag.id);
                   return (
-                    <Button
+                    <button
                       key={tag.id}
                       type="button"
-                      size="sm"
-                      variant={isSelected ? 'solid' : 'outline'}
                       onClick={() => handleTagToggle(tag.id)}
-                      style={
-                        isSelected
-                          ? { backgroundColor: tag.color, borderColor: tag.color }
-                          : undefined
-                      }
-                    >
-                      {tag.name}
-                      {tag.video_count !== undefined && (
-                        <span className="ml-1 opacity-70">({tag.video_count})</span>
+                      className={cn(
+                        'rounded-8 transition-opacity focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-black focus-visible:ring-2 focus-visible:ring-yellow-300',
+                        isSelected ? 'opacity-100' : 'opacity-60 hover:opacity-100',
                       )}
-                    </Button>
+                      aria-pressed={isSelected}
+                    >
+                      <ChipLabel
+                        variant={isSelected ? 'filled-1' : 'outlined'}
+                        color={resolveTagChipColor(tag.color)}
+                        className="min-h-0 text-oln-14N-100"
+                      >
+                        {tag.name}
+                        {tag.video_count !== undefined && (
+                          <span className="ml-1 opacity-70">({tag.video_count})</span>
+                        )}
+                      </ChipLabel>
+                    </button>
                   );
                 })}
                 <Button

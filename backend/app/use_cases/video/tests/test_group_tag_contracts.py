@@ -142,7 +142,7 @@ class GroupTagContractsUseCaseTests(TestCase):
             members=[VideoGroupMemberEntity(id=1, group_id=20, video_id=10, order=0, video=self.video)],
             video_count=1,
         )
-        self.tag = TagEntity(id=30, user_id=self.user_id, name="t", color="#111111")
+        self.tag = TagEntity(id=30, user_id=self.user_id, name="t", color="gray")
 
     def test_add_video_to_group_raises_explicit_business_exception(self):
         use_case = AddVideoToGroupUseCase(_FakeVideoRepo(self.video), _FakeGroupRepo(self.group))
@@ -314,7 +314,7 @@ class GroupTagContractsUseCaseTests(TestCase):
         result = use_case.execute(
             self.tag.id,
             self.user_id,
-            UpdateTagInput(name="updated", color="#222222"),
+            UpdateTagInput(name="updated", color="blue"),
         )
         self.assertEqual(result.id, self.tag.id)
         self.assertTrue(repo.update_called)
@@ -344,7 +344,7 @@ class GroupTagContractsUseCaseTests(TestCase):
         use_case = CreateTagUseCase(repo)
         result = use_case.execute(
             self.user_id,
-            CreateTagInput(name="tag", color="#111111"),
+            CreateTagInput(name="tag", color="gray"),
         )
         self.assertEqual(result.id, self.tag.id)
         self.assertEqual(result.name, self.tag.name)
@@ -355,7 +355,7 @@ class GroupTagContractsUseCaseTests(TestCase):
         with self.assertRaises(InvalidTagInput):
             use_case.execute(
                 self.user_id,
-                CreateTagInput(name="tag", color="red"),
+                CreateTagInput(name="tag", color="pink"),
             )
 
     def test_update_tag_returns_tag_response_dto(self):
@@ -364,7 +364,7 @@ class GroupTagContractsUseCaseTests(TestCase):
         result = use_case.execute(
             self.tag.id,
             self.user_id,
-            UpdateTagInput(name="updated", color="#222222"),
+            UpdateTagInput(name="updated", color="blue"),
         )
         self.assertEqual(result.id, self.tag.id)
         self.assertEqual(result.name, self.tag.name)
@@ -377,5 +377,5 @@ class GroupTagContractsUseCaseTests(TestCase):
             use_case.execute(
                 self.tag.id,
                 self.user_id,
-                UpdateTagInput(name="   ", color="#222222"),
+                UpdateTagInput(name="   ", color="blue"),
             )
