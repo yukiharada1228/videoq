@@ -11,7 +11,6 @@ from app.domain.video.exceptions import (
     VideoNotInGroup as DomainVideoNotInGroup,
 )
 from app.use_cases.video.create_group_with_detail import CreateVideoGroupWithDetailUseCase
-from app.use_cases.video.create_group import CreateVideoGroupUseCase
 from app.use_cases.video.create_tag import CreateTagUseCase
 from app.use_cases.video.dto import (
     CreateGroupInput,
@@ -36,9 +35,7 @@ from app.use_cases.video.manage_groups import (
     ReorderVideosInGroupUseCase,
 )
 from app.use_cases.video.manage_tags import AddTagsToVideoUseCase, RemoveTagFromVideoUseCase
-from app.use_cases.video.update_group import UpdateVideoGroupUseCase
 from app.use_cases.video.update_group_with_detail import UpdateVideoGroupWithDetailUseCase
-from app.use_cases.video.update_tag import UpdateTagUseCase
 from app.use_cases.video.update_tag_with_detail import UpdateTagWithDetailUseCase
 
 
@@ -319,26 +316,6 @@ class GroupTagContractsUseCaseTests(TestCase):
         self.assertEqual(result.id, self.tag.id)
         self.assertTrue(repo.update_called)
 
-    def test_create_group_returns_list_response_dto(self):
-        repo = _FakeGroupRepo(self.group)
-        use_case = CreateVideoGroupUseCase(repo)
-        result = use_case.execute(self.user_id, CreateGroupInput(name="group", description=""))
-        self.assertEqual(result.id, self.group.id)
-        self.assertEqual(result.name, self.group.name)
-        self.assertTrue(repo.create_called)
-
-    def test_update_group_returns_list_response_dto(self):
-        repo = _FakeGroupRepo(self.group)
-        use_case = UpdateVideoGroupUseCase(repo)
-        result = use_case.execute(
-            self.group.id,
-            self.user_id,
-            UpdateGroupInput(name="updated", description="desc"),
-        )
-        self.assertEqual(result.id, self.group.id)
-        self.assertEqual(result.name, self.group.name)
-        self.assertTrue(repo.update_called)
-
     def test_create_tag_returns_tag_response_dto(self):
         repo = _FakeTagRepo(self.tag)
         use_case = CreateTagUseCase(repo)
@@ -358,21 +335,9 @@ class GroupTagContractsUseCaseTests(TestCase):
                 CreateTagInput(name="tag", color="red"),
             )
 
-    def test_update_tag_returns_tag_response_dto(self):
+    def test_update_tag_with_detail_raises_invalid_tag_input_for_whitespace_name(self):
         repo = _FakeTagRepo(self.tag)
-        use_case = UpdateTagUseCase(repo)
-        result = use_case.execute(
-            self.tag.id,
-            self.user_id,
-            UpdateTagInput(name="updated", color="#222222"),
-        )
-        self.assertEqual(result.id, self.tag.id)
-        self.assertEqual(result.name, self.tag.name)
-        self.assertTrue(repo.update_called)
-
-    def test_update_tag_raises_invalid_tag_input_for_whitespace_name(self):
-        repo = _FakeTagRepo(self.tag)
-        use_case = UpdateTagUseCase(repo)
+        use_case = UpdateTagWithDetailUseCase(repo)
         with self.assertRaises(InvalidTagInput):
             use_case.execute(
                 self.tag.id,

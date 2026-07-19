@@ -222,7 +222,7 @@ graph TB
         CreateTag, GetTagDetail, ListTags, UpdateTag, DeleteTag,
         AddVideoToGroup, AddVideosToGroup, RemoveVideoFromGroup, ReorderVideosInGroup,
         CreateShareLink, DeleteShareLink, AddTagsToVideo, RemoveTagFromVideo,
-        EnforceVideoLimit, IndexVideoTranscript, ReindexAllVideos, RunTranscription"]
+        IndexVideoTranscript, ReindexAllVideos, RunTranscription"]
         UC["chat/ - SendMessage, GetChatHistory, ExportChatHistory,
         SubmitFeedback, GetChatAnalytics"]
         UA["auth/ - Login, Signup, VerifyEmail, RequestPasswordReset, ConfirmPasswordReset,
@@ -243,9 +243,9 @@ graph TB
         DV["video/ - VideoEntity, VideoRepository ABC (Query/Command/Transcription),
         VideoGroupRepository, TagRepository,
         VectorStoreGateway, VideoTaskGateway, VectorIndexingGateway,
-        TranscriptionGateway, FileUrlResolver"]
+        TranscriptionGateway"]
         DC["chat/ - ChatRepository ABC, VideoGroupQueryRepository,
-        RagGateway ABC, KeywordExtractor, SceneVideoInfoProvider,
+        RagGateway ABC, KeywordExtractor,
         ChatLogEntity, ChatAnalyticsRaw, value_objects, services"]
         DA["auth/ - ApiKeyRepository ABC,
         TokenGateway, UserAuthGateway,
@@ -272,16 +272,16 @@ graph TB
         DjangoUserLimitsRepository"]
         IE["external/ - RagChatGateway, DjangoVectorIndexingGateway,
         DjangoVectorStoreGateway, WhisperTranscriptionGateway,
-        DjangoFileUrlResolver, FileUploadGateway,
+        FileUploadGateway,
         scene_indexer, vector_store, rag_service, rag_gateway, llm, prompts"]
         IT[transcription/ - audio_processing, srt_processing, DjangoVideoFileAccessor]
         IA["auth/ - SimpleJWTGateway, DjangoAuthGateway,
         CookieJWTValidator, ApiKeyResolver, ShareTokenResolver"]
         ITk[tasks/ - CeleryVideoTaskGateway, CeleryAuthTaskGateway,
         CeleryEvaluationTaskGateway]
-        IC["chat/ - JanomeNltkKeywordExtractor, DjangoSceneVideoInfoProvider"]
+        IC["chat/ - JanomeNltkKeywordExtractor"]
         ICo["common/ - email, embeddings, whisper_client,
-        query_optimizer, performance_utils, task_helpers,
+        query_optimizer, task_helpers,
         cipher, django_transaction"]
         ISo[scene_otsu/ - splitter, parsers, embedders, utils]
         ISt[storage/ - LocalMediaStorage]

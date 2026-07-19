@@ -195,10 +195,10 @@ graph TB
                 RequestUpload[RequestVideoUploadUseCase]
                 ConfirmUpload[ConfirmVideoUploadUseCase]
                 IndexVideo[IndexVideoTranscriptUseCase]
-                CreateGroup[CreateVideoGroup / CreateVideoGroupWithDetail]
+                CreateGroup[CreateVideoGroupWithDetailUseCase]
                 GetGroup[GetVideoGroupUseCase / GetSharedGroupUseCase]
                 ListGroups[ListVideoGroupsUseCase]
-                UpdateGroup[UpdateVideoGroup / UpdateVideoGroupWithDetail]
+                UpdateGroup[UpdateVideoGroupWithDetailUseCase]
                 DeleteGroup[DeleteVideoGroupUseCase]
                 ManageGroups["AddVideoToGroup, AddVideosToGroup,
                 RemoveVideoFromGroup, ReorderVideosInGroup,
@@ -206,7 +206,7 @@ graph TB
                 CreateTag[CreateTagUseCase]
                 GetTag[GetTagDetailUseCase]
                 ListTags[ListTagsUseCase]
-                UpdateTag[UpdateTag / UpdateTagWithDetail]
+                UpdateTag[UpdateTagWithDetailUseCase]
                 DeleteTag[DeleteTagUseCase]
                 ManageTags[AddTagsToVideo / RemoveTagFromVideo]
                 RunTrans[RunTranscriptionUseCase]
@@ -272,14 +272,12 @@ graph TB
                 VideoTaskGateway,
                 VectorIndexingGateway,
                 TranscriptionGateway"]
-                VideoPorts[FileUrlResolver]
             end
             subgraph ChatDomain["chat/"]
                 ChatRepo[ChatRepository ABC]
                 ChatGroupRepo[VideoGroupQueryRepository ABC]
                 RagGateway[RagGateway ABC]
-                ChatPorts["KeywordExtractor,
-                SceneVideoInfoProvider"]
+                ChatPorts["KeywordExtractor"]
                 ChatServices["services - aggregate_scenes,
                 filter_group_scenes"]
                 ChatVOs["value_objects - ChatSceneLog, KeywordCount"]
@@ -348,7 +346,6 @@ graph TB
                 VectorGW[DjangoVectorIndexingGateway]
                 VectorStoreGW[DjangoVectorStoreGateway]
                 TransGW[WhisperTranscriptionGateway]
-                FileUrlResolver[DjangoFileUrlResolver]
                 FileUploadGW[FileUploadGateway]
                 SceneIdx[scene_indexer]
                 VectorStore[PGVector / vector_store]
@@ -382,14 +379,12 @@ graph TB
             end
             subgraph ChatInfra["chat/"]
                 KwExtractor[JanomeNltkKeywordExtractor]
-                SceneInfoProvider[DjangoSceneVideoInfoProvider]
             end
             subgraph CommonInfra["common/"]
                 EmailModule[email - SMTP sender]
                 EmbeddingsModule[embeddings - embedding factory]
                 WhisperClient[whisper_client]
                 QueryOptimizer[query_optimizer]
-                PerfUtils[performance_utils]
                 TaskHelpers[task_helpers]
                 Cipher[cipher - encryption utilities]
                 DjangoTransaction[django_transaction - TransactionManager impl]

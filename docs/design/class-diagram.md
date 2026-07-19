@@ -395,10 +395,6 @@ classDiagram
         <<abstract>>
         +extract(questions, limit) list~KeywordCount~
     }
-    class SceneVideoInfoProvider {
-        <<abstract>>
-        +get_file_urls_for_ids(video_ids, user_id) Dict
-    }
 
     VideoRepository --|> VideoQueryRepository
     VideoRepository --|> VideoCommandRepository
@@ -433,14 +429,8 @@ classDiagram
     class ListVideoGroupsUseCase {
         +execute(user_id, include_videos) list~GroupOutputDTO~
     }
-    class CreateVideoGroupUseCase {
-        +execute(user_id, input) GroupOutputDTO
-    }
     class CreateVideoGroupWithDetailUseCase {
         +execute(user_id, input) GroupOutputDTO
-    }
-    class UpdateVideoGroupUseCase {
-        +execute(group_id, user_id, input) GroupOutputDTO
     }
     class UpdateVideoGroupWithDetailUseCase {
         +execute(group_id, user_id, input) GroupOutputDTO
@@ -474,9 +464,6 @@ classDiagram
     }
     class CreateTagUseCase {
         +execute(user_id, input) TagOutputDTO
-    }
-    class UpdateTagUseCase {
-        +execute(tag_id, user_id, input) TagOutputDTO
     }
     class UpdateTagWithDetailUseCase {
         +execute(tag_id, user_id, input) TagOutputDTO
