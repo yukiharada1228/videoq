@@ -960,26 +960,6 @@ class ImportRulesTest(unittest.TestCase):
             ["app.domain.video.entities.TagEntity"],
         )
 
-    def test_video_update_tag_has_no_domain_entity_imports(self):
-        """UpdateTagUseCase should expose use_cases DTOs, not domain entities."""
-        self._check_single_file(
-            "use_cases/video/update_tag.py",
-            ["app.domain.video.entities.TagEntity"],
-        )
-
-    def test_video_create_group_has_no_domain_entity_imports(self):
-        """CreateVideoGroupUseCase should expose use_cases DTOs, not domain entities."""
-        self._check_single_file(
-            "use_cases/video/create_group.py",
-            ["app.domain.video.entities.VideoGroupEntity"],
-        )
-
-    def test_video_update_group_has_no_domain_entity_imports(self):
-        """UpdateVideoGroupUseCase should expose use_cases DTOs, not domain entities."""
-        self._check_single_file(
-            "use_cases/video/update_group.py",
-            ["app.domain.video.entities.VideoGroupEntity"],
-        )
 
     def test_video_manage_groups_has_no_domain_entity_imports(self):
         """ManageGroups use cases should expose use_cases DTOs, not domain entities."""

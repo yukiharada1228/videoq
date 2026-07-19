@@ -16,9 +16,7 @@ from app.domain.chat.entities import (
 )
 from app.domain.chat.repositories import ChatRepository, VideoGroupQueryRepository
 from app.domain.chat.value_objects import (
-    ChatSceneLog,
     FeedbackSummary,
-    SceneReference,
     TimeSeriesPoint,
 )
 from app.infrastructure.models import ChatLog, VideoGroup, VideoGroupMember
@@ -137,23 +135,6 @@ class DjangoChatRepository(ChatRepository):
         ChatLog.objects.filter(pk=log.id).update(feedback=feedback)
         updated = ChatLog.objects.select_related("group").get(pk=log.id)
         return _chat_log_to_entity(updated, include_group_fields=True)
-
-    def get_logs_values_for_group(self, group_id: int) -> List[ChatSceneLog]:
-        rows = ChatLog.objects.filter(group_id=group_id).values("question", "citations")
-        result = []
-        for row in rows:
-            refs = [
-                SceneReference(
-                    video_id=rv.get("video_id"),
-                    title=rv.get("title", ""),
-                    start_time=rv.get("start_time"),
-                    end_time=rv.get("end_time"),
-                )
-                for rv in (row["citations"] or [])
-                if rv.get("video_id") and rv.get("start_time")
-            ]
-            result.append(ChatSceneLog(question=row["question"], citations=refs))
-        return result
 
     def delete_logs_for_group(self, group_id: int) -> None:
         ChatLog.objects.filter(group_id=group_id).delete()
