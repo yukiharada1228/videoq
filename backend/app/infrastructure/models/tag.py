@@ -11,9 +11,12 @@ class Tag(models.Model):
     )
     name = models.CharField(max_length=50, db_index=True, help_text="Tag name")
     color = models.CharField(
-        max_length=7,
-        default="#3B82F6",
-        help_text="Tag color in hex format (#RRGGBB)",
+        max_length=20,
+        default="blue",
+        help_text=(
+            "Digital Agency ChipLabel palette name "
+            "(gray, blue, light-blue, cyan, green, lime, yellow, orange, red, magenta, purple)"
+        ),
     )
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 

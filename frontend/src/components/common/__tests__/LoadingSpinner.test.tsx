@@ -3,11 +3,9 @@ import { LoadingSpinner } from '../LoadingSpinner'
 
 describe('LoadingSpinner', () => {
   it('should render spinner', () => {
-    const { container } = render(<LoadingSpinner />)
+    render(<LoadingSpinner />)
 
-    expect(screen.getByRole('status')).toBeInTheDocument()
-    const spinnerRing = container.querySelector('.loading-ring')
-    expect(spinnerRing).toBeInTheDocument()
+    expect(screen.getByRole('progressbar')).toBeInTheDocument()
   })
 
   it('should display custom message', () => {

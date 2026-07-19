@@ -2,6 +2,7 @@ import { BookOpen, ThumbsDown, ThumbsUp } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { Message } from '@/hooks/useChatMessages';
 import { MessageBody } from '@/components/chat/MessageBody';
+import { Button } from '@/components/ui/button';
 
 interface ChatMessageBubbleProps {
   message: Message;
@@ -21,7 +22,7 @@ export function ChatMessageBubble({
   if (message.role === 'user') {
     return (
       <div className="flex flex-col items-end gap-1">
-        <div className="bg-[#006d30] text-white rounded-2xl rounded-tr-none px-4 py-3 text-sm max-w-[90%] shadow-sm">
+        <div className="max-w-[90%] border border-solid-gray-420 bg-solid-gray-50 px-4 py-3 text-std-16N-170 text-solid-gray-800">
           {message.content}
         </div>
       </div>
@@ -30,9 +31,9 @@ export function ChatMessageBubble({
 
   return (
     <div className="flex flex-col items-start gap-1">
-      <div className="bg-white border-l-4 border-[#00652c] rounded-2xl rounded-tl-none p-4 text-sm shadow-sm space-y-2">
-        <div className="flex items-center gap-2 text-[#00652c] font-bold text-xs mb-1">
-          <BookOpen className="w-3.5 h-3.5" />
+      <div className="max-w-[90%] space-y-2 border border-solid-gray-420 border-l-4 border-l-key-900 bg-white p-4 text-std-16N-170">
+        <div className="mb-1 flex items-center gap-2 text-dns-14B-120 font-bold text-key-900">
+          <BookOpen className="h-3.5 w-3.5" />
           AI {t('chat.teacher')}
         </div>
         <MessageBody
@@ -42,24 +43,32 @@ export function ChatMessageBubble({
         />
         {message.chatLogId && (
           <div className="flex gap-2 pt-2">
-            <button
+            <Button
+              type="button"
+              variant="text"
+              size="xs"
               disabled={feedbackUpdatingId === message.chatLogId}
               onClick={() => onFeedback(message.chatLogId!, 'good')}
-              className={`p-1 hover:bg-stone-100 rounded transition-colors disabled:opacity-40 ${
-                message.feedback === 'good' ? 'text-[#00652c]' : 'text-stone-400'
+              className={`min-w-0 p-1 ${
+                message.feedback === 'good' ? 'text-key-900' : 'text-solid-gray-420'
               }`}
+              aria-label={t('chat.feedbackGood')}
             >
-              <ThumbsUp className="w-4 h-4" />
-            </button>
-            <button
+              <ThumbsUp className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="text"
+              size="xs"
               disabled={feedbackUpdatingId === message.chatLogId}
               onClick={() => onFeedback(message.chatLogId!, 'bad')}
-              className={`p-1 hover:bg-stone-100 rounded transition-colors disabled:opacity-40 ${
-                message.feedback === 'bad' ? 'text-red-500' : 'text-stone-400'
+              className={`min-w-0 p-1 ${
+                message.feedback === 'bad' ? 'text-error-1' : 'text-solid-gray-420'
               }`}
+              aria-label={t('chat.feedbackBad')}
             >
-              <ThumbsDown className="w-4 h-4" />
-            </button>
+              <ThumbsDown className="h-4 w-4" />
+            </Button>
           </div>
         )}
       </div>

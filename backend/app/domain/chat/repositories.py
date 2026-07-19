@@ -12,7 +12,6 @@ from app.domain.chat.entities import (
     ChatLogEntity,
     VideoGroupContextEntity,
 )
-from app.domain.chat.value_objects import ChatSceneLog
 
 
 class ChatRepository(ABC):
@@ -52,11 +51,6 @@ class ChatRepository(ABC):
         self, log: ChatLogEntity, feedback: Optional[str]
     ) -> ChatLogEntity:
         """Update the feedback field of a chat log."""
-        ...
-
-    @abstractmethod
-    def get_logs_values_for_group(self, group_id: int) -> List[ChatSceneLog]:
-        """Return scene logs (question + citations) for analytics aggregation."""
         ...
 
     @abstractmethod

@@ -4,7 +4,6 @@ Pure business logic with no external dependencies.
 """
 
 import re
-import secrets
 
 from app.domain.video.exceptions import (
     InvalidShareSlug,
@@ -14,15 +13,6 @@ from app.domain.video.exceptions import (
 )
 from app.domain.video.entities import VideoGroupEntity
 from app.domain.video.status import VideoStatus
-
-
-class ShareLinkService:
-    """Domain service for managing video group share links."""
-
-    @staticmethod
-    def generate_token() -> str:
-        """Generate a cryptographically secure URL-safe share token."""
-        return secrets.token_urlsafe(32)
 
 
 class ShareSlugPolicy:
@@ -114,7 +104,22 @@ class VideoGroupMembershipService:
 class TagPolicy:
     """Domain policy for tag normalization and validation."""
 
-    _HEX_COLOR_PATTERN = re.compile(r"^#[0-9A-Fa-f]{6}$")
+    # Digital Agency ChipLabel palette (shadcn-digital-agency-jp)
+    ALLOWED_COLORS = frozenset(
+        {
+            "gray",
+            "blue",
+            "light-blue",
+            "cyan",
+            "green",
+            "lime",
+            "yellow",
+            "orange",
+            "red",
+            "magenta",
+            "purple",
+        }
+    )
 
     @staticmethod
     def normalize_name(name: str) -> str:
@@ -131,7 +136,7 @@ class TagPolicy:
 
     @classmethod
     def validate_color(cls, color: str) -> str:
-        if not cls._HEX_COLOR_PATTERN.match(color):
+        if color not in cls.ALLOWED_COLORS:
             raise InvalidTagColor()
         return color
 

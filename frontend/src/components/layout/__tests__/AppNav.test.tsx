@@ -1,5 +1,5 @@
 import React from 'react'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import { useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '@/lib/queryKeys'
 import { apiClient } from '@/lib/api'
@@ -25,11 +25,15 @@ function renderWithUser(ui: React.ReactElement) {
   )
 }
 
+function getPrimaryNav() {
+  return screen.getByRole('navigation', { name: 'navigation.menu' })
+}
+
 describe('AppNav - no authenticated user (empty cache)', () => {
   it('highlights home link when activePage="home"', () => {
     render(<AppNav activePage="home" />)
-    const homeLink = screen.getByText('navigation.home')
-    expect(homeLink.closest('a')).toHaveClass('border-b-2')
+    const homeLink = within(getPrimaryNav()).getByText('navigation.home')
+    expect(homeLink.closest('a')).toHaveAttribute('aria-current', 'page')
   })
 
   it('hides videos nav link', () => {
@@ -49,34 +53,34 @@ describe('AppNav - no authenticated user (empty cache)', () => {
 
   it('shows docs nav link', () => {
     render(<AppNav />)
-    expect(screen.getByText('navigation.docs')).toBeInTheDocument()
+    expect(within(getPrimaryNav()).getByText('navigation.docs')).toBeInTheDocument()
   })
 
   it('shows login button', () => {
     render(<AppNav />)
-    expect(screen.getByText('auth.login.submit')).toBeInTheDocument()
+    expect(screen.getAllByText('auth.login.submit').length).toBeGreaterThan(0)
   })
 })
 
 describe('AppNav - authenticated user (cache populated)', () => {
   it('shows videos nav link', () => {
     renderWithUser(<AppNav />)
-    expect(screen.getByText('navigation.videosNav')).toBeInTheDocument()
+    expect(within(getPrimaryNav()).getByText('navigation.videosNav')).toBeInTheDocument()
   })
 
   it('shows groups nav link', () => {
     renderWithUser(<AppNav />)
-    expect(screen.getByText('navigation.groupsNav')).toBeInTheDocument()
+    expect(within(getPrimaryNav()).getByText('navigation.groupsNav')).toBeInTheDocument()
   })
 
   it('shows settings nav link', () => {
     renderWithUser(<AppNav />)
-    expect(screen.getByText('navigation.settings')).toBeInTheDocument()
+    expect(within(getPrimaryNav()).getByText('navigation.settings')).toBeInTheDocument()
   })
 
   it('shows docs nav link', () => {
     renderWithUser(<AppNav />)
-    expect(screen.getByText('navigation.docs')).toBeInTheDocument()
+    expect(within(getPrimaryNav()).getByText('navigation.docs')).toBeInTheDocument()
   })
 })
 
@@ -84,7 +88,7 @@ describe('AppNav - auth cache uninitialized (fetches from API)', () => {
   it('uses getMeOrNull (no redirect side effects) instead of getMe', async () => {
     render(<AppNav />)
     await waitFor(() => {
-      expect(screen.getByText('navigation.videosNav')).toBeInTheDocument()
+      expect(within(getPrimaryNav()).getByText('navigation.videosNav')).toBeInTheDocument()
     })
     expect(apiClient.getMe).not.toHaveBeenCalled()
     expect(apiClient.getMeOrNull).toHaveBeenCalled()
@@ -94,7 +98,7 @@ describe('AppNav - auth cache uninitialized (fetches from API)', () => {
     ;(apiClient.getMeOrNull as ReturnType<typeof vi.fn>).mockResolvedValue({ id: '1', username: 'testuser' })
     render(<AppNav />)
     await waitFor(() => {
-      expect(screen.getByText('navigation.videosNav')).toBeInTheDocument()
+      expect(within(getPrimaryNav()).getByText('navigation.videosNav')).toBeInTheDocument()
     })
     expect(screen.queryByText('auth.login.submit')).not.toBeInTheDocument()
   })
@@ -103,7 +107,7 @@ describe('AppNav - auth cache uninitialized (fetches from API)', () => {
     ;(apiClient.getMeOrNull as ReturnType<typeof vi.fn>).mockResolvedValue(null)
     render(<AppNav />)
     await waitFor(() => {
-      expect(screen.getByText('auth.login.submit')).toBeInTheDocument()
+      expect(screen.getAllByText('auth.login.submit').length).toBeGreaterThan(0)
     })
     expect(screen.queryByText('navigation.videosNav')).not.toBeInTheDocument()
   })

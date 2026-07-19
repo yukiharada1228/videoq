@@ -1,24 +1,36 @@
-"use client"
-
 import * as React from "react"
-import * as LabelPrimitive from "@radix-ui/react-label"
+import { cva, type VariantProps } from "class-variance-authority"
 
 import { cn } from "@/lib/utils"
 
-function Label({
-  className,
-  ...props
-}: React.ComponentProps<typeof LabelPrimitive.Root>) {
-  return (
-    <LabelPrimitive.Root
-      data-slot="label"
-      className={cn(
-        "flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50",
-        className
-      )}
-      {...props}
-    />
-  )
+const labelVariants = cva(
+  "text-solid-gray-800 data-[size=sm]:text-std-16B-170 data-[size=md]:text-std-17B-170 data-[size=lg]:text-std-18B-160"
+)
+
+export type LabelSize = "lg" | "md" | "sm"
+
+export interface LabelProps
+  extends
+    React.ComponentPropsWithoutRef<"label">,
+    VariantProps<typeof labelVariants> {
+  size?: LabelSize
 }
 
-export { Label }
+const Label = React.forwardRef<HTMLLabelElement, LabelProps>(
+  ({ className, size = "md", children, ...props }, ref) => {
+    return (
+      <label
+        ref={ref}
+        data-slot="label"
+        data-size={size}
+        className={cn(labelVariants(), className)}
+        {...props}
+      >
+        {children}
+      </label>
+    )
+  }
+)
+Label.displayName = "Label"
+
+export { Label, labelVariants }

@@ -54,11 +54,6 @@ class UserSerializer(serializers.Serializer):
         return videos.count()
 
 
-class EmailVerificationSerializer(serializers.Serializer):
-    uid = serializers.CharField()
-    token = serializers.CharField()
-
-
 class PasswordResetRequestSerializer(serializers.Serializer):
     email = serializers.EmailField()
 

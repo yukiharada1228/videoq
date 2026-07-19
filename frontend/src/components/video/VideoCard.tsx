@@ -1,13 +1,15 @@
 'use client';
 
-import { useRef, useState, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { VideoInGroup, VideoList as VideoListType } from '@/lib/api';
 import { apiClient } from '@/lib/api';
-import { formatDate, getStatusLabel } from '@/lib/utils/video';
+import { formatDate, getStatusChipColor, getStatusLabel } from '@/lib/utils/video';
 import { Link } from '@/lib/i18n';
 import { useParams } from 'react-router-dom';
 import { TagBadge } from './TagBadge';
+import { ChipLabel } from '@/components/ui/chip-label';
+import { cn } from '@/lib/utils';
 
 interface VideoCardProps {
   video: VideoListType | VideoInGroup;
@@ -34,7 +36,7 @@ function useInView(rootMargin = '200px') {
           setIsInView(true);
         }
       },
-      { rootMargin }
+      { rootMargin },
     );
 
     observer.observe(element);
@@ -47,167 +49,193 @@ function useInView(rootMargin = '200px') {
   return { ref, isInView };
 }
 
-/**
- * Placeholder shown while the video card is outside the viewport.
- * Lightweight SVG icon on a gradient background — no network requests.
- */
-function VideoPlaceholder() {
-  return (
-    <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900">
-      <svg className="w-10 h-10 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-      </svg>
-    </div>
-  );
-}
-
 function getYoutubeThumbnailUrl(videoId?: string | null): string | null {
   if (!videoId) return null;
   return `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  completed: 'bg-[#d3ffd5] text-[#006d30]',
-  processing: 'bg-[#ffdcc3] text-[#2f1500]',
-  indexing: 'bg-[#ffdcc3] text-[#2f1500]',
-  uploading: 'bg-[#ffdcc3] text-[#2f1500]',
-  pending: 'bg-stone-100 text-stone-600',
-  error: 'bg-red-100 text-red-700',
-};
-
 function StatusIcon({ status }: { status: string }) {
   if (status === 'completed') {
     return (
-      <svg className="w-3.5 h-3.5 mr-1 shrink-0" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+      <svg className="mr-1 h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
       </svg>
     );
   }
   if (status === 'processing' || status === 'indexing' || status === 'uploading') {
     return (
-      <svg className="w-3.5 h-3.5 mr-1 shrink-0" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M6 2v6l2.5 2.5L6 13v6l6-2 6 2v-6l-2.5-2.5L18 8V2l-6 2-6-2z"/>
-      </svg>
-    );
-  }
-  if (status === 'error') {
-    return (
-      <svg className="w-3.5 h-3.5 mr-1 shrink-0" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+      <svg className="mr-1 h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+        <path d="M6 2v6l2.5 2.5L6 13v6l6-2 6 2v-6l-2.5-2.5L18 8V2l-6 2-6-2z" />
       </svg>
     );
   }
   return (
-    <svg className="w-3.5 h-3.5 mr-1 shrink-0" viewBox="0 0 24 24" fill="currentColor">
-      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+    <svg className="mr-1 h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" />
     </svg>
   );
 }
 
 function StatusBadgeWithIcon({ status, label }: { status: string; label: string }) {
-  const colorClass = STATUS_COLORS[status] ?? 'bg-stone-100 text-stone-600';
   return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${colorClass}`}>
+    <ChipLabel
+      variant="filled-1"
+      color={getStatusChipColor(status)}
+      className="inline-flex min-h-0 items-center text-oln-14N-100"
+    >
       <StatusIcon status={status} />
       {label}
-    </span>
+    </ChipLabel>
+  );
+}
+
+function VideoPlaceholder() {
+  return (
+    <div className="absolute inset-0 flex items-center justify-center bg-solid-gray-200">
+      <svg className="h-8 w-8 text-solid-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={1.5}
+          d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
+        />
+      </svg>
+    </div>
+  );
+}
+
+function VideoThumbnail({
+  video,
+  videoRef,
+}: {
+  video: VideoListType | VideoInGroup;
+  videoRef: React.RefObject<HTMLVideoElement | null>;
+}) {
+  const { ref: thumbRef, isInView } = useInView('200px');
+
+  const youtubeThumb =
+    video.source_type === 'youtube' ? getYoutubeThumbnailUrl(video.youtube_video_id) : null;
+
+  return (
+    <div ref={thumbRef} className="relative h-full w-full overflow-hidden bg-solid-gray-100">
+      {youtubeThumb ? (
+        <img
+          className="absolute inset-0 h-full w-full object-cover"
+          src={youtubeThumb}
+          alt={video.title}
+          loading="lazy"
+        />
+      ) : video.file ? (
+        isInView ? (
+          <video
+            ref={videoRef}
+            className="absolute inset-0 h-full w-full object-cover"
+            muted
+            playsInline
+            preload="metadata"
+            src={apiClient.getVideoUrl(video.file)}
+          />
+        ) : (
+          <VideoPlaceholder />
+        )
+      ) : (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <svg
+            className="h-8 w-8 text-solid-gray-420"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            aria-hidden
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={1.5}
+              d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
+            />
+          </svg>
+        </div>
+      )}
+    </div>
   );
 }
 
 export function VideoCard({ video, showLink = true, className = '', onClick }: VideoCardProps) {
   const { locale } = useParams<{ locale: string }>();
   const { t } = useTranslation();
-  const { ref: cardRef, isInView } = useInView('200px');
+  const videoRef = useRef<HTMLVideoElement>(null);
 
-  const handleMouseEnter = useCallback((e: React.MouseEvent<HTMLVideoElement>) => {
-    const vid = e.currentTarget;
-    vid.play().catch(() => { });
+  const handleMouseEnter = useCallback(() => {
+    void videoRef.current?.play().catch(() => {});
   }, []);
 
-  const handleMouseLeave = useCallback((e: React.MouseEvent<HTMLVideoElement>) => {
-    const vid = e.currentTarget;
+  const handleMouseLeave = useCallback(() => {
+    const vid = videoRef.current;
+    if (!vid) return;
     vid.pause();
     vid.currentTime = 0;
   }, []);
 
-  const cardContent = (
-    <div className={`h-full flex flex-col bg-white rounded-2xl shadow-[0_4px_20px_rgba(28,25,23,0.06)] overflow-hidden group hover:-translate-y-1 transition-transform duration-200 cursor-pointer ${className}`}>
-      {/* Thumbnail */}
-      <div ref={cardRef} className="relative w-full aspect-video bg-stone-200 overflow-hidden">
-        {video.source_type === 'youtube' && getYoutubeThumbnailUrl(video.youtube_video_id) ? (
-          <img
-            className="w-full h-full object-cover"
-            src={getYoutubeThumbnailUrl(video.youtube_video_id) ?? undefined}
-            alt={video.title}
-            loading="lazy"
-          />
-        ) : video.file ? (
-          <>
-            {isInView ? (
-              <video
-                className="w-full h-full object-cover"
-                muted
-                playsInline
-                preload="metadata"
-                src={apiClient.getVideoUrl(video.file)}
-                onMouseEnter={handleMouseEnter}
-                onMouseLeave={handleMouseLeave}
-              />
-            ) : (
-              <VideoPlaceholder />
-            )}
-          </>
-        ) : (
-          <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-[#f2f4ef] to-[#e7e9e4]">
-            <svg className="w-12 h-12 text-[#becabc]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-            </svg>
-          </div>
-        )}
+  const rowContent = (
+    <div
+      className={cn(
+        'group flex w-full cursor-pointer items-center gap-4 px-2 py-3 md:px-4',
+        className,
+      )}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      <div className="aspect-video w-28 shrink-0 overflow-hidden border border-solid-gray-420 bg-solid-gray-100 sm:w-36">
+        <VideoThumbnail video={video} videoRef={videoRef} />
       </div>
 
-      <div className="p-4 md:p-5 flex flex-col flex-1 gap-2">
-        <div className="flex items-center gap-2">
-          <StatusBadgeWithIcon status={video.status} label={t(getStatusLabel(video.status))} />
-        </div>
-
-        <h3 className="font-bold text-base text-[#191c19] truncate group-hover:text-[#00652c] transition-colors leading-tight">
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-std-16B-170 text-solid-gray-800 group-hover:underline">
           {video.title}
-        </h3>
-
-        <div className="flex items-center text-xs text-[#6f7a6e]">
-          <svg className="w-3.5 h-3.5 mr-1 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-          </svg>
+        </p>
+        <p className="mt-1 text-dns-14N-130 text-solid-gray-600">
           {formatDate(video.uploaded_at, 'full', locale || 'en')}
-        </div>
-
-        {'tags' in video && video.tags && video.tags.length > 0 && (
-          <div className="flex flex-wrap gap-1 pt-0.5">
+        </p>
+        {'tags' in video && video.tags && video.tags.length > 0 ? (
+          <div className="mt-2 flex flex-wrap gap-1">
             {video.tags.map((tag) => (
               <TagBadge key={tag.id} tag={tag} size="sm" />
             ))}
           </div>
-        )}
+        ) : null}
+      </div>
+
+      <div className="shrink-0">
+        <StatusBadgeWithIcon status={video.status} label={t(getStatusLabel(video.status))} />
       </div>
     </div>
   );
 
   if (showLink && 'id' in video) {
     return (
-      <Link href={`/videos/${video.id}`}>
-        {cardContent}
+      <Link href={`/videos/${video.id}`} className="block no-underline">
+        {rowContent}
       </Link>
     );
   }
 
   if (onClick) {
     return (
-      <div onClick={onClick}>
-        {cardContent}
+      <div
+        onClick={onClick}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onClick();
+          }
+        }}
+      >
+        {rowContent}
       </div>
     );
   }
 
-  return cardContent;
+  return rowContent;
 }

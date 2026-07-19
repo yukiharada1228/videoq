@@ -1,5 +1,7 @@
 import { Fragment } from 'react';
 import type { Citation } from '@/lib/api';
+import { linkVariants } from '@/components/ui/link';
+import { cn } from '@/lib/utils';
 
 interface MessageBodyProps {
   content: string;
@@ -48,7 +50,7 @@ export function MessageBody({ content, citations, onVideoNavigate }: MessageBody
   const citationMap = new Map((citations ?? []).map((citation) => [citation.id, citation]));
 
   return (
-    <div className="text-[#3f493f] leading-relaxed whitespace-pre-wrap">
+    <div className="text-solid-gray-700 leading-relaxed whitespace-pre-wrap">
       {normalizedNodes.map((node, i) => {
         if (node.type === 'text') {
           return <Fragment key={`text-${i}`}>{node.value}</Fragment>;
@@ -67,7 +69,7 @@ export function MessageBody({ content, citations, onVideoNavigate }: MessageBody
               <button
                 type="button"
                 onClick={() => onVideoNavigate(video.video_id, video.start_time)}
-                className="inline text-left text-[#00652c] underline decoration-[#00652c]/35 underline-offset-3 hover:text-[#00461e] hover:decoration-[#00461e] transition-colors"
+                className={cn(linkVariants(), 'inline text-left')}
                 title={`${video.title} ${video.start_time}`}
                 aria-label={`${video.title} ${video.start_time}`}
               >

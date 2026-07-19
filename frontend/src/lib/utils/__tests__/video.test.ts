@@ -1,45 +1,55 @@
-import { describe, it, expect } from 'vitest';
-import { getStatusBadgeClassName, getStatusLabel, formatDate } from '../video';
+import { describe, it, expect } from 'vitest'
+import { getStatusBadgeClassName, getStatusChipColor, getStatusLabel, formatDate } from '../video'
 
 describe('video utils', () => {
+  describe('getStatusChipColor', () => {
+    it('should map statuses to chip colors', () => {
+      expect(getStatusChipColor('completed')).toBe('green')
+      expect(getStatusChipColor('pending')).toBe('gray')
+      expect(getStatusChipColor('processing')).toBe('orange')
+      expect(getStatusChipColor('error')).toBe('red')
+      expect(getStatusChipColor('unknown')).toBe('gray')
+    })
+  })
+
   describe('getStatusBadgeClassName', () => {
     it('should return correct class for completed status with default size', () => {
       const result = getStatusBadgeClassName('completed');
-      expect(result).toContain('bg-[#d3ffd5]');
-      expect(result).toContain('text-[#006d30]');
-      expect(result).toContain('px-3 py-1 text-sm'); // md size
+      expect(result).toContain('bg-green-50');
+      expect(result).toContain('text-green-900');
+      expect(result).toContain('px-3 py-1 text-oln-16N-100');
     });
 
     it('should return correct class for pending status with xs size', () => {
       const result = getStatusBadgeClassName('pending', 'xs');
-      expect(result).toContain('bg-stone-100');
-      expect(result).toContain('text-stone-600');
-      expect(result).toContain('px-1.5 py-0.5 text-[10px]');
+      expect(result).toContain('bg-solid-gray-50');
+      expect(result).toContain('text-solid-gray-800');
+      expect(result).toContain('px-1.5 py-0.5 text-oln-14N-100');
     });
 
     it('should return correct class for processing status with sm size', () => {
       const result = getStatusBadgeClassName('processing', 'sm');
-      expect(result).toContain('bg-[#ffdcc3]');
-      expect(result).toContain('text-[#2f1500]');
-      expect(result).toContain('px-2.5 py-0.5 text-xs');
+      expect(result).toContain('bg-orange-50');
+      expect(result).toContain('text-orange-1000');
+      expect(result).toContain('px-2 py-0.5 text-oln-14N-100');
     });
 
     it('should return correct class for error status', () => {
       const result = getStatusBadgeClassName('error');
-      expect(result).toContain('bg-red-100');
-      expect(result).toContain('text-red-700');
+      expect(result).toContain('bg-red-50');
+      expect(result).toContain('text-red-1000');
     });
 
     it('should return correct class for indexing status', () => {
       const result = getStatusBadgeClassName('indexing');
-      expect(result).toContain('bg-[#ffdcc3]');
-      expect(result).toContain('text-[#2f1500]');
+      expect(result).toContain('bg-orange-50');
+      expect(result).toContain('text-orange-1000');
     });
 
     it('should return default class for unknown status', () => {
       const result = getStatusBadgeClassName('unknown');
-      expect(result).toContain('bg-stone-100');
-      expect(result).toContain('text-stone-600');
+      expect(result).toContain('bg-solid-gray-50');
+      expect(result).toContain('text-solid-gray-800');
     });
   });
 

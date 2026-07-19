@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import { DashboardChartTitle } from './DashboardPanel';
 
 interface QuestionTimeSeriesChartProps {
   data: { date: string; count: number }[];
@@ -15,21 +16,22 @@ export function QuestionTimeSeriesChart({ data }: QuestionTimeSeriesChartProps) 
 
   return (
     <div>
-      <h3 className="text-sm font-semibold text-gray-900 mb-3">
-        {t('dashboard.timeSeries.title')}
-      </h3>
+      <DashboardChartTitle>{t('dashboard.timeSeries.title')}</DashboardChartTitle>
       <ResponsiveContainer width="100%" height={220}>
         <LineChart data={chartData} margin={{ left: 0, right: 20, top: 5, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-          <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--color-solid-gray-200)" />
+          <XAxis dataKey="date" tick={{ fontSize: 11, fill: 'var(--color-solid-gray-700)' }} />
+          <YAxis
+            allowDecimals={false}
+            tick={{ fontSize: 11, fill: 'var(--color-solid-gray-700)' }}
+          />
           <Tooltip
             formatter={(value) => [value, t('dashboard.timeSeries.count')]}
           />
           <Line
             type="monotone"
             dataKey="count"
-            stroke="#3b82f6"
+            stroke="var(--color-blue-900)"
             strokeWidth={2}
             dot={{ r: 3 }}
             activeDot={{ r: 5 }}

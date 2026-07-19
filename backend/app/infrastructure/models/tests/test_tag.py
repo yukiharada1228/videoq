@@ -26,11 +26,11 @@ class TagModelTests(TestCase):
         tag = Tag.objects.create(
             user=self.user,
             name="Important",
-            color="#FF0000",
+            color="red",
         )
 
         self.assertEqual(tag.name, "Important")
-        self.assertEqual(tag.color, "#FF0000")
+        self.assertEqual(tag.color, "red")
         self.assertEqual(tag.user, self.user)
 
     def test_default_color(self):
@@ -40,7 +40,7 @@ class TagModelTests(TestCase):
             name="Test Tag",
         )
 
-        self.assertEqual(tag.color, "#3B82F6")
+        self.assertEqual(tag.color, "blue")
 
     def test_created_at_is_auto_set(self):
         """Test that created_at is automatically set"""

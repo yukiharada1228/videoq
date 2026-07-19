@@ -2,8 +2,25 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { ChipLabel } from '@/components/ui/chip-label';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogActions,
+  DialogBody,
+  DialogContent,
+  DialogHeader,
+  DialogHeading,
+  useDialog,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  DEFAULT_TAG_CHIP_COLOR,
+  TAG_CHIP_COLORS,
+  type TagChipColor,
+} from '@/lib/tagColors';
+import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
 
 interface TagCreateDialogProps {
@@ -12,22 +29,29 @@ interface TagCreateDialogProps {
   onCreate: (name: string, color: string) => Promise<void>;
 }
 
-const DEFAULT_COLORS = [
-  '#3B82F6', // blue
-  '#10B981', // green
-  '#F59E0B', // yellow
-  '#EF4444', // red
-  '#8B5CF6', // purple
-  '#EC4899', // pink
-  '#6366F1', // indigo
-  '#14B8A6', // teal
-];
-
 export function TagCreateDialog({ isOpen, onClose, onCreate }: TagCreateDialogProps) {
   const { t } = useTranslation();
   const [name, setName] = useState('');
-  const [color, setColor] = useState(DEFAULT_COLORS[0]);
+  const [color, setColor] = useState<TagChipColor>(DEFAULT_TAG_CHIP_COLOR);
   const [isCreating, setIsCreating] = useState(false);
+
+  const handleClose = () => {
+    if (!isCreating) {
+      setName('');
+      setColor(DEFAULT_TAG_CHIP_COLOR);
+      onClose();
+    }
+  };
+
+  const dialog = useDialog({
+    open: isOpen,
+    onOpenChange: (open) => {
+      if (!open) handleClose();
+    },
+    onRequestClose: (event) => {
+      if (isCreating) event.preventDefault();
+    },
+  });
 
   const handleCreate = async () => {
     if (!name.trim()) return;
@@ -36,7 +60,7 @@ export function TagCreateDialog({ isOpen, onClose, onCreate }: TagCreateDialogPr
     try {
       await onCreate(name.trim(), color);
       setName('');
-      setColor(DEFAULT_COLORS[0]);
+      setColor(DEFAULT_TAG_CHIP_COLOR);
       onClose();
     } catch (error) {
       console.error('Failed to create tag:', error);
@@ -45,90 +69,98 @@ export function TagCreateDialog({ isOpen, onClose, onCreate }: TagCreateDialogPr
     }
   };
 
-  const handleClose = () => {
-    if (!isCreating) {
-      setName('');
-      setColor(DEFAULT_COLORS[0]);
-      onClose();
-    }
-  };
+  if (!isOpen) return null;
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
+    <Dialog {...dialog.dialogProps} width="min(32rem, 92vw)">
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{t('tags.create.title', 'Create New Tag')}</DialogTitle>
-          <DialogDescription>
-            {t('tags.create.description', 'Create a new tag to organize your videos.')}
-          </DialogDescription>
+          <DialogHeading {...dialog.headingProps}>
+            {t('tags.create.title')}
+          </DialogHeading>
         </DialogHeader>
 
-        <div className="space-y-4">
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-[#3f493f] uppercase tracking-wider">
-              {t('tags.create.nameLabel', 'Tag Name')}
-            </label>
-            <input
-              id="tag-name"
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder={t('tags.create.namePlaceholder', 'Enter tag name')}
-              disabled={isCreating}
-              maxLength={50}
-              className="w-full px-4 py-3 bg-[#f2f4ef] border border-transparent rounded-xl text-sm text-[#191c19] placeholder:text-stone-400 focus:outline-none focus:border-[#00652c] focus:bg-white transition-all"
-            />
-          </div>
+        <DialogBody>
+          <p className="mb-4 text-std-16N-170 text-solid-gray-700">
+            {t('tags.create.description')}
+          </p>
 
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-[#3f493f] uppercase tracking-wider">
-              {t('tags.create.colorLabel', 'Tag Color')}
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {DEFAULT_COLORS.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => setColor(c)}
-                  disabled={isCreating}
-                  className={`w-8 h-8 rounded-full transition-all ${
-                    color === c ? 'ring-2 ring-offset-2 ring-[#00652c]' : 'hover:scale-110'
-                  }`}
-                  style={{ backgroundColor: c }}
-                  aria-label={`Select color ${c}`}
-                />
-              ))}
+          <div className="space-y-4">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="tag-name">{t('tags.create.nameLabel')}</Label>
+              <Input
+                id="tag-name"
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder={t('tags.create.namePlaceholder')}
+                disabled={isCreating}
+                maxLength={50}
+                blockSize="md"
+              />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <Label>{t('tags.create.colorLabel')}</Label>
+              <div className="flex flex-wrap gap-2">
+                {TAG_CHIP_COLORS.map((paletteColor) => (
+                  <button
+                    key={paletteColor}
+                    type="button"
+                    onClick={() => setColor(paletteColor)}
+                    disabled={isCreating}
+                    className={cn(
+                      'rounded-8 transition-opacity disabled:cursor-not-allowed disabled:opacity-50',
+                      color === paletteColor
+                        ? 'opacity-100 ring-2 ring-key-900 ring-offset-2'
+                        : 'opacity-70 hover:opacity-100',
+                    )}
+                    aria-label={t('tags.create.selectColor', {
+                      color: paletteColor,
+                      defaultValue: `Select color ${paletteColor}`,
+                    })}
+                    aria-pressed={color === paletteColor}
+                  >
+                    <ChipLabel
+                      variant="filled-1"
+                      color={paletteColor}
+                      className="min-h-0 px-2.5 py-1 text-oln-14N-100"
+                    >
+                      {paletteColor}
+                    </ChipLabel>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <Label>{t('tags.create.preview')}</Label>
+              <div className="rounded-8 border border-solid-gray-300 bg-solid-gray-50 p-3">
+                <ChipLabel variant="outlined" color={color} className="min-h-0">
+                  {name || t('tags.create.previewPlaceholder')}
+                </ChipLabel>
+              </div>
             </div>
           </div>
+        </DialogBody>
 
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-[#3f493f] uppercase tracking-wider">
-              {t('tags.create.preview', 'Preview')}
-            </label>
-            <div className="p-3 border border-stone-200 rounded-xl bg-[#f8faf5]">
-              <span
-                className="inline-flex items-center px-2.5 py-1 rounded-full text-sm font-medium"
-                style={{ backgroundColor: `${color}20`, color: color }}
-              >
-                {name || t('tags.create.previewPlaceholder', 'Tag preview')}
-              </span>
-            </div>
+        <DialogActions>
+          <div className="flex justify-end gap-3">
+            <Button type="button" variant="outline" onClick={handleClose} disabled={isCreating}>
+              {t('common.actions.cancel')}
+            </Button>
+            <Button type="button" onClick={handleCreate} disabled={!name.trim() || isCreating}>
+              {isCreating ? (
+                <span className="flex items-center justify-center">
+                  <InlineSpinner className="mr-2" />
+                  {t('common.actions.creating', 'Creating...')}
+                </span>
+              ) : (
+                t('common.actions.create')
+              )}
+            </Button>
           </div>
-        </div>
-
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={handleClose} disabled={isCreating}>
-            {t('common.actions.cancel')}
-          </Button>
-          <Button onClick={handleCreate} disabled={!name.trim() || isCreating}>
-            {isCreating ? (
-              <span className="flex items-center justify-center">
-                <InlineSpinner className="mr-2" />
-                {t('common.actions.creating', 'Creating...')}
-              </span>
-            ) : t('common.actions.create')}
-          </Button>
-        </DialogFooter>
+        </DialogActions>
       </DialogContent>
     </Dialog>
   );

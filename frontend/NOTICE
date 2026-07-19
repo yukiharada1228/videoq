@@ -1,0 +1,12 @@
+shadcn-digital-agency-jp is an unofficial shadcn/ui native component registry
+inspired by the Digital Agency Design System.
+
+This project is NOT an official Digital Agency (デジタル庁) product.
+
+Portions of this project are derived from or inspired by:
+
+- digital-go-jp/design-system-example-components-react
+  Copyright (c) 2025 デジタル庁
+  Licensed under the MIT License.
+
+See THIRD_PARTY_LICENSES.md for the full third-party license text.

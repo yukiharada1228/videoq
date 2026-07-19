@@ -2,36 +2,26 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { VideoCard } from '../VideoCard'
 
 // Mock IntersectionObserver — immediately report elements as visible
-const mockIntersectionObserver = vi.fn();
+const mockIntersectionObserver = vi.fn()
 mockIntersectionObserver.mockImplementation((callback: IntersectionObserverCallback) => {
-  // Immediately call with isIntersecting: true so video elements render
   callback(
     [{ isIntersecting: true } as IntersectionObserverEntry],
     {} as IntersectionObserver,
-  );
+  )
   return {
     observe: vi.fn(),
     unobserve: vi.fn(),
     disconnect: vi.fn(),
-  };
-});
+  }
+})
 Object.defineProperty(window, 'IntersectionObserver', {
   writable: true,
   value: mockIntersectionObserver,
-});
-
-// Mock next/link
-vi.mock('next/link', () => {
-  const MockLink = ({ children, href }: { children: React.ReactNode; href: string }) => (
-    <a href={href}>{children}</a>
-  )
-  MockLink.displayName = 'MockLink'
-  return MockLink
 })
 
-// Mock video utils
 vi.mock('@/lib/utils/video', () => ({
   getStatusBadgeClassName: vi.fn(() => 'badge-class'),
+  getStatusChipColor: vi.fn(() => 'green'),
   getStatusLabel: vi.fn(() => 'Status Label'),
   formatDate: vi.fn(() => '2024-01-15'),
 }))
@@ -70,11 +60,9 @@ describe('VideoCard', () => {
 
   it('should call onClick when provided', () => {
     const onClick = vi.fn()
-    const { container } = render(<VideoCard video={mockVideo} onClick={onClick} showLink={false} />)
+    render(<VideoCard video={mockVideo} onClick={onClick} showLink={false} />)
 
-    const card = container.querySelector('[onclick]') || container.firstChild
-    expect(card).not.toBeNull()
-    fireEvent.click(card as Element)
+    fireEvent.click(screen.getByRole('button'))
     expect(onClick).toHaveBeenCalled()
   })
 
@@ -106,31 +94,42 @@ describe('VideoCard', () => {
     expect(card).toBeInTheDocument()
   })
 
-  it('should play video on mouse enter', () => {
+  it('should render status and date', () => {
+    render(<VideoCard video={mockVideo} />)
+
+    expect(screen.getByText('Status Label')).toBeInTheDocument()
+    expect(screen.getByText('2024-01-15')).toBeInTheDocument()
+  })
+
+  it('should play video on row mouse enter', () => {
     const { container } = render(<VideoCard video={mockVideo} />)
 
     const video = container.querySelector('video')
     expect(video).not.toBeNull()
     const playSpy = vi.spyOn(video!, 'play').mockResolvedValue(undefined)
+    const row = container.querySelector('.group')
+    expect(row).not.toBeNull()
 
-    fireEvent.mouseEnter(video!)
+    fireEvent.mouseEnter(row!)
 
     expect(playSpy).toHaveBeenCalled()
     playSpy.mockRestore()
   })
 
-  it('should pause video and reset time on mouse leave', () => {
+  it('should pause video and reset time on row mouse leave', () => {
     const { container } = render(<VideoCard video={mockVideo} />)
 
     const video = container.querySelector('video')
     expect(video).not.toBeNull()
-    const pauseSpy = vi.spyOn(video!, 'pause').mockImplementation(() => { })
+    const pauseSpy = vi.spyOn(video!, 'pause').mockImplementation(() => {})
     Object.defineProperty(video!, 'currentTime', {
       writable: true,
       value: 0,
     })
+    const row = container.querySelector('.group')
+    expect(row).not.toBeNull()
 
-    fireEvent.mouseLeave(video!)
+    fireEvent.mouseLeave(row!)
 
     expect(pauseSpy).toHaveBeenCalled()
     expect(video!.currentTime).toBe(0)
@@ -143,10 +142,11 @@ describe('VideoCard', () => {
     const video = container.querySelector('video')
     expect(video).not.toBeNull()
     const playSpy = vi.spyOn(video!, 'play').mockRejectedValue(new Error('Play failed'))
+    const row = container.querySelector('.group')
+    expect(row).not.toBeNull()
 
-    // Should not throw
     expect(() => {
-      fireEvent.mouseEnter(video!)
+      fireEvent.mouseEnter(row!)
     }).not.toThrow()
 
     playSpy.mockRestore()

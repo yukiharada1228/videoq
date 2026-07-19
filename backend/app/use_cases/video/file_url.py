@@ -115,11 +115,6 @@ def to_group_list_response_dtos(groups: Iterable[VideoGroupEntity]) -> List[Vide
     ]
 
 
-def to_group_list_response_dto(group: VideoGroupEntity) -> VideoGroupListResponseDTO:
-    """Convert a single VideoGroupEntity to VideoGroupListResponseDTO."""
-    return to_group_list_response_dtos([group])[0]
-
-
 def to_tag_detail_response_dto(
     tag: TagEntity,
 ) -> TagDetailResponseDTO:

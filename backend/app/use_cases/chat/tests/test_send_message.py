@@ -25,9 +25,6 @@ class _StubChatRepository(ChatRepository):
     def update_feedback(self, log, feedback):
         raise NotImplementedError
 
-    def get_logs_values_for_group(self, group_id: int):
-        raise NotImplementedError
-
     def get_analytics_raw(self, group_id: int):
         raise NotImplementedError
 

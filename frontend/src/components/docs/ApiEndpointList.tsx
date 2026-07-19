@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { API_URL } from '@/lib/api';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { ChipLabel } from '@/components/ui/chip-label';
+import { Disclosure, DisclosureSummary } from '@/components/ui/disclosure';
+import { Heading, HeadingTitle } from '@/components/ui/heading';
+import { Tab, TabItem, TabList, TabPanel, useTabAria } from '@/components/ui/tabs';
 import { useTranslation } from 'react-i18next';
 
 type DocsSection = 'auth' | 'videos' | 'chat' | 'openai';
@@ -395,6 +398,12 @@ export function ApiEndpointList({ section }: ApiEndpointListProps) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeSnippetTab, setActiveSnippetTab] = useState<SnippetTab>('curl');
+  const tabs = useTabAria({
+    defaultSelectedIndex: 0,
+    onTabChange: ({ selectedIndex }) => {
+      setActiveSnippetTab(snippetTabs[selectedIndex] ?? 'curl');
+    },
+  });
 
   useEffect(() => {
     const abortController = new AbortController();
@@ -464,59 +473,64 @@ export function ApiEndpointList({ section }: ApiEndpointListProps) {
   }, [schema, section]);
 
   if (loading) {
-    return <div className="text-sm text-slate-600">{t('docs.api.loading')}</div>;
+    return <p className="text-std-16N-170 text-solid-gray-700">{t('docs.api.loading')}</p>;
   }
 
   if (error) {
-    return <div className="text-sm text-red-600">{t('docs.api.error', { message: error })}</div>;
+    return (
+      <p className="text-std-16N-170 text-error-1">
+        {t('docs.api.error', { message: error })}
+      </p>
+    );
   }
 
   if (endpoints.length === 0) {
-    return <div className="text-sm text-slate-600">{t('docs.api.empty')}</div>;
+    return <p className="text-std-16N-170 text-solid-gray-700">{t('docs.api.empty')}</p>;
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1 text-xs">
-        {snippetTabs.map((tab) => (
-          <button
-            key={tab}
-            type="button"
-            onClick={() => setActiveSnippetTab(tab)}
-            className={`rounded-md px-3 py-1.5 font-medium transition ${
-              activeSnippetTab === tab
-                ? 'bg-slate-900 text-white'
-                : 'text-slate-600 hover:bg-slate-200'
-            }`}
-          >
+    <Tab>
+      <TabList aria-label={t('docs.api.tabs.curl')} {...tabs.getListProps()} className="mb-6">
+        {snippetTabs.map((tab, index) => (
+          <TabItem key={tab} {...tabs.getTabProps(index)}>
             {t(`docs.api.tabs.${tab}`)}
-          </button>
+          </TabItem>
         ))}
-      </div>
+      </TabList>
 
-      {endpoints.map((endpoint) => (
-        <Card key={`${endpoint.method}-${endpoint.path}`}>
-          <CardHeader>
-            <CardTitle className="text-base">
-              <span className="mr-2 rounded bg-slate-900 px-2 py-0.5 text-xs font-semibold tracking-wide text-white">
-                {endpoint.method.toUpperCase()}
-              </span>
-              {endpoint.summary}
-            </CardTitle>
-            <CardDescription className="break-all font-mono text-xs text-slate-600">
-              {endpoint.path}
-            </CardDescription>
-            {endpoint.description && (
-              <CardDescription>{endpoint.description}</CardDescription>
-            )}
-          </CardHeader>
-          <CardContent>
-            <pre className="overflow-x-auto rounded-lg border border-slate-200 bg-slate-950 p-4 text-xs text-slate-100">
-              <code>{endpoint.snippets[activeSnippetTab]}</code>
-            </pre>
-          </CardContent>
-        </Card>
+      {snippetTabs.map((tab, index) => (
+        <TabPanel key={tab} {...tabs.getPanelProps(index)} className="space-y-4">
+          {endpoints.map((endpoint) => (
+            <Disclosure
+              key={`${endpoint.method}-${endpoint.path}-${tab}`}
+              className="border-t border-solid-gray-420 py-4"
+              open
+            >
+              <DisclosureSummary>
+                <span className="flex min-w-0 flex-wrap items-center gap-2">
+                  <ChipLabel variant="filled-2" color="blue" className="min-h-0">
+                    {endpoint.method.toUpperCase()}
+                  </ChipLabel>
+                  <Heading size="16" className="min-w-0">
+                    <HeadingTitle level="h3">{endpoint.summary}</HeadingTitle>
+                  </Heading>
+                </span>
+              </DisclosureSummary>
+              <div className="mt-4 space-y-3 pl-8">
+                <p className="break-all font-mono text-dns-14N-130 text-solid-gray-700">
+                  {endpoint.path}
+                </p>
+                {endpoint.description ? (
+                  <p className="text-std-16N-170 text-solid-gray-700">{endpoint.description}</p>
+                ) : null}
+                <pre className="overflow-x-auto border border-solid-gray-420 bg-solid-gray-800 p-4 text-dns-14N-130 text-white">
+                  <code>{endpoint.snippets[activeSnippetTab]}</code>
+                </pre>
+              </div>
+            </Disclosure>
+          ))}
+        </TabPanel>
       ))}
-    </div>
+    </Tab>
   );
 }
