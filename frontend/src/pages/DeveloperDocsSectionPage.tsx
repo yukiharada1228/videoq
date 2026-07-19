@@ -5,7 +5,14 @@ import { AppPageShell } from '@/components/layout/AppPageShell';
 import { AppPageHeader } from '@/components/layout/AppPageHeader';
 import { ApiEndpointList } from '@/components/docs/ApiEndpointList';
 import { OpenAiSdkExampleList } from '@/components/docs/OpenAiSdkExampleList';
-import { CheckCircle, ClipboardCheck, Braces } from 'lucide-react';
+import {
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  Breadcrumbs,
+  BreadcrumbsLabel,
+} from '@/components/ui/breadcrumbs';
+import { Heading, HeadingTitle } from '@/components/ui/heading';
 
 const sectionIds = ['auth', 'videos', 'chat', 'openai'] as const;
 type SectionId = (typeof sectionIds)[number];
@@ -13,7 +20,6 @@ type SectionId = (typeof sectionIds)[number];
 function isSectionId(value: string): value is SectionId {
   return sectionIds.includes(value as SectionId);
 }
-
 
 export default function DeveloperDocsSectionPage() {
   const { t } = useTranslation();
@@ -31,65 +37,55 @@ export default function DeveloperDocsSectionPage() {
 
   return (
     <AppPageShell activePage="docs">
-      <nav className="flex items-center gap-2 text-sm font-medium text-[#6f7a6e] mb-6">
-        <Link href="/docs" className="hover:text-[#00652c] transition-colors">
-          ← {t('docs.backToHome')}
-        </Link>
-        <span className="opacity-30">/</span>
-        <span className="text-[#191c19]">{sectionTitle}</span>
-      </nav>
+      <Breadcrumbs className="mb-6" aria-label={t('docs.backToHome')}>
+        <BreadcrumbsLabel className="sr-only">{t('docs.backToHome')}</BreadcrumbsLabel>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link href="/docs">{t('docs.home.title')}</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbItem isCurrent>{sectionTitle}</BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumbs>
 
       <AppPageHeader
+        badge={t('docs.section.autoLabel')}
         title={sectionTitle}
         description={sectionDescription}
-        action={(
-          <span className="inline-flex items-center gap-2 rounded-full bg-[#d3ffd5] px-4 py-2 text-xs font-bold uppercase tracking-wider text-[#006d30]">
-            <Braces className="w-4 h-4" />
-            {t('docs.section.autoLabel')}
-          </span>
-        )}
       />
 
-      <div className="space-y-6">
-        <section className="bg-white rounded-2xl shadow-[0_4px_20px_rgba(28,25,23,0.04)] p-5">
-          <div className="flex items-center gap-3 mb-5">
-            <div className="w-9 h-9 rounded-xl bg-[#f0fdf4] flex items-center justify-center">
-              <ClipboardCheck className="w-5 h-5 text-[#00652c]" />
-            </div>
-            <div>
-              <h2 className="text-base font-bold text-[#191c19]">{t('docs.section.checklistTitle')}</h2>
-              <p className="text-sm text-[#6f7a6e]">{t('docs.section.checklistDescription')}</p>
-            </div>
-          </div>
-          <ul className="space-y-3">
-            {bullets.map((bullet) => (
-              <li key={bullet} className="flex items-start gap-4 p-4 rounded-xl bg-[#f2f4ef] hover:bg-[#ecefea] transition-colors">
-                <CheckCircle className="w-5 h-5 text-emerald-600 mt-0.5 shrink-0" />
-                <span className="text-sm text-[#191c19] leading-relaxed">{bullet}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
+      <section className="mb-12">
+        <Heading size="18" hasChip className="mb-4">
+          <HeadingTitle level="h2">{t('docs.section.checklistTitle')}</HeadingTitle>
+        </Heading>
+        <p className="mb-4 text-std-16N-170 text-solid-gray-700">
+          {t('docs.section.checklistDescription')}
+        </p>
+        <ul className="list-disc space-y-3 border-t border-solid-gray-420 py-4 pl-6 marker:text-key-900">
+          {bullets.map((bullet) => (
+            <li key={bullet} className="text-std-16N-170 text-solid-gray-800">
+              {bullet}
+            </li>
+          ))}
+        </ul>
+      </section>
 
-        <section className="bg-white rounded-2xl shadow-[0_4px_20px_rgba(28,25,23,0.04)] p-5">
-          <div className="flex items-center justify-between mb-5 gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-[#f0fdf4] flex items-center justify-center">
-                <Braces className="w-5 h-5 text-[#00652c]" />
-              </div>
-              <div>
-                <h2 className="text-base font-bold text-[#191c19]">
-                  {t(isOpenAi ? 'docs.openai.exampleTitle' : 'docs.section.autoExampleTitle')}
-                </h2>
-                <p className="text-sm text-[#6f7a6e]">
-                  {t(isOpenAi ? 'docs.openai.exampleDescription' : 'docs.section.autoExampleDescription')}
-                </p>
-              </div>
-            </div>
-          </div>
-          {isOpenAi ? <OpenAiSdkExampleList /> : <ApiEndpointList section={section} />}
-        </section>
-      </div>
+      <section className="mb-8">
+        <Heading size="18" hasChip className="mb-4">
+          <HeadingTitle level="h2">
+            {t(isOpenAi ? 'docs.openai.exampleTitle' : 'docs.section.autoExampleTitle')}
+          </HeadingTitle>
+        </Heading>
+        <p className="mb-6 text-std-16N-170 text-solid-gray-700">
+          {t(
+            isOpenAi
+              ? 'docs.openai.exampleDescription'
+              : 'docs.section.autoExampleDescription',
+          )}
+        </p>
+        {isOpenAi ? <OpenAiSdkExampleList /> : <ApiEndpointList section={section} />}
+      </section>
     </AppPageShell>
   );
 }

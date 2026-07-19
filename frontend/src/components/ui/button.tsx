@@ -1,60 +1,76 @@
+// Portions derived from or inspired by digital-go-jp/design-system-example-components-react.
+// Original code licensed under the MIT License.
+// See THIRD_PARTY_LICENSES.md for details.
 import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { cva, type VariantProps } from "class-variance-authority"
 
 import { cn } from "@/lib/utils"
 
+const solidStyle =
+  "border-4 border-double border-transparent bg-key-900 text-white hover:bg-key-1000 hover:underline active:bg-key-1200 active:underline disabled:bg-solid-gray-300 disabled:text-solid-gray-50 aria-disabled:bg-solid-gray-300 aria-disabled:text-solid-gray-50"
+
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-bold transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
+  "inline-flex items-center justify-center whitespace-nowrap underline-offset-[calc(3/16*1rem)] focus-visible:outline focus-visible:outline-4 focus-visible:outline-black focus-visible:outline-offset-[calc(2/16*1rem)] focus-visible:ring-[calc(2/16*1rem)] focus-visible:ring-yellow-300 disabled:pointer-events-none disabled:forced-colors:border-[GrayText] disabled:forced-colors:text-[GrayText] aria-disabled:pointer-events-none aria-disabled:forced-colors:border-[GrayText] aria-disabled:forced-colors:text-[GrayText]",
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/90",
-        destructive:
-          "bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60",
+        solid: solidStyle,
+        "solid-fill": solidStyle,
         outline:
-          "border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50",
-        secondary:
-          "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-        ghost:
-          "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
-        link: "text-primary underline-offset-4 hover:underline",
+          "border border-current bg-white text-key-900 hover:bg-key-200 hover:text-key-1000 hover:underline active:bg-key-300 active:text-key-1200 active:underline disabled:bg-white disabled:text-solid-gray-300 aria-disabled:bg-white aria-disabled:text-solid-gray-300",
+        text: "text-key-900 underline hover:bg-key-50 hover:text-key-1000 hover:decoration-[calc(3/16*1rem)] active:bg-key-100 active:text-key-1200 focus-visible:bg-yellow-300 disabled:bg-transparent disabled:focus-visible:bg-yellow-300 disabled:text-solid-gray-300 aria-disabled:bg-transparent aria-disabled:focus-visible:bg-yellow-300 aria-disabled:text-solid-gray-300",
       },
       size: {
-        default: "h-9 px-4 py-2 has-[>svg]:px-3",
-        sm: "h-8 rounded-xl gap-1.5 px-3 has-[>svg]:px-2.5",
-        lg: "h-10 rounded-xl px-6 has-[>svg]:px-4",
-        icon: "size-9",
-        "icon-sm": "size-8",
-        "icon-lg": "size-10",
+        lg: "min-w-[calc(136/16*1rem)] min-h-14 rounded-8 px-4 py-3 text-oln-16B-100",
+        md: "min-w-24 min-h-12 rounded-8 px-4 py-2 text-oln-16B-100",
+        sm: "relative min-w-20 min-h-9 rounded-6 px-3 py-0.5 text-oln-16B-100 after:absolute after:inset-x-0 after:-inset-y-full after:m-auto after:h-[44px]",
+        xs: "relative min-w-18 min-h-7 rounded-4 px-2 py-0.5 text-oln-14B-100 after:absolute after:inset-x-0 after:-inset-y-full after:m-auto after:h-[44px]",
       },
     },
     defaultVariants: {
-      variant: "default",
-      size: "default",
+      variant: "solid",
+      size: "md",
     },
   }
 )
 
-function Button({
-  className,
-  variant,
-  size,
-  asChild = false,
-  ...props
-}: React.ComponentProps<"button"> &
+type ButtonProps = React.ComponentProps<"button"> &
   VariantProps<typeof buttonVariants> & {
     asChild?: boolean
-  }) {
-  const Comp = asChild ? Slot : "button"
+  }
 
-  return (
-    <Comp
-      data-slot="button"
-      className={cn(buttonVariants({ variant, size, className }))}
-      {...props}
-    />
-  )
-}
+const isAriaDisabled = (value: unknown) => value === true || value === "true"
+
+const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ className, variant, size, asChild = false, onClick, ...props }, ref) => {
+    const Comp = asChild ? Slot : "button"
+
+    const isDisabled =
+      Boolean(props.disabled) || isAriaDisabled(props["aria-disabled"])
+
+    const handleClick = (
+      event: React.MouseEvent<HTMLButtonElement, MouseEvent>
+    ) => {
+      if (isDisabled) {
+        event.preventDefault()
+        return
+      }
+      onClick?.(event)
+    }
+
+    return (
+      <Comp
+        ref={ref}
+        data-slot="button"
+        className={cn(buttonVariants({ variant, size }), className)}
+        onClick={handleClick}
+        {...props}
+      />
+    )
+  }
+)
+Button.displayName = "Button"
 
 export { Button, buttonVariants }
+export type { ButtonProps }

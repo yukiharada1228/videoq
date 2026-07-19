@@ -14,7 +14,14 @@ interface TagFilterPanelProps {
   disabled?: boolean;
 }
 
-export function TagFilterPanel({ tags, selectedTagIds, onToggle, onClear, onManageTags, disabled = false }: TagFilterPanelProps) {
+export function TagFilterPanel({
+  tags,
+  selectedTagIds,
+  onToggle,
+  onClear,
+  onManageTags,
+  disabled = false,
+}: TagFilterPanelProps) {
   const { t } = useTranslation();
 
   if (tags.length === 0) {
@@ -22,18 +29,20 @@ export function TagFilterPanel({ tags, selectedTagIds, onToggle, onClear, onMana
   }
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-4">
-      <div className="flex items-center justify-between mb-3">
+    <div className="rounded-8 border border-solid-gray-300 bg-white p-4">
+      <div className="mb-3 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <h3 className="text-sm font-medium text-gray-700">{t('tags.filter.title', 'Filter by Tags')}</h3>
+          <h3 className="text-std-16B-170 text-solid-gray-800">{t('tags.filter.title')}</h3>
           {onManageTags && (
             <Button
-              variant="ghost"
-              size="icon"
+              type="button"
+              variant="text"
+              size="xs"
               onClick={onManageTags}
               disabled={disabled}
-              className="h-6 w-6 text-gray-400 hover:text-gray-700"
-              title={t('tags.management.title', 'Tag Management')}
+              className="min-w-6 px-1 text-solid-gray-420 hover:text-solid-gray-800"
+              title={t('tags.management.title')}
+              aria-label={t('tags.management.title')}
             >
               <Settings2 className="h-4 w-4" />
             </Button>
@@ -41,13 +50,14 @@ export function TagFilterPanel({ tags, selectedTagIds, onToggle, onClear, onMana
         </div>
         {selectedTagIds.length > 0 && (
           <Button
-            variant="ghost"
+            type="button"
+            variant="text"
             size="sm"
             onClick={onClear}
             disabled={disabled}
-            className="text-xs h-7"
+            className="h-7 min-w-0 px-2 text-xs"
           >
-            {t('tags.filter.clear', 'Clear')}
+            {t('tags.filter.clear')}
           </Button>
         )}
       </div>
@@ -58,15 +68,19 @@ export function TagFilterPanel({ tags, selectedTagIds, onToggle, onClear, onMana
           return (
             <button
               key={tag.id}
+              type="button"
               onClick={() => onToggle(tag.id)}
               disabled={disabled}
-              className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium transition-all ${isSelected
-                ? 'ring-2 ring-offset-2 opacity-100'
-                : 'opacity-60 hover:opacity-80'
-                }`}
+              className={`inline-flex items-center rounded-full px-3 py-1.5 text-sm font-medium transition-opacity disabled:cursor-not-allowed ${
+                isSelected ? 'opacity-100' : 'opacity-60 hover:opacity-80'
+              }`}
               style={{
                 backgroundColor: isSelected ? `${tag.color}30` : `${tag.color}20`,
                 color: tag.color,
+                ...(isSelected && {
+                  outline: `2px solid ${tag.color}`,
+                  outlineOffset: '2px',
+                }),
               }}
             >
               {tag.name}
@@ -79,8 +93,8 @@ export function TagFilterPanel({ tags, selectedTagIds, onToggle, onClear, onMana
       </div>
 
       {selectedTagIds.length > 0 && (
-        <div className="mt-3 pt-3 border-t border-gray-200">
-          <p className="text-xs text-gray-500">
+        <div className="mt-3 border-t border-solid-gray-200 pt-3">
+          <p className="text-xs text-solid-gray-600">
             {t('tags.filter.selected', { count: selectedTagIds.length })}
           </p>
         </div>

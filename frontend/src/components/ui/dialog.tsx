@@ -1,143 +1,268 @@
-"use client"
-
+// Portions derived from or inspired by digital-go-jp/design-system-example-components-react.
+// Original code licensed under the MIT License.
+// See THIRD_PARTY_LICENSES.md for details.
 import * as React from "react"
-import * as DialogPrimitive from "@radix-ui/react-dialog"
-import { XIcon } from "lucide-react"
+import { cva } from "class-variance-authority"
 
 import { cn } from "@/lib/utils"
 
-function Dialog({
-  ...props
-}: React.ComponentProps<typeof DialogPrimitive.Root>) {
-  return <DialogPrimitive.Root data-slot="dialog" {...props} />
+export const dialogVariants = cva(
+  "group/modal-dialog inset-0 w-auto h-auto max-w-none max-h-none border-0 bg-transparent px-4 [container-type:inline-size] [color-scheme:dark] break-words text-std-16N-170 [&:modal]:flex [&:modal]:flex-col [&:modal]:items-center backdrop:bg-opacity-gray-600 forced-colors:backdrop:bg-[#000b] [scrollbar-gutter:stable] data-[scroll=inner]:[scrollbar-gutter:auto]"
+)
+
+export type DialogScroll = "inner" | "outer"
+
+export type DialogProps = React.ComponentProps<"dialog"> & {
+  scroll?: DialogScroll
+  width?: string
 }
 
-function DialogTrigger({
-  ...props
-}: React.ComponentProps<typeof DialogPrimitive.Trigger>) {
-  return <DialogPrimitive.Trigger data-slot="dialog-trigger" {...props} />
-}
+const Dialog = React.forwardRef<HTMLDialogElement, DialogProps>(
+  ({ children, className, scroll, width, style, ...props }, ref) => {
+    const mergedStyle: React.CSSProperties = {
+      ...style,
+      ["--modal-dialog-width" as string]: width ?? "fit-content",
+    }
 
-function DialogPortal({
-  ...props
-}: React.ComponentProps<typeof DialogPrimitive.Portal>) {
-  return <DialogPrimitive.Portal data-slot="dialog-portal" {...props} />
-}
-
-function DialogClose({
-  ...props
-}: React.ComponentProps<typeof DialogPrimitive.Close>) {
-  return <DialogPrimitive.Close data-slot="dialog-close" {...props} />
-}
-
-function DialogOverlay({
-  className,
-  ...props
-}: React.ComponentProps<typeof DialogPrimitive.Overlay>) {
-  return (
-    <DialogPrimitive.Overlay
-      data-slot="dialog-overlay"
-      className={cn(
-        "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-50 bg-black/50",
-        className
-      )}
-      {...props}
-    />
-  )
-}
-
-function DialogContent({
-  className,
-  children,
-  showCloseButton = true,
-  ...props
-}: React.ComponentProps<typeof DialogPrimitive.Content> & {
-  showCloseButton?: boolean
-}) {
-  return (
-    <DialogPortal data-slot="dialog-portal">
-      <DialogOverlay />
-      <DialogPrimitive.Content
-        data-slot="dialog-content"
-        className={cn(
-          "bg-white data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-2xl border border-stone-200/60 p-6 shadow-[0_8px_30px_rgba(28,25,23,0.12)] duration-200 sm:max-w-lg",
-          className
-        )}
+    return (
+      <dialog
+        ref={ref}
+        data-slot="dialog"
+        data-scroll={scroll}
+        style={mergedStyle}
+        className={cn(dialogVariants(), className)}
         {...props}
       >
+        <div className="shrink-[9999] w-px h-[calc(120/16*1rem)] min-h-4" />
         {children}
-        {showCloseButton && (
-          <DialogPrimitive.Close
-            data-slot="dialog-close"
-            className="absolute top-4 right-4 p-1.5 rounded-full text-stone-400 hover:text-stone-600 hover:bg-stone-100 transition-colors disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
-          >
-            <XIcon />
-            <span className="sr-only">Close</span>
-          </DialogPrimitive.Close>
-        )}
-      </DialogPrimitive.Content>
-    </DialogPortal>
-  )
-}
+        <div className="shrink-[9999] w-px h-[calc(120/16*1rem)] min-h-4" />
+      </dialog>
+    )
+  }
+)
+Dialog.displayName = "Dialog"
 
-function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
-  return (
-    <div
-      data-slot="dialog-header"
-      className={cn("flex flex-col gap-2 text-center sm:text-left", className)}
-      {...props}
-    />
-  )
-}
+export type DialogContentProps = React.ComponentProps<"div">
 
-function DialogFooter({ className, ...props }: React.ComponentProps<"div">) {
-  return (
+const DialogContent = React.forwardRef<HTMLDivElement, DialogContentProps>(
+  ({ className, ...props }, ref) => (
     <div
-      data-slot="dialog-footer"
+      ref={ref}
+      data-slot="dialog-content"
       className={cn(
-        "flex flex-col-reverse gap-2 sm:flex-row sm:justify-end",
+        "flex flex-col gap-y-3 shrink-0 w-[var(--modal-dialog-width)] min-w-[min(30rem,calc(100cqw-2rem))] max-w-full min-h-0 rounded-8 border border-black bg-white shadow-3 text-solid-gray-800 [color-scheme:light] md:gap-y-4 group-data-[scroll=inner]/modal-dialog:shrink group-data-[scroll=inner]/modal-dialog:[scrollbar-width:thin] group-data-[scroll=inner]/modal-dialog:[&:not(:has(.modal-dialog-scroll-area))]:overflow-y-auto",
         className
       )}
       {...props}
     />
   )
-}
+)
+DialogContent.displayName = "DialogContent"
 
-function DialogTitle({
-  className,
-  ...props
-}: React.ComponentProps<typeof DialogPrimitive.Title>) {
-  return (
-    <DialogPrimitive.Title
-      data-slot="dialog-title"
-      className={cn("text-lg leading-none font-extrabold text-[#191c19]", className)}
+export type DialogHeaderProps = React.ComponentProps<"div">
+
+const DialogHeader = React.forwardRef<HTMLDivElement, DialogHeaderProps>(
+  ({ className, ...props }, ref) => (
+    <div
+      ref={ref}
+      data-slot="dialog-header"
+      className={cn(
+        "flex items-start shrink-0 gap-x-4 min-w-0 pt-2 px-4 md:pt-6 md:px-6",
+        className
+      )}
       {...props}
     />
   )
-}
+)
+DialogHeader.displayName = "DialogHeader"
 
-function DialogDescription({
-  className,
-  ...props
-}: React.ComponentProps<typeof DialogPrimitive.Description>) {
-  return (
-    <DialogPrimitive.Description
-      data-slot="dialog-description"
-      className={cn("text-[#6f7a6e] text-sm", className)}
+export type DialogHeadingProps = React.ComponentProps<"h2">
+
+const DialogHeading = React.forwardRef<HTMLHeadingElement, DialogHeadingProps>(
+  ({ className, tabIndex = -1, ...props }, ref) => (
+    <h2
+      ref={ref}
+      data-slot="dialog-heading"
+      tabIndex={tabIndex}
+      className={cn(
+        "grow min-w-0 text-std-24B-150 md:text-std-28B-150 focus-visible:outline-none focus-visible:rounded-none focus-visible:shadow-none",
+        className
+      )}
       {...props}
     />
   )
+)
+DialogHeading.displayName = "DialogHeading"
+
+export type DialogCloseProps = Omit<React.ComponentProps<"button">, "children">
+
+const DialogClose = React.forwardRef<HTMLButtonElement, DialogCloseProps>(
+  ({ className, type = "button", ...props }, ref) => (
+    <button
+      ref={ref}
+      data-slot="dialog-close"
+      type={type}
+      className={cn(
+        "flex items-center shrink-0 gap-x-1 w-fit rounded-6 touch-manipulation pt-1 px-3 pb-1.5 text-solid-gray-800 text-oln-16N-100 hover:bg-solid-gray-50 hover:underline hover:underline-offset-[calc(3/16*1rem)] focus-visible:outline focus-visible:outline-4 focus-visible:outline-black focus-visible:outline-offset-[calc(2/16*1rem)] focus-visible:bg-yellow-300 focus-visible:ring-[calc(2/16*1rem)] focus-visible:ring-yellow-300",
+        className
+      )}
+      {...props}
+    >
+      <svg
+        className="mt-[calc(2/16*1rem)] w-6 h-6 shrink-0 text-black forced-colors:text-current"
+        width="24"
+        height="24"
+        viewBox="0 0 120 120"
+        aria-hidden="true"
+      >
+        <path
+          d="M32 95L25 88L53 60L25 32L32 25L60 53L88 25L95 32L67 60L95 88L88 95L60 67L32 95Z"
+          fill="currentColor"
+        />
+      </svg>
+      閉じる
+    </button>
+  )
+)
+DialogClose.displayName = "DialogClose"
+
+export type DialogBodyProps = React.ComponentProps<"div">
+
+const DialogBody = React.forwardRef<HTMLDivElement, DialogBodyProps>(
+  ({ className, ...props }, ref) => (
+    <div
+      ref={ref}
+      data-slot="dialog-body"
+      className={cn("shrink-0 min-w-0 px-4 pb-8 md:px-6", className)}
+      {...props}
+    />
+  )
+)
+DialogBody.displayName = "DialogBody"
+
+export type DialogActionsProps = React.ComponentProps<"div">
+
+const DialogActions = React.forwardRef<HTMLDivElement, DialogActionsProps>(
+  ({ className, ...props }, ref) => (
+    <div
+      ref={ref}
+      data-slot="dialog-actions"
+      className={cn("shrink-0 min-w-0 px-4 pb-4 md:px-6 md:pb-6", className)}
+      {...props}
+    />
+  )
+)
+DialogActions.displayName = "DialogActions"
+
+export type DialogScrollAreaProps = React.ComponentProps<"div">
+
+const DialogScrollArea = React.forwardRef<
+  HTMLDivElement,
+  DialogScrollAreaProps
+>(({ className, ...props }, ref) => (
+  <div
+    ref={ref}
+    data-slot="dialog-scroll-area"
+    className={cn(
+      "modal-dialog-scroll-area flex flex-col gap-y-3 overflow-y-auto [scrollbar-width:thin] [&:not(:first-child)]:-mt-1 [&:not(:first-child)]:border-t [&:not(:first-child)]:border-solid-gray-600 [&:not(:last-child)]:mb-1 [&:not(:last-child)]:border-b [&:not(:last-child)]:border-solid-gray-600 md:gap-y-4 md:[&:not(:first-child)]:mt-2 md:[&:not(:last-child)]:mb-2",
+      className
+    )}
+    {...props}
+  />
+))
+DialogScrollArea.displayName = "DialogScrollArea"
+
+export type DialogRequestCloseEvent = {
+  defaultPrevented: boolean
+  preventDefault: () => void
+}
+
+export type UseDialogOptions = {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onRequestClose?: (event: DialogRequestCloseEvent) => void
+}
+
+export type UseDialogResult = {
+  dialogProps: {
+    ref: React.RefObject<HTMLDialogElement | null>
+    "aria-labelledby": string
+  }
+  headingProps: {
+    ref: React.RefObject<HTMLHeadingElement | null>
+    id: string
+  }
+  closeButtonProps: {
+    onClick: () => void
+  }
+}
+
+export const useDialog = (options: UseDialogOptions): UseDialogResult => {
+  const { open, onOpenChange, onRequestClose } = options
+  const dialogRef = React.useRef<HTMLDialogElement>(null)
+  const headingRef = React.useRef<HTMLHeadingElement>(null)
+  const headingId = React.useId()
+
+  const executeRequestClose = () => {
+    const event: DialogRequestCloseEvent = {
+      defaultPrevented: false,
+      preventDefault() {
+        this.defaultPrevented = true
+      },
+    }
+    onRequestClose?.(event)
+    if (!event.defaultPrevented) onOpenChange(false)
+  }
+
+  React.useEffect(() => {
+    const dialog = dialogRef.current
+    if (!dialog) return
+
+    if (open) {
+      if (!dialog.open) {
+        dialog.showModal()
+        headingRef.current?.focus()
+      }
+    } else {
+      if (dialog.open) dialog.close()
+    }
+  }, [open])
+
+  React.useEffect(() => {
+    const dialog = dialogRef.current
+    if (!dialog) return
+
+    const handleCancel = (e: Event) => {
+      e.preventDefault()
+      executeRequestClose()
+    }
+
+    dialog.addEventListener("cancel", handleCancel)
+    return () => dialog.removeEventListener("cancel", handleCancel)
+  })
+
+  return {
+    dialogProps: {
+      ref: dialogRef,
+      "aria-labelledby": headingId,
+    },
+    headingProps: {
+      ref: headingRef,
+      id: headingId,
+    },
+    closeButtonProps: {
+      onClick: () => executeRequestClose(),
+    },
+  }
 }
 
 export {
   Dialog,
-  DialogClose,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
   DialogHeader,
-  DialogOverlay,
-  DialogPortal,
-  DialogTitle,
-  DialogTrigger,
+  DialogHeading,
+  DialogClose,
+  DialogBody,
+  DialogActions,
+  DialogScrollArea,
 }

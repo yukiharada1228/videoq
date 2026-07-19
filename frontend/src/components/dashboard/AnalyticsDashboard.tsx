@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import type { ChatAnalytics, ChatAnalyticsKeywords, EvaluationSummary } from '@/lib/api';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { DashboardEmptyState } from './DashboardEmptyState';
+import { DashboardPanel } from './DashboardPanel';
 import { QuestionTimeSeriesChart } from './QuestionTimeSeriesChart';
 import { FeedbackDonutChart } from './FeedbackDonutChart';
 import { KeywordCloudChart } from './KeywordCloudChart';
@@ -28,7 +29,7 @@ export function AnalyticsDashboard({
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center py-16">
+      <div className="flex items-center justify-center py-16">
         <LoadingSpinner />
       </div>
     );
@@ -40,8 +41,10 @@ export function AnalyticsDashboard({
 
   return (
     <div className="space-y-6">
-      <div className="text-sm text-gray-600">
-        <span className="font-medium">{t('dashboard.totalQuestions', { count: data.summary.total_questions })}</span>
+      <div className="text-std-16N-170 text-solid-gray-700">
+        <span className="font-medium">
+          {t('dashboard.totalQuestions', { count: data.summary.total_questions })}
+        </span>
         {data.summary.date_range.first && data.summary.date_range.last && (
           <span className="ml-3">
             {t('dashboard.dateRange', {
@@ -52,34 +55,37 @@ export function AnalyticsDashboard({
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {data.time_series.length > 0 && (
-          <div className="bg-white border border-gray-200 rounded-lg p-4">
+          <DashboardPanel>
             <QuestionTimeSeriesChart data={data.time_series} />
-          </div>
+          </DashboardPanel>
         )}
 
-        <div className="bg-white border border-gray-200 rounded-lg p-4">
+        <DashboardPanel>
           <FeedbackDonutChart data={data.feedback} />
-        </div>
+        </DashboardPanel>
 
-        <div className="bg-white border border-gray-200 rounded-lg p-4">
+        <DashboardPanel>
           <EvaluationSummaryCard
             summary={evaluationSummary}
             isLoading={isEvaluationLoading}
           />
-        </div>
+        </DashboardPanel>
 
         {isKeywordsLoading && (
-          <div className="bg-white border border-gray-200 rounded-lg p-4 flex justify-center items-center" data-testid="keywords-loading">
+          <DashboardPanel
+            className="flex items-center justify-center"
+            data-testid="keywords-loading"
+          >
             <LoadingSpinner />
-          </div>
+          </DashboardPanel>
         )}
 
         {!isKeywordsLoading && keywordsData && keywordsData.keywords.length > 0 && (
-          <div className="bg-white border border-gray-200 rounded-lg p-4">
+          <DashboardPanel>
             <KeywordCloudChart data={keywordsData.keywords} />
-          </div>
+          </DashboardPanel>
         )}
       </div>
     </div>

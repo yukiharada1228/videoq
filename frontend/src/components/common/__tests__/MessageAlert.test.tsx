@@ -4,20 +4,15 @@ import { MessageAlert } from '../MessageAlert'
 describe('MessageAlert', () => {
   it('should render error message', () => {
     render(<MessageAlert message="Error occurred" type="error" />)
-    
-    const alert = screen.getByText('Error occurred')
-    expect(alert).toBeInTheDocument()
-    expect(alert.className).toContain('bg-red-50')
-    expect(alert.className).toContain('text-red-600')
+
+    expect(screen.getByText('Error occurred')).toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveAttribute('data-type', 'error')
   })
 
   it('should render success message', () => {
     render(<MessageAlert message="Success!" type="success" />)
-    
-    const alert = screen.getByText('Success!')
-    expect(alert).toBeInTheDocument()
-    expect(alert.className).toContain('bg-green-50')
-    expect(alert.className).toContain('text-green-700')
+
+    expect(screen.getByText('Success!')).toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveAttribute('data-type', 'success')
   })
 })
-

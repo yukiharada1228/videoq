@@ -7,10 +7,23 @@ import { VideoUploadModal } from '@/components/video/VideoUploadModal';
 import { VideoCard } from '@/components/video/VideoCard';
 import { TagManagementModal } from '@/components/video/TagManagementModal';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
+import { ErrorMessage } from '@/components/auth/ErrorMessage';
 import { useAuth } from '@/hooks/useAuth';
 import { useTags } from '@/hooks/useTags';
 import { AppPageShell } from '@/components/layout/AppPageShell';
 import { AppPageHeader } from '@/components/layout/AppPageHeader';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Divider } from '@/components/ui/divider';
+import { MenuList, MenuListItem } from '@/components/ui/menu-list';
 import { Plus, Search, Tag } from 'lucide-react';
 
 const STATUS_FILTERS = ['all', 'completed', 'processing', 'error'] as const;
@@ -125,166 +138,182 @@ export default function VideosPage() {
 
   const isUploadDisabled = useMemo(() => !user || userLoading, [user, userLoading]);
 
+  const statsItems = [
+    { label: t('videos.list.statsRow.all'), value: stats.total },
+    { label: t('videos.list.statsRow.completed'), value: stats.completed },
+    { label: t('videos.list.statsRow.pending'), value: stats.pending },
+    { label: t('videos.list.statsRow.processing'), value: stats.processing },
+    { label: t('videos.list.statsRow.indexing'), value: stats.indexing },
+  ];
+
   return (
     <AppPageShell activePage="videos">
       <AppPageHeader
         title={t('videos.list.title')}
         description={t('videos.list.managingCount', { count: totalCount })}
         action={(
-          <button
+          <Button
+            variant="solid"
+            size="md"
             onClick={() => setIsUploadModalOpen(true)}
             disabled={isUploadDisabled}
-            className="flex items-center gap-2 bg-[#00652c] hover:opacity-90 text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-sm active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+            className="shrink-0"
           >
-            <Plus className="w-5 h-5" />
-            <span>{t('videos.list.uploadButton')}</span>
-          </button>
+            <Plus className="w-5 h-5 mr-2" />
+            {t('videos.list.uploadButton')}
+          </Button>
         )}
       />
 
-        {/* Stats Row */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-px bg-[#becabc]/20 rounded-xl overflow-hidden mb-8 shadow-[0_12px_32px_-4px_rgba(25,28,25,0.04)] border border-[#e1e3de]/50">
-          {[
-            { label: t('videos.list.statsRow.all'), value: stats.total, color: 'text-[#191c19]', labelColor: 'text-[#3f493f]' },
-            { label: t('videos.list.statsRow.completed'), value: stats.completed, color: 'text-[#00652c]', labelColor: 'text-[#00652c]' },
-            { label: t('videos.list.statsRow.pending'), value: stats.pending, color: 'text-[#3f493f]', labelColor: 'text-[#3f493f]' },
-            { label: t('videos.list.statsRow.processing'), value: stats.processing, color: 'text-[#904d00]', labelColor: 'text-[#904d00]' },
-            { label: t('videos.list.statsRow.indexing'), value: stats.indexing, color: 'text-[#15803d]', labelColor: 'text-[#15803d]' },
-          ].map(({ label, value, color, labelColor }) => (
-            <div key={label} className="bg-white p-4 flex flex-col items-center">
-              <span className={`text-xs font-bold ${labelColor} tracking-widest uppercase`}>{label}</span>
-              <span className={`text-xl font-bold ${color}`}>{value}</span>
-            </div>
-          ))}
+      <dl className="mb-10 grid grid-cols-1 border-t border-solid-gray-420 sm:grid-cols-2 lg:grid-cols-5">
+        {statsItems.map(({ label, value }) => (
+          <div
+            key={label}
+            className="flex items-baseline justify-between gap-4 border-b border-solid-gray-200 py-4 sm:pr-6"
+          >
+            <dt className="text-std-16N-170 text-solid-gray-700">{label}</dt>
+            <dd className="text-std-20B-150 text-solid-gray-800">{value}</dd>
+          </div>
+        ))}
+      </dl>
+
+      <section className="mb-10 border-t border-solid-gray-420 pt-6">
+        <div className="flex flex-col lg:flex-row gap-6">
+          <div className="relative flex-grow">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-solid-gray-600 w-4 h-4 z-10" />
+            <Input
+              className="pl-12"
+              blockSize="md"
+              placeholder={t('videos.list.searchPlaceholder')}
+              type="search"
+              value={searchQuery}
+              onChange={(e) => updateSearchParams({ q: e.target.value })}
+            />
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Label htmlFor="videos-sort" size="sm" className="whitespace-nowrap">
+              {t('videos.list.sortLabel')}
+            </Label>
+            <Select
+              value={sortOrder}
+              onValueChange={(value) => {
+                const nextOrdering = value as SortOrder;
+                updateSearchParams({
+                  ordering: nextOrdering === 'uploaded_at_desc' ? null : nextOrdering,
+                });
+              }}
+            >
+              <SelectTrigger id="videos-sort" blockSize="md" className="min-w-[12rem]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="uploaded_at_desc">{t('videos.list.sort.uploadedDesc')}</SelectItem>
+                <SelectItem value="uploaded_at_asc">{t('videos.list.sort.uploadedAsc')}</SelectItem>
+                <SelectItem value="title_asc">{t('videos.list.sort.titleAsc')}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
-        {/* Filter & Search Bar */}
-        <section className="bg-white rounded-xl p-5 mb-8 shadow-[0_4px_20px_rgba(28,25,23,0.04)] border border-[#e1e3de]/30">
-          <div className="flex flex-col lg:flex-row gap-6">
-            <div className="relative flex-grow">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[#3f493f] w-4 h-4" />
-              <input
-                className="w-full pl-12 pr-4 py-3 bg-[#f2f4ef] border border-[#e1e3de] rounded-xl focus:ring-2 focus:ring-[#00652c]/20 focus:border-[#00652c] outline-none transition-all placeholder:text-[#3f493f]/60 text-sm"
-                placeholder={t('videos.list.searchPlaceholder')}
-                type="text"
-                value={searchQuery}
-                onChange={(e) => updateSearchParams({ q: e.target.value })}
-              />
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <span className="text-sm font-medium text-[#3f493f]">{t('videos.list.sortLabel')}</span>
-              <select
-                value={sortOrder}
-                onChange={(e) => {
-                  const nextOrdering = e.target.value as SortOrder;
-                  updateSearchParams({
-                    ordering: nextOrdering === 'uploaded_at_desc' ? null : nextOrdering,
-                  });
-                }}
-                className="bg-[#f2f4ef] border border-[#e1e3de] px-4 py-3 rounded-xl text-sm font-medium hover:bg-[#e7e9e4] transition-colors outline-none cursor-pointer"
+        <Divider className="my-6" />
+
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex flex-wrap items-center gap-2">
+            {(
+              [
+                { key: 'all', label: t('videos.list.filter.all') },
+                { key: 'completed', label: t('videos.list.filter.completed') },
+                { key: 'processing', label: t('videos.list.filter.processing') },
+                { key: 'error', label: t('videos.list.filter.error') },
+              ] as { key: StatusFilter; label: string }[]
+            ).map(({ key, label }) => (
+              <Button
+                key={key}
+                type="button"
+                size="sm"
+                variant={statusFilter === key ? 'solid' : 'outline'}
+                onClick={() => updateSearchParams({ status: key === 'all' ? null : key })}
               >
-                <option value="uploaded_at_desc">{t('videos.list.sort.uploadedDesc')}</option>
-                <option value="uploaded_at_asc">{t('videos.list.sort.uploadedAsc')}</option>
-                <option value="title_asc">{t('videos.list.sort.titleAsc')}</option>
-              </select>
-            </div>
+                {label}
+              </Button>
+            ))}
           </div>
 
-          <div className="flex flex-wrap items-center gap-4 mt-6 pt-6 border-t border-[#e1e3de]/30">
-            <div className="flex flex-wrap items-center gap-2">
-              {(
-                [
-                  { key: 'all', label: t('videos.list.filter.all') },
-                  { key: 'completed', label: t('videos.list.filter.completed') },
-                  { key: 'processing', label: t('videos.list.filter.processing') },
-                  { key: 'error', label: t('videos.list.filter.error') },
-                ] as { key: StatusFilter; label: string }[]
-              ).map(({ key, label }) => (
-                <button
-                  key={key}
-                  onClick={() => updateSearchParams({ status: key === 'all' ? null : key })}
-                  className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-colors ${
-                    statusFilter === key
-                      ? 'bg-[#00652c] text-white'
-                      : 'bg-[#f2f4ef] text-[#3f493f] hover:bg-[#e7e9e4]'
-                  }`}
+          {tags.length > 0 && (
+            <>
+              <div className="w-px h-6 bg-solid-gray-300 mx-2" />
+              <div className="flex flex-wrap items-center gap-2">
+                {tags.map((tag) => {
+                  const isSelected = selectedTagIds.includes(tag.id);
+                  return (
+                    <Button
+                      key={tag.id}
+                      type="button"
+                      size="sm"
+                      variant={isSelected ? 'solid' : 'outline'}
+                      onClick={() => handleTagToggle(tag.id)}
+                      style={
+                        isSelected
+                          ? { backgroundColor: tag.color, borderColor: tag.color }
+                          : undefined
+                      }
+                    >
+                      {tag.name}
+                      {tag.video_count !== undefined && (
+                        <span className="ml-1 opacity-70">({tag.video_count})</span>
+                      )}
+                    </Button>
+                  );
+                })}
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="text"
+                  onClick={() => setIsTagManagementOpen(true)}
+                  className="ml-2"
                 >
-                  {label}
-                </button>
-              ))}
+                  <Tag className="w-3.5 h-3.5 mr-1" />
+                  {t('videos.list.manageTags')}
+                </Button>
+              </div>
+            </>
+          )}
+        </div>
+      </section>
+
+      {isLoading ? (
+        <div className="flex justify-center py-24">
+          <LoadingSpinner />
+        </div>
+      ) : error ? (
+        <ErrorMessage message={error} />
+      ) : (
+        <>
+          {videos.length === 0 ? (
+            <div className="border-t border-solid-gray-420 py-12 text-solid-gray-700">
+              <p className="text-std-16B-170">{t('videos.list.noVideos')}</p>
+              <p className="mt-1 text-std-16N-170 text-solid-gray-600">{t('videos.list.noVideosHint')}</p>
             </div>
+          ) : (
+            <MenuList className="border-t border-solid-gray-420">
+              {videos.map((video) => (
+                <MenuListItem key={video.id} className="border-b border-solid-gray-200">
+                  <VideoCard video={video} />
+                </MenuListItem>
+              ))}
+            </MenuList>
+          )}
 
-            {tags.length > 0 && (
-              <>
-                <div className="w-px h-6 bg-[#e1e3de] mx-2" />
-                <div className="flex flex-wrap items-center gap-2">
-                  {tags.map((tag) => {
-                    const isSelected = selectedTagIds.includes(tag.id);
-                    return (
-                      <button
-                        key={tag.id}
-                        onClick={() => handleTagToggle(tag.id)}
-                        className="px-4 py-1.5 rounded-full border text-sm font-medium hover:bg-[#f2f4ef] transition-colors"
-                        style={{
-                          backgroundColor: isSelected ? `${tag.color}30` : undefined,
-                          color: isSelected ? tag.color : '#3f493f',
-                          borderColor: isSelected ? tag.color : '#e1e3de',
-                        }}
-                      >
-                        {tag.name}
-                        {tag.video_count !== undefined && (
-                          <span className="ml-1 opacity-60">({tag.video_count})</span>
-                        )}
-                      </button>
-                    );
-                  })}
-                  <button
-                    onClick={() => setIsTagManagementOpen(true)}
-                    className="flex items-center gap-1 px-3 py-1.5 rounded-xl border border-dashed border-[#6f7a6e] text-[#3f493f] text-xs font-bold uppercase tracking-wider hover:bg-[#f2f4ef] transition-colors ml-2"
-                  >
-                    <Tag className="w-3.5 h-3.5" />
-                    {t('videos.list.manageTags')}
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        </section>
+          <div ref={sentinelRef} data-testid="infinite-scroll-sentinel" />
 
-        {/* Video Grid */}
-        {isLoading ? (
-          <div className="flex justify-center py-24">
-            <LoadingSpinner />
-          </div>
-        ) : error ? (
-          <div className="text-center py-24 text-red-500">{error}</div>
-        ) : (
-          <>
-            {videos.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-24 text-[#3f493f]">
-                <div className="w-24 h-24 bg-[#f2f4ef] rounded-full flex items-center justify-center mb-4">
-                  <Search className="w-12 h-12 text-[#becabc]" />
-                </div>
-                <p className="text-base font-medium">{t('videos.list.noVideos')}</p>
-                <p className="text-sm mt-1 text-[#6f7a6e]">{t('videos.list.noVideosHint')}</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {videos.map((video) => (
-                  <VideoCard key={video.id} video={video} />
-                ))}
-              </div>
-            )}
+          {isFetchingNextPage && (
+            <div className="flex justify-center mt-4">
+              <span className="text-std-16N-170 text-solid-gray-600">{t('videos.list.loadingMore')}</span>
+            </div>
+          )}
+        </>
+      )}
 
-            <div ref={sentinelRef} data-testid="infinite-scroll-sentinel" />
-
-            {isFetchingNextPage && (
-              <div className="flex justify-center mt-4">
-                <span className="text-sm text-[#3f493f]">{t('videos.list.loadingMore')}</span>
-              </div>
-            )}
-          </>
-        )}
       <VideoUploadModal
         isOpen={shouldOpenModalFromQuery || isUploadModalOpen}
         onClose={handleCloseModal}

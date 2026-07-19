@@ -3,7 +3,7 @@
 import { useEffect, useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useVideoUpload } from '@/hooks/useVideoUpload';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Heading, HeadingTitle } from '@/components/ui/heading';
 import { VideoUploadFormFields } from './VideoUploadFormFields';
 import { useTags } from '@/hooks/useTags';
 import { TagSelector } from './TagSelector';
@@ -58,43 +58,44 @@ export function VideoUpload({ onUploadSuccess }: VideoUploadProps) {
   }, [success, onUploadSuccess, reset]);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t('videos.upload.title')}</CardTitle>
-        <CardDescription>{t('videos.upload.description')}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={(e) => handleSubmit(e, onUploadSuccess)} className="space-y-4">
-          <VideoUploadFormFields
-            title={title}
-            description={description}
-            isUploading={isUploading}
-            error={error}
-            errorParams={errorParams}
-            warning={warning}
-            warningParams={warningParams}
-            success={success}
-            setTitle={setTitle}
-            setDescription={setDescription}
-            handleFileChange={handleFileChange}
-            file={file}
-          />
+    <section className="border-t border-solid-gray-420 pt-8">
+      <Heading size="20" hasChip className="mb-2">
+        <HeadingTitle level="h2">{t('videos.upload.title')}</HeadingTitle>
+      </Heading>
+      <p className="mb-6 text-std-16N-170 text-solid-gray-700">
+        {t('videos.upload.description')}
+      </p>
 
-          <TagSelector
-            tags={tags}
-            selectedTagIds={tagIds}
-            onToggle={handleTagToggle}
-            onCreateNew={() => setIsCreateDialogOpen(true)}
-            disabled={isUploading}
-          />
-        </form>
-
-        <TagCreateDialog
-          isOpen={isCreateDialogOpen}
-          onClose={() => setIsCreateDialogOpen(false)}
-          onCreate={handleCreateTag}
+      <form onSubmit={(e) => handleSubmit(e, onUploadSuccess)} className="space-y-4">
+        <VideoUploadFormFields
+          title={title}
+          description={description}
+          isUploading={isUploading}
+          error={error}
+          errorParams={errorParams}
+          warning={warning}
+          warningParams={warningParams}
+          success={success}
+          setTitle={setTitle}
+          setDescription={setDescription}
+          handleFileChange={handleFileChange}
+          file={file}
         />
-      </CardContent>
-    </Card>
+
+        <TagSelector
+          tags={tags}
+          selectedTagIds={tagIds}
+          onToggle={handleTagToggle}
+          onCreateNew={() => setIsCreateDialogOpen(true)}
+          disabled={isUploading}
+        />
+      </form>
+
+      <TagCreateDialog
+        isOpen={isCreateDialogOpen}
+        onClose={() => setIsCreateDialogOpen(false)}
+        onCreate={handleCreateTag}
+      />
+    </section>
   );
 }

@@ -49,7 +49,9 @@
       "file": "ファイル",
       "player": "プレイヤー",
       "chat": "チャット",
-      "tag": "タグ"
+      "tag": "タグ",
+      "required": "必須",
+      "optional": "任意"
     },
     "status": {
       "pending": "待機中",
@@ -126,44 +128,49 @@
     "groupsNav": "グループ",
     "docs": "開発者Docs",
     "settings": "設定",
-    "logout": "ログアウト"
+    "logout": "ログアウト",
+    "menu": "すべてのメニュー",
+    "closeMenu": "メニューを閉じる"
   },
   "layout": {
     "authBranding": {
-      "tagline": "あらゆるビデオを、最高の学びの体験へ"
+      "tagline": "教育・研修向け AI 動画学習サービス"
     },
-    "authFooter": "© {{year}} VideoQ - あらゆる学びのシーンに"
+    "authFooter": "© {{year}} VideoQ"
   },
   "home": {
     "welcome": {
-      "title": "Welcome back!",
-      "subtitle": "{{username}}さん、おかえりなさい！",
-      "greeting": "おかえりなさい、{{username}}さん！",
-      "dailyMotivation": "今日も素晴らしい授業を届けましょう 🌱"
+      "title": "ホーム",
+      "badge": "ホーム",
+      "subtitle": "{{username}}さん",
+      "greeting": "{{username}}さん",
+      "dailyMotivation": "動画の登録、文字起こし、学習用グループの管理を行えます。"
     },
     "actions": {
+      "sectionTitle": "利用メニュー",
       "upload": {
-        "title": "動画をアップロード",
-        "description": "新しい動画をアップロードして管理",
-        "descriptionLong": "新しい授業を追加して、AIによる分析を開始しましょう。",
-        "linkLabel": "開始する"
+        "title": "動画を登録",
+        "description": "新しい動画を登録して管理",
+        "descriptionLong": "授業・研修動画を登録し、自動文字起こしを開始します。",
+        "linkLabel": "登録する"
       },
       "library": {
-        "title": "動画ライブラリ",
+        "title": "動画一覧",
         "description_one": "{{count}}本の動画",
         "description_other": "{{count}}本の動画",
-        "descriptionLong": "{{count}}本の動画を管理・編集・共有することができます。",
+        "descriptionLong": "登録済みの動画（{{count}}本）を確認・編集・共有できます。",
         "linkLabel": "一覧を見る"
       },
       "groups": {
         "title": "グループ管理",
         "description_one": "{{count}}個のグループ",
         "description_other": "{{count}}個のグループ",
-        "descriptionLong": "{{count}}つのグループを管理し、進捗を確認しましょう。",
+        "descriptionLong": "学習単位のグループ（{{count}}件）を管理します。",
         "linkLabel": "管理する"
       }
     },
     "stats": {
+      "summaryTitle": "概要",
       "completed": "処理完了",
       "pending": "待機中",
       "processing": "処理中",
@@ -184,8 +191,8 @@
       "serviceReady": "✓ サービス利用可能"
     },
     "usage": {
-      "title": "使用状況",
-      "description": "現在の使用量と制限",
+      "title": "利用状況",
+      "description": "現在の利用量と上限",
       "loading": "読み込み中...",
       "plan": {
         "label": "プラン",
@@ -383,6 +390,8 @@
         "enabled": "このチャットグループは共有リンクで公開されています。",
         "disabled": "共有リンクを生成すると、ログインなしで閲覧できるようになります。"
       },
+      "shareOpen": "共有",
+      "sharingBadge": "共有中",
       "generate": "共有リンクを生成",
       "generating": "生成中...",
       "copy": "コピー",
@@ -552,7 +561,9 @@
       },
       "password": {
         "label": "パスワード",
-        "placeholder": "パスワードを入力"
+        "placeholder": "パスワードを入力",
+        "show": "パスワードを表示",
+        "hide": "パスワードを隠す"
       },
       "passwordConfirmation": {
         "label": "パスワード（確認）",
@@ -1096,10 +1107,10 @@
   },
   "landing": {
     "hero": {
-      "title": "動画をアップロードするだけ。教育・研修動画をAIで文字起こし→即検索",
-      "subtitle": "教育・企業研修向けAI動画学習プラットフォーム",
-      "description": "授業・研修・セミナーの動画をAIで文字起こし→自然言語で即検索。教育者・研修担当者が動画を最大活用できます。",
-      "ctaSignup": "無料で始める",
+      "title": "教育・研修向けの AI 動画学習サービス",
+      "subtitle": "動画の文字起こしと自然言語検索",
+      "description": "授業・研修・セミナーの動画を登録すると、自動文字起こしと内容への質問が可能になります。",
+      "ctaSignup": "アカウントを作成",
       "ctaDocs": "開発者ドキュメント"
     },
     "features": {
@@ -1133,130 +1144,6 @@
         "title": "開発者",
         "description": "OpenAI互換APIで自社サービスに動画AIを組み込む。既存のSDKでそのまま使えます。",
         "ctaLink": "APIドキュメントを見る"
-      }
-    }
-  },
-  "useCases": {
-    "education": {
-      "hero": {
-        "title": "授業・講義動画を AI で検索・質問できるプラットフォーム",
-        "subtitle": "録画した授業を文字起こし → 学生が自然言語で質問 → 見たい場面に即ジャンプ",
-        "ctaSignup": "無料で始める",
-        "ctaFeatures": "機能一覧を見る"
-      },
-      "problems": {
-        "title": "教育現場の課題を解決",
-        "findContent": {
-          "problem": "長い講義動画のどこに何が入っているか分からない",
-          "solution": "AI チャットで「〇〇について説明した場面は？」と聞けば即座に該当箇所へジャンプ"
-        },
-        "repeatQuestions": {
-          "problem": "学生が繰り返し同じ質問をしてくる",
-          "solution": "動画を共有するだけで学生が自分で答えを探せる"
-        },
-        "lostLectures": {
-          "problem": "板書・口頭説明が記録に残らない",
-          "solution": "Whisper による高精度文字起こしで授業内容を完全テキスト化"
-        }
-      },
-      "useCases": {
-        "title": "ユースケース例",
-        "university": {
-          "title": "大学の講義録画管理",
-          "description": "学期ごとの講義動画をグループで整理。学生は AI チャットで復習箇所をピンポイント検索できます。"
-        },
-        "school": {
-          "title": "高校・中学の授業動画アーカイブ",
-          "description": "授業を録画してアーカイブ化。欠席した生徒も見返せる環境を低コストで構築できます。"
-        },
-        "flipped": {
-          "title": "反転授業（Flipped Classroom）での予習動画",
-          "description": "予習用動画を配布し、学生が疑問点を AI に質問して授業前に理解を深められます。"
-        }
-      },
-      "features": {
-        "title": "機能ハイライト",
-        "groups": {
-          "title": "動画グループで授業ごとに整理",
-          "description": "科目・学期・クラスごとに動画をグループ管理。大量の講義動画も迷わず整理できます。"
-        },
-        "sharing": {
-          "title": "共有リンクで学生に配布",
-          "description": "ワンクリックで共有リンクを発行。学生はアカウント不要で動画と AI チャットを利用できます。"
-        },
-        "analytics": {
-          "title": "分析ダッシュボードで学習状況把握",
-          "description": "どの動画が多く視聴されているかを確認。学生のつまずきを早期に発見できます。"
-        }
-      },
-      "cta": {
-        "title": "教育現場の動画活用を、今すぐ始めよう"
-      },
-      "footer": {
-        "link": "教育機関向け"
-      }
-    },
-    "corporateTraining": {
-      "hero": {
-        "title": "社内研修動画を AI で検索・活用。研修効果を最大化する動画プラットフォーム",
-        "subtitle": "研修動画をアップロードするだけ。社員がいつでも必要な場面を自分で探せる",
-        "ctaSignup": "無料で始める",
-        "ctaApiDocs": "API ドキュメントを見る"
-      },
-      "problems": {
-        "title": "企業研修の課題を解決",
-        "tooMany": {
-          "problem": "研修動画が多すぎて社員が見返さない",
-          "solution": "AI チャットで「有給申請の手順は？」と聞くと該当シーンへジャンプ"
-        },
-        "noRecord": {
-          "problem": "研修内容が口頭説明で記録に残らない",
-          "solution": "Whisper 文字起こしで全発言をテキスト化・検索可能に"
-        },
-        "newHire": {
-          "problem": "新入社員がマニュアルを理解できず何度も質問",
-          "solution": "動画 + AI 質問応答でセルフラーニング化"
-        },
-        "highCost": {
-          "problem": "研修担当者の工数が多い",
-          "solution": "動画グループで研修プログラムを構造化して配布"
-        }
-      },
-      "useCases": {
-        "title": "ユースケース例",
-        "onboarding": {
-          "title": "新入社員研修動画のアーカイブ・検索",
-          "description": "入社研修の動画を一元管理。新入社員が自分のペースで見返し、AI チャットで疑問を即解決できます。"
-        },
-        "compliance": {
-          "title": "コンプライアンス研修の振り返り",
-          "description": "ハラスメント・情報セキュリティなど法定研修を動画化。受講記録と合わせてコンプライアンスを強化します。"
-        },
-        "manual": {
-          "title": "製品・業務マニュアル動画の社内ナレッジ化",
-          "description": "業務手順の説明動画を社内 Wiki 化。「あの操作どうやるんだっけ？」を AI 検索で即解決します。"
-        },
-        "seminar": {
-          "title": "過去の社内セミナー・勉強会の活用",
-          "description": "録画した社内勉強会を全社員に共有。参加できなかった社員も後から動画で学習できます。"
-        }
-      },
-      "api": {
-        "title": "API 連携で社内システムと統合",
-        "slack": {
-          "title": "Slack bot・LMS と連携",
-          "description": "OpenAI 互換 API で社内 Slack bot や LMS からビデオ検索・AI 質問応答を呼び出せます。"
-        },
-        "mcp": {
-          "title": "Claude Desktop から直接検索",
-          "description": "MCP サーバー経由で Claude Desktop から社内研修動画を直接検索・参照できます。"
-        }
-      },
-      "cta": {
-        "title": "社内研修の動画活用を、今すぐ始めよう"
-      },
-      "footer": {
-        "link": "企業研修向け"
       }
     }
   },
@@ -1319,8 +1206,8 @@
       "description": "共有された VideoQ グループを開き、動画一覧と AI チャットを利用できます。"
     },
     "landing": {
-      "title": "動画をアップロードするだけ。教育・研修動画をAIで文字起こし→即検索 | VideoQ",
-      "description": "VideoQは教育・企業研修向けのAI動画学習プラットフォームです。動画をアップロードするだけでAIが授業・研修・セミナーを文字起こし。自然言語で即検索できます。無料で始められます。"
+      "title": "教育・研修向け AI 動画学習サービス | VideoQ",
+      "description": "VideoQは教育・研修向けのAI動画学習サービスです。動画を登録すると自動文字起こしが行われ、内容を自然言語で検索・質問できます。"
     },
     "docs": {
       "home": {
@@ -1353,16 +1240,6 @@
     "privacy": {
       "title": "プライバシーポリシー | VideoQ",
       "description": "VideoQ が個人情報やアップロード動画をどのように収集・利用・保護するかを説明します。"
-    },
-    "useCases": {
-      "education": {
-        "title": "授業・講義動画をAI文字起こし→学生がAIチャットで即検索 | VideoQ",
-        "description": "教育機関向け VideoQ。授業・講義動画をアップロードするだけでAIが自動文字起こし。学生が自然言語で「〇〇の説明は？」と質問すれば即座に該当箇所へ。"
-      },
-      "corporateTraining": {
-        "title": "社内研修動画をAI文字起こし→必要な場面を自然言語で即検索 | VideoQ",
-        "description": "企業研修向け VideoQ。研修・セミナー動画をアップロードするだけでAIが自動文字起こし。社員が必要な情報を自然言語で検索でき、Slack や LMS とも連携可能。"
-      }
     },
     "faq": {
       "title": "よくある質問 | VideoQ",

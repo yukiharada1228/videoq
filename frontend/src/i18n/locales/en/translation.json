@@ -49,7 +49,9 @@
       "file": "File",
       "player": "Player",
       "chat": "Chat",
-      "tag": "Tag"
+      "tag": "Tag",
+      "required": "Required",
+      "optional": "Optional"
     },
     "status": {
       "pending": "Pending",
@@ -126,44 +128,49 @@
     "groupsNav": "Groups",
     "docs": "Developer Docs",
     "settings": "Settings",
-    "logout": "Log out"
+    "logout": "Log out",
+    "menu": "All menus",
+    "closeMenu": "Close menu"
   },
   "layout": {
     "authBranding": {
-      "tagline": "Transform every video into the ultimate learning experience"
+      "tagline": "AI video learning for education and training"
     },
-    "authFooter": "© {{year}} VideoQ - Every learning moment"
+    "authFooter": "© {{year}} VideoQ"
   },
   "home": {
     "welcome": {
-      "title": "Welcome back!",
-      "subtitle": "Welcome back, {{username}}!",
-      "greeting": "Welcome back, {{username}}!",
-      "dailyMotivation": "Let's deliver another great lesson today 🌱"
+      "title": "Home",
+      "badge": "Home",
+      "subtitle": "{{username}}",
+      "greeting": "{{username}}",
+      "dailyMotivation": "Register videos, run transcription, and manage learning groups."
     },
     "actions": {
+      "sectionTitle": "Menus",
       "upload": {
-        "title": "Upload video",
-        "description": "Upload and manage new videos",
-        "descriptionLong": "Add a new lesson and start AI analysis.",
-        "linkLabel": "Get started"
+        "title": "Register a video",
+        "description": "Register and manage new videos",
+        "descriptionLong": "Register a lecture or training video and start automatic transcription.",
+        "linkLabel": "Register"
       },
       "library": {
-        "title": "Video library",
+        "title": "Video list",
         "description_one": "{{count}} video",
         "description_other": "{{count}} videos",
-        "descriptionLong": "Manage, edit, and share {{count}} videos.",
-        "linkLabel": "View library"
+        "descriptionLong": "Review, edit, and share your {{count}} registered videos.",
+        "linkLabel": "View list"
       },
       "groups": {
         "title": "Group management",
         "description_one": "{{count}} group",
         "description_other": "{{count}} groups",
-        "descriptionLong": "Manage {{count}} groups and track progress.",
+        "descriptionLong": "Manage {{count}} learning groups.",
         "linkLabel": "Manage"
       }
     },
     "stats": {
+      "summaryTitle": "Overview",
       "completed": "Completed",
       "pending": "Pending",
       "processing": "Processing",
@@ -184,7 +191,7 @@
       "serviceReady": "✓ Service Ready"
     },
     "usage": {
-      "title": "Usage Statistics",
+      "title": "Usage",
       "description": "Current usage and limits",
       "loading": "Loading...",
       "plan": {
@@ -383,6 +390,8 @@
         "enabled": "This chat group is shared via a public link.",
         "disabled": "Generate a share link to allow access without signing in."
       },
+      "shareOpen": "Share",
+      "sharingBadge": "Sharing",
       "generate": "Generate share link",
       "generating": "Generating...",
       "copy": "Copy",
@@ -552,7 +561,9 @@
       },
       "password": {
         "label": "Password",
-        "placeholder": "Enter your password"
+        "placeholder": "Enter your password",
+        "show": "Show password",
+        "hide": "Hide password"
       },
       "passwordConfirmation": {
         "label": "Confirm password",
@@ -1096,10 +1107,10 @@
   },
   "landing": {
     "hero": {
-      "title": "Just Upload Your Video. AI Transcribes & Instantly Searches Your Lessons & Training",
-      "subtitle": "AI Video Learning Platform for Education & Corporate Training",
-      "description": "Transcribe your lectures, training videos, and seminars with AI — then search any moment with natural language. Built for educators and training teams.",
-      "ctaSignup": "Get Started for Free",
+      "title": "AI video learning for education and training",
+      "subtitle": "Transcription and natural-language search for video",
+      "description": "Register lecture and training videos to enable automatic transcription and Q&A on the content.",
+      "ctaSignup": "Create an account",
       "ctaDocs": "Developer Docs"
     },
     "features": {
@@ -1133,130 +1144,6 @@
         "title": "Developers",
         "description": "Embed video AI into your product with an OpenAI-compatible API. Works with any existing SDK.",
         "ctaLink": "View API Docs"
-      }
-    }
-  },
-  "useCases": {
-    "education": {
-      "hero": {
-        "title": "Search & Ask Questions About Lecture Videos with AI",
-        "subtitle": "Transcribe recorded lessons → Students ask in natural language → Jump straight to the right moment",
-        "ctaSignup": "Get Started for Free",
-        "ctaFeatures": "View All Features"
-      },
-      "problems": {
-        "title": "Solving Real Classroom Challenges",
-        "findContent": {
-          "problem": "Students can't find what they need in long lecture videos",
-          "solution": "Ask the AI \"Where did you explain X?\" and jump instantly to the exact moment"
-        },
-        "repeatQuestions": {
-          "problem": "Students keep asking the same questions over and over",
-          "solution": "Share the video and let students find answers themselves with AI chat"
-        },
-        "lostLectures": {
-          "problem": "Whiteboard notes and verbal explanations leave no written record",
-          "solution": "High-accuracy transcription via Whisper captures every word of your lecture"
-        }
-      },
-      "useCases": {
-        "title": "Use Case Examples",
-        "university": {
-          "title": "University Lecture Archive Management",
-          "description": "Organize semester lectures into groups. Students use AI chat to pinpoint exactly what they need for review."
-        },
-        "school": {
-          "title": "High School & Middle School Video Archive",
-          "description": "Record and archive classes so absent students never fall behind — at minimal cost."
-        },
-        "flipped": {
-          "title": "Flipped Classroom Pre-Study Videos",
-          "description": "Distribute pre-study videos and let students ask the AI their questions before class begins."
-        }
-      },
-      "features": {
-        "title": "Feature Highlights",
-        "groups": {
-          "title": "Organize Lessons with Video Groups",
-          "description": "Manage videos by subject, semester, or class. Even large lecture libraries stay easy to navigate."
-        },
-        "sharing": {
-          "title": "Distribute via Share Links",
-          "description": "Generate a share link in one click. Students access videos and AI chat without creating an account."
-        },
-        "analytics": {
-          "title": "Track Learning with Analytics Dashboard",
-          "description": "See which videos get the most views to identify where students are struggling early."
-        }
-      },
-      "cta": {
-        "title": "Start Transforming Your Classroom Videos Today"
-      },
-      "footer": {
-        "link": "For Education"
-      }
-    },
-    "corporateTraining": {
-      "hero": {
-        "title": "Search & Leverage Corporate Training Videos with AI. Maximize Training Effectiveness",
-        "subtitle": "Just upload your training videos. Employees can find exactly what they need, anytime.",
-        "ctaSignup": "Get Started for Free",
-        "ctaApiDocs": "View API Documentation"
-      },
-      "problems": {
-        "title": "Solving Corporate Training Challenges",
-        "tooMany": {
-          "problem": "Too many training videos — employees never rewatch them",
-          "solution": "Ask the AI \"How do I submit paid leave?\" and jump to the exact scene instantly"
-        },
-        "noRecord": {
-          "problem": "Training content is explained verbally and never recorded",
-          "solution": "Whisper transcription converts every word into searchable text"
-        },
-        "newHire": {
-          "problem": "New hires can't understand manuals and ask the same questions repeatedly",
-          "solution": "Video + AI Q&A enables self-directed learning"
-        },
-        "highCost": {
-          "problem": "Training coordinators spend too much time managing materials",
-          "solution": "Organize training programs with video groups and distribute instantly"
-        }
-      },
-      "useCases": {
-        "title": "Use Case Examples",
-        "onboarding": {
-          "title": "New Employee Onboarding Video Archive",
-          "description": "Centralize onboarding videos so new hires can learn at their own pace and get instant answers via AI chat."
-        },
-        "compliance": {
-          "title": "Compliance Training Review",
-          "description": "Digitize required training on harassment and security. Combine with attendance records to strengthen compliance."
-        },
-        "manual": {
-          "title": "Turn Product & Process Manuals into Internal Knowledge",
-          "description": "Convert procedural how-to videos into a searchable internal wiki. AI search instantly answers \"how do I do this again?\""
-        },
-        "seminar": {
-          "title": "Reuse Past Internal Seminars & Study Sessions",
-          "description": "Share recorded internal talks with the whole company. Employees who couldn't attend can catch up anytime."
-        }
-      },
-      "api": {
-        "title": "Integrate with Internal Systems via API",
-        "slack": {
-          "title": "Connect to Slack Bots & LMS",
-          "description": "Use the OpenAI-compatible API to power video search and AI Q&A from your internal Slack bot or LMS."
-        },
-        "mcp": {
-          "title": "Search Directly from Claude Desktop",
-          "description": "Via MCP server, search and reference corporate training videos directly from Claude Desktop."
-        }
-      },
-      "cta": {
-        "title": "Start Activating Your Corporate Training Videos Today"
-      },
-      "footer": {
-        "link": "For Corporate Training"
       }
     }
   },
@@ -1319,8 +1206,8 @@
       "description": "Open the shared VideoQ group and browse videos with AI chat."
     },
     "landing": {
-      "title": "Upload Your Video. AI Transcription & Instant Search for Education & Training | VideoQ",
-      "description": "VideoQ is an AI video learning platform for education and corporate training. Upload your video and AI transcribes lectures, training sessions, and seminars. Search instantly in natural language. Free to start."
+      "title": "AI video learning for education and training | VideoQ",
+      "description": "VideoQ is an AI video learning service for education and training. Register videos for automatic transcription and natural-language search and Q&A."
     },
     "docs": {
       "home": {
@@ -1353,16 +1240,6 @@
     "privacy": {
       "title": "Privacy Policy | VideoQ",
       "description": "Read how VideoQ collects, uses, stores, and protects personal data and uploaded content."
-    },
-    "useCases": {
-      "education": {
-        "title": "AI Video Transcription & Search for Education | VideoQ",
-        "description": "VideoQ for education: auto-transcribe lectures with AI, let students search video content by natural language, and share class recordings instantly."
-      },
-      "corporateTraining": {
-        "title": "AI Transcription & Search for Corporate Training Videos | VideoQ",
-        "description": "VideoQ for corporate training: auto-transcribe training videos with AI, enable self-serve search across sessions, and integrate with Slack, LMS, and internal tools."
-      }
     },
     "faq": {
       "title": "FAQ | VideoQ",
