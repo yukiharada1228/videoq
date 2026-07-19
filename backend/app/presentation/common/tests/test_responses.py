@@ -5,10 +5,7 @@ Tests for common responses module
 import unittest
 from rest_framework import status
 
-from app.presentation.common.responses import (create_created_response,
-                                               create_error_response,
-                                               create_no_content_response,
-                                               create_success_response)
+from app.presentation.common.responses import create_error_response, create_success_response
 
 
 class ResponseHelpersTests(unittest.TestCase):
@@ -100,27 +97,5 @@ class ResponseHelpersTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, status.HTTP_202_ACCEPTED)
 
-    def test_create_created_response(self):
-        """Test create_created_response"""
-        data = {"id": 1, "name": "Test"}
-        response = create_created_response(data=data, message="Created")
 
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.data["id"], 1)
-        self.assertEqual(response.data["name"], "Test")
-        self.assertEqual(response.data["message"], "Created")
 
-    def test_create_created_response_default_message(self):
-        """Test create_created_response with default message"""
-        data = {"id": 1}
-        response = create_created_response(data=data)
-
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.data["message"], "Created successfully")
-
-    def test_create_no_content_response(self):
-        """Test create_no_content_response"""
-        response = create_no_content_response()
-
-        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-        self.assertIsNone(response.data)

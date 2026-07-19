@@ -48,18 +48,3 @@ def create_success_response(
     if message:
         response_data["message"] = message
     return Response(response_data, status=status_code)
-
-
-def create_created_response(
-    data: dict | None = None,
-    message: str = "Created successfully",
-) -> Response:
-    """Generate created success response."""
-
-    return create_success_response(data, message, status.HTTP_201_CREATED)
-
-
-def create_no_content_response() -> Response:
-    """No Content response."""
-
-    return Response(status=status.HTTP_204_NO_CONTENT)

@@ -4,7 +4,6 @@ Pure business logic with no external dependencies.
 """
 
 import re
-import secrets
 
 from app.domain.video.exceptions import (
     InvalidShareSlug,
@@ -14,15 +13,6 @@ from app.domain.video.exceptions import (
 )
 from app.domain.video.entities import VideoGroupEntity
 from app.domain.video.status import VideoStatus
-
-
-class ShareLinkService:
-    """Domain service for managing video group share links."""
-
-    @staticmethod
-    def generate_token() -> str:
-        """Generate a cryptographically secure URL-safe share token."""
-        return secrets.token_urlsafe(32)
 
 
 class ShareSlugPolicy:
