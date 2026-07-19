@@ -7,6 +7,7 @@ import { useChatHistory } from '@/hooks/useChatHistory';
 import { ChatComposer } from '@/components/chat/ChatComposer';
 import { ChatHistoryView } from '@/components/chat/ChatHistoryView';
 import { ChatMessagesView } from '@/components/chat/ChatMessagesView';
+import { Heading, HeadingTitle } from '@/components/ui/heading';
 
 interface ChatPanelProps {
   groupId?: number;
@@ -66,32 +67,36 @@ export function ChatPanel({ groupId, onVideoPlay, shareToken, className }: ChatP
   const showTabs = !!groupId && !shareToken;
 
   const containerClass = cn(
-    'flex flex-col overflow-hidden rounded-xl bg-white',
+    'flex flex-col overflow-hidden border border-solid-gray-420 bg-white',
     className ?? 'h-[500px] lg:h-[600px]',
   );
 
   return (
     <div className={containerClass}>
-      <div className="px-4 py-3 border-b border-stone-100 shrink-0 flex items-center justify-between gap-4">
-        <h2 className="font-extrabold text-[#191c19] shrink-0">{t('chat.title')}</h2>
+      <div className="px-4 py-3 border-b border-solid-gray-200 shrink-0 flex items-center justify-between gap-4">
+        <Heading size="18" className="shrink-0">
+          <HeadingTitle level="h2">{t('chat.title')}</HeadingTitle>
+        </Heading>
         {showTabs && (
           <div className="flex gap-4">
             <button
+              type="button"
               onClick={() => setTab('chat')}
-              className={`text-xs font-bold pb-1 transition-colors ${
+              className={`text-dns-14B-120 pb-1 transition-colors ${
                 tab === 'chat'
-                  ? 'text-[#00652c] border-b-2 border-[#00652c]'
-                  : 'text-stone-400 hover:text-stone-600'
+                  ? 'text-key-900 border-b-2 border-key-900'
+                  : 'text-solid-gray-420 hover:text-solid-gray-700'
               }`}
             >
               {t('chat.newConsultation')}
             </button>
             <button
+              type="button"
               onClick={() => setTab('history')}
-              className={`text-xs font-bold pb-1 transition-colors ${
+              className={`text-dns-14B-120 pb-1 transition-colors ${
                 tab === 'history'
-                  ? 'text-[#00652c] border-b-2 border-[#00652c]'
-                  : 'text-stone-400 hover:text-stone-600'
+                  ? 'text-key-900 border-b-2 border-key-900'
+                  : 'text-solid-gray-420 hover:text-solid-gray-700'
               }`}
             >
               {t('chat.history')}

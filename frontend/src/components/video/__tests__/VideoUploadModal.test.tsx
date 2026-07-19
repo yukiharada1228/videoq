@@ -70,9 +70,9 @@ describe('VideoUploadModal', () => {
 
     render(<VideoUploadModal isOpen={true} onClose={vi.fn()} />)
 
-    expect(screen.getByLabelText('videos.upload.youtubeUrlLabel')).toBeInTheDocument()
-    expect(screen.getByLabelText('videos.upload.titleLabel')).toBeInTheDocument()
-    expect(screen.getByLabelText('videos.upload.descriptionLabel')).toBeInTheDocument()
+    expect(screen.getByLabelText(/videos\.upload\.youtubeUrlLabel/)).toBeInTheDocument()
+    expect(screen.getByLabelText(/videos\.upload\.titleLabel/)).toBeInTheDocument()
+    expect(screen.getByLabelText(/videos\.upload\.descriptionLabel/)).toBeInTheDocument()
   })
 
   it('renders upload warning in youtube mode', () => {

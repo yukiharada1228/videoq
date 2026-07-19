@@ -11,9 +11,9 @@ import {
 import {
   SortableContext,
   arrayMove,
-  rectSortingStrategy,
   sortableKeyboardCoordinates,
   useSortable,
+  verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useTranslation } from 'react-i18next';
@@ -22,6 +22,7 @@ import type { VideoGroupList } from '@/lib/api';
 import { AppPageShell } from '@/components/layout/AppPageShell';
 import { AppPageHeader } from '@/components/layout/AppPageHeader';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
+import { ErrorMessage } from '@/components/auth/ErrorMessage';
 import { useAuth } from '@/hooks/useAuth';
 import { useVideoGroups } from '@/hooks/useVideoGroups';
 import {
@@ -29,16 +30,19 @@ import {
   useReorderVideoGroupsMutation,
 } from '@/hooks/useVideoGroupsPageData';
 import { VideoGroupCreateModal } from '@/components/video/VideoGroupCreateModal';
+import { Button } from '@/components/ui/button';
+import { ChipLabel } from '@/components/ui/chip-label';
+import { Heading, HeadingTitle } from '@/components/ui/heading';
+import { MenuList, MenuListItem } from '@/components/ui/menu-list';
 import {
   ArrowDown,
   ArrowRight,
   ArrowUp,
-  FolderOpen,
   GripVertical,
   Plus,
 } from 'lucide-react';
 
-interface SortableGroupCardProps {
+interface SortableGroupRowProps {
   group: VideoGroupList;
   isFirst: boolean;
   isLast: boolean;
@@ -48,7 +52,7 @@ interface SortableGroupCardProps {
   onMove: (groupId: number, direction: 'up' | 'down') => void;
 }
 
-function SortableGroupCard({
+function SortableGroupRow({
   group,
   isFirst,
   isLast,
@@ -56,7 +60,7 @@ function SortableGroupCard({
   isSortingDisabled,
   onOpen,
   onMove,
-}: SortableGroupCardProps) {
+}: SortableGroupRowProps) {
   const { t } = useTranslation();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: group.id,
@@ -70,84 +74,87 @@ function SortableGroupCard({
   };
 
   return (
-    <div
+    <MenuListItem
       ref={setNodeRef}
       style={style}
-      className={`group text-left bg-white rounded-2xl shadow-[0_4px_20px_rgba(28,25,23,0.04)] overflow-hidden border border-transparent hover:shadow-[0_8px_30px_rgba(28,25,23,0.10)] transition-colors ${isDragging ? 'shadow-lg z-50' : ''}`}
+      className={`border-b border-solid-gray-200 ${isDragging ? 'z-50 bg-white' : ''}`}
     >
-      <div className="p-5">
-        <div className="flex items-start gap-3">
-          {canReorder && (
-            <span
-              {...attributes}
-              {...listeners}
-              onClick={(event) => event.stopPropagation()}
-              className={`mt-0.5 shrink-0 text-[#9aa49a] ${isSortingDisabled ? 'cursor-wait opacity-50' : 'cursor-grab active:cursor-grabbing'}`}
-              aria-label={t('videos.groups.dragHandle')}
-            >
-              <GripVertical className="w-5 h-5" />
-            </span>
-          )}
-          <div className="min-w-0 flex-1">
-            <h2 className="mb-2">
-              <button
-                type="button"
-                onClick={() => onOpen(group.id)}
-                className="block w-full rounded-md text-left font-extrabold text-[#191c19] text-base leading-snug hover:text-[#00652c] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00652c] focus-visible:ring-offset-2 transition-colors"
-              >
-                {group.name}
-              </button>
-            </h2>
-            <p className="text-sm text-[#6f7a6e] leading-relaxed line-clamp-2 mb-4 min-h-[2.5rem]">
-              {group.description || t('common.messages.noDescription')}
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center justify-between gap-3">
-          <span className="inline-flex items-center px-2.5 py-1 bg-[#f0fdf4] text-[#00652c] text-xs font-bold rounded-full">
-            {t('videos.groups.videoCount', { count: group.video_count })}
+      <div className="flex w-full items-center gap-3 px-2 py-3 md:px-4">
+        {canReorder && (
+          <span
+            {...attributes}
+            {...listeners}
+            onClick={(event) => event.stopPropagation()}
+            className={`shrink-0 text-solid-gray-420 ${isSortingDisabled ? 'cursor-wait opacity-50' : 'cursor-grab active:cursor-grabbing'}`}
+            aria-label={t('videos.groups.dragHandle')}
+          >
+            <GripVertical className="h-5 w-5" />
           </span>
-          <div className="flex items-center gap-1">
-            {canReorder && (
-              <>
-                <button
-                  type="button"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onMove(group.id, 'up');
-                  }}
-                  disabled={isFirst || isSortingDisabled}
-                  aria-label={t('videos.groups.moveUp', { name: group.name })}
-                  className="w-8 h-8 rounded-full flex items-center justify-center bg-[#f2f4ef] text-[#3f493f] hover:bg-[#e7e9e4] disabled:opacity-35 disabled:cursor-not-allowed transition-colors"
-                >
-                  <ArrowUp className="w-4 h-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onMove(group.id, 'down');
-                  }}
-                  disabled={isLast || isSortingDisabled}
-                  aria-label={t('videos.groups.moveDown', { name: group.name })}
-                  className="w-8 h-8 rounded-full flex items-center justify-center bg-[#f2f4ef] text-[#3f493f] hover:bg-[#e7e9e4] disabled:opacity-35 disabled:cursor-not-allowed transition-colors"
-                >
-                  <ArrowDown className="w-4 h-4" />
-                </button>
-              </>
-            )}
-            <button
-              type="button"
-              onClick={() => onOpen(group.id)}
-              aria-label={t('videos.groups.open', { name: group.name })}
-              className="w-8 h-8 rounded-full flex items-center justify-center bg-[#f0fdf4] text-[#00652c] opacity-0 group-hover:opacity-100 focus:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00652c] focus-visible:ring-offset-2 transition-opacity"
-            >
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          </div>
+        )}
+
+        <button
+          type="button"
+          onClick={() => onOpen(group.id)}
+          className="min-w-0 flex-1 text-left focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-black focus-visible:bg-yellow-300"
+        >
+          <span className="block truncate text-std-16B-170 text-solid-gray-800 hover:underline">
+            {group.name}
+          </span>
+          <span className="mt-1 block line-clamp-1 text-std-16N-170 text-solid-gray-600">
+            {group.description || t('common.messages.noDescription')}
+          </span>
+        </button>
+
+        <ChipLabel variant="filled-1" color="blue" className="min-h-0 shrink-0 text-oln-14N-100">
+          {t('videos.groups.videoCount', { count: group.video_count })}
+        </ChipLabel>
+
+        <div className="flex shrink-0 items-center gap-1">
+          {canReorder && (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                size="xs"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onMove(group.id, 'up');
+                }}
+                disabled={isFirst || isSortingDisabled}
+                aria-label={t('videos.groups.moveUp', { name: group.name })}
+                className="min-w-0 w-8 px-0"
+              >
+                <ArrowUp className="h-4 w-4" />
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="xs"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onMove(group.id, 'down');
+                }}
+                disabled={isLast || isSortingDisabled}
+                aria-label={t('videos.groups.moveDown', { name: group.name })}
+                className="min-w-0 w-8 px-0"
+              >
+                <ArrowDown className="h-4 w-4" />
+              </Button>
+            </>
+          )}
+          <Button
+            type="button"
+            variant="solid"
+            size="xs"
+            onClick={() => onOpen(group.id)}
+            aria-label={t('videos.groups.open', { name: group.name })}
+            className="min-w-0 w-8 px-0"
+          >
+            <ArrowRight className="h-4 w-4" />
+          </Button>
         </div>
       </div>
-    </div>
+    </MenuListItem>
   );
 }
 
@@ -226,21 +233,23 @@ export default function VideoGroupsPage() {
         title={t('videos.groups.title')}
         description={t('videos.groups.subtitle')}
         action={(
-          <button
+          <Button
             type="button"
+            variant="solid"
+            size="md"
             onClick={() => setIsModalOpen(true)}
-            className="shrink-0 flex items-center gap-2 px-5 py-2.5 bg-[#00652c] text-white text-sm font-bold rounded-xl hover:opacity-90 shadow-sm transition-all active:scale-95"
+            className="shrink-0"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-4 h-4 mr-2" />
             {t('videos.groups.create')}
-          </button>
+          </Button>
         )}
       />
 
       <div className="w-full">
         {(loadError || reorderError) && (
-          <div className="mb-6 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600">
-            {loadError || reorderError}
+          <div className="mb-6">
+            <ErrorMessage message={loadError || reorderError} />
           </div>
         )}
 
@@ -249,32 +258,33 @@ export default function VideoGroupsPage() {
             <LoadingSpinner />
           </div>
         ) : groups.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-24 text-center">
-            <div className="w-20 h-20 rounded-2xl bg-[#f0fdf4] flex items-center justify-center mb-6">
-              <FolderOpen className="w-10 h-10 text-[#00652c] opacity-60" />
-            </div>
-            <h2 className="text-base font-bold text-[#191c19] mb-2">
-              {t('videos.groups.empty')}
-            </h2>
-            <p className="text-sm text-[#6f7a6e] mb-8 max-w-sm">
+          <div className="flex flex-col items-start justify-center border-t border-solid-gray-420 py-12">
+            <Heading size="20" hasChip className="mb-2">
+              <HeadingTitle level="h2">{t('videos.groups.empty')}</HeadingTitle>
+            </Heading>
+            <p className="mb-8 max-w-lg text-std-16N-170 text-solid-gray-600">
               {t('videos.groups.emptyDescription')}
             </p>
-            <button
+            <Button
               type="button"
+              variant="solid"
+              size="md"
               onClick={() => setIsModalOpen(true)}
-              className="flex items-center gap-2 px-5 py-2.5 bg-[#00652c] text-white text-sm font-bold rounded-xl hover:opacity-90 shadow-sm transition-all active:scale-95"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-4 h-4 mr-2" />
               {t('videos.groups.create')}
-            </button>
+            </Button>
           </div>
         ) : (
           <>
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-              <SortableContext items={visibleGroups.map((group) => group.id)} strategy={rectSortingStrategy}>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              <SortableContext
+                items={visibleGroups.map((group) => group.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <MenuList className="border-t border-solid-gray-420">
                   {visibleGroups.map((group, index) => (
-                    <SortableGroupCard
+                    <SortableGroupRow
                       key={group.id}
                       group={group}
                       isFirst={index === 0}
@@ -285,7 +295,7 @@ export default function VideoGroupsPage() {
                       onMove={handleMoveGroup}
                     />
                   ))}
-                </div>
+                </MenuList>
               </SortableContext>
             </DndContext>
 
@@ -293,7 +303,7 @@ export default function VideoGroupsPage() {
 
             {isFetchingNextPage && (
               <div className="flex justify-center mt-4">
-                <span className="text-sm text-[#3f493f]">{t('videos.groups.loadingMore')}</span>
+                <span className="text-std-16N-170 text-solid-gray-600">{t('videos.groups.loadingMore')}</span>
               </div>
             )}
           </>

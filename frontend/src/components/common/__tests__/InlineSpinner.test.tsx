@@ -5,7 +5,7 @@ describe('InlineSpinner', () => {
   it('should render spinner with default blue color', () => {
     const { container } = render(<InlineSpinner />)
     
-    const spinner = container.querySelector('.border-gray-300.border-t-blue-600')
+    const spinner = container.querySelector('.border-solid-gray-300.border-t-blue-900')
     expect(spinner).toBeInTheDocument()
     expect(spinner).toHaveClass('animate-spin')
   })
@@ -13,10 +13,9 @@ describe('InlineSpinner', () => {
   it('should render spinner with red color', () => {
     const { container } = render(<InlineSpinner color="red" />)
     
-    const spinner = container.querySelector('.border-red-300.border-t-red-600')
+    const spinner = container.querySelector('.border-red-200.border-t-error-1')
     expect(spinner).toBeInTheDocument()
   })
-
   it('should apply custom className', () => {
     const { container } = render(<InlineSpinner className="custom-class" />)
     

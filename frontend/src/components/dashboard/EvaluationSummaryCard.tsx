@@ -1,6 +1,9 @@
 import { useTranslation } from 'react-i18next';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import type { EvaluationSummary } from '@/lib/api';
+import { Divider } from '@/components/ui/divider';
+import { Heading, HeadingTitle } from '@/components/ui/heading';
+import { DashboardChartTitle } from './DashboardPanel';
 
 interface EvaluationSummaryCardProps {
   summary: EvaluationSummary | undefined;
@@ -18,11 +21,11 @@ function MetricRow({ label, value }: { label: string; value: number | null | und
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between gap-3 text-xs">
-        <span className="font-medium text-gray-700">{label}</span>
-        <span className="font-semibold text-gray-900">{formatPercent(value)}</span>
+        <span className="font-medium text-solid-gray-700">{label}</span>
+        <span className="font-semibold text-solid-gray-800">{formatPercent(value)}</span>
       </div>
-      <div className="h-1.5 overflow-hidden rounded-full bg-gray-100">
-        <div className="h-full rounded-full bg-[#00652c]" style={{ width: `${percentage}%` }} />
+      <div className="h-1.5 overflow-hidden rounded-full bg-solid-gray-100">
+        <div className="h-full rounded-full bg-key-900" style={{ width: `${percentage}%` }} />
       </div>
     </div>
   );
@@ -42,10 +45,8 @@ export function EvaluationSummaryCard({ summary, isLoading }: EvaluationSummaryC
   if (!summary || summary.evaluated_count === 0) {
     return (
       <div className="space-y-3">
-        <h3 className="text-sm font-semibold text-gray-900">
-          {t('dashboard.evaluation.title')}
-        </h3>
-        <div className="flex h-[180px] items-center justify-center rounded-lg border border-dashed border-gray-200 bg-gray-50/60 px-4 text-center text-sm text-gray-500">
+        <DashboardChartTitle>{t('dashboard.evaluation.title')}</DashboardChartTitle>
+        <div className="flex h-[180px] items-center justify-center border border-dashed border-solid-gray-420 px-4 text-center text-sm text-solid-gray-600">
           {t('dashboard.evaluation.empty')}
         </div>
       </div>
@@ -53,14 +54,17 @@ export function EvaluationSummaryCard({ summary, isLoading }: EvaluationSummaryC
   }
 
   return (
-    <div>
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <h3 className="text-sm font-semibold text-gray-900">
-          {t('dashboard.evaluation.title')}
-        </h3>
-        <span className="text-xs font-medium text-gray-500">
-          {t('dashboard.evaluation.evaluatedCount', { count: summary.evaluated_count })}
-        </span>
+    <div className="space-y-4">
+      <div className="space-y-3">
+        <div className="flex items-baseline justify-between gap-3">
+          <Heading size="16" hasChip>
+            <HeadingTitle level="h3">{t('dashboard.evaluation.title')}</HeadingTitle>
+          </Heading>
+          <span className="shrink-0 text-xs font-medium text-solid-gray-600">
+            {t('dashboard.evaluation.evaluatedCount', { count: summary.evaluated_count })}
+          </span>
+        </div>
+        <Divider />
       </div>
 
       <div className="space-y-4">

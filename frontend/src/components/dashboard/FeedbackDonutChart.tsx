@@ -1,14 +1,15 @@
 import { useTranslation } from 'react-i18next';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
+import { DashboardChartTitle } from './DashboardPanel';
 
 interface FeedbackDonutChartProps {
   data: { good: number; bad: number; none: number };
 }
 
 const FEEDBACK_ITEMS = [
-  { key: 'good' as const, color: '#22c55e' },
-  { key: 'bad' as const, color: '#ef4444' },
-  { key: 'none' as const, color: '#d1d5db' },
+  { key: 'good' as const, color: 'var(--color-success-1)' },
+  { key: 'bad' as const, color: 'var(--color-error-1)' },
+  { key: 'none' as const, color: 'var(--color-solid-gray-300)' },
 ];
 
 export function FeedbackDonutChart({ data }: FeedbackDonutChartProps) {
@@ -26,9 +27,7 @@ export function FeedbackDonutChart({ data }: FeedbackDonutChartProps) {
 
   return (
     <div>
-      <h3 className="text-sm font-semibold text-gray-900 mb-3">
-        {t('dashboard.feedback.title')}
-      </h3>
+      <DashboardChartTitle>{t('dashboard.feedback.title')}</DashboardChartTitle>
       <ResponsiveContainer width="100%" height={220}>
         <PieChart>
           <Pie

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ChangeEvent, type RefObject } from 'react';
+import { useCallback, useEffect, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   DndContext,
@@ -17,10 +17,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import {
-  AlertCircle,
   ArrowLeft,
-  CheckCircle,
-  Clock,
   Copy,
   GripVertical,
   List,
@@ -28,6 +25,7 @@ import {
   Play,
   Plus,
   Save,
+  Share2,
   Trash2,
   X,
 } from 'lucide-react';
@@ -41,17 +39,43 @@ import { ChatPanel } from '@/components/chat/ChatPanel';
 import { DashboardButton } from '@/components/dashboard/DashboardButton';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
+import { StatusBadge } from '@/components/common/StatusBadge';
+import { ErrorMessage } from '@/components/auth/ErrorMessage';
 import { useToast } from '@/components/common/feedback';
 import { TagFilterPanel } from '@/components/video/TagFilterPanel';
 import { TagManagementModal } from '@/components/video/TagManagementModal';
+import {
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  Breadcrumbs,
+  BreadcrumbsLabel,
+} from '@/components/ui/breadcrumbs';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { SupportText } from '@/components/ui/support-text';
+import { ChipLabel } from '@/components/ui/chip-label';
+import { Heading, HeadingShoulder, HeadingTitle } from '@/components/ui/heading';
+import { UtilityLink } from '@/components/ui/utility-link';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Dialog,
+  DialogActions,
+  DialogBody,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
   DialogHeader,
-  DialogTitle,
+  DialogHeading,
+  DialogScrollArea,
+  useDialog,
 } from '@/components/ui/dialog';
 import { useTags } from '@/hooks/useTags';
 import {
@@ -112,32 +136,7 @@ interface VideoGroupDetailViewProps {
 }
 
 function VideoStatusBadge({ status }: { status: VideoInGroup['status'] }) {
-  const { t } = useTranslation();
-
-  if (status === 'completed') {
-    return (
-      <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-[#00652c] mt-1">
-        <CheckCircle className="w-3 h-3 fill-current" />
-        {t('videos.groupDetail.status.completed')}
-      </span>
-    );
-  }
-
-  if (status === 'error') {
-    return (
-      <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-red-500 mt-1">
-        <AlertCircle className="w-3 h-3" />
-        {t('videos.groupDetail.status.error')}
-      </span>
-    );
-  }
-
-  return (
-    <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-[#904d00] bg-[#ffdcc3]/40 px-1.5 py-0.5 rounded-full mt-1">
-      <Clock className="w-3 h-3" />
-      {t('videos.groupDetail.status.processing')}
-    </span>
-  );
+  return <StatusBadge status={status} size="xs" className="mt-1 ml-0" />;
 }
 
 interface SortableVideoItemProps {
@@ -172,29 +171,32 @@ function SortableVideoItem({
       ref={setNodeRef}
       style={style}
       onClick={() => onSelect(video.id)}
-      className={`flex items-center gap-2 p-3 rounded-xl cursor-pointer group transition-colors ${
+      className={`group flex cursor-pointer items-center gap-3 rounded-8 px-4 py-3.5 transition-colors ${
         isSelected
-          ? 'bg-[#f0fdf4] border-l-4 border-[#00652c]'
-          : 'hover:bg-stone-50'
-      } ${isDragging ? 'shadow-lg z-50' : ''}`}
+          ? 'border-l-4 border-key-900 bg-blue-50'
+          : 'hover:bg-solid-gray-50'
+      } ${isDragging ? 'z-50 border border-solid-gray-420 bg-white' : ''}`}
     >
       {!isMobile && (
         <span
           {...attributes}
           {...listeners}
           onClick={(event) => event.stopPropagation()}
-          className="text-stone-300 cursor-grab active:cursor-grabbing shrink-0"
+          className="text-solid-gray-420 cursor-grab active:cursor-grabbing shrink-0"
         >
           <GripVertical className="w-4 h-4" />
         </span>
       )}
       <div className="flex-1 min-w-0">
-        <p className={`text-sm truncate leading-tight ${isSelected ? 'font-bold text-[#00652c]' : 'font-medium text-[#191c19]'}`}>
+        <p className={`truncate text-std-16N-170 ${isSelected ? 'font-bold text-key-900' : 'text-solid-gray-800'}`}>
           {video.title}
         </p>
         <VideoStatusBadge status={video.status} />
       </div>
-      <button
+      <Button
+        type="button"
+        variant="text"
+        size="xs"
         onClick={(event) => {
           event.stopPropagation();
           onRemove(video.id);
@@ -202,27 +204,31 @@ function SortableVideoItem({
         onPointerDown={(event) => event.stopPropagation()}
         onMouseDown={(event) => event.stopPropagation()}
         aria-label={t('videos.groupDetail.removeFromGroup')}
-        className="inline-flex items-center rounded-lg p-1.5 text-red-600 hover:bg-red-50 transition-colors shrink-0"
+        className="min-w-0 shrink-0 p-1.5 text-error-1 hover:bg-red-50"
       >
         <Trash2 className="w-3.5 h-3.5" />
-      </button>
+      </Button>
     </div>
   );
 }
 
-function ShareLinkPanel({
+function ShareLinkDialog({
+  isOpen,
   shareSlug,
   shareLink,
   isGeneratingLink,
   isCopied,
+  onOpenChange,
   onGenerate,
   onDelete,
   onCopy,
 }: {
+  isOpen: boolean;
   shareSlug: string;
   shareLink: string | null;
   isGeneratingLink: boolean;
   isCopied: boolean;
+  onOpenChange: (open: boolean) => void;
   onGenerate: (shareSlug: string) => Promise<void> | void;
   onDelete: () => void;
   onCopy: () => void;
@@ -231,74 +237,128 @@ function ShareLinkPanel({
   const [inputValue, setInputValue] = useState(shareSlug);
 
   useEffect(() => {
-    setInputValue(shareSlug);
-  }, [shareSlug]);
+    if (isOpen) setInputValue(shareSlug);
+  }, [isOpen, shareSlug]);
+
+  const dialog = useDialog({
+    open: isOpen,
+    onOpenChange,
+    onRequestClose: (event) => {
+      if (isGeneratingLink) event.preventDefault();
+    },
+  });
+
+  if (!isOpen) return null;
 
   return (
-    <div className="bg-white rounded-xl p-4 flex flex-col lg:flex-row lg:items-center gap-3 lg:gap-4 shadow-[0_4px_20px_rgba(28,25,23,0.04)]">
-      <div className="flex-1 min-w-0 space-y-2">
-        <div className="flex flex-col lg:flex-row lg:items-center gap-2 lg:gap-3">
-          <div className="flex-1 bg-[#f2f4ef] rounded-xl px-4 py-2 border border-[#e1e3de]/40 min-w-0">
-            <input
-              type="text"
-              value={inputValue}
-              onChange={(event) => setInputValue(event.target.value)}
-              placeholder={t('videos.groupDetail.shareSlugPlaceholder')}
-              className="w-full bg-transparent text-[#3f493f] text-sm outline-none"
-            />
-          </div>
-          <p className="text-xs text-[#6f7a6e] whitespace-nowrap">
-            {t('videos.groupDetail.shareSlugHelp')}
+    <Dialog {...dialog.dialogProps} width="min(42rem, 92vw)">
+      <DialogContent>
+        <DialogHeader>
+          <DialogHeading {...dialog.headingProps}>
+            {t('videos.groupDetail.share.title')}
+          </DialogHeading>
+        </DialogHeader>
+        <DialogBody>
+          <p className="mb-6 text-std-16N-170 text-solid-gray-700">
+            {shareLink
+              ? t('videos.groupDetail.share.enabled')
+              : t('videos.groupDetail.share.disabled')}
           </p>
-        </div>
-        <div className="flex flex-col lg:flex-row lg:items-center gap-2 lg:gap-3">
-          <span className="text-sm font-bold text-[#3f493f] whitespace-nowrap shrink-0">
-            {t('videos.groupDetail.shareLinkLabel')}
-          </span>
-          {shareLink ? (
-            <div className="flex-1 min-w-0 bg-white rounded-xl px-4 py-2 border border-[#e1e3de]/40">
-              <input
+
+          <div className="space-y-8">
+            <div className="flex flex-col gap-3">
+              <Label htmlFor="group-share-slug">
+                {t('videos.groupDetail.shareSlugPlaceholder')}
+              </Label>
+              <Input
+                id="group-share-slug"
                 type="text"
-                value={shareLink}
-                readOnly
-                className="w-full bg-transparent text-[#6f7a6e] text-sm outline-none cursor-default"
+                blockSize="lg"
+                value={inputValue}
+                onChange={(event) => setInputValue(event.target.value)}
+                placeholder={t('videos.groupDetail.shareSlugPlaceholder')}
+                disabled={isGeneratingLink}
               />
+              <SupportText>{t('videos.groupDetail.shareSlugHelp')}</SupportText>
+              <div className="flex flex-wrap items-center gap-3 pt-1">
+                <Button
+                  type="button"
+                  variant="solid"
+                  size="md"
+                  onClick={() => {
+                    void onGenerate(inputValue);
+                  }}
+                  disabled={isGeneratingLink || !inputValue.trim()}
+                >
+                  {isGeneratingLink ? (
+                    <InlineSpinner className="mr-1.5 h-4 w-4" />
+                  ) : (
+                    <Plus className="mr-1.5 h-4 w-4" />
+                  )}
+                  {isGeneratingLink
+                    ? t('videos.groupDetail.generating')
+                    : t('common.actions.save')}
+                </Button>
+                {shareLink ? (
+                  <Button
+                    type="button"
+                    variant="text"
+                    size="md"
+                    onClick={onDelete}
+                    disabled={isGeneratingLink}
+                    className="text-error-1 hover:bg-red-50"
+                  >
+                    {t('videos.groupDetail.disable')}
+                  </Button>
+                ) : null}
+              </div>
             </div>
-          ) : (
-            <p className="text-sm text-[#6f7a6e]">{t('videos.groupDetail.share.disabled')}</p>
-          )}
-        </div>
-      </div>
-      <div className="flex items-center gap-2 shrink-0 self-start lg:self-center">
-        {shareLink && (
-          <button
-            onClick={onCopy}
-            className="flex items-center gap-2 px-4 py-2 bg-[#00652c] text-white rounded-xl text-sm font-bold hover:opacity-90 transition-opacity"
-          >
-            <Copy className="w-3.5 h-3.5" />
-            {isCopied ? t('videos.groupDetail.copied') : t('videos.groupDetail.copyButton')}
-          </button>
-        )}
-        <button
-          onClick={() => {
-            void onGenerate(inputValue);
-          }}
-          disabled={isGeneratingLink || !inputValue.trim()}
-          className="flex items-center gap-2 px-4 py-2 bg-[#00652c] text-white rounded-xl text-sm font-bold hover:opacity-90 transition-opacity disabled:opacity-50 shrink-0"
-        >
-          {isGeneratingLink ? <InlineSpinner className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
-          {isGeneratingLink ? t('videos.groupDetail.generating') : t('common.actions.save')}
-        </button>
-        {shareLink && (
-          <button
-            onClick={onDelete}
-            className="px-4 py-2 text-red-600 text-sm font-bold hover:bg-red-50 rounded-xl transition-colors"
-          >
-            {t('videos.groupDetail.disable')}
-          </button>
-        )}
-      </div>
-    </div>
+
+            <div className="flex flex-col gap-3">
+              <Label id="group-share-link-label">
+                {t('videos.groupDetail.shareLinkLabel')}
+              </Label>
+              {shareLink ? (
+                <div className="flex flex-col gap-4">
+                  <div
+                    aria-labelledby="group-share-link-label"
+                    className="min-h-16 break-all rounded-8 border border-solid-gray-420 bg-solid-gray-50 px-5 py-4 font-mono text-std-16N-170 text-solid-gray-800"
+                  >
+                    {shareLink}
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="md"
+                    onClick={onCopy}
+                    className="self-start"
+                  >
+                    <Copy className="mr-1.5 h-4 w-4" />
+                    {isCopied
+                      ? t('videos.groupDetail.copied')
+                      : t('videos.groupDetail.copyButton')}
+                  </Button>
+                </div>
+              ) : (
+                <SupportText>{t('videos.groupDetail.share.disabled')}</SupportText>
+              )}
+            </div>
+          </div>
+        </DialogBody>
+        <DialogActions>
+          <div className="flex justify-end gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={isGeneratingLink}
+            >
+              {t('common.actions.close')}
+            </Button>
+          </div>
+        </DialogActions>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -329,9 +389,10 @@ function AddVideosDialog({
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
   const [isTagManagementOpen, setIsTagManagementOpen] = useState(false);
 
-  const handleOrderingChange = useCallback((event: ChangeEvent<HTMLSelectElement>) => {
-    const value = event.target.value as OrderingOption;
-    if (ORDERING_OPTIONS.includes(value)) setOrdering(value);
+  const handleOrderingChange = useCallback((value: string) => {
+    if (ORDERING_OPTIONS.includes(value as OrderingOption)) {
+      setOrdering(value as OrderingOption);
+    }
   }, []);
 
   const handleTagToggle = useCallback((tagId: number) => {
@@ -378,110 +439,134 @@ function AddVideosDialog({
     }
   };
 
+  const dialog = useDialog({
+    open: isOpen,
+    onOpenChange,
+    onRequestClose: (event) => {
+      if (addVideosMutation.isPending) event.preventDefault();
+    },
+  });
+
+  if (!isOpen) {
+    return (
+      <TagManagementModal isOpen={isTagManagementOpen} onClose={() => setIsTagManagementOpen(false)} />
+    );
+  }
+
   return (
     <>
-      <Dialog open={isOpen} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-[95vw] lg:max-w-2xl max-h-[90vh] overflow-y-auto">
+      <Dialog {...dialog.dialogProps} scroll="inner" width="min(42rem, 95vw)">
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle>{t('videos.groupDetail.addVideos')}</DialogTitle>
-            <DialogDescription>
-              {t('videos.groupDetail.addVideosDescription', 'Select videos to add to this group.')}
-            </DialogDescription>
+            <DialogHeading {...dialog.headingProps}>{t('videos.groupDetail.addVideos')}</DialogHeading>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="flex flex-wrap items-center gap-2">
-              <input
-                placeholder={t('videos.groupDetail.searchPlaceholder')}
-                value={videoSearchInput}
-                onChange={(event) => setVideoSearchInput(event.target.value)}
-                className="w-full md:w-1/2 px-3 py-2 bg-[#f2f4ef] border border-[#e1e3de] rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#00652c]/20 focus:border-[#00652c]"
-              />
-              <select
-                value={statusFilter}
-                onChange={(event) => setStatusFilter(event.target.value)}
-                className="px-3 py-2 bg-[#f2f4ef] border border-[#e1e3de] rounded-xl text-sm outline-none"
-              >
-                <option value="">{t('videos.groupDetail.statusFilter.all')}</option>
-                <option value="completed">{t('videos.groupDetail.statusFilter.completed')}</option>
-                <option value="processing">{t('videos.groupDetail.statusFilter.processing')}</option>
-                <option value="indexing">{t('videos.groupDetail.statusFilter.indexing')}</option>
-                <option value="pending">{t('videos.groupDetail.statusFilter.pending')}</option>
-                <option value="error">{t('videos.groupDetail.statusFilter.error')}</option>
-              </select>
-              <select
-                value={ordering}
-                onChange={handleOrderingChange}
-                className="px-3 py-2 bg-[#f2f4ef] border border-[#e1e3de] rounded-xl text-sm outline-none"
-              >
-                <option value="uploaded_at_desc">{t('videos.groupDetail.ordering.uploadedDesc')}</option>
-                <option value="uploaded_at_asc">{t('videos.groupDetail.ordering.uploadedAsc')}</option>
-                <option value="title_asc">{t('videos.groupDetail.ordering.titleAsc')}</option>
-                <option value="title_desc">{t('videos.groupDetail.ordering.titleDesc')}</option>
-              </select>
-              <button
-                onClick={() => setSelectedVideos(availableVideos.map((video) => video.id))}
-                disabled={!availableVideos.length}
-                className="px-3 py-2 border border-[#e1e3de] rounded-xl text-sm font-medium hover:bg-[#f2f4ef] disabled:opacity-40"
-              >
-                {t('videos.groupDetail.selectAll')}
-              </button>
-              <button
-                onClick={() => setSelectedVideos([])}
-                disabled={selectedVideos.length === 0}
-                className="px-3 py-2 border border-[#e1e3de] rounded-xl text-sm font-medium hover:bg-[#f2f4ef] disabled:opacity-40"
-              >
-                {t('videos.groupDetail.clearSelection')}
-              </button>
-            </div>
-            <TagFilterPanel
-              tags={tags}
-              selectedTagIds={selectedTagIds}
-              onToggle={handleTagToggle}
-              onClear={handleTagClear}
-              onManageTags={() => setIsTagManagementOpen(true)}
-              disabled={isLoadingVideos}
-            />
-            {isLoadingVideos ? (
-              <div className="flex justify-center py-8"><LoadingSpinner /></div>
-            ) : availableVideos.length === 0 ? (
-              <p className="text-center text-[#6f7a6e] py-8">{t('videos.groupDetail.noAvailableVideos')}</p>
-            ) : (
-              <div className="space-y-2 max-h-[400px] overflow-y-auto">
-                {availableVideos.map((video) => (
-                  <div key={video.id} className="flex items-center gap-3 p-3 border border-[#e1e3de] rounded-xl hover:bg-[#f2f4ef] transition-colors">
-                    <Checkbox
-                      id={`video-${video.id}`}
-                      checked={selectedVideos.includes(video.id)}
-                      onCheckedChange={(checked: boolean | 'indeterminate') => {
-                        if (checked === true) setSelectedVideos([...selectedVideos, video.id]);
-                        else if (checked === false) setSelectedVideos(selectedVideos.filter((id) => id !== video.id));
-                      }}
-                    />
-                    <label htmlFor={`video-${video.id}`} className="flex-1 cursor-pointer">
-                      <div className="text-sm font-medium text-[#191c19]">{video.title}</div>
-                      <div className="text-xs text-[#6f7a6e]">{video.description || t('common.messages.noDescription')}</div>
-                    </label>
+          <DialogScrollArea>
+            <DialogBody>
+              <p className="mb-4 text-std-16N-170 text-solid-gray-700">
+                {t('videos.groupDetail.addVideosDescription', 'Select videos to add to this group.')}
+              </p>
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Input
+                    placeholder={t('videos.groupDetail.searchPlaceholder')}
+                    value={videoSearchInput}
+                    onChange={(event) => setVideoSearchInput(event.target.value)}
+                    blockSize="md"
+                    className="w-full md:w-1/2"
+                  />
+                  <Select value={statusFilter || 'all'} onValueChange={(value) => setStatusFilter(value === 'all' ? '' : value)}>
+                    <SelectTrigger blockSize="md" className="w-auto min-w-[10rem]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">{t('videos.groupDetail.statusFilter.all')}</SelectItem>
+                      <SelectItem value="completed">{t('videos.groupDetail.statusFilter.completed')}</SelectItem>
+                      <SelectItem value="processing">{t('videos.groupDetail.statusFilter.processing')}</SelectItem>
+                      <SelectItem value="indexing">{t('videos.groupDetail.statusFilter.indexing')}</SelectItem>
+                      <SelectItem value="pending">{t('videos.groupDetail.statusFilter.pending')}</SelectItem>
+                      <SelectItem value="error">{t('videos.groupDetail.statusFilter.error')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={ordering} onValueChange={handleOrderingChange}>
+                    <SelectTrigger blockSize="md" className="w-auto min-w-[12rem]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="uploaded_at_desc">{t('videos.groupDetail.ordering.uploadedDesc')}</SelectItem>
+                      <SelectItem value="uploaded_at_asc">{t('videos.groupDetail.ordering.uploadedAsc')}</SelectItem>
+                      <SelectItem value="title_asc">{t('videos.groupDetail.ordering.titleAsc')}</SelectItem>
+                      <SelectItem value="title_desc">{t('videos.groupDetail.ordering.titleDesc')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSelectedVideos(availableVideos.map((video) => video.id))}
+                    disabled={!availableVideos.length}
+                  >
+                    {t('videos.groupDetail.selectAll')}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSelectedVideos([])}
+                    disabled={selectedVideos.length === 0}
+                  >
+                    {t('videos.groupDetail.clearSelection')}
+                  </Button>
+                </div>
+                <TagFilterPanel
+                  tags={tags}
+                  selectedTagIds={selectedTagIds}
+                  onToggle={handleTagToggle}
+                  onClear={handleTagClear}
+                  onManageTags={() => setIsTagManagementOpen(true)}
+                  disabled={isLoadingVideos}
+                />
+                {isLoadingVideos ? (
+                  <div className="flex justify-center py-8"><LoadingSpinner /></div>
+                ) : availableVideos.length === 0 ? (
+                  <p className="text-center text-solid-gray-600 py-8">{t('videos.groupDetail.noAvailableVideos')}</p>
+                ) : (
+                  <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                    {availableVideos.map((video) => (
+                      <div key={video.id} className="flex items-center gap-3 p-3 border border-solid-gray-200 rounded-8 hover:bg-solid-gray-50 transition-colors">
+                        <Checkbox
+                          id={`video-${video.id}`}
+                          checked={selectedVideos.includes(video.id)}
+                          onCheckedChange={(checked: boolean | 'indeterminate') => {
+                            if (checked === true) setSelectedVideos([...selectedVideos, video.id]);
+                            else if (checked === false) setSelectedVideos(selectedVideos.filter((id) => id !== video.id));
+                          }}
+                        />
+                        <Label htmlFor={`video-${video.id}`} className="flex-1 cursor-pointer">
+                          <div className="text-std-16B-170 text-solid-gray-800">{video.title}</div>
+                          <div className="text-dns-14N-130 text-solid-gray-600">{video.description || t('common.messages.noDescription')}</div>
+                        </Label>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                )}
               </div>
-            )}
-          </div>
-          <DialogFooter>
-            <button
-              onClick={() => onOpenChange(false)}
-              className="px-4 py-2 border border-[#e1e3de] rounded-xl text-sm font-bold hover:bg-[#f2f4ef] transition-colors"
-            >
-              {t('common.actions.cancel')}
-            </button>
-            <button
-              onClick={handleAddVideos}
-              disabled={addVideosMutation.isPending || selectedVideos.length === 0}
-              className="flex items-center gap-2 px-4 py-2 bg-[#00652c] text-white rounded-xl text-sm font-bold hover:opacity-90 transition-opacity disabled:opacity-50"
-            >
-              {addVideosMutation.isPending && <InlineSpinner className="w-3.5 h-3.5" />}
-              {addVideosMutation.isPending ? t('videos.groupDetail.adding') : t('videos.groupDetail.add')}
-            </button>
-          </DialogFooter>
+            </DialogBody>
+          </DialogScrollArea>
+          <DialogActions>
+            <div className="flex justify-end gap-3">
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                {t('common.actions.cancel')}
+              </Button>
+              <Button
+                type="button"
+                onClick={handleAddVideos}
+                disabled={addVideosMutation.isPending || selectedVideos.length === 0}
+              >
+                {addVideosMutation.isPending && <InlineSpinner className="w-3.5 h-3.5" />}
+                {addVideosMutation.isPending ? t('videos.groupDetail.adding') : t('videos.groupDetail.add')}
+              </Button>
+            </div>
+          </DialogActions>
         </DialogContent>
       </Dialog>
       <TagManagementModal isOpen={isTagManagementOpen} onClose={() => setIsTagManagementOpen(false)} />
@@ -512,58 +597,73 @@ function GroupEditDialog({
 }) {
   const { t } = useTranslation();
 
+  const dialog = useDialog({
+    open: isOpen,
+    onOpenChange,
+    onRequestClose: (event) => {
+      if (isUpdating) event.preventDefault();
+    },
+  });
+
+  if (!isOpen) return null;
+
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+    <Dialog {...dialog.dialogProps} width="min(32rem, 92vw)">
+      <DialogContent>
         <DialogHeader>
-          <DialogTitle>{t('videos.groupDetail.editTitle')}</DialogTitle>
-          <DialogDescription>
-            {t('videos.groupDetail.editDescription', 'Update the group name and description.')}
-          </DialogDescription>
+          <DialogHeading {...dialog.headingProps}>{t('videos.groupDetail.editTitle')}</DialogHeading>
         </DialogHeader>
-        <div className="space-y-4 py-2">
-          {updateError && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600">{updateError}</div>
-          )}
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-[#3f493f]">{t('videos.groups.nameLabel')}</label>
-            <input
-              type="text"
-              value={editedName}
-              onChange={(event) => onNameChange(event.target.value)}
-              disabled={isUpdating}
-              className="w-full px-3 py-2.5 bg-[#f2f4ef] border border-[#e1e3de] rounded-xl text-sm focus:ring-2 focus:ring-[#00652c]/20 focus:border-[#00652c] outline-none transition-all"
-            />
+        <DialogBody>
+          <p className="mb-4 text-std-16N-170 text-solid-gray-700">
+            {t('videos.groupDetail.editDescription', 'Update the group name and description.')}
+          </p>
+          <div className="space-y-4">
+            {updateError && <ErrorMessage message={updateError} />}
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="group-edit-name">{t('videos.groups.nameLabel')}</Label>
+              <Input
+                id="group-edit-name"
+                type="text"
+                value={editedName}
+                onChange={(event) => onNameChange(event.target.value)}
+                disabled={isUpdating}
+                blockSize="md"
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="group-edit-description">{t('videos.groups.descriptionLabel')}</Label>
+              <Textarea
+                id="group-edit-description"
+                value={editedDescription}
+                onChange={(event) => onDescriptionChange(event.target.value)}
+                disabled={isUpdating}
+                rows={3}
+                className="resize-none"
+              />
+            </div>
           </div>
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-[#3f493f]">{t('videos.groups.descriptionLabel')}</label>
-            <textarea
-              value={editedDescription}
-              onChange={(event) => onDescriptionChange(event.target.value)}
+        </DialogBody>
+        <DialogActions>
+          <div className="flex justify-end gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
               disabled={isUpdating}
-              rows={3}
-              className="w-full px-3 py-2.5 bg-[#f2f4ef] border border-[#e1e3de] rounded-xl text-sm focus:ring-2 focus:ring-[#00652c]/20 focus:border-[#00652c] outline-none transition-all resize-none"
-            />
+            >
+              <X className="w-3.5 h-3.5" />
+              {t('common.actions.cancel')}
+            </Button>
+            <Button
+              type="button"
+              onClick={onSave}
+              disabled={isUpdating || !editedName.trim()}
+            >
+              {isUpdating ? <InlineSpinner className="w-3.5 h-3.5" /> : <Save className="w-3.5 h-3.5" />}
+              {isUpdating ? t('common.actions.saving') : t('common.actions.save')}
+            </Button>
           </div>
-        </div>
-        <DialogFooter>
-          <button
-            onClick={() => onOpenChange(false)}
-            disabled={isUpdating}
-            className="flex items-center gap-1.5 px-4 py-2 border border-[#e1e3de] rounded-xl text-sm font-bold hover:bg-[#f2f4ef] transition-colors disabled:opacity-50"
-          >
-            <X className="w-3.5 h-3.5" />
-            {t('common.actions.cancel')}
-          </button>
-          <button
-            onClick={onSave}
-            disabled={isUpdating || !editedName.trim()}
-            className="flex items-center gap-1.5 px-4 py-2 bg-[#00652c] text-white rounded-xl text-sm font-bold hover:opacity-90 transition-opacity disabled:opacity-50"
-          >
-            {isUpdating ? <InlineSpinner className="w-3.5 h-3.5" /> : <Save className="w-3.5 h-3.5" />}
-            {isUpdating ? t('common.actions.saving') : t('common.actions.save')}
-          </button>
-        </DialogFooter>
+        </DialogActions>
       </DialogContent>
     </Dialog>
   );
@@ -573,13 +673,10 @@ function GroupVideoList({
   group,
   selectedVideo,
   deleteError,
-  isDeleting,
   isMobile,
   mobileTab,
   sensors,
   onOpenAdd,
-  onStartEditing,
-  onDeleteGroup,
   onVideoSelect,
   onMobileTabChange,
   onRemoveVideo,
@@ -588,13 +685,10 @@ function GroupVideoList({
   group: VideoGroup;
   selectedVideo: SelectedVideo | null;
   deleteError: string | null;
-  isDeleting: boolean;
   isMobile: boolean;
   mobileTab: MobileTab;
   sensors: ReturnType<typeof useSensors>;
   onOpenAdd: () => void;
-  onStartEditing: () => void;
-  onDeleteGroup: () => void;
   onVideoSelect: (videoId: number) => void;
   onMobileTabChange: (tab: MobileTab) => void;
   onRemoveVideo: (videoId: number) => Promise<void> | void;
@@ -603,44 +697,28 @@ function GroupVideoList({
   const { t } = useTranslation();
 
   return (
-    <aside className={`lg:col-span-1 flex flex-col min-h-0 ${mobileTab === 'videos' ? 'flex' : 'hidden lg:flex'}`}>
-      <div className="bg-white rounded-xl flex flex-col h-full overflow-hidden shadow-[0_4px_20px_rgba(28,25,23,0.04)]">
-        {deleteError && (
-          <div className="px-4 pt-3 shrink-0">
-            <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600">{deleteError}</div>
+    <aside className={`lg:col-span-1 flex min-h-0 flex-col ${mobileTab === 'videos' ? 'flex' : 'hidden lg:flex'}`}>
+      <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden border border-solid-gray-420 bg-white">
+        {deleteError ? (
+          <div className="shrink-0 px-5 pt-4">
+            <ErrorMessage message={deleteError} />
           </div>
-        )}
-        <div className="p-4 border-b border-stone-100 flex items-center justify-between gap-2 shrink-0">
-          <h2 className="font-extrabold text-[#191c19] truncate flex-1 min-w-0">{group.name}</h2>
-          <div className="flex items-center gap-2 shrink-0">
-            <span className="text-xs bg-[#f2f4ef] px-2 py-0.5 rounded-full text-[#6f7a6e] font-medium">
+        ) : null}
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-solid-gray-200 px-5 py-4">
+          <Heading size="18" className="min-w-0 flex-1 truncate">
+            <HeadingTitle level="h2">{t('videos.groupDetail.videoListTitle')}</HeadingTitle>
+          </Heading>
+          <div className="flex shrink-0 items-center gap-3">
+            <ChipLabel variant="filled-1" color="gray" className="min-h-0 text-oln-14N-100">
               {t('videos.groupDetail.videoCount', { count: group.videos?.length ?? 0 })}
-            </span>
-            <button
-              onClick={onOpenAdd}
-              className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white border border-[#e1e3de] hover:bg-[#f2f4ef] transition-colors text-[#191c19] text-xs font-bold shadow-sm"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">{t('videos.groupDetail.add')}</span>
-            </button>
-            <button
-              onClick={onStartEditing}
-              className="p-1.5 text-[#3f493f] hover:bg-stone-100 rounded-lg transition-colors"
-              title={t('videos.groupDetail.editTitle')}
-            >
-              <Pencil className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={onDeleteGroup}
-              disabled={isDeleting}
-              className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
-              title={t('videos.groupDetail.delete')}
-            >
-              {isDeleting ? <InlineSpinner className="w-3.5 h-3.5" /> : <Trash2 className="w-3.5 h-3.5" />}
-            </button>
+            </ChipLabel>
+            <Button type="button" variant="outline" size="sm" onClick={onOpenAdd}>
+              <Plus className="h-3.5 w-3.5" />
+              <span className="ml-1.5 hidden sm:inline">{t('videos.groupDetail.add')}</span>
+            </Button>
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto p-2 space-y-1">
+        <div className="flex-1 space-y-2 overflow-y-auto p-3">
           {group.videos && group.videos.length > 0 ? (
             <DndContext
               sensors={isMobile ? MOBILE_SENSORS : sensors}
@@ -664,7 +742,7 @@ function GroupVideoList({
               </SortableContext>
             </DndContext>
           ) : (
-            <p className="text-center text-[#6f7a6e] py-8 text-sm">
+            <p className="py-10 text-center text-std-16N-170 text-solid-gray-600">
               {t('videos.groupDetail.videoListEmpty')}
             </p>
           )}
@@ -694,17 +772,19 @@ function GroupPlayerPanel({
   const { t } = useTranslation();
 
   return (
-    <section className={`lg:col-span-2 flex flex-col gap-3 lg:min-h-0 ${mobileTab === 'player' ? 'flex' : 'hidden lg:flex'}`}>
-      <div className="bg-white rounded-xl flex flex-col lg:flex-1 overflow-hidden shadow-[0_8px_30px_rgba(28,25,23,0.08)]">
-        <div className="p-4 border-b border-stone-100 shrink-0 flex items-center justify-between gap-3 min-w-0">
-          <h1 className="font-extrabold text-[#191c19] text-lg truncate flex-1 min-w-0">
-            {selectedVideo ? selectedVideo.title : t('videos.groupDetail.playerPlaceholder')}
-          </h1>
-          <div className="flex items-center gap-2 shrink-0">
-            {groupId && <DashboardButton groupId={groupId} size="sm" />}
+    <section className={`lg:col-span-2 flex min-h-0 flex-col gap-4 ${mobileTab === 'player' ? 'flex' : 'hidden lg:flex'}`}>
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden border border-solid-gray-420 bg-white">
+        <div className="flex min-w-0 shrink-0 items-center justify-between gap-4 border-b border-solid-gray-200 px-5 py-4">
+          <Heading size="18" className="min-w-0 flex-1 truncate">
+            <HeadingTitle level="h2">
+              {selectedVideo ? selectedVideo.title : t('videos.groupDetail.playerPlaceholder')}
+            </HeadingTitle>
+          </Heading>
+          <div className="flex shrink-0 items-center gap-3">
+            {groupId ? <DashboardButton groupId={groupId} size="sm" /> : null}
           </div>
         </div>
-        <div className="aspect-video lg:aspect-auto lg:flex-1 bg-[#1a1c1c] flex items-center justify-center lg:min-h-0">
+        <div className="aspect-video lg:aspect-auto lg:flex-1 bg-solid-gray-800 flex items-center justify-center lg:min-h-0">
           {selectedVideo ? (
             selectedVideo.source_type === 'youtube' && selectedVideo.youtube_embed_url ? (
               <iframe
@@ -727,10 +807,10 @@ function GroupPlayerPanel({
                 {t('common.messages.browserNoVideoSupport')}
               </video>
             ) : (
-              <p className="text-stone-400 text-sm">{t('videos.groupDetail.videoNoFile')}</p>
+              <p className="text-solid-gray-420 text-std-16N-170">{t('videos.groupDetail.videoNoFile')}</p>
             )
           ) : (
-            <p className="text-stone-400 text-sm text-center px-4">{t('videos.groupDetail.playerPlaceholder')}</p>
+            <p className="text-solid-gray-420 text-std-16N-170 text-center px-4">{t('videos.groupDetail.playerPlaceholder')}</p>
           )}
         </div>
       </div>
@@ -738,7 +818,7 @@ function GroupPlayerPanel({
         <ChatPanel
           groupId={groupId ?? undefined}
           onVideoPlay={onVideoPlayFromTime}
-          className="h-[480px] shadow-[0_4px_20px_rgba(28,25,23,0.04)]"
+          className="h-[480px]"
         />
       </div>
     </section>
@@ -760,22 +840,23 @@ function GroupMobileNav({
   };
 
   return (
-    <nav className="fixed bottom-0 left-0 w-full z-50 lg:hidden flex justify-around items-center h-16 bg-white border-t border-stone-100 shadow-[0_-4px_20px_rgba(28,25,23,0.06)] rounded-t-2xl px-4">
+    <nav className="fixed bottom-0 left-0 z-50 flex h-16 w-full items-center justify-around border-t border-solid-gray-420 bg-white px-4 lg:hidden">
       {(['videos', 'player'] as MobileTab[]).map((tab) => {
         const Icon = mobileTabIcon[tab];
         const isActive = mobileTab === tab;
         return (
           <button
             key={tab}
+            type="button"
             onClick={() => onChange(tab)}
-            className={`flex flex-col items-center justify-center gap-1 px-4 py-1 rounded-xl transition-colors ${
+            className={`flex flex-col items-center justify-center gap-1 px-4 py-1 transition-colors ${
               isActive
-                ? 'bg-[#f0fdf4] text-[#00652c]'
-                : 'text-stone-400 hover:text-[#00652c]'
+                ? 'border-b-2 border-key-900 text-key-900'
+                : 'text-solid-gray-420 hover:text-key-900'
             }`}
           >
             <Icon className="w-5 h-5" />
-            <span className="text-[11px] font-medium">{mobileTabLabel[tab]}</span>
+            <span className="text-dns-14N-120 font-medium">{mobileTabLabel[tab]}</span>
           </button>
         );
       })}
@@ -823,33 +904,33 @@ export function VideoGroupDetailView({
   onCopyShareLink,
 }: VideoGroupDetailViewProps) {
   const { t } = useTranslation();
+  const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
   return (
-    <div
-      className="bg-[#f8faf5] flex flex-col"
-      style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-    >
+    <div className="bg-solid-gray-50 flex flex-col text-solid-gray-800">
       <AppNav activePage="groups" />
 
       {isLoading ? (
-        <div className="mt-16 min-h-[calc(100dvh-64px)] flex items-center justify-center">
+        <div className="flex min-h-[calc(100dvh-var(--app-header-offset,5rem))] items-center justify-center">
           <LoadingSpinner />
         </div>
       ) : error && !group ? (
-        <div className="mt-16 min-h-[calc(100dvh-64px)] flex flex-col items-center justify-center gap-4">
-          <p className="text-red-500">{error}</p>
-          <Link href="/videos/groups" className="text-[#00652c] font-bold hover:underline flex items-center gap-1">
-            <ArrowLeft className="w-4 h-4" />
-            {t('common.actions.backToList')}
-          </Link>
+        <div className="flex min-h-[calc(100dvh-var(--app-header-offset,5rem))] flex-col items-center justify-center gap-4">
+          <ErrorMessage message={error} />
+          <UtilityLink asChild>
+            <Link href="/videos/groups" className="inline-flex items-center gap-1">
+              <ArrowLeft className="w-4 h-4" />
+              {t('common.actions.backToList')}
+            </Link>
+          </UtilityLink>
         </div>
       ) : !group ? (
-        <div className="mt-16 min-h-[calc(100dvh-64px)] flex items-center justify-center">
-          <p className="text-[#3f493f]">{t('common.messages.groupNotFound')}</p>
+        <div className="flex min-h-[calc(100dvh-var(--app-header-offset,5rem))] items-center justify-center">
+          <p className="text-solid-gray-700">{t('common.messages.groupNotFound')}</p>
         </div>
       ) : (
         <>
@@ -865,29 +946,101 @@ export function VideoGroupDetailView({
             onSave={onUpdateGroup}
           />
 
-          <main className="mt-16 flex flex-col px-6 pt-4 gap-4 max-w-[1600px] mx-auto w-full overflow-y-auto pb-16 lg:pb-4 lg:h-[calc(100dvh-64px)] lg:overflow-hidden">
-            <ShareLinkPanel
-              shareSlug={shareSlug}
-              shareLink={shareLink}
-              isGeneratingLink={isGeneratingLink}
-              isCopied={isCopied}
-              onGenerate={onGenerateShareLink}
-              onDelete={onDeleteShareLink}
-              onCopy={onCopyShareLink}
-            />
+          <ShareLinkDialog
+            isOpen={isShareDialogOpen}
+            shareSlug={shareSlug}
+            shareLink={shareLink}
+            isGeneratingLink={isGeneratingLink}
+            isCopied={isCopied}
+            onOpenChange={setIsShareDialogOpen}
+            onGenerate={onGenerateShareLink}
+            onDelete={onDeleteShareLink}
+            onCopy={onCopyShareLink}
+          />
 
-            <div className="flex flex-col lg:grid lg:grid-cols-4 gap-6 lg:flex-1 lg:min-h-0 lg:items-stretch">
+          <main className="mx-auto flex w-full max-w-[1600px] flex-col gap-4 overflow-y-auto px-6 py-4 pb-20 lg:h-[calc(100dvh-var(--app-header-offset,5rem))] lg:gap-5 lg:overflow-hidden lg:px-8 lg:pb-4">
+            <div className="shrink-0 space-y-4">
+              <Breadcrumbs aria-label={t('common.actions.backToList')}>
+                <BreadcrumbsLabel className="sr-only">
+                  {t('common.actions.backToList')}
+                </BreadcrumbsLabel>
+                <BreadcrumbList>
+                  <BreadcrumbItem>
+                    <BreadcrumbLink asChild>
+                      <Link href="/videos/groups">{t('navigation.groupsNav')}</Link>
+                    </BreadcrumbLink>
+                  </BreadcrumbItem>
+                  <BreadcrumbItem isCurrent>{group.name}</BreadcrumbItem>
+                </BreadcrumbList>
+              </Breadcrumbs>
+
+              <header className="flex flex-col justify-between gap-3 lg:flex-row lg:items-end">
+                <div className="min-w-0 space-y-1">
+                  <Heading size="24" rule="4" hasChip={!!shareLink}>
+                    {shareLink ? (
+                      <HeadingShoulder>
+                        <ChipLabel variant="filled-1" color="blue" className="min-h-0 text-oln-14N-100">
+                          {t('videos.groupDetail.sharingBadge')}
+                        </ChipLabel>
+                      </HeadingShoulder>
+                    ) : null}
+                    <HeadingTitle level="h1">{group.name}</HeadingTitle>
+                  </Heading>
+                  {group.description ? (
+                    <p className="line-clamp-2 max-w-3xl text-std-16N-170 text-solid-gray-700">
+                      {group.description}
+                    </p>
+                  ) : null}
+                </div>
+                <div className="flex shrink-0 flex-wrap items-center gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsShareDialogOpen(true)}
+                  >
+                    <Share2 className="mr-1.5 h-3.5 w-3.5" />
+                    {t('videos.groupDetail.shareOpen')}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={onStartEditing}
+                    title={t('videos.groupDetail.editTitle')}
+                  >
+                    <Pencil className="mr-1.5 h-3.5 w-3.5" />
+                    {t('videos.groupDetail.editTitle')}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="text"
+                    size="sm"
+                    onClick={onDeleteGroup}
+                    disabled={isDeleting}
+                    title={t('videos.groupDetail.delete')}
+                    className="text-error-1 hover:bg-red-50"
+                  >
+                    {isDeleting ? (
+                      <InlineSpinner className="mr-1.5 h-3.5 w-3.5" />
+                    ) : (
+                      <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                    )}
+                    {t('videos.groupDetail.delete')}
+                  </Button>
+                </div>
+              </header>
+            </div>
+
+            <div className="flex min-h-0 flex-1 flex-col gap-6 lg:grid lg:grid-cols-4 lg:items-stretch">
               <GroupVideoList
                 group={group}
                 selectedVideo={selectedVideo}
                 deleteError={deleteError}
-                isDeleting={isDeleting}
                 isMobile={isMobile}
                 mobileTab={mobileTab}
                 sensors={sensors}
                 onOpenAdd={() => onOpenAddModalChange(true)}
-                onStartEditing={onStartEditing}
-                onDeleteGroup={onDeleteGroup}
                 onVideoSelect={onVideoSelect}
                 onMobileTabChange={onMobileTabChange}
                 onRemoveVideo={onRemoveVideo}
@@ -904,11 +1057,11 @@ export function VideoGroupDetailView({
                 onVideoPlayFromTime={onVideoPlayFromTime}
               />
 
-              <aside className="hidden lg:flex lg:col-span-1 flex-col min-h-0">
+              <aside className="hidden min-h-0 flex-col lg:col-span-1 lg:flex">
                 <ChatPanel
                   groupId={groupId ?? undefined}
                   onVideoPlay={onVideoPlayFromTime}
-                  className="flex-1 min-h-0 shadow-[0_4px_20px_rgba(28,25,23,0.04)]"
+                  className="h-full min-h-0 flex-1"
                 />
               </aside>
             </div>

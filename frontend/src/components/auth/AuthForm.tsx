@@ -1,13 +1,6 @@
 import { Button } from '@/components/ui/button';
+import { Heading, HeadingTitle } from '@/components/ui/heading';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
 import { FormField } from './FormField';
 import { ErrorMessage } from './ErrorMessage';
 import { AuthFormFooter } from './AuthFormFooter';
@@ -53,14 +46,16 @@ export function AuthForm({
   footer,
 }: AuthFormProps) {
   return (
-    <Card className="w-full max-w-md">
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
-      </CardHeader>
-      <form onSubmit={onSubmit}>
-        <CardContent className="space-y-4">
-          <ErrorMessage message={error} />
+    <div className="w-full max-w-md space-y-6">
+      <div className="space-y-2">
+        <Heading size="28">
+          <HeadingTitle level="h1">{title}</HeadingTitle>
+        </Heading>
+        <p className="text-std-16N-170 text-solid-gray-700">{description}</p>
+      </div>
+      <form onSubmit={onSubmit} className="space-y-6">
+        <ErrorMessage message={error} />
+        <div className="space-y-4">
           {fields.map((field) => (
             <FormField
               key={field.id}
@@ -75,15 +70,17 @@ export function AuthForm({
               minLength={field.minLength}
             />
           ))}
-        </CardContent>
-        <CardFooter className="flex flex-col space-y-4 pt-6">
-          <Button type="submit" className="w-full" disabled={isLoading}>
+        </div>
+        <div className="flex flex-col space-y-4">
+          <Button type="submit" variant="solid" size="lg" className="w-full" disabled={isLoading}>
             {isLoading ? (
               <span className="flex items-center justify-center">
                 <InlineSpinner className="mr-2" />
                 {loadingButtonText}
               </span>
-            ) : submitButtonText}
+            ) : (
+              submitButtonText
+            )}
           </Button>
           {footer && (
             <AuthFormFooter
@@ -92,9 +89,8 @@ export function AuthForm({
               href={footer.href}
             />
           )}
-        </CardFooter>
+        </div>
       </form>
-    </Card>
+    </div>
   );
 }
-

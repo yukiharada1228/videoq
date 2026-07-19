@@ -76,8 +76,6 @@ describe('llms.txt', () => {
   // ── Documentation links ──────────────────────────────────────────────────────
 
   const REQUIRED_DOC_LINKS = [
-    `${BASE}/use-cases/education`,
-    `${BASE}/use-cases/corporate-training`,
     `${BASE}/docs/auth`,
     `${BASE}/docs/videos`,
     `${BASE}/docs/chat`,

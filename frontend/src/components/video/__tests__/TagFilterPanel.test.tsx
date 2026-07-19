@@ -44,7 +44,7 @@ describe('TagFilterPanel', () => {
 
         expect(screen.getByText('Tag 1')).toBeInTheDocument()
         expect(screen.getByText('Tag 2')).toBeInTheDocument()
-        expect(screen.getByText('Filter by Tags')).toBeInTheDocument()
+        expect(screen.getByText('tags.filter.title')).toBeInTheDocument()
     })
 
     it('should handle tag selection', () => {

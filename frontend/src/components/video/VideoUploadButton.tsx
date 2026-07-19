@@ -8,7 +8,7 @@ interface VideoUploadButtonProps {
   isUploading: boolean;
   disabled?: boolean;
   className?: string;
-  variant?: 'default' | 'outline';
+  variant?: 'solid' | 'outline';
   fullWidth?: boolean;
 }
 
@@ -16,15 +16,15 @@ export function VideoUploadButton({
   isUploading,
   disabled = false,
   className,
-  variant = 'default',
+  variant = 'solid',
   fullWidth = false
 }: VideoUploadButtonProps) {
   const { t } = useTranslation();
 
   return (
-    <Button 
-      type="submit" 
-      disabled={isUploading || disabled} 
+    <Button
+      type="submit"
+      disabled={isUploading || disabled}
       className={fullWidth ? `w-full ${className || ''}` : className}
       variant={variant}
     >
@@ -39,4 +39,3 @@ export function VideoUploadButton({
     </Button>
   );
 }
-

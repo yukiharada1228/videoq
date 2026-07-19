@@ -18,11 +18,11 @@ export function AppPageShell({
 }: AppPageShellProps) {
   return (
     <div
-      className="min-h-screen bg-[#f8faf5] text-[#191c19] flex flex-col"
-      style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", scrollbarGutter: 'stable' }}
+      className="flex min-h-screen flex-col bg-white text-solid-gray-800"
+      style={{ scrollbarGutter: 'stable' }}
     >
       <AppNav activePage={activePage} isPublic={isPublic} />
-      <main className={`flex-1 pt-24 pb-12 mx-auto w-full ${contentClassName}`}>
+      <main className={`mx-auto w-full flex-1 pb-16 pt-8 ${contentClassName}`}>
         {children}
       </main>
       <AppFooter />

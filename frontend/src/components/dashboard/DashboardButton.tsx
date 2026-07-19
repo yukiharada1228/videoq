@@ -2,7 +2,16 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BarChart3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogBody,
+  DialogClose,
+  DialogContent,
+  DialogHeader,
+  DialogHeading,
+  DialogScrollArea,
+  useDialog,
+} from '@/components/ui/dialog';
 import { useChatAnalytics } from '@/hooks/useChatAnalytics';
 import { useChatKeywords } from '@/hooks/useChatKeywords';
 import { useEvaluationSummary } from '@/hooks/useEvaluationSummary';
@@ -10,10 +19,10 @@ import { AnalyticsDashboard } from './AnalyticsDashboard';
 
 interface DashboardButtonProps {
   groupId: number;
-  size?: 'sm' | 'default';
+  size?: 'sm' | 'md';
 }
 
-export function DashboardButton({ groupId, size = 'default' }: DashboardButtonProps) {
+export function DashboardButton({ groupId, size = 'md' }: DashboardButtonProps) {
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const { data, isLoading } = useChatAnalytics(groupId, isOpen);
@@ -25,6 +34,11 @@ export function DashboardButton({ groupId, size = 'default' }: DashboardButtonPr
     data: keywordsData,
     isLoading: isKeywordsLoading,
   } = useChatKeywords(groupId, isOpen);
+
+  const dialog = useDialog({
+    open: isOpen,
+    onOpenChange: setIsOpen,
+  });
 
   return (
     <>
@@ -38,21 +52,30 @@ export function DashboardButton({ groupId, size = 'default' }: DashboardButtonPr
         {t('dashboard.button')}
       </Button>
 
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="max-w-[95vw] lg:max-w-5xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{t('dashboard.title')}</DialogTitle>
-          </DialogHeader>
-          <AnalyticsDashboard
-            data={data}
-            evaluationSummary={evaluationSummary}
-            isLoading={isLoading}
-            isEvaluationLoading={isEvaluationLoading}
-            keywordsData={keywordsData}
-            isKeywordsLoading={isKeywordsLoading}
-          />
-        </DialogContent>
-      </Dialog>
+      {isOpen && (
+        <Dialog {...dialog.dialogProps} scroll="inner" width="min(64rem, 95vw)">
+          <DialogContent>
+            <DialogHeader>
+              <DialogHeading {...dialog.headingProps}>
+                {t('dashboard.title')}
+              </DialogHeading>
+              <DialogClose {...dialog.closeButtonProps} />
+            </DialogHeader>
+            <DialogScrollArea>
+              <DialogBody>
+                <AnalyticsDashboard
+                  data={data}
+                  evaluationSummary={evaluationSummary}
+                  isLoading={isLoading}
+                  isEvaluationLoading={isEvaluationLoading}
+                  keywordsData={keywordsData}
+                  isKeywordsLoading={isKeywordsLoading}
+                />
+              </DialogBody>
+            </DialogScrollArea>
+          </DialogContent>
+        </Dialog>
+      )}
     </>
   );
 }

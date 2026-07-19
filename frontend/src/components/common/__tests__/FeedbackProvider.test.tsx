@@ -57,7 +57,8 @@ describe('FeedbackProvider', () => {
 
     expect(await screen.findByRole('dialog', { name: 'Delete video?' })).toBeInTheDocument()
     expect(screen.getByText('This action cannot be undone.')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Cancel' })).toHaveFocus()
+    // Digital Agency dialog focuses the heading on open.
+    expect(screen.getByRole('heading', { name: 'Delete video?' })).toHaveFocus()
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
 

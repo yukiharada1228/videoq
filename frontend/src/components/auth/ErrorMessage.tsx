@@ -1,14 +1,24 @@
+import {
+  NotificationBanner,
+  NotificationBannerBody,
+} from '@/components/ui/notification-banner';
+
 interface ErrorMessageProps {
   message: string | null;
+  title?: string;
 }
 
-export function ErrorMessage({ message }: ErrorMessageProps) {
+export function ErrorMessage({ message, title }: ErrorMessageProps) {
   if (!message) return null;
-  
+
   return (
-    <div className="rounded-xl bg-red-50 border border-red-200 p-3 text-sm text-red-600">
-      {message}
-    </div>
+    <NotificationBanner
+      bannerStyle="standard"
+      type="error"
+      title={title ?? message}
+      role="alert"
+    >
+      <NotificationBannerBody>{title ? message : null}</NotificationBannerBody>
+    </NotificationBanner>
   );
 }
-

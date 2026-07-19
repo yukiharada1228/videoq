@@ -1,15 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { AuthFormFooter } from '../AuthFormFooter'
 
-// Mock next/link
-vi.mock('next/link', () => {
-  const MockLink = ({ children, href }: { children: React.ReactNode; href: string }) => (
-    <a href={href}>{children}</a>
-  )
-  MockLink.displayName = 'MockLink'
-  return MockLink
-})
-
 describe('AuthFormFooter', () => {
   it('should render question text and link', () => {
     render(

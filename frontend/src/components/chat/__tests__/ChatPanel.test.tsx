@@ -219,34 +219,14 @@ describe('ChatPanel', () => {
       expect(screen.getByText('Response')).toBeInTheDocument()
     })
 
-    // Find feedback buttons (ThumbsUp and ThumbsDown are icon-only)
-    const feedbackButtons = screen.getAllByRole('button').filter(
-      btn => btn.querySelector('svg') && !btn.disabled
-    )
-    const goodButton = feedbackButtons.find(btn =>
-      btn.querySelector('[class*="lucide-thumbs-up"]')
-    )
+    const goodButton = await screen.findByRole('button', { name: 'chat.feedbackGood' })
+    await act(async () => {
+      fireEvent.click(goodButton)
+    })
 
-    if (goodButton) {
-      await act(async () => {
-        fireEvent.click(goodButton)
-      })
-
-      await waitFor(() => {
-        expect(apiClient.setChatFeedback).toHaveBeenCalledWith(1, 'good', undefined)
-      })
-    } else {
-      // Alternative: find buttons after the message content
-      const allButtons = screen.getAllByRole('button')
-      // ThumbsUp button is typically after the message
-      const thumbsButtons = allButtons.filter(btn => btn.className.includes('rounded'))
-      if (thumbsButtons.length > 0) {
-        await act(async () => { fireEvent.click(thumbsButtons[thumbsButtons.length - 2]) })
-        await waitFor(() => {
-          expect(apiClient.setChatFeedback).toHaveBeenCalled()
-        })
-      }
-    }
+    await waitFor(() => {
+      expect(apiClient.setChatFeedback).toHaveBeenCalledWith(1, 'good', undefined)
+    })
   })
 
   it('should handle feedback bad button click', async () => {
@@ -565,7 +545,7 @@ describe('ChatPanel', () => {
     // Loading state shows a spinner, history is empty loading
     // The history view renders while loading
     expect(screen.queryByText('Test question')).not.toBeInTheDocument()
-    expect(screen.getByRole('status')).toBeInTheDocument()
+    expect(screen.getByRole('progressbar')).toBeInTheDocument()
   })
 
   it('should handle getChatHistory error', async () => {
