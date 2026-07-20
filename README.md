@@ -6,9 +6,7 @@ VideoQ is an AI-powered video navigator that automatically transcribes videos an
 
 **[https://videoq.jp/](https://videoq.jp/)**
 
-Japanese version: [README.ja.md](README.ja.md)
-
-![VideoQ Application Screenshot](assets/screenshot.gif)
+![VideoQ Application Screenshot](assets/screenshot.png)
 
 > **API integration supported** - Connect VideoQ with existing systems through API key authentication and an OpenAI-compatible API. See [Developer API Integration](#developer-api) for details.
 >
