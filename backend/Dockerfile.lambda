@@ -14,15 +14,8 @@ ENV NLTK_DATA=/usr/local/nltk_data
 WORKDIR /var/task
 
 # ffmpeg + gettext (for compilemessages)
-RUN apt-get update && apt-get install -y --no-install-recommends curl xz-utils gettext \
-    && curl -fsSL \
-    "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz" \
-    | tar -xJ --wildcards --strip-components=1 \
-    "ffmpeg-*-amd64-static/ffmpeg" \
-    "ffmpeg-*-amd64-static/ffprobe" \
-    && mv ffmpeg ffprobe /usr/local/bin/ \
-    && chmod +x /usr/local/bin/ffmpeg /usr/local/bin/ffprobe \
-    && apt-get purge -y curl xz-utils && apt-get autoremove -y \
+# Prefer distro ffmpeg so image builds do not depend on third-party download hosts.
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg gettext \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt ./
