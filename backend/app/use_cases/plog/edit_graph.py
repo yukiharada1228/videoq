@@ -4,23 +4,17 @@ from __future__ import annotations
 
 from typing import Optional, Sequence
 
-from django.db import IntegrityError
-
 from app.domain.plog.gateways import PlogEmbeddingGateway
 from app.domain.plog.repositories import PlogRepository
 from app.domain.video.repositories import VideoQueryRepository
-from app.infrastructure.external.plog.metrics import ORDERING, is_dag
-from app.infrastructure.models.plog import PlogConcept, PlogEdge
 from app.use_cases.plog.get_graph import (
     PlogEdgeDTO,
     concept_dto_to_dict,
     concept_to_dto,
     edge_dto_to_dict,
 )
+from app.use_cases.plog.ordering import EDGE_TYPES, NODE_TYPES, ORDERING, is_dag
 from app.use_cases.shared.exceptions import ResourceNotFound
-
-NODE_TYPES = frozenset(PlogConcept.NodeType.values)
-EDGE_TYPES = frozenset(PlogEdge.EdgeType.values)
 
 
 class EditPlogGraphUseCase:
@@ -106,17 +100,14 @@ class EditPlogGraphUseCase:
             embedding = self.embedding_gateway.embed_texts([label])[0]
         except Exception as exc:
             raise ValueError(f"Failed to embed concept label: {exc}") from exc
-        try:
-            concept = self.plog_repo.create_concept(
-                video_id,
-                label=label,
-                node_type=node_type,
-                intro_sec=float(intro_sec or 0.0),
-                source_quote=source_quote or "",
-                embedding=embedding,
-            )
-        except IntegrityError as exc:
-            raise ValueError("A concept with this label already exists.") from exc
+        concept = self.plog_repo.create_concept(
+            video_id,
+            label=label,
+            node_type=node_type,
+            intro_sec=float(intro_sec or 0.0),
+            source_quote=source_quote or "",
+            embedding=embedding,
+        )
         return self._concept_response(video_id, concept.id)
 
     def update_concept(
@@ -146,18 +137,15 @@ class EditPlogGraphUseCase:
                     embedding = self.embedding_gateway.embed_texts([label])[0]
                 except Exception as exc:
                     raise ValueError(f"Failed to embed concept label: {exc}") from exc
-        try:
-            updated = self.plog_repo.update_concept(
-                concept_id,
-                video_id,
-                label=label,
-                node_type=node_type,
-                intro_sec=intro_sec,
-                source_quote=source_quote,
-                embedding=embedding,
-            )
-        except IntegrityError as exc:
-            raise ValueError("A concept with this label already exists.") from exc
+        updated = self.plog_repo.update_concept(
+            concept_id,
+            video_id,
+            label=label,
+            node_type=node_type,
+            intro_sec=intro_sec,
+            source_quote=source_quote,
+            embedding=embedding,
+        )
         if updated is None:
             raise ResourceNotFound("Concept")
         return self._concept_response(video_id, concept_id)
@@ -245,16 +233,13 @@ class EditPlogGraphUseCase:
             proposed_target_id=target_id,
             proposed_edge_type=edge_type,
         )
-        try:
-            edge = self.plog_repo.create_edge(
-                video_id,
-                source_id=source_id,
-                target_id=target_id,
-                edge_type=edge_type,
-                quote=quote or "",
-            )
-        except IntegrityError as exc:
-            raise ValueError("This edge already exists.") from exc
+        edge = self.plog_repo.create_edge(
+            video_id,
+            source_id=source_id,
+            target_id=target_id,
+            edge_type=edge_type,
+            quote=quote or "",
+        )
         graph = self.plog_repo.get_graph(video_id)
         return self._edge_dto(edge, graph)
 
@@ -291,17 +276,14 @@ class EditPlogGraphUseCase:
             proposed_edge_type=next_type,
             exclude_edge_id=edge_id,
         )
-        try:
-            edge = self.plog_repo.update_edge(
-                edge_id,
-                video_id,
-                source_id=source_id,
-                target_id=target_id,
-                edge_type=edge_type,
-                quote=quote,
-            )
-        except IntegrityError as exc:
-            raise ValueError("This edge already exists.") from exc
+        edge = self.plog_repo.update_edge(
+            edge_id,
+            video_id,
+            source_id=source_id,
+            target_id=target_id,
+            edge_type=edge_type,
+            quote=quote,
+        )
         if edge is None:
             raise ResourceNotFound("Edge")
         graph = self.plog_repo.get_graph(video_id)

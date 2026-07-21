@@ -13,6 +13,7 @@ from app.domain.chat.dtos import ChatMessageDTO, CitationDTO
 from app.domain.chat.gateways import (
     LLMConfigurationError,
     LLMProviderError,
+    PlogNotReadyError,
     RagGateway,
     RagResult,
     RagStreamChunk,
@@ -76,10 +77,6 @@ _GRADE_PROMPT = ChatPromptTemplate.from_messages(
         ),
     ]
 )
-
-
-class PlogNotReadyError(Exception):
-    """Raised when study mode is requested but no ready PLOG graph exists."""
 
 
 class PlogGuidedChatGateway(RagGateway):

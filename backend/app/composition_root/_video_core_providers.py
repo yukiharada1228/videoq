@@ -66,6 +66,7 @@ def get_index_video_use_case() -> IndexVideoTranscriptUseCase:
     return IndexVideoTranscriptUseCase(
         shared.new_video_repository(),
         shared.get_vector_indexing_gateway(),
+        shared.new_video_task_gateway(),
     )
 
 
@@ -106,6 +107,7 @@ def get_reindex_video_transcript_use_case() -> ReindexVideoTranscriptUseCase:
         shared.new_video_repository(),
         shared.new_vector_store_gateway(),
         shared.get_vector_indexing_gateway(),
+        shared.new_video_task_gateway(),
     )
 
 

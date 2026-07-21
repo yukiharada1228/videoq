@@ -6,7 +6,7 @@ import json
 from datetime import datetime, timezone
 from typing import Any, List, Optional, Sequence
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
 
 from app.domain.plog.entities import (
     LearnerConceptStateEntity,
@@ -301,14 +301,17 @@ class DjangoPlogRepository(PlogRepository):
         source_quote: str,
         embedding: Sequence[float],
     ) -> PlogConceptEntity:
-        obj = PlogConcept.objects.create(
-            video_id=video_id,
-            label=str(label)[:255],
-            node_type=node_type or PlogConcept.NodeType.OBJECT,
-            intro_sec=float(intro_sec),
-            source_quote=source_quote or "",
-            embedding=list(embedding or []),
-        )
+        try:
+            obj = PlogConcept.objects.create(
+                video_id=video_id,
+                label=str(label)[:255],
+                node_type=node_type or PlogConcept.NodeType.OBJECT,
+                intro_sec=float(intro_sec),
+                source_quote=source_quote or "",
+                embedding=list(embedding or []),
+            )
+        except IntegrityError as exc:
+            raise ValueError("A concept with this label already exists.") from exc
         PlogLearningObject.objects.get_or_create(concept_id=obj.id)
         return _concept_entity(obj)
 
@@ -337,7 +340,10 @@ class DjangoPlogRepository(PlogRepository):
             obj.source_quote = source_quote
         if embedding is not None:
             obj.embedding = list(embedding)
-        obj.save()
+        try:
+            obj.save()
+        except IntegrityError as exc:
+            raise ValueError("A concept with this label already exists.") from exc
         return _concept_entity(obj)
 
     def delete_concept(self, concept_id: int, video_id: int) -> bool:
@@ -492,14 +498,17 @@ class DjangoPlogRepository(PlogRepository):
         quote: str,
         validation_status: str = "validated",
     ) -> PlogEdgeEntity:
-        edge = PlogEdge.objects.create(
-            video_id=video_id,
-            source_id=source_id,
-            target_id=target_id,
-            edge_type=edge_type,
-            quote=quote or "",
-            validation_status=validation_status or PlogEdge.ValidationStatus.VALIDATED,
-        )
+        try:
+            edge = PlogEdge.objects.create(
+                video_id=video_id,
+                source_id=source_id,
+                target_id=target_id,
+                edge_type=edge_type,
+                quote=quote or "",
+                validation_status=validation_status or PlogEdge.ValidationStatus.VALIDATED,
+            )
+        except IntegrityError as exc:
+            raise ValueError("This edge already exists.") from exc
         return _edge_entity(edge)
 
     def update_edge(
@@ -527,7 +536,10 @@ class DjangoPlogRepository(PlogRepository):
             edge.quote = quote
         if validation_status is not None:
             edge.validation_status = validation_status
-        edge.save()
+        try:
+            edge.save()
+        except IntegrityError as exc:
+            raise ValueError("This edge already exists.") from exc
         return _edge_entity(edge)
 
     def delete_edge(self, edge_id: int, video_id: int) -> bool:

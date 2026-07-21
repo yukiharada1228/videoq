@@ -5,7 +5,7 @@ Can run asynchronously after the transcript update is committed.
 
 import logging
 
-from app.domain.video.gateways import VectorIndexingGateway, VectorStoreGateway
+from app.domain.video.gateways import VectorIndexingGateway, VectorStoreGateway, VideoTaskGateway
 from app.domain.video.repositories import VideoTranscriptionRepository
 
 logger = logging.getLogger(__name__)
@@ -24,10 +24,12 @@ class ReindexVideoTranscriptUseCase:
         video_repo: VideoTranscriptionRepository,
         vector_store_gateway: VectorStoreGateway,
         vector_indexing_gateway: VectorIndexingGateway,
+        task_gateway: VideoTaskGateway | None = None,
     ):
         self.video_repo = video_repo
         self.vector_store_gateway = vector_store_gateway
         self.vector_indexing_gateway = vector_indexing_gateway
+        self.task_gateway = task_gateway
 
     def execute(self, video_id: int) -> None:
         video = self.video_repo.get_by_id_for_task(video_id)
@@ -46,13 +48,12 @@ class ReindexVideoTranscriptUseCase:
                 api_key=None,
             )
             logger.info("Reindexed transcript for video %d", video_id)
-            try:
-                from app.infrastructure.tasks.task_gateway import CeleryVideoTaskGateway
-
-                CeleryVideoTaskGateway().enqueue_build_plog(video_id)
-            except Exception:
-                logger.exception(
-                    "Failed to enqueue PLOG rebuild after reindex video %d", video_id
-                )
+            if self.task_gateway is not None:
+                try:
+                    self.task_gateway.enqueue_build_plog(video_id)
+                except Exception:
+                    logger.exception(
+                        "Failed to enqueue PLOG rebuild after reindex video %d", video_id
+                    )
         else:
             logger.info("Transcript cleared for video %d; vectors deleted, no reindex", video_id)

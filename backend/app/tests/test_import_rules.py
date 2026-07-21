@@ -843,6 +843,24 @@ class ImportRulesTest(unittest.TestCase):
         """admin must not import app.infrastructure directly."""
         self._check_single_file("admin.py", ["app.infrastructure"])
 
+    def test_management_commands_are_framework_edge(self):
+        """management commands may use Django + infrastructure, not presentation/use_cases."""
+        for rel in (
+            "management/__init__.py",
+            "management/commands/__init__.py",
+            "management/commands/score_plog.py",
+        ):
+            self._check_single_file(
+                rel,
+                [
+                    "app.presentation",
+                    "app.use_cases",
+                    "app.composition_root",
+                    "app.dependencies",
+                    "app.entrypoints",
+                ],
+            )
+
     def test_non_layer_modules_are_explicitly_governed(self):
         """Files outside standard layer roots must stay in an explicit governed set."""
         governed_modules = {
@@ -851,6 +869,9 @@ class ImportRulesTest(unittest.TestCase):
             "apps.py",
             "celery_config.py",
             "urls.py",
+            "management/__init__.py",
+            "management/commands/__init__.py",
+            "management/commands/score_plog.py",
         }
         non_layer_files = {
             rel
