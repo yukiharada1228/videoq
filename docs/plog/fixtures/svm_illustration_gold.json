@@ -1,0 +1,23 @@
+{
+  "lecture": "svm_illustration",
+  "concepts": [
+    "decision boundary",
+    "generalization",
+    "support vectors",
+    "margin maximization",
+    "SVM",
+    "hard margin",
+    "soft margin",
+    "kernel trick"
+  ],
+  "ordering_edges": [
+    ["decision boundary", "SVM"],
+    ["generalization", "SVM"],
+    ["support vectors", "SVM"],
+    ["margin maximization", "SVM"],
+    ["SVM", "hard margin"],
+    ["hard margin", "soft margin"],
+    ["soft margin", "kernel trick"]
+  ],
+  "notes": "Illustrative gold for metric unit tests / regression; not a measured extractor gold."
+}

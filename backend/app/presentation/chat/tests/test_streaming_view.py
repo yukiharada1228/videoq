@@ -36,7 +36,7 @@ def _parse_sse_events(raw: str) -> list[dict]:
 
 def _fake_stream_reply(chunks=None, citations=None):
     """Return a function that patches stream_reply to yield given chunks."""
-    def _side_effect(self_or_gateway, messages, user_id, video_ids=None, locale=None, api_key=None, group_context=None):
+    def _side_effect(self_or_gateway, messages, user_id, video_ids=None, locale=None, api_key=None, group_context=None, **kwargs):
         for text in (chunks or ["Hello ", "World"]):
             yield RagStreamChunk(text=text)
         yield RagStreamChunk(is_final=True, citations=citations, query_text="test")

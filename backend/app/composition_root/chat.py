@@ -50,6 +50,8 @@ def _get_evaluation_task_gateway() -> CeleryEvaluationTaskGateway:
 
 
 def get_send_message_use_case() -> SendMessageUseCase:
+    from app.composition_root import plog as _plog_cr
+
     return SendMessageUseCase(
         _new_chat_repository(),
         _new_video_group_query_repository(),
@@ -57,6 +59,7 @@ def get_send_message_use_case() -> SendMessageUseCase:
         ai_answer_limit_check_use_case=_limits_cr.get_check_ai_answers_limit_use_case(),
         ai_answer_record_use_case=_limits_cr.get_record_ai_answer_usage_use_case(),
         evaluation_task_gateway=_get_evaluation_task_gateway(),
+        plog_gateway=_plog_cr.get_plog_guided_gateway(),
     )
 
 def get_chat_history_use_case() -> GetChatHistoryUseCase:

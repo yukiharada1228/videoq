@@ -167,3 +167,31 @@ class AccountDeletionRequestAdmin(admin.ModelAdmin):
         return BaseAdminMixin.optimize_queryset(
             super().get_queryset(request), select_related_fields=["user"]
         )
+
+
+PlogBuildJob = apps.get_model("app", "PlogBuildJob")
+PlogConcept = apps.get_model("app", "PlogConcept")
+PlogEdge = apps.get_model("app", "PlogEdge")
+
+
+@admin.register(PlogBuildJob)
+class PlogBuildJobAdmin(admin.ModelAdmin):
+    list_display = ("video", "status", "input_tokens", "output_tokens", "created_at", "finished_at")
+    list_filter = ("status",)
+    search_fields = ("video__title",)
+    readonly_fields = ("created_at", "updated_at", "finished_at")
+
+
+@admin.register(PlogConcept)
+class PlogConceptAdmin(admin.ModelAdmin):
+    list_display = ("label", "video", "node_type", "intro_sec")
+    list_filter = ("node_type",)
+    search_fields = ("label", "video__title")
+
+
+@admin.register(PlogEdge)
+class PlogEdgeAdmin(admin.ModelAdmin):
+    list_display = ("source", "target", "edge_type", "video")
+    list_filter = ("edge_type",)
+    search_fields = ("source__label", "target__label", "quote")
+

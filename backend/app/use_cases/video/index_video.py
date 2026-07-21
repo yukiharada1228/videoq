@@ -5,7 +5,7 @@ Runs asynchronously after transcription completes (status: INDEXING).
 
 import logging
 
-from app.domain.video.gateways import VectorIndexingGateway
+from app.domain.video.gateways import VectorIndexingGateway, VideoTaskGateway
 from app.domain.video.repositories import VideoTranscriptionRepository
 from app.domain.video.status import VideoStatus
 from app.use_cases.video.exceptions import IndexingExecutionFailed, IndexingTargetMissing
@@ -25,9 +25,11 @@ class IndexVideoTranscriptUseCase:
         self,
         video_repo: VideoTranscriptionRepository,
         vector_indexing_gateway: VectorIndexingGateway,
+        task_gateway: VideoTaskGateway | None = None,
     ):
         self.video_repo = video_repo
         self.vector_gateway = vector_indexing_gateway
+        self.task_gateway = task_gateway
 
     def execute(self, video_id: int) -> None:
         """
@@ -54,6 +56,13 @@ class IndexVideoTranscriptUseCase:
             to_status=VideoStatus.COMPLETED,
         )
         logger.info("Indexed transcript and marked COMPLETED for video %d", video_id)
+        if self.task_gateway is not None:
+            try:
+                self.task_gateway.enqueue_build_plog(video_id)
+            except Exception:
+                logger.exception(
+                    "Failed to enqueue PLOG build after indexing video %d", video_id
+                )
 
     def mark_failed(self, video_id: int, reason: str = "") -> None:
         """Transition INDEXING → ERROR after all retries are exhausted."""

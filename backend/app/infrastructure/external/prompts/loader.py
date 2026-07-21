@@ -45,12 +45,17 @@ def _deep_merge(base: Dict[str, Any], overrides: Dict[str, Any]) -> Dict[str, An
 
 
 def _resolve_locale_config(locale: Optional[str]) -> Dict[str, Any]:
-    config_root = _load_prompt_config().get(PROMPTS_ROOT_KEY, {})
+    return resolve_locale_section(PROMPTS_ROOT_KEY, locale)
+
+
+def resolve_locale_section(root_key: str, locale: Optional[str] = None) -> Dict[str, Any]:
+    """Merge default + locale overrides for any top-level prompts.json section."""
+    config_root = _load_prompt_config().get(root_key, {})
     default_config = config_root.get(DEFAULT_LOCALE)
 
     if not isinstance(default_config, dict):
         raise PromptConfigurationError(
-            f"Prompt configuration missing '{DEFAULT_LOCALE}' locale for key '{PROMPTS_ROOT_KEY}'."
+            f"Prompt configuration missing '{DEFAULT_LOCALE}' locale for key '{root_key}'."
         )
 
     resolved = deepcopy(default_config)
@@ -65,6 +70,88 @@ def _resolve_locale_config(locale: Optional[str]) -> Dict[str, Any]:
                 break
 
     return resolved
+
+
+def detect_transcript_locale(text: str) -> str:
+    """Pick prompts.json locale from transcript script (ja vs default/en)."""
+    if not text:
+        return DEFAULT_LOCALE
+    cjk = 0
+    for ch in text:
+        code = ord(ch)
+        if (
+            0x3040 <= code <= 0x30FF  # Hiragana / Katakana
+            or 0x4E00 <= code <= 0x9FFF  # CJK Unified Ideographs
+            or 0xFF66 <= code <= 0xFF9D  # Halfwidth Katakana
+        ):
+            cjk += 1
+    # Sparse subtitles still count as Japanese when CJK density is meaningful.
+    if cjk >= 20 or (len(text) > 0 and cjk / len(text) >= 0.03):
+        return "ja"
+    return DEFAULT_LOCALE
+
+
+def get_plog_study_config(locale: Optional[str] = None) -> Dict[str, Any]:
+    """Locale-aware PLOG study-mode strings (same pattern as RAG prompts)."""
+    return resolve_locale_section("plog_study", locale)
+
+
+def build_fallback_learning_object(label: str, locale: Optional[str] = None, *, short: bool = False) -> dict:
+    """Build opening_question + hint_ladder for a concept when Stage2 omits them."""
+    config = get_plog_study_config(locale)
+    opening = str(config.get("opening_question") or "What do you already know about {label}?").format(
+        label=label
+    )
+    key = "hint_ladder_short" if short else "hint_ladder"
+    raw_hints = config.get(key) or config.get("hint_ladder") or []
+    hints = [str(h).format(label=label) for h in raw_hints if h]
+    return {"opening_question": opening, "hint_ladder": hints}
+
+
+def _is_default_english_fallback_opening(label: str, opening: str) -> bool:
+    """True only for the known English template artifact (not arbitrary English text)."""
+    text = (opening or "").strip()
+    if not text:
+        return True
+    en = build_fallback_learning_object(label, DEFAULT_LOCALE)["opening_question"]
+    return text == en
+
+
+def resolve_opening_question(
+    label: str, opening: Optional[str], locale: Optional[str] = None
+) -> str:
+    """Return opening text, replacing empty / known English fallback templates only."""
+    preferred = build_fallback_learning_object(label, locale)["opening_question"]
+    text = (opening or "").strip()
+    if _is_default_english_fallback_opening(label, text):
+        return preferred
+    return text
+
+
+def normalize_learning_object_for_locale(
+    label: str,
+    *,
+    opening_question: str,
+    hint_ladder: Sequence[str],
+    locale: Optional[str] = None,
+) -> dict:
+    """At build time: align LO strings to the lecture locale.
+
+    Replaces empty values and the known English fallback templates when the
+    lecture locale is not English. Does not rewrite arbitrary LLM text by script.
+    """
+    preferred = build_fallback_learning_object(label, locale)
+    en = build_fallback_learning_object(label, DEFAULT_LOCALE)
+    opening = (opening_question or "").strip()
+    if _is_default_english_fallback_opening(label, opening):
+        opening = preferred["opening_question"]
+
+    hints = [str(h) for h in (hint_ladder or []) if str(h).strip()]
+    en_hints = en["hint_ladder"]
+    en_short = build_fallback_learning_object(label, DEFAULT_LOCALE, short=True)["hint_ladder"]
+    if not hints or hints == en_hints or hints == en_short:
+        hints = preferred["hint_ladder"]
+    return {"opening_question": opening, "hint_ladder": hints}
 
 
 def _validate_prompt_fields(config: dict) -> tuple:

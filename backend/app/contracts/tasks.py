@@ -21,3 +21,4 @@ EVALUATE_CHAT_LOG_TASK = "app.entrypoints.tasks.evaluation.evaluate_chat_log"
 REINDEX_VIDEO_TRANSCRIPT_TASK = (
     "app.entrypoints.tasks.reindex_video_transcript.reindex_video_transcript"
 )
+BUILD_PLOG_TASK = "app.entrypoints.tasks.build_plog.build_plog_artifacts"
