@@ -14,6 +14,12 @@ class MessageSerializer(serializers.Serializer):
 class ChatRequestSerializer(serializers.Serializer):
     messages = MessageSerializer(many=True)
     group_id = serializers.IntegerField(required=False, allow_null=True)
+    mode = serializers.ChoiceField(
+        choices=["qa", "study"], required=False, default="qa"
+    )
+    study_session_id = serializers.CharField(
+        required=False, allow_null=True, allow_blank=True, max_length=128
+    )
 
 
 # OpenAI Chat Completions API compatible serializers

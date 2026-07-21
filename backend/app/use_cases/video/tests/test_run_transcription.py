@@ -82,15 +82,22 @@ class _FakeYoutubeTranscriptionGateway:
 class _FakeVideoTaskGateway:
     def __init__(self) -> None:
         self.enqueue_indexing_calls: list[int] = []
+        self.enqueue_build_plog_calls: list[int] = []
 
     def enqueue_indexing(self, video_id: int) -> None:
         self.enqueue_indexing_calls.append(video_id)
+
+    def enqueue_build_plog(self, video_id: int) -> None:
+        self.enqueue_build_plog_calls.append(video_id)
 
     def enqueue_transcription(self, video_id: int) -> None:
         pass
 
     def enqueue_reindex_all_videos_embeddings(self) -> str:
-        return ""
+        return "fake-task"
+
+    def enqueue_reindex_transcript(self, video_id: int) -> None:
+        pass
 
 
 class _FakeTransactionPort:

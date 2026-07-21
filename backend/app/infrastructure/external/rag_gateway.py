@@ -36,7 +36,10 @@ class RagChatGateway(RagGateway):
         locale: Optional[str] = None,
         api_key: Optional[str] = None,
         group_context: Optional[str] = None,
+        persist_learner_state: bool = True,
+        learner_session_key: Optional[str] = None,
     ) -> RagResult:
+        del persist_learner_state, learner_session_key
         User = get_user_model()
         try:
             user = User.objects.get(pk=user_id)
@@ -100,7 +103,10 @@ class RagChatGateway(RagGateway):
         locale: Optional[str] = None,
         api_key: Optional[str] = None,
         group_context: Optional[str] = None,
+        persist_learner_state: bool = True,
+        learner_session_key: Optional[str] = None,
     ) -> Iterator[RagStreamChunk]:
+        del persist_learner_state, learner_session_key
         User = get_user_model()
         try:
             user = User.objects.get(pk=user_id)

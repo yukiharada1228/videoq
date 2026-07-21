@@ -7,6 +7,14 @@ from .account_deletion import AccountDeletionRequest
 from .api_key import UserApiKey
 from .chat import ChatLog
 from .evaluation import ChatLogEvaluation
+from .plog import (
+    LearnerConceptState,
+    PlogBuildJob,
+    PlogConcept,
+    PlogEdge,
+    PlogLearningObject,
+    PlogSummaryNode,
+)
 from .storage import (
     SafeFilenameMixin,
     SafeFileSystemStorage,
@@ -22,6 +30,12 @@ __all__ = [
     "AccountDeletionRequest",
     "ChatLog",
     "ChatLogEvaluation",
+    "LearnerConceptState",
+    "PlogBuildJob",
+    "PlogConcept",
+    "PlogEdge",
+    "PlogLearningObject",
+    "PlogSummaryNode",
     "SafeFilenameMixin",
     "SafeFileSystemStorage",
     "SafeS3Boto3Storage",

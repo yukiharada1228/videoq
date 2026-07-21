@@ -68,3 +68,9 @@ def get_reindex_all_videos_use_case():
 
 def reindex_video_transcript(video_id: int) -> None:
     _cr_video.reindex_video_transcript(video_id)
+
+
+def build_plog_artifacts(video_id: int) -> None:
+    from app.composition_root import plog as _cr_plog
+
+    _cr_plog.build_plog_artifacts(video_id)

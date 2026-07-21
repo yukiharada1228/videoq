@@ -1,0 +1,82 @@
+from django.urls import path
+
+from app.dependencies import plog as plog_dependencies
+
+from .views import (
+    PlogConceptDetailView,
+    PlogConceptListView,
+    PlogConceptMergeView,
+    PlogEdgeDetailView,
+    PlogEdgeListView,
+    PlogGraphView,
+    PlogLearnerStateView,
+    PlogLearningObjectView,
+    PlogRebuildView,
+)
+
+urlpatterns = [
+    path(
+        "<int:video_id>/plog/",
+        PlogGraphView.as_view(
+            get_plog_graph_use_case=plog_dependencies.get_plog_graph_use_case,
+        ),
+        name="video-plog-graph",
+    ),
+    path(
+        "<int:video_id>/plog/rebuild/",
+        PlogRebuildView.as_view(
+            rebuild_plog_use_case=plog_dependencies.get_rebuild_plog_use_case,
+        ),
+        name="video-plog-rebuild",
+    ),
+    path(
+        "<int:video_id>/plog/concepts/",
+        PlogConceptListView.as_view(
+            edit_plog_graph_use_case=plog_dependencies.get_edit_plog_graph_use_case,
+        ),
+        name="video-plog-concepts",
+    ),
+    path(
+        "<int:video_id>/plog/concepts/<int:concept_id>/",
+        PlogConceptDetailView.as_view(
+            edit_plog_graph_use_case=plog_dependencies.get_edit_plog_graph_use_case,
+        ),
+        name="video-plog-concept-detail",
+    ),
+    path(
+        "<int:video_id>/plog/concepts/<int:concept_id>/merge/",
+        PlogConceptMergeView.as_view(
+            edit_plog_graph_use_case=plog_dependencies.get_edit_plog_graph_use_case,
+        ),
+        name="video-plog-concept-merge",
+    ),
+    path(
+        "<int:video_id>/plog/concepts/<int:concept_id>/learning-object/",
+        PlogLearningObjectView.as_view(
+            edit_plog_graph_use_case=plog_dependencies.get_edit_plog_graph_use_case,
+        ),
+        name="video-plog-learning-object",
+    ),
+    path(
+        "<int:video_id>/plog/edges/",
+        PlogEdgeListView.as_view(
+            edit_plog_graph_use_case=plog_dependencies.get_edit_plog_graph_use_case,
+        ),
+        name="video-plog-edges",
+    ),
+    path(
+        "<int:video_id>/plog/edges/<int:edge_id>/",
+        PlogEdgeDetailView.as_view(
+            edit_plog_graph_use_case=plog_dependencies.get_edit_plog_graph_use_case,
+        ),
+        name="video-plog-edge-detail",
+    ),
+    path(
+        "<int:video_id>/plog/learner-state/",
+        PlogLearnerStateView.as_view(
+            get_learner_state_use_case=plog_dependencies.get_learner_state_use_case,
+            reset_learner_state_use_case=plog_dependencies.get_reset_learner_state_use_case,
+        ),
+        name="video-plog-learner-state",
+    ),
+]
