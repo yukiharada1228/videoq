@@ -59,6 +59,8 @@ class RagGateway(ABC):
         locale: Optional[str] = None,
         api_key: Optional[str] = None,
         group_context: Optional[str] = None,
+        persist_learner_state: bool = True,
+        learner_session_key: Optional[str] = None,
     ) -> RagResult:
         """
         Execute the RAG pipeline and return the assistant's reply.
@@ -68,6 +70,8 @@ class RagGateway(ABC):
             user_id: ID of the user making the request (for retrieval scoping).
             video_ids: Optional list of video IDs to scope retrieval to.
             locale: Accept-Language locale string for response language hints.
+            persist_learner_state: Study mode only; when False, skip DB learner progress.
+            learner_session_key: Study mode only; ephemeral session key when not persisting.
 
         Returns:
             RagResult with content, query_text, and optional citations.
@@ -87,6 +91,8 @@ class RagGateway(ABC):
         locale: Optional[str] = None,
         api_key: Optional[str] = None,
         group_context: Optional[str] = None,
+        persist_learner_state: bool = True,
+        learner_session_key: Optional[str] = None,
     ) -> Iterator[RagStreamChunk]:
         """Stream the RAG reply token by token.
 

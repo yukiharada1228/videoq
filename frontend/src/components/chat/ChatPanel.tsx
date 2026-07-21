@@ -17,13 +17,16 @@ interface ChatPanelProps {
 }
 
 type PanelTab = 'chat' | 'history';
+type ChatMode = 'qa' | 'study';
 
 export function ChatPanel({ groupId, onVideoPlay, shareToken, className }: ChatPanelProps) {
   const { t } = useTranslation();
   const [tab, setTab] = useState<PanelTab>('chat');
+  const [mode, setMode] = useState<ChatMode>('qa');
 
   const {
     messages,
+    setMessages,
     input,
     setInput,
     isLoading,
@@ -33,7 +36,7 @@ export function ChatPanel({ groupId, onVideoPlay, shareToken, className }: ChatP
     handleSend,
     handleKeyPress,
     handleFeedback,
-  } = useChatMessages({ groupId, shareToken });
+  } = useChatMessages({ groupId, shareToken, mode });
 
   const {
     history,
@@ -62,6 +65,18 @@ export function ChatPanel({ groupId, onVideoPlay, shareToken, className }: ChatP
     if (nextFeedback !== undefined) {
       syncFeedbackInHistoryCache(chatLogId, nextFeedback);
     }
+  };
+
+  const switchMode = (next: ChatMode) => {
+    if (next === mode) return;
+    setMode(next);
+    setMessages([
+      {
+        role: 'assistant',
+        content:
+          next === 'study' ? t('chat.studyGreeting') : t('chat.assistantGreeting'),
+      },
+    ]);
   };
 
   const showTabs = !!groupId && !shareToken;
@@ -104,6 +119,33 @@ export function ChatPanel({ groupId, onVideoPlay, shareToken, className }: ChatP
           </div>
         )}
       </div>
+
+      {tab === 'chat' && groupId && (
+        <div className="px-4 py-2 border-b border-solid-gray-100 flex gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => switchMode('qa')}
+            className={`text-dns-14B-120 px-3 py-1 transition-colors ${
+              mode === 'qa'
+                ? 'bg-key-900 text-white'
+                : 'bg-solid-gray-50 text-solid-gray-700 hover:bg-solid-gray-100'
+            }`}
+          >
+            {t('chat.modeQa')}
+          </button>
+          <button
+            type="button"
+            onClick={() => switchMode('study')}
+            className={`text-dns-14B-120 px-3 py-1 transition-colors ${
+              mode === 'study'
+                ? 'bg-key-900 text-white'
+                : 'bg-solid-gray-50 text-solid-gray-700 hover:bg-solid-gray-100'
+            }`}
+          >
+            {t('chat.modeStudy')}
+          </button>
+        </div>
+      )}
 
       {tab === 'history' ? (
         <ChatHistoryView

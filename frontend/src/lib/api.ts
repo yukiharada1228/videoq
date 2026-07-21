@@ -194,6 +194,62 @@ export interface ChatRequest {
   messages: ChatMessage[];
   group_id?: number;
   share_slug?: string;
+  mode?: 'qa' | 'study';
+  /** Ephemeral study progress key for shared-link sessions (sessionStorage). */
+  study_session_id?: string;
+}
+
+export interface PlogWaypoint {
+  start_sec?: number;
+  end_sec?: number;
+  label?: string;
+  [key: string]: unknown;
+}
+
+export interface PlogConcept {
+  id: number;
+  label: string;
+  node_type: string;
+  intro_sec: number;
+  source_quote: string;
+  opening_question: string;
+  hint_ladder: string[];
+  misconceptions: string[];
+  canonical_order: string[];
+  worked_examples: string[];
+  waypoints: PlogWaypoint[];
+  hint_count: number;
+  waypoint_count: number;
+}
+
+export interface PlogEdge {
+  id: number;
+  source_id: number;
+  source_label: string;
+  target_id: number;
+  target_label: string;
+  edge_type: string;
+  quote: string;
+}
+
+export interface PlogGraph {
+  video_id: number;
+  build_status: string;
+  input_tokens: number;
+  output_tokens: number;
+  error_message: string;
+  summary_node_count: number;
+  concepts: PlogConcept[];
+  edges: PlogEdge[];
+}
+
+export interface PlogLearnerState {
+  concept_id: number;
+  label: string;
+  reached: boolean;
+  hint_index: number;
+  last_grade: string;
+  active: boolean;
 }
 
 export type ChatStreamEvent =
@@ -1058,6 +1114,132 @@ export class ApiClient {
 
   async deleteVideo(id: number): Promise<void> {
     return this.request<void>(`/videos/${id}/`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getPlogGraph(videoId: number): Promise<PlogGraph> {
+    return this.request<PlogGraph>(`/videos/${videoId}/plog/`);
+  }
+
+  async rebuildPlog(
+    videoId: number,
+  ): Promise<{ video_id: number; status: string; job_id?: number }> {
+    return this.request(`/videos/${videoId}/plog/rebuild/`, {
+      method: 'POST',
+      body: {},
+    });
+  }
+
+  async createPlogConcept(
+    videoId: number,
+    body: {
+      label: string;
+      node_type?: string;
+      intro_sec?: number;
+      source_quote?: string;
+    },
+  ): Promise<PlogConcept> {
+    return this.request(`/videos/${videoId}/plog/concepts/`, {
+      method: 'POST',
+      body,
+    });
+  }
+
+  async updatePlogConcept(
+    videoId: number,
+    conceptId: number,
+    body: Partial<{
+      label: string;
+      node_type: string;
+      intro_sec: number;
+      source_quote: string;
+    }>,
+  ): Promise<PlogConcept> {
+    return this.request(`/videos/${videoId}/plog/concepts/${conceptId}/`, {
+      method: 'PATCH',
+      body,
+    });
+  }
+
+  async deletePlogConcept(videoId: number, conceptId: number): Promise<{ deleted: boolean; id: number }> {
+    return this.request(`/videos/${videoId}/plog/concepts/${conceptId}/`, {
+      method: 'DELETE',
+    });
+  }
+
+  async mergePlogConcepts(
+    videoId: number,
+    survivorId: number,
+    absorbId: number,
+  ): Promise<PlogConcept> {
+    return this.request(`/videos/${videoId}/plog/concepts/${survivorId}/merge/`, {
+      method: 'POST',
+      body: { absorb_id: absorbId },
+    });
+  }
+
+  async updatePlogLearningObject(
+    videoId: number,
+    conceptId: number,
+    body: Partial<{
+      opening_question: string;
+      hint_ladder: string[];
+      misconceptions: string[];
+      canonical_order: string[];
+      worked_examples: string[];
+      waypoints: PlogWaypoint[];
+    }>,
+  ): Promise<PlogConcept> {
+    return this.request(`/videos/${videoId}/plog/concepts/${conceptId}/learning-object/`, {
+      method: 'PATCH',
+      body,
+    });
+  }
+
+  async createPlogEdge(
+    videoId: number,
+    body: {
+      source_id: number;
+      target_id: number;
+      edge_type: string;
+      quote?: string;
+    },
+  ): Promise<PlogEdge> {
+    return this.request(`/videos/${videoId}/plog/edges/`, {
+      method: 'POST',
+      body,
+    });
+  }
+
+  async updatePlogEdge(
+    videoId: number,
+    edgeId: number,
+    body: Partial<{
+      source_id: number;
+      target_id: number;
+      edge_type: string;
+      quote: string;
+    }>,
+  ): Promise<PlogEdge> {
+    return this.request(`/videos/${videoId}/plog/edges/${edgeId}/`, {
+      method: 'PATCH',
+      body,
+    });
+  }
+
+  async deletePlogEdge(videoId: number, edgeId: number): Promise<{ deleted: boolean; id: number }> {
+    return this.request(`/videos/${videoId}/plog/edges/${edgeId}/`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getPlogLearnerState(videoId: number): Promise<{ states: PlogLearnerState[] }> {
+    return this.request(`/videos/${videoId}/plog/learner-state/`);
+  }
+
+  async resetPlogLearnerState(videoId: number): Promise<{ deleted: number }> {
+    return this.request(`/videos/${videoId}/plog/learner-state/`, {
       method: 'DELETE',
     });
   }

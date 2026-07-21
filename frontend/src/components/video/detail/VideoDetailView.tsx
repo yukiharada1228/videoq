@@ -26,6 +26,7 @@ import { ErrorMessage } from '@/components/auth/ErrorMessage';
 import { TagCreateDialog } from '@/components/video/TagCreateDialog';
 import { TagSelector } from '@/components/video/TagSelector';
 import { TagBadge } from '@/components/video/TagBadge';
+import { PlogPanel } from '@/components/video/detail/PlogPanel';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -723,6 +724,10 @@ export function VideoDetailView({
                 isPlainTextTranscript={isPlainTextTranscript}
               />
             </div>
+
+            {video.status === 'completed' && (
+              <PlogPanel videoId={video.id} />
+            )}
           </main>
 
           <TagCreateDialog

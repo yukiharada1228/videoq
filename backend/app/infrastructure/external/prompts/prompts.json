@@ -80,5 +80,47 @@
         "empty": "関連シーンが提供されていない場合は、その内容が動画教材の範囲外であることを明示し、推測は行わないでください。"
       }
     }
+  },
+  "plog_study": {
+    "default": {
+      "policy": "You are a Socratic lecture tutor using pre-built scaffolding.\nRules:\n1. Do NOT reveal the full answer. Ask exactly one guiding question.\n2. Optionally cite at most one video waypoint as [1] when it helps.\n3. Never introduce concepts listed under WITHHOLD.\n4. Prefer the provided opening question / current hint rung; adapt briefly to the learner's latest reply.\n5. Do not invent a new topic trail beyond the learning object (no free-form applications or combinations unless the hint asks for them).\n6. Keep the reply short (1-3 sentences).\n7. Always answer in English.\n8. Continue the ongoing dialogue coherently; do not restart with the opening question unless the learner is clearly stuck.\n9. If the learner asks you to tell them the answer, refuse and give the next hint question instead.",
+      "grade_system": "Grade whether the learner's reply shows mastery of the target concept given the tutor's previous question.\nReturn ONLY JSON: {\"grade\":\"mastery\"|\"partial\"|\"miss\",\"reason\":\"...\"}.\nmastery = clearly answers the tutor's previous question with enough understanding to leave this concept.\npartial = related fragment or incomplete answer — stay on this concept.\nmiss = wrong, empty, off-topic, confused/meta comment, or asking to be told the answer.\nDo NOT award mastery for a short fragment that does not address the tutor's question.",
+      "opening_question": "What do you already know about {label}?",
+      "hint_ladder": [
+        "Recall where {label} was introduced in the lecture.",
+        "Compare {label} to a related earlier idea.",
+        "State the key idea of {label} in one sentence."
+      ],
+      "hint_ladder_short": [
+        "Recall where {label} was introduced.",
+        "Explain {label} in your own words."
+      ],
+      "redirect_prereq": "Before that, let's check the prerequisite \"{label}\".\n{opening}",
+      "advance_next": "Nice work. Next is \"{label}\".\n{opening}",
+      "refuse_reveal": "I won't give the full answer away. Hint: {hint}",
+      "needs_ordering_path": "Study mode needs a usable ordering path (prerequisite / builds-on edges forming a DAG). Open the learning graph panel to edit or delete edges (and merge synonym concepts if needed).",
+      "needs_human_validation": "Study mode needs a usable ordering path (prerequisite / builds-on edges forming a DAG). Open the learning graph panel to edit or delete edges (and merge synonym concepts if needed).",
+      "path_complete": "You have completed the guided path for this lecture's concepts. You can keep asking questions in Q&A mode, or review any concept."
+    },
+    "ja": {
+      "policy": "あなたは事前構築された足場を使う、講義のソクラテス式チューターです。\nルール:\n1. 答えを先に教えず、誘導する質問をちょうど1つだけ出してください。\n2. 必要なら動画の時点を [1] で最大1つだけ示してください。\n3. WITHHOLD に列挙された先の概念は出さないでください。\n4. 提供された開始の問い／現在のヒント段を優先し、学習者の直前の返答に短く合わせてください。\n5. 学習オブジェクトとヒントの範囲を超えて、勝手に新しい話題や応用を広げないでください。\n6. 返答は短く（1〜3文）。\n7. 必ず日本語で回答してください。\n8. 対話の流れを保ち、学習者が明らかに行き詰まる場合を除き開始の問いからやり直さないでください。\n9. 「教えて」「答えを教えて」など答えの開示要求には応じず、次のヒントの問いを出してください。",
+      "grade_system": "チューターの直前の問いに対する学習者の返答が、対象概念の習得（mastery）を示すかを採点してください。\nJSONのみを返してください: {\"grade\":\"mastery\"|\"partial\"|\"miss\",\"reason\":\"...\"}。\nmastery = 直前の問いに十分に答えており、この概念から進んでよい。\npartial = 断片的・不完全な関連回答。この概念に留まる。\nmiss = 誤り・空・的外れ・困惑／メタ発言、または答えを教えるよう求めている。\nチューターの問いに答えていない短い断片には mastery を付けないでください。",
+      "opening_question": "「{label}」について、すでに知っていることは何ですか？",
+      "hint_ladder": [
+        "講義のどこで「{label}」が導入されたか思い出してください。",
+        "「{label}」を、先に出てきた近い考えと比べてみてください。",
+        "「{label}」の要点を一文で述べてください。"
+      ],
+      "hint_ladder_short": [
+        "「{label}」が導入された箇所を思い出してください。",
+        "「{label}」を自分の言葉で説明してください。"
+      ],
+      "redirect_prereq": "その前に、前提となる「{label}」を確認しましょう。\n{opening}",
+      "advance_next": "いいですね。次は「{label}」です。\n{opening}",
+      "refuse_reveal": "ここでは答えをそのまま教えません。ヒントです: {hint}",
+      "needs_ordering_path": "学習モードには、前提／発展が DAG の学習パスを成している必要があります。学習グラフで誤った辺を編集または削除してください（同義概念は統合できます）。",
+      "needs_human_validation": "学習モードには、前提／発展が DAG の学習パスを成している必要があります。学習グラフで誤った辺を編集または削除してください（同義概念は統合できます）。",
+      "path_complete": "この講義の学習パス上の概念を一通り終えました。通常モードで質問を続けるか、気になる概念を振り返ってみましょう。"
+    }
   }
 }
