@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections import defaultdict, deque
-from typing import Dict, Iterable, List, Sequence, Set, Tuple
+from typing import Dict, Iterable, Sequence, Set, Tuple
 
 ORDERING = frozenset({"prerequisite_of", "builds_on"})
 

@@ -4,6 +4,7 @@ import logging
 from typing import Generator, List, Optional, Union
 
 from app.domain.chat.dtos import ChatMessageDTO
+from app.domain.chat.gateways import PlogNotReadyError
 from app.domain.chat.gateways import LLMConfigurationError as _DomainLLMConfigError
 from app.domain.chat.gateways import LLMProviderError as _DomainLLMProviderError
 from app.domain.chat.gateways import RagGateway
@@ -32,10 +33,6 @@ from app.domain.evaluation.gateways import EvaluationTaskGateway
 from app.use_cases.shared.exceptions import PermissionDenied, ResourceNotFound
 
 logger = logging.getLogger(__name__)
-
-
-class PlogNotReadyError(Exception):
-    """Study mode requested but PLOG artifacts are not ready."""
 
 
 class SendMessageUseCase:
@@ -167,14 +164,7 @@ class SendMessageUseCase:
             raise LLMConfigurationError(str(e)) from e
         except _DomainLLMProviderError as e:
             raise LLMProviderError(str(e)) from e
-        except Exception as e:
-            # PlogNotReadyError from infrastructure
-            from app.infrastructure.external.plog.guided_gateway import (
-                PlogNotReadyError as InfraPlogNotReady,
-            )
-
-            if isinstance(e, InfraPlogNotReady):
-                raise PlogNotReadyError(str(e)) from e
+        except PlogNotReadyError:
             raise
 
         chat_log_id: Optional[int] = None
@@ -329,13 +319,7 @@ class SendMessageUseCase:
             raise LLMConfigurationError(str(e)) from e
         except _DomainLLMProviderError as e:
             raise LLMProviderError(str(e)) from e
-        except Exception as e:
-            from app.infrastructure.external.plog.guided_gateway import (
-                PlogNotReadyError as InfraPlogNotReady,
-            )
-
-            if isinstance(e, InfraPlogNotReady):
-                raise PlogNotReadyError(str(e)) from e
+        except PlogNotReadyError:
             raise
 
         chat_log_id: Optional[int] = None

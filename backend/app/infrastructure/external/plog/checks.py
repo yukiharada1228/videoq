@@ -6,7 +6,7 @@ import logging
 import re
 import unicodedata
 from collections import defaultdict, deque
-from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple
+from typing import Dict, Iterable, List, Sequence, Set, Tuple
 
 from app.domain.plog.gateways import ExtractedConcept, ExtractedEdge
 

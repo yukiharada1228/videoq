@@ -99,12 +99,6 @@ class _FakeVideoTaskGateway:
     def enqueue_reindex_transcript(self, video_id: int) -> None:
         pass
 
-    def enqueue_transcription(self, video_id: int) -> None:
-        pass
-
-    def enqueue_reindex_all_videos_embeddings(self) -> str:
-        return ""
-
 
 class _FakeTransactionPort:
     @contextmanager

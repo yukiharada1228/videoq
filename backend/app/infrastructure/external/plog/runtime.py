@@ -14,6 +14,7 @@ from app.domain.plog.entities import (
     PlogGraphSnapshot,
     PlogLearningObjectEntity,
 )
+from app.domain.plog.gateways import ExtractedConcept
 from app.infrastructure.external.plog.embeddings import best_match_index, cosine_similarity
 
 ORDERING = frozenset({"prerequisite_of", "builds_on"})

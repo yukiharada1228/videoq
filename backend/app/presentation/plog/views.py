@@ -235,8 +235,9 @@ class PlogEdgeDetailView(DependencyResolverMixin, APIView):
                 kwargs[key] = data.get(key)
         for key in ("source_id", "target_id"):
             if key in data:
+                raw = data.get(key)
                 try:
-                    kwargs[key] = int(data.get(key))
+                    kwargs[key] = int(raw)  # type: ignore[arg-type]
                 except (TypeError, ValueError):
                     return create_error_response(
                         f"{key} must be an integer", status.HTTP_400_BAD_REQUEST

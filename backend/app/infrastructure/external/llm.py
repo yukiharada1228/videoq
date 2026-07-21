@@ -1,5 +1,6 @@
 """LangChain helper functions"""
 
+from collections.abc import Callable
 from typing import Optional
 
 from django.conf import settings
@@ -29,29 +30,23 @@ def get_langchain_llm(api_key: Optional[str] = None) -> BaseChatModel:
         ProviderConfigError: If the LLM cannot be configured due to missing key or unknown provider.
     """
     provider = get_provider_setting("LLM_PROVIDER", "openai")
-    return create_from_provider_registry(
-        "LLM_PROVIDER",
-        provider,
-        {
-            "openai": lambda: _create_openai_llm(api_key),
-            "ollama": _create_ollama_llm,
-        },
-    )
+    builders: dict[str, Callable[[], BaseChatModel]] = {
+        "openai": lambda: _create_openai_llm(api_key),
+        "ollama": _create_ollama_llm,
+    }
+    return create_from_provider_registry("LLM_PROVIDER", provider, builders)
 
 
 def get_langchain_grading_llm(api_key: Optional[str] = None) -> BaseChatModel:
     """Small-model LLM for GradeReply (paper §3.2 / Algorithm 1 line 15)."""
     provider = get_provider_setting("LLM_PROVIDER", "openai")
-    return create_from_provider_registry(
-        "LLM_PROVIDER",
-        provider,
-        {
-            "openai": lambda: _create_openai_llm(
-                api_key, model_setting="LLM_GRADE_MODEL", max_tokens=256
-            ),
-            "ollama": lambda: _create_ollama_llm(model_setting="LLM_GRADE_MODEL"),
-        },
-    )
+    builders: dict[str, Callable[[], BaseChatModel]] = {
+        "openai": lambda: _create_openai_llm(
+            api_key, model_setting="LLM_GRADE_MODEL", max_tokens=256
+        ),
+        "ollama": lambda: _create_ollama_llm(model_setting="LLM_GRADE_MODEL"),
+    }
+    return create_from_provider_registry("LLM_PROVIDER", provider, builders)
 
 
 def get_langchain_extraction_llm(api_key: Optional[str] = None) -> BaseChatModel:
@@ -62,14 +57,11 @@ def get_langchain_extraction_llm(api_key: Optional[str] = None) -> BaseChatModel
     all edges after parse failure.
     """
     provider = get_provider_setting("LLM_PROVIDER", "openai")
-    return create_from_provider_registry(
-        "LLM_PROVIDER",
-        provider,
-        {
-            "openai": lambda: _create_openai_llm(api_key, max_tokens=8192),
-            "ollama": _create_ollama_llm,
-        },
-    )
+    builders: dict[str, Callable[[], BaseChatModel]] = {
+        "openai": lambda: _create_openai_llm(api_key, max_tokens=8192),
+        "ollama": _create_ollama_llm,
+    }
+    return create_from_provider_registry("LLM_PROVIDER", provider, builders)
 
 
 def _create_openai_llm(
@@ -104,18 +96,15 @@ def get_langchain_study_llm(
 ) -> BaseChatModel:
     """Large-model LLM for the single generative nudge (paper §3.3)."""
     provider = get_provider_setting("LLM_PROVIDER", "openai")
-    return create_from_provider_registry(
-        "LLM_PROVIDER",
-        provider,
-        {
-            "openai": lambda: _create_openai_llm(
-                api_key,
-                model_setting="LLM_STUDY_MODEL",
-                prompt_cache_key=prompt_cache_key,
-            ),
-            "ollama": lambda: _create_ollama_llm(model_setting="LLM_STUDY_MODEL"),
-        },
-    )
+    builders: dict[str, Callable[[], BaseChatModel]] = {
+        "openai": lambda: _create_openai_llm(
+            api_key,
+            model_setting="LLM_STUDY_MODEL",
+            prompt_cache_key=prompt_cache_key,
+        ),
+        "ollama": lambda: _create_ollama_llm(model_setting="LLM_STUDY_MODEL"),
+    }
+    return create_from_provider_registry("LLM_PROVIDER", provider, builders)
 
 
 def _create_ollama_llm(*, model_setting: str = "LLM_MODEL") -> BaseChatModel:

@@ -22,6 +22,10 @@ class RagUserNotFoundError(Exception):
     """Raised when the user context required by RAG does not exist."""
 
 
+class PlogNotReadyError(Exception):
+    """Raised when study mode is requested but PLOG artifacts are not ready."""
+
+
 @dataclass
 class RagResult:
     """Result returned from the RAG gateway."""
