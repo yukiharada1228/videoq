@@ -38,6 +38,7 @@ from app.use_cases.chat.exceptions import (
     LLMConfigurationError,
     LLMProviderError,
 )
+from app.use_cases.chat.send_message import PlogNotReadyError
 from app.use_cases.shared.exceptions import PermissionDenied, ResourceNotFound
 from django.http import HttpResponse, StreamingHttpResponse
 
@@ -108,6 +109,8 @@ class ChatView(DependencyResolverMixin, APIView):
         serializer.is_valid(raise_exception=True)
 
         group_id = serializer.validated_data.get("group_id")
+        mode = serializer.validated_data.get("mode") or "qa"
+        study_session_id = serializer.validated_data.get("study_session_id") or None
 
         user_id = getattr(request.user, "id", None)
 
@@ -126,6 +129,8 @@ class ChatView(DependencyResolverMixin, APIView):
                 share_token=share_slug,
                 is_shared=is_shared,
                 locale=_get_locale(request),
+                mode=mode,
+                study_session_id=study_session_id,
             )
         except InvalidChatRequestError as e:
             return create_error_response(str(e), status.HTTP_400_BAD_REQUEST)
@@ -133,6 +138,12 @@ class ChatView(DependencyResolverMixin, APIView):
             return create_error_response(str(e), status.HTTP_404_NOT_FOUND)
         except PermissionDenied as e:
             return create_error_response(str(e), status.HTTP_403_FORBIDDEN)
+        except PlogNotReadyError as e:
+            return create_error_response(
+                str(e),
+                status.HTTP_409_CONFLICT,
+                code="PLOG_NOT_READY",
+            )
         except OverQuotaError as e:
             return create_error_response(
                 str(e),
@@ -407,6 +418,8 @@ class StreamChatView(DependencyResolverMixin, APIView):
             )
 
         group_id = serializer.validated_data.get("group_id")
+        mode = serializer.validated_data.get("mode") or "qa"
+        study_session_id = serializer.validated_data.get("study_session_id") or None
         user_id = getattr(request.user, "id", None)
         validated_messages = serializer.validated_data.get("messages", [])
 
@@ -432,6 +445,8 @@ class StreamChatView(DependencyResolverMixin, APIView):
                     share_token=share_slug,
                     is_shared=is_shared,
                     locale=_get_locale(request),
+                    mode=mode,
+                    study_session_id=study_session_id,
                 ):
                     if isinstance(event, StreamContentChunk):
                         yield _sse_event({"type": "content_chunk", "text": event.text})
@@ -450,6 +465,8 @@ class StreamChatView(DependencyResolverMixin, APIView):
                 yield _sse_event({"type": "error", "code": "NOT_FOUND", "message": str(e)})
             except PermissionDenied as e:
                 yield _sse_event({"type": "error", "code": "PERMISSION_DENIED", "message": str(e)})
+            except PlogNotReadyError as e:
+                yield _sse_event({"type": "error", "code": "PLOG_NOT_READY", "message": str(e)})
             except OverQuotaError as e:
                 yield _sse_event({"type": "error", "code": "OVER_QUOTA", "message": str(e)})
             except AiAnswersLimitExceeded as e:

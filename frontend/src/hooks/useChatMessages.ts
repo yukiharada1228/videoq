@@ -25,6 +25,7 @@ export interface Message {
 interface UseChatMessagesOptions {
   groupId?: number;
   shareToken?: string;
+  mode?: 'qa' | 'study';
 }
 
 interface UseChatMessagesReturn {
@@ -41,7 +42,25 @@ interface UseChatMessagesReturn {
   handleFeedback: (chatLogId: number, value: 'good' | 'bad') => Promise<ChatFeedbackValue | undefined>;
 }
 
-export function useChatMessages({ groupId, shareToken }: UseChatMessagesOptions): UseChatMessagesReturn {
+/** Browser-tab study session key (paper: dialogue-session state, not durable DB). */
+function getOrCreateStudySessionId(scope: string): string | undefined {
+  if (!scope || typeof window === 'undefined' || !window.sessionStorage) {
+    return undefined;
+  }
+  const key = `plog-study-session:${scope}`;
+  try {
+    let id = window.sessionStorage.getItem(key);
+    if (!id) {
+      id = crypto.randomUUID();
+      window.sessionStorage.setItem(key, id);
+    }
+    return id;
+  } catch {
+    return undefined;
+  }
+}
+
+export function useChatMessages({ groupId, shareToken, mode = 'qa' }: UseChatMessagesOptions): UseChatMessagesReturn {
   const { t } = useTranslation();
   const tRef = useRef(t);
   const [messages, setMessages] = useState<Message[]>(() => [
@@ -104,7 +123,9 @@ export function useChatMessages({ groupId, shareToken }: UseChatMessagesOptions)
     const errorMessage =
       event.code === 'OVER_QUOTA'
         ? tRef.current('chat.errorOverQuota')
-        : tRef.current('chat.error');
+        : event.code === 'PLOG_NOT_READY'
+          ? tRef.current('chat.errorPlogNotReady')
+          : tRef.current('chat.error');
     replaceLastAssistantMessage(errorMessage);
   }, [replaceLastAssistantMessage]);
 
@@ -141,6 +162,14 @@ export function useChatMessages({ groupId, shareToken }: UseChatMessagesOptions)
     if (!input.trim() || sendInFlightRef.current) return;
 
     const userMessage: Message = { role: 'user', content: input };
+    const prior = messages[0]?.role === 'assistant' ? messages.slice(1) : messages;
+    const historyForApi = [
+      ...prior
+        .filter((m) => m.content.trim().length > 0)
+        .map((m) => ({ role: m.role, content: m.content })),
+      { role: 'user' as const, content: userMessage.content },
+    ].slice(-12);
+
     sendInFlightRef.current = true;
     streamController.start();
     setMessages((prev) => [...prev, userMessage, { role: 'assistant', content: '' }]);
@@ -149,9 +178,17 @@ export function useChatMessages({ groupId, shareToken }: UseChatMessagesOptions)
 
     try {
       for await (const event of apiClient.chatStream({
-        messages: [userMessage],
+        messages: historyForApi,
         ...(groupId ? { group_id: groupId } : {}),
         ...(shareToken ? { share_slug: shareToken } : {}),
+        ...(mode === 'study'
+          ? {
+              study_session_id: getOrCreateStudySessionId(
+                shareToken ? `share:${shareToken}` : `group:${groupId ?? 'local'}`,
+              ),
+            }
+          : {}),
+        mode,
       })) {
         streamController.handleEvent(event);
         if (event.type === 'error') {
@@ -165,7 +202,9 @@ export function useChatMessages({ groupId, shareToken }: UseChatMessagesOptions)
       const errorMessage =
         error instanceof ApiError && error.code === 'OVER_QUOTA'
           ? tRef.current('chat.errorOverQuota')
-          : tRef.current('chat.error');
+          : error instanceof ApiError && error.code === 'PLOG_NOT_READY'
+            ? tRef.current('chat.errorPlogNotReady')
+            : tRef.current('chat.error');
       replaceLastAssistantMessage(errorMessage);
     } finally {
       sendInFlightRef.current = false;
@@ -174,6 +213,8 @@ export function useChatMessages({ groupId, shareToken }: UseChatMessagesOptions)
   }, [
     groupId,
     input,
+    messages,
+    mode,
     replaceLastAssistantMessage,
     shareToken,
     streamController,

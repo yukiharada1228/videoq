@@ -41,6 +41,7 @@ urlpatterns = [
     path("api/auth/", include("app.presentation.auth.urls")),
     path("api/chat/", include("app.presentation.chat.urls")),
     path("api/videos/", include("app.presentation.video.urls")),
+    path("api/videos/", include("app.presentation.plog.urls")),
     path("api/evaluation/", include("app.presentation.evaluation.urls")),
     path("api/mcp/", include("app.presentation.mcp.urls")),
     # Tolerate ``/api/mcp`` (no trailing slash). Django's ``APPEND_SLASH``

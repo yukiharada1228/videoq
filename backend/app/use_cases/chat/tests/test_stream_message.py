@@ -48,10 +48,10 @@ class _StreamingRagGateway(RagGateway):
         self._chunks = chunks or ["Hello ", "World"]
         self._citations = citations
 
-    def generate_reply(self, messages, user_id, video_ids=None, locale=None, api_key=None, group_context=None):
+    def generate_reply(self, messages, user_id, video_ids=None, locale=None, api_key=None, group_context=None, **kwargs):
         raise NotImplementedError
 
-    def stream_reply(self, messages, user_id, video_ids=None, locale=None, api_key=None, group_context=None):
+    def stream_reply(self, messages, user_id, video_ids=None, locale=None, api_key=None, group_context=None, **kwargs):
         for text in self._chunks:
             yield RagStreamChunk(text=text)
         yield RagStreamChunk(is_final=True, citations=self._citations, query_text="Test query")
@@ -60,19 +60,19 @@ class _StreamingRagGateway(RagGateway):
 class _ErrorStreamingRagGateway(RagGateway):
     """Stub gateway that raises LLMProviderError mid-stream."""
 
-    def generate_reply(self, messages, user_id, video_ids=None, locale=None, api_key=None, group_context=None):
+    def generate_reply(self, messages, user_id, video_ids=None, locale=None, api_key=None, group_context=None, **kwargs):
         raise NotImplementedError
 
-    def stream_reply(self, messages, user_id, video_ids=None, locale=None, api_key=None, group_context=None):
+    def stream_reply(self, messages, user_id, video_ids=None, locale=None, api_key=None, group_context=None, **kwargs):
         yield RagStreamChunk(text="partial ")
         raise DomainLLMProviderError("LLM exploded")
 
 
 class _UserNotFoundRagGateway(RagGateway):
-    def generate_reply(self, messages, user_id, video_ids=None, locale=None, api_key=None, group_context=None):
+    def generate_reply(self, messages, user_id, video_ids=None, locale=None, api_key=None, group_context=None, **kwargs):
         raise NotImplementedError
 
-    def stream_reply(self, messages, user_id, video_ids=None, locale=None, api_key=None, group_context=None):
+    def stream_reply(self, messages, user_id, video_ids=None, locale=None, api_key=None, group_context=None, **kwargs):
         raise RagUserNotFoundError(f"User not found: {user_id}")
         # Need at least one yield to make this a generator
         yield  # pragma: no cover

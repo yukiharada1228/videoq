@@ -34,11 +34,15 @@ from app.use_cases.shared.exceptions import PermissionDenied, ResourceNotFound
 logger = logging.getLogger(__name__)
 
 
+class PlogNotReadyError(Exception):
+    """Study mode requested but PLOG artifacts are not ready."""
+
+
 class SendMessageUseCase:
     """
     Orchestrates a single chat turn:
     1. Resolve the video group context (if any)
-    2. Run the RAG chain
+    2. Run the RAG chain (QA) or PLOG-guided study mode
     3. Persist the ChatLog
     4. Return a structured result
     5. (Optional) Record AI answer usage for account limits
@@ -52,13 +56,22 @@ class SendMessageUseCase:
         ai_answer_limit_check_use_case=None,
         ai_answer_record_use_case=None,
         evaluation_task_gateway: Optional[EvaluationTaskGateway] = None,
+        plog_gateway: Optional[RagGateway] = None,
     ):
         self.chat_repo = chat_repo
         self.group_query_repo = group_query_repo
         self.rag_gateway = rag_gateway
+        self.plog_gateway = plog_gateway
         self._ai_answer_limit_check_use_case = ai_answer_limit_check_use_case
         self._ai_answer_record_use_case = ai_answer_record_use_case
         self._evaluation_task_gateway = evaluation_task_gateway
+
+    def _select_gateway(self, mode: str) -> RagGateway:
+        if mode == "study":
+            if self.plog_gateway is None:
+                raise PlogNotReadyError("Study mode is not configured.")
+            return self.plog_gateway
+        return self.rag_gateway
 
     def execute(
         self,
@@ -68,6 +81,8 @@ class SendMessageUseCase:
         share_token: Optional[str] = None,
         is_shared: bool = False,
         locale: Optional[str] = None,
+        mode: str = "qa",
+        study_session_id: Optional[str] = None,
     ) -> SendMessageResultDTO:
         """
         Args:
@@ -77,6 +92,7 @@ class SendMessageUseCase:
             share_token: Optional share token (shared access flow).
             is_shared: Whether the request originates from a share token.
             locale: Accept-Language locale string.
+            study_session_id: Browser session key for ephemeral study progress (not durable DB).
 
         Returns:
             SendMessageResultDTO
@@ -130,15 +146,20 @@ class SendMessageUseCase:
             self._ai_answer_limit_check_use_case.execute(owner_user_id)
 
         video_ids = group.member_video_ids if group else None
+        gateway = self._select_gateway(mode)
+        # Paper: learner state lives in the dialogue session (H), not a durable DB.
+        learner_session_key = study_session_id
 
         try:
-            rag_result = self.rag_gateway.generate_reply(
+            rag_result = gateway.generate_reply(
                 messages=domain_messages,
                 user_id=owner_user_id,
                 video_ids=video_ids,
                 locale=locale,
                 api_key=None,
                 group_context=group.description if group is not None else None,
+                persist_learner_state=False,
+                learner_session_key=learner_session_key,
             )
         except _DomainRagUserNotFoundError as e:
             raise ResourceNotFound("User") from e
@@ -146,6 +167,15 @@ class SendMessageUseCase:
             raise LLMConfigurationError(str(e)) from e
         except _DomainLLMProviderError as e:
             raise LLMProviderError(str(e)) from e
+        except Exception as e:
+            # PlogNotReadyError from infrastructure
+            from app.infrastructure.external.plog.guided_gateway import (
+                PlogNotReadyError as InfraPlogNotReady,
+            )
+
+            if isinstance(e, InfraPlogNotReady):
+                raise PlogNotReadyError(str(e)) from e
+            raise
 
         chat_log_id: Optional[int] = None
         feedback: Optional[str] = None
@@ -212,6 +242,8 @@ class SendMessageUseCase:
         share_token: Optional[str] = None,
         is_shared: bool = False,
         locale: Optional[str] = None,
+        mode: str = "qa",
+        study_session_id: Optional[str] = None,
     ) -> Generator[Union[StreamContentChunk, StreamDoneEvent], None, None]:
         """Streaming variant of execute().
 
@@ -264,6 +296,9 @@ class SendMessageUseCase:
             self._ai_answer_limit_check_use_case.execute(owner_user_id)
 
         video_ids = group.member_video_ids if group else None
+        gateway = self._select_gateway(mode)
+        # Paper: learner state lives in the dialogue session (H), not a durable DB.
+        learner_session_key = study_session_id
 
         full_content = ""
         final_citations = None
@@ -271,13 +306,15 @@ class SendMessageUseCase:
         query_text = ""
 
         try:
-            for chunk in self.rag_gateway.stream_reply(
+            for chunk in gateway.stream_reply(
                 messages=domain_messages,
                 user_id=owner_user_id,
                 video_ids=video_ids,
                 locale=locale,
                 api_key=None,
                 group_context=group.description if group is not None else None,
+                persist_learner_state=False,
+                learner_session_key=learner_session_key,
             ):
                 if chunk.is_final:
                     final_citations = chunk.citations
@@ -292,6 +329,14 @@ class SendMessageUseCase:
             raise LLMConfigurationError(str(e)) from e
         except _DomainLLMProviderError as e:
             raise LLMProviderError(str(e)) from e
+        except Exception as e:
+            from app.infrastructure.external.plog.guided_gateway import (
+                PlogNotReadyError as InfraPlogNotReady,
+            )
+
+            if isinstance(e, InfraPlogNotReady):
+                raise PlogNotReadyError(str(e)) from e
+            raise
 
         chat_log_id: Optional[int] = None
         feedback: Optional[str] = None

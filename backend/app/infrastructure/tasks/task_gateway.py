@@ -7,6 +7,7 @@ from app.domain.auth.gateways import AuthTaskGateway
 from app.domain.evaluation.gateways import EvaluationTaskGateway
 from app.domain.video.gateways import VideoTaskGateway
 from app.contracts.tasks import (
+    BUILD_PLOG_TASK,
     DELETE_ACCOUNT_DATA_TASK,
     EVALUATE_CHAT_LOG_TASK,
     INDEX_VIDEO_TRANSCRIPT_TASK,
@@ -50,6 +51,19 @@ class CeleryVideoTaskGateway(VideoTaskGateway):
                 args=[video_id],
             )
         )
+
+    def enqueue_build_plog(self, video_id: int) -> None:
+        """Dispatch PLOG build after the current DB transaction commits."""
+        transaction.on_commit(
+            lambda: current_app.send_task(
+                BUILD_PLOG_TASK,
+                args=[video_id],
+            )
+        )
+
+    def dispatch_build_plog(self, video_id: int) -> None:
+        """Alias used by PLOG rebuild use case."""
+        self.enqueue_build_plog(video_id)
 
 
 class CeleryAuthTaskGateway(AuthTaskGateway):

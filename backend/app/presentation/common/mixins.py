@@ -49,12 +49,14 @@ class DependencyResolverMixin:
     """Resolve injected dependencies that may be instances or factory callables."""
 
     @staticmethod
-    def resolve_dependency(dependency):
+    def resolve_dependency(dependency, *, require_execute: bool = True):
         if dependency is None:
             raise ImproperlyConfigured(
                 "Required dependency is not configured. "
                 "Ensure the view is wired via as_view(...) or URL kwargs."
             )
+        # Factory callables (composition-root getters) have no ``execute``.
+        # Use-case instances may be non-callable and expose many methods.
         if callable(dependency) and not hasattr(dependency, "execute"):
             dependency = dependency()
         if dependency is None:
@@ -62,7 +64,7 @@ class DependencyResolverMixin:
                 "Dependency provider returned None. "
                 "Check dependencies/composition_root wiring."
             )
-        if not callable(getattr(dependency, "execute", None)):
+        if require_execute and not callable(getattr(dependency, "execute", None)):
             raise ImproperlyConfigured(
                 "Resolved dependency must expose a callable execute(). "
                 "Check URL kwargs and dependency provider wiring."

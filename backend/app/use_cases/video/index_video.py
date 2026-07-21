@@ -54,6 +54,14 @@ class IndexVideoTranscriptUseCase:
             to_status=VideoStatus.COMPLETED,
         )
         logger.info("Indexed transcript and marked COMPLETED for video %d", video_id)
+        try:
+            from app.infrastructure.tasks.task_gateway import CeleryVideoTaskGateway
+
+            CeleryVideoTaskGateway().enqueue_build_plog(video_id)
+        except Exception:
+            logger.exception(
+                "Failed to enqueue PLOG build after indexing video %d", video_id
+            )
 
     def mark_failed(self, video_id: int, reason: str = "") -> None:
         """Transition INDEXING → ERROR after all retries are exhausted."""

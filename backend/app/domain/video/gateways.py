@@ -44,6 +44,11 @@ class VideoTaskGateway(ABC):
         """Enqueue async transcript reindex (delete old vectors + re-index) for a single video."""
         ...
 
+    @abstractmethod
+    def enqueue_build_plog(self, video_id: int) -> None:
+        """Enqueue offline PLOG construction for a single video."""
+        ...
+
 
 class VectorIndexingGateway(ABC):
     """Abstract interface for vector store indexing operations."""

@@ -46,5 +46,13 @@ class ReindexVideoTranscriptUseCase:
                 api_key=None,
             )
             logger.info("Reindexed transcript for video %d", video_id)
+            try:
+                from app.infrastructure.tasks.task_gateway import CeleryVideoTaskGateway
+
+                CeleryVideoTaskGateway().enqueue_build_plog(video_id)
+            except Exception:
+                logger.exception(
+                    "Failed to enqueue PLOG rebuild after reindex video %d", video_id
+                )
         else:
             logger.info("Transcript cleared for video %d; vectors deleted, no reindex", video_id)
