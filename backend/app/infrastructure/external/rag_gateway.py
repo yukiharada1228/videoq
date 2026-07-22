@@ -1,6 +1,6 @@
 """
 Infrastructure implementation of RagGateway.
-Wraps RagChatService (LangChain) for use case consumption.
+Wraps RagChatService (LangChain) or QaToolAgent for use case consumption.
 """
 
 import logging
@@ -20,13 +20,18 @@ from app.domain.chat.gateways import (
 from app.domain.chat.dtos import ChatMessageDTO, CitationDTO
 from app.domain.shared.exceptions import ProviderConfigError
 from app.infrastructure.external.llm import get_langchain_llm
+from app.infrastructure.external.qa_agent.agent import (
+    QaToolAgent,
+    _QaAgentStreamEnd,
+    is_qa_agent_enabled,
+)
 from app.infrastructure.external.rag_service import RagChatService, _RagServiceStreamEnd
 
 logger = logging.getLogger(__name__)
 
 
 class RagChatGateway(RagGateway):
-    """Implements RagGateway by delegating to RagChatService."""
+    """Implements RagGateway by delegating to RagChatService or QaToolAgent."""
 
     def generate_reply(
         self,
@@ -51,7 +56,6 @@ class RagChatGateway(RagGateway):
         except ProviderConfigError as e:
             raise LLMConfigurationError(str(e)) from e
 
-        service = RagChatService(user=user, llm=llm, api_key=api_key)
         raw_messages = [
             {"role": message.role, "content": message.content}
             for message in messages
@@ -59,6 +63,25 @@ class RagChatGateway(RagGateway):
         raw_video_ids = list(video_ids) if video_ids is not None else None
 
         try:
+            if is_qa_agent_enabled():
+                agent = QaToolAgent(
+                    user_id=user.id,
+                    llm=llm,
+                    video_ids=raw_video_ids,
+                )
+                result = agent.run(
+                    messages=raw_messages,
+                    locale=locale,
+                    group_context=group_context or None,
+                )
+                return RagResult(
+                    content=result.content,
+                    query_text=result.query_text,
+                    citations=self._to_citation_dtos(result.citations),
+                    retrieved_contexts=result.retrieved_contexts,
+                )
+
+            service = RagChatService(user=user, llm=llm, api_key=api_key)
             result = service.run(
                 messages=raw_messages,
                 video_ids=raw_video_ids,
@@ -73,25 +96,13 @@ class RagChatGateway(RagGateway):
             logger.exception("RAG generate_reply failed: %s", exc)
             raise LLMProviderError(str(exc)) from exc
 
-        citations = None
-        if result.citations:
-            citations = [
-                CitationDTO(
-                    video_id=int(raw_video.get("video_id", 0) or 0),
-                    title=str(raw_video.get("title", "")),
-                    start_time=raw_video.get("start_time"),
-                    end_time=raw_video.get("end_time"),
-                )
-                for raw_video in result.citations
-            ]
-
         content = result.llm_response.content
         content_text = content if isinstance(content, str) else str(content)
 
         return RagResult(
             content=content_text,
             query_text=result.query_text,
-            citations=citations,
+            citations=self._to_citation_dtos(result.citations),
             retrieved_contexts=result.retrieved_contexts,
         )
 
@@ -118,7 +129,6 @@ class RagChatGateway(RagGateway):
         except ProviderConfigError as e:
             raise LLMConfigurationError(str(e)) from e
 
-        service = RagChatService(user=user, llm=llm, api_key=api_key)
         raw_messages = [
             {"role": message.role, "content": message.content}
             for message in messages
@@ -126,33 +136,36 @@ class RagChatGateway(RagGateway):
         raw_video_ids = list(video_ids) if video_ids is not None else None
 
         try:
-            for item in service.stream(
-                messages=raw_messages,
-                video_ids=raw_video_ids,
-                locale=locale,
-                group_context=group_context or None,
-            ):
-                if isinstance(item, _RagServiceStreamEnd):
-                    citations = None
-                    if item.citations:
-                        citations = [
-                            CitationDTO(
-                                video_id=int(raw_video.get("video_id", 0) or 0),
-                                title=str(raw_video.get("title", "")),
-                                start_time=raw_video.get("start_time"),
-                                end_time=raw_video.get("end_time"),
-                            )
-                            for raw_video in item.citations
-                        ]
+            if is_qa_agent_enabled():
+                agent = QaToolAgent(
+                    user_id=user.id,
+                    llm=llm,
+                    video_ids=raw_video_ids,
+                )
+                stream_iter = agent.stream(
+                    messages=raw_messages,
+                    locale=locale,
+                    group_context=group_context or None,
+                )
+            else:
+                service = RagChatService(user=user, llm=llm, api_key=api_key)
+                stream_iter = service.stream(
+                    messages=raw_messages,
+                    video_ids=raw_video_ids,
+                    locale=locale,
+                    group_context=group_context or None,
+                )
+
+            for item in stream_iter:
+                if isinstance(item, (_RagServiceStreamEnd, _QaAgentStreamEnd)):
                     yield RagStreamChunk(
                         is_final=True,
-                        citations=citations,
+                        citations=self._to_citation_dtos(item.citations),
                         query_text=item.query_text,
                         retrieved_contexts=item.retrieved_contexts,
                     )
-                else:
-                    if item:
-                        yield RagStreamChunk(text=item)
+                elif item:
+                    yield RagStreamChunk(text=item)
         except OpenAIAuthenticationError as exc:
             raise LLMConfigurationError(
                 "Invalid OpenAI API key. Please check your API key in Settings."
@@ -162,3 +175,19 @@ class RagChatGateway(RagGateway):
         except Exception as exc:
             logger.exception("RAG stream_reply failed: %s", exc)
             raise LLMProviderError(str(exc)) from exc
+
+    @staticmethod
+    def _to_citation_dtos(
+        raw_citations: Optional[Sequence[dict]],
+    ) -> Optional[list[CitationDTO]]:
+        if not raw_citations:
+            return None
+        return [
+            CitationDTO(
+                video_id=int(raw_video.get("video_id", 0) or 0),
+                title=str(raw_video.get("title", "")),
+                start_time=raw_video.get("start_time"),
+                end_time=raw_video.get("end_time"),
+            )
+            for raw_video in raw_citations
+        ]

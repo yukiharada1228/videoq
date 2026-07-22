@@ -13,6 +13,7 @@ from app.infrastructure.external.vector_store import (
     _get_safe_table_identifier,
     delete_all_vectors,
     delete_video_vectors,
+    fetch_video_scenes,
     update_video_title_in_vectors,
 )
 
@@ -78,8 +79,9 @@ class PGVectorManagerTests(SimpleTestCase):
     def test_get_vector_size(self):
         self.assertEqual(PGVectorManager.get_vector_size(), 768)
 
+    @patch.object(PGVectorManager, "_table_exists", return_value=False)
     @patch.object(PGVectorManager, "get_engine")
-    def test_ensure_table_calls_init(self, mock_get_engine):
+    def test_ensure_table_calls_init(self, mock_get_engine, _mock_exists):
         mock_engine = MagicMock()
         mock_get_engine.return_value = mock_engine
 
@@ -87,8 +89,9 @@ class PGVectorManagerTests(SimpleTestCase):
 
         mock_engine.init_vectorstore_table.assert_called_once()
 
+    @patch.object(PGVectorManager, "_table_exists", return_value=False)
     @patch.object(PGVectorManager, "get_engine")
-    def test_ensure_table_idempotent(self, mock_get_engine):
+    def test_ensure_table_idempotent(self, mock_get_engine, _mock_exists):
         mock_engine = MagicMock()
         mock_get_engine.return_value = mock_engine
 
@@ -98,20 +101,38 @@ class PGVectorManagerTests(SimpleTestCase):
         # Only called once due to _table_initialized flag
         mock_engine.init_vectorstore_table.assert_called_once()
 
+    @patch.object(PGVectorManager, "_table_exists", return_value=True)
     @patch.object(PGVectorManager, "get_engine")
-    def test_ensure_table_handles_existing_table(self, mock_get_engine):
+    def test_ensure_table_skips_init_when_table_exists(
+        self, mock_get_engine, mock_exists
+    ):
+        mock_engine = MagicMock()
+        mock_get_engine.return_value = mock_engine
+
+        PGVectorManager.ensure_table()
+
+        self.assertTrue(PGVectorManager._table_initialized)
+        mock_exists.assert_called_once()
+        mock_engine.init_vectorstore_table.assert_not_called()
+
+    @patch.object(PGVectorManager, "_table_exists", return_value=False)
+    @patch.object(PGVectorManager, "get_engine")
+    def test_ensure_table_handles_race_already_exists(
+        self, mock_get_engine, _mock_exists
+    ):
         mock_engine = MagicMock()
         mock_engine.init_vectorstore_table.side_effect = Exception(
             'relation "videoq_scenes" already exists'
         )
         mock_get_engine.return_value = mock_engine
 
-        # Should not raise
+        # Should not raise (concurrent create race)
         PGVectorManager.ensure_table()
         self.assertTrue(PGVectorManager._table_initialized)
 
+    @patch.object(PGVectorManager, "_table_exists", return_value=False)
     @patch.object(PGVectorManager, "get_engine")
-    def test_ensure_table_raises_unexpected_errors(self, mock_get_engine):
+    def test_ensure_table_raises_unexpected_errors(self, mock_get_engine, _mock_exists):
         mock_engine = MagicMock()
         mock_engine.init_vectorstore_table.side_effect = ConnectionError(
             "connection refused"
@@ -172,6 +193,34 @@ class SafeTableIdentifierTests(SimpleTestCase):
 
     def test_allowed_table_names_contains_default(self):
         self.assertIn("videoq_scenes", _ALLOWED_TABLE_NAMES)
+
+    @override_settings(PGVECTOR_COLLECTION_NAME="videoq_scenes")
+    @patch("django.db.connection")
+    def test_fetch_video_scenes_orders_and_returns_rows(self, mock_connection):
+        mock_cursor = MagicMock()
+        mock_cursor.fetchall.return_value = [
+            ("scene a", {"scene_index": 1, "video_title": "T", "start_time": "0", "end_time": "1"}),
+            ("scene b", {"scene_index": 2, "video_title": "T", "start_time": "1", "end_time": "2"}),
+        ]
+        mock_connection.cursor.return_value.__enter__ = MagicMock(
+            return_value=mock_cursor
+        )
+        mock_connection.cursor.return_value.__exit__ = MagicMock(return_value=False)
+        mock_connection.ops.quote_name.return_value = '"videoq_scenes"'
+
+        rows = fetch_video_scenes(user_id=9, video_id=3, limit=10, offset=0)
+
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(rows[0]["content"], "scene a")
+        self.assertEqual(rows[0]["metadata"]["scene_index"], 1)
+        sql = mock_cursor.execute.call_args[0][0]
+        self.assertIn("ORDER BY", sql)
+        self.assertIn("langchain_id", sql)
+        self.assertNotIn(", id", sql)
+        self.assertEqual(
+            mock_cursor.execute.call_args[0][1],
+            [9, 3, 10, 0],
+        )
 
     @override_settings(PGVECTOR_COLLECTION_NAME="videoq_scenes")
     @patch("django.db.connection")

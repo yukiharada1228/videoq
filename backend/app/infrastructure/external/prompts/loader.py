@@ -96,6 +96,11 @@ def get_plog_study_config(locale: Optional[str] = None) -> Dict[str, Any]:
     return resolve_locale_section("plog_study", locale)
 
 
+def get_qa_agent_config(locale: Optional[str] = None) -> Dict[str, Any]:
+    """Locale-aware system text for the QA tool-calling evidence loop."""
+    return resolve_locale_section("qa_agent", locale)
+
+
 def build_fallback_learning_object(label: str, locale: Optional[str] = None, *, short: bool = False) -> dict:
     """Build opening_question + hint_ladder for a concept when Stage2 omits them."""
     config = get_plog_study_config(locale)

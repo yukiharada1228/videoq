@@ -3,6 +3,7 @@ PGVector infrastructure: manages PGVectorStore operations.
 Moved from app/utils/vector_manager.py.
 """
 
+import json
 import logging
 import os
 import threading
@@ -93,12 +94,42 @@ class PGVectorManager:
         return getattr(settings, "EMBEDDING_VECTOR_SIZE", 1536)
 
     @classmethod
+    def _table_exists(cls) -> bool:
+        """Return True if the vectorstore table is already present."""
+        from django.db import connection
+
+        table_name = cls.get_table_name()
+        if table_name not in _ALLOWED_TABLE_NAMES:
+            raise ValueError(
+                f"Table name '{table_name}' is not in the allowed list. "
+                "Only statically-defined table names are permitted."
+            )
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM information_schema.tables
+                    WHERE table_schema = current_schema()
+                      AND table_name = %s
+                )
+                """,
+                [table_name],
+            )
+            row = cursor.fetchone()
+        return bool(row and row[0])
+
+    @classmethod
     def ensure_table(cls):
         """Ensure the vectorstore table exists (idempotent, thread-safe)."""
         if cls._table_initialized:
             return
         with cls._table_init_lock:
             if cls._table_initialized:
+                return
+            # Check first so Postgres does not log ERROR for CREATE on existing table.
+            if cls._table_exists():
+                cls._table_initialized = True
                 return
             engine = cls.get_engine()
             try:
@@ -111,6 +142,7 @@ class PGVectorManager:
                     ],
                 )
             except Exception as e:
+                # Race between workers: another process may have created it first.
                 if "already exists" in str(e):
                     logger.debug(
                         "Vectorstore table '%s' already exists",
@@ -139,6 +171,53 @@ class PGVectorManager:
 
         fake_embeddings = FakeEmbeddings(size=cls.get_vector_size())
         return cls.create_vectorstore(fake_embeddings)
+
+
+def fetch_video_scenes(
+    *,
+    user_id: int,
+    video_id: int,
+    limit: int = 10,
+    offset: int = 0,
+) -> list[dict]:
+    """Return chronological scenes for one video from the vector table.
+
+    Rows are ordered by ``scene_index`` in ``langchain_metadata`` when present.
+    Each item is ``{"content": str, "metadata": dict}``.
+    """
+    from django.db import connection
+
+    table = _get_safe_table_identifier()
+    safe_limit = max(1, min(int(limit), 100))
+    safe_offset = max(0, int(offset))
+
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT content, COALESCE(langchain_metadata::jsonb, '{{}}'::jsonb)
+            FROM {}
+            WHERE user_id = %s AND video_id = %s
+            ORDER BY COALESCE(
+                NULLIF(langchain_metadata->>'scene_index', '')::int,
+                2147483647
+            ), langchain_id
+            LIMIT %s OFFSET %s
+            """.format(table),  # noqa: S608 – table is allowlist-validated above
+            [int(user_id), int(video_id), safe_limit, safe_offset],
+        )
+        rows = cursor.fetchall()
+
+    results: list[dict] = []
+    for content, metadata in rows:
+        if isinstance(metadata, str):
+            try:
+                metadata = json.loads(metadata)
+            except json.JSONDecodeError:
+                metadata = {}
+        if not isinstance(metadata, dict):
+            metadata = {}
+        results.append({"content": content or "", "metadata": metadata})
+    return results
 
 
 def delete_video_vectors(video_id: int) -> None:
