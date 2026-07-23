@@ -1,6 +1,7 @@
 """
 Infrastructure implementation of RagGateway.
-Wraps RagChatService (LangChain) or QaToolAgent for use case consumption.
+Prefers QaToolAgent; falls back to classic RagChatService when the agent fails
+(e.g. a local model without reliable tool calling).
 """
 
 import logging
@@ -20,18 +21,14 @@ from app.domain.chat.gateways import (
 from app.domain.chat.dtos import ChatMessageDTO, CitationDTO
 from app.domain.shared.exceptions import ProviderConfigError
 from app.infrastructure.external.llm import get_langchain_llm
-from app.infrastructure.external.qa_agent.agent import (
-    QaToolAgent,
-    _QaAgentStreamEnd,
-    is_qa_agent_enabled,
-)
+from app.infrastructure.external.qa_agent.agent import QaToolAgent, _QaAgentStreamEnd
 from app.infrastructure.external.rag_service import RagChatService, _RagServiceStreamEnd
 
 logger = logging.getLogger(__name__)
 
 
 class RagChatGateway(RagGateway):
-    """Implements RagGateway by delegating to RagChatService or QaToolAgent."""
+    """Implements RagGateway by preferring QaToolAgent with classic RAG fallback."""
 
     def generate_reply(
         self,
@@ -61,32 +58,43 @@ class RagChatGateway(RagGateway):
             for message in messages
         ]
         raw_video_ids = list(video_ids) if video_ids is not None else None
+        context = group_context or None
 
         try:
-            if is_qa_agent_enabled():
-                agent = QaToolAgent(
-                    user_id=user.id,
-                    llm=llm,
-                    video_ids=raw_video_ids,
-                )
-                result = agent.run(
-                    messages=raw_messages,
-                    locale=locale,
-                    group_context=group_context or None,
-                )
-                return RagResult(
-                    content=result.content,
-                    query_text=result.query_text,
-                    citations=self._to_citation_dtos(result.citations),
-                    retrieved_contexts=result.retrieved_contexts,
-                )
+            agent = QaToolAgent(
+                user_id=user.id,
+                llm=llm,
+                video_ids=raw_video_ids,
+            )
+            result = agent.run(
+                messages=raw_messages,
+                locale=locale,
+                group_context=context,
+            )
+            return RagResult(
+                content=result.content,
+                query_text=result.query_text,
+                citations=self._to_citation_dtos(result.citations),
+                retrieved_contexts=result.retrieved_contexts,
+            )
+        except OpenAIAuthenticationError as exc:
+            raise LLMConfigurationError(
+                "Invalid OpenAI API key. Please check your API key in Settings."
+            ) from exc
+        except Exception as agent_exc:
+            logger.warning(
+                "QA agent failed; falling back to classic RAG: %s",
+                agent_exc,
+                exc_info=True,
+            )
 
+        try:
             service = RagChatService(user=user, llm=llm, api_key=api_key)
             result = service.run(
                 messages=raw_messages,
                 video_ids=raw_video_ids,
                 locale=locale,
-                group_context=group_context or None,
+                group_context=context,
             )
         except OpenAIAuthenticationError as exc:
             raise LLMConfigurationError(
@@ -134,38 +142,51 @@ class RagChatGateway(RagGateway):
             for message in messages
         ]
         raw_video_ids = list(video_ids) if video_ids is not None else None
+        context = group_context or None
+
+        agent = QaToolAgent(
+            user_id=user.id,
+            llm=llm,
+            video_ids=raw_video_ids,
+        )
+        emitted = False
+        try:
+            for item in agent.stream(
+                messages=raw_messages,
+                locale=locale,
+                group_context=context,
+            ):
+                chunk = self._to_stream_chunk(item)
+                if chunk is None:
+                    continue
+                emitted = True
+                yield chunk
+            return
+        except OpenAIAuthenticationError as exc:
+            raise LLMConfigurationError(
+                "Invalid OpenAI API key. Please check your API key in Settings."
+            ) from exc
+        except Exception as agent_exc:
+            if emitted:
+                logger.exception("QA agent failed after streaming started: %s", agent_exc)
+                raise LLMProviderError(str(agent_exc)) from agent_exc
+            logger.warning(
+                "QA agent failed; falling back to classic RAG: %s",
+                agent_exc,
+                exc_info=True,
+            )
 
         try:
-            if is_qa_agent_enabled():
-                agent = QaToolAgent(
-                    user_id=user.id,
-                    llm=llm,
-                    video_ids=raw_video_ids,
-                )
-                stream_iter = agent.stream(
-                    messages=raw_messages,
-                    locale=locale,
-                    group_context=group_context or None,
-                )
-            else:
-                service = RagChatService(user=user, llm=llm, api_key=api_key)
-                stream_iter = service.stream(
-                    messages=raw_messages,
-                    video_ids=raw_video_ids,
-                    locale=locale,
-                    group_context=group_context or None,
-                )
-
-            for item in stream_iter:
-                if isinstance(item, (_RagServiceStreamEnd, _QaAgentStreamEnd)):
-                    yield RagStreamChunk(
-                        is_final=True,
-                        citations=self._to_citation_dtos(item.citations),
-                        query_text=item.query_text,
-                        retrieved_contexts=item.retrieved_contexts,
-                    )
-                elif item:
-                    yield RagStreamChunk(text=item)
+            service = RagChatService(user=user, llm=llm, api_key=api_key)
+            for item in service.stream(
+                messages=raw_messages,
+                video_ids=raw_video_ids,
+                locale=locale,
+                group_context=context,
+            ):
+                chunk = self._to_stream_chunk(item)
+                if chunk is not None:
+                    yield chunk
         except OpenAIAuthenticationError as exc:
             raise LLMConfigurationError(
                 "Invalid OpenAI API key. Please check your API key in Settings."
@@ -175,6 +196,18 @@ class RagChatGateway(RagGateway):
         except Exception as exc:
             logger.exception("RAG stream_reply failed: %s", exc)
             raise LLMProviderError(str(exc)) from exc
+
+    def _to_stream_chunk(self, item) -> Optional[RagStreamChunk]:
+        if isinstance(item, (_RagServiceStreamEnd, _QaAgentStreamEnd)):
+            return RagStreamChunk(
+                is_final=True,
+                citations=self._to_citation_dtos(item.citations),
+                query_text=item.query_text,
+                retrieved_contexts=item.retrieved_contexts,
+            )
+        if item:
+            return RagStreamChunk(text=item)
+        return None
 
     @staticmethod
     def _to_citation_dtos(

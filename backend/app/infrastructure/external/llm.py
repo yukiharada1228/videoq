@@ -117,8 +117,12 @@ def _create_ollama_llm(*, model_setting: str = "LLM_MODEL") -> BaseChatModel:
         default = "qwen3:0.6b"
     model = getattr(settings, model_setting, getattr(settings, "LLM_MODEL", default))
 
+    # Gemma 4 etc. may spend the whole budget on reasoning and return empty
+    # content unless reasoning is disabled for chat answers.
     return ChatOllama(
         model=model,
         base_url=base_url,
         temperature=0.0,
+        reasoning=False,
+        num_predict=1024,
     )

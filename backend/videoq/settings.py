@@ -115,8 +115,7 @@ class DefaultSettings:
     LLM_STUDY_MODEL = "gpt-4o"  # Large model for PLOG study nudge (§3.3)
     LLM_GRADE_MODEL = "gpt-4o-mini"  # Small model for PLOG GradeReply
 
-    # QA tool-calling agent (classic RAG remains default when disabled)
-    QA_AGENT_ENABLED = False
+    # QA tool-calling agent knobs (agent preferred; classic RAG on tool failure)
     QA_AGENT_MAX_ROUNDS = 3
     QA_AGENT_SEARCH_K = 10
 
@@ -626,13 +625,6 @@ LLM_MODEL = os.environ.get("LLM_MODEL", DefaultSettings.LLM_MODEL)
 LLM_STUDY_MODEL = os.environ.get("LLM_STUDY_MODEL", DefaultSettings.LLM_STUDY_MODEL)
 LLM_GRADE_MODEL = os.environ.get("LLM_GRADE_MODEL", DefaultSettings.LLM_GRADE_MODEL)
 
-QA_AGENT_ENABLED = (
-    os.environ.get(
-        "QA_AGENT_ENABLED",
-        "true" if DefaultSettings.QA_AGENT_ENABLED else "false",
-    ).lower()
-    == "true"
-)
 QA_AGENT_MAX_ROUNDS = int(
     os.environ.get("QA_AGENT_MAX_ROUNDS", DefaultSettings.QA_AGENT_MAX_ROUNDS)
 )

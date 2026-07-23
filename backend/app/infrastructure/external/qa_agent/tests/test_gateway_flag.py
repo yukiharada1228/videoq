@@ -1,4 +1,4 @@
-"""Gateway routing between classic RAG and QA tool agent."""
+"""Gateway prefers QA agent and falls back to classic RAG on failure."""
 
 from unittest.mock import MagicMock, patch
 
@@ -12,7 +12,7 @@ from app.infrastructure.external.rag_gateway import RagChatGateway
 User = get_user_model()
 
 
-class RagChatGatewayAgentFlagTests(TestCase):
+class RagChatGatewayAgentRoutingTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(
             username="flag_user",
@@ -24,32 +24,8 @@ class RagChatGatewayAgentFlagTests(TestCase):
     @patch("app.infrastructure.external.rag_gateway.QaToolAgent")
     @patch("app.infrastructure.external.rag_gateway.RagChatService")
     @patch("app.infrastructure.external.rag_gateway.get_langchain_llm")
-    @override_settings(QA_AGENT_ENABLED=False, LLM_PROVIDER="openai")
-    def test_flag_off_uses_classic_rag(
-        self, mock_get_llm, mock_service_cls, mock_agent_cls
-    ):
-        mock_get_llm.return_value = MagicMock()
-        mock_service = MagicMock()
-        mock_service.run.return_value = MagicMock(
-            llm_response=MagicMock(content="classic"),
-            query_text="hello",
-            citations=None,
-            retrieved_contexts=[],
-        )
-        mock_service_cls.return_value = mock_service
-
-        gateway = RagChatGateway()
-        result = gateway.generate_reply(messages=self.messages, user_id=self.user.id)
-
-        self.assertEqual(result.content, "classic")
-        mock_service.run.assert_called_once()
-        mock_agent_cls.assert_not_called()
-
-    @patch("app.infrastructure.external.rag_gateway.QaToolAgent")
-    @patch("app.infrastructure.external.rag_gateway.RagChatService")
-    @patch("app.infrastructure.external.rag_gateway.get_langchain_llm")
-    @override_settings(QA_AGENT_ENABLED=True, LLM_PROVIDER="openai")
-    def test_flag_on_uses_agent(
+    @override_settings(LLM_PROVIDER="openai")
+    def test_uses_agent_when_available(
         self, mock_get_llm, mock_service_cls, mock_agent_cls
     ):
         mock_get_llm.return_value = MagicMock()
@@ -85,11 +61,39 @@ class RagChatGatewayAgentFlagTests(TestCase):
     @patch("app.infrastructure.external.rag_gateway.QaToolAgent")
     @patch("app.infrastructure.external.rag_gateway.RagChatService")
     @patch("app.infrastructure.external.rag_gateway.get_langchain_llm")
-    @override_settings(QA_AGENT_ENABLED=True, LLM_PROVIDER="ollama")
-    def test_ollama_falls_back_to_classic_even_when_flag_on(
+    @override_settings(LLM_PROVIDER="ollama")
+    def test_ollama_also_uses_agent_when_available(
         self, mock_get_llm, mock_service_cls, mock_agent_cls
     ):
         mock_get_llm.return_value = MagicMock()
+        mock_agent = MagicMock()
+        mock_agent.run.return_value = QaToolAgentResult(
+            content="ollama agent",
+            query_text="hello",
+            citations=None,
+            retrieved_contexts=[],
+        )
+        mock_agent_cls.return_value = mock_agent
+
+        gateway = RagChatGateway()
+        result = gateway.generate_reply(messages=self.messages, user_id=self.user.id)
+
+        self.assertEqual(result.content, "ollama agent")
+        mock_agent.run.assert_called_once()
+        mock_service_cls.assert_not_called()
+
+    @patch("app.infrastructure.external.rag_gateway.QaToolAgent")
+    @patch("app.infrastructure.external.rag_gateway.RagChatService")
+    @patch("app.infrastructure.external.rag_gateway.get_langchain_llm")
+    @override_settings(LLM_PROVIDER="ollama")
+    def test_falls_back_to_classic_when_agent_fails(
+        self, mock_get_llm, mock_service_cls, mock_agent_cls
+    ):
+        mock_get_llm.return_value = MagicMock()
+        mock_agent = MagicMock()
+        mock_agent.run.side_effect = RuntimeError("tools unsupported")
+        mock_agent_cls.return_value = mock_agent
+
         mock_service = MagicMock()
         mock_service.run.return_value = MagicMock(
             llm_response=MagicMock(content="fallback"),
@@ -103,12 +107,12 @@ class RagChatGatewayAgentFlagTests(TestCase):
         result = gateway.generate_reply(messages=self.messages, user_id=self.user.id)
 
         self.assertEqual(result.content, "fallback")
+        mock_agent.run.assert_called_once()
         mock_service.run.assert_called_once()
-        mock_agent_cls.assert_not_called()
 
     @patch("app.infrastructure.external.rag_gateway.QaToolAgent")
     @patch("app.infrastructure.external.rag_gateway.get_langchain_llm")
-    @override_settings(QA_AGENT_ENABLED=True, LLM_PROVIDER="openai")
+    @override_settings(LLM_PROVIDER="openai")
     def test_agent_stream_maps_to_sse_contract(self, mock_get_llm, mock_agent_cls):
         mock_get_llm.return_value = MagicMock()
         mock_agent = MagicMock()

@@ -9,26 +9,11 @@ from langchain_core.messages import AIMessage
 from app.infrastructure.external.qa_agent.agent import (
     QaToolAgent,
     _QaAgentStreamEnd,
-    is_qa_agent_enabled,
 )
 from app.infrastructure.external.qa_agent.tools import SceneHit
 from app.infrastructure.models import Video
 
 User = get_user_model()
-
-
-class IsQaAgentEnabledTests(TestCase):
-    @override_settings(QA_AGENT_ENABLED=True, LLM_PROVIDER="openai")
-    def test_enabled_for_openai(self):
-        self.assertTrue(is_qa_agent_enabled())
-
-    @override_settings(QA_AGENT_ENABLED=True, LLM_PROVIDER="ollama")
-    def test_disabled_for_ollama_even_when_flag_on(self):
-        self.assertFalse(is_qa_agent_enabled())
-
-    @override_settings(QA_AGENT_ENABLED=False, LLM_PROVIDER="openai")
-    def test_disabled_when_flag_off(self):
-        self.assertFalse(is_qa_agent_enabled())
 
 
 class QaToolAgentLoopTests(TestCase):

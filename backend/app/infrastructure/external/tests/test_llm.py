@@ -80,6 +80,8 @@ class GetLangchainLLMTests(SimpleTestCase):
             model="qwen3:8b",
             base_url="http://localhost:11434",
             temperature=0.0,
+            reasoning=False,
+            num_predict=1024,
         )
 
     @override_settings(LLM_PROVIDER="unknown_provider")

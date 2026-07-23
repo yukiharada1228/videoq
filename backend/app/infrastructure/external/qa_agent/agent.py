@@ -35,15 +35,6 @@ class _QaAgentStreamEnd:
     retrieved_contexts: List[str] = field(default_factory=list)
 
 
-def is_qa_agent_enabled() -> bool:
-    """True when the agent path should be used for this process config."""
-    if not getattr(settings, "QA_AGENT_ENABLED", False):
-        return False
-    provider = str(getattr(settings, "LLM_PROVIDER", "openai") or "openai").lower()
-    # Tool calling is only enabled for OpenAI; other providers fall back to classic RAG.
-    return provider == "openai"
-
-
 class QaToolAgent:
     """Run a bounded bind_tools loop, then stream a citation-grounded answer."""
 
