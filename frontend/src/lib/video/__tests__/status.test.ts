@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { getStatusBadgeClassName, getStatusChipColor, getStatusLabel, formatDate } from '../video'
+import { getStatusBadgeClassName, getStatusChipColor, getStatusLabel, formatDate } from '../status'
 
 describe('video utils', () => {
   describe('getStatusChipColor', () => {

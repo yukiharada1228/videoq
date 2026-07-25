@@ -4,7 +4,7 @@ import {
   convertVideoListToSelectedVideo,
   createVideoIdSet,
   extractVideoIds,
-} from '../videoConversion'
+} from '../conversion'
 import type { VideoInGroup, VideoList } from '@/lib/api'
 
 describe('convertVideoInGroupToSelectedVideo', () => {

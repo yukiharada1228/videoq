@@ -30,7 +30,7 @@ describe('ForgotPasswordPage', () => {
     render(<ForgotPasswordPage />)
 
     expect(screen.getByText('auth.fields.email.label')).toBeInTheDocument()
-    expect(screen.getByPlaceholderText('auth.fields.email.placeholder')).toBeInTheDocument()
+    expect(screen.getByLabelText(/auth\.fields\.email\.label/)).toBeInTheDocument()
   })
 
   it('should render submit button', () => {
@@ -50,7 +50,7 @@ describe('ForgotPasswordPage', () => {
 
     render(<ForgotPasswordPage />)
 
-    const emailInput = screen.getByPlaceholderText('auth.fields.email.placeholder')
+    const emailInput = screen.getByLabelText(/auth\.fields\.email\.label/)
     fireEvent.change(emailInput, { target: { value: 'test@example.com' } })
 
     const submitButton = screen.getByText('auth.forgotPassword.submit')
@@ -66,7 +66,7 @@ describe('ForgotPasswordPage', () => {
 
     render(<ForgotPasswordPage />)
 
-    const emailInput = screen.getByPlaceholderText('auth.fields.email.placeholder')
+    const emailInput = screen.getByLabelText(/auth\.fields\.email\.label/)
     fireEvent.change(emailInput, { target: { value: 'test@example.com' } })
 
     const submitButton = screen.getByText('auth.forgotPassword.submit')
@@ -88,7 +88,7 @@ describe('ForgotPasswordPage', () => {
 
     render(<ForgotPasswordPage />)
 
-    const emailInput = screen.getByPlaceholderText('auth.fields.email.placeholder')
+    const emailInput = screen.getByLabelText(/auth\.fields\.email\.label/)
     fireEvent.change(emailInput, { target: { value: 'test@example.com' } })
 
     const submitButton = screen.getByText('auth.forgotPassword.submit')

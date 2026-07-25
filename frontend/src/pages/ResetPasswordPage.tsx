@@ -88,7 +88,7 @@ function ResetPasswordContent() {
             minLength={8}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder={t('auth.resetPassword.newPasswordPlaceholder')}
+            supportText={t('auth.resetPassword.newPasswordPlaceholder')}
             autoComplete="new-password"
           />
 
@@ -101,7 +101,6 @@ function ResetPasswordContent() {
             minLength={8}
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
-            placeholder={t('auth.resetPassword.confirmPasswordPlaceholder')}
             autoComplete="new-password"
           />
 

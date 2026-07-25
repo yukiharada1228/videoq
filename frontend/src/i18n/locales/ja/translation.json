@@ -234,6 +234,7 @@
         "indexing": "インデックス中"
       },
       "searchPlaceholder": "動画を検索...",
+      "searchLabel": "動画を検索",
       "sortLabel": "並び替え:",
       "sort": {
         "uploadedDesc": "アップロード順 ↓",
@@ -331,6 +332,7 @@
       "editTranscriptButton": "編集",
       "saveTranscriptButton": "保存",
       "transcriptSearchPlaceholder": "検索...",
+      "transcriptSearchLabel": "文字起こしを検索",
       "statusSection": "ステータス",
       "transcriptNotFound": "検索結果が見つかりませんでした",
       "pipeline": {
@@ -400,6 +402,7 @@
       "generateShareError": "共有リンクの生成に失敗しました",
       "disableShareError": "共有リンクの削除に失敗しました",
       "searchPlaceholder": "タイトル/説明を検索",
+      "searchLabel": "動画を検索",
       "statusFilter": {
         "all": "すべてのステータス",
         "completed": "完了",

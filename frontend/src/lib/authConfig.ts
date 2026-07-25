@@ -8,7 +8,6 @@ export interface FormFieldConfig {
   name: string;
   type: string;
   labelKey: string;
-  placeholderKey: string;
   minLength?: number;
 }
 
@@ -21,7 +20,6 @@ export const AUTH_FIELDS = {
     name: 'email',
     type: 'email',
     labelKey: 'auth.fields.email.label',
-    placeholderKey: 'auth.fields.email.placeholder',
   } as FormFieldConfig,
 
   USERNAME: {
@@ -29,7 +27,6 @@ export const AUTH_FIELDS = {
     name: 'username',
     type: 'text',
     labelKey: 'auth.fields.username.label',
-    placeholderKey: 'auth.fields.username.placeholder',
   } as FormFieldConfig,
 
   PASSWORD: {
@@ -37,7 +34,6 @@ export const AUTH_FIELDS = {
     name: 'password',
     type: 'password',
     labelKey: 'auth.fields.password.label',
-    placeholderKey: 'auth.fields.password.placeholder',
   } as FormFieldConfig,
 
   PASSWORD_WITH_MIN_LENGTH: {
@@ -45,7 +41,6 @@ export const AUTH_FIELDS = {
     name: 'password',
     type: 'password',
     labelKey: 'auth.fields.password.label',
-    placeholderKey: 'auth.fields.password.placeholder',
     minLength: 8,
   } as FormFieldConfig,
 
@@ -54,7 +49,6 @@ export const AUTH_FIELDS = {
     name: 'confirmPassword',
     type: 'password',
     labelKey: 'auth.fields.passwordConfirmation.label',
-    placeholderKey: 'auth.fields.passwordConfirmation.placeholder',
     minLength: 8,
   } as FormFieldConfig,
 } as const;

@@ -234,6 +234,7 @@
         "indexing": "Indexing"
       },
       "searchPlaceholder": "Search videos...",
+      "searchLabel": "Search videos",
       "sortLabel": "Sort by:",
       "sort": {
         "uploadedDesc": "Upload date ↓",
@@ -331,6 +332,7 @@
       "editTranscriptButton": "Edit",
       "saveTranscriptButton": "Save transcript",
       "transcriptSearchPlaceholder": "Search...",
+      "transcriptSearchLabel": "Search transcript",
       "statusSection": "Status",
       "transcriptNotFound": "No results found",
       "pipeline": {
@@ -400,6 +402,7 @@
       "generateShareError": "Failed to generate the share link",
       "disableShareError": "Failed to disable the share link",
       "searchPlaceholder": "Search by title or description",
+      "searchLabel": "Search videos",
       "statusFilter": {
         "all": "All statuses",
         "completed": "Completed",

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { VideoInGroup, VideoList as VideoListType } from '@/lib/api';
 import { apiClient } from '@/lib/api';
-import { formatDate, getStatusChipColor, getStatusLabel } from '@/lib/utils/video';
+import { formatDate, getStatusChipColor, getStatusLabel } from '@/lib/video/status';
 import { Link } from '@/lib/i18n';
 import { useParams } from 'react-router-dom';
 import { TagBadge } from './TagBadge';

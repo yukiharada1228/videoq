@@ -18,7 +18,7 @@ import {
   menuListItemVariants,
 } from '@/components/ui/menu-list';
 import { UtilityLink } from '@/components/ui/utility-link';
-import { formatDate, getStatusLabel } from '@/lib/utils/video';
+import { formatDate, getStatusLabel } from '@/lib/video/status';
 import { useTranslation } from 'react-i18next';
 import LoginPage from '@/pages/LoginPage';
 import { cn } from '@/lib/utils';

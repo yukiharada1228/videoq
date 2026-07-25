@@ -182,16 +182,21 @@ export default function VideosPage() {
 
       <section className="mb-10 border-t border-solid-gray-420 pt-6">
         <div className="flex flex-col lg:flex-row gap-6">
-          <div className="relative flex-grow">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-solid-gray-600 w-4 h-4 z-10" />
-            <Input
-              className="pl-12"
-              blockSize="md"
-              placeholder={t('videos.list.searchPlaceholder')}
-              type="search"
-              value={searchQuery}
-              onChange={(e) => updateSearchParams({ q: e.target.value })}
-            />
+          <div className="flex flex-grow flex-col gap-2">
+            <Label htmlFor="videos-search" size="sm">
+              {t('videos.list.searchLabel')}
+            </Label>
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-solid-gray-600 w-4 h-4 z-10" />
+              <Input
+                id="videos-search"
+                className="w-full pl-12"
+                blockSize="md"
+                type="search"
+                value={searchQuery}
+                onChange={(e) => updateSearchParams({ q: e.target.value })}
+              />
+            </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <Label htmlFor="videos-sort" size="sm" className="whitespace-nowrap">

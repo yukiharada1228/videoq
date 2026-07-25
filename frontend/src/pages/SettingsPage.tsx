@@ -389,7 +389,6 @@ export default function SettingsPage() {
                   type="email"
                   value={emailChangeEmail}
                   onChange={(event) => setEmailChangeEmail(event.target.value)}
-                  placeholder={t('settings.emailChange.newEmailPlaceholder')}
                 />
                 <SupportText>{t('settings.emailChange.help')}</SupportText>
               </div>
@@ -449,7 +448,6 @@ export default function SettingsPage() {
                   id="search-api-key"
                   value={searchApiKey}
                   onChange={(event) => setSearchApiKey(event.target.value)}
-                  placeholder={t('settings.searchApiKey.apiKeyPlaceholder')}
                 />
                 <SupportText>
                   {searchApiKeyStatusQuery.data?.has_api_key
@@ -619,10 +617,10 @@ export default function SettingsPage() {
                 id="account-deletion-reason"
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
-                placeholder={t('settings.accountDeletion.reasonPlaceholder')}
                 rows={4}
                 className="resize-none"
               />
+              <SupportText>{t('settings.accountDeletion.reasonPlaceholder')}</SupportText>
             </div>
 
             {deleteError && (
@@ -670,7 +668,6 @@ export default function SettingsPage() {
                     id="api-key-name"
                     value={apiKeyName}
                     onChange={(event) => setApiKeyName(event.target.value)}
-                    placeholder={t('settings.integrationApiKeys.namePlaceholder')}
                   />
                   <SupportText>{t('settings.integrationApiKeys.nameHelp')}</SupportText>
                 </div>
@@ -913,7 +910,6 @@ export default function SettingsPage() {
                     id="account-deletion-confirm"
                     value={confirmText}
                     onChange={(event) => setConfirmText(event.target.value)}
-                    placeholder={confirmationKeyword}
                   />
                 </div>
                 {deleteError && <ErrorMessage message={deleteError} />}

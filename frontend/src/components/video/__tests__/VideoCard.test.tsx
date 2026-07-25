@@ -19,7 +19,7 @@ Object.defineProperty(window, 'IntersectionObserver', {
   value: mockIntersectionObserver,
 })
 
-vi.mock('@/lib/utils/video', () => ({
+vi.mock('@/lib/video/status', () => ({
   getStatusBadgeClassName: vi.fn(() => 'badge-class'),
   getStatusChipColor: vi.fn(() => 'green'),
   getStatusLabel: vi.fn(() => 'Status Label'),

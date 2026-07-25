@@ -2,8 +2,12 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
-export type TextareaProps = React.ComponentProps<"textarea"> & {
+export type TextareaProps = Omit<
+  React.ComponentProps<"textarea">,
+  "placeholder"
+> & {
   isError?: boolean
+  placeholder?: never
 }
 
 const isAriaDisabled = (value: unknown) => value === true || value === "true"

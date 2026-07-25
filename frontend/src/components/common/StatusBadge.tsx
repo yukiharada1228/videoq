@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { ChipLabel } from '@/components/ui/chip-label';
-import { getStatusChipColor, getStatusLabel } from '@/lib/utils/video';
+import { getStatusChipColor, getStatusLabel } from '@/lib/video/status';
 import { cn } from '@/lib/utils';
 
 interface StatusBadgeProps {

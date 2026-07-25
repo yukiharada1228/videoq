@@ -93,7 +93,6 @@ export function TagCreateDialog({ isOpen, onClose, onCreate }: TagCreateDialogPr
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder={t('tags.create.namePlaceholder')}
                 disabled={isCreating}
                 maxLength={50}
                 blockSize="md"
