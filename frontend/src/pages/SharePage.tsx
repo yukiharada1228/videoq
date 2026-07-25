@@ -9,7 +9,7 @@ import { StatusBadge } from '@/components/common/StatusBadge';
 import { Button } from '@/components/ui/button';
 import { ChipLabel } from '@/components/ui/chip-label';
 import { ChatPanel } from '@/components/chat/ChatPanel';
-import { convertVideoInGroupToSelectedVideo, type SelectedVideo } from '@/lib/utils/videoConversion';
+import { convertVideoInGroupToSelectedVideo, type SelectedVideo } from '@/lib/video/conversion';
 import { useVideoPlayback } from '@/hooks/useVideoPlayback';
 import { useMobileTab } from '@/hooks/useMobileTab';
 import { useSharedGroupQuery } from '@/hooks/useSharePageData';

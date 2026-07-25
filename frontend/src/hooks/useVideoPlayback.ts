@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
-import { timeStringToSeconds } from '@/lib/utils/video';
-import { type SelectedVideo } from '@/lib/utils/videoConversion';
+import { timeStringToSeconds } from '@/lib/video/status';
+import { type SelectedVideo } from '@/lib/video/conversion';
 
 interface UseVideoPlaybackOptions {
   selectedVideo: SelectedVideo | null;

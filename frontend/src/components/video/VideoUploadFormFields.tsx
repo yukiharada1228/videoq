@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { RequirementBadge } from '@/components/ui/requirement-badge';
+import { SupportText } from '@/components/ui/support-text';
 import { MessageAlert } from '@/components/common/MessageAlert';
 import { Button } from '@/components/ui/button';
 import { VideoUploadButton } from './VideoUploadButton';
@@ -52,14 +53,12 @@ export function VideoUploadFormFields({
 }: VideoUploadFormFieldsProps) {
   const { t } = useTranslation();
 
-  // Dynamically generate placeholder
-  const getTitlePlaceholder = () => {
-    if (file) {
-      const fileNameWithoutExt = file.name.replace(/\.[^/.]+$/, '');
-      return t('videos.upload.titlePlaceholder', { fileName: fileNameWithoutExt });
-    }
-    return t('videos.upload.titleEmptyPlaceholder');
-  };
+  // Suggest a title based on the selected file name (shown as support text)
+  const titleSuggestion = file
+    ? t('videos.upload.titlePlaceholder', {
+        fileName: file.name.replace(/\.[^/.]+$/, ''),
+      })
+    : null;
 
   return (
     <>
@@ -88,10 +87,10 @@ export function VideoUploadFormFields({
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder={getTitlePlaceholder()}
           disabled={isUploading || disabled}
           required
         />
+        {titleSuggestion && <SupportText>{titleSuggestion}</SupportText>}
       </div>
 
       <div className="flex flex-col gap-2">
@@ -103,7 +102,6 @@ export function VideoUploadFormFields({
           id="description"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder={t('videos.upload.descriptionPlaceholder')}
           disabled={isUploading || disabled}
           className="min-h-[100px] resize-none"
         />

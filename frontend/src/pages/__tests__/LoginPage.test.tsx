@@ -32,8 +32,8 @@ describe('LoginPage', () => {
   it('should render username and password fields', () => {
     render(<LoginPage />)
 
-    expect(screen.getByPlaceholderText('auth.fields.username.placeholder')).toBeInTheDocument()
-    expect(screen.getByPlaceholderText('auth.fields.password.placeholder')).toBeInTheDocument()
+    expect(screen.getByLabelText(/auth\.fields\.username\.label/)).toBeInTheDocument()
+    expect(screen.getByLabelText(/auth\.fields\.password\.label/)).toBeInTheDocument()
   })
 
   it('should render forgot password link', () => {
@@ -60,10 +60,10 @@ describe('LoginPage', () => {
 
     render(<LoginPage />)
 
-    const usernameInput = screen.getByPlaceholderText('auth.fields.username.placeholder')
+    const usernameInput = screen.getByLabelText(/auth\.fields\.username\.label/)
     fireEvent.change(usernameInput, { target: { value: 'test' } })
 
-    const passwordInput = screen.getByPlaceholderText('auth.fields.password.placeholder')
+    const passwordInput = screen.getByLabelText(/auth\.fields\.password\.label/)
     fireEvent.change(passwordInput, { target: { value: 'test123' } })
 
     const submitButton = screen.getByText('auth.login.submit')
@@ -79,10 +79,10 @@ describe('LoginPage', () => {
 
     render(<LoginPage />)
 
-    const usernameInput = screen.getByPlaceholderText('auth.fields.username.placeholder')
+    const usernameInput = screen.getByLabelText(/auth\.fields\.username\.label/)
     fireEvent.change(usernameInput, { target: { value: 'test' } })
 
-    const passwordInput = screen.getByPlaceholderText('auth.fields.password.placeholder')
+    const passwordInput = screen.getByLabelText(/auth\.fields\.password\.label/)
     fireEvent.change(passwordInput, { target: { value: 'test123' } })
 
     const submitButton = screen.getByText('auth.login.submit')
@@ -138,8 +138,8 @@ describe('LoginPage', () => {
     const submitLoginForm = async () => {
       ;(apiClient.login as ReturnType<typeof vi.fn>).mockResolvedValue({})
       render(<LoginPage />)
-      fireEvent.change(screen.getByPlaceholderText('auth.fields.username.placeholder'), { target: { value: 'u' } })
-      fireEvent.change(screen.getByPlaceholderText('auth.fields.password.placeholder'), { target: { value: 'p' } })
+      fireEvent.change(screen.getByLabelText(/auth\.fields\.username\.label/), { target: { value: 'u' } })
+      fireEvent.change(screen.getByLabelText(/auth\.fields\.password\.label/), { target: { value: 'p' } })
       fireEvent.click(screen.getByText('auth.login.submit'))
     }
 

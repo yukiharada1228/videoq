@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { timeStringToSeconds } from '@/lib/utils/video';
+import { timeStringToSeconds } from '@/lib/video/status';
 import { cn } from '@/lib/utils';
 import { useChatMessages } from '@/hooks/useChatMessages';
 import { useChatHistory } from '@/hooks/useChatHistory';

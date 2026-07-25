@@ -17,6 +17,7 @@ import { MessageAlert } from '@/components/common/MessageAlert';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RequirementBadge } from '@/components/ui/requirement-badge';
+import { SupportText } from '@/components/ui/support-text';
 import { Textarea } from '@/components/ui/textarea';
 import { VideoUploadFormFields } from './VideoUploadFormFields';
 import { VideoUploadButton } from './VideoUploadButton';
@@ -171,10 +172,10 @@ export function VideoUploadModal({ isOpen, onClose, onUploadSuccess }: VideoUplo
                         value={youtubeUrl}
                         onChange={(e) => setYoutubeUrl(e.target.value)}
                         disabled={isUploading}
-                        placeholder={t('videos.upload.youtubeUrlPlaceholder')}
                         blockSize="md"
                         required
                       />
+                      <SupportText>{t('videos.upload.youtubeUrlPlaceholder')}</SupportText>
                     </div>
                     <div className="flex flex-col gap-2">
                       <Label htmlFor="youtube-title">
@@ -187,7 +188,6 @@ export function VideoUploadModal({ isOpen, onClose, onUploadSuccess }: VideoUplo
                         value={title}
                         onChange={(e) => setTitle(e.target.value)}
                         disabled={isUploading}
-                        placeholder={t('videos.upload.titleEmptyPlaceholder')}
                         blockSize="md"
                         required
                       />
@@ -202,7 +202,6 @@ export function VideoUploadModal({ isOpen, onClose, onUploadSuccess }: VideoUplo
                         value={description}
                         onChange={(e) => setDescription(e.target.value)}
                         disabled={isUploading}
-                        placeholder={t('videos.upload.descriptionPlaceholder')}
                         rows={4}
                         className="resize-none"
                       />

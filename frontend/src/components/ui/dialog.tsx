@@ -1,6 +1,3 @@
-// Portions derived from or inspired by digital-go-jp/design-system-example-components-react.
-// Original code licensed under the MIT License.
-// See THIRD_PARTY_LICENSES.md for details.
 import * as React from "react"
 import { cva } from "class-variance-authority"
 

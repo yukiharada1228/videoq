@@ -31,8 +31,8 @@ import {
 } from 'lucide-react';
 import { apiClient, type VideoGroup, type VideoInGroup } from '@/lib/api';
 import { buildYoutubeEmbedSrc } from '@/lib/video/embed';
-import { handleAsyncError } from '@/lib/utils/errorHandling';
-import type { SelectedVideo } from '@/lib/utils/videoConversion';
+import { handleAsyncError } from '@/lib/errorHandling';
+import type { SelectedVideo } from '@/lib/video/conversion';
 import { Link } from '@/lib/i18n';
 import { AppNav } from '@/components/layout/AppNav';
 import { ChatPanel } from '@/components/chat/ChatPanel';
@@ -270,7 +270,6 @@ function ShareLinkDialog({
                 blockSize="lg"
                 value={inputValue}
                 onChange={(event) => setInputValue(event.target.value)}
-                placeholder={t('videos.groupDetail.shareSlugPlaceholder')}
                 disabled={isGeneratingLink}
               />
               <SupportText>{t('videos.groupDetail.shareSlugHelp')}</SupportText>
@@ -460,14 +459,23 @@ function AddVideosDialog({
                 {t('videos.groupDetail.addVideosDescription', 'Select videos to add to this group.')}
               </p>
               <div className="space-y-4">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Input
-                    placeholder={t('videos.groupDetail.searchPlaceholder')}
-                    value={videoSearchInput}
-                    onChange={(event) => setVideoSearchInput(event.target.value)}
-                    blockSize="md"
-                    className="w-full md:w-1/2"
-                  />
+                <div className="flex flex-wrap items-end gap-2">
+                  <div className="flex w-full flex-col gap-2 md:w-1/2">
+                    <Label htmlFor="group-add-videos-search" size="sm">
+                      {t('videos.groupDetail.searchLabel')}
+                    </Label>
+                    <Input
+                      id="group-add-videos-search"
+                      aria-describedby="group-add-videos-search-support"
+                      value={videoSearchInput}
+                      onChange={(event) => setVideoSearchInput(event.target.value)}
+                      blockSize="md"
+                      className="w-full"
+                    />
+                    <SupportText id="group-add-videos-search-support">
+                      {t('videos.groupDetail.searchPlaceholder')}
+                    </SupportText>
+                  </div>
                   <Select value={statusFilter || 'all'} onValueChange={(value) => setStatusFilter(value === 'all' ? '' : value)}>
                     <SelectTrigger blockSize="md" className="w-auto min-w-[10rem]">
                       <SelectValue />

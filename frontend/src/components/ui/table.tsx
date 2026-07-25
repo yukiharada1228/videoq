@@ -1,6 +1,3 @@
-// Portions derived from or inspired by digital-go-jp/design-system-example-components-react.
-// Original code licensed under the MIT License.
-// See THIRD_PARTY_LICENSES.md for details.
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
@@ -84,6 +81,19 @@ const TableCell = React.forwardRef<
 ))
 TableCell.displayName = "TableCell"
 
+const TableCaption = React.forwardRef<
+  HTMLTableCaptionElement,
+  React.ComponentPropsWithoutRef<"caption">
+>(({ className, ...props }, ref) => (
+  <caption
+    ref={ref}
+    data-slot="table-caption"
+    className={cn("mb-4 text-start font-bold", className)}
+    {...props}
+  />
+))
+TableCaption.displayName = "TableCaption"
+
 export {
   Table,
   TableHeader,
@@ -91,4 +101,5 @@ export {
   TableRow,
   TableHead,
   TableCell,
+  TableCaption,
 }

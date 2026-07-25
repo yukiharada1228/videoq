@@ -10,8 +10,8 @@ interface FormFieldConfig {
   name: string;
   label: string;
   type: string;
-  placeholder: string;
   minLength?: number;
+  supportText?: string;
 }
 
 interface AuthFormProps {
@@ -63,11 +63,11 @@ export function AuthForm({
               name={field.name}
               label={field.label}
               type={field.type}
-              placeholder={field.placeholder}
               value={formData[field.name] || ''}
               onChange={onChange}
               required
               minLength={field.minLength}
+              supportText={field.supportText}
             />
           ))}
         </div>

@@ -46,7 +46,6 @@ export default function SignupPage() {
           name="username"
           label={t('auth.fields.username.label')}
           type="text"
-          placeholder={t('auth.fields.username.placeholder')}
           value={formData.username || ''}
           onChange={handleChange}
           required
@@ -58,7 +57,6 @@ export default function SignupPage() {
           name="email"
           label={t('auth.fields.email.label')}
           type="email"
-          placeholder={t('auth.fields.email.placeholder')}
           value={formData.email || ''}
           onChange={handleChange}
           required
@@ -71,11 +69,11 @@ export default function SignupPage() {
             name="password"
             label={t('auth.fields.password.label')}
             type={showPassword ? 'text' : 'password'}
-            placeholder={t('auth.signup.passwordPlaceholder')}
             value={formData.password || ''}
             onChange={handleChange}
             required
             minLength={8}
+            supportText={t('auth.signup.passwordPlaceholder')}
             autoComplete="new-password"
           />
           <Button
@@ -99,7 +97,6 @@ export default function SignupPage() {
             name="confirmPassword"
             label={t('auth.fields.passwordConfirmation.label')}
             type={showConfirmPassword ? 'text' : 'password'}
-            placeholder={t('auth.fields.passwordConfirmation.placeholder')}
             value={formData.confirmPassword || ''}
             onChange={handleChange}
             required

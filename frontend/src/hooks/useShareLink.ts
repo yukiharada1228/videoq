@@ -4,7 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient, type VideoGroup } from '@/lib/api';
 import { addLocalePrefix } from '@/lib/i18n';
 import { type Locale } from '@/i18n/config';
-import { handleAsyncError } from '@/lib/utils/errorHandling';
+import { handleAsyncError } from '@/lib/errorHandling';
 import { queryKeys } from '@/lib/queryKeys';
 import { useConfirm, useToast } from '@/components/common/feedback';
 

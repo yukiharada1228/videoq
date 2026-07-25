@@ -6,7 +6,7 @@ import {
   invalidateAfterGroupDelete,
   invalidateAfterGroupVideoRemove,
 } from '@/lib/cacheInvalidation';
-import { createVideoIdSet } from '@/lib/utils/videoConversion';
+import { createVideoIdSet } from '@/lib/video/conversion';
 
 interface UseVideoGroupDetailQueryResult {
   group: VideoGroup | null;

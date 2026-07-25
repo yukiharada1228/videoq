@@ -10,10 +10,10 @@ describe('Textarea', () => {
     expect(textarea).toBeInTheDocument()
   })
 
-  it('should display placeholder text', () => {
-    render(<Textarea placeholder="Enter text" />)
-    
-    const textarea = screen.getByPlaceholderText('Enter text')
+  it('should expose an accessible name via aria-label', () => {
+    render(<Textarea aria-label="Enter text" />)
+
+    const textarea = screen.getByLabelText('Enter text')
     expect(textarea).toBeInTheDocument()
   })
 

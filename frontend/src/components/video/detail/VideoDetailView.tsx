@@ -16,7 +16,7 @@ import {
 import { Link, useLocale } from '@/lib/i18n';
 import { apiClient, type Tag, type Video } from '@/lib/api';
 import { buildYoutubeEmbedSrc } from '@/lib/video/embed';
-import { formatDate } from '@/lib/utils/video';
+import { formatDate } from '@/lib/video/status';
 import type { TranscriptSegment } from '@/lib/transcript/srt';
 import { AppNav } from '@/components/layout/AppNav';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
@@ -467,16 +467,21 @@ function TranscriptPanel({
           )}
         </div>
         {!isTranscriptEditing && (
-          <div className="relative w-full">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-solid-gray-600 w-3.5 h-3.5 z-10" />
-            <Input
-              type="search"
-              blockSize="sm"
-              value={transcriptSearch}
-              onChange={(event) => onTranscriptSearchChange(event.target.value)}
-              placeholder={t('videos.detail.transcriptSearchPlaceholder')}
-              className="pl-9"
-            />
+          <div className="flex w-full flex-col gap-2">
+            <Label htmlFor="transcript-search" size="sm">
+              {t('videos.detail.transcriptSearchLabel')}
+            </Label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-solid-gray-600 w-3.5 h-3.5 z-10" />
+              <Input
+                id="transcript-search"
+                type="search"
+                blockSize="sm"
+                value={transcriptSearch}
+                onChange={(event) => onTranscriptSearchChange(event.target.value)}
+                className="w-full pl-9"
+              />
+            </div>
           </div>
         )}
       </div>
