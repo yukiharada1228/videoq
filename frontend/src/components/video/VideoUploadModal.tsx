@@ -171,7 +171,6 @@ export function VideoUploadModal({ isOpen, onClose, onUploadSuccess }: VideoUplo
                         value={youtubeUrl}
                         onChange={(e) => setYoutubeUrl(e.target.value)}
                         disabled={isUploading}
-                        placeholder={t('videos.upload.youtubeUrlPlaceholder')}
                         blockSize="md"
                         required
                       />
@@ -187,7 +186,6 @@ export function VideoUploadModal({ isOpen, onClose, onUploadSuccess }: VideoUplo
                         value={title}
                         onChange={(e) => setTitle(e.target.value)}
                         disabled={isUploading}
-                        placeholder={t('videos.upload.titleEmptyPlaceholder')}
                         blockSize="md"
                         required
                       />
@@ -202,7 +200,6 @@ export function VideoUploadModal({ isOpen, onClose, onUploadSuccess }: VideoUplo
                         value={description}
                         onChange={(e) => setDescription(e.target.value)}
                         disabled={isUploading}
-                        placeholder={t('videos.upload.descriptionPlaceholder')}
                         rows={4}
                         className="resize-none"
                       />

@@ -68,7 +68,6 @@ export default function LoginPage() {
           name="username"
           label={t('auth.fields.username.label')}
           type="text"
-          placeholder={t('auth.fields.username.placeholder')}
           value={formData.username || ''}
           onChange={handleChange}
           required
@@ -81,7 +80,6 @@ export default function LoginPage() {
             name="password"
             label={t('auth.fields.password.label')}
             type={showPassword ? 'text' : 'password'}
-            placeholder={t('auth.fields.password.placeholder')}
             value={formData.password || ''}
             onChange={handleChange}
             required

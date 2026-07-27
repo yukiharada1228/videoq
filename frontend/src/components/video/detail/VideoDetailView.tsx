@@ -474,7 +474,7 @@ function TranscriptPanel({
               blockSize="sm"
               value={transcriptSearch}
               onChange={(event) => onTranscriptSearchChange(event.target.value)}
-              placeholder={t('videos.detail.transcriptSearchPlaceholder')}
+              aria-label={t('videos.detail.transcriptSearchPlaceholder')}
               className="pl-9"
             />
           </div>

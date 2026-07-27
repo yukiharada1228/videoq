@@ -30,7 +30,6 @@ export function ChatComposer({
           onChange={(e) => onInputChange(e.target.value)}
           onKeyDown={onKeyDown}
           disabled={isLoading}
-          placeholder={t('chat.placeholder')}
           blockSize="lg"
           className="w-full pr-14"
           aria-label={t('chat.placeholder')}

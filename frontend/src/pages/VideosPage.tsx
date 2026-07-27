@@ -187,7 +187,7 @@ export default function VideosPage() {
             <Input
               className="pl-12"
               blockSize="md"
-              placeholder={t('videos.list.searchPlaceholder')}
+              aria-label={t('videos.list.searchPlaceholder')}
               type="search"
               value={searchQuery}
               onChange={(e) => updateSearchParams({ q: e.target.value })}
