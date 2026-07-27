@@ -7,6 +7,7 @@ WORKDIR ${APP_HOME}
 RUN apt-get update && apt-get install -y \
     ffmpeg \
     gettext \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt ./
