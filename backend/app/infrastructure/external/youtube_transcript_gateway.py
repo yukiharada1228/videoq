@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import math
-from typing import Any, Callable, Optional
+from collections.abc import Callable
+from typing import Any
 
 from django.conf import settings
 from searchapi import (
@@ -33,7 +34,7 @@ class YoutubeTranscriptGateway(YoutubeTranscriptionGateway):
         self.max_retries = max_retries
         self._client_factory = client_factory
 
-    def run(self, youtube_video_id: str, api_key: Optional[str] = None) -> str:
+    def run(self, youtube_video_id: str, api_key: str | None = None) -> str:
         transcript = self._select_transcript(youtube_video_id, api_key)
         blocks = []
         for index, item in enumerate(transcript, start=1):
@@ -58,7 +59,7 @@ class YoutubeTranscriptGateway(YoutubeTranscriptionGateway):
         return scene_split_srt
 
     def estimate_duration_seconds(
-        self, youtube_video_id: str, api_key: Optional[str] = None
+        self, youtube_video_id: str, api_key: str | None = None
     ) -> int | None:
         transcript = self._select_transcript(youtube_video_id, api_key)
         max_end_seconds = 0.0
@@ -71,7 +72,7 @@ class YoutubeTranscriptGateway(YoutubeTranscriptionGateway):
         return max(1, math.ceil(max_end_seconds))
 
     def _select_transcript(self, youtube_video_id: str, api_key: str | None):
-        self._ensure_api_key(api_key)
+        validated_api_key = self._ensure_api_key(api_key)
         attempts = [
             {
                 "video_id": youtube_video_id,
@@ -85,7 +86,7 @@ class YoutubeTranscriptGateway(YoutubeTranscriptionGateway):
             },
         ]
 
-        client = self._build_client(api_key)
+        client = self._build_client(validated_api_key)
         try:
             last_error: RuntimeError | None = None
             for params in attempts:
@@ -113,9 +114,9 @@ class YoutubeTranscriptGateway(YoutubeTranscriptionGateway):
             if callable(close):
                 close()
 
-    def _ensure_api_key(self, api_key: str | None) -> None:
+    def _ensure_api_key(self, api_key: str | None) -> str:
         if api_key:
-            return
+            return api_key
         raise RuntimeError(
             "SearchAPI API key is not configured. Set your SearchAPI API key in Settings before importing YouTube videos."
         )

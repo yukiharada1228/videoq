@@ -23,7 +23,7 @@ openai>=2.6.1
 psycopg2-binary>=2.9.11
 ragas>=0.4.3
 redis>=7.0.0
-searchapi-python @ git+https://github.com/yukiharada1228/searchapi-python.git
+searchapi-python @ git+https://github.com/yukiharada1228/searchapi-python.git@128cf43017a5aaccee1551d0f2de0770e5749168
 scikit-learn>=1.7.2
 uvicorn-worker>=0.4.0
 uvicorn>=0.38.0

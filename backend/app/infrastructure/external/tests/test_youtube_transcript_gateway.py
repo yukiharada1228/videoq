@@ -3,7 +3,9 @@ from unittest.mock import patch
 
 from searchapi import APIConnectionError
 
-from app.infrastructure.external.youtube_transcript_gateway import YoutubeTranscriptGateway
+from app.infrastructure.external.youtube_transcript_gateway import (
+    YoutubeTranscriptGateway,
+)
 
 
 class _FakeClient:
