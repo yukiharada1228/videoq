@@ -46,10 +46,10 @@ describe('SignupPage', () => {
 
     render(<SignupPage />)
 
-    const emailInput = screen.getByPlaceholderText('auth.fields.email.placeholder')
-    const usernameInput = screen.getByPlaceholderText('auth.fields.username.placeholder')
-    const passwordInput = screen.getByPlaceholderText('auth.signup.passwordPlaceholder')
-    const confirmPasswordInput = screen.getByPlaceholderText('auth.fields.passwordConfirmation.placeholder')
+    const emailInput = screen.getByLabelText(/auth\.fields\.email\.label/)
+    const usernameInput = screen.getByLabelText(/auth\.fields\.username\.label/)
+    const passwordInput = screen.getByLabelText(/auth\.fields\.password\.label/)
+    const confirmPasswordInput = screen.getByLabelText(/auth\.fields\.passwordConfirmation\.label/)
 
     fireEvent.change(emailInput, { target: { value: 'test@example.com' } })
     fireEvent.change(usernameInput, { target: { value: 'testuser' } })
@@ -73,10 +73,10 @@ describe('SignupPage', () => {
 
     render(<SignupPage />)
 
-    const emailInput = screen.getByPlaceholderText('auth.fields.email.placeholder')
-    const usernameInput = screen.getByPlaceholderText('auth.fields.username.placeholder')
-    const passwordInput = screen.getByPlaceholderText('auth.signup.passwordPlaceholder')
-    const confirmPasswordInput = screen.getByPlaceholderText('auth.fields.passwordConfirmation.placeholder')
+    const emailInput = screen.getByLabelText(/auth\.fields\.email\.label/)
+    const usernameInput = screen.getByLabelText(/auth\.fields\.username\.label/)
+    const passwordInput = screen.getByLabelText(/auth\.fields\.password\.label/)
+    const confirmPasswordInput = screen.getByLabelText(/auth\.fields\.passwordConfirmation\.label/)
 
     fireEvent.change(emailInput, { target: { value: 'test@example.com' } })
     fireEvent.change(usernameInput, { target: { value: 'testuser' } })

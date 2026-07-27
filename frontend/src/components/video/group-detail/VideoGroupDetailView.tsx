@@ -270,7 +270,6 @@ function ShareLinkDialog({
                 blockSize="lg"
                 value={inputValue}
                 onChange={(event) => setInputValue(event.target.value)}
-                placeholder={t('videos.groupDetail.shareSlugPlaceholder')}
                 disabled={isGeneratingLink}
               />
               <SupportText>{t('videos.groupDetail.shareSlugHelp')}</SupportText>
@@ -462,7 +461,7 @@ function AddVideosDialog({
               <div className="space-y-4">
                 <div className="flex flex-wrap items-center gap-2">
                   <Input
-                    placeholder={t('videos.groupDetail.searchPlaceholder')}
+                    aria-label={t('videos.groupDetail.searchPlaceholder')}
                     value={videoSearchInput}
                     onChange={(event) => setVideoSearchInput(event.target.value)}
                     blockSize="md"

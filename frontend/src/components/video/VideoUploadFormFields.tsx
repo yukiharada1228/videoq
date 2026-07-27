@@ -43,7 +43,6 @@ export function VideoUploadFormFields({
   setTitle,
   setDescription,
   handleFileChange,
-  file,
   showCancelButton = false,
   onCancel,
   cancelButtonClassName,
@@ -51,15 +50,6 @@ export function VideoUploadFormFields({
   renderButtons,
 }: VideoUploadFormFieldsProps) {
   const { t } = useTranslation();
-
-  // Dynamically generate placeholder
-  const getTitlePlaceholder = () => {
-    if (file) {
-      const fileNameWithoutExt = file.name.replace(/\.[^/.]+$/, '');
-      return t('videos.upload.titlePlaceholder', { fileName: fileNameWithoutExt });
-    }
-    return t('videos.upload.titleEmptyPlaceholder');
-  };
 
   return (
     <>
@@ -88,7 +78,6 @@ export function VideoUploadFormFields({
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder={getTitlePlaceholder()}
           disabled={isUploading || disabled}
           required
         />
@@ -103,7 +92,6 @@ export function VideoUploadFormFields({
           id="description"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder={t('videos.upload.descriptionPlaceholder')}
           disabled={isUploading || disabled}
           className="min-h-[100px] resize-none"
         />

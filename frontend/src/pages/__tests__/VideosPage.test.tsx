@@ -154,7 +154,7 @@ describe('VideosPage', () => {
   it('should update the URL when filters change', () => {
     render(<VideosPage />)
 
-    fireEvent.change(screen.getByPlaceholderText('videos.list.searchPlaceholder'), {
+    fireEvent.change(screen.getByLabelText('videos.list.searchPlaceholder'), {
       target: { value: 'django' },
     })
     let lastCall = globalThis.__getMockSetSearchParams().mock.calls.at(-1)

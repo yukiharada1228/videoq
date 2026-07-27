@@ -63,7 +63,7 @@ describe('ChatPanel', () => {
   it('should send message when form is submitted', async () => {
     render(<ChatPanel />)
 
-    const input = screen.getByPlaceholderText(/chat.placeholder/)
+    const input = screen.getByLabelText(/chat.placeholder/)
 
     await act(async () => {
       await sendMessage(input, 'Test message')
@@ -77,7 +77,7 @@ describe('ChatPanel', () => {
   it('should not send message when input is empty', async () => {
     render(<ChatPanel />)
 
-    const input = screen.getByPlaceholderText(/chat.placeholder/)
+    const input = screen.getByLabelText(/chat.placeholder/)
 
     await act(async () => {
       fireEvent.keyDown(input, { key: 'Enter', shiftKey: false })
@@ -119,7 +119,7 @@ describe('ChatPanel', () => {
 
     render(<ChatPanel onVideoPlay={onVideoPlay} />)
 
-    const input = screen.getByPlaceholderText(/chat.placeholder/)
+    const input = screen.getByLabelText(/chat.placeholder/)
 
     await act(async () => {
       await sendMessage(input, 'Test')
@@ -150,7 +150,7 @@ describe('ChatPanel', () => {
 
     render(<ChatPanel />)
 
-    const input = screen.getByPlaceholderText(/chat.placeholder/)
+    const input = screen.getByLabelText(/chat.placeholder/)
 
     await act(async () => {
       await sendMessage(input, 'Test')
@@ -172,7 +172,7 @@ describe('ChatPanel', () => {
   it('should send message when Enter key is pressed', async () => {
     render(<ChatPanel />)
 
-    const input = screen.getByPlaceholderText(/chat.placeholder/)
+    const input = screen.getByLabelText(/chat.placeholder/)
 
     await act(async () => {
       fireEvent.change(input, { target: { value: 'Test message' } })
@@ -187,7 +187,7 @@ describe('ChatPanel', () => {
   it('should not send message when Shift+Enter is pressed', async () => {
     render(<ChatPanel />)
 
-    const input = screen.getByPlaceholderText(/chat.placeholder/)
+    const input = screen.getByLabelText(/chat.placeholder/)
 
     await act(async () => {
       fireEvent.change(input, { target: { value: 'Test message' } })
@@ -208,7 +208,7 @@ describe('ChatPanel', () => {
 
     render(<ChatPanel />)
 
-    const input = screen.getByPlaceholderText(/chat.placeholder/)
+    const input = screen.getByLabelText(/chat.placeholder/)
 
     await act(async () => {
       await sendMessage(input, 'Test')
@@ -240,7 +240,7 @@ describe('ChatPanel', () => {
 
     render(<ChatPanel />)
 
-    const input = screen.getByPlaceholderText(/chat.placeholder/)
+    const input = screen.getByLabelText(/chat.placeholder/)
 
     await act(async () => {
       await sendMessage(input, 'Test')
@@ -276,7 +276,7 @@ describe('ChatPanel', () => {
 
     render(<ChatPanel />)
 
-    const input = screen.getByPlaceholderText(/chat.placeholder/)
+    const input = screen.getByLabelText(/chat.placeholder/)
 
     await act(async () => {
       await sendMessage(input, 'Test')
@@ -460,7 +460,7 @@ describe('ChatPanel', () => {
     })
 
     // Should show chat input again
-    expect(screen.getByPlaceholderText(/chat.placeholder/)).toBeInTheDocument()
+    expect(screen.getByLabelText(/chat.placeholder/)).toBeInTheDocument()
   })
 
   it('should export CSV when export button is clicked', async () => {
@@ -518,7 +518,7 @@ describe('ChatPanel', () => {
 
     render(<ChatPanel />)
 
-    const input = screen.getByPlaceholderText(/chat.placeholder/)
+    const input = screen.getByLabelText(/chat.placeholder/)
 
     await act(async () => {
       await sendMessage(input, 'Test message')
@@ -620,7 +620,7 @@ describe('ChatPanel', () => {
 
     render(<ChatPanel />)
 
-    const input = screen.getByPlaceholderText(/chat.placeholder/)
+    const input = screen.getByLabelText(/chat.placeholder/)
 
     await act(async () => {
       await sendMessage(input, 'Test')
@@ -650,7 +650,7 @@ describe('ChatPanel', () => {
   it('should not send message when Enter key is pressed during composition', async () => {
     render(<ChatPanel />)
 
-    const input = screen.getByPlaceholderText(/chat.placeholder/)
+    const input = screen.getByLabelText(/chat.placeholder/)
 
     await act(async () => {
       fireEvent.change(input, { target: { value: 'Test message' } })
@@ -721,7 +721,7 @@ describe('ChatPanel', () => {
 
     render(<ChatPanel />)
 
-    const input = screen.getByPlaceholderText(/chat.placeholder/)
+    const input = screen.getByLabelText(/chat.placeholder/)
 
     await act(async () => {
       await sendMessage(input, 'Test')
@@ -748,7 +748,7 @@ describe('ChatPanel', () => {
 
     render(<ChatPanel />)
 
-    const input = screen.getByPlaceholderText(/chat.placeholder/)
+    const input = screen.getByLabelText(/chat.placeholder/)
 
     await act(async () => {
       await sendMessage(input, 'Test')
@@ -768,7 +768,7 @@ describe('ChatPanel', () => {
 
     render(<ChatPanel />)
 
-    const input = screen.getByPlaceholderText(/chat.placeholder/)
+    const input = screen.getByLabelText(/chat.placeholder/)
 
     await act(async () => {
       await sendMessage(input, 'Test')

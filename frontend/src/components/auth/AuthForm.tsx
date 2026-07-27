@@ -10,7 +10,6 @@ interface FormFieldConfig {
   name: string;
   label: string;
   type: string;
-  placeholder: string;
   minLength?: number;
 }
 
@@ -63,7 +62,6 @@ export function AuthForm({
               name={field.name}
               label={field.label}
               type={field.type}
-              placeholder={field.placeholder}
               value={formData[field.name] || ''}
               onChange={onChange}
               required
