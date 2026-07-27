@@ -67,8 +67,8 @@ describe('ResetPasswordPage', () => {
 
     render(<ResetPasswordPage />)
 
-    const passwordInput = screen.getByPlaceholderText('auth.resetPassword.newPasswordPlaceholder')
-    const confirmInput = screen.getByPlaceholderText('auth.resetPassword.confirmPasswordPlaceholder')
+    const passwordInput = screen.getByLabelText(/auth\.resetPassword\.newPassword/)
+    const confirmInput = screen.getByLabelText(/auth\.resetPassword\.confirmPassword/)
 
     fireEvent.change(passwordInput, { target: { value: 'newpassword123' } })
     fireEvent.change(confirmInput, { target: { value: 'newpassword123' } })
@@ -90,8 +90,8 @@ describe('ResetPasswordPage', () => {
 
     render(<ResetPasswordPage />)
 
-    const passwordInput = screen.getByPlaceholderText('auth.resetPassword.newPasswordPlaceholder')
-    const confirmInput = screen.getByPlaceholderText('auth.resetPassword.confirmPasswordPlaceholder')
+    const passwordInput = screen.getByLabelText(/auth\.resetPassword\.newPassword/)
+    const confirmInput = screen.getByLabelText(/auth\.resetPassword\.confirmPassword/)
 
     fireEvent.change(passwordInput, { target: { value: 'newpassword123' } })
     fireEvent.change(confirmInput, { target: { value: 'newpassword123' } })
@@ -107,8 +107,8 @@ describe('ResetPasswordPage', () => {
   it('should show error when passwords do not match', async () => {
     render(<ResetPasswordPage />)
 
-    const passwordInput = screen.getByPlaceholderText('auth.resetPassword.newPasswordPlaceholder')
-    const confirmInput = screen.getByPlaceholderText('auth.resetPassword.confirmPasswordPlaceholder')
+    const passwordInput = screen.getByLabelText(/auth\.resetPassword\.newPassword/)
+    const confirmInput = screen.getByLabelText(/auth\.resetPassword\.confirmPassword/)
 
     fireEvent.change(passwordInput, { target: { value: 'password123' } })
     fireEvent.change(confirmInput, { target: { value: 'different456' } })
@@ -132,8 +132,8 @@ describe('ResetPasswordPage - Validation', () => {
   it('should not call API when passwords do not match', async () => {
     render(<ResetPasswordPage />)
 
-    const passwordInput = screen.getByPlaceholderText('auth.resetPassword.newPasswordPlaceholder')
-    const confirmInput = screen.getByPlaceholderText('auth.resetPassword.confirmPasswordPlaceholder')
+    const passwordInput = screen.getByLabelText(/auth\.resetPassword\.newPassword/)
+    const confirmInput = screen.getByLabelText(/auth\.resetPassword\.confirmPassword/)
 
     fireEvent.change(passwordInput, { target: { value: 'password1' } })
     fireEvent.change(confirmInput, { target: { value: 'password2' } })
