@@ -11,7 +11,7 @@ import {
   useDialog,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/digital-agency/cn';
 import { FeedbackContext, type ConfirmOptions, type FeedbackContextValue, type ToastOptions } from './feedback';
 
 interface ConfirmRequest {

@@ -11,17 +11,17 @@
     "typecheck": "tsc -p tsconfig.app.json --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "ui:sync": "node scripts/sync-digital-agency-ui.mjs",
+    "ui:check": "node scripts/sync-digital-agency-ui.mjs --dry-run"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
-    "@internationalized/date": "^3.12.2",
     "@isoterik/react-word-cloud": "^1.3.0",
     "@radix-ui/react-checkbox": "^1.3.3",
     "@radix-ui/react-label": "^2.1.7",
-    "@radix-ui/react-radio-group": "^1.4.7",
     "@radix-ui/react-select": "^2.3.3",
     "@radix-ui/react-slot": "^1.2.3",
     "@tanstack/react-query": "^5.90.21",
@@ -30,7 +30,6 @@
     "i18next": "^24.2.0",
     "lucide-react": "^0.560.0",
     "react": "^19.2.0",
-    "react-aria-components": "^1.19.0",
     "react-dom": "^19.2.0",
     "react-i18next": "^15.2.2",
     "react-router-dom": "^7.1.3",

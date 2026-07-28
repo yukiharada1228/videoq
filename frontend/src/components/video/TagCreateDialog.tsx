@@ -20,7 +20,7 @@ import {
   TAG_CHIP_COLORS,
   type TagChipColor,
 } from '@/lib/tagColors';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/digital-agency/cn';
 import { useTranslation } from 'react-i18next';
 
 interface TagCreateDialogProps {

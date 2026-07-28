@@ -1,7 +1,7 @@
 import { Fragment } from 'react';
 import type { Citation } from '@/lib/api';
 import { linkVariants } from '@/components/ui/link';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/digital-agency/cn';
 
 interface MessageBodyProps {
   content: string;

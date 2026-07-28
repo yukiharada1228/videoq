@@ -26,7 +26,7 @@ import { Divider } from '@/components/ui/divider';
 import { ChipLabel } from '@/components/ui/chip-label';
 import { MenuList, MenuListItem } from '@/components/ui/menu-list';
 import { resolveTagChipColor } from '@/lib/tagColors';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/digital-agency/cn';
 import { Plus, Search, Tag } from 'lucide-react';
 
 const STATUS_FILTERS = ['all', 'completed', 'processing', 'error'] as const;

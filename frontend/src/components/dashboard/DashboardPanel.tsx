@@ -1,5 +1,5 @@
 import type { ComponentProps, ReactNode } from 'react';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/digital-agency/cn';
 import { Divider } from '@/components/ui/divider';
 import { Heading, HeadingTitle } from '@/components/ui/heading';
 

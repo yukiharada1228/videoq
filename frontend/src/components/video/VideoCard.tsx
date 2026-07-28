@@ -9,7 +9,7 @@ import { Link } from '@/lib/i18n';
 import { useParams } from 'react-router-dom';
 import { TagBadge } from './TagBadge';
 import { ChipLabel } from '@/components/ui/chip-label';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/digital-agency/cn';
 
 interface VideoCardProps {
   video: VideoListType | VideoInGroup;

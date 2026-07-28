@@ -1,7 +1,7 @@
 import * as React from "react"
 import { cva } from "class-variance-authority"
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/digital-agency/cn"
 
 export const dialogVariants = cva(
   "group/modal-dialog inset-0 w-auto h-auto max-w-none max-h-none border-0 bg-transparent px-4 [container-type:inline-size] [color-scheme:dark] break-words text-std-16N-170 [&:modal]:flex [&:modal]:flex-col [&:modal]:items-center backdrop:bg-opacity-gray-600 forced-colors:backdrop:bg-[#000b] [scrollbar-gutter:stable] data-[scroll=inner]:[scrollbar-gutter:auto]"

@@ -9,7 +9,7 @@ import {
   menuListItemVariants,
 } from '@/components/ui/menu-list';
 import { UtilityLink } from '@/components/ui/utility-link';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/digital-agency/cn';
 
 const sectionIds = ['auth', 'videos', 'chat', 'openai'] as const;
 

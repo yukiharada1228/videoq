@@ -1,7 +1,7 @@
 import * as React from "react"
 import { cva, type VariantProps } from "class-variance-authority"
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/digital-agency/cn"
 
 const requirementBadgeVariants = cva(
   "ml-2 inline-block text-oln-16N-100 text-red-800 data-[is-optional]:text-solid-gray-800"

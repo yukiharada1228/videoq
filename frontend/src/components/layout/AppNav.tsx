@@ -14,7 +14,7 @@ import { type Locale, locales } from '@/i18n/config';
 import { apiClient, type User } from '@/lib/api';
 import { APP_CONTAINER_CLASS } from '@/components/layout/layoutTokens';
 import { queryKeys } from '@/lib/queryKeys';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/digital-agency/cn';
 import { Button } from '@/components/ui/button';
 import {
   CloseIcon,
