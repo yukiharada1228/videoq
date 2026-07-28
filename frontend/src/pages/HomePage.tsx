@@ -21,7 +21,7 @@ import { UtilityLink } from '@/components/ui/utility-link';
 import { formatDate, getStatusLabel } from '@/lib/utils/video';
 import { useTranslation } from 'react-i18next';
 import LoginPage from '@/pages/LoginPage';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/digital-agency/cn';
 import { Upload } from 'lucide-react';
 
 export default function HomePage() {

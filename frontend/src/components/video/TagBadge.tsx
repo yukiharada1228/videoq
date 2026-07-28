@@ -3,7 +3,7 @@
 import { X } from 'lucide-react';
 import { ChipLabel } from '@/components/ui/chip-label';
 import { resolveTagChipColor } from '@/lib/tagColors';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/digital-agency/cn';
 
 interface TagBadgeProps {
   tag: { id: number; name: string; color: string };

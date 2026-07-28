@@ -5,7 +5,7 @@ import type { Tag } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { ChipLabel } from '@/components/ui/chip-label';
 import { resolveTagChipColor } from '@/lib/tagColors';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/digital-agency/cn';
 import { Settings2 } from 'lucide-react';
 
 interface TagFilterPanelProps {

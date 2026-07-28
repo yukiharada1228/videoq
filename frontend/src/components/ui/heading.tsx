@@ -1,7 +1,7 @@
 import * as React from "react"
 import { cva, type VariantProps } from "class-variance-authority"
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/digital-agency/cn"
 
 export type HeadingSize =
   "64" | "57" | "45" | "36" | "32" | "28" | "24" | "20" | "18" | "16"

@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { ChipLabel } from '@/components/ui/chip-label';
 import { Label } from '@/components/ui/label';
 import { resolveTagChipColor } from '@/lib/tagColors';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/digital-agency/cn';
 
 interface TagSelectorProps {
   tags: Tag[];

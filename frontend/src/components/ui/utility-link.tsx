@@ -1,7 +1,7 @@
 import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/digital-agency/cn"
 
 export const utilityLinkStyle = `!text-solid-gray-800 text-dns-16N-130 underline underline-offset-[calc(3/16*1rem)]
   hover:decoration-[calc(3/16*1rem)]

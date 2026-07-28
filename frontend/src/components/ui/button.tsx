@@ -2,7 +2,7 @@ import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { cva, type VariantProps } from "class-variance-authority"
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/digital-agency/cn"
 
 const solidStyle =
   "border-4 border-double border-transparent bg-key-900 text-white hover:bg-key-1000 hover:underline active:bg-key-1200 active:underline disabled:bg-solid-gray-300 disabled:text-solid-gray-50 aria-disabled:bg-solid-gray-300 aria-disabled:text-solid-gray-50"
