@@ -6,20 +6,16 @@
 # Serves the frontend (Cloudflare Pages) and the API (API Gateway) under a
 # single domain so cookies are first-party.
 
-# ── AWS managed policies ─────────────────────────────────────────────────────
-data "aws_cloudfront_cache_policy" "caching_optimized" {
-  count = local.enable_cdn ? 1 : 0
-  name  = "Managed-CachingOptimized"
-}
-
-data "aws_cloudfront_cache_policy" "caching_disabled" {
-  count = local.enable_cdn ? 1 : 0
-  name  = "Managed-CachingDisabled"
-}
-
-data "aws_cloudfront_origin_request_policy" "all_viewer_except_host_header" {
-  count = local.enable_cdn ? 1 : 0
-  name  = "Managed-AllViewerExceptHostHeader"
+# ── AWS マネージドポリシー ID (グローバル固定値) ─────────────────────────────
+# データソース (cloudfront:ListCachePolicies / ListOriginRequestPolicies) を避け、
+# 固定 ID を直接参照する。これらの ID は AWS 全体で不変なので、最小権限の CI
+# ユーザーでも plan が通り、CloudFront の List 権限を付与せずに済む。
+# https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/using-managed-cache-policies.html
+# https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/using-managed-origin-request-policies.html
+locals {
+  cf_cache_policy_optimized_id = "658327ea-f89d-4fab-a63d-7e88639e58f6" # Managed-CachingOptimized
+  cf_cache_policy_disabled_id  = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad" # Managed-CachingDisabled
+  cf_orp_all_viewer_no_host_id = "b689b0a8-53d0-40ab-baf2-68738e2966ac" # Managed-AllViewerExceptHostHeader
 }
 
 # ── Distribution ─────────────────────────────────────────────────────────────
@@ -62,7 +58,7 @@ resource "aws_cloudfront_distribution" "this" {
     viewer_protocol_policy = "redirect-to-https"
     allowed_methods        = ["GET", "HEAD"]
     cached_methods         = ["GET", "HEAD"]
-    cache_policy_id        = data.aws_cloudfront_cache_policy.caching_optimized[0].id
+    cache_policy_id        = local.cf_cache_policy_optimized_id
   }
 
   # /api/* → API Gateway.
@@ -72,8 +68,8 @@ resource "aws_cloudfront_distribution" "this" {
     viewer_protocol_policy   = "redirect-to-https"
     allowed_methods          = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
     cached_methods           = ["GET", "HEAD"]
-    cache_policy_id          = data.aws_cloudfront_cache_policy.caching_disabled[0].id
-    origin_request_policy_id = data.aws_cloudfront_origin_request_policy.all_viewer_except_host_header[0].id
+    cache_policy_id          = local.cf_cache_policy_disabled_id
+    origin_request_policy_id = local.cf_orp_all_viewer_no_host_id
   }
 
   # /.well-known/* → API Gateway (RFC 8414 / RFC 9728 OAuth metadata).
@@ -83,8 +79,8 @@ resource "aws_cloudfront_distribution" "this" {
     viewer_protocol_policy   = "redirect-to-https"
     allowed_methods          = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
     cached_methods           = ["GET", "HEAD"]
-    cache_policy_id          = data.aws_cloudfront_cache_policy.caching_disabled[0].id
-    origin_request_policy_id = data.aws_cloudfront_origin_request_policy.all_viewer_except_host_header[0].id
+    cache_policy_id          = local.cf_cache_policy_disabled_id
+    origin_request_policy_id = local.cf_orp_all_viewer_no_host_id
   }
 
   viewer_certificate {

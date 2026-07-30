@@ -93,3 +93,9 @@ jobs:
             </details>
 
             > `main` マージ後、手動承認を経て `terraform apply` が自動実行されます。
+
+      - name: Fail if plan errored
+        if: steps.plan.outputs.exit_code != '0'
+        run: |
+          echo "terraform plan がエラー終了しました (exit ${{ steps.plan.outputs.exit_code }})。上記コメントの内容を確認してください。"
+          exit 1
