@@ -158,8 +158,10 @@ cp terraform.tfvars.example terraform.tfvars
 # ── State バックエンドを一度だけ用意する (S3) ──
 # backend.tf は S3 バックエンドを参照する。バケットは bootstrap で作成:
 cd bootstrap
-terraform init
-terraform apply        # videoq-terraform-state-<account> バケットを作成
+terraform init                       # ローカル state
+terraform apply                      # videoq-terraform-state-<account> バケットを作成
+# bootstrap/main.tf の backend "s3" ブロックのコメントを外してから:
+terraform init -migrate-state        # bootstrap の state を作ったバケットへ移動
 cd ..
 
 # プロバイダをダウンロードしてバックエンドを初期化
@@ -168,10 +170,12 @@ terraform init
 
 > **State バックエンド:** `backend.tf` が S3 バックエンド
 > (`videoq-terraform-state-<account>` バケット) を参照する。このバケットは
-> `infra/bootstrap` を一度 `apply` して作成する (state 保存先そのものを作るため
-> ローカル state で管理)。`cdk bootstrap` の代替。ロックは S3 ネイティブ
+> `infra/bootstrap` を一度 `apply` して作成する。`cdk bootstrap` の代替。
+> bootstrap 自身の state は、作成後にそのバケットへ移す (自己参照バックエンド)
+> ため、public リポジトリに tfstate をコミットしない。ロックは S3 ネイティブ
 > (`use_lockfile`, Terraform 1.11+) を使うため DynamoDB は不要。
-> 別アカウントで使う場合は `backend.tf` の bucket 名 (アカウント ID 部分) を書き換える。
+> 別アカウントで使う場合は `backend.tf` と `bootstrap/main.tf` の bucket 名
+> (アカウント ID 部分) を書き換える。
 
 ---
 
