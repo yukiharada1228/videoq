@@ -1,5 +1,6 @@
 terraform {
-  required_version = ">= 1.5"
+  # 1.11+: S3 backend の use_lockfile (ネイティブロック) を使用。
+  required_version = ">= 1.11"
 
   required_providers {
     aws = {

@@ -2,7 +2,8 @@
 #
 # この構成だけはローカル state で管理する (state 保存先そのものを作るため、
 # S3 backend を使う本体構成とは循環参照になる)。一度だけ apply すれば、
-# 以降は ../backend.tf が参照する S3 バケット + DynamoDB ロックテーブルが揃う。
+# 以降は ../backend.tf が参照する S3 バケットが揃う。ロックは S3 ネイティブ
+# (use_lockfile) を使うため DynamoDB テーブルは不要。
 #
 # 使い方:
 #   cd infra/bootstrap
@@ -31,7 +32,6 @@ data "aws_caller_identity" "current" {}
 locals {
   # S3 バケット名はグローバル一意が必要なのでアカウント ID を付与。
   state_bucket_name = "videoq-terraform-state-${data.aws_caller_identity.current.account_id}"
-  lock_table_name   = "videoq-terraform-lock"
 }
 
 # ── state 保存バケット ────────────────────────────────────────────────────────
@@ -66,16 +66,4 @@ resource "aws_s3_bucket_public_access_block" "state" {
   block_public_policy     = true
   ignore_public_acls      = true
   restrict_public_buckets = true
-}
-
-# ── state ロックテーブル ──────────────────────────────────────────────────────
-resource "aws_dynamodb_table" "lock" {
-  name         = local.lock_table_name
-  billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "LockID"
-
-  attribute {
-    name = "LockID"
-    type = "S"
-  }
 }

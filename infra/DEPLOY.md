@@ -155,11 +155,11 @@ aws configure get region
 cp terraform.tfvars.example terraform.tfvars
 # custom_domain / certificate_arn / pages_domain / image_tag などを設定
 
-# ── State バックエンドを一度だけ用意する (S3 + DynamoDB) ──
-# backend.tf は S3 バックエンドを参照する。バケット/テーブルは bootstrap で作成:
+# ── State バックエンドを一度だけ用意する (S3) ──
+# backend.tf は S3 バックエンドを参照する。バケットは bootstrap で作成:
 cd bootstrap
 terraform init
-terraform apply        # videoq-terraform-state-<account> バケット + ロックテーブルを作成
+terraform apply        # videoq-terraform-state-<account> バケットを作成
 cd ..
 
 # プロバイダをダウンロードしてバックエンドを初期化
@@ -167,9 +167,10 @@ terraform init
 ```
 
 > **State バックエンド:** `backend.tf` が S3 バックエンド
-> (`videoq-terraform-state-<account>` バケット + `videoq-terraform-lock` テーブル) を
-> 参照する。この 2 つは `infra/bootstrap` を一度 `apply` して作成する
-> (state 保存先そのものを作るためローカル state で管理)。`cdk bootstrap` の代替。
+> (`videoq-terraform-state-<account>` バケット) を参照する。このバケットは
+> `infra/bootstrap` を一度 `apply` して作成する (state 保存先そのものを作るため
+> ローカル state で管理)。`cdk bootstrap` の代替。ロックは S3 ネイティブ
+> (`use_lockfile`, Terraform 1.11+) を使うため DynamoDB は不要。
 > 別アカウントで使う場合は `backend.tf` の bucket 名 (アカウント ID 部分) を書き換える。
 
 ---
