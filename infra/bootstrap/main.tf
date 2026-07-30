@@ -3,17 +3,17 @@
 # state 保存先の S3 バケットそのものを作る構成。bootstrap 自身の state は、作った
 # バケットへ置く (自己参照バックエンド)。これで state は S3 上で永続・共有され、
 # public リポジトリに tfstate を置かずに済む。ロックは S3 ネイティブ (use_lockfile)
-# を使うため DynamoDB は不要。
+# を使うため DynamoDB は不要。bucket 名はアカウント ID を含むため backend には
+# 書かず、init 時に -backend-config で注入する (cp backend.hcl.example backend.hcl)。
 #
-# このアカウント (257240362763) では既にバケット作成済み・backend 有効なので、
-# 通常どおり `terraform init` → `plan`/`apply` でよい。
+# バケット作成済み・backend 有効なので、通常は:
+#   terraform init -backend-config=backend.hcl && terraform plan/apply
 #
 # 【新規アカウントで一から作る場合のみ】バケットがまだ無いので:
 #   1. 下の backend "s3" ブロックを一時的にコメントアウトする
-#   2. bucket 名 (アカウント ID 部分) を自分のアカウントに書き換える
-#   3. terraform init && terraform apply            # ローカル state でバケット作成
-#   4. backend "s3" ブロックのコメントを戻す
-#   5. terraform init -migrate-state                # state をバケットへ移動
+#   2. terraform init && terraform apply            # ローカル state でバケット作成
+#   3. backend "s3" ブロックのコメントを戻す + backend.hcl に bucket 名を記入
+#   4. terraform init -migrate-state -backend-config=backend.hcl  # state をバケットへ移動
 
 terraform {
   required_version = ">= 1.5"
@@ -25,11 +25,11 @@ terraform {
   }
 
   backend "s3" {
-    bucket       = "videoq-terraform-state-257240362763"
     key          = "videoq/bootstrap/terraform.tfstate"
     region       = "ap-northeast-1"
     use_lockfile = true
     encrypt      = true
+    # bucket は -backend-config で注入
   }
 }
 

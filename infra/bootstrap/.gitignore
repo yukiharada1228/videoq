@@ -4,3 +4,6 @@
 *.tfstate.*
 crash.log
 crash.*.log
+
+# backend config (アカウント ID 入り bucket 名。example のみコミット)
+backend.hcl

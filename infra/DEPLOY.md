@@ -57,8 +57,11 @@ CloudFront (CDN)
 
 ```bash
 # 0. state バックエンドを作成 (Step 2 のブートストラップと同じ。まだなら実施)
-cd infra/bootstrap && terraform init && terraform apply && cd ..
-terraform init          # S3 バックエンドを初期化 (state は空)
+cd infra/bootstrap
+cp backend.hcl.example backend.hcl   # bucket 名 (アカウント ID) を記入
+terraform init -backend-config=backend.hcl && terraform apply && cd ..
+cp backend.hcl.example backend.hcl   # 本体側も同様
+terraform init -backend-config=backend.hcl   # S3 バックエンドを初期化 (state は空)
 
 # 1. 稼働中の CDK スタック + 孤立 Secrets を削除
 #    GitHub → Actions → "CDK Destroy (one-time migration)" を workflow_dispatch で実行し
@@ -156,24 +159,26 @@ cp terraform.tfvars.example terraform.tfvars
 # custom_domain / certificate_arn / pages_domain / image_tag などを設定
 
 # ── State バックエンドを一度だけ用意する (S3) ──
-# backend.tf は S3 バックエンドを参照する。バケットは bootstrap で作成:
+# backend.tf は S3 バックエンドを参照する。bucket 名 (アカウント ID を含む) は
+# repo に含めず backend.hcl (gitignore 済み) で注入する。バケットは bootstrap で作成:
 cd bootstrap
-terraform init                       # ローカル state
-terraform apply                      # videoq-terraform-state-<account> バケットを作成
-# bootstrap/main.tf の backend "s3" ブロックのコメントを外してから:
-terraform init -migrate-state        # bootstrap の state を作ったバケットへ移動
+cp backend.hcl.example backend.hcl   # bucket = videoq-terraform-state-<account> を記入
+# 【新規アカウント】バケットがまだ無いので main.tf の backend "s3" を一時コメントアウト後:
+terraform init && terraform apply    # ローカル state でバケット作成 → コメントを戻す
+terraform init -migrate-state -backend-config=backend.hcl   # state をバケットへ移動
 cd ..
 
-# プロバイダをダウンロードしてバックエンドを初期化
-terraform init
+# 本体側もバックエンドを初期化 (bucket は backend.hcl / -backend-config で注入)
+cp backend.hcl.example backend.hcl   # bucket 名を記入
+terraform init -backend-config=backend.hcl
 ```
 
-> **State バックエンド:** `backend.tf` が S3 バックエンド
-> (`videoq-terraform-state-<account>` バケット) を参照する。このバケットは
-> `infra/bootstrap` を一度 `apply` して作成する。`cdk bootstrap` の代替。
-> bootstrap 自身の state は、作成後にそのバケットへ移す (自己参照バックエンド)
-> ため、public リポジトリに tfstate をコミットしない。ロックは S3 ネイティブ
-> (`use_lockfile`, Terraform 1.11+) を使うため DynamoDB は不要。
+> **State バックエンド:** `backend.tf` が S3 バックエンドを参照する
+> (`cdk bootstrap` の代替)。bucket 名はアカウント ID を含むため backend ブロックに
+> 書かず、`backend.hcl` (gitignore 済み / CI では secret `TF_STATE_BUCKET`) で注入する。
+> バケットは `infra/bootstrap` を一度 `apply` して作成。bootstrap 自身の state も
+> そのバケットへ移す (自己参照) ため、public リポジトリに tfstate をコミットしない。
+> ロックは S3 ネイティブ (`use_lockfile`, Terraform 1.11+) を使うため DynamoDB は不要。
 > 別アカウントで使う場合は `backend.tf` と `bootstrap/main.tf` の bucket 名
 > (アカウント ID 部分) を書き換える。
 
@@ -212,6 +217,8 @@ TF_VAR_certificate_arn=arn:aws:acm:us-east-1:<account>:certificate/<uuid> \
 
 GitHub Environment `production` に承認者を設定しておくこと（Settings → Environments → production → Required reviewers）。
 CI では `TF_VAR_pages_domain` / `TF_VAR_custom_domain` / `TF_VAR_certificate_arn` を GitHub Secrets から渡す。
+また `terraform init` の `-backend-config` 用に GitHub Secret **`TF_STATE_BUCKET`**
+(`videoq-terraform-state-<account>`) を登録しておくこと。
 
 デプロイ完了後、以下の Output をメモしておく (`terraform output` で再表示可能):
 

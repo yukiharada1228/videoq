@@ -10,6 +10,9 @@ crash.*.log
 *.tfvars.json
 !terraform.tfvars.example
 
+# Backend config (contains the account-bearing bucket name; keep the example)
+backend.hcl
+
 # Override files
 override.tf
 override.tf.json
