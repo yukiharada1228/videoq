@@ -1,0 +1,103 @@
+name: CDK Destroy (one-time migration)
+
+# CDK → Terraform 移行のための使い捨てワークフロー。
+# 稼働中の CDK (CloudFormation) スタックを削除し、RETAIN で孤立する Secrets も
+# 強制削除する (値は Terraform 作成後に再入力する方針)。
+#
+# ⚠️ 本番インフラを破壊する。誤爆防止のため:
+#   - workflow_dispatch 専用 (push では絶対に走らない)
+#   - confirm 入力に "destroy-prod" を打たないと中断
+#   - environment: production の承認を要求
+# 移行完了後はこのファイルを削除すること。
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: '本番を破壊します。実行するには "destroy-prod" と入力してください'
+        required: true
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cdk-destroy
+  cancel-in-progress: false
+
+jobs:
+  cdk-destroy:
+    name: Destroy CDK stacks + retained secrets
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Guard — confirm input
+        if: ${{ inputs.confirm != 'destroy-prod' }}
+        run: |
+          echo "confirm 入力が 'destroy-prod' ではありません。中断します。"
+          exit 1
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Delete CloudFormation stacks (dependency order)
+        run: |
+          set -euo pipefail
+
+          delete_stack() {
+            local name="$1"
+            if aws cloudformation describe-stacks --stack-name "$name" >/dev/null 2>&1; then
+              echo "→ delete-stack $name"
+              aws cloudformation delete-stack --stack-name "$name"
+            else
+              echo "→ $name は存在しない (skip)"
+            fi
+          }
+
+          wait_deleted() {
+            local name="$1"
+            if aws cloudformation describe-stacks --stack-name "$name" >/dev/null 2>&1; then
+              echo "… waiting for $name to delete"
+              aws cloudformation wait stack-delete-complete --stack-name "$name" || true
+            fi
+          }
+
+          # 消費側 (export を参照している側) から先に消す。
+          # Wave 1: Cdn は Api の export を参照
+          delete_stack VideoQ-Cdn-prod
+          wait_deleted  VideoQ-Cdn-prod
+
+          # Wave 2: Api / Worker は Data/Storage/Queue の export を参照
+          delete_stack VideoQ-Api-prod
+          delete_stack VideoQ-Worker-prod
+          wait_deleted  VideoQ-Api-prod
+          wait_deleted  VideoQ-Worker-prod
+
+          # Wave 3: 供給側 (被参照側)
+          delete_stack VideoQ-Queue-prod
+          delete_stack VideoQ-Storage-prod
+          delete_stack VideoQ-Data-prod
+          wait_deleted  VideoQ-Queue-prod
+          wait_deleted  VideoQ-Storage-prod
+          wait_deleted  VideoQ-Data-prod
+
+          echo "全スタック削除完了。"
+
+      - name: Force-delete retained secrets
+        run: |
+          set -euo pipefail
+          # Data スタックの Secret は RemovalPolicy.RETAIN のためスタック削除では
+          # 消えず孤立する。同名で Terraform が作り直せるよう即時強制削除する。
+          for sid in videoq/prod/db videoq/prod/app; do
+            if aws secretsmanager describe-secret --secret-id "$sid" >/dev/null 2>&1; then
+              echo "→ force-delete secret $sid"
+              aws secretsmanager delete-secret --secret-id "$sid" --force-delete-without-recovery
+            else
+              echo "→ secret $sid は存在しない (skip)"
+            fi
+          done
+          echo "Secrets 削除完了。値は Terraform 作成後に再入力すること。"
