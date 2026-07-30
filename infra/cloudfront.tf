@@ -7,8 +7,10 @@
 # single domain so cookies are first-party.
 
 # ── AWS managed policies ─────────────────────────────────────────────────────
-# 名前でマネージドポリシーを解決する。CI ユーザーには読み取り権限
-# (cloudfront:ListCachePolicies / ListOriginRequestPolicies) が必要。
+# 名前でマネージドポリシーを解決する (List で名前→ID、Get で詳細取得の 2 段階)。
+# CI ユーザーには以下 4 つの読み取り権限が必要:
+#   cloudfront:ListCachePolicies / GetCachePolicy
+#   cloudfront:ListOriginRequestPolicies / GetOriginRequestPolicy
 data "aws_cloudfront_cache_policy" "caching_optimized" {
   count = local.enable_cdn ? 1 : 0
   name  = "Managed-CachingOptimized"
