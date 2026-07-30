@@ -1,18 +1,19 @@
 # Terraform state backend bootstrap.
 #
-# state 保存先の S3 バケットそのものを作る構成。初回だけローカル state で apply し、
-# その後 bootstrap 自身の state を「作ったばかりのバケット」へ移す (自己参照)。
-# これで state は S3 上で永続・共有され、public リポジトリに tfstate を置かずに済む。
-# ロックは S3 ネイティブ (use_lockfile) を使うため DynamoDB は不要。
+# state 保存先の S3 バケットそのものを作る構成。bootstrap 自身の state は、作った
+# バケットへ置く (自己参照バックエンド)。これで state は S3 上で永続・共有され、
+# public リポジトリに tfstate を置かずに済む。ロックは S3 ネイティブ (use_lockfile)
+# を使うため DynamoDB は不要。
 #
-# 使い方:
-#   cd infra/bootstrap
-#   terraform init            # ローカル state
-#   terraform apply           # バケット作成
-#   # ↓ 下の backend "s3" ブロックのコメントを外してから:
-#   terraform init -migrate-state   # bootstrap の state をバケットへ移動 (yes)
+# このアカウント (257240362763) では既にバケット作成済み・backend 有効なので、
+# 通常どおり `terraform init` → `plan`/`apply` でよい。
 #
-# 以降 bootstrap を触るときは backend が有効なので通常どおり init/plan/apply でよい。
+# 【新規アカウントで一から作る場合のみ】バケットがまだ無いので:
+#   1. 下の backend "s3" ブロックを一時的にコメントアウトする
+#   2. bucket 名 (アカウント ID 部分) を自分のアカウントに書き換える
+#   3. terraform init && terraform apply            # ローカル state でバケット作成
+#   4. backend "s3" ブロックのコメントを戻す
+#   5. terraform init -migrate-state                # state をバケットへ移動
 
 terraform {
   required_version = ">= 1.5"
@@ -23,15 +24,13 @@ terraform {
     }
   }
 
-  # 初回 apply 後にコメントを外し、`terraform init -migrate-state` を実行する。
-  # 別アカウントで使う場合は bucket 名 (アカウント ID 部分) を書き換えること。
-  # backend "s3" {
-  #   bucket       = "videoq-terraform-state-257240362763"
-  #   key          = "videoq/bootstrap/terraform.tfstate"
-  #   region       = "ap-northeast-1"
-  #   use_lockfile = true
-  #   encrypt      = true
-  # }
+  backend "s3" {
+    bucket       = "videoq-terraform-state-257240362763"
+    key          = "videoq/bootstrap/terraform.tfstate"
+    region       = "ap-northeast-1"
+    use_lockfile = true
+    encrypt      = true
+  }
 }
 
 provider "aws" {
