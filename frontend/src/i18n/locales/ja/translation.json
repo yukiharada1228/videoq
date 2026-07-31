@@ -4,8 +4,6 @@
     "description": "AIに質問するだけで、見たいシーンに瞬時にジャンプ。動画をアップロードするだけでAIが自動文字起こし＆検索を可能にします。"
   },
   "common": {
-    "appName": "VideoQ",
-    "loading": "読み込み中...",
     "notProvided": "設定されていません",
     "actions": {
       "backToHome": "ホームに戻る",
@@ -17,39 +15,12 @@
       "cancel": "キャンセル",
       "delete": "削除",
       "deleting": "削除中...",
-      "edit": "編集",
-      "upload": "アップロード",
-      "uploading": "アップロード中...",
       "send": "送信",
-      "sending": "送信中...",
-      "generate": "生成",
-      "generating": "生成中...",
       "disable": "無効化",
-      "copy": "コピー",
-      "copied": "コピー済み ✓",
       "confirm": "確認",
-      "close": "閉じる",
-      "exportCsv": "CSVエクスポート",
-      "selectAll": "全選択",
-      "clearSelection": "選択解除",
-      "add": "追加",
-      "adding": "追加中...",
-      "openMenu": "メニューを開く"
+      "close": "閉じる"
     },
     "labels": {
-      "username": "ユーザー名",
-      "email": "メールアドレス",
-      "password": "パスワード",
-      "passwordConfirmation": "パスワード（確認）",
-      "description": "説明",
-      "status": "ステータス",
-      "uploadedAt": "アップロード日時",
-      "transcript": "文字起こし",
-      "title": "タイトル",
-      "file": "ファイル",
-      "player": "プレイヤー",
-      "chat": "チャット",
-      "tag": "タグ",
       "required": "必須",
       "optional": "任意"
     },
@@ -64,29 +35,11 @@
       "noDescription": "説明なし",
       "videoNotFound": "動画が見つかりません",
       "groupNotFound": "チャットグループが見つかりません",
-      "transcriptionPending": "文字起こし処理はまだ開始されていません。",
-      "transcriptionProcessing": "文字起こしを処理しています...",
-      "transcriptionIndexing": "文字起こし結果をインデックス化しています...",
-      "transcriptionUnavailable": "文字起こしはまだ利用できません。",
-      "transcriptionError": "文字起こしの処理中にエラーが発生しました。",
       "browserNoVideoSupport": "お使いのブラウザは動画タグをサポートしていません。",
-      "noVideos": "動画がありません",
-      "addVideosHint": "上部の「動画をアップロード」ボタンから動画を追加できます。",
-      "noGroups": "チャットグループがありません",
-      "noAvailableVideos": "追加可能な動画がありません",
-      "uploadSuccess": "アップロード成功！",
       "shareLoadFailed": "共有チャットグループの読み込みに失敗しました",
       "shareNotFound": "共有チャットグループが見つかりません",
-      "selectVideo": "動画一覧から動画を選択してください",
       "videoFileMissing": "動画ファイルがありません",
-      "copyFailed": "コピーに失敗しました。手動でコピーしてください。",
-      "noHistory": "履歴はありません",
-      "loadingHistory": "読込中...",
-      "noTags": "タグがありません",
-      "tagExists": "すでに存在するタグです",
-      "tagCreated": "タグを作成しました",
-      "tagUpdated": "タグを更新しました",
-      "tagDeleted": "タグを削除しました"
+      "copyFailed": "コピーに失敗しました。手動でコピーしてください。"
     }
   },
   "tags": {
@@ -97,15 +50,7 @@
     },
     "management": {
       "title": "タグ管理",
-      "description": "既存のタグを確認し、不要になったタグを削除できます。",
-      "create": "新規作成",
-      "edit": "編集",
-      "delete": "削除",
-      "nameLabel": "タグ名",
-      "colorLabel": "色",
-      "createTitle": "タグを作成",
-      "editTitle": "タグを編集",
-      "deleteConfirm": "このタグを削除してもよろしいですか？"
+      "description": "既存のタグを確認し、不要になったタグを削除できます。"
     },
     "selector": {
       "label": "タグ",
@@ -116,7 +61,6 @@
       "title": "新規タグ作成",
       "description": "動画を整理するための新しいタグを作成します。",
       "nameLabel": "タグ名",
-      "namePlaceholder": "タグ名を入力",
       "colorLabel": "タグの色",
       "preview": "プレビュー",
       "previewPlaceholder": "タグプレビュー"
@@ -140,9 +84,7 @@
   },
   "home": {
     "welcome": {
-      "title": "ホーム",
       "badge": "ホーム",
-      "subtitle": "{{username}}さん",
       "greeting": "{{username}}さん",
       "dailyMotivation": "動画の登録、文字起こし、学習用グループの管理を行えます。"
     },
@@ -150,82 +92,37 @@
       "sectionTitle": "利用メニュー",
       "upload": {
         "title": "動画を登録",
-        "description": "新しい動画を登録して管理",
-        "descriptionLong": "授業・研修動画を登録し、自動文字起こしを開始します。",
-        "linkLabel": "登録する"
+        "descriptionLong": "授業・研修動画を登録し、自動文字起こしを開始します。"
       },
       "library": {
         "title": "動画一覧",
-        "description_one": "{{count}}本の動画",
-        "description_other": "{{count}}本の動画",
-        "descriptionLong": "登録済みの動画（{{count}}本）を確認・編集・共有できます。",
-        "linkLabel": "一覧を見る"
+        "descriptionLong": "登録済みの動画（{{count}}本）を確認・編集・共有できます。"
       },
       "groups": {
         "title": "グループ管理",
-        "description_one": "{{count}}個のグループ",
-        "description_other": "{{count}}個のグループ",
-        "descriptionLong": "学習単位のグループ（{{count}}件）を管理します。",
-        "linkLabel": "管理する"
+        "descriptionLong": "学習単位のグループ（{{count}}件）を管理します。"
       }
     },
     "stats": {
       "summaryTitle": "概要",
-      "completed": "処理完了",
-      "pending": "待機中",
       "processing": "処理中",
-      "indexing": "インデックス中",
-      "error": "エラー",
       "totalVideos": "総動画数",
       "analysisCompleted": "分析完了",
-      "groups": "グループ数",
-      "videoCount": "{{count}}本",
-      "groupCount": "{{count}}個"
+      "groups": "グループ数"
     },
     "recentVideos": {
       "title": "最近アップロードした動画",
       "viewAll": "すべて表示"
     },
-    "account": {
-      "username": "ユーザー名",
-      "serviceReady": "✓ サービス利用可能"
-    },
     "usage": {
       "title": "利用状況",
-      "description": "現在の利用量と上限",
-      "loading": "読み込み中...",
-      "plan": {
-        "label": "プラン",
-        "free": "フリープラン",
-        "pro": "プロプラン",
-        "change": "プランを変更",
-        "changing": "変更中...",
-        "success": "プランを変更しました"
-      },
-      "videos": {
-        "label": "動画保存数（全期間）"
-      },
-      "whisper": {
-        "label": "文字起こし時間（今月）",
-        "unit": "分"
-      },
-      "chats": {
-        "label": "チャット回数（今月）"
-      }
+      "description": "現在の利用量と上限"
     }
   },
   "videos": {
     "list": {
       "title": "動画ライブラリ",
-      "emptySubtitle": "動画をアップロードして管理を始めましょう",
       "uploadButton": "動画をアップロード",
-      "stats": {
-        "total": "総動画数",
-        "completed": "完了",
-        "pending": "待機中",
-        "processing": "処理中",
-        "indexing": "インデックス中"
-      },
       "statsRow": {
         "all": "全体",
         "completed": "完了",
@@ -250,18 +147,6 @@
       "managingCount": "{{count}}本の動画を管理中",
       "noVideos": "動画がありません",
       "noVideosHint": "上部の「動画をアップロード」ボタンから動画を追加できます。",
-      "loading": "読み込み中...",
-      "apiKeyWarning": {
-        "title": "OpenAI APIキーが必要です",
-        "message": "動画をアップロードして文字起こしを行うには、OpenAI APIキーを設定する必要があります。",
-        "settingsLink": "設定画面へ"
-      },
-      "uploadLimitWarning": {
-        "message": "動画のアップロード上限（{{limit}}本）に達しました。新しい動画をアップロードするには、既存の動画を削除してください。"
-      },
-      "subtitle_one": "{{count}}本の動画",
-      "subtitle_other": "{{count}}本の動画",
-      "loadMore": "もっと見る",
       "loadingMore": "読み込み中..."
     },
     "upload": {
@@ -271,19 +156,11 @@
       "titleLabel": "タイトル *",
       "descriptionLabel": "説明",
       "youtubeUrlLabel": "YouTube URL",
-      "youtubeUrlPlaceholder": "https://www.youtube.com/watch?v=...",
-      "groupLabel": "チャットグループ（任意）",
-      "groupNone": "グループに追加しない",
-      "groupHelp": "選択したチャットグループに動画を追加します。",
-      "titlePlaceholder": "{{fileName}}（デフォルト）",
-      "titleEmptyPlaceholder": "動画のタイトルを入力",
-      "descriptionPlaceholder": "動画の説明（任意）",
       "modes": {
         "file": "ファイルアップロード",
         "youtube": "YouTube URL登録"
       },
       "success": "アップロード成功！",
-      "cancel": "キャンセル",
       "upload": "アップロード",
       "uploading": "アップロード中...",
       "validation": {
@@ -292,7 +169,6 @@
         "noTitle": "タイトルを入力してください",
         "invalidFileType": "対応している動画ファイルを選択してください",
         "fileTooLarge": "選択したファイルはアップロード上限（{{max_size_mb}} MB）を超えています",
-        "generic": "バリデーションエラー",
         "storageLimitExceeded": "ストレージ超過のためアップロードできません。動画を削除してストレージを空けてください。"
       },
       "warning": {
@@ -300,31 +176,11 @@
       }
     },
     "detail": {
-      "edit": "編集",
-      "back": "一覧に戻る",
-      "delete": "削除",
-      "deleting": "削除中...",
-      "info": "情報",
       "video": "動画",
-      "transcript": "文字起こし",
-      "errorCard": "エラー",
-      "labels": {
-        "title": "タイトル",
-        "description": "説明",
-        "status": "ステータス",
-        "uploadedAt": "アップロード日時"
-      },
       "editTitleLabel": "タイトル",
       "editDescriptionLabel": "説明",
-      "save": "保存",
       "saving": "保存中...",
       "cancel": "キャンセル",
-      "noVideo": "動画が見つかりません",
-      "videoUnavailable": "動画ファイルがありません",
-      "deleteConfirm": "この動画を削除しますか？",
-      "editMode": "編集モード",
-      "backToLibrary": "動画ライブラリに戻る",
-      "videosBreadcrumb": "動画",
       "editButton": "編集",
       "deleteButton": "削除",
       "transcriptSection": "文字起こし",
@@ -353,18 +209,12 @@
       "optional": "（任意）",
       "create": "新規チャットグループを作成",
       "createTitle": "新規チャットグループを作成",
-      "createDescription": "チャットグループ名と説明を入力してください。",
       "nameLabel": "チャットグループ名",
       "namePlaceholder": "チャットグループ名",
       "descriptionLabel": "説明",
       "descriptionPlaceholder": "説明（任意）",
       "createError": "チャットグループの作成に失敗しました",
-      "loadError": "チャットグループの読み込みに失敗しました",
       "empty": "チャットグループがありません",
-      "reorder": "並べ替え",
-      "saveOrder": "並び順を保存",
-      "cancelReorder": "キャンセル",
-      "reorderHint": "{{count}} / {{total}}件を読み込み済みです。ドラッグまたは上下ボタンで順序を変更できます。",
       "dragHandle": "ドラッグして並べ替え",
       "open": "{{name}}を開く",
       "moveUp": "{{name}}を上へ移動",
@@ -374,14 +224,9 @@
       "videoCount_other": "{{count}}個の動画"
     },
     "groupDetail": {
-      "edit": "編集",
       "addVideos": "動画を追加",
       "addVideosDescription": "このグループに追加する動画を選択してください。",
-      "addDescription": "チャットグループに追加する動画を選択してください",
-      "back": "一覧に戻る",
       "delete": "削除",
-      "deleting": "削除中...",
-      "deleteConfirm": "このチャットグループを削除しますか？",
       "removeVideoConfirm": "この動画をチャットグループから削除しますか？",
       "addError": "動画の追加に失敗しました",
       "removeVideoError": "動画の削除に失敗しました",
@@ -392,9 +237,7 @@
       },
       "shareOpen": "共有",
       "sharingBadge": "共有中",
-      "generate": "共有リンクを生成",
       "generating": "生成中...",
-      "copy": "コピー",
       "copied": "コピー済み ✓",
       "disable": "無効化",
       "generateShareError": "共有リンクの生成に失敗しました",
@@ -423,53 +266,36 @@
       "orderUpdateError": "動画の順序更新に失敗しました",
       "mobileTabs": {
         "videos": "動画一覧",
-        "player": "プレイヤー",
-        "chat": "チャット"
+        "player": "プレイヤー"
       },
       "playerPlaceholder": "動画一覧から動画を選択してください",
       "videoNoFile": "動画ファイルがありません",
       "videoListTitle": "動画一覧",
       "videoListEmpty": "動画がありません",
       "videoCount": "全{{count}}本",
-      "nextVideo": "次の動画:",
-      "addVideoButton": "動画を追加",
-      "backToGroups": "グループ一覧",
       "editTitle": "グループを編集",
       "editDescription": "グループ名と説明を更新します。",
-      "breadcrumbGroups": "動画グループ",
       "shareLinkLabel": "共有リンク:",
       "shareSlugPlaceholder": "共有リンクを入力",
       "shareSlugHelp": "3〜64文字。英小文字、数字、ハイフンのみ使えます",
       "copyButton": "コピー",
-      "status": {
-        "completed": "完了",
-        "error": "エラー",
-        "processing": "処理中"
-      },
-      "remove": "削除",
       "removeFromGroup": "グループから削除",
       "deleteError": "チャットグループの削除に失敗しました"
     },
     "shared": {
-      "loading": "読み込み中...",
-      "descriptionFallback": "説明なし",
       "tabs": {
         "videos": "動画一覧",
-        "player": "プレイヤー",
-        "chat": "チャット"
+        "player": "プレイヤー"
       },
       "playerPlaceholder": "動画一覧から動画を選択してください",
       "videoNoFile": "動画ファイルがありません",
       "noVideos": "動画がありません",
-      "noDescription": "説明なし",
-      "publicBadge": "公開共有リンク",
-      "videoCountSuffix": "本"
+      "publicBadge": "公開共有リンク"
     }
   },
   "auth": {
     "login": {
       "title": "ログイン",
-      "description": "アカウントにログインしてサービスをご利用ください。",
       "badge": "おかえりなさい",
       "submit": "ログイン",
       "submitting": "ログイン中...",
@@ -480,12 +306,10 @@
     },
     "signup": {
       "title": "新規登録",
-      "description": "新しいアカウントを作成してサービスをご利用ください。",
       "badge": "はじめまして",
       "submit": "新規登録する",
       "submitting": "登録中...",
       "orDivider": "または",
-      "passwordPlaceholder": "8文字以上",
       "footerQuestion": "すでにアカウントをお持ちの方は",
       "footerLink": "こちらからログイン",
       "passwordMismatch": "パスワードが一致しません"
@@ -520,9 +344,7 @@
       "submitting": "更新中...",
       "backToLogin": "ログイン画面に戻る",
       "newPassword": "新しいパスワード",
-      "newPasswordPlaceholder": "8文字以上のパスワード",
-      "confirmPassword": "新しいパスワード（確認）",
-      "confirmPasswordPlaceholder": "もう一度入力してください"
+      "confirmPassword": "新しいパスワード（確認）"
     },
     "verifyEmail": {
       "badge": "メール認証",
@@ -531,13 +353,10 @@
       "loading": "メール認証を確認しています...",
       "invalidLink": "無効な認証リンクです。",
       "success": "メール認証が完了しました。ログインしてください。",
-      "redirect": "まもなくログイン画面に移動します。",
       "redirectLink": "こちら",
       "error": "メール認証に失敗しました。リンクの有効期限が切れている可能性があります。",
       "retry": "リンクが無効の場合は、再度新規登録を行うかサポートまでお問い合わせください。",
       "backToLogin": "ログイン画面に戻る",
-      "fallbackTitle": "メール認証",
-      "fallbackLoading": "メール認証を確認しています...",
       "redirectPart1": "まもなくログイン画面に移動します。移動しない場合は"
     },
     "emailChange": {
@@ -552,22 +371,18 @@
     },
     "fields": {
       "email": {
-        "label": "メールアドレス",
-        "placeholder": "メールアドレスを入力"
+        "label": "メールアドレス"
       },
       "username": {
-        "label": "ユーザー名",
-        "placeholder": "ユーザー名を入力"
+        "label": "ユーザー名"
       },
       "password": {
         "label": "パスワード",
-        "placeholder": "パスワードを入力",
         "show": "パスワードを表示",
         "hide": "パスワードを隠す"
       },
       "passwordConfirmation": {
-        "label": "パスワード（確認）",
-        "placeholder": "パスワードを再入力"
+        "label": "パスワード（確認）"
       }
     }
   },
@@ -577,18 +392,9 @@
     "newConsultation": "新規相談",
     "history": "会話履歴",
     "historyEmpty": "履歴はありません",
-    "historyLoading": "読込中...",
-    "exportCsv": "CSVエクスポート",
     "exportCsvShort": "CSV",
-    "close": "閉じる",
-    "question": "質問",
-    "answer": "回答",
-    "relatedVideos": "関連動画",
-    "sharedOrigin": "共有リンク経由",
-    "feedback": "フィードバック",
     "feedbackGood": "Good",
     "feedbackBad": "Bad",
-    "feedbackNone": "未評価",
     "placeholder": "メッセージを入力...",
     "assistantGreeting": "こんにちは！動画に関する質問にお答えします。何か質問はありますか？",
     "studyGreeting": "学習モードです。答えをすぐには教えず、講義の前提に沿って一緒に考えていきましょう。",
@@ -610,33 +416,12 @@
       }
     }
   },
-  "shared": {
-    "loadError": "共有チャットグループの読み込みに失敗しました。",
-    "notFound": "共有チャットグループが見つかりません。"
-  },
-  "errors": {
-    "operationFailed": "操作に失敗しました",
-    "badRequest": "リクエストが無効です",
-    "unauthorized": "認証が必要です",
-    "forbidden": "アクセスが拒否されました",
-    "notFound": "リソースが見つかりません",
-    "server": "サーバーエラーが発生しました",
-    "generic": "エラーが発生しました ({{status}})",
-    "multiple": "複数のエラーがあります: {{errors}}",
-    "authFailed": "認証に失敗しました。再度ログインしてください。"
-  },
   "validation": {
-    "required": "この項目は必須です",
-    "email": "有効なメールアドレスを入力してください",
-    "minLength": "{{min}}文字以上で入力してください",
-    "maxLength": "{{max}}文字以下で入力してください",
-    "fileSize": "ファイルサイズは{{max}}MB以下にしてください",
-    "fileType": "対応していないファイル形式です。許可されている形式: {{types}}"
+    "required": "この項目は必須です"
   },
   "confirmations": {
     "deleteVideo": "この動画を削除しますか？",
     "deleteGroup": "このチャットグループを削除しますか？",
-    "removeGroupVideo": "この動画をチャットグループから削除しますか？",
     "disableShareLink": "共有リンクを無効化しますか？"
   },
   "settings": {
@@ -647,7 +432,6 @@
       "description": "アカウントに紐づくメールアドレスを変更します。新しいメールアドレスで確認が完了するまで、現在のメールアドレスが維持されます。",
       "currentEmailLabel": "現在のメールアドレス",
       "newEmailLabel": "新しいメールアドレス",
-      "newEmailPlaceholder": "新しいメールアドレスを入力",
       "help": "新しいメールアドレス宛に確認リンクを送信します。確認が完了するまで現在のメールアドレスは変更されません。",
       "submit": "確認メールを送信",
       "submitting": "送信中...",
@@ -658,9 +442,7 @@
     "accountDeletion": {
       "title": "アカウント削除",
       "description": "アカウントを削除すると、すべての動画・データが完全に削除されます。",
-      "warningLine1": "アカウントは即時に無効化され、ログアウトされます。",
       "reasonLabel": "退会理由（任意）",
-      "reasonPlaceholder": "改善点があれば教えてください（任意）",
       "confirmLabel": "{{keyword}} と入力して確認",
       "confirmTitle": "削除の最終確認",
       "confirmDescription": "アカウントを削除すると、すべての動画・データが完全に削除されます。",
@@ -675,7 +457,6 @@
       "title": "連携用APIキー",
       "description": "既存システム向けのシークレットキーを発行・管理します。",
       "nameLabel": "キー名",
-      "namePlaceholder": "例: production-crm",
       "nameHelp": "この名前は一覧にだけ表示されます。あとで見て分かる連携名にしてください。",
       "create": "新しいシークレットキーを作成",
       "createDialogTitle": "新しいシークレットキーを作成",
@@ -688,18 +469,11 @@
       "generatedDoneCta": "保存しました",
       "copy": "コピー",
       "copyDone": "コピー済み",
-      "activeListTitle": "有効なキー",
-      "activeListCount_one": "有効なキー {{count}} 件",
-      "activeListCount_other": "有効なキー {{count}} 件",
-      "loading": "APIキーを読み込み中...",
       "empty": "APIキーはまだありません。",
-      "createdAt": "作成日時: {{date}}",
-      "lastUsedAt": "最終使用: {{date}}",
       "neverUsed": "未使用",
       "permissionsLabel": "権限",
       "permissionsHelp": "書き込みを含めて使うなら All、読み取りだけに制限したいなら Read only を選んでください。",
       "secretKeyLabel": "シークレットキー",
-      "secretKeyHelp": "安全な場所に保管してください。このダイアログを閉じた後も、キー自体はすぐ利用できます。",
       "columns": {
         "name": "名前",
         "secret": "シークレット",
@@ -726,8 +500,7 @@
       "errorRevoking": "APIキーの失効に失敗しました",
       "errorCopying": "セキュアなブラウザ環境でのみコピーできます。",
       "successCreated": "APIキーを発行しました",
-      "successRevoked": "APIキーを失効しました",
-      "successCopied": "APIキーをコピーしました"
+      "successRevoked": "APIキーを失効しました"
     },
     "connectedApps": {
       "title": "連携アプリ",
@@ -742,32 +515,9 @@
       },
       "expiresNever": "—",
       "revoke": "失効",
-      "revoking": "失効中...",
       "errorLoading": "連携アプリの読み込みに失敗しました",
       "errorRevoking": "失効に失敗しました",
       "successRevoked": "連携を失効しました"
-    },
-    "openaiApiKey": {
-      "title": "OpenAI APIキー",
-      "description": "文字起こしとチャット機能を使用するには、OpenAI APIキーを設定してください。",
-      "billingNoticeTitle": "課金について",
-      "billingNotice": "ここに設定したOpenAI APIキーは、文字起こしとAIチャットの実行に使用されます。利用料金は VideoQ ではなく、このキーに紐づくお客様の OpenAI アカウントへ請求されます。",
-      "apiKeyLabel": "APIキー",
-      "hasApiKeyMessage": "既にAPIキーが設定されています。新しいキーを入力すると更新されます。",
-      "noApiKeyMessage": "動画の文字起こしとチャット機能を使用するには、OpenAI APIキーを設定する必要があります。設定したキーの利用料金は、お客様の OpenAI アカウントに請求されます。",
-      "getApiKeyMessage": "APIキーは",
-      "openaiPlatform": "OpenAI Platform",
-      "save": "保存",
-      "saving": "保存中...",
-      "delete": "削除",
-      "deleting": "削除中...",
-      "confirmDelete": "APIキーを削除してもよろしいですか？",
-      "errorEmpty": "APIキーを入力してください",
-      "errorSaving": "APIキーの保存に失敗しました",
-      "errorDeleting": "APIキーの削除に失敗しました",
-      "successSaved": "APIキーを保存しました",
-      "successDeleted": "APIキーを削除しました",
-      "configured": "設定済み"
     },
     "searchApiKey": {
       "title": "SearchAPI キー",
@@ -775,7 +525,6 @@
       "usageTitle": "YouTube 取り込みで使用",
       "usageDescription": "YouTube 動画を取り込むとき、このキーを使って SearchAPI から字幕を取得します。料金は VideoQ ではなく、設定したご自身の SearchAPI アカウントに請求されます。",
       "apiKeyLabel": "APIキー",
-      "apiKeyPlaceholder": "sa_...",
       "hasApiKeyMessage": "すでに SearchAPI キーが設定されています。新しいキーを入力すると更新されます。",
       "noApiKeyMessage": "YouTube 動画を取り込むには、先に自分の SearchAPI キーを設定してください。",
       "getApiKeyMessage": "APIキーは",
@@ -789,27 +538,6 @@
       "successSaved": "SearchAPI キーを保存しました",
       "successDeleted": "SearchAPI キーを削除しました",
       "configured": "設定済み"
-    },
-    "llm": {
-      "title": "LLM設定",
-      "description": "チャット応答に使用する言語モデルとtemperatureを設定します。",
-      "modelLabel": "モデル",
-      "selectModel": "モデルを選択",
-      "modelDescription": "チャット応答に使用するLLMモデルを選択します。モデルによって機能とコストが異なります。",
-      "temperatureLabel": "Temperature",
-      "temperatureDescription": "値が高い（1.5-2.0など）とランダムで創造的な出力になり、低い（0.0-0.5など）と集中的で決定論的になります。",
-      "save": "設定を保存",
-      "saving": "保存中...",
-      "successSaved": "LLM設定を保存しました",
-      "errorSaving": "LLM設定の保存に失敗しました",
-      "errorLoadingModels": "利用可能なモデルの読み込みに失敗しました"
-    }
-  },
-  "openaiApiKey": {
-    "banner": {
-      "title": "OpenAI APIキーが必要です",
-      "message": "文字起こし・チャット機能を利用するには、設定画面でOpenAI APIキーを設定してください。利用料金は設定したキーに紐づく OpenAI アカウントに請求されます。",
-      "settingsLink": "設定画面へ"
     }
   },
   "dashboard": {
@@ -817,17 +545,9 @@
     "title": "教育改善ダッシュボード",
     "totalQuestions": "質問数: {{count}}件",
     "dateRange": "期間: {{first}} 〜 {{last}}",
-    "noData": "分析データがありません",
     "empty": {
       "title": "データがありません",
       "description": "このグループにはまだ質問がありません。チャットで質問すると分析データが表示されます。"
-    },
-    "sceneDistribution": {
-      "title": "シーン別の質問分布",
-      "questions": "{{count}}件",
-      "coverage": "全{{count}}シーンを表示",
-      "share": "構成比 {{percentage}}",
-      "timeRange": "{{start}} - {{end}}"
     },
     "timeSeries": {
       "title": "質問の推移",
@@ -890,8 +610,7 @@
       "subtitle": "VideoQ API 連携と自動化のための開発者向けリファレンス。",
       "quickLinksTitle": "クイックリンク",
       "quickLinksDescription": "公式 API ドキュメントを確認したり、設定画面で連携用 API キーを発行したりできます。",
-      "createApiKey": "設定で API キーを発行",
-      "readMore": "詳細を見る"
+      "createApiKey": "設定で API キーを発行"
     },
     "section": {
       "checklistTitle": "実装チェックリスト",
@@ -952,349 +671,11 @@
       "overQuota": "ストレージ使用量が上限を超えています。新規アップロードとAIチャットは無効化されています。動画を削除してストレージを解放してください。"
     }
   },
-  "legal": {
-    "disclosure": {
-      "title": "特定商取引法に基づく表記",
-      "rows": {
-        "seller": "販売事業者名",
-        "address": "所在地",
-        "phone": "電話番号",
-        "email": "メールアドレス",
-        "representative": "運営統括責任者",
-        "price": "販売価格",
-        "priceValue": "各プランページに表示された価格（税込）",
-        "additionalFees": "販売価格以外の必要料金",
-        "additionalFeesValue": "インターネット接続料金、通信料金はお客様のご負担となります。",
-        "paymentMethod": "支払方法",
-        "paymentMethodValue": "サービス上で別途案内する方法",
-        "paymentTiming": "支払時期",
-        "paymentTimingValue": "各プランまたは個別条件で定める時期",
-        "delivery": "サービス提供時期",
-        "deliveryValue": "利用開始条件を満たした後、直ちにご利用いただけます。",
-        "returns": "返品・キャンセルについて",
-        "returnsValue": "デジタルサービスの性質上、利用開始後の返品・返金は原則お受けしておりません。変更・解約条件はサービス上の案内または個別条件に従います。",
-        "environment": "動作環境",
-        "environmentValue": "モダンブラウザ（Chrome, Firefox, Safari, Edge の最新版）"
-      }
-    },
-    "terms": {
-      "title": "利用規約",
-      "sections": {
-        "serviceOverview": {
-          "heading": "1. サービス概要",
-          "body": "VideoQ（以下「本サービス」）は、{{operatorName}}が運営するWebベースのプラットフォームです。ユーザーは動画をアップロードし、文字起こしを生成し、AIチャットを通じて動画コンテンツとやり取りすることができます。本サービスを利用することで、本利用規約に同意したものとみなします。"
-        },
-        "accountRegistration": {
-          "heading": "2. アカウント登録",
-          "body": "本サービスをご利用いただくには、有効なメールアドレス、ユーザー名、パスワードを登録してアカウントを作成する必要があります。アカウントの認証情報の機密性を保持し、アカウント下で発生するすべての活動について責任を負うものとします。未成年の方は、親権者の同意を得た上でご利用ください。"
-        },
-        "prohibitedUse": {
-          "heading": "3. 禁止事項",
-          "body": "以下の行為を禁止します。\n・第三者の知的財産権を侵害するコンテンツのアップロード\n・違法、有害、または不快なコンテンツのアップロード\n・本サービスまたはそのシステムへの不正アクセスの試み\n・スパムまたは悪意のあるソフトウェアの配布\n・許可なく本サービスを再販・再配布する行為\n・過度な自動化アクセス、リバースエンジニアリング、またはサービスに過大な負荷を与える行為"
-        },
-        "accountSuspension": {
-          "heading": "4. アカウントの停止・削除",
-          "body": "当方は、本規約に違反した場合、事前の通知なくアカウントの停止または削除を行うことができます。"
-        },
-        "paymentAndBilling": {
-          "heading": "5. 支払いと請求",
-          "body": "本サービスはアカウントごとの利用制限に基づいて運用されます。利用可能なストレージ容量、文字起こし処理時間、AI回答数などの制限は、各アカウントに設定された上限または当方が別途提示する条件に従います。"
-        },
-        "cancellation": {
-          "heading": "6. キャンセルと返金",
-          "body": "アカウント上限の変更や返金の有無は、サービス上の案内または個別に提示する条件に従います。デジタルサービスの性質上、既に提供済みの機能や処理について返金に応じられない場合があります。"
-        },
-        "intellectualProperty": {
-          "heading": "7. 知的財産権",
-          "body": "アップロードしたすべてのコンテンツの所有権はユーザーに帰属します。コンテンツをアップロードすることで、本サービスの提供に必要な範囲での処理、保存、表示に関する限定的なライセンスを当方に付与するものとします。本サービス自体（デザイン、コード、ブランディングを含む）は運営者の知的財産です。"
-        },
-        "limitationOfLiability": {
-          "heading": "8. 免責事項",
-          "body": "本サービスは「現状有姿」で提供され、いかなる種類の保証も行いません。中断やエラーのない運用を保証するものではありません。本サービスにより生成されるAIの回答内容の正確性、完全性、有用性について当方は保証しません。ユーザーは自己の責任において利用するものとします。データの消失、破損、またはバックアップの失敗について当方は責任を負いません。法律が許容する最大限の範囲において、本サービスの利用から生じる間接的、付随的、または結果的な損害について責任を負いません。当方の賠償責任の総額は、請求に先立つ12か月間にお支払いいただいた金額を上限とします。"
-        },
-        "serviceChanges": {
-          "heading": "9. サービスの変更・終了",
-          "body": "当方は、事前の通知をもって本サービスの全部または一部を変更、停止、または終了することがあります。"
-        },
-        "governingLaw": {
-          "heading": "10. 準拠法と管轄裁判所",
-          "body": "本規約は日本法に準拠し、日本法に従って解釈されるものとします。本規約に起因する紛争については、東京地方裁判所を第一審の専属的合意管轄裁判所とします。"
-        },
-        "changes": {
-          "heading": "11. 規約の変更",
-          "body": "当方は本規約を随時更新することがあります。重要な変更を行う場合は、メールまたはサービス内でご登録ユーザーに通知いたします。変更の発効後に本サービスを引き続き利用することで、改訂後の規約に同意したものとみなします。"
-        }
-      }
-    },
-    "privacy": {
-      "title": "プライバシーポリシー",
-      "sections": {
-        "dataCollected": {
-          "heading": "1. 収集する情報",
-          "body": "当方は以下の種類の情報を収集します。\n・アカウント情報：メールアドレス、ユーザー名、パスワード（ハッシュ化）\n・アップロードコンテンツ：動画ファイルおよび生成された文字起こし\n・利用データ：チャットメッセージ、AI対話履歴、サービス利用統計\n・上限管理情報：アカウントに設定された利用上限値と使用量などの内部管理情報\n・技術データ：IPアドレス、ブラウザの種類、アクセスログ"
-        },
-        "purposeOfUse": {
-          "heading": "2. 利用目的",
-          "body": "収集した情報は以下の目的で利用します。\n・本サービスの提供と維持\n・動画の文字起こしおよびAIチャット応答の処理\n・アカウントおよびサブスクリプションの管理\n・本サービスの改善と新機能の開発\n・アカウントおよびサービスの更新に関するご連絡\n・法的義務の遵守"
-        },
-        "thirdPartySharing": {
-          "heading": "3. 第三者サービス",
-          "body": "本サービスの運営に必要な範囲で、以下の第三者サービスとデータを共有する場合があります。\n・OpenAI：動画の文字起こし（音声データ）およびAIチャット機能（チャットメッセージ）\n・Neon：サーバーレスPostgreSQLデータベース（アカウント情報、動画メタデータ、文字起こしデータ、チャット履歴、利用統計等を保存）\n・Mailgun：メール配信サービス（メール認証・パスワードリセット等のシステムメール送信に使用。メールアドレスを含みます）\n・AWS（SQS・Lambda）：タスクキューイング（SQS）およびサーバーレス処理（Lambda）に使用します。動画ファイルおよび関連データが含まれます。\n・Cloudflare R2：動画ファイルの保存に使用します。\n\nこれらのプロバイダーは各社のプライバシーポリシーに従ってデータを処理します。第三者サービスは日本国外のサーバーでデータを処理する場合があります。当方はお客様の個人情報を第三者に販売することはありません。"
-        },
-        "cookies": {
-          "heading": "4. Cookieおよびローカルストレージ",
-          "body": "本サービスでは、セッション管理と認証のためにCookieおよびローカルストレージを使用します。これらは本サービスが正常に機能するために不可欠です。広告目的のサードパーティトラッキングCookieは使用しておりません。"
-        },
-        "dataRetention": {
-          "heading": "5. データの保持",
-          "body": "アカウントデータおよびアップロードコンテンツは、アカウントが有効な間保持されます。アカウントを削除した場合、法律で保持が義務付けられている場合を除き、30日以内にデータをシステムから削除します。チャット履歴および利用ログは、サービス改善のために匿名化された形式で保持される場合があります。"
-        },
-        "security": {
-          "heading": "6. 安全管理措置",
-          "body": "当方は、合理的な安全管理措置を講じてお客様の個人情報を保護します。ただし、インターネット上の送信やデジタルストレージの方法は完全に安全ではなく、絶対的な安全性を保証することはできません。"
-        },
-        "userRights": {
-          "heading": "7. お客様の権利",
-          "body": "お客様には以下の権利があります。\n・当方が保持するお客様の個人データ（氏名・メールアドレス等）へのアクセス\n・登録した個人情報の誤りの訂正の要求（AIが生成した文字起こし・チャット回答等のコンテンツは対象外）\n・アカウントおよび関連データの削除の要求\n・ポータブルな形式でのデータのエクスポート\n・データ処理に対する同意の撤回\n\nこれらの権利を行使するには、以下のメールアドレスまでご連絡ください。"
-        },
-        "contact": {
-          "heading": "8. お問い合わせ",
-          "body": "本プライバシーポリシーに関するご質問やご要望は、以下までご連絡ください。\nメール："
-        }
-      }
-    }
-  },
-  "landing": {
-    "hero": {
-      "title": "教育・研修向けの AI 動画学習サービス",
-      "subtitle": "動画の文字起こしと自然言語検索",
-      "description": "授業・研修・セミナーの動画を登録すると、自動文字起こしと内容への質問が可能になります。",
-      "ctaSignup": "アカウントを作成",
-      "ctaDocs": "開発者ドキュメント"
-    },
-    "features": {
-      "title": "主な機能",
-      "transcription": {
-        "title": "自動文字起こし",
-        "description": "OpenAI Whisperによる高精度な文字起こし"
-      },
-      "chat": {
-        "title": "RAGチャット",
-        "description": "動画の内容に自然言語で質問できます"
-      },
-      "api": {
-        "title": "OpenAI互換API",
-        "description": "既存のOpenAIクライアントやSDKでビデオライブラリを操作できます"
-      }
-    },
-    "personas": {
-      "title": "こんな方に",
-      "educator": {
-        "title": "教育者・講師",
-        "description": "授業録画を学生が自習できる教材に。AIチャットで学生が自力で答えを探せます。",
-        "ctaLink": "教育機関の方はこちら"
-      },
-      "corporateTrainer": {
-        "title": "企業の研修担当者",
-        "description": "研修動画をAIナレッジベースに。新入社員が必要な情報をいつでも自分で検索できます。",
-        "ctaLink": "企業研修の方はこちら"
-      },
-      "developer": {
-        "title": "開発者",
-        "description": "OpenAI互換APIで自社サービスに動画AIを組み込む。既存のSDKでそのまま使えます。",
-        "ctaLink": "APIドキュメントを見る"
-      }
-    }
-  },
-  "seo": {
-    "app": {
-      "home": {
-        "title": "ホーム | VideoQ",
-        "description": "VideoQ のダッシュボードで、最近のアップロード、動画管理、グループ管理へのクイック操作を確認できます。"
-      },
-      "videos": {
-        "title": "動画ライブラリ | VideoQ",
-        "description": "VideoQ にアップロードした動画を一覧・検索・管理できます。"
-      },
-      "groups": {
-        "title": "グループ管理 | VideoQ",
-        "description": "AI チャットや共有学習フローに使う動画グループを作成・管理できます。"
-      },
-      "videoDetail": {
-        "description": "VideoQ の動画詳細画面で、動画、文字起こし、メタデータを確認できます。"
-      },
-      "groupDetail": {
-        "description": "VideoQ のグループ詳細画面で、動画一覧、再生、AI チャット連携を確認できます。"
-      },
-      "settings": {
-        "title": "設定 | VideoQ",
-        "description": "VideoQ のアカウント、API キー、各種連携設定を管理できます。"
-      }
-    },
-    "auth": {
-      "login": {
-        "title": "ログイン | VideoQ",
-        "description": "VideoQ にログインして、動画管理、AI による文字起こし検索、学習ワークスペースにアクセスできます。"
-      },
-      "checkEmail": {
-        "title": "メールをご確認ください | VideoQ",
-        "description": "受信メールを確認して、メールアドレス認証を完了し、VideoQ アカウント登録を完了してください。"
-      },
-      "signup": {
-        "title": "新規登録 | VideoQ",
-        "description": "VideoQ アカウントを作成して、動画をアップロードし、AI 文字起こしと検索可能な学習フローを始めましょう。"
-      },
-      "forgotPassword": {
-        "title": "パスワード再設定 | VideoQ",
-        "description": "VideoQ アカウントに再度アクセスするためのパスワード再設定メールを送信します。"
-      },
-      "resetPassword": {
-        "title": "新しいパスワードを設定 | VideoQ",
-        "description": "VideoQ アカウントに再度アクセスするため、新しいパスワードを設定します。"
-      },
-      "verifyEmail": {
-        "title": "メールアドレス認証 | VideoQ",
-        "description": "VideoQ アカウントを有効化するため、メールアドレス認証を行います。"
-      }
-    },
-    "shared": {
-      "description": "共有された VideoQ グループを開き、動画一覧と AI チャットを利用できます。"
-    },
-    "landing": {
-      "title": "教育・研修向け AI 動画学習サービス | VideoQ",
-      "description": "VideoQは教育・研修向けのAI動画学習サービスです。動画を登録すると自動文字起こしが行われ、内容を自然言語で検索・質問できます。"
-    },
-    "docs": {
-      "home": {
-        "title": "開発者ドキュメント | VideoQ",
-        "description": "VideoQ API リファレンス。認証、動画、チャット、OpenAI互換 API をまとめて確認できます。"
-      },
-      "sections": {
-        "auth": {
-          "title": "認証 API | VideoQ 開発者ドキュメント",
-          "description": "VideoQ の連携用 API キーを発行し、サーバー間認証で利用する方法。"
-        },
-        "videos": {
-          "title": "動画 API | VideoQ 開発者ドキュメント",
-          "description": "動画アップロード、処理状態の確認、動画グループ管理を行うための VideoQ API リファレンス。"
-        },
-        "chat": {
-          "title": "チャット API | VideoQ 開発者ドキュメント",
-          "description": "インデックス済み動画グループへの RAG チャット実行と分析取得のための VideoQ API リファレンス。"
-        },
-        "openai": {
-          "title": "OpenAI互換 API | VideoQ 開発者ドキュメント",
-          "description": "OpenAI SDK からそのまま使える VideoQ の OpenAI互換 API で動画 RAG チャットを実行できます。"
-        }
-      }
-    },
-    "terms": {
-      "title": "利用規約 | VideoQ",
-      "description": "VideoQ のアカウント、課金、禁止事項、免責事項などを定めた利用規約です。"
-    },
-    "privacy": {
-      "title": "プライバシーポリシー | VideoQ",
-      "description": "VideoQ が個人情報やアップロード動画をどのように収集・利用・保護するかを説明します。"
-    },
-    "faq": {
-      "title": "よくある質問 | VideoQ",
-      "description": "VideoQ のよくある質問。料金・機能・セキュリティ・API 連携などをまとめています。"
-    },
-    "commercialDisclosure": {
-      "title": "特定商取引法に基づく表記 | VideoQ",
-      "description": "VideoQ サービスにおける特定商取引法に基づく販売業者情報・返品ポリシー等の法定表示。"
-    }
-  },
-  "faq": {
-    "pageTitle": "よくある質問",
-    "subtitle": "VideoQ についてよくいただくご質問をまとめました",
-    "categories": {
-      "pricing": {
-        "title": "料金・プラン",
-        "items": {
-          "free": {
-            "question": "VideoQ は無料で使えますか？",
-            "answer": "はい。VideoQ は支払いなしでも利用できます。実際に使えるストレージ、文字起こし、AI 回答の上限は、アカウントごとに設定された制限値によって決まります。"
-          },
-          "paidPlan": {
-            "question": "有料プランはありますか？",
-            "answer": "はい。必要に応じて、より大きな利用上限をアカウント単位で設定できます。適用される制限値は、ユーザーに設定された各上限値によって直接決まります。"
-          }
-        }
-      },
-      "features": {
-        "title": "機能",
-        "items": {
-          "formats": {
-            "question": "対応している動画フォーマットは何ですか？",
-            "answer": "MP4・MOV・AVI・MKV・WebM・M4V・MPEG・MPG・3GP に対応しています。1 ファイルあたり最大 500 MB までアップロードできます。"
-          },
-          "accuracy": {
-            "question": "文字起こしの精度はどのくらいですか？",
-            "answer": "OpenAI の Whisper API（whisper-1 モデル）を使用し、タイムスタンプ付きのセグメント単位で文字起こしを行います。音声が明瞭であれば高精度な結果が得られます。"
-          },
-          "japanese": {
-            "question": "日本語の文字起こしに対応していますか？",
-            "answer": "はい。Whisper は日本語に対応しており、AI チャットの回答も日本語で行われるため、日本語環境で完全にご利用いただけます。"
-          },
-          "duration": {
-            "question": "動画の長さに制限はありますか？",
-            "answer": "動画の長さに直接的な上限はありません。実質的な制限は 1 ファイルあたりのサイズ上限（500 MB）と、プランごとの月間文字起こし時間（無料 10 分・Lite 120 分・Standard 600 分・Enterprise 無制限）です。"
-          }
-        }
-      },
-      "education": {
-        "title": "教育・企業利用",
-        "items": {
-          "school": {
-            "question": "学校・教育機関での利用はできますか？",
-            "answer": "はい。教員が授業動画をアップロードしてグループにまとめ、公開リンクで学生と共有できます。学生は VideoQ アカウントなしでトランスクリプトの閲覧や AI チャットを利用できます。"
-          },
-          "sharing": {
-            "question": "複数人で動画を共有できますか？",
-            "answer": "はい。動画グループはリンクで共有できます。リンクを持つ人であれば、VideoQ アカウントなしで動画の視聴・トランスクリプト閲覧・AI チャットが利用できます。"
-          },
-          "integration": {
-            "question": "企業の社内システムと連携できますか？",
-            "answer": "はい。VideoQ は REST API を提供しており、API キー（vq_ プレフィックス）で認証します。キーはアカウント設定から発行でき、読み取り専用またはフルアクセスのスコープを選択できます。"
-          }
-        }
-      },
-      "security": {
-        "title": "セキュリティ・プライバシー",
-        "items": {
-          "privacy": {
-            "question": "アップロードした動画は外部に公開されますか？",
-            "answer": "いいえ。アップロードした動画はデフォルトで非公開です。グループの共有リンクを発行した相手のみアクセスできます。"
-          },
-          "storage": {
-            "question": "データはどこに保存されますか？",
-            "answer": "動画ファイルは Cloudflare R2 に保存されます。メタデータ・トランスクリプト・チャット履歴はサーバーレス PostgreSQL の Neon に保存され、通信はすべて暗号化されています。"
-          }
-        }
-      },
-      "technical": {
-        "title": "技術・API",
-        "items": {
-          "api": {
-            "question": "API 連携はできますか？",
-            "answer": "はい。動画・グループ・タグ・チャットを操作できる REST API を提供しています。API キー（vq_ プレフィックス）はアカウント設定から発行でき、読み取り専用またはフルアクセスのスコープを選択できます。"
-          },
-          "llm": {
-            "question": "AI チャットはどのモデルを使用していますか？",
-            "answer": "AI チャットには OpenAI の GPT-4o-mini を、文字起こしには OpenAI Whisper を使用しています。"
-          }
-        }
-      }
-    }
-  },
   "plog": {
     "title": "学習グラフ",
     "subtitle": "学習モードで使う前提関係と誘導用の問いを、この動画から事前に作っておきます。",
     "build": "学習グラフを作成",
     "rebuild": "再構築",
-    "resetLearner": "学習進捗をリセット",
-    "resetLearnerConfirm": "この動画の学習モード進捗（到達概念・ヒント段など）をリセットしますか？会話ログは消えません。",
     "retry": "もう一度作成",
     "loading": "読み込み中...",
     "loadError": "学習グラフの情報を取得できませんでした。",
