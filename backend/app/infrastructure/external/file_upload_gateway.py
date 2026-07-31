@@ -14,6 +14,13 @@ from app.domain.video.gateways import FileUploadGateway
 logger = logging.getLogger(__name__)
 
 
+def create_file_upload_gateway() -> FileUploadGateway:
+    """Create the configured upload gateway at the infrastructure boundary."""
+    if settings.USE_S3_STORAGE:
+        return R2FileUploadGateway()
+    return LocalFileUploadGateway()
+
+
 class LocalFileUploadGateway(FileUploadGateway):
     """Local filesystem-backed file gateway for non-S3 environments."""
 

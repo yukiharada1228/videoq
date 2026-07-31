@@ -50,16 +50,11 @@ def get_vector_indexing_gateway():
 
 @lru_cache(maxsize=1)
 def get_file_upload_gateway():
-    import os
-
     from app.infrastructure.external.file_upload_gateway import (
-        LocalFileUploadGateway,
-        R2FileUploadGateway,
+        create_file_upload_gateway,
     )
 
-    if os.environ.get("USE_S3_STORAGE", "").lower() in ("true", "1", "yes"):
-        return R2FileUploadGateway()
-    return LocalFileUploadGateway()
+    return create_file_upload_gateway()
 
 
 @lru_cache(maxsize=1)

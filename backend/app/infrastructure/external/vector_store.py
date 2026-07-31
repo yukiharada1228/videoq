@@ -4,7 +4,6 @@ Moved from app/utils/vector_manager.py.
 """
 
 import logging
-import os
 import threading
 
 from django.conf import settings
@@ -62,10 +61,7 @@ class PGVectorManager:
         if cls._engine is None:
             with cls._engine_lock:
                 if cls._engine is None:
-                    db_url = os.getenv(
-                        "DATABASE_URL",
-                        "postgresql://postgres:postgres@postgres:5432/postgres",
-                    )
+                    db_url = settings.DATABASE_URL
                     # PGEngine requires postgresql+psycopg:// format
                     if db_url.startswith("postgresql://"):
                         db_url = db_url.replace(
@@ -81,16 +77,12 @@ class PGVectorManager:
     @classmethod
     def get_table_name(cls):
         """Get the vectorstore table name (= collection name)."""
-        return getattr(
-            settings,
-            "PGVECTOR_COLLECTION_NAME",
-            os.getenv("PGVECTOR_COLLECTION_NAME", "videoq_scenes"),
-        )
+        return settings.PGVECTOR_COLLECTION_NAME
 
     @classmethod
     def get_vector_size(cls):
         """Get the embedding vector dimension size."""
-        return getattr(settings, "EMBEDDING_VECTOR_SIZE", 1536)
+        return settings.EMBEDDING_VECTOR_SIZE
 
     @classmethod
     def ensure_table(cls):

@@ -139,6 +139,23 @@ class CreateEmbedderOpenAITests(SimpleTestCase):
             batch_size=16,
         )
 
+    @override_settings(OPENAI_API_KEY="server-key")
+    @patch("app.infrastructure.scene_otsu.embedders.OpenAIEmbedder")
+    def test_uses_server_key_when_explicit_key_is_missing(
+        self, mock_openai_embedder
+    ):
+        """Use the server key after per-user OpenAI keys were removed."""
+        from app.infrastructure.scene_otsu.embedders import create_embedder
+
+        create_embedder(api_key=None)
+
+        mock_openai_embedder.assert_called_once_with(
+            api_key="server-key",
+            model="text-embedding-3-small",
+            batch_size=16,
+        )
+
+    @override_settings(OPENAI_API_KEY="")
     def test_raises_without_api_key(self):
         """Test that ProviderConfigError is raised without API key"""
         from app.infrastructure.scene_otsu.embedders import create_embedder

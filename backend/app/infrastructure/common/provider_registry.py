@@ -49,13 +49,10 @@ def create_from_provider_registry[T](
 def resolve_openai_api_key(
     api_key: str | None = None,
     *,
-    allow_settings_fallback: bool = True,
     purpose: str = "OpenAI provider",
 ) -> str:
     """Resolve an OpenAI API key from an explicit value or Django settings."""
-    resolved_key = api_key
-    if not resolved_key and allow_settings_fallback:
-        resolved_key = getattr(settings, "OPENAI_API_KEY", None)
+    resolved_key = api_key or getattr(settings, "OPENAI_API_KEY", None)
 
     if not resolved_key:
         raise ProviderConfigError(
