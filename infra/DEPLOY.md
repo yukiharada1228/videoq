@@ -220,6 +220,9 @@ CI では `TF_VAR_pages_domain` / `TF_VAR_custom_domain` / `TF_VAR_certificate_a
 また `terraform init` の `-backend-config` 用に GitHub Secret **`TF_STATE_BUCKET`**
 (`videoq-terraform-state-<account>`) を登録しておくこと。
 
+CI ユーザー `videoq-github-actions-cd` に付与する IAM ポリシー (3 分割) は
+[`infra/iam/`](iam/README.md) を参照 (作成・アタッチ手順つき)。
+
 デプロイ完了後、以下の Output をメモしておく (`terraform output` で再表示可能):
 
 ```
