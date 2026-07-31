@@ -28,14 +28,14 @@ class GetLangchainLLMTests(SimpleTestCase):
         )
 
     @patch("app.infrastructure.external.llm.ChatOpenAI")
-    @override_settings(LLM_PROVIDER="openai", LLM_MODEL="gpt-4o")
+    @override_settings(LLM_PROVIDER="openai", LLM_MODEL="gpt-4o-mini")
     def test_get_langchain_llm_with_custom_model(self, mock_chat_openai):
         """Test get_langchain_llm with custom LLM model from environment"""
         llm = get_langchain_llm(api_key="test-api-key")
 
         self.assertIsNotNone(llm)
         mock_chat_openai.assert_called_once_with(
-            model="gpt-4o",
+            model="gpt-4o-mini",
             api_key=SecretStr("test-api-key"),
             temperature=0.0,
         )

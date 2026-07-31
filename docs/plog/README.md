@@ -45,8 +45,8 @@ Per turn:
 2. Prerequisite frontier / unmet redirect
 3. `Retrieve(L0, L1, t)` + learning object + withhold(Ahead)
 4. Opening turn served **statically** (no LLM)
-5. Else one generative nudge on the **large** model (`LLM_STUDY_MODEL`, default `gpt-4o`)
-6. Next turn: `GradeReply` on the **small** model (`LLM_GRADE_MODEL`, default `gpt-4o-mini`); advance hint ladder or next topo concept
+5. Else one generative nudge on `LLM_MODEL` (default `gpt-4o-mini`)
+6. Next turn: `GradeReply` on `LLM_MODEL` (short output budget); advance hint ladder or next topo concept
 
 ### Near-cost-neutral (§3.3)
 

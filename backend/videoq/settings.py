@@ -109,11 +109,9 @@ class DefaultSettings:
     )
     OLLAMA_BASE_URL = "http://host.docker.internal:11434"  # Ollama server URL
 
-    # LLM configuration (paper §3.3 model-tier: large study nudge / small grade)
+    # LLM configuration
     LLM_PROVIDER = "openai"  # openai or ollama
-    LLM_MODEL = "gpt-4o-mini"  # Default generative LLM (QA and general)
-    LLM_STUDY_MODEL = "gpt-4o"  # Large model for PLOG study nudge (§3.3)
-    LLM_GRADE_MODEL = "gpt-4o-mini"  # Small model for PLOG GradeReply
+    LLM_MODEL = "gpt-4o-mini"  # QA / PLOG study nudge / GradeReply すべて共通
 
     # Whisper configuration
     WHISPER_BACKEND = "openai"  # openai or whisper.cpp
@@ -641,8 +639,6 @@ EMBEDDING_VECTOR_SIZE = int(os.environ.get("EMBEDDING_VECTOR_SIZE", "1536"))
 # LLM configuration
 LLM_PROVIDER = os.environ.get("LLM_PROVIDER", DefaultSettings.LLM_PROVIDER).lower()
 LLM_MODEL = os.environ.get("LLM_MODEL", DefaultSettings.LLM_MODEL)
-LLM_STUDY_MODEL = os.environ.get("LLM_STUDY_MODEL", DefaultSettings.LLM_STUDY_MODEL)
-LLM_GRADE_MODEL = os.environ.get("LLM_GRADE_MODEL", DefaultSettings.LLM_GRADE_MODEL)
 
 # Whisper configuration
 WHISPER_BACKEND = os.environ.get(
