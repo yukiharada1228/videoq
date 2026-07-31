@@ -1,18 +1,21 @@
-# OpenAI プロジェクトのガバナンスを Terraform で管理する (openai/openai プロバイダ)。
-# 埋め込み / LLM / 文字起こしに使う OpenAI 組織プロジェクトの設定を IaC 化する。
+# Manage OpenAI project governance with Terraform (openai/openai provider).
+# Define the OpenAI organization project used for embeddings, LLMs, and
+# transcription as infrastructure as code.
 #
-# 注意: このプロバイダは API キーを管理できない。ランタイムの OPENAI_API_KEY は
-# 従来どおりダッシュボードで手動発行し、app シークレット (secrets.tf) に手動保存する。
+# Note: This provider cannot manage API keys. Continue issuing the runtime
+# OPENAI_API_KEY manually from the dashboard and saving it in the app secret
+# (secrets.tf).
 #
-# var.manage_openai_project = false (デフォルト) の間は全リソース count=0 なので
-# OPENAI_ADMIN_KEY 無しで plan/apply できる。true にして Admin キーを export すると有効化。
+# While var.manage_openai_project is false (the default), every resource has
+# count=0, so plan/apply works without OPENAI_ADMIN_KEY. Set the variable to true
+# and export the admin key to enable management.
 
 resource "openai_project" "videoq" {
   count = var.manage_openai_project ? 1 : 0
   name  = "${local.name_prefix}-${var.env_name}"
 }
 
-# videoq が実際に呼ぶモデルだけに制限する (コストガードレール)。
+# Limit access to models that VideoQ actually calls as a cost guardrail.
 resource "openai_project_model_permissions" "videoq" {
   count      = var.manage_openai_project ? 1 : 0
   project_id = openai_project.videoq[0].project_id
@@ -20,9 +23,10 @@ resource "openai_project_model_permissions" "videoq" {
   model_ids  = var.openai_allowed_models
 }
 
-# 月次スペンドがしきい値を超えたらメール通知する (予算ガードレール)。
-# 注意: threshold_amount は最小通貨単位 (USD=セント) で渡す。実測でも 50→$0.50 を確認。
-#       currency = "USD" 固定なので USD=100セント (定義) に従い var(USD)*100 を渡す。
+# Send an email when monthly spend exceeds the threshold as a budget guardrail.
+# Note: threshold_amount uses the smallest currency unit (cents for USD); testing
+# confirmed that 50 means $0.50. Because currency is fixed to USD, pass
+# var (in dollars) * 100 according to the definition of 100 cents per dollar.
 resource "openai_project_spend_alert" "videoq" {
   count                           = var.manage_openai_project && var.openai_spend_alert_email != "" ? 1 : 0
   project_id                      = openai_project.videoq[0].project_id

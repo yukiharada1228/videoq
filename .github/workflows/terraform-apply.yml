@@ -53,7 +53,7 @@ jobs:
           TF_VAR_pages_domain: ${{ secrets.PAGES_DOMAIN }}
           TF_VAR_custom_domain: ${{ secrets.CUSTOM_DOMAIN }}
           TF_VAR_certificate_arn: ${{ secrets.CERTIFICATE_ARN }}
-          # OpenAI プロジェクト管理 (openai/openai プロバイダ) 用
+          # Used to manage OpenAI projects with the openai/openai provider.
           OPENAI_ADMIN_KEY: ${{ secrets.OPENAI_ADMIN_KEY }}
           TF_VAR_openai_spend_alert_email: ${{ secrets.OPENAI_SPEND_ALERT_EMAIL }}
         run: terraform apply -auto-approve -input=false

@@ -1,15 +1,15 @@
-# ── Worker Lambda (SQS トリガー) ─────────────────────────────────────────────
-# Lambda Runtime Interface Client (awslambdaric) が標準搭載されている
-# public.ecr.aws/lambda/python:3.12 ベースイメージを使用。
-# Celery ワーカーは起動せず、lambda_handler.py が SQS メッセージを
-# 直接タスク関数にディスパッチする。
+# ── Worker Lambda (SQS trigger) ──────────────────────────────────────────────
+# Use the public.ecr.aws/lambda/python:3.12 base image, which includes the
+# Lambda Runtime Interface Client (awslambdaric).
+# Instead of starting a Celery worker, lambda_handler.py dispatches SQS messages
+# directly to task functions.
 FROM public.ecr.aws/lambda/python:3.12
 
 ARG APP_HOME=/var/task
 ENV NLTK_DATA=/usr/local/nltk_data
 WORKDIR ${APP_HOME}
 
-# ffmpeg: AL2023 最小イメージには tar/xz が未インストールのため先にインストール
+# ffmpeg: Install tar/xz first because the minimal AL2023 image omits them.
 RUN dnf install -y tar xz && dnf clean all
 
 RUN curl -fsSL \
@@ -29,5 +29,5 @@ RUN python -m nltk.downloader -e -d "${NLTK_DATA}" \
 
 COPY . .
 
-# Lambda ハンドラー: lambda_handler.py の handler 関数
+# Lambda handler: the handler function in lambda_handler.py.
 CMD ["lambda_handler.handler"]

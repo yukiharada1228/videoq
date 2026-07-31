@@ -5,5 +5,5 @@
 crash.log
 crash.*.log
 
-# backend config (アカウント ID 入り bucket 名。example のみコミット)
+# Backend config (bucket includes the account ID; commit only the example).
 backend.hcl

@@ -38,7 +38,7 @@ class _FakeStorage:
 
 
 class _TrackingStorage:
-    """ファイルシステムアクセスの呼び出しを追跡するストレージ。"""
+    """Storage test double that tracks file-system access calls."""
 
     def __init__(self):
         self.exists_called = False
@@ -90,7 +90,7 @@ class ResolveProtectedMediaUseCaseTests(unittest.TestCase):
             )
 
     def test_dotdot_path_raises_not_found_without_filesystem_access(self):
-        """../secret のようなパスはストレージを呼び出す前に拒否する。"""
+        """Reject a path such as ../secret before calling storage."""
         storage = _TrackingStorage()
         use_case = ResolveProtectedMediaUseCase(
             media_repo=_FakeMediaRepo(),
@@ -106,7 +106,7 @@ class ResolveProtectedMediaUseCaseTests(unittest.TestCase):
         self.assertFalse(storage.open_called, "open() must not be called for traversal paths")
 
     def test_double_dotdot_to_etc_passwd_raises_not_found_without_filesystem_access(self):
-        """../../etc/passwd のようなパスはストレージを呼び出す前に拒否する。"""
+        """Reject a path such as ../../etc/passwd before calling storage."""
         storage = _TrackingStorage()
         use_case = ResolveProtectedMediaUseCase(
             media_repo=_FakeMediaRepo(),
@@ -122,7 +122,7 @@ class ResolveProtectedMediaUseCaseTests(unittest.TestCase):
         self.assertFalse(storage.open_called)
 
     def test_absolute_path_raises_not_found_without_filesystem_access(self):
-        """/etc/passwd のような絶対パスはストレージを呼び出す前に拒否する。"""
+        """Reject an absolute path such as /etc/passwd before calling storage."""
         storage = _TrackingStorage()
         use_case = ResolveProtectedMediaUseCase(
             media_repo=_FakeMediaRepo(),
@@ -138,7 +138,7 @@ class ResolveProtectedMediaUseCaseTests(unittest.TestCase):
         self.assertFalse(storage.open_called)
 
     def test_embedded_dotdot_raises_not_found_without_filesystem_access(self):
-        """videos/../../../etc/passwd のようなパスも拒否する。"""
+        """Also reject a path such as videos/../../../etc/passwd."""
         storage = _TrackingStorage()
         use_case = ResolveProtectedMediaUseCase(
             media_repo=_FakeMediaRepo(),

@@ -1,10 +1,11 @@
 """
-Lambda Web Adapter 用ヘルスチェックエンドポイント。
+Health-check endpoint for Lambda Web Adapter.
 
-AWS_LWA_READINESS_CHECK_PATH=/api/health/ として設定することで、
-LWA は Gunicorn の起動完了を確認してからリクエストの転送を開始する。
+Setting AWS_LWA_READINESS_CHECK_PATH=/api/health/ makes LWA wait for Gunicorn to
+finish starting before it begins forwarding requests.
 
-認証不要・DB アクセスなし。WSGI アプリが応答できるかのみ確認。
+No authentication or database access is required. This endpoint only verifies
+that the WSGI application can respond.
 """
 from typing import Any, ClassVar
 

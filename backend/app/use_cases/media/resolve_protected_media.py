@@ -26,7 +26,7 @@ class ResolveProtectedMediaOutput:
 
 
 def _is_safe_path(path: str) -> bool:
-    """絶対パスや .. を含むパスを拒否する。"""
+    """Reject absolute paths and paths containing ``..`` components."""
     if os.path.isabs(path):
         return False
     return ".." not in Path(path).parts
@@ -60,7 +60,7 @@ class ResolveProtectedMediaUseCase:
         self.media_storage = media_storage
 
     def execute(self, input: ResolveProtectedMediaInput) -> ResolveProtectedMediaOutput:
-        # 1. パス検証 — ファイルシステムアクセスより前に実行する
+        # 1. Validate the path before accessing the file system.
         if not _is_safe_path(input.path):
             raise ResourceNotFound("Media")
 
@@ -69,7 +69,7 @@ class ResolveProtectedMediaUseCase:
         if video_id is None:
             raise ResourceNotFound("Media")
 
-        # 3. 認可チェック
+        # 3. Check authorization.
         if input.group_id is not None:
             if not self.media_repo.is_video_in_group(video_id, input.group_id):
                 raise ResourceNotFound("Media")
@@ -79,7 +79,7 @@ class ResolveProtectedMediaUseCase:
         else:
             raise ResourceNotFound("Media")
 
-        # 4. ファイル存在確認 — 認可後に実行
+        # 4. Check file existence only after authorization.
         if not self.media_storage.exists(input.path):
             raise ResourceNotFound("Media")
 

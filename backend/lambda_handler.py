@@ -1,9 +1,9 @@
 """
-AWS Lambda ハンドラー: SQS トリガーによる Celery タスク実行
+AWS Lambda handler for executing Celery tasks triggered by SQS.
 
-kombu SQS transport はメッセージ本体全体を base64 エンコードして SQS body に格納する。
-Lambda SQS トリガーが渡す record["body"] は base64 文字列であり、
-デコードすると以下の JSON になる:
+The kombu SQS transport base64-encodes the entire message and stores it in the
+SQS body. The record["body"] value supplied by the Lambda SQS trigger is a
+base64 string that decodes to the following JSON:
 
 {
   "body": "<base64(json([args, kwargs, options]))>",
@@ -16,8 +16,9 @@ Lambda SQS トリガーが渡す record["body"] は base64 文字列であり、
   "content-encoding": "utf-8"
 }
 
-Celery ワーカープロセスを起動せず、タスク関数を直接 apply() で同期実行する。
-失敗したメッセージは batchItemFailures で返し SQS DLQ へ転送する。
+Rather than starting a Celery worker process, this handler invokes the task
+function directly and synchronously with apply(). Failed messages are returned
+in batchItemFailures so that SQS can route them to the DLQ.
 """
 import base64
 import json
@@ -30,21 +31,21 @@ import django
 
 django.setup()
 
-# すべてのタスクを Celery レジストリに登録
+# Register every task with the Celery registry.
 from app.celery_config import app as celery_app  # noqa: E402
-celery_app.loader.import_default_modules()  # 遅延 autodiscover を強制実行
-import app.entrypoints.tasks  # noqa: E402, F401 — タスク登録を確実にする
+celery_app.loader.import_default_modules()  # Force deferred autodiscovery.
+import app.entrypoints.tasks  # noqa: E402, F401 — Ensure task registration.
 
 logger = logging.getLogger(__name__)
 
 
 def handler(event: dict, context: object) -> dict:
     """
-    SQS バッチメッセージを処理するエントリポイント。
+    Process a batch of SQS messages.
 
     Returns:
-        batchItemFailures 形式のレスポンス。
-        失敗したメッセージのみ DLQ へ転送され、成功分は削除される。
+        A response in batchItemFailures format. Only failed messages are sent
+        to the DLQ; successful messages are deleted.
     """
     batch_item_failures = []
 
@@ -62,16 +63,17 @@ def handler(event: dict, context: object) -> dict:
 
 def _execute_task(raw_body: str) -> None:
     """
-    SQS メッセージ本体をデコードして Celery タスクを同期実行する。
+    Decode an SQS message body and execute the Celery task synchronously.
 
-    kombu SQS transport はメッセージ全体を base64 エンコードして送信する。
-    raw_body が JSON として直接パースできない場合、base64 デコードを試みる。
+    The kombu SQS transport base64-encodes the entire message before sending it.
+    If raw_body cannot be parsed directly as JSON, attempt base64 decoding.
 
     Raises:
-        KeyError: 未登録のタスク名
-        Exception: タスク実行中の例外 (batchItemFailures 経由で DLQ へ)
+        KeyError: The task name is not registered.
+        Exception: Task execution failed. The message is sent to the DLQ via
+            batchItemFailures.
     """
-    # kombu SQS transport は base64 エンコードする
+    # The kombu SQS transport uses base64 encoding.
     try:
         sqs_payload = json.loads(raw_body)
     except (json.JSONDecodeError, ValueError):
@@ -80,7 +82,7 @@ def _execute_task(raw_body: str) -> None:
     task_name: str = sqs_payload["headers"]["task"]
     task_id: str = sqs_payload["headers"].get("id", "unknown")
 
-    # base64 デコード → JSON パース → [args, kwargs, embed]
+    # Decode base64, parse JSON, and unpack [args, kwargs, embed].
     decoded = base64.b64decode(sqs_payload["body"]).decode("utf-8")
     args, kwargs, _ = json.loads(decoded)
 
@@ -90,7 +92,7 @@ def _execute_task(raw_body: str) -> None:
     )
 
     task = celery_app.tasks[task_name]
-    # apply() は同期実行。Lambda 内では Celery ワーカーループ不要。
-    # throw=True にすることで例外が呼び出し元に伝播し DLQ 転送が機能する。
+    # apply() runs synchronously, so Lambda does not need a Celery worker loop.
+    # throw=True propagates exceptions to the caller, enabling DLQ routing.
     result = task.apply(args=args, kwargs=kwargs, task_id=task_id, throw=True)
     result.get(propagate=True)

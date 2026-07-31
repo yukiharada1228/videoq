@@ -1,6 +1,6 @@
 """TDD tests for GET /chat/history/?download=csv endpoint.
 
-Issue #459: /export/ エンドポイントをクエリパラメータに変更する
+Issue #459: Replace the /export/ endpoint with a query parameter.
 - GET /api/chat/history/?download=csv&group_id=1 → CSV response
 - GET /api/chat/history/?group_id=1              → JSON response (unchanged)
 """

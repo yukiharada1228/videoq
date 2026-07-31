@@ -19,10 +19,10 @@ from typing import ClassVar
 import dj_database_url
 from django.core.exceptions import ImproperlyConfigured
 
-# ── AWS Secrets Manager サポート ─────────────────────────────────────────────
-# Lambda 環境では DB_SECRET_ARN / APP_SECRET_ARN を環境変数で渡す。
-# settings モジュール読み込み時に 1 度だけ取得し、環境変数に展開する。
-# (Lambda コンテナは再利用されるため実質的にキャッシュされる)
+# ── AWS Secrets Manager support ──────────────────────────────────────────────
+# Pass DB_SECRET_ARN / APP_SECRET_ARN as environment variables in Lambda.
+# Fetch each secret once when the settings module loads and expose its values as
+# environment variables. Lambda container reuse effectively caches the result.
 
 def _load_aws_secret(secret_arn: str) -> dict:
     import boto3
@@ -36,10 +36,11 @@ _db_secret_arn = os.environ.get("DB_SECRET_ARN")
 if _db_secret_arn:
     _db = _load_aws_secret(_db_secret_arn)
     if "DATABASE_URL" in _db:
-        # Neon 形式: {"DATABASE_URL": "postgresql://...@neon.tech/...?sslmode=require"}
+        # Neon format: {"DATABASE_URL": "postgresql://...@neon.tech/...?sslmode=require"}
         os.environ.setdefault("DATABASE_URL", _db["DATABASE_URL"])
     else:
-        # RDS 管理シークレット形式 (後方互換): username / password / host / port / dbname
+        # RDS managed-secret format (backward compatible):
+        # username / password / host / port / dbname
         os.environ.setdefault(
             "DATABASE_URL",
             "postgresql://{username}:{password}@{host}:{port}/{dbname}".format(
@@ -57,7 +58,7 @@ if _app_secret_arn:
     _app_secrets = _load_aws_secret(_app_secret_arn)
     for _k, _v in _app_secrets.items():
         os.environ.setdefault(_k, str(_v))
-# ── END: AWS Secrets Manager サポート ────────────────────────────────────────
+# ── End AWS Secrets Manager support ──────────────────────────────────────────
 
 
 class DefaultSettings:
@@ -111,7 +112,7 @@ class DefaultSettings:
 
     # LLM configuration
     LLM_PROVIDER = "openai"  # openai or ollama
-    LLM_MODEL = "gpt-4o-mini"  # QA / PLOG study nudge / GradeReply すべて共通
+    LLM_MODEL = "gpt-4o-mini"  # Shared by QA, PLOG study nudges, and GradeReply.
 
     # Whisper configuration
     WHISPER_BACKEND = "openai"  # openai or whisper.cpp
@@ -252,8 +253,8 @@ DATABASE_URL = os.environ.get("DATABASE_URL", DefaultSettings.DATABASE_URL)
 DATABASES = {"default": dj_database_url.parse(DATABASE_URL)}
 
 # Cache configuration
-# USE_DATABASE_CACHE=true の場合は DatabaseCache (Aurora) を使用。
-# Redis が不要になるため Lambda 環境でのコスト削減に有効。
+# Use DatabaseCache (Aurora) when USE_DATABASE_CACHE=true.
+# This removes the Redis dependency and reduces costs in Lambda environments.
 _use_database_cache = (
     os.environ.get("USE_DATABASE_CACHE", "false").lower() == "true"
 )
@@ -450,8 +451,8 @@ CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = "America/Chicago"
 CELERY_TASK_TRACK_STARTED = True
-# Lambda 環境では CELERY_TASK_TIME_LIMIT を 840s (14 分) に設定する。
-# (Lambda 最大タイムアウト 900s より短くしないとタスクが強制終了される)
+# Set CELERY_TASK_TIME_LIMIT to 840 seconds (14 minutes) in Lambda environments.
+# Keep it below Lambda's 900-second maximum to avoid forced termination.
 CELERY_TASK_TIME_LIMIT = int(
     os.environ.get("CELERY_TASK_TIME_LIMIT", str(30 * 60))
 )
@@ -459,7 +460,7 @@ CELERY_TASK_SOFT_TIME_LIMIT = int(
     os.environ.get("CELERY_TASK_SOFT_TIME_LIMIT", str(25 * 60))
 )
 
-# SQS ブローカー固有設定 (CELERY_BROKER_URL=sqs:// のときのみ有効)
+# SQS-specific broker settings (active only when CELERY_BROKER_URL=sqs://).
 if CELERY_BROKER_URL.startswith("sqs://"):
     _sqs_queue_name = os.environ.get("SQS_QUEUE_NAME", "videoq-worker")
     CELERY_TASK_DEFAULT_QUEUE = _sqs_queue_name
@@ -470,12 +471,12 @@ if CELERY_BROKER_URL.startswith("sqs://"):
                 "url": os.environ.get("SQS_QUEUE_URL", ""),
             }
         },
-        # visibility_timeout は Lambda タイムアウト以上に設定すること
+        # Keep visibility_timeout greater than or equal to the Lambda timeout.
         "visibility_timeout": int(
             os.environ.get("CELERY_TASK_TIME_LIMIT", "840")
         ) + 60,
     }
-    # SQS 環境ではリザルトバックエンド不要 (タスクは DB の状態を直接更新)
+    # SQS needs no result backend because tasks update database state directly.
     CELERY_RESULT_BACKEND = None
 
 # Feature flags
@@ -484,8 +485,8 @@ ENABLE_SIGNUP = os.environ.get("ENABLE_SIGNUP", "true").lower() == "true"
 # Security profile: enforce secure defaults for production deployments.
 
 SECURE_COOKIES = IS_PRODUCTION
-# Lambda + API Gateway 環境では API Gateway が TLS 終端するため、
-# ヘルスチェック (LWA 内部 HTTP) がリダイレクトされないよう除外する。
+# API Gateway terminates TLS in Lambda deployments. Exempt the LWA internal
+# HTTP health check from redirects.
 SECURE_SSL_REDIRECT = IS_PRODUCTION
 SECURE_REDIRECT_EXEMPT = [r"^api/health/$"]
 SECURE_PROXY_SSL_HEADER = (

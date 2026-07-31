@@ -1,74 +1,76 @@
-# VideoQ Terraform 変数サンプル
+# Sample VideoQ Terraform variables
 #
-# 使い方:
+# Usage:
 #   cp terraform.tfvars.example terraform.tfvars
-#   # 値を環境に合わせて編集してから `terraform plan` / `terraform apply` を実行
+#   # Adjust values for the environment, then run `terraform plan` / `terraform apply`.
 #
-# terraform.tfvars は .gitignore で除外されている (このサンプルのみコミットされる)。
-# 値は TF_VAR_<name> 環境変数でも指定可能 (CI ではこちらを使用)。
+# terraform.tfvars is excluded by .gitignore; only this example is committed.
+# Values can also be supplied through TF_VAR_<name> environment variables, as in CI.
 #
-# 注意: シークレット (DB 接続文字列・SECRET_KEY・R2 認証情報など) は
-#       Terraform では管理しない。apply 後に AWS CLI で Secrets Manager へ登録する
-#       (DEPLOY.md の「シークレットを登録」を参照)。
+# Note: Do not manage secrets such as the DB connection string, SECRET_KEY, or R2
+#       credentials with Terraform. After applying, register them in Secrets
+#       Manager with the AWS CLI (see "Register secrets" in DEPLOY.md).
 
-# --- 基本設定 -------------------------------------------------------------
+# --- Basic settings ----------------------------------------------------------
 
-# リソースをデプロイする AWS リージョン
+# AWS region in which to deploy resources.
 aws_region = "ap-northeast-1"
 
-# 環境名 (全リソースの命名に使用: videoq-*-<env_name>)
+# Environment name used to name every resource: videoq-*-<env_name>.
 env_name = "prod"
 
-# Lambda が参照する ECR コンテナイメージのタグ
-# (通常はイメージを push した後に latest のまま運用)
+# ECR container image tag referenced by Lambda.
+# It normally remains "latest" after the image is pushed.
 image_tag = "latest"
 
-# --- ドメイン / CDN 設定 --------------------------------------------------
-# custom_domain と certificate_arn の両方を設定した場合のみ CloudFront が有効化される。
-# 空文字のままだとローカル開発用の CORS 設定 (localhost) になる。
+# --- Domain / CDN settings ---------------------------------------------------
+# CloudFront is enabled only when both custom_domain and certificate_arn are set.
+# Leaving them empty retains the localhost CORS settings used for local development.
 
-# Cloudflare Pages ドメイン (CORS 許可リストに追加。未使用なら "")
+# Cloudflare Pages domain added to the CORS allowlist. Use "" when unused.
 pages_domain = "videoq.pages.dev"
 
-# CloudFront カスタムドメイン (例: videoq.jp。未使用なら "")
+# CloudFront custom domain, for example videoq.jp. Use "" when unused.
 custom_domain = "videoq.jp"
 
-# ACM 証明書 ARN (CloudFront 用のため us-east-1 で作成必須。未使用なら "")
+# ACM certificate ARN. It must be created in us-east-1 for CloudFront. Use "" when unused.
 certificate_arn = "arn:aws:acm:us-east-1:123456789012:certificate/00000000-0000-0000-0000-000000000000"
 
-# --- Lambda チューニング --------------------------------------------------
+# --- Lambda tuning -----------------------------------------------------------
 
-# API Lambda のメモリサイズ (MB)
+# API Lambda memory size in MB.
 api_lambda_memory_mb = 1024
 
-# API Lambda のタイムアウト (秒)
+# API Lambda timeout in seconds.
 api_lambda_timeout_seconds = 30
 
-# Worker Lambda のメモリサイズ (MB) (ffmpeg + AI 推論でメモリを多く使う)
+# Worker Lambda memory size in MB; ffmpeg and AI inference are memory intensive.
 worker_lambda_memory_mb = 5120
 
-# Worker Lambda のタイムアウト (秒) (Lambda 最大 15 分 = 900)
+# Worker Lambda timeout in seconds. Lambda's 15-minute maximum is 900 seconds.
 worker_lambda_timeout_seconds = 900
 
-# --- SQS 設定 -------------------------------------------------------------
+# --- SQS settings ------------------------------------------------------------
 
-# SQS の visibility timeout (秒)
-# worker_lambda_timeout_seconds 以上に設定すること (推奨: timeout + 60)
+# SQS visibility timeout in seconds.
+# Keep this at or above worker_lambda_timeout_seconds; timeout + 60 is recommended.
 sqs_visibility_timeout_seconds = 960
 
-# メッセージ最大受信回数 (超過で DLQ へ送信)
+# Maximum message receive count before routing to the DLQ.
 sqs_max_receive_count = 3
 
-# --- OpenAI プロジェクト管理 ----------------------------------------------
-# OpenAI 組織プロジェクトのガバナンス (許可モデル / スペンドアラート) を Terraform で管理する。
-# デフォルトで有効 (manage_openai_project = true)。apply の前に Admin API キーを
-# 環境変数 OPENAI_ADMIN_KEY (必要なら OPENAI_ORG_ID) に export しておくこと。
-# CI では GitHub Secret OPENAI_ADMIN_KEY / OPENAI_SPEND_ALERT_EMAIL から渡す (DEPLOY.md 参照)。
-# 注意: このプロバイダはランタイムの OPENAI_API_KEY を管理しない。実行用キーは
-#       従来どおりダッシュボードで手動発行し、Secrets Manager の app シークレットへ手動保存する。
+# --- OpenAI project management -----------------------------------------------
+# Manage OpenAI organization project governance, including allowed models and
+# spend alerts, with Terraform. Management is enabled by default through
+# manage_openai_project=true. Before applying, export the admin API key as
+# OPENAI_ADMIN_KEY and, if needed, OPENAI_ORG_ID. CI reads OPENAI_ADMIN_KEY and
+# OPENAI_SPEND_ALERT_EMAIL from GitHub Secrets; see DEPLOY.md.
+# Note: The provider does not manage the runtime OPENAI_API_KEY. Continue issuing
+#       that key manually from the dashboard and saving it in the Secrets Manager
+#       app secret.
 #
-# ローカル apply 時に上書きする場合の例:
+# Example overrides for a local apply:
 # openai_spend_alert_email   = "ops@example.com"
 # openai_spend_threshold_usd = 50
 # openai_allowed_models = ["text-embedding-3-small", "gpt-4o-mini", "whisper-1"]
-# manage_openai_project = false  # 一時的に無効化したいときのみ
+# manage_openai_project = false  # Use only to disable management temporarily.
