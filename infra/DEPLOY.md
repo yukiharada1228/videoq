@@ -218,6 +218,45 @@ aws secretsmanager put-secret-value \
 
 ---
 
+## (任意) OpenAI プロジェクト管理
+
+埋め込み / LLM / 文字起こしに使う OpenAI 組織プロジェクトのガバナンス
+(許可モデルの制限・月次スペンドアラート) を Terraform で管理できる
+(`infra/openai.tf`、`openai/openai` プロバイダ使用)。
+
+デフォルト (`manage_openai_project = false`) では全リソースが `count = 0` なので、
+Admin キー無しで `terraform plan` / `apply` が通る。有効化する場合のみ設定する。
+
+> **重要:** このプロバイダは **ランタイムの `OPENAI_API_KEY` を管理しない**。
+> アプリが実行時に使う API キーは従来どおりダッシュボードで手動発行し、
+> Secrets Manager の app シークレットへ手動保存する (Step 4 参照)。
+> Terraform が管理するのはプロジェクト設定 (許可モデル・スペンドアラート) のみ。
+
+有効化手順:
+
+1. OpenAI ダッシュボードで **Admin API キー** を発行する。
+2. apply の前に環境変数へ export する:
+
+   ```bash
+   export OPENAI_ADMIN_KEY=sk-admin-...
+   # 組織が複数ある場合は OPENAI_ORG_ID も指定
+   export OPENAI_ORG_ID=org-...
+   ```
+
+3. `terraform.tfvars` (または `TF_VAR_*`) で有効化する:
+
+   ```hcl
+   manage_openai_project      = true
+   openai_spend_alert_email   = "ops@example.com"
+   openai_spend_threshold_usd = 50
+   # openai_allowed_models は videoq が使うモデルで既定値済み
+   ```
+
+4. `terraform apply` を実行する。作成された OpenAI プロジェクト ID は
+   `terraform output openai_project_id` で確認できる。
+
+---
+
 ## Step 5: コンテナイメージをビルド & プッシュ
 
 ```bash

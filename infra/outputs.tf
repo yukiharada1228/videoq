@@ -32,3 +32,8 @@ output "distribution_id" {
   description = "CloudFront ディストリビューション ID"
   value       = try(aws_cloudfront_distribution.this[0].id, null)
 }
+
+output "openai_project_id" {
+  description = "Terraform 管理下の OpenAI プロジェクト ID (未管理なら null)"
+  value       = try(openai_project.videoq[0].project_id, null)
+}
