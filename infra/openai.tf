@@ -21,10 +21,12 @@ resource "openai_project_model_permissions" "videoq" {
 }
 
 # 月次スペンドがしきい値を超えたらメール通知する (予算ガードレール)。
+# 注意: threshold_amount は最小通貨単位 (USD=セント) で渡す。実測でも 50→$0.50 を確認。
+#       currency = "USD" 固定なので USD=100セント (定義) に従い var(USD)*100 を渡す。
 resource "openai_project_spend_alert" "videoq" {
   count                           = var.manage_openai_project && var.openai_spend_alert_email != "" ? 1 : 0
   project_id                      = openai_project.videoq[0].project_id
-  threshold_amount                = var.openai_spend_threshold_usd
+  threshold_amount                = var.openai_spend_threshold_usd * 100
   currency                        = "USD"
   interval                        = "month"
   notification_channel_type       = "email"
