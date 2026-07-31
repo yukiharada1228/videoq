@@ -93,7 +93,6 @@ def create_embedder(
 def _create_openai_embedder(api_key: Optional[str], batch_size: int) -> BaseEmbedder:
     resolved_key = resolve_openai_api_key(
         api_key,
-        allow_settings_fallback=False,
         purpose="OpenAI embeddings",
     )
     return OpenAIEmbedder(
