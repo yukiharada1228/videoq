@@ -49,9 +49,14 @@ resource "aws_lambda_function" "api" {
 
   environment {
     variables = merge(local.common_lambda_environment, {
-      ALLOWED_HOSTS                          = ".execute-api.${var.aws_region}.amazonaws.com,localhost"
+      ALLOWED_HOSTS = join(",", compact([
+        var.custom_domain,
+        ".execute-api.${var.aws_region}.amazonaws.com",
+        "localhost",
+      ]))
       CORS_ALLOWED_ORIGINS                   = local.cors_origins
       OAUTH2_PROVIDER_ISSUER_URL             = local.frontend_url
+      USE_X_FORWARDED_HOST                   = local.enable_cdn ? "true" : "false"
       PORT                                   = "8000"
       AWS_LWA_READINESS_CHECK_PATH           = "/api/health/"
       AWS_LWA_READINESS_CHECK_HEALTHY_STATUS = "100-499"

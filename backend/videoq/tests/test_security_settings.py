@@ -15,6 +15,7 @@ class SecuritySettingsTests(unittest.TestCase):
         "SECURE_HSTS_INCLUDE_SUBDOMAINS",
         "SECURE_HSTS_PRELOAD",
         "SECURE_PROXY_SSL_HEADER",
+        "USE_X_FORWARDED_HOST",
         "SECRET_KEY",
     )
 
@@ -54,6 +55,16 @@ class SecuritySettingsTests(unittest.TestCase):
         self.assertEqual(
             settings.SECURE_PROXY_SSL_HEADER, ("HTTP_X_FORWARDED_PROTO", "https")
         )
+        self.assertFalse(settings.USE_X_FORWARDED_HOST)
+
+    def test_forwarded_host_can_be_enabled_for_a_trusted_proxy(self):
+        settings = self._load_settings(
+            DJANGO_ENV="production",
+            SECRET_KEY="test-production-secret-key",
+            USE_X_FORWARDED_HOST="true",
+        )
+
+        self.assertTrue(settings.USE_X_FORWARDED_HOST)
 
     def test_development_defaults_keep_hardening_disabled(self):
         settings = self._load_settings(DJANGO_ENV="development")
