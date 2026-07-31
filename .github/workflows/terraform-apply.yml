@@ -1,4 +1,4 @@
-name: CDK Deploy
+name: Terraform Apply
 
 # Trigger directly on push to main with a path filter rather than chaining
 # off the CI workflow_run. workflow_run + dorny/paths-filter silently
@@ -12,21 +12,24 @@ on:
       - main
     paths:
       - 'infra/**'
-      - '.github/workflows/cdk-deploy.yml'
+      - '.github/workflows/terraform-apply.yml'
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: cdk-deploy
+  group: terraform-apply
   cancel-in-progress: false
 
 jobs:
-  cdk-deploy:
-    name: CDK Deploy (production)
+  terraform-apply:
+    name: Terraform Apply (production)
     runs-on: ubuntu-latest
     environment: production
+    defaults:
+      run:
+        working-directory: infra
     steps:
       - uses: actions/checkout@v4
 
@@ -37,30 +40,17 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - uses: actions/setup-node@v4
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
         with:
-          node-version: "20"
+          terraform_wrapper: false
 
-      - name: Install AWS CDK CLI
-        run: npm install -g aws-cdk
+      - name: Terraform init
+        run: terraform init -input=false -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}"
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install CDK dependencies
-        working-directory: infra
-        run: |
-          python -m venv .venv
-          source .venv/bin/activate
-          pip install -r requirements.txt
-
-      - name: Run cdk deploy
-        working-directory: infra
+      - name: Terraform apply
         env:
-          PAGES_DOMAIN: ${{ secrets.PAGES_DOMAIN }}
-          CUSTOM_DOMAIN: ${{ secrets.CUSTOM_DOMAIN }}
-          CERTIFICATE_ARN: ${{ secrets.CERTIFICATE_ARN }}
-        run: |
-          source .venv/bin/activate
-          cdk deploy --all -c env=prod --require-approval never
+          TF_VAR_pages_domain: ${{ secrets.PAGES_DOMAIN }}
+          TF_VAR_custom_domain: ${{ secrets.CUSTOM_DOMAIN }}
+          TF_VAR_certificate_arn: ${{ secrets.CERTIFICATE_ARN }}
+        run: terraform apply -auto-approve -input=false

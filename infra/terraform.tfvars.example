@@ -1,0 +1,60 @@
+# VideoQ Terraform 変数サンプル
+#
+# 使い方:
+#   cp terraform.tfvars.example terraform.tfvars
+#   # 値を環境に合わせて編集してから `terraform plan` / `terraform apply` を実行
+#
+# terraform.tfvars は .gitignore で除外されている (このサンプルのみコミットされる)。
+# 値は TF_VAR_<name> 環境変数でも指定可能 (CI ではこちらを使用)。
+#
+# 注意: シークレット (DB 接続文字列・SECRET_KEY・R2 認証情報など) は
+#       Terraform では管理しない。apply 後に AWS CLI で Secrets Manager へ登録する
+#       (DEPLOY.md の「シークレットを登録」を参照)。
+
+# --- 基本設定 -------------------------------------------------------------
+
+# リソースをデプロイする AWS リージョン
+aws_region = "ap-northeast-1"
+
+# 環境名 (全リソースの命名に使用: videoq-*-<env_name>)
+env_name = "prod"
+
+# Lambda が参照する ECR コンテナイメージのタグ
+# (通常はイメージを push した後に latest のまま運用)
+image_tag = "latest"
+
+# --- ドメイン / CDN 設定 --------------------------------------------------
+# custom_domain と certificate_arn の両方を設定した場合のみ CloudFront が有効化される。
+# 空文字のままだとローカル開発用の CORS 設定 (localhost) になる。
+
+# Cloudflare Pages ドメイン (CORS 許可リストに追加。未使用なら "")
+pages_domain = "videoq.pages.dev"
+
+# CloudFront カスタムドメイン (例: videoq.jp。未使用なら "")
+custom_domain = "videoq.jp"
+
+# ACM 証明書 ARN (CloudFront 用のため us-east-1 で作成必須。未使用なら "")
+certificate_arn = "arn:aws:acm:us-east-1:123456789012:certificate/00000000-0000-0000-0000-000000000000"
+
+# --- Lambda チューニング --------------------------------------------------
+
+# API Lambda のメモリサイズ (MB)
+api_lambda_memory_mb = 1024
+
+# API Lambda のタイムアウト (秒)
+api_lambda_timeout_seconds = 30
+
+# Worker Lambda のメモリサイズ (MB) (ffmpeg + AI 推論でメモリを多く使う)
+worker_lambda_memory_mb = 5120
+
+# Worker Lambda のタイムアウト (秒) (Lambda 最大 15 分 = 900)
+worker_lambda_timeout_seconds = 900
+
+# --- SQS 設定 -------------------------------------------------------------
+
+# SQS の visibility timeout (秒)
+# worker_lambda_timeout_seconds 以上に設定すること (推奨: timeout + 60)
+sqs_visibility_timeout_seconds = 960
+
+# メッセージ最大受信回数 (超過で DLQ へ送信)
+sqs_max_receive_count = 3

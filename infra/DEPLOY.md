@@ -36,7 +36,57 @@ CloudFront (CDN)
 
 - AWS CLI 設定済み (`aws configure`)
 - Docker Desktop 起動済み
-- Node.js 20+, Python 3.12+
+- Node.js 20+, Terraform 1.5+
+
+---
+
+## 【一度だけ】CDK → Terraform 移行ランブック
+
+> 既存の **CDK スタックが稼働中**のアカウントで初めて Terraform へ切り替えるときだけ
+> 実施する。新規アカウントなら不要 (Step 1 以降へ)。方針は
+> **「CDK を destroy → Terraform で作り直し」**。ダウンタイムが発生する。
+>
+> - **Secrets** は `RemovalPolicy.RETAIN` で destroy しても孤立して残るため、
+>   destroy ワークフローで強制削除し、Terraform 作成後に値を再入力する
+>   (`SECRET_KEY` が変わるので全セッション/トークンは失効する)。
+> - **ECR** は destroy でイメージごと消えるため、Lambda 作成前にイメージを push する
+>   必要がある (ニワトリ卵問題)。下記は ECR を先に apply してから push する。
+
+移行は共有 state (S3) を汚さないよう、**ローカル (または移行ブランチ) から順に実行**し、
+最後に PR をマージして以降の自動 apply に引き継ぐ。
+
+```bash
+# 0. state バックエンドを作成 (Step 2 のブートストラップと同じ。まだなら実施)
+cd infra/bootstrap
+cp backend.hcl.example backend.hcl   # bucket 名 (アカウント ID) を記入
+terraform init -backend-config=backend.hcl && terraform apply && cd ..
+cp backend.hcl.example backend.hcl   # 本体側も同様
+terraform init -backend-config=backend.hcl   # S3 バックエンドを初期化 (state は空)
+
+# 1. 稼働中の CDK スタック + 孤立 Secrets を削除
+#    GitHub → Actions → "CDK Destroy (one-time migration)" を workflow_dispatch で実行し
+#    confirm 欄に destroy-prod を入力 (production 環境の承認が必要)。
+#    ※ ローカルで実施する場合は aws cloudformation delete-stack を
+#      Cdn → Api/Worker → Queue/Storage/Data の順に + secretsmanager delete-secret --force...
+
+# 2. ECR リポジトリだけ先に作成
+terraform apply -target=aws_ecr_repository.api -target=aws_ecr_repository.worker
+
+# 3. イメージをビルド & push (Step 6 と同じ。:latest が必須)
+#    → 下記 Step 6 のコマンドを実行
+
+# 4. 残りをすべて作成 (Secrets は空で作られる / Lambda / API GW / SQS / CloudFront)
+terraform apply
+
+# 5. Secrets に値を再入力 (Step 5) → 6. マイグレーション (Step 8)
+#    → 7. 新しい CloudFront ドメインへ DNS を貼り替え (Step 10)
+
+# 8. 移行完了後: .github/workflows/cdk-destroy.yml を削除し、PR をマージ。
+#    以降は infra/** の変更で terraform-apply workflow が自動 apply する。
+```
+
+> **注意:** state を先に埋めてからマージすること。空 state のまま `main` にマージすると
+> `terraform-apply` workflow が全リソースを作ろうとし、ECR が空の状態で Lambda 作成に失敗する。
 
 ---
 
@@ -95,69 +145,94 @@ CloudFront でカスタムドメイン (例: `videoq.jp`) を使う場合、**us
 
 ---
 
-## Step 2: CDK セットアップ
+## Step 2: Terraform セットアップ
 
 ```bash
 cd infra
-python -m venv .venv
-source .venv/bin/activate       # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
 
 # AWS アカウント ID とリージョンを確認
 aws sts get-caller-identity
 aws configure get region
+
+# 変数ファイルを用意して環境に合わせて編集
+cp terraform.tfvars.example terraform.tfvars
+# custom_domain / certificate_arn / pages_domain / image_tag などを設定
+
+# ── State バックエンドを一度だけ用意する (S3) ──
+# backend.tf は S3 バックエンドを参照する。bucket 名 (アカウント ID を含む) は
+# repo に含めず backend.hcl (gitignore 済み) で注入する。バケットは bootstrap で作成:
+cd bootstrap
+cp backend.hcl.example backend.hcl   # bucket = videoq-terraform-state-<account> を記入
+# 【新規アカウント】バケットがまだ無いので main.tf の backend "s3" を一時コメントアウト後:
+terraform init && terraform apply    # ローカル state でバケット作成 → コメントを戻す
+terraform init -migrate-state -backend-config=backend.hcl   # state をバケットへ移動
+cd ..
+
+# 本体側もバックエンドを初期化 (bucket は backend.hcl / -backend-config で注入)
+cp backend.hcl.example backend.hcl   # bucket 名を記入
+terraform init -backend-config=backend.hcl
 ```
+
+> **State バックエンド:** `backend.tf` が S3 バックエンドを参照する
+> (`cdk bootstrap` の代替)。bucket 名はアカウント ID を含むため backend ブロックに
+> 書かず、`backend.hcl` (gitignore 済み / CI では secret `TF_STATE_BUCKET`) で注入する。
+> バケットは `infra/bootstrap` を一度 `apply` して作成。bootstrap 自身の state も
+> そのバケットへ移す (自己参照) ため、public リポジトリに tfstate をコミットしない。
+> ロックは S3 ネイティブ (`use_lockfile`, Terraform 1.11+) を使うため DynamoDB は不要。
+> 別アカウントで使う場合は `backend.tf` と `bootstrap/main.tf` の bucket 名
+> (アカウント ID 部分) を書き換える。
 
 ---
 
-## Step 3: CDK Bootstrap（初回のみ）
-
-> **重要:** `cdk bootstrap` は **AWS アカウント × リージョンに対して初回のみ実行する一回限りの操作**です。
-> CI/CD には含めず、環境構築時に手動で実施してください。
+## Step 3: 初回 Terraform デプロイ
 
 ```bash
-# 初回のみ: CDK 実行環境をアカウントに準備
-cdk bootstrap aws://<AWS_ACCOUNT_ID>/<REGION>
+# 変更内容を確認 (terraform.tfvars の値が使われる)
+terraform plan
+
+# 適用
+terraform apply -auto-approve
 ```
 
-Bootstrap が完了すると `CDKToolkit` という CloudFormation スタックが作成される。
-以降の `cdk deploy` はこのスタックのリソースを使用する。
-
----
-
-## Step 4（旧 Step 3）: 初回 CDK デプロイ
+変数は `terraform.tfvars` のほか、`TF_VAR_*` 環境変数でも指定できる (CI ではこちらを使用):
 
 ```bash
 # CloudFront + カスタムドメインを有効化する場合 (Step 1-3 の証明書が必要)
-PAGES_DOMAIN=videoq.pages.dev \
-CUSTOM_DOMAIN=videoq.jp \
-CERTIFICATE_ARN=arn:aws:acm:us-east-1:<account>:certificate/<uuid> \
-  cdk deploy --all -c env=prod
+TF_VAR_pages_domain=videoq.pages.dev \
+TF_VAR_custom_domain=videoq.jp \
+TF_VAR_certificate_arn=arn:aws:acm:us-east-1:<account>:certificate/<uuid> \
+  terraform apply -auto-approve
 ```
 
-> **CdnStack は条件付き:** `CUSTOM_DOMAIN` と `CERTIFICATE_ARN` の両方が設定されている場合のみ CloudFront ディストリビューションが作成される。
+> **CloudFront は条件付き:** `custom_domain` と `certificate_arn` の両方が設定されている場合のみ CloudFront ディストリビューションが作成される (`enable_cdn` ローカル値で制御)。
 
 ### infra 変更時の継続デプロイ（GitHub Actions）
 
-初回セットアップ後は、`infra/**` を変更した PR をマージすることで自動的に `cdk deploy` が実行される。
+初回セットアップ後は、`infra/**` を変更した PR をマージすることで自動的に `terraform apply` が実行される。
 
 | タイミング | 動作 |
 |---|---|
-| PR 作成・更新時 | `cdk diff` を実行し結果を PR にコメント |
-| `main` マージ後 | GitHub Environment `production` の手動承認後に `cdk deploy` を自動実行 |
+| PR 作成・更新時 | `terraform plan` を実行し結果を PR にコメント (terraform-plan workflow) |
+| `main` マージ後 | GitHub Environment `production` の手動承認後に `terraform apply -auto-approve` を自動実行 (terraform-apply workflow) |
 
 GitHub Environment `production` に承認者を設定しておくこと（Settings → Environments → production → Required reviewers）。
+CI では `TF_VAR_pages_domain` / `TF_VAR_custom_domain` / `TF_VAR_certificate_arn` を GitHub Secrets から渡す。
+また `terraform init` の `-backend-config` 用に GitHub Secret **`TF_STATE_BUCKET`**
+(`videoq-terraform-state-<account>`) を登録しておくこと。
 
-デプロイ完了後、以下の Output をメモしておく:
+CI ユーザー `videoq-github-actions-cd` に付与する IAM ポリシー (3 分割) は
+[`infra/iam/`](iam/README.md) を参照 (作成・アタッチ手順つき)。
+
+デプロイ完了後、以下の Output をメモしておく (`terraform output` で再表示可能):
 
 ```
-VideoQ-Storage-prod.ApiEcrUri            = <account>.dkr.ecr.<region>.amazonaws.com/videoq-api-prod
-VideoQ-Storage-prod.WorkerEcrUri         = <account>.dkr.ecr.<region>.amazonaws.com/videoq-worker-prod
-VideoQ-Data-prod.DbSecretArn             = arn:aws:secretsmanager:...
-VideoQ-Data-prod.AppSecretArn            = arn:aws:secretsmanager:...
-VideoQ-Api-prod.ApiEndpoint              = https://xxxxxxxxxx.execute-api.<region>.amazonaws.com
-VideoQ-Cdn-prod.DistributionDomainName   = dxxxxxxxxx.cloudfront.net   # CloudFront 有効時のみ
-VideoQ-Cdn-prod.DistributionId           = EXXXXXXXXXXXXX              # CloudFront 有効時のみ
+api_ecr_url            = <account>.dkr.ecr.<region>.amazonaws.com/videoq-api-prod
+worker_ecr_url         = <account>.dkr.ecr.<region>.amazonaws.com/videoq-worker-prod
+db_secret_arn          = arn:aws:secretsmanager:...
+app_secret_arn         = arn:aws:secretsmanager:...
+api_endpoint           = https://xxxxxxxxxx.execute-api.<region>.amazonaws.com
+distribution_domain_name = dxxxxxxxxx.cloudfront.net   # CloudFront 有効時のみ
+distribution_id        = EXXXXXXXXXXXXX                # CloudFront 有効時のみ
 ```
 
 ---
@@ -198,7 +273,7 @@ aws secretsmanager put-secret-value \
 ## Step 6: コンテナイメージをビルド & プッシュ
 
 ```bash
-# ECR URI を変数に設定 (Step 4 の Output から)
+# ECR URI を変数に設定 (Step 3 の Output から)
 API_ECR=<account>.dkr.ecr.<region>.amazonaws.com/videoq-api-prod
 WORKER_ECR=<account>.dkr.ecr.<region>.amazonaws.com/videoq-worker-prod
 REGION=ap-northeast-1
@@ -284,11 +359,11 @@ docker run --rm \
 
 ## Step 10: DNS レコード設定
 
-Step 4 で出力された `DistributionDomainName` を DNS に登録する。
+Step 3 で出力された `distribution_domain_name` を DNS に登録する。
 
 | タイプ | 名前 | 値 |
 |---|---|---|
-| CNAME (または ALIAS) | `videoq.jp` | `dxxxxxxxxx.cloudfront.net` (Step 4 の DistributionDomainName) |
+| CNAME (または ALIAS) | `videoq.jp` | `dxxxxxxxxx.cloudfront.net` (Step 3 の distribution_domain_name) |
 
 > **注意:** ルートドメイン (`videoq.jp`) の場合、CNAME は使えないため ALIAS レコード (Route 53) または CNAME フラットニング (Cloudflare DNS 等) が必要。
 
@@ -312,11 +387,11 @@ curl -I https://videoq.jp/api/health/
 
 ### infra の変更
 
-`infra/**` の変更は GitHub Actions (CDK Deploy workflow) が処理する。
+`infra/**` の変更は GitHub Actions (Terraform workflow) が処理する。
 
-1. PR を作成すると `cdk diff` 結果が PR に自動コメントされる
+1. PR を作成すると `terraform plan` 結果が PR に自動コメントされる (terraform-plan)
 2. `main` マージ後、GitHub Environment `production` の承認者に通知が届く
-3. 承認すると `cdk deploy` が自動実行される
+3. 承認すると `terraform apply -auto-approve` が自動実行される (terraform-apply)
 
 ### 手動デプロイが必要な場合
 
@@ -334,9 +409,9 @@ aws lambda update-function-code --function-name videoq-worker-prod --image-uri $
 DATABASE_URL="<Neon pooler URL>" python backend/manage.py migrate
 
 # infra
-cd infra && source .venv/bin/activate
-PAGES_DOMAIN=videoq.pages.dev CUSTOM_DOMAIN=videoq.jp CERTIFICATE_ARN=... \
-  cdk deploy --all -c env=prod
+cd infra
+TF_VAR_pages_domain=videoq.pages.dev TF_VAR_custom_domain=videoq.jp TF_VAR_certificate_arn=... \
+  terraform apply -auto-approve
 
 # フロントエンドは Cloudflare Pages が Git push で自動デプロイ
 ```
@@ -371,10 +446,10 @@ aws logs tail /aws/lambda/videoq-api-prod --follow --region $REGION
 
 ```bash
 # カスタムドメインを CORS 許可リストに追加して再デプロイ
-PAGES_DOMAIN=videoq.pages.dev \
-CUSTOM_DOMAIN=videoq.jp \
-CERTIFICATE_ARN=arn:aws:acm:us-east-1:<account>:certificate/<uuid> \
-  cdk deploy --all -c env=prod
+TF_VAR_pages_domain=videoq.pages.dev \
+TF_VAR_custom_domain=videoq.jp \
+TF_VAR_certificate_arn=arn:aws:acm:us-east-1:<account>:certificate/<uuid> \
+  terraform apply -auto-approve
 ```
 
 ### CloudFront 403 エラー

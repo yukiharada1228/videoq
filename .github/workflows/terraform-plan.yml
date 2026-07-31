@@ -1,0 +1,101 @@
+name: Terraform Plan
+
+on:
+  pull_request:
+    paths:
+      - 'infra/**'
+      - '.github/workflows/terraform-plan.yml'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: terraform-plan-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  terraform-plan:
+    name: Terraform Plan
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Terraform init
+        run: terraform init -input=false -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}"
+
+      - name: Terraform fmt
+        run: terraform fmt -check -recursive
+
+      - name: Terraform validate
+        run: terraform validate -no-color
+
+      - name: Terraform plan
+        id: plan
+        env:
+          TF_VAR_pages_domain: ${{ secrets.PAGES_DOMAIN }}
+          TF_VAR_custom_domain: ${{ secrets.CUSTOM_DOMAIN }}
+          TF_VAR_certificate_arn: ${{ secrets.CERTIFICATE_ARN }}
+        run: |
+          set +e
+          PLAN_OUTPUT=$(terraform plan -no-color -input=false 2>&1)
+          TF_EXIT_CODE=$?
+          set -e
+          {
+            echo "plan_output<<PLAN_EOF"
+            echo "$PLAN_OUTPUT"
+            echo "PLAN_EOF"
+            echo "exit_code=$TF_EXIT_CODE"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Find existing comment
+        uses: peter-evans/find-comment@v3
+        id: find-comment
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-author: 'github-actions[bot]'
+          body-includes: '<!-- terraform-plan -->'
+
+      - name: Post terraform plan comment
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          comment-id: ${{ steps.find-comment.outputs.comment-id }}
+          issue-number: ${{ github.event.pull_request.number }}
+          edit-mode: replace
+          body: |
+            <!-- terraform-plan -->
+            ## Terraform Plan
+
+            `infra/**` に変更が検出されました。以下の差分を確認してからマージしてください。
+
+            <details>
+            <summary>terraform plan の結果（クリックで展開）</summary>
+
+            ```
+            ${{ steps.plan.outputs.plan_output }}
+            ```
+
+            </details>
+
+            > `main` マージ後、手動承認を経て `terraform apply` が自動実行されます。
+
+      - name: Fail if plan errored
+        if: steps.plan.outputs.exit_code != '0'
+        run: |
+          echo "terraform plan がエラー終了しました (exit ${{ steps.plan.outputs.exit_code }})。上記コメントの内容を確認してください。"
+          exit 1
