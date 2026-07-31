@@ -21,14 +21,20 @@ from django.contrib import admin
 from django.urls import include, path
 from drf_spectacular.views import (SpectacularAPIView, SpectacularRedocView,
                                    SpectacularSwaggerView)
+from oauth2_provider.urls import metadata_urlpatterns
 
 from app.presentation.common.health import HealthCheckView
-from app.presentation.oauth.views import (
-    AuthorizationServerMetadataView,
-    ProtectedResourceMetadataView,
-)
 
 urlpatterns = [
+    # RFC 8414 / RFC 9728 well-known documents at the origin root. A distinct
+    # namespace keeps endpoint reversal pointed at the /api/oauth/ mount.
+    path(
+        "",
+        include(
+            (metadata_urlpatterns, "oauth2_provider"),
+            namespace="oauth2_metadata",
+        ),
+    ),
     path("api/health/", HealthCheckView.as_view(), name="health"),
     path("api/admin/", admin.site.urls),
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
@@ -52,29 +58,6 @@ urlpatterns = [
     # is registered first so ``reverse('mcp-endpoint')`` returns it.
     path("api/mcp", include("app.presentation.mcp.urls")),
     path("api/oauth/", include("app.presentation.oauth.urls")),
-    # OAuth metadata documents (RFC 8414 / RFC 9728). Per the specs these
-    # must live at the well-known path under the resource origin.
-    path(
-        ".well-known/oauth-authorization-server",
-        AuthorizationServerMetadataView.as_view(),
-        name="oauth-authorization-server-metadata",
-    ),
-    path(
-        ".well-known/oauth-protected-resource/api/mcp",
-        ProtectedResourceMetadataView.as_view(),
-        name="oauth-protected-resource-metadata",
-    ),
-    # Also serve the same document at the bare ``/.well-known/oauth-protected-resource``
-    # path. RFC 9728 path-concatenates the resource path onto the well-known
-    # prefix, but Claude.ai's Remote MCP connector additionally probes the bare
-    # path and treats a 404 here as "server is not an MCP-compliant resource",
-    # giving up before it even opens the authorize URL (observed via gunicorn
-    # access logs during the ofid_5a2b07ad211b3330 attempt).
-    path(
-        ".well-known/oauth-protected-resource",
-        ProtectedResourceMetadataView.as_view(),
-        name="oauth-protected-resource-metadata-bare",
-    ),
     path("api/", include("app.urls")),
     path("api/v1/", include("app.presentation.chat.openai_urls")),
 ]
