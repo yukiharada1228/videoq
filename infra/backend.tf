@@ -1,14 +1,15 @@
-# Terraform state backend (S3 + ネイティブロック)。
+# Terraform state backend (S3 with native locking).
 #
-# bucket は infra/bootstrap を一度 apply して作成する。ロックは S3 の
-# 条件付き書き込みを使う use_lockfile 方式 (Terraform 1.11+)。DynamoDB は不要。
+# Create the bucket by applying infra/bootstrap once. Locking uses use_lockfile
+# with S3 conditional writes (Terraform 1.11+), so DynamoDB is unnecessary.
 #
-# bucket 名にはアカウント ID が含まれるため、public リポジトリに含めないよう
-# backend ブロックには書かず、init 時に -backend-config で注入する。
-#   - ローカル: cp backend.hcl.example backend.hcl で bucket を記入し
+# The bucket name contains the account ID. To keep it out of the public
+# repository, omit it from the backend block and inject it at init time with
+# -backend-config.
+#   - Local: run cp backend.hcl.example backend.hcl, enter the bucket, and then
 #               terraform init -backend-config=backend.hcl
 #   - CI:       terraform init -backend-config="bucket=$TF_STATE_BUCKET"
-# (backend.hcl は .gitignore 済み。region は非機密なのでここに残す。)
+# backend.hcl is in .gitignore. The non-sensitive region remains here.
 
 terraform {
   backend "s3" {
@@ -16,6 +17,6 @@ terraform {
     region       = "ap-northeast-1"
     use_lockfile = true
     encrypt      = true
-    # bucket は -backend-config で注入
+    # Inject bucket with -backend-config.
   }
 }

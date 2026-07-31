@@ -2,6 +2,6 @@ provider "aws" {
   region = var.aws_region
 }
 
-# OpenAI Administration API プロバイダ。OPENAI_ADMIN_KEY を環境変数から読む。
-# var.manage_openai_project = false のときは全リソース count=0 なので Admin キー不要。
+# OpenAI Administration API provider. Reads OPENAI_ADMIN_KEY from the environment.
+# No admin key is needed when var.manage_openai_project=false because all resources have count=0.
 provider "openai" {}

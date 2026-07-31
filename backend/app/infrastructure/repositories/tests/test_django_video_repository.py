@@ -45,7 +45,7 @@ class DjangoVideoRepositoryTagFilterTests(TestCase):
         self.assertNotIn("Video B", titles)
 
     def test_multiple_tag_filter_returns_videos_with_any_tag_or_logic(self):
-        """複数タグ選択時はORロジック（いずれかのタグを持つ動画）で返すこと"""
+        """Multiple selected tags use OR logic and return videos with any tag."""
         criteria = VideoSearchCriteria(tag_ids=[self.tag_a.id, self.tag_b.id])
         results = self.repo.list_for_user(self.user.id, criteria)
         titles = {v.title for v in results}
@@ -54,7 +54,7 @@ class DjangoVideoRepositoryTagFilterTests(TestCase):
         self.assertIn("Video AB", titles)
 
     def test_multiple_tag_filter_no_duplicates(self):
-        """ORロジックでも重複動画が返らないこと（distinct）"""
+        """OR logic does not return duplicate videos because it uses distinct."""
         criteria = VideoSearchCriteria(tag_ids=[self.tag_a.id, self.tag_b.id])
         results = self.repo.list_for_user(self.user.id, criteria)
         ids = [v.id for v in results]

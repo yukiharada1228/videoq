@@ -10,7 +10,7 @@ class JanomeNltkKeywordExtractorJapaneseTests(TestCase):
         self.extractor = JanomeNltkKeywordExtractor()
 
     def test_extracts_japanese_nouns_from_single_question(self):
-        # janome splits "機械学習" into "機械" + "学習"
+        # Janome splits the compound phrase into separate noun tokens.
         results = self.extractor.extract(["機械学習の特徴は何ですか"])
         words = [r.word for r in results]
         self.assertIn("機械", words)
@@ -24,13 +24,13 @@ class JanomeNltkKeywordExtractorJapaneseTests(TestCase):
             self.assertGreaterEqual(len(word), 2)
 
     def test_counts_are_aggregated_across_questions(self):
-        # janome splits "機械学習" into "機械" + "学習"; each appears in both questions
+        # Janome splits the compound phrase; each token appears in both questions.
         results = self.extractor.extract(["機械学習の特徴", "機械学習の課題"])
         count_map = {r.word: r.count for r in results}
         self.assertEqual(count_map.get("学習"), 2)
 
     def test_results_are_sorted_by_frequency_descending(self):
-        # "学習" appears 3 times, "特徴" 2 times
+        # The learning token appears three times and the feature token twice.
         results = self.extractor.extract(["機械学習の特徴", "機械学習の課題", "深層学習の特徴"])
         if len(results) >= 2:
             for i in range(len(results) - 1):

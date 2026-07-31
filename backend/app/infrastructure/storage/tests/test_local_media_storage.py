@@ -10,7 +10,7 @@ from app.infrastructure.storage.local_media_storage import LocalMediaStorage
 
 
 class LocalMediaStoragePathValidationTests(TestCase):
-    """LocalMediaStorage が危険なパスを拒否することを確認する。"""
+    """Verify that LocalMediaStorage rejects unsafe paths."""
 
     def setUp(self):
         self.tmp = tempfile.mkdtemp()
@@ -53,29 +53,30 @@ class LocalMediaStoragePathValidationTests(TestCase):
 
     @override_settings(MEDIA_ROOT="/tmp/media_root")
     def test_path_with_escaped_traversal_raises(self):
-        """解決後に MEDIA_ROOT 外に出るパスは拒否する。"""
+        """Reject paths that resolve outside MEDIA_ROOT."""
         with self.assertRaises(ValueError):
             self.storage.exists("videos/../../../../etc/passwd")
 
     def test_startswith_false_positive_is_rejected(self):
         """
-        MEDIA_ROOT が /tmp/media の場合、/tmp/media_evil/file は
-        str.startswith("/tmp/media") が True になるが、正しく拒否されなければならない。
-        Path.is_relative_to() を使っていれば False になる。
+        When MEDIA_ROOT is /tmp/media, str.startswith("/tmp/media") returns True
+        for /tmp/media_evil/file. The path must still be rejected;
+        Path.is_relative_to() correctly returns False.
         """
         import os
         import tempfile
 
-        # /tmp/media_<suffix> と /tmp/media_<suffix>_evil のような2つのディレクトリを作る
+        # Create sibling directories such as /tmp/media_<suffix> and
+        # /tmp/media_<suffix>_evil.
         base = tempfile.mkdtemp()
         sibling = base + "_evil"
         os.makedirs(sibling, exist_ok=True)
-        # sibling 内にファイルを作る
+        # Create a file inside the sibling directory.
         evil_file = os.path.join(sibling, "secret.txt")
         with open(evil_file, "w") as f:
             f.write("secret")
         # MEDIA_ROOT = base, path = ../base_evil/secret.txt
-        # .. は拒否されるので、symlink で試みる
+        # Because ``..`` is rejected, attempt traversal through a symlink.
         link_path = os.path.join(base, "evil_link")
         os.symlink(sibling, link_path)
         try:

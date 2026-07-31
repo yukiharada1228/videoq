@@ -51,7 +51,7 @@ jobs:
           TF_VAR_pages_domain: ${{ secrets.PAGES_DOMAIN }}
           TF_VAR_custom_domain: ${{ secrets.CUSTOM_DOMAIN }}
           TF_VAR_certificate_arn: ${{ secrets.CERTIFICATE_ARN }}
-          # OpenAI プロジェクト管理 (openai/openai プロバイダ) 用
+          # Used to manage OpenAI projects with the openai/openai provider.
           OPENAI_ADMIN_KEY: ${{ secrets.OPENAI_ADMIN_KEY }}
           TF_VAR_openai_spend_alert_email: ${{ secrets.OPENAI_SPEND_ALERT_EMAIL }}
         run: |
@@ -84,10 +84,10 @@ jobs:
             <!-- terraform-plan -->
             ## Terraform Plan
 
-            `infra/**` に変更が検出されました。以下の差分を確認してからマージしてください。
+            Changes were detected in `infra/**`. Review the diff below before merging.
 
             <details>
-            <summary>terraform plan の結果（クリックで展開）</summary>
+            <summary>Terraform plan result (click to expand)</summary>
 
             ```
             ${{ steps.plan.outputs.plan_output }}
@@ -95,10 +95,10 @@ jobs:
 
             </details>
 
-            > `main` マージ後、手動承認を経て `terraform apply` が自動実行されます。
+            > After merging into `main`, `terraform apply` runs automatically following manual approval.
 
       - name: Fail if plan errored
         if: steps.plan.outputs.exit_code != '0'
         run: |
-          echo "terraform plan がエラー終了しました (exit ${{ steps.plan.outputs.exit_code }})。上記コメントの内容を確認してください。"
+          echo "Terraform plan failed (exit ${{ steps.plan.outputs.exit_code }}). Review the comment above."
           exit 1

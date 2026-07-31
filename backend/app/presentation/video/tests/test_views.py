@@ -239,7 +239,7 @@ class VideoGroupMemberAPITestCase(APITestCase):
         self.assertEqual(VideoGroupMember.objects.count(), 0)
 
     def test_remove_video_from_group_function_does_not_exist(self):
-        """remove_video_from_group 関数ベースビューはデッドコードのため存在しないこと"""
+        """The dead remove_video_from_group function-based view is absent."""
         import app.presentation.video.views as views_module
 
         self.assertFalse(
@@ -955,7 +955,7 @@ class ShareLinkTests(APITestCase):
         self.group.share_slug = "my-group"
         self.group.save(update_fields=["share_slug"])
 
-        # 有効なトークンで旧URLを叩いてもルーティングレベルで404になるべき
+        # Even with a valid token, the legacy URL should return 404 at routing.
         response = self.client.get("/api/videos/groups/shared/my-group/")
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)

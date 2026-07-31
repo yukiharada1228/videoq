@@ -1,14 +1,14 @@
 """
-Aurora PostgreSQL 上で pgvector 拡張を有効化し、
-Django DatabaseCache 用テーブルを作成するマイグレーション。
+Enable the pgvector extension on Aurora PostgreSQL and create the table used by
+Django's DatabaseCache backend.
 
-- pgvector: Aurora PostgreSQL 15.4+ に標準搭載。
-  既存の ChatLog モデルのベクトル埋め込みに使用済みだが、
-  CREATE EXTENSION を明示的に実行することで Lambda 環境でも確実に有効化する。
+- pgvector: Included with Aurora PostgreSQL 15.4 and later. ChatLog already uses
+  it for vector embeddings, but explicitly running CREATE EXTENSION ensures it
+  is available in the Lambda environment.
 
-- django_cache: USE_DATABASE_CACHE=true 時に DRF スロットリング等が使用する
-  DatabaseCache バックエンドのテーブル。
-  manage.py createcachetable の代わりにマイグレーションで管理する。
+- django_cache: The DatabaseCache backend table used by DRF throttling and
+  related features when USE_DATABASE_CACHE=true. Manage it through this
+  migration instead of manage.py createcachetable.
 """
 from django.db import migrations
 
@@ -20,12 +20,12 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        # pgvector 拡張の有効化 (冪等)
+        # Enable the pgvector extension (idempotent).
         migrations.RunSQL(
             sql="CREATE EXTENSION IF NOT EXISTS vector;",
-            reverse_sql="-- pgvector を削除するとデータが失われるため逆適用しない",
+            reverse_sql="-- No reverse operation: removing pgvector would lose data.",
         ),
-        # Django DatabaseCache テーブルの作成 (冪等)
+        # Create the Django DatabaseCache table (idempotent).
         migrations.RunSQL(
             sql="""
             CREATE TABLE IF NOT EXISTS django_cache (

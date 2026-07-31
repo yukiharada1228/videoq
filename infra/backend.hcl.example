@@ -1,6 +1,6 @@
-# backend.hcl (このファイルをコピーして作成。backend.hcl は .gitignore 済み)
+# backend.hcl (copy this file to create it; backend.hcl is in .gitignore)
 #   cp backend.hcl.example backend.hcl
 #   terraform init -backend-config=backend.hcl
 #
-# bucket は infra/bootstrap が作成した state バケット名 (アカウント ID を含む)。
+# bucket is the state bucket created by infra/bootstrap (includes the account ID).
 bucket = "videoq-terraform-state-<AWS_ACCOUNT_ID>"

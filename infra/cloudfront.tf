@@ -4,8 +4,8 @@
 # single domain so cookies are first-party.
 
 # ── AWS managed policies ─────────────────────────────────────────────────────
-# 名前でマネージドポリシーを解決する (List で名前→ID、Get で詳細取得の 2 段階)。
-# CI ユーザーには以下 4 つの読み取り権限が必要:
+# Resolve managed policies by name in two stages: List maps names to IDs, then
+# Get retrieves the details. The CI user needs these four read permissions:
 #   cloudfront:ListCachePolicies / GetCachePolicy
 #   cloudfront:ListOriginRequestPolicies / GetOriginRequestPolicy
 data "aws_cloudfront_cache_policy" "caching_optimized" {

@@ -1,19 +1,20 @@
 # Terraform state backend bootstrap.
 #
-# state 保存先の S3 バケットそのものを作る構成。bootstrap 自身の state は、作った
-# バケットへ置く (自己参照バックエンド)。これで state は S3 上で永続・共有され、
-# public リポジトリに tfstate を置かずに済む。ロックは S3 ネイティブ (use_lockfile)
-# を使うため DynamoDB は不要。bucket 名はアカウント ID を含むため backend には
-# 書かず、init 時に -backend-config で注入する (cp backend.hcl.example backend.hcl)。
+# This configuration creates the S3 bucket that stores state. Bootstrap's own
+# state is placed in that bucket through a self-referential backend. This keeps
+# state persistent and shared in S3 without committing tfstate to the public
+# repository. Native S3 locking (use_lockfile) removes the need for DynamoDB.
+# Because the bucket name includes the account ID, omit it from the backend and
+# inject it at init time with -backend-config (copy backend.hcl.example to backend.hcl).
 #
-# バケット作成済み・backend 有効なので、通常は:
+# Once the bucket exists and the backend is enabled, normally run:
 #   terraform init -backend-config=backend.hcl && terraform plan/apply
 #
-# 【新規アカウントで一から作る場合のみ】バケットがまだ無いので:
-#   1. 下の backend "s3" ブロックを一時的にコメントアウトする
-#   2. terraform init && terraform apply            # ローカル state でバケット作成
-#   3. backend "s3" ブロックのコメントを戻す + backend.hcl に bucket 名を記入
-#   4. terraform init -migrate-state -backend-config=backend.hcl  # state をバケットへ移動
+# Only when bootstrapping a new account from scratch, before the bucket exists:
+#   1. Temporarily comment out the backend "s3" block below.
+#   2. Run terraform init && terraform apply to create the bucket with local state.
+#   3. Restore the backend "s3" block and enter the bucket name in backend.hcl.
+#   4. Run terraform init -migrate-state -backend-config=backend.hcl to move the state.
 
 terraform {
   required_version = ">= 1.11"
@@ -29,7 +30,7 @@ terraform {
     region       = "ap-northeast-1"
     use_lockfile = true
     encrypt      = true
-    # bucket は -backend-config で注入
+    # Inject bucket with -backend-config.
   }
 }
 
@@ -40,15 +41,15 @@ provider "aws" {
 data "aws_caller_identity" "current" {}
 
 locals {
-  # S3 バケット名はグローバル一意が必要なのでアカウント ID を付与。
+  # Add the account ID because S3 bucket names must be globally unique.
   state_bucket_name = "videoq-terraform-state-${data.aws_caller_identity.current.account_id}"
 }
 
-# ── state 保存バケット ────────────────────────────────────────────────────────
+# ── State storage bucket ──────────────────────────────────────────────────────
 resource "aws_s3_bucket" "state" {
   bucket = local.state_bucket_name
 
-  # 誤削除防止。state が入るバケットなので破棄されると全リソースの追跡を失う。
+  # Prevent accidental deletion; destroying this bucket loses resource tracking.
   lifecycle {
     prevent_destroy = true
   }

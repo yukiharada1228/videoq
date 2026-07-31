@@ -1,15 +1,15 @@
 # ── Dead Letter Queue ─────────────────────────────────────────────────
-# 最大受信数を超えたメッセージ (失敗タスク) が転送される
+# Messages that exceed the maximum receive count (failed tasks) are forwarded here.
 resource "aws_sqs_queue" "dlq" {
   name                      = local.names.worker_dlq
   message_retention_seconds = 1209600 # 14 days
   sqs_managed_sse_enabled   = true
 }
 
-# ── メインキュー (Celery ブローカー) ──────────────────────────────────
-# visibility_timeout は Worker Lambda のタイムアウト以上に設定すること。
-# Lambda が処理中にメッセージが再度見えてしまうのを防ぐため。
-# receive_wait_time=20s: ロングポーリングで空のポーリングを削減。
+# ── Main queue (Celery broker) ─────────────────────────────────────────
+# Keep visibility_timeout greater than or equal to the Worker Lambda timeout so
+# messages do not become visible again while Lambda is processing them.
+# receive_wait_time=20s enables long polling to reduce empty polls.
 resource "aws_sqs_queue" "main" {
   name                       = local.names.worker
   visibility_timeout_seconds = var.sqs_visibility_timeout_seconds
