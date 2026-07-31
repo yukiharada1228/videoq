@@ -73,7 +73,7 @@ variable "image_tag" {
 variable "manage_openai_project" {
   description = "OpenAI プロジェクトのガバナンスを Terraform で管理するか (true で有効化。要 OPENAI_ADMIN_KEY)"
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "openai_allowed_models" {

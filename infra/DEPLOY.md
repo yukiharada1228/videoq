@@ -218,42 +218,45 @@ aws secretsmanager put-secret-value \
 
 ---
 
-## (任意) OpenAI プロジェクト管理
+## OpenAI プロジェクト管理
 
 埋め込み / LLM / 文字起こしに使う OpenAI 組織プロジェクトのガバナンス
-(許可モデルの制限・月次スペンドアラート) を Terraform で管理できる
+(許可モデルの制限・月次スペンドアラート) を Terraform で管理する
 (`infra/openai.tf`、`openai/openai` プロバイダ使用)。
 
-デフォルト (`manage_openai_project = false`) では全リソースが `count = 0` なので、
-Admin キー無しで `terraform plan` / `apply` が通る。有効化する場合のみ設定する。
+**デフォルトで有効** (`manage_openai_project = true`)。CI (terraform-plan /
+terraform-apply) から実行するため、プロバイダが Admin API へ認証できるよう
+GitHub Secrets の設定が必須。
 
 > **重要:** このプロバイダは **ランタイムの `OPENAI_API_KEY` を管理しない**。
 > アプリが実行時に使う API キーは従来どおりダッシュボードで手動発行し、
 > Secrets Manager の app シークレットへ手動保存する (Step 4 参照)。
 > Terraform が管理するのはプロジェクト設定 (許可モデル・スペンドアラート) のみ。
 
-有効化手順:
+### 前提: GitHub Secrets (未設定だと terraform-plan / apply が失敗する)
 
 1. OpenAI ダッシュボードで **Admin API キー** を発行する。
-2. apply の前に環境変数へ export する:
+2. リポジトリ (Environment `production`) に以下を登録する:
 
-   ```bash
-   export OPENAI_ADMIN_KEY=sk-admin-...
-   # 組織が複数ある場合は OPENAI_ORG_ID も指定
-   export OPENAI_ORG_ID=org-...
-   ```
+   | Secret | 値 |
+   | --- | --- |
+   | `OPENAI_ADMIN_KEY` | `sk-admin-...` (Admin API キー) |
+   | `OPENAI_SPEND_ALERT_EMAIL` | スペンドアラートの通知先メール |
 
-3. `terraform.tfvars` (または `TF_VAR_*`) で有効化する:
+   しきい値は `openai_spend_threshold_usd` (既定 50 USD/月)、許可モデルは
+   `openai_allowed_models` で videoq が使うモデルに既定済み。
 
-   ```hcl
-   manage_openai_project      = true
-   openai_spend_alert_email   = "ops@example.com"
-   openai_spend_threshold_usd = 50
-   # openai_allowed_models は videoq が使うモデルで既定値済み
-   ```
+### apply 後
 
-4. `terraform apply` を実行する。作成された OpenAI プロジェクト ID は
-   `terraform output openai_project_id` で確認できる。
+作成された OpenAI プロジェクト ID は `terraform output openai_project_id`
+で確認できる。**そのプロジェクトでランタイム用 `OPENAI_API_KEY` を手動発行し**、
+Secrets Manager の app シークレットへ保存する (Step 4)。
+
+### ローカルで実行する場合
+
+`export OPENAI_ADMIN_KEY=sk-admin-...` してから
+`terraform.tfvars` に `openai_spend_alert_email` を記入して `terraform apply`。
+一時的に無効化したい場合のみ `manage_openai_project = false` を設定する。
 
 ---
 

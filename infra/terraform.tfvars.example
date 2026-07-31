@@ -61,12 +61,14 @@ sqs_max_receive_count = 3
 
 # --- OpenAI プロジェクト管理 ----------------------------------------------
 # OpenAI 組織プロジェクトのガバナンス (許可モデル / スペンドアラート) を Terraform で管理する。
-# manage_openai_project = true にする場合は、apply の前に Admin API キーを
+# デフォルトで有効 (manage_openai_project = true)。apply の前に Admin API キーを
 # 環境変数 OPENAI_ADMIN_KEY (必要なら OPENAI_ORG_ID) に export しておくこと。
+# CI では GitHub Secret OPENAI_ADMIN_KEY / OPENAI_SPEND_ALERT_EMAIL から渡す (DEPLOY.md 参照)。
 # 注意: このプロバイダはランタイムの OPENAI_API_KEY を管理しない。実行用キーは
 #       従来どおりダッシュボードで手動発行し、Secrets Manager の app シークレットへ手動保存する。
 #
-# manage_openai_project = true
+# ローカル apply 時に上書きする場合の例:
 # openai_spend_alert_email   = "ops@example.com"
 # openai_spend_threshold_usd = 50
 # openai_allowed_models = ["text-embedding-3-small", "gpt-4o-mini", "whisper-1"]
+# manage_openai_project = false  # 一時的に無効化したいときのみ
