@@ -81,16 +81,12 @@ class PGVectorManager:
     @classmethod
     def get_table_name(cls):
         """Get the vectorstore table name (= collection name)."""
-        return getattr(
-            settings,
-            "PGVECTOR_COLLECTION_NAME",
-            os.getenv("PGVECTOR_COLLECTION_NAME", "videoq_scenes"),
-        )
+        return settings.PGVECTOR_COLLECTION_NAME
 
     @classmethod
     def get_vector_size(cls):
         """Get the embedding vector dimension size."""
-        return getattr(settings, "EMBEDDING_VECTOR_SIZE", 1536)
+        return settings.EMBEDDING_VECTOR_SIZE
 
     @classmethod
     def ensure_table(cls):

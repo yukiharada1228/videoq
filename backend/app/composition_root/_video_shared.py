@@ -2,6 +2,8 @@
 
 from functools import lru_cache
 
+from django.conf import settings
+
 from app.domain.video.gateways import VideoTaskGateway
 from app.infrastructure.external.vector_gateway import DjangoVectorStoreGateway
 from app.infrastructure.repositories.django_user_repository import DjangoUserRepository
@@ -50,13 +52,12 @@ def get_vector_indexing_gateway():
 
 @lru_cache(maxsize=1)
 def get_file_upload_gateway():
-    import os
     from app.infrastructure.external.file_upload_gateway import (
         LocalFileUploadGateway,
         R2FileUploadGateway,
     )
 
-    if os.environ.get("USE_S3_STORAGE", "").lower() in ("true", "1", "yes"):
+    if settings.USE_S3_STORAGE:
         return R2FileUploadGateway()
     return LocalFileUploadGateway()
 
