@@ -18,29 +18,9 @@ output "worker_ecr_uri" {
   value       = aws_ecr_repository.worker.repository_url
 }
 
-output "queue_url" {
-  description = "Celery SQS broker queue URL"
-  value       = aws_sqs_queue.main.id
-}
-
-output "queue_name" {
-  description = "Celery SQS broker queue name"
-  value       = aws_sqs_queue.main.name
-}
-
-output "dlq_url" {
-  description = "Dead letter queue URL"
-  value       = aws_sqs_queue.dlq.id
-}
-
 output "api_endpoint" {
   description = "API Gateway endpoint (Cloudflare Pages の VITE_API_URL に設定)"
   value       = aws_apigatewayv2_api.http.api_endpoint
-}
-
-output "worker_lambda_arn" {
-  description = "Worker Lambda ARN"
-  value       = aws_lambda_function.worker.arn
 }
 
 output "distribution_domain_name" {

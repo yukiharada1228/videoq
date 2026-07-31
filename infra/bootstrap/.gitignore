@@ -1,4 +1,4 @@
-# bootstrap はローカル state。state ファイルはコミットしない。
+# Terraform
 .terraform/
 *.tfstate
 *.tfstate.*

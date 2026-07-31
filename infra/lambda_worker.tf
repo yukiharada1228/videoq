@@ -1,60 +1,45 @@
 resource "aws_iam_role" "worker" {
-  name = "videoq-worker-${var.env_name}"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Principal = {
-          Service = "lambda.amazonaws.com"
-        }
-        Action = "sts:AssumeRole"
-      }
-    ]
-  })
+  name               = local.names.worker
+  assume_role_policy = data.aws_iam_policy_document.lambda_assume_role.json
 }
 
 resource "aws_iam_role_policy_attachment" "worker_basic_execution" {
   role       = aws_iam_role.worker.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+  policy_arn = local.lambda_basic_execution_policy_arn
+}
+
+data "aws_iam_policy_document" "worker_permissions" {
+  statement {
+    effect  = "Allow"
+    actions = ["secretsmanager:GetSecretValue"]
+    resources = [
+      aws_secretsmanager_secret.db.arn,
+      aws_secretsmanager_secret.app.arn,
+    ]
+  }
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "sqs:ReceiveMessage",
+      "sqs:DeleteMessage",
+      "sqs:ChangeMessageVisibility",
+      "sqs:GetQueueAttributes",
+      "sqs:GetQueueUrl",
+      "sqs:SendMessage",
+    ]
+    resources = [aws_sqs_queue.main.arn]
+  }
 }
 
 resource "aws_iam_role_policy" "worker" {
-  name = "videoq-worker-${var.env_name}-policy"
-  role = aws_iam_role.worker.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "secretsmanager:GetSecretValue"
-        ]
-        Resource = [
-          aws_secretsmanager_secret.db.arn,
-          aws_secretsmanager_secret.app.arn
-        ]
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "sqs:ReceiveMessage",
-          "sqs:DeleteMessage",
-          "sqs:GetQueueAttributes",
-          "sqs:SendMessage"
-        ]
-        Resource = [
-          aws_sqs_queue.main.arn
-        ]
-      }
-    ]
-  })
+  name   = local.names.worker_policy
+  role   = aws_iam_role.worker.id
+  policy = data.aws_iam_policy_document.worker_permissions.json
 }
 
 resource "aws_lambda_function" "worker" {
-  function_name = "videoq-worker-${var.env_name}"
+  function_name = local.names.worker
   role          = aws_iam_role.worker.arn
   package_type  = "Image"
   image_uri     = "${aws_ecr_repository.worker.repository_url}:${var.image_tag}"
@@ -66,24 +51,12 @@ resource "aws_lambda_function" "worker" {
   }
 
   environment {
-    variables = {
-      DJANGO_ENV                              = "production"
-      FRONTEND_URL                            = local.frontend_url
-      DB_SECRET_ARN                           = aws_secretsmanager_secret.db.arn
-      APP_SECRET_ARN                          = aws_secretsmanager_secret.app.arn
-      USE_S3_STORAGE                          = "true"
-      CELERY_BROKER_URL                       = "sqs://"
-      SQS_QUEUE_NAME                          = aws_sqs_queue.main.name
-      SQS_QUEUE_URL                           = aws_sqs_queue.main.id
-      CELERY_TASK_TIME_LIMIT                  = "840"
-      CELERY_TASK_SOFT_TIME_LIMIT             = "780"
-      USE_DATABASE_CACHE                      = "true"
-      USE_MAILGUN                             = "true"
+    variables = merge(local.common_lambda_environment, {
       MEDIA_PROCESS_MEMORY_LIMIT_MB           = "2048"
       MEDIA_PROCESS_CPU_TIME_LIMIT_SECONDS    = "300"
       FFMPEG_PROCESS_TIMEOUT_SECONDS          = "600"
       MEDIA_PROCESS_OUTPUT_FILE_SIZE_LIMIT_MB = "1024"
-    }
+    })
   }
 }
 
