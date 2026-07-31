@@ -4,8 +4,6 @@
     "description": "Ask AI, jump to the scene instantly. Upload your video and AI auto-transcribes it for instant natural language search."
   },
   "common": {
-    "appName": "VideoQ",
-    "loading": "Loading...",
     "notProvided": "Not provided",
     "actions": {
       "backToHome": "Back to home",
@@ -17,39 +15,12 @@
       "cancel": "Cancel",
       "delete": "Delete",
       "deleting": "Deleting...",
-      "edit": "Edit",
-      "upload": "Upload",
-      "uploading": "Uploading...",
       "send": "Send",
-      "sending": "Sending...",
-      "generate": "Generate",
-      "generating": "Generating...",
       "disable": "Disable",
-      "copy": "Copy",
-      "copied": "Copied ✓",
       "confirm": "Confirm",
-      "close": "Close",
-      "exportCsv": "Export CSV",
-      "selectAll": "Select all",
-      "clearSelection": "Clear selection",
-      "add": "Add",
-      "adding": "Adding...",
-      "openMenu": "Open menu"
+      "close": "Close"
     },
     "labels": {
-      "username": "Username",
-      "email": "Email address",
-      "password": "Password",
-      "passwordConfirmation": "Confirm password",
-      "description": "Description",
-      "status": "Status",
-      "uploadedAt": "Uploaded at",
-      "transcript": "Transcript",
-      "title": "Title",
-      "file": "File",
-      "player": "Player",
-      "chat": "Chat",
-      "tag": "Tag",
       "required": "Required",
       "optional": "Optional"
     },
@@ -64,29 +35,11 @@
       "noDescription": "No description",
       "videoNotFound": "Video not found",
       "groupNotFound": "Chat group not found",
-      "transcriptionPending": "Transcription has not started yet.",
-      "transcriptionProcessing": "Transcription is currently processing...",
-      "transcriptionIndexing": "Transcription results are being indexed...",
-      "transcriptionUnavailable": "Transcription is not available yet.",
-      "transcriptionError": "An error occurred while processing the transcription.",
       "browserNoVideoSupport": "Your browser does not support the video tag.",
-      "noVideos": "No videos yet",
-      "addVideosHint": "Use the \"Upload video\" button above to add videos.",
-      "noGroups": "No chat groups yet",
-      "noAvailableVideos": "No videos available to add",
-      "uploadSuccess": "Upload succeeded!",
       "shareLoadFailed": "Failed to load the shared chat group",
       "shareNotFound": "Shared chat group not found",
-      "selectVideo": "Select a video from the list",
       "videoFileMissing": "Video file is unavailable",
-      "copyFailed": "Copy failed. Please copy it manually.",
-      "noHistory": "No history available",
-      "loadingHistory": "Loading...",
-      "noTags": "No tags",
-      "tagExists": "Tag already exists",
-      "tagCreated": "Tag created",
-      "tagUpdated": "Tag updated",
-      "tagDeleted": "Tag deleted"
+      "copyFailed": "Copy failed. Please copy it manually."
     }
   },
   "tags": {
@@ -97,15 +50,7 @@
     },
     "management": {
       "title": "Manage Tags",
-      "description": "Review existing tags and remove tags you no longer need.",
-      "create": "Create New",
-      "edit": "Edit",
-      "delete": "Delete",
-      "nameLabel": "Tag Name",
-      "colorLabel": "Color",
-      "createTitle": "Create Tag",
-      "editTitle": "Edit Tag",
-      "deleteConfirm": "Are you sure you want to delete this tag?"
+      "description": "Review existing tags and remove tags you no longer need."
     },
     "selector": {
       "label": "Tags",
@@ -116,7 +61,6 @@
       "title": "Create New Tag",
       "description": "Create a new tag to organize your videos.",
       "nameLabel": "Tag Name",
-      "namePlaceholder": "Enter tag name",
       "colorLabel": "Tag Color",
       "preview": "Preview",
       "previewPlaceholder": "Tag preview"
@@ -140,9 +84,7 @@
   },
   "home": {
     "welcome": {
-      "title": "Home",
       "badge": "Home",
-      "subtitle": "{{username}}",
       "greeting": "{{username}}",
       "dailyMotivation": "Register videos, run transcription, and manage learning groups."
     },
@@ -150,82 +92,37 @@
       "sectionTitle": "Menus",
       "upload": {
         "title": "Register a video",
-        "description": "Register and manage new videos",
-        "descriptionLong": "Register a lecture or training video and start automatic transcription.",
-        "linkLabel": "Register"
+        "descriptionLong": "Register a lecture or training video and start automatic transcription."
       },
       "library": {
         "title": "Video list",
-        "description_one": "{{count}} video",
-        "description_other": "{{count}} videos",
-        "descriptionLong": "Review, edit, and share your {{count}} registered videos.",
-        "linkLabel": "View list"
+        "descriptionLong": "Review, edit, and share your {{count}} registered videos."
       },
       "groups": {
         "title": "Group management",
-        "description_one": "{{count}} group",
-        "description_other": "{{count}} groups",
-        "descriptionLong": "Manage {{count}} learning groups.",
-        "linkLabel": "Manage"
+        "descriptionLong": "Manage {{count}} learning groups."
       }
     },
     "stats": {
       "summaryTitle": "Overview",
-      "completed": "Completed",
-      "pending": "Pending",
       "processing": "Processing",
-      "indexing": "Indexing",
-      "error": "Error",
       "totalVideos": "Total Videos",
       "analysisCompleted": "Analysis Completed",
-      "groups": "Groups",
-      "videoCount": "{{count}} videos",
-      "groupCount": "{{count}} groups"
+      "groups": "Groups"
     },
     "recentVideos": {
       "title": "Recently Uploaded",
       "viewAll": "View all"
     },
-    "account": {
-      "username": "Username",
-      "serviceReady": "✓ Service Ready"
-    },
     "usage": {
       "title": "Usage",
-      "description": "Current usage and limits",
-      "loading": "Loading...",
-      "plan": {
-        "label": "Plan",
-        "free": "Free Plan",
-        "pro": "Pro Plan",
-        "change": "Change Plan",
-        "changing": "Changing...",
-        "success": "Plan updated successfully"
-      },
-      "videos": {
-        "label": "Videos Stored (Total)"
-      },
-      "whisper": {
-        "label": "Transcription Time (This Month)",
-        "unit": "min"
-      },
-      "chats": {
-        "label": "Chat Count (This Month)"
-      }
+      "description": "Current usage and limits"
     }
   },
   "videos": {
     "list": {
       "title": "Video library",
-      "emptySubtitle": "Upload a video to get started",
       "uploadButton": "Upload video",
-      "stats": {
-        "total": "Total videos",
-        "completed": "Completed",
-        "pending": "Pending",
-        "processing": "Processing",
-        "indexing": "Indexing"
-      },
       "statsRow": {
         "all": "All",
         "completed": "Completed",
@@ -250,18 +147,6 @@
       "managingCount": "Managing {{count}} videos",
       "noVideos": "No videos yet",
       "noVideosHint": "Use the \"Upload video\" button above to add videos.",
-      "loading": "Loading...",
-      "apiKeyWarning": {
-        "title": "OpenAI API Key Required",
-        "message": "You need to set your OpenAI API key to upload and transcribe videos.",
-        "settingsLink": "Go to Settings"
-      },
-      "uploadLimitWarning": {
-        "message": "You have reached the video upload limit ({{limit}} videos). To upload new videos, please delete existing ones."
-      },
-      "subtitle_one": "{{count}} video",
-      "subtitle_other": "{{count}} videos",
-      "loadMore": "Load more",
       "loadingMore": "Loading..."
     },
     "upload": {
@@ -271,19 +156,11 @@
       "titleLabel": "Title *",
       "descriptionLabel": "Description",
       "youtubeUrlLabel": "YouTube URL",
-      "youtubeUrlPlaceholder": "https://www.youtube.com/watch?v=...",
-      "groupLabel": "Chat group (optional)",
-      "groupNone": "Don't add to group",
-      "groupHelp": "Add the video to the selected chat group.",
-      "titlePlaceholder": "{{fileName}} (default)",
-      "titleEmptyPlaceholder": "Enter a video title",
-      "descriptionPlaceholder": "Optional video description",
       "modes": {
         "file": "File Upload",
         "youtube": "YouTube URL"
       },
       "success": "Upload succeeded!",
-      "cancel": "Cancel",
       "upload": "Upload",
       "uploading": "Uploading...",
       "validation": {
@@ -292,7 +169,6 @@
         "noTitle": "Please enter a title",
         "invalidFileType": "Please select a supported video file",
         "fileTooLarge": "The selected file exceeds the upload size limit ({{max_size_mb}} MB)",
-        "generic": "Validation error",
         "storageLimitExceeded": "Upload is unavailable because your storage is over the configured limit. Please delete videos to free up space."
       },
       "warning": {
@@ -300,31 +176,11 @@
       }
     },
     "detail": {
-      "edit": "Edit",
-      "back": "Back to list",
-      "delete": "Delete",
-      "deleting": "Deleting...",
-      "info": "Information",
       "video": "Video",
-      "transcript": "Transcript",
-      "errorCard": "Error",
-      "labels": {
-        "title": "Title",
-        "description": "Description",
-        "status": "Status",
-        "uploadedAt": "Uploaded at"
-      },
       "editTitleLabel": "Title",
       "editDescriptionLabel": "Description",
-      "save": "Save",
       "saving": "Saving...",
       "cancel": "Cancel",
-      "noVideo": "Video not found",
-      "videoUnavailable": "Video file is unavailable",
-      "deleteConfirm": "Are you sure you want to delete this video?",
-      "editMode": "Edit mode",
-      "backToLibrary": "Back to video library",
-      "videosBreadcrumb": "Videos",
       "editButton": "Edit",
       "deleteButton": "Delete",
       "transcriptSection": "Transcript",
@@ -353,18 +209,12 @@
       "optional": "(optional)",
       "create": "Create chat group",
       "createTitle": "Create chat group",
-      "createDescription": "Enter a name and description for the chat group.",
       "nameLabel": "Chat group name",
       "namePlaceholder": "Chat group name",
       "descriptionLabel": "Description",
       "descriptionPlaceholder": "Optional description",
       "createError": "Failed to create chat group",
-      "loadError": "Failed to load chat groups",
       "empty": "No chat groups yet",
-      "reorder": "Reorder",
-      "saveOrder": "Save order",
-      "cancelReorder": "Cancel",
-      "reorderHint": "{{count}} of {{total}} groups loaded. Drag groups or use the up and down buttons to change the order.",
       "dragHandle": "Drag to reorder",
       "open": "Open {{name}}",
       "moveUp": "Move {{name}} up",
@@ -374,14 +224,9 @@
       "videoCount_other": "{{count}} videos"
     },
     "groupDetail": {
-      "edit": "Edit",
       "addVideos": "Add videos",
       "addVideosDescription": "Select videos to add to this group.",
-      "addDescription": "Select the videos to add to this chat group",
-      "back": "Back to list",
       "delete": "Delete",
-      "deleting": "Deleting...",
-      "deleteConfirm": "Are you sure you want to delete this chat group?",
       "removeVideoConfirm": "Remove this video from the chat group?",
       "addError": "Failed to add videos to the chat group",
       "removeVideoError": "Failed to remove the video from the chat group",
@@ -392,9 +237,7 @@
       },
       "shareOpen": "Share",
       "sharingBadge": "Sharing",
-      "generate": "Generate share link",
       "generating": "Generating...",
-      "copy": "Copy",
       "copied": "Copied ✓",
       "disable": "Disable",
       "generateShareError": "Failed to generate the share link",
@@ -423,53 +266,36 @@
       "orderUpdateError": "Failed to update video order",
       "mobileTabs": {
         "videos": "Videos",
-        "player": "Player",
-        "chat": "Chat"
+        "player": "Player"
       },
       "playerPlaceholder": "Select a video from the list",
       "videoNoFile": "Video file is unavailable",
       "videoListTitle": "Videos",
       "videoListEmpty": "No videos yet",
       "videoCount": "{{count}} videos",
-      "nextVideo": "Next video:",
-      "addVideoButton": "Add video",
-      "backToGroups": "Back to groups",
       "editTitle": "Edit group",
       "editDescription": "Update the group name and description.",
-      "breadcrumbGroups": "Video groups",
       "shareLinkLabel": "Share link:",
       "shareSlugPlaceholder": "Enter a share link",
       "shareSlugHelp": "3-64 chars, lowercase letters, numbers, and hyphens only",
       "copyButton": "Copy",
-      "status": {
-        "completed": "Completed",
-        "error": "Error",
-        "processing": "Processing"
-      },
-      "remove": "Remove",
       "removeFromGroup": "Remove from group",
       "deleteError": "Failed to delete the chat group"
     },
     "shared": {
-      "loading": "Loading...",
-      "descriptionFallback": "No description",
       "tabs": {
         "videos": "Videos",
-        "player": "Player",
-        "chat": "Chat"
+        "player": "Player"
       },
       "playerPlaceholder": "Select a video from the list",
       "videoNoFile": "Video file is unavailable",
       "noVideos": "No videos yet",
-      "noDescription": "No description",
-      "publicBadge": "Public share link",
-      "videoCountSuffix": " videos"
+      "publicBadge": "Public share link"
     }
   },
   "auth": {
     "login": {
       "title": "Sign in",
-      "description": "Sign in to access the service.",
       "badge": "Welcome back",
       "submit": "Sign in",
       "submitting": "Signing in...",
@@ -480,12 +306,10 @@
     },
     "signup": {
       "title": "Create account",
-      "description": "Create a new account to start using the service.",
       "badge": "Welcome",
       "submit": "Create account",
       "submitting": "Creating...",
       "orDivider": "or",
-      "passwordPlaceholder": "At least 8 characters",
       "footerQuestion": "Already have an account?",
       "footerLink": "Sign in here",
       "passwordMismatch": "Passwords do not match"
@@ -520,9 +344,7 @@
       "submitting": "Updating...",
       "backToLogin": "Back to sign-in",
       "newPassword": "New password",
-      "newPasswordPlaceholder": "Enter at least 8 characters",
-      "confirmPassword": "Confirm new password",
-      "confirmPasswordPlaceholder": "Enter the same password again"
+      "confirmPassword": "Confirm new password"
     },
     "verifyEmail": {
       "badge": "Email verification",
@@ -531,13 +353,10 @@
       "loading": "Checking your email verification...",
       "invalidLink": "The verification link is invalid.",
       "success": "Email verification completed. Please sign in.",
-      "redirect": "You will be redirected to the sign-in page shortly. If not, click <link>here</link>.",
       "redirectLink": "here",
       "error": "Email verification failed. The link may have expired.",
       "retry": "If the link is invalid, please register again or contact support.",
       "backToLogin": "Back to sign-in",
-      "fallbackTitle": "Email verification",
-      "fallbackLoading": "Checking your email verification...",
       "redirectPart1": "You will be redirected to the sign-in page shortly. If not, click"
     },
     "emailChange": {
@@ -552,22 +371,18 @@
     },
     "fields": {
       "email": {
-        "label": "Email address",
-        "placeholder": "Enter your email"
+        "label": "Email address"
       },
       "username": {
-        "label": "Username",
-        "placeholder": "Enter your username"
+        "label": "Username"
       },
       "password": {
         "label": "Password",
-        "placeholder": "Enter your password",
         "show": "Show password",
         "hide": "Hide password"
       },
       "passwordConfirmation": {
-        "label": "Confirm password",
-        "placeholder": "Re-enter your password"
+        "label": "Confirm password"
       }
     }
   },
@@ -577,18 +392,9 @@
     "newConsultation": "New chat",
     "history": "Conversation history",
     "historyEmpty": "No history available",
-    "historyLoading": "Loading...",
-    "exportCsv": "Export CSV",
     "exportCsvShort": "CSV",
-    "close": "Close",
-    "question": "Question",
-    "answer": "Answer",
-    "relatedVideos": "Related videos",
-    "sharedOrigin": "Shared link",
-    "feedback": "Feedback",
     "feedbackGood": "Good",
     "feedbackBad": "Bad",
-    "feedbackNone": "Not rated",
     "placeholder": "Type a message...",
     "assistantGreeting": "Hello! Ask me anything about your videos.",
     "studyGreeting": "Study mode: I will guide you with questions instead of revealing answers, following lecture prerequisites.",
@@ -610,33 +416,12 @@
       }
     }
   },
-  "shared": {
-    "loadError": "Failed to load the shared chat group.",
-    "notFound": "Shared chat group not found."
-  },
-  "errors": {
-    "operationFailed": "Operation failed",
-    "badRequest": "The request is invalid",
-    "unauthorized": "Authentication required",
-    "forbidden": "Access denied",
-    "notFound": "Resource not found",
-    "server": "A server error occurred",
-    "generic": "An error occurred ({{status}})",
-    "multiple": "Multiple errors: {{errors}}",
-    "authFailed": "Authentication failed. Please sign in again."
-  },
   "validation": {
-    "required": "This field is required",
-    "email": "Please enter a valid email address",
-    "minLength": "Please enter at least {{min}} characters",
-    "maxLength": "Please enter {{max}} characters or fewer",
-    "fileSize": "File size must be {{max}} MB or less",
-    "fileType": "Unsupported file type. Allowed: {{types}}"
+    "required": "This field is required"
   },
   "confirmations": {
     "deleteVideo": "Are you sure you want to delete this video?",
     "deleteGroup": "Are you sure you want to delete this chat group?",
-    "removeGroupVideo": "Remove this video from the chat group?",
     "disableShareLink": "Disable the share link?"
   },
   "settings": {
@@ -647,7 +432,6 @@
       "description": "Change the email address associated with your account. The change is applied only after you confirm the new address.",
       "currentEmailLabel": "Current email address",
       "newEmailLabel": "New email address",
-      "newEmailPlaceholder": "Enter your new email",
       "help": "We will send a confirmation link to the new email address. Your current address stays active until confirmation.",
       "submit": "Send confirmation email",
       "submitting": "Sending...",
@@ -658,9 +442,7 @@
     "accountDeletion": {
       "title": "Delete account",
       "description": "Deleting your account will permanently remove all videos and data.",
-      "warningLine1": "Your account will be deactivated immediately and you will be signed out.",
       "reasonLabel": "Reason for leaving (optional)",
-      "reasonPlaceholder": "Tell us what we could improve (optional)",
       "confirmLabel": "Type {{keyword}} to confirm",
       "confirmTitle": "Confirm account deletion",
       "confirmDescription": "Deleting your account will permanently remove all videos and data.",
@@ -675,7 +457,6 @@
       "title": "Integration API Keys",
       "description": "Create and manage secret keys for server-to-server access from your existing systems.",
       "nameLabel": "Key name",
-      "namePlaceholder": "e.g. production-crm",
       "nameHelp": "This name is only shown here, so use something that makes the integration easy to identify later.",
       "create": "Create new secret key",
       "createDialogTitle": "Create a new secret key",
@@ -688,18 +469,11 @@
       "generatedDoneCta": "Done",
       "copy": "Copy",
       "copyDone": "Copied",
-      "activeListTitle": "Active keys",
-      "activeListCount_one": "{{count}} active key",
-      "activeListCount_other": "{{count}} active keys",
-      "loading": "Loading API keys...",
       "empty": "No API keys have been created yet.",
-      "createdAt": "Created: {{date}}",
-      "lastUsedAt": "Last used: {{date}}",
       "neverUsed": "Never used",
       "permissionsLabel": "Permissions",
       "permissionsHelp": "Choose All if the integration needs write access, or Read only if it should only read data.",
       "secretKeyLabel": "Secret key",
-      "secretKeyHelp": "Store this key somewhere secure. It can be used immediately after this dialog closes.",
       "columns": {
         "name": "Name",
         "secret": "Secret key",
@@ -726,8 +500,7 @@
       "errorRevoking": "Failed to revoke API key",
       "errorCopying": "Copy is only available in a secure browser context.",
       "successCreated": "API key created successfully",
-      "successRevoked": "API key revoked",
-      "successCopied": "API key copied"
+      "successRevoked": "API key revoked"
     },
     "connectedApps": {
       "title": "Connected Apps",
@@ -742,32 +515,9 @@
       },
       "expiresNever": "—",
       "revoke": "Revoke",
-      "revoking": "Revoking...",
       "errorLoading": "Failed to load connected apps",
       "errorRevoking": "Failed to revoke token",
       "successRevoked": "Connection revoked"
-    },
-    "openaiApiKey": {
-      "title": "OpenAI API Key",
-      "description": "Set your OpenAI API key to use transcription and chat features.",
-      "billingNoticeTitle": "Billing",
-      "billingNotice": "The OpenAI API key entered here is used for transcription and AI chat. Usage charges are billed to your OpenAI account associated with this key, not to VideoQ.",
-      "apiKeyLabel": "API Key",
-      "hasApiKeyMessage": "You have already set an API key. Enter a new key to update it.",
-      "noApiKeyMessage": "You need to set your OpenAI API key to use video transcription and chat features. Usage charges will be billed to your OpenAI account associated with that key.",
-      "getApiKeyMessage": "You can get your API key from",
-      "openaiPlatform": "OpenAI Platform",
-      "save": "Save",
-      "saving": "Saving...",
-      "delete": "Delete",
-      "deleting": "Deleting...",
-      "confirmDelete": "Are you sure you want to delete your API key?",
-      "errorEmpty": "Please enter an API key",
-      "errorSaving": "Failed to save API key",
-      "errorDeleting": "Failed to delete API key",
-      "successSaved": "API key saved successfully",
-      "successDeleted": "API key deleted successfully",
-      "configured": "Configured"
     },
     "searchApiKey": {
       "title": "SearchAPI Key",
@@ -775,7 +525,6 @@
       "usageTitle": "Used for YouTube imports",
       "usageDescription": "When you import a YouTube video, VideoQ uses this key to fetch the transcript from SearchAPI. Charges are billed to your own SearchAPI account.",
       "apiKeyLabel": "API Key",
-      "apiKeyPlaceholder": "sa_...",
       "hasApiKeyMessage": "A SearchAPI key is already configured. Enter a new key to update it.",
       "noApiKeyMessage": "To import YouTube videos, you need to set your own SearchAPI key first.",
       "getApiKeyMessage": "Get your API key from",
@@ -789,27 +538,6 @@
       "successSaved": "SearchAPI key saved successfully",
       "successDeleted": "SearchAPI key deleted successfully",
       "configured": "Configured"
-    },
-    "llm": {
-      "title": "LLM Settings",
-      "description": "Configure your preferred language model and temperature for chat responses.",
-      "modelLabel": "Model",
-      "selectModel": "Select a model",
-      "modelDescription": "Choose which LLM model to use for chat responses. Different models have different capabilities and costs.",
-      "temperatureLabel": "Temperature",
-      "temperatureDescription": "Higher values (e.g., 1.5-2.0) make the output more random and creative. Lower values (e.g., 0.0-0.5) make it more focused and deterministic.",
-      "save": "Save Settings",
-      "saving": "Saving...",
-      "successSaved": "LLM settings saved successfully",
-      "errorSaving": "Failed to save LLM settings",
-      "errorLoadingModels": "Failed to load available models"
-    }
-  },
-  "openaiApiKey": {
-    "banner": {
-      "title": "OpenAI API Key Required",
-      "message": "To use transcription and chat features, please set your OpenAI API key in Settings. Usage charges will be billed to the OpenAI account associated with that key.",
-      "settingsLink": "Go to Settings"
     }
   },
   "dashboard": {
@@ -817,17 +545,9 @@
     "title": "Educational Improvement Dashboard",
     "totalQuestions": "{{count}} total questions",
     "dateRange": "Period: {{first}} – {{last}}",
-    "noData": "No analytics data available",
     "empty": {
       "title": "No data yet",
       "description": "There are no questions in this group yet. Start chatting to see analytics."
-    },
-    "sceneDistribution": {
-      "title": "Question Distribution by Scene",
-      "questions": "{{count}}",
-      "coverage": "Showing all {{count}} scenes",
-      "share": "{{percentage}} of total",
-      "timeRange": "{{start}} - {{end}}"
     },
     "timeSeries": {
       "title": "Question Trends",
@@ -890,8 +610,7 @@
       "subtitle": "Reference docs for integrating with VideoQ APIs and automations.",
       "quickLinksTitle": "Quick links",
       "quickLinksDescription": "Review the official API docs and issue an integration API key from Settings.",
-      "createApiKey": "Create API key in Settings",
-      "readMore": "Read more"
+      "createApiKey": "Create API key in Settings"
     },
     "section": {
       "checklistTitle": "Implementation checklist",
@@ -952,349 +671,11 @@
       "overQuota": "Your storage usage exceeds its configured limit. New uploads and AI chat are disabled. Delete videos to restore access."
     }
   },
-  "legal": {
-    "disclosure": {
-      "title": "Commercial Disclosure (特定商取引法に基づく表記)",
-      "rows": {
-        "seller": "Seller",
-        "address": "Address",
-        "phone": "Phone",
-        "email": "Email",
-        "representative": "Representative",
-        "price": "Price",
-        "priceValue": "Price displayed on each plan page (tax included)",
-        "additionalFees": "Additional Fees",
-        "additionalFeesValue": "Internet connection and data communication fees are the responsibility of the customer.",
-        "paymentMethod": "Payment Method",
-        "paymentMethodValue": "As separately described in the Service",
-        "paymentTiming": "Payment Timing",
-        "paymentTimingValue": "At the timing defined for the applicable plan or individually provided terms",
-        "delivery": "Service Delivery",
-        "deliveryValue": "The Service becomes available once the applicable access conditions are met.",
-        "returns": "Returns & Cancellation",
-        "returnsValue": "Because this is a digital service, refunds are generally not available after use begins. Any change or cancellation terms are governed by the Service or separately provided terms.",
-        "environment": "System Requirements",
-        "environmentValue": "Modern browsers (latest version of Chrome, Firefox, Safari, or Edge)"
-      }
-    },
-    "terms": {
-      "title": "Terms of Service",
-      "sections": {
-        "serviceOverview": {
-          "heading": "1. Service Overview",
-          "body": "VideoQ (\"the Service\") is a web-based platform operated by {{operatorName}} that allows users to upload videos, generate transcriptions, and interact with video content through AI-powered chat. By using the Service, you agree to these Terms of Service."
-        },
-        "accountRegistration": {
-          "heading": "2. Account Registration",
-          "body": "To use the Service, you must create an account by providing a valid email address, username, and password. You are responsible for maintaining the confidentiality of your account credentials and for all activities that occur under your account. If you are a minor, you must obtain parental or guardian consent before using this Service."
-        },
-        "prohibitedUse": {
-          "heading": "3. Prohibited Use",
-          "body": "You may not use the Service for any unlawful or unauthorized purpose. Prohibited activities include, but are not limited to:\n- Uploading content that infringes on third-party intellectual property rights\n- Uploading content that is illegal, harmful, or offensive\n- Attempting to gain unauthorized access to the Service or its systems\n- Using the Service to distribute spam or malicious software\n- Reselling or redistributing the Service without authorization\n- Excessive automated access, reverse engineering, or placing an unreasonable load on the Service"
-        },
-        "accountSuspension": {
-          "heading": "4. Account Suspension and Termination",
-          "body": "We reserve the right to suspend or delete your account without prior notice if you violate these Terms of Service."
-        },
-        "paymentAndBilling": {
-          "heading": "5. Payment and Billing",
-          "body": "The Service is operated with account-specific usage limits. Available storage, transcription time, AI answer limits, and other quotas are governed by the limits configured for your account or by terms we provide separately."
-        },
-        "cancellation": {
-          "heading": "6. Cancellation and Refunds",
-          "body": "Changes to account limits and any refund handling are governed by the terms shown in the Service or otherwise provided to you. Because this is a digital service, refunds may not be available for functionality or processing already provided."
-        },
-        "intellectualProperty": {
-          "heading": "7. Intellectual Property",
-          "body": "You retain ownership of all content you upload to the Service. By uploading content, you grant us a limited license to process, store, and display your content solely for the purpose of providing the Service. The Service itself, including its design, code, and branding, is the intellectual property of the operator."
-        },
-        "limitationOfLiability": {
-          "heading": "8. Limitation of Liability",
-          "body": "The Service is provided \"as is\" without warranties of any kind. We do not guarantee uninterrupted or error-free operation. We make no guarantees regarding the accuracy, completeness, or usefulness of AI-generated responses. You use such content at your own risk. We are not responsible for any loss, corruption, or failure of backup of your data. To the maximum extent permitted by law, we shall not be liable for any indirect, incidental, or consequential damages arising from your use of the Service. Our total liability shall not exceed the amount you paid to us in the 12 months preceding the claim."
-        },
-        "serviceChanges": {
-          "heading": "9. Service Modifications and Termination",
-          "body": "We may modify, suspend, or terminate all or part of the Service with prior notice."
-        },
-        "governingLaw": {
-          "heading": "10. Governing Law and Jurisdiction",
-          "body": "These Terms shall be governed by and construed in accordance with the laws of Japan. Any disputes arising from these Terms shall be subject to the exclusive jurisdiction of the Tokyo District Court."
-        },
-        "changes": {
-          "heading": "11. Changes to These Terms",
-          "body": "We may update these Terms from time to time. When we make material changes, we will notify registered users via email or through the Service. Continued use of the Service after changes take effect constitutes acceptance of the revised Terms."
-        }
-      }
-    },
-    "privacy": {
-      "title": "Privacy Policy",
-      "sections": {
-        "dataCollected": {
-          "heading": "1. Data We Collect",
-          "body": "We collect the following types of information:\n- Account information: email address, username, and password (hashed)\n- Uploaded content: video files and generated transcriptions\n- Usage data: chat messages, AI interaction history, and service usage statistics\n- Limit management data: configured quota limits and usage counters used to operate the Service\n- Technical data: IP address, browser type, and access logs"
-        },
-        "purposeOfUse": {
-          "heading": "2. Purpose of Use",
-          "body": "We use the collected information to:\n- Provide and maintain the Service\n- Process video transcriptions and AI chat responses\n- Manage your account and subscription billing\n- Improve the Service and develop new features\n- Communicate with you regarding your account and service updates\n- Ensure compliance with legal obligations"
-        },
-        "thirdPartySharing": {
-          "heading": "3. Third-Party Services",
-          "body": "We may share data with the following third-party services as necessary to operate the Service:\n- OpenAI: video transcription (audio data) and AI chat functionality (chat messages)\n- Neon: serverless PostgreSQL database (stores account information, video metadata, transcription data, chat history, usage statistics, etc.)\n- Mailgun: email delivery service (used for system emails such as email verification and password reset; includes email address)\n- AWS (SQS, Lambda): used for task queuing (SQS) and serverless processing (Lambda). Video files and related data are included.\n- Cloudflare R2: used for video file storage.\n\nThese providers process data in accordance with their own privacy policies. Third-party services may process data on servers located outside of Japan. We do not sell your personal information to third parties."
-        },
-        "cookies": {
-          "heading": "4. Cookies and Local Storage",
-          "body": "The Service uses cookies and local storage for session management and authentication. These are essential for the Service to function properly. We do not use third-party tracking cookies for advertising purposes."
-        },
-        "dataRetention": {
-          "heading": "5. Data Retention",
-          "body": "Your account data and uploaded content are retained for as long as your account is active. If you delete your account, your data will be removed from our systems within 30 days, except where retention is required by law. Chat history and usage logs may be retained in anonymized form for service improvement."
-        },
-        "security": {
-          "heading": "6. Security Measures",
-          "body": "We take reasonable security measures to protect your personal information. However, no method of transmission over the Internet or digital storage is completely secure, and we cannot guarantee absolute security."
-        },
-        "userRights": {
-          "heading": "7. Your Rights",
-          "body": "You have the right to:\n- Access the personal data we hold about you (e.g., name, email address)\n- Request correction of inaccurate personal account information (AI-generated content such as transcriptions and chat responses is not covered)\n- Request deletion of your account and associated data\n- Export your data in a portable format\n- Withdraw consent for data processing\n\nTo exercise these rights, please contact us at the email address below."
-        },
-        "contact": {
-          "heading": "8. Contact",
-          "body": "For questions or requests regarding this Privacy Policy, please contact us at:\nEmail: "
-        }
-      }
-    }
-  },
-  "landing": {
-    "hero": {
-      "title": "AI video learning for education and training",
-      "subtitle": "Transcription and natural-language search for video",
-      "description": "Register lecture and training videos to enable automatic transcription and Q&A on the content.",
-      "ctaSignup": "Create an account",
-      "ctaDocs": "Developer Docs"
-    },
-    "features": {
-      "title": "Key Features",
-      "transcription": {
-        "title": "Automatic Transcription",
-        "description": "High-accuracy transcription powered by OpenAI Whisper"
-      },
-      "chat": {
-        "title": "RAG Chat",
-        "description": "Ask questions about video content in natural language"
-      },
-      "api": {
-        "title": "OpenAI-Compatible API",
-        "description": "Use any OpenAI client or SDK with your video library"
-      }
-    },
-    "personas": {
-      "title": "Who It's For",
-      "educator": {
-        "title": "Educators & Instructors",
-        "description": "Turn recorded lessons into self-study materials. Students find answers with AI chat on their own.",
-        "ctaLink": "For Educational Institutions"
-      },
-      "corporateTrainer": {
-        "title": "Corporate Training Teams",
-        "description": "Transform training videos into an AI knowledge base. New hires find exactly what they need, any time.",
-        "ctaLink": "For Corporate Training"
-      },
-      "developer": {
-        "title": "Developers",
-        "description": "Embed video AI into your product with an OpenAI-compatible API. Works with any existing SDK.",
-        "ctaLink": "View API Docs"
-      }
-    }
-  },
-  "seo": {
-    "app": {
-      "home": {
-        "title": "Home | VideoQ",
-        "description": "View your VideoQ dashboard, recent uploads, and quick actions for managing videos and groups."
-      },
-      "videos": {
-        "title": "Video Library | VideoQ",
-        "description": "Browse, search, and manage your uploaded videos in VideoQ."
-      },
-      "groups": {
-        "title": "Group Management | VideoQ",
-        "description": "Create and manage video groups for searchable AI chat and shared learning flows."
-      },
-      "videoDetail": {
-        "description": "Review the video, transcript, and metadata in your VideoQ library."
-      },
-      "groupDetail": {
-        "description": "View the video group, its playlist, and related AI chat workspace in VideoQ."
-      },
-      "settings": {
-        "title": "Settings | VideoQ",
-        "description": "Manage your VideoQ account, API keys, and integration settings."
-      }
-    },
-    "auth": {
-      "login": {
-        "title": "Log In | VideoQ",
-        "description": "Log in to VideoQ to manage videos, search transcripts with AI, and access your learning workspace."
-      },
-      "checkEmail": {
-        "title": "Check Your Email | VideoQ",
-        "description": "Check your inbox to verify your email address and finish creating your VideoQ account."
-      },
-      "signup": {
-        "title": "Sign Up | VideoQ",
-        "description": "Create a VideoQ account to upload videos, transcribe them with AI, and start searchable learning workflows."
-      },
-      "forgotPassword": {
-        "title": "Reset Your Password | VideoQ",
-        "description": "Request a password reset email to regain access to your VideoQ account."
-      },
-      "resetPassword": {
-        "title": "Set a New Password | VideoQ",
-        "description": "Set a new password to restore access to your VideoQ account."
-      },
-      "verifyEmail": {
-        "title": "Verify Your Email | VideoQ",
-        "description": "Verify your email address to activate your VideoQ account."
-      }
-    },
-    "shared": {
-      "description": "Open the shared VideoQ group and browse videos with AI chat."
-    },
-    "landing": {
-      "title": "AI video learning for education and training | VideoQ",
-      "description": "VideoQ is an AI video learning service for education and training. Register videos for automatic transcription and natural-language search and Q&A."
-    },
-    "docs": {
-      "home": {
-        "title": "Developer Docs | VideoQ",
-        "description": "VideoQ API reference. Authentication, videos, chat, and OpenAI-compatible API docs."
-      },
-      "sections": {
-        "auth": {
-          "title": "Authentication API | VideoQ Developer Docs",
-          "description": "How to issue and use VideoQ API keys for server-to-server authentication."
-        },
-        "videos": {
-          "title": "Videos API | VideoQ Developer Docs",
-          "description": "Upload videos, monitor processing status, and manage video groups with the VideoQ API."
-        },
-        "chat": {
-          "title": "Chat API | VideoQ Developer Docs",
-          "description": "Run RAG chat against indexed video groups and retrieve analytics with the VideoQ API."
-        },
-        "openai": {
-          "title": "OpenAI-Compatible API | VideoQ Developer Docs",
-          "description": "Use the OpenAI SDK with VideoQ's OpenAI-compatible API for video RAG chat."
-        }
-      }
-    },
-    "terms": {
-      "title": "Terms of Service | VideoQ",
-      "description": "Read the VideoQ Terms of Service covering accounts, billing, acceptable use, and liability."
-    },
-    "privacy": {
-      "title": "Privacy Policy | VideoQ",
-      "description": "Read how VideoQ collects, uses, stores, and protects personal data and uploaded content."
-    },
-    "faq": {
-      "title": "FAQ | VideoQ",
-      "description": "Frequently asked questions about VideoQ: pricing, features, security, and more."
-    },
-    "commercialDisclosure": {
-      "title": "Specified Commercial Transaction Act Disclosure | VideoQ",
-      "description": "Legal disclosure required under Japan's Specified Commercial Transaction Act for VideoQ services."
-    }
-  },
-  "faq": {
-    "pageTitle": "Frequently Asked Questions",
-    "subtitle": "Everything you need to know about VideoQ",
-    "categories": {
-      "pricing": {
-        "title": "Pricing & Plans",
-        "items": {
-          "free": {
-            "question": "Is VideoQ free to use?",
-            "answer": "Yes. VideoQ can be used without payment. The actual storage, transcription, and AI answer limits depend on the limits configured for your account."
-          },
-          "paidPlan": {
-            "question": "Are there paid plans?",
-            "answer": "Yes. VideoQ can provide larger account limits when needed. The limits that apply to your account are determined directly by the configured quota values on your user."
-          }
-        }
-      },
-      "features": {
-        "title": "Features",
-        "items": {
-          "formats": {
-            "question": "What video formats are supported?",
-            "answer": "VideoQ accepts MP4, MOV, AVI, MKV, WebM, M4V, MPEG, MPG, and 3GP files up to 500 MB per upload."
-          },
-          "accuracy": {
-            "question": "How accurate is the transcription?",
-            "answer": "VideoQ uses OpenAI's Whisper API (whisper-1 model) to produce timestamped, segment-level transcripts. Accuracy is high for clear audio and is not degraded by VideoQ's processing pipeline."
-          },
-          "japanese": {
-            "question": "Is Japanese transcription supported?",
-            "answer": "Yes. Whisper supports Japanese, and VideoQ's AI chat also responds in Japanese, making it fully usable in Japanese-language environments."
-          },
-          "duration": {
-            "question": "Is there a limit on video length?",
-            "answer": "There is no hard limit on video duration. The practical limits are the per-upload file size cap and the transcription minutes configured for your account."
-          }
-        }
-      },
-      "education": {
-        "title": "Education & Enterprise",
-        "items": {
-          "school": {
-            "question": "Can schools and educational institutions use VideoQ?",
-            "answer": "Yes. Teachers can upload lecture videos, organise them into groups, and share them with students via a public link. Students can view transcripts and ask questions through AI chat without needing a VideoQ account."
-          },
-          "sharing": {
-            "question": "Can videos be shared with multiple users?",
-            "answer": "Yes. Video groups can be shared via a link. Anyone with the link can view the videos, read transcripts, and use AI chat — no VideoQ account required."
-          },
-          "integration": {
-            "question": "Can VideoQ integrate with internal corporate systems?",
-            "answer": "Yes. VideoQ provides a REST API secured with API keys (prefixed vq_). Keys can be scoped to read-only or full access and generated from your account settings."
-          }
-        }
-      },
-      "security": {
-        "title": "Security & Privacy",
-        "items": {
-          "privacy": {
-            "question": "Are uploaded videos shared publicly?",
-            "answer": "No. All uploaded videos are private by default. They are accessible only to you or people you explicitly share them with via a group share link."
-          },
-          "storage": {
-            "question": "Where is my data stored?",
-            "answer": "Video files are stored in Cloudflare R2. Metadata, transcripts, and chat history are stored in Neon (serverless PostgreSQL). All data is encrypted in transit."
-          }
-        }
-      },
-      "technical": {
-        "title": "Technical",
-        "items": {
-          "api": {
-            "question": "Is API integration available?",
-            "answer": "Yes. VideoQ exposes a REST API for managing videos, groups, tags, and chat. API keys (prefixed vq_) are generated from account settings and can be restricted to read-only or full access."
-          },
-          "llm": {
-            "question": "Which AI model does VideoQ use for chat?",
-            "answer": "VideoQ uses OpenAI's GPT-4o-mini for AI chat answers and OpenAI Whisper for transcription."
-          }
-        }
-      }
-    }
-  },
   "plog": {
     "title": "Learning graph",
     "subtitle": "Pre-builds prerequisite structure and guiding questions for Study mode from this video.",
     "build": "Create learning graph",
     "rebuild": "Rebuild",
-    "resetLearner": "Reset study progress",
-    "resetLearnerConfirm": "Reset Study-mode progress for this video (reached concepts, hint rungs, etc.)? Chat messages are kept.",
     "retry": "Try again",
     "loading": "Loading...",
     "loadError": "Could not load the learning graph.",
