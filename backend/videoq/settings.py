@@ -250,11 +250,8 @@ WSGI_APPLICATION = "videoq.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES = {
-    "default": dj_database_url.parse(
-        os.environ.get("DATABASE_URL", DefaultSettings.DATABASE_URL)
-    )
-}
+DATABASE_URL = os.environ.get("DATABASE_URL", DefaultSettings.DATABASE_URL)
+DATABASES = {"default": dj_database_url.parse(DATABASE_URL)}
 
 # Cache configuration
 # USE_DATABASE_CACHE=true の場合は DatabaseCache (Aurora) を使用。

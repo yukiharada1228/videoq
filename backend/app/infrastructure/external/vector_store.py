@@ -4,7 +4,6 @@ Moved from app/utils/vector_manager.py.
 """
 
 import logging
-import os
 import threading
 
 from django.conf import settings
@@ -62,10 +61,7 @@ class PGVectorManager:
         if cls._engine is None:
             with cls._engine_lock:
                 if cls._engine is None:
-                    db_url = os.getenv(
-                        "DATABASE_URL",
-                        "postgresql://postgres:postgres@postgres:5432/postgres",
-                    )
+                    db_url = settings.DATABASE_URL
                     # PGEngine requires postgresql+psycopg:// format
                     if db_url.startswith("postgresql://"):
                         db_url = db_url.replace(

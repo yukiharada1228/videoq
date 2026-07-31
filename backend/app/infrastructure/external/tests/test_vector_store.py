@@ -2,7 +2,6 @@
 Tests for vector_manager module
 """
 
-import os
 from unittest.mock import MagicMock, patch
 
 from django.test import SimpleTestCase, override_settings
@@ -31,9 +30,7 @@ class PGVectorManagerTests(SimpleTestCase):
         PGVectorManager._table_initialized = False
 
     @patch("app.infrastructure.external.vector_store.PGEngine.from_connection_string")
-    @patch.dict(
-        os.environ, {"DATABASE_URL": "postgresql://test:test@localhost:5432/test"}
-    )
+    @override_settings(DATABASE_URL="postgresql://test:test@localhost:5432/test")
     def test_get_engine_creates_singleton(self, mock_from_conn):
         mock_engine = MagicMock()
         mock_from_conn.return_value = mock_engine
@@ -47,20 +44,20 @@ class PGVectorManagerTests(SimpleTestCase):
         )
 
     @patch("app.infrastructure.external.vector_store.PGEngine.from_connection_string")
-    @patch.dict(os.environ, {}, clear=True)
-    def test_get_engine_default_url(self, mock_from_conn):
+    @override_settings(
+        DATABASE_URL="postgresql://postgres:postgres@localhost:5432/postgres"
+    )
+    def test_get_engine_uses_configured_url(self, mock_from_conn):
         mock_from_conn.return_value = MagicMock()
 
         PGVectorManager.get_engine()
 
         mock_from_conn.assert_called_once_with(
-            url="postgresql+psycopg://postgres:postgres@postgres:5432/postgres"
+            url="postgresql+psycopg://postgres:postgres@localhost:5432/postgres"
         )
 
     @patch("app.infrastructure.external.vector_store.PGEngine.from_connection_string")
-    @patch.dict(
-        os.environ, {"DATABASE_URL": "postgres://test:test@localhost:5432/test"}
-    )
+    @override_settings(DATABASE_URL="postgres://test:test@localhost:5432/test")
     def test_get_engine_normalizes_postgres_short_url(self, mock_from_conn):
         mock_from_conn.return_value = MagicMock()
 
