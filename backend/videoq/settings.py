@@ -655,7 +655,7 @@ SEARCHAPI_TIMEOUT_SECONDS = int(
     os.environ.get("SEARCHAPI_TIMEOUT_SECONDS", DefaultSettings.SEARCHAPI_TIMEOUT_SECONDS)
 )
 
-# OpenAI API key (system-level fallback; users can override with their own key)
+# Server credential shared by OpenAI-backed providers.
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 
 # Billing configuration
