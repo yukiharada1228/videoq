@@ -49,12 +49,14 @@ def _delegated_target(function_node: ast.FunctionDef) -> tuple[str, str]:
         raise AssertionError(f"{function_node.name} must contain exactly one return.")
     returned = returns[0].value
     if not isinstance(returned, ast.Call):
-        raise AssertionError(  # noqa: TRY004 - this helper reports a test assertion
+        # An AST-shape mismatch is a test failure, not an invalid argument type.
+        raise AssertionError(  # noqa: TRY004
             f"{function_node.name} must return a function call."
         )
     func = returned.func
     if not isinstance(func, ast.Attribute) or not isinstance(func.value, ast.Name):
-        raise AssertionError(  # noqa: TRY004 - this helper reports a test assertion
+        # An AST-shape mismatch is a test failure, not an invalid argument type.
+        raise AssertionError(  # noqa: TRY004
             f"{function_node.name} must call <composition_root_alias>.<provider>()."
         )
     return func.value.id, func.attr
