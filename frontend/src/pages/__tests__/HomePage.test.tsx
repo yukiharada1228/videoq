@@ -107,9 +107,9 @@ describe('HomePage - authenticated', () => {
       expect(screen.getByText('home.usage.title')).toBeInTheDocument()
     })
 
-    const storageCard = screen.getByText('billing.usage.storage').parentElement
-    const transcriptionCard = screen.getByText('billing.usage.transcription').parentElement
-    const aiAnswersCard = screen.getByText('billing.usage.aiAnswers').parentElement
+    const storageCard = screen.getByText('quota.usage.storage').parentElement
+    const transcriptionCard = screen.getByText('quota.usage.transcription').parentElement
+    const aiAnswersCard = screen.getByText('quota.usage.aiAnswers').parentElement
 
     expect(storageCard?.textContent).toContain('2.5')
     expect(storageCard?.textContent).toContain('10')

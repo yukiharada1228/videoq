@@ -63,25 +63,25 @@ export default function HomePage() {
 
     return [
       {
-        label: t('billing.usage.storage'),
+        label: t('quota.usage.storage'),
         value: formatBytesToGb(usageSource.used_storage_bytes),
         limit:
           usageSource.storage_limit_bytes == null
             ? null
             : formatBytesToGb(usageSource.storage_limit_bytes),
-        unit: t('billing.usage.gb'),
+        unit: t('quota.usage.gb'),
       },
       {
-        label: t('billing.usage.transcription'),
+        label: t('quota.usage.transcription'),
         value: String(formatSecondsToMinutes(usageSource.used_processing_seconds)),
         limit:
           usageSource.processing_limit_seconds == null
             ? null
             : String(formatSecondsToMinutes(usageSource.processing_limit_seconds)),
-        unit: t('billing.usage.min'),
+        unit: t('quota.usage.min'),
       },
       {
-        label: t('billing.usage.aiAnswers'),
+        label: t('quota.usage.aiAnswers'),
         value: String(usageSource.used_ai_answers ?? 0),
         limit:
           usageSource.ai_answers_limit == null
@@ -221,7 +221,7 @@ export default function HomePage() {
                 {value}
                 {unit ? <span className="ml-1 font-normal text-solid-gray-700">{unit}</span> : null}
                 <span className="mx-2 text-solid-gray-420">/</span>
-                {limit ?? t('billing.usage.unlimited')}
+                {limit ?? t('quota.usage.unlimited')}
                 {unit && limit !== null ? (
                   <span className="ml-1 font-normal text-solid-gray-700">{unit}</span>
                 ) : null}
@@ -231,7 +231,7 @@ export default function HomePage() {
         </dl>
         {currentUser.is_over_quota && (
           <div className="mt-4">
-            <MessageAlert type="error" message={t('billing.errors.overQuota')} />
+            <MessageAlert type="error" message={t('quota.errors.overQuota')} />
           </div>
         )}
       </section>

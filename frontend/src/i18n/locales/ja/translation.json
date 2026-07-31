@@ -657,13 +657,13 @@
     },
     "accountDeletion": {
       "title": "アカウント削除",
-      "description": "アカウントを削除すると、すべての動画・データが完全に削除され、有料サブスクリプションは即時キャンセルされます。",
+      "description": "アカウントを削除すると、すべての動画・データが完全に削除されます。",
       "warningLine1": "アカウントは即時に無効化され、ログアウトされます。",
       "reasonLabel": "退会理由（任意）",
       "reasonPlaceholder": "改善点があれば教えてください（任意）",
       "confirmLabel": "{{keyword}} と入力して確認",
       "confirmTitle": "削除の最終確認",
-      "confirmDescription": "アカウントを削除すると、すべての動画・データが完全に削除され、サブスクリプションは即時キャンセルされます。",
+      "confirmDescription": "アカウントを削除すると、すべての動画・データが完全に削除されます。",
       "confirmWarning": "この操作は取り消せません。データの復元はできません。",
       "confirmCta": "はい、削除します",
       "cancel": "キャンセル",
@@ -939,62 +939,17 @@
       }
     }
   },
-  "billing": {
-    "title": "課金・プラン",
-    "subtitle": "サブスクリプションの管理と使用量の確認",
-    "currentPlan": "現在のプラン",
+  "quota": {
     "usage": {
-      "title": "今月の使用量",
       "storage": "ストレージ",
       "transcription": "文字起こし",
       "aiAnswers": "AI回答",
       "unlimited": "無制限",
-      "of": "/",
       "min": "分",
       "gb": "GB"
     },
-    "plans": {
-      "title": "プラン",
-      "current": "現在のプラン",
-      "upgrade": "アップグレード",
-      "downgrade": "ダウングレード",
-      "contact": "お問い合わせ",
-      "confirmChange": "{{plan}}プランに変更します。日割り計算で即時請求されます。よろしいですか？",
-      "confirmYes": "変更する",
-      "confirmNo": "キャンセル",
-      "currency": {
-        "jpy": "円 (¥)",
-        "usd": "ドル ($)"
-      },
-      "perMonth": " / 月",
-      "free": "無料",
-      "storage": "ストレージ",
-      "transcription": "文字起こし / 月",
-      "aiAnswers": "AI回答 / 月",
-      "enterprise": {
-        "price": "要相談",
-        "storage": "カスタム",
-        "transcription": "カスタム",
-        "aiAnswers": "カスタム"
-      },
-      "notEnabled": "課金機能は現在利用できません。"
-    },
-    "manage": {
-      "title": "サブスクリプション管理",
-      "description": "支払い方法の変更、請求書の確認、またはキャンセル。",
-      "button": "サブスクリプションを管理"
-    },
-    "upgradeSuccess": "プランを変更しました。反映まで少し時間がかかる場合があります。",
-    "cancelWarning": "サブスクリプションは{{date}}にキャンセルされます。それまではサービスをご利用いただけます。",
-    "nav": "プラン",
-    "settingsLink": {
-      "title": "課金・プラン",
-      "description": "現在のプラン・使用量・アップグレードオプションを確認。",
-      "button": "課金・プランを確認"
-    },
     "errors": {
-      "downgradeNotAllowed": "ダウングレードできません：現在のストレージ使用量がダウングレード先のプラン上限を {{overGb}} GB 超過しています。動画を削除してストレージを空けてからお試しください。",
-      "overQuota": "ストレージ使用量がプランの上限を超過しています。新規アップロードとAIチャットは無効化されています。動画を削除してストレージを解放してください。"
+      "overQuota": "ストレージ使用量が上限を超えています。新規アップロードとAIチャットは無効化されています。動画を削除してストレージを解放してください。"
     }
   },
   "legal": {
@@ -1174,10 +1129,6 @@
       "settings": {
         "title": "設定 | VideoQ",
         "description": "VideoQ のアカウント、API キー、各種連携設定を管理できます。"
-      },
-      "billing": {
-        "title": "課金・プラン | VideoQ",
-        "description": "現在のプラン、使用量、課金オプションを VideoQ 上で確認できます。"
       }
     },
     "auth": {
