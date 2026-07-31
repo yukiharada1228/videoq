@@ -8,8 +8,9 @@ than a persistent learner model.
 from __future__ import annotations
 
 import uuid
+from collections.abc import Sequence
 from dataclasses import asdict, dataclass
-from typing import Dict, List, Optional, Protocol, Sequence
+from typing import Protocol
 
 from django.core.cache import cache
 
@@ -41,20 +42,20 @@ class _StateRecord:
 
 
 class LearnerStateStore(Protocol):
-    def get(self, concept_id: int) -> Optional[LearnerConceptStateEntity]:
+    def get(self, concept_id: int) -> LearnerConceptStateEntity | None:
         ...
 
-    def list_for_video(self, video_id: int) -> List[LearnerConceptStateEntity]:
+    def list_for_video(self, video_id: int) -> list[LearnerConceptStateEntity]:
         ...
 
     def upsert(
         self,
         concept_id: int,
         *,
-        reached: Optional[bool] = None,
-        hint_index: Optional[int] = None,
-        last_grade: Optional[str] = None,
-        active: Optional[bool] = None,
+        reached: bool | None = None,
+        hint_index: int | None = None,
+        last_grade: str | None = None,
+        active: bool | None = None,
     ) -> LearnerConceptStateEntity:
         ...
 
@@ -62,14 +63,14 @@ class LearnerStateStore(Protocol):
 class EphemeralLearnerStateStore:
     """Session-scoped progress in Django cache (no DB writes)."""
 
-    def __init__(self, session_key: str, concept_video_ids: Dict[int, int]):
+    def __init__(self, session_key: str, concept_video_ids: dict[int, int]):
         self._cache_key = f"{_EPHEMERAL_KEY_PREFIX}{session_key}"
         self._concept_video_ids = concept_video_ids
-        self._states: Dict[int, _StateRecord] = self._load()
+        self._states: dict[int, _StateRecord] = self._load()
 
-    def _load(self) -> Dict[int, _StateRecord]:
+    def _load(self) -> dict[int, _StateRecord]:
         raw = cache.get(self._cache_key) or {}
-        states: Dict[int, _StateRecord] = {}
+        states: dict[int, _StateRecord] = {}
         for key, value in raw.items():
             try:
                 concept_id = int(key)
@@ -92,12 +93,12 @@ class EphemeralLearnerStateStore:
         }
         cache.set(self._cache_key, payload, timeout=_EPHEMERAL_TTL_SEC)
 
-    def get(self, concept_id: int) -> Optional[LearnerConceptStateEntity]:
+    def get(self, concept_id: int) -> LearnerConceptStateEntity | None:
         record = self._states.get(concept_id)
         return record.to_entity() if record else None
 
-    def list_for_video(self, video_id: int) -> List[LearnerConceptStateEntity]:
-        out: List[LearnerConceptStateEntity] = []
+    def list_for_video(self, video_id: int) -> list[LearnerConceptStateEntity]:
+        out: list[LearnerConceptStateEntity] = []
         for concept_id, record in self._states.items():
             if self._concept_video_ids.get(concept_id) == video_id:
                 out.append(record.to_entity())
@@ -107,10 +108,10 @@ class EphemeralLearnerStateStore:
         self,
         concept_id: int,
         *,
-        reached: Optional[bool] = None,
-        hint_index: Optional[int] = None,
-        last_grade: Optional[str] = None,
-        active: Optional[bool] = None,
+        reached: bool | None = None,
+        hint_index: int | None = None,
+        last_grade: str | None = None,
+        active: bool | None = None,
     ) -> LearnerConceptStateEntity:
         record = self._states.get(concept_id) or _StateRecord(concept_id=concept_id)
         if reached is not None:
@@ -131,13 +132,13 @@ def build_learner_state_store(
     plog_repo: PlogRepository,
     user_id: int,
     persist: bool = False,
-    session_key: Optional[str],
+    session_key: str | None,
     graphs: Sequence,
 ) -> LearnerStateStore:
     """Always session-scoped. ``persist`` / ``user_id`` / ``plog_repo`` are ignored."""
     del plog_repo, user_id, persist
     key = session_key or f"oneshot:{uuid.uuid4()}"
-    concept_video_ids: Dict[int, int] = {}
+    concept_video_ids: dict[int, int] = {}
     for graph in graphs:
         for concept in graph.concepts:
             concept_video_ids[concept.id] = graph.video_id

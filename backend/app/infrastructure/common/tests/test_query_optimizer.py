@@ -5,9 +5,12 @@ Tests for query_optimizer module
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 
+from app.infrastructure.common.query_optimizer import (
+    BatchProcessor,
+    CacheOptimizer,
+    QueryOptimizer,
+)
 from app.infrastructure.models import Video, VideoGroup, VideoGroupMember
-from app.infrastructure.common.query_optimizer import (BatchProcessor, CacheOptimizer,
-                                       QueryOptimizer)
 
 User = get_user_model()
 

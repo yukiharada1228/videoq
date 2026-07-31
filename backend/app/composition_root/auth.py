@@ -11,16 +11,18 @@ from app.infrastructure.auth.api_key_resolver import DjangoApiKeyResolver
 from app.infrastructure.auth.django_auth_gateway import DjangoUserAuthGateway
 from app.infrastructure.auth.share_token_resolver import DjangoShareTokenResolver
 from app.infrastructure.auth.simplejwt_gateway import SimpleJWTGateway
+from app.infrastructure.common.django_transaction import DjangoTransactionPort
 from app.infrastructure.repositories.django_account_deletion_repository import (
     DjangoAccountDeletionGateway,
 )
-from app.infrastructure.repositories.django_api_key_repository import DjangoApiKeyRepository
+from app.infrastructure.repositories.django_api_key_repository import (
+    DjangoApiKeyRepository,
+)
 from app.infrastructure.repositories.django_user_auth_gateway import (
     DjangoEmailSenderGateway,
     DjangoUserManagementGateway,
 )
 from app.infrastructure.repositories.django_user_repository import DjangoUserRepository
-from app.infrastructure.common.django_transaction import DjangoTransactionPort
 from app.infrastructure.tasks.task_gateway import CeleryAuthTaskGateway
 from app.use_cases.auth.authorize_api_key import AuthorizeApiKeyUseCase
 from app.use_cases.auth.change_email import (
@@ -43,12 +45,12 @@ from app.use_cases.auth.manage_searchapi_api_key import (
     SetSearchApiKeyUseCase,
 )
 from app.use_cases.auth.refresh_token import RefreshTokenUseCase
-from app.use_cases.auth.resolve_api_key import ResolveApiKeyUseCase
-from app.use_cases.auth.resolve_share_token import ResolveShareTokenUseCase
 from app.use_cases.auth.reset_password import (
     ConfirmPasswordResetUseCase,
     RequestPasswordResetUseCase,
 )
+from app.use_cases.auth.resolve_api_key import ResolveApiKeyUseCase
+from app.use_cases.auth.resolve_share_token import ResolveShareTokenUseCase
 from app.use_cases.auth.signup import SignupUserUseCase
 from app.use_cases.auth.verify_email import VerifyEmailUseCase
 

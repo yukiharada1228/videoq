@@ -1,22 +1,28 @@
 """Use case: Send a chat message with optional RAG context."""
 
 import logging
-from typing import Generator, List, Optional, Union
+from collections.abc import Generator
 
 from app.domain.chat.dtos import ChatMessageDTO
-from app.domain.chat.gateways import PlogNotReadyError
 from app.domain.chat.gateways import LLMConfigurationError as _DomainLLMConfigError
 from app.domain.chat.gateways import LLMProviderError as _DomainLLMProviderError
-from app.domain.chat.gateways import RagGateway
+from app.domain.chat.gateways import PlogNotReadyError, RagGateway
 from app.domain.chat.gateways import RagUserNotFoundError as _DomainRagUserNotFoundError
 from app.domain.chat.repositories import ChatRepository, VideoGroupQueryRepository
 from app.domain.chat.services import (
     ChatRequestPolicy,
-    GroupContextNotFound as _DomainGroupContextNotFound,
-    InvalidSendMessageRequest as _DomainInvalidSendMessageRequest,
-    OwnerUserResolutionError as _DomainOwnerUserResolutionError,
     require_group_context,
 )
+from app.domain.chat.services import (
+    GroupContextNotFound as _DomainGroupContextNotFound,
+)
+from app.domain.chat.services import (
+    InvalidSendMessageRequest as _DomainInvalidSendMessageRequest,
+)
+from app.domain.chat.services import (
+    OwnerUserResolutionError as _DomainOwnerUserResolutionError,
+)
+from app.domain.evaluation.gateways import EvaluationTaskGateway
 from app.use_cases.chat.dto import (
     ChatMessageInput,
     CitationResponseDTO,
@@ -29,7 +35,6 @@ from app.use_cases.chat.exceptions import (
     LLMConfigurationError,
     LLMProviderError,
 )
-from app.domain.evaluation.gateways import EvaluationTaskGateway
 from app.use_cases.shared.exceptions import PermissionDenied, ResourceNotFound
 
 logger = logging.getLogger(__name__)
@@ -52,8 +57,8 @@ class SendMessageUseCase:
         rag_gateway: RagGateway,
         ai_answer_limit_check_use_case=None,
         ai_answer_record_use_case=None,
-        evaluation_task_gateway: Optional[EvaluationTaskGateway] = None,
-        plog_gateway: Optional[RagGateway] = None,
+        evaluation_task_gateway: EvaluationTaskGateway | None = None,
+        plog_gateway: RagGateway | None = None,
     ):
         self.chat_repo = chat_repo
         self.group_query_repo = group_query_repo
@@ -72,14 +77,14 @@ class SendMessageUseCase:
 
     def execute(
         self,
-        user_id: Optional[int],
-        messages: List[ChatMessageInput],
-        group_id: Optional[int] = None,
-        share_token: Optional[str] = None,
+        user_id: int | None,
+        messages: list[ChatMessageInput],
+        group_id: int | None = None,
+        share_token: str | None = None,
         is_shared: bool = False,
-        locale: Optional[str] = None,
+        locale: str | None = None,
         mode: str = "qa",
-        study_session_id: Optional[str] = None,
+        study_session_id: str | None = None,
     ) -> SendMessageResultDTO:
         """
         Args:
@@ -167,8 +172,8 @@ class SendMessageUseCase:
         except PlogNotReadyError:
             raise
 
-        chat_log_id: Optional[int] = None
-        feedback: Optional[str] = None
+        chat_log_id: int | None = None
+        feedback: str | None = None
 
         if group is not None:
             chat_log = self.chat_repo.create_log(
@@ -226,15 +231,15 @@ class SendMessageUseCase:
 
     def stream_execute(
         self,
-        user_id: Optional[int],
-        messages: List[ChatMessageInput],
-        group_id: Optional[int] = None,
-        share_token: Optional[str] = None,
+        user_id: int | None,
+        messages: list[ChatMessageInput],
+        group_id: int | None = None,
+        share_token: str | None = None,
         is_shared: bool = False,
-        locale: Optional[str] = None,
+        locale: str | None = None,
         mode: str = "qa",
-        study_session_id: Optional[str] = None,
-    ) -> Generator[Union[StreamContentChunk, StreamDoneEvent], None, None]:
+        study_session_id: str | None = None,
+    ) -> Generator[StreamContentChunk | StreamDoneEvent, None, None]:
         """Streaming variant of execute().
 
         Yields:
@@ -322,8 +327,8 @@ class SendMessageUseCase:
         except PlogNotReadyError:
             raise
 
-        chat_log_id: Optional[int] = None
-        feedback: Optional[str] = None
+        chat_log_id: int | None = None
+        feedback: str | None = None
 
         if group is not None:
             chat_log = self.chat_repo.create_log(

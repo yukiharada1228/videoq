@@ -51,6 +51,8 @@ class IndexingExecutionFailed(Exception):
 def index_video_transcript(video_id: int) -> None:
     from app.use_cases.video.exceptions import (
         IndexingExecutionFailed as UseCaseIndexingExecutionFailed,
+    )
+    from app.use_cases.video.exceptions import (
         IndexingTargetMissing as UseCaseIndexingTargetMissing,
     )
 
@@ -69,8 +71,14 @@ def mark_indexing_failed(video_id: int, reason: str = "") -> None:
 def run_transcription(video_id: int) -> None:
     from app.use_cases.video.exceptions import (
         FileSizeExceeded as UseCaseFileSizeExceeded,
+    )
+    from app.use_cases.video.exceptions import (
         TranscriptionExecutionFailed as UseCaseTranscriptionExecutionFailed,
+    )
+    from app.use_cases.video.exceptions import (
         TranscriptionRejected as UseCaseTranscriptionRejected,
+    )
+    from app.use_cases.video.exceptions import (
         TranscriptionTargetMissing as UseCaseTranscriptionTargetMissing,
     )
 

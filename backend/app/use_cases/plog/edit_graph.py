@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Optional, Sequence
+from collections.abc import Sequence
 
 from app.domain.plog.gateways import PlogEmbeddingGateway
 from app.domain.plog.repositories import PlogRepository
@@ -62,7 +62,7 @@ class EditPlogGraphUseCase:
         proposed_source_id: int,
         proposed_target_id: int,
         proposed_edge_type: str,
-        exclude_edge_id: Optional[int] = None,
+        exclude_edge_id: int | None = None,
     ) -> None:
         if proposed_edge_type not in ORDERING:
             return
@@ -116,10 +116,10 @@ class EditPlogGraphUseCase:
         user_id: int,
         concept_id: int,
         *,
-        label: Optional[str] = None,
-        node_type: Optional[str] = None,
-        intro_sec: Optional[float] = None,
-        source_quote: Optional[str] = None,
+        label: str | None = None,
+        node_type: str | None = None,
+        intro_sec: float | None = None,
+        source_quote: str | None = None,
     ) -> dict:
         self._require_video(video_id, user_id)
         existing = self.plog_repo.get_concept(concept_id, video_id)
@@ -185,12 +185,12 @@ class EditPlogGraphUseCase:
         user_id: int,
         concept_id: int,
         *,
-        opening_question: Optional[str] = None,
-        hint_ladder: Optional[Sequence[str]] = None,
-        misconceptions: Optional[Sequence[str]] = None,
-        canonical_order: Optional[Sequence[str]] = None,
-        worked_examples: Optional[Sequence[str]] = None,
-        waypoints: Optional[Sequence[dict]] = None,
+        opening_question: str | None = None,
+        hint_ladder: Sequence[str] | None = None,
+        misconceptions: Sequence[str] | None = None,
+        canonical_order: Sequence[str] | None = None,
+        worked_examples: Sequence[str] | None = None,
+        waypoints: Sequence[dict] | None = None,
     ) -> dict:
         self._require_video(video_id, user_id)
         lo = self.plog_repo.update_learning_object(
@@ -249,10 +249,10 @@ class EditPlogGraphUseCase:
         user_id: int,
         edge_id: int,
         *,
-        source_id: Optional[int] = None,
-        target_id: Optional[int] = None,
-        edge_type: Optional[str] = None,
-        quote: Optional[str] = None,
+        source_id: int | None = None,
+        target_id: int | None = None,
+        edge_type: str | None = None,
+        quote: str | None = None,
     ) -> dict:
         self._require_video(video_id, user_id)
         existing = self.plog_repo.get_edge(edge_id, video_id)

@@ -7,7 +7,11 @@ from app.presentation.video.serializers import (
     VideoGroupDetailSerializer,
     VideoSerializer,
 )
-from app.presentation.video.views import TagDetailView, VideoDetailView, VideoGroupDetailView
+from app.presentation.video.views import (
+    TagDetailView,
+    VideoDetailView,
+    VideoGroupDetailView,
+)
 
 
 class OpenApiSchemaMetadataTests(SimpleTestCase):

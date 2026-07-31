@@ -4,33 +4,32 @@ No Django / ORM / external service dependencies.
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, Tuple
 
 from app.domain.video.dto import (
     CreateGroupParams,
     CreateTagParams,
-    CreateVideoPendingParams,
     CreateVideoParams,
+    CreateVideoPendingParams,
     CreateYoutubeVideoParams,
     UpdateGroupParams,
     UpdateTagParams,
     UpdateVideoParams,
     VideoSearchCriteria,
 )
-from app.domain.video.status import VideoStatus
 from app.domain.video.entities import (
     TagEntity,
     VideoEntity,
     VideoGroupEntity,
     VideoGroupMemberEntity,
 )
+from app.domain.video.status import VideoStatus
 
 
 class VideoQueryRepository(ABC):
     """Read-side video repository operations."""
 
     @abstractmethod
-    def get_by_id(self, video_id: int, user_id: int) -> Optional[VideoEntity]:
+    def get_by_id(self, video_id: int, user_id: int) -> VideoEntity | None:
         """Retrieve a video by ID owned by the given user."""
         ...
 
@@ -38,10 +37,10 @@ class VideoQueryRepository(ABC):
     def list_for_user(
         self,
         user_id: int,
-        criteria: Optional[VideoSearchCriteria] = None,
-        limit: Optional[int] = None,
+        criteria: VideoSearchCriteria | None = None,
+        limit: int | None = None,
         offset: int = 0,
-    ) -> List[VideoEntity]:
+    ) -> list[VideoEntity]:
         """List videos for a user with optional filters.
 
         Args:
@@ -54,20 +53,20 @@ class VideoQueryRepository(ABC):
     def count_for_user(
         self,
         user_id: int,
-        criteria: Optional[VideoSearchCriteria] = None,
+        criteria: VideoSearchCriteria | None = None,
     ) -> int:
         """Return the number of videos owned by the user with optional filters."""
         ...
 
     @abstractmethod
     def get_file_keys_for_ids(
-        self, video_ids: List[int], user_id: int
-    ) -> Dict[int, Optional[str]]:
+        self, video_ids: list[int], user_id: int
+    ) -> dict[int, str | None]:
         """Return a mapping of video_id → storage file key (or None) for the given IDs."""
         ...
 
     @abstractmethod
-    def get_existing_ids_for_user(self, video_ids: List[int], user_id: int) -> set[int]:
+    def get_existing_ids_for_user(self, video_ids: list[int], user_id: int) -> set[int]:
         """Return the subset of given IDs that belong to the user."""
         ...
 
@@ -105,12 +104,12 @@ class VideoTranscriptionRepository(ABC):
     """Video repository operations dedicated to transcription workflows."""
 
     @abstractmethod
-    def list_completed_with_transcript(self) -> List[VideoEntity]:
+    def list_completed_with_transcript(self) -> list[VideoEntity]:
         """Return all videos that have completed transcription and have a non-empty transcript."""
         ...
 
     @abstractmethod
-    def get_by_id_for_task(self, video_id: int) -> Optional[VideoEntity]:
+    def get_by_id_for_task(self, video_id: int) -> VideoEntity | None:
         """Retrieve a video by ID without user ownership check (for internal task use)."""
         ...
 
@@ -149,7 +148,7 @@ class VideoGroupRepository(ABC):
         group_id: int,
         user_id: int,
         include_videos: bool = False,
-    ) -> Optional[VideoGroupEntity]:
+    ) -> VideoGroupEntity | None:
         """Retrieve a group by ID owned by the given user."""
         ...
 
@@ -158,9 +157,9 @@ class VideoGroupRepository(ABC):
         self,
         user_id: int,
         include_videos: bool = False,
-        limit: Optional[int] = None,
+        limit: int | None = None,
         offset: int = 0,
-    ) -> List[VideoGroupEntity]:
+    ) -> list[VideoGroupEntity]:
         """List video groups for a user.
 
         Args:
@@ -191,7 +190,7 @@ class VideoGroupRepository(ABC):
         ...
 
     @abstractmethod
-    def get_by_share_slug(self, share_slug: str) -> Optional[VideoGroupEntity]:
+    def get_by_share_slug(self, share_slug: str) -> VideoGroupEntity | None:
         """Retrieve a group by its public share slug."""
         ...
 
@@ -208,8 +207,8 @@ class VideoGroupRepository(ABC):
 
     @abstractmethod
     def add_videos_bulk(
-        self, group: VideoGroupEntity, video_ids: List[int], user_id: int
-    ) -> Tuple[int, int]:
+        self, group: VideoGroupEntity, video_ids: list[int], user_id: int
+    ) -> tuple[int, int]:
         """
         Persist multiple videos as group members in the given order.
         Business validations (existence/membership) are handled in use cases.
@@ -229,18 +228,18 @@ class VideoGroupRepository(ABC):
         ...
 
     @abstractmethod
-    def reorder_videos(self, group: VideoGroupEntity, video_ids: List[int]) -> None:
+    def reorder_videos(self, group: VideoGroupEntity, video_ids: list[int]) -> None:
         """Persist video order in a group according to the given ID list."""
         ...
 
     @abstractmethod
-    def reorder_groups(self, user_id: int, group_ids: List[int]) -> None:
+    def reorder_groups(self, user_id: int, group_ids: list[int]) -> None:
         """Persist display order for the given subset of a user's groups."""
         ...
 
     @abstractmethod
     def update_share_slug(
-        self, group: VideoGroupEntity, slug: Optional[str]
+        self, group: VideoGroupEntity, slug: str | None
     ) -> None:
         """Set or clear the share slug for a group."""
         ...
@@ -250,12 +249,12 @@ class TagRepository(ABC):
     """Abstract interface for tag data access."""
 
     @abstractmethod
-    def list_for_user(self, user_id: int) -> List[TagEntity]:
+    def list_for_user(self, user_id: int) -> list[TagEntity]:
         """List tags for a user."""
         ...
 
     @abstractmethod
-    def get_by_id(self, tag_id: int, user_id: int) -> Optional[TagEntity]:
+    def get_by_id(self, tag_id: int, user_id: int) -> TagEntity | None:
         """Retrieve a tag by ID owned by the given user."""
         ...
 
@@ -276,8 +275,8 @@ class TagRepository(ABC):
 
     @abstractmethod
     def add_tags_to_video(
-        self, video: VideoEntity, tag_ids: List[int]
-    ) -> Tuple[int, int]:
+        self, video: VideoEntity, tag_ids: list[int]
+    ) -> tuple[int, int]:
         """
         Add tags to a video, skipping already-attached tags.
 
@@ -299,6 +298,6 @@ class TagRepository(ABC):
         ...
 
     @abstractmethod
-    def get_with_videos(self, tag_id: int, user_id: int) -> Optional[TagEntity]:
+    def get_with_videos(self, tag_id: int, user_id: int) -> TagEntity | None:
         """Retrieve a tag with its associated videos pre-loaded."""
         ...

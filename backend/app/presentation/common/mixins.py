@@ -1,17 +1,22 @@
 """Presentation-layer view mixins."""
 
+from typing import ClassVar
+
 from django.core.exceptions import ImproperlyConfigured
 from rest_framework.permissions import AllowAny, IsAuthenticated
 
-from app.presentation.common.authentication import APIKeyAuthentication, CookieJWTAuthentication
+from app.presentation.common.authentication import (
+    APIKeyAuthentication,
+    CookieJWTAuthentication,
+)
 from app.presentation.common.permissions import ApiKeyScopePermission
 
 
 class AuthenticatedViewMixin:
     """Common mixin for authenticated views."""
 
-    permission_classes = [IsAuthenticated, ApiKeyScopePermission]
-    authentication_classes = [APIKeyAuthentication, CookieJWTAuthentication]
+    permission_classes: ClassVar = [IsAuthenticated, ApiKeyScopePermission]
+    authentication_classes: ClassVar = [APIKeyAuthentication, CookieJWTAuthentication]
 
     def get_serializer_context(self):
         """Pass request context to serializer."""
@@ -23,7 +28,7 @@ class AuthenticatedViewMixin:
 class PublicViewMixin:
     """Common mixin for public views (no authentication required)."""
 
-    permission_classes = [AllowAny]
+    permission_classes: ClassVar = [AllowAny]
 
 
 class DynamicSerializerMixin:

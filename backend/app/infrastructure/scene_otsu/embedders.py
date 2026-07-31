@@ -1,5 +1,4 @@
 from abc import ABC
-from typing import List, Optional
 
 import numpy as np
 import tiktoken
@@ -30,13 +29,13 @@ class BaseEmbedder(ABC):
         """Count tokens in text using the provided encoding"""
         return len(self.encoding.encode(text))
 
-    def _embed_batch(self, texts: List[str]) -> List[List[float]]:
+    def _embed_batch(self, texts: list[str]) -> list[list[float]]:
         """Actually call the provider API for a batch of texts"""
         if self.embeddings is None:
             raise NotImplementedError("Subclass must initialize self.embeddings")
         return self.embeddings.embed_documents(texts)
 
-    def get_embeddings(self, texts: List[str]) -> np.ndarray:
+    def get_embeddings(self, texts: list[str]) -> np.ndarray:
         """Common logic to generate embeddings in batches with a progress bar"""
         all_embeddings = []
         for i in tqdm(
@@ -76,7 +75,7 @@ class OllamaEmbedder(BaseEmbedder):
 
 
 def create_embedder(
-    api_key: Optional[str] = None, batch_size: int = 16
+    api_key: str | None = None, batch_size: int = 16
 ) -> BaseEmbedder:
     """Create embedder based on EMBEDDING_PROVIDER setting"""
     provider = get_provider_setting("EMBEDDING_PROVIDER", "openai")
@@ -90,7 +89,7 @@ def create_embedder(
     )
 
 
-def _create_openai_embedder(api_key: Optional[str], batch_size: int) -> BaseEmbedder:
+def _create_openai_embedder(api_key: str | None, batch_size: int) -> BaseEmbedder:
     resolved_key = resolve_openai_api_key(
         api_key,
         allow_settings_fallback=False,

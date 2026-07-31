@@ -1,8 +1,8 @@
 from urllib.parse import parse_qs, urlparse
 
 from django.contrib.auth import get_user_model
-from django.core.cache import cache
 from django.core import mail
+from django.core.cache import cache
 from django.test import override_settings
 from django.urls import reverse
 from rest_framework import status

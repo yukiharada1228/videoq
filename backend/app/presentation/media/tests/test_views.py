@@ -4,6 +4,7 @@ Tests for presentation/media/views.py (ProtectedMediaView).
 
 import os
 import tempfile
+from contextlib import suppress
 from unittest.mock import patch
 
 from django.apps import apps
@@ -46,11 +47,9 @@ class ProtectedMediaViewTests(APITestCase):
     def tearDown(self):
         """Clean up test files"""
         if self.video.file:
-            try:
+            with suppress(AttributeError, NotImplementedError, OSError, ValueError):
                 if os.path.exists(self.video.file.path):
                     os.remove(self.video.file.path)
-            except Exception:
-                pass
 
     def test_get_media_with_authenticated_user(self):
         """Test accessing media with authenticated user"""

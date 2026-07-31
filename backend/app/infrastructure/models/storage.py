@@ -64,7 +64,6 @@ class SafeFileSystemStorage(SafeFilenameMixin, FileSystemStorage):
     Safe file storage for local use with timestamp-based filename conversion
     """
 
-    pass
 
 
 class SafeS3Boto3Storage(SafeFilenameMixin, S3Boto3Storage):
@@ -86,8 +85,7 @@ class SafeS3Boto3Storage(SafeFilenameMixin, S3Boto3Storage):
         name = name.replace("\\", "/")
 
         # Remove leading slash (S3 object keys should not start with /)
-        if name.startswith("/"):
-            name = name[1:]
+        name = name.removeprefix("/")
 
         # Call parent's _normalize_name to apply location prefix
         return super()._normalize_name(name)

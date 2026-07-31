@@ -4,11 +4,12 @@ Wraps RagChatService (LangChain) for use case consumption.
 """
 
 import logging
-from typing import Iterator, Optional, Sequence
+from collections.abc import Iterator, Sequence
 
 from django.contrib.auth import get_user_model
 from openai import AuthenticationError as OpenAIAuthenticationError
 
+from app.domain.chat.dtos import ChatMessageDTO, CitationDTO
 from app.domain.chat.gateways import (
     LLMConfigurationError,
     LLMProviderError,
@@ -17,7 +18,6 @@ from app.domain.chat.gateways import (
     RagStreamChunk,
     RagUserNotFoundError,
 )
-from app.domain.chat.dtos import ChatMessageDTO, CitationDTO
 from app.domain.shared.exceptions import ProviderConfigError
 from app.infrastructure.external.llm import get_langchain_llm
 from app.infrastructure.external.rag_service import RagChatService, _RagServiceStreamEnd
@@ -32,12 +32,12 @@ class RagChatGateway(RagGateway):
         self,
         messages: Sequence[ChatMessageDTO],
         user_id: int,
-        video_ids: Optional[Sequence[int]] = None,
-        locale: Optional[str] = None,
-        api_key: Optional[str] = None,
-        group_context: Optional[str] = None,
+        video_ids: Sequence[int] | None = None,
+        locale: str | None = None,
+        api_key: str | None = None,
+        group_context: str | None = None,
         persist_learner_state: bool = True,
-        learner_session_key: Optional[str] = None,
+        learner_session_key: str | None = None,
     ) -> RagResult:
         del persist_learner_state, learner_session_key
         User = get_user_model()
@@ -70,7 +70,7 @@ class RagChatGateway(RagGateway):
                 "Invalid OpenAI API key. Please check your API key in Settings."
             ) from exc
         except Exception as exc:
-            logger.exception("RAG generate_reply failed: %s", exc)
+            logger.exception("RAG generate_reply failed")
             raise LLMProviderError(str(exc)) from exc
 
         citations = None
@@ -99,12 +99,12 @@ class RagChatGateway(RagGateway):
         self,
         messages: Sequence[ChatMessageDTO],
         user_id: int,
-        video_ids: Optional[Sequence[int]] = None,
-        locale: Optional[str] = None,
-        api_key: Optional[str] = None,
-        group_context: Optional[str] = None,
+        video_ids: Sequence[int] | None = None,
+        locale: str | None = None,
+        api_key: str | None = None,
+        group_context: str | None = None,
         persist_learner_state: bool = True,
-        learner_session_key: Optional[str] = None,
+        learner_session_key: str | None = None,
     ) -> Iterator[RagStreamChunk]:
         del persist_learner_state, learner_session_key
         User = get_user_model()
@@ -160,5 +160,5 @@ class RagChatGateway(RagGateway):
         except (RagUserNotFoundError, LLMConfigurationError):
             raise
         except Exception as exc:
-            logger.exception("RAG stream_reply failed: %s", exc)
+            logger.exception("RAG stream_reply failed")
             raise LLMProviderError(str(exc)) from exc

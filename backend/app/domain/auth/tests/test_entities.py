@@ -1,6 +1,6 @@
 """Unit tests for auth domain entities and policies."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from unittest import TestCase
 
 from app.domain.auth.entities import (
@@ -10,8 +10,8 @@ from app.domain.auth.entities import (
     InvalidApiKeyName,
     assert_api_key_name_available,
     assert_valid_api_key_access_level,
-    normalize_api_key_name,
     is_scope_allowed_for_access_level,
+    normalize_api_key_name,
 )
 from app.domain.auth.scopes import SCOPE_CHAT_WRITE, SCOPE_READ, SCOPE_WRITE
 
@@ -35,7 +35,7 @@ class AuthDomainPoliciesTests(TestCase):
             prefix="abcd",
             access_level="read_only",
             last_used_at=None,
-            created_at=datetime.now(),
+            created_at=datetime.now(tz=UTC),
         )
 
         self.assertTrue(entity.allows_scope(SCOPE_READ))

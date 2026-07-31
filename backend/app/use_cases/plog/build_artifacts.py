@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Callable, List, Optional, Sequence
+from collections.abc import Callable, Sequence
 
 from app.domain.plog.gateways import (
     ExtractedConcept,
@@ -18,11 +18,11 @@ from app.domain.video.repositories import VideoTranscriptionRepository
 
 logger = logging.getLogger(__name__)
 
-ParseScenesFn = Callable[[str], List[dict]]
-MergeConceptsFn = Callable[[Sequence[ExtractedConcept]], List[ExtractedConcept]]
+ParseScenesFn = Callable[[str], list[dict]]
+MergeConceptsFn = Callable[[Sequence[ExtractedConcept]], list[ExtractedConcept]]
 ApplyChecksFn = Callable[
     [Sequence[ExtractedConcept], Sequence[ExtractedEdge], str, Sequence[dict]],
-    tuple[dict[str, float], List[ExtractedEdge]],
+    tuple[dict[str, float], list[ExtractedEdge]],
 ]
 
 
@@ -48,7 +48,7 @@ class BuildPlogArtifactsUseCase:
         self.merge_concepts = merge_concepts
         self.apply_checks = apply_checks
 
-    def execute(self, video_id: int, api_key: Optional[str] = None) -> None:
+    def execute(self, video_id: int, api_key: str | None = None) -> None:
         video = self.video_repo.get_by_id_for_task(video_id)
         if video is None or not video.transcript:
             raise ValueError(f"Video {video_id} missing or has no transcript")

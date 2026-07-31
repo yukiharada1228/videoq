@@ -30,7 +30,5 @@ def reindex_video_transcript_task(self, video_id: int) -> None:
     except Exception as exc:
         if self.request.retries < self.max_retries:
             raise self.retry(exc=exc, countdown=60 * (self.request.retries + 1))
-        logger.error(
-            "Reindex transcript exhausted all retries for video %d", video_id, exc_info=True
-        )
+        logger.exception("Reindex transcript exhausted all retries for video %d", video_id)
         raise

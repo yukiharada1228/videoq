@@ -3,16 +3,22 @@ LangChain RAG service implementation.
 Moved from app/chat/services/rag_chat.py.
 """
 
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Sequence, Union, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Optional,
+    cast,
+)
 
 from langchain_core.messages import AIMessage
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_postgres import PGVectorStore
 
+from app.infrastructure.common.embeddings import get_embeddings
 from app.infrastructure.external.prompts import build_system_prompt
 from app.infrastructure.external.vector_store import PGVectorManager
-from app.infrastructure.common.embeddings import get_embeddings
 
 if TYPE_CHECKING:  # pragma: no cover
     from app.infrastructure.models import VideoGroup
@@ -24,8 +30,8 @@ class RagChatResult:
 
     llm_response: AIMessage
     query_text: str
-    citations: Optional[List[Dict[str, str]]]
-    retrieved_contexts: List[str] = None  # type: ignore[assignment]
+    citations: list[dict[str, str]] | None
+    retrieved_contexts: list[str] = None  # type: ignore[assignment]
 
     def __post_init__(self):
         if self.retrieved_contexts is None:
@@ -36,9 +42,9 @@ class RagChatResult:
 class _RagServiceStreamEnd:
     """Sentinel yielded at the end of RagChatService.stream() carrying metadata."""
 
-    citations: Optional[List[Dict[str, str]]]
+    citations: list[dict[str, str]] | None
     query_text: str
-    retrieved_contexts: List[str] = None  # type: ignore[assignment]
+    retrieved_contexts: list[str] = None  # type: ignore[assignment]
 
     def __post_init__(self):
         if self.retrieved_contexts is None:
@@ -61,11 +67,11 @@ class RagChatService:
 
     def run(
         self,
-        messages: Sequence[Dict[str, str]],
+        messages: Sequence[dict[str, str]],
         group: Optional["VideoGroup"] = None,
-        locale: Optional[str] = None,
-        video_ids: Optional[List[int]] = None,
-        group_context: Optional[str] = None,
+        locale: str | None = None,
+        video_ids: list[int] | None = None,
+        group_context: str | None = None,
     ) -> RagChatResult:
         if self.llm is None:
             raise RuntimeError("LLM is required for full RAG response generation.")
@@ -74,7 +80,7 @@ class RagChatService:
         retriever = self._get_retriever(group, video_ids=video_ids)
 
         # Retrieve docs upfront to capture page_content for evaluation.
-        docs: List[Any] = retriever.invoke(query_text) if retriever is not None else []
+        docs: list[Any] = retriever.invoke(query_text) if retriever is not None else []
 
         payload = self._build_prompt_payload({
             "docs": docs,
@@ -95,12 +101,12 @@ class RagChatService:
 
     def stream(
         self,
-        messages: Sequence[Dict[str, str]],
+        messages: Sequence[dict[str, str]],
         group: Optional["VideoGroup"] = None,
-        locale: Optional[str] = None,
-        video_ids: Optional[List[int]] = None,
-        group_context: Optional[str] = None,
-    ) -> Iterator[Union[str, _RagServiceStreamEnd]]:
+        locale: str | None = None,
+        video_ids: list[int] | None = None,
+        group_context: str | None = None,
+    ) -> Iterator[str | _RagServiceStreamEnd]:
         """Stream LLM response token by token.
 
         Yields:
@@ -136,7 +142,7 @@ class RagChatService:
             retrieved_contexts=retrieved_contexts,
         )
 
-    def _extract_latest_user_query(self, messages: Sequence[Dict[str, str]]) -> str:
+    def _extract_latest_user_query(self, messages: Sequence[dict[str, str]]) -> str:
         for msg in reversed(messages):
             if msg.get("role") == "user" and msg.get("content"):
                 return msg["content"]
@@ -147,8 +153,8 @@ class RagChatService:
     def _get_retriever(
         self,
         group: Optional["VideoGroup"] = None,
-        video_ids: Optional[List[int]] = None,
-    ) -> Optional[Any]:
+        video_ids: list[int] | None = None,
+    ) -> Any | None:
         # Resolve the list of video IDs from whichever source is provided
         if video_ids is not None:
             group_video_ids = video_ids
@@ -171,13 +177,13 @@ class RagChatService:
             }
         )
 
-    def _extract_page_contents(self, docs: Sequence[Any]) -> List[str]:
+    def _extract_page_contents(self, docs: Sequence[Any]) -> list[str]:
         return [getattr(doc, "page_content", "") for doc in docs if getattr(doc, "page_content", "")]
 
-    def _build_reference_entries(self, docs: Sequence[Any]) -> List[str]:
+    def _build_reference_entries(self, docs: Sequence[Any]) -> list[str]:
         if not docs:
             return []
-        reference_entries: List[str] = []
+        reference_entries: list[str] = []
         for i, doc in enumerate(docs, start=1):
             metadata = getattr(doc, "metadata", {}) or {}
             title = metadata.get("video_title", "")
@@ -189,10 +195,10 @@ class RagChatService:
             )
         return reference_entries
 
-    def _extract_citations(self, docs: Sequence[Any]) -> Optional[List[Dict[str, str]]]:
+    def _extract_citations(self, docs: Sequence[Any]) -> list[dict[str, str]] | None:
         if not docs:
             return None
-        citations: List[Dict[str, str]] = []
+        citations: list[dict[str, str]] = []
         for doc in docs:
             metadata = getattr(doc, "metadata", {}) or {}
             citations.append(
@@ -205,12 +211,12 @@ class RagChatService:
             )
         return citations
 
-    def _build_prompt_payload(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    def _build_prompt_payload(self, data: dict[str, Any]) -> dict[str, Any]:
         docs_obj = data.get("docs") or []
         docs = cast(Sequence[Any], docs_obj)
         query_text = cast(str, data.get("query_text", ""))
-        locale = cast(Optional[str], data.get("locale"))
-        group_context = cast(Optional[str], data.get("group_context")) or None
+        locale = cast(str | None, data.get("locale"))
+        group_context = cast(str | None, data.get("group_context")) or None
 
         reference_entries = self._build_reference_entries(docs)
         system_prompt = build_system_prompt(

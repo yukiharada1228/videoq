@@ -17,7 +17,10 @@ from app.contracts.media_validation import (
     InvalidMediaFileError,
     validate_video_media_file,
 )
-from app.use_cases.video.youtube import build_youtube_embed_url, extract_youtube_video_id
+from app.use_cases.video.youtube import (
+    build_youtube_embed_url,
+    extract_youtube_video_id,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -189,11 +192,11 @@ class VideoCreateSerializer(serializers.Serializer):
     Validates file type only; quota and task dispatch are handled by the use case.
     """
 
-    ALLOWED_VIDEO_EXTENSIONS = {
+    ALLOWED_VIDEO_EXTENSIONS = frozenset({
         ".mp4", ".mov", ".avi", ".mkv", ".webm",
         ".m4v", ".mpeg", ".mpg", ".3gp",
-    }
-    ALLOWED_VIDEO_MIMETYPES = {
+    })
+    ALLOWED_VIDEO_MIMETYPES = frozenset({
         "video/mp4",
         "video/quicktime",
         "video/x-msvideo",
@@ -202,7 +205,7 @@ class VideoCreateSerializer(serializers.Serializer):
         "video/x-m4v",
         "video/mpeg",
         "video/3gpp",
-    }
+    })
 
     file = serializers.FileField()
     title = serializers.CharField(max_length=255)
@@ -215,21 +218,19 @@ class VideoCreateSerializer(serializers.Serializer):
             return temp_path_getter(), None
 
         suffix = os.path.splitext(uploaded_file.name)[1] or ".upload"
-        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
-        cleanup_path = temp_file.name
-
         try:
-            if hasattr(uploaded_file, "seek"):
-                uploaded_file.seek(0)
-            chunks = (
-                uploaded_file.chunks()
-                if hasattr(uploaded_file, "chunks")
-                else [uploaded_file.read()]
-            )
-            for chunk in chunks:
-                temp_file.write(chunk)
+            with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as temp_file:
+                cleanup_path = temp_file.name
+                if hasattr(uploaded_file, "seek"):
+                    uploaded_file.seek(0)
+                chunks = (
+                    uploaded_file.chunks()
+                    if hasattr(uploaded_file, "chunks")
+                    else [uploaded_file.read()]
+                )
+                for chunk in chunks:
+                    temp_file.write(chunk)
         finally:
-            temp_file.close()
             if hasattr(uploaded_file, "seek"):
                 uploaded_file.seek(0)
 
@@ -310,11 +311,11 @@ class YoutubeVideoCreateSerializer(serializers.Serializer):
 class VideoUploadRequestSerializer(serializers.Serializer):
     """Serializer for presigned-URL upload request (metadata only, no file body)."""
 
-    ALLOWED_VIDEO_EXTENSIONS = {
+    ALLOWED_VIDEO_EXTENSIONS = frozenset({
         ".mp4", ".mov", ".avi", ".mkv", ".webm",
         ".m4v", ".mpeg", ".mpg", ".3gp",
-    }
-    ALLOWED_VIDEO_MIMETYPES = {
+    })
+    ALLOWED_VIDEO_MIMETYPES = frozenset({
         "video/mp4",
         "video/quicktime",
         "video/x-msvideo",
@@ -323,7 +324,7 @@ class VideoUploadRequestSerializer(serializers.Serializer):
         "video/x-m4v",
         "video/mpeg",
         "video/3gpp",
-    }
+    })
 
     filename = serializers.CharField(max_length=255)
     content_type = serializers.CharField(max_length=100)

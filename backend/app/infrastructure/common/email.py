@@ -1,7 +1,7 @@
 """Infrastructure helper for auth-related emails."""
 
 import logging
-from typing import Sequence
+from collections.abc import Sequence
 
 from django.conf import settings
 from django.contrib.auth.models import AbstractBaseUser

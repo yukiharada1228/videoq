@@ -1,8 +1,8 @@
 """Unit tests for UpdateVideoUseCase."""
 
+from collections.abc import Callable
 from contextlib import contextmanager
-from datetime import datetime
-from typing import Callable
+from datetime import UTC, datetime
 from unittest import TestCase
 from unittest.mock import MagicMock
 
@@ -49,14 +49,14 @@ class UpdateVideoUseCaseTests(TestCase):
             user_id=10,
             title="old",
             status="completed",
-            uploaded_at=datetime(2026, 1, 1),
+            uploaded_at=datetime(2026, 1, 1, tzinfo=UTC),
         )
         after = VideoEntity(
             id=7,
             user_id=10,
             title="new",
             status="completed",
-            uploaded_at=datetime(2026, 1, 1),
+            uploaded_at=datetime(2026, 1, 1, tzinfo=UTC),
         )
         self.video_repo.get_by_id.return_value = before
         self.video_repo.update.return_value = after

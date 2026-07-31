@@ -200,7 +200,7 @@ class ExportChatHistoryBuildRowsTests(unittest.TestCase):
     """Verify _build_rows accepts ChatLogEntity and yields ChatHistoryExportRow DTOs."""
 
     def test_build_rows_yields_export_row_dtos(self):
-        from datetime import datetime
+        from datetime import UTC, datetime
 
         from app.domain.chat.entities import ChatLogEntity
         from app.use_cases.chat.dto import ChatHistoryExportRow
@@ -217,7 +217,7 @@ class ExportChatHistoryBuildRowsTests(unittest.TestCase):
             citations=[],
             is_shared_origin=False,
             feedback=None,
-            created_at=datetime(2026, 1, 1),
+            created_at=datetime(2026, 1, 1, tzinfo=UTC),
         )
 
         rows = list(ExportChatHistoryUseCase._build_rows([log]))

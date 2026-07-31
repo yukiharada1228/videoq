@@ -33,10 +33,9 @@ class DeleteAccountDataUseCase:
             try:
                 step(user_id)
             except Exception:
-                logger.error(
+                logger.exception(
                     "Account deletion step %s failed for user %s",
                     step_name,
                     user_id,
-                    exc_info=True,
                 )
         logger.info("Account data deletion completed for user %s", user_id)

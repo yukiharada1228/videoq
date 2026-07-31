@@ -1,3 +1,5 @@
+from typing import ClassVar
+
 from django.db import models
 
 
@@ -27,6 +29,6 @@ class ChatLogEvaluation(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        indexes = [
+        indexes: ClassVar = [
             models.Index(fields=["status"]),
         ]

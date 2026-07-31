@@ -53,7 +53,7 @@ def _extract_dict_detail(detail: dict) -> str | None:
         if isinstance(errors, list) and errors:
             return str(errors[0])
 
-    for _, value in detail.items():
+    for value in detail.values():
         if isinstance(value, list) and value:
             return str(value[0])
         if isinstance(value, str):

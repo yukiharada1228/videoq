@@ -1,7 +1,6 @@
 """LangChain helper functions"""
 
 from collections.abc import Callable
-from typing import Optional
 
 from django.conf import settings
 from langchain_core.language_models import BaseChatModel
@@ -16,7 +15,7 @@ from app.infrastructure.common.provider_registry import (
 )
 
 
-def get_langchain_llm(api_key: Optional[str] = None) -> BaseChatModel:
+def get_langchain_llm(api_key: str | None = None) -> BaseChatModel:
     """
     Get the configured LLM model based on LLM_PROVIDER setting.
 
@@ -37,7 +36,7 @@ def get_langchain_llm(api_key: Optional[str] = None) -> BaseChatModel:
     return create_from_provider_registry("LLM_PROVIDER", provider, builders)
 
 
-def get_langchain_grading_llm(api_key: Optional[str] = None) -> BaseChatModel:
+def get_langchain_grading_llm(api_key: str | None = None) -> BaseChatModel:
     """Small-model LLM for GradeReply (paper §3.2 / Algorithm 1 line 15)."""
     provider = get_provider_setting("LLM_PROVIDER", "openai")
     builders: dict[str, Callable[[], BaseChatModel]] = {
@@ -49,7 +48,7 @@ def get_langchain_grading_llm(api_key: Optional[str] = None) -> BaseChatModel:
     return create_from_provider_registry("LLM_PROVIDER", provider, builders)
 
 
-def get_langchain_extraction_llm(api_key: Optional[str] = None) -> BaseChatModel:
+def get_langchain_extraction_llm(api_key: str | None = None) -> BaseChatModel:
     """Offline PLOG Stage1/2 extraction needs a large completion budget.
 
     Stage2 JSON (edges + per-concept learning objects) routinely exceeds the
@@ -65,11 +64,11 @@ def get_langchain_extraction_llm(api_key: Optional[str] = None) -> BaseChatModel
 
 
 def _create_openai_llm(
-    api_key: Optional[str] = None,
+    api_key: str | None = None,
     *,
     model_setting: str = "LLM_MODEL",
     max_tokens: int = 1024,
-    prompt_cache_key: Optional[str] = None,
+    prompt_cache_key: str | None = None,
 ) -> BaseChatModel:
     resolved_key = resolve_openai_api_key(api_key, purpose="OpenAI LLM")
     # Paper §3.3: large study nudge / small grading; QA stays on LLM_MODEL.
@@ -92,7 +91,7 @@ def _create_openai_llm(
 
 
 def get_langchain_study_llm(
-    api_key: Optional[str] = None, *, prompt_cache_key: Optional[str] = None
+    api_key: str | None = None, *, prompt_cache_key: str | None = None
 ) -> BaseChatModel:
     """Large-model LLM for the single generative nudge (paper §3.3)."""
     provider = get_provider_setting("LLM_PROVIDER", "openai")

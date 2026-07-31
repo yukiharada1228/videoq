@@ -13,8 +13,8 @@ from rest_framework.test import APIClient, APITestCase
 
 from app.domain.chat.dtos import CitationDTO
 from app.domain.chat.gateways import LLMConfigurationError, RagResult
-from app.use_cases.quota.exceptions import AiAnswersLimitExceeded, OverQuotaError
 from app.use_cases.chat.exceptions import LLMProviderError
+from app.use_cases.quota.exceptions import AiAnswersLimitExceeded, OverQuotaError
 
 User = get_user_model()
 ChatLog = apps.get_model("app", "ChatLog")

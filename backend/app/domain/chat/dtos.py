@@ -1,7 +1,6 @@
 """DTOs for chat gateway boundaries."""
 
 from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass(frozen=True)
@@ -18,5 +17,5 @@ class CitationDTO:
 
     video_id: int
     title: str
-    start_time: Optional[str]
-    end_time: Optional[str]
+    start_time: str | None
+    end_time: str | None

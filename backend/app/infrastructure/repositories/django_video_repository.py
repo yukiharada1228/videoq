@@ -3,7 +3,6 @@ Django ORM implementations of video domain repository interfaces.
 """
 
 import logging
-from typing import Dict, List, Optional, Tuple
 
 from django.db import IntegrityError, transaction
 from django.db.models import Count, Max, Prefetch, Q, QuerySet
@@ -11,8 +10,8 @@ from django.db.models import Count, Max, Prefetch, Q, QuerySet
 from app.domain.video.dto import (
     CreateGroupParams,
     CreateTagParams,
-    CreateVideoPendingParams,
     CreateVideoParams,
+    CreateVideoPendingParams,
     CreateYoutubeVideoParams,
     UpdateGroupParams,
     UpdateTagParams,
@@ -40,8 +39,8 @@ from app.domain.video.repositories import (
     VideoRepository,
 )
 from app.domain.video.status import VideoStatus
-from app.infrastructure.models import Tag, Video, VideoGroup, VideoGroupMember, VideoTag
 from app.infrastructure.common.query_optimizer import QueryOptimizer
+from app.infrastructure.models import Tag, Video, VideoGroup, VideoGroupMember, VideoTag
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +62,7 @@ def _tag_to_entity(tag: Tag, video_count: int = 0) -> TagEntity:
 
 
 def _video_to_entity(video: Video) -> VideoEntity:
-    file_key: Optional[str] = video.file.name if video.file else None
+    file_key: str | None = video.file.name if video.file else None
 
     tags = [
         _tag_to_entity(vt.tag) for vt in video.video_tags.all() if vt.tag_id
@@ -106,8 +105,8 @@ def _group_to_entity(
     group: VideoGroup, include_videos: bool = False
 ) -> VideoGroupEntity:
     video_count = getattr(group, "video_count", 0)
-    members: List[VideoGroupMemberEntity] = []
-    videos: List[VideoEntity] = []
+    members: list[VideoGroupMemberEntity] = []
+    videos: list[VideoEntity] = []
     if include_videos and hasattr(group, "_prefetched_objects_cache"):
         for member in group.members.all():
             member_entity = _member_to_entity(member, include_video=True)
@@ -137,7 +136,7 @@ def _group_to_entity(
 class DjangoVideoRepository(VideoRepository):
     """Django ORM implementation of VideoRepository."""
 
-    def get_by_id(self, video_id: int, user_id: int) -> Optional[VideoEntity]:
+    def get_by_id(self, video_id: int, user_id: int) -> VideoEntity | None:
         video = (
             Video.objects.filter(id=video_id, user_id=user_id)
             .prefetch_related(
@@ -152,10 +151,10 @@ class DjangoVideoRepository(VideoRepository):
     def list_for_user(
         self,
         user_id: int,
-        criteria: Optional[VideoSearchCriteria] = None,
-        limit: Optional[int] = None,
+        criteria: VideoSearchCriteria | None = None,
+        limit: int | None = None,
         offset: int = 0,
-    ) -> List[VideoEntity]:
+    ) -> list[VideoEntity]:
         queryset = self._build_list_queryset(user_id=user_id, criteria=criteria)
 
         if limit is not None:
@@ -167,14 +166,14 @@ class DjangoVideoRepository(VideoRepository):
     def count_for_user(
         self,
         user_id: int,
-        criteria: Optional[VideoSearchCriteria] = None,
+        criteria: VideoSearchCriteria | None = None,
     ) -> int:
         return self._build_list_queryset(user_id=user_id, criteria=criteria).count()
 
     def _build_list_queryset(
         self,
         user_id: int,
-        criteria: Optional[VideoSearchCriteria] = None,
+        criteria: VideoSearchCriteria | None = None,
     ) -> QuerySet:
         search = criteria or VideoSearchCriteria()
         queryset = QueryOptimizer.get_videos_with_metadata(user_id=user_id)
@@ -298,19 +297,19 @@ class DjangoVideoRepository(VideoRepository):
             transaction.on_commit(lambda: file_ref.delete(save=False))
 
     def get_file_keys_for_ids(
-        self, video_ids: List[int], user_id: int
-    ) -> Dict[int, Optional[str]]:
+        self, video_ids: list[int], user_id: int
+    ) -> dict[int, str | None]:
         videos = Video.objects.filter(id__in=video_ids, user_id=user_id).only(
             "id", "file"
         )
         return {v.id: (v.file.name if v.file else None) for v in videos}
 
-    def get_existing_ids_for_user(self, video_ids: List[int], user_id: int) -> set[int]:
+    def get_existing_ids_for_user(self, video_ids: list[int], user_id: int) -> set[int]:
         return set(
             Video.objects.filter(id__in=video_ids, user_id=user_id).values_list("id", flat=True)
         )
 
-    def list_completed_with_transcript(self) -> List[VideoEntity]:
+    def list_completed_with_transcript(self) -> list[VideoEntity]:
         videos = (
             Video.objects.filter(status__in=["completed", "indexing"])
             .exclude(transcript__isnull=True)
@@ -322,7 +321,7 @@ class DjangoVideoRepository(VideoRepository):
         )
         return [_video_to_entity(v) for v in videos]
 
-    def get_by_id_for_task(self, video_id: int) -> Optional[VideoEntity]:
+    def get_by_id_for_task(self, video_id: int) -> VideoEntity | None:
         video = (
             Video.objects.filter(id=video_id)
             .select_related("user")
@@ -366,7 +365,7 @@ class DjangoVideoGroupRepository(VideoGroupRepository):
         group_id: int,
         user_id: int,
         include_videos: bool = False,
-    ) -> Optional[VideoGroupEntity]:
+    ) -> VideoGroupEntity | None:
         queryset = VideoGroup.objects.filter(id=group_id, user_id=user_id)
         if include_videos:
             queryset = QueryOptimizer.optimize_video_group_queryset(
@@ -385,9 +384,9 @@ class DjangoVideoGroupRepository(VideoGroupRepository):
         self,
         user_id: int,
         include_videos: bool = False,
-        limit: Optional[int] = None,
+        limit: int | None = None,
         offset: int = 0,
-    ) -> List[VideoGroupEntity]:
+    ) -> list[VideoGroupEntity]:
         queryset = QueryOptimizer.get_video_groups_with_videos(
             user_id=user_id,
             include_videos=include_videos,
@@ -443,7 +442,7 @@ class DjangoVideoGroupRepository(VideoGroupRepository):
     def delete(self, group: VideoGroupEntity) -> None:
         VideoGroup.objects.filter(pk=group.id).delete()
 
-    def get_by_share_slug(self, share_slug: str) -> Optional[VideoGroupEntity]:
+    def get_by_share_slug(self, share_slug: str) -> VideoGroupEntity | None:
         queryset = VideoGroup.objects.filter(share_slug=share_slug)
         group = QueryOptimizer.optimize_video_group_queryset(
             queryset,
@@ -479,8 +478,8 @@ class DjangoVideoGroupRepository(VideoGroupRepository):
             return _member_to_entity(member)
 
     def add_videos_bulk(
-        self, group: VideoGroupEntity, video_ids: List[int], user_id: int
-    ) -> Tuple[int, int]:
+        self, group: VideoGroupEntity, video_ids: list[int], user_id: int
+    ) -> tuple[int, int]:
         _ = user_id
         if not video_ids:
             return 0, 0
@@ -530,7 +529,7 @@ class DjangoVideoGroupRepository(VideoGroupRepository):
                 raise VideoNotInGroup()
             member.delete()
 
-    def reorder_videos(self, group: VideoGroupEntity, video_ids: List[int]) -> None:
+    def reorder_videos(self, group: VideoGroupEntity, video_ids: list[int]) -> None:
         with transaction.atomic():
             # Serialize membership writes per group to avoid order races.
             VideoGroup.objects.select_for_update().filter(pk=group.id).exists()
@@ -543,7 +542,7 @@ class DjangoVideoGroupRepository(VideoGroupRepository):
                 members_to_update.append(member)
             VideoGroupMember.objects.bulk_update(members_to_update, ["order"])
 
-    def reorder_groups(self, user_id: int, group_ids: List[int]) -> None:
+    def reorder_groups(self, user_id: int, group_ids: list[int]) -> None:
         if not group_ids:
             raise GroupOrderMismatch()
         if len(group_ids) != len(set(group_ids)):
@@ -568,7 +567,7 @@ class DjangoVideoGroupRepository(VideoGroupRepository):
             VideoGroup.objects.bulk_update(groups_to_update, ["display_order"])
 
     def update_share_slug(
-        self, group: VideoGroupEntity, slug: Optional[str]
+        self, group: VideoGroupEntity, slug: str | None
     ) -> None:
         try:
             VideoGroup.objects.filter(pk=group.id).update(share_slug=slug)
@@ -584,13 +583,13 @@ class DjangoVideoGroupRepository(VideoGroupRepository):
 class DjangoTagRepository(TagRepository):
     """Django ORM implementation of TagRepository."""
 
-    def list_for_user(self, user_id: int) -> List[TagEntity]:
+    def list_for_user(self, user_id: int) -> list[TagEntity]:
         tags = Tag.objects.filter(user_id=user_id).annotate(
             video_count=Count("video_tags")
         )
         return [_tag_to_entity(t, video_count=t.video_count) for t in tags]
 
-    def get_by_id(self, tag_id: int, user_id: int) -> Optional[TagEntity]:
+    def get_by_id(self, tag_id: int, user_id: int) -> TagEntity | None:
         tag = (
             Tag.objects.filter(id=tag_id, user_id=user_id)
             .annotate(video_count=Count("video_tags"))
@@ -626,8 +625,8 @@ class DjangoTagRepository(TagRepository):
         Tag.objects.filter(pk=tag.id).delete()
 
     def add_tags_to_video(
-        self, video: VideoEntity, tag_ids: List[int]
-    ) -> Tuple[int, int]:
+        self, video: VideoEntity, tag_ids: list[int]
+    ) -> tuple[int, int]:
         tags = list(Tag.objects.filter(user_id=video.user_id, id__in=tag_ids))
         if len(tags) != len(tag_ids):
             raise SomeTagsNotFound()
@@ -656,7 +655,7 @@ class DjangoTagRepository(TagRepository):
             raise TagNotAttachedToVideo()
         video_tag.delete()
 
-    def get_with_videos(self, tag_id: int, user_id: int) -> Optional[TagEntity]:
+    def get_with_videos(self, tag_id: int, user_id: int) -> TagEntity | None:
         try:
             tag = (
                 Tag.objects.filter(id=tag_id, user_id=user_id)

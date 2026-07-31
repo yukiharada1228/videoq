@@ -1,6 +1,3 @@
-from datetime import datetime
-
-
 class TimestampConverter:
     """Handles timestamp conversions between seconds and SRT format"""
 
@@ -33,13 +30,16 @@ class TimestampConverter:
         # Normalize the timestamp: replace dot with comma for consistency
         timestamp = timestamp.replace(".", ",")
         parts = timestamp.split(",")
-        try:
-            t = datetime.strptime(parts[0], "%H:%M:%S")
-        except ValueError:
-            # Handle cases where hour might be missing or other formats
-            t = datetime.strptime(parts[0], "%M:%S")
+        time_parts = [int(part) for part in parts[0].split(":")]
+        if len(time_parts) == 3:
+            hours, minutes, seconds_part = time_parts
+        elif len(time_parts) == 2:
+            hours = 0
+            minutes, seconds_part = time_parts
+        else:
+            raise ValueError(f"Invalid timestamp: {timestamp}")
 
-        seconds = float(t.hour * 3600 + t.minute * 60 + t.second)
+        seconds = float(hours * 3600 + minutes * 60 + seconds_part)
         if len(parts) > 1:
             milliseconds = int(parts[1])
             seconds += milliseconds / 1000.0

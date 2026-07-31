@@ -1,8 +1,7 @@
 """TDD tests for ListChatLogEvaluationsUseCase."""
 
 import unittest
-from datetime import datetime, timezone
-from typing import List, Optional
+from datetime import UTC, datetime
 
 from app.domain.evaluation.entities import ChatLogEvaluationEntity
 from app.domain.evaluation.ports import (
@@ -10,7 +9,9 @@ from app.domain.evaluation.ports import (
     EvaluationRepository,
     VideoGroupOwnershipPort,
 )
-from app.use_cases.evaluation.list_chat_log_evaluations import ListChatLogEvaluationsUseCase
+from app.use_cases.evaluation.list_chat_log_evaluations import (
+    ListChatLogEvaluationsUseCase,
+)
 from app.use_cases.shared.exceptions import ResourceNotFound
 
 
@@ -23,19 +24,19 @@ def _make_entity(chat_log_id: int, status: str = "completed") -> ChatLogEvaluati
         answer_relevancy=0.85,
         context_precision=0.7,
         error_message="",
-        evaluated_at=datetime(2026, 4, 1, tzinfo=timezone.utc),
-        created_at=datetime(2026, 4, 1, tzinfo=timezone.utc),
+        evaluated_at=datetime(2026, 4, 1, tzinfo=UTC),
+        created_at=datetime(2026, 4, 1, tzinfo=UTC),
     )
 
 
 class _FakeEvaluationRepository(EvaluationRepository):
-    def __init__(self, entities: List[ChatLogEvaluationEntity]):
+    def __init__(self, entities: list[ChatLogEvaluationEntity]):
         self._entities = entities
 
     def save(self, evaluation):
         return evaluation
 
-    def get_by_chat_log_id(self, chat_log_id: int) -> Optional[ChatLogEvaluationEntity]:
+    def get_by_chat_log_id(self, chat_log_id: int) -> ChatLogEvaluationEntity | None:
         return None
 
     def list_by_group_id(self, group_id: int):

@@ -4,9 +4,9 @@ Scene indexing utilities for RAG — infrastructure layer.
 
 import logging
 
+from app.infrastructure.common.embeddings import get_embeddings
 from app.infrastructure.external.vector_store import PGVectorManager
 from app.infrastructure.scene_otsu.parsers import SubtitleParser
-from app.infrastructure.common.embeddings import get_embeddings
 
 logger = logging.getLogger(__name__)
 

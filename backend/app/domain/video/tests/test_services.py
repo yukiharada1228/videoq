@@ -3,11 +3,20 @@
 from unittest import TestCase
 
 from app.domain.video.entities import VideoGroupEntity, VideoGroupMemberEntity
-from app.domain.video.exceptions import InvalidVideoStatusTransition
-from app.domain.video.exceptions import InvalidTagColor, InvalidTagName
-from app.domain.video.exceptions import SomeVideosNotFound
-from app.domain.video.exceptions import VideoAlreadyInGroup, VideoNotInGroup, GroupVideoOrderMismatch
-from app.domain.video.services import TagPolicy, VideoGroupMembershipService, VideoTranscriptionLifecycle
+from app.domain.video.exceptions import (
+    GroupVideoOrderMismatch,
+    InvalidTagColor,
+    InvalidTagName,
+    InvalidVideoStatusTransition,
+    SomeVideosNotFound,
+    VideoAlreadyInGroup,
+    VideoNotInGroup,
+)
+from app.domain.video.services import (
+    TagPolicy,
+    VideoGroupMembershipService,
+    VideoTranscriptionLifecycle,
+)
 from app.domain.video.status import VideoStatus
 
 

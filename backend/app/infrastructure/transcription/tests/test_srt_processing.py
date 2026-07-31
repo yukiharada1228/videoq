@@ -214,7 +214,7 @@ class ApplySceneSplittingTests(SimpleTestCase):
 
         srt_content = "1\n00:00:00,000 --> 00:00:05,000\nHello\n\n2\n00:00:05,000 --> 00:00:10,000\nWorld\n"
 
-        result_srt, scene_count = apply_scene_splitting(srt_content, "test-api-key", 2)
+        result_srt, _scene_count = apply_scene_splitting(srt_content, "test-api-key", 2)
 
         self.assertIn("Split scene", result_srt)
         mock_splitter.process.assert_called_once()

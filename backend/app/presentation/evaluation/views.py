@@ -1,6 +1,7 @@
 """Presentation views for evaluation domain."""
 
 import logging
+from typing import ClassVar
 
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
@@ -9,7 +10,10 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from app.dependencies import evaluation as eval_deps
-from app.presentation.common.authentication import APIKeyAuthentication, CookieJWTAuthentication
+from app.presentation.common.authentication import (
+    APIKeyAuthentication,
+    CookieJWTAuthentication,
+)
 from app.presentation.common.pagination import StandardLimitOffsetPagination
 from app.presentation.common.responses import create_error_response
 from app.use_cases.shared.exceptions import ResourceNotFound
@@ -22,8 +26,8 @@ logger = logging.getLogger(__name__)
 class EvaluationSummaryView(APIView):
     """Return aggregated RAGAS scores for a video group (group_id in URL path)."""
 
-    authentication_classes = [APIKeyAuthentication, CookieJWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    authentication_classes: ClassVar = [APIKeyAuthentication, CookieJWTAuthentication]
+    permission_classes: ClassVar = [IsAuthenticated]
 
     @extend_schema(
         responses={200: EvaluationSummarySerializer},
@@ -49,8 +53,8 @@ class EvaluationSummaryView(APIView):
 class EvaluationLogsView(APIView):
     """Return per-ChatLog RAGAS evaluation results for a group (group_id in URL path)."""
 
-    authentication_classes = [APIKeyAuthentication, CookieJWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    authentication_classes: ClassVar = [APIKeyAuthentication, CookieJWTAuthentication]
+    permission_classes: ClassVar = [IsAuthenticated]
 
     @extend_schema(
         responses={200: ChatLogEvaluationSerializer(many=True)},

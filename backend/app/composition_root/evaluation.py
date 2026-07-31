@@ -14,7 +14,9 @@ from app.infrastructure.repositories.django_video_group_ownership_repository imp
 )
 from app.use_cases.evaluation.evaluate_chat_log import EvaluateChatLogUseCase
 from app.use_cases.evaluation.get_evaluation_summary import GetEvaluationSummaryUseCase
-from app.use_cases.evaluation.list_chat_log_evaluations import ListChatLogEvaluationsUseCase
+from app.use_cases.evaluation.list_chat_log_evaluations import (
+    ListChatLogEvaluationsUseCase,
+)
 
 
 @lru_cache(maxsize=1)

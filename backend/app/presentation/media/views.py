@@ -1,15 +1,20 @@
+from typing import ClassVar
+
 from django.http import Http404, HttpResponse
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework.views import APIView
 
-from app.presentation.common.authentication import APIKeyAuthentication, CookieJWTAuthentication
+from app.presentation.common.authentication import (
+    APIKeyAuthentication,
+    CookieJWTAuthentication,
+)
+from app.presentation.common.mixins import DependencyResolverMixin
 from app.presentation.common.permissions import (
     ApiKeyScopePermission,
     IsAuthenticatedOrSharedAccess,
     ShareTokenAuthentication,
 )
-from app.presentation.common.mixins import DependencyResolverMixin
 from app.use_cases.media.resolve_protected_media import ResolveProtectedMediaInput
 from app.use_cases.shared.exceptions import ResourceNotFound
 
@@ -17,12 +22,12 @@ from app.use_cases.shared.exceptions import ResourceNotFound
 class ProtectedMediaView(DependencyResolverMixin, APIView):
     """View to serve media files protected by JWT authentication or share token"""
 
-    authentication_classes = [
+    authentication_classes: ClassVar = [
         APIKeyAuthentication,
         CookieJWTAuthentication,
         ShareTokenAuthentication,
     ]
-    permission_classes = [IsAuthenticatedOrSharedAccess, ApiKeyScopePermission]
+    permission_classes: ClassVar = [IsAuthenticatedOrSharedAccess, ApiKeyScopePermission]
     resolve_protected_media_use_case = None
 
     @extend_schema(

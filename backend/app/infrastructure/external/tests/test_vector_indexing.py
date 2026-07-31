@@ -7,10 +7,12 @@ from unittest.mock import MagicMock, patch
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 
+from app.infrastructure.external.scene_indexer import (
+    create_scene_metadata,
+    index_scenes_batch,
+    index_scenes_to_vectorstore,
+)
 from app.infrastructure.models import Video
-from app.infrastructure.external.scene_indexer import (create_scene_metadata,
-                                                        index_scenes_batch,
-                                                        index_scenes_to_vectorstore)
 
 User = get_user_model()
 
@@ -133,14 +135,14 @@ class IndexScenesToVectorstoreTests(TestCase):
     def test_handles_indexing_error(self, mock_get_embeddings, mock_pgvector_manager):
         """Test that indexing errors are re-raised after logging"""
         mock_store = MagicMock()
-        mock_store.add_texts.side_effect = Exception("Indexing failed")
+        mock_store.add_texts.side_effect = RuntimeError("Indexing failed")
         mock_pgvector_manager.create_vectorstore.return_value = mock_store
         mock_pgvector_manager.get_table_name.return_value = "test_table"
 
         scene_docs = [{"text": "Hello world", "metadata": {"video_id": 1}}]
 
         # Should re-raise so callers can handle the failure
-        with self.assertRaises(Exception):
+        with self.assertRaises(RuntimeError):
             index_scenes_to_vectorstore(scene_docs, self.video, "test-api-key")
 
 
@@ -221,9 +223,9 @@ class IndexScenesBatchTests(TestCase):
     @patch("app.infrastructure.external.scene_indexer.SubtitleParser")
     def test_raises_on_parsing_error(self, mock_parser):
         """Test that parsing errors are re-raised"""
-        mock_parser.parse_srt_scenes.side_effect = Exception("Parse failed")
+        mock_parser.parse_srt_scenes.side_effect = RuntimeError("Parse failed")
 
         srt_content = "invalid srt"
 
-        with self.assertRaises(Exception):
+        with self.assertRaises(RuntimeError):
             index_scenes_batch(srt_content, self.video, "test-api-key")

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections import defaultdict, deque
-from typing import Sequence, Tuple
+from collections.abc import Sequence
 
 ORDERING = frozenset({"prerequisite_of", "builds_on"})
 NODE_TYPES = frozenset({"object", "property", "limitation"})
@@ -18,7 +18,7 @@ EDGE_TYPES = frozenset(
 )
 
 
-def is_dag(pairs: Sequence[Tuple[str, str]]) -> bool:
+def is_dag(pairs: Sequence[tuple[str, str]]) -> bool:
     """Return True when directed pairs form a DAG."""
     adj: dict[str, set[str]] = defaultdict(set)
     indeg: dict[str, int] = defaultdict(int)

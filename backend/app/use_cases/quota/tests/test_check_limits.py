@@ -1,6 +1,5 @@
 """Unit tests for check limit use cases."""
 
-from typing import Optional
 from unittest import TestCase
 
 from app.domain.quota.entities import UserLimitsEntity
@@ -34,13 +33,13 @@ def _make_user_limits(**kwargs) -> UserLimitsEntity:
 class _StubUserLimitsRepo(UserLimitsRepository):
     def __init__(self, entity: UserLimitsEntity):
         self._entity = entity
-        self.saved: Optional[UserLimitsEntity] = None
+        self.saved: UserLimitsEntity | None = None
         self.check_and_reserve_calls: list = []
 
     def get_or_create(self, user_id: int) -> UserLimitsEntity:
         return self._entity
 
-    def get_by_user_id(self, user_id: int) -> Optional[UserLimitsEntity]:
+    def get_by_user_id(self, user_id: int) -> UserLimitsEntity | None:
         return self._entity
 
     def save(self, entity: UserLimitsEntity) -> UserLimitsEntity:

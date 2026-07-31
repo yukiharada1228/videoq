@@ -219,8 +219,9 @@ class MCPBearerAuthTests(TestCase):
         )
 
     def _issue_token(self, scope: str = "read") -> str:
-        from django.utils import timezone
         from datetime import timedelta
+
+        from django.utils import timezone
 
         app = self._create_oauth_app()
         token_value = secrets.token_urlsafe(48)
@@ -291,8 +292,9 @@ class TokenManagementTests(TestCase):
         )
 
     def _create_token(self, user) -> AccessToken:
-        from django.utils import timezone
         from datetime import timedelta
+
+        from django.utils import timezone
 
         return AccessToken.objects.create(
             user=user,
@@ -360,8 +362,9 @@ class AuthorizationCodeWithPKCEFlowTests(TestCase):
         verifier, challenge = _pkce_pair()
         app = ApplicationModel.objects.get(client_id=client_id)
 
-        from django.utils import timezone
         from datetime import timedelta
+
+        from django.utils import timezone
 
         code_value = secrets.token_urlsafe(48)
         Grant.objects.create(

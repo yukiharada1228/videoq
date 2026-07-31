@@ -1,3 +1,5 @@
+from typing import ClassVar
+
 from django.conf import settings
 from django.db import models
 
@@ -21,9 +23,9 @@ class Tag(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     class Meta:
-        ordering = ["name"]
-        unique_together = ["user", "name"]
-        indexes = [
+        ordering: ClassVar = ["name"]
+        unique_together: ClassVar = ["user", "name"]
+        indexes: ClassVar = [
             models.Index(fields=["user", "name"]),
         ]
 
@@ -52,9 +54,9 @@ class VideoTag(models.Model):
     added_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     class Meta:
-        ordering = ["tag__name"]
-        unique_together = ["video", "tag"]
-        indexes = [
+        ordering: ClassVar = ["tag__name"]
+        unique_together: ClassVar = ["video", "tag"]
+        indexes: ClassVar = [
             models.Index(fields=["video", "tag"]),
             models.Index(fields=["tag", "-added_at"]),
         ]

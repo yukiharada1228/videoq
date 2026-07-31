@@ -10,6 +10,7 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 
 from app.dependencies.tasks import (
+    TranscriptionExecutionFailedError,
     TranscriptionRejectedError,
     TranscriptionTargetMissingError,
 )
@@ -70,7 +71,7 @@ class TranscribeVideoTaskTests(TestCase):
 
         video = Video.objects.create(user=self.user, title="Test Video", status="pending")
 
-        with self.assertRaises(Exception):
+        with self.assertRaises(TranscriptionExecutionFailedError):
             transcribe_video(video.id)
 
         video.refresh_from_db()

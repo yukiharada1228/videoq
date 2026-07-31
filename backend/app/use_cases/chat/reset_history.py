@@ -5,6 +5,8 @@ Use case: Reset (delete all) chat history for a group.
 from app.domain.chat.repositories import ChatRepository, VideoGroupQueryRepository
 from app.domain.chat.services import (
     GroupContextNotFound as _DomainGroupContextNotFound,
+)
+from app.domain.chat.services import (
     require_group_context,
 )
 from app.use_cases.shared.exceptions import ResourceNotFound

@@ -1,5 +1,7 @@
 """ORM models for PLOG (Prerequisite-aware Learning-Object Graph)."""
 
+from typing import ClassVar
+
 from django.conf import settings
 from django.db import models
 
@@ -31,8 +33,8 @@ class PlogBuildJob(models.Model):
     finished_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
-        ordering = ["-created_at"]
-        indexes = [
+        ordering: ClassVar = ["-created_at"]
+        indexes: ClassVar = [
             models.Index(fields=["video", "-created_at"]),
         ]
 
@@ -65,8 +67,8 @@ class PlogSummaryNode(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ["level", "start_sec"]
-        indexes = [
+        ordering: ClassVar = ["level", "start_sec"]
+        indexes: ClassVar = [
             models.Index(fields=["video", "level"]),
         ]
 
@@ -98,11 +100,11 @@ class PlogConcept(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ["intro_sec", "id"]
-        indexes = [
+        ordering: ClassVar = ["intro_sec", "id"]
+        indexes: ClassVar = [
             models.Index(fields=["video", "intro_sec"]),
         ]
-        constraints = [
+        constraints: ClassVar = [
             models.UniqueConstraint(
                 fields=["video", "label"],
                 name="plog_concept_unique_label_per_video",
@@ -157,12 +159,12 @@ class PlogEdge(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ["id"]
-        indexes = [
+        ordering: ClassVar = ["id"]
+        indexes: ClassVar = [
             models.Index(fields=["video", "edge_type"]),
             models.Index(fields=["video", "validation_status"]),
         ]
-        constraints = [
+        constraints: ClassVar = [
             models.UniqueConstraint(
                 fields=["video", "source", "target", "edge_type"],
                 name="plog_edge_unique_typed_pair",
@@ -211,13 +213,13 @@ class LearnerConceptState(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        constraints = [
+        constraints: ClassVar = [
             models.UniqueConstraint(
                 fields=["user", "concept"],
                 name="learner_concept_state_unique",
             ),
         ]
-        indexes = [
+        indexes: ClassVar = [
             models.Index(fields=["user", "reached"]),
         ]
 

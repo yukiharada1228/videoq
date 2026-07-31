@@ -2,12 +2,13 @@
 Use case: Extract keywords from chat questions for a group.
 """
 
-from typing import List
 
 from app.domain.chat.ports import KeywordExtractor
 from app.domain.chat.repositories import ChatRepository, VideoGroupQueryRepository
 from app.domain.chat.services import (
     GroupContextNotFound as _DomainGroupContextNotFound,
+)
+from app.domain.chat.services import (
     require_group_context,
 )
 from app.use_cases.chat.dto import KeywordCountDTO
@@ -27,7 +28,7 @@ class GetChatKeywordsUseCase:
         self.group_query_repo = group_query_repo
         self.keyword_extractor = keyword_extractor
 
-    def execute(self, group_id: int, user_id: int) -> List[KeywordCountDTO]:
+    def execute(self, group_id: int, user_id: int) -> list[KeywordCountDTO]:
         """
         Returns:
             List of KeywordCountDTO sorted by frequency.

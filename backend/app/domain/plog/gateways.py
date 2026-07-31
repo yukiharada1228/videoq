@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import List, Optional, Sequence
 
 
 @dataclass
@@ -12,7 +12,7 @@ class TokenUsage:
     input_tokens: int = 0
     output_tokens: int = 0
 
-    def add(self, other: "TokenUsage") -> "TokenUsage":
+    def add(self, other: TokenUsage) -> TokenUsage:
         return TokenUsage(
             input_tokens=self.input_tokens + other.input_tokens,
             output_tokens=self.output_tokens + other.output_tokens,
@@ -39,42 +39,42 @@ class ExtractedEdge:
 class ExtractedLearningObject:
     concept_label: str
     opening_question: str = ""
-    hint_ladder: List[str] = field(default_factory=list)
-    misconceptions: List[str] = field(default_factory=list)
-    canonical_order: List[str] = field(default_factory=list)
-    worked_examples: List[str] = field(default_factory=list)
-    waypoints: List[dict] = field(default_factory=list)
+    hint_ladder: list[str] = field(default_factory=list)
+    misconceptions: list[str] = field(default_factory=list)
+    canonical_order: list[str] = field(default_factory=list)
+    worked_examples: list[str] = field(default_factory=list)
+    waypoints: list[dict] = field(default_factory=list)
 
 
 @dataclass
 class Stage1Result:
-    concepts: List[ExtractedConcept]
+    concepts: list[ExtractedConcept]
     usage: TokenUsage = field(default_factory=TokenUsage)
 
 
 @dataclass
 class Stage2Result:
-    edges: List[ExtractedEdge]
-    learning_objects: List[ExtractedLearningObject]
+    edges: list[ExtractedEdge]
+    learning_objects: list[ExtractedLearningObject]
     usage: TokenUsage = field(default_factory=TokenUsage)
 
 
 @dataclass
 class HierarchyBuildResult:
-    nodes: List[dict]
+    nodes: list[dict]
     usage: TokenUsage = field(default_factory=TokenUsage)
 
 
 class PlogHierarchyBuilder(ABC):
     @abstractmethod
-    def build(self, scenes: Sequence[dict], api_key: Optional[str] = None) -> HierarchyBuildResult:
+    def build(self, scenes: Sequence[dict], api_key: str | None = None) -> HierarchyBuildResult:
         ...
 
 
 class PlogConceptExtractor(ABC):
     @abstractmethod
     def extract_inventory(
-        self, transcript_text: str, scenes: Sequence[dict], api_key: Optional[str] = None
+        self, transcript_text: str, scenes: Sequence[dict], api_key: str | None = None
     ) -> Stage1Result:
         ...
 
@@ -84,7 +84,7 @@ class PlogConceptExtractor(ABC):
         transcript_text: str,
         concepts: Sequence[ExtractedConcept],
         scenes: Sequence[dict],
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
     ) -> Stage2Result:
         ...
 
@@ -92,6 +92,6 @@ class PlogConceptExtractor(ABC):
 class PlogEmbeddingGateway(ABC):
     @abstractmethod
     def embed_texts(
-        self, texts: Sequence[str], api_key: Optional[str] = None
-    ) -> List[List[float]]:
+        self, texts: Sequence[str], api_key: str | None = None
+    ) -> list[list[float]]:
         ...

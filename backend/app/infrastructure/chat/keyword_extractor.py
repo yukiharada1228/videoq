@@ -4,7 +4,6 @@ Infrastructure implementation of KeywordExtractor using janome (Japanese) and NL
 
 import re
 from collections import Counter
-from typing import List
 
 from app.domain.chat.ports import KeywordExtractor
 from app.domain.chat.value_objects import KeywordCount
@@ -26,17 +25,20 @@ def _get_janome_tokenizer():
     return _janome_tokenizer
 
 
-def _extract_ja_nouns(text: str, tokenizer) -> List[str]:
+def _extract_ja_nouns(text: str, tokenizer) -> list[str]:
     nouns = []
     for token in tokenizer.tokenize(text):
         pos = token.part_of_speech.split(",")
-        if pos[0] in _JA_NOUN_POS and pos[1] not in _JA_NOUN_EXCLUDE_SUBTYPES:
-            if len(token.surface) >= 2:
-                nouns.append(token.surface)
+        if (
+            pos[0] in _JA_NOUN_POS
+            and pos[1] not in _JA_NOUN_EXCLUDE_SUBTYPES
+            and len(token.surface) >= 2
+        ):
+            nouns.append(token.surface)
     return nouns
 
 
-def _extract_en_keywords(text: str) -> List[str]:
+def _extract_en_keywords(text: str) -> list[str]:
     import nltk
 
     tokens = nltk.word_tokenize(text.lower())
@@ -51,7 +53,7 @@ def _extract_en_keywords(text: str) -> List[str]:
 class JanomeNltkKeywordExtractor(KeywordExtractor):
     """Extract keywords using janome for Japanese and NLTK for English."""
 
-    def extract(self, questions: List[str], limit: int = 30) -> List[KeywordCount]:
+    def extract(self, questions: list[str], limit: int = 30) -> list[KeywordCount]:
         counter: Counter = Counter()
         tokenizer = _get_janome_tokenizer()
 

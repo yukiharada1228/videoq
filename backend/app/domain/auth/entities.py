@@ -4,7 +4,6 @@ Domain entities for the auth domain.
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
 
 from app.domain.auth.scopes import READ_ONLY_ALLOWED_SCOPES
 
@@ -40,9 +39,9 @@ class ApiKeyEntity:
     name: str
     prefix: str
     access_level: str
-    last_used_at: Optional[datetime]
+    last_used_at: datetime | None
     created_at: datetime
-    revoked_at: Optional[datetime] = None
+    revoked_at: datetime | None = None
 
     def allows_scope(self, required_scope: str) -> bool:
         return is_scope_allowed_for_access_level(self.access_level, required_scope)

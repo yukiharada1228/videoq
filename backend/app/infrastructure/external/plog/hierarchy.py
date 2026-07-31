@@ -4,11 +4,15 @@ from __future__ import annotations
 
 import logging
 import math
-from typing import List, Optional, Sequence
+from collections.abc import Sequence
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
-from app.domain.plog.gateways import HierarchyBuildResult, PlogHierarchyBuilder, TokenUsage
+from app.domain.plog.gateways import (
+    HierarchyBuildResult,
+    PlogHierarchyBuilder,
+    TokenUsage,
+)
 from app.infrastructure.external.llm import get_langchain_llm
 
 logger = logging.getLogger(__name__)
@@ -26,7 +30,7 @@ def _estimate_tokens(text: str) -> int:
 
 
 class RaptorHierarchyBuilder(PlogHierarchyBuilder):
-    def build(self, scenes: Sequence[dict], api_key: Optional[str] = None) -> HierarchyBuildResult:
+    def build(self, scenes: Sequence[dict], api_key: str | None = None) -> HierarchyBuildResult:
         if not scenes:
             return HierarchyBuildResult(nodes=[], usage=TokenUsage())
 
@@ -34,7 +38,7 @@ class RaptorHierarchyBuilder(PlogHierarchyBuilder):
         llm = get_langchain_llm(api_key=api_key)
 
         # Level 0: leaf summaries over adjacent scene clusters
-        leaves: List[dict] = []
+        leaves: list[dict] = []
         for i in range(0, len(scenes), _LEAF_CLUSTER_SIZE):
             cluster = list(scenes[i : i + _LEAF_CLUSTER_SIZE])
             joined = "\n".join(
@@ -58,11 +62,11 @@ class RaptorHierarchyBuilder(PlogHierarchyBuilder):
                 }
             )
 
-        all_nodes: List[dict] = list(leaves)
+        all_nodes: list[dict] = list(leaves)
         current = leaves
         level = 1
         while len(current) > 1:
-            parents: List[dict] = []
+            parents: list[dict] = []
             for i in range(0, len(current), _LEAF_CLUSTER_SIZE):
                 cluster = current[i : i + _LEAF_CLUSTER_SIZE]
                 joined = "\n".join(n["text"] for n in cluster)

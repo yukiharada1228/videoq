@@ -3,9 +3,6 @@
 from celery import current_app
 from django.db import transaction
 
-from app.domain.auth.gateways import AuthTaskGateway
-from app.domain.evaluation.gateways import EvaluationTaskGateway
-from app.domain.video.gateways import VideoTaskGateway
 from app.contracts.tasks import (
     BUILD_PLOG_TASK,
     DELETE_ACCOUNT_DATA_TASK,
@@ -15,6 +12,9 @@ from app.contracts.tasks import (
     REINDEX_VIDEO_TRANSCRIPT_TASK,
     TRANSCRIBE_VIDEO_TASK,
 )
+from app.domain.auth.gateways import AuthTaskGateway
+from app.domain.evaluation.gateways import EvaluationTaskGateway
+from app.domain.video.gateways import VideoTaskGateway
 
 
 class CeleryVideoTaskGateway(VideoTaskGateway):

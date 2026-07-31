@@ -1,13 +1,11 @@
 """TDD tests for EvaluateChatLogUseCase."""
 
 import unittest
-from typing import List, Optional
 
 from app.domain.evaluation.entities import ChatLogEvaluationEntity
 from app.domain.evaluation.gateways import EvaluationScores, RagEvaluationGateway
 from app.domain.evaluation.ports import EvaluationAggregateDTO, EvaluationRepository
 from app.use_cases.evaluation.evaluate_chat_log import EvaluateChatLogUseCase
-
 
 # ---------------------------------------------------------------------------
 # Fakes
@@ -17,7 +15,7 @@ from app.use_cases.evaluation.evaluate_chat_log import EvaluateChatLogUseCase
 class _FakeChatLogRecord:
     """Minimal record returned by FakeChatLogRepository."""
 
-    def __init__(self, id: int, question: str, answer: str, retrieved_contexts: List[str]):
+    def __init__(self, id: int, question: str, answer: str, retrieved_contexts: list[str]):
         self.id = id
         self.question = question
         self.answer = answer
@@ -25,10 +23,10 @@ class _FakeChatLogRecord:
 
 
 class _FakeChatLogRepository:
-    def __init__(self, log: Optional[_FakeChatLogRecord] = None):
+    def __init__(self, log: _FakeChatLogRecord | None = None):
         self._log = log
 
-    def get_by_id(self, chat_log_id: int) -> Optional[_FakeChatLogRecord]:
+    def get_by_id(self, chat_log_id: int) -> _FakeChatLogRecord | None:
         if self._log and self._log.id == chat_log_id:
             return self._log
         return None
@@ -36,7 +34,7 @@ class _FakeChatLogRepository:
 
 class _FakeEvaluationRepository(EvaluationRepository):
     def __init__(self):
-        self.saved: List[ChatLogEvaluationEntity] = []
+        self.saved: list[ChatLogEvaluationEntity] = []
 
     def save(self, evaluation: ChatLogEvaluationEntity) -> ChatLogEvaluationEntity:
         # Assign a fake ID on first save
@@ -49,7 +47,7 @@ class _FakeEvaluationRepository(EvaluationRepository):
         self.saved.append(evaluation)
         return evaluation
 
-    def get_by_chat_log_id(self, chat_log_id: int) -> Optional[ChatLogEvaluationEntity]:
+    def get_by_chat_log_id(self, chat_log_id: int) -> ChatLogEvaluationEntity | None:
         return next((e for e in self.saved if e.chat_log_id == chat_log_id), None)
 
     def list_by_group_id(
@@ -57,7 +55,7 @@ class _FakeEvaluationRepository(EvaluationRepository):
         group_id: int,
         limit: int = 50,
         offset: int = 0,
-    ) -> List[ChatLogEvaluationEntity]:
+    ) -> list[ChatLogEvaluationEntity]:
         return []
 
     def get_aggregate_by_group_id(self, group_id: int) -> EvaluationAggregateDTO:
@@ -71,12 +69,12 @@ class _FakeEvaluationRepository(EvaluationRepository):
 
 
 class _FakeRagEvaluationGateway(RagEvaluationGateway):
-    def __init__(self, scores: EvaluationScores, error: Optional[Exception] = None):
+    def __init__(self, scores: EvaluationScores, error: Exception | None = None):
         self.scores = scores
         self.error = error
-        self.calls: List[tuple[str, str, List[str]]] = []
+        self.calls: list[tuple[str, str, list[str]]] = []
 
-    def evaluate(self, question: str, answer: str, retrieved_contexts: List[str]) -> EvaluationScores:
+    def evaluate(self, question: str, answer: str, retrieved_contexts: list[str]) -> EvaluationScores:
         self.calls.append((question, answer, retrieved_contexts))
         if self.error:
             raise self.error
@@ -126,7 +124,7 @@ class EvaluateChatLogUseCaseTests(unittest.TestCase):
             retrieved_contexts=["RAG is a technique that combines retrieval and generation."],
         )
         scores = EvaluationScores(faithfulness=0.9, answer_relevancy=0.8, context_precision=0.75)
-        uc, eval_repo, gateway = self._make_uc_with_repos(log=log, scores=scores)
+        uc, eval_repo, _gateway = self._make_uc_with_repos(log=log, scores=scores)
 
         uc.execute(chat_log_id=1)
 
@@ -157,12 +155,9 @@ class EvaluateChatLogUseCaseTests(unittest.TestCase):
         self.assertEqual(contexts, ["Embeddings are numerical representations.", "FAISS is a library."])
 
     def test_does_not_raise_when_chat_log_not_found(self):
-        uc, eval_repo, _ = self._make_uc_with_repos(log=None)
+        uc, _eval_repo, _ = self._make_uc_with_repos(log=None)
 
-        try:
-            uc.execute(chat_log_id=999)
-        except Exception as exc:
-            self.fail(f"execute raised for missing ChatLog: {exc}")
+        uc.execute(chat_log_id=999)
 
     def test_marks_failed_when_gateway_raises(self):
         log = _FakeChatLogRecord(

@@ -2,7 +2,6 @@
 Use case: List videos for a user with optional filters.
 """
 
-from typing import List
 
 from app.domain.video.dto import VideoSearchCriteria
 from app.domain.video.repositories import VideoRepository
@@ -27,7 +26,7 @@ class ListVideosUseCase:
         self,
         user_id: int,
         input: ListVideosInput,
-    ) -> List[VideoResponseDTO]:
+    ) -> list[VideoResponseDTO]:
         criteria = self._to_search_criteria(input)
         videos = self.video_repo.list_for_user(user_id=user_id, criteria=criteria)
         return to_video_response_dtos(videos)

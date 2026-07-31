@@ -1,5 +1,7 @@
 """PLOG HTTP views."""
 
+from typing import ClassVar
+
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -17,8 +19,8 @@ from app.use_cases.shared.exceptions import ResourceNotFound
 
 
 class PlogGraphView(DependencyResolverMixin, APIView):
-    authentication_classes = [APIKeyAuthentication, CookieJWTAuthentication]
-    permission_classes = [IsAuthenticated, ApiKeyScopePermission]
+    authentication_classes: ClassVar = [APIKeyAuthentication, CookieJWTAuthentication]
+    permission_classes: ClassVar = [IsAuthenticated, ApiKeyScopePermission]
     required_scope = "read"
     get_plog_graph_use_case = None
 
@@ -43,8 +45,8 @@ class PlogGraphView(DependencyResolverMixin, APIView):
 
 
 class PlogRebuildView(DependencyResolverMixin, APIView):
-    authentication_classes = [APIKeyAuthentication, CookieJWTAuthentication]
-    permission_classes = [IsAuthenticated, ApiKeyScopePermission]
+    authentication_classes: ClassVar = [APIKeyAuthentication, CookieJWTAuthentication]
+    permission_classes: ClassVar = [IsAuthenticated, ApiKeyScopePermission]
     required_scope = "write"
     rebuild_plog_use_case = None
 
@@ -58,8 +60,8 @@ class PlogRebuildView(DependencyResolverMixin, APIView):
 
 
 class PlogConceptListView(DependencyResolverMixin, APIView):
-    authentication_classes = [APIKeyAuthentication, CookieJWTAuthentication]
-    permission_classes = [IsAuthenticated, ApiKeyScopePermission]
+    authentication_classes: ClassVar = [APIKeyAuthentication, CookieJWTAuthentication]
+    permission_classes: ClassVar = [IsAuthenticated, ApiKeyScopePermission]
     required_scope = "write"
     edit_plog_graph_use_case = None
 
@@ -84,8 +86,8 @@ class PlogConceptListView(DependencyResolverMixin, APIView):
 
 
 class PlogConceptDetailView(DependencyResolverMixin, APIView):
-    authentication_classes = [APIKeyAuthentication, CookieJWTAuthentication]
-    permission_classes = [IsAuthenticated, ApiKeyScopePermission]
+    authentication_classes: ClassVar = [APIKeyAuthentication, CookieJWTAuthentication]
+    permission_classes: ClassVar = [IsAuthenticated, ApiKeyScopePermission]
     required_scope = "write"
     edit_plog_graph_use_case = None
 
@@ -131,8 +133,8 @@ class PlogConceptDetailView(DependencyResolverMixin, APIView):
 class PlogConceptMergeView(DependencyResolverMixin, APIView):
     """Human granularity adjudication: merge absorb_id into this concept."""
 
-    authentication_classes = [APIKeyAuthentication, CookieJWTAuthentication]
-    permission_classes = [IsAuthenticated, ApiKeyScopePermission]
+    authentication_classes: ClassVar = [APIKeyAuthentication, CookieJWTAuthentication]
+    permission_classes: ClassVar = [IsAuthenticated, ApiKeyScopePermission]
     required_scope = "write"
     edit_plog_graph_use_case = None
 
@@ -156,8 +158,8 @@ class PlogConceptMergeView(DependencyResolverMixin, APIView):
 
 
 class PlogLearningObjectView(DependencyResolverMixin, APIView):
-    authentication_classes = [APIKeyAuthentication, CookieJWTAuthentication]
-    permission_classes = [IsAuthenticated, ApiKeyScopePermission]
+    authentication_classes: ClassVar = [APIKeyAuthentication, CookieJWTAuthentication]
+    permission_classes: ClassVar = [IsAuthenticated, ApiKeyScopePermission]
     required_scope = "write"
     edit_plog_graph_use_case = None
 
@@ -191,8 +193,8 @@ class PlogLearningObjectView(DependencyResolverMixin, APIView):
 
 
 class PlogEdgeListView(DependencyResolverMixin, APIView):
-    authentication_classes = [APIKeyAuthentication, CookieJWTAuthentication]
-    permission_classes = [IsAuthenticated, ApiKeyScopePermission]
+    authentication_classes: ClassVar = [APIKeyAuthentication, CookieJWTAuthentication]
+    permission_classes: ClassVar = [IsAuthenticated, ApiKeyScopePermission]
     required_scope = "write"
     edit_plog_graph_use_case = None
 
@@ -219,8 +221,8 @@ class PlogEdgeListView(DependencyResolverMixin, APIView):
 class PlogEdgeDetailView(DependencyResolverMixin, APIView):
     """PATCH / DELETE a single edge (existence, edit, or delete — no accept/reject)."""
 
-    authentication_classes = [APIKeyAuthentication, CookieJWTAuthentication]
-    permission_classes = [IsAuthenticated, ApiKeyScopePermission]
+    authentication_classes: ClassVar = [APIKeyAuthentication, CookieJWTAuthentication]
+    permission_classes: ClassVar = [IsAuthenticated, ApiKeyScopePermission]
     required_scope = "write"
     edit_plog_graph_use_case = None
 
@@ -274,8 +276,8 @@ class PlogEdgeDetailView(DependencyResolverMixin, APIView):
 
 
 class PlogLearnerStateView(DependencyResolverMixin, APIView):
-    authentication_classes = [APIKeyAuthentication, CookieJWTAuthentication]
-    permission_classes = [IsAuthenticated, ApiKeyScopePermission]
+    authentication_classes: ClassVar = [APIKeyAuthentication, CookieJWTAuthentication]
+    permission_classes: ClassVar = [IsAuthenticated, ApiKeyScopePermission]
     required_scope = "read"
     get_learner_state_use_case = None
     reset_learner_state_use_case = None

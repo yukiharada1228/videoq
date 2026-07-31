@@ -4,7 +4,6 @@ Abstractions over external capabilities used by chat use cases.
 """
 
 from abc import ABC, abstractmethod
-from typing import List
 
 from app.domain.chat.value_objects import KeywordCount
 
@@ -13,7 +12,7 @@ class KeywordExtractor(ABC):
     """Port: extract top keywords from a list of question strings."""
 
     @abstractmethod
-    def extract(self, questions: List[str], limit: int = 30) -> List[KeywordCount]:
+    def extract(self, questions: list[str], limit: int = 30) -> list[KeywordCount]:
         """
         Args:
             questions: Raw question strings to analyse.

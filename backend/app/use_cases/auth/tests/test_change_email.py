@@ -4,8 +4,8 @@ from unittest import TestCase
 
 from app.domain.auth.gateways import EmailSenderGateway, UserManagementGateway
 from app.use_cases.auth.change_email import (
-    EmailChangeEmailSendFailed,
     ConfirmEmailChangeUseCase,
+    EmailChangeEmailSendFailed,
     InvalidEmailChangeLink,
     RequestEmailChangeUseCase,
 )

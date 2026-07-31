@@ -14,10 +14,10 @@ import json
 import os
 from datetime import timedelta
 from pathlib import Path
+from typing import ClassVar
 
 import dj_database_url
 from django.core.exceptions import ImproperlyConfigured
-
 
 # ── AWS Secrets Manager サポート ─────────────────────────────────────────────
 # Lambda 環境では DB_SECRET_ARN / APP_SECRET_ARN を環境変数で渡す。
@@ -81,7 +81,7 @@ class DefaultSettings:
     MEDIA_PROCESS_MEMORY_LIMIT_MB = 2048
     MEDIA_PROCESS_OUTPUT_FILE_SIZE_LIMIT_MB = 512
     # CORS
-    CORS_ALLOWED_ORIGINS = [
+    CORS_ALLOWED_ORIGINS: ClassVar = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
     ]
@@ -636,7 +636,7 @@ OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", DefaultSettings.OLLAMA_BASE_
 # Vector store configuration
 PGVECTOR_COLLECTION_NAME = os.environ.get("PGVECTOR_COLLECTION_NAME", "videoq_scenes")
 
-EMBEDDING_VECTOR_SIZE = int(os.environ.get("EMBEDDING_VECTOR_SIZE", 1536))
+EMBEDDING_VECTOR_SIZE = int(os.environ.get("EMBEDDING_VECTOR_SIZE", "1536"))
 
 # LLM configuration
 LLM_PROVIDER = os.environ.get("LLM_PROVIDER", DefaultSettings.LLM_PROVIDER).lower()

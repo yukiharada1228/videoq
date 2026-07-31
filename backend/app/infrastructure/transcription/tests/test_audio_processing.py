@@ -7,11 +7,18 @@ import json
 import platform
 import subprocess
 import tempfile
+import unittest
 import warnings
 from unittest.mock import MagicMock, patch
 
-import unittest
-
+from app.contracts.media_validation import (
+    InvalidMediaFileError,
+    build_media_preexec_fn,
+    probe_media_file,
+    run_media_command,
+    validate_video_media_file,
+)
+from app.infrastructure.common.task_helpers import TemporaryFileManager
 from app.infrastructure.transcription.audio_processing import (
     SUPPORTED_FORMATS,
     _extract_audio_segment,
@@ -22,14 +29,6 @@ from app.infrastructure.transcription.audio_processing import (
     process_audio_segments_async,
     process_audio_segments_parallel,
     transcribe_audio_segment_async,
-)
-from app.infrastructure.common.task_helpers import TemporaryFileManager
-from app.contracts.media_validation import (
-    InvalidMediaFileError,
-    build_media_preexec_fn,
-    probe_media_file,
-    run_media_command,
-    validate_video_media_file,
 )
 
 
@@ -430,7 +429,7 @@ class TranscribeAudioSegmentAsyncTests(unittest.TestCase):
         mock_client = MagicMock()
 
         async def mock_create(**kwargs):
-            raise Exception("API Error")
+            raise RuntimeError("API Error")
 
         mock_client.audio.transcriptions.create = mock_create
 
@@ -441,7 +440,7 @@ class TranscribeAudioSegmentAsyncTests(unittest.TestCase):
                 transcribe_audio_segment_async(mock_client, segment_info, 0)
             )
 
-            transcription, error, index = result
+            transcription, error, _index = result
             self.assertIsNone(transcription)
             self.assertIsNotNone(error)
 
@@ -488,7 +487,7 @@ class ProcessAudioSegmentsAsyncTests(unittest.TestCase):
         async def mock_create(**kwargs):
             call_count[0] += 1
             if call_count[0] == 1:
-                raise Exception("Segment 1 failed")
+                raise RuntimeError("Segment 1 failed")
             result = MagicMock()
             result.segments = [MagicMock(start=0, end=5, text="Success")]
             return result

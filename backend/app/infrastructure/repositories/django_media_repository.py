@@ -3,14 +3,13 @@ Django ORM implementation of ProtectedMediaRepository.
 All ORM access for the media domain is isolated here.
 """
 
-from typing import Optional
 
 from app.domain.media.ports import ProtectedMediaRepository
 from app.infrastructure.models import Video, VideoGroupMember
 
 
 class DjangoMediaRepository(ProtectedMediaRepository):
-    def find_video_id_by_file_path(self, path: str) -> Optional[int]:
+    def find_video_id_by_file_path(self, path: str) -> int | None:
         video = Video.objects.filter(file=path).first()
         if video is None:
             return None

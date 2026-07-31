@@ -21,7 +21,10 @@ def authenticated_api_view(methods):
         )
         from rest_framework.permissions import IsAuthenticated
 
-        from app.presentation.common.authentication import APIKeyAuthentication, CookieJWTAuthentication
+        from app.presentation.common.authentication import (
+            APIKeyAuthentication,
+            CookieJWTAuthentication,
+        )
         from app.presentation.common.permissions import ApiKeyScopePermission
 
         wrapped_view = api_view(methods)(

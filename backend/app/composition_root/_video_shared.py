@@ -51,6 +51,7 @@ def get_vector_indexing_gateway():
 @lru_cache(maxsize=1)
 def get_file_upload_gateway():
     import os
+
     from app.infrastructure.external.file_upload_gateway import (
         LocalFileUploadGateway,
         R2FileUploadGateway,
@@ -63,20 +64,26 @@ def get_file_upload_gateway():
 
 @lru_cache(maxsize=1)
 def get_video_file_accessor():
-    from app.infrastructure.transcription.video_file_accessor import DjangoVideoFileAccessor
+    from app.infrastructure.transcription.video_file_accessor import (
+        DjangoVideoFileAccessor,
+    )
 
     return DjangoVideoFileAccessor()
 
 
 @lru_cache(maxsize=1)
 def get_whisper_transcription_gateway():
-    from app.infrastructure.external.transcription_gateway import WhisperTranscriptionGateway
+    from app.infrastructure.external.transcription_gateway import (
+        WhisperTranscriptionGateway,
+    )
 
     return WhisperTranscriptionGateway(get_video_file_accessor())
 
 
 @lru_cache(maxsize=1)
 def get_youtube_transcription_gateway():
-    from app.infrastructure.external.youtube_transcript_gateway import YoutubeTranscriptGateway
+    from app.infrastructure.external.youtube_transcript_gateway import (
+        YoutubeTranscriptGateway,
+    )
 
     return YoutubeTranscriptGateway()

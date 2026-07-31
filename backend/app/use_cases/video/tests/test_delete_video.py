@@ -1,7 +1,7 @@
 """Unit tests for DeleteVideoUseCase."""
 
+from collections.abc import Callable
 from contextlib import contextmanager
-from typing import Callable
 from unittest import TestCase
 from unittest.mock import MagicMock
 

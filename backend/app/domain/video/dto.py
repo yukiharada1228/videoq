@@ -6,7 +6,7 @@ No Django / ORM / external service dependencies.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import List, Optional, Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable
 
 
 @runtime_checkable
@@ -29,7 +29,7 @@ class VideoSearchCriteria:
     keyword: str = ""
     status_filter: str = ""
     sort_key: str = ""
-    tag_ids: Optional[List[int]] = field(default=None)
+    tag_ids: list[int] | None = field(default=None)
 
 
 @dataclass(frozen=True)
@@ -64,9 +64,9 @@ class CreateYoutubeVideoParams:
 class UpdateVideoParams:
     """Parameters for updating a video record (None = field not provided / skip)."""
 
-    title: Optional[str] = None
-    description: Optional[str] = None
-    transcript: Optional[str] = None
+    title: str | None = None
+    description: str | None = None
+    transcript: str | None = None
 
 
 @dataclass(frozen=True)
@@ -81,8 +81,8 @@ class CreateGroupParams:
 class UpdateGroupParams:
     """Parameters for updating a video group (None = field not provided / skip)."""
 
-    name: Optional[str] = None
-    description: Optional[str] = None
+    name: str | None = None
+    description: str | None = None
 
 
 @dataclass(frozen=True)
@@ -97,5 +97,5 @@ class CreateTagParams:
 class UpdateTagParams:
     """Parameters for updating a tag (None = field not provided / skip)."""
 
-    name: Optional[str] = None
-    color: Optional[str] = None
+    name: str | None = None
+    color: str | None = None

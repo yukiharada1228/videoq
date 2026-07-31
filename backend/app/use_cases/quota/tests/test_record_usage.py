@@ -1,6 +1,5 @@
 """Unit tests for record usage use cases and monthly reset logic."""
 
-from typing import Optional
 from unittest import TestCase
 
 from app.domain.quota.entities import UserLimitsEntity
@@ -30,7 +29,7 @@ class _TrackingUserLimitsRepo(UserLimitsRepository):
 
     def __init__(self, entity: UserLimitsEntity):
         self._entity = entity
-        self.saved: Optional[UserLimitsEntity] = None
+        self.saved: UserLimitsEntity | None = None
         self.reset_calls: list = []
         self.maybe_reset_calls: list = []
         self.increment_storage_calls: list = []
@@ -40,7 +39,7 @@ class _TrackingUserLimitsRepo(UserLimitsRepository):
     def get_or_create(self, user_id: int) -> UserLimitsEntity:
         return self._entity
 
-    def get_by_user_id(self, user_id: int) -> Optional[UserLimitsEntity]:
+    def get_by_user_id(self, user_id: int) -> UserLimitsEntity | None:
         return self._entity
 
     def save(self, entity: UserLimitsEntity) -> UserLimitsEntity:

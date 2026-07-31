@@ -1,7 +1,9 @@
 from unittest import TestCase
 from unittest.mock import patch
 
-from app.infrastructure.external.youtube_transcript_gateway import YoutubeTranscriptGateway
+from app.infrastructure.external.youtube_transcript_gateway import (
+    YoutubeTranscriptGateway,
+)
 
 
 class _FakeTransport:

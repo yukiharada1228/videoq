@@ -1,50 +1,66 @@
+from typing import ClassVar
+
 from django.conf import settings
+from django.http import Http404
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
-from django.http import Http404
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics, status
 from rest_framework.response import Response
 
-from app.presentation.auth.serializers import (AccountDeleteSerializer,
-                                               ApiKeyCreateResponseSerializer,
-                                               ApiKeyCreateSerializer,
-                                               ApiKeySerializer,
-                                               EmailChangeRequestSerializer,
-                                               LoginResponseSerializer,
-                                               LoginSerializer,
-                                               MessageResponseSerializer,
-                                               PasswordResetConfirmBodySerializer,
-                                               PasswordResetRequestSerializer,
-                                               RefreshResponseSerializer,
-                                               SearchApiKeySerializer,
-                                               SearchApiKeyStatusSerializer,
-                                               UserSerializer,
-                                               UserSignupSerializer)
-from app.use_cases.auth.signup import EmailAlreadyRegistered, VerificationEmailSendFailed
-from app.use_cases.auth.verify_email import InvalidVerificationLink
-from app.use_cases.auth.reset_password import InvalidResetLink
-from app.use_cases.auth.change_email import (
-    EmailChangeEmailSendFailed,
-    InvalidEmailChangeLink,
+from app.presentation.auth.serializers import (
+    AccountDeleteSerializer,
+    ApiKeyCreateResponseSerializer,
+    ApiKeyCreateSerializer,
+    ApiKeySerializer,
+    EmailChangeRequestSerializer,
+    LoginResponseSerializer,
+    LoginSerializer,
+    MessageResponseSerializer,
+    PasswordResetConfirmBodySerializer,
+    PasswordResetRequestSerializer,
+    RefreshResponseSerializer,
+    SearchApiKeySerializer,
+    SearchApiKeyStatusSerializer,
+    UserSerializer,
+    UserSignupSerializer,
 )
-from app.use_cases.auth.exceptions import AuthenticationFailed, InvalidToken
-from app.presentation.common.authentication import APIKeyAuthentication, CookieJWTAuthentication
+from app.presentation.common.authentication import (
+    APIKeyAuthentication,
+    CookieJWTAuthentication,
+)
 from app.presentation.common.exceptions import ErrorCode
-from app.presentation.common.responses import create_error_response, create_success_response
-from app.presentation.common.throttles import (EmailChangeEmailThrottle,
-                                               EmailChangeUserThrottle,
-                                               LoginIPThrottle, LoginUsernameThrottle,
-                                               PasswordResetEmailThrottle,
-                                               PasswordResetIPThrottle,
-                                               SignupEmailThrottle,
-                                               SignupIPThrottle)
-from app.use_cases.shared.exceptions import ResourceNotFound
 from app.presentation.common.mixins import (
     AuthenticatedViewMixin,
     DependencyResolverMixin,
     PublicViewMixin,
 )
+from app.presentation.common.responses import (
+    create_error_response,
+    create_success_response,
+)
+from app.presentation.common.throttles import (
+    EmailChangeEmailThrottle,
+    EmailChangeUserThrottle,
+    LoginIPThrottle,
+    LoginUsernameThrottle,
+    PasswordResetEmailThrottle,
+    PasswordResetIPThrottle,
+    SignupEmailThrottle,
+    SignupIPThrottle,
+)
+from app.use_cases.auth.change_email import (
+    EmailChangeEmailSendFailed,
+    InvalidEmailChangeLink,
+)
+from app.use_cases.auth.exceptions import AuthenticationFailed, InvalidToken
+from app.use_cases.auth.reset_password import InvalidResetLink
+from app.use_cases.auth.signup import (
+    EmailAlreadyRegistered,
+    VerificationEmailSendFailed,
+)
+from app.use_cases.auth.verify_email import InvalidVerificationLink
+from app.use_cases.shared.exceptions import ResourceNotFound
 
 
 class PublicAPIView(DependencyResolverMixin, PublicViewMixin, generics.GenericAPIView):
@@ -56,14 +72,14 @@ class AuthenticatedAPIView(
 ):
     """API view that requires authentication"""
 
-    authentication_classes = [CookieJWTAuthentication]
+    authentication_classes: ClassVar = [CookieJWTAuthentication]
 
 
 class UserSignupView(PublicAPIView):
     """User registration view"""
 
     serializer_class = UserSignupSerializer
-    throttle_classes = [SignupIPThrottle, SignupEmailThrottle]
+    throttle_classes: ClassVar = [SignupIPThrottle, SignupEmailThrottle]
     signup_use_case = None
 
     @extend_schema(
@@ -320,7 +336,7 @@ class PasswordResetRequestView(PublicAPIView):
     """Password reset request view"""
 
     serializer_class = PasswordResetRequestSerializer
-    throttle_classes = [PasswordResetIPThrottle, PasswordResetEmailThrottle]
+    throttle_classes: ClassVar = [PasswordResetIPThrottle, PasswordResetEmailThrottle]
     request_password_reset_use_case = None
 
     @extend_schema(
@@ -373,7 +389,7 @@ class EmailChangeRequestView(AuthenticatedAPIView):
     """Request email address change for the current user."""
 
     serializer_class = EmailChangeRequestSerializer
-    throttle_classes = [EmailChangeUserThrottle, EmailChangeEmailThrottle]
+    throttle_classes: ClassVar = [EmailChangeUserThrottle, EmailChangeEmailThrottle]
     request_email_change_use_case = None
 
     @extend_schema(
@@ -426,7 +442,7 @@ class MeView(AuthenticatedAPIView, generics.RetrieveAPIView):
     """Current user information retrieval view"""
 
     serializer_class = UserSerializer
-    authentication_classes = [APIKeyAuthentication, CookieJWTAuthentication]
+    authentication_classes: ClassVar = [APIKeyAuthentication, CookieJWTAuthentication]
     current_user_use_case = None
 
     def get_object(self):

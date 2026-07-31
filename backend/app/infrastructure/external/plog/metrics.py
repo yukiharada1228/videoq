@@ -3,20 +3,20 @@
 from __future__ import annotations
 
 from collections import defaultdict, deque
-from typing import Dict, Iterable, Sequence, Set, Tuple
+from collections.abc import Iterable, Sequence
 
 ORDERING = frozenset({"prerequisite_of", "builds_on"})
 
 
-def concept_coverage(extracted: Set[str], gold: Set[str]) -> float:
+def concept_coverage(extracted: set[str], gold: set[str]) -> float:
     if not gold:
         return 0.0
     return len(extracted & gold) / len(gold)
 
 
 def edge_prf(
-    extracted: Set[Tuple[str, str]], gold: Set[Tuple[str, str]]
-) -> Tuple[float, float, float]:
+    extracted: set[tuple[str, str]], gold: set[tuple[str, str]]
+) -> tuple[float, float, float]:
     if not extracted and not gold:
         return 1.0, 1.0, 1.0
     tp = len(extracted & gold)
@@ -26,16 +26,16 @@ def edge_prf(
     return p, r, f1
 
 
-def _transitive_closure(pairs: Iterable[Tuple[str, str]]) -> Set[Tuple[str, str]]:
-    adj: Dict[str, Set[str]] = defaultdict(set)
-    nodes: Set[str] = set()
+def _transitive_closure(pairs: Iterable[tuple[str, str]]) -> set[tuple[str, str]]:
+    adj: dict[str, set[str]] = defaultdict(set)
+    nodes: set[str] = set()
     for a, b in pairs:
         adj[a].add(b)
         nodes.add(a)
         nodes.add(b)
-    closure: Set[Tuple[str, str]] = set()
+    closure: set[tuple[str, str]] = set()
     for n in nodes:
-        seen: Set[str] = set()
+        seen: set[str] = set()
         q = deque(adj.get(n, ()))
         while q:
             m = q.popleft()
@@ -48,15 +48,15 @@ def _transitive_closure(pairs: Iterable[Tuple[str, str]]) -> Set[Tuple[str, str]
 
 
 def reachability_f1(
-    extracted: Set[Tuple[str, str]], gold: Set[Tuple[str, str]]
+    extracted: set[tuple[str, str]], gold: set[tuple[str, str]]
 ) -> float:
     _, _, f1 = edge_prf(_transitive_closure(extracted), _transitive_closure(gold))
     return f1
 
 
 def direction_agreement_and_inversion(
-    extracted: Set[Tuple[str, str]], gold: Set[Tuple[str, str]]
-) -> Tuple[float, float]:
+    extracted: set[tuple[str, str]], gold: set[tuple[str, str]]
+) -> tuple[float, float]:
     """Among gold-ordered pairs present in both graphs (either direction)."""
     both_directions = 0
     agree = 0
@@ -74,10 +74,10 @@ def direction_agreement_and_inversion(
     return agree / both_directions, invert / both_directions
 
 
-def is_dag(pairs: Iterable[Tuple[str, str]]) -> bool:
-    adj: Dict[str, Set[str]] = defaultdict(set)
-    indeg: Dict[str, int] = defaultdict(int)
-    nodes: Set[str] = set()
+def is_dag(pairs: Iterable[tuple[str, str]]) -> bool:
+    adj: dict[str, set[str]] = defaultdict(set)
+    indeg: dict[str, int] = defaultdict(int)
+    nodes: set[str] = set()
     for a, b in pairs:
         nodes.add(a)
         nodes.add(b)

@@ -2,13 +2,13 @@
 TDD tests for new REST URL patterns in evaluation domain (issue #651).
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import patch
 
 from django.apps import apps
 from django.contrib.auth import get_user_model
 from django.test import TestCase
-from django.urls import reverse
+from django.urls import NoReverseMatch, reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 
@@ -41,8 +41,8 @@ def _make_entity(chat_log_id: int) -> ChatLogEvaluationEntity:
         answer_relevancy=0.85,
         context_precision=0.7,
         error_message="",
-        evaluated_at=datetime(2026, 4, 1, tzinfo=timezone.utc),
-        created_at=datetime(2026, 4, 1, tzinfo=timezone.utc),
+        evaluated_at=datetime(2026, 4, 1, tzinfo=UTC),
+        created_at=datetime(2026, 4, 1, tzinfo=UTC),
     )
 
 
@@ -89,7 +89,7 @@ class EvaluationGroupSummaryViewTests(TestCase):
 
     def test_old_query_param_url_no_longer_works(self):
         """Old URL name 'evaluation-summary' must be removed."""
-        with self.assertRaises(Exception):
+        with self.assertRaises(NoReverseMatch):
             reverse("evaluation-summary")
 
     def test_get_summary_other_users_group_returns_404(self):
@@ -140,7 +140,7 @@ class EvaluationGroupLogsViewTests(TestCase):
 
     def test_old_query_param_url_no_longer_works(self):
         """Old URL name 'evaluation-logs' must be removed."""
-        with self.assertRaises(Exception):
+        with self.assertRaises(NoReverseMatch):
             reverse("evaluation-logs")
 
     def test_get_logs_other_users_group_returns_404(self):

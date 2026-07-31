@@ -27,4 +27,3 @@ logger.info("Celery app configured")
 @app.task(bind=True, ignore_result=True)
 def debug_task(self):
     """Debug task"""
-    pass

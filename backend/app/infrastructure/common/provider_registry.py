@@ -1,13 +1,10 @@
 """Shared helpers for provider-backed infrastructure factories."""
 
 from collections.abc import Callable, Iterable, Mapping
-from typing import TypeVar
 
 from django.conf import settings
 
 from app.domain.shared.exceptions import ProviderConfigError
-
-T = TypeVar("T")
 
 
 def normalize_provider(value: object, default: str) -> str:
@@ -39,7 +36,7 @@ def validate_provider(
     )
 
 
-def create_from_provider_registry(
+def create_from_provider_registry[T](
     setting_name: str,
     provider: object,
     registry: Mapping[str, Callable[[], T]],

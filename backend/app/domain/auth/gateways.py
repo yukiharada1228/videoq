@@ -4,7 +4,6 @@ Abstract contracts for external services used by auth use cases.
 """
 
 from abc import ABC, abstractmethod
-from typing import Optional
 
 
 class AuthTaskGateway(ABC):
@@ -78,7 +77,7 @@ class UserManagementGateway(ABC):
         ...
 
     @abstractmethod
-    def get_user_id_by_uid_token(self, uidb64: str, token: str) -> Optional[int]:
+    def get_user_id_by_uid_token(self, uidb64: str, token: str) -> int | None:
         """
         Decode uidb64 and validate token.
         Returns user_id if valid, None otherwise.
@@ -86,7 +85,7 @@ class UserManagementGateway(ABC):
         ...
 
     @abstractmethod
-    def find_active_user_id_by_email(self, email: str) -> Optional[int]:
+    def find_active_user_id_by_email(self, email: str) -> int | None:
         """Return the user_id of an active user with the given email, or None."""
         ...
 

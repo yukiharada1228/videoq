@@ -2,16 +2,15 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import List, Optional
 
 
 @dataclass
 class EvaluationScores:
     """Scores returned by the RAG evaluation gateway."""
 
-    faithfulness: Optional[float]
-    answer_relevancy: Optional[float]
-    context_precision: Optional[float]
+    faithfulness: float | None
+    answer_relevancy: float | None
+    context_precision: float | None
 
 
 class RagEvaluationGateway(ABC):
@@ -22,7 +21,7 @@ class RagEvaluationGateway(ABC):
         self,
         question: str,
         answer: str,
-        retrieved_contexts: List[str],
+        retrieved_contexts: list[str],
     ) -> EvaluationScores:
         """
         Run RAGAS evaluation for a single Q&A sample.

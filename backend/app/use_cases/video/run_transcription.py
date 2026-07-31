@@ -4,8 +4,7 @@ Use case: Transcribe a video and index its scenes for RAG search.
 
 import logging
 import re
-
-from typing import Callable, Optional
+from collections.abc import Callable
 
 from app.domain.quota.exceptions import ProcessingLimitExceeded
 from app.domain.shared.transaction import TransactionPort
@@ -31,7 +30,7 @@ logger = logging.getLogger(__name__)
 _SRT_TIME_RE = re.compile(r"(\d{2}):(\d{2}):(\d{2}),(\d{3})")
 
 
-def _parse_srt_duration_seconds(srt_content: str) -> Optional[int]:
+def _parse_srt_duration_seconds(srt_content: str) -> int | None:
     """Return the duration in whole seconds from the last end-timestamp in an SRT string.
 
     SRT lines look like:
@@ -46,8 +45,7 @@ def _parse_srt_duration_seconds(srt_content: str) -> Optional[int]:
     max_seconds: float = 0.0
     for h, m, s, ms in end_timestamps:
         total = int(h) * 3600 + int(m) * 60 + int(s) + int(ms) / 1000.0
-        if total > max_seconds:
-            max_seconds = total
+        max_seconds = max(max_seconds, total)
     return int(max_seconds) or None
 
 
@@ -71,11 +69,11 @@ class RunTranscriptionUseCase:
         task_queue: VideoTaskGateway,
         upload_gateway: FileUploadGateway,
         tx: TransactionPort,
-        user_repo: Optional[UserRepository] = None,
-        duration_estimator: Optional[Callable[[int], Optional[int]]] = None,
+        user_repo: UserRepository | None = None,
+        duration_estimator: Callable[[int], int | None] | None = None,
         processing_limit_check_use_case=None,
         processing_record_use_case=None,
-        youtube_transcription_gateway: Optional[YoutubeTranscriptionGateway] = None,
+        youtube_transcription_gateway: YoutubeTranscriptionGateway | None = None,
     ):
         self.video_repo = video_repo
         self.transcription_gateway = transcription_gateway
@@ -88,12 +86,12 @@ class RunTranscriptionUseCase:
         self._processing_record_use_case = processing_record_use_case
         self._youtube_transcription_gateway = youtube_transcription_gateway
 
-    def _estimate_video_duration_seconds(self, video_id: int) -> Optional[int]:
+    def _estimate_video_duration_seconds(self, video_id: int) -> int | None:
         if self._duration_estimator is None:
             return None
         return self._duration_estimator(video_id)
 
-    def _estimate_processing_duration_seconds(self, video, user=None) -> Optional[int]:
+    def _estimate_processing_duration_seconds(self, video, user=None) -> int | None:
         if video.source_type == "youtube":
             if not video.youtube_video_id or self._youtube_transcription_gateway is None:
                 return None
@@ -174,7 +172,7 @@ class RunTranscriptionUseCase:
             if isinstance(e, ProcessingLimitExceeded):
                 raise TranscriptionRejected(video_id=video_id, reason=error_msg) from e
             if isinstance(e, TranscriptionRejected):
-                raise e
+                raise
             raise TranscriptionExecutionFailed(video_id=video_id, reason=error_msg) from e
 
         logger.info("Transcription completed for video %d; indexing task enqueued", video_id)

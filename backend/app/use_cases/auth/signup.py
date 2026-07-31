@@ -6,8 +6,10 @@ import logging
 
 from app.domain.auth.gateways import EmailSenderGateway, UserManagementGateway
 from app.domain.auth.services import (
-    SignupPolicy,
     SignupEmailAlreadyRegistered as _DomainSignupEmailAlreadyRegistered,
+)
+from app.domain.auth.services import (
+    SignupPolicy,
 )
 
 logger = logging.getLogger(__name__)
