@@ -14,7 +14,6 @@ from .authorize_view import CookieAuthorizationView
 from .views import (
     AuthorizedTokenRevokeView,
     AuthorizedTokensListView,
-    DynamicClientRegistrationView,
 )
 
 urlpatterns = [
@@ -26,18 +25,9 @@ urlpatterns = [
         CookieAuthorizationView.as_view(),
         name="authorize",
     ),
-    # django-oauth-toolkit core endpoints (token/revoke/introspect).
-    # PKCE is enforced project-wide via ``OAUTH2_PROVIDER['PKCE_REQUIRED']``.
+    # django-oauth-toolkit core endpoints, including RFC 7591/7592 Dynamic
+    # Client Registration. PKCE and open DCR are configured in settings.
     path("", include(oauth2_urls)),
-    # RFC 7591 Dynamic Client Registration. Anonymous so Claude Desktop /
-    # claude.ai's built-in connector can register itself.
-    path(
-        "register/",
-        DynamicClientRegistrationView.as_view(
-            register_use_case=oauth_deps.get_register_oauth_client_use_case,
-        ),
-        name="oauth-register",
-    ),
     # Per-user token management for the Settings UI.
     path(
         "tokens/",

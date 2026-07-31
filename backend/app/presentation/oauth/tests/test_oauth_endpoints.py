@@ -15,6 +15,7 @@ import hashlib
 import json
 import secrets
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
 from oauth2_provider.models import (
@@ -30,6 +31,13 @@ from rest_framework.test import APIClient
 User = get_user_model()
 ApplicationModel = get_application_model()
 
+TEST_OAUTH2_PROVIDER = {
+    **settings.OAUTH2_PROVIDER,
+    "OIDC_ISS_ENDPOINT": "http://testserver",
+    "OAUTH2_PROTECTED_RESOURCE_IDENTIFIER": "http://testserver/api/mcp/",
+    "OAUTH2_PROTECTED_RESOURCE_AUTHORIZATION_SERVERS": ["http://testserver"],
+}
+
 
 def _pkce_pair() -> tuple[str, str]:
     verifier = secrets.token_urlsafe(64)
@@ -38,7 +46,7 @@ def _pkce_pair() -> tuple[str, str]:
     return verifier, challenge
 
 
-@override_settings(OAUTH2_PROVIDER_ISSUER_URL="http://testserver")
+@override_settings(OAUTH2_PROVIDER=TEST_OAUTH2_PROVIDER)
 class WellKnownMetadataTests(TestCase):
     def test_authorization_server_metadata(self):
         resp = self.client.get("/.well-known/oauth-authorization-server")
@@ -80,7 +88,7 @@ class WellKnownMetadataTests(TestCase):
         self.assertIn("http://testserver", body["authorization_servers"])
 
 
-@override_settings(OAUTH2_PROVIDER_ISSUER_URL="http://testserver")
+@override_settings(OAUTH2_PROVIDER=TEST_OAUTH2_PROVIDER)
 class DynamicClientRegistrationTests(TestCase):
     def test_registers_public_client_with_pkce(self):
         body = {
@@ -98,9 +106,28 @@ class DynamicClientRegistrationTests(TestCase):
         self.assertIn("client_id", payload)
         self.assertNotIn("client_secret", payload)
         self.assertEqual(payload["token_endpoint_auth_method"], "none")
-        # Persisted with the matching client_type.
+        self.assertIn("registration_access_token", payload)
+        self.assertEqual(
+            payload["registration_client_uri"],
+            f"http://testserver/api/oauth/register/{payload['client_id']}/",
+        )
+        # Persisted by DOT as a dynamically registered public client.
         app = ApplicationModel.objects.get(client_id=payload["client_id"])
         self.assertEqual(app.client_type, ApplicationModel.CLIENT_PUBLIC)
+        self.assertEqual(
+            app.registration_source,
+            ApplicationModel.RegistrationSource.DCR,
+        )
+
+        management_resp = self.client.get(
+            f"/api/oauth/register/{payload['client_id']}/",
+            HTTP_AUTHORIZATION=f"Bearer {payload['registration_access_token']}",
+        )
+        self.assertEqual(management_resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            management_resp.json()["client_id"],
+            payload["client_id"],
+        )
 
     def test_registers_confidential_client_returns_plaintext_secret(self):
         # Regression for ofid_11632eb5d8076f28: when DCR auth method requires
@@ -135,9 +162,9 @@ class DynamicClientRegistrationTests(TestCase):
         self.assertEqual(app.client_type, ApplicationModel.CLIENT_CONFIDENTIAL)
         self.assertTrue(check_password(secret, app.client_secret))
 
-    def test_rejects_non_localhost_http_redirect(self):
+    def test_rejects_unsupported_redirect_scheme(self):
         body = {
-            "redirect_uris": ["http://example.com/callback"],
+            "redirect_uris": ["ftp://example.com/callback"],
             "client_name": "Bad",
         }
         resp = self.client.post(
@@ -146,7 +173,7 @@ class DynamicClientRegistrationTests(TestCase):
             content_type="application/json",
         )
         self.assertEqual(resp.status_code, 400)
-        self.assertEqual(resp.json()["error"], "invalid_redirect_uri")
+        self.assertEqual(resp.json()["error"], "invalid_client_metadata")
 
     def test_rejects_missing_redirect_uris(self):
         resp = self.client.post(
@@ -156,10 +183,10 @@ class DynamicClientRegistrationTests(TestCase):
         )
         self.assertEqual(resp.status_code, 400)
 
-    def test_rejects_unknown_scope(self):
+    def test_rejects_unsupported_grant_type(self):
         body = {
             "redirect_uris": ["http://127.0.0.1/cb"],
-            "scope": "read admin",
+            "grant_types": ["urn:example:unsupported"],
         }
         resp = self.client.post(
             "/api/oauth/register/",
@@ -169,7 +196,7 @@ class DynamicClientRegistrationTests(TestCase):
         self.assertEqual(resp.status_code, 400)
 
 
-@override_settings(OAUTH2_PROVIDER_ISSUER_URL="http://testserver")
+@override_settings(OAUTH2_PROVIDER=TEST_OAUTH2_PROVIDER)
 class MCPBearerAuthTests(TestCase):
     """The MCP endpoint must accept OAuth tokens and advertise discovery."""
 
@@ -302,7 +329,7 @@ class TokenManagementTests(TestCase):
         self.assertTrue(AccessToken.objects.filter(id=other_token.id).exists())
 
 
-@override_settings(OAUTH2_PROVIDER_ISSUER_URL="http://testserver")
+@override_settings(OAUTH2_PROVIDER=TEST_OAUTH2_PROVIDER)
 class AuthorizationCodeWithPKCEFlowTests(TestCase):
     """End-to-end: register client → authorize with PKCE → exchange code → call MCP."""
 
