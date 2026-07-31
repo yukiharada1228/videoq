@@ -37,6 +37,7 @@ TEST_OAUTH2_PROVIDER = {
     "OAUTH2_PROTECTED_RESOURCE_IDENTIFIER": "http://testserver/api/mcp/",
     "OAUTH2_PROTECTED_RESOURCE_AUTHORIZATION_SERVERS": ["http://testserver"],
 }
+TEST_MCP_RESOURCE = "http://testserver/api/mcp/"
 
 
 def _pkce_pair() -> tuple[str, str]:
@@ -218,7 +219,9 @@ class MCPBearerAuthTests(TestCase):
             client_secret="",
         )
 
-    def _issue_token(self, scope: str = "read") -> str:
+    def _issue_token(
+        self, scope: str = "read", resource: list[str] | None = None
+    ) -> str:
         from datetime import timedelta
 
         from django.utils import timezone
@@ -230,6 +233,7 @@ class MCPBearerAuthTests(TestCase):
             application=app,
             token=token_value,
             scope=scope,
+            resource=resource or [],
             expires=timezone.now() + timedelta(hours=1),
         )
         return token_value
@@ -266,6 +270,16 @@ class MCPBearerAuthTests(TestCase):
             data=json.dumps({"jsonrpc": "2.0", "id": 1, "method": "ping"}),
             content_type="application/json",
             HTTP_AUTHORIZATION="Bearer not-a-real-token",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_oauth_token_for_another_resource_is_rejected(self):
+        token = self._issue_token(resource=["http://testserver/api/other/"])
+        resp = self.client.post(
+            "/api/mcp",
+            data=json.dumps({"jsonrpc": "2.0", "id": 1, "method": "ping"}),
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {token}",
         )
         self.assertEqual(resp.status_code, status.HTTP_401_UNAUTHORIZED)
 
@@ -331,7 +345,11 @@ class TokenManagementTests(TestCase):
         self.assertTrue(AccessToken.objects.filter(id=other_token.id).exists())
 
 
-@override_settings(OAUTH2_PROVIDER=TEST_OAUTH2_PROVIDER)
+@override_settings(
+    OAUTH2_PROVIDER=TEST_OAUTH2_PROVIDER,
+    ALLOWED_HOSTS=["testserver", "internal-api.example"],
+    USE_X_FORWARDED_HOST=True,
+)
 class AuthorizationCodeWithPKCEFlowTests(TestCase):
     """End-to-end: register client → authorize with PKCE → exchange code → call MCP."""
 
@@ -376,6 +394,7 @@ class AuthorizationCodeWithPKCEFlowTests(TestCase):
             scope="read",
             code_challenge=challenge,
             code_challenge_method="S256",
+            resource=[TEST_MCP_RESOURCE],
         )
 
         # 3) Exchange the code for an access token using PKCE.
@@ -393,15 +412,26 @@ class AuthorizationCodeWithPKCEFlowTests(TestCase):
         token_body = token_resp.json()
         access_token = token_body["access_token"]
         self.assertIn("refresh_token", token_body)
+        self.assertEqual(
+            AccessToken.objects.get(token=access_token).resource,
+            [TEST_MCP_RESOURCE],
+        )
 
-        # 4) Call MCP with the Bearer token.
+        # 4) CloudFront keeps API Gateway's Host and forwards the public viewer
+        # host separately. Django must reconstruct the public resource URI.
         mcp_resp = self.client.post(
-            "/api/mcp/",
+            "/api/mcp",
             data=json.dumps({"jsonrpc": "2.0", "id": 1, "method": "ping"}),
             content_type="application/json",
             HTTP_AUTHORIZATION=f"Bearer {access_token}",
+            HTTP_HOST="internal-api.example",
+            HTTP_X_FORWARDED_HOST="testserver",
         )
-        self.assertEqual(mcp_resp.status_code, 200)
+        self.assertEqual(
+            mcp_resp.status_code,
+            200,
+            mcp_resp.headers.get("WWW-Authenticate", mcp_resp.content),
+        )
 
         # 5) Wrong verifier must fail when exchanging another code.
         bad_verifier = secrets.token_urlsafe(64)
@@ -415,6 +445,7 @@ class AuthorizationCodeWithPKCEFlowTests(TestCase):
             scope="read",
             code_challenge=challenge,
             code_challenge_method="S256",
+            resource=[TEST_MCP_RESOURCE],
         )
         bad_token_resp = self.client.post(
             "/api/oauth/token/",

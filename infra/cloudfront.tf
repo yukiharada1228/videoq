@@ -49,6 +49,13 @@ resource "aws_cloudfront_distribution" "this" {
     origin_id   = "api"
     domain_name = trimprefix(aws_apigatewayv2_api.http.api_endpoint, "https://")
 
+    # API Gateway requires its own Host header, so preserve the public viewer
+    # host separately for Django's build_absolute_uri() behind CloudFront.
+    custom_header {
+      name  = "X-Forwarded-Host"
+      value = var.custom_domain
+    }
+
     custom_origin_config {
       origin_protocol_policy = "https-only"
       origin_ssl_protocols   = ["TLSv1.2"]
