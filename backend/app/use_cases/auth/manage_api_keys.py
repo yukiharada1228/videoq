@@ -2,7 +2,6 @@
 Use cases for managing user API keys.
 """
 
-from typing import List
 
 from app.domain.auth.entities import (
     assert_api_key_name_available,
@@ -31,7 +30,7 @@ class ListApiKeysUseCase:
     def __init__(self, api_key_repo: ApiKeyRepository):
         self.api_key_repo = api_key_repo
 
-    def execute(self, user_id: int) -> List[ApiKeyResponseDTO]:
+    def execute(self, user_id: int) -> list[ApiKeyResponseDTO]:
         return [
             _to_api_key_response_dto(entity) for entity in self.api_key_repo.list_for_user(user_id)
         ]

@@ -5,12 +5,14 @@ Tests for common authentication module
 from django.apps import apps
 from django.contrib.auth import get_user_model
 from django.test import RequestFactory
-from rest_framework.exceptions import PermissionDenied
-from rest_framework.exceptions import AuthenticationFailed
+from rest_framework.exceptions import AuthenticationFailed, PermissionDenied
 from rest_framework.test import APITestCase
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from app.presentation.common.authentication import APIKeyAuthentication, CookieJWTAuthentication
+from app.presentation.common.authentication import (
+    APIKeyAuthentication,
+    CookieJWTAuthentication,
+)
 
 User = get_user_model()
 UserApiKey = apps.get_model("app", "UserApiKey")
@@ -39,7 +41,7 @@ class CookieJWTAuthenticationTests(APITestCase):
         result = self.auth.authenticate(request)
 
         self.assertIsNotNone(result)
-        user, token = result
+        user, _token = result
         self.assertEqual(user, self.user)
 
     def test_authenticate_with_header(self):
@@ -52,7 +54,7 @@ class CookieJWTAuthenticationTests(APITestCase):
         result = self.auth.authenticate(request)
 
         self.assertIsNotNone(result)
-        user, token = result
+        user, _token = result
         self.assertEqual(user, self.user)
 
     def test_authenticate_with_invalid_cookie(self):
@@ -91,7 +93,7 @@ class CookieJWTAuthenticationTests(APITestCase):
         result = self.auth.authenticate(request)
 
         self.assertIsNotNone(result)
-        user, token = result
+        user, _token = result
         self.assertEqual(user, self.user)
 
     def test_cookie_authentication_rejects_unsafe_request_without_csrf(self):
@@ -115,7 +117,7 @@ class CookieJWTAuthenticationTests(APITestCase):
         result = self.auth.authenticate(request)
 
         self.assertIsNotNone(result)
-        user, token = result
+        user, _token = result
         self.assertEqual(user, self.user)
 
 

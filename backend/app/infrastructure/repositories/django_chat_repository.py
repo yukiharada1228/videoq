@@ -2,7 +2,7 @@
 Django ORM implementations of chat domain repository interfaces.
 """
 
-from typing import List, Optional, Sequence
+from collections.abc import Sequence
 
 from django.db.models import Count, Prefetch, Q
 from django.db.models.functions import TruncDate
@@ -20,7 +20,6 @@ from app.domain.chat.value_objects import (
     TimeSeriesPoint,
 )
 from app.infrastructure.models import ChatLog, VideoGroup, VideoGroupMember
-
 
 # ---------------------------------------------------------------------------
 # Entity mapper helpers
@@ -84,7 +83,7 @@ class DjangoChatRepository(ChatRepository):
 
     def get_logs_for_group(
         self, group_id: int, ascending: bool = True
-    ) -> List[ChatLogEntity]:
+    ) -> list[ChatLogEntity]:
         order_field = "created_at" if ascending else "-created_at"
         logs = ChatLog.objects.filter(group_id=group_id).order_by(order_field)
         return [_chat_log_to_entity(log) for log in logs]
@@ -95,9 +94,9 @@ class DjangoChatRepository(ChatRepository):
         group_id: int,
         question: str,
         answer: str,
-        citations: Optional[Sequence[CitationDTO]],
+        citations: Sequence[CitationDTO] | None,
         is_shared: bool,
-        retrieved_contexts: Optional[List[str]] = None,
+        retrieved_contexts: list[str] | None = None,
     ) -> ChatLogEntity:
         citation_dicts = [
             {
@@ -119,7 +118,7 @@ class DjangoChatRepository(ChatRepository):
         )
         return _chat_log_to_entity(log)
 
-    def get_log_by_id(self, log_id: int) -> Optional[ChatLogEntity]:
+    def get_log_by_id(self, log_id: int) -> ChatLogEntity | None:
         log = (
             ChatLog.objects.select_related("group")
             .filter(id=log_id)
@@ -130,7 +129,7 @@ class DjangoChatRepository(ChatRepository):
         return _chat_log_to_entity(log, include_group_fields=True)
 
     def update_feedback(
-        self, log: ChatLogEntity, feedback: Optional[str]
+        self, log: ChatLogEntity, feedback: str | None
     ) -> ChatLogEntity:
         ChatLog.objects.filter(pk=log.id).update(feedback=feedback)
         updated = ChatLog.objects.select_related("group").get(pk=log.id)
@@ -164,7 +163,7 @@ class DjangoChatRepository(ChatRepository):
             .order_by("date")
             .values("date", "count")
         )
-        time_series: List[TimeSeriesPoint] = []
+        time_series: list[TimeSeriesPoint] = []
         for entry in time_series_qs:
             time_series.append(
                 TimeSeriesPoint(
@@ -192,7 +191,7 @@ class DjangoChatRepository(ChatRepository):
             feedback=feedback,
         )
 
-    def get_questions_for_group(self, group_id: int) -> List[str]:
+    def get_questions_for_group(self, group_id: int) -> list[str]:
         return list(
             ChatLog.objects.filter(group_id=group_id).values_list("question", flat=True)
         )
@@ -209,9 +208,9 @@ class DjangoVideoGroupQueryRepository(VideoGroupQueryRepository):
     def get_with_members(
         self,
         group_id: int,
-        user_id: Optional[int] = None,
-        share_token: Optional[str] = None,
-    ) -> Optional[VideoGroupContextEntity]:
+        user_id: int | None = None,
+        share_token: str | None = None,
+    ) -> VideoGroupContextEntity | None:
         queryset = VideoGroup.objects.select_related("user").prefetch_related(
             Prefetch(
                 "members",

@@ -1,3 +1,5 @@
+from typing import ClassVar
+
 from django.conf import settings
 from django.db import models
 
@@ -19,11 +21,11 @@ def user_directory_path(instance, filename):
 
 
 class Video(models.Model):
-    SOURCE_TYPE_CHOICES = [
+    SOURCE_TYPE_CHOICES: ClassVar = [
         ("uploaded", "Uploaded"),
         ("youtube", "YouTube"),
     ]
-    STATUS_CHOICES = [
+    STATUS_CHOICES: ClassVar = [
         ("uploading", "Uploading"),
         ("pending", "Pending"),
         ("processing", "Processing"),
@@ -61,8 +63,8 @@ class Video(models.Model):
     )
 
     class Meta:
-        ordering = ["-uploaded_at"]
-        indexes = [
+        ordering: ClassVar = ["-uploaded_at"]
+        indexes: ClassVar = [
             models.Index(fields=["user", "status", "-uploaded_at"]),
             models.Index(fields=["user", "title"]),
             models.Index(fields=["user", "source_type", "-uploaded_at"]),

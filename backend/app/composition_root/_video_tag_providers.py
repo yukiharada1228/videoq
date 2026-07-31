@@ -4,7 +4,10 @@ from app.use_cases.video.create_tag import CreateTagUseCase
 from app.use_cases.video.delete_tag import DeleteTagUseCase
 from app.use_cases.video.get_tag import GetTagDetailUseCase
 from app.use_cases.video.list_tags import ListTagsUseCase
-from app.use_cases.video.manage_tags import AddTagsToVideoUseCase, RemoveTagFromVideoUseCase
+from app.use_cases.video.manage_tags import (
+    AddTagsToVideoUseCase,
+    RemoveTagFromVideoUseCase,
+)
 from app.use_cases.video.update_tag_with_detail import UpdateTagWithDetailUseCase
 
 from . import _video_shared as shared

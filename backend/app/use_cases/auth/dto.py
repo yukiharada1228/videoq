@@ -2,7 +2,6 @@
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
 
 
 @dataclass(frozen=True)
@@ -21,7 +20,7 @@ class ApiKeyResponseDTO:
     name: str
     prefix: str
     access_level: str
-    last_used_at: Optional[datetime]
+    last_used_at: datetime | None
     created_at: datetime
 
 
@@ -44,11 +43,11 @@ class CurrentUserOutput:
     video_count: int
     max_video_upload_size_mb: int = 500
     used_storage_bytes: int = 0
-    storage_limit_bytes: Optional[int] = None
+    storage_limit_bytes: int | None = None
     used_processing_seconds: int = 0
-    processing_limit_seconds: Optional[int] = None
+    processing_limit_seconds: int | None = None
     used_ai_answers: int = 0
-    ai_answers_limit: Optional[int] = None
+    ai_answers_limit: int | None = None
     is_over_quota: bool = False
 
 

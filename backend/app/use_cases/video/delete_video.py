@@ -3,7 +3,6 @@ Use case: Delete a video (hard delete) and clean up its file.
 """
 
 import logging
-from typing import Optional
 
 from app.domain.shared.transaction import TransactionPort
 from app.domain.video.gateways import FileUploadGateway, VectorStoreGateway
@@ -28,7 +27,7 @@ class DeleteVideoUseCase:
         video_repo: VideoRepository,
         vector_gateway: VectorStoreGateway,
         tx: TransactionPort,
-        upload_gateway: Optional[FileUploadGateway] = None,
+        upload_gateway: FileUploadGateway | None = None,
         storage_record_use_case=None,
         over_quota_clear_use_case=None,
     ):
@@ -49,7 +48,7 @@ class DeleteVideoUseCase:
             raise ResourceNotFound("Video")
 
         # Capture file size before deletion for limit accounting (best-effort)
-        file_size_bytes: Optional[int] = None
+        file_size_bytes: int | None = None
         if (
             self._storage_record_use_case is not None
             and self._upload_gateway is not None

@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 from .types import SceneSegment, SubtitleItem
 from .utils import TimestampConverter
@@ -6,7 +6,7 @@ from .utils import TimestampConverter
 
 class SubtitleParser:
     @staticmethod
-    def parse_srt_string(srt_string: str) -> List[Tuple[str, str, str]]:
+    def parse_srt_string(srt_string: str) -> list[tuple[str, str, str]]:
         """
         Parse SRT string to minimal tuple format
         Returns: [(start_timestamp, end_timestamp, text), ...]
@@ -27,20 +27,20 @@ class SubtitleParser:
         return subtitles
 
     @staticmethod
-    def parse_srt_to_items(srt_string: str) -> List[SubtitleItem]:
+    def parse_srt_to_items(srt_string: str) -> list[SubtitleItem]:
         """
         Convert SRT to list of SubtitleItem dataclasses
         """
         content = srt_string.strip()
         blocks = [b.strip() for b in content.split("\n\n") if b.strip()]
-        items: List[SubtitleItem] = []
+        items: list[SubtitleItem] = []
         for block in blocks:
             lines = block.split("\n")
             if len(lines) < 3:
                 continue
             try:
                 idx = int(lines[0].strip())
-            except Exception:
+            except ValueError:
                 idx = None
             timing = lines[1].strip()
             if "-->" not in timing:
@@ -61,7 +61,7 @@ class SubtitleParser:
         return items
 
     @staticmethod
-    def parse_srt_scenes(srt_string: str) -> List[Dict[str, Any]]:
+    def parse_srt_scenes(srt_string: str) -> list[dict[str, Any]]:
         """
         Convert SRT to scene-based dictionary for backward compatibility.
         Returns: [{index, start_time, end_time, start_sec, end_sec, text}]
@@ -80,7 +80,7 @@ class SubtitleParser:
         ]
 
 
-def scenes_to_srt_string(scenes: List[SceneSegment]) -> str:
+def scenes_to_srt_string(scenes: list[SceneSegment]) -> str:
     """Convert scene list to SRT format string"""
     lines = []
     for i, scene in enumerate(scenes, 1):

@@ -8,7 +8,10 @@ import logging
 from app.domain.video.gateways import VectorIndexingGateway, VideoTaskGateway
 from app.domain.video.repositories import VideoTranscriptionRepository
 from app.domain.video.status import VideoStatus
-from app.use_cases.video.exceptions import IndexingExecutionFailed, IndexingTargetMissing
+from app.use_cases.video.exceptions import (
+    IndexingExecutionFailed,
+    IndexingTargetMissing,
+)
 
 logger = logging.getLogger(__name__)
 

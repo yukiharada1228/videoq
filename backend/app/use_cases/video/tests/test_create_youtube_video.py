@@ -7,7 +7,10 @@ from app.domain.video.entities import VideoEntity
 from app.use_cases.video.create_youtube_video import CreateYoutubeVideoUseCase
 from app.use_cases.video.dto import CreateYoutubeVideoInput
 from app.use_cases.video.exceptions import InvalidYoutubeUrl, ResourceNotFound
-from app.use_cases.video.youtube import build_youtube_embed_url, extract_youtube_video_id
+from app.use_cases.video.youtube import (
+    build_youtube_embed_url,
+    extract_youtube_video_id,
+)
 
 
 class _FakeYoutubeVideoRepository:

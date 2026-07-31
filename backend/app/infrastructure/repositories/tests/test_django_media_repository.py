@@ -5,7 +5,9 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 
 from app.infrastructure.models import Video, VideoGroup, VideoGroupMember
-from app.infrastructure.repositories.django_media_repository import DjangoMediaRepository
+from app.infrastructure.repositories.django_media_repository import (
+    DjangoMediaRepository,
+)
 
 User = get_user_model()
 

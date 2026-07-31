@@ -1,4 +1,3 @@
-from typing import List, Optional
 
 import numpy as np
 from sklearn.preprocessing import normalize
@@ -15,7 +14,7 @@ class SceneSplitter:
     Recursively splits subtitles into semantic scenes based on embedding variance.
     """
 
-    def __init__(self, api_key: Optional[str] = None, batch_size: int = 16):
+    def __init__(self, api_key: str | None = None, batch_size: int = 16):
         self.embedder = create_embedder(api_key=api_key, batch_size=batch_size)
         self.timestamp_converter = TimestampConverter()
 
@@ -56,7 +55,7 @@ class SceneSplitter:
 
     def _split_long_text(
         self, text: str, start_timestamp: str, end_timestamp: str, max_tokens: int
-    ) -> List[SceneSegment]:
+    ) -> list[SceneSegment]:
         """Force split long text at token level if it exceeds max_tokens"""
         encoded = self.embedder.encoding.encode(text)
         total_tokens = len(encoded)
@@ -98,7 +97,7 @@ class SceneSplitter:
             )
         return scenes
 
-    def _calculate_token_prefix_sum(self, texts: List[str]) -> List[int]:
+    def _calculate_token_prefix_sum(self, texts: list[str]) -> list[int]:
         token_prefix = [0]
         for t in texts:
             token_prefix.append(token_prefix[-1] + self.embedder.count_tokens(t))
@@ -107,14 +106,14 @@ class SceneSplitter:
     def _split_scene_recursive(
         self,
         embeddings: np.ndarray,
-        texts: List[str],
-        start_timestamps: List[str],
-        end_timestamps: List[str],
-        token_prefix: List[int],
+        texts: list[str],
+        start_timestamps: list[str],
+        end_timestamps: list[str],
+        token_prefix: list[int],
         max_tokens: int,
         start: int,
         end: int,
-    ) -> List[SceneSegment]:
+    ) -> list[SceneSegment]:
         """Recursively split a range of subtitles"""
         range_tokens = token_prefix[end + 1] - token_prefix[start]
 

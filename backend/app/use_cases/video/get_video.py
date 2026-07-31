@@ -2,7 +2,6 @@
 Use case: Retrieve a single video by ID for the owning user.
 """
 
-from typing import Optional
 
 from app.domain.video.repositories import VideoRepository
 from app.use_cases.video.dto import VideoResponseDTO
@@ -16,7 +15,7 @@ class GetVideoDetailUseCase:
     ):
         self.video_repo = video_repo
 
-    def execute(self, video_id: int, user_id: int) -> Optional[VideoResponseDTO]:
+    def execute(self, video_id: int, user_id: int) -> VideoResponseDTO | None:
         video = self.video_repo.get_by_id(video_id, user_id)
         if video is None:
             return None

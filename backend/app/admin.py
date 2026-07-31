@@ -5,13 +5,14 @@ When admin actions apply business invariants, they should delegate to use cases
 through app.dependencies to keep behavior aligned with API flows.
 """
 
+from django.apps import apps
 from django.contrib import admin, messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.admin import UserAdmin
-from django.apps import apps
 from django.db.models import Count
 
 from app.dependencies.admin import get_video_task_gateway
+
 User = get_user_model()
 Video = apps.get_model("app", "Video")
 VideoGroup = apps.get_model("app", "VideoGroup")
@@ -92,7 +93,7 @@ class VideoAdmin(admin.ModelAdmin):
     list_filter = ("status", "uploaded_at")
     search_fields = ("title", "user__username")
     readonly_fields = ("uploaded_at",)
-    actions = ["reindex_all_embeddings"]
+    actions = ("reindex_all_embeddings",)
 
     def get_queryset(self, request):
         """Preload user relation"""
@@ -194,4 +195,3 @@ class PlogEdgeAdmin(admin.ModelAdmin):
     list_display = ("source", "target", "edge_type", "video")
     list_filter = ("edge_type",)
     search_fields = ("source__label", "target__label", "quote")
-

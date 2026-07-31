@@ -106,6 +106,5 @@ class BatchProcessorTests(TestCase):
 
     def test_database_transaction_error(self):
         """Test database_transaction context manager with error"""
-        with self.assertRaises(ValueError):
-            with BatchProcessor.database_transaction():
-                raise ValueError("Test error")
+        with self.assertRaises(ValueError), BatchProcessor.database_transaction():
+            raise ValueError("Test error")

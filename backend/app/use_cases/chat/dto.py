@@ -4,9 +4,9 @@ DTOs for chat use cases.
 - Output DTOs: decouples business logic output from HTTP response formatting.
 """
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
-from typing import List, Optional, Sequence
 
 
 @dataclass(frozen=True)
@@ -27,8 +27,8 @@ class CitationResponseDTO:
     id: int
     video_id: int
     title: str
-    start_time: Optional[str]
-    end_time: Optional[str]
+    start_time: str | None
+    end_time: str | None
 
 
 @dataclass
@@ -36,9 +36,9 @@ class SendMessageResultDTO:
     """Use-case output DTO for SendMessageUseCase."""
 
     content: str
-    citations: Optional[Sequence[CitationResponseDTO]]
-    chat_log_id: Optional[int]
-    feedback: Optional[str]
+    citations: Sequence[CitationResponseDTO] | None
+    chat_log_id: int | None
+    feedback: str | None
 
 
 @dataclass
@@ -49,8 +49,8 @@ class ChatHistoryExportRow:
     question: str
     answer: str
     is_shared_origin: bool
-    citations: List[CitationResponseDTO]
-    feedback: Optional[str]
+    citations: list[CitationResponseDTO]
+    feedback: str | None
 
 
 @dataclass
@@ -61,10 +61,10 @@ class ChatLogResponseDTO:
     group_id: int
     question: str
     answer: str
-    citations: List[CitationResponseDTO]
+    citations: list[CitationResponseDTO]
     is_shared_origin: bool
-    feedback: Optional[str]
-    created_at: Optional[datetime] = None
+    feedback: str | None
+    created_at: datetime | None = None
 
 
 @dataclass(frozen=True)
@@ -72,7 +72,7 @@ class ChatFeedbackResultDTO:
     """Use-case output DTO for feedback updates."""
 
     id: int
-    feedback: Optional[str]
+    feedback: str | None
 
 
 @dataclass
@@ -81,7 +81,7 @@ class ChatAnalyticsDTO:
 
     total_questions: int
     date_range: "DateRangeDTO"
-    time_series: List["TimeSeriesPointDTO"]
+    time_series: list["TimeSeriesPointDTO"]
     feedback: "FeedbackSummaryDTO"
 
 
@@ -89,8 +89,8 @@ class ChatAnalyticsDTO:
 class DateRangeDTO:
     """Date range metadata in ISO format."""
 
-    first: Optional[str]
-    last: Optional[str]
+    first: str | None
+    last: str | None
 
 
 @dataclass(frozen=True)
@@ -130,6 +130,6 @@ class StreamDoneEvent:
     """Final event from stream_execute() carrying full result metadata."""
 
     content: str
-    citations: Optional[Sequence[CitationResponseDTO]]
-    chat_log_id: Optional[int]
-    feedback: Optional[str]
+    citations: Sequence[CitationResponseDTO] | None
+    chat_log_id: int | None
+    feedback: str | None

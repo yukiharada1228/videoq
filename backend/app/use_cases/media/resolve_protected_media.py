@@ -6,7 +6,6 @@ import mimetypes
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
 from app.domain.media.ports import MediaStorageGateway, ProtectedMediaRepository
 from app.use_cases.shared.exceptions import ResourceNotFound
@@ -15,24 +14,22 @@ from app.use_cases.shared.exceptions import ResourceNotFound
 @dataclass(frozen=True)
 class ResolveProtectedMediaInput:
     path: str
-    user_id: Optional[int] = None
-    group_id: Optional[int] = None
+    user_id: int | None = None
+    group_id: int | None = None
 
 
 @dataclass(frozen=True)
 class ResolveProtectedMediaOutput:
     path: str
     redirect_path: str
-    content_type: Optional[str] = None
+    content_type: str | None = None
 
 
 def _is_safe_path(path: str) -> bool:
     """絶対パスや .. を含むパスを拒否する。"""
     if os.path.isabs(path):
         return False
-    if ".." in Path(path).parts:
-        return False
-    return True
+    return ".." not in Path(path).parts
 
 
 class ResolveProtectedMediaUseCase:

@@ -6,10 +6,12 @@ from django.contrib.auth import get_user_model
 from rest_framework.test import APITestCase
 
 from app.domain.user.entities import UserEntity
-from app.presentation.auth.serializers import (LoginSerializer,
-                                               PasswordResetRequestSerializer,
-                                               UserSerializer,
-                                               UserSignupSerializer)
+from app.presentation.auth.serializers import (
+    LoginSerializer,
+    PasswordResetRequestSerializer,
+    UserSerializer,
+    UserSignupSerializer,
+)
 
 User = get_user_model()
 

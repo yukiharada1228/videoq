@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import ClassVar
+
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -10,11 +12,12 @@ from rest_framework.views import APIView
 from app.presentation.common.authentication import CookieJWTAuthentication
 from app.presentation.common.mixins import DependencyResolverMixin
 
+
 class AuthorizedTokensListView(DependencyResolverMixin, APIView):
     """List OAuth tokens the authenticated user has authorized."""
 
-    authentication_classes = [CookieJWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    authentication_classes: ClassVar = [CookieJWTAuthentication]
+    permission_classes: ClassVar = [IsAuthenticated]
 
     list_use_case = None
 
@@ -41,8 +44,8 @@ class AuthorizedTokensListView(DependencyResolverMixin, APIView):
 class AuthorizedTokenRevokeView(DependencyResolverMixin, APIView):
     """Revoke a single OAuth token belonging to the authenticated user."""
 
-    authentication_classes = [CookieJWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    authentication_classes: ClassVar = [CookieJWTAuthentication]
+    permission_classes: ClassVar = [IsAuthenticated]
 
     revoke_use_case = None
 

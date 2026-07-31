@@ -1,7 +1,6 @@
 """Tests for ResetChatHistoryUseCase."""
 
 import unittest
-from typing import Optional
 
 from app.domain.chat.entities import VideoGroupContextEntity
 from app.domain.chat.repositories import ChatRepository, VideoGroupQueryRepository
@@ -37,7 +36,7 @@ class _StubChatRepository(ChatRepository):
 
 
 class _StubGroupRepository(VideoGroupQueryRepository):
-    def __init__(self, group: Optional[VideoGroupContextEntity]):
+    def __init__(self, group: VideoGroupContextEntity | None):
         self._group = group
 
     def get_with_members(self, group_id: int, user_id=None, share_token=None):

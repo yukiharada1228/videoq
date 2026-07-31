@@ -7,8 +7,8 @@ import logging
 
 from celery import shared_task
 
-from app.dependencies.tasks import get_reindex_all_videos_use_case
 from app.contracts.tasks import REINDEX_ALL_VIDEOS_EMBEDDINGS_TASK
+from app.dependencies.tasks import get_reindex_all_videos_use_case
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +24,6 @@ def reindex_all_videos_embeddings(self):
         result = get_reindex_all_videos_use_case().execute()
         logger.info("Re-indexing completed: %s", result.get("message"))
         return result
-    except Exception as e:
-        logger.error("Re-indexing task failed: %s", e, exc_info=True)
+    except Exception:
+        logger.exception("Re-indexing task failed")
         raise

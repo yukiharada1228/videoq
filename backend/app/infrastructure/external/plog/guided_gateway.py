@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Iterator, List, Optional, Sequence, Tuple
+from collections.abc import Iterator, Sequence
 
+from django.contrib.auth import get_user_model
 from langchain_core.prompts import ChatPromptTemplate
 from openai import AuthenticationError as OpenAIAuthenticationError
 
@@ -34,14 +35,15 @@ from app.infrastructure.external.plog.learner_state_store import (
     LearnerStateStore,
     build_learner_state_store,
 )
+from app.infrastructure.external.plog.metrics import reveal_proxy
 from app.infrastructure.external.plog.runtime import (
     covered_concept_ids,
     descendants,
-    ordering_path_ready,
     near_duplicate_ids,
     next_hint,
     next_uncovered_in_order,
     ordering_edges,
+    ordering_path_ready,
     prerequisites_of,
     reached_concept_ids,
     retrieve_context,
@@ -49,11 +51,12 @@ from app.infrastructure.external.plog.runtime import (
     select_nearest_unmet,
     study_path_concept_ids,
 )
-from app.infrastructure.external.plog.metrics import reveal_proxy
-from app.infrastructure.external.prompts import get_plog_study_config, resolve_opening_question
+from app.infrastructure.external.prompts import (
+    get_plog_study_config,
+    resolve_opening_question,
+)
 from app.infrastructure.models import Video
 from app.infrastructure.scene_otsu.parsers import SubtitleParser
-from django.contrib.auth import get_user_model
 
 logger = logging.getLogger(__name__)
 
@@ -71,9 +74,9 @@ _GRADE_PROMPT = ChatPromptTemplate.from_messages(
         ("system", "{grade_system}"),
         (
             "human",
-            "Concept: {concept}\n"
+            ("Concept: {concept}\n"
             "Tutor's previous question: {tutor_question}\n"
-            "Learner reply: {reply}",
+            "Learner reply: {reply}"),
         ),
     ]
 )
@@ -90,12 +93,12 @@ class PlogGuidedChatGateway(RagGateway):
         self,
         messages: Sequence[ChatMessageDTO],
         user_id: int,
-        video_ids: Optional[Sequence[int]] = None,
-        locale: Optional[str] = None,
-        api_key: Optional[str] = None,
-        group_context: Optional[str] = None,
+        video_ids: Sequence[int] | None = None,
+        locale: str | None = None,
+        api_key: str | None = None,
+        group_context: str | None = None,
         persist_learner_state: bool = True,
-        learner_session_key: Optional[str] = None,
+        learner_session_key: str | None = None,
     ) -> RagResult:
         del group_context
         User = get_user_model()
@@ -121,12 +124,12 @@ class PlogGuidedChatGateway(RagGateway):
         self,
         messages: Sequence[ChatMessageDTO],
         user_id: int,
-        video_ids: Optional[Sequence[int]] = None,
-        locale: Optional[str] = None,
-        api_key: Optional[str] = None,
-        group_context: Optional[str] = None,
+        video_ids: Sequence[int] | None = None,
+        locale: str | None = None,
+        api_key: str | None = None,
+        group_context: str | None = None,
         persist_learner_state: bool = True,
-        learner_session_key: Optional[str] = None,
+        learner_session_key: str | None = None,
     ) -> Iterator[RagStreamChunk]:
         result = self.generate_reply(
             messages=messages,
@@ -152,11 +155,11 @@ class PlogGuidedChatGateway(RagGateway):
         user_id: int,
         query: str,
         messages: Sequence[ChatMessageDTO],
-        video_ids: Optional[Sequence[int]],
-        api_key: Optional[str],
-        locale: Optional[str] = None,
+        video_ids: Sequence[int] | None,
+        api_key: str | None,
+        locale: str | None = None,
         persist_learner_state: bool = True,
-        learner_session_key: Optional[str] = None,
+        learner_session_key: str | None = None,
     ) -> RagResult:
         if not video_ids:
             raise PlogNotReadyError("Study mode requires a video group with members.")
@@ -231,7 +234,7 @@ class PlogGuidedChatGateway(RagGateway):
             opening and (state is None or (state.hint_index == 0 and not state.last_grade))
         )
 
-        citations: List[CitationDTO] = []
+        citations: list[CitationDTO] = []
         video_title = _video_title(graph.video_id)
         if lo and lo.waypoints:
             wp = lo.waypoints[0]
@@ -347,7 +350,7 @@ class PlogGuidedChatGateway(RagGateway):
                 "Invalid OpenAI API key. Please check your API key in Settings."
             ) from exc
         except Exception as exc:
-            logger.exception("PLOG generate_reply failed: %s", exc)
+            logger.exception("PLOG generate_reply failed")
             raise LLMProviderError(str(exc)) from exc
 
         # Structural guard (paper premature-reveal proxy).
@@ -373,10 +376,10 @@ class PlogGuidedChatGateway(RagGateway):
         *,
         store: LearnerStateStore,
         query: str,
-        graphs: List[PlogGraphSnapshot],
-        api_key: Optional[str],
+        graphs: list[PlogGraphSnapshot],
+        api_key: str | None,
         lock_active: bool = False,
-    ) -> Optional[Tuple[PlogGraphSnapshot, PlogConceptEntity, bool]]:
+    ) -> tuple[PlogGraphSnapshot, PlogConceptEntity, bool] | None:
         """Algorithm 1 lines 1–8: route, then unmet redirect.
 
         While a concept is actively being taught, keep it unless the learner
@@ -437,8 +440,8 @@ class PlogGuidedChatGateway(RagGateway):
         return graph, concept, False
 
     def _first_unreached(
-        self, store: LearnerStateStore, graphs: List[PlogGraphSnapshot]
-    ) -> Optional[Tuple[PlogGraphSnapshot, PlogConceptEntity]]:
+        self, store: LearnerStateStore, graphs: list[PlogGraphSnapshot]
+    ) -> tuple[PlogGraphSnapshot, PlogConceptEntity] | None:
         for g in graphs:
             edges = ordering_edges(g.edges)
             states = store.list_for_video(g.video_id)
@@ -451,8 +454,8 @@ class PlogGuidedChatGateway(RagGateway):
         return None
 
     def _find_active(
-        self, store: LearnerStateStore, graphs: List[PlogGraphSnapshot]
-    ) -> Optional[Tuple[PlogGraphSnapshot, PlogConceptEntity]]:
+        self, store: LearnerStateStore, graphs: list[PlogGraphSnapshot]
+    ) -> tuple[PlogGraphSnapshot, PlogConceptEntity] | None:
         for g in graphs:
             for s in store.list_for_video(g.video_id):
                 if not s.active:
@@ -475,10 +478,10 @@ class PlogGuidedChatGateway(RagGateway):
         store: LearnerStateStore,
         query: str,
         graphs,
-        api_key: Optional[str],
+        api_key: str | None,
         prior_assistant: str,
         study_cfg: dict,
-    ) -> Optional[str]:
+    ) -> str | None:
         """Grade previous reply (Algorithm 1 line 15).
 
         Returns:
@@ -552,7 +555,7 @@ class PlogGuidedChatGateway(RagGateway):
         concept_label: str,
         lo,
         prior_assistant: str,
-        api_key: Optional[str],
+        api_key: str | None,
         study_cfg: dict,
     ) -> str:
         # Deterministic pre-grade (paper: mastery requires shown understanding).
@@ -604,7 +607,7 @@ def _graphs_have_ordering_path(graphs: Sequence[PlogGraphSnapshot]) -> bool:
     return any(ordering_path_ready(g) for g in graphs)
 
 
-def _l0_scenes_for_video(video_id: int) -> List[dict]:
+def _l0_scenes_for_video(video_id: int) -> list[dict]:
     """Load L0 timestamped transcript segments for Retrieve(L0, L1, t)."""
     try:
         video = Video.objects.only("transcript").get(pk=video_id)
@@ -669,7 +672,7 @@ def _should_stay_on_active(
     query: str,
     query_embedding: Sequence[float],
     active_concept: PlogConceptEntity,
-    routed_scored: Optional[Tuple[float, PlogGraphSnapshot, PlogConceptEntity]],
+    routed_scored: tuple[float, PlogGraphSnapshot, PlogConceptEntity] | None,
 ) -> bool:
     """Keep the active teachable unit unless the learner clearly switches topics."""
     if _is_meta_or_confused(query) or _is_ask_for_answer(query):
@@ -691,7 +694,7 @@ def _should_stay_on_active(
     return not (score >= 0.55 and score >= active_score + 0.12)
 
 
-def _pregrade_reply(reply: str) -> Optional[str]:
+def _pregrade_reply(reply: str) -> str | None:
     """Force a grade only for cases that cannot show mastery.
 
     Paper leaves GradeReply to a small model; we only short-circuit empty

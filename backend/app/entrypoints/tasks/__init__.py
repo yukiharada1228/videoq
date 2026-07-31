@@ -13,7 +13,7 @@ __all__ = [
     "delete_account_data",
     "evaluate_chat_log",
     "index_video_transcript_task",
-    "reindex_video_transcript_task",
     "reindex_all_videos_embeddings",
+    "reindex_video_transcript_task",
     "transcribe_video",
 ]

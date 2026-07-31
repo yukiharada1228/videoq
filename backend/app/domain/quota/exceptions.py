@@ -16,4 +16,3 @@ class AiAnswersLimitExceeded(BillingError):
 
 class OverQuotaError(BillingError):
     """Raised when a feature is blocked because the account is over storage quota."""
-    pass

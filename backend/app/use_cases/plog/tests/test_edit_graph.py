@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Dict, Optional, Sequence
+from collections.abc import Sequence
 from unittest import TestCase
 
 from app.domain.plog.entities import (
@@ -23,7 +23,7 @@ class _FakeVideo:
 
 
 class _FakeVideoRepo:
-    def __init__(self, video: Optional[_FakeVideo] = None):
+    def __init__(self, video: _FakeVideo | None = None):
         self.video = video or _FakeVideo(id=1)
 
     def get_by_id(self, video_id: int, user_id: int):
@@ -32,19 +32,19 @@ class _FakeVideoRepo:
 
 
 class _FakeEmbedder:
-    def embed_texts(self, texts: Sequence[str], api_key: Optional[str] = None):
+    def embed_texts(self, texts: Sequence[str], api_key: str | None = None):
         del api_key
         return [[float(len(t)), 0.1, 0.2] for t in texts]
 
 
 class _FakePlogRepo:
     def __init__(self):
-        self._job: Optional[PlogBuildJobEntity] = PlogBuildJobEntity(
+        self._job: PlogBuildJobEntity | None = PlogBuildJobEntity(
             id=1, video_id=1, status="ready"
         )
-        self._concepts: Dict[int, PlogConceptEntity] = {}
-        self._edges: Dict[int, PlogEdgeEntity] = {}
-        self._los: Dict[int, PlogLearningObjectEntity] = {}
+        self._concepts: dict[int, PlogConceptEntity] = {}
+        self._edges: dict[int, PlogEdgeEntity] = {}
+        self._los: dict[int, PlogLearningObjectEntity] = {}
         self._next_c = 1
         self._next_e = 1
 
@@ -346,7 +346,7 @@ class EditPlogGraphUseCaseTests(TestCase):
         )
         self.assertEqual(merged["id"], a["id"])
         self.assertNotIn(b["id"], self.repo._concepts)
-        self.assertEqual(list(self.repo._edges.values())[0].target_id, a["id"])
+        self.assertEqual(next(iter(self.repo._edges.values())).target_id, a["id"])
 
     def test_video_not_found(self):
         with self.assertRaises(ResourceNotFound):

@@ -2,6 +2,7 @@
 
 from unittest import TestCase
 
+from app.domain.chat.entities import VideoGroupContextEntity, VideoGroupMemberRef
 from app.domain.chat.reference_markup import repair_ref_markup
 from app.domain.chat.services import (
     ChatRequestPolicy,
@@ -10,7 +11,6 @@ from app.domain.chat.services import (
     member_video_id_set,
     require_group_context,
 )
-from app.domain.chat.entities import VideoGroupContextEntity, VideoGroupMemberRef
 
 
 class ChatDomainServicesTests(TestCase):

@@ -2,7 +2,6 @@
 
 import asyncio
 import logging
-from typing import List, Optional
 
 from app.domain.evaluation.gateways import EvaluationScores, RagEvaluationGateway
 from app.infrastructure.common.embeddings import get_embeddings
@@ -24,16 +23,16 @@ class RagasEvaluationGateway(RagEvaluationGateway):
         self,
         question: str,
         answer: str,
-        retrieved_contexts: List[str],
+        retrieved_contexts: list[str],
     ) -> EvaluationScores:
         try:
             from ragas.dataset_schema import SingleTurnSample
+            from ragas.llms import LangchainLLMWrapper
             from ragas.metrics import (
                 Faithfulness,
                 LLMContextPrecisionWithoutReference,
                 ResponseRelevancy,
             )
-            from ragas.llms import LangchainLLMWrapper
         except ImportError as exc:
             raise RuntimeError(
                 "ragas is not installed. Add it to requirements.txt."
@@ -58,7 +57,7 @@ class RagasEvaluationGateway(RagEvaluationGateway):
             ResponseRelevancy(llm=wrapped_llm, embeddings=wrapped_embeddings), sample
         )
         # context_precision requires at least one retrieved context
-        precision_score: Optional[float] = None
+        precision_score: float | None = None
         if retrieved_contexts:
             precision_score = self._run_metric(
                 LLMContextPrecisionWithoutReference(llm=wrapped_llm), sample
@@ -71,10 +70,10 @@ class RagasEvaluationGateway(RagEvaluationGateway):
         )
 
     @staticmethod
-    def _run_metric(metric, sample) -> Optional[float]:
+    def _run_metric(metric, sample) -> float | None:
         try:
             score = asyncio.run(metric.single_turn_ascore(sample))
             return float(score) if score is not None else None
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - isolate third-party metric failures
             logger.warning("Metric %s failed: %s", metric.__class__.__name__, exc)
             return None

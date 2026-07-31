@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
 
 
 @dataclass
@@ -14,9 +13,9 @@ class ChatLogEvaluationEntity:
     id: int
     chat_log_id: int
     status: str  # pending | completed | failed
-    faithfulness: Optional[float]
-    answer_relevancy: Optional[float]
-    context_precision: Optional[float]
+    faithfulness: float | None
+    answer_relevancy: float | None
+    context_precision: float | None
     error_message: str
-    evaluated_at: Optional[datetime]
+    evaluated_at: datetime | None
     created_at: datetime

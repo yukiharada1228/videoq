@@ -9,7 +9,9 @@ from app.infrastructure.external.plog.guided_gateway import PlogGuidedChatGatewa
 from app.infrastructure.external.plog.hierarchy import RaptorHierarchyBuilder
 from app.infrastructure.external.plog.runtime import merge_near_duplicate_concepts
 from app.infrastructure.repositories.django_plog_repository import DjangoPlogRepository
-from app.infrastructure.repositories.django_video_repository import DjangoVideoRepository
+from app.infrastructure.repositories.django_video_repository import (
+    DjangoVideoRepository,
+)
 from app.infrastructure.scene_otsu.parsers import SubtitleParser
 from app.infrastructure.tasks.task_gateway import CeleryVideoTaskGateway
 from app.use_cases.plog.build_artifacts import BuildPlogArtifactsUseCase

@@ -1,7 +1,7 @@
 """Tests for API key management use cases."""
 
-from datetime import datetime, timezone
 import unittest
+from datetime import UTC, datetime
 
 from app.domain.auth.entities import (
     ApiKeyCreateResult,
@@ -31,7 +31,7 @@ class _StubApiKeyRepository(ApiKeyRepository):
             prefix="vq_abc123",
             access_level=access_level,
             last_used_at=None,
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
         )
         return ApiKeyCreateResult(api_key=entity, raw_key="vq_rawkey")
 
@@ -55,7 +55,7 @@ class ManageApiKeysUseCaseTests(unittest.TestCase):
                 prefix="vq_11",
                 access_level="all",
                 last_used_at=None,
-                created_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+                created_at=datetime(2026, 1, 1, tzinfo=UTC),
             )
         ]
         use_case = ListApiKeysUseCase(repo)

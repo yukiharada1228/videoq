@@ -73,10 +73,7 @@ class EvaluateChatLogTaskTests(TestCase):
     def test_does_not_raise_when_chat_log_missing(self):
         # FK constraint prevents persisting an evaluation for a non-existent ChatLog.
         # The use case must handle this gracefully without raising.
-        try:
-            evaluate_chat_log(chat_log_id=99999)
-        except Exception as exc:
-            self.fail(f"evaluate_chat_log raised for missing ChatLog: {exc}")
+        evaluate_chat_log(chat_log_id=99999)
 
     @patch(_RAGAS_EVALUATE)
     def test_creates_failed_evaluation_when_gateway_raises(self, mock_evaluate):
@@ -93,7 +90,4 @@ class EvaluateChatLogTaskTests(TestCase):
         mock_evaluate.side_effect = Exception("unexpected error")
 
         # Should not raise — Celery task must handle errors gracefully
-        try:
-            evaluate_chat_log(self.chat_log.id)
-        except Exception as exc:
-            self.fail(f"evaluate_chat_log raised unexpectedly: {exc}")
+        evaluate_chat_log(self.chat_log.id)

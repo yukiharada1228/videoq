@@ -8,7 +8,7 @@ from django.core.exceptions import ImproperlyConfigured
 
 class SecuritySettingsTests(unittest.TestCase):
     SETTINGS_MODULE = "videoq.settings"
-    TARGET_ENV_KEYS = [
+    TARGET_ENV_KEYS = (
         "DJANGO_ENV",
         "SECURE_SSL_REDIRECT",
         "SECURE_HSTS_SECONDS",
@@ -16,7 +16,7 @@ class SecuritySettingsTests(unittest.TestCase):
         "SECURE_HSTS_PRELOAD",
         "SECURE_PROXY_SSL_HEADER",
         "SECRET_KEY",
-    ]
+    )
 
     def setUp(self):
         self._original_env = {key: os.environ.get(key) for key in self.TARGET_ENV_KEYS}

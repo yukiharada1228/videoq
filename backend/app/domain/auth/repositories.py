@@ -3,7 +3,6 @@ Repository interfaces for the auth domain.
 """
 
 from abc import ABC, abstractmethod
-from typing import List, Optional
 
 from app.domain.auth.entities import ApiKeyCreateResult, ApiKeyEntity
 
@@ -12,7 +11,7 @@ class ApiKeyRepository(ABC):
     """Abstract interface for API key persistence."""
 
     @abstractmethod
-    def list_for_user(self, user_id: int) -> List[ApiKeyEntity]:
+    def list_for_user(self, user_id: int) -> list[ApiKeyEntity]:
         """Return all active API keys for the given user."""
         ...
 
@@ -24,7 +23,7 @@ class ApiKeyRepository(ABC):
         ...
 
     @abstractmethod
-    def get_active_by_id(self, key_id: int, user_id: int) -> Optional[ApiKeyEntity]:
+    def get_active_by_id(self, key_id: int, user_id: int) -> ApiKeyEntity | None:
         """Return the active API key by ID and user, or None if not found."""
         ...
 

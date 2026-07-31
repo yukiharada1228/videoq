@@ -2,7 +2,6 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import List, Optional
 
 from app.domain.evaluation.entities import ChatLogEvaluationEntity
 
@@ -22,9 +21,9 @@ class EvaluationAggregateDTO:
 
     group_id: int
     evaluated_count: int
-    avg_faithfulness: Optional[float]
-    avg_answer_relevancy: Optional[float]
-    avg_context_precision: Optional[float]
+    avg_faithfulness: float | None
+    avg_answer_relevancy: float | None
+    avg_context_precision: float | None
 
 
 class EvaluationRepository(ABC):
@@ -36,7 +35,7 @@ class EvaluationRepository(ABC):
         ...
 
     @abstractmethod
-    def get_by_chat_log_id(self, chat_log_id: int) -> Optional[ChatLogEvaluationEntity]:
+    def get_by_chat_log_id(self, chat_log_id: int) -> ChatLogEvaluationEntity | None:
         """Return the evaluation for a given chat log, or None if not yet evaluated."""
         ...
 
@@ -44,7 +43,7 @@ class EvaluationRepository(ABC):
     def list_by_group_id(
         self,
         group_id: int,
-    ) -> List[ChatLogEvaluationEntity]:
+    ) -> list[ChatLogEvaluationEntity]:
         """Return all evaluations for all chat logs belonging to a group."""
         ...
 

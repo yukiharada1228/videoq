@@ -161,15 +161,15 @@ def update_video_title_in_vectors(video_id: int, new_title: str) -> int:
 
         with connection.cursor() as cursor:
             cursor.execute(
-                """
-                UPDATE {}
+                f"""
+                UPDATE {table}
                 SET langchain_metadata = jsonb_set(
                     COALESCE(langchain_metadata::jsonb, '{{}}'::jsonb),
                     '{{video_title}}',
                     to_jsonb(%s::text)
                 )
                 WHERE video_id = %s
-                """.format(table),  # noqa: S608 – table is allowlist-validated above
+                """,
                 [new_title, int(video_id)],
             )
             updated_count = cursor.rowcount
@@ -212,7 +212,7 @@ def delete_all_vectors() -> int:
 
         quoted_table = _get_safe_table_identifier(table_name)
         with connection.cursor() as cursor:
-            cursor.execute("DELETE FROM {}".format(quoted_table))  # noqa: S608 – table is allowlist-validated above
+            cursor.execute(f"DELETE FROM {quoted_table}")
             deleted_count = cursor.rowcount
 
         if deleted_count > 0:
@@ -222,6 +222,6 @@ def delete_all_vectors() -> int:
 
         return deleted_count
 
-    except Exception as e:
-        logger.error("Failed to delete all vectors: %s", e, exc_info=True)
+    except Exception:
+        logger.exception("Failed to delete all vectors")
         raise

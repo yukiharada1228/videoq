@@ -3,9 +3,9 @@
 import unittest
 from unittest.mock import MagicMock
 
-from app.domain.quota.exceptions import AiAnswersLimitExceeded
 from app.domain.chat.gateways import RagGateway, RagUserNotFoundError
 from app.domain.chat.repositories import ChatRepository, VideoGroupQueryRepository
+from app.domain.quota.exceptions import AiAnswersLimitExceeded
 from app.use_cases.chat.dto import ChatMessageInput
 from app.use_cases.chat.exceptions import InvalidChatRequestError
 from app.use_cases.chat.send_message import SendMessageUseCase

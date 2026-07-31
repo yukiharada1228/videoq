@@ -3,9 +3,10 @@
 import logging
 import os
 import tempfile
+from collections.abc import Generator
 from contextlib import contextmanager
 from types import TracebackType
-from typing import Any, Generator, List
+from typing import Any, Self
 
 from django.db import transaction
 
@@ -16,16 +17,16 @@ class TemporaryFileManager:
     """Common temporary file management class."""
 
     def __init__(self) -> None:
-        self.temp_files: List[str] = []
+        self.temp_files: list[str] = []
 
     def create_temp_file(self, suffix: str = "", prefix: str = "temp_") -> str:
         """Create temporary file and add to management list."""
-        temp_file = tempfile.NamedTemporaryFile(
+        with tempfile.NamedTemporaryFile(
             suffix=suffix, prefix=prefix, delete=False
-        )
-        temp_file.close()
-        self.temp_files.append(temp_file.name)
-        return temp_file.name
+        ) as temp_file:
+            temp_file_path = temp_file.name
+        self.temp_files.append(temp_file_path)
+        return temp_file_path
 
     def cleanup_all(self) -> None:
         """Delete all managed temporary files."""
@@ -34,11 +35,11 @@ class TemporaryFileManager:
                 if os.path.exists(temp_file):
                     os.remove(temp_file)
                     logger.debug(f"Cleaned up temporary file: {temp_file}")
-            except Exception as e:
+            except OSError as e:
                 logger.warning(f"Error cleaning up temporary file {temp_file}: {e}")
         self.temp_files.clear()
 
-    def __enter__(self) -> "TemporaryFileManager":
+    def __enter__(self) -> Self:
         return self
 
     def __exit__(
@@ -55,8 +56,8 @@ class BatchProcessor:
 
     @staticmethod
     def process_in_batches(
-        items: List[Any], batch_size: int, process_func, *args, **kwargs
-    ) -> List[Any]:
+        items: list[Any], batch_size: int, process_func, *args, **kwargs
+    ) -> list[Any]:
         """Process items in batches."""
         results = []
         for i in range(0, len(items), batch_size):

@@ -133,13 +133,15 @@ class YoutubeTranscriptGateway(YoutubeTranscriptionGateway):
                 detail = exc.read().decode("utf-8", errors="ignore")
                 message = detail or exc.reason
                 raise RuntimeError(f"SearchAPI request failed: {message}") from exc
-            except (TimeoutError, socket.timeout) as exc:
+            except TimeoutError as exc:
                 last_error = exc
             except URLError as exc:
                 if isinstance(exc.reason, (TimeoutError, socket.timeout)):
                     last_error = exc
                 else:
-                    raise RuntimeError(f"SearchAPI request failed: {exc.reason}") from exc
+                    raise RuntimeError(  # noqa: TRY004 - external service failure
+                        f"SearchAPI request failed: {exc.reason}"
+                    ) from exc
 
             if attempt < self.max_retries:
                 time.sleep(1.0)

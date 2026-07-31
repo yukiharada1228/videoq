@@ -8,10 +8,12 @@ from django.contrib.auth import get_user_model
 from django.core import mail
 from django.test import TestCase, override_settings
 
-from app.infrastructure.common.email import (build_email_verification_link,
-                             build_password_reset_link,
-                             send_email_verification,
-                             send_password_reset_email)
+from app.infrastructure.common.email import (
+    build_email_verification_link,
+    build_password_reset_link,
+    send_email_verification,
+    send_password_reset_email,
+)
 
 User = get_user_model()
 
@@ -55,9 +57,9 @@ class EmailVerificationTests(TestCase):
     @patch("app.infrastructure.common.email.send_mail")
     def test_send_email_verification_failure(self, mock_send_mail):
         """Test email verification send failure"""
-        mock_send_mail.side_effect = Exception("SMTP error")
+        mock_send_mail.side_effect = RuntimeError("SMTP error")
 
-        with self.assertRaises(Exception):
+        with self.assertRaises(RuntimeError):
             send_email_verification(self.user)
 
         mock_send_mail.assert_called_once()
@@ -102,9 +104,9 @@ class PasswordResetEmailTests(TestCase):
     @patch("app.infrastructure.common.email.send_mail")
     def test_send_password_reset_email_failure(self, mock_send_mail):
         """Test password reset email send failure"""
-        mock_send_mail.side_effect = Exception("SMTP error")
+        mock_send_mail.side_effect = RuntimeError("SMTP error")
 
-        with self.assertRaises(Exception):
+        with self.assertRaises(RuntimeError):
             send_password_reset_email(self.user)
 
         mock_send_mail.assert_called_once()

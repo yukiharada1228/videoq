@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List
+from typing import Any
 
 from app.domain.plog.repositories import PlogRepository
 from app.domain.video.repositories import VideoQueryRepository
@@ -29,11 +29,11 @@ class PlogConceptDTO:
     intro_sec: float
     source_quote: str
     opening_question: str
-    hint_ladder: List[str] = field(default_factory=list)
-    misconceptions: List[str] = field(default_factory=list)
-    canonical_order: List[str] = field(default_factory=list)
-    worked_examples: List[str] = field(default_factory=list)
-    waypoints: List[Dict[str, Any]] = field(default_factory=list)
+    hint_ladder: list[str] = field(default_factory=list)
+    misconceptions: list[str] = field(default_factory=list)
+    canonical_order: list[str] = field(default_factory=list)
+    worked_examples: list[str] = field(default_factory=list)
+    waypoints: list[dict[str, Any]] = field(default_factory=list)
     hint_count: int = 0
     waypoint_count: int = 0
 
@@ -45,8 +45,8 @@ class PlogGraphDTO:
     input_tokens: int
     output_tokens: int
     error_message: str
-    concepts: List[PlogConceptDTO]
-    edges: List[PlogEdgeDTO]
+    concepts: list[PlogConceptDTO]
+    edges: list[PlogEdgeDTO]
     summary_node_count: int
 
 
@@ -126,13 +126,13 @@ class GetPlogGraphUseCase:
             )
 
         concepts_by_id = {c.id: c for c in (graph.concepts if graph else [])}
-        concept_dtos: List[PlogConceptDTO] = []
+        concept_dtos: list[PlogConceptDTO] = []
         if graph:
             for c in graph.concepts:
                 lo = graph.learning_objects.get(c.id)
                 concept_dtos.append(concept_to_dto(c, lo))
 
-        edge_dtos: List[PlogEdgeDTO] = []
+        edge_dtos: list[PlogEdgeDTO] = []
         if graph:
             for e in graph.edges:
                 src = concepts_by_id.get(e.source_id)

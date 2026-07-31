@@ -9,7 +9,7 @@ clients can authenticate with either ``Authorization: Bearer vq_...`` or
 
 import json
 import logging
-from typing import Any, Optional
+from typing import Any, ClassVar
 
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
@@ -23,7 +23,7 @@ from app.presentation.common.authentication import (
 )
 from app.presentation.common.mixins import DependencyResolverMixin
 from app.presentation.common.permissions import ApiKeyScopePermission
-from app.presentation.mcp.tools import MCPToolRegistry, McpToolError
+from app.presentation.mcp.tools import McpToolError, MCPToolRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -47,12 +47,12 @@ class MCPEndpointView(DependencyResolverMixin, APIView):
     # is what Claude Desktop / claude.ai's built-in connector uses to discover
     # the OAuth authorization server. Existing ``vq_*`` API keys continue to
     # work via BearerAPIKeyAuthentication / APIKeyAuthentication.
-    authentication_classes = [
+    authentication_classes: ClassVar = [
         MCPOAuth2Authentication,
         BearerAPIKeyAuthentication,
         APIKeyAuthentication,
     ]
-    permission_classes = [IsAuthenticated, ApiKeyScopePermission]
+    permission_classes: ClassVar = [IsAuthenticated, ApiKeyScopePermission]
 
     # Injected via as_view(...) wiring in urls.py
     list_videos_use_case = None
@@ -145,7 +145,7 @@ class MCPEndpointView(DependencyResolverMixin, APIView):
         message: Any,
         registry: MCPToolRegistry,
         user_id: int,
-    ) -> Optional[dict]:
+    ) -> dict | None:
         if not isinstance(message, dict):
             return self._make_error(
                 None, _INVALID_REQUEST, "Request must be a JSON object"

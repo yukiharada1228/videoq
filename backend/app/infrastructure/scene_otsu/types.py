@@ -1,12 +1,11 @@
 from dataclasses import dataclass, field
-from typing import List, Optional
 
 
 @dataclass
 class SubtitleItem:
     """Represents a single subtitle block from an SRT file"""
 
-    index: Optional[int]
+    index: int | None
     start_time: str
     end_time: str
     start_sec: float
@@ -20,4 +19,4 @@ class SceneSegment:
 
     start_time: str
     end_time: str
-    subtitles: List[str] = field(default_factory=list)
+    subtitles: list[str] = field(default_factory=list)

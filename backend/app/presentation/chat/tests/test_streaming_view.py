@@ -13,8 +13,8 @@ from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 
 from app.domain.chat.gateways import LLMConfigurationError, RagStreamChunk
-from app.use_cases.quota.exceptions import AiAnswersLimitExceeded, OverQuotaError
 from app.use_cases.chat.exceptions import LLMProviderError
+from app.use_cases.quota.exceptions import AiAnswersLimitExceeded, OverQuotaError
 
 User = get_user_model()
 Video = apps.get_model("app", "Video")

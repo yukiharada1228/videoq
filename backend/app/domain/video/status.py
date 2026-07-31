@@ -1,7 +1,6 @@
 """Video processing status value object and transition rules."""
 
 from enum import Enum
-from typing import Dict, Set
 
 from app.domain.video.exceptions import InvalidVideoStatusTransition
 
@@ -29,7 +28,7 @@ class VideoStatus(str, Enum):
             raise InvalidVideoStatusTransition(self.value, next_status.value)
 
 
-_ALLOWED_TRANSITIONS: Dict[VideoStatus, Set[VideoStatus]] = {
+_ALLOWED_TRANSITIONS: dict[VideoStatus, set[VideoStatus]] = {
     VideoStatus.UPLOADING: {VideoStatus.PENDING, VideoStatus.ERROR},
     VideoStatus.PENDING: {VideoStatus.PROCESSING},
     VideoStatus.PROCESSING: {VideoStatus.INDEXING, VideoStatus.ERROR},

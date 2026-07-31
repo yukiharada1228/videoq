@@ -4,7 +4,9 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 
 from app.domain.auth.entities import ACCESS_LEVEL_ALL
-from app.infrastructure.repositories.django_api_key_repository import DjangoApiKeyRepository
+from app.infrastructure.repositories.django_api_key_repository import (
+    DjangoApiKeyRepository,
+)
 
 User = get_user_model()
 

@@ -61,7 +61,7 @@ class ReindexAllVideosUseCase:
                     "[%d/%d] Re-indexed video %d (%s)", index, total, video.id, video.title
                 )
             except Exception as e:
-                logger.error("Failed to re-index video %d: %s", video.id, e, exc_info=True)
+                logger.exception("Failed to re-index video %d", video.id)
                 failed_videos.append(
                     {"video_id": video.id, "title": video.title, "error": str(e)}
                 )

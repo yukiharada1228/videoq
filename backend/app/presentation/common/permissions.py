@@ -4,11 +4,11 @@ from rest_framework.authentication import BaseAuthentication
 from rest_framework.permissions import BasePermission
 from rest_framework.request import Request
 
+from app.contracts.auth import SCOPE_READ, SCOPE_WRITE
 from app.dependencies.auth import (
     get_authorize_api_key_use_case,
     get_resolve_share_token_use_case,
 )
-from app.contracts.auth import SCOPE_READ, SCOPE_WRITE
 
 
 class ShareTokenAuthentication(BaseAuthentication):
@@ -41,11 +41,11 @@ class IsAuthenticatedOrSharedAccess(BasePermission):
         if request.user and request.user.is_authenticated:
             return True
 
-        if hasattr(request, "auth") and isinstance(request.auth, dict):
-            if "share_slug" in request.auth:
-                return True
-
-        return False
+        return (
+            hasattr(request, "auth")
+            and isinstance(request.auth, dict)
+            and "share_slug" in request.auth
+        )
 
 
 class ApiKeyScopePermission(BasePermission):

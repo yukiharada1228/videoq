@@ -24,7 +24,7 @@ def write_chat_history_csv(writer, rows) -> None:
                 for rv in (row.citations or [])
             ]
             citations_str = json.dumps(citations, ensure_ascii=False)
-        except Exception:
+        except (AttributeError, TypeError, ValueError):
             citations_str = "[]"
         writer.writerow([
             row.created_at.isoformat(),

@@ -1,6 +1,5 @@
 """Django ORM implementation of EvaluationRepository."""
 
-from typing import List, Optional
 
 from django.db.models import Avg
 
@@ -40,14 +39,14 @@ class DjangoChatLogEvaluationRepository(EvaluationRepository):
         )
         return _to_entity(obj)
 
-    def get_by_chat_log_id(self, chat_log_id: int) -> Optional[ChatLogEvaluationEntity]:
+    def get_by_chat_log_id(self, chat_log_id: int) -> ChatLogEvaluationEntity | None:
         obj = ChatLogEvaluation.objects.filter(chat_log_id=chat_log_id).first()
         return _to_entity(obj) if obj else None
 
     def list_by_group_id(
         self,
         group_id: int,
-    ) -> List[ChatLogEvaluationEntity]:
+    ) -> list[ChatLogEvaluationEntity]:
         qs = (
             ChatLogEvaluation.objects
             .filter(chat_log__group_id=group_id)

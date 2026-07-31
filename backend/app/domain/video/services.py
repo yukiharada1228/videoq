@@ -5,13 +5,13 @@ Pure business logic with no external dependencies.
 
 import re
 
+from app.domain.video.entities import VideoGroupEntity
 from app.domain.video.exceptions import (
     InvalidShareSlug,
     InvalidTagColor,
     InvalidTagName,
     ReservedShareSlug,
 )
-from app.domain.video.entities import VideoGroupEntity
 from app.domain.video.status import VideoStatus
 
 
@@ -19,7 +19,7 @@ class ShareSlugPolicy:
     """Domain policy for validating and normalizing share slugs."""
 
     _SLUG_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
-    _RESERVED_SLUGS = {
+    _RESERVED_SLUGS = frozenset({
         "about",
         "admin",
         "api",
@@ -28,7 +28,7 @@ class ShareSlugPolicy:
         "settings",
         "share",
         "signup",
-    }
+    })
 
     @classmethod
     def normalize(cls, share_slug: str) -> str:

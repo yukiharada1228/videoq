@@ -4,7 +4,7 @@ Allows use cases to enforce atomic boundaries without a transaction framework.
 """
 
 from abc import ABC, abstractmethod
-from typing import Callable
+from collections.abc import Callable
 
 
 class TransactionPort(ABC):

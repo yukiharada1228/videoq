@@ -2,7 +2,7 @@
 Use case: Export chat history for a group as domain rows.
 """
 
-from typing import Generator, Iterable
+from collections.abc import Generator, Iterable
 
 from app.domain.chat.repositories import ChatRepository, VideoGroupQueryRepository
 from app.use_cases.chat.dto import ChatHistoryExportRow, CitationResponseDTO

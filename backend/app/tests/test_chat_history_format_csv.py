@@ -141,6 +141,7 @@ class ChatHistoryDownloadCsvDispatchTests(unittest.TestCase):
 
     def _make_view_and_request(self, params):
         from rest_framework.test import APIRequestFactory, force_authenticate
+
         from app.presentation.chat.views import ChatGroupHistoryView
 
         export_uc = _make_export_use_case()

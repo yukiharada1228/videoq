@@ -2,7 +2,6 @@
 Django ORM implementation of ApiKeyRepository.
 """
 
-from typing import List, Optional
 
 from django.contrib.auth import get_user_model
 
@@ -24,7 +23,7 @@ def _key_to_entity(key: UserApiKey) -> ApiKeyEntity:
 
 
 class DjangoApiKeyRepository(ApiKeyRepository):
-    def list_for_user(self, user_id: int) -> List[ApiKeyEntity]:
+    def list_for_user(self, user_id: int) -> list[ApiKeyEntity]:
         keys = UserApiKey.objects.filter(user_id=user_id, revoked_at__isnull=True)
         return [_key_to_entity(k) for k in keys]
 
@@ -40,7 +39,7 @@ class DjangoApiKeyRepository(ApiKeyRepository):
         )
         return ApiKeyCreateResult(api_key=_key_to_entity(api_key), raw_key=raw_key)
 
-    def get_active_by_id(self, key_id: int, user_id: int) -> Optional[ApiKeyEntity]:
+    def get_active_by_id(self, key_id: int, user_id: int) -> ApiKeyEntity | None:
         try:
             key = UserApiKey.objects.get(
                 pk=key_id, user_id=user_id, revoked_at__isnull=True

@@ -7,7 +7,9 @@ import csv
 import json
 import time
 import uuid
+from typing import ClassVar
 
+from django.http import HttpResponse, StreamingHttpResponse
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework import status
@@ -15,11 +17,13 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from app.presentation.common.authentication import APIKeyAuthentication, BearerAPIKeyAuthentication, CookieJWTAuthentication
-from app.presentation.common.pagination import StandardLimitOffsetPagination
-from app.use_cases.quota.exceptions import AiAnswersLimitExceeded, OverQuotaError
-from app.use_cases.chat.dto import ChatMessageInput, StreamContentChunk, StreamDoneEvent
+from app.presentation.common.authentication import (
+    APIKeyAuthentication,
+    BearerAPIKeyAuthentication,
+    CookieJWTAuthentication,
+)
 from app.presentation.common.mixins import DependencyResolverMixin
+from app.presentation.common.pagination import StandardLimitOffsetPagination
 from app.presentation.common.permissions import (
     ApiKeyScopePermission,
     IsAuthenticatedOrSharedAccess,
@@ -30,6 +34,7 @@ from app.presentation.common.throttles import (
     AuthenticatedChatThrottle,
     ShareTokenIPThrottle,
 )
+from app.use_cases.chat.dto import ChatMessageInput, StreamContentChunk, StreamDoneEvent
 from app.use_cases.chat.exceptions import (
     ChatNotFoundError,
     FeedbackPermissionDenied,
@@ -39,8 +44,8 @@ from app.use_cases.chat.exceptions import (
     LLMProviderError,
 )
 from app.use_cases.chat.send_message import PlogNotReadyError
+from app.use_cases.quota.exceptions import AiAnswersLimitExceeded, OverQuotaError
 from app.use_cases.shared.exceptions import PermissionDenied, ResourceNotFound
-from django.http import HttpResponse, StreamingHttpResponse
 
 from .exporters import write_chat_history_csv
 from .serializers import (
@@ -73,14 +78,14 @@ def _serialize_citations(citations):
 class ChatView(DependencyResolverMixin, APIView):
     """Chat endpoint with optional RAG context via video groups."""
 
-    authentication_classes = [
+    authentication_classes: ClassVar = [
         APIKeyAuthentication,
         CookieJWTAuthentication,
         ShareTokenAuthentication,
     ]
-    permission_classes = [IsAuthenticatedOrSharedAccess, ApiKeyScopePermission]
+    permission_classes: ClassVar = [IsAuthenticatedOrSharedAccess, ApiKeyScopePermission]
     required_scope = "chat_write"
-    throttle_classes = [
+    throttle_classes: ClassVar = [
         ShareTokenIPThrottle,
         AuthenticatedChatThrottle,
     ]
@@ -174,12 +179,12 @@ class ChatView(DependencyResolverMixin, APIView):
 class ChatLogFeedbackView(DependencyResolverMixin, APIView):
     """Submit feedback for a chat log entry (log_id comes from URL path)."""
 
-    authentication_classes = [
+    authentication_classes: ClassVar = [
         APIKeyAuthentication,
         CookieJWTAuthentication,
         ShareTokenAuthentication,
     ]
-    permission_classes = [IsAuthenticatedOrSharedAccess, ApiKeyScopePermission]
+    permission_classes: ClassVar = [IsAuthenticatedOrSharedAccess, ApiKeyScopePermission]
     required_scope = "chat_write"
     submit_feedback_use_case = None
 
@@ -219,8 +224,8 @@ class ChatGroupHistoryView(DependencyResolverMixin, APIView):
     Pass ?download=csv to download history as a CSV file.
     """
 
-    authentication_classes = [APIKeyAuthentication, CookieJWTAuthentication]
-    permission_classes = [IsAuthenticated, ApiKeyScopePermission]
+    authentication_classes: ClassVar = [APIKeyAuthentication, CookieJWTAuthentication]
+    permission_classes: ClassVar = [IsAuthenticated, ApiKeyScopePermission]
     serializer_class = ChatLogSerializer
     chat_history_use_case = None
     export_history_use_case = None
@@ -291,8 +296,8 @@ class ChatGroupHistoryView(DependencyResolverMixin, APIView):
 class ChatGroupAnalyticsView(DependencyResolverMixin, APIView):
     """Analytics dashboard data for a chat group (group_id in URL path)."""
 
-    authentication_classes = [APIKeyAuthentication, CookieJWTAuthentication]
-    permission_classes = [IsAuthenticated, ApiKeyScopePermission]
+    authentication_classes: ClassVar = [APIKeyAuthentication, CookieJWTAuthentication]
+    permission_classes: ClassVar = [IsAuthenticated, ApiKeyScopePermission]
     chat_analytics_use_case = None
 
     @extend_schema(
@@ -330,8 +335,8 @@ class ChatGroupAnalyticsView(DependencyResolverMixin, APIView):
 class ChatGroupAnalyticsKeywordsView(DependencyResolverMixin, APIView):
     """Keyword extraction for a chat group's analytics (group_id in URL path)."""
 
-    authentication_classes = [APIKeyAuthentication, CookieJWTAuthentication]
-    permission_classes = [IsAuthenticated, ApiKeyScopePermission]
+    authentication_classes: ClassVar = [APIKeyAuthentication, CookieJWTAuthentication]
+    permission_classes: ClassVar = [IsAuthenticated, ApiKeyScopePermission]
     chat_keywords_use_case = None
 
     @extend_schema(
@@ -367,14 +372,14 @@ class StreamChatView(DependencyResolverMixin, APIView):
     - ``{"type": "error", "code": "...", "message": "..."}`` — on error
     """
 
-    authentication_classes = [
+    authentication_classes: ClassVar = [
         APIKeyAuthentication,
         CookieJWTAuthentication,
         ShareTokenAuthentication,
     ]
-    permission_classes = [IsAuthenticatedOrSharedAccess, ApiKeyScopePermission]
+    permission_classes: ClassVar = [IsAuthenticatedOrSharedAccess, ApiKeyScopePermission]
     required_scope = "chat_write"
-    throttle_classes = [
+    throttle_classes: ClassVar = [
         ShareTokenIPThrottle,
         AuthenticatedChatThrottle,
     ]
@@ -490,10 +495,14 @@ class OpenAIChatCompletionsView(DependencyResolverMixin, APIView):
     ``chat_log_id``) are passed as extensions on the response message object.
     """
 
-    authentication_classes = [BearerAPIKeyAuthentication, APIKeyAuthentication, CookieJWTAuthentication]
-    permission_classes = [IsAuthenticated, ApiKeyScopePermission]
+    authentication_classes: ClassVar = [
+        BearerAPIKeyAuthentication,
+        APIKeyAuthentication,
+        CookieJWTAuthentication,
+    ]
+    permission_classes: ClassVar = [IsAuthenticated, ApiKeyScopePermission]
     required_scope = "chat_write"
-    throttle_classes = [AuthenticatedChatThrottle]
+    throttle_classes: ClassVar = [AuthenticatedChatThrottle]
     send_message_use_case = None
 
     @extend_schema(

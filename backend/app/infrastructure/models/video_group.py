@@ -1,3 +1,5 @@
+from typing import ClassVar
+
 from django.conf import settings
 from django.db import models
 from django.db.models.functions import Lower
@@ -35,8 +37,8 @@ class VideoGroup(models.Model):
     )
 
     class Meta:
-        ordering = ["display_order", "-created_at", "id"]
-        indexes = [
+        ordering: ClassVar = ["display_order", "-created_at", "id"]
+        indexes: ClassVar = [
             models.Index(fields=["user", "display_order", "-created_at"]),
             models.Index(
                 fields=["share_slug"],
@@ -44,7 +46,7 @@ class VideoGroup(models.Model):
                 name="videogroup_share_slug_idx",
             ),
         ]
-        constraints = [
+        constraints: ClassVar = [
             models.UniqueConstraint(
                 Lower("share_slug"),
                 condition=models.Q(share_slug__isnull=False),
@@ -81,12 +83,12 @@ class VideoGroupMember(models.Model):
     )
 
     class Meta:
-        ordering = ["order", "added_at"]
-        unique_together = [
+        ordering: ClassVar = ["order", "added_at"]
+        unique_together: ClassVar = [
             "group",
             "video",
         ]  # Cannot add the same video to the same group multiple times
-        indexes = [
+        indexes: ClassVar = [
             models.Index(fields=["group", "order"]),
             models.Index(fields=["video", "group"]),
         ]

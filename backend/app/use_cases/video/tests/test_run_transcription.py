@@ -1,7 +1,7 @@
 """Unit tests for RunTranscriptionUseCase using in-memory fakes."""
 
+from collections.abc import Callable, Generator
 from contextlib import contextmanager
-from typing import Callable, Generator, Optional
 from unittest import TestCase
 from unittest.mock import MagicMock
 
@@ -14,7 +14,10 @@ from app.use_cases.video.exceptions import (
     TranscriptionRejected,
     TranscriptionTargetMissing,
 )
-from app.use_cases.video.run_transcription import RunTranscriptionUseCase, _parse_srt_duration_seconds
+from app.use_cases.video.run_transcription import (
+    RunTranscriptionUseCase,
+    _parse_srt_duration_seconds,
+)
 
 
 class _FakeVideoTranscriptionRepository:
@@ -48,7 +51,7 @@ class _FakeVideoTranscriptionRepository:
 
 
 class _FakeTranscriptionGateway:
-    def __init__(self, transcript: str = "srt text", error: Optional[Exception] = None):
+    def __init__(self, transcript: str = "srt text", error: Exception | None = None):
         self.transcript = transcript
         self.error = error
         self.calls: list[int] = []
@@ -61,12 +64,12 @@ class _FakeTranscriptionGateway:
 
 
 class _FakeYoutubeTranscriptionGateway:
-    def __init__(self, transcript: str = "youtube srt", error: Optional[Exception] = None):
+    def __init__(self, transcript: str = "youtube srt", error: Exception | None = None):
         self.transcript = transcript
         self.error = error
         self.calls: list[tuple[str, str | None]] = []
         self.duration_calls: list[tuple[str, str | None]] = []
-        self.estimated_duration_seconds: Optional[int] = None
+        self.estimated_duration_seconds: int | None = None
 
     def run(self, youtube_video_id: str, api_key=None) -> str:
         self.calls.append((youtube_video_id, api_key))
@@ -74,7 +77,7 @@ class _FakeYoutubeTranscriptionGateway:
             raise self.error
         return self.transcript
 
-    def estimate_duration_seconds(self, youtube_video_id: str, api_key=None) -> Optional[int]:
+    def estimate_duration_seconds(self, youtube_video_id: str, api_key=None) -> int | None:
         self.duration_calls.append((youtube_video_id, api_key))
         return self.estimated_duration_seconds
 
