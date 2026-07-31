@@ -2,11 +2,11 @@
 
 from dataclasses import dataclass
 
-from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 from oauth2_provider.contrib.rest_framework import (
-    OAuth2Authentication as _DOTOAuth2Authentication,
+    OAuth2ProtectedResourceAuthentication,
 )
+from oauth2_provider.settings import oauth2_settings
 from rest_framework.authentication import BaseAuthentication, CSRFCheck
 from rest_framework.exceptions import AuthenticationFailed, PermissionDenied
 from rest_framework.permissions import SAFE_METHODS
@@ -141,21 +141,13 @@ class CookieJWTAuthentication(BaseAuthentication):
         return 'Bearer realm="api"'
 
 
-class MCPOAuth2Authentication(_DOTOAuth2Authentication):
+class MCPOAuth2Authentication(OAuth2ProtectedResourceAuthentication):
     """OAuth 2.1 bearer auth for the MCP endpoint.
 
-    Extends django-oauth-toolkit's OAuth2Authentication to advertise the
-    protected-resource metadata document (RFC 9728) in the ``WWW-Authenticate``
-    challenge, as required by the MCP Authorization spec so that clients like
-    Claude Desktop / claude.ai can auto-discover the authorization server.
+    Uses django-oauth-toolkit's RFC 9728 authenticator and points clients to
+    the strict path-component metadata document for the MCP resource.
     """
 
-    def authenticate_header(self, request: Request) -> str:
-        base = super().authenticate_header(request)
-        issuer = getattr(settings, "OAUTH2_PROVIDER_ISSUER_URL", "").rstrip("/")
-        resource_metadata = (
-            f"{issuer}/.well-known/oauth-protected-resource/api/mcp"
-        )
-        # Append resource_metadata to the existing Bearer challenge.
-        suffix = f',resource_metadata="{resource_metadata}"'
-        return base + suffix
+    def get_resource_metadata_url(self, request: Request) -> str:
+        issuer = oauth2_settings.OIDC_ISS_ENDPOINT.rstrip("/")
+        return f"{issuer}/.well-known/oauth-protected-resource/api/mcp"

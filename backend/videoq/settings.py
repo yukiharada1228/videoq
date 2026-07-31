@@ -370,7 +370,7 @@ SIMPLE_JWT = {
 # claude.ai's built-in Remote MCP connector (which speaks OAuth 2.1 +
 # Dynamic Client Registration, RFC 7591). Existing API-key auth still
 # works alongside this for clients like Claude Code.
-OAUTH2_PROVIDER_ISSUER_URL = os.environ.get(
+_oauth2_provider_issuer_url = os.environ.get(
     "OAUTH2_PROVIDER_ISSUER_URL",
     # Falls back to the API origin (without trailing slash). Override in
     # production with the public HTTPS origin of the API.
@@ -378,6 +378,7 @@ OAUTH2_PROVIDER_ISSUER_URL = os.environ.get(
 ).rstrip("/")
 
 OAUTH2_PROVIDER = {
+    "OIDC_ISS_ENDPOINT": _oauth2_provider_issuer_url,
     "SCOPES": {
         "read": "Read-only access to VideoQ via the MCP endpoint",
     },
@@ -386,6 +387,28 @@ OAUTH2_PROVIDER = {
     "ACCESS_TOKEN_EXPIRE_SECONDS": 60 * 60,  # 1 hour
     "REFRESH_TOKEN_EXPIRE_SECONDS": 60 * 60 * 24 * 30,  # 30 days
     "ALLOWED_REDIRECT_URI_SCHEMES": ["https", "http"],
+    # Claude Desktop / claude.ai discover and register clients dynamically.
+    "DCR_ENABLED": True,
+    "DCR_REGISTRATION_PERMISSION_CLASSES": (
+        "oauth2_provider.dcr.AllowAllDCRPermission",
+    ),
+    # Keep the advertised OAuth 2.1 capabilities aligned with what VideoQ uses.
+    "OAUTH2_RESPONSE_TYPES_SUPPORTED": ["code"],
+    "OAUTH2_GRANT_TYPES_SUPPORTED": ["authorization_code", "refresh_token"],
+    "OAUTH2_TOKEN_ENDPOINT_AUTH_METHODS_SUPPORTED": [
+        "none",
+        "client_secret_basic",
+        "client_secret_post",
+    ],
+    "OAUTH2_PROTECTED_RESOURCE_IDENTIFIER": (
+        f"{_oauth2_provider_issuer_url}/api/mcp/"
+    ),
+    "OAUTH2_PROTECTED_RESOURCE_AUTHORIZATION_SERVERS": [
+        _oauth2_provider_issuer_url
+    ],
+    "OAUTH2_PROTECTED_RESOURCE_DOCUMENTATION": (
+        "https://github.com/yukiharada1228/videoq#mcp-remote-endpoint"
+    ),
 }
 
 SPECTACULAR_SETTINGS = {

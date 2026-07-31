@@ -4,21 +4,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from .dto import (
-    AuthorizedTokenSummary,
-    ClientRegistrationRequest,
-    ClientRegistrationResponse,
-)
-
-
-class OAuthClientGateway(ABC):
-    """Persist OAuth clients registered via RFC 7591 Dynamic Client Registration."""
-
-    @abstractmethod
-    def register(
-        self, request: ClientRegistrationRequest
-    ) -> ClientRegistrationResponse:
-        """Create an OAuth public/confidential client."""
+from .dto import AuthorizedTokenSummary
 
 
 class OAuthAccessTokenGateway(ABC):
