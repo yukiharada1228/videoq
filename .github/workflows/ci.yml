@@ -50,8 +50,7 @@ jobs:
         working-directory: backend
         run: |
           pip install -r requirements.txt
-          # Keep CI aligned with the repository's established lint baseline.
-          pip install ruff==0.14.14 mypy
+          pip install ruff mypy
       - name: Run Ruff
         working-directory: backend
         run: ruff check app videoq
