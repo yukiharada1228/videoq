@@ -51,6 +51,7 @@ def get_vector_indexing_gateway():
 @lru_cache(maxsize=1)
 def get_file_upload_gateway():
     import os
+
     from app.infrastructure.external.file_upload_gateway import (
         LocalFileUploadGateway,
         R2FileUploadGateway,
