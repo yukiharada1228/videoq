@@ -9,7 +9,7 @@
 #
 # Note: Do not manage secrets such as the DB connection string, SECRET_KEY, or R2
 #       credentials with Terraform. After applying, register them in Secrets
-#       Manager with the AWS CLI (see "Register secrets" in DEPLOY.md).
+#       Manager with the AWS CLI (see Step 4 in DEPLOY.md).
 
 # --- Basic settings ----------------------------------------------------------
 
